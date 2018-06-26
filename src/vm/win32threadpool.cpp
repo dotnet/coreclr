@@ -1297,7 +1297,6 @@ ThreadpoolMgr::CallbackForInitiateDrainageOfCompletionPortQueue(
     }
 
     FastInterlockAnd(&g_fCompletionPortDrainNeeded, 0);
-    OverlappedDataObject::FinishCleanup(!fTryNextTime);
 #endif // !FEATURE_PAL
 }
 
@@ -1818,7 +1817,7 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
         bOK = pThread->CreateNewThread(0,               // default stack size
                                        lpStartAddress,
                                        lpArgs,           //arguments
-                                       W(".NET Core ThreadPool"));
+                                       W(".NET ThreadPool Worker"));
     }
     else {
 #ifndef FEATURE_PAL
@@ -1839,6 +1838,9 @@ Thread* ThreadpoolMgr::CreateUnimpersonatedThread(LPTHREAD_START_ROUTINE lpStart
                                         lpThreadArgs,       // arguments
                                         CREATE_SUSPENDED,
                                         &threadId);
+#ifndef FEATURE_PAL
+            SetThreadName(threadHandle, W(".NET ThreadPool Worker"));
+#endif // !FEATURE_PAL
             if (threadHandle != NULL)
                 lpThreadArgs.SuppressRelease();
         }
@@ -2414,7 +2416,7 @@ BOOL ThreadpoolMgr::CreateWaitThread()
     }
 
     threadCB->startEvent.CreateAutoEvent(FALSE);
-    HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, WaitThreadStart, (LPVOID)threadCB, CREATE_SUSPENDED, &threadId);
+    HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, WaitThreadStart, (LPVOID)threadCB, W(".NET ThreadPool Wait"), CREATE_SUSPENDED, &threadId);
 
     if (threadHandle == NULL)
     {
@@ -3165,7 +3167,7 @@ BOOL ThreadpoolMgr::CreateGateThread()
 {
     LIMITED_METHOD_CONTRACT;
 
-    HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, GateThreadStart, NULL);
+    HANDLE threadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, GateThreadStart, NULL, W(".NET ThreadPool Gate"));
 
     if (threadHandle)
     {
@@ -3456,7 +3458,9 @@ Top:
         // abstraction level for managed IO we can remove the IODequeues fired here
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadPoolIODequeue)
                 && !AreEtwIOQueueEventsSpeciallyHandled((LPOVERLAPPED_COMPLETION_ROUTINE)key) && pOverlapped != NULL)
-            FireEtwThreadPoolIODequeue(pOverlapped, (BYTE*)pOverlapped - offsetof(OverlappedDataObject, Internal), GetClrInstanceId());
+        {
+            FireEtwThreadPoolIODequeue(pOverlapped, OverlappedDataObject::GetOverlappedForTracing(pOverlapped), GetClrInstanceId());
+        }
 
         bool enterRetirement;
 
@@ -3763,7 +3767,7 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
         overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
     }  
 
-    if (ManagedCallback && (overlapped->GetAppDomainId() == adid)) 
+    if (ManagedCallback) 
     {           
         _ASSERTE(*pKey != 0);  // should be a valid function address
         
@@ -3772,7 +3776,6 @@ LPOVERLAPPED ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(
             //Application Bug.
             return NULL;
         }
-    
     } 
     else 
     {
@@ -4490,9 +4493,10 @@ BOOL ThreadpoolMgr::CreateTimerQueueTimer(PHANDLE phNewTimer,
         {
             CreateTimerThreadParams params;
             params.event.CreateAutoEvent(FALSE);
+
             params.setupSucceeded = FALSE;
 
-            HANDLE TimerThreadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, TimerThreadStart, &params);
+            HANDLE TimerThreadHandle = Thread::CreateUtilityThread(Thread::StackSize_Small, TimerThreadStart, &params, W(".NET Timer"));
 
             if (TimerThreadHandle == NULL)
             {

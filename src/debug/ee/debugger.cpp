@@ -1306,7 +1306,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ULONG cApparant = 0;
+    ULONG cApparent = 0;
     ULONG cOfficial = 0;
 
     if (NULL != m_pcEntries)
@@ -1320,7 +1320,7 @@ ULONG DebuggerMethodInfoTable::CheckDmiTable(void)
                dcp->pFD != (MethodDesc*)0xcdcdcdcd &&
                dcp->mi != NULL)
             {
-                cApparant++;
+                cApparent++;
 
                 _ASSERTE( dcp->pFD == dcp->mi->m_fd );
                 LOG((LF_CORDB, LL_INFO1000, "DMIT::CDT:Entry:0x%p mi:0x%p\nPrevs:\n",
@@ -3221,10 +3221,7 @@ CodeRegionInfo CodeRegionInfo::GetCodeRegionInfo(DebuggerJitInfo *dji, MethodDes
 
         if (addr)
         {
-            PCODE pCode = (PCODE)dac_cast<TADDR>(addr);
-#ifdef _TARGET_ARM_
-            pCode |= THUMB_CODE;
-#endif
+            PCODE pCode = PINSTRToPCODE(dac_cast<TADDR>(addr));
             codeRegionInfo.InitializeFromStartAddress(pCode);
         }
 
@@ -3447,10 +3444,10 @@ void Debugger::getBoundaries(MethodDesc * md,
     {
         // We don't look up PDBs for mscorlib.  This is not quite right, but avoids
         // a bootstrapping problem.  When an EXE loads, it has the option of setting
-        // the COM appartment model to STA if we need to.  It is important that no
+        // the COM apartment model to STA if we need to.  It is important that no
         // other Coinitialize happens before this.  Since loading the PDB reader uses
         // com we can not come first.  However managed code IS run before the COM
-        // appartment model is set, and thus we have a problem since this code is
+        // apartment model is set, and thus we have a problem since this code is
         // called for when JITTing managed code.    We avoid the problem by just
         // bailing for mscorlib.
         return;
@@ -11118,7 +11115,7 @@ bool Debugger::HandleIPCEvent(DebuggerIPCEvent * pEvent)
                     // In the EnC case, if we look for an older version, we need to find the DJI by starting 
                     // address, rather than just by MethodDesc. In the case of generics, we may need to create a DJI, so we 
                     pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pEvent->SetIP.vmMethodDesc.GetRawPtr(),
-                                                               (TADDR)pEvent->SetIP.startAddress);
+                                                               PINSTRToPCODE((TADDR)pEvent->SetIP.startAddress));
                 }
 
                 if ((pDJI != NULL) && (pThread != NULL) && (pModule != NULL))
@@ -13034,8 +13031,6 @@ HRESULT Debugger::UpdateFunction(MethodDesc* pMD, SIZE_T encVersion)
     // We only place the patches if we have jit info for this
     // function, i.e., its already been jitted. Otherwise, the EE will
     // pickup the new method on the next JIT anyway.
-
-    ICorDebugInfo::SourceTypes src;
 
     EnCSequencePointHelper sequencePointHelper(pJitInfo);
 

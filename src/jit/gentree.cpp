@@ -12,6 +12,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
 #include "jitpch.h"
+#include "hwintrinsic.h"
 #include "simd.h"
 
 #ifdef _MSC_VER
@@ -288,9 +289,9 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     GenTree::s_gtNodeSizes[GT_PUTARG_STK]       = TREE_NODE_SZ_LARGE;
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
     GenTree::s_gtNodeSizes[GT_PUTARG_SPLIT]     = TREE_NODE_SZ_LARGE;
-#endif
+#endif // FEATURE_ARG_SPLIT
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
     assert(GenTree::s_gtNodeSizes[GT_RETURN] == GenTree::s_gtNodeSizes[GT_ASG]);
@@ -351,9 +352,9 @@ void GenTree::InitNodeSize()
     // TODO-Throughput: This should not need to be a large node. The object info should be
     // obtained from the child node.
     static_assert_no_msg(sizeof(GenTreePutArgStk)    <= TREE_NODE_SZ_LARGE);
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
     static_assert_no_msg(sizeof(GenTreePutArgSplit)  <= TREE_NODE_SZ_LARGE);
-#endif
+#endif // FEATURE_ARG_SPLIT
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
 #ifdef FEATURE_SIMD
@@ -741,7 +742,7 @@ int GenTree::GetRegisterDstCount() const
     {
         return gtGetOp1()->GetRegisterDstCount();
     }
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
     else if (OperIsPutArgSplit())
     {
         return (const_cast<GenTree*>(this))->AsPutArgSplit()->gtNumRegs;
@@ -750,10 +751,14 @@ int GenTree::GetRegisterDstCount() const
     // either for all double parameters w/SoftFP or for varargs).
     else
     {
+#ifdef _TARGET_ARM_
         assert(OperIsMultiRegOp());
         return (TypeGet() == TYP_LONG) ? 2 : 1;
+#else
+        unreached();
+#endif // _TARGET_ARM_
     }
-#endif // defined(_TARGET_ARM_)
+#endif // FEATURE_ARG_SPLIT
     assert(!"Unexpected multi-reg node");
     return 0;
 }
@@ -799,7 +804,7 @@ regMaskTP GenTree::gtGetRegMask() const
             }
         }
     }
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
     else if (OperIsPutArgSplit())
     {
         GenTree*            tree     = const_cast<GenTree*>(this);
@@ -814,7 +819,7 @@ regMaskTP GenTree::gtGetRegMask() const
             resultMask |= genRegMask(reg);
         }
     }
-#endif
+#endif // FEATURE_ARG_SPLIT
     else
     {
         resultMask = genRegMask(gtRegNum);
@@ -3483,7 +3488,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 case GT_NEG:
                     // We need to ensure that -x is evaluated before x or else
                     // we get burned while adjusting genFPstkLevel in x*-x where
-                    // the rhs x is the last use of the enregsitered x.
+                    // the rhs x is the last use of the enregistered x.
                     //
                     // Even in the integer case we want to prefer to
                     // evaluate the side without the GT_NEG node, all other things
@@ -3570,8 +3575,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         bool rev;
 #if SCALED_ADDR_MODES
                         unsigned mul;
-#endif
-                        unsigned cns;
+#endif // SCALED_ADDR_MODES
+                        ssize_t  cns;
                         GenTree* base;
                         GenTree* idx;
 
@@ -3606,18 +3611,15 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                             }
                         }
                         if ((doAddrMode) &&
-                            codeGen->genCreateAddrMode(addr,     // address
-                                                       0,        // mode
-                                                       false,    // fold
-                                                       RBM_NONE, // reg mask
-                                                       &rev,     // reverse ops
-                                                       &base,    // base addr
-                                                       &idx,     // index val
+                            codeGen->genCreateAddrMode(addr,  // address
+                                                       false, // fold
+                                                       &rev,  // reverse ops
+                                                       &base, // base addr
+                                                       &idx,  // index val
 #if SCALED_ADDR_MODES
-                                                       &mul, // scaling
-#endif
-                                                       &cns,  // displacement
-                                                       true)) // don't generate code
+                                                       &mul,  // scaling
+#endif                                                        // SCALED_ADDR_MODES
+                                                       &cns)) // displacement
                         {
                             // We can form a complex addressing mode, so mark each of the interior
                             // nodes with GTF_ADDRMODE_NO_CSE and calculate a more accurate cost.
@@ -5152,7 +5154,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_FIELD_LIST:
             return TryGetUseList(def, use);
 
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
             if (this->AsUnOp()->gtOp1->gtOper == GT_FIELD_LIST)
             {
@@ -5164,7 +5166,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
                 return true;
             }
             return false;
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
 #ifdef FEATURE_SIMD
         case GT_SIMD:
@@ -5827,7 +5829,8 @@ GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree* op1, 
 
 GenTree* Compiler::gtNewQmarkNode(var_types type, GenTree* cond, GenTree* colon)
 {
-    compQmarkUsed   = true;
+    compQmarkUsed = true;
+    cond->gtFlags |= GTF_RELOP_QMARK;
     GenTree* result = new (this, GT_QMARK) GenTreeQmark(type, cond, colon, this);
 #ifdef DEBUG
     if (compQmarkRationalized)
@@ -6258,8 +6261,7 @@ GenTreeCall* Compiler::gtNewCallNode(
         }
 
         // Make sure that there are no duplicate entries for a given call node
-        IL_OFFSETX value;
-        assert(!genCallSite2ILOffsetMap->Lookup(node, &value));
+        assert(!genCallSite2ILOffsetMap->Lookup(node));
         genCallSite2ILOffsetMap->Set(node, ilOffset);
     }
 
@@ -8774,9 +8776,9 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_NULLCHECK:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
         case GT_RETURNTRAP:
             m_edge = &m_node->AsUnOp()->gtOp1;
             assert(*m_edge != nullptr);
@@ -10813,10 +10815,6 @@ extern const char* const simdIntrinsicNames[] = {
 };
 #endif // FEATURE_SIMD
 
-#ifdef FEATURE_HW_INTRINSICS
-extern const char* getHWIntrinsicName(NamedIntrinsic intrinsic);
-#endif // FEATURE_HW_INTRINSICS
-
 /*****************************************************************************/
 
 void Compiler::gtDispTree(GenTree*     tree,
@@ -11143,7 +11141,7 @@ void Compiler::gtDispTree(GenTree*     tree,
             printf(" %s %s",
                    tree->gtHWIntrinsic.gtSIMDBaseType == TYP_UNKNOWN ? ""
                                                                      : varTypeName(tree->gtHWIntrinsic.gtSIMDBaseType),
-                   getHWIntrinsicName(tree->gtHWIntrinsic.gtHWIntrinsicId));
+                   HWIntrinsicInfo::lookupName(tree->gtHWIntrinsic.gtHWIntrinsicId));
         }
 #endif // FEATURE_HW_INTRINSICS
 
@@ -11628,28 +11626,11 @@ void Compiler::gtGetLateArgMsg(
 #if FEATURE_MULTIREG_ARGS
             if (curArgTabEntry->numRegs >= 2)
             {
-                regNumber otherRegNum;
-#if defined(UNIX_AMD64_ABI)
-                assert(curArgTabEntry->numRegs == 2);
-                otherRegNum = curArgTabEntry->otherRegNum;
-#else
-                otherRegNum = (regNumber)(((unsigned)curArgTabEntry->regNum) + curArgTabEntry->numRegs - 1);
-#endif // UNIX_AMD64_ABI
-
-                if (listCount == -1)
-                {
-                    char seperator = (curArgTabEntry->numRegs == 2) ? ',' : '-';
-
-                    sprintf_s(bufp, bufLength, "arg%d %s%c%s%c", curArgTabEntry->argNum, compRegVarName(argReg),
-                              seperator, compRegVarName(otherRegNum), 0);
-                }
-                else // listCount is 0,1,2 or 3
-                {
-                    assert(listCount <= MAX_ARG_REG_COUNT);
-                    regNumber curReg = (listCount == 1) ? otherRegNum : (regNumber)((unsigned)(argReg) + listCount);
-                    sprintf_s(bufp, bufLength, "arg%d m%d %s%c", curArgTabEntry->argNum, listCount,
-                              compRegVarName(curReg), 0);
-                }
+                // listCount could be -1 but it is signed, so this comparison is OK.
+                assert(listCount <= MAX_ARG_REG_COUNT);
+                char separator = (curArgTabEntry->numRegs == 2) ? ',' : '-';
+                sprintf_s(bufp, bufLength, "arg%d %s%c%s%c", curArgTabEntry->argNum, compRegVarName(argReg), separator,
+                          compRegVarName(curArgTabEntry->getRegNum(curArgTabEntry->numRegs - 1)), 0);
             }
             else
 #endif
@@ -15165,15 +15146,6 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
 
     if (oper == GT_LOCKADD || oper == GT_XADD || oper == GT_XCHG || oper == GT_CMPXCHG)
     {
-        // XADD both adds to the memory location and also fetches the old value.  If we only need the side
-        // effect of this instruction, change it into a GT_LOCKADD node (the add only)
-        if (oper == GT_XADD)
-        {
-            expr->SetOperRaw(GT_LOCKADD);
-            assert(genActualType(expr->gtType) == genActualType(expr->gtOp.gtOp2->gtType));
-            expr->gtType = TYP_VOID;
-        }
-
         // These operations are kind of important to keep
         *pList = gtBuildCommaList(*pList, expr);
         return;
@@ -17027,7 +16999,7 @@ void GenTree::ParseArrayAddressWork(
                 // If one op is a constant, continue parsing down.
                 if (gtOp.gtOp2->IsCnsIntOrI())
                 {
-                    ssize_t subMul = 1 << gtOp.gtOp2->gtIntConCommon.IconValue();
+                    ssize_t subMul = ssize_t{1} << gtOp.gtOp2->gtIntConCommon.IconValue();
                     gtOp.gtOp1->ParseArrayAddressWork(comp, inputMul * subMul, pArr, pInxVN, pOffset, pFldSeq);
                     return;
                 }
@@ -17387,8 +17359,7 @@ bool GenTree::isCommutativeHWIntrinsic() const
     assert(gtOper == GT_HWIntrinsic);
 
 #ifdef _TARGET_XARCH_
-    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-    return ((flags & HW_Flag_Commutative) != 0);
+    return HWIntrinsicInfo::IsCommutative(AsHWIntrinsic()->gtHWIntrinsicId);
 #else
     return false;
 #endif // _TARGET_XARCH_
@@ -17399,8 +17370,25 @@ bool GenTree::isContainableHWIntrinsic() const
     assert(gtOper == GT_HWIntrinsic);
 
 #ifdef _TARGET_XARCH_
-    HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-    return ((flags & HW_Flag_NoContainment) == 0);
+    switch (AsHWIntrinsic()->gtHWIntrinsicId)
+    {
+        case NI_SSE_LoadAlignedVector128:
+        case NI_SSE_LoadScalarVector128:
+        case NI_SSE_LoadVector128:
+        case NI_SSE2_LoadAlignedVector128:
+        case NI_SSE2_LoadScalarVector128:
+        case NI_SSE2_LoadVector128:
+        case NI_AVX_LoadAlignedVector256:
+        case NI_AVX_LoadVector256:
+        {
+            return true;
+        }
+
+        default:
+        {
+            return false;
+        }
+    }
 #else
     return false;
 #endif // _TARGET_XARCH_
@@ -17414,8 +17402,7 @@ bool GenTree::isRMWHWIntrinsic(Compiler* comp)
 #ifdef _TARGET_XARCH_
     if (!comp->canUseVexEncoding())
     {
-        HWIntrinsicFlag flags = Compiler::flagsOfHWIntrinsic(AsHWIntrinsic()->gtHWIntrinsicId);
-        return ((flags & HW_Flag_NoRMWSemantics) == 0);
+        return HWIntrinsicInfo::HasRMWSemantics(AsHWIntrinsic()->gtHWIntrinsicId);
     }
 
     switch (AsHWIntrinsic()->gtHWIntrinsicId)
@@ -17433,10 +17420,14 @@ bool GenTree::isRMWHWIntrinsic(Compiler* comp)
         case NI_FMA_MultiplySubtractNegated:
         case NI_FMA_MultiplySubtractNegatedScalar:
         case NI_FMA_MultiplySubtractScalar:
+        {
             return true;
+        }
 
         default:
+        {
             return false;
+        }
     }
 #else
     return false;
@@ -17559,7 +17550,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryLoad sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if (category == HW_Category_MemoryLoad)
     {
         return true;
@@ -17569,7 +17560,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoad()
         // Some AVX instructions here also have MemoryLoad sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }
@@ -17594,7 +17585,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryStore sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if (category == HW_Category_MemoryStore)
     {
         return true;
@@ -17604,7 +17595,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryStore()
         // Some AVX instructions here also have MemoryStore sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }
@@ -17626,7 +17617,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
 {
 #ifdef _TARGET_XARCH_
     // Some xarch instructions have MemoryLoad sematics
-    HWIntrinsicCategory category = Compiler::categoryOfHWIntrinsic(gtHWIntrinsicId);
+    HWIntrinsicCategory category = HWIntrinsicInfo::lookupCategory(gtHWIntrinsicId);
     if ((category == HW_Category_MemoryLoad) || (category == HW_Category_MemoryStore))
     {
         return true;
@@ -17636,7 +17627,7 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
         // Some AVX instructions here also have MemoryLoad or MemoryStore sematics
 
         // Do we have 3 operands?
-        if (Compiler::numArgsOfHWIntrinsic(this) != 3)
+        if (HWIntrinsicInfo::lookupNumArgs(this) != 3)
         {
             return false;
         }

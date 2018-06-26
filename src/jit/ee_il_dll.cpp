@@ -475,6 +475,15 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
             {
                 var_types hfaType = GetHfaType(argClass); // set to float or double if it is an HFA, otherwise TYP_UNDEF
                 bool      isHfa   = (hfaType != TYP_UNDEF);
+#ifndef _TARGET_UNIX_
+                if (info.compIsVarArgs)
+                {
+                    // Arm64 Varargs ABI requires passing in general purpose
+                    // registers. Force the decision of whether this is an HFA
+                    // to false to correctly pass as if it was not an HFA.
+                    isHfa = false;
+                }
+#endif // _TARGET_UNIX_
                 if (!isHfa)
                 {
                     // This struct is passed by reference using a single 'slot'
@@ -524,7 +533,7 @@ GenTree* Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
 
 unsigned Compiler::eeGetArrayDataOffset(var_types type)
 {
-    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : offsetof(CORINFO_Array, u1Elems);
+    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : OFFSETOF__CORINFO_Array__data;
 }
 
 //------------------------------------------------------------------------

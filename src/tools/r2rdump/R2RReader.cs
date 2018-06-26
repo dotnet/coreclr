@@ -6,18 +6,41 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
+using System.Text;
 
 namespace R2RDump
 {
+    public enum Amd64Registers
+    {
+        EAX = 0,
+        ECX = 1,
+        EDX = 2,
+        EBX = 3,
+        ESP = 4,
+        EBP = 5,
+        ESI = 6,
+        EDI = 7,
+        E8 = 8,
+        E9 = 9,
+        E10 = 10,
+        E11 = 11,
+        E12 = 12,
+        E13 = 13,
+        E14 = 14,
+        E15 = 15,
+    }
+
     class R2RReader
     {
+        private readonly PEReader _peReader;
+        private readonly MetadataReader _mdReader;
+
         /// <summary>
         /// Byte array containing the ReadyToRun image
         /// </summary>
-        private readonly byte[] _image;
-
-        private readonly PEReader peReader;
+        public byte[] Image { get; }
 
         /// <summary>
         /// Name of the image file
@@ -47,147 +70,315 @@ namespace R2RDump
 
         /// <summary>
         /// The runtime functions and method signatures of each method
-        /// TODO: generic methods
         /// </summary>
-        public List<R2RMethod> R2RMethods { get; }
+        public IList<R2RMethod> R2RMethods { get; }
 
         /// <summary>
-        /// Initializes the fields of the R2RHeader
+        /// The available types from READYTORUN_SECTION_AVAILABLE_TYPES
+        /// </summary>
+        public IList<string> AvailableTypes { get; }
+
+        /// <summary>
+        /// The compile identifier string from READYTORUN_SECTION_COMPILER_IDENTIFIER
+        /// </summary>
+        public string CompileIdentifier { get; }
+
+        public IList<R2RImportSection> ImportSections { get; }
+
+        /// <summary>
+        /// Initializes the fields of the R2RHeader and R2RMethods
         /// </summary>
         /// <param name="filename">PE image</param>
         /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>
         public unsafe R2RReader(string filename)
         {
             Filename = filename;
-            _image = File.ReadAllBytes(filename);
+            Image = File.ReadAllBytes(filename);
 
-            fixed (byte* p = _image)
+            fixed (byte* p = Image)
             {
                 IntPtr ptr = (IntPtr)p;
-                peReader = new PEReader(p, _image.Length);
+                _peReader = new PEReader(p, Image.Length);
 
-                IsR2R = (peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
+                IsR2R = (_peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
                 if (!IsR2R)
                 {
                     throw new BadImageFormatException("The file is not a ReadyToRun image");
                 }
 
-                Machine = peReader.PEHeaders.CoffHeader.Machine;
-                ImageBase = peReader.PEHeaders.PEHeader.ImageBase;
+                Machine = _peReader.PEHeaders.CoffHeader.Machine;
+                ImageBase = _peReader.PEHeaders.PEHeader.ImageBase;
 
                 // initialize R2RHeader
-                DirectoryEntry r2rHeaderDirectory = peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
+                DirectoryEntry r2rHeaderDirectory = _peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
                 int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress);
-                R2RHeader = new R2RHeader(_image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
+                R2RHeader = new R2RHeader(Image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
                 if (r2rHeaderDirectory.Size != R2RHeader.Size)
                 {
                     throw new BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
                 }
 
-                // initialize R2RMethods
-                if (peReader.HasMetadata)
+                if (_peReader.HasMetadata)
                 {
-                    MetadataReader mdReader = peReader.GetMetadataReader();
+                    _mdReader = _peReader.GetMetadataReader();
 
-                    int runtimeFunctionSize = 2;
+                    R2RMethods = new List<R2RMethod>();
+                    if (R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS))
+                    {
+                        int runtimeFunctionSize = CalculateRuntimeFunctionSize();
+                        R2RSection runtimeFunctionSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
+                        uint nRuntimeFunctions = (uint)(runtimeFunctionSection.Size / runtimeFunctionSize);
+                        int runtimeFunctionOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
+                        bool[] isEntryPoint = new bool[nRuntimeFunctions];
+
+                        // initialize R2RMethods
+                        ParseMethodDefEntrypoints(isEntryPoint);
+                        ParseInstanceMethodEntrypoints(isEntryPoint);
+                        ParseRuntimeFunctions(isEntryPoint, runtimeFunctionOffset, runtimeFunctionSize);
+                    }
+
+                    AvailableTypes = new List<string>();
+                    ParseAvailableTypes();
+
+                    CompileIdentifier = ParseCompilerIdentifier();
+
+                    ImportSections = new List<R2RImportSection>();
+                    ParseImportSections();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Each runtime function entry has 3 fields for Amd64 machines (StartAddress, EndAddress, UnwindRVA), otherwise 2 fields (StartAddress, UnwindRVA)
+        /// </summary>
+        private int CalculateRuntimeFunctionSize()
+        {
+            if (Machine == Machine.Amd64)
+            {
+                return 3 * sizeof(int);
+            }
+            return 2 * sizeof(int);
+        }
+
+        /// <summary>
+        /// Initialize non-generic R2RMethods with method signatures from MethodDefHandle, and runtime function indices from MethodDefEntryPoints
+        /// </summary>
+        private void ParseMethodDefEntrypoints(bool[] isEntryPoint)
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS))
+            {
+                return;
+            }
+            int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
+            int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
+            NativeArray methodEntryPoints = new NativeArray(Image, (uint)methodDefEntryPointsOffset);
+            uint nMethodEntryPoints = methodEntryPoints.GetCount();
+
+            for (uint rid = 1; rid <= nMethodEntryPoints; rid++)
+            {
+                int offset = 0;
+                if (methodEntryPoints.TryGetAt(Image, rid - 1, ref offset))
+                {
+                    R2RMethod method = new R2RMethod(_mdReader, rid, GetEntryPointIdFromOffset(offset), null, null);
+
+                    if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
+                    {
+                        throw new BadImageFormatException("EntryPointRuntimeFunctionId out of bounds");
+                    }
+                    isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                    R2RMethods.Add(method);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Initialize generic method instances with argument types and runtime function indices from InstanceMethodEntrypoints
+        /// </summary>
+        private void ParseInstanceMethodEntrypoints(bool[] isEntryPoint)
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS))
+            {
+                return;
+            }
+            R2RSection instMethodEntryPointSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS];
+            int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
+            NativeParser parser = new NativeParser(Image, (uint)instMethodEntryPointsOffset);
+            NativeHashtable instMethodEntryPoints = new NativeHashtable(Image, parser, (uint)(instMethodEntryPointsOffset + instMethodEntryPointSection.Size));
+            NativeHashtable.AllEntriesEnumerator allEntriesEnum = instMethodEntryPoints.EnumerateAllEntries();
+            NativeParser curParser = allEntriesEnum.GetNext();
+            while (!curParser.IsNull())
+            {
+                uint methodFlags = curParser.GetCompressedData();
+                uint rid = curParser.GetCompressedData();
+                if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
+                {
+                    uint nArgs = curParser.GetCompressedData();
+                    R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
+                    uint[] tokens = new uint[nArgs];
+                    for (int i = 0; i < nArgs; i++)
+                    {
+                        args[i] = (R2RMethod.GenericElementTypes)curParser.GetByte();
+                        if (args[i] == R2RMethod.GenericElementTypes.ValueType)
+                        {
+                            tokens[i] = curParser.GetCompressedData();
+                            tokens[i] = (tokens[i] >> 2);
+                        }
+                    }
+
+                    int id = GetEntryPointIdFromOffset((int)curParser.Offset);
+                    R2RMethod method = new R2RMethod(_mdReader, rid, id, args, tokens);
+                    if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
+                    {
+                        isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                    }
+                    R2RMethods.Add(method);
+                }
+                curParser = allEntriesEnum.GetNext();
+            }
+        }
+
+        /// <summary>
+        /// Get the RVAs of the runtime functions for each method
+        /// </summary>
+        private void ParseRuntimeFunctions(bool[] isEntryPoint, int runtimeFunctionOffset, int runtimeFunctionSize)
+        {
+            int curOffset = 0;
+            foreach (R2RMethod method in R2RMethods)
+            {
+                int runtimeFunctionId = method.EntryPointRuntimeFunctionId;
+                if (runtimeFunctionId == -1)
+                    continue;
+                curOffset = runtimeFunctionOffset + runtimeFunctionId * runtimeFunctionSize;
+                GcInfo gcInfo = null;
+                int codeOffset = 0;
+                do
+                {
+                    int startRva = NativeReader.ReadInt32(Image, ref curOffset);
+                    int endRva = -1;
                     if (Machine == Machine.Amd64)
                     {
-                        runtimeFunctionSize = 3;
+                        endRva = NativeReader.ReadInt32(Image, ref curOffset);
                     }
-                    runtimeFunctionSize *= sizeof(int);
-                    R2RSection runtimeFunctionSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
-                    uint nRuntimeFunctions = (uint)(runtimeFunctionSection.Size / runtimeFunctionSize);
-                    int runtimeFunctionOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
-                    bool[] isEntryPoint = new bool[nRuntimeFunctions];
-                    for (int i = 0; i < nRuntimeFunctions; i++)
+                    int unwindRva = NativeReader.ReadInt32(Image, ref curOffset);
+                    int unwindOffset = GetOffset(unwindRva);
+
+                    UnwindInfo unwindInfo = new UnwindInfo(Image, unwindOffset);
+                    if (isEntryPoint[runtimeFunctionId])
                     {
-                        isEntryPoint[i] = false;
+                        gcInfo = new GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
                     }
 
-                    // initialize R2RMethods with method signatures from MethodDefHandle, and runtime function indices from MethodDefEntryPoints
-                    int methodDefEntryPointsRVA = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS].RelativeVirtualAddress;
-                    int methodDefEntryPointsOffset = GetOffset(methodDefEntryPointsRVA);
-                    NativeArray methodEntryPoints = new NativeArray(_image, (uint)methodDefEntryPointsOffset);
-                    uint nMethodEntryPoints = methodEntryPoints.GetCount();
-                    R2RMethods = new List<R2RMethod>();
-                    for (uint rid = 1; rid <= nMethodEntryPoints; rid++)
-                    {
-                        int offset = 0;
-                        if (methodEntryPoints.TryGetAt(_image, rid - 1, ref offset))
-                        {
-                            R2RMethod method = new R2RMethod(_image, mdReader, rid, GetEntryPointIdFromOffset(offset), null, null);
-
-                            if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= nRuntimeFunctions)
-                            {
-                                throw new BadImageFormatException("EntryPointRuntimeFunctionId out of bounds");
-                            }
-                            isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
-                            R2RMethods.Add(method);
-                        }
-                    }
-
-                    // instance method table
-                    R2RSection instMethodEntryPointSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS];
-                    int instMethodEntryPointsOffset = GetOffset(instMethodEntryPointSection.RelativeVirtualAddress);
-                    NativeParser parser = new NativeParser(_image, (uint)instMethodEntryPointsOffset);
-                    NativeHashtable instMethodEntryPoints = new NativeHashtable(_image, parser);
-                    NativeHashtable.AllEntriesEnumerator allEntriesEnum = instMethodEntryPoints.EnumerateAllEntries();
-                    NativeParser curParser = allEntriesEnum.GetNext();
-                    while (!curParser.IsNull())
-                    {
-                        byte methodFlags = curParser.GetByte();
-                        byte rid = curParser.GetByte();
-                        if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
-                        {
-                            byte nArgs = curParser.GetByte();
-                            R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
-                            uint[] tokens = new uint[nArgs];
-                            for (int i = 0; i < nArgs; i++)
-                            {
-                                args[i] = (R2RMethod.GenericElementTypes)curParser.GetByte();
-                                if (args[i] == R2RMethod.GenericElementTypes.ValueType)
-                                {
-                                    tokens[i] = curParser.GetByte();
-                                    tokens[i] = (tokens[i] >> 2);
-                                }
-                            }
-
-                            uint id = curParser.GetUnsigned();
-                            id = id >> 1;
-                            R2RMethod method = new R2RMethod(_image, mdReader, rid, (int)id, args, tokens);
-                            if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < nRuntimeFunctions)
-                            {
-                                isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
-                            }
-                            R2RMethods.Add(method);
-                        }
-                        curParser = allEntriesEnum.GetNext();
-                    }
-
-                    // get the RVAs of the runtime functions for each method
-                    int curOffset = 0;
-                    foreach (R2RMethod method in R2RMethods)
-                    {
-                        int runtimeFunctionId = method.EntryPointRuntimeFunctionId;
-                        if (runtimeFunctionId == -1)
-                            continue;
-                        curOffset = runtimeFunctionOffset + runtimeFunctionId * runtimeFunctionSize;
-                        do
-                        {
-                            int startRva = NativeReader.ReadInt32(_image, ref curOffset);
-                            int endRva = -1;
-                            if (Machine == Machine.Amd64)
-                            {
-                                endRva = NativeReader.ReadInt32(_image, ref curOffset);
-                            }
-                            int unwindRva = NativeReader.ReadInt32(_image, ref curOffset);
-
-                            method.RuntimeFunctions.Add(new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva));
-                            runtimeFunctionId++;
-                        }
-                        while (runtimeFunctionId < nRuntimeFunctions && !isEntryPoint[runtimeFunctionId]);
-                    }
+                    RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
+                    method.RuntimeFunctions.Add(rtf);
+                    runtimeFunctionId++;
+                    codeOffset += rtf.Size;
                 }
+                while (runtimeFunctionId < isEntryPoint.Length && !isEntryPoint[runtimeFunctionId]);
+            }
+        }
+
+        private void ParseAvailableTypes()
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES))
+            {
+                return;
+            }
+            R2RSection availableTypesSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
+            int availableTypesOffset = GetOffset(availableTypesSection.RelativeVirtualAddress);
+            NativeParser parser = new NativeParser(Image, (uint)availableTypesOffset);
+            NativeHashtable availableTypes = new NativeHashtable(Image, parser, (uint)(availableTypesOffset + availableTypesSection.Size));
+            NativeHashtable.AllEntriesEnumerator allEntriesEnum = availableTypes.EnumerateAllEntries();
+            NativeParser curParser = allEntriesEnum.GetNext();
+            while (!curParser.IsNull())
+            {
+                uint rid = curParser.GetUnsigned();
+                rid = rid >> 1;
+                TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
+                AvailableTypes.Add(GetTypeDefFullName(_mdReader, typeDefHandle));
+                curParser = allEntriesEnum.GetNext();
+            }
+        }
+
+        private string ParseCompilerIdentifier()
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_COMPILER_IDENTIFIER))
+            {
+                return "";
+            }
+            R2RSection compilerIdentifierSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_COMPILER_IDENTIFIER];
+            byte[] identifier = new byte[compilerIdentifierSection.Size];
+            int identifierOffset = GetOffset(compilerIdentifierSection.RelativeVirtualAddress);
+            Array.Copy(Image, identifierOffset, identifier, 0, compilerIdentifierSection.Size);
+            return Encoding.UTF8.GetString(identifier);
+        }
+
+        private void ParseImportSections()
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_IMPORT_SECTIONS))
+            {
+                return;
+            }
+            R2RSection importSectionsSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_IMPORT_SECTIONS];
+            int offset = GetOffset(importSectionsSection.RelativeVirtualAddress);
+            int endOffset = offset + importSectionsSection.Size;
+            while (offset < endOffset)
+            {
+                int rva = NativeReader.ReadInt32(Image, ref offset);
+                int sectionOffset = GetOffset(rva);
+                int size = NativeReader.ReadInt32(Image, ref offset);
+                R2RImportSection.CorCompileImportFlags flags = (R2RImportSection.CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
+                byte type = NativeReader.ReadByte(Image, ref offset);
+                byte entrySize = NativeReader.ReadByte(Image, ref offset);
+                int entryCount = 0;
+                if (entrySize != 0)
+                {
+                    entryCount = size / entrySize;
+                }
+                int signatureRVA = NativeReader.ReadInt32(Image, ref offset);
+
+                int signatureOffset = 0;
+                if (signatureRVA != 0)
+                {
+                    signatureOffset = GetOffset(signatureRVA);
+                }
+                List<R2RImportSection.ImportSectionEntry> entries = new List<R2RImportSection.ImportSectionEntry>();
+                switch (flags)
+                {
+                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_EAGER:
+                        {
+                            int tempSignatureOffset = signatureOffset;
+                            int firstSigRva = NativeReader.ReadInt32(Image, ref tempSignatureOffset);
+                            uint sigRva = 0;
+                            while (sigRva != firstSigRva)
+                            {
+                                sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
+                                long section = NativeReader.ReadInt64(Image, ref sectionOffset);
+                                int sigOff = GetOffset((int)sigRva);
+                                uint signature = NativeReader.ReadUInt32(Image, ref sigOff);
+                                entries.Add(new R2RImportSection.ImportSectionEntry(section, sigRva, signature));
+                            }
+                        }
+                        break;
+                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_CODE:
+                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_PCODE:
+                        for (int i = 0; i < entryCount; i++)
+                        {
+                            long section = NativeReader.ReadInt64(Image, ref sectionOffset);
+                            uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
+                            int sigOff = GetOffset((int)sigRva);
+                            uint signature = NativeReader.ReadUInt32(Image, ref sigOff);
+                            entries.Add(new R2RImportSection.ImportSectionEntry(section, sigRva, signature));
+                        }
+                        break;
+                }
+
+                int auxDataRVA = NativeReader.ReadInt32(Image, ref offset);
+                int auxDataOffset = 0;
+                if (auxDataRVA != 0)
+                {
+                    auxDataOffset = GetOffset(auxDataRVA);
+                }
+                ImportSections.Add(new R2RImportSection(Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
             }
         }
 
@@ -197,22 +388,47 @@ namespace R2RDump
         /// <param name="rva">The relative virtual address</param>
         public int GetOffset(int rva)
         {
-            int index = peReader.PEHeaders.GetContainingSectionIndex(rva);
-            SectionHeader containingSection = peReader.PEHeaders.SectionHeaders[index];
+            int index = _peReader.PEHeaders.GetContainingSectionIndex(rva);
+            if (index == -1)
+            {
+                throw new BadImageFormatException("Failed to convert invalid RVA to offset: " + rva);
+            }
+            SectionHeader containingSection = _peReader.PEHeaders.SectionHeaders[index];
             return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
         }
 
+        /// <summary>
+        /// Get the full name of a type, including parent classes and namespace
+        /// </summary>
+        public static string GetTypeDefFullName(MetadataReader mdReader, TypeDefinitionHandle handle)
+        {
+            TypeDefinition typeDef;
+            string typeStr = "";
+            do
+            {
+                typeDef = mdReader.GetTypeDefinition(handle);
+                typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
+                handle = typeDef.GetDeclaringType();
+            }
+            while (!handle.IsNil);
+
+            return mdReader.GetString(typeDef.Namespace) + typeStr;
+        }
+
+        /// <summary>
+        /// Reads the method entrypoint from the offset. Used for non-generic methods
+        /// </summary>
         private int GetEntryPointIdFromOffset(int offset)
         {
             // get the id of the entry point runtime function from the MethodEntryPoints NativeArray
             uint id = 0; // the RUNTIME_FUNCTIONS index
-            offset = (int)NativeReader.DecodeUnsigned(_image, (uint)offset, ref id);
+            offset = (int)NativeReader.DecodeUnsigned(Image, (uint)offset, ref id);
             if ((id & 1) != 0)
             {
                 if ((id & 2) != 0)
                 {
                     uint val = 0;
-                    NativeReader.DecodeUnsigned(_image, (uint)offset, ref val);
+                    NativeReader.DecodeUnsigned(Image, (uint)offset, ref val);
                     offset -= (int)val;
                 }
                 // TODO: Dump fixups

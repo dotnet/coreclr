@@ -674,7 +674,6 @@ GuidToMethodTableEntry *GuidToMethodTableHashTable::InsertValue(PTR_GUID pGuid, 
     CONTRACTL_END;
 
     GuidToMethodTableEntry *pEntry = NULL;
-    LookupContext ctx;
 
     if (bReplaceIfFound)
     {
@@ -2018,6 +2017,12 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
     //    | Class Data (one byte per class)  |   pointer to gc statics | primitive type statics |
     //
     //
+#ifndef CROSSBITNESS_COMPILE
+    // The assertions must hold in every non-crossbitness scenario
+    _ASSERTE(OFFSETOF__DomainLocalModule__m_pDataBlob_ == DomainLocalModule::OffsetOfDataBlob());
+    _ASSERTE(OFFSETOF__ThreadLocalModule__m_pDataBlob  == ThreadLocalModule::OffsetOfDataBlob());
+#endif
+
     DWORD      dwNonGCBytes[2] = { 
         DomainLocalModule::OffsetOfDataBlob() + sizeof(BYTE)*dwNumTypes, 
         ThreadLocalModule::OffsetOfDataBlob() + sizeof(BYTE)*dwNumTypes
@@ -2139,7 +2144,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
                         (S_SIZE_T(2 * sizeof(DWORD))*(S_SIZE_T(dwNumTypes)+S_SIZE_T(1)))));
 
                 for (DWORD i = 0; i < dwIndex; i++) {
-                    pRegularStaticOffsets[i * 2    ] = dwGCHandles[0]*sizeof(OBJECTREF);
+                    pRegularStaticOffsets[i * 2    ] = dwGCHandles[0]*TARGET_POINTER_SIZE;
                     pRegularStaticOffsets[i * 2 + 1] = dwNonGCBytes[0];                    
                 }
             }
@@ -2152,7 +2157,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
                         (S_SIZE_T(2 * sizeof(DWORD))*(S_SIZE_T(dwNumTypes)+S_SIZE_T(1)))));
 
                 for (DWORD i = 0; i < dwIndex; i++) {
-                    pThreadStaticOffsets[i * 2    ] = dwGCHandles[1]*sizeof(OBJECTREF);
+                    pThreadStaticOffsets[i * 2    ] = dwGCHandles[1]*TARGET_POINTER_SIZE;
                     pThreadStaticOffsets[i * 2 + 1] = dwNonGCBytes[1];                    
                 }
             }
@@ -2164,7 +2169,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
             dwNonGCBytes[0] = (DWORD) ALIGN_UP(dwNonGCBytes[0], dwAlignment[0]);
 
             // Save current offsets
-            pRegularStaticOffsets[dwIndex*2]     = dwGCHandles[0]*sizeof(OBJECTREF);
+            pRegularStaticOffsets[dwIndex*2]     = dwGCHandles[0]*TARGET_POINTER_SIZE;
             pRegularStaticOffsets[dwIndex*2 + 1] = dwNonGCBytes[0];
         
             // Increment for next class
@@ -2178,7 +2183,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
             dwNonGCBytes[1] = (DWORD) ALIGN_UP(dwNonGCBytes[1], dwAlignment[1]);
 
             // Save current offsets
-            pThreadStaticOffsets[dwIndex*2]     = dwGCHandles[1]*sizeof(OBJECTREF);
+            pThreadStaticOffsets[dwIndex*2]     = dwGCHandles[1]*TARGET_POINTER_SIZE;
             pThreadStaticOffsets[dwIndex*2 + 1] = dwNonGCBytes[1];
         
             // Increment for next class
@@ -2191,13 +2196,13 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
 
     if (pRegularStaticOffsets != NULL)
     {
-        pRegularStaticOffsets[dwNumTypes*2]     = dwGCHandles[0]*sizeof(OBJECTREF);
+        pRegularStaticOffsets[dwNumTypes*2]     = dwGCHandles[0]*TARGET_POINTER_SIZE;
         pRegularStaticOffsets[dwNumTypes*2 + 1] = dwNonGCBytes[0];
     }
 
     if (pThreadStaticOffsets != NULL)
     {
-        pThreadStaticOffsets[dwNumTypes*2]     = dwGCHandles[1]*sizeof(OBJECTREF);
+        pThreadStaticOffsets[dwNumTypes*2]     = dwGCHandles[1]*TARGET_POINTER_SIZE;
         pThreadStaticOffsets[dwNumTypes*2 + 1] = dwNonGCBytes[1];
     }
 
@@ -2234,11 +2239,14 @@ void  Module::GetOffsetsForRegularStaticData(
         return;
     }
 
+#ifndef CROSSBITNESS_COMPILE
+    _ASSERTE(OFFSETOF__DomainLocalModule__NormalDynamicEntry__m_pDataBlob == DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob());
+#endif
     // Statics for instantiated types are allocated dynamically per-instantiation
     if (bDynamic)
     {
         // Non GC statics are embedded in the Dynamic Entry.
-        *pOutNonGCStaticOffset  = DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob();
+        *pOutNonGCStaticOffset  = OFFSETOF__DomainLocalModule__NormalDynamicEntry__m_pDataBlob;
         return;
     }
 
@@ -2254,9 +2262,12 @@ void  Module::GetOffsetsForRegularStaticData(
     *pOutStaticHandleOffset = m_pRegularStaticOffsets[index*2];
 
     *pOutNonGCStaticOffset  = m_pRegularStaticOffsets[index*2 + 1];
+#ifdef CROSSBITNESS_COMPILE
+    *pOutNonGCStaticOffset += OFFSETOF__DomainLocalModule__m_pDataBlob_ - DomainLocalModule::OffsetOfDataBlob();
+#endif
 
     // Check we didnt go out of what we predicted we would need for the class
-    if (*pOutStaticHandleOffset + sizeof(OBJECTREF*)*dwGCStaticHandles >
+    if (*pOutStaticHandleOffset + TARGET_POINTER_SIZE*dwGCStaticHandles >
                 m_pRegularStaticOffsets[(index+1)*2] ||
         *pOutNonGCStaticOffset + dwNonGCStaticBytes >
                 m_pRegularStaticOffsets[(index+1)*2 + 1])
@@ -2292,11 +2303,14 @@ void  Module::GetOffsetsForThreadStaticData(
         return;
     }
 
+#ifndef CROSSBITNESS_COMPILE
+    _ASSERTE(OFFSETOF__ThreadLocalModule__DynamicEntry__m_pDataBlob == ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob());
+#endif
     // Statics for instantiated types are allocated dynamically per-instantiation
     if (bDynamic)
     {
         // Non GC thread statics are embedded in the Dynamic Entry.
-        *pOutNonGCStaticOffset  = ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob();
+        *pOutNonGCStaticOffset  = OFFSETOF__ThreadLocalModule__DynamicEntry__m_pDataBlob;
         return;
     }
 
@@ -2312,9 +2326,12 @@ void  Module::GetOffsetsForThreadStaticData(
     *pOutStaticHandleOffset = m_pThreadStaticOffsets[index*2];
 
     *pOutNonGCStaticOffset  = m_pThreadStaticOffsets[index*2 + 1];
+#ifdef CROSSBITNESS_COMPILE
+    *pOutNonGCStaticOffset += OFFSETOF__ThreadLocalModule__m_pDataBlob - ThreadLocalModule::GetOffsetOfDataBlob();
+#endif
 
     // Check we didnt go out of what we predicted we would need for the class
-    if (*pOutStaticHandleOffset + sizeof(OBJECTREF*)*dwGCStaticHandles >
+    if (*pOutStaticHandleOffset + TARGET_POINTER_SIZE*dwGCStaticHandles >
                 m_pThreadStaticOffsets[(index+1)*2] ||
         *pOutNonGCStaticOffset + dwNonGCStaticBytes >
                 m_pThreadStaticOffsets[(index+1)*2 + 1])
@@ -13436,7 +13453,7 @@ VASigCookie *Module::GetVASigCookie(Signature vaSignature)
             pCookie->sizeOfArgs = sizeOfArgs;
             pCookie->signature = vaSignature;
 
-            // Finally, now that it's safe for ansynchronous readers to see it,
+            // Finally, now that it's safe for asynchronous readers to see it,
             // update the count.
             m_pVASigCookieBlock->m_numcookies++;
         }

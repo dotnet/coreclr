@@ -45,6 +45,12 @@ bool                Compiler::s_pAltJitExcludeAssembliesListInitialized = false;
 AssemblyNamesList2* Compiler::s_pAltJitExcludeAssembliesList            = nullptr;
 #endif // ALT_JIT
 
+#ifdef DEBUG
+// static
+bool                Compiler::s_pJitDisasmIncludeAssembliesListInitialized = false;
+AssemblyNamesList2* Compiler::s_pJitDisasmIncludeAssembliesList            = nullptr;
+#endif // DEBUG
+
 /*****************************************************************************
  *
  *  Little helpers to grab the current cycle counter value; this is done
@@ -583,7 +589,7 @@ bool Compiler::isSingleFloat32Struct(CORINFO_CLASS_HANDLE clsHnd)
 //    For ARM32 if we have an HFA struct that wraps a 64-bit double
 //    we will return TYP_DOUBLE.
 //
-var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd)
+var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS_HANDLE clsHnd, bool isVarArg)
 {
     assert(structSize != 0);
 
@@ -599,12 +605,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             useType = TYP_SHORT;
             break;
 
-#ifndef _TARGET_XARCH_
+#if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
         case 3:
             useType = TYP_INT;
             break;
 
-#endif // _TARGET_XARCH_
+#endif // !_TARGET_XARCH_ || UNIX_AMD64_ABI
 
 #ifdef _TARGET_64BIT_
         case 4:
@@ -619,14 +625,14 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             }
             break;
 
-#ifndef _TARGET_XARCH_
+#if !defined(_TARGET_XARCH_) || defined(UNIX_AMD64_ABI)
         case 5:
         case 6:
         case 7:
             useType = TYP_I_IMPL;
             break;
 
-#endif // _TARGET_XARCH_
+#endif // !_TARGET_XARCH_ || UNIX_AMD64_ABI
 #endif // _TARGET_64BIT_
 
         case TARGET_POINTER_SIZE:
@@ -634,8 +640,15 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
             // For ARM_SOFTFP, HFA is unsupported so we need to check in another way
             // This matters only for size-4 struct cause bigger structs would be processed with RetBuf
             if (isSingleFloat32Struct(clsHnd))
-#else  // !ARM_SOFTFP
-            if (IsHfa(clsHnd))
+#else // !ARM_SOFTFP
+            if (IsHfa(clsHnd)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                // Arm64 Windows VarArg methods arguments will not
+                // classify HFA types, they will need to be treated
+                // as if they are not HFA types.
+                && !isVarArg
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                )
 #endif // ARM_SOFTFP
             {
 #ifdef _TARGET_64BIT_
@@ -723,6 +736,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 //    clsHnd       - the handle for the struct type
 //    wbPassStruct - An "out" argument with information about how
 //                   the struct is to be passed
+//    isVarArg     - is vararg, used to ignore HFA types for Arm64 windows varargs
 //    structSize   - the size of the struct type,
 //                   or zero if we should call getClassSize(clsHnd)
 //
@@ -750,6 +764,7 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 //
 var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                         structPassingKind*   wbPassStruct,
+                                        bool                 isVarArg,
                                         unsigned             structSize /* = 0 */)
 {
     var_types         useType         = TYP_UNKNOWN;
@@ -761,6 +776,9 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     }
     assert(structSize > 0);
 
+// Determine if we can pass the struct as a primitive type.
+// Note that on x86 we never pass structs as primitive types (unless the VM unwraps them for us).
+#ifndef _TARGET_X86_
 #ifdef UNIX_AMD64_ABI
 
     // An 8-byte struct may need to be passed in a floating point register
@@ -769,32 +787,33 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(clsHnd, &structDesc);
 
-    // If we have one eightByteCount then we can set 'useType' based on that
-    if (structDesc.eightByteCount == 1)
+    if (structDesc.passedInRegisters && (structDesc.eightByteCount != 1))
     {
-        // Set 'useType' to the type of the first eightbyte item
+        // We can't pass this as a primitive type.
+    }
+    else if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
+    {
+        // If this is passed as a floating type, use that.
+        // Otherwise, we'll use the general case - we don't want to use the "EightByteType"
+        // directly, because it returns `TYP_INT` for any integral type <= 4 bytes, and
+        // we need to preserve small types.
         useType = GetEightByteType(structDesc, 0);
     }
+    else
+#endif // UNIX_AMD64_ABI
 
-#elif defined(_TARGET_X86_)
-
-    // On x86 we never pass structs as primitive types (unless the VM unwraps them for us)
-    useType = TYP_UNKNOWN;
-
-#else // all other targets
-
-    // The largest primitive type is 8 bytes (TYP_DOUBLE)
-    // so we can skip calling getPrimitiveTypeForStruct when we
-    // have a struct that is larger than that.
-    //
-    if (structSize <= sizeof(double))
+        // The largest primitive type is 8 bytes (TYP_DOUBLE)
+        // so we can skip calling getPrimitiveTypeForStruct when we
+        // have a struct that is larger than that.
+        //
+        if (structSize <= sizeof(double))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
-        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd, isVarArg);
     }
 
-#endif // all other targets
+#endif // !_TARGET_X86_
 
     // Did we change this struct type into a simple "primitive" type?
     //
@@ -811,7 +830,13 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
         if (structSize <= MAX_PASS_MULTIREG_BYTES)
         {
             // Structs that are HFA's are passed by value in multiple registers
-            if (IsHfa(clsHnd))
+            if (IsHfa(clsHnd)
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                && !isVarArg // Arm64 Windows VarArg methods arguments will not
+                             // classify HFA types, they will need to be treated
+                             // as if they are not HFA types.
+#endif                       // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+                )
             {
                 // HFA's of count one should have been handled by getPrimitiveTypeForStruct
                 assert(GetHfaCount(clsHnd) >= 2);
@@ -828,7 +853,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
 #ifdef UNIX_AMD64_ABI
 
                 // The case of (structDesc.eightByteCount == 1) should have already been handled
-                if (structDesc.eightByteCount > 1)
+                if ((structDesc.eightByteCount > 1) || !structDesc.passedInRegisters)
                 {
                     // setup wbPassType and useType indicate that this is passed by value in multiple registers
                     //  (when all of the parameters registers are used, then the stack will be used)
@@ -1004,7 +1029,9 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
-        useType = getPrimitiveTypeForStruct(structSize, clsHnd);
+        //
+        // The ABI for struct returns in varArg methods, is same as the normal case, so pass false for isVararg
+        useType = getPrimitiveTypeForStruct(structSize, clsHnd, /*isVararg=*/false);
     }
 
 #endif // UNIX_AMD64_ABI
@@ -1386,6 +1413,14 @@ void Compiler::compShutdown()
     }
 #endif // ALT_JIT
 
+#ifdef DEBUG
+    if (s_pJitDisasmIncludeAssembliesList != nullptr)
+    {
+        s_pJitDisasmIncludeAssembliesList->~AssemblyNamesList2(); // call the destructor
+        s_pJitDisasmIncludeAssembliesList = nullptr;
+    }
+#endif // DEBUG
+
 #if MEASURE_NOWAY
     DisplayNowayAssertMap();
 #endif // MEASURE_NOWAY
@@ -1426,14 +1461,6 @@ void Compiler::compShutdown()
         }
     }
 #endif // FEATURE_JIT_METHOD_PERF
-
-#if FUNC_INFO_LOGGING
-    if (compJitFuncInfoFile != nullptr)
-    {
-        fclose(compJitFuncInfoFile);
-        compJitFuncInfoFile = nullptr;
-    }
-#endif // FUNC_INFO_LOGGING
 
 #if COUNT_RANGECHECKS
     if (optRangeChkAll > 0)
@@ -3390,34 +3417,64 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         }
         else
         {
-            if ((JitConfig.JitOrder() & 1) == 1)
+            bool disEnabled = true;
+
+            // Setup assembly name list for disassembly, if not already set up.
+            if (!s_pJitDisasmIncludeAssembliesListInitialized)
             {
-                opts.dspOrder = true;
+                const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
+                if (assemblyNameList != nullptr)
+                {
+                    s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
+                        AssemblyNamesList2(assemblyNameList, HostAllocator::getHostAllocator());
+                }
+                s_pJitDisasmIncludeAssembliesListInitialized = true;
             }
 
-            if (JitConfig.JitGCDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+            // If we have an assembly name list for disassembly, also check this method's assembly.
+            if (s_pJitDisasmIncludeAssembliesList != nullptr)
             {
-                opts.dspGCtbls = true;
+                const char* assemblyName = info.compCompHnd->getAssemblyName(
+                    info.compCompHnd->getModuleAssembly(info.compCompHnd->getClassModule(info.compClassHnd)));
+
+                if (!s_pJitDisasmIncludeAssembliesList->IsInList(assemblyName))
+                {
+                    disEnabled = false;
+                }
             }
 
-            if (JitConfig.JitDisasm().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+            if (disEnabled)
             {
-                opts.disAsm = true;
-            }
+                if ((JitConfig.JitOrder() & 1) == 1)
+                {
+                    opts.dspOrder = true;
+                }
 
-            if (JitConfig.JitDisasm().contains("SPILLED", nullptr, nullptr))
-            {
-                opts.disAsmSpilled = true;
-            }
+                if (JitConfig.JitGCDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.dspGCtbls = true;
+                }
 
-            if (JitConfig.JitUnwindDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
-            {
-                opts.dspUnwind = true;
-            }
+                if (JitConfig.JitDisasm().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.disAsm = true;
+                }
 
-            if (JitConfig.JitEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
-            {
-                opts.dspEHTable = true;
+                if (JitConfig.JitDisasm().contains("SPILLED", nullptr, nullptr))
+                {
+                    opts.disAsmSpilled = true;
+                }
+
+                if (JitConfig.JitUnwindDump().contains(info.compMethodName, info.compClassName,
+                                                       &info.compMethodInfo->args))
+                {
+                    opts.dspUnwind = true;
+                }
+
+                if (JitConfig.JitEHDump().contains(info.compMethodName, info.compClassName, &info.compMethodInfo->args))
+                {
+                    opts.dspEHTable = true;
+                }
             }
         }
 
@@ -3990,7 +4047,8 @@ void Compiler::compInitDebuggingInfo()
 
 void Compiler::compSetOptimizationLevel()
 {
-    bool     theMinOptsValue;
+    bool theMinOptsValue;
+#pragma warning(suppress : 4101)
     unsigned jitMinOpts;
 
     if (compIsForInlining())
@@ -4012,7 +4070,8 @@ void Compiler::compSetOptimizationLevel()
 
     if (!theMinOptsValue && (jitMinOpts > 0))
     {
-        unsigned methodCount     = Compiler::jitTotalMethodCompiled;
+        // jitTotalMethodCompiled does not include the method that is being compiled now, so make +1.
+        unsigned methodCount     = Compiler::jitTotalMethodCompiled + 1;
         unsigned methodCountMask = methodCount & 0xFFF;
         unsigned kind            = (jitMinOpts & 0xF000000) >> 24;
         switch (kind)
@@ -4280,7 +4339,10 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     // Always do the layout even if returning early. Callers might
     // depend on us to do the layout.
     unsigned frameSize = lvaFrameSize(curState);
-    JITDUMP("\ncompRsvdRegCheck\n  frame size     = %6d\n  compArgSize    = %6d\n", frameSize, compArgSize);
+    JITDUMP("\ncompRsvdRegCheck\n"
+            "  frame size  = %6d\n"
+            "  compArgSize = %6d\n",
+            frameSize, compArgSize);
 
     if (opts.MinOpts())
     {
@@ -4296,8 +4358,9 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     {
         calleeSavedRegMaxSz += CALLEE_SAVED_FLOAT_MAXSZ;
     }
+    calleeSavedRegMaxSz += REGSIZE_BYTES; // we always push LR.  See genPushCalleeSavedRegisters
 
-    noway_assert(frameSize > calleeSavedRegMaxSz);
+    noway_assert(frameSize >= calleeSavedRegMaxSz);
 
 #if defined(_TARGET_ARM64_)
 
@@ -4309,69 +4372,117 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 
     // frame layout:
     //
-    //         low addresses
-    //                         inArgs               compArgSize
-    //  origSP --->
-    //  LR     --->
-    //  R11    --->
-    //                +        callee saved regs    CALLEE_SAVED_REG_MAXSZ   (32 bytes)
-    //                     optional saved fp regs   16 * sizeof(float)       (64 bytes)
-    //                -        lclSize
+    //         ... high addresses ...
+    //                         frame contents       size
+    //                         -------------------  ------------------------
+    //                         inArgs               compArgSize (includes prespill)
+    //  caller SP --->
+    //                         prespill
+    //                         LR                   REGSIZE_BYTES
+    //  R11    --->            R11                  REGSIZE_BYTES
+    //                         callee saved regs    CALLEE_SAVED_REG_MAXSZ   (32 bytes)
+    //                     optional saved fp regs   CALLEE_SAVED_FLOAT_MAXSZ (64 bytes)
+    //                         lclSize
     //                             incl. TEMPS      MAX_SPILL_TEMP_SIZE
-    //                +            incl. outArgs
+    //                             incl. outArgs
     //  SP     --->
-    //                -
-    //          high addresses
+    //          ... low addresses ...
+    //
+    // When codeGen->isFramePointerRequired is true, R11 will be established as a frame pointer.
+    // We can then use R11 to access incoming args with positive offsets, and LclVars with
+    // negative offsets.
+    //
+    // In functions with EH, in the non-funclet (or main) region, even though we will have a
+    // frame pointer, we can use SP with positive offsets to access any or all locals or arguments
+    // that we can reach with SP-relative encodings. The funclet region might require the reserved
+    // register, since it must use offsets from R11 to access the parent frame.
 
-    // With codeGen->isFramePointerRequired we use R11 to access incoming args with positive offsets
-    // and use R11 to access LclVars with negative offsets in the non funclet or
-    // main region we use SP with positive offsets. The limiting factor in the
-    // codeGen->isFramePointerRequired case is that we need the offset to be less than or equal to 0x7C
-    // for negative offsets, but positive offsets can be imm12 limited by vldr/vstr
-    // using +/-imm8.
-    //
-    // Subtract 4 bytes for alignment of a local var because number of temps could
-    // trigger a misaligned double or long.
-    //
-    unsigned maxR11ArgLimit = (compFloatingPointUsed ? 0x03FC : 0x0FFC);
-    unsigned maxR11LclLimit = 0x0078;
-    JITDUMP("  maxR11ArgLimit = %6d\n  maxR11LclLimit = %6d\n", maxR11ArgLimit, maxR11LclLimit);
+    unsigned maxR11PositiveEncodingOffset = compFloatingPointUsed ? 0x03FC : 0x0FFF;
+    JITDUMP("  maxR11PositiveEncodingOffset     = %6d\n", maxR11PositiveEncodingOffset);
+
+    // Floating point load/store instructions (VLDR/VSTR) can address up to -0x3FC from R11, but we
+    // don't know if there are either no integer locals, or if we don't need large negative offsets
+    // for the integer locals, so we must use the integer max negative offset, which is a
+    // smaller (absolute value) number.
+    unsigned maxR11NegativeEncodingOffset = 0x00FF; // This is a negative offset from R11.
+    JITDUMP("  maxR11NegativeEncodingOffset     = %6d\n", maxR11NegativeEncodingOffset);
+
+    // -1 because otherwise we are computing the address just beyond the last argument, which we don't need to do.
+    unsigned maxR11PositiveOffset = compArgSize + (2 * REGSIZE_BYTES) - 1;
+    JITDUMP("  maxR11PositiveOffset             = %6d\n", maxR11PositiveOffset);
+
+    // The value is positive, but represents a negative offset from R11.
+    // frameSize includes callee-saved space for R11 and LR, which are at non-negative offsets from R11
+    // (+0 and +4, respectively), so don't include those in the max possible negative offset.
+    assert(frameSize >= (2 * REGSIZE_BYTES));
+    unsigned maxR11NegativeOffset = frameSize - (2 * REGSIZE_BYTES);
+    JITDUMP("  maxR11NegativeOffset             = %6d\n", maxR11NegativeOffset);
 
     if (codeGen->isFramePointerRequired())
     {
-        unsigned maxR11LclOffs = frameSize;
-        unsigned maxR11ArgOffs = compArgSize + (2 * REGSIZE_BYTES);
-        JITDUMP("  maxR11LclOffs  = %6d\n  maxR11ArgOffs  = %6d\n", maxR11LclOffs, maxR11ArgOffs)
-        if (maxR11LclOffs > maxR11LclLimit)
+        if (maxR11NegativeOffset > maxR11NegativeEncodingOffset)
         {
-            JITDUMP(" Returning true (frame reqd and maxR11LclOffs)\n\n");
+            JITDUMP(" Returning true (frame required and maxR11NegativeOffset)\n\n");
             return true;
         }
-        if (maxR11ArgOffs > maxR11ArgLimit)
+        if (maxR11PositiveOffset > maxR11PositiveEncodingOffset)
         {
-            JITDUMP(" Returning true (frame reqd and maxR11ArgOffs)\n\n");
+            JITDUMP(" Returning true (frame required and maxR11PositiveOffset)\n\n");
             return true;
         }
     }
 
-    // So this case is the SP based frame case, but note that we also will use SP based
-    // offsets for R11 based frames in the non-funclet main code area. However if we have
-    // passed the above max_R11_offset check these SP checks won't fire.
+    // Now consider the SP based frame case. Note that we will use SP based offsets to access the stack in R11 based
+    // frames in the non-funclet main code area.
 
-    // Check local coverage first. If vldr/vstr will be used the limit can be +/-imm8.
-    unsigned maxSPLclLimit = (compFloatingPointUsed ? 0x03F8 : 0x0FF8);
-    JITDUMP("  maxSPLclLimit  = %6d\n", maxSPLclLimit);
-    if (frameSize > (codeGen->isFramePointerUsed() ? (maxR11LclLimit + maxSPLclLimit) : maxSPLclLimit))
+    unsigned maxSPPositiveEncodingOffset = compFloatingPointUsed ? 0x03FC : 0x0FFF;
+    JITDUMP("  maxSPPositiveEncodingOffset      = %6d\n", maxSPPositiveEncodingOffset);
+
+    // -1 because otherwise we are computing the address just beyond the last argument, which we don't need to do.
+    assert(compArgSize + frameSize > 0);
+    unsigned maxSPPositiveOffset = compArgSize + frameSize - 1;
+
+    if (codeGen->isFramePointerUsed())
     {
-        JITDUMP(" Returning true (frame reqd; local coverage)\n\n");
-        return true;
+        // We have a frame pointer, so we can use it to access part of the stack, even if SP can't reach those parts.
+        // We will still generate SP-relative offsets if SP can reach.
+
+        // First, check that the stack between R11 and SP can be fully reached, either via negative offset from FP
+        // or positive offset from SP. Don't count stored R11 or LR, which are reached from positive offsets from FP.
+
+        unsigned maxSPLocalsCombinedOffset = frameSize - (2 * REGSIZE_BYTES) - 1;
+        JITDUMP("  maxSPLocalsCombinedOffset        = %6d\n", maxSPLocalsCombinedOffset);
+
+        if (maxSPLocalsCombinedOffset > maxSPPositiveEncodingOffset)
+        {
+            // Can R11 help?
+            unsigned maxRemainingLocalsCombinedOffset = maxSPLocalsCombinedOffset - maxSPPositiveEncodingOffset;
+            JITDUMP("  maxRemainingLocalsCombinedOffset = %6d\n", maxRemainingLocalsCombinedOffset);
+
+            if (maxRemainingLocalsCombinedOffset > maxR11NegativeEncodingOffset)
+            {
+                JITDUMP(" Returning true (frame pointer exists; R11 and SP can't reach entire stack between them)\n\n");
+                return true;
+            }
+
+            // Otherwise, yes, we can address the remaining parts of the locals frame with negative offsets from R11.
+        }
+
+        // Check whether either R11 or SP can access the arguments.
+        if ((maxR11PositiveOffset > maxR11PositiveEncodingOffset) &&
+            (maxSPPositiveOffset > maxSPPositiveEncodingOffset))
+        {
+            JITDUMP(" Returning true (frame pointer exists; R11 and SP can't reach all arguments)\n\n");
+            return true;
+        }
     }
-
-    // Check arguments coverage.
-    if ((!codeGen->isFramePointerUsed() || (compArgSize > maxR11ArgLimit)) && (compArgSize + frameSize) > maxSPLclLimit)
+    else
     {
-        JITDUMP(" Returning true (no frame; arg coverage)\n\n");
-        return true;
+        if (maxSPPositiveOffset > maxSPPositiveEncodingOffset)
+        {
+            JITDUMP(" Returning true (no frame pointer exists; SP can't reach all of frame)\n\n");
+            return true;
+        }
     }
 
     // We won't need to reserve REG_OPT_RSVD.

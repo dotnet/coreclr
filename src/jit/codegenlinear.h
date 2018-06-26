@@ -43,9 +43,9 @@ void genCodeForCompare(GenTreeOp* tree);
 void genIntrinsic(GenTree* treeNode);
 void genPutArgStk(GenTreePutArgStk* treeNode);
 void genPutArgReg(GenTreeOp* tree);
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 void genPutArgSplit(GenTreePutArgSplit* treeNode);
-#endif
+#endif // FEATURE_ARG_SPLIT
 
 #if defined(_TARGET_XARCH_)
 unsigned getBaseVarForPutArgStk(GenTree* treeNode);
@@ -115,8 +115,11 @@ void genPutArgStkSIMD12(GenTree* treeNode);
 #ifdef FEATURE_HW_INTRINSICS
 void genHWIntrinsic(GenTreeHWIntrinsic* node);
 #if defined(_TARGET_XARCH_)
+void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+void genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
 void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins);
-void genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins);
+void genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
+void genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins);
 void genHWIntrinsic_R_R_R_RM(
     instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, GenTree* op3);
 void genSSEIntrinsic(GenTreeHWIntrinsic* node);
@@ -191,9 +194,9 @@ void genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber srcReg, 
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
 void genConsumePutStructArgStk(GenTreePutArgStk* putArgStkNode, regNumber dstReg, regNumber srcReg, regNumber sizeReg);
 #endif // FEATURE_PUT_STRUCT_ARG_STK
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 void genConsumeArgSplitStruct(GenTreePutArgSplit* putArgNode);
-#endif
+#endif // FEATURE_ARG_SPLIT
 
 void genConsumeRegs(GenTree* tree);
 void genConsumeOperands(GenTreeOp* tree);
@@ -269,6 +272,10 @@ void AddNestedAlignment(unsigned adjustment)
 }
 
 #endif
+
+#ifndef _TARGET_X86_
+void genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArgVarNum);
+#endif // !_TARGET_X86_
 
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
 #ifdef _TARGET_X86_

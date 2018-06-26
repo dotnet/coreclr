@@ -148,11 +148,11 @@ int LinearScan::BuildNode(GenTree* tree)
         case GT_LIST:
         case GT_ARGPLACE:
         case GT_NO_OP:
+        case GT_START_NONGC:
             srcCount = 0;
             assert(dstCount == 0);
             break;
 
-        case GT_START_NONGC:
         case GT_PROF_HOOK:
             srcCount = 0;
             assert(dstCount == 0);
@@ -450,7 +450,6 @@ int LinearScan::BuildNode(GenTree* tree)
 
         case GT_XADD:
         case GT_XCHG:
-        case GT_LOCKADD:
         {
             // TODO-XArch-Cleanup: We should make the indirection explicit on these nodes so that we don't have
             // to special case them.
@@ -462,29 +461,10 @@ int LinearScan::BuildNode(GenTree* tree)
             RefPosition* addrUse = BuildUse(addr);
             setDelayFree(addrUse);
             tgtPrefUse = addrUse;
-            srcCount   = 1;
-            dstCount   = 1;
-            if (!data->isContained())
-            {
-                RefPosition* dataUse = dataUse = BuildUse(data);
-                srcCount                       = 2;
-            }
-
-            if (tree->TypeGet() == TYP_VOID)
-            {
-                // Right now a GT_XADD node could be morphed into a
-                // GT_LOCKADD of TYP_VOID. See gtExtractSideEffList().
-                // Note that it is advantageous to use GT_LOCKADD
-                // instead of of GT_XADD as the former uses lock.add,
-                // which allows its second operand to be a contained
-                // immediate wheres xadd instruction requires its
-                // second operand to be in a register.
-                // Give it an artificial type and mark it as an unused value.
-                // This results in a Def position created but not considered consumed by its parent node.
-                tree->gtType  = TYP_INT;
-                isLocalDefUse = true;
-                tree->SetUnusedValue();
-            }
+            assert(!data->isContained());
+            BuildUse(data);
+            srcCount = 2;
+            assert(dstCount == 1);
             BuildDef(tree);
         }
         break;
@@ -771,6 +751,7 @@ bool LinearScan::isRMWRegOper(GenTree* tree)
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_SWITCH_TABLE:
+        case GT_LOCKADD:
 #ifdef _TARGET_X86_
         case GT_LONG:
 #endif
@@ -1479,7 +1460,6 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
     {
         assert(putArgStk->gtOp1->isContained());
 
-#ifdef _TARGET_X86_
         RefPosition* simdTemp   = nullptr;
         RefPosition* intTemp    = nullptr;
         unsigned     prevOffset = putArgStk->getArgSize();
@@ -1490,7 +1470,10 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             GenTree* const  fieldNode   = current->Current();
             const var_types fieldType   = fieldNode->TypeGet();
             const unsigned  fieldOffset = current->gtFieldOffset;
+
+#ifdef _TARGET_X86_
             assert(fieldType != TYP_LONG);
+#endif // _TARGET_X86_
 
 #if defined(FEATURE_SIMD)
             // Note that we need to check the GT_FIELD_LIST type, not 'fieldType'. This is because the
@@ -1502,6 +1485,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             }
 #endif // defined(FEATURE_SIMD)
 
+#ifdef _TARGET_X86_
             if (putArgStk->gtPutArgStkKind == GenTreePutArgStk::Kind::Push)
             {
                 // We can treat as a slot any field that is stored at a slot boundary, where the previous
@@ -1520,6 +1504,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
                     intTemp->registerAssignment &= allByteRegs();
                 }
             }
+#endif // _TARGET_X86_
 
             if (varTypeIsGC(fieldType))
             {
@@ -1527,6 +1512,7 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
             }
             prevOffset = fieldOffset;
         }
+
         for (GenTreeFieldList* current = putArgStk->gtOp1->AsFieldList(); current != nullptr; current = current->Rest())
         {
             GenTree* const fieldNode = current->Current();
@@ -1539,7 +1525,6 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
         buildInternalRegisterUses();
 
         return srcCount;
-#endif // _TARGET_X86_
     }
 
     GenTree*  src  = putArgStk->gtOp1;
@@ -2290,12 +2275,11 @@ int LinearScan::BuildSIMD(GenTreeSIMD* simdTree)
 //
 int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 {
-    NamedIntrinsic      intrinsicID = intrinsicTree->gtHWIntrinsicId;
+    NamedIntrinsic      intrinsicId = intrinsicTree->gtHWIntrinsicId;
     var_types           baseType    = intrinsicTree->gtSIMDBaseType;
-    InstructionSet      isa         = Compiler::isaOfHWIntrinsic(intrinsicID);
-    HWIntrinsicCategory category    = Compiler::categoryOfHWIntrinsic(intrinsicID);
-    HWIntrinsicFlag     flags       = Compiler::flagsOfHWIntrinsic(intrinsicID);
-    int                 numArgs     = Compiler::numArgsOfHWIntrinsic(intrinsicTree);
+    InstructionSet      isa         = HWIntrinsicInfo::lookupIsa(intrinsicId);
+    HWIntrinsicCategory category    = HWIntrinsicInfo::lookupCategory(intrinsicId);
+    int                 numArgs     = HWIntrinsicInfo::lookupNumArgs(intrinsicTree);
 
     if ((isa == InstructionSet_AVX) || (isa == InstructionSet_AVX2))
     {
@@ -2353,9 +2337,9 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
         bool buildUses = true;
 
-        if ((category == HW_Category_IMM) && ((flags & HW_Flag_NoJmpTableIMM) == 0))
+        if ((category == HW_Category_IMM) && !HWIntrinsicInfo::NoJmpTableImm(intrinsicId))
         {
-            if (Compiler::isImmHWIntrinsic(intrinsicID, lastOp) && !lastOp->isContainedIntOrIImmed())
+            if (HWIntrinsicInfo::isImmOp(intrinsicId, lastOp) && !lastOp->isContainedIntOrIImmed())
             {
                 assert(!lastOp->IsCnsIntOrI());
 
@@ -2375,7 +2359,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
         // Note that the default case for building uses will handle the RMW flag, but if the uses
         // are built in the individual cases, buildUses is set to false, and any RMW handling (delayFree)
         // must be handled within the case.
-        switch (intrinsicID)
+        switch (intrinsicId)
         {
             case NI_SSE_CompareEqualOrderedScalar:
             case NI_SSE_CompareEqualUnorderedScalar:
@@ -2522,16 +2506,16 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 assert(numArgs == 3);
                 assert(isRMW);
 
-                bool copyUpperBits = (flags & HW_Flag_CopyUpperBits) != 0;
+                const bool copiesUpperBits = HWIntrinsicInfo::CopiesUpperBits(intrinsicId);
 
                 // Intrinsics with CopyUpperBits semantics cannot have op1 be contained
-                assert(!copyUpperBits || !op1->isContained());
+                assert(!copiesUpperBits || !op1->isContained());
 
                 if (op3->isContained())
                 {
                     // 213 form: op1 = (op2 * op1) + [op3]
 
-                    if (copyUpperBits)
+                    if (copiesUpperBits)
                     {
                         tgtPrefUse = BuildUse(op1);
 
@@ -2573,7 +2557,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 {
                     // 213 form: op1 = (op2 * op1) + op3
 
-                    if (copyUpperBits)
+                    if (copiesUpperBits)
                     {
                         tgtPrefUse = BuildUse(op1);
 
@@ -2598,7 +2582,7 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
             default:
             {
-                assert((intrinsicID > NI_HW_INTRINSIC_START) && (intrinsicID < NI_HW_INTRINSIC_END));
+                assert((intrinsicId > NI_HW_INTRINSIC_START) && (intrinsicId < NI_HW_INTRINSIC_END));
                 break;
             }
         }

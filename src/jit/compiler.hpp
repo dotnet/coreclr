@@ -690,11 +690,12 @@ inline bool isRegParamType(var_types type)
 //    typeSize  - Out param (if non-null) is updated with the size of 'type'.
 //    forReturn - this is true when we asking about a GT_RETURN context;
 //                this is false when we are asking about an argument context
+//    isVarArg  - whether or not this is a vararg fixed arg or variable argument
+//              - if so on arm64 windows getArgTypeForStruct will ignore HFA
+//              - types
 //
-inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(var_types            type,
-                                                    CORINFO_CLASS_HANDLE typeClass,
-                                                    unsigned*            typeSize,
-                                                    bool                 forReturn)
+inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(
+    var_types type, CORINFO_CLASS_HANDLE typeClass, unsigned* typeSize, bool forReturn, bool isVarArg)
 {
     bool     result = false;
     unsigned size   = 0;
@@ -710,7 +711,7 @@ inline bool Compiler::VarTypeIsMultiByteAndCanEnreg(var_types            type,
         else
         {
             structPassingKind howToPassStruct;
-            type = getArgTypeForStruct(typeClass, &howToPassStruct, size);
+            type = getArgTypeForStruct(typeClass, &howToPassStruct, isVarArg, size);
         }
         if (type != TYP_UNKNOWN)
         {
@@ -2424,39 +2425,38 @@ inline
         {
             *pBaseReg = REG_FPBASE;
         }
-        // Change the FP-based addressing to the SP-based addressing when possible because
+        // Change the Frame Pointer (R11)-based addressing to the SP-based addressing when possible because
         // it generates smaller code on ARM. See frame picture above for the math.
         else
         {
             // If it is the final frame layout phase, we don't have a choice, we should stick
             // to either FP based or SP based that we decided in the earlier phase. Because
-            // we have already selected the instruction. Min-opts will have R10 enabled, so just
-            // use that.
+            // we have already selected the instruction. MinOpts will always reserve R10, so
+            // for MinOpts always use SP-based offsets, using R10 as necessary, for simplicity.
 
-            int spOffset       = fConservative ? compLclFrameSize : offset + codeGen->genSPtoFPdelta();
-            int actualOffset   = (spOffset + addrModeOffset);
-            int ldrEncodeLimit = (varTypeIsFloating(type) ? 0x3FC : 0xFFC);
-            // Use ldr sp imm encoding.
-            if (lvaDoneFrameLayout == FINAL_FRAME_LAYOUT || opts.MinOpts() || (actualOffset <= ldrEncodeLimit))
+            int spOffset           = fConservative ? compLclFrameSize : offset + codeGen->genSPtoFPdelta();
+            int actualOffset       = spOffset + addrModeOffset;
+            int encodingLimitUpper = varTypeIsFloating(type) ? 0x3FC : 0xFFF;
+            int encodingLimitLower = varTypeIsFloating(type) ? -0x3FC : -0xFF;
+
+            // Use SP-based encoding. During encoding, we'll pick the best encoding for the actual offset we have.
+            if (opts.MinOpts() || (actualOffset <= encodingLimitUpper))
             {
                 offset    = spOffset;
                 *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
-            // Use ldr +/-imm8 encoding.
-            else if (offset >= -0x7C && offset <= ldrEncodeLimit)
+            // Use Frame Pointer (R11)-based encoding.
+            else if ((encodingLimitLower <= offset) && (offset <= encodingLimitUpper))
             {
                 *pBaseReg = REG_FPBASE;
             }
-            // Use a single movw. prefer locals.
-            else if (actualOffset <= 0xFFFC) // Fix 383910 ARM ILGEN
-            {
-                offset    = spOffset;
-                *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
-            }
-            // Use movw, movt.
+            // Otherwise, use SP-based encoding. This is either (1) a small positive offset using a single movw,
+            // (2) a large offset using movw/movt. In either case, we must have already reserved
+            // the "reserved register", which will get used during encoding.
             else
             {
-                *pBaseReg = REG_FPBASE;
+                offset    = spOffset;
+                *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
         }
     }
@@ -4681,9 +4681,9 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_NULLCHECK:
         case GT_PUTARG_REG:
         case GT_PUTARG_STK:
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
-#endif
+#endif // FEATURE_ARG_SPLIT
         case GT_RETURNTRAP:
             visitor(this->AsUnOp()->gtOp1);
             return;

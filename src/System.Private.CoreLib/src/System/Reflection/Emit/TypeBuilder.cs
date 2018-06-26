@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 
-// 
+//
 
 namespace System.Reflection.Emit
 {
@@ -17,20 +17,6 @@ namespace System.Reflection.Emit
     using System.Threading;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-
-
-    public enum PackingSize
-    {
-        Unspecified = 0,
-        Size1 = 1,
-        Size2 = 2,
-        Size4 = 4,
-        Size8 = 8,
-        Size16 = 16,
-        Size32 = 32,
-        Size64 = 64,
-        Size128 = 128,
-    }
 
     public sealed class TypeBuilder : TypeInfo
     {
@@ -88,11 +74,11 @@ namespace System.Reflection.Emit
             if (!(type is TypeBuilder) && !(type is TypeBuilderInstantiation))
                 throw new ArgumentException(SR.Argument_MustBeTypeBuilder);
 
-            // The following checks establishes invariants that more simply put require type to be generic and 
+            // The following checks establishes invariants that more simply put require type to be generic and
             // method to be a generic method definition declared on the generic type definition of type.
-            // To create generic method G<Foo>.M<Bar> these invariants require that G<Foo>.M<S> be created by calling 
+            // To create generic method G<Foo>.M<Bar> these invariants require that G<Foo>.M<S> be created by calling
             // this function followed by MakeGenericMethod on the resulting MethodInfo to finally get G<Foo>.M<Bar>.
-            // We could also allow G<T>.M<Bar> to be created before G<Foo>.M<Bar> (BindGenParm followed by this method) 
+            // We could also allow G<T>.M<Bar> to be created before G<Foo>.M<Bar> (BindGenParm followed by this method)
             // if we wanted to but that just complicates things so these checks are designed to prevent that scenario.
 
             if (method.IsGenericMethod && !method.IsGenericMethodDefinition)
@@ -105,7 +91,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_InvalidMethodDeclaringType, nameof(type));
 
             // The following converts from Type or TypeBuilder of G<T> to TypeBuilderInstantiation G<T>. These types
-            // both logically represent the same thing. The runtime displays a similar convention by having 
+            // both logically represent the same thing. The runtime displays a similar convention by having
             // G<M>.M() be encoded by a typeSpec whose parent is the typeDef for G<M> and whose instantiation is also G<M>.
             if (type.IsGenericTypeDefinition)
                 type = type.MakeGenericType(type.GetGenericArguments());
@@ -277,18 +263,18 @@ namespace System.Reflection.Emit
                 runtimeType2 = t2;
             }
 
-            // If the type builder view is eqaul then it is equal                
-            if (tb1 != null && tb2 != null && Object.ReferenceEquals(tb1, tb2))
+            // If the type builder view is eqaul then it is equal
+            if (tb1 != null && tb2 != null && object.ReferenceEquals(tb1, tb2))
                 return true;
 
-            // if the runtimetype view is eqaul than it is equal                
+            // if the runtimetype view is eqaul than it is equal
             if (runtimeType1 != null && runtimeType2 != null && runtimeType1 == runtimeType2)
                 return true;
 
             return false;
         }
 
-        internal static unsafe void SetConstantValue(ModuleBuilder module, int tk, Type destType, Object value)
+        internal static unsafe void SetConstantValue(ModuleBuilder module, int tk, Type destType, object value)
         {
             // This is a helper function that is used by ParameterBuilder, PropertyBuilder,
             // and FieldBuilder to validate a default value and save it in the meta-data.
@@ -801,8 +787,8 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override Object InvokeMember(string name, BindingFlags invokeAttr, Binder binder, Object target,
-            Object[] args, ParameterModifier[] modifiers, CultureInfo culture, string[] namedParameters)
+        public override object InvokeMember(string name, BindingFlags invokeAttr, Binder binder, object target,
+            object[] args, ParameterModifier[] modifiers, CultureInfo culture, string[] namedParameters)
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
@@ -1030,7 +1016,7 @@ namespace System.Reflection.Emit
                 return m_bakedRuntimeType.IsAssignableFrom(fromRuntimeType);
             }
 
-            // So if c is not a runtimeType nor TypeBuilder. We don't know how to deal with it. 
+            // So if c is not a runtimeType nor TypeBuilder. We don't know how to deal with it.
             // return false then.
             if (fromTypeBuilder == null)
                 return false;
@@ -1192,7 +1178,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region ICustomAttributeProvider Implementation
-        public override Object[] GetCustomAttributes(bool inherit)
+        public override object[] GetCustomAttributes(bool inherit)
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
@@ -1200,7 +1186,7 @@ namespace System.Reflection.Emit
             return CustomAttribute.GetCustomAttributes(m_bakedRuntimeType, typeof(object) as RuntimeType, inherit);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
+        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             if (!IsCreated())
                 throw new NotSupportedException(SR.NotSupported_TypeNotYetCreated);
@@ -1940,7 +1926,7 @@ namespace System.Reflection.Emit
 
 
                 if (meth.IsGenericMethodDefinition)
-                    meth.GetToken(); // Doubles as "CreateMethod" for MethodBuilder -- analagous to CreateType()
+                    meth.GetToken(); // Doubles as "CreateMethod" for MethodBuilder -- analogous to CreateType()
 
                 methodAttrs = meth.Attributes;
 
@@ -2063,7 +2049,7 @@ namespace System.Reflection.Emit
             {
                 if ((m_iAttr & TypeAttributes.Interface) != TypeAttributes.Interface)
                 {
-                    m_typeParent = typeof(Object);
+                    m_typeParent = typeof(object);
                 }
                 else
                 {

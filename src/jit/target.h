@@ -334,7 +334,6 @@ typedef unsigned char   regNumberSmall;
   #define YMM_REGSIZE_BYTES        32      // YMM register size in bytes
 
   #define REGNUM_BITS              6       // number of bits in a REG_*
-  #define TINY_REGNUM_BITS         6       // number used in a tiny instrdesc (same)
 
   #define REGSIZE_BYTES            4       // number of bytes in one register
   #define MIN_ARG_AREA_FOR_CALL    0       // Minimum required outgoing argument space for a call.
@@ -374,20 +373,7 @@ typedef unsigned char   regNumberSmall;
 
   #define CALLEE_SAVED_REG_MAXSZ  (CNT_CALLEE_SAVED*REGSIZE_BYTES)  // EBX,ESI,EDI,EBP
 
-  // We reuse the ESP register as a illegal value in the register predictor
-  #define RBM_ILLEGAL              RBM_ESP
-  // We reuse the ESP register as a flag for last use handling in the register predictor
-  #define RBM_LASTUSE              RBM_ESP
-  // We're using the encoding for ESP to indicate a half-long on the frame
-  #define REG_L_STK                REG_ESP
-
-  //  This is the first register in REG_TMP_ORDER
   #define REG_TMP_0                REG_EAX
-  #define RBM_TMP_0                RBM_EAX
-
-  //  This is the second register in REG_TMP_ORDER
-  #define REG_TMP_1                REG_EDX
-  #define RBM_TMP_1                RBM_EDX
 
   #define REG_LNGARG_LO             REG_EAX
   #define RBM_LNGARG_LO             RBM_EAX
@@ -403,7 +389,6 @@ typedef unsigned char   regNumberSmall;
   
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_EAX
-  #define RBM_SCRATCH              RBM_EAX
 
   // Where is the exception object on entry to the handler block?
   #define REG_EXCEPTION_OBJECT     REG_EAX
@@ -454,9 +439,6 @@ typedef unsigned char   regNumberSmall;
   #define REG_INT_COUNT            (REG_INT_LAST - REG_INT_FIRST + 1)
   #define REG_NEXT(reg)           ((regNumber)((unsigned)(reg) + 1))
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
-
-  // genCodeForCall() moves the target address of the tailcall into this register, before pushing it on the stack
-  #define REG_TAILCALL_ADDR        REG_EAX
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_EAX
@@ -615,7 +597,6 @@ typedef unsigned char   regNumberSmall;
 #endif // !UNIX_AMD64_ABI
 
   #define REGNUM_BITS              6       // number of bits in a REG_*
-  #define TINY_REGNUM_BITS         6       // number used in a tiny instrdesc (same)
   #define REGMASK_BITS             32      // number of bits in a REGNUM_MASK
   #define REGSIZE_BYTES            8       // number of bytes in one register
   #define XMM_REGSIZE_BYTES        16      // XMM register size in bytes
@@ -718,25 +699,7 @@ typedef unsigned char   regNumberSmall;
   #define CALLEE_SAVED_REG_MAXSZ   (CNT_CALLEE_SAVED*REGSIZE_BYTES)
   #define CALLEE_SAVED_FLOAT_MAXSZ (CNT_CALLEE_SAVED_FLOAT*16)
 
-  // We reuse the ESP register as a illegal value in the register predictor
-  #define RBM_ILLEGAL              RBM_ESP
-  // We reuse the ESP register as a flag for last use handling in the register predictor
-  #define RBM_LASTUSE              RBM_ESP
-  // We're using the encoding for ESP to indicate a half-long on the frame
-  #define REG_L_STK                REG_ESP
-
-  //  This is the first register in REG_TMP_ORDER
   #define REG_TMP_0                REG_EAX
-  #define RBM_TMP_0                RBM_EAX
-
-  //  This is the second register in REG_TMP_ORDER
-#ifdef UNIX_AMD64_ABI
-  #define REG_TMP_1                REG_EDI
-  #define RBM_TMP_1                RBM_EDI
-#else // !UNIX_AMD64_ABI
-  #define REG_TMP_1                REG_EDX
-  #define RBM_TMP_1                RBM_EDX
-#endif // !UNIX_AMD64_ABI
   
   // register to hold shift amount
   #define REG_SHIFT                REG_ECX
@@ -744,7 +707,6 @@ typedef unsigned char   regNumberSmall;
   
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_EAX
-  #define RBM_SCRATCH              RBM_EAX
 
 // Where is the exception object on entry to the handler block?
 #ifdef UNIX_AMD64_ABI
@@ -799,9 +761,6 @@ typedef unsigned char   regNumberSmall;
   #define REG_INT_COUNT            (REG_INT_LAST - REG_INT_FIRST + 1)
   #define REG_NEXT(reg)           ((regNumber)((unsigned)(reg) + 1))
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
-
-  // genCodeForCall() moves the target address of the tailcall into this register, before pushing it on the stack
-  #define REG_TAILCALL_ADDR        REG_RDX
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_EAX
@@ -996,7 +955,6 @@ typedef unsigned char   regNumberSmall;
   #define LAST_FP_ARGREG           REG_F15
 
   #define REGNUM_BITS              6       // number of bits in a REG_*
-  #define TINY_REGNUM_BITS         4       // number of bits we will use for a tiny instr desc (may not use float)
   #define REGMASK_BITS             64      // number of bits in a REGNUM_MASK
   #define REGSIZE_BYTES            4       // number of bytes in one register
   #define MIN_ARG_AREA_FOR_CALL    0       // Minimum required outgoing argument space for a call.
@@ -1051,20 +1009,7 @@ typedef unsigned char   regNumberSmall;
   #define CALLEE_SAVED_REG_MAXSZ    (CNT_CALLEE_SAVED*REGSIZE_BYTES)
   #define CALLEE_SAVED_FLOAT_MAXSZ  (CNT_CALLEE_SAVED_FLOAT*sizeof(float))
 
-  // We reuse the ESP register as a illegal value in the register predictor
-  #define RBM_ILLEGAL              RBM_SP
-  // We reuse the ESP register as a flag for last use handling in the register predictor
-  #define RBM_LASTUSE              RBM_SP
-  // We're using the encoding for ESP to indicate a half-long on the frame
-  #define REG_L_STK                REG_SP
-
-  //  This is the first register in REG_TMP_ORDER
   #define REG_TMP_0                REG_R3
-  #define RBM_TMP_0                RBM_R3
-
-  //  This is the second register in REG_TMP_ORDER
-  #define REG_TMP_1                REG_R2
-  #define RBM_TMP_1                RBM_R2
 
   // Temporary registers used for the GS cookie check.
   #define REG_GSCOOKIE_TMP_0       REG_R12
@@ -1080,7 +1025,6 @@ typedef unsigned char   regNumberSmall;
   
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_LR
-  #define RBM_SCRATCH              RBM_LR
 
   // This is a general register that can be optionally reserved for other purposes during codegen
   #define REG_OPT_RSVD             REG_R10
@@ -1167,9 +1111,6 @@ typedef unsigned char   regNumberSmall;
   #define REG_INT_COUNT            (REG_INT_LAST - REG_INT_FIRST + 1)
   #define REG_NEXT(reg)           ((regNumber)((unsigned)(reg) + 1))
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
-
-  // genCodeForCall() moves the target address of the tailcall into this register, before pushing it on the stack
-  #define REG_TAILCALL_ADDR        REG_R1
 
   // The following registers are used in emitting Enter/Leave/Tailcall profiler callbacks
   #define REG_PROFILER_ENTER_ARG           REG_R0
@@ -1320,7 +1261,6 @@ typedef unsigned char   regNumberSmall;
   #define LAST_FP_ARGREG           REG_V15
 
   #define REGNUM_BITS              6       // number of bits in a REG_*
-  #define TINY_REGNUM_BITS         5       // number of bits we will use for a tiny instr desc (may not use float)
   #define REGMASK_BITS             64      // number of bits in a REGNUM_MASK
   #define REGSIZE_BYTES            8       // number of bytes in one general purpose register
   #define FP_REGSIZE_BYTES         16      // number of bytes in one FP/SIMD register
@@ -1376,16 +1316,7 @@ typedef unsigned char   regNumberSmall;
   #define CALLEE_SAVED_REG_MAXSZ    (CNT_CALLEE_SAVED * REGSIZE_BYTES)
   #define CALLEE_SAVED_FLOAT_MAXSZ  (CNT_CALLEE_SAVED_FLOAT * FPSAVE_REGSIZE_BYTES)
 
-  // TODO-ARM64-Cleanup: Remove this
-  #define REG_L_STK                REG_ZR
-
-  //  This is the first register in REG_TMP_ORDER
   #define REG_TMP_0                REG_R9
-  #define RBM_TMP_0                RBM_R9
-
-  //  This is the second register in REG_TMP_ORDER
-  #define REG_TMP_1                REG_R10
-  #define RBM_TMP_1                RBM_R10
 
   // Temporary registers used for the GS cookie check.
   #define REG_GSCOOKIE_TMP_0       REG_R9
@@ -1397,7 +1328,6 @@ typedef unsigned char   regNumberSmall;
 
   // This is a general scratch register that does not conflict with the argument registers
   #define REG_SCRATCH              REG_R9
-  #define RBM_SCRATCH              RBM_R9
 
   // This is a general register that can be optionally reserved for other purposes during codegen
   #define REG_OPT_RSVD             REG_IP1
@@ -1494,9 +1424,6 @@ typedef unsigned char   regNumberSmall;
   #define REG_NEXT(reg)           ((regNumber)((unsigned)(reg) + 1))
   #define REG_PREV(reg)           ((regNumber)((unsigned)(reg) - 1))
 
-  // genCodeForCall() moves the target address of the tailcall into this register, before pushing it on the stack
-  #define REG_TAILCALL_ADDR        REG_R9
-
   // The following registers are used in emitting Enter/Leave/Tailcall profiler callbacks
   #define REG_PROFILER_ENTER_ARG           REG_R0
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
@@ -1506,7 +1433,6 @@ typedef unsigned char   regNumberSmall;
   #define REG_PROFILER_JMP_ARG             REG_R0
   #define RBM_PROFILER_JMP_USED            RBM_R0
   #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
-  
 
   // Which register are int and long values returned in ?
   #define REG_INTRET               REG_R0
@@ -1535,10 +1461,10 @@ typedef unsigned char   regNumberSmall;
 
   #define FIRST_ARG_STACK_OFFS    (2*REGSIZE_BYTES)   // Caller's saved FP and return address
 
-  // On ARM64 the calling convention defines REG_R8 (x8) as an additional argument register
-  // It isn't allocated for the normal user arguments, so it isn't counted by MAX_REG_ARG
-  // whether we use this register to pass the RetBuff is controlled by the function hasFixedRetBuffReg()
-  // it is consider to be the next integer argnum, which is 8 
+  // On ARM64 the calling convention defines REG_R8 (x8) as an additional argument register.
+  // It isn't allocated for the normal user arguments, so it isn't counted by MAX_REG_ARG.
+  // Whether we use this register to pass the RetBuff is controlled by the function hasFixedRetBuffReg().
+  // It is considered to be the next integer argnum, which is 8.
   //
   #define REG_ARG_RET_BUFF         REG_R8
   #define RBM_ARG_RET_BUFF         RBM_R8
@@ -1602,7 +1528,6 @@ typedef unsigned char   regNumberSmall;
   #define LBL_DIST_SMALL_MAX_POS  (+1048575)
 
   #define LBL_SIZE_SMALL          (4)
-  #define LBL_SIZE_LARGE          (8)
 
   #define JCC_DIST_SMALL_MAX_NEG  (-1048576)
   #define JCC_DIST_SMALL_MAX_POS  (+1048575)
@@ -1617,7 +1542,6 @@ typedef unsigned char   regNumberSmall;
   #define LDC_DIST_SMALL_MAX_POS  (+1048575)
 
   #define LDC_SIZE_SMALL          (4)
-  #define LDC_SIZE_LARGE          (8)
 
   #define JMP_SIZE_SMALL          (4)
 

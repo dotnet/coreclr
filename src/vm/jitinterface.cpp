@@ -489,12 +489,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
+#ifdef PLATFORM_UNIX
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
+#endif // PLATFORM_UNIX
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -1456,12 +1458,12 @@ static CorInfoHelpFunc getInstanceFieldHelper(FieldDesc * pField, CORINFO_ACCESS
         break;
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
-    IN_WIN32(default:)
+    IN_TARGET_32BIT(default:)
         helper = CORINFO_HELP_GETFIELD32;
         break;
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
-    IN_WIN64(default:)
+    IN_TARGET_64BIT(default:)
         helper = CORINFO_HELP_GETFIELD64;
         break;
     case ELEMENT_TYPE_R4:
@@ -1645,7 +1647,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
         // FieldDesc::GetOffset() does not include the size of Object
         if (!pFieldMT->IsValueType())
         {
-            pResult->offset += sizeof(Object);
+            pResult->offset += OBJECT_SIZE;
         }
     }
 
@@ -2226,7 +2228,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             {
                 // Get offset into the value class of the first pointer field (includes a +Object)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
-                size_t cbOffset = pByValueSeries->GetSeriesOffset() - sizeof(Object);
+                size_t cbOffset = pByValueSeries->GetSeriesOffset() - OBJECT_SIZE;
 
                 _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
                 _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
@@ -7301,9 +7303,9 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
         // The implementation in mscorlib already does this, so we will only substitute a new
         // IL body if we're running on a 64-bit platform.
         //
-        IN_WIN64(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
     };
 
     mdMethodDef md = ftn->GetMemberDef();
@@ -8331,7 +8333,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
             static const char * const tailCallType[] = {
                 "optimized tail call", "recursive loop", "helper assisted tailcall"
             };
-            _ASSERTE(tailCallResult >= 0 && (size_t)tailCallResult < sizeof(tailCallType) / sizeof(tailCallType[0]));
+            _ASSERTE(tailCallResult >= 0 && (size_t)tailCallResult < _countof(tailCallType));
             LOG((LF_JIT, LL_INFO100000,
                  "While compiling '%S', %Splicit tail call from '%S' to '%S' generated as a %s.\n",
                  currentMethodName.GetUnicode(), fIsTailPrefix ? W("ex") : W("im"),
@@ -9360,7 +9362,7 @@ unsigned CEEInfo::getFieldOffset (CORINFO_FIELD_HANDLE fieldHnd)
     }
     else if (!field->GetApproxEnclosingMethodTable()->IsValueType())
     {
-        result += sizeof(Object);
+        result += OBJECT_SIZE;
     }
 
     EE_TO_JIT_TRANSITION();
@@ -10090,24 +10092,43 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     JIT_TO_EE_TRANSITION();
 
-    InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+    if (!IsReadyToRunCompilation())
+    {
+        InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
 
-    // Offsets into the Thread structure
-    pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
-    pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+        // Offsets into the Thread structure
+        pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
+        pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+    }
+    else
+    {
+        // inlinedCallFrameInfo is not used for R2R compilation
+        ZeroMemory(&pEEInfoOut->inlinedCallFrameInfo, sizeof(pEEInfoOut->inlinedCallFrameInfo));
+
+        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;
+        pEEInfoOut->offsetOfGCState     = (DWORD)-1;
+    }
+
+#ifndef CROSSBITNESS_COMPILE
+    // The assertions must hold in every non-crossbitness scenario
+    _ASSERTE(OFFSETOF__DelegateObject__target       == DelegateObject::GetOffsetOfTarget());
+    _ASSERTE(OFFSETOF__DelegateObject__methodPtr    == DelegateObject::GetOffsetOfMethodPtr());
+    _ASSERTE(OFFSETOF__DelegateObject__methodPtrAux == DelegateObject::GetOffsetOfMethodPtrAux());
+    _ASSERTE(OFFSETOF__PtrArray__m_Array_           == PtrArray::GetDataOffset());
+#endif
 
     // Delegate offsets
-    pEEInfoOut->offsetOfDelegateInstance    = DelegateObject::GetOffsetOfTarget();
-    pEEInfoOut->offsetOfDelegateFirstTarget = DelegateObject::GetOffsetOfMethodPtr();
+    pEEInfoOut->offsetOfDelegateInstance    = OFFSETOF__DelegateObject__target;
+    pEEInfoOut->offsetOfDelegateFirstTarget = OFFSETOF__DelegateObject__methodPtr;
 
     // Secure delegate offsets
-    pEEInfoOut->offsetOfSecureDelegateIndirectCell = DelegateObject::GetOffsetOfMethodPtrAux();
+    pEEInfoOut->offsetOfSecureDelegateIndirectCell = OFFSETOF__DelegateObject__methodPtrAux;
 
     // Remoting offsets
-    pEEInfoOut->offsetOfTransparentProxyRP = TransparentProxyObject::GetOffsetOfRP();
-    pEEInfoOut->offsetOfRealProxyServer    = RealProxyObject::GetOffsetOfServerObject();
+    pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;
+    pEEInfoOut->offsetOfRealProxyServer    = (DWORD)-1;
 
-    pEEInfoOut->offsetOfObjArrayData       = (DWORD)PtrArray::GetDataOffset();
+    pEEInfoOut->offsetOfObjArrayData       = OFFSETOF__PtrArray__m_Array_;
 
     pEEInfoOut->sizeOfReversePInvokeFrame  = (DWORD)-1;
 
@@ -10627,7 +10648,7 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 
     // NOTE: the lack of JIT/EE transition markers in this method is intentional. Any
     //       transitions into the EE proper should occur either via the call to
-    //       `EEFilterException` (which is appropraitely marked) or via JIT/EE
+    //       `EEFilterException` (which is appropriately marked) or via JIT/EE
     //       interface calls made by `function`.
 
     bool success = true;
@@ -11496,8 +11517,8 @@ void CEEJitInfo::recordRelocation(void * location,
 
             // Write the 21 bits pc-relative page address into location.
             INT64 targetPage = (INT64)target & 0xFFFFFFFFFFFFF000LL;
-            INT64 lcoationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
-            INT64 relPage = (INT64)(targetPage - lcoationPage);
+            INT64 locationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
+            INT64 relPage = (INT64)(targetPage - locationPage);
             INT32 imm21 = (INT32)(relPage >> 12) & 0x1FFFFF;
             PutArm64Rel21((UINT32 *)location, imm21);
         }
@@ -13225,10 +13246,10 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     MethodDesc * pMD = NULL;
 
+#ifndef CROSSGEN_COMPILE
     PCCOR_SIGNATURE pSig;
     DWORD cSig;
-
-    mdSignature token;
+#endif // CROSSGEN_COMPILE
 
     size_t result = 0;
     
@@ -13345,12 +13366,13 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     case ENCODE_VARARGS_METHODDEF:
         {
-            token = TokenFromRid(
-                        CorSigUncompressData(pBlob),
-                        mdtMethodDef);
+            mdSignature token = TokenFromRid(
+                                    CorSigUncompressData(pBlob),
+                                    mdtMethodDef);
 
             IfFailThrow(pInfoModule->GetMDImport()->GetSigOfMethodDef(token, &cSig, &pSig));
-
+        }
+        {
         VarArgs:
             result = (size_t) CORINFO_VARARGS_HANDLE(currentModule->GetVASigCookie(Signature(pSig, cSig)));
         }
@@ -13722,6 +13744,11 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 #endif // (_TARGET_AMD64_ || _TARGET_ARM_) && !FEATURE_PAL
 
     return ftn;
+}
+
+bool CEEInfo::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
+{
+    return false;
 }
 
 void CEEInfo::allocMem (

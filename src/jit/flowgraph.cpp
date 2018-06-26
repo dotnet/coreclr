@@ -376,7 +376,6 @@ void Compiler::fgInstrumentMethod()
 
         // Compare Basic-Block count value against zero
         GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, valueNode, gtNewIconNode(0, TYP_INT));
-        relop->gtFlags |= GTF_RELOP_QMARK; // TODO-Cleanup: [Simple]  Move this to gtNewQmarkNode
         GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), call);
         GenTree* cond  = gtNewQmarkNode(TYP_VOID, relop, colon);
         stmt           = gtNewStmt(cond);
@@ -4753,6 +4752,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
             }
             break;
 
+#if !defined(FEATURE_CORECLR)
             case CEE_CALLI:
 
                 // CEE_CALLI should not be inlined if the call indirect target has a calling convention other than
@@ -4785,6 +4785,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     }
                 }
                 break;
+#endif // FEATURE_CORECLR
 
             case CEE_JMP:
                 retBlocks++;
@@ -8944,7 +8945,6 @@ void Compiler::fgAddInternal()
         GenTree* embNode        = gtNewIconEmbHndNode(dbgHandle, pDbgHandle, GTF_ICON_TOKEN_HDL, info.compMethodHnd);
         GenTree* guardCheckVal  = gtNewOperNode(GT_IND, TYP_INT, embNode);
         GenTree* guardCheckCond = gtNewOperNode(GT_EQ, TYP_INT, guardCheckVal, gtNewZeroConNode(TYP_INT));
-        guardCheckCond->gtFlags |= GTF_RELOP_QMARK;
 
         // Create the callback which will yield the final answer
 
@@ -9551,8 +9551,8 @@ void Compiler::fgSimpleLowering()
 
                     noway_assert(arr->gtNext == tree);
 
-                    noway_assert(arrLen->ArrLenOffset() == offsetof(CORINFO_Array, length) ||
-                                 arrLen->ArrLenOffset() == offsetof(CORINFO_String, stringLen));
+                    noway_assert(arrLen->ArrLenOffset() == OFFSETOF__CORINFO_Array__length ||
+                                 arrLen->ArrLenOffset() == OFFSETOF__CORINFO_String__stringLen);
 
                     if ((arr->gtOper == GT_CNS_INT) && (arr->gtIntCon.gtIconVal == 0))
                     {
@@ -9920,10 +9920,8 @@ void Compiler::fgRemoveStmt(BasicBlock* block,
            statement boundaries. Or should we leave a GT_NO_OP in its place? */
     }
 
-    /* Is it the first statement in the list? */
-
     GenTreeStmt* firstStmt = block->firstStmt();
-    if (firstStmt == stmt)
+    if (firstStmt == stmt) // Is it the first statement in the list?
     {
         if (firstStmt->gtNext == nullptr)
         {
@@ -9937,26 +9935,21 @@ void Compiler::fgRemoveStmt(BasicBlock* block,
             block->bbTreeList         = tree->gtNext;
             block->bbTreeList->gtPrev = tree->gtPrev;
         }
-        goto DONE;
     }
-
-    /* Is it the last statement in the list? */
-
-    if (stmt == block->lastStmt())
+    else if (stmt == block->lastStmt()) // Is it the last statement in the list?
     {
         stmt->gtPrev->gtNext      = nullptr;
         block->bbTreeList->gtPrev = stmt->gtPrev;
-        goto DONE;
     }
+    else // The statement is in the middle.
+    {
+        assert(stmt->gtPrevStmt != nullptr && stmt->gtNext != nullptr);
 
-    tree = stmt->gtPrevStmt;
-    noway_assert(tree);
+        tree = stmt->gtPrevStmt;
 
-    tree->gtNext         = stmt->gtNext;
-    stmt->gtNext->gtPrev = tree;
-
-DONE:
-    fgStmtRemoved = true;
+        tree->gtNext         = stmt->gtNext;
+        stmt->gtNext->gtPrev = tree;
+    }
 
     noway_assert(!optValnumCSE_phase);
 
@@ -9967,6 +9960,8 @@ DONE:
             DecLclVarRefCountsVisitor::WalkTree(this, stmt->gtStmtExpr);
         }
     }
+
+    fgStmtRemoved = true;
 
 #ifdef DEBUG
     if (verbose)
@@ -23738,6 +23733,11 @@ void Compiler::fgRemoveEmptyFinally()
                 BasicBlock* const leaveBlock          = currentBlock->bbNext;
                 BasicBlock* const postTryFinallyBlock = leaveBlock->bbJumpDest;
 
+                JITDUMP("Modifying callfinally BB%02u leave BB%02u finally BB%02u continuation BB%02u\n",
+                        currentBlock->bbNum, leaveBlock->bbNum, firstBlock->bbNum, postTryFinallyBlock->bbNum);
+                JITDUMP("so that BB%02u jumps to BB%02u; then remove BB%02u\n", currentBlock->bbNum,
+                        postTryFinallyBlock->bbNum, leaveBlock->bbNum);
+
                 noway_assert(leaveBlock->bbJumpKind == BBJ_ALWAYS);
 
                 currentBlock->bbJumpDest = postTryFinallyBlock;
@@ -23764,6 +23764,8 @@ void Compiler::fgRemoveEmptyFinally()
 
             currentBlock = nextBlock;
         }
+
+        JITDUMP("Remove now-unreachable handler BB%02u\n", firstBlock->bbNum);
 
         // Handler block should now be unreferenced, since the only
         // explicit references to it were in call finallys.
@@ -24399,15 +24401,27 @@ void Compiler::fgCloneFinally()
         for (BasicBlock* block = lastTryBlock; block != beforeTryBlock; block = block->bbPrev)
         {
 #if FEATURE_EH_CALLFINALLY_THUNKS
-            // Look for blocks that are always jumps to a call finally
-            // pair that targets our finally.
-            if (block->bbJumpKind != BBJ_ALWAYS)
+            // Blocks that transfer control to callfinallies are usually
+            // BBJ_ALWAYS blocks, but the last block of a try may fall
+            // through to a callfinally.
+            BasicBlock* jumpDest = nullptr;
+
+            if ((block->bbJumpKind == BBJ_NONE) && (block == lastTryBlock))
+            {
+                jumpDest = block->bbNext;
+            }
+            else if (block->bbJumpKind == BBJ_ALWAYS)
+            {
+                jumpDest = block->bbJumpDest;
+            }
+
+            if (jumpDest == nullptr)
             {
                 continue;
             }
 
-            BasicBlock* const jumpDest = block->bbJumpDest;
-
+            // The jumpDest must be a callfinally that in turn invokes the
+            // finally of interest.
             if (!jumpDest->isBBCallAlwaysPair() || (jumpDest->bbJumpDest != firstBlock))
             {
                 continue;
@@ -24494,32 +24508,44 @@ void Compiler::fgCloneFinally()
             // We better have found at least one call finally.
             assert(firstCallFinallyBlock != nullptr);
 
-            // If there is more than one callfinally, move the one we are
-            // going to retarget to be first in the callfinally range.
+            // If there is more than one callfinally, we'd like to move
+            // the one we are going to retarget to be first in the callfinally,
+            // but only if it's targeted by the last block in the try range.
             if (firstCallFinallyBlock != normalCallFinallyBlock)
             {
-                JITDUMP("Moving callfinally BB%02u to be first in line, before BB%02u\n", normalCallFinallyBlock->bbNum,
-                        firstCallFinallyBlock->bbNum);
-
-                BasicBlock* const firstToMove      = normalCallFinallyBlock;
-                BasicBlock* const lastToMove       = normalCallFinallyBlock->bbNext;
                 BasicBlock* const placeToMoveAfter = firstCallFinallyBlock->bbPrev;
 
-                fgUnlinkRange(firstToMove, lastToMove);
-                fgMoveBlocksAfter(firstToMove, lastToMove, placeToMoveAfter);
+                if ((placeToMoveAfter->bbJumpKind == BBJ_ALWAYS) &&
+                    (placeToMoveAfter->bbJumpDest == normalCallFinallyBlock))
+                {
+                    JITDUMP("Moving callfinally BB%02u to be first in line, before BB%02u\n",
+                            normalCallFinallyBlock->bbNum, firstCallFinallyBlock->bbNum);
+
+                    BasicBlock* const firstToMove = normalCallFinallyBlock;
+                    BasicBlock* const lastToMove  = normalCallFinallyBlock->bbNext;
+
+                    fgUnlinkRange(firstToMove, lastToMove);
+                    fgMoveBlocksAfter(firstToMove, lastToMove, placeToMoveAfter);
 
 #ifdef DEBUG
-                // Sanity checks
-                fgDebugCheckBBlist(false, false);
-                fgVerifyHandlerTab();
+                    // Sanity checks
+                    fgDebugCheckBBlist(false, false);
+                    fgVerifyHandlerTab();
 #endif // DEBUG
 
-                assert(nextBlock == lastBlock->bbNext);
+                    assert(nextBlock == lastBlock->bbNext);
 
-                // Update where the callfinally range begins, since we might
-                // have altered this with callfinally rearrangement, and/or
-                // the range begin might have been pretty loose to begin with.
-                firstCallFinallyRangeBlock = normalCallFinallyBlock;
+                    // Update where the callfinally range begins, since we might
+                    // have altered this with callfinally rearrangement, and/or
+                    // the range begin might have been pretty loose to begin with.
+                    firstCallFinallyRangeBlock = normalCallFinallyBlock;
+                }
+                else
+                {
+                    JITDUMP("Can't move callfinally BB%02u to be first in line"
+                            " -- last finally block BB%02u doesn't jump to it\n",
+                            normalCallFinallyBlock->bbNum, placeToMoveAfter->bbNum);
+                }
             }
         }
 
@@ -24548,7 +24574,7 @@ void Compiler::fgCloneFinally()
 
             if (block == firstBlock)
             {
-                // Put first cloned finally block into the approprate
+                // Put first cloned finally block into the appropriate
                 // region, somewhere within or after the range of
                 // callfinallys, depending on the EH implementation.
                 const unsigned    hndIndex = 0;
@@ -24692,6 +24718,9 @@ void Compiler::fgCloneFinally()
                     {
                         // We can't retarget this call since it
                         // returns somewhere else.
+                        JITDUMP("Can't retarget callfinally in BB%02u as it jumps to BB%02u, not BB%02u\n",
+                                currentBlock->bbNum, postTryFinallyBlock->bbNum, normalCallFinallyReturn->bbNum);
+
                         retargetedAllCalls = false;
                     }
                 }

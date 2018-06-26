@@ -28,7 +28,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "lsra.h"
 
 #ifdef FEATURE_HW_INTRINSICS
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 #endif
 
 //------------------------------------------------------------------------
@@ -202,6 +202,11 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
                 con->SetIconValue(ival);
             }
         }
+    }
+    if (storeLoc->OperIs(GT_STORE_LCL_FLD))
+    {
+        // We should only encounter this for lclVars that are lvDoNotEnregister.
+        verifyLclFldDoNotEnregister(storeLoc->gtLclNum);
     }
     ContainCheckStoreLoc(storeLoc);
 }
@@ -494,7 +499,7 @@ void Lowering::LowerSIMD(GenTreeSIMD* simdNode)
 void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     auto intrinsicID   = node->gtHWIntrinsicId;
-    auto intrinsicInfo = comp->getHWIntrinsicInfo(node->gtHWIntrinsicId);
+    auto intrinsicInfo = HWIntrinsicInfo::lookup(node->gtHWIntrinsicId);
 
     //
     // Lower unsupported Unsigned Compare Zero intrinsics to their trivial transformations
@@ -876,7 +881,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
         op2     = argList->Rest()->Current();
     }
 
-    switch (comp->getHWIntrinsicInfo(node->gtHWIntrinsicId).form)
+    switch (HWIntrinsicInfo::lookup(node->gtHWIntrinsicId).form)
     {
         case HWIntrinsicInfo::SimdExtractOp:
             if (op2->IsCnsIntOrI())

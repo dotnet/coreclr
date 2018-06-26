@@ -305,7 +305,6 @@ JIT/Methodical/tailcall/_il_dbgpointer/_il_dbgpointer.sh
 JIT/Methodical/tailcall/_il_dbgpointer_i/_il_dbgpointer_i.sh
 JIT/Methodical/tailcall/_il_relpointer/_il_relpointer.sh
 JIT/Methodical/tailcall/_il_relpointer_i/_il_relpointer_i.sh
-JIT/Methodical/tailcall_v4/smallFrame/smallFrame.sh
 JIT/opt/Inline/tests/security/security.sh
 JIT/opt/Inline/tests/xmodb/xmodb.sh
 JIT/opt/Tailcall/TailcallVerifyWithPrefix/TailcallVerifyWithPrefix.sh
@@ -341,3 +340,4 @@ JIT/Regression/VS-ia64-JIT/V2.0-RTM/b286991/b286991/b286991.sh
 managed/Compilation/Compilation/Compilation.sh
 Regressions/coreclr/0584/Test584/Test584.sh
 Interop/SizeConst/SizeConstTest/SizeConstTest.sh
+tracing/eventsource/eventpipeandetw/eventpipeandetw/eventpipeandetw.sh

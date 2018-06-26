@@ -2226,7 +2226,8 @@ BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, voi
     bRet = CreateNewOSThread(stackSize, start, args);
 #ifndef FEATURE_PAL
     UndoRevert(bReverted, token);
-    SetThreadName(m_ThreadHandle, pName);
+    if (pName != NULL)
+        SetThreadName(m_ThreadHandle, pName);
 #endif // !FEATURE_PAL
 
     return bRet;
@@ -2254,7 +2255,7 @@ DWORD WINAPI Thread::intermediateThreadProc(PVOID arg)
     return ThreadFcnPtr(args);
 }
 
-HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, DWORD flags, DWORD* pThreadId)
+HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, LPCWSTR pName, DWORD flags, DWORD* pThreadId)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2284,6 +2285,10 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 
     DWORD threadId;
     HANDLE hThread = CreateThread(NULL, stackSize, start, args, flags, &threadId);
+#ifndef FEATURE_PAL
+    SetThreadName(hThread, pName);
+#endif // !FEATURE_PAL
+
 
     if (pThreadId)
         *pThreadId = threadId;
@@ -8541,7 +8546,6 @@ BOOL Thread::HaveExtraWorkForFinalizer()
     LIMITED_METHOD_CONTRACT;
 
     return m_ThreadTasks
-        || OverlappedDataObject::CleanupNeededFromGC()
         || ThreadpoolMgr::HaveTimerInfosToFlush()
         || ExecutionManager::IsCacheCleanupRequired()
         || Thread::CleanupNeededForFinalizedThread()
@@ -8600,8 +8604,6 @@ void Thread::DoExtraWorkForFinalizer()
     {
         ExecutionManager::ClearCaches();
     }
-
-    OverlappedDataObject::RequestCleanupFromGC();
 
     // If there were any TimerInfos waiting to be released, they'll get flushed now
     ThreadpoolMgr::FlushQueueOfTimerInfos();

@@ -50,6 +50,48 @@ bool IsFMAInstruction(instruction ins)
     return (ins >= INS_FIRST_FMA_INSTRUCTION) && (ins <= INS_LAST_FMA_INSTRUCTION);
 }
 
+regNumber getSseShiftRegNumber(instruction ins)
+{
+    switch (ins)
+    {
+        case INS_psrldq:
+        {
+            return (regNumber)3;
+        }
+
+        case INS_pslldq:
+        {
+            return (regNumber)7;
+        }
+
+        case INS_psrld:
+        case INS_psrlw:
+        case INS_psrlq:
+        {
+            return (regNumber)2;
+        }
+
+        case INS_pslld:
+        case INS_psllw:
+        case INS_psllq:
+        {
+            return (regNumber)6;
+        }
+
+        case INS_psrad:
+        case INS_psraw:
+        {
+            return (regNumber)4;
+        }
+
+        default:
+        {
+            assert(!"Invalid instruction for SSE2 instruction of the form: opcode reg, immed8");
+            return REG_NA;
+        }
+    }
+}
+
 bool emitter::IsAVXInstruction(instruction ins)
 {
     return UseVEXEncoding() && IsSSEOrAVXInstruction(ins);
@@ -185,9 +227,11 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_psubusw:
         case INS_psubw:
         case INS_pslld:
+        case INS_pslldq:
         case INS_psllq:
         case INS_psllw:
         case INS_psrld:
+        case INS_psrldq:
         case INS_psrlq:
         case INS_psrlw:
         case INS_psrad:
@@ -318,6 +362,43 @@ bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
             return false;
     }
 }
+
+#ifdef FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// IsDstSrcImmAvxInstruction: Checks if the instruction has a "reg, reg/mem, imm" or
+//                            "reg/mem, reg, imm" form for the legacy, VEX, and EVEX
+//                            encodings.
+//
+// Arguments:
+//    instruction -- processor instruction to check
+//
+// Return Value:
+//    true if instruction has a "reg, reg/mem, imm" or "reg/mem, reg, imm" encoding
+//    form for the legacy, VEX, and EVEX encodings.
+//
+//    That is, the instruction takes two operands, one of which is immediate, and it
+//    does not need to encode any data in the VEX.vvvv field.
+//
+static bool IsDstSrcImmAvxInstruction(instruction ins)
+{
+    switch (ins)
+    {
+        case INS_extractps:
+        case INS_pextrb:
+        case INS_pextrw:
+        case INS_pextrd:
+        case INS_pextrq:
+        case INS_pshufd:
+        case INS_pshufhw:
+        case INS_pshuflw:
+        case INS_roundpd:
+        case INS_roundps:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif // FEATURE_HW_INTRINSICS
 
 // -------------------------------------------------------------------
 // Is4ByteSSE4Instruction: Returns true if the SSE4 instruction
@@ -959,7 +1040,7 @@ unsigned emitter::emitGetVexPrefixAdjustedSize(instruction ins, emitAttr attr, c
             // opcodeSize + VexPrefixAdjustedSize - ExtraEscapePrefixSize + ModR\MSize
             //=opcodeSize + VexPrefixAdjustedSize -1 + 1
             //=opcodeSize + VexPrefixAdjustedSize
-            // So although we may have second byte escape prefix, we won't decrease vexPrefixAjustedSize.
+            // So although we may have second byte escape prefix, we won't decrease vexPrefixAdjustedSize.
         }
 
         return vexPrefixAdjustedSize;
@@ -1943,11 +2024,20 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
     }
 }
 
-inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, int var, int dsp, int val)
+inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp)
+{
+    instruction    ins      = id->idIns();
+    emitAttr       attrSize = id->idOpSize();
+    UNATIVE_OFFSET prefix   = emitGetVexPrefixAdjustedSize(ins, attrSize, code);
+    return prefix + emitInsSizeSV(code, var, dsp);
+}
+
+inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp, int val)
 {
     instruction    ins       = id->idIns();
-    UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(id->idOpSize());
-    UNATIVE_OFFSET prefix    = 0;
+    emitAttr       attrSize  = id->idOpSize();
+    UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(attrSize);
+    UNATIVE_OFFSET prefix    = emitGetVexPrefixAdjustedSize(ins, attrSize, code);
     bool           valInByte = ((signed char)val == val) && (ins != INS_mov) && (ins != INS_test);
 
 #ifdef _TARGET_AMD64_
@@ -1976,10 +2066,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(instrDesc* id, int var, int dsp, in
     // This referes to 66h size prefix override
     if (id->idOpSize() == EA_2BYTE)
     {
-        prefix = 1;
+        prefix += 1;
     }
 
-    return prefix + valSize + emitInsSizeSV(insCodeMI(ins), var, dsp);
+    return prefix + valSize + emitInsSizeSV(code, var, dsp);
 }
 
 /*****************************************************************************/
@@ -2267,6 +2357,8 @@ inline UNATIVE_OFFSET emitter::emitInsSizeCV(instrDesc* id, code_t code)
     // into constants with an indir, rather than GT_CLS_VAR
     // so we should only hit this path for statics that are RIP-relative
     UNATIVE_OFFSET size = sizeof(INT32);
+
+    size += emitGetVexPrefixAdjustedSize(ins, id->idOpSize(), code);
 
     // Most 16-bit operand instructions will need a prefix.
     // This refers to 66h size prefix override.
@@ -2623,6 +2715,8 @@ emitter::insFormat emitter::emitMapFmtAtoM(insFormat fmt)
             return IF_RWR_RRD_MRD;
         case IF_RWR_RRD_ARD_CNS:
             return IF_RWR_RRD_MRD_CNS;
+        case IF_RWR_RRD_ARD_RRD:
+            return IF_RWR_RRD_MRD_RRD;
 
         case IF_ARD_RRD:
             return IF_MRD_RRD;
@@ -3952,7 +4046,7 @@ void emitter::emitIns_AR(instruction ins, emitAttr attr, regNumber base, int off
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir, insFormat fmt)
+void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTreeIndir* indir)
 {
     ssize_t    offs = indir->Offset();
     instrDesc* id   = emitNewInstrAmd(attr, offs);
@@ -3960,7 +4054,7 @@ void emitter::emitIns_R_A(instruction ins, emitAttr attr, regNumber reg1, GenTre
     id->idIns(ins);
     id->idReg1(reg1);
 
-    emitHandleMemOp(indir, id, fmt, ins);
+    emitHandleMemOp(indir, id, IF_RRW_ARD, ins);
 
     UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
     id->idCodeSize(sz);
@@ -3982,8 +4076,7 @@ void emitter::emitIns_R_A_I(instruction ins, emitAttr attr, regNumber reg1, GenT
 
     emitHandleMemOp(indir, id, IF_RRW_ARD_CNS, ins);
 
-    // Plus one for the 1-byte immediate (ival)
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
 
     if (Is4ByteSSE4Instruction(ins))
     {
@@ -4011,8 +4104,7 @@ void emitter::emitIns_R_AR_I(instruction ins, emitAttr attr, regNumber reg1, reg
     id->idAddr()->iiaAddrMode.amBaseReg = base;
     id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
 
-    // Plus one for the 1-byte immediate (ival)
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
 
     if (Is4ByteSSE4Instruction(ins))
     {
@@ -4038,8 +4130,14 @@ void emitter::emitIns_R_C_I(
     noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
     assert(IsSSEOrAVXInstruction(ins));
 
-    instrDesc*     id = emitNewInstrCnsDsp(attr, ival, offs);
-    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    instrDesc* id = emitNewInstrCnsDsp(attr, ival, offs);
+
+    id->idIns(ins);
+    id->idInsFmt(IF_RRW_MRD_CNS);
+    id->idReg1(reg1);
+    id->idAddr()->iiaFieldHnd = fldHnd;
+
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins), ival);
 
     if (Is4ByteSSE4Instruction(ins))
     {
@@ -4047,12 +4145,8 @@ void emitter::emitIns_R_C_I(
         sz += 2;
     }
 
-    id->idIns(ins);
-    id->idInsFmt(IF_RRW_MRD_CNS);
-    id->idReg1(reg1);
-    id->idAddr()->iiaFieldHnd = fldHnd;
-
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4062,15 +4156,7 @@ void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int 
     noway_assert(emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
     assert(IsSSEOrAVXInstruction(ins));
 
-    instrDesc*     id = emitNewInstrCns(attr, ival);
-    UNATIVE_OFFSET sz =
-        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
-
-    if (Is4ByteSSE4Instruction(ins))
-    {
-        // The 4-Byte SSE4 instructions require two additional bytes
-        sz += 2;
-    }
+    instrDesc* id = emitNewInstrCns(attr, ival);
 
     id->idIns(ins);
     id->idInsFmt(IF_RRW_SRD_CNS);
@@ -4081,14 +4167,21 @@ void emitter::emitIns_R_S_I(instruction ins, emitAttr attr, regNumber reg1, int 
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
 #endif
 
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs, ival);
+
+    if (Is4ByteSSE4Instruction(ins))
+    {
+        // The 4-Byte SSE4 instructions require two additional bytes
+        sz += 2;
+    }
+
     id->idCodeSize(sz);
 
     dispIns(id);
     emitCurIGsize += sz;
 }
 
-void emitter::emitIns_R_R_A(
-    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir, insFormat fmt)
+void emitter::emitIns_R_R_A(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, GenTreeIndir* indir)
 {
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
@@ -4100,9 +4193,9 @@ void emitter::emitIns_R_R_A(
     id->idReg1(reg1);
     id->idReg2(reg2);
 
-    emitHandleMemOp(indir, id, fmt, ins);
+    emitHandleMemOp(indir, id, IF_RWR_RRD_ARD, ins);
 
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4124,7 +4217,7 @@ void emitter::emitIns_R_R_AR(instruction ins, emitAttr attr, regNumber reg1, reg
     id->idAddr()->iiaAddrMode.amBaseReg = base;
     id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
 
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins));
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4144,7 +4237,7 @@ void emitter::emitIns_R_R_C(
     }
 
     instrDesc*     id = emitNewInstrDsp(attr, offs);
-    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins));
 
     id->idIns(ins);
     id->idInsFmt(IF_RWR_RRD_MRD);
@@ -4189,9 +4282,7 @@ void emitter::emitIns_R_R_S(instruction ins, emitAttr attr, regNumber reg1, regN
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
 
-    instrDesc*     id = emitNewInstr(attr);
-    UNATIVE_OFFSET sz =
-        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins));
+    instrDesc* id = emitNewInstr(attr);
 
     id->idIns(ins);
     id->idInsFmt(IF_RWR_RRD_SRD);
@@ -4203,7 +4294,9 @@ void emitter::emitIns_R_R_S(instruction ins, emitAttr attr, regNumber reg1, regN
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
 #endif
 
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs);
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4223,7 +4316,7 @@ void emitter::emitIns_R_R_A_I(
 
     emitHandleMemOp(indir, id, fmt, ins);
 
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4246,8 +4339,7 @@ void emitter::emitIns_R_R_AR_I(
     id->idAddr()->iiaAddrMode.amBaseReg = base;
     id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
 
-    // Plus one for the 1-byte immediate (ival)
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -4266,8 +4358,7 @@ void emitter::emitIns_R_R_C_I(
         attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
     }
 
-    instrDesc*     id = emitNewInstrCnsDsp(attr, ival, offs);
-    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    instrDesc* id = emitNewInstrCnsDsp(attr, ival, offs);
 
     id->idIns(ins);
     id->idInsFmt(IF_RWR_RRD_MRD_CNS);
@@ -4275,7 +4366,9 @@ void emitter::emitIns_R_R_C_I(
     id->idReg2(reg2);
     id->idAddr()->iiaFieldHnd = fldHnd;
 
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins), ival);
     id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4320,9 +4413,7 @@ void emitter::emitIns_R_R_S_I(
     assert(IsSSEOrAVXInstruction(ins));
     assert(IsThreeOperandAVXInstruction(ins));
 
-    instrDesc*     id = emitNewInstrCns(attr, ival);
-    UNATIVE_OFFSET sz =
-        emitInsSizeSV(insCodeRM(ins), varx, offs) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeRM(ins)) + 1;
+    instrDesc* id = emitNewInstrCns(attr, ival);
 
     id->idIns(ins);
     id->idInsFmt(IF_RWR_RRD_SRD_CNS);
@@ -4334,7 +4425,192 @@ void emitter::emitIns_R_R_S_I(
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
 #endif
 
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs, ival);
     id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// encodeXmmRegAsIval: Encodes a XMM register into imm[7:4] for use by a SIMD instruction
+//
+// Arguments
+//    opReg -- The register being encoded
+//
+// Returns:
+//    opReg encoded in imm[7:4]
+static int encodeXmmRegAsIval(regNumber opReg)
+{
+    assert(opReg >= XMMBASE);
+    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
+    // which encodes the fourth register into imm8[7:4]
+    return (opReg - XMMBASE) << 4;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_A_R: emits the code for an instruction that takes a register operand, a GenTreeIndir address,
+//                  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
+// Remarks:
+//    op2 is built from indir
+//
+void emitter::emitIns_R_R_A_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, GenTreeIndir* indir)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    int        ival = encodeXmmRegAsIval(op3Reg);
+    ssize_t    offs = indir->Offset();
+    instrDesc* id   = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    emitHandleMemOp(indir, id, IF_RWR_RRD_ARD_RRD, ins);
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_AR_R: emits the code for an instruction that takes a register operand, a base memory
+//                   register, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op3Reg    -- The register of the third operand
+//    base      -- The base register used for the memory address
+//    offs      -- The offset added to the memory address from base
+//
+// Remarks:
+//    op2 is built from base + offs
+//
+void emitter::emitIns_R_R_AR_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, regNumber base, int offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    int        ival = encodeXmmRegAsIval(op3Reg);
+    instrDesc* id   = emitNewInstrAmdCns(attr, offs, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_ARD_RRD);
+    id->idAddr()->iiaAddrMode.amBaseReg = base;
+    id->idAddr()->iiaAddrMode.amIndxReg = REG_NA;
+
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeRM(ins), ival);
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_C_R: emits the code for an instruction that takes a register operand, a field handle +
+//                  offset,  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+// Remarks:
+//    op2 is built from fldHnd + offs
+//
+void emitter::emitIns_R_R_C_R(instruction          ins,
+                              emitAttr             attr,
+                              regNumber            targetReg,
+                              regNumber            op1Reg,
+                              regNumber            op3Reg,
+                              CORINFO_FIELD_HANDLE fldHnd,
+                              int                  offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    // Static always need relocs
+    if (!jitStaticFldIsGlobAddr(fldHnd))
+    {
+        attr = EA_SET_FLG(attr, EA_DSP_RELOC_FLG);
+    }
+
+    int        ival = encodeXmmRegAsIval(op3Reg);
+    instrDesc* id   = emitNewInstrCnsDsp(attr, ival, offs);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_MRD_RRD);
+    id->idAddr()->iiaFieldHnd = fldHnd;
+
+    UNATIVE_OFFSET sz = emitInsSizeCV(id, insCodeRM(ins), ival);
+    id->idCodeSize(sz);
+
+    dispIns(id);
+    emitCurIGsize += sz;
+}
+
+//------------------------------------------------------------------------
+// emitIns_R_R_R_S: emits the code for a instruction that takes a register operand, a variable index +
+//                  offset, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+// Remarks:
+//    op2 is built from varx + offs
+//
+void emitter::emitIns_R_R_S_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, int varx, int offs)
+{
+    assert(isAvxBlendv(ins));
+    assert(UseVEXEncoding());
+
+    int        ival = encodeXmmRegAsIval(op3Reg);
+    instrDesc* id   = emitNewInstrCns(attr, ival);
+
+    id->idIns(ins);
+    id->idReg1(targetReg);
+    id->idReg2(op1Reg);
+
+    id->idInsFmt(IF_RWR_RRD_SRD_RRD);
+    id->idAddr()->iiaLclVar.initLclVarAddr(varx, offs);
+
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeRM(ins), varx, offs, ival);
+    id->idCodeSize(sz);
+
     dispIns(id);
     emitCurIGsize += sz;
 }
@@ -4349,11 +4625,9 @@ void emitter::emitIns_R_R_R_R(
     // TODO-XArch-CQ: We should create function which can calculate all kinds of AVX instructions size in future
     UNATIVE_OFFSET sz = 6;
 
-    // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
-    // which encodes the fourth register into imm8[7:4]
-    int ival = (reg3 - XMMBASE) << 4; // convert reg3 to ival
+    int        ival = encodeXmmRegAsIval(reg3);
+    instrDesc* id   = emitNewInstrCns(attr, ival);
 
-    instrDesc* id = emitNewInstrCns(attr, ival);
     id->idIns(ins);
     id->idInsFmt(IF_RWR_RRD_RRD_RRD);
     id->idReg1(targetReg);
@@ -4604,7 +4878,7 @@ void emitter::emitIns_J_S(instruction ins, emitAttr attr, BasicBlock* dst, int v
     id->idjNext      = emitCurIGjmpList;
     emitCurIGjmpList = id;
 
-    UNATIVE_OFFSET sz = sizeof(INT32) + emitInsSizeSV(insCodeMI(ins), varx, offs);
+    UNATIVE_OFFSET sz = sizeof(INT32) + emitInsSizeSV(id, insCodeMI(ins), varx, offs);
     id->dstLclVar.initLclVarAddr(varx, offs);
 #ifdef DEBUG
     id->idDebugOnlyInfo()->idVarRefOffs = emitVarRefOffs;
@@ -4927,8 +5201,7 @@ void emitter::emitIns_AR_R_I(instruction ins, emitAttr attr, regNumber base, int
 
     assert(emitGetInsAmdAny(id) == disp); // make sure "disp" is stored properly
 
-    // Plus one for the 1-byte immediate (ival)
-    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeMR(ins)) + emitGetVexPrefixAdjustedSize(ins, attr, insCodeMR(ins)) + 1;
+    UNATIVE_OFFSET sz = emitInsSizeAM(id, insCodeMR(ins), ival);
     id->idCodeSize(sz);
 
     dispIns(id);
@@ -5315,220 +5588,455 @@ void emitter::emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNu
 }
 
 #ifdef FEATURE_HW_INTRINSICS
-void emitter::emitIns_SIMD_R_R_A(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_I: emits the code for a SIMD instruction that takes a register operand, an immediate operand
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int ival)
 {
-    if (UseVEXEncoding())
+    if (UseVEXEncoding() || IsDstSrcImmAvxInstruction(ins))
     {
-        emitIns_R_R_A(ins, attr, reg, reg1, indir, IF_RWR_RRD_ARD);
+        emitIns_R_R_I(ins, attr, targetReg, op1Reg, ival);
     }
     else
     {
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_A(ins, attr, reg, indir, IF_RRW_ARD);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_AR(ins, attr, reg, reg1, base, 0);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_AR(ins, attr, reg, base, 0);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_C(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_C(ins, attr, reg, reg1, fldHnd, offs);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_C(ins, attr, reg, fldHnd, offs);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_R(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_R(ins, attr, reg, reg1, reg2);
-    }
-    else
-    {
-        if (reg1 != reg)
-        {
-            // Ensure we aren't overwriting op2
-            assert(reg2 != reg);
-
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_R(ins, attr, reg, reg2);
-    }
-}
-
-static bool isSseShift(instruction ins)
-{
-    switch (ins)
-    {
-        case INS_psrldq:
-        case INS_pslldq:
-        case INS_psrld:
-        case INS_psrlw:
-        case INS_psrlq:
-        case INS_pslld:
-        case INS_psllw:
-        case INS_psllq:
-        case INS_psrad:
-        case INS_psraw:
-            return true;
-        default:
-            return false;
+        emitIns_R_I(ins, attr, targetReg, ival);
     }
 }
 
 //------------------------------------------------------------------------
-// IsDstSrcImmAvxInstruction: check if instruction has "R(M) R(M) I" format
-// for EVEX, VEX and legacy SSE encodings and has no (E)VEX.NDS
+// emitIns_SIMD_R_R_A: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                     and that returns a value in register
 //
 // Arguments:
-//    instruction -- processor instruction to check
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    indir     -- The GenTreeIndir used for the memory address
 //
-// Return Value:
-//    true if instruction has "R(M) R(M) I" format and has no (E)VEX.NDS
-//
-static bool IsDstSrcImmAvxInstruction(instruction ins)
+void emitter::emitIns_SIMD_R_R_A(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTreeIndir* indir)
 {
-    switch (ins)
+    if (UseVEXEncoding())
     {
-        case INS_extractps:
-        case INS_pextrb:
-        case INS_pextrw:
-        case INS_pextrd:
-        case INS_pextrq:
-        case INS_pshufd:
-        case INS_pshufhw:
-        case INS_pshuflw:
-            return true;
-        default:
-            return false;
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_I(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int ival)
-{
-    // TODO-XARCH refactoring emitIns_R_R_I to handle SSE2/AVX2 shift as well as emitIns_R_I
-    bool isShift = isSseShift(ins);
-    if (IsDstSrcImmAvxInstruction(ins) || (UseVEXEncoding() && !isShift))
-    {
-        emitIns_R_R_I(ins, attr, reg, reg1, ival);
+        emitIns_R_R_A(ins, attr, targetReg, op1Reg, indir);
     }
     else
     {
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        // TODO-XARCH-BUG emitOutputRI cannot work with SSE2 shift instruction on imm8 > 127, so we replace it by the
-        // semantic alternatives. https://github.com/dotnet/coreclr/issues/16543
-        if (isShift && ival > 127)
-        {
-            ival = 127;
-        }
-        emitIns_R_I(ins, attr, reg, ival);
+        emitIns_R_A(ins, attr, targetReg, indir);
     }
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR: emits the code for a SIMD instruction that takes a register operand, a base memory register,
+//                      and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    base      -- The base register used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_AR(instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_AR(ins, attr, targetReg, op1Reg, base, 0);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_AR(ins, attr, targetReg, base, 0);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C: emits the code for a SIMD instruction that takes a register operand, a field handle + offset,
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+void emitter::emitIns_SIMD_R_R_C(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, CORINFO_FIELD_HANDLE fldHnd, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C(ins, attr, targetReg, op1Reg, fldHnd, offs);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_C(ins, attr, targetReg, fldHnd, offs);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R: emits the code for a SIMD instruction that takes two register operands, and that returns a
+//                     value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//
+void emitter::emitIns_SIMD_R_R_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R(ins, attr, targetReg, op1Reg, op2Reg);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op2
+            assert(op2Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_R(ins, attr, targetReg, op2Reg);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S: emits the code for a SIMD instruction that takes a register operand, a variable index + offset,
+//                     and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+void emitter::emitIns_SIMD_R_R_S(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int varx, int offs)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S(ins, attr, targetReg, op1Reg, varx, offs);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_S(ins, attr, targetReg, varx, offs);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_A_I: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                       an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    indir     -- The GenTreeIndir used for the memory address
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_A_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, GenTreeIndir* indir, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_A_I(ins, attr, targetReg, op1Reg, indir, ival, IF_RWR_RRD_ARD_CNS);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_A_I(ins, attr, targetReg, indir, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR_I: emits the code for a SIMD instruction that takes a register operand, a base memory register,
+//                        an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    base      -- The base register used for the memory address
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_AR_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber base, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_AR_I(ins, attr, targetReg, op1Reg, base, 0, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_AR_I(ins, attr, targetReg, base, 0, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C_I: emits the code for a SIMD instruction that takes a register operand, a field handle + offset,
+//                       an immediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_C_I(instruction          ins,
+                                   emitAttr             attr,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   CORINFO_FIELD_HANDLE fldHnd,
+                                   int                  offs,
+                                   int                  ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_C_I(ins, attr, targetReg, op1Reg, fldHnd, offs, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_C_I(ins, attr, targetReg, fldHnd, offs, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_I: emits the code for a SIMD instruction that takes two register operands, an immediate operand,
+//                       and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_R_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_R_I(ins, attr, targetReg, op1Reg, op2Reg, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op2
+            assert(op2Reg != targetReg);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_R_I(ins, attr, targetReg, op2Reg, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S_I: emits the code for a SIMD instruction that takes a register operand, a variable index + offset,
+//                       an imediate operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//    ival      -- The immediate value
+//
+void emitter::emitIns_SIMD_R_R_S_I(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int varx, int offs, int ival)
+{
+    if (UseVEXEncoding())
+    {
+        emitIns_R_R_S_I(ins, attr, targetReg, op1Reg, varx, offs, ival);
+    }
+    else
+    {
+        if (op1Reg != targetReg)
+        {
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+        emitIns_R_S_I(ins, attr, targetReg, varx, offs, ival);
+    }
+}
+
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_A: emits the code for a SIMD instruction that takes two register operands, a GenTreeIndir address,
+//                       and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
 void emitter::emitIns_SIMD_R_R_R_A(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, GenTreeIndir* indir)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, GenTreeIndir* indir)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_A(ins, attr, reg, reg2, indir, IF_RWR_RRD_ARD);
+    emitIns_R_R_A(ins, attr, targetReg, op2Reg, indir);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_AR: emits the code for a SIMD instruction that takes two register operands, a base memory
+//                        register, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op2Reg    -- The register of the second operand
+//    base      -- The base register used for the memory address
+//
 void emitter::emitIns_SIMD_R_R_R_AR(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber base)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, regNumber base)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_AR(ins, attr, reg, reg2, base, 0);
+    emitIns_R_R_AR(ins, attr, targetReg, op2Reg, base, 0);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_C: emits the code for a SIMD instruction that takes two register operands, a field handle +
+//                       offset, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
 void emitter::emitIns_SIMD_R_R_R_C(instruction          ins,
                                    emitAttr             attr,
-                                   regNumber            reg,
-                                   regNumber            reg1,
-                                   regNumber            reg2,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   regNumber            op2Reg,
                                    CORINFO_FIELD_HANDLE fldHnd,
                                    int                  offs)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_C(ins, attr, reg, reg2, fldHnd, offs);
+    emitIns_R_R_C(ins, attr, targetReg, op2Reg, fldHnd, offs);
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_R: emits the code for a SIMD instruction that takes three register operands, and that returns a
+//                     value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    op3Reg    -- The register of the second operand
+//
 void emitter::emitIns_SIMD_R_R_R_R(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, regNumber reg3)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, regNumber op3Reg)
 {
     if (IsFMAInstruction(ins))
     {
         assert(UseVEXEncoding());
 
-        if (reg != reg1)
+        if (op1Reg != targetReg)
         {
             // Ensure we aren't overwriting op2 or op3
 
-            assert(reg != reg2);
-            assert(reg != reg3);
+            assert(op2Reg != targetReg);
+            assert(op3Reg != targetReg);
 
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
 
-        emitIns_R_R_R(ins, attr, reg, reg2, reg3);
+        emitIns_R_R_R(ins, attr, targetReg, op2Reg, op3Reg);
     }
     else if (UseVEXEncoding())
     {
@@ -5549,150 +6057,354 @@ void emitter::emitIns_SIMD_R_R_R_R(
             default:
                 break;
         }
-        emitIns_R_R_R_R(ins, attr, reg, reg1, reg2, reg3);
+        emitIns_R_R_R_R(ins, attr, targetReg, op1Reg, op2Reg, op3Reg);
     }
     else
     {
         assert(isSse41Blendv(ins));
         // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
-        if (reg3 != REG_XMM0)
+        if (op3Reg != REG_XMM0)
         {
             // Ensure we aren't overwriting op1 or op2
-            assert(reg1 != REG_XMM0);
-            assert(reg2 != REG_XMM0);
+            assert(op1Reg != REG_XMM0);
+            assert(op2Reg != REG_XMM0);
 
-            emitIns_R_R(INS_movaps, attr, REG_XMM0, reg3);
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            // Ensure we aren't overwriting op2 or op3
-            assert(reg2 != reg);
-            assert((reg3 == REG_XMM0) || (reg != REG_XMM0));
+            // Ensure we aren't overwriting op2 or oop3 (which should be REG_XMM0)
+            assert(op2Reg != targetReg);
+            assert(targetReg != REG_XMM0);
 
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_R(ins, attr, reg, reg2);
+        emitIns_R_R(ins, attr, targetReg, op2Reg);
     }
 }
 
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_R_S: emits the code for a SIMD instruction that takes two register operands, a variable index +
+//                       offset, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op2Reg    -- The register of the second operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
 void emitter::emitIns_SIMD_R_R_R_S(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int varx, int offs)
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op2Reg, int varx, int offs)
 {
     assert(IsFMAInstruction(ins));
     assert(UseVEXEncoding());
 
-    if (reg != reg1)
+    if (op1Reg != targetReg)
     {
         // Ensure we aren't overwriting op2
-        assert(reg != reg2);
+        assert(op2Reg != targetReg);
 
-        emitIns_R_R(INS_movaps, attr, reg, reg1);
+        emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
     }
 
-    emitIns_R_R_S(ins, attr, reg, reg2, varx, offs);
+    emitIns_R_R_S(ins, attr, targetReg, op2Reg, varx, offs);
 }
 
-void emitter::emitIns_SIMD_R_R_S(instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_A_R: emits the code for a SIMD instruction that takes a register operand, a GenTreeIndir address,
+//                       another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    indir     -- The GenTreeIndir used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_A_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, GenTreeIndir* indir)
 {
     if (UseVEXEncoding())
     {
-        emitIns_R_R_S(ins, attr, reg, reg1, varx, offs);
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_A_R(ins, attr, targetReg, op1Reg, op3Reg, indir);
     }
     else
     {
-        if (reg1 != reg)
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        emitIns_R_S(ins, attr, reg, varx, offs);
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3 (which should be REG_XMM0)
+            assert(targetReg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_A(ins, attr, targetReg, indir);
     }
 }
 
-void emitter::emitIns_SIMD_R_R_A_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, GenTreeIndir* indir, int ival)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_AR_R: emits the code for a SIMD instruction that takes a register operand, a base memory
+//                        register, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operands
+//    op3Reg    -- The register of the third operand
+//    base      -- The base register used for the memory address
+//
+void emitter::emitIns_SIMD_R_R_AR_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, regNumber base)
 {
     if (UseVEXEncoding())
     {
-        emitIns_R_R_A_I(ins, attr, reg, reg1, indir, ival, IF_RWR_RRD_ARD_CNS);
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_AR_R(ins, attr, targetReg, op1Reg, op3Reg, base, 0);
     }
     else
     {
-        if (reg1 != reg)
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        emitIns_R_A_I(ins, attr, reg, indir, ival);
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3 (which should be REG_XMM0)
+            assert(targetReg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_AR(ins, attr, targetReg, base, 0);
     }
 }
 
-void emitter::emitIns_SIMD_R_R_AR_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber base, int ival)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_C_R: emits the code for a SIMD instruction that takes a register operand, a field handle +
+//                       offset,  another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    fldHnd    -- The CORINFO_FIELD_HANDLE used for the memory address
+//    offs      -- The offset added to the memory address from fldHnd
+//
+void emitter::emitIns_SIMD_R_R_C_R(instruction          ins,
+                                   emitAttr             attr,
+                                   regNumber            targetReg,
+                                   regNumber            op1Reg,
+                                   regNumber            op3Reg,
+                                   CORINFO_FIELD_HANDLE fldHnd,
+                                   int                  offs)
 {
     if (UseVEXEncoding())
     {
-        emitIns_R_R_AR_I(ins, attr, reg, reg1, base, 0, ival);
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_C_R(ins, attr, targetReg, op1Reg, op3Reg, fldHnd, offs);
     }
     else
     {
-        if (reg1 != reg)
+        assert(isSse41Blendv(ins));
+
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        emitIns_R_AR_I(ins, attr, reg, base, 0, ival);
+        if (op1Reg != targetReg)
+        {
+            // Ensure we aren't overwriting op3 (which should be REG_XMM0)
+            assert(targetReg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
+        }
+
+        emitIns_R_C(ins, attr, targetReg, fldHnd, offs);
     }
 }
 
-void emitter::emitIns_SIMD_R_R_C_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, CORINFO_FIELD_HANDLE fldHnd, int offs, int ival)
+//------------------------------------------------------------------------
+// emitIns_SIMD_R_R_S_R: emits the code for a SIMD instruction that takes a register operand, a variable index +
+//                       offset, another register operand, and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    targetReg -- The target register
+//    op1Reg    -- The register of the first operand
+//    op3Reg    -- The register of the third operand
+//    varx      -- The variable index used for the memory address
+//    offs      -- The offset added to the memory address from varx
+//
+void emitter::emitIns_SIMD_R_R_S_R(
+    instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, regNumber op3Reg, int varx, int offs)
 {
     if (UseVEXEncoding())
     {
-        emitIns_R_R_C_I(ins, attr, reg, reg1, fldHnd, offs, ival);
+        assert(isAvxBlendv(ins) || isSse41Blendv(ins));
+
+        // convert SSE encoding of SSE4.1 instructions to VEX encoding
+        switch (ins)
+        {
+            case INS_blendvps:
+            {
+                ins = INS_vblendvps;
+                break;
+            }
+
+            case INS_blendvpd:
+            {
+                ins = INS_vblendvpd;
+                break;
+            }
+
+            case INS_pblendvb:
+            {
+                ins = INS_vpblendvb;
+                break;
+            }
+
+            default:
+            {
+                break;
+            }
+        }
+
+        emitIns_R_R_S_R(ins, attr, targetReg, op1Reg, op3Reg, varx, offs);
     }
     else
     {
-        if (reg1 != reg)
-        {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
-        }
-        emitIns_R_C_I(ins, attr, reg, fldHnd, offs, ival);
-    }
-}
+        assert(isSse41Blendv(ins));
 
-void emitter::emitIns_SIMD_R_R_R_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, regNumber reg2, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_R_I(ins, attr, reg, reg1, reg2, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
+        // SSE4.1 blendv* hardcode the mask vector (op3) in XMM0
+        if (op3Reg != REG_XMM0)
         {
-            // Ensure we aren't overwriting op2
-            assert(reg2 != reg);
+            // Ensure we aren't overwriting op1
+            assert(op1Reg != REG_XMM0);
 
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            emitIns_R_R(INS_movaps, attr, REG_XMM0, op3Reg);
         }
-        emitIns_R_R_I(ins, attr, reg, reg2, ival);
-    }
-}
-
-void emitter::emitIns_SIMD_R_R_S_I(
-    instruction ins, emitAttr attr, regNumber reg, regNumber reg1, int varx, int offs, int ival)
-{
-    if (UseVEXEncoding())
-    {
-        emitIns_R_R_S_I(ins, attr, reg, reg1, varx, offs, ival);
-    }
-    else
-    {
-        if (reg1 != reg)
+        if (op1Reg != targetReg)
         {
-            emitIns_R_R(INS_movaps, attr, reg, reg1);
+            // Ensure we aren't overwriting op3 (which should be REG_XMM0)
+            assert(targetReg != REG_XMM0);
+
+            emitIns_R_R(INS_movaps, attr, targetReg, op1Reg);
         }
-        emitIns_R_S_I(ins, attr, reg, varx, offs, ival);
+
+        emitIns_R_S(ins, attr, targetReg, varx, offs);
     }
 }
 #endif // FEATURE_HW_INTRINSICS
@@ -5705,7 +6417,7 @@ void emitter::emitIns_SIMD_R_R_S_I(
 void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
 {
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(insCodeMR(ins), varx, offs);
+    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_SRD);
 
     // 16-bit operand instructions will need a prefix
@@ -5740,7 +6452,7 @@ void emitter::emitIns_S(instruction ins, emitAttr attr, int varx, int offs)
 void emitter::emitIns_S_R(instruction ins, emitAttr attr, regNumber ireg, int varx, int offs)
 {
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(insCodeMR(ins), varx, offs);
+    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeMR(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_SRD_RRD);
 
 #ifdef _TARGET_X86_
@@ -5782,7 +6494,7 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     noway_assert(emitVerifyEncodable(ins, size, ireg));
 
     instrDesc*     id  = emitNewInstr(attr);
-    UNATIVE_OFFSET sz  = emitInsSizeSV(insCodeRM(ins), varx, offs);
+    UNATIVE_OFFSET sz  = emitInsSizeSV(id, insCodeRM(ins), varx, offs);
     insFormat      fmt = emitInsModeFormat(ins, IF_RRD_SRD);
 
     // Most 16-bit operand instructions need a prefix
@@ -5798,6 +6510,11 @@ void emitter::emitIns_R_S(instruction ins, emitAttr attr, regNumber ireg, int va
     if (TakesRexWPrefix(ins, attr) || IsExtendedReg(ireg, attr))
     {
         sz += emitGetRexPrefixSize(ins);
+    }
+
+    if (ins == INS_crc32)
+    {
+        sz += 1;
     }
 
     id->idIns(ins);
@@ -5844,7 +6561,7 @@ void emitter::emitIns_S_I(instruction ins, emitAttr attr, int varx, int offs, in
     instrDesc* id = emitNewInstrCns(attr, val);
     id->idIns(ins);
     id->idInsFmt(fmt);
-    UNATIVE_OFFSET sz = emitInsSizeSV(id, varx, offs, val);
+    UNATIVE_OFFSET sz = emitInsSizeSV(id, insCodeMI(ins), varx, offs, val);
 
     // VEX prefix
     sz += emitGetVexPrefixAdjustedSize(ins, attr, insCodeMI(ins));
@@ -6377,7 +7094,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
                 // disp is really a lclVarNum
                 noway_assert((unsigned)disp == (size_t)disp);
                 id->idAddr()->iiaLclVar.initLclVarAddr((unsigned)disp, 0);
-                sz = emitInsSizeSV(insCodeMR(INS_call), (unsigned)disp, 0);
+                sz = emitInsSizeSV(id, insCodeMR(INS_call), (unsigned)disp, 0);
 
                 break;
 
@@ -7656,6 +8373,12 @@ void emitter::emitDispIns(
             {
                 printf("%s, %s", emitRegName(id->idReg1(), EA_PTRSIZE), sstr);
             }
+            else if ((ins == INS_crc32) && (attr != EA_8BYTE))
+            {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
+                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
+            }
             else
             {
                 printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
@@ -7734,6 +8457,18 @@ void emitter::emitDispIns(
                 goto PRINT_CONSTANT;
             }
 
+            break;
+        }
+
+        case IF_RWR_RRD_ARD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+            emitDispAddrMode(id);
+
+            emitGetInsAmdCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
             break;
         }
 
@@ -7859,6 +8594,12 @@ void emitter::emitDispIns(
             {
                 printf("%s, %s", emitRegName(id->idReg1(), EA_PTRSIZE), sstr);
             }
+            else if ((ins == INS_crc32) && (attr != EA_8BYTE))
+            {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
+                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
+            }
             else
             {
                 printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
@@ -7918,6 +8659,19 @@ void emitter::emitDispIns(
             break;
         }
 
+        case IF_RWR_RRD_SRD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+            emitDispFrameRef(id->idAddr()->iiaLclVar.lvaVarNum(), id->idAddr()->iiaLclVar.lvaOffset(),
+                             id->idDebugOnlyInfo()->idVarRefOffs, asmfm);
+
+            emitGetInsCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
+            break;
+        }
+
         case IF_RRD_RRD:
         case IF_RWR_RRD:
         case IF_RRW_RRD:
@@ -7959,6 +8713,8 @@ void emitter::emitDispIns(
 #ifdef FEATURE_HW_INTRINSICS
             else if (ins == INS_crc32 && attr != EA_8BYTE)
             {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
                 printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
             }
 #endif // FEATURE_HW_INTRINSICS
@@ -8043,6 +8799,12 @@ void emitter::emitDispIns(
                 attr = EA_PTRSIZE;
             }
 #endif
+            else if ((ins == INS_crc32) && (attr != EA_8BYTE))
+            {
+                // The idReg1 is always 4 bytes, but the size of idReg2 can vary.
+                // This logic ensures that we print `crc32 eax, bx` instead of `crc32 ax, bx`
+                printf("%s, %s", emitRegName(id->idReg1(), EA_4BYTE), emitRegName(id->idReg2(), attr));
+            }
             printf("%s, %s", emitRegName(id->idReg1(), attr), sstr);
             offs = emitGetInsDsp(id);
             emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
@@ -8120,6 +8882,20 @@ void emitter::emitDispIns(
             {
                 goto PRINT_CONSTANT;
             }
+            break;
+        }
+
+        case IF_RWR_RRD_MRD_RRD:
+        {
+            printf("%s, ", emitRegName(id->idReg1(), attr));
+            printf("%s, ", emitRegName(id->idReg2(), attr));
+
+            offs = emitGetInsDsp(id);
+            emitDispClsVar(id->idAddr()->iiaFieldHnd, offs, ID_INFO_DSP_RELOC);
+
+            emitGetInsDcmCns(id, &cnsVal);
+            val = (cnsVal.cnsVal >> 4) + XMMBASE;
+            printf(", %s", emitRegName((regNumber)val, attr));
             break;
         }
 
@@ -8568,12 +9344,22 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     }
 
     // Special case emitting AVX instructions
-    if (Is4ByteSSE4OrAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
     {
+        if ((ins == INS_crc32) && (size > EA_1BYTE))
+        {
+            code |= 0x0100;
+
+            if (size == EA_2BYTE)
+            {
+                dst += emitOutputByte(dst, 0x66);
+            }
+        }
+
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        if (UseVEXEncoding())
+        if (UseVEXEncoding() && (ins != INS_crc32))
         {
             // Emit last opcode byte
             // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
@@ -8699,6 +9485,7 @@ GOT_DSP:
         switch (reg)
         {
             case REG_NA:
+            {
                 if (id->idIsDspReloc())
                 {
                     INT32 addlDelta = 0;
@@ -8706,7 +9493,7 @@ GOT_DSP:
                     // The address is of the form "[disp]"
                     // On x86 - disp is relative to zero
                     // On Amd64 - disp is relative to RIP
-                    if (Is4ByteSSE4OrAVXInstruction(ins))
+                    if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                     {
                         dst += emitOutputByte(dst, code | 0x05);
                     }
@@ -8762,7 +9549,7 @@ GOT_DSP:
                 else
                 {
 #ifdef _TARGET_X86_
-                    if (Is4ByteSSE4OrAVXInstruction(ins))
+                    if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                     {
                         dst += emitOutputByte(dst, code | 0x05);
                     }
@@ -8792,9 +9579,11 @@ GOT_DSP:
                     dst += emitOutputLong(dst, dsp);
                 }
                 break;
+            }
 
             case REG_EBP:
-                if (Is4ByteSSE4OrAVXInstruction(ins))
+            {
+                if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                 {
                     // Does the offset fit in a byte?
                     if (dspInByte)
@@ -8833,9 +9622,11 @@ GOT_DSP:
                     }
                 }
                 break;
+            }
 
             case REG_ESP:
-                if (Is4ByteSSE4OrAVXInstruction(ins))
+            {
+                if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                 {
                     // Is the offset 0 or does it at least fit in a byte?
                     if (dspIsZero)
@@ -8886,9 +9677,11 @@ GOT_DSP:
                     }
                 }
                 break;
+            }
 
             default:
-                if (Is4ByteSSE4OrAVXInstruction(ins))
+            {
+                if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                 {
                     // Put the register in the opcode
                     code |= insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr);
@@ -8950,6 +9743,7 @@ GOT_DSP:
                 }
 
                 break;
+            }
         }
     }
     else
@@ -8969,7 +9763,7 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                if (Is4ByteSSE4OrAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                 {
                     // Emit [ebp + {2/4/8} * rgz] as [ebp + {2/4/8} * rgx + 0]
                     if (dspIsZero && reg != REG_EBP)
@@ -9036,7 +9830,7 @@ GOT_DSP:
                 regByte = insEncodeReg012(ins, REG_EBP, EA_PTRSIZE, nullptr) |
                           insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr) | insSSval(mul);
 
-                if (Is4ByteSSE4OrAVXInstruction(ins))
+                if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
                 {
                     dst += emitOutputByte(dst, code | 0x04);
                 }
@@ -9065,7 +9859,7 @@ GOT_DSP:
             // The address is "[reg+rgx+dsp]"
             regByte = insEncodeReg012(ins, reg, EA_PTRSIZE, nullptr) | insEncodeReg345(ins, rgx, EA_PTRSIZE, nullptr);
 
-            if (Is4ByteSSE4OrAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
             {
                 if (dspIsZero && reg != REG_EBP)
                 {
@@ -9270,7 +10064,8 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
         // Does the constant fit in a byte?
         if ((signed char)cval == cval && addc->cnsReloc == false && ins != INS_mov && ins != INS_test)
         {
-            if (id->idInsFmt() != IF_SRW_SHF)
+            if ((id->idInsFmt() != IF_SRW_SHF) && (id->idInsFmt() != IF_RRW_SRD_CNS) &&
+                (id->idInsFmt() != IF_RWR_RRD_SRD_CNS))
             {
                 code |= 2;
             }
@@ -9291,12 +10086,22 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     }
 
     // Special case emitting AVX instructions
-    if (Is4ByteSSE4OrAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
     {
+        if ((ins == INS_crc32) && (size > EA_1BYTE))
+        {
+            code |= 0x0100;
+
+            if (size == EA_2BYTE)
+            {
+                dst += emitOutputByte(dst, 0x66);
+            }
+        }
+
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        if (UseVEXEncoding())
+        if (UseVEXEncoding() && (ins != INS_crc32))
         {
             // Emit last opcode byte
             // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
@@ -9422,7 +10227,7 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
     if (EBPbased)
     {
         // EBP-based variable: does the offset fit in a byte?
-        if (Is4ByteSSE4OrAVXInstruction(ins))
+        if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
         {
             if (dspInByte)
             {
@@ -9461,7 +10266,7 @@ BYTE* emitter::emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
         dspIsZero = (dsp == 0);
 
         // Does the offset fit in a byte?
-        if (Is4ByteSSE4OrAVXInstruction(ins))
+        if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
         {
             if (dspInByte)
             {
@@ -9731,12 +10536,22 @@ BYTE* emitter::emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
 #endif //_TARGET_X86_
 
     // Special case emitting AVX instructions
-    if (Is4ByteSSE4OrAVXInstruction(ins))
+    if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
     {
+        if ((ins == INS_crc32) && (size > EA_1BYTE))
+        {
+            code |= 0x0100;
+
+            if (size == EA_2BYTE)
+            {
+                dst += emitOutputByte(dst, 0x66);
+            }
+        }
+
         unsigned regcode = insEncodeReg345(ins, id->idReg1(), size, &code);
         dst += emitOutputRexOrVexPrefixIfNeeded(ins, dst, code);
 
-        if (UseVEXEncoding())
+        if (UseVEXEncoding() && (ins != INS_crc32))
         {
             // Emit last opcode byte
             // TODO-XArch-CQ: Right now support 4-byte opcode instructions only
@@ -10723,35 +11538,9 @@ BYTE* emitter::emitOutputRI(BYTE* dst, instrDesc* id)
 
         assert(id->idGCref() == GCT_NONE);
         assert(valInByte);
+
         // The left and right shifts use the same encoding, and are distinguished by the Reg/Opcode field.
-        regNumber regOpcode;
-        switch (ins)
-        {
-            case INS_psrldq:
-                regOpcode = (regNumber)3;
-                break;
-            case INS_pslldq:
-                regOpcode = (regNumber)7;
-                break;
-            case INS_psrld:
-            case INS_psrlw:
-            case INS_psrlq:
-                regOpcode = (regNumber)2;
-                break;
-            case INS_pslld:
-            case INS_psllw:
-            case INS_psllq:
-                regOpcode = (regNumber)6;
-                break;
-            case INS_psrad:
-            case INS_psraw:
-                regOpcode = (regNumber)4;
-                break;
-            default:
-                assert(!"Invalid instruction for SSE2 instruction of the form: opcode reg, immed8");
-                regOpcode = REG_NA;
-                break;
-        }
+        regNumber regOpcode = getSseShiftRegNumber(ins);
 
         // Get the 'base' opcode.
         code = insCodeMI(ins);
@@ -11892,7 +12681,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             // Also, determine which operand goes where in the ModRM byte.
             regNumber mReg;
             regNumber rReg;
-            // if (ins == INS_shld || ins == INS_shrd || ins == INS_vextractf128 || ins == INS_vinsertf128)
             if (hasCodeMR(ins))
             {
                 code = insCodeMR(ins);
@@ -11901,6 +12689,21 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 code = insEncodeMRreg(ins, code);
                 mReg = id->idReg1();
                 rReg = id->idReg2();
+            }
+            else if (hasCodeMI(ins))
+            {
+                code = insCodeMI(ins);
+
+                // Emit the VEX prefix if it exists
+                code = AddVexPrefixIfNeeded(ins, code, size);
+
+                assert((code & 0xC000) == 0);
+                code |= 0xC000;
+
+                mReg = id->idReg2();
+
+                // The left and right shifts use the same encoding, and are distinguished by the Reg/Opcode field.
+                rReg = getSseShiftRegNumber(ins);
             }
             else
             {
@@ -12073,8 +12876,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RWR_ARD:
         case IF_RRW_ARD:
         case IF_RWR_RRD_ARD:
+        {
             code = insCodeRM(ins);
-            if (Is4ByteSSE4OrAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
             {
                 dst = emitOutputAM(dst, id, code);
             }
@@ -12086,8 +12890,10 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             sz = emitSizeOfInsDsc(id);
             break;
+        }
 
         case IF_RWR_RRD_ARD_CNS:
+        case IF_RWR_RRD_ARD_RRD:
         {
             emitGetInsAmdCns(id, &cnsVal);
             code = insCodeRM(ins);
@@ -12213,11 +13019,12 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RRD_SRD:
         case IF_RWR_SRD:
         case IF_RRW_SRD:
+        {
             code = insCodeRM(ins);
 
             // 4-byte AVX instructions are special cased inside emitOutputSV
             // since they do not have space to encode ModRM byte.
-            if (Is4ByteSSE4OrAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
             {
                 dst = emitOutputSV(dst, id, code);
             }
@@ -12234,7 +13041,10 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputSV(dst, id, code | regcode);
             }
+
+            sz = emitSizeOfInsDsc(id);
             break;
+        }
 
         case IF_RWR_RRD_SRD:
         {
@@ -12261,6 +13071,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         }
 
         case IF_RWR_RRD_SRD_CNS:
+        case IF_RWR_RRD_SRD_RRD:
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));
@@ -12282,6 +13093,8 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputSV(dst, id, code | regcode, &cnsVal);
             }
+
+            sz = emitSizeOfInsDsc(id);
             break;
         }
 
@@ -12371,9 +13184,11 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_RRD_MRD:
         case IF_RWR_MRD:
         case IF_RRW_MRD:
+        {
             code = insCodeRM(ins);
+
             // Special case 4-byte AVX instructions
-            if (Is4ByteSSE4OrAVXInstruction(ins))
+            if (Is4ByteSSE4OrAVXInstruction(ins) || (ins == INS_crc32))
             {
                 dst = emitOutputCV(dst, id, code);
             }
@@ -12390,8 +13205,10 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 regcode = (insEncodeReg345(ins, id->idReg1(), size, &code) << 8);
                 dst     = emitOutputCV(dst, id, code | regcode | 0x0500);
             }
+
             sz = emitSizeOfInsDsc(id);
             break;
+        }
 
         case IF_RWR_RRD_MRD:
         {
@@ -12418,6 +13235,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         }
 
         case IF_RWR_RRD_MRD_CNS:
+        case IF_RWR_RRD_MRD_RRD:
         {
             // This should only be called on AVX instructions
             assert(IsAVXInstruction(ins));

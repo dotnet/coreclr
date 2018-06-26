@@ -118,7 +118,7 @@ bool CodeGen::genInstrWithConstant(instruction ins,
 
         // first we load the immediate into tmpReg
         instGen_Set_Reg_To_Imm(size, tmpReg, imm);
-        regTracker.rsTrackRegTrash(tmpReg);
+        regSet.verifyRegUsed(tmpReg);
 
         // when we are in an unwind code region
         // we record the extra instructions using unwindPadding()
@@ -1002,7 +1002,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         // Load the CallerSP of the main function (stored in the PSP of the dynamically containing funclet or function)
         genInstrWithConstant(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
                              genFuncletInfo.fiCallerSP_to_PSP_slot_delta, REG_R2, false);
-        regTracker.rsTrackRegTrash(REG_R1);
+        regSet.verifyRegUsed(REG_R1);
 
         // Store the PSP value (aka CallerSP)
         genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
@@ -1019,7 +1019,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         // compute the CallerSP, given the frame pointer. x3 is scratch.
         genInstrWithConstant(INS_add, EA_PTRSIZE, REG_R3, REG_FPBASE, -genFuncletInfo.fiFunction_CallerSP_to_FP_delta,
                              REG_R2, false);
-        regTracker.rsTrackRegTrash(REG_R3);
+        regSet.verifyRegUsed(REG_R3);
 
         genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
                              genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
@@ -1425,7 +1425,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
         }
     }
 
-    regTracker.rsTrackRegIntCns(reg, imm);
+    regSet.verifyRegUsed(reg);
 }
 
 /***********************************************************************************
@@ -1448,7 +1448,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
             if (con->ImmedValNeedsReloc(compiler))
             {
                 instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
-                regTracker.rsTrackRegTrash(targetReg);
+                regSet.verifyRegUsed(targetReg);
             }
             else
             {
@@ -2650,8 +2650,12 @@ void CodeGen::genJumpTable(GenTree* treeNode)
     genProduceReg(treeNode);
 }
 
-// generate code for the locked operations:
-// GT_LOCKADD, GT_XCHG, GT_XADD
+//------------------------------------------------------------------------
+// genLockedInstructions: Generate code for a GT_XADD or GT_XCHG node.
+//
+// Arguments:
+//    treeNode - the GT_XADD/XCHG node
+//
 void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
 {
     GenTree*  data      = treeNode->gtOp.gtOp2;
@@ -2701,7 +2705,7 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     // Emit code like this:
     //   retry:
     //     ldxr loadReg, [addrReg]
-    //     add storeDataReg, loadReg, dataReg         # Only for GT_XADD & GT_LOCKADD
+    //     add storeDataReg, loadReg, dataReg         # Only for GT_XADD
     //                                                # GT_XCHG storeDataReg === dataReg
     //     stxr exResult, storeDataReg, [addrReg]
     //     cbnz exResult, retry
@@ -2718,7 +2722,6 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     switch (treeNode->OperGet())
     {
         case GT_XADD:
-        case GT_LOCKADD:
             if (data->isContainedIntOrIImmed())
             {
                 // Even though INS_add is specified here, the encoder will choose either
@@ -3663,7 +3666,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                emitter::emitNoGChelper(helper));
 
     regMaskTP killMask = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
-    regTracker.rsTrashRegSet(killMask);
+    regSet.verifyRegistersUsed(killMask);
 }
 
 #ifdef FEATURE_SIMD
@@ -4890,7 +4893,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 
 instruction CodeGen::getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types instrType)
 {
@@ -4898,7 +4901,7 @@ instruction CodeGen::getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types ins
 
     unsigned int instrTypeIndex = varTypeIsFloating(instrType) ? 0 : varTypeIsUnsigned(instrType) ? 2 : 1;
 
-    instruction ins = compiler->getHWIntrinsicInfo(intrinsicID).instrs[instrTypeIndex];
+    instruction ins = HWIntrinsicInfo::lookup(intrinsicID).instrs[instrTypeIndex];
     assert(ins != INS_invalid);
 
     return ins;
@@ -4919,7 +4922,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
 
-    switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
+    switch (HWIntrinsicInfo::lookup(intrinsicID).form)
     {
         case HWIntrinsicInfo::UnaryOp:
             genHWIntrinsicUnaryOp(node);

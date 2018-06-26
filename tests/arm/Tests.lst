@@ -48428,14 +48428,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;Pri1
 HostStyle=0
 
-[varargsupport_r.cmd_6076]
-RelativePath=baseservices\varargs\varargsupport_r\varargsupport_r.cmd
-WorkingDir=baseservices\varargs\varargsupport_r
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS
-HostStyle=0
-
 [_il_relcatchfault_tail.cmd_6077]
 RelativePath=JIT\Methodical\Invoke\SEH\_il_relcatchfault_tail\_il_relcatchfault_tail.cmd
 WorkingDir=JIT\Methodical\Invoke\SEH\_il_relcatchfault_tail
@@ -49225,7 +49217,7 @@ RelativePath=JIT\jit64\opt\cse\HugeArray\HugeArray.cmd
 WorkingDir=JIT\jit64\opt\cse\HugeArray
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;Pri1
+Categories=EXPECTED_PASS;Pri1;GCSTRESS_EXCLUDE
 HostStyle=0
 
 [b11762.cmd_6176]
@@ -74412,14 +74404,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS
 HostStyle=0
 
-[varargsupport.cmd_9339]
-RelativePath=baseservices\varargs\varargsupport\varargsupport.cmd
-WorkingDir=baseservices\varargs\varargsupport
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS
-HostStyle=0
-
 [uint8_d.cmd_9340]
 RelativePath=JIT\Directed\shift\uint8_d\uint8_d.cmd
 WorkingDir=JIT\Directed\shift\uint8_d
@@ -87249,7 +87233,7 @@ RelativePath=JIT\Methodical\tailcall_v4\smallFrame\smallFrame.cmd
 WorkingDir=JIT\Methodical\tailcall_v4\smallFrame
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=JIT;9462;EXPECTED_FAIL;6881;EXCLUDED;ILLEGAL_IL_TAILCALL_POP_RET
+Categories=EXPECTED_PASS
 HostStyle=0
 
 [b99222.cmd_10958]
@@ -90892,14 +90876,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
-[MaskLoad_r.cmd_11417]
-RelativePath=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_r\MaskLoad_r.cmd
-WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_r
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW;EXCLUDED
-HostStyle=0
-
 [sharedgenerics_r.cmd_11418]
 RelativePath=Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_r\sharedgenerics_r.cmd
 WorkingDir=Loader\classloader\DefaultInterfaceMethods\sharedgenerics\sharedgenerics_r
@@ -91799,14 +91775,6 @@ HostStyle=0
 [CompareEqualOrderedScalar_r.cmd_11530]
 RelativePath=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_r\CompareEqualOrderedScalar_r.cmd
 WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\CompareEqualOrderedScalar_r
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW;EXCLUDED
-HostStyle=0
-
-[MaskLoad_ro.cmd_11531]
-RelativePath=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_ro\MaskLoad_ro.cmd
-WorkingDir=JIT\HardwareIntrinsics\X86\Avx\MaskLoad_ro
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;NEW;EXCLUDED
@@ -94738,5 +94706,21 @@ WorkingDir=JIT\Regression\JitBlue\DevDiv_590771\DevDiv_590771
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;Pri1;NEW
+HostStyle=0
+
+[GitHub_18482.cmd_11899]
+RelativePath=JIT\Regression\JitBlue\GitHub_18482\GitHub_18482\GitHub_18482.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_18482\GitHub_18482
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+
+[GitHub_18295.cmd_11900]
+RelativePath=JIT\Regression\JitBlue\GitHub_18295\GitHub_18295\GitHub_18295.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_18295\GitHub_18295
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
 HostStyle=0
 

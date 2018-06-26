@@ -5345,7 +5345,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
 bool gc_heap::create_gc_thread ()
 {
     dprintf (3, ("Creating gc thread\n"));
-    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, "Server GC");
+    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, ".NET Server GC");
 }
 
 #ifdef _MSC_VER
@@ -17507,7 +17507,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
         }
     }
 
-    dprintf (3, ("enquing P #%Id(%Ix): %Ix. oldest: %Id, LO: %Ix, pre: %d", 
+    dprintf (3, ("enqueuing P #%Id(%Ix): %Ix. oldest: %Id, LO: %Ix, pre: %d", 
         mark_stack_tos, &mark_stack_array[mark_stack_tos], plug, mark_stack_bos, last_object_in_last_plug, (save_pre_plug_info_p ? 1 : 0)));
     mark& m = mark_stack_array[mark_stack_tos];
     m.first = plug;
@@ -26725,7 +26725,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, "Background GC");
+    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, ".NET Background GC");
     return gh->bgc_thread_running;
 }
 

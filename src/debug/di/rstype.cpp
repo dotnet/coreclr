@@ -338,7 +338,7 @@ HRESULT CordbType::MkType(CordbAppDomain * pAppDomain,
     {
     // this one is included because we need a "seed" type to uniquely hash FNPTR types, 
     // i.e. the nullary FNPTR type is used as the type constructor for all function pointer types, 
-    // when combined with an approproiate instantiation.
+    // when combined with an appropriate instantiation.
     case ELEMENT_TYPE_FNPTR: 
         // fall through ...
 
@@ -636,7 +636,7 @@ LReallyObject:
 // Make a CordbType for a function pointer type (ELEMENT_TYPE_FNPTR).
 // 
 // Arguments:
-//   pAppDomain - the Appdomian the type lives in.
+//   pAppDomain - the Appdomain the type lives in.
 //   elementType - must be ELEMENT_TYPE_FNPTR.
 //   pInst - instantiation information.
 //   ppResultType - OUT: out-parameter to hold resulting CordbType
@@ -1854,7 +1854,7 @@ CordbType::GetUnboxedObjectSize(ULONG32 *pObjectSize)
     }
     else
     {
-        // Caller gaurantees that we're not a class. And the check above guarantees we're not a value-type.
+        // Caller guarantees that we're not a class. And the check above guarantees we're not a value-type.
         // So we're some sort of primitive, and thus we can determine size from the signature.
         // 
         // @dbgtodo inspection - We didn't have this assert in Whidbey, and it's firing in vararg 

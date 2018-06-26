@@ -175,7 +175,7 @@ namespace Internal.Runtime.Augments
         ** Returns true if the thread died, or false if the wait timed out. If
         ** Timeout.Infinite is given as the parameter, no timeout will occur.
         **
-        ** Exceptions: ArgumentException if timeout < 0.
+        ** Exceptions: ArgumentException if timeout < -1 (Timeout.Infinite).
         **             ThreadInterruptedException if the thread is interrupted while waiting.
         **             ThreadStateException if the thread has not been started yet.
         =========================================================================*/
@@ -242,8 +242,8 @@ namespace Internal.Runtime.Augments
 
             Debug.Assert(ProcessorIdRefreshRate <= ProcessorIdCacheCountDownMask);
 
-            // Mask with Int32.MaxValue to ensure the execution Id is not negative
-            t_currentProcessorIdCache = ((currentProcessorId << ProcessorIdCacheShift) & Int32.MaxValue) | ProcessorIdRefreshRate;
+            // Mask with int.MaxValue to ensure the execution Id is not negative
+            t_currentProcessorIdCache = ((currentProcessorId << ProcessorIdCacheShift) & int.MaxValue) | ProcessorIdRefreshRate;
 
             return currentProcessorId;
         }
