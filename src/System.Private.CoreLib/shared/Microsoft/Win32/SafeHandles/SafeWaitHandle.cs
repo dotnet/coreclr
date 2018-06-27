@@ -2,21 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*============================================================
-**
-**
-**
-** A wrapper for Win32 events (mutexes, auto reset events, and
-** manual reset events).  Used by WaitHandle.
-**
-** 
-===========================================================*/
-
 using System;
 using System.Security;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using Microsoft.Win32;
 using System.Threading;
@@ -35,9 +24,14 @@ namespace Microsoft.Win32.SafeHandles
             SetHandle(existingHandle);
         }
 
-        override protected bool ReleaseHandle()
+        protected override bool ReleaseHandle()
         {
-            return Win32Native.CloseHandle(handle);
+#if !CORECLR && !PLATFORM_WINDOWS
+            WaitSubsystem.DeleteHandle(handle);
+		    return true;
+#else
+            return Interop.Kernel32.CloseHandle(handle);
+#endif
         }
     }
 }
