@@ -9,7 +9,7 @@ using System.Runtime.CompilerServices;
 namespace Internal.Diagnostics.Tracing
 {
     //
-    // An internal contract that exposes just enough async debugger support needed by the AsTask() extension methods in the WindowsRuntimeSystemExtensions class.
+    // An internal contract that exposes FrameworkEventSourceSupport(ETW) support to System.Runtime.WindowsRuntime.dll
     //
     public static class FrameworkEventSourceSupport
     {
