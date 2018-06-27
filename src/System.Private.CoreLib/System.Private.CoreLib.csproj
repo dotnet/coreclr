@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <!-- Include common build properties -->
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
@@ -402,7 +402,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\ManualResetEventSlim.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenRegistration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenSource.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
