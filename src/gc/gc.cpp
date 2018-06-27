@@ -2634,6 +2634,8 @@ gen_to_condemn_tuning gc_heap::gen_to_condemn_reasons;
 
 size_t      gc_heap::etw_allocation_running_amount[2];
 
+uint64_t    gc_heap::allocated_so_far = 0;
+
 int         gc_heap::gc_policy = 0;
 
 size_t      gc_heap::allocation_running_time;
@@ -10666,6 +10668,7 @@ gc_heap::init_gc_heap (int  h_number)
 
     etw_allocation_running_amount[0] = 0;
     etw_allocation_running_amount[1] = 0;
+    allocated_so_far = 0;
 
     //needs to be done after the dynamic data has been initialized
 #ifndef MULTIPLE_HEAPS
@@ -11523,6 +11526,8 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
+    allocated_so_far += limit_size;
+
     uint8_t* saved_used = 0;
 
     if (seg)
@@ -12078,6 +12083,8 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
         GCToEEInterface::RecordAllocatedBytesForHeap(size, heap_number);
     }
 #endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
+
+    allocated_so_far += size;
 
     size_t size_of_array_base = sizeof(ArrayBase);
 
@@ -36037,6 +36044,23 @@ size_t      GCHeap::GetTotalBytesInUse ()
 #else
     return ApproxTotalBytesInUse ();
 #endif //MULTIPLE_HEAPS
+}
+
+// Get the total allocated bytes 
+uint64_t GCHeap::GetTotalAllocatedBytes()
+{
+    uint64_t total_allocated_so_far = 0; 
+#ifdef MULTIPLE_HEAPS
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+#else //MULTIPLE_HEAPS
+    {
+        gc_heap* hp = pGenGCHeap;
+#endif //MULTIPLE_HEAPS
+        total_allocated_so_far += hp->allocated_so_far;
+    }
+    return total_allocated_so_far;
 }
 
 int GCHeap::CollectionCount (int generation, int get_bgc_fgc_count)
