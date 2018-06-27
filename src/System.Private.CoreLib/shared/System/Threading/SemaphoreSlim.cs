@@ -565,7 +565,7 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="T:System.ArgumentOutOfRangeException">
         /// <paramref name="timeout"/> is a negative number other than -1 milliseconds, which represents 
-        /// an infinite timeout is greater than <see cref="System.Int32.MaxValue"/>.
+        /// an infinite time-out -or- timeout is greater than <see cref="System.Int32.MaxValue"/>.
         /// </exception>
         public Task<bool> WaitAsync(TimeSpan timeout)
         {
