@@ -362,13 +362,13 @@ void ZapImport::Save(ZapWriter * pZapWriter)
 {
     if (IsReadyToRunCompilation())
     {
-        SIZE_T value = 0;
-        pZapWriter->Write(&value, TARGET_POINTER_SIZE);
+        target_size_t value = 0;
+        pZapWriter->Write(&value, sizeof(value));
         return;
     }
 
-    SIZE_T token = CORCOMPILE_TAG_TOKEN(GetBlob()->GetRVA());
-    pZapWriter->Write(&token, TARGET_POINTER_SIZE);
+    target_size_t token = CORCOMPILE_TAG_TOKEN(GetBlob()->GetRVA());
+    pZapWriter->Write(&token, sizeof(token));
 }
 
 //
@@ -639,9 +639,9 @@ public:
     {
         ZapImage * pImage = ZapImage::GetImage(pZapWriter);
 
-        PVOID cell;
+        target_size_t cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
+        pZapWriter->Write(&cell, sizeof(cell));
     }
 };
 
@@ -745,9 +745,9 @@ public:
     {
         ZapImage * pImage = ZapImage::GetImage(pZapWriter);
 
-        PVOID cell;
+        target_size_t cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
+        pZapWriter->Write(&cell, sizeof(cell));
     }
 };
 
@@ -1725,9 +1725,9 @@ public:
     {
         ZapImage * pImage = ZapImage::GetImage(pZapWriter);
 
-        PVOID cell;
+        target_size_t cell;
         pImage->WriteReloc(&cell, 0, m_pDelayLoadHelper, 0, IMAGE_REL_BASED_PTR);
-        pZapWriter->Write(&cell, TARGET_POINTER_SIZE);
+        pZapWriter->Write(&cell, sizeof(cell));
     }
 };
 
