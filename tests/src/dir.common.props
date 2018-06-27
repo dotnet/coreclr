@@ -1,17 +1,7 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\dir.props" />
 
- <!-- Set default Configuration and Platform -->
-  <PropertyGroup>
-    <__BuildArch Condition="'$(__BuildArch)' == ''">x64</__BuildArch>
-    <__BuildType Condition="'$(__BuildType)' == ''">Debug</__BuildType>
-    <__BuildOS Condition="'$(__BuildOS)' == ''">Windows_NT</__BuildOS>
-    <BuildArch>$(__BuildArch)</BuildArch>
-    <BuildType>$(__BuildType)</BuildType>
-    <BuildOS>$(__BuildOS)</BuildOS>
-    <Configuration Condition="'$(Configuration)' ==''">$(BuildType)</Configuration>
-    <Platform Condition="'$(Platform)'==''">$(BuildArch)</Platform>
-  </PropertyGroup>
+  <Import Project="../dir.common.props" />
   
   <!-- Setup Default symbol and optimization for Configuration -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -32,7 +22,7 @@
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
     <DefineConstants>$(DefineConstants);DEBUG;TRACE;XUNIT_PERF</DefineConstants>
   </PropertyGroup>
-  
+
   <!-- Setup target platform pointer size in bit-->
   <PropertyGroup>
     <PointerSize Condition="'$(Platform)'=='x64'">64</PointerSize>
@@ -43,7 +33,6 @@
 
 <!-- Setup the default output and intermediate paths -->
   <PropertyGroup>
-    <OSPlatformConfig>$(BuildOS).$(Platform).$(Configuration)</OSPlatformConfig>
     <BaseOutputPath>$(ProjectDir)\..\bin\tests</BaseOutputPath>
     <BaseOutputPath Condition="'$(__TestRootDir)' != ''">$(__TestRootDir)</BaseOutputPath>
     <BaseOutputPathWithConfig>$(BaseOutputPath)\$(OSPlatformConfig)\</BaseOutputPathWithConfig>
