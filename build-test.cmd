@@ -389,11 +389,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if defined __SkipManaged (
-    rd /s /q "%CORE_ROOT_STAGE%"
-    exit /b 0
-) 
-REM End of BuildTestHost
+if defined __SkipManaged goto SkipBuildingWrappers
 
 echo %__MsgPrefix%Creating test wrappers...
 
@@ -423,6 +419,7 @@ if errorlevel 1 (
     echo Xunit Wrapper build failed
     exit /b 1
 )
+:SkipBuildingWrappers
 
 set __CrossgenArg = ""
 if defined __DoCrossgen (
