@@ -27,6 +27,12 @@
 #endif
 #endif // !_TARGET_X86_ || FEATURE_PAL
 
+#ifdef _TARGET_64BIT_
+typedef unsigned __int64 target_size_t;
+#else
+typedef unsigned int target_size_t;
+#endif
+
 #include "utilcode.h"
 #include "corjit.h"
 #include "jithost.h"
