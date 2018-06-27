@@ -222,6 +222,10 @@
                 {
                     "name": "System.Drawing.Tests.GraphicsTests.TextRenderingHint_SetInvalid_ThrowsInvalidEnumArgumentException",
                     "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\r\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\r\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-1) is invalid for Enum type 'TextRenderingHint'.\\r\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_PointFs",
+                    "reason": "Intermittent Failure"
                 }
             ]
         }
