@@ -38,6 +38,7 @@
       <ExcludeTraitsItems Include="$(ExcludeTraits)" />
     </ItemGroup>
 
+    <Error Condition="'$(CORE_ROOT)' == ''" Text="CORE_ROOT is not set." />
     <PropertyGroup>
       <XunitConsoleRunner>$(PackagesDir)\xunit.runner.console\2.4.0-beta.2.build4010\tools\netcoreapp2.0\xunit.console.dll</XunitConsoleRunner>
 
@@ -47,7 +48,9 @@
       <XunitArgs>$(XunitArgs) @(IncludeTraitsItems->'-trait %(Identity)', ' ')</XunitArgs>
       <XunitArgs>$(XunitArgs) @(ExcludeTraitsItems->'-notrait %(Identity)', ' ')</XunitArgs>
 
-      <XunitCommandLine>$(DotnetToolCommand) $(XunitConsoleRunner) @(TestAssemblies->'%(Identity)', ' ') $(XunitArgs)</XunitCommandLine>
+      <CorerunExecutable Condition="'$(RunningOnUnix)' == 'true'">$(CORE_ROOT)\corerun</CorerunExecutable>
+      <CorerunExecutable Condition="'$(RunningOnUnix)' != 'true'">$(CORE_ROOT)\corerun.exe</CorerunExecutable>
+      <XunitCommandLine>$(CorerunExecutable) $(XunitConsoleRunner) @(TestAssemblies->'%(Identity)', ' ') $(XunitArgs)</XunitCommandLine>
     </PropertyGroup>
     <Exec Command="$(XunitCommandLine)" />
 

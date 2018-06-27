@@ -76,14 +76,11 @@ $(_XunitEpilog)
         <![CDATA[
 <Project>
 
+  <Import Project="$(ProjectDir)dir.common.props" />
+
   <PropertyGroup>
-    <BaseIntermediateOutputPath>$(BaseIntermediateOutputPath)</BaseIntermediateOutputPath>
-    <BaseOutputPathWithConfig>$(BaseOutputPathWithConfig)</BaseOutputPathWithConfig>
-    <BuildProjectRelativeDir>%24(MSBuildProjectName)</BuildProjectRelativeDir>
-    <IntermediateOutputPath>%24(BaseIntermediateOutputPath)%24(BuildProjectRelativeDir)</IntermediateOutputPath>
-    <OutputPath>%24(BaseOutputPathWithConfig)%24(BuildProjectRelativeDir)</OutputPath>
+    <OutputPath>$(XUnitTestBinBase)\$(CategoryWithSlash)</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
@@ -102,8 +99,8 @@ $(_XunitEpilog)
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="xunit" Version="2.4.0-beta.2.build4010" />
-    <PackageReference Include="xunit.runner.console" Version="2.4.0-beta.2.build4010" />
+    <PackageReference Include="xunit" Version="$(XunitPackageVersion)" />
+    <PackageReference Include="xunit.runner.console" Version="$(XunitPackageVersion)" />
   </ItemGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
@@ -169,7 +166,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
             {
                 reportBase = System.Environment.GetEnvironmentVariable(%22XunitTestReportDirBase%22)%3B
                 testBinaryBase = System.IO.Path.GetDirectoryName(new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath)%3B
-                coreRoot = System.IO.Path.GetFullPath(System.Environment.GetEnvironmentVariable(%22CORE_ROOT%22))%3B
+                coreRoot = System.Environment.GetEnvironmentVariable(%22CORE_ROOT%22)%3B
 
                 if (String.IsNullOrEmpty(reportBase)) {
                     reportBase = System.IO.Path.Combine(testBinaryBase, "Reports")%3B
@@ -182,6 +179,8 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                 if (String.IsNullOrEmpty(coreRoot)) {
                     throw new ArgumentException("Environment variable CORE_ROOT is not set")%3B
                 }
+
+                coreRoot = System.IO.Path.GetFullPath(coreRoot)%3B
 
                 string operatingSystem = System.Environment.GetEnvironmentVariable("OS")%3B
                 runningInWindows = (operatingSystem != null && operatingSystem.StartsWith("Windows"))%3B
@@ -236,7 +235,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                 try
                 {
                   CoreclrTestWrapperLib wrapper = new CoreclrTestWrapperLib()%3B
-                  string testSubfolder = @"\$(Category)\$([System.String]::Copy('%(AllCMDs.RelativeDir)').Replace("$(_CMDDIR)\",''))"%3B
+                  string testSubfolder = @"\$(Category)\$([System.String]::Copy('%(AllCMDs.RelativeDir)').Replace("$(_CMDDIR)$([System.IO.Path]::DirectorySeparatorChar)",''))"%3B
                   outputFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).output.txt")%3B
                   errorFile = System.IO.Path.GetFullPath(_Global.reportBase + testSubfolder + @"%(AllCMDs.FileName).error.txt")%3B
                   testExecutable = System.IO.Path.GetFullPath(_Global.testBinaryBase + @"$([System.String]::Copy('%(AllCMDs.FullPath)').Replace("$(_CMDDIR)",''))")%3B
@@ -279,7 +278,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                         outputText = "Unable to read output file: " + outputFile%3B
                     }
 
-                    string msg = infraEx != null ? "Test Infrastructure Failure: " + infraEx.Message
+                    string msg = infraEx != null ? "Test Infrastructure Failure: " + infraEx.ToString()
                                                  : sErrorText + "\n\n" +
                                                    "Return code:      " + ret + "\n" +
                                                    "Raw output file:      " + outputFile + "\n" +

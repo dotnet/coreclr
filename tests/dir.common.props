@@ -1,0 +1,15 @@
+<Project>
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('dir.common.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <!-- This file contains build properties that apply to every SDK
+       project under the test tree. Eventually they should all build
+       using the SDK. -->
+
+  <PropertyGroup>
+    <OSPlatformConfig>$(BuildOS).$(Platform).$(Configuration)</OSPlatformConfig>
+    <BaseIntermediateOutputPath>$(CoreclrDir)/bin/tests/obj/$(OSPlatformConfig)/Managed/$(MSBuildProjectName)</BaseIntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)</IntermediateOutputPath>
+    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
+  </PropertyGroup>
+
+</Project>

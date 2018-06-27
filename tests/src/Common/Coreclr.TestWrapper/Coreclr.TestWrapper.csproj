@@ -1,4 +1,12 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('dir.common.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
 
   <PropertyGroup>
     <TargetFramework>netcoreapp2.0</TargetFramework>
@@ -9,5 +17,7 @@
   <ItemGroup>
     <Compile Include="CoreclrTestWrapperLib.cs" />
   </ItemGroup>
+
+  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
 
 </Project>
