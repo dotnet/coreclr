@@ -3006,6 +3006,9 @@ public:
     size_t etw_allocation_running_amount[2];
 
     PER_HEAP
+    uint64_t allocated_so_far;
+
+    PER_HEAP
     int gc_policy;  //sweep, compact, expand
 
 #ifdef MULTIPLE_HEAPS
