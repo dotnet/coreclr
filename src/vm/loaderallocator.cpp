@@ -7,6 +7,9 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#ifndef DACCESS_COMPILE
+#include "comdelegate.h"
+#endif
 
 //*****************************************************************************
 // Used by LoaderAllocator::Init for easier readability.
@@ -1581,6 +1584,20 @@ void DomainAssemblyIterator::operator++()
     pNextAssembly = pCurrentAssembly ? pCurrentAssembly->GetNextDomainAssemblyInSameALC() : NULL;
 }
 
+void AssemblyLoaderAllocator::SetCollectible()
+{
+    CONTRACTL
+    {
+        THROWS;
+    }
+    CONTRACTL_END;
+
+    m_IsCollectible = true;
+#ifndef DACCESS_COMPILE
+    m_pShuffleThunkCache = new ShuffleThunkCache(m_pStubHeap);
+#endif
+}
+
 #ifndef DACCESS_COMPILE
 
 #ifndef CROSSGEN_COMPILE
@@ -1592,6 +1609,9 @@ AssemblyLoaderAllocator::~AssemblyLoaderAllocator()
         VERIFY(m_binderToRelease->Release() == 0);
         m_binderToRelease = NULL;
     }
+
+    delete m_pShuffleThunkCache;
+    m_pShuffleThunkCache = NULL;
 }
 
 void AssemblyLoaderAllocator::RegisterBinder(CLRPrivBinderAssemblyLoadContext* binderToRelease)

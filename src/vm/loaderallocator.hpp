@@ -518,16 +518,19 @@ public:
 
 typedef VPTR(AppDomainLoaderAllocator) PTR_AppDomainLoaderAllocator;
 
+class ShuffleThunkCache;
+
 class AssemblyLoaderAllocator : public LoaderAllocator
 {
     VPTR_VTABLE_CLASS(AssemblyLoaderAllocator, LoaderAllocator)
     VPTR_UNIQUE(VPTRU_LoaderAllocator+3)
 
 protected:
-    LoaderAllocatorID m_Id;
+    LoaderAllocatorID  m_Id;
+    ShuffleThunkCache* m_pShuffleThunkCache;
 public:    
     virtual LoaderAllocatorID* Id();
-    AssemblyLoaderAllocator() : m_Id(LAT_Assembly)
+    AssemblyLoaderAllocator() : m_Id(LAT_Assembly), m_pShuffleThunkCache(NULL)
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         , m_binderToRelease(NULL)
 #endif
@@ -535,14 +538,17 @@ public:
     void Init(AppDomain *pAppDomain);
     virtual BOOL CanUnload();
 
-    void SetCollectible()
-    {
-        m_IsCollectible = true;
-    }
+    void SetCollectible();
 
-    void AddDomainAssembly(DomainAssembly *pDomainAssembly) { 
+    void AddDomainAssembly(DomainAssembly *pDomainAssembly)
+    {
         WRAPPER_NO_CONTRACT; 
         m_Id.AddDomainAssembly(pDomainAssembly); 
+    }
+
+    ShuffleThunkCache* GetShuffleThunkCache()
+    {
+        return m_pShuffleThunkCache;
     }
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
