@@ -48,7 +48,7 @@ void ZapBaseRelocs::WriteReloc(PVOID pSrc, int offset, ZapNode * pTarget, int ta
         // Misaligned relocs disable ASLR on ARM. We should never ever emit them.
         _ASSERTE(IS_ALIGNED(rva, TARGET_POINTER_SIZE));
 #endif
-        *(UNALIGNED target_size_t *)pLocation = (target_size_t)pActualTarget;
+        *(UNALIGNED TARGET_POINTER_TYPE *)pLocation = (TARGET_POINTER_TYPE)pActualTarget;
         break;
 
     case IMAGE_REL_BASED_RELPTR:
