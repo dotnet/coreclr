@@ -1,6 +1,7 @@
 <Project>
 
   <Target Name="CreateManifestResourceNames" />
+  <Target Name="Compile" />
   <Target Name="CoreCompile" />
 
   <Target Name="Build" Condition="('$(CLRTestKind)'=='RunOnly') And '$(_WillCLRTestProjectBuild)'">
