@@ -30,38 +30,9 @@ namespace System.Resources
     using System.Collections.Generic;
     using System.Runtime.Versioning;
     using System.Diagnostics;
-
 #if FEATURE_APPX
-    //
-    // This is implemented in System.Runtime.WindowsRuntime as function System.Resources.WindowsRuntimeResourceManager,
-    // allowing us to ask for a WinRT-specific ResourceManager.
-    // It is important to have WindowsRuntimeResourceManagerBase as regular class with virtual methods and default implementations. 
-    // Defining WindowsRuntimeResourceManagerBase as abstract class or interface will cause issues when adding more methods to it 
-    // because it'll create dependency between mscorlib and System.Runtime.WindowsRuntime which will require always shipping both DLLs together. 
-    //
-    // [FriendAccessAllowed]
-    internal abstract class WindowsRuntimeResourceManagerBase
-    {
-        public abstract bool Initialize(string libpath, string reswFilename, out PRIExceptionInfo exceptionInfo);
-
-        public abstract string GetString(string stringName, string startingCulture, string neutralResourcesCulture);
-
-        public abstract CultureInfo GlobalResourceContextBestFitCultureInfo
-        {
-            get;
-        }
-
-        public abstract bool SetGlobalResourceContextDefaultCulture(CultureInfo ci);
-    }
-
-    // [FriendAccessAllowed]
-    internal class PRIExceptionInfo
-    {
-        public string _PackageSimpleName;
-        public string _ResWFile;
-    }
-#endif // FEATURE_APPX
-
+    using Internal.Resources;
+#endif
     // Resource Manager exposes an assembly's resources to an application for
     // the correct CultureInfo.  An example would be localizing text for a 
     // user-visible message.  Create a set of resource files listing a name 
@@ -292,7 +263,7 @@ namespace System.Resources
             // This isn't for security reasons, but to ensure we can make
             // breaking changes to mscorlib's internal resources without 
             // assuming users may have taken a dependency on them.
-            if (assembly == typeof(Object).Assembly && _callingAssembly != assembly)
+            if (assembly == typeof(object).Assembly && _callingAssembly != assembly)
             {
                 _callingAssembly = null;
             }
@@ -322,7 +293,7 @@ namespace System.Resources
             // This isn't for security reasons, but to ensure we can make
             // breaking changes to mscorlib's internal resources without 
             // assuming users may have taken a dependency on them.
-            if (assembly == typeof(Object).Assembly && _callingAssembly != assembly)
+            if (assembly == typeof(object).Assembly && _callingAssembly != assembly)
                 _callingAssembly = null;
         }
 
@@ -345,7 +316,7 @@ namespace System.Resources
 
             _callingAssembly = (RuntimeAssembly)Assembly.GetCallingAssembly();
             // Special case for mscorlib - protect mscorlib's private resources.
-            if (MainAssembly == typeof(Object).Assembly && _callingAssembly != MainAssembly)
+            if (MainAssembly == typeof(object).Assembly && _callingAssembly != MainAssembly)
             {
                 _callingAssembly = null;
             }
@@ -645,7 +616,7 @@ namespace System.Resources
                 ResourceSet lostRace;
                 if (localResourceSets.TryGetValue(cultureName, out lostRace))
                 {
-                    if (!Object.ReferenceEquals(lostRace, rs))
+                    if (!object.ReferenceEquals(lostRace, rs))
                     {
                         // Note: In certain cases, we can be trying to add a ResourceSet for multiple
                         // cultures on one thread, while a second thread added another ResourceSet for one
@@ -705,15 +676,15 @@ namespace System.Resources
 
             // Now, compare assembly display names (IGNORES VERSION AND PROCESSORARCHITECTURE)
             // also, for  mscorlib ignores everything, since that's what the binder is going to do
-            while (Char.IsWhiteSpace(asmTypeName1[++comma])) ;
+            while (char.IsWhiteSpace(asmTypeName1[++comma])) ;
 
             // case insensitive
             AssemblyName an1 = new AssemblyName(asmTypeName1.Substring(comma));
-            if (string.Compare(an1.Name, asmName2.Name, StringComparison.OrdinalIgnoreCase) != 0)
+            if (!string.Equals(an1.Name, asmName2.Name, StringComparison.OrdinalIgnoreCase))
                 return false;
 
             // to match IsMscorlib() in VM
-            if (string.Compare(an1.Name, System.CoreLib.Name, StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Equals(an1.Name, System.CoreLib.Name, StringComparison.OrdinalIgnoreCase))
                 return true;
 
 
@@ -797,7 +768,7 @@ namespace System.Resources
         //       contains the PRI resources.
         private bool ShouldUseSatelliteAssemblyResourceLookupUnderAppX(RuntimeAssembly resourcesAssembly)
         {
-            bool fUseSatelliteAssemblyResourceLookupUnderAppX = typeof(Object).Assembly == resourcesAssembly;
+            bool fUseSatelliteAssemblyResourceLookupUnderAppX = typeof(object).Assembly == resourcesAssembly;
 
             if (!fUseSatelliteAssemblyResourceLookupUnderAppX)
             {
@@ -844,7 +815,7 @@ namespace System.Resources
 
             if (resourcesAssembly != null)
             {
-                if (resourcesAssembly != typeof(Object).Assembly) // We are not loading resources for mscorlib
+                if (resourcesAssembly != typeof(object).Assembly) // We are not loading resources for mscorlib
                 {
                     // Cannot load the WindowsRuntimeResourceManager when in a compilation process, since it
                     // lives in System.Runtime.WindowsRuntime and only mscorlib may be loaded for execution.
@@ -919,7 +890,6 @@ namespace System.Resources
                                     try
                                     {
                                         _PRIonAppXInitialized = _WinRTResourceManager.Initialize(resourcesAssembly.Location, reswFilename, out _PRIExceptionInfo);
-
                                         // Note that _PRIExceptionInfo might be null - this is OK.
                                         // In that case we will just throw the generic
                                         // MissingManifestResource_NoPRIresources exception.
@@ -1004,7 +974,7 @@ namespace System.Resources
                 // match, since CultureInfo objects can't represent all the different languages the AppX resource model supports.
                 // For classic resources, this causes us to ignore the languages list and instead use the older Win32 behavior,
                 // which is the design choice we've made. (See the call a little later to GetCurrentUICultureNoAppX()).
-                if (Object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
+                if (object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
                 {
                     culture = null;
                 }
@@ -1016,8 +986,8 @@ namespace System.Resources
                 {
                     // Always throw if we did not fully succeed in initializing the WinRT Resource Manager.
 
-                    if (_PRIExceptionInfo != null && _PRIExceptionInfo._PackageSimpleName != null && _PRIExceptionInfo._ResWFile != null)
-                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_ResWFileNotLoaded, _PRIExceptionInfo._ResWFile, _PRIExceptionInfo._PackageSimpleName));
+                    if (_PRIExceptionInfo != null && _PRIExceptionInfo.PackageSimpleName != null && _PRIExceptionInfo.ResWFile != null)
+                        throw new MissingManifestResourceException(SR.Format(SR.MissingManifestResource_ResWFileNotLoaded, _PRIExceptionInfo.ResWFile, _PRIExceptionInfo.PackageSimpleName));
 
                     throw new MissingManifestResourceException(SR.MissingManifestResource_NoPRIresources);
                 }
@@ -1087,7 +1057,7 @@ namespace System.Resources
         // current thread's CultureInfo, and if not found, all parent CultureInfos.
         // Returns null if the resource wasn't found.
         // 
-        public virtual Object GetObject(string name)
+        public virtual object GetObject(string name)
         {
             return GetObject(name, (CultureInfo)null, true);
         }
@@ -1095,12 +1065,12 @@ namespace System.Resources
         // Looks up a resource value for a particular name.  Looks in the 
         // specified CultureInfo, and if not found, all parent CultureInfos.
         // Returns null if the resource wasn't found.
-        public virtual Object GetObject(string name, CultureInfo culture)
+        public virtual object GetObject(string name, CultureInfo culture)
         {
             return GetObject(name, culture, true);
         }
 
-        private Object GetObject(string name, CultureInfo culture, bool wrapUnmanagedMemStream)
+        private object GetObject(string name, CultureInfo culture, bool wrapUnmanagedMemStream)
         {
             if (null == name)
                 throw new ArgumentNullException(nameof(name));
@@ -1111,7 +1081,7 @@ namespace System.Resources
                 // If the caller explictily passed in a culture that was obtained by calling CultureInfo.CurrentUICulture,
                 // null it out, so that we re-compute it based on the Win32 value and not the AppX language list value.
                 // (See the call a little later to GetCurrentUICultureNoAppX()).
-                if (Object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
+                if (object.ReferenceEquals(culture, CultureInfo.CurrentUICulture))
                 {
                     culture = null;
                 }
@@ -1128,7 +1098,7 @@ namespace System.Resources
             ResourceSet last = GetFirstResourceSet(culture);
             if (last != null)
             {
-                Object value = last.GetObject(name, _ignoreCase);
+                object value = last.GetObject(name, _ignoreCase);
 
                 if (value != null)
                 {
@@ -1158,7 +1128,7 @@ namespace System.Resources
 
                 if (rs != last)
                 {
-                    Object value = rs.GetObject(name, _ignoreCase);
+                    object value = rs.GetObject(name, _ignoreCase);
                     if (value != null)
                     {
                         // update the last used ResourceSet
@@ -1192,7 +1162,7 @@ namespace System.Resources
 
         public UnmanagedMemoryStream GetStream(string name, CultureInfo culture)
         {
-            Object obj = GetObject(name, culture, false);
+            object obj = GetObject(name, culture, false);
             UnmanagedMemoryStream ums = obj as UnmanagedMemoryStream;
             if (ums == null && obj != null)
                 throw new InvalidOperationException(SR.Format(SR.InvalidOperation_ResourceNotStream_Name, name));

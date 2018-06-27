@@ -3298,14 +3298,14 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     }
 #endif
 
-#ifdef _TARGET_ARM64_
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
     if (compiler->info.compIsVarArgs)
     {
         // We've already saved all int registers at the top of stack in the prolog.
         // No need further action.
         return;
     }
-#endif
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
 
     unsigned  argMax;           // maximum argNum value plus 1, (including the RetBuffArg)
     unsigned  argNum;           // current argNum, always in [0..argMax-1]
@@ -3470,6 +3470,12 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         // Change regType to the HFA type when we have a HFA argument
         if (varDsc->lvIsHfaRegArg())
         {
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            if (compiler->info.compIsVarArgs)
+            {
+                assert(!"Illegal incoming HFA arg encountered in Vararg method.");
+            }
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
             regType = varDsc->GetHfaType();
         }
 
@@ -3593,7 +3599,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             slots = 1;
 
 #if FEATURE_MULTIREG_ARGS
-            if (compiler->lvaIsMultiregStruct(varDsc))
+            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
             {
                 if (varDsc->lvIsHfaRegArg())
                 {
@@ -4979,11 +4985,6 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
     regMaskTP maskSaveRegsFloat = rsPushRegs & RBM_ALLFLOAT;
     regMaskTP maskSaveRegsInt   = rsPushRegs & ~maskSaveRegsFloat;
-
-    if (compiler->info.compIsVarArgs)
-    {
-        assert(maskSaveRegsFloat == RBM_NONE);
-    }
 
     int frameType = 0; // This number is arbitrary, is defined below, and corresponds to one of the frame styles we
                        // generate based on various sizes.
@@ -10265,28 +10266,6 @@ void CodeGen::genVzeroupperIfNeeded(bool check256bitOnly /* = true*/)
 #endif // defined(_TARGET_XARCH_)
 
 //-----------------------------------------------------------------------------------
-// IsMultiRegPassedType: Returns true if the type is returned in multiple registers
-//
-// Arguments:
-//     hClass   -  type handle
-//
-// Return Value:
-//     true if type is passed in multiple registers, false otherwise.
-//
-bool Compiler::IsMultiRegPassedType(CORINFO_CLASS_HANDLE hClass)
-{
-    if (hClass == NO_CLASS_HANDLE)
-    {
-        return false;
-    }
-
-    structPassingKind howToPassStruct;
-    var_types         returnType = getArgTypeForStruct(hClass, &howToPassStruct);
-
-    return (varTypeIsStruct(returnType));
-}
-
-//-----------------------------------------------------------------------------------
 // IsMultiRegReturnedType: Returns true if the type is returned in multiple registers
 //
 // Arguments:
@@ -10453,46 +10432,32 @@ instruction CodeGen::genMapShiftInsToShiftByConstantIns(instruction ins, int shi
 //    On x64 Windows the caller always creates slots (homing space) in its frame for the
 //    first 4 arguments of a callee (register passed args). So, the the variable number
 //    (lclNum) for the first argument with a stack slot is always 0.
-//    For System V systems or armarch, there is no such calling convention requirement, and the code needs to find
-//    the first stack passed argument from the caller. This is done by iterating over
+//    For System V systems or armarch, there is no such calling convention requirement, and the code
+//    needs to find the first stack passed argument from the caller. This is done by iterating over
 //    all the lvParam variables and finding the first with lvArgReg equals to REG_STK.
 //
 unsigned CodeGen::getFirstArgWithStackSlot()
 {
 #if defined(UNIX_AMD64_ABI) || defined(_TARGET_ARMARCH_)
     unsigned baseVarNum = 0;
-#if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
-    baseVarNum = compiler->lvaFirstStackIncomingArgNum;
+    // Iterate over all the lvParam variables in the Lcl var table until we find the first one
+    // that's passed on the stack.
+    LclVarDsc* varDsc = nullptr;
+    for (unsigned i = 0; i < compiler->info.compArgsCount; i++)
+    {
+        varDsc = &(compiler->lvaTable[i]);
 
-    if (compiler->lvaFirstStackIncomingArgNum != BAD_VAR_NUM)
-    {
-        baseVarNum = compiler->lvaFirstStackIncomingArgNum;
-    }
-    else
-#endif // FEATURE_UNIX_ARM64_STRUCT_PASSING
-    {
-        // Iterate over all the local variables in the Lcl var table.
-        // They contain all the implicit arguments - thisPtr, retBuf,
-        // generic context, PInvoke cookie, var arg cookie,no-standard args, etc.
-        LclVarDsc* varDsc = nullptr;
-        for (unsigned i = 0; i < compiler->info.compArgsCount; i++)
+        // We should have found a stack parameter (and broken out of this loop) before
+        // we find any non-parameters.
+        assert(varDsc->lvIsParam);
+
+        if (varDsc->lvArgReg == REG_STK)
         {
-            varDsc = &(compiler->lvaTable[i]);
-
-            // We are iterating over the arguments only.
-            assert(varDsc->lvIsParam);
-
-            if (varDsc->lvArgReg == REG_STK)
-            {
-                baseVarNum = i;
-#if defined(FEATURE_UNIX_AMR64_STRUCT_PASSING)
-                compiler->lvaFirstStackIncomingArgNum = baseVarNum;
-#endif // FEATURE_UNIX_ARM64_STRUCT_PASSING
-                break;
-            }
+            baseVarNum = i;
+            break;
         }
-        assert(varDsc != nullptr);
     }
+    assert(varDsc != nullptr);
 
     return baseVarNum;
 #elif defined(_TARGET_AMD64_)

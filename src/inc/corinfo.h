@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 0ba106c8-81a0-407f-99a1-928448c1eb62 */
-    0x0ba106c8,
-    0x81a0,
-    0x407f,
-    {0x99, 0xa1, 0x92, 0x84, 0x48, 0xc1, 0xeb, 0x62}
+SELECTANY const GUID JITEEVersionIdentifier = { /* dc72a60f-22f2-49fb-809f-00077f3eb1a8 */
+    0xdc72a60f,
+    0x22f2,
+    0x49fb,
+    { 0x80, 0x9f, 0x0, 0x7, 0x7f, 0x3e, 0xb1, 0xa8}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1926,6 +1926,21 @@ struct CORINFO_VarArgInfo
 
 #include <poppack.h>
 
+#define SIZEOF__CORINFO_Object                            TARGET_POINTER_SIZE /* methTable */
+
+#define OFFSETOF__CORINFO_Array__length                   SIZEOF__CORINFO_Object
+#ifdef _TARGET_64BIT_
+#define OFFSETOF__CORINFO_Array__data                     (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */ + sizeof(unsigned __int32) /* alignpad */)
+#else
+#define OFFSETOF__CORINFO_Array__data                     (OFFSETOF__CORINFO_Array__length + sizeof(unsigned __int32) /* length */)
+#endif
+
+#define OFFSETOF__CORINFO_TypedReference__dataPtr         0
+#define OFFSETOF__CORINFO_TypedReference__type            (OFFSETOF__CORINFO_TypedReference__dataPtr + TARGET_POINTER_SIZE /* dataPtr */)
+
+#define OFFSETOF__CORINFO_String__stringLen               SIZEOF__CORINFO_Object
+#define OFFSETOF__CORINFO_String__chars                   (OFFSETOF__CORINFO_String__stringLen + sizeof(unsigned __int32) /* stringLen */)
+
 enum CorInfoSecurityRuntimeChecks
 {
     CORINFO_ACCESS_SECURITY_NONE                          = 0,
@@ -3152,6 +3167,12 @@ public:
     virtual void* getTailCallCopyArgsThunk (
                     CORINFO_SIG_INFO       *pSig,
                     CorInfoHelperTailCallSpecialHandling flags
+                    ) = 0;
+
+    // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
+    virtual bool convertPInvokeCalliToCall(
+                    CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                    bool fMustConvert
                     ) = 0;
 };
 

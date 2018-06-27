@@ -4752,6 +4752,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
             }
             break;
 
+#if !defined(FEATURE_CORECLR)
             case CEE_CALLI:
 
                 // CEE_CALLI should not be inlined if the call indirect target has a calling convention other than
@@ -4784,6 +4785,7 @@ void Compiler::fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE*
                     }
                 }
                 break;
+#endif // FEATURE_CORECLR
 
             case CEE_JMP:
                 retBlocks++;
@@ -9549,8 +9551,8 @@ void Compiler::fgSimpleLowering()
 
                     noway_assert(arr->gtNext == tree);
 
-                    noway_assert(arrLen->ArrLenOffset() == offsetof(CORINFO_Array, length) ||
-                                 arrLen->ArrLenOffset() == offsetof(CORINFO_String, stringLen));
+                    noway_assert(arrLen->ArrLenOffset() == OFFSETOF__CORINFO_Array__length ||
+                                 arrLen->ArrLenOffset() == OFFSETOF__CORINFO_String__stringLen);
 
                     if ((arr->gtOper == GT_CNS_INT) && (arr->gtIntCon.gtIconVal == 0))
                     {
@@ -23731,6 +23733,11 @@ void Compiler::fgRemoveEmptyFinally()
                 BasicBlock* const leaveBlock          = currentBlock->bbNext;
                 BasicBlock* const postTryFinallyBlock = leaveBlock->bbJumpDest;
 
+                JITDUMP("Modifying callfinally BB%02u leave BB%02u finally BB%02u continuation BB%02u\n",
+                        currentBlock->bbNum, leaveBlock->bbNum, firstBlock->bbNum, postTryFinallyBlock->bbNum);
+                JITDUMP("so that BB%02u jumps to BB%02u; then remove BB%02u\n", currentBlock->bbNum,
+                        postTryFinallyBlock->bbNum, leaveBlock->bbNum);
+
                 noway_assert(leaveBlock->bbJumpKind == BBJ_ALWAYS);
 
                 currentBlock->bbJumpDest = postTryFinallyBlock;
@@ -23757,6 +23764,8 @@ void Compiler::fgRemoveEmptyFinally()
 
             currentBlock = nextBlock;
         }
+
+        JITDUMP("Remove now-unreachable handler BB%02u\n", firstBlock->bbNum);
 
         // Handler block should now be unreferenced, since the only
         // explicit references to it were in call finallys.
@@ -24392,15 +24401,27 @@ void Compiler::fgCloneFinally()
         for (BasicBlock* block = lastTryBlock; block != beforeTryBlock; block = block->bbPrev)
         {
 #if FEATURE_EH_CALLFINALLY_THUNKS
-            // Look for blocks that are always jumps to a call finally
-            // pair that targets our finally.
-            if (block->bbJumpKind != BBJ_ALWAYS)
+            // Blocks that transfer control to callfinallies are usually
+            // BBJ_ALWAYS blocks, but the last block of a try may fall
+            // through to a callfinally.
+            BasicBlock* jumpDest = nullptr;
+
+            if ((block->bbJumpKind == BBJ_NONE) && (block == lastTryBlock))
+            {
+                jumpDest = block->bbNext;
+            }
+            else if (block->bbJumpKind == BBJ_ALWAYS)
+            {
+                jumpDest = block->bbJumpDest;
+            }
+
+            if (jumpDest == nullptr)
             {
                 continue;
             }
 
-            BasicBlock* const jumpDest = block->bbJumpDest;
-
+            // The jumpDest must be a callfinally that in turn invokes the
+            // finally of interest.
             if (!jumpDest->isBBCallAlwaysPair() || (jumpDest->bbJumpDest != firstBlock))
             {
                 continue;

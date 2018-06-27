@@ -61,7 +61,7 @@ namespace System.Text
                 SetDefaultFallbacks();
         }
 
-        internal override void SetDefaultFallbacks()
+        internal sealed override void SetDefaultFallbacks()
         {
             // For UTF-X encodings, we use a replacement fallback with an empty string
             if (this.isThrowException)
@@ -116,7 +116,7 @@ namespace System.Text
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
         // parent method is safe
 
-        public override unsafe int GetByteCount(String s)
+        public override unsafe int GetByteCount(string s)
         {
             // Validate input
             if (s==null)
@@ -149,7 +149,7 @@ namespace System.Text
         // So if you fix this, fix the others.  Currently those include:
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
 
-        public override unsafe int GetBytes(String s, int charIndex, int charCount,
+        public override unsafe int GetBytes(string s, int charIndex, int charCount,
                                               byte[] bytes, int byteIndex)
         {
             if (s == null || bytes == null)
@@ -357,7 +357,7 @@ namespace System.Text
         // End of standard methods copied from EncodingNLS.cs
         //
 
-        internal override unsafe int GetByteCount(char* chars, int count, EncoderNLS encoder)
+        internal sealed override unsafe int GetByteCount(char* chars, int count, EncoderNLS encoder)
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetByteCount]chars!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetByteCount]count >=0");
@@ -650,8 +650,8 @@ namespace System.Text
             return byteCount;
         }
 
-        internal override unsafe int GetBytes(char* chars, int charCount,
-                                                byte* bytes, int byteCount, EncoderNLS encoder)
+        internal sealed override unsafe int GetBytes(
+            char* chars, int charCount, byte* bytes, int byteCount, EncoderNLS encoder)
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetBytes]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetBytes]byteCount >=0");
@@ -1007,7 +1007,7 @@ namespace System.Text
             return (int)(bytes - byteStart);
         }
 
-        internal override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
+        internal sealed override unsafe int GetCharCount(byte* bytes, int count, DecoderNLS baseDecoder)
         {
             Debug.Assert(bytes != null, "[UnicodeEncoding.GetCharCount]bytes!=null");
             Debug.Assert(count >= 0, "[UnicodeEncoding.GetCharCount]count >=0");
@@ -1334,8 +1334,8 @@ namespace System.Text
             return charCount;
         }
 
-        internal override unsafe int GetChars(byte* bytes, int byteCount,
-                                                char* chars, int charCount, DecoderNLS baseDecoder)
+        internal sealed override unsafe int GetChars(
+            byte* bytes, int byteCount, char* chars, int charCount, DecoderNLS baseDecoder)
         {
             Debug.Assert(chars != null, "[UnicodeEncoding.GetChars]chars!=null");
             Debug.Assert(byteCount >= 0, "[UnicodeEncoding.GetChars]byteCount >=0");
@@ -1789,7 +1789,7 @@ namespace System.Text
                 else
                     return new byte[2] { 0xff, 0xfe };
             }
-            return Array.Empty<Byte>();
+            return Array.Empty<byte>();
         }
 
         public override ReadOnlySpan<byte> Preamble =>
@@ -1842,7 +1842,7 @@ namespace System.Text
         }
 
 
-        public override bool Equals(Object value)
+        public override bool Equals(object value)
         {
             UnicodeEncoding that = value as UnicodeEncoding;
             if (that != null)

@@ -147,7 +147,7 @@ namespace System.Threading
         /// </summary>
         /// <param name="delay">The time span to wait before canceling this <see cref="CancellationTokenSource"/></param>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// The exception that is thrown when <paramref name="delay"/> is less than -1 or greater than Int32.MaxValue.
+        /// The exception that is thrown when <paramref name="delay"/> is less than -1 or greater than int.MaxValue.
         /// </exception>
         /// <remarks>
         /// <para>
@@ -268,7 +268,7 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="ArgumentOutOfRangeException">
         /// The exception thrown when <paramref name="delay"/> is less than -1 or 
-        /// greater than Int32.MaxValue.
+        /// greater than int.MaxValue.
         /// </exception>
         /// <remarks>
         /// <para>
@@ -725,8 +725,6 @@ namespace System.Threading
             }
         }
 
-
-
         /// <summary>
         /// Wait for a single callback to complete (or, more specifically, to not be running).
         /// It is ok to call this method if the callback has already finished.
@@ -790,17 +788,17 @@ namespace System.Threading
         {
             internal static readonly Action<object> s_linkedTokenCancelDelegate =
                 s => ((CancellationTokenSource)s).NotifyCancellation(throwOnFirstException: false); // skip ThrowIfDisposed() check in Cancel()
-            private CancellationTokenRegistration[] m_linkingRegistrations;
+            private CancellationTokenRegistration[] _linkingRegistrations;
 
             internal LinkedNCancellationTokenSource(params CancellationToken[] tokens)
             {
-                m_linkingRegistrations = new CancellationTokenRegistration[tokens.Length];
+                _linkingRegistrations = new CancellationTokenRegistration[tokens.Length];
 
                 for (int i = 0; i < tokens.Length; i++)
                 {
                     if (tokens[i].CanBeCanceled)
                     {
-                        m_linkingRegistrations[i] = tokens[i].InternalRegisterWithoutEC(s_linkedTokenCancelDelegate, this);
+                        _linkingRegistrations[i] = tokens[i].InternalRegisterWithoutEC(s_linkedTokenCancelDelegate, this);
                     }
                     // Empty slots in the array will be default(CancellationTokenRegistration), which are nops to Dispose.
                     // Based on usage patterns, such occurrences should also be rare, such that it's not worth resizing
@@ -815,10 +813,10 @@ namespace System.Threading
                     return;
                 }
 
-                CancellationTokenRegistration[] linkingRegistrations = m_linkingRegistrations;
+                CancellationTokenRegistration[] linkingRegistrations = _linkingRegistrations;
                 if (linkingRegistrations != null)
                 {
-                    m_linkingRegistrations = null; // release for GC once we're done enumerating
+                    _linkingRegistrations = null; // release for GC once we're done enumerating
                     for (int i = 0; i < linkingRegistrations.Length; i++)
                     {
                         linkingRegistrations[i].Dispose();

@@ -5012,11 +5012,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 genConsumeReg(putArgRegNode);
 
                 // Validate the putArgRegNode has the right type.
-                assert(putArgRegNode->TypeGet() ==
-                       compiler->GetTypeFromClassificationAndSizes(curArgTabEntry->structDesc
-                                                                       .eightByteClassifications[iterationNum],
-                                                                   curArgTabEntry->structDesc
-                                                                       .eightByteSizes[iterationNum]));
+                assert(varTypeIsFloating(putArgRegNode->TypeGet()) == genIsValidFloatReg(argReg));
                 if (putArgRegNode->gtRegNum != argReg)
                 {
                     inst_RV_RV(ins_Move_Extend(putArgRegNode->TypeGet(), false), argReg, putArgRegNode->gtRegNum);
@@ -7907,7 +7903,12 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* putArgStk)
 
 #ifdef UNIX_AMD64_ABI
 
-        if (varTypeIsStruct(targetType))
+        if (data->OperIs(GT_FIELD_LIST))
+        {
+            genPutArgStkFieldList(putArgStk, baseVarNum);
+            return;
+        }
+        else if (varTypeIsStruct(targetType))
         {
             m_stkArgVarNum = baseVarNum;
             m_stkArgOffset = putArgStk->getArgOffset();

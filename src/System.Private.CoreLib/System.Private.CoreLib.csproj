@@ -5,12 +5,9 @@
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <!-- Compilation options -->
   <PropertyGroup>
-    <AvailablePlatforms>amd64,x86,arm,armel,arm64</AvailablePlatforms>
+    <AvailablePlatforms>x64,x86,arm,armel,arm64</AvailablePlatforms>
     <Configuration Condition=" '$(Configuration)' == '' ">$(BuildType)</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">$(BuildArch)</Platform>
-    <!-- The CLR properties use amd64 as their platform string, we want to keep in sync with those, so set Platform appropriately,
-         though still use the 'x64' output path (see use of BuildArch below) -->
-    <Platform Condition=" '$(Platform)' == 'x64' ">amd64</Platform>
     <Platform Condition=" '$(Platform)' == 'armel' ">arm</Platform>
     <ProjectGuid>{3DA06C3A-2E7B-4CB7-80ED-9B12916013F9}</ProjectGuid>
     <OutputType>Library</OutputType>
@@ -49,7 +46,7 @@
     </AssemblyMetadata>
   </ItemGroup>
   <!-- Platform specific properties -->
-  <PropertyGroup Condition="'$(Platform)' == 'amd64'">
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
     <PlatformTarget>x64</PlatformTarget>
     <Prefer32Bit>false</Prefer32Bit>
     <BaseAddress>0x180000000</BaseAddress>
@@ -75,7 +72,7 @@
     <Optimize Condition="'$(Optimize)' == '' and '$(Configuration)' == 'Checked'">true</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
     <DefineConstants>_LOGGING;DEBUG;TRACE;$(DefineConstants)</DefineConstants>
-    <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'amd64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
+    <DefineConstants Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'x64'">CODE_ANALYSIS;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols>true</DebugSymbols>
@@ -245,65 +242,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\WindowsRuntime\CLRIKeyValuePairImpl.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector64.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector64DebugView.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector128.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector128DebugView.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector256.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Vector256DebugView.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Enums.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Platform)' == 'amd64' OR '$(Platform)' == 'x86'">
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Aes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Avx.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Avx2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Bmi1.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Bmi2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Fma.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Lzcnt.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Pclmulqdq.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Popcnt.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse2.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse3.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse41.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse42.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Ssse3.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Platform)' != 'amd64' AND '$(Platform)' != 'x86'">
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Aes.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Avx.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Avx2.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Bmi1.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Bmi2.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Fma.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Lzcnt.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Pclmulqdq.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Popcnt.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse2.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse3.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse41.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Sse42.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\X86\Ssse3.PlatformNotSupported.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Platform)' == 'arm64'">
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Aes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Base.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha1.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha256.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Simd.cs" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(Platform)' != 'arm64'">
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Aes.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Base.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha1.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Sha256.PlatformNotSupported.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Intrinsics\Arm\Arm64\Simd.PlatformNotSupported.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContext.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextSwitches.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext\AppContextDefaultValues.cs" />
@@ -363,7 +301,10 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\EnvironmentAugments.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
-    <Compile Condition="'$(FeatureCominterop)' == 'true'"  Include="$(BclSourcesRoot)\Internal\Threading\Tasks\AsyncCausalitySupport.cs" />
+    <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Threading\Tasks\AsyncCausalitySupport.cs" />
+    <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
+    <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\WindowsRuntimeResourceManagerBase.cs" />
+    <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\PRIExceptionInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
@@ -396,7 +337,6 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AssemblyBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AssemblyBuilderData.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AssemblyBuilderAccess.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AQNBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ConstructorBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\DynamicILGenerator.cs" />
@@ -407,7 +347,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\FieldToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ILGenerator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ISymWrapperCore.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\Label.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\LocalBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodBuilderInstantiation.cs" />
@@ -417,13 +356,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\MethodToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ModuleBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ModuleBuilderData.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\PEFileKinds.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OpCodes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\Opcode.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OpCodeType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\StackBehaviour.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\OperandType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\FlowControl.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ParameterBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\ParameterToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\PropertyBuilder.cs" />
@@ -456,11 +388,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Threading\SynchronizationContext.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\EventWaitHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Interlocked.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Monitor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Overlapped.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\Semaphore.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Thread.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadPool.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
@@ -468,11 +398,9 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\SpinLock.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadLocal.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\SemaphoreSlim.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ManualResetEventSlim.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenRegistration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenSource.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationToken.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\FutureFactory.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\Task.cs" />
@@ -510,8 +438,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventSource_CoreCLR.cs" />
     <Compile Condition="'$(FeatureXplatEventSource)' == 'true'" Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\XplatEventLogger.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\FrameworkEventSource.cs" />
-    <Compile Condition="Exists('$(IntermediateOutputPath)..\eventing\DotNETRuntimeEventSource.cs')" Include="$(IntermediateOutputPath)..\eventing\DotNETRuntimeEventSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\DotNETRuntimeEventSource.cs" />
+    <Compile Include="$(IntermediateOutputPath)..\eventing\DotNETRuntimeEventSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventDispatcher.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
@@ -561,7 +489,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeWaitHandle.cs" />
     <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
   <ItemGroup>

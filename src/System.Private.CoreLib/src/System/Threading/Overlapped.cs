@@ -6,7 +6,6 @@
 
 /*
  * This files defines the following types:
- *  - NativeOverlapped
  *  - _IOCompletionCallback
  *  - OverlappedData
  *  - Overlapped
@@ -23,36 +22,11 @@
 =============================================================================*/
 
 
-using System;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Runtime.Versioning;
-using System.Security;
-using System.Runtime.ConstrainedExecution;
 using System.Diagnostics;
-using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 
 namespace System.Threading
 {
-    #region struct NativeOverlapped
-
-    // Valuetype that represents the (unmanaged) Win32 OVERLAPPED structure
-    // the layout of this structure must be identical to OVERLAPPED.
-    // The first five matches OVERLAPPED structure.
-    // The remaining are reserved at the end
-    [System.Runtime.InteropServices.StructLayout(LayoutKind.Sequential)]
-    public struct NativeOverlapped
-    {
-        public IntPtr InternalLow;
-        public IntPtr InternalHigh;
-        public int OffsetLow;
-        public int OffsetHigh;
-        public IntPtr EventHandle;
-    }
-
-    #endregion struct NativeOverlapped
-
-
     #region class _IOCompletionCallback
 
     internal unsafe class _IOCompletionCallback
@@ -130,7 +104,7 @@ namespace System.Threading
         internal ref int OffsetHigh => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->OffsetHigh : ref _offsetHigh;
         internal ref IntPtr EventHandle => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->EventHandle : ref _eventHandle;
 
-        internal unsafe NativeOverlapped* Pack(IOCompletionCallback iocb, Object userData)
+        internal unsafe NativeOverlapped* Pack(IOCompletionCallback iocb, object userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -150,7 +124,7 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        internal unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb, Object userData)
+        internal unsafe NativeOverlapped* UnsafePack(IOCompletionCallback iocb, object userData)
         {
             if (_pNativeOverlapped != null)
             {
