@@ -152,7 +152,8 @@ class Constants {
                'standalone_gc',
                'gc_reliability_framework',
                'illink',
-               'corefx_innerloop']
+               'corefx_innerloop',
+               'crossgen_equivalence']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -2595,6 +2596,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
+    if (scenario == 'crossgen_equivalence' &&!isPR) {
+        return false
+    }
+
     // Tizen is only supported for armem architecture
     if (os == 'Tizen' && architecture != 'armem') {
         return false
@@ -2813,6 +2818,11 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 if(configuration != 'Release' && configuration != 'Checked') {
+                    return false
+                }
+                break
+            case 'crossgen_equivalence':
+                if (os != 'Ubuntu' || architecture != 'arm' || configuration != 'Checked') {
                     return false
                 }
                 break
