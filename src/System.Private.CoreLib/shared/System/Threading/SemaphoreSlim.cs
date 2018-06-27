@@ -43,7 +43,7 @@ namespace System.Threading
         // The number of synchronously waiting threads, it is set to zero in the constructor and increments before blocking the
         // threading and decrements it back after that. It is used as flag for the release call to know if there are
         // waiting threads in the monitor or not.
-        private volatile int m_waitCount;
+        private int m_waitCount;
 
         /// <summary>
         /// This is used to help prevent waking more waiters than necessary. It's not perfect and sometimes more waiters than
@@ -85,8 +85,9 @@ namespace System.Threading
                 bool setSuccessfully = TrySetResult(true);
                 Debug.Assert(setSuccessfully, "Should have been able to complete task");
             }
-
+#if CORECLR
             void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ } 
+#endif
         }
         #endregion
 
@@ -338,22 +339,25 @@ namespace System.Threading
                 // Perf: first spin wait for the count to be positive.
                 // This additional amount of spinwaiting in addition
                 // to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
-                // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
-                // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
-                // lessen that extra expense of doing a proper wait.
-                var spinner = new SpinWait();
-#if CORECLR
-                int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
-                while (m_currentCount == 0 && spinner.Count < spinCount)
+                if (m_currentCount == 0)
                 {
-                    spinner.SpinOnce(SpinWait.Sleep1ThresholdForSpinBeforeWait * 4);
+                    // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
+                    // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
+                    // lessen that extra expense of doing a proper wait.
+                    int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
+                    const int Sleep1Threshold = SpinWait.Sleep1ThresholdForSpinBeforeWait * 4;
+
+                    var spinner = new SpinWait();
+                    while (spinner.Count < spinCount)
+                    {
+                        spinner.SpinOnce(Sleep1Threshold);
+
+                        if (m_currentCount != 0)
+                        {
+                            break;
+                        }
+                    }
                 }
-#else
-                while (m_currentCount == 0 && !spinner.NextSpinWillYield)
-                {
-                    spinner.SpinOnce();
-                }             
-#endif
                 // entering the lock and incrementing waiters must not suffer a thread-abort, else we cannot
                 // clean up m_waitCount correctly, which may lead to deadlock due to non-woken waiters.
                 try { }
@@ -911,8 +915,6 @@ namespace System.Threading
                 m_asyncTail = null;
             }
         }
-
-
 
         /// <summary>
         /// Private helper method to wake up waiters when a cancellationToken gets canceled.
