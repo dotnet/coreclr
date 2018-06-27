@@ -1749,6 +1749,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
 
+                        case 'crossgen_equivalence':
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Crossgen Equivalence")
+                            break
+
                         default:
                             if (isJitStressScenario(scenario)) {
                                 def displayStr = getStressModeDisplayName(scenario)
@@ -2596,7 +2600,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
-    if (scenario == 'crossgen_equivalence' &&!isPR) {
+    if (scenario == 'crossgen_equivalence' && !isPR) {
         return false
     }
 
@@ -3507,6 +3511,11 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     if (scenario == 'corefx_innerloop') {
         return false
     }
+
+    if (scenario == 'crossgen_equivalence' && !isPR) {
+        return false
+    }
+
     // Filter based on OS and architecture.
 
     switch (architecture) {
