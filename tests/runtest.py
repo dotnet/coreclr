@@ -201,6 +201,11 @@ def call_msbuild(coreclr_repo_location,
 
     command += msbuild_log_args
 
+    command += ["/p:__BuildOS=%s" % host_os,
+                "/p:__BuildArch=%s" % arch,
+                "/p:__BuildType=%s" % build_type,
+                "/p:__LogsDir=%s" % logs_dir]
+
     if host_os != "Windows_NT":
         command = ["bash"] + command
 
