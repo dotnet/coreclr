@@ -47,6 +47,8 @@ set __unprocessedBuildArgs=
 set __RunArgs=
 set __BuildAgainstPackagesArg=
 set __SkipRestorePackages=
+set __SkipManaged=
+set __SkipNative=
 set __RuntimeId=
 set __ZipTests=
 set __TargetsWindows=1
@@ -79,7 +81,7 @@ if /i "%1" == "skipnative"            (set __SkipNative=1&set processedArgs=!pro
 if /i "%1" == "buildtesthost"         (set __SkipNative=1&__SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
-if /i "%1" == "skiprestorepackages"   (set __ZipTests=1&set __SkipRestorePackages=1)
+if /i "%1" == "skiprestorepackages"   (set __SkipRestorePackages=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
@@ -269,7 +271,7 @@ echo %__MsgPrefix% Restored CoreCLR product from packages
 
 :SkipRestoreProduct
 
-if defined __SkipManaged goto BuildTestHost
+if defined __SkipManaged goto SkipManagedBuild
 
 REM =========================================================================================
 REM ===
@@ -322,7 +324,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __AppendToLog=true
 )
 
-:BuildTestHost
+:SkipManagedBuild
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
 powershell -NoProfile "Get-ChildItem -path %__TestWorkingDir% -Include '*.ni.*' -Recurse -Force | Remove-Item -force"
@@ -351,6 +353,11 @@ if defined __BuildAgainstPackagesArg (
   )
 )
 
+REM =========================================================================================
+REM ===
+REM === Create the test overlay
+REM ===
+REM =========================================================================================
 echo %__MsgPrefix%Creating test overlay...
 
 set __BuildLogRootName=Tests_Overlay_Managed
@@ -371,6 +378,9 @@ if errorlevel 1 (
 )
 
 xcopy /s /y "%CORE_ROOT_STAGE%" "%CORE_ROOT%"
+
+REM Create the test host necessary for running CoreFX tests 
+REM The test host includes a dotnet executable, system libraries and CoreCLR assemblies found in CoreRoot
 
 set __BuildLogRootName=Tests_CoreFX_Testhost
 set __BuildLog=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__BuildType%.log

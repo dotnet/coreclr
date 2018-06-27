@@ -1,5 +1,5 @@
+// The expected format of this file can be found at https://github.com/dotnet/coreclr/blob/master/Documentation/building/testing-with-corefx.md
 [
-    
     {
         "name": "Microsoft.Win32.SystemEvents.Tests",
         "enabled": true,

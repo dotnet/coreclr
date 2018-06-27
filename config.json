@@ -337,7 +337,7 @@
       "defaultValue": ""
     },
     "CreateTestHost": {
-      "description": "Place CoreFX test dependencies in bin/testhost folder for running CoreFX tests against",
+      "description": "Place test dependencies in the /bin/testhost folder to be used to run CoreFX tests",
       "valueType": "target",
       "values": [],
       "defaultValue": ""
@@ -511,7 +511,7 @@
           }
         },
         "testHost": {
-          "description": "Runs test host target.",
+          "description": "Runs test host target, which creates a dotnet executable from the built CoreCLR repo to run pre-built CoreFX test assemblies",
           "settings": {
             "CreateTestHost": "default"
           }
