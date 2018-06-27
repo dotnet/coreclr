@@ -1750,7 +1750,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
 
                         case 'crossgen_equivalence':
+                            if (configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Crossgen Equivalence")
+                            }
                             break
 
                         default:
@@ -3512,7 +3514,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         return false
     }
 
-    if (scenario == 'crossgen_equivalence' && !isPR) {
+    if (scenario == 'crossgen_equivalence') {
         return false
     }
 
