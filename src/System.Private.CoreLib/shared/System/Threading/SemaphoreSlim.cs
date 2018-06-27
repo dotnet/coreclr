@@ -6,7 +6,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -67,10 +66,10 @@ namespace System.Threading
 
         // A pre-completed task with Result==true
         private static readonly Task<bool> s_trueTask =
-            new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
+            new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
         // A pre-completed task with Result==false
         private readonly static Task<bool> s_falseTask =
-            new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
+            new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
 
         // No maximum constant
         private const int NO_MAXIMUM = int.MaxValue;
@@ -86,6 +85,8 @@ namespace System.Threading
                 bool setSuccessfully = TrySetResult(true);
                 Debug.Assert(setSuccessfully, "Should have been able to complete task");
             }
+
+            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ } 
         }
         #endregion
 
@@ -335,28 +336,24 @@ namespace System.Threading
             try
             {
                 // Perf: first spin wait for the count to be positive.
-                //       This additional amount of spinwaiting in addition
-                //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
-                if (m_currentCount == 0)
+                // This additional amount of spinwaiting in addition
+                // to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
+                // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
+                // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
+                // lessen that extra expense of doing a proper wait.
+                var spinner = new SpinWait();
+#if CORECLR
+                int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
+                while (m_currentCount == 0 && spinner.Count < spinCount)
                 {
-                    // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
-                    // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
-                    // lessen that extra expense of doing a proper wait.
-                    int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
-                    const int Sleep1Threshold = SpinWait.Sleep1ThresholdForSpinBeforeWait * 4;
-
-                    var spinner = new SpinWait();
-                    while (spinner.Count < spinCount)
-                    {
-                        spinner.SpinOnce(Sleep1Threshold);
-
-                        if (m_currentCount != 0)
-                        {
-                            break;
-                        }
-                    }
+                    spinner.SpinOnce(SpinWait.Sleep1ThresholdForSpinBeforeWait * 4);
                 }
-
+#else
+                while (m_currentCount == 0 && !spinner.NextSpinWillYield)
+                {
+                    spinner.SpinOnce();
+                }             
+#endif
                 // entering the lock and incrementing waiters must not suffer a thread-abort, else we cannot
                 // clean up m_waitCount correctly, which may lead to deadlock due to non-woken waiters.
                 try { }
@@ -503,7 +500,7 @@ namespace System.Threading
         /// <returns>A task that will complete when the semaphore has been entered.</returns>
         public Task WaitAsync()
         {
-            return WaitAsync(Timeout.Infinite, default(CancellationToken));
+            return WaitAsync(Timeout.Infinite, default);
         }
 
         /// <summary>
@@ -540,7 +537,7 @@ namespace System.Threading
         /// </exception>
         public Task<bool> WaitAsync(int millisecondsTimeout)
         {
-            return WaitAsync(millisecondsTimeout, default(CancellationToken));
+            return WaitAsync(millisecondsTimeout, default);
         }
 
         /// <summary>
@@ -568,7 +565,7 @@ namespace System.Threading
         /// </exception>
         public Task<bool> WaitAsync(TimeSpan timeout)
         {
-            return WaitAsync(timeout, default(CancellationToken));
+            return WaitAsync(timeout, default);
         }
 
         /// <summary>
@@ -729,7 +726,7 @@ namespace System.Threading
             // completes due to the asyncWaiter completing, so we use our own token that we can explicitly
             // cancel, and we chain the caller's supplied token into it.
             using (var cts = cancellationToken.CanBeCanceled ?
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default(CancellationToken)) :
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default) :
                 new CancellationTokenSource())
             {
                 var waitCompleted = Task.WhenAny(asyncWaiter, Task.Delay(millisecondsTimeout, cts.Token));
