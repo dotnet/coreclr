@@ -2,15 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-//
-//
-//
-// A lightweight semahore class that contains the basic semaphore functions plus some useful functions like interrupt
-// and wait handle exposing to allow waiting on multiple semaphores.
-//
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 using System;
 using System.Collections.Generic;
@@ -18,8 +9,6 @@ using System.Diagnostics;
 using System.Security;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-
-// The class will be part of the current System.Threading namespace
 
 namespace System.Threading
 {
@@ -55,7 +44,7 @@ namespace System.Threading
         // The number of synchronously waiting threads, it is set to zero in the constructor and increments before blocking the
         // threading and decrements it back after that. It is used as flag for the release call to know if there are
         // waiting threads in the monitor or not.
-        private int m_waitCount;
+        private volatile int m_waitCount;
 
         /// <summary>
         /// This is used to help prevent waking more waiters than necessary. It's not perfect and sometimes more waiters than
@@ -77,11 +66,11 @@ namespace System.Threading
         private TaskNode m_asyncTail;
 
         // A pre-completed task with Result==true
-        private readonly static Task<bool> s_trueTask =
-            new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
+        private static readonly Task<bool> s_trueTask =
+            new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
         // A pre-completed task with Result==false
         private readonly static Task<bool> s_falseTask =
-            new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
+            new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default(CancellationToken));
 
         // No maximum constant
         private const int NO_MAXIMUM = int.MaxValue;
@@ -97,8 +86,6 @@ namespace System.Threading
                 bool setSuccessfully = TrySetResult(true);
                 Debug.Assert(setSuccessfully, "Should have been able to complete task");
             }
-
-            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
         }
         #endregion
 
@@ -238,7 +225,7 @@ namespace System.Threading
         /// otherwise, false.</returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="timeout"/> is a negative
         /// number other than -1 milliseconds, which represents an infinite time-out -or- timeout is greater
-        /// than <see cref="System.int.MaxValue"/>.</exception>
+        /// than <see cref="System.Int32.MaxValue"/>.</exception>
         public bool Wait(TimeSpan timeout)
         {
             // Validate the timeout
@@ -267,7 +254,7 @@ namespace System.Threading
         /// otherwise, false.</returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="timeout"/> is a negative
         /// number other than -1 milliseconds, which represents an infinite time-out -or- timeout is greater
-        /// than <see cref="System.int.MaxValue"/>.</exception>
+        /// than <see cref="System.Int32.MaxValue"/>.</exception>
         /// <exception cref="System.OperationCanceledException"><paramref name="cancellationToken"/> was canceled.</exception>
         public bool Wait(TimeSpan timeout, CancellationToken cancellationToken)
         {
@@ -487,7 +474,6 @@ namespace System.Threading
                         return false;
                     }
                 }
-
                 // ** the actual wait **
                 bool waitSuccessful = Monitor.Wait(m_lockObj, remainingWaitMilliseconds);
 
@@ -517,7 +503,7 @@ namespace System.Threading
         /// <returns>A task that will complete when the semaphore has been entered.</returns>
         public Task WaitAsync()
         {
-            return WaitAsync(Timeout.Infinite, default);
+            return WaitAsync(Timeout.Infinite, default(CancellationToken));
         }
 
         /// <summary>
@@ -554,7 +540,7 @@ namespace System.Threading
         /// </exception>
         public Task<bool> WaitAsync(int millisecondsTimeout)
         {
-            return WaitAsync(millisecondsTimeout, default);
+            return WaitAsync(millisecondsTimeout, default(CancellationToken));
         }
 
         /// <summary>
@@ -578,11 +564,11 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="T:System.ArgumentOutOfRangeException">
         /// <paramref name="timeout"/> is a negative number other than -1 milliseconds, which represents 
-        /// an infinite time-out -or- timeout is greater than <see cref="System.int.MaxValue"/>.
+        /// an infinite timeout is greater than <see cref="System.Int32.MaxValue"/>.
         /// </exception>
         public Task<bool> WaitAsync(TimeSpan timeout)
         {
-            return WaitAsync(timeout, default);
+            return WaitAsync(timeout, default(CancellationToken));
         }
 
         /// <summary>
@@ -599,7 +585,7 @@ namespace System.Threading
         /// </returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException">
         /// <paramref name="timeout"/> is a negative number other than -1 milliseconds, which represents 
-        /// an infinite time-out -or- timeout is greater than <see cref="System.int.MaxValue"/>.
+        /// an infinite time-out -or- timeout is greater than <see cref="System.Int32.MaxValue"/>.
         /// </exception>
         public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
@@ -743,7 +729,7 @@ namespace System.Threading
             // completes due to the asyncWaiter completing, so we use our own token that we can explicitly
             // cancel, and we chain the caller's supplied token into it.
             using (var cts = cancellationToken.CanBeCanceled ?
-                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default) :
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, default(CancellationToken)) :
                 new CancellationTokenSource())
             {
                 var waitCompleted = Task.WhenAny(asyncWaiter, Task.Delay(millisecondsTimeout, cts.Token));
@@ -920,7 +906,7 @@ namespace System.Threading
             {
                 if (m_waitHandle != null)
                 {
-                    m_waitHandle.Close();
+                    m_waitHandle.Dispose();
                     m_waitHandle = null;
                 }
                 m_lockObj = null;
@@ -956,7 +942,6 @@ namespace System.Threading
                 throw new ObjectDisposedException(null, SR.SemaphoreSlim_Disposed);
             }
         }
-
         #endregion
     }
 }
