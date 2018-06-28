@@ -152,7 +152,7 @@ generate_layout()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Packages" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
+    build_Tests_internal "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up=-updateinvalidpackageversion
@@ -172,7 +172,7 @@ generate_layout()
 
     mkdir -p $CORE_ROOT
 
-    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "-testOverlay" "Creating test overlay"
+    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "-testOverlay" 
 
     chmod +x $__BinDir/corerun
     chmod +x $__BinDir/crossgen
@@ -201,7 +201,7 @@ generate_testhost()
     echo "${__MsgPrefix}Creating test overlay..."    
     mkdir -p $TEST_HOST
 
-    build_Tests_internal "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "-testHost" "Creating test host"
+    build_Tests_internal "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "-testHost"
 }
 
 
@@ -246,15 +246,15 @@ build_Tests()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" " -BatchRestorePackages" "Restore product binaries (build tests)"
+    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
 
     if [ -n "$__BuildAgainstPackagesArg" ]; then
-        build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "-BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct" "Restore product binaries (run tests)"
+        build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "Restore product binaries (run tests)" "-BinPlaceRef" "-BinPlaceProduct" "-CopyCrossgenToProduct"
     fi
 
     echo "Starting the Managed Tests Build..."
 
-    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "$__up" "Managed tests build (build tests)"
+    # build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
 
     if [ $? -ne 0 ]; then
         echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -270,7 +270,7 @@ build_Tests()
 
         if [ ! -f $__XUnitWrapperBuiltMarker ]; then
 
-            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "-BuildWrappers" "-TargetsWindows=false" "Test Xunit Wrapper"
+            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "Test Xunit Wrapper" "-BuildWrappers" "-MsBuildEventLogging= " "-TargetsWindows=false"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -295,22 +295,32 @@ build_Tests()
 
     if [ $__ZipTests -ne 0 ]; then
         echo "${__MsgPrefix}ZIP tests packages..."
-        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" " " "Prep test binaries for Helix publishing"
+        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" "Prep test binaries for Helix publishing" " "
     fi
 }
 
 build_Tests_internal()
 {
     subDirectoryName=$1
-    projectName=$2
-    extraBuildParameters=$3
-    stepName="$4"
+    shift
+    projectName=$1
+    shift
+    stepName="$1"
+    shift
+    extraBuildParameters=("$@")
 
     # Set up directories and file names
     __BuildLogRootName=$subDirectoryName
     __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
+
+    # Use binclashlogger by default if no other logger is specified
+    if [[ "${extraBuildParameters[*]}" == *"-MsBuildEventLogging"* ]]; then
+        msbuildEventLogging=""
+    else
+        msbuildEventLogging="-MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\""
+    fi
 
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
@@ -337,12 +347,16 @@ build_Tests_internal()
             export TestBuildSlice=$slice
 
             # Generate build command
-            buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} -MsBuildEventLogging=\"/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log\" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+            buildArgs=("-Project=$projectName" "-MsBuildLog=${__msbuildLog}" "-MsBuildWrn=${__msbuildWrn}" "-MsBuildErr=${__msbuildErr}")
+            buildArgs+=("$msbuildEventLogging")
+            buildArgs+=("${extraBuildParameters[@]}")
+            buildArgs+=("${__RunArgs[@]}")
+            buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
             echo "Building step '$stepName' slice=$slice via $buildCommand"
 
             # Invoke MSBuild
-            eval $buildCommand
+            "$__ProjectRoot/run.sh" build "${buildArgs[@]}"
 
             # Make sure everything is OK
             if [ $? -ne 0 ]; then
@@ -362,15 +376,16 @@ build_Tests_internal()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildCommand="$__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog=${__msbuildLog} -MsBuildWrn=${__msbuildWrn} -MsBuildErr=${__msbuildErr} $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs"
+        buildArgs=("-Project=$projectName" "-MsBuildLog=${__msbuildLog}" "-MsBuildWrn=${__msbuildWrn}" "-MsBuildErr=${__msbuildErr}")
+        buildArgs+=("$msbuildEventLogging")
+        buildArgs+=("${extraBuildParameters[@]}")
+        buildArgs+=("${__RunArgs[@]}")
+        buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
         echo "Building step '$stepName' via $buildCommand"
 
         # Invoke MSBuild
-        eval $buildCommand
-
-        # Invoke MSBuild
-        # $__ProjectRoot/run.sh build -Project=$projectName -MsBuildLog="$__msbuildLog" -MsBuildWrn="$__msbuildWrn" -MsBuildErr="$__msbuildErr" $extraBuildParameters $__RunArgs $__UnprocessedBuildArgs
+        "$__ProjectRoot/run.sh" build "${buildArgs[@]}"
 
         # Make sure everything is OK
         if [ $? -ne 0 ]; then
@@ -686,10 +701,10 @@ while :; do
             ;;
         priority1)
             __priority1=1
-            __UnprocessedBuildArgs="$__UnprocessedBuildArgs -priority=1"
+            __UnprocessedBuildArgs+=("-priority=1")
             ;;
         *)
-            __UnprocessedBuildArgs="$__UnprocessedBuildArgs $1"
+            __UnprocessedBuildArgs+=("$1")
             ;;
     esac
 
@@ -697,12 +712,12 @@ while :; do
 done
 
 
-__RunArgs="-BuildArch=$__BuildArch -BuildType=$__BuildType -BuildOS=$__BuildOS"
+__RunArgs=("-BuildArch=$__BuildArch" "-BuildType=$__BuildType" "-BuildOS=$__BuildOS")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
     export VERBOSE=1
-    __RunArgs="$__RunArgs -verbose"
+    __RunArgs+=("-verbose")
 fi
 
 # Set default clang version
