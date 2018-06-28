@@ -307,7 +307,7 @@ namespace System.Globalization
         }
 
         /// <summary>
-        /// Duplicate of IndexOfOrdinalHelper that handles ignore case additionally. Can't converge both methods
+        /// Duplicate of IndexOfOrdinalHelper that also handles ignore case. Can't converge both methods
         /// as the JIT wouldn't be able to optimize the ignoreCase path away.
         /// </summary>
         /// <returns></returns>
@@ -339,12 +339,12 @@ namespace System.Globalization
                 if (fromBeginning)
                 {
                     startIndex = 0;
-                    endIndex = source.Length - value.Length + 1;
+                    endIndex = source.Length - target.Length + 1;
                     jump = 1;
                 }
                 else
                 {
-                    startIndex = source.Length - value.Length;
+                    startIndex = source.Length - target.Length;
                     endIndex = -1;
                     jump = -1;
                 }
@@ -359,19 +359,16 @@ namespace System.Globalization
                         char valueChar = *(a + sourceIndex);
                         char targetChar = *(b + targetIndex);
 
-                        if (ignoreCase)
+                        if (valueChar == targetChar && valueChar < 0x80 && !s_highCharTable[valueChar])
                         {
-                            if (valueChar == targetChar && valueChar < 0x80 && !s_highCharTable[valueChar])
-                            {
-                                continue;
-                            }
-
-                            // uppercase both chars - notice that we need just one compare per char
-                            if ((uint)(valueChar - 'a') <= ('z' - 'a'))
-                                valueChar = (char)(valueChar - 0x20);
-                            if ((uint)(targetChar - 'a') <= ('z' - 'a'))
-                                targetChar = (char)(targetChar - 0x20);
+                            continue;
                         }
+
+                        // uppercase both chars - notice that we need just one compare per char
+                        if ((uint)(valueChar - 'a') <= ('z' - 'a'))
+                            valueChar = (char)(valueChar - 0x20);
+                        if ((uint)(targetChar - 'a') <= ('z' - 'a'))
+                            targetChar = (char)(targetChar - 0x20);
 
                         if (valueChar >= 0x80 || s_highCharTable[valueChar])
                             goto InteropCall;
@@ -424,12 +421,12 @@ namespace System.Globalization
                 if (fromBeginning)
                 {
                     startIndex = 0;
-                    endIndex = source.Length - value.Length + 1;
+                    endIndex = source.Length - target.Length + 1;
                     jump = 1;
                 }
                 else
                 {
-                    startIndex = source.Length - value.Length;
+                    startIndex = source.Length - target.Length;
                     endIndex = -1;
                     jump = -1;
                 }
