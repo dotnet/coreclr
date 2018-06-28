@@ -305,6 +305,7 @@
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
     <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\WindowsRuntimeResourceManagerBase.cs" />
     <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\PRIExceptionInfo.cs" />
+    <Compile Condition="'$(FeatureAppX)' == 'true'"  Include="$(BclSourcesRoot)\Internal\Diagnostics\Tracing\FrameworkEventSourceSupport.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Assembly.CoreCLR.cs" />
