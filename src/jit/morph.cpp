@@ -11861,6 +11861,9 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             }
             break;
 #endif
+        case GT_LIST:
+            // Special handling for the arg list.
+            return fgMorphArgList(tree->AsArgList(), mac);
 
         default:
             break;
@@ -14926,13 +14929,6 @@ GenTree* Compiler::fgMorphTree(GenTree* tree, MorphAddrContext* mac)
     if (kind & GTK_LEAF)
     {
         tree = fgMorphLeaf(tree);
-        goto DONE;
-    }
-
-    // a special handling for ArgList.
-    if (tree->OperIsList())
-    {
-        tree = fgMorphArgList(tree->AsArgList(), mac);
         goto DONE;
     }
 
