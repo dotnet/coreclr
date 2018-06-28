@@ -1086,7 +1086,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 
 EXTERN_C VOID STDCALL PrecodeFixupThunk();
 
-#define PRECODE_ALIGNMENT           CODE_SIZE_ALIGN
+#define PRECODE_ALIGNMENT           sizeof(void*)
 #define SIZEOF_PRECODE_BASE         CODE_SIZE_ALIGN
 #define OFFSETOF_PRECODE_TYPE       0
 
