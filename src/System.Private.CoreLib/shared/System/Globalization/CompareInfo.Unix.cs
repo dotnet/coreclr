@@ -133,14 +133,14 @@ namespace System.Globalization
                 {
                     int valueIndex, sourceIndex;
 
-                    for (valueIndex = value.Length -1, sourceIndex = i;
-                         valueIndex >= 0 && source[sourceIndex] == value[valueIndex];
-                         valueIndex--, sourceIndex--)
+                    for (valueIndex = 0, sourceIndex = i;
+                         valueIndex < value.Length && source[sourceIndex] == value[valueIndex];
+                         valueIndex++, sourceIndex++)
                         ;
 
-                    if (valueIndex == -1)
+                    if (valueIndex == value.Length)
                     {
-                        return sourceIndex + 1;
+                        return i;
                     }
                 }
             }
