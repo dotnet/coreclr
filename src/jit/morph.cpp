@@ -18904,8 +18904,8 @@ bool Compiler::fgCheckStmtAfterTailCall()
 //
 GenTreeArgList* Compiler::fgMorphArgList(GenTreeArgList* args, MorphAddrContext* mac)
 {
-    // Use non-recursive algorithm that morph all actual list values,
-    // memorize the last node for each effect flag and reset
+    // Use a non-recursive algorithm that morphs all actual list values,
+    // memorizes the last node for each effect flag and resets
     // them during the second iteration.
     constexpr int      numberOfTrackedFlags               = 5;
     constexpr unsigned trackedFlags[numberOfTrackedFlags] = {GTF_ASG, GTF_CALL, GTF_EXCEPT, GTF_GLOB_REF,
