@@ -685,11 +685,11 @@ namespace System.Threading
         {
         }
 
-        private Timer(TimerCallback callback,
-                      object state,
-                      int dueTime,
-                      int period,
-                      bool flowExecutionContext)
+        internal Timer(TimerCallback callback,
+                       object state,
+                       int dueTime,
+                       int period,
+                       bool flowExecutionContext)
         {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
@@ -698,10 +698,6 @@ namespace System.Threading
 
             TimerSetup(callback, state, (uint)dueTime, (uint)period, flowExecutionContext);
         }
-
-        // TODO https://github.com/dotnet/corefx/issues/26523: Consider making public.
-        internal static Timer UnsafeCreate(TimerCallback callback, object state, int dueTime, int period) =>
-            new Timer(callback, state, dueTime, period, flowExecutionContext: false);
 
         public Timer(TimerCallback callback,
                      object state,
