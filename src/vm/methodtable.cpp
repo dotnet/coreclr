@@ -5057,7 +5057,7 @@ void MethodTable::Fixup(DataImage *image)
                     ZapNode * importThunk = image->GetVirtualImportThunk(pMD->GetMethodTable(), pMD, slotNumber);
                     // On ARM, make sure that the address to the virtual thunk that we write into the
                     // vtable "chunk" has the Thumb bit set.
-                    image->FixupFieldToNode(slotBase, slotOffset, importThunk ARM_ARG_OR_ZERO(THUMB_CODE), relocType);
+                    image->FixupFieldToNode(slotBase, slotOffset, importThunk ARM_ARG(THUMB_CODE) NOT_ARM_ARG(0), relocType);
                 }
                 else
                 {
