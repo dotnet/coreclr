@@ -163,10 +163,6 @@
       <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </StaticDependency>
 
-    <StaticDependency Include="xunit.runner.console">
-      <Version>$(XunitPackageVersion)</Version>
-    </StaticDependency>
-
     <DependencyBuildInfo Include="@(StaticDependency)">
       <PackageId>%(Identity)</PackageId>
       <UpdateStableVersions>true</UpdateStableVersions>
