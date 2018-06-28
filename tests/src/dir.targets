@@ -85,7 +85,7 @@
   
   <!-- We will use an imported build here in the instance that we have source that we need to build, and we are the correct priority...OR if we are being asked to build for
   a test with a higher priority. -->
-  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(CLRTestKind)'!='RunOnly') And $(_CLRTestCompilesSource) And ('$(_WillCLRTestProjectBuild)') And $(UseBuildTools)"/>
+  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(_WillCLRTestProjectBuild)' and ('$(MSBuildProjectExtension)' == '.depproj' or '$(MSBuildProjectExtension)' == '.ilproj')) or ( '$(MSBuildProjectExtension)' == '.csproj' and '$(UsingMicrosoftNETSdk)' != 'true')"/>
 
 
   <Import Project="..\override.targets" Condition="Exists('..\override.targets')"/>
