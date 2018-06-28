@@ -1,8 +1,7 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <!-- This file contains build properties that apply to every project
-       in the coreclr tree, including product projects and test
-       projects. -->
+  <!-- This file contains build properties that apply to product
+       projects and test projects. -->
 
   <PropertyGroup>
     <CoreclrDir>$(MSBuildThisFileDirectory)</CoreclrDir>
@@ -15,6 +14,7 @@
     <BuildArch Condition="'$(__BuildArch)'==''">x64</BuildArch>
     <BuildArch Condition="'$(__BuildArch)' == 'amd64'">x64</BuildArch>
 
+    <BuildType>$(__BuildType)</BuildType>
     <BuildType Condition="'$(__BuildType)'==''">Debug</BuildType>
     <BuildType Condition="'$(__BuildType)' == 'debug'">Debug</BuildType>
     <BuildType Condition="'$(__BuildType)' == 'release'">Release</BuildType>
@@ -26,5 +26,10 @@
     <Configuration Condition="'$(Configuration)' == ''">$(BuildType)</Configuration>
     <Platform Condition="'$(Platform)' == ''">$(BuildArch)</Platform>
   </PropertyGroup>
+
+  <PropertyGroup>
+    <RestorePackagesPath>$(PackagesDir)</RestorePackagesPath>
+  </PropertyGroup>
+
 
 </Project>

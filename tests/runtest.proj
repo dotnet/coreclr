@@ -76,7 +76,7 @@ $(_XunitEpilog)
         <![CDATA[
 <Project>
 
-  <Import Project="$(ProjectDir)dir.common.props" />
+  <Import Project="$(ProjectDir)dir.sdkbuild.props" />
 
   <PropertyGroup>
     <OutputPath>$(XUnitTestBinBase)\$(CategoryWithSlash)</OutputPath>
