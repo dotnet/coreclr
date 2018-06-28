@@ -278,8 +278,9 @@ namespace System.Globalization
 #endif
 
             fixed (char* pSource = source)
+            fixed (char* pTarget = target)
             {
-                index = Interop.Globalization.IndexOf(_sortHandle, target, target.Length, pSource + startIndex, count, options, matchLengthPtr);
+                index = Interop.Globalization.IndexOf(_sortHandle, pTarget, target.Length, pSource + startIndex, count, options, matchLengthPtr);
 
                 return index != -1 ? index + startIndex : -1;
             }
@@ -470,8 +471,9 @@ namespace System.Globalization
             int leftStartIndex = (startIndex - count + 1);
 
             fixed (char* pSource = source)
+            fixed (char* pTarget = target)
             {
-                int lastIndex = Interop.Globalization.LastIndexOf(_sortHandle, target, target.Length, pSource + (startIndex - count + 1), count, options);
+                int lastIndex = Interop.Globalization.LastIndexOf(_sortHandle, pTarget, target.Length, pSource + (startIndex - count + 1), count, options);
 
                 return lastIndex != -1 ? lastIndex + leftStartIndex : -1;
             }
