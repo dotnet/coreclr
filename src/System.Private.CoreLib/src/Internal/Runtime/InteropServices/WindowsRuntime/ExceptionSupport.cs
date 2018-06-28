@@ -3,7 +3,9 @@
 // See the LICENSE file in the project root for more information.
 using System;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
 
 namespace Internal.Runtime.InteropServices.WindowsRuntime
 {
@@ -71,9 +73,22 @@ namespace Internal.Runtime.InteropServices.WindowsRuntime
         /// for the application to be invoked to process the error.
         /// </summary>
         /// <returns>true if the error was reported, false if not (ie running on Win8)</returns>
-        public static bool ReportUnhandledError(Exception ex)
+        public static void ReportUnhandledError(Exception ex)
         {
-           return WindowsRuntimeMarshal.ReportUnhandledError(ex); 
+            //
+            // If we let exceptions propagate to CoreDispatcher, it will swallow them with the idea that someone will
+            // observe them later using the IAsyncInfo returned by CoreDispatcher.RunAsync.  However, we ignore
+            // that IAsyncInfo, because there's nothing Post can do with it (since Post returns void).
+            // So, to avoid these exceptions being lost forever, we post them to the ThreadPool.
+            //
+            if (!(ex is ThreadAbortException) && !(ex is AppDomainUnloadedException))
+            {
+                if (!WindowsRuntimeMarshal.ReportUnhandledError(ex))
+                {
+                    var edi = ExceptionDispatchInfo.Capture(ex);
+                    ThreadPool.QueueUserWorkItem(o => ((ExceptionDispatchInfo)o).Throw(), edi);
+                }
+            }
         }
     }
 }
