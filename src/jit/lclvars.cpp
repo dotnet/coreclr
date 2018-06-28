@@ -141,7 +141,8 @@ void Compiler::lvaInitTypeRef()
         Compiler::structPassingKind howToReturnStruct;
         var_types                   returnType = getReturnTypeForStruct(retClsHnd, &howToReturnStruct);
 
-        if (howToReturnStruct == SPK_PrimitiveType)
+        // We can safely widen the return type for enclosed structs.
+        if ((howToReturnStruct == SPK_PrimitiveType) || (howToReturnStruct == SPK_EnclosingType))
         {
             assert(returnType != TYP_UNKNOWN);
             assert(!varTypeIsStruct(returnType));
@@ -5237,7 +5238,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
             if (varDsc->lvType == TYP_STRUCT && varDsc->lvOtherArgReg >= MAX_REG_ARG && varDsc->lvOtherArgReg != REG_NA)
             {
                 // This is a split struct. It will account for an extra (8 bytes)
-                // of allignment.
+                // of alignment.
                 varDsc->lvStkOffs += TARGET_POINTER_SIZE;
                 argOffs += TARGET_POINTER_SIZE;
             }
