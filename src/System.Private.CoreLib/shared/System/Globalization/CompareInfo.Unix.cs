@@ -88,7 +88,7 @@ namespace System.Globalization
             return -1;
         }
 
-        internal static unsafe int IndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool start)
+        internal static unsafe int IndexOfOrdinalCore(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool fromBeginning)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
@@ -105,11 +105,11 @@ namespace System.Globalization
                 fixed (char* pSource = &MemoryMarshal.GetReference(source))
                 fixed (char* pValue = &MemoryMarshal.GetReference(value))
                 {
-                    return Interop.Globalization.IndexOfOrdinalIgnoreCase(pValue, value.Length, pSource, source.Length, findLast: !start);
+                    return Interop.Globalization.IndexOfOrdinalIgnoreCase(pValue, value.Length, pSource, source.Length, findLast: !fromBeginning);
                 }
             }
 
-            if (start)
+            if (fromBeginning)
             {
                 int endIndex = source.Length - value.Length;
                 for (int i = 0; i <= endIndex; i++)
@@ -129,18 +129,18 @@ namespace System.Globalization
             }
             else
             {
-                for (int i = source.Length - 1; i >= source.Length - value.Length; i--)
+                for (int i = source.Length - value.Length; i >= 0; i--)
                 {
                     int valueIndex, sourceIndex;
 
-                    for (valueIndex = 0, sourceIndex = i;
-                         valueIndex < value.Length && source[sourceIndex] == value[valueIndex];
-                         valueIndex++, sourceIndex++)
+                    for (valueIndex = value.Length -1, sourceIndex = i;
+                         valueIndex >= 0 && source[sourceIndex] == value[valueIndex];
+                         valueIndex--, sourceIndex--)
                         ;
 
-                    if (valueIndex == value.Length)
+                    if (valueIndex == -1)
                     {
-                        return i;
+                        return sourceIndex + 1;
                     }
                 }
             }
@@ -286,9 +286,9 @@ namespace System.Globalization
         }
 
         // For now, this method is only called from Span APIs with either options == CompareOptions.None or CompareOptions.IgnoreCase
-        internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr, bool start)
+        internal unsafe int IndexOfCore(ReadOnlySpan<char> source, ReadOnlySpan<char> target, CompareOptions options, int* matchLengthPtr, bool fromBeginning)
         {
-            // TODO: Add LastIndexOf --> start = false impl
+            // TODO: Add LastIndexOf --> fromBeginning = false impl
 
             Debug.Assert(!_invariantMode);
             Debug.Assert(source.Length != 0);
