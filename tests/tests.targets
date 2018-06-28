@@ -40,7 +40,7 @@
 
     <Error Condition="'$(CORE_ROOT)' == ''" Text="CORE_ROOT is not set." />
     <PropertyGroup>
-      <XunitConsoleRunner>$(PackagesDir)\xunit.runner.console\2.4.0-beta.2.build4010\tools\netcoreapp2.0\xunit.console.dll</XunitConsoleRunner>
+      <XunitConsoleRunner>$(CORE_ROOT)\xunit.console.dll</XunitConsoleRunner>
 
       <XunitArgs>-parallel $(ParallelRun)</XunitArgs>
       <XunitArgs>$(XunitArgs) -html $(__TestRunHtmlLog)</XunitArgs>

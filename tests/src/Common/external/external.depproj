@@ -12,8 +12,7 @@
     <NugetRuntimeIdentifier>win7-x64</NugetRuntimeIdentifier>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <OutputPath>$(TargetingPackPath)</OutputPath>
-    <XUnitRunnerPackageId Condition="'$(TargetGroup)' != 'netfx'">xunit.console.netcore</XUnitRunnerPackageId>
-    <XUnitRunnerPackageId Condition="'$(TargetGroup)' == 'netfx'">xunit.runner.console</XUnitRunnerPackageId>
+    <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
@@ -45,8 +44,8 @@
     <PackageReference Include="xunit">
       <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
-    <PackageReference Include="xunit.console.netcore">
-      <Version>$(XunitConsoleNetcorePackageVersion)</Version>
+    <PackageReference Include="$(XUnitRunnerPackageId)">
+      <Version>$(XunitPackageVersion)</Version>
     </PackageReference>
     <PackageReference Include="xunit.runner.utility">
       <Version>$(XunitPackageVersion)</Version>
@@ -75,7 +74,6 @@
     <PackageToInclude Include="Microsoft.CodeAnalysis.CSharp"/>
     <PackageToInclude Include="Microsoft.CodeAnalysis.VisualBasic"/>
     <PackageToInclude Include="CommandLineParser"/>
-    <PackageToInclude Include="$(XUnitRunnerPackageId)" />
   </ItemGroup>
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
@@ -84,14 +82,14 @@
     <ProjectAssetsFile>$(SourceDir)Common\external\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
-  <Target Name="AddXunitConsoleRunner" BeforeTargets="ResolveReferences" Condition="'$(TargetGroup)' == 'netfx'">
-    <Error Condition="!Exists('$(PackagesDir)$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\xunit.console.exe')"
-            Text="Error: looks the package $(PackagesDir)$(XUnitRunnerPackageId)\$(XUnitPackageVersion) not restored or missing xunit.console.exe."
+  <Target Name="AddXunitConsoleRunner" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\xunit.console.dll')"
+            Text="Error: looks the package $(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion) not restored or missing xunit.console.dll."
     />
     <ItemGroup>
       <ReferenceCopyLocalPaths
-        Include="$(PackagesDir)$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\*.*"
-        Exclude="$(PackagesDir)$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\xunit.console.exe.config"
+        Include="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\*.*"
+        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\xunit.console.dll.config"
       >
         <Private>false</Private>
         <NuGetPackageId>$(XUnitRunnerPackageId)</NuGetPackageId>
