@@ -934,20 +934,36 @@ namespace System.Globalization
             return IndexOfCore(source, value, startIndex, count, options, null);
         }
 
-        internal int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase, bool fromBeginning = true)
+        internal int IndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
-            return IndexOfOrdinalCore(source, value, ignoreCase, fromBeginning);
+            return IndexOfOrdinalCore(source, value, ignoreCase, fromBeginning: true);
         }
 
-        internal unsafe int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options, bool fromBeginning = true)
+        internal int LastIndexOfOrdinal(ReadOnlySpan<char> source, ReadOnlySpan<char> value, bool ignoreCase)
         {
             Debug.Assert(!_invariantMode);
             Debug.Assert(!source.IsEmpty);
             Debug.Assert(!value.IsEmpty);
-            return IndexOfCore(source, value, options, null, fromBeginning);
+            return IndexOfOrdinalCore(source, value, ignoreCase, fromBeginning: false);
+        }
+
+        internal unsafe int IndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
+            return IndexOfCore(source, value, options, null, fromBeginning: true);
+        }
+
+        internal unsafe int LastIndexOf(ReadOnlySpan<char> source, ReadOnlySpan<char> value, CompareOptions options)
+        {
+            Debug.Assert(!_invariantMode);
+            Debug.Assert(!source.IsEmpty);
+            Debug.Assert(!value.IsEmpty);
+            return IndexOfCore(source, value, options, null, fromBeginning: false);
         }
 
         // The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
