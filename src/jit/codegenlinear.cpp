@@ -42,13 +42,13 @@ void CodeGen::genCodeForBBlist()
     // You have to be careful if you create basic blocks from now on
     compiler->fgSafeBasicBlockCreation = false;
 
-    // This stress mode is not comptible with fully interruptible GC
+    // This stress mode is not compatible with fully interruptible GC
     if (genInterruptible && compiler->opts.compStackCheckOnCall)
     {
         compiler->opts.compStackCheckOnCall = false;
     }
 
-    // This stress mode is not comptible with fully interruptible GC
+    // This stress mode is not compatible with fully interruptible GC
     if (genInterruptible && compiler->opts.compStackCheckOnRet)
     {
         compiler->opts.compStackCheckOnRet = false;
@@ -445,7 +445,7 @@ void CodeGen::genCodeForBBlist()
         if (block->bbNext == nullptr)
         {
 // Unit testing of the emitter: generate a bunch of instructions into the last block
-// (it's as good as any, but better than the prolog, which can only be a single instruction
+// (it's as good as any, but better than the prologue, which can only be a single instruction
 // group) then use COMPlus_JitLateDisasm=* to see if the late disassembler
 // thinks the instructions are the same as we do.
 #if defined(_TARGET_AMD64_) && defined(LATE_DISASM)
@@ -590,7 +590,7 @@ void CodeGen::genCodeForBBlist()
             case BBJ_THROW:
                 // If we have a throw at the end of a function or funclet, we need to emit another instruction
                 // afterwards to help the OS unwinder determine the correct context during unwind.
-                // We insert an unexecuted breakpoint instruction in several situations
+                // We insert an executed breakpoint instruction in several situations
                 // following a throw instruction:
                 // 1. If the throw is the last instruction of the function or funclet. This helps
                 //    the OS unwinder determine the correct context during an unwind from the
