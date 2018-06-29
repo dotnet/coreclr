@@ -3459,7 +3459,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 }
             }
         }
-        
+
         var_types regType = compiler->mangleVarArgsType(varDsc->TypeGet());
         // Change regType to the HFA type when we have a HFA argument
         if (varDsc->lvIsHfaRegArg())
@@ -3481,9 +3481,9 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             // So a single arg might use both register files.
             if (isFloatRegType(regType) != doingFloat
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-            && !compiler->info.compIsVarArgs
+                && !compiler->info.compIsVarArgs
 #endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-            )
+                )
             {
                 continue;
             }
@@ -3659,10 +3659,10 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-            // lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
-            // The type of the register depends on the classification of the first eightbyte
-            // of the struct. For information on classification refer to the System V x86_64 ABI at:
-            // http://www.x86-64.org/documentation/abi.pdf
+// lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
+// The type of the register depends on the classification of the first eightbyte
+// of the struct. For information on classification refer to the System V x86_64 ABI at:
+// http://www.x86-64.org/documentation/abi.pdf
 
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
             if (!compiler->info.compIsVarArgs)
@@ -3670,7 +3670,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 assert((i > 0) || (regNum == varDsc->lvArgReg));
             }
-            
+
 #endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
 
