@@ -302,7 +302,6 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\Augments\RuntimeThread.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Threading\Tasks\AsyncCausalitySupport.cs" />
-    <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Threading\Tasks\CancellationTokenRegistrationSupport.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\WindowsRuntime\ExceptionSupport.cs" />
     <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\WindowsRuntimeResourceManagerBase.cs" />
     <Compile Condition="'$(FeatureAppX)' == 'true'" Include="$(BclSourcesRoot)\Internal\Resources\PRIExceptionInfo.cs" />
