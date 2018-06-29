@@ -254,7 +254,7 @@ build_Tests()
 
     echo "Starting the Managed Tests Build..."
 
-    # build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
+    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
 
     if [ $? -ne 0 ]; then
         echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
