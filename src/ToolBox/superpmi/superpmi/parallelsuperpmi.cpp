@@ -195,6 +195,7 @@ void ProcessChildStdOut(const CommandLine::Options& o,
                         int*                        loaded,
                         int*                        jitted,
                         int*                        failed,
+                        int*                        excluded,
                         int*                        diffs,
                         bool*                       usageError)
 {
@@ -238,13 +239,13 @@ void ProcessChildStdOut(const CommandLine::Options& o,
         }
         else if (strncmp(buff, g_AllFormatStringFixedPrefix, strlen(g_AllFormatStringFixedPrefix)) == 0)
         {
-            int childLoaded = 0, childJitted = 0, childFailed = 0;
+            int childLoaded = 0, childJitted = 0, childFailed = 0, childExcluded = 0;
             if (o.applyDiff)
             {
                 int childDiffs = 0;
                 int converted  = sscanf_s(buff, g_AsmDiffsSummaryFormatString, &childLoaded, &childJitted, &childFailed,
-                                         &childDiffs);
-                if (converted != 4)
+                                         &childExcluded, &childDiffs);
+                if (converted != 5)
                 {
                     LogError("Couldn't parse status message: \"%s\"", buff);
                     continue;
@@ -253,8 +254,9 @@ void ProcessChildStdOut(const CommandLine::Options& o,
             }
             else
             {
-                int converted = sscanf_s(buff, g_SummaryFormatString, &childLoaded, &childJitted, &childFailed);
-                if (converted != 3)
+                int converted =
+                    sscanf_s(buff, g_SummaryFormatString, &childLoaded, &childJitted, &childFailed, &childExcluded);
+                if (converted != 4)
                 {
                     LogError("Couldn't parse status message: \"%s\"", buff);
                     continue;
@@ -264,6 +266,7 @@ void ProcessChildStdOut(const CommandLine::Options& o,
             *loaded += childLoaded;
             *jitted += childJitted;
             *failed += childFailed;
+            *excluded += childExcluded;
         }
     }
 
@@ -600,14 +603,14 @@ int doParallelSuperPMI(CommandLine::Options& o)
 
         bool usageError = false; // variable to flag if we hit a usage error in SuperPMI
 
-        int loaded = 0, jitted = 0, failed = 0, diffs = 0;
+        int loaded = 0, jitted = 0, failed = 0, excluded = 0, diffs = 0;
 
         // Read the stderr files and log them as errors
         // Read the stdout files and parse them for counts and log any MISSING or ISSUE errors
         for (int i = 0; i < o.workerCount; i++)
         {
             ProcessChildStdErr(arrStdErrorPath[i]);
-            ProcessChildStdOut(o, arrStdOutputPath[i], &loaded, &jitted, &failed, &diffs, &usageError);
+            ProcessChildStdOut(o, arrStdOutputPath[i], &loaded, &jitted, &failed, &excluded, &diffs, &usageError);
             if (usageError)
                 break;
         }
