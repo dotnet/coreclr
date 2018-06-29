@@ -3689,7 +3689,8 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     // refcnt.  This is in contrast with the non-LSRA case in which all
                     // non-tracked args are assumed live on entry.
                     noway_assert((varDsc->lvRefCnt == 0) || (varDsc->lvType == TYP_STRUCT) ||
-                                 (varDsc->lvAddrExposed && compiler->info.compIsVarArgs));
+                                 (varDsc->lvAddrExposed && compiler->info.compIsVarArgs) ||
+                                 (varDsc->lvAddrExposed && compiler->opts.compUseSoftFP));
 #endif // !_TARGET_X86_
                 }
                 // Mark it as processed and be done with it
