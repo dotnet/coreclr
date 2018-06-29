@@ -1,7 +1,8 @@
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
   <!-- This file contains build properties that apply to product
-       projects and test projects. -->
+       projects and test projects. It's imported by
+       tests/dir.common.props, and the global dir.props. -->
 
   <PropertyGroup>
     <CoreclrDir>$(MSBuildThisFileDirectory)</CoreclrDir>
