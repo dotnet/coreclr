@@ -4923,6 +4923,7 @@ private:
     GenTree* fgMorphCast(GenTree* tree);
     GenTree* fgUnwrapProxy(GenTree* objRef);
     GenTreeCall* fgMorphArgs(GenTreeCall* call);
+    GenTreeArgList* fgMorphArgList(GenTreeArgList* args, MorphAddrContext* mac);
 
     void fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
                                      GenTree*             args,
