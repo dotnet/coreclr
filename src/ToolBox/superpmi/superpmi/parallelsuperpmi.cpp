@@ -238,44 +238,40 @@ void ProcessChildStdOut(const CommandLine::Options& o,
         }
         else if (strncmp(buff, g_AllFormatStringFixedPrefix, strlen(g_AllFormatStringFixedPrefix)) == 0)
         {
+            int childLoaded = 0, childJitted = 0, childFailed = 0;
             if (o.applyDiff)
             {
-                int temp1 = 0, temp2 = 0, temp3 = 0, temp4 = 0;
-                int converted = sscanf_s(buff, g_AsmDiffsSummaryFormatString, &temp1, &temp2, &temp3, &temp4);
+                int childDiffs = 0;
+                int converted  = sscanf_s(buff, g_AsmDiffsSummaryFormatString, &childLoaded, &childJitted, &childFailed,
+                                         &childDiffs);
                 if (converted != 4)
                 {
                     LogError("Couldn't parse status message: \"%s\"", buff);
+                    continue;
                 }
-                else
-                {
-                    *loaded += temp1;
-                    *jitted += temp2;
-                    *failed += temp3;
-                    *diffs += temp4;
-                }
+                *diffs += childDiffs;
             }
             else
             {
-                int temp1 = 0, temp2 = 0, temp3 = 0;
-                int converted = sscanf_s(buff, g_SummaryFormatString, &temp1, &temp2, &temp3);
+                int converted = sscanf_s(buff, g_SummaryFormatString, &childLoaded, &childJitted, &childFailed);
                 if (converted != 3)
                 {
                     LogError("Couldn't parse status message: \"%s\"", buff);
+                    continue;
                 }
-                else
-                {
-                    *loaded += temp1;
-                    *jitted += temp2;
-                    *failed += temp3;
-                    *diffs = -1;
-                }
+                *diffs = -1;
             }
+            *loaded += childLoaded;
+            *jitted += childJitted;
+            *failed += childFailed;
         }
     }
 
 Cleanup:
     if (fp != NULL)
+    {
         fclose(fp);
+    }
 }
 
 #ifndef FEATURE_PAL // TODO-Porting: handle Ctrl-C signals gracefully on Unix
