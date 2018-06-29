@@ -1683,7 +1683,7 @@ public:
     }
 #endif
 
-    // Given a CSE candidate decide whether it passes or fails the profitablity heuristic
+    // Given a CSE candidate decide whether it passes or fails the profitability heuristic
     // return true if we believe that it is profitable to promote this candidate to a CSE
     //
     bool PromotionCheck(CSE_Candidate* candidate)
