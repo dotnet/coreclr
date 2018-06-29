@@ -162,7 +162,7 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
         //    cookie check as part of tail call codegen. GenExitCode() needs to special case
         //    fast tail calls implemented as epilog+jmp or such tail calls should always get
         //    dispatched via helper.
-        // 3) Materialize GS cookie check as a seperate node hanging off GT_CALL node in
+        // 3) Materialize GS cookie check as a separate node hanging off GT_CALL node in
         //    right execution order during rationalization.
         //
         // There are two calls that use R11: VSD and calli pinvokes with cookie param. Tail
