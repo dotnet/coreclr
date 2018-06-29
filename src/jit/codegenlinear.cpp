@@ -590,7 +590,7 @@ void CodeGen::genCodeForBBlist()
             case BBJ_THROW:
                 // If we have a throw at the end of a function or funclet, we need to emit another instruction
                 // afterwards to help the OS unwinder determine the correct context during unwind.
-                // We insert an executed breakpoint instruction in several situations
+                // We insert an unexecuted breakpoint instruction in several situations
                 // following a throw instruction:
                 // 1. If the throw is the last instruction of the function or funclet. This helps
                 //    the OS unwinder determine the correct context during an unwind from the
