@@ -118,7 +118,6 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 
 ; ------------------------------------------------------------------
 ; VarargPInvokeStub & VarargPInvokeGenILStub
-; There is a separate stub when the method has a hidden return buffer arg.
 ;
 ; in:
 ; x0 = VASigCookie*
@@ -136,16 +135,6 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 ; x12 = Unmanaged target
 ;
         PINVOKE_STUB GenericPInvokeCalli, x15, x12, {true}
-
-; ------------------------------------------------------------------
-; VarargPInvokeStub_RetBuffArg & VarargPInvokeGenILStub_RetBuffArg
-; Vararg PInvoke Stub when the method has a hidden return buffer arg
-;
-; in:
-; x1 = VASigCookie*
-; x12 = MethodDesc*       
-; 
-        PINVOKE_STUB VarargPInvoke, x1, x12, {false}
 
 
 ; Must be at very end of file 

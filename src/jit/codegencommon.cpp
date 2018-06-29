@@ -3298,15 +3298,6 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     }
 #endif
 
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-    if (compiler->info.compIsVarArgs)
-    {
-        // We've already saved all int registers at the top of stack in the prolog.
-        // No need further action.
-        return;
-    }
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-
     unsigned  argMax;           // maximum argNum value plus 1, (including the RetBuffArg)
     unsigned  argNum;           // current argNum, always in [0..argMax-1]
     unsigned  fixedRetBufIndex; // argNum value used by the fixed return buffer argument (ARM64)
@@ -3407,7 +3398,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 return varDsc.GetHfaType();
             }
-            return varDsc.lvType;
+            return compiler->mangleVarArgsType(varDsc.lvType);
         }
 
 #endif // !UNIX_AMD64_ABI
@@ -3415,8 +3406,11 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
     unsigned   varNum;
     LclVarDsc* varDsc;
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+
+    for (varNum = 0; varNum < compiler->lvaCount; ++varNum)
     {
+        varDsc = compiler->lvaTable + varNum;
+
         // Is this variable a register arg?
         if (!varDsc->lvIsParam)
         {
@@ -3465,8 +3459,8 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 }
             }
         }
-
-        var_types regType = varDsc->TypeGet();
+        
+        var_types regType = compiler->mangleVarArgsType(varDsc->TypeGet());
         // Change regType to the HFA type when we have a HFA argument
         if (varDsc->lvIsHfaRegArg())
         {
@@ -3485,7 +3479,11 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (isFloatRegType(regType) != doingFloat)
+            if (isFloatRegType(regType) != doingFloat
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            && !compiler->info.compIsVarArgs
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            )
             {
                 continue;
             }
@@ -3666,7 +3664,13 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             // of the struct. For information on classification refer to the System V x86_64 ABI at:
             // http://www.x86-64.org/documentation/abi.pdf
 
-            assert((i > 0) || (regNum == varDsc->lvArgReg));
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            if (!compiler->info.compIsVarArgs)
+#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+            {
+                assert((i > 0) || (regNum == varDsc->lvArgReg));
+            }
+            
 #endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
 
@@ -3971,7 +3975,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         }
         else // Not a struct type
         {
-            storeType = genActualType(varDsc->TypeGet());
+            storeType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
         }
         size = emitActualTypeSize(storeType);
 #ifdef _TARGET_X86_
