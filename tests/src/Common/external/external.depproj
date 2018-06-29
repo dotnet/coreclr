@@ -13,6 +13,7 @@
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <OutputPath>$(TargetingPackPath)</OutputPath>
     <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
+    <XUnitRunnerTargetFramework>netcoreapp1.0</XUnitRunnerTargetFramework>
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
@@ -83,13 +84,13 @@
   </PropertyGroup>
 
   <Target Name="AddXunitConsoleRunner" BeforeTargets="ResolveReferences">
-    <Error Condition="!Exists('$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\xunit.console.dll')"
+    <Error Condition="!Exists('$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll')"
             Text="Error: looks the package $(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion) not restored or missing xunit.console.dll."
     />
     <ItemGroup>
       <ReferenceCopyLocalPaths
-        Include="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\*.*"
-        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\netcoreapp1.0\xunit.console.dll.config"
+        Include="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\*.*"
+        Exclude="$(PackagesDir)\$(XUnitRunnerPackageId)\$(XUnitPackageVersion)\tools\$(XUnitRunnerTargetFramework)\xunit.console.dll.config"
       >
         <Private>false</Private>
         <NuGetPackageId>$(XUnitRunnerPackageId)</NuGetPackageId>

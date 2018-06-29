@@ -76,19 +76,13 @@ $(_XunitEpilog)
         <![CDATA[
 <Project>
 
-  <Import Project="$(ProjectDir)dir.common.props" />
+  <Import Project="$(ProjectDir)dir.sdkbuild.props" />
 
   <PropertyGroup>
     <OutputPath>$(XUnitTestBinBase)\$(CategoryWithSlash)</OutputPath>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
-
-  <PropertyGroup>
-    <TargetFramework>netcoreapp2.0</TargetFramework>
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-  </PropertyGroup>
 
   <ItemGroup>
     <Compile Include="$(XunitWrapper).cs" />
