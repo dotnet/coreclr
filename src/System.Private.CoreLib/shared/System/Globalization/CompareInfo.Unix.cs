@@ -112,12 +112,16 @@ namespace System.Globalization
             int startIndex, endIndex, jump;
             if (fromBeginning)
             {
+                // Left to right, from zero to last possible index in the source string.
+                // Incrementing by one after each iteration. Stop condition is last possible index plus 1.
                 startIndex = 0;
                 endIndex = source.Length - value.Length + 1;
                 jump = 1;
             }
             else
             {
+                // Right to left, from first possible index in the source string to zero.
+                // Decrementing by one after each iteration. Stop condition is last possible index minus 1.
                 startIndex = source.Length - value.Length;
                 endIndex = -1;
                 jump = -1;
@@ -338,12 +342,16 @@ namespace System.Globalization
                 int startIndex, endIndex, jump;
                 if (fromBeginning)
                 {
+                    // Left to right, from zero to last possible index in the source string.
+                    // Incrementing by one after each iteration. Stop condition is last possible index plus 1.
                     startIndex = 0;
                     endIndex = source.Length - target.Length + 1;
                     jump = 1;
                 }
                 else
                 {
+                    // Right to left, from first possible index in the source string to zero.
+                    // Decrementing by one after each iteration. Stop condition is last possible index minus 1.
                     startIndex = source.Length - target.Length;
                     endIndex = -1;
                     jump = -1;
@@ -420,12 +428,16 @@ namespace System.Globalization
                 int startIndex, endIndex, jump;
                 if (fromBeginning)
                 {
+                    // Left to right, from zero to last possible index in the source string.
+                    // Incrementing by one after each iteration. Stop condition is last possible index plus 1.
                     startIndex = 0;
                     endIndex = source.Length - target.Length + 1;
                     jump = 1;
                 }
                 else
                 {
+                    // Right to left, from first possible index in the source string to zero.
+                    // Decrementing by one after each iteration. Stop condition is last possible index minus 1.
                     startIndex = source.Length - target.Length;
                     endIndex = -1;
                     jump = -1;
