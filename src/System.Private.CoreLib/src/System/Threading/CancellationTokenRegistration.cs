@@ -47,7 +47,7 @@ namespace System.Threading
         /// Disposes of the registration and unregisters the target callback from the associated 
         /// <see cref="T:System.Threading.CancellationToken">CancellationToken</see>.
         /// </summary>
-        internal bool Unregister() // corefx currently has an InternalsVisibleTo dependency on this
+        internal bool Unregister()
         {
             CancellationTokenSource.CallbackNode node = _node;
             return node != null && node.Partition.Unregister(_id, node);
