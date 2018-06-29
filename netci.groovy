@@ -2218,14 +2218,23 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         runtestArguments = "${lowerConfiguration} ${arch} ${testOpts}"
 
                         if (doCoreFxTesting) {
+                            assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
                             if (scenario == 'corefx_innerloop') {
-                                // Create CORE_ROOT and testhost
-                                buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
-                                buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
-                                
-                                // Archive and process (only) the test results
-                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
-                                Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                                if (os == 'Windows_NT') {
+                                    // Create CORE_ROOT and testhost
+                                    buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
+                                    buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
+
+                                    // TODO: Move outside of the if block, once logic Unix PR Logic is merged
+                                    // Archive and process (only) the test results
+                                    Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                                    Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                                }
+                                else if (os == 'Ubuntu' || os == 'OSX10.12') {
+                                    buildCommands += "./build.sh ${lowerConfiguration} ${arch} skiptests"
+                                    buildCommands += "./build-test.sh ${lowerConfiguration} ${arch} generatetesthostonly"
+                                    buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=%WORKSPACE%/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=%WORKSPACE%"
+                                }
                             }
                             else {
                               def workspaceRelativeFxRoot = "_/fx"
@@ -2808,7 +2817,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 }
                 break
             case 'corefx_innerloop':
-                if (os != 'Windows_NT'|| architecture != 'x64') {
+                if (os != 'Windows_NT' || os != 'Ubuntu' || os != 'OSX10.12' ||  architecture != 'x64') {
                     return false
                 }
                 if(configuration != 'Release' && configuration != 'Checked') {
