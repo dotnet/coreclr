@@ -374,7 +374,7 @@ namespace System.Diagnostics.Tracing
             increaseTabLevel()
 
             className = providerNameToClassNameMap[providerName]
-            writeOutput(outputFile, "[EventSource(Name = \"" + providerName + "\", Guid = \"" + providerNode.getAttribute("guid") + "\")]\n")
+            writeOutput(outputFile, "[EventSource(Name = \"" + providerName + "\")]\n")
             writeOutput(outputFile, "internal sealed partial class " + className + " : EventSource\n")
             writeOutput(outputFile, "{\n")
             increaseTabLevel()
