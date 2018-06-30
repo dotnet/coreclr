@@ -45,7 +45,7 @@ function print_usage {
     echo '  --test-env                       : Script to set environment variables for tests'
     echo '  --copyNativeTestBin              : Explicitly copy native test components into the test dir'
     echo '  --crossgen                       : Precompiles the framework managed assemblies'
-    echo '  --runcrossgentests               : Runs the ready to run tests'
+    echo '  --runcrossgentests               : Runs the ready to run tests' 
     echo '  --jitstress=<n>                  : Runs the tests with COMPlus_JitStress=n'
     echo '  --jitstressregs=<n>              : Runs the tests with COMPlus_JitStressRegs=n'
     echo '  --jitminopts                     : Runs the tests with COMPlus_JITMinOpts=1'
@@ -66,18 +66,19 @@ function print_usage {
     echo '  --limitedDumpGeneration          : Enables the generation of a limited number of core dumps if test(s) crash, even if ulimit'
     echo '                                     is zero when launching this script. This option is intended for use in CI.'
     echo '  --xunitOutputPath=<path>         : Create xUnit XML report at the specifed path (default: <test root>/coreclrtests.xml)'
+    echo ''
     echo 'CoreFX Test Options '
     echo '  --corefxtests                    : Runs CoreFX tests'
     echo '  --corefxtestsall                 : Runs all available CoreFX tests'
     echo '  --corefxtestlist                 : Runs the CoreFX tests specified in the passed list'   
     echo '  --testHostDir=<path>             : Directory containing a built test host including core binaries, test dependencies' 
     echo '                                     and a dotnet executable'
-    echo '  --coreclr-src=<path>             : Location of root of the directory'
-    echo '                                     containing the coreclr source files'
     echo 'Runtime Code Coverage options:'
     echo '  --coreclr-coverage               : Optional argument to get coreclr code coverage reports'
     echo '  --coreclr-objs=<path>            : Location of root of the object directory'
     echo '                                     containing the linux/mac coreclr build'
+    echo '  --coreclr-src=<path>             : Location of root of the directory'
+    echo '                                     containing the coreclr source files'
     echo '  --coverage-output-dir=<path>     : Directory where coverage output will be written to'
     echo ''
 }
@@ -489,7 +490,12 @@ function create_testhost
     local coreFXTestExecutableArgs="--notrait category=nonnetcoreapptests --notrait category=${coreFXTestExclusionDef} --notrait category=failing --notrait category=IgnoreForCI --notrait category=OuterLoop --notrait Benchmark=true"
 
     # What happens on distros where msbuild is not supported?
+    restoreCommand="${dotnetExe} msbuild /t:Restore ${coreFXTestSetupUtility}"
+    echo $restoreCommand
+    eval $restoreCommand
+
     buildCommand="${dotnetExe} msbuild ${coreFXTestSetupUtility} /p:OutputPath=${coreFXTestSetupUtilityOutputPath} /p:Platform=${_arch} /p:Configuration=Release"
+    echo $buildCommand    
     # Invoke MSBuild
     eval $buildCommand
 

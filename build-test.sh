@@ -193,25 +193,18 @@ generate_layout()
 
 generate_testhost()
 {
-    generate_corefx_helpers
     export TEST_HOST=$xUnitTestBinBase/testhost
 
     if [ -d "${TEST_HOST}" ]; then
         rm -rf $TEST_HOST
     fi
-    
+
+    echo "${__MsgPrefix}Creating test overlay..."    
     mkdir -p $TEST_HOST
 
     build_Tests_internal "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "-testHost" "Creating test host"
 }
 
-generate_corefx_helpers()
-{
-    local coreFXTestSetupUtilityName=CoreFX.TestUtils.TestFileSetup
-    local coreFXTestSetupUtility="${__ProjectDir}/tests/src/Common/CoreFX/TestFileSetup/${coreFXTestSetupUtilityName}.csproj"
-    
-    build_Tests_internal "${coreFXTestSetupUtilityName}" "${coreFXTestSetupUtility}" " " "Building CoreFX Test Helper Projects"
-}
 
 build_Tests()
 {
@@ -767,22 +760,21 @@ fi
 # Specify path to be set for CMAKE_INSTALL_PREFIX.
 # This is where all built CoreClr libraries will copied to.
 export __CMakeBinDir="$__BinDir"
-echo check for $__BinDir
-if [ ! -d "$__BinDir" ]; then
+if [ [ ! -d "$__BinDir" ] || [ ! -d "$__BinDir/bin" ] ]; then
+    if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly")]; then
 
-    echo "Cannot find build directory for the CoreCLR Product."
-    echo "Please make sure CoreCLR and native tests are built before building managed tests."
-    echo "Example use: './build.sh $__BuildArch $__BuildType' "
+        echo "Cannot find build directory for the CoreCLR native tests."
+        echo "Please make sure native tests are built before building managed tests."
+        echo "Example use: './build.sh $__BuildArch $__BuildType' without -skiptests switch"
+    else
+        echo "Cannot find build directory for the CoreCLR Product."
+        echo "Please make sure CoreCLR and native tests are built before building managed tests."
+        echo "Example use: './build.sh $__BuildArch $__BuildType' "
+        fi
     exit 1
 fi
 
-if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (! -d "$__BinDir/bin") ]]; then
-    
-    echo "Cannot find build directory for the CoreCLR native tests."
-    echo "Please make sure native tests are built before building managed tests."
-    echo "Example use: './build.sh $__BuildArch $__BuildType' without -skiptests switch"
-    exit 1
-fi
+
 
 # Configure environment if we are doing a cross compile.
 if [ $__CrossBuild == 1 ]; then
