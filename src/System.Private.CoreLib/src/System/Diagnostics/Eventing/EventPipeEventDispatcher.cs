@@ -1,6 +1,7 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -9,16 +10,26 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_PERFTRACING
     internal sealed class EventPipeEventDispatcher
     {
+        internal sealed class EventListenerSubscription
+        {
+            internal EventKeywords MatchAnyKeywords { get; private set; }
+            internal EventLevel Level { get; private set; }
+
+            internal EventListenerSubscription(EventKeywords matchAnyKeywords, EventLevel level)
+            {
+                MatchAnyKeywords = matchAnyKeywords;
+                Level = level;
+            }
+        }
+
         internal static readonly EventPipeEventDispatcher Instance = new EventPipeEventDispatcher();
 
         private IntPtr m_RuntimeProviderID;
 
         private bool m_stopDispatchTask;
         private Task m_dispatchTask = null;
-        private object m_dispatchTaskLock = new object();
-
-        // For now, only one EventListener at a time gets to control what events are enabled.
-        private EventListener m_controllingEventListener = null;
+        private object m_dispatchControlLock = new object();
+        private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
 
         private EventPipeEventDispatcher()
         {
@@ -30,19 +41,13 @@ namespace System.Diagnostics.Tracing
         {
             if (command == EventCommand.Update && enable)
             {
-                EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
+                lock (m_dispatchControlLock)
                 {
-                    new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) matchAnyKeywords, (uint) level)
-                };
+                    // Add the new subscription.  This will overwrite an existing subscription for the listener if one exists.
+                    m_subscriptions[eventListener] = new EventListenerSubscription(matchAnyKeywords, level);
 
-                lock (m_dispatchTaskLock)
-                {
-                    if (m_dispatchTask == null)
-                    {
-                        m_controllingEventListener = eventListener;
-                        EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
-                        m_dispatchTask = Task.Run(DispatchEventsToEventListeners);
-                    }
+                    // Commit the configuration change.
+                    CommitDispatchConfiguration();
                 }
             }
             else if (command == EventCommand.Update && !enable)
@@ -53,16 +58,76 @@ namespace System.Diagnostics.Tracing
 
         internal void RemoveEventListener(EventListener listener)
         {
-            lock (m_dispatchTaskLock)
+            lock (m_dispatchControlLock)
             {
-                if (m_controllingEventListener == listener && m_dispatchTask != null)
+                // Remove the event listener from the list of subscribers.
+                if (m_subscriptions.ContainsKey(listener))
                 {
-                    m_stopDispatchTask = true;
-                    m_dispatchTask.Wait();
-                    m_dispatchTask = null;
-
-                    EventPipeInternal.Disable();
+                    m_subscriptions.Remove(listener);
                 }
+
+                // Commit the configuration change.
+                CommitDispatchConfiguration();
+            }
+        }
+
+        private void CommitDispatchConfiguration()
+        {
+            // Ensure that the dispatch task is stopped.
+            // This is a no-op if the task is already stopped.
+            StopDispatchTask();
+
+            // Stop tracing.
+            // This is a no-op if it's already disabled.
+            EventPipeInternal.Disable();
+
+            // Check to see if tracing should be enabled.
+            if (m_subscriptions.Count <= 0)
+            {
+                return;
+            }
+
+            // Start collecting events.
+            EventKeywords aggregatedKeywords = EventKeywords.None;
+            EventLevel highestLevel = EventLevel.LogAlways;
+
+            foreach (EventListenerSubscription subscription in m_subscriptions.Values)
+            {
+                aggregatedKeywords |= subscription.MatchAnyKeywords;
+                highestLevel = (subscription.Level > highestLevel) ? subscription.Level : highestLevel;
+            }
+
+            EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
+            {
+                new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel)
+            };
+
+            EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+
+            // Start the dispatch task.
+            StartDispatchTask();
+        }
+
+        private void StartDispatchTask()
+        {
+            Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
+
+            if (m_dispatchTask == null)
+            {
+                m_stopDispatchTask = false;
+                m_dispatchTask = Task.Run(DispatchEventsToEventListeners);
+            }
+        }
+
+        private void StopDispatchTask()
+        {
+            Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
+
+            if(m_dispatchTask != null)
+            {
+                m_stopDispatchTask = true;
+                m_dispatchTask.Wait();
+                m_dispatchTask = null;
             }
         }
 
