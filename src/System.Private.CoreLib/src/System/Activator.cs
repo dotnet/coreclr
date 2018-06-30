@@ -5,6 +5,7 @@
 using System.Reflection;
 using System.Globalization;
 using System.Runtime.Remoting;
+using System.Threading;
 
 namespace System
 {
@@ -65,22 +66,113 @@ namespace System
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName)
         {
-            throw new NotImplementedException();
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+            return CreateInstance(assemblyName,
+                                  typeName,
+                                  false,
+                                  Activator.ConstructorDefault,
+                                  null,
+                                  null,
+                                  null,
+                                  null,
+                                  ref stackMark);                                  
         }
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
-            throw new NotImplementedException();
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+            return CreateInstance(assemblyName,
+                                  typeName,
+                                  ignoreCase,
+                                  bindingAttr,
+                                  binder,
+                                  args,
+                                  culture,
+                                  activationAttributes,                                  
+                                  ref stackMark);
         }
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, object[] activationAttributes)
         {
-            throw new NotImplementedException();
+            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
+            return CreateInstance(assemblyName,
+                                  typeName,
+                                  false,
+                                  Activator.ConstructorDefault,
+                                  null,
+                                  null,
+                                  null,
+                                  activationAttributes,
+                                  ref stackMark);
+        }
+
+        static internal ObjectHandle CreateInstance(String assemblyString,
+                                                    String typeName,
+                                                    bool ignoreCase,
+                                                    BindingFlags bindingAttr,
+                                                    Binder binder,
+                                                    Object[] args,
+                                                    CultureInfo culture,
+                                                    Object[] activationAttributes,                                                    
+                                                    ref StackCrawlMark stackMark)
+        {
+            Type type = null;
+            Assembly assembly = null;
+            if (assemblyString == null)
+            {
+                assembly = RuntimeAssembly.GetExecutingAssembly(ref stackMark);
+            }
+            else
+            {
+                RuntimeAssembly assemblyFromResolveEvent;
+                AssemblyName assemblyName = RuntimeAssembly.CreateAssemblyName(assemblyString, out assemblyFromResolveEvent);
+                if (assemblyFromResolveEvent != null)
+                {
+                    // Assembly was resolved via AssemblyResolve event
+                    assembly = assemblyFromResolveEvent;
+                }
+                else if (assemblyName.ContentType == AssemblyContentType.WindowsRuntime)
+                {
+                    // WinRT type - we have to use Type.GetType
+                    type = Type.GetType(typeName + ", " + assemblyString, true /*throwOnError*/, ignoreCase);
+                }
+                else
+                {
+                    // Classic managed type
+                    assembly = RuntimeAssembly.InternalLoadAssemblyName(
+                        assemblyName, null, ref stackMark,
+                        true /*thrownOnFileNotFound*/);
+                }
+            }
+
+            if (type == null)
+            {
+                // It's classic managed type (not WinRT type)                
+                if (assembly == null)
+                    return null;
+
+                type = assembly.GetType(typeName, true /*throwOnError*/, ignoreCase);
+            }
+
+            Object o = Activator.CreateInstance(type,
+                                                bindingAttr,
+                                                binder,
+                                                args,
+                                                culture,
+                                                activationAttributes);
+            
+            if (o == null)
+                return null;
+            else
+            {
+                ObjectHandle Handle = new ObjectHandle(o);
+                return Handle;
+            }
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
         {
-            throw new NotImplementedException();
+            return CreateInstanceFrom(assemblyFile, typeName, null);
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
@@ -90,7 +182,14 @@ namespace System
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes)
         {
-            throw new NotImplementedException();
+            return CreateInstanceFrom(assemblyFile,
+                                      typeName, 
+                                      false,
+                                      Activator.ConstructorDefault,
+                                      null,
+                                      null,
+                                      null,
+                                      activationAttributes);
         }
 
         public static T CreateInstance<T>()
