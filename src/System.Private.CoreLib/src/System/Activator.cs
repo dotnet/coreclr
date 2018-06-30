@@ -4,6 +4,7 @@
 
 using System.Reflection;
 using System.Globalization;
+using System.Runtime.Remoting;
 
 namespace System
 {
@@ -60,6 +61,36 @@ namespace System
                 return rt.CreateInstanceDefaultCtor(!nonPublic, false, true, wrapExceptions);
 
             throw new ArgumentException(SR.Arg_MustBeType, nameof(type));
+        }
+
+        public static ObjectHandle CreateInstance(string assemblyName, string typeName)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ObjectHandle CreateInstance(string assemblyName, string typeName, object[] activationAttributes)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes)
+        {
+            throw new NotImplementedException();
         }
 
         public static T CreateInstance<T>()
