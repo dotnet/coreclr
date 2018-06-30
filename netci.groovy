@@ -2539,6 +2539,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
+                    else if (scenario == 'crossgen_equivalence') {
+                    }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                         // download the appropriate CoreFX packages.
