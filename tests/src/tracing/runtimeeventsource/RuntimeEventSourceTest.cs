@@ -14,25 +14,38 @@ namespace Tracing.Tests
             // Get the RuntimeEventSource.
             EventSource eventSource = RuntimeEventSource.Log;
 
-            // Create of EventListener.
-            using (SimpleEventListener listener = new SimpleEventListener())
+            using (SimpleEventListener noEventsListener = new SimpleEventListener("NoEvents"))
             {
-                // Trigger the allocator task.
-                System.Threading.Tasks.Task.Run(new Action(Allocator));
+                // Enable the provider, but not any keywords, so we should get no events as long as no rundown occurs.
+                noEventsListener.EnableEvents(eventSource, EventLevel.Critical, (EventKeywords)(0));
 
-                // Enable events.
-                listener.EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(-1));
+                // Create an EventListener.
+                using (SimpleEventListener listener = new SimpleEventListener("Simple"))
+                {
+                    // Trigger the allocator task.
+                    System.Threading.Tasks.Task.Run(new Action(Allocator));
 
-                // Wait for events.
-                Thread.Sleep(1000);
+                    // Enable events.
+                    listener.EnableEvents(eventSource, EventLevel.Verbose, (EventKeywords)(0x4c14fccbd));
 
+                    // Wait for events.
+                    Thread.Sleep(1000);
+
+                    // Generate some GC events.
+                    GC.Collect(2, GCCollectionMode.Forced);
+
+                    // Wait for more events.
+                    Thread.Sleep(1000);
+
+                    // Ensure that we've seen some events.
+                    Assert.True("listener.EventCount > 0", listener.EventCount > 0);
+                }
+
+                // Generate some more GC events.
                 GC.Collect(2, GCCollectionMode.Forced);
 
-                // Wait for more events.
-                Thread.Sleep(1000);
-
-                // Ensure that we've seen some events.
-                Assert.True("listener.EventCount > 0", listener.EventCount > 0);
+                // Ensure that we've seen no events.
+                Assert.True("noEventsListener.EventCount == 0", noEventsListener.EventCount == 0);
             }
 
             return 100;
@@ -52,11 +65,18 @@ namespace Tracing.Tests
 
     internal sealed class SimpleEventListener : EventListener
     {
+        private string m_name;
+
+        public SimpleEventListener(string name)
+        {
+            m_name = name;
+        }
+
         public int EventCount { get; private set; } = 0;
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            Console.WriteLine($"ID = {eventData.EventId} Name = {eventData.EventName}");
+            Console.WriteLine($"[{m_name}] ID = {eventData.EventId} Name = {eventData.EventName}");
             for (int i = 0; i < eventData.Payload.Count; i++)
             {
                 string payloadString = eventData.Payload[i] != null ? eventData.Payload[i].ToString() : string.Empty;
