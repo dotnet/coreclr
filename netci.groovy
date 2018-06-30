@@ -152,7 +152,8 @@ class Constants {
                'standalone_gc',
                'gc_reliability_framework',
                'illink',
-               'corefx_innerloop']
+               'corefx_innerloop',
+               'crossgen_equivalence']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -1748,6 +1749,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
 
+                        case 'crossgen_equivalence':
+                            if (configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Crossgen Equivalence")
+                            }
+                            break
+
                         default:
                             if (isJitStressScenario(scenario)) {
                                 def displayStr = getStressModeDisplayName(scenario)
@@ -2532,6 +2539,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
+                    else if (scenario == 'crossgen_equivalence') {
+                    }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                         // download the appropriate CoreFX packages.
@@ -2592,6 +2601,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     // Run basic corefx tests only on PR-triggered jobs
     // Runs under Release and Checked 
     if (scenario == 'corefx_innerloop' && !isPR) {
+        return false
+    }
+
+    if (scenario == 'crossgen_equivalence' && !isPR) {
         return false
     }
 
@@ -2813,6 +2826,11 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 if(configuration != 'Release' && configuration != 'Checked') {
+                    return false
+                }
+                break
+            case 'crossgen_equivalence':
+                if (os != 'Ubuntu' || architecture != 'arm' || configuration != 'Checked') {
                     return false
                 }
                 break
@@ -3497,6 +3515,11 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     if (scenario == 'corefx_innerloop') {
         return false
     }
+
+    if (scenario == 'crossgen_equivalence') {
+        return false
+    }
+
     // Filter based on OS and architecture.
 
     switch (architecture) {
