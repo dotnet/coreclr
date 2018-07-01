@@ -115,7 +115,7 @@ namespace System.Diagnostics.Tracing
             if (m_dispatchTask == null)
             {
                 m_stopDispatchTask = false;
-                m_dispatchTask = Task.Run(DispatchEventsToEventListeners);
+                m_dispatchTask = Task.Factory.StartNew(DispatchEventsToEventListeners, TaskCreationOptions.LongRunning);
             }
         }
 
