@@ -2613,11 +2613,11 @@ inline unsigned Compiler::compMapILargNum(unsigned ILargNum)
 inline var_types Compiler::mangleVarArgsType(var_types type)
 {
 #if defined(_TARGET_ARMARCH_)
-    if (opts.compUseSoftFP 
+    if (opts.compUseSoftFP
 #if defined(_TARGET_WINDOWS_)
         || info.compIsVarArgs
 #endif // defined(_TARGET_WINDOWS_)
-       )
+        )
     {
         switch (type)
         {
