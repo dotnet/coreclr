@@ -2602,13 +2602,16 @@ inline unsigned Compiler::compMapILargNum(unsigned ILargNum)
     return (ILargNum);
 }
 
-// Retype Floating point types to their corresponding int/long types.
+//------------------------------------------------------------------------
+// Compiler::mangleVarArgsType: Retype float types to their corresponding
+//                            : int/long types.
 //
-// Note:
+// Notes:
 //
-// This function will currently handle Armel (softFP) case as well. This
-// mangling of the types will only occur for incoming vararg fixed arguments
-// on windows arm.
+// The mangling of types will only occur for incoming vararg fixed arguments
+// on windows arm|64 or on armel (softFP).
+//
+// NO-OP for all other cases.
 //
 inline var_types Compiler::mangleVarArgsType(var_types type)
 {
