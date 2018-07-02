@@ -59,9 +59,7 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
         mov                 x2, \HiddenArg 
 
         // x1 = VaSigCookie
-        .ifnc \VASigCookieReg, x1
         mov                 x1, \VASigCookieReg
-        .endif
 
         // x0 = pTransitionBlock
         add                 x0, sp, #__PWTB_TransitionBlock      

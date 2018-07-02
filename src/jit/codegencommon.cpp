@@ -3392,10 +3392,15 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         // In other cases, we simply use the type of the lclVar to determine the type of the register.
         var_types getRegType(Compiler* compiler)
         {
-            LclVarDsc varDsc = compiler->lvaTable[varNum];
+            const LclVarDsc& varDsc = compiler->lvaTable[varNum];
             // Check if this is an HFA register arg and return the HFA type
             if (varDsc.lvIsHfaRegArg())
             {
+#if defined(_TARGET_WINDOWS_)
+                // Cannot have hfa types on windows arm targets
+                // in vararg methods.
+                assert(!compiler->info.compIsVarArgs);
+#endif // defined(_TARGET_WINDOWS_)
                 return varDsc.GetHfaType();
             }
             return compiler->mangleVarArgsType(varDsc.lvType);
@@ -3479,11 +3484,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         {
             // A struct might be passed  partially in XMM register for System V calls.
             // So a single arg might use both register files.
-            if (isFloatRegType(regType) != doingFloat
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                && !compiler->info.compIsVarArgs
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-                )
+            if (isFloatRegType(regType) != doingFloat)
             {
                 continue;
             }
@@ -3659,18 +3660,10 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-// lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
-// The type of the register depends on the classification of the first eightbyte
-// of the struct. For information on classification refer to the System V x86_64 ABI at:
-// http://www.x86-64.org/documentation/abi.pdf
-
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-            if (!compiler->info.compIsVarArgs)
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-            {
-                assert((i > 0) || (regNum == varDsc->lvArgReg));
-            }
-
+            // lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
+            // The type of the register depends on the classification of the first eightbyte
+            // of the struct.
+            assert((i > 0) || (regNum == varDsc->lvArgReg));
 #endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
 

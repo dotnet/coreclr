@@ -45,11 +45,6 @@ __PInvokeStubFuncName SETS "$FuncPrefix":CC:"Stub"
 __PInvokeGenStubFuncName SETS "$FuncPrefix":CC:"GenILStub"
 __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 
-       IF "$VASigCookieReg" == "x1"
-__PInvokeStubFuncName SETS "$__PInvokeStubFuncName":CC:"_RetBuffArg"
-__PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
-        ENDIF
-
         NESTED_ENTRY $__PInvokeStubFuncName
 
         ; get the stub
@@ -84,9 +79,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         mov                 x2, $HiddenArg 
 
         ; x1 = VaSigCookie
-        IF "$VASigCookieReg" != "x1"
         mov                 x1, $VASigCookieReg
-        ENDIF
 
         ; x0 = pTransitionBlock
         add                 x0, sp, #__PWTB_TransitionBlock
