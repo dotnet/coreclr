@@ -84,13 +84,13 @@
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != true">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != true And '$(BuildAllProjects)' == true And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
   </PropertyGroup>
+    
+  <!-- if we have determined that there is nothing to build, overwrite the build targets so that nothing happens -->
+ <Import Project="nobuild.targets" Condition="'$(_WillCLRTestProjectBuild)' == 'false'" />
   
-  <!-- if we don't have anything to build (because there is no source, or we're lower priority) overwrite the build targets so nothing happens -->
- <Import Project="nobuild.targets" Condition="'$(CLRTestKind)'=='RunOnly' or '$(_WillCLRTestProjectBuild)' == 'false' or '$(CLRTestPriority)' &gt; '$(CLRTestPriorityToBuild)'" />
-  
-  <!-- We will use an imported build here in the instance that we have source that we need to build, and we are the correct priority...OR if we are being asked to build for
+  <!-- We will use an imported build here in the instance that we're a non-sdk style project, have source that we need to build, and we are the correct priority...OR if we are being asked to build for
   a test with a higher priority. -->
-  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(CLRTestKind)'!='RunOnly') And $(_CLRTestCompilesSource) And ('$(_WillCLRTestProjectBuild)') And $(UseBuildTools)"/>
+  <Import Project="$(ToolsDir)Build.Common.targets" Condition="('$(UsingMicrosoftNETSdk)' != 'true') And ('$(CLRTestKind)'!='RunOnly') And $(_CLRTestCompilesSource) And ('$(_WillCLRTestProjectBuild)')"/>
 
 
   <Import Project="..\override.targets" Condition="Exists('..\override.targets')"/>
