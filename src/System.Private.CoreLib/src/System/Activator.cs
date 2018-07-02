@@ -75,7 +75,7 @@ namespace System
                                   null,
                                   null,
                                   null,
-                                  ref stackMark);                                  
+                                  ref stackMark);
         }
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
@@ -88,7 +88,7 @@ namespace System
                                   binder,
                                   args,
                                   culture,
-                                  activationAttributes,                                  
+                                  activationAttributes,
                                   ref stackMark);
         }
 
@@ -113,7 +113,7 @@ namespace System
                                                     Binder binder,
                                                     Object[] args,
                                                     CultureInfo culture,
-                                                    Object[] activationAttributes,                                                    
+                                                    Object[] activationAttributes,
                                                     ref StackCrawlMark stackMark)
         {
             Type type = null;
@@ -147,7 +147,7 @@ namespace System
 
             if (type == null)
             {
-                // It's classic managed type (not WinRT type)                
+                // It's classic managed type (not WinRT type)
                 if (assembly == null)
                     return null;
 
@@ -160,7 +160,7 @@ namespace System
                                                 args,
                                                 culture,
                                                 activationAttributes);
-            
+
             if (o == null)
                 return null;
             else
@@ -177,19 +177,54 @@ namespace System
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
-            throw new NotImplementedException();
+            return CreateInstanceFromInternal(assemblyFile,
+                                            typeName,
+                                            ignoreCase,
+                                            bindingAttr,
+                                            binder,
+                                            args,
+                                            culture,
+                                            activationAttributes);
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes)
         {
             return CreateInstanceFrom(assemblyFile,
-                                      typeName, 
+                                      typeName,
                                       false,
                                       Activator.ConstructorDefault,
                                       null,
                                       null,
                                       null,
                                       activationAttributes);
+        }
+
+        private static ObjectHandle CreateInstanceFromInternal(String assemblyFile,
+                                                              String typeName,
+                                                              bool ignoreCase,
+                                                              BindingFlags bindingAttr,
+                                                              Binder binder,
+                                                              Object[] args,
+                                                              CultureInfo culture,
+                                                              Object[] activationAttributes)
+        {
+            Assembly assembly = Assembly.LoadFrom(assemblyFile);
+            Type t = assembly.GetType(typeName, true, ignoreCase);
+
+            Object o = Activator.CreateInstance(t,
+                                                bindingAttr,
+                                                binder,
+                                                args,
+                                                culture,
+                                                activationAttributes);
+
+            if (o == null)
+                return null;
+            else
+            {
+                ObjectHandle Handle = new ObjectHandle(o);
+                return Handle;
+            }
         }
 
         public static T CreateInstance<T>()
