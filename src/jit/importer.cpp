@@ -1784,7 +1784,7 @@ GenTree* Compiler::impLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 
         CORINFO_GENERIC_HANDLE handle       = nullptr;
         void*                  pIndirection = nullptr;
-        assert(pLookup->constLookup.accessType != IAT_PPVALUE);
+        assert(pLookup->constLookup.accessType != IAT_PPVALUE && pLookup->constLookup.accessType != IAT_RELPVALUE);
 
         if (pLookup->constLookup.accessType == IAT_VALUE)
         {
@@ -1819,7 +1819,7 @@ GenTree* Compiler::impReadyToRunLookupToTree(CORINFO_CONST_LOOKUP* pLookup,
 {
     CORINFO_GENERIC_HANDLE handle       = nullptr;
     void*                  pIndirection = nullptr;
-    assert(pLookup->accessType != IAT_PPVALUE);
+    assert(pLookup->accessType != IAT_PPVALUE && pLookup->accessType != IAT_RELPVALUE);
 
     if (pLookup->accessType == IAT_VALUE)
     {
@@ -6112,9 +6112,9 @@ void Compiler::impCheckForPInvokeCall(
             return;
         }
 
-        // PInvoke CALL in IL stubs must be inlined on CoreRT. Skip the ambient conditions checks and
-        // profitability checks
-        if (!(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) && IsTargetAbi(CORINFO_CORERT_ABI)))
+        // Legal PInvoke CALL in PInvoke IL stubs must be inlined to avoid infinite recursive
+        // inlining in CoreRT. Skip the ambient conditions checks and profitability checks.
+        if (!IsTargetAbi(CORINFO_CORERT_ABI) || (info.compFlags & CORINFO_FLG_PINVOKE) == 0)
         {
             if (!impCanPInvokeInline())
             {
@@ -7276,7 +7276,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                     call = gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
                     call->gtCall.gtStubCallStubAddr = callInfo->stubLookup.constLookup.addr;
                     call->gtFlags |= GTF_CALL_VIRT_STUB;
-                    assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE);
+                    assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE &&
+                           callInfo->stubLookup.constLookup.accessType != IAT_RELPVALUE);
                     if (callInfo->stubLookup.constLookup.accessType == IAT_PVALUE)
                     {
                         call->gtCall.gtCallMoreFlags |= GTF_CALL_M_VIRTSTUB_REL_INDIRECT;
@@ -17044,7 +17045,7 @@ void* Compiler::BlockListNode::operator new(size_t sz, Compiler* comp)
 {
     if (comp->impBlockListNodeFreeList == nullptr)
     {
-        return (BlockListNode*)comp->compGetMem(sizeof(BlockListNode), CMK_BasicBlock);
+        return comp->getAllocator(CMK_BasicBlock).allocate<BlockListNode>(1);
     }
     else
     {
@@ -17271,7 +17272,7 @@ void Compiler::verInitBBEntryState(BasicBlock* block, EntryState* srcState)
         return;
     }
 
-    block->bbEntryState = (EntryState*)compGetMem(sizeof(EntryState));
+    block->bbEntryState = getAllocator(CMK_Unknown).allocate<EntryState>(1);
 
     // block->bbEntryState.esRefcount = 1;
 
@@ -19838,7 +19839,7 @@ CORINFO_CLASS_HANDLE Compiler::impGetSpecialIntrinsicExactReturnType(CORINFO_MET
 //    pointer to token into jit-allocated memory.
 CORINFO_RESOLVED_TOKEN* Compiler::impAllocateToken(CORINFO_RESOLVED_TOKEN token)
 {
-    CORINFO_RESOLVED_TOKEN* memory = (CORINFO_RESOLVED_TOKEN*)compGetMem(sizeof(token));
+    CORINFO_RESOLVED_TOKEN* memory = getAllocator(CMK_Unknown).allocate<CORINFO_RESOLVED_TOKEN>(1);
     *memory                        = token;
     return memory;
 }

@@ -817,8 +817,8 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
 //    If the jump table contains less than 32 (64 on 64 bit targets) entries and there
 //    are at most 2 distinct jump targets then the jump table can be converted to a word
 //    of bits where a 0 bit corresponds to one jump target and a 1 bit corresponds to the
-//    other jump target. Instead of the indirect jump a BT-JCC sequnce is used to jump
-//    to the appropiate target:
+//    other jump target. Instead of the indirect jump a BT-JCC sequence is used to jump
+//    to the appropriate target:
 //        mov eax, 245 ; jump table converted to a "bit table"
 //        bt  eax, ebx ; ebx is supposed to contain the switch value
 //        jc target1
@@ -1028,7 +1028,7 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
 
 #ifdef _TARGET_ARMARCH_
     // Mark contained when we pass struct
-    // GT_FIELD_LIST is always marked conatained when it is generated
+    // GT_FIELD_LIST is always marked contained when it is generated
     if (type == TYP_STRUCT)
     {
         arg->SetContained();
@@ -1935,7 +1935,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     // call could over-write the stack arg that is setup earlier.
     GenTree*             firstPutArgStk = nullptr;
     GenTreeArgList*      args;
-    ArrayStack<GenTree*> putargs(comp);
+    ArrayStack<GenTree*> putargs(comp->getAllocator(CMK_ArrayStack));
 
     for (args = call->gtCallArgs; args; args = args->Rest())
     {
@@ -3085,6 +3085,16 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
             result = Ind(Ind(result));
             break;
 
+        case IAT_RELPVALUE:
+        {
+            // Non-virtual direct calls to addresses accessed by
+            // a single relative indirection.
+            GenTree* cellAddr = AddrGen(addr);
+            GenTree* indir    = Ind(cellAddr);
+            result            = comp->gtNewOperNode(GT_ADD, TYP_I_IMPL, indir, AddrGen(addr));
+            break;
+        }
+
         default:
             noway_assert(!"Bad accessType");
             break;
@@ -3874,6 +3884,9 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
             case IAT_PPVALUE:
                 result = Ind(Ind(AddrGen(addr)));
                 break;
+
+            case IAT_RELPVALUE:
+                unreached();
         }
     }
 
@@ -3970,19 +3983,24 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
             //
             // Save relative offset to tmp (vtab is virtual table pointer, vtabOffsOfIndirection is offset of
             // vtable-1st-level-indirection):
-            // tmp = [vtab + vtabOffsOfIndirection]
+            // tmp = vtab
             //
             // Save address of method to result (vtabOffsAfterIndirection is offset of vtable-2nd-level-indirection):
-            // result = [vtab + vtabOffsOfIndirection + vtabOffsAfterIndirection + tmp]
+            // result = [tmp + vtabOffsOfIndirection + vtabOffsAfterIndirection + [tmp + vtabOffsOfIndirection]]
+            //
+            //
+            // If relative pointers are also in second level indirection, additional temporary is used:
+            // tmp1 = vtab
+            // tmp2 = tmp1 + vtabOffsOfIndirection + vtabOffsAfterIndirection + [tmp1 + vtabOffsOfIndirection]
+            // result = tmp2 + [tmp2]
+            //
             unsigned lclNumTmp = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp"));
-
             comp->lvaTable[lclNumTmp].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
-            GenTree* lclvNodeStore = comp->gtNewTempAssign(lclNumTmp, result);
 
-            LIR::Range range = LIR::SeqTree(comp, lclvNodeStore);
-            JITDUMP("result of obtaining pointer to virtual table:\n");
-            DISPRANGE(range);
-            BlockRange().InsertBefore(call, std::move(range));
+            unsigned lclNumTmp2 = comp->lvaGrabTemp(true DEBUGARG("lclNumTmp2"));
+            comp->lvaTable[lclNumTmp2].incRefCnts(comp->compCurBB->getBBWeight(comp), comp);
+
+            GenTree* lclvNodeStore = comp->gtNewTempAssign(lclNumTmp, result);
 
             GenTree* tmpTree = comp->gtNewLclvNode(lclNumTmp, result->TypeGet());
             tmpTree          = Offset(tmpTree, vtabOffsOfIndirection);
@@ -3991,7 +4009,22 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
             GenTree* offs = comp->gtNewIconNode(vtabOffsOfIndirection + vtabOffsAfterIndirection, TYP_INT);
             result = comp->gtNewOperNode(GT_ADD, TYP_I_IMPL, comp->gtNewLclvNode(lclNumTmp, result->TypeGet()), offs);
 
-            result = Ind(OffsetByIndex(result, tmpTree));
+            GenTree* base           = OffsetByIndexWithScale(result, tmpTree, 1);
+            GenTree* lclvNodeStore2 = comp->gtNewTempAssign(lclNumTmp2, base);
+
+            LIR::Range range = LIR::SeqTree(comp, lclvNodeStore);
+            JITDUMP("result of obtaining pointer to virtual table:\n");
+            DISPRANGE(range);
+            BlockRange().InsertBefore(call, std::move(range));
+
+            LIR::Range range2 = LIR::SeqTree(comp, lclvNodeStore2);
+            JITDUMP("result of obtaining pointer to virtual table 2nd level indirection:\n");
+            DISPRANGE(range2);
+            BlockRange().InsertAfter(lclvNodeStore, std::move(range2));
+
+            result = Ind(comp->gtNewLclvNode(lclNumTmp2, result->TypeGet()));
+            result =
+                comp->gtNewOperNode(GT_ADD, TYP_I_IMPL, result, comp->gtNewLclvNode(lclNumTmp2, result->TypeGet()));
         }
         else
         {

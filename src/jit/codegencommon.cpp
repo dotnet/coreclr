@@ -8600,6 +8600,20 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     bool jmpEpilog = ((block->bbFlags & BBF_HAS_JMP) != 0);
 
+    GenTree* lastNode = block->lastNode();
+
+    // Method handle and address info used in case of jump epilog
+    CORINFO_METHOD_HANDLE methHnd = nullptr;
+    CORINFO_CONST_LOOKUP  addrInfo;
+    addrInfo.addr       = nullptr;
+    addrInfo.accessType = IAT_VALUE;
+
+    if (jmpEpilog && lastNode->gtOper == GT_JMP)
+    {
+        methHnd = (CORINFO_METHOD_HANDLE)lastNode->gtVal.gtVal1;
+        compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+    }
+
 #ifdef _TARGET_ARM_
     // We delay starting the unwind codes until we have an instruction which we know
     // needs an unwind code. In particular, for large stack frames in methods without
@@ -8644,6 +8658,30 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         unwindStarted = true;
     }
 
+    if (jmpEpilog && lastNode->gtOper == GT_JMP && addrInfo.accessType == IAT_RELPVALUE)
+    {
+        // IAT_RELPVALUE jump at the end is done using relative indirection, so,
+        // additional helper register is required.
+        // We use LR just before it is going to be restored from stack, i.e.
+        //
+        //     movw r12, laddr
+        //     movt r12, haddr
+        //     mov lr, r12
+        //     ldr r12, [r12]
+        //     add r12, r12, lr
+        //     pop {lr}
+        //     ...
+        //     bx r12
+
+        regNumber indCallReg = REG_R12;
+        regNumber vptrReg1   = REG_LR;
+
+        instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, vptrReg1, indCallReg);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, indCallReg, indCallReg, 0);
+        getEmitter()->emitIns_R_R(INS_add, EA_PTRSIZE, indCallReg, vptrReg1);
+    }
+
     genPopCalleeSavedRegisters(jmpEpilog);
 
     if (regSet.rsMaskPreSpillRegs(true) != RBM_NONE)
@@ -8656,6 +8694,12 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         compiler->unwindAllocStack(preSpillRegArgSize);
     }
 
+    if (jmpEpilog)
+    {
+        // We better not have used a pop PC to return otherwise this will be unreachable code
+        noway_assert(!genUsedPopToReturn);
+    }
+
 #else  // _TARGET_ARM64_
     compiler->unwindBegEpilog();
 
@@ -8664,20 +8708,13 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 
     if (jmpEpilog)
     {
-#ifdef _TARGET_ARMARCH_
         hasTailCalls = true;
-#endif // _TARGET_ARMARCH_
 
         noway_assert(block->bbJumpKind == BBJ_RETURN);
         noway_assert(block->bbTreeList != nullptr);
 
-#ifdef _TARGET_ARM_
-        // We better not have used a pop PC to return otherwise this will be unreachable code
-        noway_assert(!genUsedPopToReturn);
-#endif // _TARGET_ARM_
-
         /* figure out what jump we have */
-        GenTree* jmpNode = block->lastNode();
+        GenTree* jmpNode = lastNode;
 #if !FEATURE_FASTTAILCALL
         noway_assert(jmpNode->gtOper == GT_JMP);
 #else  // FEATURE_FASTTAILCALL
@@ -8696,10 +8733,8 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         {
             // Simply emit a jump to the methodHnd. This is similar to a call so we can use
             // the same descriptor with some minor adjustments.
-            CORINFO_METHOD_HANDLE methHnd = (CORINFO_METHOD_HANDLE)jmpNode->gtVal.gtVal1;
-
-            CORINFO_CONST_LOOKUP addrInfo;
-            compiler->info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo);
+            assert(methHnd != nullptr);
+            assert(addrInfo.addr != nullptr);
 
 #ifdef _TARGET_ARM_
             emitter::EmitCallType callType;
@@ -8734,6 +8769,20 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                         regSet.verifyRegUsed(indCallReg);
                     }
                     break;
+
+                case IAT_RELPVALUE:
+                {
+                    // Load the address into a register, load relative indirect and call through a register
+                    // We have to use R12 since we assume the argument registers are in use
+                    // LR is used as helper register right before it is restored from stack, thus,
+                    // all relative address calculations are performed before LR is restored.
+                    callType   = emitter::EC_INDIR_R;
+                    indCallReg = REG_R12;
+                    addr       = NULL;
+
+                    regSet.verifyRegUsed(indCallReg);
+                    break;
+                }
 
                 case IAT_PPVALUE:
                 default:
@@ -11190,9 +11239,7 @@ void CodeGen::genIPmappingAdd(IL_OFFSETX offsx, bool isLabel)
 
     /* Create a mapping entry and append it to the list */
 
-    Compiler::IPmappingDsc* addMapping =
-        (Compiler::IPmappingDsc*)compiler->compGetMem(sizeof(*addMapping), CMK_DebugInfo);
-
+    Compiler::IPmappingDsc* addMapping = compiler->getAllocator(CMK_DebugInfo).allocate<Compiler::IPmappingDsc>(1);
     addMapping->ipmdNativeLoc.CaptureLocation(getEmitter());
     addMapping->ipmdILoffsx = offsx;
     addMapping->ipmdIsLabel = isLabel;
@@ -11251,9 +11298,7 @@ void CodeGen::genIPmappingAddToFront(IL_OFFSETX offsx)
 
     /* Create a mapping entry and prepend it to the list */
 
-    Compiler::IPmappingDsc* addMapping =
-        (Compiler::IPmappingDsc*)compiler->compGetMem(sizeof(*addMapping), CMK_DebugInfo);
-
+    Compiler::IPmappingDsc* addMapping = compiler->getAllocator(CMK_DebugInfo).allocate<Compiler::IPmappingDsc>(1);
     addMapping->ipmdNativeLoc.CaptureLocation(getEmitter());
     addMapping->ipmdILoffsx = offsx;
     addMapping->ipmdIsLabel = true;
