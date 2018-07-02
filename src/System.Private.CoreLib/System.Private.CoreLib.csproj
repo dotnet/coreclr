@@ -461,9 +461,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Remoting\ObjectHandle.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
   </ItemGroup>
   <ItemGroup>

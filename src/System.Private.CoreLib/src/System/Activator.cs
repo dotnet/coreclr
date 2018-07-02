@@ -64,6 +64,7 @@ namespace System
             throw new ArgumentException(SR.Arg_MustBeType, nameof(type));
         }
 
+        [System.Security.DynamicSecurityMethod]
         public static ObjectHandle CreateInstance(string assemblyName, string typeName)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -78,6 +79,7 @@ namespace System
                                           ref stackMark);
         }
 
+        [System.Security.DynamicSecurityMethod]
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -92,6 +94,7 @@ namespace System
                                           ref stackMark);
         }
 
+        [System.Security.DynamicSecurityMethod]
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, object[] activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
@@ -161,13 +164,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            if (o == null)
-                return null;
-            else
-            {
-                ObjectHandle Handle = new ObjectHandle(o);
-                return Handle;
-            }
+            return (o != null) ? new ObjectHandle(o) : null;          
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
@@ -218,13 +215,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            if (o == null)
-                return null;
-            else
-            {
-                ObjectHandle Handle = new ObjectHandle(o);
-                return Handle;
-            }
+            return (o != null) ? new ObjectHandle(o) : null;
         }
 
         public static T CreateInstance<T>()

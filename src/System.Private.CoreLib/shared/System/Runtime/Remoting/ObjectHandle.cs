@@ -6,7 +6,7 @@ namespace System.Runtime.Remoting
 {
     public class ObjectHandle : MarshalByRefObject        
     {
-        private Object WrappedObject;
+        object _wrappedObject;
 
         private ObjectHandle()
         {
@@ -14,12 +14,12 @@ namespace System.Runtime.Remoting
 
         public ObjectHandle(Object o)
         {
-            WrappedObject = o;
+            _wrappedObject = o;
         }
 
         public Object Unwrap()
         {
-            return WrappedObject;
+            return _wrappedObject;
         }
     }
 }
