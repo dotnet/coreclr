@@ -109,14 +109,14 @@ namespace System
                                           ref stackMark);
         }
 
-        private static ObjectHandle CreateInstanceInternal(String assemblyString,
-                                                           String typeName,
+        private static ObjectHandle CreateInstanceInternal(string assemblyString,
+                                                           string typeName,
                                                            bool ignoreCase,
                                                            BindingFlags bindingAttr,
                                                            Binder binder,
-                                                           Object[] args,
+                                                           object[] args,
                                                            CultureInfo culture,
-                                                           Object[] activationAttributes,
+                                                           object[] activationAttributes,
                                                            ref StackCrawlMark stackMark)
         {
             Type type = null;
@@ -157,7 +157,7 @@ namespace System
                 type = assembly.GetType(typeName, true /*throwOnError*/, ignoreCase);
             }
 
-            Object o = Activator.CreateInstance(type,
+            object o = Activator.CreateInstance(type,
                                                 bindingAttr,
                                                 binder,
                                                 args,
@@ -196,19 +196,19 @@ namespace System
                                       activationAttributes);
         }
 
-        private static ObjectHandle CreateInstanceFromInternal(String assemblyFile,
-                                                               String typeName,
+        private static ObjectHandle CreateInstanceFromInternal(string assemblyFile,
+                                                               string typeName,
                                                                bool ignoreCase,
                                                                BindingFlags bindingAttr,
                                                                Binder binder,
-                                                               Object[] args,
+                                                               object[] args,
                                                                CultureInfo culture,
-                                                               Object[] activationAttributes)
+                                                               object[] activationAttributes)
         {
             Assembly assembly = Assembly.LoadFrom(assemblyFile);
             Type t = assembly.GetType(typeName, true, ignoreCase);
 
-            Object o = Activator.CreateInstance(t,
+            object o = Activator.CreateInstance(t,
                                                 bindingAttr,
                                                 binder,
                                                 args,
