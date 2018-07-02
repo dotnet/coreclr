@@ -7,7 +7,6 @@
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND
 // return op that is the store equivalent of the given load opcode
 genTreeOps storeForm(genTreeOps loadForm)
 {
@@ -889,7 +888,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
                 JITDUMP("Rewriting GT_SIMD array init as an explicit load:\n");
                 unsigned int baseTypeSize = genTypeSize(simdNode->gtSIMDBaseType);
                 GenTree*     address = new (comp, GT_LEA) GenTreeAddrMode(TYP_BYREF, simdNode->gtOp1, simdNode->gtOp2,
-                                                                      baseTypeSize, offsetof(CORINFO_Array, u1Elems));
+                                                                      baseTypeSize, OFFSETOF__CORINFO_Array__data);
                 GenTree* ind = comp->gtNewOperNode(GT_IND, simdType, address);
 
                 BlockRange().InsertBefore(simdNode, address, ind);
@@ -922,8 +921,8 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 #endif // FEATURE_SIMD
 
         default:
-            // JCMP, CMP, SETCC and JCC nodes should not be present in HIR.
-            assert(!node->OperIs(GT_CMP, GT_SETCC, GT_JCC, GT_JCMP));
+            // These nodes should not be present in HIR.
+            assert(!node->OperIs(GT_CMP, GT_SETCC, GT_JCC, GT_JCMP, GT_LOCKADD));
             break;
     }
 
@@ -1068,4 +1067,3 @@ void Rationalizer::DoPhase()
 
     comp->compRationalIRForm = true;
 }
-#endif // LEGACY_BACKEND

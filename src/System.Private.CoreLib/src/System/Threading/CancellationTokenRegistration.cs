@@ -41,13 +41,13 @@ namespace System.Threading
         /// registration isn't associated with a token (such as after the registration has been disposed),
         /// this will return a default token.
         /// </summary>
-        public CancellationToken Token => _node?.Partition.Source.Token ?? default(CancellationToken);
+        public CancellationToken Token => _node?.Partition.Source.Token ?? default;
 
         /// <summary>
         /// Disposes of the registration and unregisters the target callback from the associated 
         /// <see cref="T:System.Threading.CancellationToken">CancellationToken</see>.
         /// </summary>
-        internal bool Unregister() // corefx currently has an InternalsVisibleTo dependency on this
+        public bool Unregister() // TODO dotnet/corefx#14903: This is "public" for corefx usage, but it's not yet in the refs or approved public API.
         {
             CancellationTokenSource.CallbackNode node = _node;
             return node != null && node.Partition.Unregister(_id, node);

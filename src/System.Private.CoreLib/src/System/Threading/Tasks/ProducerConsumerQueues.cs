@@ -119,7 +119,7 @@ namespace System.Threading.Tasks
         /// <summary>The initial size to use for segments (in number of elements).</summary>
         private const int INIT_SEGMENT_SIZE = 32; // must be a power of 2
         /// <summary>The maximum size to use for segments (in number of elements).</summary>
-        private const int MAX_SEGMENT_SIZE = 0x1000000; // this could be made as large as Int32.MaxValue / 2
+        private const int MAX_SEGMENT_SIZE = 0x1000000; // this could be made as large as int.MaxValue / 2
 
         /// <summary>The head of the linked list of segments.</summary>
         private volatile Segment m_head;
@@ -133,7 +133,7 @@ namespace System.Threading.Tasks
             Debug.Assert(INIT_SEGMENT_SIZE > 0, "Initial segment size must be > 0.");
             Debug.Assert((INIT_SEGMENT_SIZE & (INIT_SEGMENT_SIZE - 1)) == 0, "Initial segment size must be a power of 2");
             Debug.Assert(INIT_SEGMENT_SIZE <= MAX_SEGMENT_SIZE, "Initial segment size should be <= maximum.");
-            Debug.Assert(MAX_SEGMENT_SIZE < Int32.MaxValue / 2, "Max segment size * 2 must be < Int32.MaxValue, or else overflow could occur.");
+            Debug.Assert(MAX_SEGMENT_SIZE < int.MaxValue / 2, "Max segment size * 2 must be < int.MaxValue, or else overflow could occur.");
 
             // Initialize the queue
             m_head = m_tail = new Segment(INIT_SEGMENT_SIZE);
@@ -204,7 +204,7 @@ namespace System.Threading.Tasks
             if (first != segment.m_state.m_lastCopy)
             {
                 result = array[first];
-                array[first] = default(T); // Clear the slot to release the element
+                array[first] = default; // Clear the slot to release the element
                 segment.m_state.m_first = (first + 1) & (array.Length - 1);
                 return true;
             }
@@ -239,12 +239,12 @@ namespace System.Threading.Tasks
 
             if (first == segment.m_state.m_last)
             {
-                result = default(T);
+                result = default;
                 return false;
             }
 
             result = array[first];
-            array[first] = default(T); // Clear the slot to release the element
+            array[first] = default; // Clear the slot to release the element
             segment.m_state.m_first = (first + 1) & (segment.m_array.Length - 1);
             segment.m_state.m_lastCopy = segment.m_state.m_last; // Refresh m_lastCopy to ensure that m_first has not passed m_lastCopy
 

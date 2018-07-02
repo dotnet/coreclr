@@ -1683,7 +1683,7 @@ public:
     }
 #endif
 
-    // Given a CSE candidate decide whether it passes or fails the profitablity heuristic
+    // Given a CSE candidate decide whether it passes or fails the profitability heuristic
     // return true if we believe that it is profitable to promote this candidate to a CSE
     //
     bool PromotionCheck(CSE_Candidate* candidate)
@@ -1757,7 +1757,7 @@ public:
         unsigned extra_no_cost  = 0;
 
         // The 'cseRefCnt' is the RefCnt that we will have if we promote this CSE into a new LclVar
-        // Each CSE Def will contain two Refs and each CSE Use wil have one Ref of this new LclVar
+        // Each CSE Def will contain two Refs and each CSE Use will have one Ref of this new LclVar
         unsigned cseRefCnt = (candidate->DefCount() * 2) + candidate->UseCount();
 
         if (CodeOptKind() == Compiler::SMALL_CODE)
@@ -1935,12 +1935,6 @@ public:
         no_cse_cost  = candidate->UseCount() * candidate->Cost();
         yes_cse_cost = (candidate->DefCount() * cse_def_cost) + (candidate->UseCount() * cse_use_cost);
 
-#if CPU_LONG_USES_REGPAIR
-        if (candidate->Expr()->TypeGet() == TYP_LONG)
-        {
-            yes_cse_cost *= 2;
-        }
-#endif
         no_cse_cost += extra_no_cost;
         yes_cse_cost += extra_yes_cost;
 
@@ -1998,11 +1992,6 @@ public:
             // increase the cutoffs for aggressive and moderate CSE's
             //
             int incr = BB_UNITY_WEIGHT;
-
-#if CPU_LONG_USES_REGPAIR
-            if (successfulCandidate->Expr()->TypeGet() == TYP_LONG)
-                incr *= 2;
-#endif
 
             if (cseRefCnt > aggressiveRefCnt)
             {

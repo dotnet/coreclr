@@ -23,7 +23,7 @@ RangeCheck::RangeCheck(Compiler* pCompiler)
     , m_pDefTable(nullptr)
 #endif
     , m_pCompiler(pCompiler)
-    , m_alloc(pCompiler, CMK_RangeCheck)
+    , m_alloc(pCompiler->getAllocator(CMK_RangeCheck))
     , m_nVisitBudget(MAX_VISIT_BUDGET)
 {
 }
@@ -38,7 +38,7 @@ RangeCheck::RangeMap* RangeCheck::GetRangeMap()
 {
     if (m_pRangeMap == nullptr)
     {
-        m_pRangeMap = new (&m_alloc) RangeMap(&m_alloc);
+        m_pRangeMap = new (m_alloc) RangeMap(m_alloc);
     }
     return m_pRangeMap;
 }
@@ -48,7 +48,7 @@ RangeCheck::OverflowMap* RangeCheck::GetOverflowMap()
 {
     if (m_pOverflowMap == nullptr)
     {
-        m_pOverflowMap = new (&m_alloc) OverflowMap(&m_alloc);
+        m_pOverflowMap = new (m_alloc) OverflowMap(m_alloc);
     }
     return m_pOverflowMap;
 }
@@ -256,7 +256,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
 
     GetRangeMap()->RemoveAll();
     GetOverflowMap()->RemoveAll();
-    m_pSearchPath = new (&m_alloc) SearchPath(&m_alloc);
+    m_pSearchPath = new (m_alloc) SearchPath(m_alloc);
 
     // Get the range for this index.
     Range range = GetRange(block, treeIndex, false DEBUGARG(0));
@@ -324,11 +324,7 @@ void RangeCheck::Widen(BasicBlock* block, GenTree* tree, Range* pRange)
 
 bool RangeCheck::IsBinOpMonotonicallyIncreasing(GenTreeOp* binop)
 {
-#ifdef LEGACY_BACKEND
-    assert(binop->OperIs(GT_ADD, GT_ASG_ADD));
-#else
     assert(binop->OperIs(GT_ADD));
-#endif
 
     GenTree* op1 = binop->gtGetOp1();
     GenTree* op2 = binop->gtGetOp2();
@@ -411,15 +407,8 @@ bool RangeCheck::IsMonotonicallyIncreasing(GenTree* expr, bool rejectNegativeCon
             case GT_ASG:
                 return IsMonotonicallyIncreasing(asg->gtGetOp2(), rejectNegativeConst);
 
-#ifdef LEGACY_BACKEND
-            case GT_ASG_ADD:
-                return IsBinOpMonotonicallyIncreasing(asg);
-#endif
-
             default:
-#ifndef LEGACY_BACKEND
                 noway_assert(false);
-#endif
                 // All other 'asg->OperGet()' kinds, return false
                 break;
         }
@@ -528,7 +517,7 @@ void RangeCheck::SetDef(UINT64 hash, Location* loc)
 {
     if (m_pDefTable == nullptr)
     {
-        m_pDefTable = new (&m_alloc) VarToLocMap(&m_alloc);
+        m_pDefTable = new (m_alloc) VarToLocMap(m_alloc);
     }
 #ifdef DEBUG
     Location* loc2;
@@ -812,11 +801,7 @@ void RangeCheck::MergeAssertion(BasicBlock* block, GenTree* op, Range* pRange DE
 // Compute the range for a binary operation.
 Range RangeCheck::ComputeRangeForBinOp(BasicBlock* block, GenTreeOp* binop, bool monotonic DEBUGARG(int indent))
 {
-#ifdef LEGACY_BACKEND
-    assert(binop->OperIs(GT_ADD, GT_ASG_ADD));
-#else
     assert(binop->OperIs(GT_ADD));
-#endif
 
     GenTree* op1 = binop->gtGetOp1();
     GenTree* op2 = binop->gtGetOp2();
@@ -907,18 +892,8 @@ Range RangeCheck::ComputeRangeForLocalDef(BasicBlock*          block,
             return range;
         }
 
-#ifdef LEGACY_BACKEND
-        case GT_ASG_ADD:
-            // If the operator of the definition is +=, then compute the range of the operands of +.
-            // Note that gtGetOp1 will return op1 to be the lhs; in the formulation of ssa, we have
-            // a side table for defs and the lhs of a += is considered to be a use for SSA numbering.
-            return ComputeRangeForBinOp(asgBlock, asg, monotonic DEBUGARG(indent));
-#endif
-
         default:
-#ifndef LEGACY_BACKEND
             noway_assert(false);
-#endif
             // All other 'asg->OperGet()' kinds, return Limit::keUnknown
             break;
     }
@@ -1046,16 +1021,8 @@ bool RangeCheck::DoesVarDefOverflow(GenTreeLclVarCommon* lcl)
         case GT_ASG:
             return DoesOverflow(asgBlock, asg->gtGetOp2());
 
-#ifdef LEGACY_BACKEND
-        case GT_ASG_ADD:
-            // For GT_ASG_ADD, op2 is use, op1 is also use since we side table for defs in useasg case.
-            return DoesBinOpOverflow(asgBlock, asg);
-#endif
-
         default:
-#ifndef LEGACY_BACKEND
             noway_assert(false);
-#endif
             // All other 'asg->OperGet()' kinds, conservatively return true
             break;
     }
@@ -1219,7 +1186,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
         range = Range(Limit(Limit::keUnknown));
     }
 
-    GetRangeMap()->Set(expr, new (&m_alloc) Range(range));
+    GetRangeMap()->Set(expr, new (m_alloc) Range(range));
     m_pSearchPath->Remove(expr);
     return range;
 }
@@ -1287,7 +1254,7 @@ void RangeCheck::MapStmtDefs(const Location& loc)
             // To avoid ind(addr) use asgs
             if (loc.parent->OperIsAssignment())
             {
-                SetDef(HashCode(lclNum, ssaNum), new (&m_alloc) Location(loc));
+                SetDef(HashCode(lclNum, ssaNum), new (m_alloc) Location(loc));
             }
         }
     }
@@ -1296,7 +1263,7 @@ void RangeCheck::MapStmtDefs(const Location& loc)
     {
         if (loc.parent->OperGet() == GT_ASG)
         {
-            SetDef(HashCode(lclNum, ssaNum), new (&m_alloc) Location(loc));
+            SetDef(HashCode(lclNum, ssaNum), new (m_alloc) Location(loc));
         }
     }
 }

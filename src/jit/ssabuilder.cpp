@@ -120,16 +120,6 @@ void Compiler::fgResetForSsa()
                     tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
                     continue;
                 }
-
-                Compiler::IndirectAssignmentAnnotation* pIndirAssign = nullptr;
-                if ((tree->OperGet() != GT_ASG) || !GetIndirAssignMap()->Lookup(tree, &pIndirAssign) ||
-                    (pIndirAssign == nullptr))
-                {
-                    continue;
-                }
-
-                pIndirAssign->m_defSsaNum = SsaConfig::RESERVED_SSA_NUM;
-                pIndirAssign->m_useSsaNum = SsaConfig::RESERVED_SSA_NUM;
             }
         }
     }
@@ -144,7 +134,7 @@ void Compiler::fgResetForSsa()
  */
 SsaBuilder::SsaBuilder(Compiler* pCompiler)
     : m_pCompiler(pCompiler)
-    , m_allocator(pCompiler, CMK_SSA)
+    , m_allocator(pCompiler->getAllocator(CMK_SSA))
     , m_visitedTraits(0, pCompiler) // at this point we do not know the size, SetupBBRoot can add a block
 #ifdef SSA_FEATURE_DOMARR
     , m_pDomPreOrder(nullptr)
@@ -174,73 +164,62 @@ int SsaBuilder::TopologicalSort(BasicBlock** postOrder, int count)
     DBEXEC(VERBOSE, comp->fgDispBasicBlocks());
     DBEXEC(VERBOSE, comp->fgDispHandlerTab());
 
+    auto DumpBlockAndSuccessors = [](Compiler* comp, BasicBlock* block) {
+#ifdef DEBUG
+        if (comp->verboseSsa)
+        {
+            printf("[SsaBuilder::TopologicalSort] Pushing BB%02u: [", block->bbNum);
+            AllSuccessorEnumerator successors(comp, block);
+            unsigned               index = 0;
+            while (true)
+            {
+                bool        isEHsucc = successors.IsNextEHSuccessor();
+                BasicBlock* succ     = successors.NextSuccessor(comp);
+
+                if (succ == nullptr)
+                {
+                    break;
+                }
+
+                printf("%s%sBB%02u", (index++ ? ", " : ""), (isEHsucc ? "[EH]" : ""), succ->bbNum);
+            }
+            printf("]\n");
+        }
+#endif
+    };
+
     // Compute order.
     int         postIndex = 0;
     BasicBlock* block     = comp->fgFirstBB;
     BitVecOps::AddElemD(&m_visitedTraits, m_visited, block->bbNum);
 
-    ArrayStack<BasicBlock*>      blocks(comp);
-    ArrayStack<AllSuccessorIter> iterators(comp);
-    ArrayStack<AllSuccessorIter> ends(comp);
-
-    // there are three stacks used here and all should be same height
-    // the first is for blocks
-    // the second is the iterator to keep track of what succ of the block we are looking at
-    // and the third is the end marker iterator
-    blocks.Push(block);
-    iterators.Push(block->GetAllSuccs(comp).begin());
-    ends.Push(block->GetAllSuccs(comp).end());
+    ArrayStack<AllSuccessorEnumerator> blocks(m_allocator);
+    blocks.Emplace(comp, block);
+    DumpBlockAndSuccessors(comp, block);
 
     while (blocks.Height() > 0)
     {
-        block = blocks.Top();
+        BasicBlock* block = blocks.TopRef().Block();
+        BasicBlock* succ  = blocks.TopRef().NextSuccessor(comp);
 
-#ifdef DEBUG
-        if (comp->verboseSsa)
-        {
-            printf("[SsaBuilder::TopologicalSort] Visiting BB%02u: ", block->bbNum);
-            printf("[");
-            unsigned numSucc = block->NumSucc(comp);
-            for (unsigned i = 0; i < numSucc; ++i)
-            {
-                printf("BB%02u, ", block->GetSucc(i, comp)->bbNum);
-            }
-            EHSuccessorIter end = block->GetEHSuccs(comp).end();
-            for (EHSuccessorIter ehsi = block->GetEHSuccs(comp).begin(); ehsi != end; ++ehsi)
-            {
-                printf("[EH]BB%02u, ", (*ehsi)->bbNum);
-            }
-            printf("]\n");
-        }
-#endif
-
-        if (iterators.TopRef() != ends.TopRef())
+        if (succ != nullptr)
         {
             // if the block on TOS still has unreached successors, visit them
-            AllSuccessorIter& iter = iterators.TopRef();
-            BasicBlock*       succ = *iter;
-            ++iter;
-
-            // push the children
             if (BitVecOps::TryAddElemD(&m_visitedTraits, m_visited, succ->bbNum))
             {
-                blocks.Push(succ);
-                iterators.Push(succ->GetAllSuccs(comp).begin());
-                ends.Push(succ->GetAllSuccs(comp).end());
+                blocks.Emplace(comp, succ);
+                DumpBlockAndSuccessors(comp, succ);
             }
         }
         else
         {
             // all successors have been visited
             blocks.Pop();
-            iterators.Pop();
-            ends.Pop();
 
+            DBG_SSA_JITDUMP("[SsaBuilder::TopologicalSort] postOrder[%d] = BB%02u\n", postIndex, block->bbNum);
             postOrder[postIndex]  = block;
             block->bbPostOrderNum = postIndex;
             postIndex += 1;
-
-            DBG_SSA_JITDUMP("postOrder[%d] = %s\n", postIndex, block->dspToString());
         }
     }
 
@@ -558,7 +537,7 @@ void SsaBuilder::ComputeDominanceFrontiers(BasicBlock** postOrder, int count, Bl
             {
                 DBG_SSA_JITDUMP("      Adding BB%02u to dom frontier of pred dom BB%02u.\n", block->bbNum, b1->bbNum);
 
-                BlkVector& b1DF = *mapDF->Emplace(b1, &m_allocator);
+                BlkVector& b1DF = *mapDF->Emplace(b1, m_allocator);
                 // It's possible to encounter the same DF multiple times, ensure that we don't add duplicates.
                 if (b1DF.empty() || (b1DF.back() != block))
                 {
@@ -712,12 +691,12 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
     EndPhase(PHASE_BUILD_SSA_LIVENESS);
 
     // Compute dominance frontier.
-    BlkToBlkVectorMap mapDF(&m_allocator);
+    BlkToBlkVectorMap mapDF(m_allocator);
     ComputeDominanceFrontiers(postOrder, count, &mapDF);
     EndPhase(PHASE_BUILD_SSA_DF);
 
     // Use the same IDF vector for all blocks to avoid unnecessary memory allocations
-    BlkVector blockIDF(&m_allocator);
+    BlkVector blockIDF(m_allocator);
 
     JITDUMP("Inserting phi functions:\n");
 
@@ -845,24 +824,9 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
  */
 void SsaBuilder::AddDefPoint(GenTree* tree, BasicBlock* blk)
 {
-    Compiler::IndirectAssignmentAnnotation* pIndirAnnot;
-    // In the case of an "indirect assignment", where the LHS is IND of a byref to the local actually being assigned,
-    // we make the ASG tree the def point.
-    assert(tree->IsLocal() || IsIndirectAssign(tree, &pIndirAnnot));
-    unsigned lclNum;
-    unsigned defSsaNum;
-    if (tree->IsLocal())
-    {
-        lclNum    = tree->gtLclVarCommon.gtLclNum;
-        defSsaNum = m_pCompiler->GetSsaNumForLocalVarDef(tree);
-    }
-    else
-    {
-        bool b = m_pCompiler->GetIndirAssignMap()->Lookup(tree, &pIndirAnnot);
-        assert(b);
-        lclNum    = pIndirAnnot->m_lclNum;
-        defSsaNum = pIndirAnnot->m_defSsaNum;
-    }
+    assert(tree->IsLocal());
+    unsigned lclNum    = tree->gtLclVarCommon.gtLclNum;
+    unsigned defSsaNum = m_pCompiler->GetSsaNumForLocalVarDef(tree);
 #ifdef DEBUG
     // Record that there's a new SSA def.
     m_pCompiler->lvaTable[lclNum].lvNumSsaNames++;
@@ -871,12 +835,6 @@ void SsaBuilder::AddDefPoint(GenTree* tree, BasicBlock* blk)
     LclSsaVarDsc* ssaDef    = m_pCompiler->lvaTable[lclNum].GetPerSsaData(defSsaNum);
     ssaDef->m_defLoc.m_blk  = blk;
     ssaDef->m_defLoc.m_tree = tree;
-}
-
-bool SsaBuilder::IsIndirectAssign(GenTree* tree, Compiler::IndirectAssignmentAnnotation** ppIndirAssign)
-{
-    return tree->OperGet() == GT_ASG && m_pCompiler->m_indirAssignMap != nullptr &&
-           m_pCompiler->GetIndirAssignMap()->Lookup(tree, ppIndirAssign);
 }
 
 /**
@@ -971,97 +929,74 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
         }
     }
 
-    Compiler::IndirectAssignmentAnnotation* pIndirAssign = nullptr;
-    if (!tree->IsLocal() && !IsIndirectAssign(tree, &pIndirAssign))
+    if (!tree->IsLocal())
     {
         return;
     }
 
-    if (pIndirAssign != nullptr)
+    unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
+    // Is this a variable we exclude from SSA?
+    if (m_pCompiler->fgExcludeFromSsa(lclNum))
     {
-        unsigned lclNum = pIndirAssign->m_lclNum;
-        // Is this a variable we exclude from SSA?
-        if (m_pCompiler->fgExcludeFromSsa(lclNum))
-        {
-            pIndirAssign->m_defSsaNum = SsaConfig::RESERVED_SSA_NUM;
-            return;
-        }
-        // Otherwise...
-        if (!pIndirAssign->m_isEntire)
-        {
-            pIndirAssign->m_useSsaNum = pRenameState->CountForUse(lclNum);
-        }
-        unsigned count            = pRenameState->CountForDef(lclNum);
-        pIndirAssign->m_defSsaNum = count;
-        pRenameState->Push(block, lclNum, count);
-        AddDefPoint(tree, block);
+        tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+        return;
     }
-    else
+
+    if (tree->gtFlags & GTF_VAR_DEF)
     {
-        unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
-        // Is this a variable we exclude from SSA?
-        if (m_pCompiler->fgExcludeFromSsa(lclNum))
+        if (tree->gtFlags & GTF_VAR_USEASG)
         {
-            tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-            return;
-        }
-
-        if (tree->gtFlags & GTF_VAR_DEF)
-        {
-            if (tree->gtFlags & GTF_VAR_USEASG)
-            {
-                // This the "x" in something like "x op= y"; it is both a use (first), then a def.
-                // The def will define a new SSA name, and record that in "x".  If we need the SSA
-                // name of the use, we record it in a map reserved for that purpose.
-                unsigned count = pRenameState->CountForUse(lclNum);
-                tree->gtLclVarCommon.SetSsaNum(count);
-            }
-
-            // Give a count and increment.
-            unsigned count = pRenameState->CountForDef(lclNum);
-            if (tree->gtFlags & GTF_VAR_USEASG)
-            {
-                m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(tree, count);
-            }
-            else
-            {
-                tree->gtLclVarCommon.SetSsaNum(count);
-            }
-            pRenameState->Push(block, lclNum, count);
-            AddDefPoint(tree, block);
-
-            // If necessary, add "lclNum/count" to the arg list of a phi def in any
-            // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
-            // not phi definitions.)
-            if (!isPhiDefn)
-            {
-                AddDefToHandlerPhis(block, lclNum, count);
-            }
-        }
-        else if (!isPhiDefn) // Phi args already have ssa numbers.
-        {
-            // This case is obviated by the short-term "early-out" above...but it's in the right direction.
-            // Is it a promoted struct local?
-            if (m_pCompiler->lvaTable[lclNum].lvPromoted)
-            {
-                assert(tree->TypeGet() == TYP_STRUCT);
-                LclVarDsc* varDsc = &m_pCompiler->lvaTable[lclNum];
-                // If has only a single field var, treat this as a use of that field var.
-                // Otherwise, we don't give SSA names to uses of promoted struct vars.
-                if (varDsc->lvFieldCnt == 1)
-                {
-                    lclNum = varDsc->lvFieldLclStart;
-                }
-                else
-                {
-                    tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
-                    return;
-                }
-            }
-            // Give the count as top of stack.
+            // This the "x" in something like "x op= y"; it is both a use (first), then a def.
+            // The def will define a new SSA name, and record that in "x".  If we need the SSA
+            // name of the use, we record it in a map reserved for that purpose.
             unsigned count = pRenameState->CountForUse(lclNum);
             tree->gtLclVarCommon.SetSsaNum(count);
         }
+
+        // Give a count and increment.
+        unsigned count = pRenameState->CountForDef(lclNum);
+        if (tree->gtFlags & GTF_VAR_USEASG)
+        {
+            m_pCompiler->GetOpAsgnVarDefSsaNums()->Set(tree, count);
+        }
+        else
+        {
+            tree->gtLclVarCommon.SetSsaNum(count);
+        }
+        pRenameState->Push(block, lclNum, count);
+        AddDefPoint(tree, block);
+
+        // If necessary, add "lclNum/count" to the arg list of a phi def in any
+        // handlers for try blocks that "block" is within.  (But only do this for "real" definitions,
+        // not phi definitions.)
+        if (!isPhiDefn)
+        {
+            AddDefToHandlerPhis(block, lclNum, count);
+        }
+    }
+    else if (!isPhiDefn) // Phi args already have ssa numbers.
+    {
+        // This case is obviated by the short-term "early-out" above...but it's in the right direction.
+        // Is it a promoted struct local?
+        if (m_pCompiler->lvaTable[lclNum].lvPromoted)
+        {
+            assert(tree->TypeGet() == TYP_STRUCT);
+            LclVarDsc* varDsc = &m_pCompiler->lvaTable[lclNum];
+            // If has only a single field var, treat this as a use of that field var.
+            // Otherwise, we don't give SSA names to uses of promoted struct vars.
+            if (varDsc->lvFieldCnt == 1)
+            {
+                lclNum = varDsc->lvFieldLclStart;
+            }
+            else
+            {
+                tree->gtLclVarCommon.SetSsaNum(SsaConfig::RESERVED_SSA_NUM);
+                return;
+            }
+        }
+        // Give the count as top of stack.
+        unsigned count = pRenameState->CountForUse(lclNum);
+        tree->gtLclVarCommon.SetSsaNum(count);
     }
 }
 
@@ -1678,7 +1613,7 @@ void SsaBuilder::RenameVariables(BlkToBlkVectorMap* domTree, SsaRenameState* pRe
     };
     typedef jitstd::vector<BlockWork> BlockWorkStack;
 
-    BlockWorkStack* blocksToDo = new (&m_allocator) BlockWorkStack(&m_allocator);
+    BlockWorkStack* blocksToDo = new (m_allocator) BlockWorkStack(m_allocator);
     blocksToDo->push_back(BlockWork(m_pCompiler->fgFirstBB)); // Probably have to include other roots of dom tree.
 
     while (blocksToDo->size() != 0)
@@ -1803,7 +1738,7 @@ void SsaBuilder::Build()
 
     if (blockCount > DEFAULT_MIN_OPTS_BB_COUNT)
     {
-        postOrder = new (&m_allocator) BasicBlock*[blockCount];
+        postOrder = new (m_allocator) BasicBlock*[blockCount];
     }
     else
     {
@@ -1822,7 +1757,7 @@ void SsaBuilder::Build()
     ComputeImmediateDom(postOrder, count);
 
     // Compute the dominator tree.
-    BlkToBlkVectorMap* domTree = new (&m_allocator) BlkToBlkVectorMap(&m_allocator);
+    BlkToBlkVectorMap* domTree = new (m_allocator) BlkToBlkVectorMap(m_allocator);
     ComputeDominators(postOrder, count, domTree);
     EndPhase(PHASE_BUILD_SSA_DOMS);
 
@@ -1830,8 +1765,8 @@ void SsaBuilder::Build()
     InsertPhiFunctions(postOrder, count);
 
     // Rename local variables and collect UD information for each ssa var.
-    SsaRenameState* pRenameState = new (&m_allocator)
-        SsaRenameState(&m_allocator, m_pCompiler->lvaCount, m_pCompiler->byrefStatesMatchGcHeapStates);
+    SsaRenameState* pRenameState =
+        new (m_allocator) SsaRenameState(m_allocator, m_pCompiler->lvaCount, m_pCompiler->byrefStatesMatchGcHeapStates);
     RenameVariables(domTree, pRenameState);
     EndPhase(PHASE_BUILD_SSA_RENAME);
 

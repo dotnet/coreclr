@@ -572,7 +572,8 @@ void ZapImage::AllocateVirtualSections()
 #endif // defined(WIN64EXCEPTIONS)
 
         m_pPreloadSections[CORCOMPILE_SECTION_READONLY_WARM] = NewVirtualSection(pTextSection, IBCProfiledSection | WarmRange | ReadonlySection, TARGET_POINTER_SIZE);
-        m_pPreloadSections[CORCOMPILE_SECTION_READONLY_VCHUNKS_AND_DICTIONARY] = NewVirtualSection(pTextSection, IBCProfiledSection | WarmRange | ReadonlySection, TARGET_POINTER_SIZE);
+        m_pPreloadSections[CORCOMPILE_SECTION_READONLY_VCHUNKS] = NewVirtualSection(pTextSection, IBCProfiledSection | WarmRange | ReadonlySection, TARGET_POINTER_SIZE);
+        m_pPreloadSections[CORCOMPILE_SECTION_READONLY_DICTIONARY] = NewVirtualSection(pTextSection, IBCProfiledSection | WarmRange | ReadonlySection, TARGET_POINTER_SIZE);
 
         //
         // GC Info for methods which were not touched in profiling
@@ -2093,17 +2094,17 @@ ZapImage::CompileStatus ZapImage::TryCompileMethodWorker(CORINFO_METHOD_HANDLE h
     }
     else  // we are compiling methods for the cold region
     {
+        // Retrieve any information that we have about a previous compilation attempt of this method
+        const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
+        
         // When Partial Ngen is specified we will omit the AOT native code for every
-        // method that was not executed based on the profile data.
+        // method that does not have profile data
         //
-        if (m_zapper->m_pOpt->m_fPartialNGen)
+        if (pEntry == nullptr && m_zapper->m_pOpt->m_fPartialNGen)
         {
             // returning COMPILE_COLD_EXCLUDED excludes this method from the AOT native image
             return COMPILE_COLD_EXCLUDED;
         }
-
-        // Retrieve any information that we have about a previous compilation attempt of this method
-        const ProfileDataHashEntry* pEntry = profileDataHashTable.LookupPtr(md);
 
         if (pEntry != nullptr)
         { 

@@ -13,7 +13,7 @@ namespace System.Reflection
     internal unsafe sealed class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
     {
         #region Private Data Members
-        // agressive caching
+        // aggressive caching
         private IntPtr m_fieldHandle;
         private FieldAttributes m_fieldAttributes;
         // lazy caching
@@ -43,7 +43,7 @@ namespace System.Reflection
                     }
 
                     // If the invocationFlags are still 0, then
-                    // this should be an usable field, determine the other flags 
+                    // this should be an usable field, determine the other flags
                     if (invocationFlags == 0)
                     {
                         if ((m_fieldAttributes & FieldAttributes.InitOnly) != (FieldAttributes)0)
@@ -89,7 +89,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal void CheckConsistency(Object target)
+        internal void CheckConsistency(object target)
         {
             // only test instance fields
             if ((m_fieldAttributes & FieldAttributes.Static) != FieldAttributes.Static)
@@ -103,7 +103,7 @@ namespace System.Reflection
                     else
                     {
                         throw new ArgumentException(
-                            String.Format(CultureInfo.CurrentUICulture, SR.Arg_FieldDeclTarget,
+                            string.Format(CultureInfo.CurrentUICulture, SR.Arg_FieldDeclTarget,
                                 Name, m_declaringType, target.GetType()));
                     }
                 }
@@ -122,7 +122,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        internal void InternalSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture, ref StackCrawlMark stackMark)
+        internal void InternalSetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture, ref StackCrawlMark stackMark)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
             RuntimeType declaringType = DeclaringType as RuntimeType;
@@ -159,12 +159,12 @@ namespace System.Reflection
         // UnsafeSetValue doesn't perform any consistency or visibility check.
         // It is the caller's responsibility to ensure the operation is safe.
         // When the caller needs to perform visibility checks they should call
-        // InternalSetValue() instead. When the caller needs to perform 
-        // consistency checks they should call CheckConsistency() before 
+        // InternalSetValue() instead. When the caller needs to perform
+        // consistency checks they should call CheckConsistency() before
         // calling this method.
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        internal void UnsafeSetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
+        internal void UnsafeSetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
         {
             RuntimeType declaringType = DeclaringType as RuntimeType;
             RuntimeType fieldType = (RuntimeType)FieldType;
@@ -185,7 +185,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        internal Object InternalGetValue(Object obj, ref StackCrawlMark stackMark)
+        internal object InternalGetValue(object obj, ref StackCrawlMark stackMark)
         {
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
             RuntimeType declaringType = DeclaringType as RuntimeType;
@@ -209,12 +209,12 @@ namespace System.Reflection
         // UnsafeGetValue doesn't perform any consistency or visibility check.
         // It is the caller's responsibility to ensure the operation is safe.
         // When the caller needs to perform visibility checks they should call
-        // InternalGetValue() instead. When the caller needs to perform 
-        // consistency checks they should call CheckConsistency() before 
+        // InternalGetValue() instead. When the caller needs to perform
+        // consistency checks they should call CheckConsistency() before
         // calling this method.
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        internal Object UnsafeGetValue(Object obj)
+        internal object UnsafeGetValue(object obj)
         {
             RuntimeType declaringType = DeclaringType as RuntimeType;
 
@@ -237,7 +237,7 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override String Name
+        public override string Name
         {
             get
             {
@@ -248,11 +248,11 @@ namespace System.Reflection
             }
         }
 
-        internal String FullName
+        internal string FullName
         {
             get
             {
-                return String.Format("{0}.{1}", DeclaringType.FullName, Name);
+                return string.Format("{0}.{1}", DeclaringType.FullName, Name);
             }
         }
 
@@ -268,8 +268,8 @@ namespace System.Reflection
 
         #endregion
 
-        #region FieldInfo Overrides        
-        public override Object GetValue(Object obj)
+        #region FieldInfo Overrides
+        public override object GetValue(object obj)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             return InternalGetValue(obj, ref stackMark);
@@ -279,7 +279,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override Object GetValueDirect(TypedReference obj)
+        public override object GetValueDirect(TypedReference obj)
         {
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
@@ -293,7 +293,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
+        public override void SetValue(object obj, object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
             InternalSetValue(obj, value, invokeAttr, binder, culture, ref stackMark);
@@ -301,7 +301,7 @@ namespace System.Reflection
 
         [DebuggerStepThroughAttribute]
         [Diagnostics.DebuggerHidden]
-        public override void SetValueDirect(TypedReference obj, Object value)
+        public override void SetValueDirect(TypedReference obj, object value)
         {
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);

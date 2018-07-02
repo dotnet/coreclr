@@ -82,7 +82,7 @@ namespace System.Runtime
         // chunks, we don't have to special case this.  Also, we need to
         // deal with 32 bit machines in 3 GB mode.
         // Using Win32's GetSystemInfo should handle all this for us.
-        private static readonly ulong TopOfMemory;
+        private static readonly ulong s_topOfMemory;
 
         // Walking the address space is somewhat expensive, taking around half
         // a millisecond.  Doing that per transaction limits us to a max of 
@@ -90,25 +90,25 @@ namespace System.Runtime
         // walk once every 10 seconds, or when we will likely fail.  This
         // amortization scheme can reduce the cost of a memory gate by about
         // a factor of 100.
-        private static long hiddenLastKnownFreeAddressSpace = 0;
-        private static long hiddenLastTimeCheckingAddressSpace = 0;
+        private static long s_hiddenLastKnownFreeAddressSpace = 0;
+        private static long s_hiddenLastTimeCheckingAddressSpace = 0;
         private const int CheckThreshold = 10 * 1000;  // 10 seconds
 
         private static long LastKnownFreeAddressSpace
         {
-            get { return Volatile.Read(ref hiddenLastKnownFreeAddressSpace); }
-            set { Volatile.Write(ref hiddenLastKnownFreeAddressSpace, value); }
+            get { return Volatile.Read(ref s_hiddenLastKnownFreeAddressSpace); }
+            set { Volatile.Write(ref s_hiddenLastKnownFreeAddressSpace, value); }
         }
 
         private static long AddToLastKnownFreeAddressSpace(long addend)
         {
-            return Interlocked.Add(ref hiddenLastKnownFreeAddressSpace, addend);
+            return Interlocked.Add(ref s_hiddenLastKnownFreeAddressSpace, addend);
         }
 
         private static long LastTimeCheckingAddressSpace
         {
-            get { return Volatile.Read(ref hiddenLastTimeCheckingAddressSpace); }
-            set { Volatile.Write(ref hiddenLastTimeCheckingAddressSpace, value); }
+            get { return Volatile.Read(ref s_hiddenLastTimeCheckingAddressSpace); }
+            set { Volatile.Write(ref s_hiddenLastTimeCheckingAddressSpace, value); }
         }
 
         // When allocating memory segment by segment, we've hit some cases
@@ -130,7 +130,7 @@ namespace System.Runtime
         // Note: This may become dynamically tunable in the future.
         // Also note that we can have different segment sizes for the normal vs. 
         // large object heap.  We currently use the max of the two.
-        private static readonly ulong GCSegmentSize;
+        private static readonly ulong s_GCSegmentSize;
 
         // For multi-threaded workers, we want to ensure that if two workers
         // use a MemoryFailPoint at the same time, and they both succeed, that
@@ -144,7 +144,7 @@ namespace System.Runtime
 
         static MemoryFailPoint()
         {
-            GetMemorySettings(out GCSegmentSize, out TopOfMemory);
+            GetMemorySettings(out s_GCSegmentSize, out s_topOfMemory);
         }
 
         // We can remove this link demand in a future version - we will
@@ -166,8 +166,8 @@ namespace System.Runtime
             // size, not the amount of memory the user wants to allocate.
             // Consider correcting this to reflect free memory within the GC
             // heap, and to check both the normal & large object heaps.
-            ulong segmentSize = (ulong)(Math.Ceiling((double)size / GCSegmentSize) * GCSegmentSize);
-            if (segmentSize >= TopOfMemory)
+            ulong segmentSize = (ulong)(Math.Ceiling((double)size / s_GCSegmentSize) * s_GCSegmentSize);
+            if (segmentSize >= s_topOfMemory)
                 throw new InsufficientMemoryException(SR.InsufficientMemory_MemFailPoint_TooBig);
 
             ulong requestedSizeRounded = (ulong)(Math.Ceiling((double)sizeInMegabytes / MemoryCheckGranularity) * MemoryCheckGranularity);
@@ -356,14 +356,14 @@ namespace System.Runtime
         // this check if we use a MemoryFailPoint with a smaller size next.
         private static unsafe ulong MemFreeAfterAddress(void* address, ulong size)
         {
-            if (size >= TopOfMemory)
+            if (size >= s_topOfMemory)
                 return 0;
 
             ulong largestFreeRegion = 0;
             Win32Native.MEMORY_BASIC_INFORMATION memInfo = new Win32Native.MEMORY_BASIC_INFORMATION();
             UIntPtr sizeOfMemInfo = (UIntPtr)Marshal.SizeOf(memInfo);
 
-            while (((ulong)address) + size < TopOfMemory)
+            while (((ulong)address) + size < s_topOfMemory)
             {
                 UIntPtr r = Win32Native.VirtualQuery(address, ref memInfo, sizeOfMemInfo);
                 if (r == UIntPtr.Zero)
@@ -443,7 +443,7 @@ namespace System.Runtime
             private ulong _totalFreeAddressSpace;
             private long _lastKnownFreeAddressSpace;
             private ulong _reservedMem;
-            private String _stackTrace;  // Where did we fail, for additional debugging.
+            private string _stackTrace;  // Where did we fail, for additional debugging.
 
             internal MemoryFailPointState(int allocationSizeInMB, ulong segmentSize, bool needPageFile, bool needAddressSpace, bool needContiguousVASpace, ulong availPageFile, ulong totalFreeAddressSpace, long lastKnownFreeAddressSpace, ulong reservedMem)
             {
@@ -470,9 +470,9 @@ namespace System.Runtime
                 }
             }
 
-            public override String ToString()
+            public override string ToString()
             {
-                return String.Format(System.Globalization.CultureInfo.InvariantCulture, "MemoryFailPoint detected insufficient memory to guarantee an operation could complete.  Checked for {0} MB, for allocation size of {1} MB.  Need page file? {2}  Need Address Space? {3}  Need Contiguous address space? {4}  Avail page file: {5} MB  Total free VA space: {6} MB  Contiguous free address space (found): {7} MB  Space reserved by process's MemoryFailPoints: {8} MB",
+                return string.Format(System.Globalization.CultureInfo.InvariantCulture, "MemoryFailPoint detected insufficient memory to guarantee an operation could complete.  Checked for {0} MB, for allocation size of {1} MB.  Need page file? {2}  Need Address Space? {3}  Need Contiguous address space? {4}  Avail page file: {5} MB  Total free VA space: {6} MB  Contiguous free address space (found): {7} MB  Space reserved by process's MemoryFailPoints: {8} MB",
                     _segmentSize >> 20, _allocationSizeInMB, _needPageFile,
                     _needAddressSpace, _needContiguousVASpace,
                     _availPageFile >> 20, _totalFreeAddressSpace >> 20,

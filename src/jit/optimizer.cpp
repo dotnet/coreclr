@@ -1472,7 +1472,7 @@ class LoopSearch
 {
 
     // Keeping track of which blocks are in the loop requires two block sets since we may add blocks
-    // as we go but the BlockSet type's max ID doesn't increase to accomodate them.  Define a helper
+    // as we go but the BlockSet type's max ID doesn't increase to accommodate them.  Define a helper
     // struct to make the ensuing code more readable.
     struct LoopBlockSet
     {
@@ -3197,16 +3197,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
 
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX != constLimitX)
                     {
@@ -3235,13 +3229,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3257,16 +3244,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_LT:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX < constLimitX)
                     {
@@ -3295,13 +3276,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3317,16 +3291,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_LE:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX <= constLimitX)
                     {
@@ -3355,13 +3323,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3377,16 +3338,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_GT:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX > constLimitX)
                     {
@@ -3415,13 +3370,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3437,16 +3385,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_GE:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX >= constLimitX)
                     {
@@ -3475,13 +3417,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3966,7 +3901,7 @@ void Compiler::optUnrollLoops()
 
             /* Make sure to update loop table */
 
-            /* Use the LPFLG_REMOVED flag and update the bbLoopMask acordingly
+            /* Use the LPFLG_REMOVED flag and update the bbLoopMask accordingly
                 * (also make head and bottom NULL - to hit an assert or GPF) */
 
             optLoopTable[lnum].lpFlags |= LPFLG_REMOVED;
@@ -7784,6 +7719,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                     case GT_XCHG:    // Binop
                     case GT_CMPXCHG: // Specialop
                     {
+                        assert(!tree->OperIs(GT_LOCKADD) && "LOCKADD should not appear before lowering");
                         memoryHavoc |= memoryKindSet(GcHeap, ByrefExposed);
                     }
                     break;
@@ -8267,12 +8203,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     }
 
     // TODO-CQ: CLONE: Mark increasing or decreasing loops.
-    if ((
-#ifdef LEGACY_BACKEND
-            pLoop->lpIterOper() != GT_ASG_ADD &&
-#endif
-            pLoop->lpIterOper() != GT_ADD) ||
-        (pLoop->lpIterConst() != 1))
+    if ((pLoop->lpIterOper() != GT_ADD) || (pLoop->lpIterConst() != 1))
     {
         JITDUMP("> Loop iteration operator not matching\n");
         return false;
@@ -8285,16 +8216,8 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
         return false;
     }
 
-    if (!(((pLoop->lpTestOper() == GT_LT || pLoop->lpTestOper() == GT_LE) && (pLoop->lpIterOper() == GT_ADD
-#ifdef LEGACY_BACKEND
-                                                                              || pLoop->lpIterOper() == GT_ASG_ADD
-#endif
-                                                                              )) ||
-          ((pLoop->lpTestOper() == GT_GT || pLoop->lpTestOper() == GT_GE) && (pLoop->lpIterOper() == GT_SUB
-#ifdef LEGACY_BACKEND
-                                                                              || pLoop->lpIterOper() == GT_ASG_SUB
-#endif
-                                                                              ))))
+    if (!(((pLoop->lpTestOper() == GT_LT || pLoop->lpTestOper() == GT_LE) && (pLoop->lpIterOper() == GT_ADD)) ||
+          ((pLoop->lpTestOper() == GT_GT || pLoop->lpTestOper() == GT_GE) && (pLoop->lpIterOper() == GT_SUB))))
     {
         JITDUMP("> Loop test (%s) doesn't agree with the direction (%s) of the pLoop->\n",
                 GenTree::OpName(pLoop->lpTestOper()), GenTree::OpName(pLoop->lpIterOper()));
@@ -8978,7 +8901,7 @@ void Compiler::optOptimizeBools()
                         B1: brtrue(t1, BX)
                         B2: brtrue(t2, BX)
                         B3:
-                   we wil try to fold it to :
+                   we will try to fold it to :
                         B1: brtrue(t1|t2, BX)
                         B3:
                 */
@@ -9182,7 +9105,7 @@ void Compiler::optOptimizeBools()
 
             // The new top level node that we just created does feed directly into
             // a comparison against zero, so set the GTF_SET_FLAGS bit so that
-            // we generate an instuction that sets the flags, which allows us
+            // we generate an instruction that sets the flags, which allows us
             // to omit the cmp with zero instruction.
 
             // Request that the codegen for cmpOp1 sets the condition flags

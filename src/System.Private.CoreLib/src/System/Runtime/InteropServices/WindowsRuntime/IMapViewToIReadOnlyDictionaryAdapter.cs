@@ -79,7 +79,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // throw an exception from Lookup.
             if (!_this.HasKey(key))
             {
-                value = default(V);
+                value = default;
                 return false;
             }
 
@@ -92,7 +92,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 if (HResults.E_BOUNDS == ex._HResult)
                 {
-                    value = default(V);
+                    value = default;
                     return false;
                 }
                 throw;
@@ -199,7 +199,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current
+        object IEnumerator.Current
         {
             get { return ((IEnumerator<TKey>)this).Current; }
         }
@@ -298,7 +298,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current
+        object IEnumerator.Current
         {
             get { return ((IEnumerator<TValue>)this).Current; }
         }

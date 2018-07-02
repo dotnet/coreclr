@@ -21,7 +21,7 @@ namespace System.Reflection
 
             Type declaringType = m.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
-                throw new ArgumentException(String.Format(
+                throw new ArgumentException(string.Format(
                     CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGeneric,
                     m, declaringType.GetGenericTypeDefinition()));
 
@@ -96,7 +96,7 @@ namespace System.Reflection
         {
             get
             {
-                return String.Format("{0}.{1}", DeclaringType.FullName, FormatNameAndSig());
+                return string.Format("{0}.{1}", DeclaringType.FullName, FormatNameAndSig());
             }
         }
         internal string FormatNameAndSig()
@@ -127,16 +127,16 @@ namespace System.Reflection
             return parameterTypes;
         }
 
-        internal Object[] CheckArguments(Object[] parameters, Binder binder,
+        internal object[] CheckArguments(object[] parameters, Binder binder,
             BindingFlags invokeAttr, CultureInfo culture, Signature sig)
         {
             // copy the arguments in a different array so we detach from any user changes 
-            Object[] copyOfParameters = new Object[parameters.Length];
+            object[] copyOfParameters = new object[parameters.Length];
 
             ParameterInfo[] p = null;
             for (int i = 0; i < parameters.Length; i++)
             {
-                Object arg = parameters[i];
+                object arg = parameters[i];
                 RuntimeType argRT = sig.Arguments[i];
 
                 if (arg == Type.Missing)

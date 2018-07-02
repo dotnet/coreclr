@@ -4485,7 +4485,7 @@ void DacDbiInterfaceImpl::MarkDebuggerAttachPending()
     }
     else
     {
-        // Caller should have gauranteed that the LS is loaded.
+        // Caller should have guaranteed that the LS is loaded.
         // If we're detaching, then don't throw because we don't care.
         ThrowHR(CORDBG_E_NOTREADY);
     }
@@ -4521,7 +4521,7 @@ void DacDbiInterfaceImpl::MarkDebuggerAttached(BOOL fAttached)
     }
     else if (fAttached)
     {
-        // Caller should have gauranteed that the LS is loaded.
+        // Caller should have guaranteed that the LS is loaded.
         // If we're detaching, then don't throw because we don't care.
         ThrowHR(CORDBG_E_NOTREADY);
     }
@@ -7169,7 +7169,7 @@ HRESULT DacDbiInterfaceImpl::GetActiveRejitILCodeVersionNode(VMPTR_Module vmModu
     // manager's active IL version hasn't yet asked the profiler for the IL body to use, in which case we want to filter it
     //  out from the return in this method.
     ILCodeVersion activeILVersion = pCodeVersionManager->GetActiveILCodeVersion(pModule, methodTk);
-    if (activeILVersion.IsNull() || activeILVersion.GetRejitState() != ILCodeVersion::kStateActive)
+    if (activeILVersion.IsNull() || activeILVersion.IsDefaultVersion() || activeILVersion.GetRejitState() != ILCodeVersion::kStateActive)
     {
         pVmILCodeVersionNode->SetDacTargetPtr(0);
     }
@@ -7249,11 +7249,11 @@ HRESULT DacDbiInterfaceImpl::GetILCodeVersionNodeData(VMPTR_ILCodeVersionNode vm
 {
     DD_ENTER_MAY_THROW;
 #ifdef FEATURE_REJIT
-    ILCodeVersionNode* pILCodeVersionNode = vmILCodeVersionNode.GetDacPtr();
-    pData->m_state = pILCodeVersionNode->GetRejitState();
-    pData->m_pbIL = PTR_TO_CORDB_ADDRESS(dac_cast<ULONG_PTR>(pILCodeVersionNode->GetIL()));
-    pData->m_dwCodegenFlags = pILCodeVersionNode->GetJitFlags();
-    const InstrumentedILOffsetMapping* pMapping = pILCodeVersionNode->GetInstrumentedILMap();
+    ILCodeVersion ilCode(vmILCodeVersionNode.GetDacPtr());
+    pData->m_state = ilCode.GetRejitState();
+    pData->m_pbIL = PTR_TO_CORDB_ADDRESS(dac_cast<ULONG_PTR>(ilCode.GetIL()));
+    pData->m_dwCodegenFlags = ilCode.GetJitFlags();
+    const InstrumentedILOffsetMapping* pMapping = ilCode.GetInstrumentedILMap();
     if (pMapping)
     {
         pData->m_cInstrumentedMapEntries = (ULONG)pMapping->GetCount();

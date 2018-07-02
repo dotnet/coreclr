@@ -1,10 +1,14 @@
-﻿using System;
+﻿// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+using System;
 using System.Collections.Generic;
 using System.Text;
 
 namespace R2RDump
 {
-    struct R2RSection
+    public struct R2RSection
     {
         public enum SectionType
         {
@@ -24,27 +28,21 @@ namespace R2RDump
         /// <summary>
         /// The ReadyToRun section type
         /// </summary>
-        public SectionType Type { get; }
+        public SectionType Type { get; set; }
 
         /// <summary>
         /// The RVA to the section
         /// </summary>
-        public uint RelativeVirtualAddress { get; }
+        public int RelativeVirtualAddress { get; set; }
 
         /// <summary>
         /// The size of the section
         /// </summary>
-        public uint Size { get; }
+        public int Size { get; set; }
 
-        public R2RSection(int type, uint rva, uint size)
+        public R2RSection(SectionType type, int rva, int size)
         {
-            if (Enum.IsDefined(typeof(SectionType), type)) { 
-                Type = (SectionType)type;
-            }
-            else
-            {
-                throw new System.BadImageFormatException("Invalid ReadyToRun section type");
-            }
+            Type = type;
             RelativeVirtualAddress = rva;
             Size = size;
         }
@@ -52,9 +50,9 @@ namespace R2RDump
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendFormat($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})\n");
-            sb.AppendFormat($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}\n");
-            sb.AppendFormat($"Size: {Size} bytes\n");
+            sb.AppendLine($"Type:  {Enum.GetName(typeof(SectionType), Type)} ({Type:D})");
+            sb.AppendLine($"RelativeVirtualAddress: 0x{RelativeVirtualAddress:X8}");
+            sb.AppendLine($"Size: {Size} bytes");
             return sb.ToString();
         }
     }

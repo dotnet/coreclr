@@ -18,11 +18,11 @@ namespace System.Diagnostics
                 // Fail in order to avoid anyone catching an exception and masking
                 // an assert failure.
                 DebugAssertException ex;
-                if (message == String.Empty) 
+                if (message == string.Empty) 
                 {
                     ex = new DebugAssertException(stackTrace);
                 }
-                else if (detailMessage == String.Empty) 
+                else if (detailMessage == string.Empty) 
                 {
                     ex = new DebugAssertException(message, stackTrace);
                 }
@@ -34,7 +34,7 @@ namespace System.Diagnostics
             }
         }
 
-        private static readonly object s_ForLock = new Object();
+        private static readonly object s_ForLock = new object();
 
         private static void WriteCore(string message)
         {

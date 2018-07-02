@@ -46,7 +46,7 @@ namespace System
         // Returns a String which represents the object instance.  The default
         // for an object is to return the fully qualified name of the class.
         // 
-        public virtual String ToString()
+        public virtual string ToString()
         {
             return GetType().ToString();
         }
@@ -57,12 +57,12 @@ namespace System
         // replace Equals with EqualsValue for value types).
         // 
 
-        public virtual bool Equals(Object obj)
+        public virtual bool Equals(object obj)
         {
             return RuntimeHelpers.Equals(this, obj);
         }
 
-        public static bool Equals(Object objA, Object objB)
+        public static bool Equals(object objA, object objB)
         {
             if (objA == objB)
             {
@@ -76,7 +76,7 @@ namespace System
         }
 
         [System.Runtime.Versioning.NonVersionable]
-        public static bool ReferenceEquals(Object objA, Object objB)
+        public static bool ReferenceEquals(object objA, object objB)
         {
             return objA == objB;
         }
@@ -113,12 +113,12 @@ namespace System
         // support the ICloneable interface.
         // 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        protected extern Object MemberwiseClone();
+        protected extern object MemberwiseClone();
 
 
         // Sets the value specified in the variant on the field
         // 
-        private void FieldSetter(String typeName, String fieldName, Object val)
+        private void FieldSetter(string typeName, string fieldName, object val)
         {
             Debug.Assert(typeName != null);
             Debug.Assert(fieldName != null);
@@ -148,7 +148,7 @@ namespace System
 
         // Gets the value specified in the variant on the field
         // 
-        private void FieldGetter(String typeName, String fieldName, ref Object val)
+        private void FieldGetter(string typeName, string fieldName, ref object val)
         {
             Debug.Assert(typeName != null);
             Debug.Assert(fieldName != null);
@@ -162,7 +162,7 @@ namespace System
 
         // Gets the field info object given the type name and field name.
         // 
-        private FieldInfo GetFieldInfo(String typeName, String fieldName)
+        private FieldInfo GetFieldInfo(string typeName, string fieldName)
         {
             Debug.Assert(typeName != null);
             Debug.Assert(fieldName != null);
@@ -213,7 +213,7 @@ namespace System
 
         public static string FixupCoreLibName(string strToFixup)
         {
-            if (!String.IsNullOrEmpty(strToFixup))
+            if (!string.IsNullOrEmpty(strToFixup))
             {
                 strToFixup = strToFixup.Replace("mscorlib", System.CoreLib.Name);
             }

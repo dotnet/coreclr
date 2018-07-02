@@ -357,7 +357,7 @@ namespace System.Runtime.CompilerServices
                 if (table != null)
                 {
                     // Ensure we don't keep the last current alive unnecessarily
-                    _current = default(KeyValuePair<TKey, TValue>);
+                    _current = default;
 
                     // Decrement the ref count that was incremented when constructed
                     lock (table._lock)
@@ -466,7 +466,7 @@ namespace System.Runtime.CompilerServices
         //
         //    - Used with live key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
         //         depHnd.IsAllocated == true, depHnd.GetPrimary() != null
-        //         hashCode == RuntimeHelpers.GetHashCode(depHnd.GetPrimary()) & Int32.MaxValue
+        //         hashCode == RuntimeHelpers.GetHashCode(depHnd.GetPrimary()) & int.MaxValue
         //         next links to next Entry in bucket. 
         //                          
         //    - Used with dead key (linked into a bucket list where _buckets[hashCode & (_buckets.Length - 1)] points to first entry)
@@ -634,8 +634,8 @@ namespace System.Runtime.CompilerServices
                     }
                 }
 
-                key = default(TKey);
-                value = default(TValue);
+                key = default;
+                value = default;
                 return false;
             }
 

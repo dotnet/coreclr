@@ -43,7 +43,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (ArgumentOutOfRangeException ex)
             {
-                ex.SetErrorCode(HResults.E_BOUNDS);
+                ex.HResult = HResults.E_BOUNDS;
                 throw;
             }
         }
@@ -110,9 +110,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 string[] stringItems = items as string[];
 
-                // Fill in the rest of the array with String.Empty to avoid marshaling failure
+                // Fill in the rest of the array with string.Empty to avoid marshaling failure
                 for (uint i = itemCount; i < items.Length; ++i)
-                    stringItems[i] = String.Empty;
+                    stringItems[i] = string.Empty;
             }
 
             return itemCount;
@@ -122,12 +122,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private static void EnsureIndexInt32(uint index, int listCapacity)
         {
-            // We use '<=' and not '<' because Int32.MaxValue == index would imply
-            // that Size > Int32.MaxValue:
-            if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
+            // We use '<=' and not '<' because int.MaxValue == index would imply
+            // that Size > int.MaxValue:
+            if (((uint)int.MaxValue) <= index || index >= (uint)listCapacity)
             {
                 Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
-                e.SetErrorCode(HResults.E_BOUNDS);
+                e.HResult = HResults.E_BOUNDS;
                 throw e;
             }
         }

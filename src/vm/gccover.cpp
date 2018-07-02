@@ -913,7 +913,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
 // We cannot insert GCStress instruction at this call
 // For arm64 & arm (R2R) call to jithelpers happens via a stub.
 // For other architectures call does not happen via stub.
-// For other architecures we can get the target directly by calling getTargetOfCall().
+// For other architectures we can get the target directly by calling getTargetOfCall().
 // This is not the case for arm64/arm so need to decode the stub
 // instruction to find the actual jithelper target. 
 // For other architecture we detect call to JIT_RareDisableHelper 
@@ -1611,7 +1611,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
                     // @Todo: possible race here, might need to be fixed  if it become a problem.
                     // It could become a problem if 64bit does partially interrupt work.
-                    // OK, we have the MD, mark the instruction afer the CALL
+                    // OK, we have the MD, mark the instruction after the CALL
                     // appropriately
 #ifdef _TARGET_ARM_
                     size_t instrLen = GetARMInstructionLength(nextInstr);
@@ -1728,7 +1728,12 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     // BUG(github #10318) - when not using allocation contexts, the alloc lock
     // must be acquired here. Until fixed, this assert prevents random heap corruption.
     assert(GCHeapUtilities::UseThreadAllocationContexts());
-    if (!GCHeapUtilities::GetGCHeap()->StressHeap(GetThread()->GetAllocContext()))
+    GCHeapUtilities::GetGCHeap()->StressHeap(GetThread()->GetAllocContext());
+
+    // StressHeap can exit early w/o forcing a SuspendEE to trigger the instruction update
+    // We can not rely on the return code to determine if the instruction update happened
+    // Use HasPendingGCStressInstructionUpdate() to be certain.
+    if(pThread->HasPendingGCStressInstructionUpdate())
         UpdateGCStressInstructionWithoutGC ();
 
     // Must flush instruction cache before returning as instruction has been modified.

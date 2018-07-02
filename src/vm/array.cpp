@@ -374,7 +374,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     // If none, we need to allocate space for the slots
     if (!canShareVtableChunks)
     {
-        cbMT += numVirtuals * sizeof(PCODE);
+        cbMT += numVirtuals * sizeof(MethodTable::VTableIndir2_t);
     }
 
     // Canonical methodtable has an array of non virtual slots pointed to by the optional member
@@ -431,13 +431,6 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pClass->SetRank (Rank);
         pClass->SetArrayElementType (elemType);
         pClass->SetMethodTable (pMT);
-
-#if defined(_DEBUG)
-        // Non-covariant arrays of agile types are agile
-        if (elemType != ELEMENT_TYPE_CLASS && elemTypeHnd.IsAppDomainAgile())
-            pClass->SetAppDomainAgile();
-        pClass->SetAppDomainAgilityDone();
-#endif
 
         // Fill In the method table
         pClass->SetNumMethods(numVirtuals + numNonVirtualSlots);
@@ -499,7 +492,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     _ASSERTE(pMT->IsClassPreInited());
 
     // Set BaseSize to be size of non-data portion of the array
-    DWORD baseSize = ObjSizeOf(ArrayBase);
+    DWORD baseSize = ARRAYBASE_BASESIZE;
     if (arrayKind == ELEMENT_TYPE_ARRAY)
         baseSize += Rank*sizeof(DWORD)*2;
 
@@ -544,7 +537,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             else 
             {
                 // Use the locally allocated chunk
-                it.SetIndirectionSlot((PTR_PCODE)(pMemory+cbArrayClass+offsetOfUnsharedVtableChunks));
+                it.SetIndirectionSlot((MethodTable::VTableIndir2_t *)(pMemory+cbArrayClass+offsetOfUnsharedVtableChunks));
                 offsetOfUnsharedVtableChunks += it.GetSize();
             }
         }
@@ -682,7 +675,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             // This equals the offset of the first pointer if this were an array of entirely pointers, plus the offset of the
             // first pointer in the value class
             pSeries->SetSeriesOffset(ArrayBase::GetDataPtrOffset(pMT)
-                + (sortedSeries[0]->GetSeriesOffset()) - sizeof (Object) );
+                + (sortedSeries[0]->GetSeriesOffset()) - OBJECT_SIZE);
             for (index = 0; index < nSeries; index ++)
             {
                 size_t numPtrsInBytes = sortedSeries[index]->GetSeriesSize()
@@ -701,7 +694,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
                 else
                 {
                     skip = sortedSeries[0]->GetSeriesOffset() + pElemMT->GetBaseSize()
-                         - ObjSizeOf(Object) - currentOffset;
+                         - OBJECT_BASESIZE - currentOffset;
                 }
 
                 _ASSERTE(!"Module::CreateArrayMethodTable() - unaligned GC info" || IS_ALIGNED(skip, TARGET_POINTER_SIZE));

@@ -15,7 +15,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator.
 #include "emit.h"
 #include "codegen.h"
 
@@ -43,13 +42,13 @@ void CodeGen::genCodeForBBlist()
     // You have to be careful if you create basic blocks from now on
     compiler->fgSafeBasicBlockCreation = false;
 
-    // This stress mode is not comptible with fully interruptible GC
+    // This stress mode is not compatible with fully interruptible GC
     if (genInterruptible && compiler->opts.compStackCheckOnCall)
     {
         compiler->opts.compStackCheckOnCall = false;
     }
 
-    // This stress mode is not comptible with fully interruptible GC
+    // This stress mode is not compatible with fully interruptible GC
     if (genInterruptible && compiler->opts.compStackCheckOnRet)
     {
         compiler->opts.compStackCheckOnRet = false;
@@ -117,7 +116,11 @@ void CodeGen::genCodeForBBlist()
 
         /* Mark the register as holding the variable */
 
-        regTracker.rsTrackRegLclVar(varDsc->lvRegNum, varNum);
+        assert(varDsc->lvRegNum != REG_STK);
+        if (!varDsc->lvAddrExposed)
+        {
+            regSet.verifyRegUsed(varDsc->lvRegNum);
+        }
     }
 
     unsigned finallyNesting = 0;
@@ -442,7 +445,7 @@ void CodeGen::genCodeForBBlist()
         if (block->bbNext == nullptr)
         {
 // Unit testing of the emitter: generate a bunch of instructions into the last block
-// (it's as good as any, but better than the prolog, which can only be a single instruction
+// (it's as good as any, but better than the prologue, which can only be a single instruction
 // group) then use COMPlus_JitLateDisasm=* to see if the late disassembler
 // thinks the instructions are the same as we do.
 #if defined(_TARGET_AMD64_) && defined(LATE_DISASM)
@@ -695,21 +698,6 @@ XX                                                                           XX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
-//
-
-//------------------------------------------------------------------------
-// genGetAssignedReg: Get the register assigned to the given node
-//
-// Arguments:
-//    tree      - the lclVar node whose assigned register we want
-//
-// Return Value:
-//    The assigned regNumber
-//
-regNumber CodeGenInterface::genGetAssignedReg(GenTree* tree)
-{
-    return tree->gtRegNum;
-}
 
 //------------------------------------------------------------------------
 // genSpillVar: Spill a local variable
@@ -749,22 +737,8 @@ void CodeGen::genSpillVar(GenTree* tree)
         }
 
         instruction storeIns = ins_Store(lclTyp, compiler->isSIMDTypeLocalAligned(varNum));
-#if CPU_LONG_USES_REGPAIR
-        if (varTypeIsMultiReg(tree))
-        {
-            assert(varDsc->lvRegNum == genRegPairLo(tree->gtRegPair));
-            assert(varDsc->lvOtherReg == genRegPairHi(tree->gtRegPair));
-            regNumber regLo = genRegPairLo(tree->gtRegPair);
-            regNumber regHi = genRegPairHi(tree->gtRegPair);
-            inst_TT_RV(storeIns, tree, regLo);
-            inst_TT_RV(storeIns, tree, regHi, 4);
-        }
-        else
-#endif
-        {
-            assert(varDsc->lvRegNum == tree->gtRegNum);
-            inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
-        }
+        assert(varDsc->lvRegNum == tree->gtRegNum);
+        inst_TT_RV(storeIns, tree, tree->gtRegNum, 0, size);
 
         if (restoreRegVar)
         {
@@ -1024,7 +998,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         else if (unspillTree->OperIsPutArgSplit())
         {
             GenTreePutArgSplit* splitArg = unspillTree->AsPutArgSplit();
@@ -1052,6 +1026,7 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
+#ifdef _TARGET_ARM_
         else if (unspillTree->OperIsMultiRegOp())
         {
             GenTreeMultiRegOp* multiReg = unspillTree->AsMultiRegOp();
@@ -1078,7 +1053,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
 
             unspillTree->gtFlags &= ~GTF_SPILLED;
         }
-#endif
+#endif //_TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
         else
         {
             TempDsc* t = regSet.rsUnspillInPlace(unspillTree, unspillTree->gtRegNum);
@@ -1468,7 +1444,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
 }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 //------------------------------------------------------------------------
 // genConsumeArgRegSplit: Consume register(s) in Call node to set split struct argument.
 //                        Liveness update for the PutArgSplit node is not needed
@@ -1491,7 +1467,47 @@ void CodeGen::genConsumeArgSplitStruct(GenTreePutArgSplit* putArgNode)
 
     genCheckConsumeNode(putArgNode);
 }
-#endif
+#endif // FEATURE_ARG_SPLIT
+
+//------------------------------------------------------------------------
+// genPutArgStkFieldList: Generate code for a putArgStk whose source is a GT_FIELD_LIST
+//
+// Arguments:
+//    putArgStk    - The putArgStk node
+//    outArgVarNum - The lclVar num for the argument
+//
+// Notes:
+//    The x86 version of this is in codegenxarch.cpp, and doesn't take an
+//    outArgVarNum, as it pushes its args onto the stack.
+//
+#ifndef _TARGET_X86_
+void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArgVarNum)
+{
+    assert(putArgStk->gtOp1->OperIs(GT_FIELD_LIST));
+
+    // Evaluate each of the GT_FIELD_LIST items into their register
+    // and store their register into the outgoing argument area.
+    unsigned argOffset = putArgStk->getArgOffset();
+    for (GenTreeFieldList* fieldListPtr = putArgStk->gtOp1->AsFieldList(); fieldListPtr != nullptr;
+         fieldListPtr                   = fieldListPtr->Rest())
+    {
+        GenTree* nextArgNode = fieldListPtr->gtOp.gtOp1;
+        genConsumeReg(nextArgNode);
+
+        regNumber reg  = nextArgNode->gtRegNum;
+        var_types type = nextArgNode->TypeGet();
+        emitAttr  attr = emitTypeSize(type);
+
+        // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
+        // argument area.
+        unsigned thisFieldOffset = argOffset + fieldListPtr->gtFieldOffset;
+        getEmitter()->emitIns_S_R(ins_Store(type), attr, reg, outArgVarNum, thisFieldOffset);
+
+        // We can't write beyound the arg area
+        assert((thisFieldOffset + EA_SIZE_IN_BYTES(attr)) <= compiler->lvaLclSize(outArgVarNum));
+    }
+}
+#endif // !_TARGET_X86_
 
 //------------------------------------------------------------------------
 // genSetBlockSize: Ensure that the block size is in the given register
@@ -1687,7 +1703,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
             else if (tree->OperIsPutArgSplit())
             {
                 GenTreePutArgSplit* argSplit = tree->AsPutArgSplit();
@@ -1704,6 +1720,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                     }
                 }
             }
+#ifdef _TARGET_ARM_
             else if (tree->OperIsMultiRegOp())
             {
                 GenTreeMultiRegOp* multiReg = tree->AsMultiRegOp();
@@ -1721,6 +1738,7 @@ void CodeGen::genProduceReg(GenTree* tree)
                 }
             }
 #endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
             else
             {
                 regSet.rsSpillTree(tree->gtRegNum, tree);
@@ -1929,5 +1947,3 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
     }
     // The per-case functions call genProduceReg()
 }
-
-#endif // !LEGACY_BACKEND

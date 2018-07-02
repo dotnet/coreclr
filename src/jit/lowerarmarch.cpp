@@ -20,8 +20,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARMARCH_ // This file is ONLY used for ARM and ARM64 architectures
 
 #include "jit.h"
@@ -30,7 +28,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "lsra.h"
 
 #ifdef FEATURE_HW_INTRINSICS
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 #endif
 
 //------------------------------------------------------------------------
@@ -92,7 +90,8 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_CMPXCHG:
             case GT_LOCKADD:
             case GT_XADD:
-                return emitter::emitIns_valid_imm_for_add(immVal, size);
+                return comp->compSupports(InstructionSet_Atomics) ? false
+                                                                  : emitter::emitIns_valid_imm_for_add(immVal, size);
 #elif defined(_TARGET_ARM_)
                 return emitter::emitIns_valid_imm_for_add(immVal, flags);
 #endif
@@ -204,6 +203,11 @@ void Lowering::LowerStoreLoc(GenTreeLclVarCommon* storeLoc)
                 con->SetIconValue(ival);
             }
         }
+    }
+    if (storeLoc->OperIs(GT_STORE_LCL_FLD))
+    {
+        // We should only encounter this for lclVars that are lvDoNotEnregister.
+        verifyLclFldDoNotEnregister(storeLoc->gtLclNum);
     }
     ContainCheckStoreLoc(storeLoc);
 }
@@ -496,7 +500,7 @@ void Lowering::LowerSIMD(GenTreeSIMD* simdNode)
 void Lowering::LowerHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     auto intrinsicID   = node->gtHWIntrinsicId;
-    auto intrinsicInfo = comp->getHWIntrinsicInfo(node->gtHWIntrinsicId);
+    auto intrinsicInfo = HWIntrinsicInfo::lookup(node->gtHWIntrinsicId);
 
     //
     // Lower unsupported Unsigned Compare Zero intrinsics to their trivial transformations
@@ -787,7 +791,6 @@ void Lowering::ContainCheckCompare(GenTreeOp* cmp)
 void Lowering::ContainCheckBoundsChk(GenTreeBoundsChk* node)
 {
     assert(node->OperIsBoundsCheck());
-    GenTree* other;
     if (!CheckImmedAndMakeContained(node, node->gtIndex))
     {
         CheckImmedAndMakeContained(node, node->gtArrLen);
@@ -879,7 +882,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
         op2     = argList->Rest()->Current();
     }
 
-    switch (comp->getHWIntrinsicInfo(node->gtHWIntrinsicId).form)
+    switch (HWIntrinsicInfo::lookup(node->gtHWIntrinsicId).form)
     {
         case HWIntrinsicInfo::SimdExtractOp:
             if (op2->IsCnsIntOrI())
@@ -920,5 +923,3 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 #endif // FEATURE_HW_INTRINSICS
 
 #endif // _TARGET_ARMARCH_
-
-#endif // !LEGACY_BACKEND

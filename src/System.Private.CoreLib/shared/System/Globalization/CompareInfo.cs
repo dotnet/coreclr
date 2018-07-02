@@ -107,7 +107,7 @@ namespace System.Globalization
             {
                 throw new ArgumentNullException(nameof(assembly));
             }
-            if (assembly != typeof(Object).Module.Assembly)
+            if (assembly != typeof(object).Module.Assembly)
             {
                 throw new ArgumentException(SR.Argument_OnlyMscorlib);
             }
@@ -134,7 +134,7 @@ namespace System.Globalization
                 throw new ArgumentNullException(name == null ? nameof(name) : nameof(assembly));
             }
 
-            if (assembly != typeof(Object).Module.Assembly)
+            if (assembly != typeof(object).Module.Assembly)
             {
                 throw new ArgumentException(SR.Argument_OnlyMscorlib);
             }
@@ -304,7 +304,7 @@ namespace System.Globalization
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return String.Compare(string1, string2, StringComparison.OrdinalIgnoreCase);
+                return string.Compare(string1, string2, StringComparison.OrdinalIgnoreCase);
             }
 
             // Verify the options before we do any real comparison.
@@ -315,7 +315,7 @@ namespace System.Globalization
                     throw new ArgumentException(SR.Argument_CompareOptionOrdinal, nameof(options));
                 }
 
-                return String.CompareOrdinal(string1, string2);
+                return string.CompareOrdinal(string1, string2);
             }
 
             if ((options & ValidCompareMaskOffFlags) != 0)
@@ -343,7 +343,7 @@ namespace System.Globalization
                 if ((options & CompareOptions.IgnoreCase) != 0)
                     return CompareOrdinalIgnoreCase(string1, string2);
 
-                return String.CompareOrdinal(string1, string2);
+                return string.CompareOrdinal(string1, string2);
             }
 
             return CompareString(string1.AsSpan(), string2.AsSpan(), options);
@@ -449,7 +449,7 @@ namespace System.Globalization
         {
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                int result = String.Compare(string1, offset1, string2, offset2, length1 < length2 ? length1 : length2, StringComparison.OrdinalIgnoreCase);
+                int result = string.Compare(string1, offset1, string2, offset2, length1 < length2 ? length1 : length2, StringComparison.OrdinalIgnoreCase);
                 if ((length1 != length2) && result == 0)
                     return (length1 > length2 ? 1 : -1);
                 return (result);
@@ -633,7 +633,7 @@ namespace System.Globalization
         //  IsPrefix
         //
         //  Determines whether prefix is a prefix of string.  If prefix equals
-        //  String.Empty, true is returned.
+        //  string.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
         public virtual bool IsPrefix(string source, string prefix, CompareOptions options)
@@ -698,7 +698,7 @@ namespace System.Globalization
         //  IsSuffix
         //
         //  Determines whether suffix is a suffix of string.  If suffix equals
-        //  String.Empty, true is returned.
+        //  string.Empty, true is returned.
         //
         ////////////////////////////////////////////////////////////////////////
         public virtual bool IsSuffix(string source, string suffix, CompareOptions options)
@@ -765,7 +765,7 @@ namespace System.Globalization
         //
         //  Returns the first index where value is found in string.  The
         //  search starts from startIndex and ends at endIndex.  Returns -1 if
-        //  the specified value is not found.  If value equals String.Empty,
+        //  the specified value is not found.  If value equals string.Empty,
         //  startIndex is returned.  Throws IndexOutOfRange if startIndex or
         //  endIndex is less than zero or greater than the length of string.
         //  Throws ArgumentException if value is null.
@@ -1013,7 +1013,7 @@ namespace System.Globalization
         //
         //  Returns the last index where value is found in string.  The
         //  search starts from startIndex and ends at endIndex.  Returns -1 if
-        //  the specified value is not found.  If value equals String.Empty,
+        //  the specified value is not found.  If value equals string.Empty,
         //  endIndex is returned.  Throws IndexOutOfRange if startIndex or
         //  endIndex is less than zero or greater than the length of string.
         //  Throws ArgumentException if value is null.
@@ -1021,7 +1021,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public virtual int LastIndexOf(String source, char value)
+        public virtual int LastIndexOf(string source, char value)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -1236,7 +1236,7 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
 
 
-        public override bool Equals(Object value)
+        public override bool Equals(object value)
         {
             CompareInfo that = value as CompareInfo;
 

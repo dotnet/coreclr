@@ -452,7 +452,7 @@ extern CrstStatic g_StubUnwindInfoHeapSegmentsCrst;
         EEJitManager::CodeHeapIterator heapIterator(NULL, NULL);
 
         // Currently m_CodeHeapCritSec is given the CRST_UNSAFE_ANYMODE flag which allows it to be taken in a GC_NOTRIGGER
-        // region but also disallows GC_TRIGGERS.  We need GC_TRIGGERS because we take annother lock.   Ideally we would
+        // region but also disallows GC_TRIGGERS.  We need GC_TRIGGERS because we take another lock.   Ideally we would
         // fix m_CodeHeapCritSec to not have the CRST_UNSAFE_ANYMODE flag, but I currently reached my threshold for fixing
         // contracts.
         CONTRACT_VIOLATION(GCViolation);
@@ -869,7 +869,7 @@ BOOL IsFunctionFragment(TADDR baseAddress, PTR_RUNTIME_FUNCTION pFunctionEntry)
     // simplifies identifying a host record a lot.
     // 
     // 1. Prolog only: The host record. Epilog Count and E bit are all 0.
-    // 2. Prolog and some epilogs: The host record with acompannying epilog-only records
+    // 2. Prolog and some epilogs: The host record with accompanying epilog-only records
     // 3. Epilogs only: First unwind code is Phantom prolog (Starting with an end_c, indicating an empty prolog)
     // 4. No prologs or epilogs: First unwind code is Phantom prolog  (Starting with an end_c, indicating an empty prolog)
     //
@@ -3124,7 +3124,7 @@ TypeHandle EEJitManager::ResolveEHClause(EE_ILEXCEPTION_CLAUSE* pEHClause,
         }
         else
         {
-            // If we raced in here with aother thread and got held up on the lock, then we just need to return the
+            // If we raced in here with another thread and got held up on the lock, then we just need to return the
             // type handle that the other thread put into the clause.
             // The typeHnd we found and the typeHnd the racing thread found should always be the same
             _ASSERTE(typeHnd.AsPtr() == pEHClause->TypeHandle);
@@ -5092,7 +5092,7 @@ PCODE ExecutionManager::getNextJumpStub(MethodDesc* pMD, PCODE target,
     }
 
     // allocJumpStubBlock will allocate from the LoaderCodeHeap for normal methods
-    // and will alocate from a HostCodeHeap for LCG methods.
+    // and will allocate from a HostCodeHeap for LCG methods.
     //
     // note that this can throw an OOM exception
 

@@ -33,7 +33,7 @@
 #pragma warning(disable : 4511) // can't generate copy constructor
 #pragma warning(disable : 4512) // can't generate assignment constructor
 #pragma warning(disable : 4610) // user defined constructor required
-#pragma warning(disable : 4211) // nonstandard extention used (char name[0] in structs)
+#pragma warning(disable : 4211) // nonstandard extension used (char name[0] in structs)
 #pragma warning(disable : 4127) // conditional expression constant
 #pragma warning(disable : 4201) // "nonstandard extension used : nameless struct/union"
 
@@ -208,6 +208,10 @@
 #define _TARGET_UNIX_
 #endif
 
+#ifndef _TARGET_UNIX_
+#define _TARGET_WINDOWS_
+#endif // !_TARGET_UNIX_
+
 // --------------------------------------------------------------------------------
 // IMAGE_FILE_MACHINE_TARGET
 // --------------------------------------------------------------------------------
@@ -272,14 +276,15 @@
 #define UNIX_AMD64_ABI_ONLY(x)
 #endif // defined(UNIX_AMD64_ABI)
 
-#if defined(UNIX_AMD64_ABI) || (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND))
+#if defined(UNIX_AMD64_ABI) || !defined(_TARGET_64BIT_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
 #define FEATURE_PUT_STRUCT_ARG_STK 1
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x) , x
 #define PUT_STRUCT_ARG_STK_ONLY(x) x
-#else // !(defined(UNIX_AMD64_ABI)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
+#else // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
 #define PUT_STRUCT_ARG_STK_ONLY_ARG(x)
 #define PUT_STRUCT_ARG_STK_ONLY(x)
-#endif // !(defined(UNIX_AMD64_ABI)|| (!defined(_TARGET_64BIT_) && !defined(LEGACY_BACKEND)))
+#endif // !(defined(UNIX_AMD64_ABI) && defined(_TARGET_64BIT_) && !(defined(_TARGET_WINDOWS_) &&
+       // defined(_TARGET_ARM64_))
 
 #if defined(UNIX_AMD64_ABI)
 #define UNIX_AMD64_ABI_ONLY_ARG(x) , x
@@ -298,6 +303,15 @@
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(x)
 #define MULTIREG_HAS_SECOND_GC_RET_ONLY(x)
 #endif // defined(UNIX_AMD64_ABI)
+
+// Arm64 Windows supports FEATURE_ARG_SPLIT, note this is different from
+// the official Arm64 ABI.
+// Case: splitting 16 byte struct between x7 and stack
+#if (defined(_TARGET_ARM_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)))
+#define FEATURE_ARG_SPLIT 1
+#else
+#define FEATURE_ARG_SPLIT 0
+#endif // (defined(_TARGET_ARM_) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)))
 
 // To get rid of warning 4701 : local variable may be used without being initialized
 #define DUMMY_INIT(x) (x)
@@ -816,109 +830,7 @@ const int MIN_SHORT_AS_INT = -32768;
 
 /*****************************************************************************/
 
-// CompMemKind values are used to tag memory allocations performed via
-// the compiler's allocator so that the memory usage of various compiler
-// components can be tracked separately (when MEASURE_MEM_ALLOC is defined).
-
-enum CompMemKind
-{
-#define CompMemKindMacro(kind) CMK_##kind,
-#include "compmemkind.h"
-    CMK_Count
-};
-
 class Compiler;
-
-// Allows general purpose code (e.g. collection classes) to allocate memory
-// of a pre-determined kind via the compiler's allocator.
-
-class CompAllocator
-{
-    Compiler* const m_comp;
-#if MEASURE_MEM_ALLOC
-    CompMemKind const m_cmk;
-#endif
-public:
-    CompAllocator(Compiler* comp, CompMemKind cmk)
-        : m_comp(comp)
-#if MEASURE_MEM_ALLOC
-        , m_cmk(cmk)
-#endif
-    {
-    }
-
-    // Allocates a block of memory at least `sz` in size.
-    // Zero-length allocation are not allowed.
-    inline void* Alloc(size_t sz);
-
-    // Allocates a block of memory at least `elems * elemSize` in size.
-    // Zero-length allocation are not allowed.
-    inline void* ArrayAlloc(size_t elems, size_t elemSize);
-
-    // For the compiler's ArenaAllocator, free operations are no-ops.
-    void Free(void* p)
-    {
-    }
-};
-
-// Global operator new overloads that work with CompAllocator
-
-inline void* __cdecl operator new(size_t n, CompAllocator* alloc)
-{
-    return alloc->Alloc(n);
-}
-
-inline void* __cdecl operator new[](size_t n, CompAllocator* alloc)
-{
-    return alloc->Alloc(n);
-}
-
-// A CompAllocator wrapper that implements IAllocator and allows zero-length
-// memory allocations (the compiler's ArenAllocator does not support zero-length
-// allocation).
-
-class CompIAllocator : public IAllocator
-{
-    CompAllocator* const m_alloc;
-    char                 m_zeroLenAllocTarg;
-
-public:
-    CompIAllocator(CompAllocator* alloc) : m_alloc(alloc)
-    {
-    }
-
-    // Allocates a block of memory at least `sz` in size.
-    virtual void* Alloc(size_t sz) override
-    {
-        if (sz == 0)
-        {
-            return &m_zeroLenAllocTarg;
-        }
-        else
-        {
-            return m_alloc->Alloc(sz);
-        }
-    }
-
-    // Allocates a block of memory at least `elems * elemSize` in size.
-    virtual void* ArrayAlloc(size_t elemSize, size_t numElems) override
-    {
-        if ((elemSize == 0) || (numElems == 0))
-        {
-            return &m_zeroLenAllocTarg;
-        }
-        else
-        {
-            return m_alloc->ArrayAlloc(elemSize, numElems);
-        }
-    }
-
-    // Frees the block of memory pointed to by p.
-    virtual void Free(void* p) override
-    {
-        m_alloc->Free(p);
-    }
-};
 
 class JitTls
 {

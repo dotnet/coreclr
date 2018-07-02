@@ -30,8 +30,6 @@
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator.
-
 #ifdef FEATURE_SIMD
 
 // Intrinsic Id to intrinsic info map
@@ -2202,11 +2200,11 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
         // = indexVal + arrayElementsCount - 1
         unsigned arrayElementsCount  = simdSize / genTypeSize(baseType);
         checkIndexExpr               = new (this, GT_CNS_INT) GenTreeIntCon(TYP_INT, indexVal + arrayElementsCount - 1);
-        GenTreeArrLen*    arrLen     = gtNewArrLen(TYP_INT, arrayRef, (int)offsetof(CORINFO_Array, length));
+        GenTreeArrLen*    arrLen     = gtNewArrLen(TYP_INT, arrayRef, (int)OFFSETOF__CORINFO_Array__length);
         GenTreeBoundsChk* arrBndsChk = new (this, GT_ARR_BOUNDS_CHECK)
             GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, checkIndexExpr, arrLen, SCK_RNGCHK_FAIL);
 
-        offset += offsetof(CORINFO_Array, u1Elems);
+        offset += OFFSETOF__CORINFO_Array__data;
         byrefNode = gtNewOperNode(GT_COMMA, arrayRef->TypeGet(), arrBndsChk, gtCloneExpr(arrayRef));
     }
     else
@@ -2633,7 +2631,7 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 }
 
                 GenTreeArrLen* arrLen =
-                    gtNewArrLen(TYP_INT, arrayRefForArgRngChk, (int)offsetof(CORINFO_Array, length));
+                    gtNewArrLen(TYP_INT, arrayRefForArgRngChk, (int)OFFSETOF__CORINFO_Array__length);
                 argRngChk = new (this, GT_ARR_BOUNDS_CHECK)
                     GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, index, arrLen, op3CheckKind);
                 // Now, clone op3 to create another node for the argChk
@@ -2653,7 +2651,7 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
             {
                 op2CheckKind = SCK_ARG_EXCPN;
             }
-            GenTreeArrLen*    arrLen = gtNewArrLen(TYP_INT, arrayRefForArgChk, (int)offsetof(CORINFO_Array, length));
+            GenTreeArrLen*    arrLen = gtNewArrLen(TYP_INT, arrayRefForArgChk, (int)OFFSETOF__CORINFO_Array__length);
             GenTreeBoundsChk* argChk = new (this, GT_ARR_BOUNDS_CHECK)
                 GenTreeBoundsChk(GT_ARR_BOUNDS_CHECK, TYP_VOID, checkIndexExpr, arrLen, op2CheckKind);
 
@@ -2683,7 +2681,7 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
                 // TODO-Cleanup: Though it happens to just work fine front-end phases are not aware of GT_LEA node.
                 // Therefore, convert these to use GT_ADDR .
                 copyBlkDst = new (this, GT_LEA)
-                    GenTreeAddrMode(TYP_BYREF, op2, op3, genTypeSize(baseType), offsetof(CORINFO_Array, u1Elems));
+                    GenTreeAddrMode(TYP_BYREF, op2, op3, genTypeSize(baseType), OFFSETOF__CORINFO_Array__data);
                 doCopyBlk = true;
             }
         }
@@ -3116,5 +3114,3 @@ GenTree* Compiler::impSIMDIntrinsic(OPCODE                opcode,
 }
 
 #endif // FEATURE_SIMD
-
-#endif // !LEGACY_BACKEND

@@ -22,9 +22,7 @@ namespace JIT.HardwareIntrinsics.X86
         private static void InsertByte1()
         {
             var test = new SimpleUnaryOpTest__InsertByte1();
-            
-            try
-            {
+
             if (test.IsSupported)
             {
                 // Validates basic functionality works, using Unsafe.Read
@@ -77,11 +75,6 @@ namespace JIT.HardwareIntrinsics.X86
                 // Validates we throw on unsupported hardware
                 test.RunUnsupportedScenario();
             }
-            }
-            catch (PlatformNotSupportedException)
-            {
-                test.Succeeded = true;
-            }
 
             if (!test.Succeeded)
             {
@@ -109,7 +102,7 @@ namespace JIT.HardwareIntrinsics.X86
         {
             var random = new Random();
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)0; }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Byte>, byte>(ref _clsVar), ref Unsafe.As<Byte, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Byte>>());
         }
 
@@ -119,14 +112,14 @@ namespace JIT.HardwareIntrinsics.X86
 
             var random = new Random();
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)0; }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Byte>, byte>(ref _fld), ref Unsafe.As<Byte, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Byte>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)0; }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
             _dataTable = new SimpleUnaryOpTest__DataTable<Byte, Byte>(_data, new Byte[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Sse41.IsSupported;
+        public bool IsSupported => Sse41.IsSupported && (Environment.Is64BitProcess || ((typeof(Byte) != typeof(long)) && (typeof(Byte) != typeof(ulong))));
 
         public bool Succeeded { get; set; }
 
@@ -302,7 +295,7 @@ namespace JIT.HardwareIntrinsics.X86
 
             for (var i = 0; i < RetElementCount; i++)
             {
-                if ((i == 1 ? result[i] != 2 : result[i] != 0))
+                if ((i == 1 ? result[i] != 2 : result[i] != firstOp[i]))
                 {
                     Succeeded = false;
                     break;

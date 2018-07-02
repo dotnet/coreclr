@@ -7,16 +7,14 @@
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #include "stacklevelsetter.h"
 
 StackLevelSetter::StackLevelSetter(Compiler* compiler)
     : Phase(compiler, "StackLevelSetter", PHASE_STACK_LEVEL_SETTER)
     , currentStackLevel(0)
     , maxStackLevel(0)
-    , memAllocator(compiler, CMK_fgArgInfoPtrArr)
-    , putArgNumSlots(&memAllocator)
+    , memAllocator(compiler->getAllocator(CMK_fgArgInfoPtrArr))
+    , putArgNumSlots(memAllocator)
 #if !FEATURE_FIXED_OUT_ARGS
     , framePointerRequired(compiler->codeGen->isFramePointerRequired())
     , throwHelperBlocksUsed(comp->fgUseThrowHelperBlocks() && comp->compUsesThrowHelper)
@@ -270,5 +268,3 @@ void StackLevelSetter::SubStackLevel(unsigned value)
     assert(currentStackLevel >= value);
     currentStackLevel -= value;
 }
-
-#endif // !LEGACY_BACKEND

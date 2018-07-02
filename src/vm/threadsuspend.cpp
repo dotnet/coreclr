@@ -1537,7 +1537,7 @@ Thread::UserAbort(ThreadAbortRequester requester,
 
     Thread *pCurThread = GetThread();
 
-    // If aboring self
+    // If aborting self
     if (this == pCurThread)
     {
         SetAbortInitiated();
@@ -5050,30 +5050,34 @@ void Thread::CommitGCStressInstructionUpdate()
     }
     CONTRACTL_END;
 
-    if (HasPendingGCStressInstructionUpdate())
+    BYTE* pbDestCode = NULL;
+    BYTE* pbSrcCode = NULL;
+
+    if (TryClearGCStressInstructionUpdate(&pbDestCode, &pbSrcCode))
     {
+        assert(pbDestCode != NULL);
+        assert(pbSrcCode != NULL);
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-        *m_pbDestCode = *m_pbSrcCode;
+        *pbDestCode = *pbSrcCode;
 
 #elif defined(_TARGET_ARM_)
 
-        if (GetARMInstructionLength(m_pbDestCode) == 2)
-            *(WORD*)m_pbDestCode  = *(WORD*)m_pbSrcCode;
+        if (GetARMInstructionLength(pbDestCode) == 2)
+            *(WORD*)pbDestCode  = *(WORD*)pbSrcCode;
         else
-            *(DWORD*)m_pbDestCode = *(DWORD*)m_pbSrcCode;
+            *(DWORD*)pbDestCode = *(DWORD*)pbSrcCode;
 
 #elif defined(_TARGET_ARM64_)
 
-        *(DWORD*)m_pbDestCode = *(DWORD*)m_pbSrcCode;
+        *(DWORD*)pbDestCode = *(DWORD*)pbSrcCode;
 
 #else
 
-        *m_pbDestCode = *m_pbSrcCode;
+        *pbDestCode = *pbSrcCode;
 
 #endif
-
-        ClearGCStressInstructionUpdate();
     }
 }
 
@@ -6624,7 +6628,7 @@ StackWalkAction SWCB_GetExecutionStateForSwitchIn(CrawlFrame *pCF, VOID *pData)
 // call to GetThreadContext. This feature exists on all Win64 platforms, so this change is only for 32-bit
 // platforms. We've asked for this fix to be applied to future 32-bit OS's, so we can remove this on those
 // platforms when that happens. Furthermore, once we stop supporting the older 32-bit OS versions that don't have
-// the new feature, we can remove these alltogether.
+// the new feature, we can remove these altogether.
 //
 // WARNING: Interrupts (int 3) immediately increment the IP whereas traps (AVs) do not.
 // So this heuristic only works for trap, but not for interrupts. As a result, the race

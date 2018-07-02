@@ -95,7 +95,7 @@ namespace System.Threading.Tasks
 
         // Construct a pre-completed Task<TResult>
         internal Task(TResult result) :
-            base(false, TaskCreationOptions.None, default(CancellationToken))
+            base(false, TaskCreationOptions.None, default)
         {
             m_result = result;
         }
@@ -127,7 +127,7 @@ namespace System.Threading.Tasks
         /// The <paramref name="function"/> argument is null.
         /// </exception>
         public Task(Func<TResult> function)
-            : this(function, null, default(CancellationToken),
+            : this(function, null, default,
                 TaskCreationOptions.None, InternalTaskOptions.None, null)
         {
         }
@@ -172,7 +172,7 @@ namespace System.Threading.Tasks
         /// cref="T:System.Threading.Tasks.TaskCreationOptions"/>.
         /// </exception>
         public Task(Func<TResult> function, TaskCreationOptions creationOptions)
-            : this(function, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, InternalTaskOptions.None, null)
+            : this(function, Task.InternalCurrentIfAttached(creationOptions), default, creationOptions, InternalTaskOptions.None, null)
         {
         }
 
@@ -215,7 +215,7 @@ namespace System.Threading.Tasks
         /// The <paramref name="function"/> argument is null.
         /// </exception>
         public Task(Func<object, TResult> function, object state)
-            : this(function, state, null, default(CancellationToken),
+            : this(function, state, null, default,
                 TaskCreationOptions.None, InternalTaskOptions.None, null)
         {
         }
@@ -261,7 +261,7 @@ namespace System.Threading.Tasks
         /// cref="T:System.Threading.Tasks.TaskCreationOptions"/>.
         /// </exception>
         public Task(Func<object, TResult> function, object state, TaskCreationOptions creationOptions)
-            : this(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken),
+            : this(function, state, Task.InternalCurrentIfAttached(creationOptions), default,
                     creationOptions, InternalTaskOptions.None, null)
         {
         }
@@ -484,7 +484,7 @@ namespace System.Threading.Tasks
         internal TResult GetResultCore(bool waitCompletionNotification)
         {
             // If the result has not been calculated yet, wait for it.
-            if (!IsCompleted) InternalWait(Timeout.Infinite, default(CancellationToken)); // won't throw if task faulted or canceled; that's handled below
+            if (!IsCompleted) InternalWait(Timeout.Infinite, default); // won't throw if task faulted or canceled; that's handled below
 
             // Notify the debugger of the wait completion if it's requested such a notification
             if (waitCompletionNotification) NotifyDebuggerOfWaitCompletionIfNecessary();
@@ -663,7 +663,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task<TResult>> continuationAction)
         {
-            return ContinueWith(continuationAction, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
 
@@ -717,7 +717,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task<TResult>> continuationAction, TaskScheduler scheduler)
         {
-            return ContinueWith(continuationAction, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -750,7 +750,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task ContinueWith(Action<Task<TResult>> continuationAction, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith(continuationAction, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith(continuationAction, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -850,9 +850,9 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ArgumentNullException">
         /// The <paramref name="continuationAction"/> argument is null.
         /// </exception>
-        public Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state)
+        public Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state)
         {
-            return ContinueWith(continuationAction, state, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, state, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
 
@@ -877,7 +877,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state, CancellationToken cancellationToken)
+        public Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, CancellationToken cancellationToken)
         {
             return ContinueWith(continuationAction, state, TaskScheduler.Current, cancellationToken, TaskContinuationOptions.None);
         }
@@ -906,9 +906,9 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ArgumentNullException">
         /// The <paramref name="scheduler"/> argument is null.
         /// </exception>
-        public Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state, TaskScheduler scheduler)
+        public Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, TaskScheduler scheduler)
         {
-            return ContinueWith(continuationAction, state, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith(continuationAction, state, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -940,9 +940,9 @@ namespace System.Threading.Tasks
         /// The <paramref name="continuationOptions"/> argument specifies an invalid value for <see
         /// cref="T:System.Threading.Tasks.TaskContinuationOptions">TaskContinuationOptions</see>.
         /// </exception>
-        public Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state, TaskContinuationOptions continuationOptions)
+        public Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith(continuationAction, state, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith(continuationAction, state, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -984,14 +984,14 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state, CancellationToken cancellationToken,
+        public Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, CancellationToken cancellationToken,
                                  TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
             return ContinueWith(continuationAction, state, scheduler, cancellationToken, continuationOptions);
         }
 
         // Same as the above overload, only with a stack mark.
-        internal Task ContinueWith(Action<Task<TResult>, Object> continuationAction, Object state, TaskScheduler scheduler, CancellationToken cancellationToken,
+        internal Task ContinueWith(Action<Task<TResult>, object> continuationAction, object state, TaskScheduler scheduler, CancellationToken cancellationToken,
                                    TaskContinuationOptions continuationOptions)
         {
             if (continuationAction == null)
@@ -1048,7 +1048,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, TNewResult> continuationFunction)
         {
-            return ContinueWith<TNewResult>(continuationFunction, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TNewResult>(continuationFunction, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
 
@@ -1107,7 +1107,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, TNewResult> continuationFunction, TaskScheduler scheduler)
         {
-            return ContinueWith<TNewResult>(continuationFunction, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TNewResult>(continuationFunction, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -1149,7 +1149,7 @@ namespace System.Threading.Tasks
         /// </exception>
         public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, TNewResult> continuationFunction, TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith<TNewResult>(continuationFunction, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith<TNewResult>(continuationFunction, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -1262,9 +1262,9 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ArgumentNullException">
         /// The <paramref name="continuationFunction"/> argument is null.
         /// </exception>
-        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state)
+        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state)
         {
-            return ContinueWith<TNewResult>(continuationFunction, state, TaskScheduler.Current, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TNewResult>(continuationFunction, state, TaskScheduler.Current, default, TaskContinuationOptions.None);
         }
 
 
@@ -1292,7 +1292,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state,
+        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             CancellationToken cancellationToken)
         {
             return ContinueWith<TNewResult>(continuationFunction, state, TaskScheduler.Current, cancellationToken, TaskContinuationOptions.None);
@@ -1324,10 +1324,10 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ArgumentNullException">
         /// The <paramref name="scheduler"/> argument is null.
         /// </exception>
-        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state,
+        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             TaskScheduler scheduler)
         {
-            return ContinueWith<TNewResult>(continuationFunction, state, scheduler, default(CancellationToken), TaskContinuationOptions.None);
+            return ContinueWith<TNewResult>(continuationFunction, state, scheduler, default, TaskContinuationOptions.None);
         }
 
         /// <summary>
@@ -1368,10 +1368,10 @@ namespace System.Threading.Tasks
         /// The <paramref name="continuationOptions"/> argument specifies an invalid value for <see
         /// cref="T:System.Threading.Tasks.TaskContinuationOptions">TaskContinuationOptions</see>.
         /// </exception>
-        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state,
+        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             TaskContinuationOptions continuationOptions)
         {
-            return ContinueWith<TNewResult>(continuationFunction, state, TaskScheduler.Current, default(CancellationToken), continuationOptions);
+            return ContinueWith<TNewResult>(continuationFunction, state, TaskScheduler.Current, default, continuationOptions);
         }
 
         /// <summary>
@@ -1423,14 +1423,14 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The provided <see cref="System.Threading.CancellationToken">CancellationToken</see>
         /// has already been disposed.
         /// </exception>
-        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state,
+        public Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             CancellationToken cancellationToken, TaskContinuationOptions continuationOptions, TaskScheduler scheduler)
         {
             return ContinueWith<TNewResult>(continuationFunction, state, scheduler, cancellationToken, continuationOptions);
         }
 
         // Same as the above overload, just with a stack mark.
-        internal Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, Object, TNewResult> continuationFunction, Object state,
+        internal Task<TNewResult> ContinueWith<TNewResult>(Func<Task<TResult>, object, TNewResult> continuationFunction, object state,
             TaskScheduler scheduler, CancellationToken cancellationToken, TaskContinuationOptions continuationOptions)
         {
             if (continuationFunction == null)
@@ -1544,7 +1544,7 @@ namespace System.Threading.Tasks
             m_task = task;
         }
 
-        public TResult Result { get { return m_task.Status == TaskStatus.RanToCompletion ? m_task.Result : default(TResult); } }
+        public TResult Result { get { return m_task.Status == TaskStatus.RanToCompletion ? m_task.Result : default; } }
         public object AsyncState { get { return m_task.AsyncState; } }
         public TaskCreationOptions CreationOptions { get { return m_task.CreationOptions; } }
         public Exception Exception { get { return m_task.Exception; } }

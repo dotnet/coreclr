@@ -749,8 +749,10 @@ FORCEINLINE static CorCompileSection GetSectionForNodeType(ZapNodeType type)
         return CORCOMPILE_SECTION_READONLY_WARM;
 
     case NodeTypeForItemKind(DataImage::ITEM_DICTIONARY):
+        return CORCOMPILE_SECTION_READONLY_DICTIONARY;
+
     case NodeTypeForItemKind(DataImage::ITEM_VTABLE_CHUNK):
-        return CORCOMPILE_SECTION_READONLY_VCHUNKS_AND_DICTIONARY;
+        return CORCOMPILE_SECTION_READONLY_VCHUNKS;
 
     // SECTION_CLASS_COLD
     case NodeTypeForItemKind(DataImage::ITEM_PARAM_TYPEDESC):
@@ -1465,7 +1467,7 @@ void DataImage::FixupTypeHandlePointer(TypeHandle th, PVOID p, SSIZE_T offset, Z
         {
             if (CanEagerBindToTypeHandle(th) && CanHardBindToZapModule(th.GetLoaderModule()))
             {
-                FixupField(p, offset, th.AsTypeDesc(), 2);
+                FixupField(p, offset, th.AsTypeDesc(), 2, type);
             }
             else
             {

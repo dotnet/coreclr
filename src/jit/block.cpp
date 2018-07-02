@@ -64,12 +64,8 @@ unsigned SsaStressHashHelper()
 }
 #endif
 
-EHSuccessorIter::EHSuccessorIter(Compiler* comp, BasicBlock* block)
-    : m_comp(comp)
-    , m_block(block)
-    , m_curRegSucc(nullptr)
-    , m_curTry(comp->ehGetBlockExnFlowDsc(block))
-    , m_remainingRegSuccs(block->NumSucc(comp))
+EHSuccessorIterPosition::EHSuccessorIterPosition(Compiler* comp, BasicBlock* block)
+    : m_remainingRegSuccs(block->NumSucc(comp)), m_curRegSucc(nullptr), m_curTry(comp->ehGetBlockExnFlowDsc(block))
 {
     // If "block" is a "leave helper" block (the empty BBJ_ALWAYS block that pairs with a
     // preceding BBJ_CALLFINALLY block to implement a "leave" IL instruction), then no exceptions
@@ -86,11 +82,11 @@ EHSuccessorIter::EHSuccessorIter(Compiler* comp, BasicBlock* block)
     if (m_curTry == nullptr && m_remainingRegSuccs > 0)
     {
         // Examine the successors to see if any are the start of try blocks.
-        FindNextRegSuccTry();
+        FindNextRegSuccTry(comp, block);
     }
 }
 
-void EHSuccessorIter::FindNextRegSuccTry()
+void EHSuccessorIterPosition::FindNextRegSuccTry(Compiler* comp, BasicBlock* block)
 {
     assert(m_curTry == nullptr);
 
@@ -98,32 +94,32 @@ void EHSuccessorIter::FindNextRegSuccTry()
     while (m_remainingRegSuccs > 0)
     {
         m_remainingRegSuccs--;
-        m_curRegSucc = m_block->GetSucc(m_remainingRegSuccs, m_comp);
-        if (m_comp->bbIsTryBeg(m_curRegSucc))
+        m_curRegSucc = block->GetSucc(m_remainingRegSuccs, comp);
+        if (comp->bbIsTryBeg(m_curRegSucc))
         {
             assert(m_curRegSucc->hasTryIndex()); // Since it is a try begin.
             unsigned newTryIndex = m_curRegSucc->getTryIndex();
 
             // If the try region started by "m_curRegSucc" (represented by newTryIndex) contains m_block,
             // we've already yielded its handler, as one of the EH handler successors of m_block itself.
-            if (m_comp->bbInExnFlowRegions(newTryIndex, m_block))
+            if (comp->bbInExnFlowRegions(newTryIndex, block))
             {
                 continue;
             }
 
             // Otherwise, consider this try.
-            m_curTry = m_comp->ehGetDsc(newTryIndex);
+            m_curTry = comp->ehGetDsc(newTryIndex);
             break;
         }
     }
 }
 
-void EHSuccessorIter::operator++(void)
+void EHSuccessorIterPosition::Advance(Compiler* comp, BasicBlock* block)
 {
     assert(m_curTry != nullptr);
     if (m_curTry->ebdEnclosingTryIndex != EHblkDsc::NO_ENCLOSING_INDEX)
     {
-        m_curTry = m_comp->ehGetDsc(m_curTry->ebdEnclosingTryIndex);
+        m_curTry = comp->ehGetDsc(m_curTry->ebdEnclosingTryIndex);
 
         // If we've gone over into considering try's containing successors,
         // then the enclosing try must have the successor as its first block.
@@ -142,10 +138,10 @@ void EHSuccessorIter::operator++(void)
 
     // We've exhausted all try blocks.
     // See if there are any remaining regular successors that start try blocks.
-    FindNextRegSuccTry();
+    FindNextRegSuccTry(comp, block);
 }
 
-BasicBlock* EHSuccessorIter::operator*()
+BasicBlock* EHSuccessorIterPosition::Current(Compiler* comp, BasicBlock* block)
 {
     assert(m_curTry != nullptr);
     return m_curTry->ExFlowBlock();
@@ -363,17 +359,10 @@ void BasicBlock::dspFlags()
     {
         printf("IBC ");
     }
-#ifdef LEGACY_BACKEND
-    if (bbFlags & BBF_FORWARD_SWITCH)
-    {
-        printf("fswitch ");
-    }
-#else  // !LEGACY_BACKEND
     if (bbFlags & BBF_IS_LIR)
     {
         printf("LIR ");
     }
-#endif // LEGACY_BACKEND
     if (bbFlags & BBF_KEEP_BBJ_ALWAYS)
     {
         printf("KEEP ");
@@ -599,7 +588,7 @@ const char* BasicBlock::dspToString(int blockNumPadding /* = 2*/)
 // Allocation function for MemoryPhiArg.
 void* BasicBlock::MemoryPhiArg::operator new(size_t sz, Compiler* comp)
 {
-    return comp->compGetMem(sz, CMK_MemoryPhiArg);
+    return comp->getAllocator(CMK_MemoryPhiArg).allocate<char>(sz);
 }
 
 //------------------------------------------------------------------------
@@ -636,9 +625,6 @@ bool BasicBlock::CloneBlockState(
     to->bbCodeOffs    = from->bbCodeOffs;
     to->bbCodeOffsEnd = from->bbCodeOffsEnd;
     VarSetOps::AssignAllowUninitRhs(compiler, to->bbScope, from->bbScope);
-#if FEATURE_STACK_FP_X87
-    to->bbFPStateX87 = from->bbFPStateX87;
-#endif // FEATURE_STACK_FP_X87
     to->bbNatLoopNum = from->bbNatLoopNum;
 #ifdef DEBUG
     to->bbLoopNum     = from->bbLoopNum;
@@ -663,9 +649,6 @@ bool BasicBlock::CloneBlockState(
 // LIR helpers
 void BasicBlock::MakeLIR(GenTree* firstNode, GenTree* lastNode)
 {
-#ifdef LEGACY_BACKEND
-    unreached();
-#else  // !LEGACY_BACKEND
     assert(!IsLIR());
     assert((firstNode == nullptr) == (lastNode == nullptr));
     assert((firstNode == lastNode) || firstNode->Precedes(lastNode));
@@ -673,18 +656,13 @@ void BasicBlock::MakeLIR(GenTree* firstNode, GenTree* lastNode)
     m_firstNode = firstNode;
     m_lastNode  = lastNode;
     bbFlags |= BBF_IS_LIR;
-#endif // LEGACY_BACKEND
 }
 
 bool BasicBlock::IsLIR()
 {
-#ifdef LEGACY_BACKEND
-    return false;
-#else  // !LEGACY_BACKEND
     const bool isLIR = (bbFlags & BBF_IS_LIR) != 0;
     assert((bbTreeList == nullptr) || ((isLIR) == !bbTreeList->IsStatement()));
     return isLIR;
-#endif // LEGACY_BACKEND
 }
 
 //------------------------------------------------------------------------
@@ -1311,12 +1289,10 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
         block->bbNum = ++fgBBNumMax;
     }
 
-#ifndef LEGACY_BACKEND
     if (compRationalIRForm)
     {
         block->bbFlags |= BBF_IS_LIR;
     }
-#endif // !LEGACY_BACKEND
 
     block->bbRefs   = 1;
     block->bbWeight = BB_UNITY_WEIGHT;

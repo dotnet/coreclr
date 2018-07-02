@@ -110,7 +110,7 @@ namespace System.StubHelpers
             if (IntPtr.Zero == cstr)
                 return null;
             else
-                return new String((sbyte*)cstr);
+                return new string((sbyte*)cstr);
         }
 
         internal static void ClearNative(IntPtr pNative)
@@ -163,7 +163,7 @@ namespace System.StubHelpers
             if (IntPtr.Zero == cstr)
                 return null;
             int nbBytes = StubHelpers.strlen((sbyte*)cstr);
-            return String.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
+            return string.CreateStringFromEncoding((byte*)cstr, nbBytes, Encoding.UTF8);
         }
 
         internal static void ClearNative(IntPtr pNative)
@@ -307,12 +307,12 @@ namespace System.StubHelpers
                     // In the empty string case, we need to use FastAllocateString rather than the
                     // String .ctor, since newing up a 0 sized string will always return String.Emtpy.
                     // When we marshal that out as a bstr, it can wind up getting modified which
-                    // corrupts String.Empty.
-                    ret = String.FastAllocateString(0);
+                    // corrupts string.Empty.
+                    ret = string.FastAllocateString(0);
                 }
                 else
                 {
-                    ret = new String((char*)bstr, 0, (int)(length / 2));
+                    ret = new string((char*)bstr, 0, (int)(length / 2));
                 }
 
                 if ((length & 1) == 1)
@@ -387,7 +387,7 @@ namespace System.StubHelpers
                 return null;
             }
 
-            return new String((sbyte*)pNative, 0, cch);
+            return new string((sbyte*)pNative, 0, cch);
         }
 
         internal static unsafe void ClearNative(IntPtr pNative)
@@ -437,7 +437,7 @@ namespace System.StubHelpers
                 // We intentionally ignore the length field of the BSTR for back compat reasons.
                 // Unfortunately VB.NET uses Ansi BSTR marshaling when a string is passed ByRef
                 // and we cannot afford to break this common scenario.
-                return new String((sbyte*)bstr);
+                return new string((sbyte*)bstr);
             }
         }
 
@@ -480,24 +480,24 @@ namespace System.StubHelpers
     [StructLayout(LayoutKind.Sequential)]
     internal struct DateTimeNative
     {
-        public Int64 UniversalTime;
+        public long UniversalTime;
     };
 
     internal static class DateTimeOffsetMarshaler
     {
         // Numer of ticks counted between 0001-01-01, 00:00:00 and 1601-01-01, 00:00:00.
         // You can get this through:  (new DateTimeOffset(1601, 1, 1, 0, 0, 1, TimeSpan.Zero)).Ticks;
-        private const Int64 ManagedUtcTicksAtNativeZero = 504911232000000000;
+        private const long ManagedUtcTicksAtNativeZero = 504911232000000000;
 
         internal static void ConvertToNative(ref DateTimeOffset managedDTO, out DateTimeNative dateTime)
         {
-            Int64 managedUtcTicks = managedDTO.UtcTicks;
+            long managedUtcTicks = managedDTO.UtcTicks;
             dateTime.UniversalTime = managedUtcTicks - ManagedUtcTicksAtNativeZero;
         }
 
         internal static void ConvertToManaged(out DateTimeOffset managedLocalDTO, ref DateTimeNative nativeTicks)
         {
-            Int64 managedUtcTicks = ManagedUtcTicksAtNativeZero + nativeTicks.UniversalTime;
+            long managedUtcTicks = ManagedUtcTicksAtNativeZero + nativeTicks.UniversalTime;
             DateTimeOffset managedUtcDTO = new DateTimeOffset(managedUtcTicks, TimeSpan.Zero);
 
             // Some Utc times cannot be represented in local time in certain timezones. E.g. 0001-01-01 12:00:00 AM cannot 
@@ -609,7 +609,6 @@ namespace System.StubHelpers
     }  // class DateMarshaler
 
 #if FEATURE_COMINTEROP
-    // [FriendAccessAllowed]
     internal static class InterfaceMarshaler
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -621,7 +620,6 @@ namespace System.StubHelpers
         [DllImport(JitHelpers.QCall)]
         internal static extern void ClearNative(IntPtr pUnk);
 
-        // [FriendAccessAllowed]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern object ConvertToManagedWithoutUnboxing(IntPtr pNative);
     }  // class InterfaceMarshaler
@@ -645,41 +643,6 @@ namespace System.StubHelpers
         }
     }  // class InterfaceMarshaler
 
-    // [FriendAccessAllowed]
-    internal static class EventArgsMarshaler
-    {
-        // [FriendAccessAllowed]
-        internal static IntPtr CreateNativeNCCEventArgsInstance(int action, object newItems, object oldItems, int newIndex, int oldIndex)
-        {
-            IntPtr newItemsIP = IntPtr.Zero;
-            IntPtr oldItemsIP = IntPtr.Zero;
-
-            RuntimeHelpers.PrepareConstrainedRegions();
-            try
-            {
-                if (newItems != null)
-                    newItemsIP = Marshal.GetComInterfaceForObject(newItems, typeof(IBindableVector));
-                if (oldItems != null)
-                    oldItemsIP = Marshal.GetComInterfaceForObject(oldItems, typeof(IBindableVector));
-
-                return CreateNativeNCCEventArgsInstanceHelper(action, newItemsIP, oldItemsIP, newIndex, oldIndex);
-            }
-            finally
-            {
-                if (oldItemsIP != IntPtr.Zero)
-                    Marshal.Release(oldItemsIP);
-                if (newItemsIP != IntPtr.Zero)
-                    Marshal.Release(newItemsIP);
-            }
-        }
-
-        // [FriendAccessAllowed]
-        [DllImport(JitHelpers.QCall)]
-        static internal extern IntPtr CreateNativePCEventArgsInstance([MarshalAs(UnmanagedType.HString)]string name);
-
-        [DllImport(JitHelpers.QCall)]
-        static internal extern IntPtr CreateNativeNCCEventArgsInstanceHelper(int action, IntPtr newItem, IntPtr oldItem, int newIndex, int oldIndex);
-    }
 #endif // FEATURE_COMINTEROP
 
     internal static class MngdNativeArrayMarshaler
@@ -779,7 +742,7 @@ namespace System.StubHelpers
         {
             if (managedArray != null)
             {
-                Int32* nativeBuffer = *(Int32**)pNativeHome;
+                int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
                 {
                     nativeBuffer[i] = HResultExceptionMarshaler.ConvertToNative(managedArray[i]);
@@ -846,7 +809,7 @@ namespace System.StubHelpers
         {
             if (managedArray != null)
             {
-                Int32* nativeBuffer = *(Int32**)pNativeHome;
+                int* nativeBuffer = *(int**)pNativeHome;
                 for (int i = 0; i < managedArray.Length; i++)
                 {
                     managedArray[i] = HResultExceptionMarshaler.ConvertToManaged(nativeBuffer[i]);
@@ -1065,7 +1028,7 @@ namespace System.StubHelpers
                 int allocSize = (pManagedHome.Length + 1) * 2;
                 pNativeHome = Marshal.AllocCoTaskMem(allocSize);
 
-                String.InternalCopy(pManagedHome, pNativeHome, allocSize);
+                string.InternalCopy(pManagedHome, pNativeHome, allocSize);
             }
 
             return pNativeHome;
@@ -1380,7 +1343,7 @@ namespace System.StubHelpers
             }
 
             string typeName = WindowsRuntimeMarshal.HStringToString(pNativeType->typeName);
-            if (String.IsNullOrEmpty(typeName))
+            if (string.IsNullOrEmpty(typeName))
             {
                 managedType = null;
                 return;
@@ -1491,7 +1454,7 @@ namespace System.StubHelpers
         private IntPtr data1;
         private IntPtr data2;
 #else
-        Int64  data1;
+        long data1;
 #endif
     }  // struct NativeVariant
 
@@ -1732,7 +1695,7 @@ namespace System.StubHelpers
         internal static extern unsafe int strlen(sbyte* ptr);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void DecimalCanonicalizeInternal(ref Decimal dec);
+        internal static extern void DecimalCanonicalizeInternal(ref decimal dec);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern unsafe void FmtClassUpdateNativeInternal(object obj, byte* pNative, ref CleanupWorkList pCleanupWorkList);
