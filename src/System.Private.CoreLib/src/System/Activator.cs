@@ -67,54 +67,54 @@ namespace System
         public static ObjectHandle CreateInstance(string assemblyName, string typeName)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return CreateInstance(assemblyName,
-                                  typeName,
-                                  false,
-                                  Activator.ConstructorDefault,
-                                  null,
-                                  null,
-                                  null,
-                                  null,
-                                  ref stackMark);
+            return CreateInstanceInternal(assemblyName,
+                                          typeName,
+                                          false,
+                                          Activator.ConstructorDefault,
+                                          null,
+                                          null,
+                                          null,
+                                          null,
+                                          ref stackMark);
         }
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return CreateInstance(assemblyName,
-                                  typeName,
-                                  ignoreCase,
-                                  bindingAttr,
-                                  binder,
-                                  args,
-                                  culture,
-                                  activationAttributes,
-                                  ref stackMark);
+            return CreateInstanceInternal(assemblyName,
+                                          typeName,
+                                          ignoreCase,
+                                          bindingAttr,
+                                          binder,
+                                          args,
+                                          culture,
+                                          activationAttributes,
+                                          ref stackMark);
         }
 
         public static ObjectHandle CreateInstance(string assemblyName, string typeName, object[] activationAttributes)
         {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return CreateInstance(assemblyName,
-                                  typeName,
-                                  false,
-                                  Activator.ConstructorDefault,
-                                  null,
-                                  null,
-                                  null,
-                                  activationAttributes,
-                                  ref stackMark);
+            return CreateInstanceInternal(assemblyName,
+                                          typeName,
+                                          false,
+                                          Activator.ConstructorDefault,
+                                          null,
+                                          null,
+                                          null,
+                                          activationAttributes,
+                                          ref stackMark);
         }
 
-        static internal ObjectHandle CreateInstance(String assemblyString,
-                                                    String typeName,
-                                                    bool ignoreCase,
-                                                    BindingFlags bindingAttr,
-                                                    Binder binder,
-                                                    Object[] args,
-                                                    CultureInfo culture,
-                                                    Object[] activationAttributes,
-                                                    ref StackCrawlMark stackMark)
+        private static ObjectHandle CreateInstanceInternal(String assemblyString,
+                                                           String typeName,
+                                                           bool ignoreCase,
+                                                           BindingFlags bindingAttr,
+                                                           Binder binder,
+                                                           Object[] args,
+                                                           CultureInfo culture,
+                                                           Object[] activationAttributes,
+                                                           ref StackCrawlMark stackMark)
         {
             Type type = null;
             Assembly assembly = null;
@@ -178,13 +178,13 @@ namespace System
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, bool ignoreCase, BindingFlags bindingAttr, Binder binder, object[] args, CultureInfo culture, object[] activationAttributes)
         {
             return CreateInstanceFromInternal(assemblyFile,
-                                            typeName,
-                                            ignoreCase,
-                                            bindingAttr,
-                                            binder,
-                                            args,
-                                            culture,
-                                            activationAttributes);
+                                              typeName,
+                                              ignoreCase,
+                                              bindingAttr,
+                                              binder,
+                                              args,
+                                              culture,
+                                              activationAttributes);
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName, object[] activationAttributes)
@@ -200,13 +200,13 @@ namespace System
         }
 
         private static ObjectHandle CreateInstanceFromInternal(String assemblyFile,
-                                                              String typeName,
-                                                              bool ignoreCase,
-                                                              BindingFlags bindingAttr,
-                                                              Binder binder,
-                                                              Object[] args,
-                                                              CultureInfo culture,
-                                                              Object[] activationAttributes)
+                                                               String typeName,
+                                                               bool ignoreCase,
+                                                               BindingFlags bindingAttr,
+                                                               Binder binder,
+                                                               Object[] args,
+                                                               CultureInfo culture,
+                                                               Object[] activationAttributes)
         {
             Assembly assembly = Assembly.LoadFrom(assemblyFile);
             Type t = assembly.GetType(typeName, true, ignoreCase);
