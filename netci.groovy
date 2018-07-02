@@ -1565,6 +1565,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                         break
                     }
+
+                    else  if (scenario == 'corefx_innerloop') {
+                        if (configuration == 'Release' || configuration == 'Checked') {
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                        }
+                        break
+                    }
+
                     // fall through
 
                 case 'OSX10.12':
@@ -1623,6 +1631,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'gc_reliability_framework':
                             if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+
+                        case 'corefx_innerloop':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                             }
                             break
 
@@ -2218,23 +2232,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         runtestArguments = "${lowerConfiguration} ${arch} ${testOpts}"
 
                         if (doCoreFxTesting) {
-                            assert (os == 'Ubuntu' || os == 'Windows_NT' || os == 'OSX10.12')
                             if (scenario == 'corefx_innerloop') {
-                                if (os == 'Windows_NT') {
-                                    // Create CORE_ROOT and testhost
-                                    buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
-                                    buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
+                                // Create CORE_ROOT and testhost
+                                buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
+                                buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
 
-                                    // TODO: Move outside of the if block, once logic Unix PR Logic is merged
-                                    // Archive and process (only) the test results
-                                    Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
-                                    Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
-                                }
-                                else if (os == 'Ubuntu' || os == 'OSX10.12') {
-                                    buildCommands += "./build.sh ${lowerConfiguration} ${arch} skiptests"
-                                    buildCommands += "./build-test.sh ${lowerConfiguration} ${arch} generatetesthostonly"
-                                    buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=%WORKSPACE%/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=%WORKSPACE%"
-                                }
+                                // Archive and process (only) the test results
+                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                                Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+
                             }
                             else {
                               def workspaceRelativeFxRoot = "_/fx"
@@ -2422,32 +2428,51 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
                     else {
-                        // Corefx stress testing
-                        assert os == 'Ubuntu'
-                        assert architecture == 'x64'
-                        assert lowerConfiguration == 'checked'
-                        assert isJitStressScenario(scenario)
+                        if(scenario == 'corefx_innerloop') {
 
-                        // Build coreclr
-                        buildCommands += "./build.sh ${lowerConfiguration} ${architecture}"
+                            assert os == 'Ubuntu'
+                            assert architecture == 'x64'
+                            assert lowerConfiguration == 'checked' || lowerConfiguration == 'release'
+                            assert isJitStressScenario(scenario)
 
-                        def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                            buildCommands += "./build.sh ${lowerConfiguration} ${arch} skiptests"
+                            buildCommands += "./build-test.sh ${lowerConfiguration} ${arch} generatetesthostonly"
+                            buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=%WORKSPACE%/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=%WORKSPACE%"
+                            
+                            break
+                            // TODO - uncomment once https://github.com/dotnet/coreclr/pull/18753 has been merged
+                            // Archive and process (only) the test results
+                            // Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                            // Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                        }
+                        else {
+                            // Corefx stress testing
+                            assert os == 'Ubuntu'
+                            assert architecture == 'x64'
+                            assert lowerConfiguration == 'checked'
+                            assert isJitStressScenario(scenario)
 
-                        def envScriptCmds = envScriptCreate(os, scriptFileName)
-                        envScriptCmds += envScriptSetStressModeVariables(os, Constants.jitStressModeScenarios[scenario], scriptFileName)
-                        envScriptCmds += envScriptFinalize(os, scriptFileName)
-                        buildCommands += envScriptCmds
+                            // Build coreclr
+                            buildCommands += "./build.sh ${lowerConfiguration} ${architecture}"
 
-                        // Build and text corefx
-                        def workspaceRelativeFxRoot = "_/fx"
-                        def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
-                        def fxBranch = getFxBranch(branch)
+                            def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
 
-                        buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
+                            def envScriptCmds = envScriptCreate(os, scriptFileName)
+                            envScriptCmds += envScriptSetStressModeVariables(os, Constants.jitStressModeScenarios[scenario], scriptFileName)
+                            envScriptCmds += envScriptFinalize(os, scriptFileName)
+                            buildCommands += envScriptCmds
 
-                        // Archive and process (only) the test results
-                        Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                        Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                            // Build and text corefx
+                            def workspaceRelativeFxRoot = "_/fx"
+                            def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
+                            def fxBranch = getFxBranch(branch)
+
+                            buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
+
+                            // Archive and process (only) the test results
+                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                        }
                     }
                     break
                 case 'armem':
@@ -2817,7 +2842,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 }
                 break
             case 'corefx_innerloop':
-                if (os != 'Windows_NT' || os != 'Ubuntu' || os != 'OSX10.12' ||  architecture != 'x64') {
+                if ( (os != 'Windows_NT' && os != 'Ubuntu' &&  os != 'OSX10.12') ||  architecture != 'x64') {
                     return false
                 }
                 if(configuration != 'Release' && configuration != 'Checked') {
