@@ -5,6 +5,11 @@
     <CLRTestKind Condition="'$(CLRTestKind)' == ''">BuildAndRun</CLRTestKind>
     <CLRTestPriority Condition="'$(CLRTestPriority)' == ''">0</CLRTestPriority>
   </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(UsingMicrosoftNETSdk)' == 'true'">
+    <!-- Many parts of the tests expect the output file to be an exe. We override the extension to match here, but in future we should probably update the infrastructure to look for dlls -->
+    <TargetExt Condition="'$(OutputType)' == 'Exe' and '$(TargetExt)' == '.dll'">.exe</TargetExt>
+  </PropertyGroup>
 
   <!-- All CLRTests need to be of a certain "kind". These kinds are enumerated below.
   By default all tests are BuildAndRun. This means that the build system will Build them
