@@ -199,7 +199,7 @@
       "defaultValue": "/t:GenerateVersionHeader /p:GenerateVersionHeader=true"
     },
     "GenerateVersionSourceFile": {
-      "description": "Generate version.cpp",
+      "description": "Generate version.c",
       "valueType": "passThrough",
       "values": [],
       "defaultValue": "/t:GenerateVersionSourceFile /p:GenerateVersionSourceFile=true"
@@ -211,7 +211,7 @@
       "defaultValue": "/maxcpucount"
     },
     "NativeVersionSourceFile": {
-      "description": "Provides location for version.cpp",
+      "description": "Provides location for version.c",
       "valueType": "property",
       "values": [],
       "defaultValue": ""
@@ -468,7 +468,7 @@
           }
         },
         "generateHeaderUnix": {
-          "description": "Generates version.cpp",
+          "description": "Generates version.c",
           "settings": {
             "GenerateVersionSourceFile": "default",
             "NativeVersionSourceFile": "default"
