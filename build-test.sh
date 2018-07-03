@@ -761,7 +761,7 @@ fi
 # This is where all built CoreClr libraries will copied to.
 export __CMakeBinDir="$__BinDir"
 if [ [ ! -d "$__BinDir" ] || [ ! -d "$__BinDir/bin" ] ]; then
-    if [ [ -z "$__GenerateLayoutOnly" ] && -z [ "$__GenerateTestHostOnly" ] ]; then
+    if [ [ -z "$__GenerateLayoutOnly" ] && [ -z "$__GenerateTestHostOnly" ] ]; then
 
         echo "Cannot find build directory for the CoreCLR native tests."
         echo "Please make sure native tests are built before building managed tests."
@@ -799,7 +799,7 @@ if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") ]]; then
 else
     echo "Generating test layout..."
     generate_layout
-    if [ "$__GenerateTestHostOnly" ]; then
+    if [ ! -z "$__GenerateTestHostOnly" ]; then
         echo "Generating test host..."        
         generate_testhost
     fi

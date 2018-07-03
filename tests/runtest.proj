@@ -422,8 +422,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
       <HostFxrFileExtension Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'">so</HostFxrFileExtension>
       <HostFxrFileExtension Condition="$(OSGroup) =='OSX'">dylib</HostFxrFileExtension>
       <HostPolicyFileName>libhostpolicy</HostPolicyFileName>
-      <HostPolicyExtension Condition="'$(OSGroup)' == 'Linux' Or '$(OSGroup)' == 'FreeBSD'">so</HostPolicyExtension>
-      <HostPolicyExtension Condition="$(OSGroup) =='OSX'">dylib</HostPolicyExtension>
+      <HostPolicyExtension>$(HostFxrFileExtension)</HostPolicyExtension>
       <DotnetExecutableName>dotnet</DotnetExecutableName>
     </PropertyGroup>
     

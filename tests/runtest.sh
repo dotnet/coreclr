@@ -70,7 +70,7 @@ function print_usage {
     echo 'CoreFX Test Options '
     echo '  --corefxtests                    : Runs CoreFX tests'
     echo '  --corefxtestsall                 : Runs all available CoreFX tests'
-    echo '  --corefxtestlist                 : Runs the CoreFX tests specified in the passed list'   
+    echo '  --corefxtestlist=<path>          : Runs the CoreFX tests specified in the passed list'   
     echo '  --testHostDir=<path>             : Directory containing a built test host including core binaries, test dependencies' 
     echo '                                     and a dotnet executable'
     echo 'Runtime Code Coverage options:'
@@ -468,11 +468,6 @@ function create_testhost
     fi
 
     case "${OSName}" in
-        # Check if we're running under Linux
-        Linux)
-            local coreFXTestRemoteURL=$(<${coreClrSrcTestDir}/CoreFX/CoreFXTestListURL_Linux.txt)
-            local coreFXTestExclusionDef=nonlinuxtests
-        ;;
         # Check if we're running under OSX        
         Darwin)
             local coreFXTestRemoteURL=$(<${coreClrSrcTestDir}/CoreFX/CoreFXTestListURL_OSX.txt)
