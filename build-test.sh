@@ -188,7 +188,6 @@ generate_layout()
         ln -s "${__BuildToolsDir}/Microsoft.CSharp.Targets" "${__BuildToolsDir}/Microsoft.CSharp.targets"
     fi
 
-    generate_testhost
 }
 
 generate_testhost()
