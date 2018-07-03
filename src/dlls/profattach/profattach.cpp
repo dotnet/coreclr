@@ -12,7 +12,10 @@
 
 // ======================================================================================
 
+#ifndef FEATURE_PAL
 #include <Windows.h>
+#endif
+
 #include <winwrap.h>
 #include <utilcode.h>
 #include <log.h>
