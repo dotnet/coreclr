@@ -1567,7 +1567,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
 
                     else  if (scenario == 'corefx_innerloop') {
-                        if (configuration == 'Release' || configuration == 'Checked') {
+                        if (configuration == 'Checked') {
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                         }
                         break
@@ -1635,7 +1635,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
 
                         case 'corefx_innerloop':
-                            if (configuration == 'Release' || configuration == 'Checked') {
+                            if (configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                             }
                             break
@@ -1757,7 +1757,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             break
                         case 'corefx_innerloop':
-                            if (configuration == 'Release' || configuration == 'Checked') {
+                            if (configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                             }
                             break
