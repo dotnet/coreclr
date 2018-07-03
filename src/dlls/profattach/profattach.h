@@ -12,7 +12,7 @@
 #endif // FEATURE_PROFAPI_ATTACH_DETACH
 
 /* Create a ICLRProfiling Instance that can be used to send attach requests */
-EXTERN_C void 
+EXTERN_C bool
 CreateCLRProfiling(
     __in LPCWSTR CLRFullPath,
     __out LPVOID pCLRProfilingInstance

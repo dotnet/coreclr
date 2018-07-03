@@ -16,6 +16,7 @@
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 
 #include <sddl.h>                   // Windows security descriptor language
+#include <metahost.h>
 #include <SecurityUtil.h>
 #include "eeprofinterfaces.h"
 #include "eetoprofinterfaceimpl.h"
@@ -1293,7 +1294,7 @@ STDAPI ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
         SO_NOT_MAINLINE;
-        //PRECONDITION(rclsid == CLSID_CLRProfiling);
+        PRECONDITION(rclsid == CLSID_CLRProfiling);
     }
     CONTRACTL_END;
 

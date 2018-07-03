@@ -58,12 +58,12 @@ typedef HRESULT(STDAPICALLTYPE * fpICLRProfilingGetClassObject)(
     REFIID riid,
     LPVOID * ppv);
 
-void
+bool
 CreateCLRProfiling(
     __in LPCWSTR pCoreCLRFullPath,
     __out void ** ppCLRProfilingInstance)
 {
-    //PUBLIC_CONTRACT;
+    PUBLIC_CONTRACT;
 
     HRESULT hrIgnore = S_OK; // ignored HResult
     HRESULT hr = S_OK;
@@ -72,7 +72,7 @@ CreateCLRProfiling(
 
     LOG((LF_CORDB, LL_EVERYTHING, "Calling CreateCLRProfiling"));
 
-    //EX_TRY
+    EX_TRY
     {
         SString szFullCoreClrPath;
         szFullCoreClrPath.Set(pCoreCLRFullPath, (COUNT_T)wcslen(pCoreCLRFullPath));
@@ -86,24 +86,24 @@ CreateCLRProfiling(
         hMod = LoadLibraryExW(szFullCoreClrPath, NULL, 0);
 #endif
     }
-    //EX_CATCH_HRESULT(hrIgnore); // failure leaves hMod null
+    EX_CATCH_HRESULT(hrIgnore); // failure leaves hMod null
 
     // Could not load or find coreclr
     // TODO: probably should try to come up with a set of rules to find coreclr elsewhere
     if (hMod == NULL)
     {
         //bail
-        return;
-        //return E_NOTIMPL;
+        return false;
     }
     
     // Now create instance
     fpICLRProfilingGetClassObject fpICLRProfiling = NULL;
     fpICLRProfiling = (fpICLRProfilingGetClassObject)GetProcAddress(hMod, "ICLRProfilingGetClassObject");
 
+    // could not load ICLRProfilingGetClassObject from CoreCLR
     if (fpICLRProfiling == NULL)
     {
-        return;
+        return false;
     }
 
     IClassFactory * pFactory = NULL;
@@ -112,6 +112,7 @@ CreateCLRProfiling(
     {
         hr = pFactory->CreateInstance(NULL, IID_ICLRProfiling, ppCLRProfilingInstance);
         pFactory->Release();
+        return true;
     }
-   // return hr;
+    return false;
 }
