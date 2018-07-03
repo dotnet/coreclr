@@ -500,28 +500,58 @@ void MethodContextReader::ReadExcludedMethods(std::string mchFileName)
     {
         return;
     }
-    FILE* fp = fopen(excludeFileName.c_str(), "r");
-    if (fp != nullptr)
+    HANDLE excludeFileHandle = OpenFile(excludeFileName.c_str());
+    if (excludeFileHandle != INVALID_HANDLE_VALUE)
     {
-        int counter = 0;
-        while (!feof(fp))
+        LARGE_INTEGER excludeFileSizeStruct;
+        GetFileSizeEx(excludeFileHandle, &excludeFileSizeStruct);
+        DWORD excludeFileSize = excludeFileSizeStruct.LowPart;
+
+        char* buffer = new char[excludeFileSize + 1];
+        DWORD bytesRead;
+        bool success = (ReadFile(excludeFileHandle, buffer, excludeFileSize, &bytesRead, NULL) == TRUE);
+        CloseHandle(excludeFileHandle);
+
+        if (!success || excludeFileSize != bytesRead)
         {
-            char buf[MD5_HASH_BUFFER_SIZE];
-            int  readItems                = fscanf(fp, "%s", buf);
-            buf[MD5_HASH_BUFFER_SIZE - 1] = 0; // In case if we read more then we wanted.
-            if (readItems != 1 || strlen(buf) + 1 != MD5_HASH_BUFFER_SIZE)
+            LogError("Failed to read the exclude file");
+            delete[] buffer;
+            return;
+        }
+
+        buffer[excludeFileSize] = 0;
+
+        int counter = 0;
+
+        char* curr = buffer;
+        while (*curr != 0)
+        {
+            while (isspace(*curr))
             {
-                LogInfo("The exclude file contains wrong values: %s.", buf);
-                break;
+                curr++;
+            }
+            
+            std::string hash;
+            while (*curr != 0 && !isspace(*curr))
+            {
+                hash += *curr;
+                curr++;
             }
 
-            StringList* node    = new StringList();
-            node->hash          = buf;
-            node->next          = excludedMethodsList;
-            excludedMethodsList = node;
-            counter++;
+            if (hash.length() == MD5_HASH_BUFFER_SIZE - 1)
+            {
+                StringList* node    = new StringList();
+                node->hash          = hash;
+                node->next          = excludedMethodsList;
+                excludedMethodsList = node;
+                counter++;
+            }
+            else
+            {
+                LogInfo("The exclude file contains wrong values: %s.", hash.c_str());
+            }
         }
-        fclose(fp);
+        delete[] buffer;
         LogInfo("Exclude file %s contains %d methods.", excludeFileName.c_str(), counter);
     }
 }
