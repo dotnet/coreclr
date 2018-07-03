@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit.Abstractions;
 
-namespace R2RDump.Test
+namespace R2RDumpTest
 {
     public class BasicTest
     {

@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using Xunit.Abstractions;
+using R2RDump;
 
-namespace R2RDump.Test
+namespace R2RDumpTest
 {
     class TestHelpers
     {
