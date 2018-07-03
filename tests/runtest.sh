@@ -484,17 +484,14 @@ function create_testhost
     local coreFXLogDir=${coreClrBinDir}/Logs/CoreFX/
     local coreFXTestExecutableArgs="--notrait category=nonnetcoreapptests --notrait category=${coreFXTestExclusionDef} --notrait category=failing --notrait category=IgnoreForCI --notrait category=OuterLoop --notrait Benchmark=true"
 
-    # What happens on distros where msbuild is not supported?
-    restoreCommand="${dotnetExe} msbuild /t:Restore ${coreFXTestSetupUtility}"
-    echo $restoreCommand
-    eval $restoreCommand
+    chmod +x ${dotnetExe}
+    resetCommandArgs=("msbuild /t:Restore ${coreFXTestSetupUtility}")
+    echo "${dotnetExe} $resetCommandArgs"
+    "${dotnetExe}" $resetCommandArgs
 
-    buildCommand="${dotnetExe} msbuild ${coreFXTestSetupUtility} /p:OutputPath=${coreFXTestSetupUtilityOutputPath} /p:Platform=${_arch} /p:Configuration=Release"
-    echo $buildCommand    
-    # Invoke MSBuild
-    eval $buildCommand
-
-    chmod +x $dotnetExe
+    buildCommandArgs=("msbuild ${coreFXTestSetupUtility} /p:OutputPath=${coreFXTestSetupUtilityOutputPath} /p:Platform=${_arch} /p:Configuration=Release")
+    echo "${dotnetExe} $buildCommandArgs"
+    "${dotnetExe}" $buildCommandArgs
     
     if [ "${RunCoreFXTestsAll}" == "1" ]; then
         local coreFXRunCommand=--runAllTests
@@ -502,10 +499,9 @@ function create_testhost
         local coreFXRunCommand=--runSpecifiedTests
     fi
 
-
-    runCommand="${dotnetExe} ${coreFXTestSetupUtilityOutputPath}/${coreFXTestSetupUtilityName}.dll --clean --outputDirectory ${coreFXTestBinariesOutputPath} --testListJsonPath ${CoreFXTestList} ${coreFXRunCommand} --dotnetPath ${testHostDir}/dotnet --testUrl ${coreFXTestRemoteURL} --executable ${coreFXTestExecutable} --log ${coreFXLogDir} ${coreFXTestExecutableArgs}"
-    echo $runCommand
-    eval $runCommand
+    local buildTestSetupUtilArgs=("${coreFXTestSetupUtilityOutputPath}/${coreFXTestSetupUtilityName}.dll --clean --outputDirectory ${coreFXTestBinariesOutputPath} --testListJsonPath ${CoreFXTestList} ${coreFXRunCommand} --dotnetPath ${testHostDir}/dotnet --testUrl ${coreFXTestRemoteURL} --executable ${coreFXTestExecutable} --log ${coreFXLogDir} ${coreFXTestExecutableArgs}")
+    echo "${dotnetExe} $buildTestSetupUtilArgs"
+    "${dotnetExe}" $buildTestSetupUtilArgs
 
     local exitCode=$?
     if [ $exitCode != 0 ]; then
