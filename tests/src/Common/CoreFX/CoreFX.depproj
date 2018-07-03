@@ -168,7 +168,7 @@
       <Version>$(MicrosoftDiagnosticsTracingTraceVentVersion)</Version>
     </PackageReference>
   </ItemGroup>
-
+  
   <ItemGroup Condition="'$(OSGroup)' != 'Windows_NT'">
     <PackageReference Include="Microsoft.DotNet.PlatformAbstractions">
       <Version>$(MicrosoftDotnetPlatformAbstractionsVersion)</Version>
