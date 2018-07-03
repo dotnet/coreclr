@@ -18,6 +18,14 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="RemoveRuntimeReferences"
+          Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'" 
+          AfterTargets="ResolveReferences">
+    <ItemGroup>
+      <ReferencePath Remove="@(ReferencePath)" Condition="$([System.String]::new('%(ReferencePath.HintPath)').EndsWith('System.Runtime.dll')) or $([System.String]::new('%(ReferencePath.HintPath)').EndsWith('System.Collections.dll'))" />
+    </ItemGroup>        
+  </Target>
+  
   <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
     <!--
       Allow this project to setup the default target frameworks. Note this depends on the targeting packs that VS
