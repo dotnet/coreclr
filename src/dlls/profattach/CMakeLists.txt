@@ -57,7 +57,6 @@ endif(CLR_CMAKE_PLATFORM_UNIX)
 set(PROFATTACH_LIBRARIES
     debug-pal
     corguids
-    dbgutil
     utilcodestaticnohost
 )
 
@@ -77,7 +76,6 @@ if(WIN32)
 else()
     list(APPEND PROFATTACH_LIBRARIES
         coreclrpal
-        mscorrc_debug
         palrt
     )
 endif(WIN32)
