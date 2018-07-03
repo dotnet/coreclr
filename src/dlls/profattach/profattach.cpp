@@ -77,9 +77,6 @@ CreateCLRProfiling(
         SString szFullCoreClrPath;
         szFullCoreClrPath.Set(pCoreCLRFullPath, (COUNT_T)wcslen(pCoreCLRFullPath));
 
-        // Issue:951525: coreclr mscordbi load fails on downlevel OS since LoadLibraryEx can't find 
-        // dependent forwarder DLLs. Force LoadLibrary to look for dependencies in szFullDbiPath plus the default
-        // search paths.
 #ifndef FEATURE_PAL
         hMod = WszLoadLibraryEx(szFullCoreClrPath, NULL, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
 #else
