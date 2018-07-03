@@ -446,6 +446,7 @@ namespace R2RDump
             {
                 int rva = NativeReader.ReadInt32(Image, ref offset);
                 int sectionOffset = GetOffset(rva);
+                int startOffset = sectionOffset;
                 int size = NativeReader.ReadInt32(Image, ref offset);
                 R2RImportSection.CorCompileImportFlags flags = (R2RImportSection.CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
                 byte type = NativeReader.ReadByte(Image, ref offset);
@@ -472,11 +473,14 @@ namespace R2RDump
                             uint sigRva = 0;
                             while (sigRva != firstSigRva)
                             {
+                                int entryOffset = sectionOffset - startOffset;
                                 sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
                                 long section = NativeReader.ReadInt64(Image, ref sectionOffset);
                                 int sigOff = GetOffset((int)sigRva);
-                                uint signature = NativeReader.ReadUInt32(Image, ref sigOff);
-                                entries.Add(new R2RImportSection.ImportSectionEntry(section, sigRva, signature));
+                                int sigSampleLength = Math.Min(8, Image.Length - sigOff);
+                                byte[] signatureSample = new byte[sigSampleLength];
+                                Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
+                                entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
                             }
                         }
                         break;
@@ -484,11 +488,14 @@ namespace R2RDump
                     case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_PCODE:
                         for (int i = 0; i < entryCount; i++)
                         {
+                            int entryOffset = sectionOffset - startOffset;
                             long section = NativeReader.ReadInt64(Image, ref sectionOffset);
                             uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
                             int sigOff = GetOffset((int)sigRva);
-                            uint signature = NativeReader.ReadUInt32(Image, ref sigOff);
-                            entries.Add(new R2RImportSection.ImportSectionEntry(section, sigRva, signature));
+                            int sigSampleLength = Math.Min(8, Image.Length - sigOff);
+                            byte[] signatureSample = new byte[sigSampleLength];
+                            Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
+                            entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
                         }
                         break;
                 }
