@@ -3660,9 +3660,6 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-            // lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
-            // The type of the register depends on the classification of the first eightbyte
-            // of the struct.
             assert((i > 0) || (regNum == varDsc->lvArgReg));
 #endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
