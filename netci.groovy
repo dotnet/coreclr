@@ -2429,14 +2429,12 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     else {
                         if(scenario == 'corefx_innerloop') {
-
                             assert os == 'Ubuntu'
                             assert architecture == 'x64'
                             assert lowerConfiguration == 'checked' || lowerConfiguration == 'release'
-                            assert isJitStressScenario(scenario)
 
-                            buildCommands += "./build.sh ${lowerConfiguration} ${arch} skiptests"
-                            buildCommands += "./build-test.sh ${lowerConfiguration} ${arch} generatetesthostonly"
+                            buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
+                            buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
                             buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=%WORKSPACE%/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=%WORKSPACE%"
                             
                             break
