@@ -2429,9 +2429,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     else {
                         if(scenario == 'corefx_innerloop') {
-                            assert os == 'Ubuntu'
+                            assert os == 'Ubuntu' || 'OSX10.12'
                             assert architecture == 'x64'
-                            assert lowerConfiguration == 'checked' || lowerConfiguration == 'release'
+                            assert lowerConfiguration == 'checked'
 
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
@@ -2843,7 +2843,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 if ( (os != 'Windows_NT' && os != 'Ubuntu' &&  os != 'OSX10.12') ||  architecture != 'x64') {
                     return false
                 }
-                if(configuration != 'Release' && configuration != 'Checked') {
+                if(configuration != 'Checked') {
                     return false
                 }
                 break
