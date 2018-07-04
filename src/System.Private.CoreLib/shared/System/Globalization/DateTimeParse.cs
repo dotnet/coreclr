@@ -4808,15 +4808,10 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             }
 
             // Parse " GMT".  It must be upper case.
+            if (source[25] != ' ' || source[26] != 'G' || source[27] != 'M' || source[28] != 'T')
             {
-                uint space = source[25], g = source[26], m = source[27], t = source[28];
-
-                if ((space | g | m | t) > 0x7F ||
-                    ((space << 24) | (g << 16) | (m << 8) | t) != 0x20474d54 /*' GMT'*/)
-                {
-                    result.SetBadDateTimeFailure();
-                    return false;
-                }
+                result.SetBadDateTimeFailure();
+                return false;
             }
 
             // Validate that the parsed date is valid according to the calendar.
