@@ -12,7 +12,7 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    abstract class Dumper
+    public abstract class Dumper
     {
         internal R2RReader _r2r;
         internal bool _raw;

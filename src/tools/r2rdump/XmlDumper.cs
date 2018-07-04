@@ -7,16 +7,16 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    class XmlDumper : Dumper
+    public class XmlDumper : Dumper
     {
-        private XmlDocument _xmlDocument;
+        public XmlDocument XmlDocument { get; }
         private XmlNode _rootNode;
 
         public XmlDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
         {
             _r2r = r2r;
             _writer = writer;
-            _xmlDocument = new XmlDocument();
+            XmlDocument = new XmlDocument();
 
             _raw = raw;
             _header = header;
@@ -27,15 +27,26 @@ namespace R2RDump
             _sectionContents = sectionContents;
         }
 
+        public XmlDocument GetXmlDocument()
+        {
+            Begin();
+            DumpHeader(true);
+            DumpAllMethods();
+            return XmlDocument;
+        }
+
         internal override void Begin()
         {
-            _rootNode = _xmlDocument.CreateNode("element", "R2RDump", "");
-            _xmlDocument.AppendChild(_rootNode);
+            _rootNode = XmlDocument.CreateNode("element", "R2RDump", "");
+            XmlDocument.AppendChild(_rootNode);
             Serialize(_r2r, _rootNode);
         }
 
         internal override void End() {
-            _xmlDocument.Save(_writer);
+            if (_writer != null)
+            {
+                XmlDocument.Save(_writer);
+            }
         }
 
         internal override void WriteDivider(string title)
@@ -55,7 +66,7 @@ namespace R2RDump
         /// </summary>
         internal override void DumpHeader(bool dumpSections)
         {
-            XmlNode headerNode = _xmlDocument.CreateNode("element", "Header", "");
+            XmlNode headerNode = XmlDocument.CreateNode("element", "Header", "");
             _rootNode.AppendChild(headerNode);
             Serialize(_r2r.R2RHeader, headerNode);
 
@@ -66,7 +77,7 @@ namespace R2RDump
 
             if (dumpSections)
             {
-                XmlNode sectionsNode = _xmlDocument.CreateNode("element", "Sections", "");
+                XmlNode sectionsNode = XmlDocument.CreateNode("element", "Sections", "");
                 _rootNode.AppendChild(sectionsNode);
                 AddXMLNode("Count", _r2r.R2RHeader.Sections.Count.ToString(), sectionsNode);
 
@@ -82,7 +93,7 @@ namespace R2RDump
         /// </summary>
         internal override void DumpSection(R2RSection section, XmlNode parentNode)
         {
-            XmlNode sectionNode = _xmlDocument.CreateNode("element", "Section", "");
+            XmlNode sectionNode = XmlDocument.CreateNode("element", "Section", "");
             parentNode.AppendChild(sectionNode);
             Serialize(section, sectionNode);
 
@@ -98,7 +109,7 @@ namespace R2RDump
 
         internal override void DumpAllMethods()
         {
-            XmlNode methodsNode = _xmlDocument.CreateNode("element", "Methods", "");
+            XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
             _rootNode.AppendChild(methodsNode);
             AddXMLNode("Count", _r2r.R2RMethods.Count.ToString(), methodsNode);
             foreach (R2RMethod method in _r2r.R2RMethods)
@@ -112,13 +123,13 @@ namespace R2RDump
         /// </summary>
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
-            XmlNode methodNode = _xmlDocument.CreateNode("element", "Method", "");
+            XmlNode methodNode = XmlDocument.CreateNode("element", "Method", "");
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
             if (_gc)
             {
-                XmlNode gcNode = _xmlDocument.CreateNode("element", "GcInfo", "");
+                XmlNode gcNode = XmlDocument.CreateNode("element", "GcInfo", "");
                 methodNode.AppendChild(gcNode);
                 Serialize(method.GcInfo, gcNode);
 
@@ -134,7 +145,7 @@ namespace R2RDump
             }
 
             XmlNode rtfsNode = null;
-            rtfsNode = _xmlDocument.CreateNode("element", "RuntimeFunctions", "");
+            rtfsNode = XmlDocument.CreateNode("element", "RuntimeFunctions", "");
             methodNode.AppendChild(rtfsNode);
 
             foreach (RuntimeFunction runtimeFunction in method.RuntimeFunctions)
@@ -148,7 +159,7 @@ namespace R2RDump
         /// </summary>
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {
-            XmlNode rtfNode = _xmlDocument.CreateNode("element", "RuntimeFunction", "");
+            XmlNode rtfNode = XmlDocument.CreateNode("element", "RuntimeFunction", "");
             parentNode.AppendChild(rtfNode);
             AddXMLNode("MethodRid", rtf.Method.Rid.ToString(), rtfNode);
             Serialize(rtf, rtfNode);
@@ -165,7 +176,7 @@ namespace R2RDump
             if (_unwind)
             {
                 XmlNode unwindNode = null;
-                unwindNode = _xmlDocument.CreateNode("element", "UnwindInfo", "");
+                unwindNode = XmlDocument.CreateNode("element", "UnwindInfo", "");
                 rtfNode.AppendChild(unwindNode);
                 Serialize(rtf.UnwindInfo, unwindNode);
 
@@ -227,7 +238,7 @@ namespace R2RDump
 
         internal override void DumpSectionContents(R2RSection section, XmlNode parentNode)
         {
-            XmlNode contentsNode = _xmlDocument.CreateNode("element", "Contents", "");
+            XmlNode contentsNode = XmlDocument.CreateNode("element", "Contents", "");
             parentNode.AppendChild(contentsNode);
 
             switch (section.Type)
@@ -283,7 +294,7 @@ namespace R2RDump
 
         internal override XmlNode DumpQueryCount(string q, string title, int count)
         {
-            XmlNode queryNode = _xmlDocument.CreateNode("element", title, "");
+            XmlNode queryNode = XmlDocument.CreateNode("element", title, "");
             _rootNode.AppendChild(queryNode);
             AddXMLNode("Query", q, queryNode);
             AddXMLNode("Count", count.ToString(), queryNode);
@@ -302,7 +313,7 @@ namespace R2RDump
 
         private XmlNode AddXMLNode(String name, String contents, XmlNode parentNode)
         {
-            XmlNode node = _xmlDocument.CreateNode("element", name, "");
+            XmlNode node = XmlDocument.CreateNode("element", name, "");
             parentNode.AppendChild(node);
             node.InnerText = contents;
             return node;

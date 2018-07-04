@@ -59310,3 +59310,10 @@ Expected=100
 MaxAllowedDurationSeconds=600
 Categories=Pri2;RT;MISSING_EXE
 HostStyle=Any
+[R2RDumpTest.exe_8473]
+RelativePath=readytorun\tests\r2rdump\R2RDumpTest.exe
+WorkingDir=readytorun\tests\r2rdump
+Expected=100
+MaxAllowedDurationSeconds=600
+Categories=Pri2;RT;MISSING_EXE
+HostStyle=Any
