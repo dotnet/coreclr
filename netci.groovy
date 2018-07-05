@@ -1570,6 +1570,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         if (configuration == 'Checked') {
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                         }
+                        else {
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+CoreFX Tests.*")
+                        }
                         break
                     }
 
@@ -2431,7 +2434,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         if(scenario == 'corefx_innerloop') {
                             assert os == 'Ubuntu' || 'OSX10.12'
                             assert architecture == 'x64'
-                            assert lowerConfiguration == 'checked'
 
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
@@ -2840,10 +2842,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 }
                 break
             case 'corefx_innerloop':
-                if ( (os != 'Windows_NT' && os != 'Ubuntu' &&  os != 'OSX10.12') ||  architecture != 'x64') {
+                if (os != 'Windows_NT' && os != 'Ubuntu' &&  os != 'OSX10.12') {
                     return false
                 }
-                if(configuration != 'Checked') {
+                if (architecture != 'x64') {
                     return false
                 }
                 break
