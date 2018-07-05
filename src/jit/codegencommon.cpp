@@ -6922,8 +6922,14 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     unsigned saveStackLvl2 = genStackLevel;
 
 #if defined(_TARGET_X86_)
-    // Important note: when you change enter probe layout, you must also update SKIP_ENTER_PROF_CALLBACK()
-    // for x86 stack unwinding
+// Important note: when you change enter probe layout, you must also update SKIP_ENTER_PROF_CALLBACK()
+// for x86 stack unwinding
+
+#if defined(UNIX_X86_ABI)
+    // Manually align the stack to be 16-byte aligned. This is similar to CodeGen::genAlignStackBeforeCall()
+    getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_SPBASE, 0xC);
+    AddNestedAlignment(1);
+#endif // UNIX_X86_ABI
 
     // Push the profilerHandle
     if (compiler->compProfilerMethHndIndirected)
@@ -6934,6 +6940,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     {
         inst_IV(INS_push, (size_t)compiler->compProfilerMethHnd);
     }
+
 #elif defined(_TARGET_ARM_)
     // On Arm arguments are prespilled on stack, which frees r0-r3.
     // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
@@ -6976,6 +6983,12 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
+
+#if defined(UNIX_X86_ABI)
+    // Restoring alignment manually. This is similar to CodeGen::genRemoveAlignmentAfterCall
+    getEmitter()->emitIns_R_I(INS_add, EA_4BYTE, REG_SPBASE, 0x10);
+#endif // UNIX_X86_ABI
+
 #elif defined(_TARGET_ARM_)
     if (initReg == argReg)
     {
@@ -7150,6 +7163,12 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 
 #elif defined(_TARGET_X86_)
 
+#if defined(UNIX_X86_ABI)
+    // Manually align the stack to be 16-byte aligned. This is similar to CodeGen::genAlignStackBeforeCall()
+    getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_SPBASE, 0xC);
+    AddNestedAlignment(1);
+#endif // UNIX_X86_ABI
+
     //
     // Push the profilerHandle
     //
@@ -7164,8 +7183,13 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
     }
     genSinglePush();
 
+#if defined(UNIX_X86_ABI)
+    int argSize = - REGSIZE_BYTES; // negative means caller-pop (cdecl)
+#else
+    int argSize = REGSIZE_BYTES;
+#endif
     genEmitHelperCall(helper,
-                      sizeof(int) * 1, // argSize
+                      argSize,
                       EA_UNKNOWN);     // retSize
 
     //
@@ -7176,6 +7200,11 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", compiler->fgPtrArgCntMax);
         compiler->fgPtrArgCntMax = 1;
     }
+
+#if defined(UNIX_X86_ABI)
+    // Restoring alignment manually. This is similar to CodeGen::genRemoveAlignmentAfterCall
+    getEmitter()->emitIns_R_I(INS_add, EA_4BYTE, REG_SPBASE, 0x10);
+#endif // UNIX_X86_ABI
 
 #elif defined(_TARGET_ARM_)
     //
