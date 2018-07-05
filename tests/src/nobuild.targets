@@ -3,9 +3,6 @@
   <Target Name="CreateManifestResourceNames" />
   <Target Name="Compile" />
   <Target Name="CoreCompile" />
+  <Target Name="Build" />
 
-  <Target Name="Build" Condition="('$(CLRTestKind)'=='RunOnly') And '$(_WillCLRTestProjectBuild)'">
-    <MSBuild Projects="@(ProjectReference)" />
-    <MakeDir Condition="'$(CLRTestKind)' == 'RunOnly'" ContinueOnError="false" Directories="$(OutputPath)" />
-  </Target>
 </Project>
