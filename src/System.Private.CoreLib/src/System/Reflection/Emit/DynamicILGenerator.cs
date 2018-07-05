@@ -641,8 +641,7 @@ namespace System.Reflection.Emit
                 // We go over all DynamicMethodDesc during AppDomain shutdown and make sure
                 // that everything associated with them is released. So it is ok to skip reregistration
                 // for finalization during appdomain shutdown
-                if (!Environment.HasShutdownStarted &&
-                    !AppDomain.CurrentDomain.IsFinalizingForUnload())
+                if (!Environment.HasShutdownStarted)
                 {
                     // Try again later.
                     GC.ReRegisterForFinalize(this);
@@ -667,8 +666,7 @@ namespace System.Reflection.Emit
                 // It is not safe to destroy the method if the managed resolver is alive.
                 if (RuntimeMethodHandle.GetResolver(m_methodHandle) != null)
                 {
-                    if (!Environment.HasShutdownStarted &&
-                        !AppDomain.CurrentDomain.IsFinalizingForUnload())
+                    if (!Environment.HasShutdownStarted)
                     {
                         // Somebody might have been holding a reference on us via weak handle.
                         // We will keep trying. It will be hopefully released eventually.
@@ -794,7 +792,7 @@ namespace System.Reflection.Emit
             methodHandle = new IntPtr();
             fieldHandle = new IntPtr();
 
-            Object handle = m_scope[token];
+            object handle = m_scope[token];
 
             if (handle == null)
                 throw new InvalidProgramException();
@@ -914,13 +912,13 @@ namespace System.Reflection.Emit
     internal class DynamicScope
     {
         #region Private Data Members
-        internal List<Object> m_tokens;
+        internal List<object> m_tokens;
         #endregion
 
         #region Constructor
         internal unsafe DynamicScope()
         {
-            m_tokens = new List<Object>();
+            m_tokens = new List<object>();
             m_tokens.Add(null);
         }
         #endregion

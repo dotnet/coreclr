@@ -1458,12 +1458,12 @@ static CorInfoHelpFunc getInstanceFieldHelper(FieldDesc * pField, CORINFO_ACCESS
         break;
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
-    IN_WIN32(default:)
+    IN_TARGET_32BIT(default:)
         helper = CORINFO_HELP_GETFIELD32;
         break;
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
-    IN_WIN64(default:)
+    IN_TARGET_64BIT(default:)
         helper = CORINFO_HELP_GETFIELD64;
         break;
     case ELEMENT_TYPE_R4:
@@ -7047,7 +7047,8 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_AS)->GetMemberDef() ||
              tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__OBJECT_AS)->GetMemberDef() ||
-             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF)->GetMemberDef())
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF_POINTER)->GetMemberDef() ||
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF_IN)->GetMemberDef())
     {
         // Return the argument that was passed in.
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };
@@ -7303,9 +7304,9 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
         // The implementation in mscorlib already does this, so we will only substitute a new
         // IL body if we're running on a 64-bit platform.
         //
-        IN_WIN64(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
     };
 
     mdMethodDef md = ftn->GetMemberDef();
@@ -8755,8 +8756,9 @@ void CEEInfo::getMethodVTableOffset (CORINFO_METHOD_HANDLE methodHnd,
     _ASSERTE(method->GetSlot() < method->GetMethodTable()->GetNumVirtuals());
 
     *pOffsetOfIndirection = MethodTable::GetVtableOffset() + MethodTable::GetIndexOfVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir_t);
-    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * sizeof(PCODE);
+    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir2_t);
     *isRelative = MethodTable::VTableIndir_t::isRelative ? 1 : 0;
+    _ASSERTE(MethodTable::VTableIndir_t::isRelative == MethodTable::VTableIndir2_t::isRelative);
 
     EE_TO_JIT_TRANSITION_LEAF();
 }
@@ -9134,8 +9136,17 @@ void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
 
         _ASSERTE((accessFlags & CORINFO_ACCESS_THIS) || !ftn->IsRemotingInterceptedViaVirtualDispatch());
 
-        ret = ftn->GetAddrOfSlot();
-        accessType = IAT_PVALUE;
+        ret = (void *)ftn->GetAddrOfSlot();
+
+        if (MethodTable::VTableIndir2_t::isRelative
+            && ftn->IsVtableSlot())
+        {
+            accessType = IAT_RELPVALUE;
+        }
+        else
+        {
+            accessType = IAT_PVALUE;
+        }
     }
 
 

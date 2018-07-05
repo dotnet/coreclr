@@ -19,15 +19,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 /*****************************************************************************/
 
-#if COUNT_RANGECHECKS
-/* static */
-unsigned Compiler::optRangeChkRmv = 0;
-/* static */
-unsigned Compiler::optRangeChkAll = 0;
-#endif
-
-/*****************************************************************************/
-
 void Compiler::optInit()
 {
     optLoopsMarked = false;
@@ -35,6 +26,8 @@ void Compiler::optInit()
 
     /* Initialize the # of tracked loops to 0 */
     optLoopCount = 0;
+    optLoopTable = nullptr;
+
     /* Keep track of the number of calls and indirect calls made by this method */
     optCallCount         = 0;
     optIndirectCallCount = 0;
@@ -1148,20 +1141,29 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
     assert(entry->bbNum <= bottom->bbNum);
     assert(head->bbNum < top->bbNum || head->bbNum > bottom->bbNum);
 
-    // If the new loop contains any existing ones, add it in the right place.
     unsigned char loopInd = optLoopCount;
-    for (unsigned char prevPlus1 = optLoopCount; prevPlus1 > 0; prevPlus1--)
+
+    if (optLoopTable == nullptr)
     {
-        unsigned char prev = prevPlus1 - 1;
-        if (optLoopTable[prev].lpContainedBy(first, bottom))
-        {
-            loopInd = prev;
-        }
+        assert(loopInd == 0);
+        optLoopTable = getAllocator(CMK_LoopOpt).allocate<LoopDsc>(MAX_LOOP_NUM);
     }
-    // Move up any loops if necessary.
-    for (unsigned j = optLoopCount; j > loopInd; j--)
+    else
     {
-        optLoopTable[j] = optLoopTable[j - 1];
+        // If the new loop contains any existing ones, add it in the right place.
+        for (unsigned char prevPlus1 = optLoopCount; prevPlus1 > 0; prevPlus1--)
+        {
+            unsigned char prev = prevPlus1 - 1;
+            if (optLoopTable[prev].lpContainedBy(first, bottom))
+            {
+                loopInd = prev;
+            }
+        }
+        // Move up any loops if necessary.
+        for (unsigned j = optLoopCount; j > loopInd; j--)
+        {
+            optLoopTable[j] = optLoopTable[j - 1];
+        }
     }
 
 #ifdef DEBUG
@@ -1190,6 +1192,8 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
     optLoopTable[loopInd].lpParent  = BasicBlock::NOT_IN_LOOP;
     optLoopTable[loopInd].lpChild   = BasicBlock::NOT_IN_LOOP;
     optLoopTable[loopInd].lpSibling = BasicBlock::NOT_IN_LOOP;
+
+    optLoopTable[loopInd].lpAsgVars = AllVarSetOps::UninitVal();
 
     optLoopTable[loopInd].lpFlags = 0;
 
@@ -1472,7 +1476,7 @@ class LoopSearch
 {
 
     // Keeping track of which blocks are in the loop requires two block sets since we may add blocks
-    // as we go but the BlockSet type's max ID doesn't increase to accomodate them.  Define a helper
+    // as we go but the BlockSet type's max ID doesn't increase to accommodate them.  Define a helper
     // struct to make the ensuing code more readable.
     struct LoopBlockSet
     {
@@ -8901,7 +8905,7 @@ void Compiler::optOptimizeBools()
                         B1: brtrue(t1, BX)
                         B2: brtrue(t2, BX)
                         B3:
-                   we wil try to fold it to :
+                   we will try to fold it to :
                         B1: brtrue(t1|t2, BX)
                         B3:
                 */
@@ -9105,7 +9109,7 @@ void Compiler::optOptimizeBools()
 
             // The new top level node that we just created does feed directly into
             // a comparison against zero, so set the GTF_SET_FLAGS bit so that
-            // we generate an instuction that sets the flags, which allows us
+            // we generate an instruction that sets the flags, which allows us
             // to omit the cmp with zero instruction.
 
             // Request that the codegen for cmpOp1 sets the condition flags

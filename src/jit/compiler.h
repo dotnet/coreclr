@@ -98,7 +98,7 @@ class Compiler;
 /*****************************************************************************/
 
 //
-// Declare global operator new overloads that use the Compiler::compGetMem() function for allocation.
+// Declare global operator new overloads that use the compiler's arena allocator
 //
 
 // I wanted to make the second argument optional, with default = CMK_Unknown, but that
@@ -127,17 +127,6 @@ var_types genSignedType(var_types type);
 unsigned ReinterpretHexAsDecimal(unsigned);
 
 /*****************************************************************************/
-
-#if defined(FEATURE_SIMD)
-#if defined(_TARGET_XARCH_)
-const unsigned TEMP_MAX_SIZE = YMM_REGSIZE_BYTES;
-#elif defined(_TARGET_ARM64_)
-const unsigned       TEMP_MAX_SIZE = FP_REGSIZE_BYTES;
-#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
-#else  // !FEATURE_SIMD
-const unsigned TEMP_MAX_SIZE = sizeof(double);
-#endif // !FEATURE_SIMD
-const unsigned TEMP_SLOT_COUNT = (TEMP_MAX_SIZE / sizeof(int));
 
 const unsigned FLG_CCTOR = (CORINFO_FLG_CONSTRUCTOR | CORINFO_FLG_STATIC);
 
@@ -1331,7 +1320,7 @@ public:
 #ifdef _TARGET_ARM_
         unsigned int regSize = (hfaType == TYP_DOUBLE) ? 2 : 1;
 #else
-        unsigned int regSize       = 1;
+        unsigned int regSize = 1;
 #endif
         for (unsigned int regIndex = 1; regIndex < numRegs; regIndex++)
         {
@@ -1690,6 +1679,8 @@ public:
 #if FEATURE_MULTIREG_RET
     GenTree* impAssignMultiRegTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass);
 #endif // FEATURE_MULTIREG_RET
+
+    GenTree* impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass);
 
 #ifdef ARM_SOFTFP
     bool isSingleFloat32Struct(CORINFO_CLASS_HANDLE hClass);
@@ -2544,7 +2535,7 @@ public:
     }
 
     // reverse map of tracked number to var number
-    unsigned lvaTrackedToVarNum[lclMAX_TRACKED];
+    unsigned* lvaTrackedToVarNum;
 
 #if DOUBLE_ALIGN
 #ifdef DEBUG
@@ -3012,8 +3003,6 @@ protected:
     unsigned impStkSize; // Size of the full stack
 
 #define SMALL_STACK_SIZE 16 // number of elements in impSmallStack
-
-    StackEntry impSmallStack[SMALL_STACK_SIZE]; // Use this array if possible
 
     struct SavedStack // used to save/restore stack contents.
     {
@@ -3663,7 +3652,7 @@ public:
     template <typename T>
     T* fgAllocateTypeForEachBlk(CompMemKind cmk = CMK_Unknown)
     {
-        return (T*)compGetMem((fgBBNumMax + 1) * sizeof(T), cmk);
+        return getAllocator(cmk).allocate<T>(fgBBNumMax + 1);
     }
 
     // BlockSets are relative to a specific set of BasicBlock numbers. If that changes
@@ -3767,19 +3756,13 @@ public:
 
     unsigned fgMeasureIR();
 
-#if OPT_BOOL_OPS // Used to detect multiple logical "not" assignments.
-    bool fgMultipleNots;
-#endif
-
     bool fgModified;         // True if the flow graph has been modified recently
     bool fgComputePredsDone; // Have we computed the bbPreds list
     bool fgCheapPredsValid;  // Is the bbCheapPreds list valid?
     bool fgDomsComputed;     // Have we computed the dominator sets?
     bool fgOptimizedFinally; // Did we optimize any try-finallys?
 
-    bool     fgHasSwitch;  // any BBJ_SWITCH jumps?
-    bool     fgHasPostfix; // any postfix ++/-- found?
-    unsigned fgIncrCount;  // number of increment nodes found
+    bool fgHasSwitch; // any BBJ_SWITCH jumps?
 
     BlockSet fgEnterBlks; // Set of blocks which have a special transfer of control; the "entry" blocks plus EH handler
                           // begin blocks.
@@ -3956,11 +3939,6 @@ public:
     VARSET_VALRET_TP fgGetHandlerLiveVars(BasicBlock* block);
 
     void fgLiveVarAnalysis(bool updateInternalOnly = false);
-
-    // This is used in the liveness computation, as a temporary.  When we use the
-    // arbitrary-length VarSet representation, it is better not to allocate a new one
-    // at each call.
-    VARSET_TP fgMarkIntfUnionVS;
 
     void fgUpdateRefCntForClone(BasicBlock* addedToBlock, GenTree* clonedTree);
 
@@ -4223,6 +4201,9 @@ public:
     {
         SPK_Unknown,       // Invalid value, never returned
         SPK_PrimitiveType, // The struct is passed/returned using a primitive type.
+        SPK_EnclosingType, // Like SPK_Primitive type, but used for return types that
+                           //  require a primitive type temp that is larger than the struct size.
+                           //  Currently used for structs of size 3, 5, 6, or 7 bytes.
         SPK_ByValue,       // The struct is passed/returned by value (using the ABI rules)
                            //  for ARM64 and UNIX_X64 in multiple registers. (when all of the
                            //   parameters registers are used, then the stack will be used)
@@ -4389,7 +4370,7 @@ public:
         // The switch block "switchBlk" just had an entry with value "from" modified to the value "to".
         // Update "this" as necessary: if "from" is no longer an element of the jump table of "switchBlk",
         // remove it from "this", and ensure that "to" is a member.  Use "alloc" to do any required allocation.
-        void UpdateTarget(CompAllocator* alloc, BasicBlock* switchBlk, BasicBlock* from, BasicBlock* to);
+        void UpdateTarget(CompAllocator alloc, BasicBlock* switchBlk, BasicBlock* from, BasicBlock* to);
     };
 
     typedef JitHashTable<BasicBlock*, JitPtrKeyFuncs<BasicBlock>, SwitchUniqueSuccSet> BlockToSwitchDescMap;
@@ -4901,6 +4882,7 @@ private:
     GenTree* fgUnwrapProxy(GenTree* objRef);
     GenTreeFieldList* fgMorphLclArgToFieldlist(GenTreeLclVarCommon* lcl);
     GenTreeCall* fgMorphArgs(GenTreeCall* call);
+    GenTreeArgList* fgMorphArgList(GenTreeArgList* args, MorphAddrContext* mac);
 
     void fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
                                      GenTree*             args,
@@ -5500,8 +5482,8 @@ protected:
     bool fgHasLoops;        // True if this method has any loops, set in fgComputeReachability
 
 public:
-    LoopDsc       optLoopTable[MAX_LOOP_NUM]; // loop descriptor table
-    unsigned char optLoopCount;               // number of tracked loops
+    LoopDsc*      optLoopTable; // loop descriptor table
+    unsigned char optLoopCount; // number of tracked loops
 
     bool optRecordLoop(BasicBlock*   head,
                        BasicBlock*   first,
@@ -6325,33 +6307,7 @@ public:
                                               BasicBlock*       slow);
     void optInsertLoopCloningStress(BasicBlock* head);
 
-#if COUNT_RANGECHECKS
-    static unsigned optRangeChkRmv;
-    static unsigned optRangeChkAll;
-#endif
-
 protected:
-    struct arraySizes
-    {
-        unsigned arrayVar;
-        int      arrayDim;
-
-#define MAX_ARRAYS 4 // a magic max number of arrays tracked for bounds check elimination
-    };
-
-    struct RngChkDsc
-    {
-        RngChkDsc* rcdNextInBucket; // used by the hash table
-
-        unsigned short rcdHashValue; // to make matching faster
-        unsigned short rcdIndex;     // 0..optRngChkCount-1
-
-        GenTree* rcdTree; // the array index tree
-    };
-
-    unsigned            optRngChkCount;
-    static const size_t optRngChkHashSize;
-
     ssize_t optGetArrayRefScaleAndIndex(GenTree* mul, GenTree** pIndex DEBUGARG(bool bRngChk));
     GenTree* optFindLocalInit(BasicBlock* block, GenTree* local, VARSET_TP* pKilledInOut, bool* isKilledAfterInit);
 
@@ -6865,45 +6821,6 @@ public:
 
     /*****************************************************************************/
 
-public:
-    void tmpInit();
-
-    enum TEMP_USAGE_TYPE
-    {
-        TEMP_USAGE_FREE,
-        TEMP_USAGE_USED
-    };
-
-    static var_types tmpNormalizeType(var_types type);
-    TempDsc* tmpGetTemp(var_types type); // get temp for the given type
-    void tmpRlsTemp(TempDsc* temp);
-    TempDsc* tmpFindNum(int temp, TEMP_USAGE_TYPE usageType = TEMP_USAGE_FREE) const;
-
-    void     tmpEnd();
-    TempDsc* tmpListBeg(TEMP_USAGE_TYPE usageType = TEMP_USAGE_FREE) const;
-    TempDsc* tmpListNxt(TempDsc* curTemp, TEMP_USAGE_TYPE usageType = TEMP_USAGE_FREE) const;
-    void tmpDone();
-
-#ifdef DEBUG
-    bool tmpAllFree() const;
-#endif // DEBUG
-
-    void tmpPreAllocateTemps(var_types type, unsigned count);
-
-protected:
-    unsigned tmpCount; // Number of temps
-    unsigned tmpSize;  // Size of all the temps
-#ifdef DEBUG
-public:
-    // Used by RegSet::rsSpillChk()
-    unsigned tmpGetCount; // Temps which haven't been released yet
-#endif
-private:
-    static unsigned tmpSlot(unsigned size); // which slot in tmpFree[] or tmpUsed[] to use
-
-    TempDsc* tmpFree[TEMP_MAX_SIZE / sizeof(int)];
-    TempDsc* tmpUsed[TEMP_MAX_SIZE / sizeof(int)];
-
     /*
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -7288,71 +7205,89 @@ private:
     // by the hardware.  It is allocated when/if such situations are encountered during Lowering.
     unsigned lvaSIMDInitTempVarNum;
 
-    // SIMD Types
-    CORINFO_CLASS_HANDLE SIMDFloatHandle;
-    CORINFO_CLASS_HANDLE SIMDDoubleHandle;
-    CORINFO_CLASS_HANDLE SIMDIntHandle;
-    CORINFO_CLASS_HANDLE SIMDUShortHandle;
-    CORINFO_CLASS_HANDLE SIMDUByteHandle;
-    CORINFO_CLASS_HANDLE SIMDShortHandle;
-    CORINFO_CLASS_HANDLE SIMDByteHandle;
-    CORINFO_CLASS_HANDLE SIMDLongHandle;
-    CORINFO_CLASS_HANDLE SIMDUIntHandle;
-    CORINFO_CLASS_HANDLE SIMDULongHandle;
-    CORINFO_CLASS_HANDLE SIMDVector2Handle;
-    CORINFO_CLASS_HANDLE SIMDVector3Handle;
-    CORINFO_CLASS_HANDLE SIMDVector4Handle;
-    CORINFO_CLASS_HANDLE SIMDVectorHandle;
+    struct SIMDHandlesCache
+    {
+        // SIMD Types
+        CORINFO_CLASS_HANDLE SIMDFloatHandle;
+        CORINFO_CLASS_HANDLE SIMDDoubleHandle;
+        CORINFO_CLASS_HANDLE SIMDIntHandle;
+        CORINFO_CLASS_HANDLE SIMDUShortHandle;
+        CORINFO_CLASS_HANDLE SIMDUByteHandle;
+        CORINFO_CLASS_HANDLE SIMDShortHandle;
+        CORINFO_CLASS_HANDLE SIMDByteHandle;
+        CORINFO_CLASS_HANDLE SIMDLongHandle;
+        CORINFO_CLASS_HANDLE SIMDUIntHandle;
+        CORINFO_CLASS_HANDLE SIMDULongHandle;
+        CORINFO_CLASS_HANDLE SIMDVector2Handle;
+        CORINFO_CLASS_HANDLE SIMDVector3Handle;
+        CORINFO_CLASS_HANDLE SIMDVector4Handle;
+        CORINFO_CLASS_HANDLE SIMDVectorHandle;
 
 #ifdef FEATURE_HW_INTRINSICS
 #if defined(_TARGET_ARM64_)
-    CORINFO_CLASS_HANDLE Vector64FloatHandle;
-    CORINFO_CLASS_HANDLE Vector64UIntHandle;
-    CORINFO_CLASS_HANDLE Vector64UShortHandle;
-    CORINFO_CLASS_HANDLE Vector64UByteHandle;
-    CORINFO_CLASS_HANDLE Vector64ShortHandle;
-    CORINFO_CLASS_HANDLE Vector64ByteHandle;
-    CORINFO_CLASS_HANDLE Vector64IntHandle;
+        CORINFO_CLASS_HANDLE Vector64FloatHandle;
+        CORINFO_CLASS_HANDLE Vector64UIntHandle;
+        CORINFO_CLASS_HANDLE Vector64UShortHandle;
+        CORINFO_CLASS_HANDLE Vector64UByteHandle;
+        CORINFO_CLASS_HANDLE Vector64ShortHandle;
+        CORINFO_CLASS_HANDLE Vector64ByteHandle;
+        CORINFO_CLASS_HANDLE Vector64IntHandle;
 #endif // defined(_TARGET_ARM64_)
-    CORINFO_CLASS_HANDLE Vector128FloatHandle;
-    CORINFO_CLASS_HANDLE Vector128DoubleHandle;
-    CORINFO_CLASS_HANDLE Vector128IntHandle;
-    CORINFO_CLASS_HANDLE Vector128UShortHandle;
-    CORINFO_CLASS_HANDLE Vector128UByteHandle;
-    CORINFO_CLASS_HANDLE Vector128ShortHandle;
-    CORINFO_CLASS_HANDLE Vector128ByteHandle;
-    CORINFO_CLASS_HANDLE Vector128LongHandle;
-    CORINFO_CLASS_HANDLE Vector128UIntHandle;
-    CORINFO_CLASS_HANDLE Vector128ULongHandle;
+        CORINFO_CLASS_HANDLE Vector128FloatHandle;
+        CORINFO_CLASS_HANDLE Vector128DoubleHandle;
+        CORINFO_CLASS_HANDLE Vector128IntHandle;
+        CORINFO_CLASS_HANDLE Vector128UShortHandle;
+        CORINFO_CLASS_HANDLE Vector128UByteHandle;
+        CORINFO_CLASS_HANDLE Vector128ShortHandle;
+        CORINFO_CLASS_HANDLE Vector128ByteHandle;
+        CORINFO_CLASS_HANDLE Vector128LongHandle;
+        CORINFO_CLASS_HANDLE Vector128UIntHandle;
+        CORINFO_CLASS_HANDLE Vector128ULongHandle;
 #if defined(_TARGET_XARCH_)
-    CORINFO_CLASS_HANDLE Vector256FloatHandle;
-    CORINFO_CLASS_HANDLE Vector256DoubleHandle;
-    CORINFO_CLASS_HANDLE Vector256IntHandle;
-    CORINFO_CLASS_HANDLE Vector256UShortHandle;
-    CORINFO_CLASS_HANDLE Vector256UByteHandle;
-    CORINFO_CLASS_HANDLE Vector256ShortHandle;
-    CORINFO_CLASS_HANDLE Vector256ByteHandle;
-    CORINFO_CLASS_HANDLE Vector256LongHandle;
-    CORINFO_CLASS_HANDLE Vector256UIntHandle;
-    CORINFO_CLASS_HANDLE Vector256ULongHandle;
+        CORINFO_CLASS_HANDLE Vector256FloatHandle;
+        CORINFO_CLASS_HANDLE Vector256DoubleHandle;
+        CORINFO_CLASS_HANDLE Vector256IntHandle;
+        CORINFO_CLASS_HANDLE Vector256UShortHandle;
+        CORINFO_CLASS_HANDLE Vector256UByteHandle;
+        CORINFO_CLASS_HANDLE Vector256ShortHandle;
+        CORINFO_CLASS_HANDLE Vector256ByteHandle;
+        CORINFO_CLASS_HANDLE Vector256LongHandle;
+        CORINFO_CLASS_HANDLE Vector256UIntHandle;
+        CORINFO_CLASS_HANDLE Vector256ULongHandle;
 #endif // defined(_TARGET_XARCH_)
 #endif // FEATURE_HW_INTRINSICS
+
+        SIMDHandlesCache()
+        {
+            memset(this, 0, sizeof(*this));
+        }
+    };
+
+    SIMDHandlesCache* m_simdHandleCache;
 
     // Get the handle for a SIMD type.
     CORINFO_CLASS_HANDLE gtGetStructHandleForSIMD(var_types simdType, var_types simdBaseType)
     {
+        if (m_simdHandleCache == nullptr)
+        {
+            // This may happen if the JIT generates SIMD node on its own, without importing them.
+            // Otherwise getBaseTypeAndSizeOfSIMDType should have created the cache.
+            return NO_CLASS_HANDLE;
+        }
+
         if (simdBaseType == TYP_FLOAT)
         {
             switch (simdType)
             {
                 case TYP_SIMD8:
-                    return SIMDVector2Handle;
+                    return m_simdHandleCache->SIMDVector2Handle;
                 case TYP_SIMD12:
-                    return SIMDVector3Handle;
+                    return m_simdHandleCache->SIMDVector3Handle;
                 case TYP_SIMD16:
-                    if ((getSIMDVectorType() == TYP_SIMD32) || (SIMDVector4Handle != NO_CLASS_HANDLE))
+                    if ((getSIMDVectorType() == TYP_SIMD32) ||
+                        (m_simdHandleCache->SIMDVector4Handle != NO_CLASS_HANDLE))
                     {
-                        return SIMDVector4Handle;
+                        return m_simdHandleCache->SIMDVector4Handle;
                     }
                     break;
                 case TYP_SIMD32:
@@ -7365,35 +7300,30 @@ private:
         switch (simdBaseType)
         {
             case TYP_FLOAT:
-                return SIMDFloatHandle;
+                return m_simdHandleCache->SIMDFloatHandle;
             case TYP_DOUBLE:
-                return SIMDDoubleHandle;
+                return m_simdHandleCache->SIMDDoubleHandle;
             case TYP_INT:
-                return SIMDIntHandle;
+                return m_simdHandleCache->SIMDIntHandle;
             case TYP_USHORT:
-                return SIMDUShortHandle;
+                return m_simdHandleCache->SIMDUShortHandle;
             case TYP_UBYTE:
-                return SIMDUByteHandle;
+                return m_simdHandleCache->SIMDUByteHandle;
             case TYP_SHORT:
-                return SIMDShortHandle;
+                return m_simdHandleCache->SIMDShortHandle;
             case TYP_BYTE:
-                return SIMDByteHandle;
+                return m_simdHandleCache->SIMDByteHandle;
             case TYP_LONG:
-                return SIMDLongHandle;
+                return m_simdHandleCache->SIMDLongHandle;
             case TYP_UINT:
-                return SIMDUIntHandle;
+                return m_simdHandleCache->SIMDUIntHandle;
             case TYP_ULONG:
-                return SIMDULongHandle;
+                return m_simdHandleCache->SIMDULongHandle;
             default:
                 assert(!"Didn't find a class handle for simdType");
         }
         return NO_CLASS_HANDLE;
     }
-
-    // SIMD Methods
-    CORINFO_METHOD_HANDLE SIMDVectorFloat_set_Item;
-    CORINFO_METHOD_HANDLE SIMDVectorFloat_get_Length;
-    CORINFO_METHOD_HANDLE SIMDVectorFloat_op_Addition;
 
     // Returns true if the tree corresponds to a TYP_SIMD lcl var.
     // Note that both SIMD vector args and locals are mared as lvSIMDType = true, but
@@ -7521,7 +7451,7 @@ private:
 
     // Pops and returns GenTree node from importers type stack.
     // Normalizes TYP_STRUCT value in case of GT_CALL, GT_RET_EXPR and arg nodes.
-    GenTree* impSIMDPopStack(var_types type, bool expectAddr = false);
+    GenTree* impSIMDPopStack(var_types type, bool expectAddr = false, CORINFO_CLASS_HANDLE structType = nullptr);
 
     // Create a GT_SIMD tree for a Get property of SIMD vector with a fixed index.
     GenTreeSIMD* impSIMDGetFixed(var_types simdType, var_types baseType, unsigned simdSize, int index);
@@ -7863,10 +7793,6 @@ public:
 
 // NOTE: These values are only reliable after
 //       the importing is completely finished.
-
-#if CPU_USES_BLOCK_MOVE
-    bool compBlkOpUsed; // Does the method do a COPYBLK or INITBLK
-#endif
 
 #ifdef DEBUG
     // State information - which phases have completed?
@@ -8609,95 +8535,11 @@ public:
                           JitFlags*                        compileFlags,
                           CorInfoInstantiationVerification instVerInfo);
 
-    ArenaAllocator* compGetAllocator();
+    ArenaAllocator* compGetArenaAllocator();
 
 #if MEASURE_MEM_ALLOC
-
     static bool s_dspMemStats; // Display per-phase memory statistics for every function
-
-    struct MemStats
-    {
-        unsigned allocCnt;                 // # of allocs
-        UINT64   allocSz;                  // total size of those alloc.
-        UINT64   allocSzMax;               // Maximum single allocation.
-        UINT64   allocSzByKind[CMK_Count]; // Classified by "kind".
-        UINT64   nraTotalSizeAlloc;
-        UINT64   nraTotalSizeUsed;
-
-        static const char* s_CompMemKindNames[]; // Names of the kinds.
-
-        MemStats() : allocCnt(0), allocSz(0), allocSzMax(0), nraTotalSizeAlloc(0), nraTotalSizeUsed(0)
-        {
-            for (int i = 0; i < CMK_Count; i++)
-            {
-                allocSzByKind[i] = 0;
-            }
-        }
-        MemStats(const MemStats& ms)
-            : allocCnt(ms.allocCnt)
-            , allocSz(ms.allocSz)
-            , allocSzMax(ms.allocSzMax)
-            , nraTotalSizeAlloc(ms.nraTotalSizeAlloc)
-            , nraTotalSizeUsed(ms.nraTotalSizeUsed)
-        {
-            for (int i = 0; i < CMK_Count; i++)
-            {
-                allocSzByKind[i] = ms.allocSzByKind[i];
-            }
-        }
-
-        // Until we have ubiquitous constructors.
-        void Init()
-        {
-            this->MemStats::MemStats();
-        }
-
-        void AddAlloc(size_t sz, CompMemKind cmk)
-        {
-            allocCnt += 1;
-            allocSz += sz;
-            if (sz > allocSzMax)
-            {
-                allocSzMax = sz;
-            }
-            allocSzByKind[cmk] += sz;
-        }
-
-        void Print(FILE* f);       // Print these stats to f.
-        void PrintByKind(FILE* f); // Do just the by-kind histogram part.
-    };
-    MemStats genMemStats;
-
-    struct AggregateMemStats : public MemStats
-    {
-        unsigned nMethods;
-
-        AggregateMemStats() : MemStats(), nMethods(0)
-        {
-        }
-
-        void Add(const MemStats& ms)
-        {
-            nMethods++;
-            allocCnt += ms.allocCnt;
-            allocSz += ms.allocSz;
-            allocSzMax = max(allocSzMax, ms.allocSzMax);
-            for (int i = 0; i < CMK_Count; i++)
-            {
-                allocSzByKind[i] += ms.allocSzByKind[i];
-            }
-            nraTotalSizeAlloc += ms.nraTotalSizeAlloc;
-            nraTotalSizeUsed += ms.nraTotalSizeUsed;
-        }
-
-        void Print(FILE* f); // Print these stats to jitstdout.
-    };
-
-    static CritSecObject     s_memStatsLock;    // This lock protects the data structures below.
-    static MemStats          s_maxCompMemStats; // Stats for the compilation with the largest amount allocated.
-    static AggregateMemStats s_aggMemStats;     // Aggregates statistics for all compilations.
-
-#endif // MEASURE_MEM_ALLOC
+#endif                         // MEASURE_MEM_ALLOC
 
 #if LOOP_HOIST_STATS
     unsigned m_loopsConsidered;
@@ -8715,10 +8557,6 @@ public:
 
     static void PrintAggregateLoopHoistStats(FILE* f);
 #endif // LOOP_HOIST_STATS
-
-    void* compGetMemArray(size_t numElem, size_t elemSize, CompMemKind cmk = CMK_Unknown);
-    void* compGetMem(size_t sz, CompMemKind cmk = CMK_Unknown);
-    void compFreeMem(void*);
 
     bool compIsForImportOnly();
     bool compIsForInlining();
@@ -8743,7 +8581,7 @@ public:
     {
         VarScopeDsc*             data;
         VarScopeListNode*        next;
-        static VarScopeListNode* Create(VarScopeDsc* value, CompAllocator* alloc)
+        static VarScopeListNode* Create(VarScopeDsc* value, CompAllocator alloc)
         {
             VarScopeListNode* node = new (alloc) VarScopeListNode;
             node->data             = value;
@@ -8756,7 +8594,7 @@ public:
     {
         VarScopeListNode*       head;
         VarScopeListNode*       tail;
-        static VarScopeMapInfo* Create(VarScopeListNode* node, CompAllocator* alloc)
+        static VarScopeMapInfo* Create(VarScopeListNode* node, CompAllocator alloc)
         {
             VarScopeMapInfo* info = new (alloc) VarScopeMapInfo;
             info->head            = node;
@@ -8826,19 +8664,9 @@ protected:
     bool skipMethod();
 #endif
 
-    ArenaAllocator* compAllocator;
+    ArenaAllocator* compArenaAllocator;
 
 public:
-    CompAllocator* compAllocatorGeneric; // An allocator that uses the CMK_Generic tracker.
-#if MEASURE_MEM_ALLOC
-    CompAllocator* compAllocatorBitset;    // An allocator that uses the CMK_bitset tracker.
-    CompAllocator* compAllocatorGC;        // An allocator that uses the CMK_GC tracker.
-    CompAllocator* compAllocatorLoopHoist; // An allocator that uses the CMK_LoopHoist tracker.
-#ifdef DEBUG
-    CompAllocator* compAllocatorDebugOnly; // An allocator that uses the CMK_DebugOnly tracker.
-#endif                                     // DEBUG
-#endif                                     // MEASURE_MEM_ALLOC
-
     void compFunctionTraceStart();
     void compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, bool isNYI);
 
@@ -8876,47 +8704,25 @@ public:
     // Assumes called as part of process shutdown; does any compiler-specific work associated with that.
     static void ProcessShutdownWork(ICorStaticInfo* statInfo);
 
-    CompAllocator* getAllocator()
+    CompAllocator getAllocator(CompMemKind cmk = CMK_Generic)
     {
-        return compAllocatorGeneric;
+        return CompAllocator(compArenaAllocator, cmk);
     }
 
-#if MEASURE_MEM_ALLOC
-    CompAllocator* getAllocatorBitset()
+    CompAllocator getAllocatorGC()
     {
-        return compAllocatorBitset;
+        return getAllocator(CMK_GC);
     }
-    CompAllocator* getAllocatorGC()
+
+    CompAllocator getAllocatorLoopHoist()
     {
-        return compAllocatorGC;
+        return getAllocator(CMK_LoopHoist);
     }
-    CompAllocator* getAllocatorLoopHoist()
-    {
-        return compAllocatorLoopHoist;
-    }
-#else  // !MEASURE_MEM_ALLOC
-    CompAllocator* getAllocatorBitset()
-    {
-        return compAllocatorGeneric;
-    }
-    CompAllocator* getAllocatorGC()
-    {
-        return compAllocatorGeneric;
-    }
-    CompAllocator* getAllocatorLoopHoist()
-    {
-        return compAllocatorGeneric;
-    }
-#endif // !MEASURE_MEM_ALLOC
 
 #ifdef DEBUG
-    CompAllocator* getAllocatorDebugOnly()
+    CompAllocator getAllocatorDebugOnly()
     {
-#if MEASURE_MEM_ALLOC
-        return compAllocatorDebugOnly;
-#else  // !MEASURE_MEM_ALLOC
-        return compAllocatorGeneric;
-#endif // !MEASURE_MEM_ALLOC
+        return getAllocator(CMK_DebugOnly);
     }
 #endif // DEBUG
 
@@ -9287,7 +9093,7 @@ public:
         if (compRoot->m_fieldSeqStore == nullptr)
         {
             // Create a CompAllocator that labels sub-structure with CMK_FieldSeqStore, and use that for allocation.
-            CompAllocator* ialloc     = new (this, CMK_FieldSeqStore) CompAllocator(this, CMK_FieldSeqStore);
+            CompAllocator ialloc(getAllocator(CMK_FieldSeqStore));
             compRoot->m_fieldSeqStore = new (ialloc) FieldSeqStore(ialloc);
         }
         return compRoot->m_fieldSeqStore;
@@ -9308,8 +9114,8 @@ public:
         {
             // Create a CompAllocator that labels sub-structure with CMK_ZeroOffsetFieldMap, and use that for
             // allocation.
-            CompAllocator* ialloc = new (this, CMK_ZeroOffsetFieldMap) CompAllocator(this, CMK_ZeroOffsetFieldMap);
-            m_zeroOffsetFieldMap  = new (ialloc) NodeToFieldSeqMap(ialloc);
+            CompAllocator ialloc(getAllocator(CMK_ZeroOffsetFieldMap));
+            m_zeroOffsetFieldMap = new (ialloc) NodeToFieldSeqMap(ialloc);
         }
         return m_zeroOffsetFieldMap;
     }
@@ -9335,7 +9141,7 @@ public:
         if (compRoot->m_arrayInfoMap == nullptr)
         {
             // Create a CompAllocator that labels sub-structure with CMK_ArrayInfoMap, and use that for allocation.
-            CompAllocator* ialloc    = new (this, CMK_ArrayInfoMap) CompAllocator(this, CMK_ArrayInfoMap);
+            CompAllocator ialloc(getAllocator(CMK_ArrayInfoMap));
             compRoot->m_arrayInfoMap = new (ialloc) NodeToArrayInfoMap(ialloc);
         }
         return compRoot->m_arrayInfoMap;
@@ -9390,7 +9196,7 @@ public:
         if (compRoot->m_memorySsaMap[memoryKind] == nullptr)
         {
             // Create a CompAllocator that labels sub-structure with CMK_ArrayInfoMap, and use that for allocation.
-            CompAllocator* ialloc                = new (this, CMK_ArrayInfoMap) CompAllocator(this, CMK_ArrayInfoMap);
+            CompAllocator ialloc(getAllocator(CMK_ArrayInfoMap));
             compRoot->m_memorySsaMap[memoryKind] = new (ialloc) NodeToUnsignedMap(ialloc);
         }
         return compRoot->m_memorySsaMap[memoryKind];
@@ -9449,25 +9255,6 @@ public:
     bool killGCRefs(GenTree* tree);
 
 }; // end of class Compiler
-
-// Inline methods of CompAllocator.
-void* CompAllocator::Alloc(size_t sz)
-{
-#if MEASURE_MEM_ALLOC
-    return m_comp->compGetMem(sz, m_cmk);
-#else
-    return m_comp->compGetMem(sz);
-#endif
-}
-
-void* CompAllocator::ArrayAlloc(size_t elems, size_t elemSize)
-{
-#if MEASURE_MEM_ALLOC
-    return m_comp->compGetMemArray(elems, elemSize, m_cmk);
-#else
-    return m_comp->compGetMemArray(elems, elemSize);
-#endif
-}
 
 // LclVarDsc constructor. Uses Compiler, so must come after Compiler definition.
 inline LclVarDsc::LclVarDsc(Compiler* comp)
@@ -9558,7 +9345,7 @@ protected:
     Compiler*            m_compiler;
     ArrayStack<GenTree*> m_ancestors;
 
-    GenTreeVisitor(Compiler* compiler) : m_compiler(compiler), m_ancestors(compiler)
+    GenTreeVisitor(Compiler* compiler) : m_compiler(compiler), m_ancestors(compiler->getAllocator(CMK_ArrayStack))
     {
         assert(compiler != nullptr);
 

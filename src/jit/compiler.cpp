@@ -992,8 +992,9 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                            structPassingKind*   wbReturnStruct /* = nullptr */,
                                            unsigned             structSize /* = 0 */)
 {
-    var_types         useType           = TYP_UNKNOWN;
-    structPassingKind howToReturnStruct = SPK_Unknown; // We must change this before we return
+    var_types         useType             = TYP_UNKNOWN;
+    structPassingKind howToReturnStruct   = SPK_Unknown; // We must change this before we return
+    bool              canReturnInRegister = true;
 
     assert(clsHnd != NO_CLASS_HANDLE);
 
@@ -1004,37 +1005,63 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     assert(structSize > 0);
 
 #ifdef UNIX_AMD64_ABI
-
     // An 8-byte struct may need to be returned in a floating point register
     // So we always consult the struct "Classifier" routine
     //
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     eeGetSystemVAmd64PassStructInRegisterDescriptor(clsHnd, &structDesc);
 
-    // If we have one eightByteCount then we can set 'useType' based on that
     if (structDesc.eightByteCount == 1)
     {
-        // Set 'useType' to the type of the first eightbyte item
-        useType = GetEightByteType(structDesc, 0);
-        assert(structDesc.passedInRegisters == true);
+        assert(structSize <= sizeof(double));
+        assert(structDesc.passedInRegisters);
+
+        if (structDesc.eightByteClassifications[0] == SystemVClassificationTypeSSE)
+        {
+            // If this is returned as a floating type, use that.
+            // Otherwise, leave as TYP_UNKONWN and we'll sort things out below.
+            useType           = GetEightByteType(structDesc, 0);
+            howToReturnStruct = SPK_PrimitiveType;
+        }
+    }
+    else
+    {
+        // Return classification is not always size based...
+        canReturnInRegister = structDesc.passedInRegisters;
     }
 
-#else // not UNIX_AMD64
+#endif // UNIX_AMD64_ABI
 
+    // Check for cases where a small struct is returned in a register
+    // via a primitive type.
+    //
     // The largest primitive type is 8 bytes (TYP_DOUBLE)
     // so we can skip calling getPrimitiveTypeForStruct when we
     // have a struct that is larger than that.
-    //
-    if (structSize <= sizeof(double))
+    if (canReturnInRegister && (useType == TYP_UNKNOWN) && (structSize <= sizeof(double)))
     {
         // We set the "primitive" useType based upon the structSize
         // and also examine the clsHnd to see if it is an HFA of count one
         //
-        // The ABI for struct returns in varArg methods, is same as the normal case, so pass false for isVararg
+        // The ABI for struct returns in varArg methods, is same as the normal case,
+        // so pass false for isVararg
         useType = getPrimitiveTypeForStruct(structSize, clsHnd, /*isVararg=*/false);
-    }
 
-#endif // UNIX_AMD64_ABI
+        if (useType != TYP_UNKNOWN)
+        {
+            if (structSize == genTypeSize(useType))
+            {
+                // Currently: 1, 2, 4, or 8 byte structs
+                howToReturnStruct = SPK_PrimitiveType;
+            }
+            else
+            {
+                // Currently: 3, 5, 6, or 7 byte structs
+                assert(structSize < genTypeSize(useType));
+                howToReturnStruct = SPK_EnclosingType;
+            }
+        }
+    }
 
 #ifdef _TARGET_64BIT_
     // Note this handles an odd case when FEATURE_MULTIREG_RET is disabled and HFAs are enabled
@@ -1048,16 +1075,16 @@ var_types Compiler::getReturnTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
     //
     if ((FEATURE_MULTIREG_RET == 0) && (useType == TYP_UNKNOWN) && (structSize == (2 * sizeof(float))) && IsHfa(clsHnd))
     {
-        useType = TYP_I_IMPL;
+        useType           = TYP_I_IMPL;
+        howToReturnStruct = SPK_PrimitiveType;
     }
 #endif
 
     // Did we change this struct type into a simple "primitive" type?
-    //
     if (useType != TYP_UNKNOWN)
     {
-        // Yes, we should use the "primitive" type in 'useType'
-        howToReturnStruct = SPK_PrimitiveType;
+        // If so, we should have already set howToReturnStruct, too.
+        assert(howToReturnStruct != SPK_Unknown);
     }
     else // We can't replace the struct with a "primitive" type
     {
@@ -1185,11 +1212,11 @@ struct FileLine
     FileLine(const char* file, unsigned line, const char* condStr) : m_line(line)
     {
         size_t newSize = (strlen(file) + 1) * sizeof(char);
-        m_file         = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        m_file         = HostAllocator::getHostAllocator().allocate<char>(newSize);
         strcpy_s(m_file, newSize, file);
 
         newSize   = (strlen(condStr) + 1) * sizeof(char);
-        m_condStr = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        m_condStr = HostAllocator::getHostAllocator().allocate<char>(newSize);
         strcpy_s(m_condStr, newSize, condStr);
     }
 
@@ -1374,9 +1401,6 @@ void Compiler::compStartup()
     grossVMsize = grossNCsize = totalNCsize = 0;
 #endif // DISPLAY_SIZES
 
-    // Initialize the JIT's allocator.
-    ArenaAllocator::startup();
-
     /* Initialize the table of tree node sizes */
 
     GenTree::InitNodeSize();
@@ -1461,21 +1485,6 @@ void Compiler::compShutdown()
         }
     }
 #endif // FEATURE_JIT_METHOD_PERF
-
-#if FUNC_INFO_LOGGING
-    if (compJitFuncInfoFile != nullptr)
-    {
-        fclose(compJitFuncInfoFile);
-        compJitFuncInfoFile = nullptr;
-    }
-#endif // FUNC_INFO_LOGGING
-
-#if COUNT_RANGECHECKS
-    if (optRangeChkAll > 0)
-    {
-        fprintf(fout, "Removed %u of %u range checks\n", optRangeChkRmv, optRangeChkAll);
-    }
-#endif // COUNT_RANGECHECKS
 
 #if COUNT_AST_OPERS
 
@@ -1690,10 +1699,10 @@ void Compiler::compShutdown()
     if (s_dspMemStats)
     {
         fprintf(fout, "\nAll allocations:\n");
-        s_aggMemStats.Print(jitstdout);
+        ArenaAllocator::dumpAggregateMemStats(jitstdout);
 
         fprintf(fout, "\nLargest method:\n");
-        s_maxCompMemStats.Print(jitstdout);
+        ArenaAllocator::dumpMaxMemStats(jitstdout);
 
         fprintf(fout, "\n");
         fprintf(fout, "---------------------------------------------------\n");
@@ -1899,7 +1908,7 @@ void Compiler::compDisplayStaticSizes(FILE* fout)
 void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 {
     assert(pAlloc);
-    compAllocator = pAlloc;
+    compArenaAllocator = pAlloc;
 
     // Inlinee Compile object will only be allocated when needed for the 1st time.
     InlineeCompiler = nullptr;
@@ -1915,32 +1924,11 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     {
         m_inlineStrategy = nullptr;
         compInlineResult = inlineInfo->inlineResult;
-
-        // We shouldn't be using the compAllocatorGeneric for other than the root compiler.
-        compAllocatorGeneric = nullptr;
-#if MEASURE_MEM_ALLOC
-        compAllocatorBitset    = nullptr;
-        compAllocatorGC        = nullptr;
-        compAllocatorLoopHoist = nullptr;
-#ifdef DEBUG
-        compAllocatorDebugOnly = nullptr;
-#endif // DEBUG
-#endif // MEASURE_MEM_ALLOC
     }
     else
     {
         m_inlineStrategy = new (this, CMK_Inlining) InlineStrategy(this);
         compInlineResult = nullptr;
-
-        compAllocatorGeneric = new (this, CMK_Unknown) CompAllocator(this, CMK_Generic);
-#if MEASURE_MEM_ALLOC
-        compAllocatorBitset    = new (this, CMK_Unknown) CompAllocator(this, CMK_bitset);
-        compAllocatorGC        = new (this, CMK_Unknown) CompAllocator(this, CMK_GC);
-        compAllocatorLoopHoist = new (this, CMK_Unknown) CompAllocator(this, CMK_LoopHoist);
-#ifdef DEBUG
-        compAllocatorDebugOnly = new (this, CMK_Unknown) CompAllocator(this, CMK_DebugOnly);
-#endif // DEBUG
-#endif // MEASURE_MEM_ALLOC
     }
 
 #ifdef FEATURE_TRACELOGGING
@@ -1988,9 +1976,6 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
         optLoopsCloned = 0;
 
-#if MEASURE_MEM_ALLOC
-        genMemStats.Init();
-#endif // MEASURE_MEM_ALLOC
 #if LOOP_HOIST_STATS
         m_loopsConsidered             = 0;
         m_curLoopHasHoistedExpression = false;
@@ -2015,9 +2000,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     compQmarkUsed         = false;
     compFloatingPointUsed = false;
     compUnsafeCastUsed    = false;
-#if CPU_USES_BLOCK_MOVE
-    compBlkOpUsed = false;
-#endif
+
     compNeedsGSSecurityCookie = false;
     compGSReorderStackLayout  = false;
 #if STACK_PROBES
@@ -2042,11 +2025,6 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
     // Used to track when we should consider running EarlyProp
     optMethodFlags = 0;
-
-    for (unsigned i = 0; i < MAX_LOOP_NUM; i++)
-    {
-        AllVarSetOps::AssignNoCopy(this, optLoopTable[i].lpAsgVars, AllVarSetOps::UninitVal());
-    }
 
 #ifdef DEBUG
     m_nodeTestData      = nullptr;
@@ -2084,54 +2062,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     fgOrder = FGOrderTree;
 
 #ifdef FEATURE_SIMD
-    // SIMD Types
-    SIMDFloatHandle   = nullptr;
-    SIMDDoubleHandle  = nullptr;
-    SIMDIntHandle     = nullptr;
-    SIMDUShortHandle  = nullptr;
-    SIMDUByteHandle   = nullptr;
-    SIMDShortHandle   = nullptr;
-    SIMDByteHandle    = nullptr;
-    SIMDLongHandle    = nullptr;
-    SIMDUIntHandle    = nullptr;
-    SIMDULongHandle   = nullptr;
-    SIMDVector2Handle = nullptr;
-    SIMDVector3Handle = nullptr;
-    SIMDVector4Handle = nullptr;
-    SIMDVectorHandle  = nullptr;
-#ifdef FEATURE_HW_INTRINSICS
-#if defined(_TARGET_ARM64_)
-    Vector64FloatHandle  = nullptr;
-    Vector64UIntHandle   = nullptr;
-    Vector64UShortHandle = nullptr;
-    Vector64UByteHandle  = nullptr;
-    Vector64IntHandle    = nullptr;
-    Vector64ShortHandle  = nullptr;
-    Vector64ByteHandle   = nullptr;
-#endif // defined(_TARGET_ARM64_)
-    Vector128FloatHandle  = nullptr;
-    Vector128DoubleHandle = nullptr;
-    Vector128IntHandle    = nullptr;
-    Vector128UShortHandle = nullptr;
-    Vector128UByteHandle  = nullptr;
-    Vector128ShortHandle  = nullptr;
-    Vector128ByteHandle   = nullptr;
-    Vector128LongHandle   = nullptr;
-    Vector128UIntHandle   = nullptr;
-    Vector128ULongHandle  = nullptr;
-#if defined(_TARGET_XARCH_)
-    Vector256FloatHandle  = nullptr;
-    Vector256DoubleHandle = nullptr;
-    Vector256IntHandle    = nullptr;
-    Vector256UShortHandle = nullptr;
-    Vector256UByteHandle  = nullptr;
-    Vector256ShortHandle  = nullptr;
-    Vector256ByteHandle   = nullptr;
-    Vector256LongHandle   = nullptr;
-    Vector256UIntHandle   = nullptr;
-    Vector256ULongHandle  = nullptr;
-#endif // defined(_TARGET_XARCH_)
-#endif // FEATURE_HW_INTRINSICS
+    m_simdHandleCache = nullptr;
 #endif // FEATURE_SIMD
 
     compUsesThrowHelper = false;
@@ -2236,47 +2167,6 @@ unsigned char Compiler::compGetJitDefaultFill()
 }
 
 #endif // DEBUG
-
-/*****************************************************************************
- *
- *  The central memory allocation routine used by the compiler. Normally this
- *  is a simple inline method defined in compiler.hpp, but for debugging it's
- *  often convenient to keep it non-inline.
- */
-
-#ifdef DEBUG
-
-void* Compiler::compGetMem(size_t sz, CompMemKind cmk)
-{
-#if 0
-#if SMALL_TREE_NODES
-    if  (sz != TREE_NODE_SZ_SMALL &&
-         sz != TREE_NODE_SZ_LARGE && sz > 32)
-    {
-        printf("Alloc %3u bytes\n", sz);
-    }
-#else
-    if  (sz != sizeof(GenTree)    && sz > 32)
-    {
-        printf("Alloc %3u bytes\n", sz);
-    }
-#endif
-#endif // 0
-
-#if MEASURE_MEM_ALLOC
-    genMemStats.AddAlloc(sz, cmk);
-#endif
-
-    void* ptr = compAllocator->allocateMemory(sz);
-
-    // Verify that the current block is aligned. Only then will the next
-    // block allocated be on an aligned boundary.
-    assert((size_t(ptr) & (sizeof(size_t) - 1)) == 0);
-
-    return ptr;
-}
-
-#endif
 
 /*****************************************************************************/
 #ifdef DEBUG
@@ -4347,7 +4237,10 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     // Always do the layout even if returning early. Callers might
     // depend on us to do the layout.
     unsigned frameSize = lvaFrameSize(curState);
-    JITDUMP("\ncompRsvdRegCheck\n  frame size     = %6d\n  compArgSize    = %6d\n", frameSize, compArgSize);
+    JITDUMP("\ncompRsvdRegCheck\n"
+            "  frame size  = %6d\n"
+            "  compArgSize = %6d\n",
+            frameSize, compArgSize);
 
     if (opts.MinOpts())
     {
@@ -4363,8 +4256,9 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
     {
         calleeSavedRegMaxSz += CALLEE_SAVED_FLOAT_MAXSZ;
     }
+    calleeSavedRegMaxSz += REGSIZE_BYTES; // we always push LR.  See genPushCalleeSavedRegisters
 
-    noway_assert(frameSize > calleeSavedRegMaxSz);
+    noway_assert(frameSize >= calleeSavedRegMaxSz);
 
 #if defined(_TARGET_ARM64_)
 
@@ -4376,69 +4270,117 @@ bool Compiler::compRsvdRegCheck(FrameLayoutState curState)
 
     // frame layout:
     //
-    //         low addresses
-    //                         inArgs               compArgSize
-    //  origSP --->
-    //  LR     --->
-    //  R11    --->
-    //                +        callee saved regs    CALLEE_SAVED_REG_MAXSZ   (32 bytes)
-    //                     optional saved fp regs   16 * sizeof(float)       (64 bytes)
-    //                -        lclSize
+    //         ... high addresses ...
+    //                         frame contents       size
+    //                         -------------------  ------------------------
+    //                         inArgs               compArgSize (includes prespill)
+    //  caller SP --->
+    //                         prespill
+    //                         LR                   REGSIZE_BYTES
+    //  R11    --->            R11                  REGSIZE_BYTES
+    //                         callee saved regs    CALLEE_SAVED_REG_MAXSZ   (32 bytes)
+    //                     optional saved fp regs   CALLEE_SAVED_FLOAT_MAXSZ (64 bytes)
+    //                         lclSize
     //                             incl. TEMPS      MAX_SPILL_TEMP_SIZE
-    //                +            incl. outArgs
+    //                             incl. outArgs
     //  SP     --->
-    //                -
-    //          high addresses
+    //          ... low addresses ...
+    //
+    // When codeGen->isFramePointerRequired is true, R11 will be established as a frame pointer.
+    // We can then use R11 to access incoming args with positive offsets, and LclVars with
+    // negative offsets.
+    //
+    // In functions with EH, in the non-funclet (or main) region, even though we will have a
+    // frame pointer, we can use SP with positive offsets to access any or all locals or arguments
+    // that we can reach with SP-relative encodings. The funclet region might require the reserved
+    // register, since it must use offsets from R11 to access the parent frame.
 
-    // With codeGen->isFramePointerRequired we use R11 to access incoming args with positive offsets
-    // and use R11 to access LclVars with negative offsets in the non funclet or
-    // main region we use SP with positive offsets. The limiting factor in the
-    // codeGen->isFramePointerRequired case is that we need the offset to be less than or equal to 0x7C
-    // for negative offsets, but positive offsets can be imm12 limited by vldr/vstr
-    // using +/-imm8.
-    //
-    // Subtract 4 bytes for alignment of a local var because number of temps could
-    // trigger a misaligned double or long.
-    //
-    unsigned maxR11ArgLimit = (compFloatingPointUsed ? 0x03FC : 0x0FFC);
-    unsigned maxR11LclLimit = 0x0078;
-    JITDUMP("  maxR11ArgLimit = %6d\n  maxR11LclLimit = %6d\n", maxR11ArgLimit, maxR11LclLimit);
+    unsigned maxR11PositiveEncodingOffset = compFloatingPointUsed ? 0x03FC : 0x0FFF;
+    JITDUMP("  maxR11PositiveEncodingOffset     = %6d\n", maxR11PositiveEncodingOffset);
+
+    // Floating point load/store instructions (VLDR/VSTR) can address up to -0x3FC from R11, but we
+    // don't know if there are either no integer locals, or if we don't need large negative offsets
+    // for the integer locals, so we must use the integer max negative offset, which is a
+    // smaller (absolute value) number.
+    unsigned maxR11NegativeEncodingOffset = 0x00FF; // This is a negative offset from R11.
+    JITDUMP("  maxR11NegativeEncodingOffset     = %6d\n", maxR11NegativeEncodingOffset);
+
+    // -1 because otherwise we are computing the address just beyond the last argument, which we don't need to do.
+    unsigned maxR11PositiveOffset = compArgSize + (2 * REGSIZE_BYTES) - 1;
+    JITDUMP("  maxR11PositiveOffset             = %6d\n", maxR11PositiveOffset);
+
+    // The value is positive, but represents a negative offset from R11.
+    // frameSize includes callee-saved space for R11 and LR, which are at non-negative offsets from R11
+    // (+0 and +4, respectively), so don't include those in the max possible negative offset.
+    assert(frameSize >= (2 * REGSIZE_BYTES));
+    unsigned maxR11NegativeOffset = frameSize - (2 * REGSIZE_BYTES);
+    JITDUMP("  maxR11NegativeOffset             = %6d\n", maxR11NegativeOffset);
 
     if (codeGen->isFramePointerRequired())
     {
-        unsigned maxR11LclOffs = frameSize;
-        unsigned maxR11ArgOffs = compArgSize + (2 * REGSIZE_BYTES);
-        JITDUMP("  maxR11LclOffs  = %6d\n  maxR11ArgOffs  = %6d\n", maxR11LclOffs, maxR11ArgOffs)
-        if (maxR11LclOffs > maxR11LclLimit)
+        if (maxR11NegativeOffset > maxR11NegativeEncodingOffset)
         {
-            JITDUMP(" Returning true (frame reqd and maxR11LclOffs)\n\n");
+            JITDUMP(" Returning true (frame required and maxR11NegativeOffset)\n\n");
             return true;
         }
-        if (maxR11ArgOffs > maxR11ArgLimit)
+        if (maxR11PositiveOffset > maxR11PositiveEncodingOffset)
         {
-            JITDUMP(" Returning true (frame reqd and maxR11ArgOffs)\n\n");
+            JITDUMP(" Returning true (frame required and maxR11PositiveOffset)\n\n");
             return true;
         }
     }
 
-    // So this case is the SP based frame case, but note that we also will use SP based
-    // offsets for R11 based frames in the non-funclet main code area. However if we have
-    // passed the above max_R11_offset check these SP checks won't fire.
+    // Now consider the SP based frame case. Note that we will use SP based offsets to access the stack in R11 based
+    // frames in the non-funclet main code area.
 
-    // Check local coverage first. If vldr/vstr will be used the limit can be +/-imm8.
-    unsigned maxSPLclLimit = (compFloatingPointUsed ? 0x03F8 : 0x0FF8);
-    JITDUMP("  maxSPLclLimit  = %6d\n", maxSPLclLimit);
-    if (frameSize > (codeGen->isFramePointerUsed() ? (maxR11LclLimit + maxSPLclLimit) : maxSPLclLimit))
+    unsigned maxSPPositiveEncodingOffset = compFloatingPointUsed ? 0x03FC : 0x0FFF;
+    JITDUMP("  maxSPPositiveEncodingOffset      = %6d\n", maxSPPositiveEncodingOffset);
+
+    // -1 because otherwise we are computing the address just beyond the last argument, which we don't need to do.
+    assert(compArgSize + frameSize > 0);
+    unsigned maxSPPositiveOffset = compArgSize + frameSize - 1;
+
+    if (codeGen->isFramePointerUsed())
     {
-        JITDUMP(" Returning true (frame reqd; local coverage)\n\n");
-        return true;
+        // We have a frame pointer, so we can use it to access part of the stack, even if SP can't reach those parts.
+        // We will still generate SP-relative offsets if SP can reach.
+
+        // First, check that the stack between R11 and SP can be fully reached, either via negative offset from FP
+        // or positive offset from SP. Don't count stored R11 or LR, which are reached from positive offsets from FP.
+
+        unsigned maxSPLocalsCombinedOffset = frameSize - (2 * REGSIZE_BYTES) - 1;
+        JITDUMP("  maxSPLocalsCombinedOffset        = %6d\n", maxSPLocalsCombinedOffset);
+
+        if (maxSPLocalsCombinedOffset > maxSPPositiveEncodingOffset)
+        {
+            // Can R11 help?
+            unsigned maxRemainingLocalsCombinedOffset = maxSPLocalsCombinedOffset - maxSPPositiveEncodingOffset;
+            JITDUMP("  maxRemainingLocalsCombinedOffset = %6d\n", maxRemainingLocalsCombinedOffset);
+
+            if (maxRemainingLocalsCombinedOffset > maxR11NegativeEncodingOffset)
+            {
+                JITDUMP(" Returning true (frame pointer exists; R11 and SP can't reach entire stack between them)\n\n");
+                return true;
+            }
+
+            // Otherwise, yes, we can address the remaining parts of the locals frame with negative offsets from R11.
+        }
+
+        // Check whether either R11 or SP can access the arguments.
+        if ((maxR11PositiveOffset > maxR11PositiveEncodingOffset) &&
+            (maxSPPositiveOffset > maxSPPositiveEncodingOffset))
+        {
+            JITDUMP(" Returning true (frame pointer exists; R11 and SP can't reach all arguments)\n\n");
+            return true;
+        }
     }
-
-    // Check arguments coverage.
-    if ((!codeGen->isFramePointerUsed() || (compArgSize > maxR11ArgLimit)) && (compArgSize + frameSize) > maxSPLclLimit)
+    else
     {
-        JITDUMP(" Returning true (no frame; arg coverage)\n\n");
-        return true;
+        if (maxSPPositiveOffset > maxSPPositiveEncodingOffset)
+        {
+            JITDUMP(" Returning true (no frame pointer exists; SP can't reach all of frame)\n\n");
+            return true;
+        }
     }
 
     // We won't need to reserve REG_OPT_RSVD.
@@ -5168,7 +5110,7 @@ bool Compiler::compQuirkForPPP()
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
         BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = (BYTE*)compGetMem(8, CMK_LvaTable);
+        BYTE* newGCPtrs = getAllocator(CMK_LvaTable).allocate<BYTE>(8);
 
         for (int i = 0; i < 4; i++)
         {
@@ -5361,7 +5303,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
     info.compMethodName = eeGetMethodName(methodHnd, &classNamePtr);
     unsigned len        = (unsigned)roundUp(strlen(classNamePtr) + 1);
-    info.compClassName  = (char*)compGetMem(len, CMK_DebugOnly);
+    info.compClassName  = getAllocator(CMK_DebugOnly).allocate<char>(len);
     strcpy_s((char*)info.compClassName, len, classNamePtr);
 
     info.compFullName = eeGetMethodFullName(methodHnd);
@@ -5528,26 +5470,16 @@ void Compiler::compCompileFinish()
 
 #if MEASURE_MEM_ALLOC
     {
-        // Grab the relevant lock.
-        CritSecHolder statsLock(s_memStatsLock);
-
-        // Make the updates.
-        genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
-        genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
-        memAllocHist.record((unsigned)((genMemStats.nraTotalSizeAlloc + 1023) / 1024));
-        memUsedHist.record((unsigned)((genMemStats.nraTotalSizeUsed + 1023) / 1024));
-        s_aggMemStats.Add(genMemStats);
-        if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
-        {
-            s_maxCompMemStats = genMemStats;
-        }
+        compArenaAllocator->finishMemStats();
+        memAllocHist.record((unsigned)((compArenaAllocator->getTotalBytesAllocated() + 1023) / 1024));
+        memUsedHist.record((unsigned)((compArenaAllocator->getTotalBytesUsed() + 1023) / 1024));
     }
 
 #ifdef DEBUG
     if (s_dspMemStats || verbose)
     {
         printf("\nAllocations for %s (MethodHash=%08x)\n", info.compFullName, info.compMethodHash());
-        genMemStats.Print(jitstdout);
+        compArenaAllocator->dumpMemStats(jitstdout);
     }
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
@@ -5575,12 +5507,12 @@ void Compiler::compCompileFinish()
         (info.compLocalsCount <= 32) && (!opts.MinOpts()) && // We may have too many local variables, etc
         (getJitStressLevel() == 0) &&                        // We need extra memory for stress
         !opts.optRepeat &&                                   // We need extra memory to repeat opts
-        !compAllocator->bypassHostAllocator() && // ArenaAllocator::getDefaultPageSize() is artificially low for
-                                                 // DirectAlloc
+        !compArenaAllocator->bypassHostAllocator() && // ArenaAllocator::getDefaultPageSize() is artificially low for
+                                                      // DirectAlloc
         // Factor of 2x is because data-structures are bigger under DEBUG
-        (compAllocator->getTotalBytesAllocated() > (2 * ArenaAllocator::getDefaultPageSize())) &&
+        (compArenaAllocator->getTotalBytesAllocated() > (2 * ArenaAllocator::getDefaultPageSize())) &&
         // RyuJIT backend needs memory tuning! TODO-Cleanup: remove this case when memory tuning is complete.
-        (compAllocator->getTotalBytesAllocated() > (10 * ArenaAllocator::getDefaultPageSize())) &&
+        (compArenaAllocator->getTotalBytesAllocated() > (10 * ArenaAllocator::getDefaultPageSize())) &&
         !verbose) // We allocate lots of memory to convert sets to strings for JitDump
     {
         genSmallMethodsNeedingExtraMemoryCnt++;
@@ -6683,20 +6615,12 @@ START:
     if (inlineInfo)
     {
         // Use inliner's memory allocator when compiling the inlinee.
-        pAlloc = inlineInfo->InlinerCompiler->compGetAllocator();
+        pAlloc = inlineInfo->InlinerCompiler->compGetArenaAllocator();
     }
     else
     {
-        IEEMemoryManager* pMemoryManager = compHnd->getMemoryManager();
-
-        // Try to reuse the pre-inited allocator
-        pAlloc = ArenaAllocator::getPooledAllocator(pMemoryManager);
-
-        if (pAlloc == nullptr)
-        {
-            alloc  = ArenaAllocator(pMemoryManager);
-            pAlloc = &alloc;
-        }
+        alloc.initialize(compHnd->getMemoryManager());
+        pAlloc = &alloc;
     }
 
     Compiler* pComp;
@@ -6706,7 +6630,6 @@ START:
     {
         Compiler*       pComp;
         ArenaAllocator* pAlloc;
-        ArenaAllocator* alloc;
         bool            jitFallbackCompile;
 
         CORINFO_METHOD_HANDLE methodHnd;
@@ -6725,7 +6648,6 @@ START:
     } param;
     param.pComp              = nullptr;
     param.pAlloc             = pAlloc;
-    param.alloc              = &alloc;
     param.jitFallbackCompile = jitFallbackCompile;
     param.methodHnd          = methodHnd;
     param.classPtr           = classPtr;
@@ -8170,7 +8092,7 @@ void JitTimer::PrintCsvMethodStats(Compiler* comp)
 
     fprintf(fp, "%Iu,", comp->info.compNativeCodeSize);
     fprintf(fp, "%Iu,", comp->compInfoBlkSize);
-    fprintf(fp, "%Iu,", comp->compGetAllocator()->getTotalBytesAllocated());
+    fprintf(fp, "%Iu,", comp->compGetArenaAllocator()->getTotalBytesAllocated());
     fprintf(fp, "%I64u,", m_info.m_totalCycles);
     fprintf(fp, "%f\n", CycleTimer::CyclesPerSecond());
     fclose(fp);
@@ -8187,54 +8109,6 @@ void JitTimer::Terminate(Compiler* comp, CompTimeSummaryInfo& sum, bool includeP
     sum.AddInfo(m_info, includePhases);
 }
 #endif // FEATURE_JIT_METHOD_PERF
-
-#if MEASURE_MEM_ALLOC
-// static vars.
-CritSecObject               Compiler::s_memStatsLock;    // Default constructor.
-Compiler::AggregateMemStats Compiler::s_aggMemStats;     // Default constructor.
-Compiler::MemStats          Compiler::s_maxCompMemStats; // Default constructor.
-
-const char* Compiler::MemStats::s_CompMemKindNames[] = {
-#define CompMemKindMacro(kind) #kind,
-#include "compmemkind.h"
-};
-
-void Compiler::MemStats::Print(FILE* f)
-{
-    fprintf(f, "count: %10u, size: %10llu, max = %10llu\n", allocCnt, allocSz, allocSzMax);
-    fprintf(f, "allocateMemory: %10llu, nraUsed: %10llu\n", nraTotalSizeAlloc, nraTotalSizeUsed);
-    PrintByKind(f);
-}
-
-void Compiler::MemStats::PrintByKind(FILE* f)
-{
-    fprintf(f, "\nAlloc'd bytes by kind:\n  %20s | %10s | %7s\n", "kind", "size", "pct");
-    fprintf(f, "  %20s-+-%10s-+-%7s\n", "--------------------", "----------", "-------");
-    float allocSzF = static_cast<float>(allocSz);
-    for (int cmk = 0; cmk < CMK_Count; cmk++)
-    {
-        float pct = 100.0f * static_cast<float>(allocSzByKind[cmk]) / allocSzF;
-        fprintf(f, "  %20s | %10llu | %6.2f%%\n", s_CompMemKindNames[cmk], allocSzByKind[cmk], pct);
-    }
-    fprintf(f, "\n");
-}
-
-void Compiler::AggregateMemStats::Print(FILE* f)
-{
-    fprintf(f, "For %9u methods:\n", nMethods);
-    if (nMethods == 0)
-    {
-        return;
-    }
-    fprintf(f, "  count:       %12u (avg %7u per method)\n", allocCnt, allocCnt / nMethods);
-    fprintf(f, "  alloc size : %12llu (avg %7llu per method)\n", allocSz, allocSz / nMethods);
-    fprintf(f, "  max alloc  : %12llu\n", allocSzMax);
-    fprintf(f, "\n");
-    fprintf(f, "  allocateMemory   : %12llu (avg %7llu per method)\n", nraTotalSizeAlloc, nraTotalSizeAlloc / nMethods);
-    fprintf(f, "  nraUsed    : %12llu (avg %7llu per method)\n", nraTotalSizeUsed, nraTotalSizeUsed / nMethods);
-    PrintByKind(f);
-}
-#endif // MEASURE_MEM_ALLOC
 
 #if LOOP_HOIST_STATS
 // Static fields.

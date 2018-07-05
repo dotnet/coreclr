@@ -17,7 +17,7 @@ using Internal.Runtime.Augments;
 
 namespace System.Threading
 {
-    public delegate void TimerCallback(Object state);
+    public delegate void TimerCallback(object state);
 
     //
     // TimerQueue maintains a list of active timers in this AppDomain.  We use a single native timer, supplied by the VM,
@@ -424,7 +424,7 @@ namespace System.Threading
         // Info about the user's callback
         //
         private readonly TimerCallback m_timerCallback;
-        private readonly Object m_state;
+        private readonly object m_state;
         private readonly ExecutionContext m_executionContext;
 
 
@@ -440,13 +440,16 @@ namespace System.Threading
         private volatile WaitHandle m_notifyWhenNoCallbacksRunning;
 
 
-        internal TimerQueueTimer(TimerCallback timerCallback, object state, uint dueTime, uint period)
+        internal TimerQueueTimer(TimerCallback timerCallback, object state, uint dueTime, uint period, bool flowExecutionContext)
         {
             m_timerCallback = timerCallback;
             m_state = state;
             m_dueTime = Timeout.UnsignedInfinite;
             m_period = Timeout.UnsignedInfinite;
-            m_executionContext = ExecutionContext.Capture();
+            if (flowExecutionContext)
+            {
+                m_executionContext = ExecutionContext.Capture();
+            }
             m_associatedTimerQueue = TimerQueue.Instances[RuntimeThread.GetCurrentProcessorId() % TimerQueue.Instances.Length];
 
             //
@@ -589,7 +592,7 @@ namespace System.Threading
 
         internal void SignalNoCallbacksRunning()
         {
-            Win32Native.SetEvent(m_notifyWhenNoCallbacksRunning.SafeWaitHandle);
+            Interop.Kernel32.SetEvent(m_notifyWhenNoCallbacksRunning.SafeWaitHandle);
         }
 
         internal void CallCallback()
@@ -647,7 +650,7 @@ namespace System.Threading
             // Note that in either case, the Timer still won't fire, because ThreadPool threads won't be
             // allowed to run in this AppDomain.
             //
-            if (Environment.HasShutdownStarted || AppDomain.CurrentDomain.IsFinalizingForUnload())
+            if (Environment.HasShutdownStarted)
                 return;
 
             m_timer.Close();
@@ -670,25 +673,34 @@ namespace System.Threading
 
     public sealed class Timer : MarshalByRefObject, IDisposable
     {
-        private const UInt32 MAX_SUPPORTED_TIMEOUT = (uint)0xfffffffe;
+        private const uint MAX_SUPPORTED_TIMEOUT = (uint)0xfffffffe;
 
         private TimerHolder m_timer;
 
         public Timer(TimerCallback callback,
-                     Object state,
+                     object state,
                      int dueTime,
-                     int period)
+                     int period) :
+                     this(callback, state, dueTime, period, flowExecutionContext: true)
+        {
+        }
+
+        internal Timer(TimerCallback callback,
+                       object state,
+                       int dueTime,
+                       int period,
+                       bool flowExecutionContext)
         {
             if (dueTime < -1)
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             if (period < -1)
                 throw new ArgumentOutOfRangeException(nameof(period), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
 
-            TimerSetup(callback, state, (UInt32)dueTime, (UInt32)period);
+            TimerSetup(callback, state, (uint)dueTime, (uint)period, flowExecutionContext);
         }
 
         public Timer(TimerCallback callback,
-                     Object state,
+                     object state,
                      TimeSpan dueTime,
                      TimeSpan period)
         {
@@ -704,20 +716,20 @@ namespace System.Threading
             if (periodTm > MAX_SUPPORTED_TIMEOUT)
                 throw new ArgumentOutOfRangeException(nameof(periodTm), SR.ArgumentOutOfRange_PeriodTooLarge);
 
-            TimerSetup(callback, state, (UInt32)dueTm, (UInt32)periodTm);
+            TimerSetup(callback, state, (uint)dueTm, (uint)periodTm);
         }
 
         [CLSCompliant(false)]
         public Timer(TimerCallback callback,
-                     Object state,
-                     UInt32 dueTime,
-                     UInt32 period)
+                     object state,
+                     uint dueTime,
+                     uint period)
         {
             TimerSetup(callback, state, dueTime, period);
         }
 
         public Timer(TimerCallback callback,
-                     Object state,
+                     object state,
                      long dueTime,
                      long period)
         {
@@ -729,7 +741,7 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(dueTime), SR.ArgumentOutOfRange_TimeoutTooLarge);
             if (period > MAX_SUPPORTED_TIMEOUT)
                 throw new ArgumentOutOfRangeException(nameof(period), SR.ArgumentOutOfRange_PeriodTooLarge);
-            TimerSetup(callback, state, (UInt32)dueTime, (UInt32)period);
+            TimerSetup(callback, state, (uint)dueTime, (uint)period);
         }
 
         public Timer(TimerCallback callback)
@@ -739,18 +751,19 @@ namespace System.Threading
                                 // for a timer to be fired before the returned value is assigned to the variable,
                                 // potentially causing the callback to reference a bogus value (if passing the timer to the callback). 
 
-            TimerSetup(callback, this, (UInt32)dueTime, (UInt32)period);
+            TimerSetup(callback, this, (uint)dueTime, (uint)period);
         }
 
         private void TimerSetup(TimerCallback callback,
-                                Object state,
-                                UInt32 dueTime,
-                                UInt32 period)
+                                object state,
+                                uint dueTime,
+                                uint period,
+                                bool flowExecutionContext = true)
         {
             if (callback == null)
                 throw new ArgumentNullException(nameof(TimerCallback));
 
-            m_timer = new TimerHolder(new TimerQueueTimer(callback, state, dueTime, period));
+            m_timer = new TimerHolder(new TimerQueueTimer(callback, state, dueTime, period, flowExecutionContext));
         }
 
         public bool Change(int dueTime, int period)
@@ -760,7 +773,7 @@ namespace System.Threading
             if (period < -1)
                 throw new ArgumentOutOfRangeException(nameof(period), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
 
-            return m_timer.m_timer.Change((UInt32)dueTime, (UInt32)period);
+            return m_timer.m_timer.Change((uint)dueTime, (uint)period);
         }
 
         public bool Change(TimeSpan dueTime, TimeSpan period)
@@ -769,7 +782,7 @@ namespace System.Threading
         }
 
         [CLSCompliant(false)]
-        public bool Change(UInt32 dueTime, UInt32 period)
+        public bool Change(uint dueTime, uint period)
         {
             return m_timer.m_timer.Change(dueTime, period);
         }
@@ -785,7 +798,7 @@ namespace System.Threading
             if (period > MAX_SUPPORTED_TIMEOUT)
                 throw new ArgumentOutOfRangeException(nameof(period), SR.ArgumentOutOfRange_PeriodTooLarge);
 
-            return m_timer.m_timer.Change((UInt32)dueTime, (UInt32)period);
+            return m_timer.m_timer.Change((uint)dueTime, (uint)period);
         }
 
         public bool Dispose(WaitHandle notifyObject)

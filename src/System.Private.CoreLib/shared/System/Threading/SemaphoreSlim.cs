@@ -2,24 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-//
-//
-//
-// A lightweight semahore class that contains the basic semaphore functions plus some useful functions like interrupt
-// and wait handle exposing to allow waiting on multiple semaphores.
-//
-// =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Security;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-
-// The class will be part of the current System.Threading namespace
 
 namespace System.Threading
 {
@@ -77,14 +65,14 @@ namespace System.Threading
         private TaskNode m_asyncTail;
 
         // A pre-completed task with Result==true
-        private readonly static Task<bool> s_trueTask =
+        private static readonly Task<bool> s_trueTask =
             new Task<bool>(false, true, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
         // A pre-completed task with Result==false
         private readonly static Task<bool> s_falseTask =
             new Task<bool>(false, false, (TaskCreationOptions)InternalTaskOptions.DoNotDispose, default);
 
         // No maximum constant
-        private const int NO_MAXIMUM = Int32.MaxValue;
+        private const int NO_MAXIMUM = int.MaxValue;
 
         // Task in a linked list of asynchronous waiters
         private sealed class TaskNode : Task<bool>, IThreadPoolWorkItem
@@ -97,8 +85,9 @@ namespace System.Threading
                 bool setSuccessfully = TrySetResult(true);
                 Debug.Assert(setSuccessfully, "Should have been able to complete task");
             }
-
-            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
+#if CORECLR
+            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ } 
+#endif
         }
         #endregion
 
@@ -242,8 +231,8 @@ namespace System.Threading
         public bool Wait(TimeSpan timeout)
         {
             // Validate the timeout
-            Int64 totalMilliseconds = (Int64)timeout.TotalMilliseconds;
-            if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
+            long totalMilliseconds = (long)timeout.TotalMilliseconds;
+            if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
                     nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
@@ -272,8 +261,8 @@ namespace System.Threading
         public bool Wait(TimeSpan timeout, CancellationToken cancellationToken)
         {
             // Validate the timeout
-            Int64 totalMilliseconds = (Int64)timeout.TotalMilliseconds;
-            if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
+            long totalMilliseconds = (long)timeout.TotalMilliseconds;
+            if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
                     nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
@@ -348,8 +337,8 @@ namespace System.Threading
             try
             {
                 // Perf: first spin wait for the count to be positive.
-                //       This additional amount of spinwaiting in addition
-                //       to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
+                // This additional amount of spinwaiting in addition
+                // to Monitor.Enter()’s spinwaiting has shown measurable perf gains in test scenarios.
                 if (m_currentCount == 0)
                 {
                     // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
@@ -369,7 +358,6 @@ namespace System.Threading
                         }
                     }
                 }
-
                 // entering the lock and incrementing waiters must not suffer a thread-abort, else we cannot
                 // clean up m_waitCount correctly, which may lead to deadlock due to non-woken waiters.
                 try { }
@@ -487,7 +475,6 @@ namespace System.Threading
                         return false;
                     }
                 }
-
                 // ** the actual wait **
                 bool waitSuccessful = Monitor.Wait(m_lockObj, remainingWaitMilliseconds);
 
@@ -604,8 +591,8 @@ namespace System.Threading
         public Task<bool> WaitAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
             // Validate the timeout
-            Int64 totalMilliseconds = (Int64)timeout.TotalMilliseconds;
-            if (totalMilliseconds < -1 || totalMilliseconds > Int32.MaxValue)
+            long totalMilliseconds = (long)timeout.TotalMilliseconds;
+            if (totalMilliseconds < -1 || totalMilliseconds > int.MaxValue)
             {
                 throw new System.ArgumentOutOfRangeException(
                     nameof(timeout), timeout, SR.SemaphoreSlim_Wait_TimeoutWrong);
@@ -911,7 +898,7 @@ namespace System.Threading
         /// <param name="disposing">true to release both managed and unmanaged resources;
         /// false to release only unmanaged resources.</param>
         /// <remarks>
-        /// Unlike most of the members of <see cref="SemaphoreSlim"/>, <see cref="Dispose(Boolean)"/> is not
+        /// Unlike most of the members of <see cref="SemaphoreSlim"/>, <see cref="Dispose(bool)"/> is not
         /// thread-safe and may not be used concurrently with other members of this instance.
         /// </remarks>
         protected virtual void Dispose(bool disposing)
@@ -920,7 +907,7 @@ namespace System.Threading
             {
                 if (m_waitHandle != null)
                 {
-                    m_waitHandle.Close();
+                    m_waitHandle.Dispose();
                     m_waitHandle = null;
                 }
                 m_lockObj = null;
@@ -928,8 +915,6 @@ namespace System.Threading
                 m_asyncTail = null;
             }
         }
-
-
 
         /// <summary>
         /// Private helper method to wake up waiters when a cancellationToken gets canceled.
@@ -956,7 +941,6 @@ namespace System.Threading
                 throw new ObjectDisposedException(null, SR.SemaphoreSlim_Disposed);
             }
         }
-
         #endregion
     }
 }

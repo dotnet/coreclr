@@ -888,7 +888,7 @@ void* GenTree::operator new(size_t sz, Compiler* comp, genTreeOps oper)
 #endif // MEASURE_NODE_SIZE
 
     assert(size >= sz);
-    return comp->compGetMem(size, CMK_ASTNode);
+    return comp->getAllocator(CMK_ASTNode).allocate<char>(size);
 }
 
 // GenTree constructor
@@ -1663,8 +1663,7 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
             IMPL_LIMITATION("too many locals");
         }
 
-        // Note: compGetMemArray might throw.
-        LclVarDsc* newLvaTable = (LclVarDsc*)compGetMemArray(newLvaTableCnt, sizeof(*lvaTable), CMK_LvaTable);
+        LclVarDsc* newLvaTable = getAllocator(CMK_LvaTable).allocate<LclVarDsc>(newLvaTableCnt);
 
         memcpy(newLvaTable, lvaTable, lvaCount * sizeof(*lvaTable));
         memset(newLvaTable + lvaCount, 0, (newLvaTableCnt - lvaCount) * sizeof(*lvaTable));
@@ -1738,8 +1737,7 @@ inline unsigned Compiler::lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason)
             IMPL_LIMITATION("too many locals");
         }
 
-        // Note: compGetMemArray might throw.
-        LclVarDsc* newLvaTable = (LclVarDsc*)compGetMemArray(newLvaTableCnt, sizeof(*lvaTable), CMK_LvaTable);
+        LclVarDsc* newLvaTable = getAllocator(CMK_LvaTable).allocate<LclVarDsc>(newLvaTableCnt);
 
         memcpy(newLvaTable, lvaTable, lvaCount * sizeof(*lvaTable));
         memset(newLvaTable + lvaCount, 0, (newLvaTableCnt - lvaCount) * sizeof(*lvaTable));
@@ -2356,11 +2354,11 @@ inline
         FPbased = isFramePointerUsed();
         if (lvaDoneFrameLayout == Compiler::FINAL_FRAME_LAYOUT)
         {
-            TempDsc* tmpDsc = tmpFindNum(varNum);
+            TempDsc* tmpDsc = codeGen->regSet.tmpFindNum(varNum);
             // The temp might be in use, since this might be during code generation.
             if (tmpDsc == nullptr)
             {
-                tmpDsc = tmpFindNum(varNum, Compiler::TEMP_USAGE_USED);
+                tmpDsc = codeGen->regSet.tmpFindNum(varNum, RegSet::TEMP_USAGE_USED);
             }
             assert(tmpDsc != nullptr);
             offset = tmpDsc->tdTempOffs();
@@ -2425,39 +2423,38 @@ inline
         {
             *pBaseReg = REG_FPBASE;
         }
-        // Change the FP-based addressing to the SP-based addressing when possible because
+        // Change the Frame Pointer (R11)-based addressing to the SP-based addressing when possible because
         // it generates smaller code on ARM. See frame picture above for the math.
         else
         {
             // If it is the final frame layout phase, we don't have a choice, we should stick
             // to either FP based or SP based that we decided in the earlier phase. Because
-            // we have already selected the instruction. Min-opts will have R10 enabled, so just
-            // use that.
+            // we have already selected the instruction. MinOpts will always reserve R10, so
+            // for MinOpts always use SP-based offsets, using R10 as necessary, for simplicity.
 
-            int spOffset       = fConservative ? compLclFrameSize : offset + codeGen->genSPtoFPdelta();
-            int actualOffset   = (spOffset + addrModeOffset);
-            int ldrEncodeLimit = (varTypeIsFloating(type) ? 0x3FC : 0xFFC);
-            // Use ldr sp imm encoding.
-            if (lvaDoneFrameLayout == FINAL_FRAME_LAYOUT || opts.MinOpts() || (actualOffset <= ldrEncodeLimit))
+            int spOffset           = fConservative ? compLclFrameSize : offset + codeGen->genSPtoFPdelta();
+            int actualOffset       = spOffset + addrModeOffset;
+            int encodingLimitUpper = varTypeIsFloating(type) ? 0x3FC : 0xFFF;
+            int encodingLimitLower = varTypeIsFloating(type) ? -0x3FC : -0xFF;
+
+            // Use SP-based encoding. During encoding, we'll pick the best encoding for the actual offset we have.
+            if (opts.MinOpts() || (actualOffset <= encodingLimitUpper))
             {
                 offset    = spOffset;
                 *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
-            // Use ldr +/-imm8 encoding.
-            else if (offset >= -0x7C && offset <= ldrEncodeLimit)
+            // Use Frame Pointer (R11)-based encoding.
+            else if ((encodingLimitLower <= offset) && (offset <= encodingLimitUpper))
             {
                 *pBaseReg = REG_FPBASE;
             }
-            // Use a single movw. prefer locals.
-            else if (actualOffset <= 0xFFFC) // Fix 383910 ARM ILGEN
-            {
-                offset    = spOffset;
-                *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
-            }
-            // Use movw, movt.
+            // Otherwise, use SP-based encoding. This is either (1) a small positive offset using a single movw,
+            // (2) a large offset using movw/movt. In either case, we must have already reserved
+            // the "reserved register", which will get used during encoding.
             else
             {
-                *pBaseReg = REG_FPBASE;
+                offset    = spOffset;
+                *pBaseReg = compLocallocUsed ? REG_SAVED_LOCALLOC_SP : REG_SPBASE;
             }
         }
     }
@@ -2602,11 +2599,25 @@ inline unsigned Compiler::compMapILargNum(unsigned ILargNum)
     return (ILargNum);
 }
 
-// For ARM varargs, all arguments go in integer registers, so swizzle the type
+//------------------------------------------------------------------------
+// Compiler::mangleVarArgsType: Retype float types to their corresponding
+//                            : int/long types.
+//
+// Notes:
+//
+// The mangling of types will only occur for incoming vararg fixed arguments
+// on windows arm|64 or on armel (softFP).
+//
+// NO-OP for all other cases.
+//
 inline var_types Compiler::mangleVarArgsType(var_types type)
 {
-#ifdef _TARGET_ARMARCH_
-    if (info.compIsVarArgs || opts.compUseSoftFP)
+#if defined(_TARGET_ARMARCH_)
+    if (opts.compUseSoftFP
+#if defined(_TARGET_WINDOWS_)
+        || info.compIsVarArgs
+#endif // defined(_TARGET_WINDOWS_)
+        )
     {
         switch (type)
         {
@@ -2618,7 +2629,7 @@ inline var_types Compiler::mangleVarArgsType(var_types type)
                 break;
         }
     }
-#endif // _TARGET_ARMARCH_
+#endif // defined(_TARGET_ARMARCH_)
     return type;
 }
 
@@ -3066,7 +3077,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 /*****************************************************************************/
 
-/* static */ inline unsigned Compiler::tmpSlot(unsigned size)
+/* static */ inline unsigned RegSet::tmpSlot(unsigned size)
 {
     noway_assert(size >= sizeof(int));
     noway_assert(size <= TEMP_MAX_SIZE);
@@ -3082,10 +3093,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  *  over a function body.
  */
 
-inline void Compiler::tmpEnd()
+inline void RegSet::tmpEnd()
 {
 #ifdef DEBUG
-    if (verbose && (tmpCount > 0))
+    if (m_rsCompiler->verbose && (tmpCount > 0))
     {
         printf("%d tmps used\n", tmpCount);
     }
@@ -3098,7 +3109,7 @@ inline void Compiler::tmpEnd()
  *  compiled.
  */
 
-inline void Compiler::tmpDone()
+inline void RegSet::tmpDone()
 {
 #ifdef DEBUG
     unsigned count;
@@ -4070,75 +4081,9 @@ inline bool Compiler::compStressCompile(compStressArea stressArea, unsigned weig
 }
 #endif
 
-inline ArenaAllocator* Compiler::compGetAllocator()
+inline ArenaAllocator* Compiler::compGetArenaAllocator()
 {
-    return compAllocator;
-}
-
-/*****************************************************************************
- *
- *  Allocate memory from the no-release allocator. All such memory will be
- *  freed up simulataneously at the end of the procedure
- */
-
-#ifndef DEBUG
-
-inline void* Compiler::compGetMem(size_t sz, CompMemKind cmk)
-{
-    assert(sz);
-
-#if MEASURE_MEM_ALLOC
-    genMemStats.AddAlloc(sz, cmk);
-#endif
-
-    return compAllocator->allocateMemory(sz);
-}
-
-#endif
-
-// Wrapper for Compiler::compGetMem that can be forward-declared for use in template
-// types which Compiler depends on but which need to allocate heap memory.
-inline void* compGetMem(Compiler* comp, size_t sz)
-{
-    return comp->compGetMem(sz);
-}
-
-/*****************************************************************************
- *
- * A common memory allocation for arrays of structures involves the
- * multiplication of the number of elements with the size of each element.
- * If this computation overflows, then the memory allocation might succeed,
- * but not allocate sufficient memory for all the elements.  This can cause
- * us to overwrite the allocation, and AV or worse, corrupt memory.
- *
- * This method checks for overflow, and succeeds only when it detects
- * that there's no overflow.  It should be cheap, because when inlined with
- * a constant elemSize, the division should be done in compile time, and so
- * at run time we simply have a check of numElem against some number (this
- * is why we __forceinline).
- */
-
-#define MAX_MEMORY_PER_ALLOCATION (512 * 1024 * 1024)
-
-__forceinline void* Compiler::compGetMemArray(size_t numElem, size_t elemSize, CompMemKind cmk)
-{
-    if (numElem > (MAX_MEMORY_PER_ALLOCATION / elemSize))
-    {
-        NOMEM();
-    }
-
-    return compGetMem(numElem * elemSize, cmk);
-}
-
-/******************************************************************************
- *
- *  Roundup the allocated size so that if this memory block is aligned,
- *  then the next block allocated too will be aligned.
- *  The JIT will always try to keep all the blocks aligned.
- */
-
-inline void Compiler::compFreeMem(void* ptr)
-{
+    return compArenaAllocator;
 }
 
 inline bool Compiler::compIsProfilerHookNeeded()
@@ -4910,18 +4855,18 @@ void GenTree::VisitBinOpOperands(TVisitor visitor)
 /*****************************************************************************
  *  operator new
  *
- *  Note that compGetMem is an arena allocator that returns memory that is
+ *  Note that compiler's allocator is an arena allocator that returns memory that is
  *  not zero-initialized and can contain data from a prior allocation lifetime.
  */
 
-inline void* __cdecl operator new(size_t sz, Compiler* context, CompMemKind cmk)
+inline void* __cdecl operator new(size_t sz, Compiler* compiler, CompMemKind cmk)
 {
-    return context->compGetMem(sz, cmk);
+    return compiler->getAllocator(cmk).allocate<char>(sz);
 }
 
-inline void* __cdecl operator new[](size_t sz, Compiler* context, CompMemKind cmk)
+inline void* __cdecl operator new[](size_t sz, Compiler* compiler, CompMemKind cmk)
 {
-    return context->compGetMem(sz, cmk);
+    return compiler->getAllocator(cmk).allocate<char>(sz);
 }
 
 inline void* __cdecl operator new(size_t sz, void* p, const jitstd::placement_t& /* syntax_difference */)

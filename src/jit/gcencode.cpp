@@ -1906,7 +1906,7 @@ PendingArgsStack::PendingArgsStack(unsigned maxDepth, Compiler* pComp)
     /* Do we need an array as well as the mask ? */
 
     if (pasMaxDepth > BITS_IN_pasMask)
-        pasTopArray = (BYTE*)pComp->compGetMem(pasMaxDepth - BITS_IN_pasMask);
+        pasTopArray = pComp->getAllocator(CMK_Unknown).allocate<BYTE>(pasMaxDepth - BITS_IN_pasMask);
 }
 
 //-----------------------------------------------------------------------------
@@ -2365,8 +2365,9 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
         /* Count&Write spill temps that hold pointers */
 
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempItem = compiler->tmpListBeg(); tempItem != nullptr; tempItem = compiler->tmpListNxt(tempItem))
+        assert(compiler->codeGen->regSet.tmpAllFree());
+        for (TempDsc* tempItem = compiler->codeGen->regSet.tmpListBeg(); tempItem != nullptr;
+             tempItem          = compiler->codeGen->regSet.tmpListNxt(tempItem))
         {
             if (varTypeIsGC(tempItem->tdTempType()))
             {
@@ -4330,8 +4331,9 @@ void GCInfo::gcMakeRegPtrTable(
     {
         // Count&Write spill temps that hold pointers.
 
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempItem = compiler->tmpListBeg(); tempItem != nullptr; tempItem = compiler->tmpListNxt(tempItem))
+        assert(compiler->codeGen->regSet.tmpAllFree());
+        for (TempDsc* tempItem = compiler->codeGen->regSet.tmpListBeg(); tempItem != nullptr;
+             tempItem          = compiler->codeGen->regSet.tmpListNxt(tempItem))
         {
             if (varTypeIsGC(tempItem->tdTempType()))
             {

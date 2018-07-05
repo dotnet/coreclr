@@ -258,7 +258,7 @@ class FieldSeqStore
 {
     typedef JitHashTable<FieldSeqNode, /*KeyFuncs*/ FieldSeqNode, FieldSeqNode*> FieldSeqNodeCanonMap;
 
-    CompAllocator*        m_alloc;
+    CompAllocator         m_alloc;
     FieldSeqNodeCanonMap* m_canonMap;
 
     static FieldSeqNode s_notAField; // No value, just exists to provide an address.
@@ -268,7 +268,7 @@ class FieldSeqStore
     static int ConstantIndexPseudoFieldStruct;
 
 public:
-    FieldSeqStore(CompAllocator* alloc);
+    FieldSeqStore(CompAllocator alloc);
 
     // Returns the (canonical in the store) singleton field sequence for the given handle.
     FieldSeqNode* CreateSingleton(CORINFO_FIELD_HANDLE fieldHnd);
@@ -3089,6 +3089,7 @@ struct ReturnTypeDesc
 {
 private:
     var_types m_regType[MAX_RET_REG_COUNT];
+    bool      m_isEnclosingType;
 
 #ifdef DEBUG
     bool m_inited;
@@ -3114,6 +3115,7 @@ public:
         {
             m_regType[i] = TYP_UNKNOWN;
         }
+        m_isEnclosingType = false;
 #ifdef DEBUG
         m_inited = false;
 #endif
@@ -3204,6 +3206,13 @@ public:
         assert(result != TYP_UNKNOWN);
 
         return result;
+    }
+
+    // True if this value is returned in integer register
+    // that is larger than the type itself.
+    bool IsEnclosingType() const
+    {
+        return m_isEnclosingType;
     }
 
     // Get ith ABI return register

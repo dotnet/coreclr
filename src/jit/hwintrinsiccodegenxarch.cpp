@@ -239,27 +239,10 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                     {
                         ssize_t ival = op3->AsIntCon()->IconValue();
                         assert((ival >= 0) && (ival <= 255));
-
-                        if ((intrinsicId == NI_SSE41_Insert) && (baseType == TYP_FLOAT))
-                        {
-                            // Bits 6 and 7 impact the index that is selected from op2
-                            // when op2 is already in register. However, our API exposes
-                            // op2 as a scalar and so bits 6 and 7 must be set to 0.
-                            ival &= 0x3F;
-                        }
-
                         emitSwCase((int8_t)ival);
                     }
                     else
                     {
-                        if ((intrinsicId == NI_SSE41_Insert) && (baseType == TYP_FLOAT))
-                        {
-                            // Bits 6 and 7 impact the index that is selected from op2
-                            // when op2 is already in register. However, our API exposes
-                            // op2 as a scalar and so bits 6 and 7 must be set to 0.
-                            emit->emitIns_R_I(INS_and, EA_1BYTE, op3Reg, 0x3F);
-                        }
-
                         // We emit a fallback case for the scenario when the imm-op is not a constant. This should
                         // normally happen when the intrinsic is called indirectly, such as via Reflection. However, it
                         // can also occur if the consumer calls it directly and just doesn't pass a constant value.
@@ -410,7 +393,7 @@ void CodeGen::genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emi
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op1->OperIsHWIntrinsic())
         {
@@ -534,7 +517,7 @@ void CodeGen::genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, i
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op1->OperIsHWIntrinsic())
         {
@@ -658,7 +641,7 @@ void CodeGen::genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins)
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op2->OperIsHWIntrinsic())
         {
@@ -814,7 +797,7 @@ void CodeGen::genHWIntrinsic_R_R_RM_I(GenTreeHWIntrinsic* node, instruction ins,
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op2->OperIsHWIntrinsic())
         {
@@ -970,7 +953,7 @@ void CodeGen::genHWIntrinsic_R_R_RM_R(GenTreeHWIntrinsic* node, instruction ins)
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op2->OperIsHWIntrinsic())
         {
@@ -1089,7 +1072,7 @@ void CodeGen::genHWIntrinsic_R_R_R_RM(
             varNum = tmpDsc->tdTempNum();
             offset = 0;
 
-            compiler->tmpRlsTemp(tmpDsc);
+            regSet.tmpRlsTemp(tmpDsc);
         }
         else if (op3->OperIsHWIntrinsic())
         {
@@ -1354,7 +1337,6 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
         }
 
         case NI_SSE_ConvertToSingle:
-        case NI_SSE_StaticCast:
         {
             assert(op2 == nullptr);
             if (op1Reg != targetReg)
@@ -2002,7 +1984,6 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
         }
 
         case NI_AVX_GetLowerHalf:
-        case NI_AVX_StaticCast:
         {
             assert(op2 == nullptr);
             regNumber op1Reg = op1->gtRegNum;

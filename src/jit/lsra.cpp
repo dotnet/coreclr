@@ -605,11 +605,8 @@ LinearScanInterface* getLinearScanAllocator(Compiler* comp)
 
 LinearScan::LinearScan(Compiler* theCompiler)
     : compiler(theCompiler)
-#if MEASURE_MEM_ALLOC
-    , lsraAllocator(nullptr)
-#endif // MEASURE_MEM_ALLOC
-    , intervals(LinearScanMemoryAllocatorInterval(theCompiler))
-    , refPositions(LinearScanMemoryAllocatorRefPosition(theCompiler))
+    , intervals(theCompiler->getAllocator(CMK_LSRA_Interval))
+    , refPositions(theCompiler->getAllocator(CMK_LSRA_RefPosition))
     , listNodePool(theCompiler)
 {
 #ifdef DEBUG
@@ -869,7 +866,7 @@ void LinearScan::setBlockSequence()
             // the blocks - but fgBBcount does not appear to be updated when blocks are removed.
             if (nextBlock == nullptr /* && bbSeqCount != compiler->fgBBcount*/ && !verifiedAllBBs)
             {
-                // If we don't encounter all blocks by traversing the regular sucessor links, do a full
+                // If we don't encounter all blocks by traversing the regular successor links, do a full
                 // traversal of all the blocks, and add them in layout order.
                 // This may include:
                 //   - internal-only blocks (in the fgAddCodeList) which may not be in the flow graph
@@ -2687,8 +2684,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
             // or if it is only related because they are multi-reg targets of the same node.
-            if (!RefTypeIsDef(nextRelatedRefPosition->refType) ||
-                isMultiRegRelated(nextRelatedRefPosition, refPosition->nodeLocation))
+            if (!RefTypeIsDef(nextRelatedRefPosition->refType))
             {
                 relatedInterval = nullptr;
             }
@@ -4922,18 +4918,6 @@ bool LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
     return isFree;
 }
 
-// isMultiRegRelated: is this RefPosition defining part of a multi-reg value
-//                    at the given location?
-//
-bool LinearScan::isMultiRegRelated(RefPosition* refPosition, LsraLocation location)
-{
-#ifdef FEATURE_MULTIREG_ARGS_OR_RET
-    return ((refPosition->nodeLocation == location) && refPosition->getInterval()->isMultiReg);
-#else
-    return false;
-#endif
-}
-
 //------------------------------------------------------------------------
 // LinearScan::freeRegister: Make a register available for use
 //
@@ -5590,7 +5574,7 @@ void LinearScan::allocateRegisters()
 
                     // There MUST be caller-save registers available, because they have all just been killed.
                     // Amd64 Windows: xmm4-xmm5 are guaranteed to be available as xmm0-xmm3 are used for passing args.
-                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be avilable as xmm0-xmm7 are used for passing args.
+                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be available as xmm0-xmm7 are used for passing args.
                     // X86 RyuJIT Windows: xmm4-xmm7 are guanrateed to be available.
                     assert(assignedRegister != REG_NA);
 
@@ -5598,7 +5582,7 @@ void LinearScan::allocateRegisters()
                     // Note:
                     //   i) The reason we have to spill is that SaveDef position is allocated after the Kill positions
                     //      of the call node are processed.  Since callee-trash registers are killed by call node
-                    //      we explicity spill and unassign the register.
+                    //      we explicitly spill and unassign the register.
                     //  ii) These will look a bit backward in the dump, but it's a pain to dump the alloc before the
                     //  spill).
                     unassignPhysReg(getRegisterRecord(assignedRegister), currentRefPosition);
@@ -5776,7 +5760,7 @@ void LinearScan::allocateRegisters()
 // Arguments:
 //    reg      -    register to be updated
 //    interval -    interval to be assigned
-//    regType  -    regsiter type
+//    regType  -    register type
 //
 // Return Value:
 //    None
@@ -5816,7 +5800,7 @@ void LinearScan::updateAssignedInterval(RegRecord* reg, Interval* interval, Regi
 // Arguments:
 //    reg      -    register to be updated
 //    interval -    interval to be assigned
-//    regType  -    regsiter type
+//    regType  -    register type
 //
 // Return Value:
 //    None
@@ -6355,7 +6339,7 @@ void LinearScan::recordMaxSpill()
     // only a few types should actually be seen here.
     JITDUMP("Recording the maximum number of concurrent spills:\n");
 #ifdef _TARGET_X86_
-    var_types returnType = compiler->tmpNormalizeType(compiler->info.compRetType);
+    var_types returnType = RegSet::tmpNormalizeType(compiler->info.compRetType);
     if (needDoubleTmpForFPCall || (returnType == TYP_DOUBLE))
     {
         JITDUMP("Adding a spill temp for moving a double call/return value between xmm reg and x87 stack.\n");
@@ -6369,7 +6353,7 @@ void LinearScan::recordMaxSpill()
 #endif // _TARGET_X86_
     for (int i = 0; i < TYP_COUNT; i++)
     {
-        if (var_types(i) != compiler->tmpNormalizeType(var_types(i)))
+        if (var_types(i) != RegSet::tmpNormalizeType(var_types(i)))
         {
             // Only normalized types should have anything in the maxSpill array.
             // We assume here that if type 'i' does not normalize to itself, then
@@ -6379,7 +6363,7 @@ void LinearScan::recordMaxSpill()
         if (maxSpill[i] != 0)
         {
             JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
-            compiler->tmpPreAllocateTemps(var_types(i), maxSpill[i]);
+            compiler->codeGen->regSet.tmpPreAllocateTemps(var_types(i), maxSpill[i]);
         }
     }
     JITDUMP("\n");
@@ -6461,7 +6445,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                 {
                     typ = treeNode->TypeGet();
                 }
-                typ = compiler->tmpNormalizeType(typ);
+                typ = RegSet::tmpNormalizeType(typ);
             }
 
             if (refPosition->spillAfter && !refPosition->reload)
@@ -8112,7 +8096,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     if (genIsValidDoubleReg(fromReg))
                     {
                         // Ensure that either:
-                        // - the Interval targetting fromReg is not double, or
+                        // - the Interval targeting fromReg is not double, or
                         // - the other half of the double is free.
                         Interval* otherInterval = sourceIntervals[source[fromReg]];
                         regNumber upperHalfReg  = REG_NEXT(fromReg);
@@ -8599,10 +8583,6 @@ void Interval::dump()
     {
         printf(" (constant)");
     }
-    if (isMultiReg)
-    {
-        printf(" (multireg)");
-    }
 
     printf(" RefPositions {");
     for (RefPosition* refPosition = this->firstRefPosition; refPosition != nullptr;
@@ -8728,6 +8708,10 @@ void LinearScan::dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCou
 
 void LinearScan::dumpDefList()
 {
+    if (!VERBOSE)
+    {
+        return;
+    }
     JITDUMP("DefList: { ");
     bool first = true;
     for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;

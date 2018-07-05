@@ -126,8 +126,6 @@ void Compiler::fgInit()
     /* This global flag is set whenever we add a throw block for a RngChk */
     fgRngChkThrowAdded = false; /* reset flag for fgIsCodeAdded() */
 
-    fgIncrCount = 0;
-
     /* We will record a list of all BBJ_RETURN blocks here */
     fgReturnBlocks = nullptr;
 
@@ -2337,7 +2335,7 @@ void Compiler::fgDfsInvPostOrderHelper(BasicBlock* block, BlockSet& visited, uns
 
     // Allocate a local stack to hold the DFS traversal actions necessary
     // to compute pre/post-ordering of the control flowgraph.
-    ArrayStack<DfsBlockEntry> stack(this);
+    ArrayStack<DfsBlockEntry> stack(getAllocator(CMK_ArrayStack));
 
     // Push the first block on the stack to seed the traversal.
     stack.Push(DfsBlockEntry(DSS_Pre, block));
@@ -2778,7 +2776,7 @@ void Compiler::fgTraverseDomTree(unsigned bbNum, BasicBlockList** domTree, unsig
 
         // Allocate a local stack to hold the Dfs traversal actions necessary
         // to compute pre/post-ordering of the dominator tree.
-        ArrayStack<DfsNumEntry> stack(this);
+        ArrayStack<DfsNumEntry> stack(getAllocator(CMK_ArrayStack));
 
         // Push the first entry number on the stack to seed the traversal.
         stack.Push(DfsNumEntry(DSS_Pre, bbNum));
@@ -3350,10 +3348,10 @@ Compiler::SwitchUniqueSuccSet Compiler::GetDescriptorForSwitch(BasicBlock* switc
     }
 }
 
-void Compiler::SwitchUniqueSuccSet::UpdateTarget(CompAllocator* alloc,
-                                                 BasicBlock*    switchBlk,
-                                                 BasicBlock*    from,
-                                                 BasicBlock*    to)
+void Compiler::SwitchUniqueSuccSet::UpdateTarget(CompAllocator alloc,
+                                                 BasicBlock*   switchBlk,
+                                                 BasicBlock*   from,
+                                                 BasicBlock*   to)
 {
     assert(switchBlk->bbJumpKind == BBJ_SWITCH); // Precondition.
     unsigned     jmpTabCnt = switchBlk->bbJumpSwt->bbsCount;
@@ -6808,8 +6806,6 @@ unsigned Compiler::fgGetNestingLevel(BasicBlock* block, unsigned* pFinallyNestin
 
 void Compiler::fgImport()
 {
-    fgHasPostfix = false;
-
     impImport(fgFirstBB);
 
     if (!opts.jitFlags->IsSet(JitFlags::JIT_FLAG_SKIP_VERIFICATION))
@@ -9551,8 +9547,8 @@ void Compiler::fgSimpleLowering()
 
                     noway_assert(arr->gtNext == tree);
 
-                    noway_assert(arrLen->ArrLenOffset() == offsetof(CORINFO_Array, length) ||
-                                 arrLen->ArrLenOffset() == offsetof(CORINFO_String, stringLen));
+                    noway_assert(arrLen->ArrLenOffset() == OFFSETOF__CORINFO_Array__length ||
+                                 arrLen->ArrLenOffset() == OFFSETOF__CORINFO_String__stringLen);
 
                     if ((arr->gtOper == GT_CNS_INT) && (arr->gtIntCon.gtIconVal == 0))
                     {
@@ -19287,7 +19283,7 @@ const char* Compiler::fgProcessEscapes(const char* nameIn, escapeMapping_t* map)
 
     if (subsitutionRequired)
     {
-        char* newName = (char*)compGetMem(lengthOut, CMK_DebugOnly);
+        char* newName = getAllocator(CMK_DebugOnly).allocate<char>(lengthOut);
         char* pDest;
         pDest = newName;
         pChar = nameIn;
@@ -21159,7 +21155,7 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
             case GT_FIELD_LIST:
                 if ((op2 != nullptr) && op2->OperIsAnyList())
                 {
-                    ArrayStack<GenTree*> stack(this);
+                    ArrayStack<GenTree*> stack(getAllocator(CMK_DebugOnly));
                     while ((tree->gtGetOp2() != nullptr) && tree->gtGetOp2()->OperIsAnyList())
                     {
                         stack.Push(tree);
@@ -22324,33 +22320,113 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
         }
     }
 
-#if FEATURE_MULTIREG_RET
-
-    // Did we record a struct return class handle above?
+    // If an inline was rejected and the call returns a struct, we may
+    // have deferred some work when importing call for cases where the
+    // struct is returned in register(s).
     //
+    // See the bail-out clauses in impFixupCallStructReturn for inline
+    // candidates.
+    //
+    // Do the deferred work now.
     if (retClsHnd != NO_CLASS_HANDLE)
     {
-        // Is this a type that is returned in multiple registers?
-        // if so we need to force into into a form we accept.
-        // i.e. LclVar = call()
-        //
-        if (comp->IsMultiRegReturnedType(retClsHnd))
+        structPassingKind howToReturnStruct;
+        var_types         returnType = comp->getReturnTypeForStruct(retClsHnd, &howToReturnStruct);
+        GenTree*          parent     = data->parent;
+
+        switch (howToReturnStruct)
         {
-            GenTree* parent = data->parent;
-            // See assert below, we only look one level above for an asg parent.
-            if (parent->gtOper == GT_ASG)
+
+#if FEATURE_MULTIREG_RET
+
+            // Is this a type that is returned in multiple registers
+            // or a via a primitve type that is larger than the struct type?
+            // if so we need to force into into a form we accept.
+            // i.e. LclVar = call()
+            case SPK_ByValue:
+            case SPK_ByValueAsHfa:
             {
-                // Either lhs is a call V05 = call(); or lhs is addr, and asg becomes a copyBlk.
-                comp->fgAttachStructInlineeToAsg(parent, tree, retClsHnd);
+                // See assert below, we only look one level above for an asg parent.
+                if (parent->gtOper == GT_ASG)
+                {
+                    // Either lhs is a call V05 = call(); or lhs is addr, and asg becomes a copyBlk.
+                    comp->fgAttachStructInlineeToAsg(parent, tree, retClsHnd);
+                }
+                else
+                {
+                    // Just assign the inlinee to a variable to keep it simple.
+                    tree->ReplaceWith(comp->fgAssignStructInlineeToVar(tree, retClsHnd), comp);
+                }
             }
-            else
+            break;
+
+#endif // FEATURE_MULTIREG_RET
+
+            case SPK_EnclosingType:
             {
-                // Just assign the inlinee to a variable to keep it simple.
-                tree->ReplaceWith(comp->fgAssignStructInlineeToVar(tree, retClsHnd), comp);
+                // For enclosing type returns, we must return the call value to a temp since
+                // the return type is larger than the struct type.
+                if (!tree->IsCall())
+                {
+                    break;
+                }
+
+                GenTreeCall* call = tree->AsCall();
+
+                assert(call->gtReturnType == TYP_STRUCT);
+
+                if (call->gtReturnType != TYP_STRUCT)
+                {
+                    break;
+                }
+
+                JITDUMP("\nCall returns small struct via enclosing type, retyping. Before:\n");
+                DISPTREE(call);
+
+                // Create new struct typed temp for return value
+                const unsigned tmpNum =
+                    comp->lvaGrabTemp(true DEBUGARG("small struct return temp for rejected inline"));
+                comp->lvaSetStruct(tmpNum, retClsHnd, false);
+                GenTree* assign = comp->gtNewTempAssign(tmpNum, call);
+
+                // Modify assign tree and call return types to the primitive return type
+                call->gtReturnType = returnType;
+                call->gtType       = returnType;
+                assign->gtType     = returnType;
+
+                // Modify the temp reference in the assign as a primitive reference via GT_LCL_FLD
+                GenTree* tempAsPrimitive = assign->gtOp.gtOp1;
+                assert(tempAsPrimitive->gtOper == GT_LCL_VAR);
+                tempAsPrimitive->gtType = returnType;
+                tempAsPrimitive->ChangeOper(GT_LCL_FLD);
+
+                // Return temp as value of call tree via comma
+                GenTree* tempAsStruct = comp->gtNewLclvNode(tmpNum, TYP_STRUCT);
+                GenTree* comma        = comp->gtNewOperNode(GT_COMMA, TYP_STRUCT, assign, tempAsStruct);
+                parent->ReplaceOperand(pTree, comma);
+
+                JITDUMP("\nAfter:\n");
+                DISPTREE(comma);
             }
+            break;
+
+            case SPK_PrimitiveType:
+                // We should have already retyped the call as a primitive type
+                // when we first imported the call
+                break;
+
+            case SPK_ByReference:
+                // We should have already added the return buffer
+                // when we first imported the call
+                break;
+
+            default:
+                noway_assert(!"Unexpected struct passing kind");
+                break;
         }
     }
 
+#if FEATURE_MULTIREG_RET
 #if defined(DEBUG)
 
     // Make sure we don't have a tree like so: V05 = (, , , retExpr);

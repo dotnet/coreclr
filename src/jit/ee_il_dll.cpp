@@ -533,7 +533,7 @@ GenTree* Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
 
 unsigned Compiler::eeGetArrayDataOffset(var_types type)
 {
-    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : offsetof(CORINFO_Array, u1Elems);
+    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : OFFSETOF__CORINFO_Array__data;
 }
 
 //------------------------------------------------------------------------
@@ -733,7 +733,7 @@ void Compiler::eeGetVars()
     {
         // Allocate a bit-array for all the variables and initialize to false
 
-        bool*    varInfoProvided = (bool*)compGetMem(info.compLocalsCount * sizeof(varInfoProvided[0]));
+        bool*    varInfoProvided = getAllocator(CMK_Unknown).allocate<bool>(info.compLocalsCount);
         unsigned i;
         for (i = 0; i < info.compLocalsCount; i++)
         {

@@ -9,20 +9,26 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    class RuntimeFunction
+    public interface BaseUnwindInfo
+    {
+
+    }
+
+    public class RuntimeFunction
     {
         /// <summary>
         /// The index of the runtime function
         /// </summary>
-        public int Id { get; }
+        public int Id { get; set; }
 
         /// <summary>
         /// The relative virtual address to the start of the code block
         /// </summary>
-        public int StartAddress { get; }
+        public int StartAddress { get; set; }
 
         /// <summary>
         /// The size of the code block in bytes
@@ -31,12 +37,12 @@ namespace R2RDump
         /// The EndAddress field in the runtime functions section is conditional on machine type
         /// Size is -1 for images without the EndAddress field
         /// </remarks>
-        public int Size { get; }
+        public int Size { get; set; }
 
         /// <summary>
         /// The relative virtual address to the unwind info
         /// </summary>
-        public int UnwindRVA { get; }
+        public int UnwindRVA { get; set; }
 
         public int CodeOffset { get; set; }
 
@@ -45,9 +51,11 @@ namespace R2RDump
         /// </summary>
         public R2RMethod Method { get; }
 
-        public UnwindInfo UnwindInfo { get; }
+        public BaseUnwindInfo UnwindInfo { get; }
 
-        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, int codeOffset, R2RMethod method, UnwindInfo unwindInfo, GcInfo gcInfo)
+        public RuntimeFunction() { }
+
+        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, int codeOffset, R2RMethod method, BaseUnwindInfo unwindInfo, GcInfo gcInfo)
         {
             Id = id;
             StartAddress = startRva;
@@ -86,7 +94,7 @@ namespace R2RDump
         }
     }
 
-    class R2RMethod
+    public class R2RMethod
     {
         private const int _mdtMethodDef = 0x06000000;
 
@@ -96,31 +104,31 @@ namespace R2RDump
         /// <summary>
         /// The name of the method
         /// </summary>
-        public string Name { get; }
+        public string Name { get; set; }
 
         /// <summary>
         /// The signature with format: namespace.class.methodName<S, T, ...>(S, T, ...)
         /// </summary>
-        public string SignatureString { get; }
+        public string SignatureString { get; set; }
 
-        public bool IsGeneric { get; }
+        public bool IsGeneric { get; set; }
 
         public MethodSignature<string> Signature { get; }
 
         /// <summary>
         /// The type that the method belongs to
         /// </summary>
-        public string DeclaringType { get; }
+        public string DeclaringType { get; set; }
 
         /// <summary>
         /// The token of the method consisting of the table code (0x06) and row id
         /// </summary>
-        public uint Token { get; }
+        public uint Token { get; set; }
 
         /// <summary>
         /// The row id of the method
         /// </summary>
-        public uint Rid { get; }
+        public uint Rid { get; set; }
 
         /// <summary>
         /// All the runtime functions of this method
@@ -130,8 +138,9 @@ namespace R2RDump
         /// <summary>
         /// The id of the entrypoint runtime function
         /// </summary>
-        public int EntryPointRuntimeFunctionId { get; }
+        public int EntryPointRuntimeFunctionId { get; set; }
 
+        [XmlIgnore]
         public GcInfo GcInfo { get; set; }
 
         /// <summary>
@@ -173,6 +182,8 @@ namespace R2RDump
             Object = 0x1c,
             Array = 0x1d,
         };
+
+        public R2RMethod() { }
 
         /// <summary>
         /// Extracts the method signature from the metadata by rid

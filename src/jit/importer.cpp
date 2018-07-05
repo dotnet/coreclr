@@ -1269,11 +1269,11 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         destAddr =
             impCloneExpr(destAddr, &destAddrClone, structHnd, curLevel, pAfterStmt DEBUGARG("MKREFANY assignment"));
 
-        assert(offsetof(CORINFO_RefAny, dataPtr) == 0);
+        assert(OFFSETOF__CORINFO_TypedReference__dataPtr == 0);
         assert(destAddr->gtType == TYP_I_IMPL || destAddr->gtType == TYP_BYREF);
         GetZeroOffsetFieldMap()->Set(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
         GenTree*       ptrSlot         = gtNewOperNode(GT_IND, TYP_I_IMPL, destAddr);
-        GenTreeIntCon* typeFieldOffset = gtNewIconNode(offsetof(CORINFO_RefAny, type), TYP_I_IMPL);
+        GenTreeIntCon* typeFieldOffset = gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL);
         typeFieldOffset->gtFieldSeq    = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());
         GenTree* typeSlot =
             gtNewOperNode(GT_IND, TYP_I_IMPL, gtNewOperNode(GT_ADD, destAddr->gtType, destAddrClone, typeFieldOffset));
@@ -1784,7 +1784,7 @@ GenTree* Compiler::impLookupToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
 
         CORINFO_GENERIC_HANDLE handle       = nullptr;
         void*                  pIndirection = nullptr;
-        assert(pLookup->constLookup.accessType != IAT_PPVALUE);
+        assert(pLookup->constLookup.accessType != IAT_PPVALUE && pLookup->constLookup.accessType != IAT_RELPVALUE);
 
         if (pLookup->constLookup.accessType == IAT_VALUE)
         {
@@ -1819,7 +1819,7 @@ GenTree* Compiler::impReadyToRunLookupToTree(CORINFO_CONST_LOOKUP* pLookup,
 {
     CORINFO_GENERIC_HANDLE handle       = nullptr;
     void*                  pIndirection = nullptr;
-    assert(pLookup->accessType != IAT_PPVALUE);
+    assert(pLookup->accessType != IAT_PPVALUE && pLookup->accessType != IAT_RELPVALUE);
 
     if (pLookup->accessType == IAT_VALUE)
     {
@@ -3530,14 +3530,14 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
             op1 = impPopStack().val;
             if (!opts.MinOpts() && !opts.compDbgCode)
             {
-                GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, offsetof(CORINFO_String, stringLen));
+                GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, OFFSETOF__CORINFO_String__stringLen);
                 op1                   = arrLen;
             }
             else
             {
                 /* Create the expression "*(str_addr + stringLengthOffset)" */
                 op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                    gtNewIconNode(offsetof(CORINFO_String, stringLen), TYP_I_IMPL));
+                                    gtNewIconNode(OFFSETOF__CORINFO_String__stringLen, TYP_I_IMPL));
                 op1 = gtNewOperNode(GT_IND, TYP_INT, op1);
             }
 
@@ -6112,9 +6112,9 @@ void Compiler::impCheckForPInvokeCall(
             return;
         }
 
-        // PInvoke CALL in IL stubs must be inlined on CoreRT. Skip the ambient conditions checks and
-        // profitability checks
-        if (!(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) && IsTargetAbi(CORINFO_CORERT_ABI)))
+        // Legal PInvoke CALL in PInvoke IL stubs must be inlined to avoid infinite recursive
+        // inlining in CoreRT. Skip the ambient conditions checks and profitability checks.
+        if (!IsTargetAbi(CORINFO_CORERT_ABI) || (info.compFlags & CORINFO_FLG_PINVOKE) == 0)
         {
             if (!impCanPInvokeInline())
             {
@@ -7276,7 +7276,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                     call = gtNewCallNode(CT_USER_FUNC, callInfo->hMethod, callRetTyp, nullptr, ilOffset);
                     call->gtCall.gtStubCallStubAddr = callInfo->stubLookup.constLookup.addr;
                     call->gtFlags |= GTF_CALL_VIRT_STUB;
-                    assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE);
+                    assert(callInfo->stubLookup.constLookup.accessType != IAT_PPVALUE &&
+                           callInfo->stubLookup.constLookup.accessType != IAT_RELPVALUE);
                     if (callInfo->stubLookup.constLookup.accessType == IAT_PVALUE)
                     {
                         call->gtCall.gtCallMoreFlags |= GTF_CALL_M_VIRTSTUB_REL_INDIRECT;
@@ -8464,8 +8465,24 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
     {
         if (retRegCount == 1)
         {
-            // struct returned in a single register
-            call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+            // See if the struct size is smaller than the return
+            // type size...
+            if (retTypeDesc->IsEnclosingType())
+            {
+                // If we know for sure this call will remain a call,
+                // retype and return value via a suitable temp.
+                if ((!call->CanTailCall()) && (!call->IsInlineCandidate()))
+                {
+                    call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+                    return impAssignSmallStructTypeToVar(call, retClsHnd);
+                }
+            }
+            else
+            {
+                // Return type is same size as struct, so we can
+                // simply retype the call.
+                call->gtReturnType = retTypeDesc->GetReturnRegType(0);
+            }
         }
         else
         {
@@ -8507,7 +8524,25 @@ GenTree* Compiler::impFixupCallStructReturn(GenTreeCall* call, CORINFO_CLASS_HAN
     else
     {
         assert(returnType != TYP_UNKNOWN);
-        call->gtReturnType = returnType;
+
+        // See if the struct size is smaller than the return
+        // type size...
+        if (howToReturnStruct == SPK_EnclosingType)
+        {
+            // If we know for sure this call will remain a call,
+            // retype and return value via a suitable temp.
+            if ((!call->CanTailCall()) && (!call->IsInlineCandidate()))
+            {
+                call->gtReturnType = returnType;
+                return impAssignSmallStructTypeToVar(call, retClsHnd);
+            }
+        }
+        else
+        {
+            // Return type is same size as struct, so we can
+            // simply retype the call.
+            call->gtReturnType = returnType;
+        }
 
         // ToDo: Refactor this common code sequence into its own method as it is used 4+ times
         if ((returnType == TYP_LONG) && (compLongUsed == false))
@@ -8554,6 +8589,9 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
 {
     assert(varTypeIsStruct(info.compRetType));
     assert(info.compRetBuffArg == BAD_VAR_NUM);
+
+    JITDUMP("\nimpFixupStructReturnType: retyping\n");
+    DISPTREE(op);
 
 #if defined(_TARGET_XARCH_)
 
@@ -8725,9 +8763,7 @@ REDO_RETURN_NODE:
         }
         else
         {
-            assert(info.compRetNativeType == op->gtCall.gtReturnType);
-
-            // Don't change the gtType of the node just yet, it will get changed later.
+            // Don't change the gtType of the call just yet, it will get changed later.
             return op;
         }
     }
@@ -8749,6 +8785,9 @@ REDO_RETURN_NODE:
     }
 
     op->gtType = info.compRetNativeType;
+
+    JITDUMP("\nimpFixupStructReturnType: result of retyping is\n");
+    DISPTREE(op);
 
     return op;
 }
@@ -14342,10 +14381,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                 op1              = gtNewOperNode(GT_ADDR, TYP_I_IMPL, op1);
                                 convertedToLocal = true;
 
-                                // Ensure we have stack security for this method.
-                                // Reorder layout since the converted localloc is treated as an unsafe buffer.
-                                setNeedsGSSecurityCookie();
-                                compGSReorderStackLayout = true;
+                                if (!this->opts.compDbgEnC)
+                                {
+                                    // Ensure we have stack security for this method.
+                                    // Reorder layout since the converted localloc is treated as an unsafe buffer.
+                                    setNeedsGSSecurityCookie();
+                                    compGSReorderStackLayout = true;
+                                }
                             }
                         }
                     }
@@ -14519,7 +14561,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                     // Fetch the type from the correct slot
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                        gtNewIconNode(offsetof(CORINFO_RefAny, type), TYP_I_IMPL));
+                                        gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL));
                     op1 = gtNewOperNode(GT_IND, TYP_BYREF, op1);
                 }
                 else
@@ -15429,7 +15471,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (!opts.MinOpts() && !opts.compDbgCode)
                 {
                     /* Use GT_ARR_LENGTH operator so rng check opts see this */
-                    GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, offsetof(CORINFO_Array, length));
+                    GenTreeArrLen* arrLen = gtNewArrLen(TYP_INT, op1, OFFSETOF__CORINFO_Array__length);
 
                     /* Mark the block as containing a length expression */
 
@@ -15444,7 +15486,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 {
                     /* Create the expression "*(array_addr + ArrLenOffs)" */
                     op1 = gtNewOperNode(GT_ADD, TYP_BYREF, op1,
-                                        gtNewIconNode(offsetof(CORINFO_Array, length), TYP_I_IMPL));
+                                        gtNewIconNode(OFFSETOF__CORINFO_Array__length, TYP_I_IMPL));
                     op1 = gtNewIndir(TYP_INT, op1);
                     op1->gtFlags |= GTF_IND_ARR_LEN;
                 }
@@ -15647,7 +15689,45 @@ void Compiler::impMarkLclDstNotPromotable(unsigned tmpNum, GenTree* src, CORINFO
 }
 #endif // _TARGET_ARM_
 
+//------------------------------------------------------------------------
+// impAssignSmallStructTypeToVar: ensure calls that return small structs whose
+//    sizes are not supported integral type sizes return values to temps.
+//
+// Arguments:
+//     op -- call returning a small struct in a register
+//     hClass -- class handle for struct
+//
+// Returns:
+//     Tree with reference to struct local to use as call return value.
+//
+// Remarks:
+//     The call will be spilled into a preceding statement.
+//     Currently handles struct returns for 3, 5, 6, and 7 byte structs.
+
+GenTree* Compiler::impAssignSmallStructTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass)
+{
+    unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for small struct return."));
+    impAssignTempGen(tmpNum, op, hClass, (unsigned)CHECK_SPILL_ALL);
+    GenTree* ret = gtNewLclvNode(tmpNum, lvaTable[tmpNum].lvType);
+
+    // TODO-1stClassStructs: Handle constant propagation and CSE-ing of small struct returns.
+    ret->gtFlags |= GTF_DONT_CSE;
+
+    return ret;
+}
+
 #if FEATURE_MULTIREG_RET
+//------------------------------------------------------------------------
+// impAssignMultiRegTypeToVar: ensure calls that return structs in multiple
+//    registers return values to suitable temps.
+//
+// Arguments:
+//     op -- call returning a struct in a registers
+//     hClass -- class handle for struct
+//
+// Returns:
+//     Tree with reference to struct local to use as call return value.
+
 GenTree* Compiler::impAssignMultiRegTypeToVar(GenTree* op, CORINFO_CLASS_HANDLE hClass)
 {
     unsigned tmpNum = lvaGrabTemp(true DEBUGARG("Return value temp for multireg return."));
@@ -16968,7 +17048,7 @@ void* Compiler::BlockListNode::operator new(size_t sz, Compiler* comp)
 {
     if (comp->impBlockListNodeFreeList == nullptr)
     {
-        return (BlockListNode*)comp->compGetMem(sizeof(BlockListNode), CMK_BasicBlock);
+        return comp->getAllocator(CMK_BasicBlock).allocate<BlockListNode>(1);
     }
     else
     {
@@ -17195,7 +17275,7 @@ void Compiler::verInitBBEntryState(BasicBlock* block, EntryState* srcState)
         return;
     }
 
-    block->bbEntryState = (EntryState*)compGetMem(sizeof(EntryState));
+    block->bbEntryState = getAllocator(CMK_Unknown).allocate<EntryState>(1);
 
     // block->bbEntryState.esRefcount = 1;
 
@@ -17361,26 +17441,39 @@ void Compiler::impImport(BasicBlock* method)
     }
 #endif
 
-    /* Allocate the stack contents */
+    Compiler* inlineRoot = impInlineRoot();
 
-    if (info.compMaxStack <= _countof(impSmallStack))
+    if (info.compMaxStack <= SMALL_STACK_SIZE)
     {
-        /* Use local variable, don't waste time allocating on the heap */
-
-        impStkSize              = _countof(impSmallStack);
-        verCurrentState.esStack = impSmallStack;
+        impStkSize = SMALL_STACK_SIZE;
     }
     else
     {
-        impStkSize              = info.compMaxStack;
+        impStkSize = info.compMaxStack;
+    }
+
+    if (this == inlineRoot)
+    {
+        // Allocate the stack contents
         verCurrentState.esStack = new (this, CMK_ImpStack) StackEntry[impStkSize];
+    }
+    else
+    {
+        // This is the inlinee compiler, steal the stack from the inliner compiler
+        // (after ensuring that it is large enough).
+        if (inlineRoot->impStkSize < impStkSize)
+        {
+            inlineRoot->impStkSize              = impStkSize;
+            inlineRoot->verCurrentState.esStack = new (this, CMK_ImpStack) StackEntry[impStkSize];
+        }
+
+        verCurrentState.esStack = inlineRoot->verCurrentState.esStack;
     }
 
     // initialize the entry state at start of method
     verInitCurrentState();
 
     // Initialize stuff related to figuring "spill cliques" (see spec comment for impGetSpillTmpBase).
-    Compiler* inlineRoot = impInlineRoot();
     if (this == inlineRoot) // These are only used on the root of the inlining tree.
     {
         // We have initialized these previously, but to size 0.  Make them larger.
@@ -19061,7 +19154,9 @@ void Compiler::impMarkInlineCandidate(GenTree*               callNode,
 
     if (methAttr & CORINFO_FLG_PINVOKE)
     {
-        if (!impCanPInvokeInlineCallSite(compCurBB))
+        // See comment in impCheckForPInvokeCall
+        BasicBlock* block = compIsForInlining() ? impInlineInfo->iciBlock : compCurBB;
+        if (!impCanPInvokeInlineCallSite(block))
         {
             inlineResult.NoteFatal(InlineObservation::CALLSITE_PINVOKE_EH);
             return;
@@ -19760,7 +19855,7 @@ CORINFO_CLASS_HANDLE Compiler::impGetSpecialIntrinsicExactReturnType(CORINFO_MET
 //    pointer to token into jit-allocated memory.
 CORINFO_RESOLVED_TOKEN* Compiler::impAllocateToken(CORINFO_RESOLVED_TOKEN token)
 {
-    CORINFO_RESOLVED_TOKEN* memory = (CORINFO_RESOLVED_TOKEN*)compGetMem(sizeof(token));
+    CORINFO_RESOLVED_TOKEN* memory = getAllocator(CMK_Unknown).allocate<CORINFO_RESOLVED_TOKEN>(1);
     *memory                        = token;
     return memory;
 }

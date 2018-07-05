@@ -151,7 +151,8 @@ class Constants {
                // 'jitdiff', // jitdiff is currently disabled, until someone spends the effort to make it fully work
                'standalone_gc',
                'gc_reliability_framework',
-               'illink']
+               'illink',
+               'corefx_innerloop']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -1018,7 +1019,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
                 return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180404203310"
             }
             else if (os == 'Tizen') {
-                return "gbalykov/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-4.0m2"
+                return "tizendotnet/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-5.0m1"
             }
         }
         else if (architecture == 'arm') {
@@ -1741,6 +1742,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'illink':
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             break
+                        case 'corefx_innerloop':
+                            if (configuration == 'Release' || configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                            }
+                            break
 
                         default:
                             if (isJitStressScenario(scenario)) {
@@ -2212,19 +2218,30 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         runtestArguments = "${lowerConfiguration} ${arch} ${testOpts}"
 
                         if (doCoreFxTesting) {
-                            def workspaceRelativeFxRoot = "_/fx"
-                            def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
-                            def fxBranch = getFxBranch(branch)
+                            if (scenario == 'corefx_innerloop') {
+                                // Create CORE_ROOT and testhost
+                                buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
+                                buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
+                                
+                                // Archive and process (only) the test results
+                                Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                                Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                            }
+                            else {
+                              def workspaceRelativeFxRoot = "_/fx"
+                              def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
+                              def fxBranch = getFxBranch(branch)
 
-                            buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
+                              buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
-                            // Archive and process (only) the test results
-                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                              // Archive and process (only) the test results
+                              Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                              Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
 
-                            //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
-                            Utilities.addArchival(newJob, "SetStressModes.bat", "", true, false)
-                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/testhost/**", "", true, false)
+                              //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
+                              Utilities.addArchival(newJob, "SetStressModes.bat", "", true, false)
+                              Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/testhost/**", "", true, false)
+                            }
                         }
                         else if (isGcReliabilityFramework(scenario)) {
                             buildCommands += "tests\\runtest.cmd ${runtestArguments} GenerateLayoutOnly"
@@ -2571,6 +2588,12 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
+    // Run basic corefx tests only on PR-triggered jobs
+    // Runs under Release and Checked 
+    if (scenario == 'corefx_innerloop' && !isPR) {
+        return false
+    }
+
     // Tizen is only supported for armem architecture
     if (os == 'Tizen' && architecture != 'armem') {
         return false
@@ -2784,6 +2807,14 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 break
+            case 'corefx_innerloop':
+                if (os != 'Windows_NT'|| architecture != 'x64') {
+                    return false
+                }
+                if(configuration != 'Release' && configuration != 'Checked') {
+                    return false
+                }
+                break
             default:
                 println("Unknown scenario: ${scenario}")
                 assert false
@@ -2831,7 +2862,13 @@ Constants.allScenarios.each { scenario ->
 
                     // Create the new job
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
-                    addToViews(newJob, isPR, architecture, os)
+
+                    // We don't want to include in view any job that is only used by a flow job (because we want the views to have only the
+                    // "top-level" jobs. Build only jobs are such jobs.
+                    if (!isBuildOnly)
+                    {
+                        addToViews(newJob, isPR, architecture, os)
+                    }
 
                     setJobMachineAffinity(architecture, os, true, false, false, newJob) // isBuildJob = true, isTestJob = false, isFlowJob = false
 
@@ -3370,6 +3407,8 @@ ${runScript} \\
 
 // Create a test job that will be used by a flow job.
 // Returns the newly created job.
+// Note that we don't add tests jobs to the various views, since they are always used by a flow job, which is in the views,
+// and we want the views to be the minimal set of "top-level" jobs that represent all work.
 def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
@@ -3383,8 +3422,6 @@ def static CreateTestJob(def dslFactory, def project, def branch, def architectu
     }
 
     setJobMachineAffinity(architecture, os, false, true, false, newJob) // isBuildJob = false, isTestJob = true, isFlowJob = false
-
-    addToViews(newJob, isPR, architecture, os)
 
     if (scenario == 'jitdiff') {
         def osGroup = getOSGroup(os)
@@ -3459,6 +3496,10 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     if (scenario == 'innerloop' && !isPR) {
         return false
     }
+    
+    if (scenario == 'corefx_innerloop') {
+        return false
+    }
 
     // Filter based on OS and architecture.
 
@@ -3521,6 +3562,14 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         else if (architecture == 'x86') {
             // Linux/x86 only want innerloop and default test
             if (!isNormalOrInnerloop) {
+                return false
+            }
+        }
+        else if (architecture == 'x64') {
+            // Linux/x64 corefx testing doesn't need a flow job; the "build" job runs run-corefx-tests.py which
+            // builds and runs the corefx tests. Other Linux/x64 flow jobs are required to get the test
+            // build from a Windows machine.
+            if (isCoreFxScenario(scenario)) {
                 return false
             }
         }

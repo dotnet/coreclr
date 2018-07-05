@@ -219,7 +219,7 @@ namespace System.Reflection.Emit
             {
                 foreach (string name in m_TypeBuilderDict.Keys)
                 {
-                    if (string.Compare(name, strTypeName, (StringComparison.OrdinalIgnoreCase)) == 0)
+                    if (string.Equals(name, strTypeName, StringComparison.OrdinalIgnoreCase))
                         return m_TypeBuilderDict[name];
                 }
             }
@@ -527,12 +527,12 @@ namespace System.Reflection.Emit
         #endregion
 
         #region ICustomAttributeProvider Members
-        public override Object[] GetCustomAttributes(bool inherit)
+        public override object[] GetCustomAttributes(bool inherit)
         {
             return InternalModule.GetCustomAttributes(inherit);
         }
 
-        public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
+        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
             return InternalModule.GetCustomAttributes(attributeType, inherit);
         }
@@ -933,8 +933,35 @@ namespace System.Reflection.Emit
         #region Define Resource
 
         #endregion
-
         #region Define Global Method
+
+        public MethodBuilder DefinePInvokeMethod(string name, string dllName, MethodAttributes attributes,
+            CallingConventions callingConvention, Type returnType, Type[] parameterTypes,
+            CallingConvention nativeCallConv, CharSet nativeCharSet)
+        {
+            return DefinePInvokeMethod(name, dllName, name, attributes, callingConvention, returnType, parameterTypes, nativeCallConv, nativeCharSet);
+        }
+
+        public MethodBuilder DefinePInvokeMethod(string name, string dllName, string entryName, MethodAttributes attributes,
+            CallingConventions callingConvention, Type returnType, Type[] parameterTypes, CallingConvention nativeCallConv,
+            CharSet nativeCharSet)
+        {
+            lock (SyncRoot)
+            {
+                //Global methods must be static.        
+                if ((attributes & MethodAttributes.Static) == 0)
+                {
+                    throw new ArgumentException(SR.Argument_GlobalFunctionHasToBeStatic);
+                }
+
+                CheckContext(returnType);
+                CheckContext(parameterTypes);
+
+                m_moduleData.m_fHasGlobal = true;
+                return m_moduleData.m_globalTypeBuilder.DefinePInvokeMethod(name, dllName, entryName, attributes, callingConvention, returnType, parameterTypes, nativeCallConv, nativeCharSet);
+            }
+        }
+
         public MethodBuilder DefineGlobalMethod(string name, MethodAttributes attributes, Type returnType, Type[] parameterTypes)
         {
             return DefineGlobalMethod(name, attributes, CallingConventions.Standard, returnType, parameterTypes);
