@@ -34,7 +34,7 @@ The original MSIL assemblies are no longer needed by the runtime.
 
 If you installed CoreCLR from a NuGet package, `System.Private.CoreLib.ni.dll` is included in the package.
 
-If for some reason you did not get `System.Private.CoreLib.dll` with the rest of your CoreCLR, you can easily create it yourself using CrossGen.
+If for some reason you did not get `System.Private.CoreLib.ni.dll` with the rest of your CoreCLR, you can easily create it yourself using CrossGen.
 
 If your `System.Private.CoreLib.dll` and JIT compiler (`clrjit.dll` on Windows or `libclrjit.*` on other platforms) are all in the same directory as CrossGen itself, you can compile `System.Private.CoreLib.dll` with the following commands (first two commands for Windows, next two commands for other platforms):
 
