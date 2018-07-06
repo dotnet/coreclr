@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\readytorun\tests\r2rdump\R2RDumpTest.csproj" />
+    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\readytorun\r2rdump\R2RDumpTest.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)scripts\scripts.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\build_against_pkg_dependencies\build_against_pkg_dependencies.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\targeting_pack_ref\targeting_pack_ref.csproj" />

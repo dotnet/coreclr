@@ -9,7 +9,7 @@ namespace R2RDumpTest
 {
     class TestHelpers
     {
-        public static bool XmlDiff(ITestOutputHelper output, List<XmlNode> testXmlNodes, List<XmlNode> expectedXmlNodes)
+        public static bool XmlDiff(List<XmlNode> testXmlNodes, List<XmlNode> expectedXmlNodes)
         {
             testXmlNodes.RemoveAll(node => !IsLeaf(node));
             expectedXmlNodes.RemoveAll(node => !IsLeaf(node));
@@ -19,31 +19,31 @@ namespace R2RDumpTest
             foreach (KeyValuePair<string, XmlNode> diff in diffTest)
             {
                 XmlNode testNode = diff.Value;
-                output.WriteLine("Test:");
-                output.WriteLine("\t" + XmlNodeFullName(testNode) + ": " + testNode.InnerText);
+                Console.WriteLine("Test:");
+                Console.WriteLine("\t" + XmlNodeFullName(testNode) + ": " + testNode.InnerText);
                 if (diffExpected.ContainsKey(diff.Key))
                 {
                     XmlNode expectedNode = diffExpected[diff.Key];
-                    output.WriteLine("Expected:");
-                    output.WriteLine("\t" + XmlNodeFullName(expectedNode) + ": " + expectedNode.InnerText);
+                    Console.WriteLine("Expected:");
+                    Console.WriteLine("\t" + XmlNodeFullName(expectedNode) + ": " + expectedNode.InnerText);
                 }
                 else
                 {
-                    output.WriteLine("Expected:");
-                    output.WriteLine("\tnone");
+                    Console.WriteLine("Expected:");
+                    Console.WriteLine("\tnone");
                 }
-                output.WriteLine("");
+                Console.WriteLine("");
             }
             foreach (KeyValuePair<string, XmlNode> diff in diffExpected)
             {
                 if (!diffTest.ContainsKey(diff.Key))
                 {
-                    output.WriteLine("Test:");
-                    output.WriteLine("\tnone");
-                    output.WriteLine("Expected:");
-                    output.WriteLine("\t" + XmlNodeFullName(diff.Value) + ": " + diff.Value.InnerText);
+                    Console.WriteLine("Test:");
+                    Console.WriteLine("\tnone");
+                    Console.WriteLine("Expected:");
+                    Console.WriteLine("\t" + XmlNodeFullName(diff.Value) + ": " + diff.Value.InnerText);
                 }
-                output.WriteLine("");
+                Console.WriteLine("");
             }
 
             return diffExpected.Count == 0 && diffTest.Count == 0;
