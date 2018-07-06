@@ -43,6 +43,20 @@ public:
     virtual void freeStringConfigValue(
         const wchar_t* value
         ) = 0;
+
+    // Allocate memory slab of the given size in bytes. The host is expected to pool
+    // these for a good performance.
+    virtual void* allocateSlab(size_t size, size_t* pActualSize)
+    {
+        *pActualSize = size;
+        return allocateMemory(size);
+    }
+
+    // Free memory slab of the given size in bytes.
+    virtual void freeSlab(void* slab, size_t actualSize)
+    {
+        freeMemory(slab);
+    }
 };
 
 #endif
