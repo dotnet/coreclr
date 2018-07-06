@@ -149,11 +149,7 @@ namespace System
             }
 
             if (type == null)
-            {
-                // It's classic managed type (not WinRT type)
-                if (assembly == null)
-                    return null;
-
+            {                
                 type = assembly.GetType(typeName, true /*throwOnError*/, ignoreCase);
             }
 
@@ -164,7 +160,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return new ObjectHandle(o);          
+            return (o != null) ? new ObjectHandle(o) : null;          
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
@@ -215,7 +211,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return new ObjectHandle(o);
+            return (o != null) ? new ObjectHandle(o) : null;
         }
 
         public static T CreateInstance<T>()
