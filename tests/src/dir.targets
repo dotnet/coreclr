@@ -194,8 +194,8 @@
     <ProjectAssetsFile>$(SourceDir)Common\test_dependencies\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true'">
-    <ProjectAssetsFile></ProjectAssetsFile >
+  <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' != 'true'">
+    <ProjectAssetsFile></ProjectAssetsFile>
   </PropertyGroup>
 
 </Project>

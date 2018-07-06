@@ -18,6 +18,7 @@
     </ItemGroup>
   </Target>
 
+  <!-- Remove duplicate runtime references that occur when referencing System.Private.CoreLib from and SDK style project -->
   <Target Name="RemoveRuntimeReferences"
           Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'" 
           AfterTargets="ResolveReferences">
