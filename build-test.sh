@@ -180,14 +180,6 @@ generate_layout()
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
 
-    # Work hardcoded path around
-    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets" ]; then
-        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Core.targets" "${__BuildToolsDir}/Microsoft.CSharp.Core.Targets"
-    fi
-    if [ ! -f "${__BuildToolsDir}/Microsoft.CSharp.targets" ]; then
-        ln -s "${__BuildToolsDir}/Microsoft.CSharp.Targets" "${__BuildToolsDir}/Microsoft.CSharp.targets"
-    fi
-
 }
 
 generate_testhost()
