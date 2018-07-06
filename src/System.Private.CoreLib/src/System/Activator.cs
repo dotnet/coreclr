@@ -164,7 +164,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return (o != null) ? new ObjectHandle(o) : null;          
+            return new ObjectHandle(o);          
         }
 
         public static ObjectHandle CreateInstanceFrom(string assemblyFile, string typeName)
@@ -215,7 +215,7 @@ namespace System
                                                 culture,
                                                 activationAttributes);
 
-            return (o != null) ? new ObjectHandle(o) : null;
+            return new ObjectHandle(o);
         }
 
         public static T CreateInstance<T>()
