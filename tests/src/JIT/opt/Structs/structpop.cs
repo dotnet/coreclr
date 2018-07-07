@@ -62,7 +62,7 @@ class P
         byte* pDataBytes = stackalloc byte[VT.Size];
         VT* pVT = (VT*)pDataBytes;
         pVT->F1 = 44;
-        pVT->F2 = 66;
+        pVT->F2 = 56;
         pVT->F3 = 3;
 
         int result = -200;

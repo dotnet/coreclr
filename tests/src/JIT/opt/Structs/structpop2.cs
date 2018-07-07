@@ -25,7 +25,7 @@ class P
     static int Do(int v1)
     {
         Console.WriteLine("v1={0}", v1);
-        return v1 * v1;
+        return v1;
     }
     
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -55,7 +55,8 @@ class P
         pVT->F6 = 6;
         pVT->F7 = 7;
         pVT->F8 = 8;
-        return TestByPtr(pVT);
+        int result = TestByPtr(pVT);
+        return result + 99;
     }
 }
 
