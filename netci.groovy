@@ -2417,10 +2417,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def buildOpts = ''
 
-                    if (architecture == 'arm64') {
-                        buildOpts += " toolset_dir C:\\ats2"
-                    }
-
                     if (doCoreFxTesting) {
                         buildOpts += ' skiptests'
                     } else {
@@ -2447,12 +2443,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
                         def fxBranch = getFxBranch(branch)
 
-                        def toolsetDirOpt = ''
-                        if (architecture == 'arm64') {
-                            toolsetDirOpt = "-toolset_dir C:\\ats2"
-                        }
-
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests ${toolsetDirOpt}"
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests"
 
                         // Zip up the CoreFx runtime and tests. We don't need the CoreCLR binaries; they have been copied to the CoreFX tree.
                         buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
