@@ -20,7 +20,6 @@
     <Compile Include="TestHelpers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(ProjectDir)..\src\tools\r2rdump\R2RDump.csproj" />
     <ProjectReference Include="files\HelloWorld.csproj" />
   </ItemGroup>
 

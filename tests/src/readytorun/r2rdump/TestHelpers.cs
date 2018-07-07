@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml;
 using Xunit.Abstractions;
-using R2RDump;
+using System.Text;
 
 namespace R2RDumpTest
 {
@@ -72,21 +72,44 @@ namespace R2RDumpTest
             XmlNode n = node;
             while (node != null && node.NodeType != XmlNodeType.Document)
             {
-                fullName = node.Name + "." + fullName;
+                string index = "";
+                XmlAttribute indexAttribute = node.Attributes["Index"];
+                if (indexAttribute != null) {
+                    index = indexAttribute.Value;
+                }
+                fullName = node.Name + index + "." + fullName;
                 node = node.ParentNode;
             }
             return fullName;
         }
 
-        public static XmlNodeList GetTestXmlNodes(string filename, bool raw, bool header, bool disasm, bool unwind, bool gc, bool sc)
+        public static XmlNodeList GetTestXmlNodes(string r2rdump, string imageFilename, string outputFilename, bool raw, bool header, bool disasm, bool unwind, bool gc, bool sc)
         {
-            R2RReader r2r = new R2RReader(filename);
-            IntPtr disassembler = CoreDisTools.GetDisasm(r2r.Machine);
-            XmlDumper dumper = new XmlDumper(r2r, null, raw, header, disasm, disassembler, unwind, gc, sc);
-            return dumper.GetXmlDocument().SelectNodes("//*");
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"{r2rdump} --in {imageFilename} -o {outputFilename} -x");
+            if (raw)
+                sb.Append(" --raw");
+            if (header)
+                sb.Append(" --header");
+            if (disasm)
+                sb.Append(" -d");
+            if (unwind)
+                sb.Append(" --unwind");
+            if (gc)
+                sb.Append(" --gc");
+            if (sc)
+                sb.Append(" --sc");
+
+            System.Diagnostics.Process process = new System.Diagnostics.Process();
+            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            process.StartInfo.FileName = "dotnet";
+            process.StartInfo.Arguments = sb.ToString();
+            process.Start();
+            process.WaitForExit();
+            return ReadXmlNodes(outputFilename);
         }
 
-        public static XmlNodeList GetExpectedXmlNodes(string filename)
+        public static XmlNodeList ReadXmlNodes(string filename)
         {
             XmlDocument expectedXml = new XmlDocument();
             expectedXml.Load(filename);

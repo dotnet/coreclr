@@ -34,10 +34,13 @@ namespace R2RDump
 
         public struct InterruptibleRange
         {
+            [XmlAttribute("Index")]
+            public uint Index { get; set; }
             public uint StartOffset { get; set; }
             public uint StopOffset { get; set; }
-            public InterruptibleRange(uint start, uint stop)
+            public InterruptibleRange(uint index, uint start, uint stop)
             {
+                Index = index;
                 StartOffset = start;
                 StopOffset = stop;
             }
@@ -366,7 +369,7 @@ namespace R2RDump
 
                 uint rangeStartOffset = lastinterruptibleRangeStopOffset + normStartDelta;
                 uint rangeStopOffset = rangeStartOffset + normStopDelta;
-                ranges.Add(new InterruptibleRange(rangeStartOffset, rangeStopOffset));
+                ranges.Add(new InterruptibleRange(i, rangeStartOffset, rangeStopOffset));
 
                 lastinterruptibleRangeStopOffset = rangeStopOffset;
             }
