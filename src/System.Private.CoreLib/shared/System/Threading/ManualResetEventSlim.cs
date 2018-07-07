@@ -428,7 +428,7 @@ namespace System.Threading
         /// false.</returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="timeout"/> is a negative
         /// number other than -1 milliseconds, which represents an infinite time-out -or- timeout is greater
-        /// than <see cref="System.int.MaxValue"/>.</exception>
+        /// than <see cref="System.Int32.MaxValue"/>.</exception>
         /// <exception cref="T:System.InvalidOperationException">
         /// The maximum number of waiters has been exceeded.
         /// </exception>
@@ -457,7 +457,7 @@ namespace System.Threading
         /// false.</returns>
         /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="timeout"/> is a negative
         /// number other than -1 milliseconds, which represents an infinite time-out -or- timeout is greater
-        /// than <see cref="System.int.MaxValue"/>.</exception>
+        /// than <see cref="System.Int32.MaxValue"/>.</exception>
         /// <exception cref="T:System.Threading.OperationCanceledException"><paramref
         /// name="cancellationToken"/> was canceled.</exception>
         /// <exception cref="T:System.InvalidOperationException">
