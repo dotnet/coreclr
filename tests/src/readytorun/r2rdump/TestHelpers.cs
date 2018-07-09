@@ -85,6 +85,8 @@ namespace R2RDumpTest
 
         public static XmlNodeList GetTestXmlNodes(string r2rdump, string imageFilename, string outputFilename, bool raw, bool header, bool disasm, bool unwind, bool gc, bool sc)
         {
+            disasm = false; // TODO: this requires the cordistools nuget package with the recent changes to be pushed
+
             StringBuilder sb = new StringBuilder();
             sb.Append($"{r2rdump} --in {imageFilename} -o {outputFilename} -x");
             if (raw)

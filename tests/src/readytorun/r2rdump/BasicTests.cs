@@ -1,6 +1,5 @@
 ﻿using System;
 using Xunit;
-using R2RDump;
 using System.Xml;
 using System.IO;
 using System.Xml.Linq;
@@ -34,7 +33,7 @@ namespace R2RDumpTest
         {
             List<XmlNode> testXmlNodes = TestHelpers.GetTestXmlNodes("R2RDump.dll", "HelloWorld.ni.dll", "HelloWorld-test.xml", true, true, true, true, true, true).Cast<XmlNode>().ToList();
             List<XmlNode> expectedXmlNodes = TestHelpers.ReadXmlNodes("HelloWorld.xml").Cast<XmlNode>().ToList();
-            bool identical = TestHelpers.XmlDiff(_output, testXmlNodes, expectedXmlNodes);
+            bool identical = TestHelpers.XmlDiff(testXmlNodes, expectedXmlNodes);
             Assert.True(identical);
         }
     }
