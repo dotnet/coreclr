@@ -259,6 +259,8 @@ class Constants {
                'forcerelocs':                            [],
                'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress1_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress2_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs2':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs3':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
