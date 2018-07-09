@@ -461,7 +461,6 @@ FCFuncStart(gAppDomainFuncs)
     FCFuncElement("GetOrInternString", AppDomainNative::GetOrInternString)
     QCFuncElement("nSetupBindingPaths", AppDomainNative::SetupBindingPaths)
     QCFuncElement("nSetNativeDllSearchDirectories", AppDomainNative::SetNativeDllSearchDirectories)
-    FCFuncElement("IsFinalizingForUnload", AppDomainNative::IsFinalizingForUnload)
     FCFuncElement("PublishAnonymouslyHostedDynamicMethodsAssembly", AppDomainNative::PublishAnonymouslyHostedDynamicMethodsAssembly)
 #ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
     FCFuncElement("nEnableMonitoring", AppDomainNative::EnableMonitoring)
@@ -1181,8 +1180,10 @@ FCFuncStart(gEventPipeInternalFuncs)
     QCFuncElement("DefineEvent", EventPipeInternal::DefineEvent)
     QCFuncElement("DeleteProvider", EventPipeInternal::DeleteProvider)
     QCFuncElement("EventActivityIdControl", EventPipeInternal::EventActivityIdControl)
+    QCFuncElement("GetProvider", EventPipeInternal::GetProvider)
     QCFuncElement("WriteEvent", EventPipeInternal::WriteEvent)
     QCFuncElement("WriteEventData", EventPipeInternal::WriteEventData)
+    QCFuncElement("GetNextEvent", EventPipeInternal::GetNextEvent)
 FCFuncEnd()
 #endif // FEATURE_PERFTRACING
 

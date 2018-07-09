@@ -2684,8 +2684,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
             // or if it is only related because they are multi-reg targets of the same node.
-            if (!RefTypeIsDef(nextRelatedRefPosition->refType) ||
-                isMultiRegRelated(nextRelatedRefPosition, refPosition->nodeLocation))
+            if (!RefTypeIsDef(nextRelatedRefPosition->refType))
             {
                 relatedInterval = nullptr;
             }
@@ -4919,18 +4918,6 @@ bool LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
     return isFree;
 }
 
-// isMultiRegRelated: is this RefPosition defining part of a multi-reg value
-//                    at the given location?
-//
-bool LinearScan::isMultiRegRelated(RefPosition* refPosition, LsraLocation location)
-{
-#ifdef FEATURE_MULTIREG_ARGS_OR_RET
-    return ((refPosition->nodeLocation == location) && refPosition->getInterval()->isMultiReg);
-#else
-    return false;
-#endif
-}
-
 //------------------------------------------------------------------------
 // LinearScan::freeRegister: Make a register available for use
 //
@@ -6352,7 +6339,7 @@ void LinearScan::recordMaxSpill()
     // only a few types should actually be seen here.
     JITDUMP("Recording the maximum number of concurrent spills:\n");
 #ifdef _TARGET_X86_
-    var_types returnType = compiler->tmpNormalizeType(compiler->info.compRetType);
+    var_types returnType = RegSet::tmpNormalizeType(compiler->info.compRetType);
     if (needDoubleTmpForFPCall || (returnType == TYP_DOUBLE))
     {
         JITDUMP("Adding a spill temp for moving a double call/return value between xmm reg and x87 stack.\n");
@@ -6366,7 +6353,7 @@ void LinearScan::recordMaxSpill()
 #endif // _TARGET_X86_
     for (int i = 0; i < TYP_COUNT; i++)
     {
-        if (var_types(i) != compiler->tmpNormalizeType(var_types(i)))
+        if (var_types(i) != RegSet::tmpNormalizeType(var_types(i)))
         {
             // Only normalized types should have anything in the maxSpill array.
             // We assume here that if type 'i' does not normalize to itself, then
@@ -6376,7 +6363,7 @@ void LinearScan::recordMaxSpill()
         if (maxSpill[i] != 0)
         {
             JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
-            compiler->tmpPreAllocateTemps(var_types(i), maxSpill[i]);
+            compiler->codeGen->regSet.tmpPreAllocateTemps(var_types(i), maxSpill[i]);
         }
     }
     JITDUMP("\n");
@@ -6458,7 +6445,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                 {
                     typ = treeNode->TypeGet();
                 }
-                typ = compiler->tmpNormalizeType(typ);
+                typ = RegSet::tmpNormalizeType(typ);
             }
 
             if (refPosition->spillAfter && !refPosition->reload)
@@ -8595,10 +8582,6 @@ void Interval::dump()
     if (isConstant)
     {
         printf(" (constant)");
-    }
-    if (isMultiReg)
-    {
-        printf(" (multireg)");
     }
 
     printf(" RefPositions {");
