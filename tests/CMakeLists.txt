@@ -36,7 +36,8 @@ endif()
 # Compile options
 
 if (WIN32)
-    add_compile_options(-wd4100 -wd4514 -wd4668 -wd4710 -wd4711 -wd4820)
+    add_compile_options(-wd4100 -wd4514 -wd4625 -wd4626 -wd4668 -wd4710 -wd4711 -wd4774 -wd4820 -wd5025 -wd5026 -wd5027 -wd5039)
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
