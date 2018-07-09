@@ -71,6 +71,8 @@ STRINGREF AllocateString( DWORD cchStringLength );
     // The slow version, implemented in gcscan.cpp
 STRINGREF SlowAllocateString( DWORD cchStringLength );
 
+Utf8StringObject *SlowAllocateUtf8String( DWORD cchStringLength );
+
 #else
 
 // On other platforms, go to the (somewhat less efficient) implementations in gcscan.cpp
@@ -82,6 +84,8 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements, BOOL bAll
 OBJECTREF AllocateObjectArray(DWORD cElements, TypeHandle ElementType, BOOL bAllocateInLargeHeap = FALSE);
 
 STRINGREF SlowAllocateString( DWORD cchStringLength );
+
+Utf8StringObject *SlowAllocateUtf8String( DWORD cchStringLength );
 
 inline STRINGREF AllocateString( DWORD cchStringLength )
 {

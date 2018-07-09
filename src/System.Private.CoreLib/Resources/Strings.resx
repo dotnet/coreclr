@@ -1400,7 +1400,7 @@
     <value>The object has no underlying COM data associated with it.</value>
   </data>
   <data name="Argument_NoUninitializedStrings" xml:space="preserve">
-    <value>Uninitialized Strings cannot be created.</value>
+    <value>Uninitialized strings cannot be created.</value>
   </data>
   <data name="Argument_ObjIsWinRTObject" xml:space="preserve">
     <value>The object's type must not be a Windows Runtime type.</value>

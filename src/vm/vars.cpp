@@ -61,6 +61,7 @@ GPTR_IMPL(MethodTable,      g_pObjectClass);
 GPTR_IMPL(MethodTable,      g_pRuntimeTypeClass);
 GPTR_IMPL(MethodTable,      g_pCanonMethodTableClass);  // System.__Canon
 GPTR_IMPL(MethodTable,      g_pStringClass);
+GPTR_IMPL(MethodTable,      g_pUtf8StringClass);
 GPTR_IMPL(MethodTable,      g_pArrayClass);
 GPTR_IMPL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_IMPL(MethodTable,      g_pNullableClass);
