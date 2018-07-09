@@ -1,0 +1,80 @@
+# build.yml
+# Description: Defines the build phase
+# Parameters:
+#   agentOs: [Windows_NT (default), Linux, OSX] Used in templates to define variables which are OS specific
+#   dockerImage: If defined, specifies docker image to run build steps in
+#   matrix: build matrix
+#   queueName: agent pool name
+#   enableTelemetry: send telemetry if build is not a PR or CI build
+
+parameters:
+  agentOs: Windows_NT
+  buildReason: IndividualCI
+  dockerImage: ''
+  enableTelemetry: true
+  queue: {}
+  useEsrpSigning: true
+
+phases:
+- template: /eng/common/templates/phases/base.yml
+  parameters:
+    agentOs: ${{ parameters.agentOs }}
+    buildConfig: $(_BuildConfig)
+    phaseName: ${{ parameters.agentOs }}
+    dockerImage: ${{ parameters.dockerImage }}
+    enableTelemetry: ${{ parameters.enableTelemetry }}
+    fetchDepth: 5
+    helixType: build/product
+    helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
+    phase:
+      queue: ${{ parameters.queue }}
+      steps:
+      - template: /eng/common/templates/steps/run-on-windows.yml
+        parameters:
+          agentOs: ${{ parameters.agentOs }} 
+          steps:
+          - script: eng\common\cibuild.cmd
+              -configuration $(_BuildConfig) 
+              -prepareMachine
+              /p:SignType=$(_SignType)
+              $(_PublishArgs)
+            name: Build_Publish
+            displayName: Build / Publish
+            env:
+              OfficialBuildId: $(BUILD.BUILDNUMBER)
+            condition: succeeded()
+      - template: /eng/common/templates/steps/run-on-unix.yml
+        parameters:
+          agentOs: ${{ parameters.agentOs }}
+          steps:
+          - script: eng/common/cibuild.sh
+              --configuration $(_BuildConfig) 
+              --prepareMachine
+              /p:SignType=$(_SignType)
+              $(_PublishArgs)
+            name: Build_Publish
+            displayName: Build / Publish
+            env:
+              OfficialBuildId: $(BUILD.BUILDNUMBER)
+            condition: succeeded()
+      - task: CopyFiles@2
+        displayName: Gather Logs
+        inputs:
+          SourceFolder: '$(Build.SourcesDirectory)/artifacts'
+          Contents: '**/*log'
+          TargetFolder: '$(Build.StagingDirectory)/BuildLogs'
+        continueOnError: true
+        condition: succeededOrFailed()
+      - task: PublishBuildArtifacts@1
+        displayName: Publish Logs to VSTS
+        inputs:
+          PathtoPublish: '$(Build.StagingDirectory)/BuildLogs'
+          PublishLocation: Container
+          # Should be able to use a single definition of ArtifactName here instead of conditioned on 
+          # agentOs once variables are available in the template evaluation context.  
+          ${{ if eq(parameters.agentOs, 'Windows_NT') }}:
+            ArtifactName: Windows_NT_$(Agent.JobName)
+          ${{ if ne(parameters.agentOs, 'Windows_NT') }}:
+            ArtifactName: Linux_$(Agent.JobName)
+        continueOnError: true
+        condition: succeededOrFailed()
