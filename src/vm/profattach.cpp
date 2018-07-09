@@ -13,7 +13,6 @@
 
 #include "common.h"
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 
 #include <sddl.h>                   // Windows security descriptor language
 #include <metahost.h>
@@ -1316,5 +1315,31 @@ STDAPI ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
     return hr;
 }
 
+// Contract for public APIs. These must be NOTHROW.
+bool
+CreateCLRProfiling(
+    __out void ** ppCLRProfilingInstance)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
 
-#endif // FEATURE_PROFAPI_ATTACH_DETACH 
+    HRESULT hrIgnore = S_OK; // ignored HResult
+    HRESULT hr = S_OK;
+    HMODULE hMod = NULL;
+    IUnknown * pCordb = NULL;
+
+    LOG((LF_CORDB, LL_EVERYTHING, "Calling CreateCLRProfiling"));
+
+    IClassFactory * pFactory = NULL;
+    hr = ICLRProfilingGetClassObject(CLSID_CLRProfiling, IID_IClassFactory, (void**)&pFactory);
+    if (SUCCEEDED(hr))
+    {
+        hr = pFactory->CreateInstance(NULL, IID_ICLRProfiling, ppCLRProfilingInstance);
+        pFactory->Release();
+        return true;
+    }
+    return false;
+}
