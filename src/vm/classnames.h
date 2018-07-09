@@ -147,6 +147,8 @@
 #define g_TransparentProxyName "__TransparentProxy"
 #define g_TypeClassName   "System.Type"
 
+#define g_Utf8StringName "Utf8String"
+
 #define g_VariantClassName "System.Variant"
 #define g_GuidClassName "System.Guid"
 
