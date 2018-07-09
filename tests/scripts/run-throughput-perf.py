@@ -88,7 +88,7 @@ jit_list = {
     },
     'Linux': {
         'x64': 'libclrjit.so',
-        'arm32': 'libclrjit.so'
+        'arm.g': 'libclrjit.so'
     }
 }
 
@@ -105,7 +105,7 @@ python_exe_list = {
     }
     'Linux': {
         'x64': 'python3.5',
-        'arm32': 'python3.6'
+        'arm.g': 'python3.6'
     }
 }
 
@@ -173,12 +173,12 @@ def validate_args(args):
         if not helper(arg):
             raise Exception('Argument: %s is not valid.' % (arg))
 
-    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64', 'arm32']}
+    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64', 'arm.g']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
     valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
     valid_opt_levels = ['full_opt', 'min_opt']
-    valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend'], 'arm32': ['ryujit', 'legacy_backend']}
+    valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend'], 'arm.g': ['ryujit', 'legacy_backend']}
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
     build_type = next((b for b in valid_build_types if b.lower() == build_type.lower()), build_type)
