@@ -12913,9 +12913,11 @@ DONE_MORPHING_CHILDREN:
                 {
                     noway_assert(varTypeIsIntOrI(tree));
 
-                    tree->gtOp.gtOp2 = op2 = gtNewOperNode(GT_NEG, tree->gtType, op2); // The type of the new GT_NEG
-                                                                                       // node should be the same
-                    // as the type of the tree, i.e. tree->gtType.
+                    // The type of the new GT_NEG node cannot just be op2->TypeGet().
+                    // Otherwise we may sign-extend incorrectly in cases where the NEG
+                    // node ends up feeding directly into a cast, for example (byte)(0 - s_1)
+                    // where s_1 is a byte.
+                    tree->gtOp.gtOp2 = op2 = gtNewOperNode(GT_NEG, genActualType(op2->TypeGet()), op2);
                     fgMorphTreeDone(op2);
 
                     oper = GT_ADD;
@@ -13141,7 +13143,11 @@ DONE_MORPHING_CHILDREN:
                     // if negative negate (min-int does not need negation)
                     if (mult < 0 && mult != SSIZE_T_MIN)
                     {
-                        tree->gtOp.gtOp1 = op1 = gtNewOperNode(GT_NEG, op1->gtType, op1);
+                        // The type of the new GT_NEG node cannot just be op1->TypeGet().
+                        // Otherwise we may sign-extend incorrectly in cases where the NEG
+                        // node ends up feeding directly a cast, for example (byte)(-1 * s_1)
+                        // where s_1 is a byte.
+                        tree->gtOp.gtOp1 = op1 = gtNewOperNode(GT_NEG, genActualType(op1->TypeGet()), op1);
                         fgMorphTreeDone(op1);
                     }
 
@@ -13183,7 +13189,7 @@ DONE_MORPHING_CHILDREN:
                         // if negative negate (min-int does not need negation)
                         if (mult < 0 && mult != SSIZE_T_MIN)
                         {
-                            tree->gtOp.gtOp1 = op1 = gtNewOperNode(GT_NEG, op1->gtType, op1);
+                            tree->gtOp.gtOp1 = op1 = gtNewOperNode(GT_NEG, genActualType(op1->TypeGet()), op1);
                             fgMorphTreeDone(op1);
                         }
 
