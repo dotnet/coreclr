@@ -1287,7 +1287,7 @@ HRESULT CLRProfilingImpl::AttachProfiler(DWORD dwProfileeProcessID,
 // Description:
 //    A wrapper to create a CLRProfilingImpl object and to QueryInterface on the CLRProfilingImpl object
 // 
-STDAPI ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
+HRESULT ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
 {
     CONTRACTL
     {
