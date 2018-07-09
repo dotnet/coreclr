@@ -124,6 +124,7 @@ namespace R2RDump
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
             XmlNode methodNode = XmlDocument.CreateNode("element", "Method", "");
+            AddIndexAttribute(methodNode, $"{method.Rid}");
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
@@ -198,10 +199,10 @@ namespace R2RDump
                 string instr;
                 int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
 
-                AddXMLNode("offset"+codeOffset, instr, parentNode);
+                AddXMLNode("offset"+codeOffset, instr, parentNode, $"{codeOffset}");
                 if (transitions.ContainsKey(codeOffset))
                 {
-                    AddXMLNode("Transition", transitions[codeOffset].GetSlotState(slotTable), parentNode);
+                    AddXMLNode("Transition", transitions[codeOffset].GetSlotState(slotTable), parentNode, $"{codeOffset}");
                 }
 
                 CoreDisTools.ClearOutputBuffer();
@@ -231,7 +232,7 @@ namespace R2RDump
                 {
                     sb.Append($" {_r2r.Image[start + i]:X2}");
                 }
-                AddXMLNode(name, sb.ToString(), parentNode);
+                AddXMLNode(name, sb.ToString(), parentNode, $"{start}");
                 return;
             }
         }
@@ -244,10 +245,10 @@ namespace R2RDump
             switch (section.Type)
             {
                 case R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES:
-
+                    int availableTypesId = 0;
                     foreach (string name in _r2r.AvailableTypes)
                     {
-                        AddXMLNode("AvailableType", name, contentsNode);
+                        AddXMLNode("AvailableType", name, contentsNode, $"{availableTypesId++}");
                     }
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS:
@@ -257,7 +258,7 @@ namespace R2RDump
                     while (rtfOffset < rtfEndOffset)
                     {
                         uint rva = NativeReader.ReadUInt32(_r2r.Image, ref rtfOffset);
-                        AddXMLNode($"id{rtfIndex}", $"0x{rva:X8}", contentsNode);
+                        AddXMLNode($"id{rtfIndex}", $"0x{rva:X8}", contentsNode, $"{rtfIndex}");
                         rtfIndex++;
                     }
                     break;
@@ -311,12 +312,23 @@ namespace R2RDump
             }
         }
 
-        private XmlNode AddXMLNode(String name, String contents, XmlNode parentNode)
+        private XmlNode AddXMLNode(String name, String contents, XmlNode parentNode, string index = "")
         {
             XmlNode node = XmlDocument.CreateNode("element", name, "");
+            if (!index.Equals(""))
+            {
+                AddIndexAttribute(node, index);
+            }
             parentNode.AppendChild(node);
             node.InnerText = contents;
             return node;
+        }
+
+        private void AddIndexAttribute(XmlNode node, string index)
+        {
+            XmlAttribute attr = XmlDocument.CreateAttribute("Index");
+            attr.Value = index;
+            node.Attributes.SetNamedItem(attr);
         }
     }
 }

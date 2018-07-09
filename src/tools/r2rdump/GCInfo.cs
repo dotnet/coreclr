@@ -48,6 +48,7 @@ namespace R2RDump
 
         public class GcTransition
         {
+            [XmlAttribute("Index")]
             public int CodeOffset { get; set; }
             public int SlotId { get; set; }
             public bool IsLive { get; set; }
