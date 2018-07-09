@@ -70,9 +70,3 @@ GlobalMemoryStatusEx
 VirtualQuery
 WideCharToMultiByte
 WriteFile
-GetLogicalProcessorInformationEx
-SetThreadGroupAffinity
-SetThreadAffinityMask
-GetThreadGroupAffinity
-GetCurrentProcessorNumberEx
-SetThreadIdealProcessorEx
