@@ -60,12 +60,6 @@
     <SkipSigning Condition="'$(CrossGen)' == 'true'">true</SkipSigning>
     <AssemblyKey>Test</AssemblyKey>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(UsingMicrosoftNETSdk)' == 'true'">
-    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <TargetFramework>netcoreapp2.2</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-  </PropertyGroup>
 
   <!-- Expose the target OS in a more convenient fashion -->
   <PropertyGroup>
