@@ -38,7 +38,18 @@ In order to get clang-3.9, llvm-3.9 and lldb-3.9 on Ubuntu 14.04, we need to add
     ~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
     ~$ sudo apt-get update
 
-Note: ARM clang has a known issue with CompareExchange ([#15074](https://github.com/dotnet/coreclr/issues/15074)), so for ARM you must use clang-4.0 or higher. The official build uses clang-5.0.
+Note: ARM clang has a known issue with CompareExchange
+([#15074](https://github.com/dotnet/coreclr/issues/15074)), so for ARM you must
+use clang-4.0 or higher.  Moreover, when building with clang-5.0, the
+following errors occur:
+
+```
+coreclr/src/debug/inc/arm/primitives.h:66:1: error: __declspec attribute 'selectany' is
+      not supported [-Werror,-Wignored-attributes]
+```
+
+This is fixed in clang-5.0.2, which can be installed from the apt
+repository listed below.
 
 For other version of Debian/Ubuntu, please visit http://apt.llvm.org/.
 
@@ -121,9 +132,9 @@ The current Docker tag being used by the CI can be found in the `getDockerImageN
 
 Libunwind issue
 ---------------
-Libunwind-arm requires fixes that are not included in Ubuntu 14.04, yet. The fix allows libunwind-arm not to break when it is ordered to access unaccessible memory locations.
+ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access unaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
 
-First, import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090
+If required, first import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090.
 
 Then, expand the coverage of the upstream patch by:
 

@@ -2354,11 +2354,11 @@ inline
         FPbased = isFramePointerUsed();
         if (lvaDoneFrameLayout == Compiler::FINAL_FRAME_LAYOUT)
         {
-            TempDsc* tmpDsc = tmpFindNum(varNum);
+            TempDsc* tmpDsc = codeGen->regSet.tmpFindNum(varNum);
             // The temp might be in use, since this might be during code generation.
             if (tmpDsc == nullptr)
             {
-                tmpDsc = tmpFindNum(varNum, Compiler::TEMP_USAGE_USED);
+                tmpDsc = codeGen->regSet.tmpFindNum(varNum, RegSet::TEMP_USAGE_USED);
             }
             assert(tmpDsc != nullptr);
             offset = tmpDsc->tdTempOffs();
@@ -2599,11 +2599,25 @@ inline unsigned Compiler::compMapILargNum(unsigned ILargNum)
     return (ILargNum);
 }
 
-// For ARM varargs, all arguments go in integer registers, so swizzle the type
+//------------------------------------------------------------------------
+// Compiler::mangleVarArgsType: Retype float types to their corresponding
+//                            : int/long types.
+//
+// Notes:
+//
+// The mangling of types will only occur for incoming vararg fixed arguments
+// on windows arm|64 or on armel (softFP).
+//
+// NO-OP for all other cases.
+//
 inline var_types Compiler::mangleVarArgsType(var_types type)
 {
-#ifdef _TARGET_ARMARCH_
-    if (info.compIsVarArgs || opts.compUseSoftFP)
+#if defined(_TARGET_ARMARCH_)
+    if (opts.compUseSoftFP
+#if defined(_TARGET_WINDOWS_)
+        || info.compIsVarArgs
+#endif // defined(_TARGET_WINDOWS_)
+        )
     {
         switch (type)
         {
@@ -2615,7 +2629,7 @@ inline var_types Compiler::mangleVarArgsType(var_types type)
                 break;
         }
     }
-#endif // _TARGET_ARMARCH_
+#endif // defined(_TARGET_ARMARCH_)
     return type;
 }
 
@@ -3063,7 +3077,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 /*****************************************************************************/
 
-/* static */ inline unsigned Compiler::tmpSlot(unsigned size)
+/* static */ inline unsigned RegSet::tmpSlot(unsigned size)
 {
     noway_assert(size >= sizeof(int));
     noway_assert(size <= TEMP_MAX_SIZE);
@@ -3079,10 +3093,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
  *  over a function body.
  */
 
-inline void Compiler::tmpEnd()
+inline void RegSet::tmpEnd()
 {
 #ifdef DEBUG
-    if (verbose && (tmpCount > 0))
+    if (m_rsCompiler->verbose && (tmpCount > 0))
     {
         printf("%d tmps used\n", tmpCount);
     }
@@ -3095,7 +3109,7 @@ inline void Compiler::tmpEnd()
  *  compiled.
  */
 
-inline void Compiler::tmpDone()
+inline void RegSet::tmpDone()
 {
 #ifdef DEBUG
     unsigned count;

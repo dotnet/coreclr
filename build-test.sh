@@ -400,6 +400,7 @@ usage()
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
+    echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "buildagainstpackages - pull down and build using packages."
     echo "runtests - run tests after building them"
     echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
