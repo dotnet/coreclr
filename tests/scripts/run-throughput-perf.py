@@ -87,7 +87,8 @@ jit_list = {
         'x86lb': 'legacyjit.dll'
     },
     'Linux': {
-        'x64': 'libclrjit.so'
+        'x64': 'libclrjit.so',
+        'arm32': 'libclrjit.so'
     }
 }
 
@@ -98,8 +99,14 @@ os_group_list = {
 }
 
 python_exe_list = {
-    'Windows_NT': 'py',
-    'Linux': 'python3.5'
+    'Windows_NT': {
+        'x64': 'py',
+        'x86': 'py'
+    }
+    'Linux': {
+        'x64': 'python3.5',
+        'arm32': 'python3.6'
+    }
 }
 
 ##########################################################################
@@ -166,12 +173,12 @@ def validate_args(args):
         if not helper(arg):
             raise Exception('Argument: %s is not valid.' % (arg))
 
-    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64']}
+    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64', 'arm32']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
     valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
     valid_opt_levels = ['full_opt', 'min_opt']
-    valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend']}
+    valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend'], 'arm32': ['ryujit', 'legacy_backend']}
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
     build_type = next((b for b in valid_build_types if b.lower() == build_type.lower()), build_type)
@@ -300,9 +307,9 @@ def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assem
     if opt_level == 'min_opt':
         my_env['COMPlus_JITMinOpts'] = '1'
 
-    if jit_name == 'legacy_backend':
-        my_env['COMPlus_AltJit'] = '*'
-        my_env['COMPlus_AltJitNgen'] = '*'
+    #if jit_name == 'legacy_backend':
+    #    my_env['COMPlus_AltJit'] = '*'
+    #    my_env['COMPlus_AltJitNgen'] = '*'
 
     log(" ".join(run_args))
 
@@ -339,8 +346,8 @@ def main(args):
     architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name, no_pgo = validate_args(args)
     arch = architecture
 
-    if jit_name == 'legacy_backend':
-        architecture = 'x86lb'
+    #if jit_name == 'legacy_backend':
+    #    architecture = 'x86lb'
 
     pgo_string = 'pgo'
 
@@ -371,7 +378,7 @@ def main(args):
     # Replace assembly_root's System.Private.CoreLib with built System.Private.CoreLib.
     shutil.copyfile(os.path.join(bin_path, 'System.Private.CoreLib.dll'), os.path.join(assembly_root, 'System.Private.CoreLib.dll'))
 
-    python_exe = python_exe_list[os_group]
+    python_exe = python_exe_list[os_group][arch]
 
     # Run throughput testing
     for dll_file_name in os.listdir(assembly_root):
