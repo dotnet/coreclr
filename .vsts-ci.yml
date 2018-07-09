@@ -5,7 +5,7 @@ phases:
   parameters:
     agentOs: Windows_NT
     queue:
-      name: ${{ variables['Windows_NT_AgentQueue'] }}
+      name: Hosted VS2017
       parallel: 3
       matrix:
         x64_checked_Innerloop:
@@ -20,7 +20,7 @@ phases:
 
 - phase: Windows_NT_x64 Formatting
     queue:
-      name: ${{ variables['Windows_NT_AgentQueue'] }}
+      name: Hosted VS2017
       steps:
         - script: 'python -u tests\\scripts\\format.py -c %Agent.WorkingDirectory% -o Windows_NT -a x64'
 
@@ -28,7 +28,7 @@ phases:
   parameters:
     agentOs: Windows_NT
     queue:
-      name: ${{ variables['Windows_NT_AgentQueue'] }}
+      name: Hosted VS2017
       parallel: 4
       matrix:
         x64_release_full_opt_ryujit_perf:
@@ -47,7 +47,8 @@ phases:
           scenario: min_opt
           buildConfig: release
           archType: x86
-            
+
+         
 #  CentOS7.1 x64 Checked Innerloop Build and Test
 #  CentOS7.1 x64 Debug Innerloop Build
 #  Linux-musl x64 Debug Build
