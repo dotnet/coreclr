@@ -6,8 +6,6 @@ phases:
     agentOs: Windows_NT
     queue:
       name: ${{ variables['Windows_NT_AgentQueue'] }}
-      demands:
-        - agent.os -equals Windows_NT
       parallel: 3
       matrix:
         x64_checked_Innerloop:
@@ -23,8 +21,6 @@ phases:
 - phase: Windows_NT_x64 Formatting
     queue:
       name: ${{ variables['Windows_NT_AgentQueue'] }}
-      demands:
-        - agent.os -equals Windows_NT
       steps:
         - script: 'python -u tests\\scripts\\format.py -c %Agent.WorkingDirectory% -o Windows_NT -a x64'
 
@@ -33,8 +29,6 @@ phases:
     agentOs: Windows_NT
     queue:
       name: ${{ variables['Windows_NT_AgentQueue'] }}
-      demands:
-        - agent.os -equals Windows_NT
       parallel: 4
       matrix:
         x64_release_full_opt_ryujit_perf:
