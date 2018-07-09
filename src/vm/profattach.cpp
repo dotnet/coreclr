@@ -11,8 +11,10 @@
 
 // ======================================================================================
 
+
 #include "common.h"
 
+#ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 
 #include <sddl.h>                   // Windows security descriptor language
 #include <metahost.h>
@@ -1343,3 +1345,5 @@ CreateCLRProfiling(
     }
     return false;
 }
+
+#endif // FEATURE_PROFAPI_ATTACH_DETACH 
