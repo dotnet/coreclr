@@ -276,118 +276,134 @@ def static getOSGroup(def os) {
     }
 }
 
-def static getFullPerfJobName(def project, def os, def isPR) {
-    return Utilities.getFullJobName(project, "perf_${os}", isPR)
+def static getFullPerfJobName(def project, def os, def arch, def isPR) {
+    return Utilities.getFullJobName(project, "perf_${os}_${arch}", isPR)
 }
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
-    def fullBuildJobName = Utilities.getFullJobName(project, 'perf_linux_build', isPR)
-    def architecture = 'x64'
-    def configuration = 'Release'
+    ['x64','arm'].each { architecture ->
+        def fullBuildJobName = Utilities.getFullJobName(project, "perf_linux_${architecture}_build", isPR)
+        def configuration = 'Release'
 
-    // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
-    ['RHEL7.2'].each { os ->
-        def newBuildJob = job(fullBuildJobName) {
-            steps {
-                shell("./build.sh verbose ${architecture} ${configuration}")
-                shell("./build-test.sh generatelayoutonly ${architecture} ${configuration}")
-            }
+        def crossCompile = ""
+        def crossLayout = ""
+        if (architecture == "arm") {
+            crossCompile = " cross crosscomponent"
+            crossLayout = " cross"
         }
-        Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
-        Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-        Utilities.addArchival(newBuildJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so,bin/tests/**", "bin/Product/**/.nuget/**")
-    }
+
+        // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
+        ['RHEL7.2'].each { os ->
+            def newBuildJob = job(fullBuildJobName) {
+                steps {
+                    shell("./build.sh verbose ${architecture} ${configuration}${crossCompile}")
+                    shell("./build-test.sh generatelayoutonly ${architecture} ${configuration}${crossLayout}")
+                }
+            }
+            Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
+            Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
+            Utilities.addArchival(newBuildJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so,bin/tests/**", "bin/Product/**/.nuget/**")
+        }
 
 
-    // Actual perf testing on the following OSes
-    def perfOSList = ['Ubuntu16.04']
-    perfOSList.each { os ->
-        def newJob = job(getFullPerfJobName(project, os, isPR)) {
+        // Actual perf testing on the following OSes
+        def perfOSList = ['Ubuntu16.04']
+        if (architecture == 'arm') {
+            perfOSList = ['Ubuntu14.04']
+        }
 
-            label('ubuntu_1604_clr_perf')
-            wrappers {
-                credentialsBinding {
-                    string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+        perfOSList.each { os ->
+            def newJob = job(getFullPerfJobName(project, os, architecture, isPR)) {
+
+                def machineLabel = 'ubuntu_1604_clr_perf'
+                if (architecture == 'arm') {
+                    machineLabel = 'ubuntu_1404_arm_clr_perf'
+                }
+
+                label(machineLabel)
+                wrappers {
+                    credentialsBinding {
+                        string('BV_UPLOAD_SAS_TOKEN', 'CoreCLR Perf BenchView Sas')
+                    }
+                }
+
+                if (isPR) {
+                    parameters {
+                        stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
+                    }
+                }
+
+                parameters {
+                    // Cap the maximum number of iterations to 21.
+                    stringParam('XUNIT_PERFORMANCE_MAX_ITERATION', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
+                    stringParam('XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
+                    stringParam('PRODUCT_BUILD', '', 'Build number from which to copy down the CoreCLR Product binaries built for Linux')
+                }
+
+                def osGroup = getOSGroup(os)
+                def runType = isPR ? 'private' : 'rolling'
+                def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
+                def uploadString = '-uploadToBenchview'
+
+                def runXUnitCommonArgs = "-arch ${architecture} -os ${os} -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
+
+                steps {
+                    shell("./tests/scripts/perf-prep.sh --nocorefx")
+                    shell("./init-tools.sh")
+                    copyArtifacts(fullBuildJobName) {
+                        includePatterns("bin/**")
+                        buildSelector {
+                            buildNumber('\${PRODUCT_BUILD}')
+                        }
+                    }
+                    shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
+                    "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission-metadata.py\" --name \" ${benchViewName} \" --user-email \"dotnet-bot@microsoft.com\"\n" +
+                    "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/build.py\" git --branch \$GIT_BRANCH_WITHOUT_ORIGIN --type ${runType}")
+                    shell("""python3 ./tests/scripts/run-xunit-perf.py -testBinLoc bin/tests/Windows_NT.${architecture}.${configuration}/JIT/Performance/CodeQuality ${runXUnitCommonArgs}""")
                 }
             }
 
+            def archiveSettings = new ArchivalSettings()
+            archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
+            archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
+            archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
+            archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
+            archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
+            archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
+            archiveSettings.addFiles('machinedata.json')
+            archiveSettings.setAlwaysArchive()
+
+            Utilities.addArchival(newJob, archiveSettings)
+            Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
+
+            // For perf, we need to keep the run results longer
+            newJob.with {
+                // Enable the log rotator
+                logRotator {
+                    artifactDaysToKeep(14)
+                    daysToKeep(30)
+                    artifactNumToKeep(100)
+                    numToKeep(200)
+                }
+                wrappers {
+                    timeout {
+                        absolute(240)
+                    }
+                }
+            }
+        } // os
+
+        def flowJobPerfRunList = perfOSList.collect { os ->
+            "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(project, os, architecture, isPR)}') }"
+        }
+        def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_linux_${architecture}_flow", isPR, '')) {
             if (isPR) {
                 parameters {
                     stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
                 }
             }
-
-            parameters {
-                // Cap the maximum number of iterations to 21.
-                stringParam('XUNIT_PERFORMANCE_MAX_ITERATION', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
-                stringParam('XUNIT_PERFORMANCE_MAX_ITERATION_INNER_SPECIFIED', '21', 'Sets the number of iterations to twenty one.  We are doing this to limit the amount of data that we upload as 20 iterations is enough to get a good sample')
-                stringParam('PRODUCT_BUILD', '', 'Build number from which to copy down the CoreCLR Product binaries built for Linux')
-            }
-
-            def osGroup = getOSGroup(os)
-            def runType = isPR ? 'private' : 'rolling'
-            def benchViewName = isPR ? 'coreclr private \$BenchviewCommitName' : 'coreclr rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
-            def uploadString = '-uploadToBenchview'
-
-            def runXUnitCommonArgs = "-arch ${architecture} -os ${os} -configuration ${configuration} -stabilityPrefix \"taskset 0x00000002 nice --adjustment=-10\" -generateBenchviewData \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\" ${uploadString} -runtype ${runType} -outputdir \"\${WORKSPACE}/bin/sandbox_logs\""
-
-            steps {
-                shell("./tests/scripts/perf-prep.sh --nocorefx")
-                shell("./init-tools.sh")
-                copyArtifacts(fullBuildJobName) {
-                    includePatterns("bin/**")
-                    buildSelector {
-                        buildNumber('\${PRODUCT_BUILD}')
-                    }
-                }
-                shell("GIT_BRANCH_WITHOUT_ORIGIN=\$(echo \$GIT_BRANCH | sed \"s/[^/]*\\/\\(.*\\)/\\1 /\")\n" +
-                "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/submission-metadata.py\" --name \" ${benchViewName} \" --user-email \"dotnet-bot@microsoft.com\"\n" +
-                "python3.5 \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools/build.py\" git --branch \$GIT_BRANCH_WITHOUT_ORIGIN --type ${runType}")
-                shell("""python3 ./tests/scripts/run-xunit-perf.py -testBinLoc bin/tests/Windows_NT.${architecture}.${configuration}/JIT/Performance/CodeQuality ${runXUnitCommonArgs}""")
-            }
-        }
-
-        def archiveSettings = new ArchivalSettings()
-        archiveSettings.addFiles('bin/sandbox_logs/**/*_log.txt')
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.csv')
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.xml')
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.log')
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.md')
-        archiveSettings.addFiles('bin/sandbox_logs/**/*.etl')
-        archiveSettings.addFiles('machinedata.json')
-        archiveSettings.setAlwaysArchive()
-
-        Utilities.addArchival(newJob, archiveSettings)
-        Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
-
-        // For perf, we need to keep the run results longer
-        newJob.with {
-            // Enable the log rotator
-            logRotator {
-                artifactDaysToKeep(14)
-                daysToKeep(30)
-                artifactNumToKeep(100)
-                numToKeep(200)
-            }
-            wrappers {
-                timeout {
-                    absolute(240)
-                }
-            }
-        }
-    } // os
-
-    def flowJobPerfRunList = perfOSList.collect { os ->
-        "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullPerfJobName(project, os, isPR)}') }"
-    }
-    def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_linux_flow", isPR, '')) {
-        if (isPR) {
-            parameters {
-                stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
-            }
-        }
-        buildFlow("""
+            buildFlow("""
 // First, build the bits on RHEL7.2
 b = build(params, '${fullBuildJobName}')
 
@@ -396,25 +412,25 @@ parallel(
     ${flowJobPerfRunList.join(",\n    ")}
 )
 """)
-    }
+        }
 
-    Utilities.setMachineAffinity(newFlowJob, 'Windows_NT', 'latest-or-auto')
-    Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
+        Utilities.setMachineAffinity(newFlowJob, 'Windows_NT', 'latest-or-auto')
+        Utilities.standardJobSetup(newFlowJob, project, isPR, "*/${branch}")
 
-    if (isPR) {
-        TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-        builder.setGithubContext("Linux Perf Test Flow")
-        builder.triggerOnlyOnComment()
-        builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+perf\\W+flow.*")
-        builder.triggerForBranch(branch)
-        builder.emitTrigger(newFlowJob)
-    }
-    else {
-        // Set a push trigger
-        TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
-        builder.emitTrigger(newFlowJob)
-    }
-
+        if (isPR) {
+            TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
+            builder.setGithubContext("Linux Perf ${architecture} Test Flow")
+            builder.triggerOnlyOnComment()
+            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+${architecture}\\W+perf\\W+flow.*")
+            builder.triggerForBranch(branch)
+            builder.emitTrigger(newFlowJob)
+        }
+        else {
+            // Set a push trigger
+            TriggerBuilder builder = TriggerBuilder.triggerOnCommit()
+            builder.emitTrigger(newFlowJob)
+        }
+    } // architecture
 } // isPR
 
 def static getFullThroughputJobName(def project, def os, def isPR) {
