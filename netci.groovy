@@ -2437,7 +2437,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
-                            buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=%WORKSPACE%/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=%WORKSPACE%"
+                            buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
                             
                             break
                             // TODO - uncomment once https://github.com/dotnet/coreclr/pull/18753 has been merged
