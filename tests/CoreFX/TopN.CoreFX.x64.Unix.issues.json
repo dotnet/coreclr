@@ -102,6 +102,20 @@
         }
     },
     {
+        "name": "System.IO.Pipes.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "CI Timeout"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Xml.Xsl.XslTransformApi.Tests",
         "enabled": true,
         "exclusions": {
