@@ -961,13 +961,13 @@ namespace System
         private static class DoubleHelper
         {
             public static unsafe uint Exponent(double d) =>
-                (*((uint*)&d + 1) >> 20) & 0x000007ff;
+                (*((uint*)&d + (BitConverter.IsLittleEndian ? 1 : 0)) >> 20) & 0x000007ff;
 
             public static unsafe ulong Mantissa(double d) =>
                 *((ulong*)&d) & 0x000fffffffffffff;
 
             public static unsafe bool Sign(double d) =>
-                (*((uint*)&d + 1) >> 31) != 0;
+                (*((uint*)&d + (BitConverter.IsLittleEndian ? 1 : 0)) >> 31) != 0;
         }
     }
 }
