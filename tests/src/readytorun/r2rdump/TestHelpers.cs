@@ -86,38 +86,6 @@ namespace R2RDumpTest
             return fullName;
         }
 
-        public static XmlNodeList GetTestXmlNodes(string r2rdump, string imageFilename, bool raw, bool header, bool disasm, bool unwind, bool gc, bool sc)
-        {
-            disasm = false; // TODO: this requires the cordistools nuget package with the recent changes to be pushed
-
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"{r2rdump} --in {imageFilename} -x");
-            if (raw)
-                sb.Append(" --raw");
-            if (header)
-                sb.Append(" --header");
-            if (disasm)
-                sb.Append(" -d");
-            if (unwind)
-                sb.Append(" --unwind");
-            if (gc)
-                sb.Append(" --gc");
-            if (sc)
-                sb.Append(" --sc");
-
-            System.Diagnostics.Process process = new System.Diagnostics.Process();
-            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-            process.StartInfo.FileName = "dotnet";
-            process.StartInfo.Arguments = sb.ToString();
-            process.StartInfo.RedirectStandardOutput = true;
-            process.Start();
-
-            string stdout = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-
-            return ReadXmlNodes(stdout, false);
-        }
-
         public static XmlNodeList ReadXmlNodes(string filenameOrXmlString, bool fromFile)
         {
             XmlDocument expectedXml = new XmlDocument();

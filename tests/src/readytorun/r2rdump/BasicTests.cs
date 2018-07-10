@@ -31,7 +31,7 @@ namespace R2RDumpTest
 		
         static void TestHelloWorld()
         {
-            List<XmlNode> testXmlNodes = TestHelpers.GetTestXmlNodes("R2RDump.dll", "HelloWorld.ni.dll", true, false, true, true, true, true).Cast<XmlNode>().ToList();
+            List<XmlNode> testXmlNodes = TestHelpers.ReadXmlNodes("HelloWorld-test.xml", true).Cast<XmlNode>().ToList();
             List<XmlNode> expectedXmlNodes = TestHelpers.ReadXmlNodes("HelloWorld.xml", true).Cast<XmlNode>().ToList();
             bool identical = TestHelpers.XmlDiff(testXmlNodes, expectedXmlNodes);
             Assert.True(identical);
