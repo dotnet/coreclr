@@ -209,7 +209,7 @@ AliasSet::NodeInfo::NodeInfo(Compiler* compiler, GenTree* node)
     assert(isMemoryAccess || isLclVarAccess);
 
     // Now that we've determined whether or not this access is a read or a write and whether the accessed location is
-    // memory or a lclVar, determine whther or not the location is addressable and udpate the alias set.
+    // memory or a lclVar, determine whether or not the location is addressable and update the alias set.
     const bool isAddressableLocation = isMemoryAccess || compiler->lvaTable[lclNum].lvAddrExposed;
 
     if (!isWrite)
@@ -337,7 +337,7 @@ bool AliasSet::InterferesWith(const AliasSet& other) const
 //    Returns true if the reads and writes in this alias set interfere
 //    with those for the given node.
 //
-//    An alias set interferes with a given node iff it interferes with the
+//    An alias set interferes with a given node if it interferes with the
 //    alias set for that node.
 //
 // Arguments:
@@ -529,7 +529,7 @@ bool SideEffectSet::InterferesWith(const SideEffectSet& other, bool strict) cons
 //    Returns true if the side effects in this set interfere with the side
 //    effects for the given node.
 //
-//    A side effect set interferes with a given node iff it interferes
+//    A side effect set interferes with a given node if it interferes
 //    with the side effect set of the node.
 //
 // Arguments:
