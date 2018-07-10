@@ -10,7 +10,8 @@
 	<AssemblyKey>Open</AssemblyKey>
 	<IsDotNetFrameworkProductAssembly>true</IsDotNetFrameworkProductAssembly>
 	<TargetFramework>netcoreapp2.0</TargetFramework>
-    <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
+	<RuntimeFrameworkVersion>2.0.0</RuntimeFrameworkVersion>
+	<TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
   </PropertyGroup>
 
   <ItemGroup>

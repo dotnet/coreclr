@@ -13,34 +13,37 @@ namespace R2RDumpTest
         {
             testXmlNodes.RemoveAll(node => !IsLeaf(node));
             expectedXmlNodes.RemoveAll(node => !IsLeaf(node));
-            Dictionary<string, XmlNode> diffExpected = testXmlNodes.Except(expectedXmlNodes, new XElementEqualityComparer()).ToDictionary(node => XmlNodeFullName(node));
-            Dictionary<string, XmlNode> diffTest = expectedXmlNodes.Except(testXmlNodes, new XElementEqualityComparer()).ToDictionary(node => XmlNodeFullName(node));
 
-            foreach (KeyValuePair<string, XmlNode> diff in diffTest)
+            Dictionary<string, XmlNode> allTest = testXmlNodes.ToDictionary(node => XmlNodeFullName(node));
+            Dictionary<string, XmlNode> allExpected = expectedXmlNodes.ToDictionary(node => XmlNodeFullName(node));
+            Dictionary<string, XmlNode> diffTest = testXmlNodes.Except(expectedXmlNodes, new XElementEqualityComparer()).ToDictionary(node => XmlNodeFullName(node));
+            Dictionary<string, XmlNode> diffExpected = expectedXmlNodes.Except(testXmlNodes, new XElementEqualityComparer()).ToDictionary(node => XmlNodeFullName(node));
+
+            foreach (KeyValuePair<string, XmlNode> diff in diffExpected)
             {
-                XmlNode testNode = diff.Value;
-                Console.WriteLine("Test:");
-                Console.WriteLine("\t" + XmlNodeFullName(testNode) + ": " + testNode.InnerText);
-                if (diffExpected.ContainsKey(diff.Key))
+                XmlNode expectedNode = diff.Value;
+                Console.WriteLine("Expected:");
+                Console.WriteLine("\t" + XmlNodeFullName(expectedNode) + ": " + expectedNode.InnerText);
+                if (allTest.ContainsKey(diff.Key))
                 {
-                    XmlNode expectedNode = diffExpected[diff.Key];
-                    Console.WriteLine("Expected:");
-                    Console.WriteLine("\t" + XmlNodeFullName(expectedNode) + ": " + expectedNode.InnerText);
+                    XmlNode testNode = allTest[diff.Key];
+                    Console.WriteLine("Test:");
+                    Console.WriteLine("\t" + XmlNodeFullName(testNode) + ": " + testNode.InnerText);
                 }
                 else
                 {
-                    Console.WriteLine("Expected:");
+                    Console.WriteLine("Test:");
                     Console.WriteLine("\tnone");
                 }
                 Console.WriteLine("");
             }
-            foreach (KeyValuePair<string, XmlNode> diff in diffExpected)
+            foreach (KeyValuePair<string, XmlNode> diff in diffTest)
             {
-                if (!diffTest.ContainsKey(diff.Key))
+                if (!allExpected.ContainsKey(diff.Key))
                 {
-                    Console.WriteLine("Test:");
-                    Console.WriteLine("\tnone");
                     Console.WriteLine("Expected:");
+                    Console.WriteLine("\tnone");
+                    Console.WriteLine("Test:");
                     Console.WriteLine("\t" + XmlNodeFullName(diff.Value) + ": " + diff.Value.InnerText);
                 }
                 Console.WriteLine("");
@@ -53,7 +56,7 @@ namespace R2RDumpTest
         {
             public bool Equals(XmlNode x, XmlNode y)
             {
-                return x.OuterXml.Equals(y.OuterXml);
+                return XmlNodeFullName(x).Equals(XmlNodeFullName(y)) && x.InnerText.Equals(y.InnerText);
             }
             public int GetHashCode(XmlNode obj)
             {

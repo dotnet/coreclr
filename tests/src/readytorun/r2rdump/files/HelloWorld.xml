@@ -20,7 +20,7 @@
   </Header>
   <Sections>
     <Count>9</Count>
-    <Section>
+    <Section Index="READYTORUN_SECTION_COMPILER_IDENTIFIER">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_COMPILER_IDENTIFIER">
         <RelativeVirtualAddress>9136</RelativeVirtualAddress>
         <Size>37</Size>
@@ -30,7 +30,7 @@
         <CompilerIdentifier>CoreCLR 4.5.30319.0 __BUILDMACHINE__</CompilerIdentifier>
       </Contents>
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_IMPORT_SECTIONS">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_IMPORT_SECTIONS">
         <RelativeVirtualAddress>9076</RelativeVirtualAddress>
         <Size>60</Size>
@@ -125,7 +125,7 @@
         </ImportSectionEntry>
       </Contents>
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_RUNTIME_FUNCTIONS">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_RUNTIME_FUNCTIONS">
         <RelativeVirtualAddress>9308</RelativeVirtualAddress>
         <Size>24</Size>
@@ -140,7 +140,7 @@
         <id5 Index="5">0x00002828</id5>
       </Contents>
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_METHODDEF_ENTRYPOINTS">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_METHODDEF_ENTRYPOINTS">
         <RelativeVirtualAddress>10224</RelativeVirtualAddress>
         <Size>10</Size>
@@ -148,7 +148,7 @@
       <Raw Index="3056">10 01 02 02 02 26 02 01 00 04</Raw>
       <Contents />
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_DEBUG_INFO">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_DEBUG_INFO">
         <RelativeVirtualAddress>10328</RelativeVirtualAddress>
         <Size>54</Size>
@@ -156,7 +156,7 @@
       <Raw Index="3160">10 01 02 02 02 D6 00 69 09 07 21 69 23 41 92 92 A1 60 69 12 79 12 20 02 69 04 91 A6 43 53 0C 00 49 09 06 21 69 23 44 0A 96 21 91 22 01 02 02 69 04 91 96 44 53 0C</Raw>
       <Contents />
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS">
         <RelativeVirtualAddress>9289</RelativeVirtualAddress>
         <Size>16</Size>
@@ -164,7 +164,7 @@
       <Raw Index="2121">33 C0 6A 02 FF 35 AD EB FF FF FF 25 B7 EB FF FF</Raw>
       <Contents />
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_AVAILABLE_TYPES">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_AVAILABLE_TYPES">
         <RelativeVirtualAddress>10240</RelativeVirtualAddress>
         <Size>9</Size>
@@ -175,7 +175,7 @@
         <AvailableType Index="1">.&lt;Module&gt;</AvailableType>
       </Contents>
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS">
         <RelativeVirtualAddress>10234</RelativeVirtualAddress>
         <Size>3</Size>
@@ -183,7 +183,7 @@
       <Raw Index="3066">00 02 02</Raw>
       <Contents />
     </Section>
-    <Section>
+    <Section Index="READYTORUN_SECTION_INLINING_INFO">
       <R2RSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="READYTORUN_SECTION_INLINING_INFO">
         <RelativeVirtualAddress>10384</RelativeVirtualAddress>
         <Size>4</Size>

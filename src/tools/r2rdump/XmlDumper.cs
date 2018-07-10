@@ -94,6 +94,7 @@ namespace R2RDump
         internal override void DumpSection(R2RSection section, XmlNode parentNode)
         {
             XmlNode sectionNode = XmlDocument.CreateNode("element", "Section", "");
+            AddIndexAttribute(sectionNode, $"{section.Type}");
             parentNode.AppendChild(sectionNode);
             Serialize(section, sectionNode);
 
