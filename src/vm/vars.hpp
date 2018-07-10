@@ -364,6 +364,7 @@ GPTR_DECL(MethodTable,      g_pObjectClass);
 GPTR_DECL(MethodTable,      g_pRuntimeTypeClass);
 GPTR_DECL(MethodTable,      g_pCanonMethodTableClass);  // System.__Canon
 GPTR_DECL(MethodTable,      g_pStringClass);
+GPTR_DECL(MethodTable,      g_pUtf8StringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);

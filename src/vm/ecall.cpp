@@ -55,6 +55,31 @@ static_assert_no_msg(ECallCtor_First + 8 == ECall::CtorSBytePtrStartLengthEncodi
 
 #define NumberOfStringConstructors 9
 
+#define METHOD__UTF8STRING__CTORF_FIRST METHOD__UTF8_STRING__CTORF_READONLYSPANOFBYTE
+static_assert_no_msg(METHOD__UTF8STRING__CTORF_FIRST + 0 == METHOD__UTF8_STRING__CTORF_READONLYSPANOFBYTE);
+static_assert_no_msg(METHOD__UTF8STRING__CTORF_FIRST + 1 == METHOD__UTF8_STRING__CTORF_READONLYSPANOFCHAR);
+
+#define ECallUtf8String_Ctor_First ECall::Utf8StringCtorReadOnlySpanOfByteManaged
+static_assert_no_msg(ECallUtf8String_Ctor_First + 0 == ECall::Utf8StringCtorReadOnlySpanOfByteManaged);
+static_assert_no_msg(ECallUtf8String_Ctor_First + 1 == ECall::Utf8StringCtorReadOnlySpanOfCharManaged);
+
+#define NumberOfUtf8StringConstructors 2
+
+static void PopulateConstructors(DWORD firstECallIndex, BinderMethodID firstMethod, int numConstructors)
+{
+    STANDARD_VM_CONTRACT;
+
+    for (int i = 0; i < numConstructors; i++)
+    {
+        MethodDesc* pMD = MscorlibBinder::GetMethod((BinderMethodID)(firstMethod + i));
+        _ASSERTE(pMD != NULL);
+
+        PCODE pDest = pMD->GetMultiCallableAddrOfCode();
+
+        ECall::DynamicallyAssignFCallImpl(pDest, firstECallIndex + i);
+    }
+}
+
 void ECall::PopulateManagedStringConstructors()
 {
     STANDARD_VM_CONTRACT;
@@ -62,16 +87,11 @@ void ECall::PopulateManagedStringConstructors()
     INDEBUG(static bool fInitialized = false);
     _ASSERTE(!fInitialized);    // assume this method is only called once
     _ASSERTE(g_pStringClass != NULL);
+    _ASSERTE(g_pUtf8StringClass != NULL);
 
-    for (int i = 0; i < NumberOfStringConstructors; i++)
-    {
-        MethodDesc* pMD = MscorlibBinder::GetMethod((BinderMethodID)(METHOD__STRING__CTORF_FIRST + i));
-        _ASSERTE(pMD != NULL);
-    
-        PCODE pDest = pMD->GetMultiCallableAddrOfCode();
+    PopulateConstructors(ECallCtor_First, METHOD__STRING__CTORF_FIRST, NumberOfStringConstructors);
+    PopulateConstructors(ECallUtf8String_Ctor_First, METHOD__UTF8STRING__CTORF_FIRST, NumberOfUtf8StringConstructors);
 
-        ECall::DynamicallyAssignFCallImpl(pDest, ECallCtor_First + i);
-    }
     INDEBUG(fInitialized = true);
 }
 

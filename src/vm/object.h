@@ -885,6 +885,7 @@ typedef DPTR(U8Array)   PTR_U8Array;
 typedef DPTR(PTRArray)  PTR_PTRArray;
 
 class StringObject;
+class Utf8StringObject;
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<ArrayBase>  BASEARRAYREF;
@@ -1214,6 +1215,28 @@ public:
         return m_typeHandle;
     }
 
+};
+
+class Utf8StringObject : public Object
+{
+#ifdef DACCESS_COMPILE
+    friend class ClrDataAccess;
+#endif
+
+private:
+    DWORD   m_StringLength;
+    BYTE   m_FirstChar;
+
+public:
+    VOID    SetLength(DWORD len) { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
+
+protected:
+    Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+    ~Utf8StringObject() { LIMITED_METHOD_CONTRACT; }
+
+public:
+    static DWORD GetBaseSize();
+    static SIZE_T GetSize(DWORD stringLength);
 };
 
 // This is the Method version of the Reflection object.

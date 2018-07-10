@@ -398,6 +398,7 @@ DEFINE_METASIG(IM(Bool_Bool_RetStr, F F, s))
 
 DEFINE_METASIG(IM(PtrChar_RetVoid, P(u), v))
 DEFINE_METASIG(IM(PtrChar_Int_Int_RetVoid, P(u) i i, v))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfByte_RetVoid, GI(g(READONLY_SPAN), 1, b), v))
 DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetVoid, GI(g(READONLY_SPAN), 1, u), v))
 DEFINE_METASIG(IM(PtrSByt_RetVoid, P(B), v))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetVoid, P(B) i i, v))
@@ -415,6 +416,10 @@ DEFINE_METASIG(IM(PtrSByt_RetStr, P(B), s))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetStr, P(B) i i, s))
 DEFINE_METASIG_T(IM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
 DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
+
+DEFINE_METASIG_T(IM(ArrChar_RetUtf8Str, a(u), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfByte_RetUtf8Str, GI(g(READONLY_SPAN), 1, b), C(UTF8_STRING)))
+DEFINE_METASIG_T(IM(ReadOnlySpanOfChar_RetUtf8Str, GI(g(READONLY_SPAN), 1, u), C(UTF8_STRING)))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
 DEFINE_METASIG(IM(Char_Int_RetVoid, u i, v))
