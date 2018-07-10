@@ -351,11 +351,11 @@ GenTree* Compiler::fgMorphCast(GenTree* tree)
 #endif //_TARGET_X86_
     else if (varTypeIsGC(srcType) != varTypeIsGC(dstType))
     {
-        // We are casting away GC information.  we would like to just
+        // We are casting away GC information.  We would like to just
         // change the type to int, however this gives the emitter fits because
-        // it believes the variable is a GC variable at the begining of the
-        // instruction group, but is not turned non-gc by the code generator
-        // we fix this by copying the GC pointer to a non-gc pointer temp.
+        // it believes the variable is a GC variable at the beginning of the
+        // instruction group, but is not turned non-gc by the code generator.
+        // We fix this by copying the GC pointer to a non-gc pointer temp.
         noway_assert(!varTypeIsGC(dstType) && "How can we have a cast to a GCRef here?");
 
         // We generate an assignment to an int and then do the cast from an int. With this we avoid
@@ -3117,7 +3117,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     /* First we morph the argument subtrees ('this' pointer, arguments, etc.).
      * During the first call to fgMorphArgs we also record the
      * information about late arguments we have in 'fgArgInfo'.
-     * This information is used later to contruct the gtCallLateArgs */
+     * This information is used later to construct the gtCallLateArgs */
 
     /* Process the 'this' argument value, if present */
 
@@ -3596,7 +3596,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     size = 2;
 #endif
                 }
-                else // We must have a GT_OBJ with a struct type, but the GT_OBJ may be be a child of a GT_COMMA
+                else // We must have a GT_OBJ with a struct type, but the GT_OBJ may be a child of a GT_COMMA
                 {
                     GenTree*  argObj         = argx;
                     GenTree** parentOfArgObj = parentArgx;
@@ -15720,7 +15720,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
 
         // The rest of block has been removed and we will always throw an exception.
 
-        // Update succesors of block
+        // Update successors of block
         fgRemoveBlockAsPred(block);
 
         // For compDbgCode, we prepend an empty BB as the firstBB, it is BBJ_NONE.
@@ -16172,7 +16172,7 @@ void Compiler::fgMorphBlocks()
 // Notes:
 //    fpPtrArgCntMax records the maximum number of pushed arguments.
 //    Depending upon this value of the maximum number of pushed arguments
-//    we may need to use an EBP frame or be partially interuptible.
+//    we may need to use an EBP frame or be partially interruptible.
 //    This functionality has been factored out of fgSetOptions() because
 //    the Rationalizer can create new calls.
 //
@@ -16378,7 +16378,7 @@ GenTree* Compiler::fgInitThisClass()
         }
 #endif
 
-        // Collectible types requires that for shared generic code, if we use the generic context paramter
+        // Collectible types requires that for shared generic code, if we use the generic context parameter
         // that we report it. (This is a conservative approach, we could detect some cases particularly when the
         // context parameter is this that we don't need the eager reporting logic.)
         lvaGenericsContextUseCount++;
@@ -17697,7 +17697,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                     {
                         // Set the new parent.
                         fieldVarDsc->lvParentLcl = newLclNum;
-                        // Clear the ref count field; it is used to communicate the nubmer of references
+                        // Clear the ref count field; it is used to communicate the number of references
                         // to the implicit byref parameter when morphing calls that pass the implicit byref
                         // out as an outgoing argument value, but that doesn't pertain to this field local
                         // which is now a field of a non-arg local.
@@ -18111,7 +18111,7 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
             }
             else if (tree->TypeGet() == TYP_STRUCT)
             {
-                // The block operation will derefence its argument(s) -- usually.  If the size of the initblk
+                // The block operation will dereference its argument(s) -- usually.  If the size of the initblk
                 // or copyblk exceeds the size of a storage location whose address is used as one of the
                 // arguments, then we have to consider that storage location (indeed, it's underlying containing
                 // location) to be address taken.  So get the width of the initblk or copyblk.
@@ -18403,7 +18403,7 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
     }
 
     // To be safe/conservative: pass Addr through, but not Ind -- otherwise, revert to "None".  We must
-    // handle the "Ind" propogation explicitly above.
+    // handle the "Ind" propagation explicitly above.
     if (axc == AXC_Addr || axc == AXC_AddrWide)
     {
         axcStack->Push(axc);
@@ -18604,7 +18604,7 @@ bool Compiler::fgNodesMayInterfere(GenTree* write, GenTree* read)
 //  stmt  - GenTreeStmt*. the stmt node we want to check
 //
 // return value:
-//  if this funciton successfully optimized the stmts, then return true. Otherwise
+//  if this function successfully optimized the stmts, then return true. Otherwise
 //  return false;
 
 bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* stmt)
@@ -18660,7 +18660,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
     if (remainingAssignments > 0)
     {
         // if the left assignments number is bigger than zero, then this means
-        // that the assignments are not assgining to the contiguously memory
+        // that the assignments are not assigning to the contiguously memory
         // locations from same vector.
         return false;
     }
@@ -18761,7 +18761,7 @@ GenTreeStmt* SkipNopStmts(GenTreeStmt* stmt)
 
 //------------------------------------------------------------------------
 // fgCheckStmtAfterTailCall: check that statements after the tail call stmt
-// candidate are in one of expected forms, that are desctibed below.
+// candidate are in one of expected forms, that are described below.
 //
 // Return Value:
 //    'true' if stmts are in the expected form, else 'false'.

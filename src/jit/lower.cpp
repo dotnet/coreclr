@@ -3496,9 +3496,9 @@ void Lowering::InsertPInvokeMethodEpilog(BasicBlock* returnBB DEBUGARG(GenTree* 
 
     // TODO-Cleanup: setting GCState to 1 seems to be redundant as InsertPInvokeCallProlog will set it to zero before a
     // PInvoke call and InsertPInvokeCallEpilog() will set it back to 1 after the PInvoke.  Though this is redundant,
-    // it is harmeless.
+    // it is harmless.
     // Note that liveness is artificially extending the life of compLvFrameListRoot var if the method being compiled has
-    // PInvokes.  Deleting the below stmnt would cause an an assert in lsra.cpp::SetLastUses() since compLvFrameListRoot
+    // PInvokes.  Deleting the below statement would cause an assert in lsra.cpp::SetLastUses() since compLvFrameListRoot
     // will be live-in to a BBJ_RETURN block without any uses.  Long term we need to fix liveness for x64 case to
     // properly extend the life of compLvFrameListRoot var.
     //
@@ -3661,7 +3661,7 @@ void Lowering::InsertPInvokeCallProlog(GenTreeCall* call)
 
     InsertTreeBeforeAndContainCheck(insertBefore, storeLab);
 
-    // Push the PInvoke frame if necessary. On 32-bit targets this only happens in the method prolog if a method
+    // Push the PInvoke frame if necessary. On 32-bit targets this only happens in the method prologue if a method
     // contains PInvokes; on 64-bit targets this is necessary in non-stubs.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
@@ -3806,7 +3806,7 @@ GenTree* Lowering::LowerNonvirtPinvokeCall(GenTreeCall* call)
     //     if (g_TrapReturningThreads)
     //         RareDisablePreemptiveGC();
     //
-    // Transistions using helpers:
+    // Transitions using helpers:
     //
     //     OpaqueFrame opaqueFrame;
     //
@@ -4987,7 +4987,7 @@ void Lowering::WidenSIMD12IfNecessary(GenTreeLclVarCommon* node)
         // passes it retBuf arg and Callee method writes only 12 bytes to retBuf. For this reason,
         // there is no need to clear upper 4-bytes of Vector3 type args.
         //
-        // RyuJIT x64 Unix: arguments are treated as passed by value and read/writen as if TYP_SIMD16.
+        // RyuJIT x64 Unix: arguments are treated as passed by value and read/written as if TYP_SIMD16.
         // Vector3 return values are returned two return registers and Caller assembles them into a
         // single xmm reg. Hence RyuJIT explicitly generates code to clears upper 4-bytes of Vector3
         // type args in prolog and Vector3 type return value of a call
@@ -5521,7 +5521,7 @@ bool Lowering::NodesAreEquivalentLeaves(GenTree* tree1, GenTree* tree2)
  */
 void Lowering::getCastDescription(GenTree* treeNode, CastInfo* castInfo)
 {
-    // Intialize castInfo
+    // Initialize castInfo
     memset(castInfo, 0, sizeof(*castInfo));
 
     GenTree* castOp = treeNode->gtCast.CastOp();
