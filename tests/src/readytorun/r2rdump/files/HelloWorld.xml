@@ -271,34 +271,6 @@
             <UnwindRVA>10252</UnwindRVA>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
-          <offset0 Index="0">    27a0: 55                   	push	rbp
-</offset0>
-          <offset1 Index="1">    27a1: 48 83 ec 20          	sub	rsp, 32
-</offset1>
-          <offset5 Index="5">    27a5: 48 8d 6c 24 20       	lea	rbp, [rsp + 32]
-</offset5>
-          <offset10 Index="10">    27aa: 48 89 4d 10          	mov	qword ptr [rbp + 16], rcx
-</offset10>
-          <offset14 Index="14">    27ae: 90                   	nop
-</offset14>
-          <offset15 Index="15">    27af: 48 8b 0d 72 e8 ff ff 	mov	rcx, qword ptr [rip - 6030]
-</offset15>
-          <offset22 Index="22">    27b6: 48 8b 09             	mov	rcx, qword ptr [rcx]
-</offset22>
-          <offset25 Index="25">    27b9: ff 15 59 e8 ff ff    	call	qword ptr [rip - 6055]
-</offset25>
-          <Transition Index="25">ECX is live</Transition>
-          <offset31 Index="31">    27bf: 90                   	nop
-</offset31>
-          <Transition Index="31">ECX is dead</Transition>
-          <offset32 Index="32">    27c0: 90                   	nop
-</offset32>
-          <offset33 Index="33">    27c1: 48 8d 65 00          	lea	rsp, [rbp]
-</offset33>
-          <offset37 Index="37">    27c5: 5d                   	pop	rbp
-</offset37>
-          <offset38 Index="38">    27c6: c3                   	ret
-</offset38>
           <Raw Index="2976">55 48 83 EC 20 48 8D 6C 24 20 48 89 4D 10 90 48 8B 0D 72 E8 FF FF 48 8B 09 FF 15 59 E8 FF FF 90 90 48 8D 65 00 5D C3</Raw>
           <UnwindInfo>
             <UnwindInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -400,7 +372,7 @@
           <IsLive>false</IsLive>
           <ChunkId>0</ChunkId>
         </GcTransition>
-        <Raw Index="3124">81 00 10 40 C8 B1 98 28 50 40 04 4A 54 00 00 00 04 00 00 00 01 01 00 00 50 28 00 00 1B 01 15 04 15 05 00 00 10 01 02 02 02 D6 00 69 09 07 21 69 23 41 92 92 A1 60 69 12 79 12 20 02 69 04 91 A6 43 53 0C 00 49 09 06 21 69 23 44 0A 96 21 91 22 01 02 02 69 04 91 96 44 53 0C 00 00 00 00 00 00 00 00 00 00 2F C4 43 5B 00 00</Raw>
+        <Raw Index="3124">81 00 10 40 C8 B1 98 28 50 40 04 4A 54 00 00 00 04 00 00 00 01 01 00 00 50 28 00 00 1B 01 15 04 15 05 00 00 10 01 02 02 02 D6 00 69 09 07 21 69 23 41 92 92 A1 60 69 12 79 12 20 02 69 04 91 A6 43 53 0C 00 49 09 06 21 69 23 44 0A 96 21 91 22 01 02 02 69 04 91 96 44 53 0C 00 00 00 00 00 00 00 00 00 00 BD 20 45 5B 00 00</Raw>
       </GcInfo>
       <RuntimeFunctions>
         <RuntimeFunction>
@@ -411,30 +383,6 @@
             <UnwindRVA>10280</UnwindRVA>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
-          <offset0 Index="0">    27d0: 55                   	push	rbp
-</offset0>
-          <offset1 Index="1">    27d1: 48 83 ec 20          	sub	rsp, 32
-</offset1>
-          <offset5 Index="5">    27d5: 48 8d 6c 24 20       	lea	rbp, [rsp + 32]
-</offset5>
-          <offset10 Index="10">    27da: 48 89 4d 10          	mov	qword ptr [rbp + 16], rcx
-</offset10>
-          <offset14 Index="14">    27de: 48 8b 4d 10          	mov	rcx, qword ptr [rbp + 16]
-</offset14>
-          <offset18 Index="18">    27e2: ff 15 38 e8 ff ff    	call	qword ptr [rip - 6088]
-</offset18>
-          <Transition Index="18">ECX is live</Transition>
-          <offset24 Index="24">    27e8: 90                   	nop
-</offset24>
-          <Transition Index="24">ECX is dead</Transition>
-          <offset25 Index="25">    27e9: 90                   	nop
-</offset25>
-          <offset26 Index="26">    27ea: 48 8d 65 00          	lea	rsp, [rbp]
-</offset26>
-          <offset30 Index="30">    27ee: 5d                   	pop	rbp
-</offset30>
-          <offset31 Index="31">    27ef: c3                   	ret
-</offset31>
           <Raw Index="3024">55 48 83 EC 20 48 8D 6C 24 20 48 89 4D 10 48 8B 4D 10 FF 15 38 E8 FF FF 90 90 48 8D 65 00 5D C3</Raw>
           <UnwindInfo>
             <UnwindInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">

@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <R2RDumpCommand>$(ProjectDir)..\bin\Product\$(BuildOS).$(BuildArch).$(BuildType)\netcoreapp2.0\R2RDump.dll</R2RDumpCommand>
-    <DotnetToolCommand>$(ProjectDir)..\Tools\dotnetcli\dotnet.exe</DotnetToolCommand>
+    <DotnetToolCommand>$(DotnetCliPath)dotnet</DotnetToolCommand>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
