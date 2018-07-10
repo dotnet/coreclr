@@ -298,6 +298,7 @@ namespace System
             // OnSerializing is called before serialization of an object
             try
             {
+                // Run the constructor to validate the decimal
                 new decimal(lo, mid, hi, flags);
             }
             catch (ArgumentException e)
@@ -312,6 +313,7 @@ namespace System
             // This callback method performs decimal validation after being deserialized.
             try
             {
+                // Run the constructor to validate the decimal
                 new decimal(lo, mid, hi, flags);
             }
             catch (ArgumentException e)
