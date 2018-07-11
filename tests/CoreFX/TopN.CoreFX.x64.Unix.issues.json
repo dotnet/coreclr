@@ -109,8 +109,28 @@
             "classes": null,
             "methods": [
                 {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutRead_ClientInOutWrite.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutWrite_ClientInOutRead.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
                     "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "CI Timeout"
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerIn_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
                 }
             ]
         }
