@@ -1,13 +1,6 @@
 <Project>
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('dir.sdkbuild.props', '$(MSBuildThisFileDirectory)../'))" />
-
-  <!-- Disable directory.build.props/targets importing, as it'll import the root dirs.props/targets, which breaks this project -->
-  <PropertyGroup> 
-    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
-    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
-  </PropertyGroup>  
-  
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
 
   <PropertyGroup>
