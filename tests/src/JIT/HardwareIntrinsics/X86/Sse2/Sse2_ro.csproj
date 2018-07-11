@@ -192,8 +192,11 @@
     <Compile Include="..\Shared\Program.cs" />
     <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
     <Compile Include="..\Shared\SimpleUnOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\ScalarUnOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\ScalarSimdUnOpTest_DataTable.cs" />
     <Compile Include="Sse2Verify.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>

@@ -160,7 +160,7 @@ CodeGen::siScope* CodeGen::siNewScope(unsigned LVnum, unsigned varNum)
         siEndTrackedScope(varIndex);
     }
 
-    siScope* newScope = (siScope*)compiler->compGetMem(sizeof(*newScope), CMK_SiScope);
+    siScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<siScope>(1);
 
     newScope->scStartLoc.CaptureLocation(getEmitter());
     assert(newScope->scStartLoc.Valid());
@@ -377,19 +377,27 @@ void CodeGen::siInit()
 
     if (compiler->info.compVarScopesCount == 0)
     {
-        return;
+        siLatestTrackedScopes = nullptr;
     }
-
+    else
+    {
 #if FEATURE_EH_FUNCLETS
-    siInFuncletRegion = false;
+        siInFuncletRegion = false;
 #endif // FEATURE_EH_FUNCLETS
 
-    for (unsigned i = 0; i < lclMAX_TRACKED; i++)
-    {
-        siLatestTrackedScopes[i] = nullptr;
-    }
+        unsigned scopeCount = compiler->lvaTrackedCount;
 
-    compiler->compResetScopeLists();
+        if (scopeCount == 0)
+        {
+            siLatestTrackedScopes = nullptr;
+        }
+        else
+        {
+            siLatestTrackedScopes = new (compiler->getAllocator(CMK_SiScope)) siScope* [scopeCount] {};
+        }
+
+        compiler->compResetScopeLists();
+    }
 }
 
 /*****************************************************************************
@@ -669,8 +677,6 @@ void CodeGen::siUpdate()
         LclVarDsc* lclVar = &compiler->lvaTable[lclNum];
         assert(lclVar->lvTracked);
 #endif
-
-        siScope* scope = siLatestTrackedScopes[varIndex];
         siEndTrackedScope(varIndex);
     }
 
@@ -825,7 +831,7 @@ void CodeGen::siDispOpenScopes()
 
 CodeGen::psiScope* CodeGen::psiNewPrologScope(unsigned LVnum, unsigned slotNum)
 {
-    psiScope* newScope = (psiScope*)compiler->compGetMem(sizeof(*newScope), CMK_SiScope);
+    psiScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<psiScope>(1);
 
     newScope->scStartLoc.CaptureLocation(getEmitter());
     assert(newScope->scStartLoc.Valid());

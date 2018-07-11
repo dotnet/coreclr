@@ -6112,9 +6112,9 @@ void Compiler::impCheckForPInvokeCall(
             return;
         }
 
-        // PInvoke CALL in IL stubs must be inlined on CoreRT. Skip the ambient conditions checks and
-        // profitability checks
-        if (!(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) && IsTargetAbi(CORINFO_CORERT_ABI)))
+        // Legal PInvoke CALL in PInvoke IL stubs must be inlined to avoid infinite recursive
+        // inlining in CoreRT. Skip the ambient conditions checks and profitability checks.
+        if (!IsTargetAbi(CORINFO_CORERT_ABI) || (info.compFlags & CORINFO_FLG_PINVOKE) == 0)
         {
             if (!impCanPInvokeInline())
             {
@@ -14381,10 +14381,13 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                 op1              = gtNewOperNode(GT_ADDR, TYP_I_IMPL, op1);
                                 convertedToLocal = true;
 
-                                // Ensure we have stack security for this method.
-                                // Reorder layout since the converted localloc is treated as an unsafe buffer.
-                                setNeedsGSSecurityCookie();
-                                compGSReorderStackLayout = true;
+                                if (!this->opts.compDbgEnC)
+                                {
+                                    // Ensure we have stack security for this method.
+                                    // Reorder layout since the converted localloc is treated as an unsafe buffer.
+                                    setNeedsGSSecurityCookie();
+                                    compGSReorderStackLayout = true;
+                                }
                             }
                         }
                     }
@@ -17045,7 +17048,7 @@ void* Compiler::BlockListNode::operator new(size_t sz, Compiler* comp)
 {
     if (comp->impBlockListNodeFreeList == nullptr)
     {
-        return (BlockListNode*)comp->compGetMem(sizeof(BlockListNode), CMK_BasicBlock);
+        return comp->getAllocator(CMK_BasicBlock).allocate<BlockListNode>(1);
     }
     else
     {
@@ -17272,7 +17275,7 @@ void Compiler::verInitBBEntryState(BasicBlock* block, EntryState* srcState)
         return;
     }
 
-    block->bbEntryState = (EntryState*)compGetMem(sizeof(EntryState));
+    block->bbEntryState = getAllocator(CMK_Unknown).allocate<EntryState>(1);
 
     // block->bbEntryState.esRefcount = 1;
 
@@ -17438,26 +17441,39 @@ void Compiler::impImport(BasicBlock* method)
     }
 #endif
 
-    /* Allocate the stack contents */
+    Compiler* inlineRoot = impInlineRoot();
 
-    if (info.compMaxStack <= _countof(impSmallStack))
+    if (info.compMaxStack <= SMALL_STACK_SIZE)
     {
-        /* Use local variable, don't waste time allocating on the heap */
-
-        impStkSize              = _countof(impSmallStack);
-        verCurrentState.esStack = impSmallStack;
+        impStkSize = SMALL_STACK_SIZE;
     }
     else
     {
-        impStkSize              = info.compMaxStack;
+        impStkSize = info.compMaxStack;
+    }
+
+    if (this == inlineRoot)
+    {
+        // Allocate the stack contents
         verCurrentState.esStack = new (this, CMK_ImpStack) StackEntry[impStkSize];
+    }
+    else
+    {
+        // This is the inlinee compiler, steal the stack from the inliner compiler
+        // (after ensuring that it is large enough).
+        if (inlineRoot->impStkSize < impStkSize)
+        {
+            inlineRoot->impStkSize              = impStkSize;
+            inlineRoot->verCurrentState.esStack = new (this, CMK_ImpStack) StackEntry[impStkSize];
+        }
+
+        verCurrentState.esStack = inlineRoot->verCurrentState.esStack;
     }
 
     // initialize the entry state at start of method
     verInitCurrentState();
 
     // Initialize stuff related to figuring "spill cliques" (see spec comment for impGetSpillTmpBase).
-    Compiler* inlineRoot = impInlineRoot();
     if (this == inlineRoot) // These are only used on the root of the inlining tree.
     {
         // We have initialized these previously, but to size 0.  Make them larger.
@@ -19839,7 +19855,7 @@ CORINFO_CLASS_HANDLE Compiler::impGetSpecialIntrinsicExactReturnType(CORINFO_MET
 //    pointer to token into jit-allocated memory.
 CORINFO_RESOLVED_TOKEN* Compiler::impAllocateToken(CORINFO_RESOLVED_TOKEN token)
 {
-    CORINFO_RESOLVED_TOKEN* memory = (CORINFO_RESOLVED_TOKEN*)compGetMem(sizeof(token));
+    CORINFO_RESOLVED_TOKEN* memory = getAllocator(CMK_Unknown).allocate<CORINFO_RESOLVED_TOKEN>(1);
     *memory                        = token;
     return memory;
 }

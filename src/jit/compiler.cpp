@@ -1212,11 +1212,11 @@ struct FileLine
     FileLine(const char* file, unsigned line, const char* condStr) : m_line(line)
     {
         size_t newSize = (strlen(file) + 1) * sizeof(char);
-        m_file         = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        m_file         = HostAllocator::getHostAllocator().allocate<char>(newSize);
         strcpy_s(m_file, newSize, file);
 
         newSize   = (strlen(condStr) + 1) * sizeof(char);
-        m_condStr = (char*)HostAllocator::getHostAllocator()->Alloc(newSize);
+        m_condStr = HostAllocator::getHostAllocator().allocate<char>(newSize);
         strcpy_s(m_condStr, newSize, condStr);
     }
 
@@ -1401,9 +1401,6 @@ void Compiler::compStartup()
     grossVMsize = grossNCsize = totalNCsize = 0;
 #endif // DISPLAY_SIZES
 
-    // Initialize the JIT's allocator.
-    ArenaAllocator::startup();
-
     /* Initialize the table of tree node sizes */
 
     GenTree::InitNodeSize();
@@ -1488,13 +1485,6 @@ void Compiler::compShutdown()
         }
     }
 #endif // FEATURE_JIT_METHOD_PERF
-
-#if COUNT_RANGECHECKS
-    if (optRangeChkAll > 0)
-    {
-        fprintf(fout, "Removed %u of %u range checks\n", optRangeChkRmv, optRangeChkAll);
-    }
-#endif // COUNT_RANGECHECKS
 
 #if COUNT_AST_OPERS
 
@@ -1709,10 +1699,10 @@ void Compiler::compShutdown()
     if (s_dspMemStats)
     {
         fprintf(fout, "\nAll allocations:\n");
-        s_aggMemStats.Print(jitstdout);
+        ArenaAllocator::dumpAggregateMemStats(jitstdout);
 
         fprintf(fout, "\nLargest method:\n");
-        s_maxCompMemStats.Print(jitstdout);
+        ArenaAllocator::dumpMaxMemStats(jitstdout);
 
         fprintf(fout, "\n");
         fprintf(fout, "---------------------------------------------------\n");
@@ -1918,7 +1908,7 @@ void Compiler::compDisplayStaticSizes(FILE* fout)
 void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 {
     assert(pAlloc);
-    compAllocator = pAlloc;
+    compArenaAllocator = pAlloc;
 
     // Inlinee Compile object will only be allocated when needed for the 1st time.
     InlineeCompiler = nullptr;
@@ -1934,32 +1924,11 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     {
         m_inlineStrategy = nullptr;
         compInlineResult = inlineInfo->inlineResult;
-
-        // We shouldn't be using the compAllocatorGeneric for other than the root compiler.
-        compAllocatorGeneric = nullptr;
-#if MEASURE_MEM_ALLOC
-        compAllocatorBitset    = nullptr;
-        compAllocatorGC        = nullptr;
-        compAllocatorLoopHoist = nullptr;
-#ifdef DEBUG
-        compAllocatorDebugOnly = nullptr;
-#endif // DEBUG
-#endif // MEASURE_MEM_ALLOC
     }
     else
     {
         m_inlineStrategy = new (this, CMK_Inlining) InlineStrategy(this);
         compInlineResult = nullptr;
-
-        compAllocatorGeneric = new (this, CMK_Unknown) CompAllocator(this, CMK_Generic);
-#if MEASURE_MEM_ALLOC
-        compAllocatorBitset    = new (this, CMK_Unknown) CompAllocator(this, CMK_bitset);
-        compAllocatorGC        = new (this, CMK_Unknown) CompAllocator(this, CMK_GC);
-        compAllocatorLoopHoist = new (this, CMK_Unknown) CompAllocator(this, CMK_LoopHoist);
-#ifdef DEBUG
-        compAllocatorDebugOnly = new (this, CMK_Unknown) CompAllocator(this, CMK_DebugOnly);
-#endif // DEBUG
-#endif // MEASURE_MEM_ALLOC
     }
 
 #ifdef FEATURE_TRACELOGGING
@@ -2007,9 +1976,6 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
         optLoopsCloned = 0;
 
-#if MEASURE_MEM_ALLOC
-        genMemStats.Init();
-#endif // MEASURE_MEM_ALLOC
 #if LOOP_HOIST_STATS
         m_loopsConsidered             = 0;
         m_curLoopHasHoistedExpression = false;
@@ -2034,9 +2000,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     compQmarkUsed         = false;
     compFloatingPointUsed = false;
     compUnsafeCastUsed    = false;
-#if CPU_USES_BLOCK_MOVE
-    compBlkOpUsed = false;
-#endif
+
     compNeedsGSSecurityCookie = false;
     compGSReorderStackLayout  = false;
 #if STACK_PROBES
@@ -2061,11 +2025,6 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
 
     // Used to track when we should consider running EarlyProp
     optMethodFlags = 0;
-
-    for (unsigned i = 0; i < MAX_LOOP_NUM; i++)
-    {
-        AllVarSetOps::AssignNoCopy(this, optLoopTable[i].lpAsgVars, AllVarSetOps::UninitVal());
-    }
 
 #ifdef DEBUG
     m_nodeTestData      = nullptr;
@@ -2103,54 +2062,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
     fgOrder = FGOrderTree;
 
 #ifdef FEATURE_SIMD
-    // SIMD Types
-    SIMDFloatHandle   = nullptr;
-    SIMDDoubleHandle  = nullptr;
-    SIMDIntHandle     = nullptr;
-    SIMDUShortHandle  = nullptr;
-    SIMDUByteHandle   = nullptr;
-    SIMDShortHandle   = nullptr;
-    SIMDByteHandle    = nullptr;
-    SIMDLongHandle    = nullptr;
-    SIMDUIntHandle    = nullptr;
-    SIMDULongHandle   = nullptr;
-    SIMDVector2Handle = nullptr;
-    SIMDVector3Handle = nullptr;
-    SIMDVector4Handle = nullptr;
-    SIMDVectorHandle  = nullptr;
-#ifdef FEATURE_HW_INTRINSICS
-#if defined(_TARGET_ARM64_)
-    Vector64FloatHandle  = nullptr;
-    Vector64UIntHandle   = nullptr;
-    Vector64UShortHandle = nullptr;
-    Vector64UByteHandle  = nullptr;
-    Vector64IntHandle    = nullptr;
-    Vector64ShortHandle  = nullptr;
-    Vector64ByteHandle   = nullptr;
-#endif // defined(_TARGET_ARM64_)
-    Vector128FloatHandle  = nullptr;
-    Vector128DoubleHandle = nullptr;
-    Vector128IntHandle    = nullptr;
-    Vector128UShortHandle = nullptr;
-    Vector128UByteHandle  = nullptr;
-    Vector128ShortHandle  = nullptr;
-    Vector128ByteHandle   = nullptr;
-    Vector128LongHandle   = nullptr;
-    Vector128UIntHandle   = nullptr;
-    Vector128ULongHandle  = nullptr;
-#if defined(_TARGET_XARCH_)
-    Vector256FloatHandle  = nullptr;
-    Vector256DoubleHandle = nullptr;
-    Vector256IntHandle    = nullptr;
-    Vector256UShortHandle = nullptr;
-    Vector256UByteHandle  = nullptr;
-    Vector256ShortHandle  = nullptr;
-    Vector256ByteHandle   = nullptr;
-    Vector256LongHandle   = nullptr;
-    Vector256UIntHandle   = nullptr;
-    Vector256ULongHandle  = nullptr;
-#endif // defined(_TARGET_XARCH_)
-#endif // FEATURE_HW_INTRINSICS
+    m_simdHandleCache = nullptr;
 #endif // FEATURE_SIMD
 
     compUsesThrowHelper = false;
@@ -2255,47 +2167,6 @@ unsigned char Compiler::compGetJitDefaultFill()
 }
 
 #endif // DEBUG
-
-/*****************************************************************************
- *
- *  The central memory allocation routine used by the compiler. Normally this
- *  is a simple inline method defined in compiler.hpp, but for debugging it's
- *  often convenient to keep it non-inline.
- */
-
-#ifdef DEBUG
-
-void* Compiler::compGetMem(size_t sz, CompMemKind cmk)
-{
-#if 0
-#if SMALL_TREE_NODES
-    if  (sz != TREE_NODE_SZ_SMALL &&
-         sz != TREE_NODE_SZ_LARGE && sz > 32)
-    {
-        printf("Alloc %3u bytes\n", sz);
-    }
-#else
-    if  (sz != sizeof(GenTree)    && sz > 32)
-    {
-        printf("Alloc %3u bytes\n", sz);
-    }
-#endif
-#endif // 0
-
-#if MEASURE_MEM_ALLOC
-    genMemStats.AddAlloc(sz, cmk);
-#endif
-
-    void* ptr = compAllocator->allocateMemory(sz);
-
-    // Verify that the current block is aligned. Only then will the next
-    // block allocated be on an aligned boundary.
-    assert((size_t(ptr) & (sizeof(size_t) - 1)) == 0);
-
-    return ptr;
-}
-
-#endif
 
 /*****************************************************************************/
 #ifdef DEBUG
@@ -2496,14 +2367,18 @@ static bool configEnableISA(InstructionSet isa)
             return false;
     }
 #else
-    // We have a retail config switch that can disable AVX/FMA/AVX2 instructions
-    if ((isa == InstructionSet_AVX) || (isa == InstructionSet_FMA) || (isa == InstructionSet_AVX2))
+    // We have a retail config switch that can disable instruction sets reliant on the VEX encoding
+    switch (isa)
     {
-        return JitConfig.EnableAVX() != 0;
-    }
-    else
-    {
-        return true;
+        case InstructionSet_AVX:
+        case InstructionSet_FMA:
+        case InstructionSet_AVX2:
+        case InstructionSet_BMI1:
+        case InstructionSet_BMI2:
+            return JitConfig.EnableAVX() != 0;
+
+        default:
+            return true;
     }
 #endif
 }
@@ -2566,20 +2441,6 @@ void Compiler::compSetProcessor()
                 opts.setSupportedISA(InstructionSet_AES);
             }
         }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
-        {
-            if (configEnableISA(InstructionSet_BMI1))
-            {
-                opts.setSupportedISA(InstructionSet_BMI1);
-            }
-        }
-        if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
-        {
-            if (configEnableISA(InstructionSet_BMI2))
-            {
-                opts.setSupportedISA(InstructionSet_BMI2);
-            }
-        }
         if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_LZCNT))
         {
             if (configEnableISA(InstructionSet_LZCNT))
@@ -2637,7 +2498,7 @@ void Compiler::compSetProcessor()
             }
         }
 
-        // There are currently two sets of flags that control AVX, FMA, and AVX2 support:
+        // There are currently two sets of flags that control instruction sets that require the VEX encoding:
         // These are the general EnableAVX flag and the individual ISA flags. We need to
         // check both for any given isa.
         if (JitConfig.EnableAVX())
@@ -2661,6 +2522,20 @@ void Compiler::compSetProcessor()
                 if (configEnableISA(InstructionSet_AVX2))
                 {
                     opts.setSupportedISA(InstructionSet_AVX2);
+                }
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI1))
+            {
+                if (configEnableISA(InstructionSet_BMI1))
+                {
+                    opts.setSupportedISA(InstructionSet_BMI1);
+                }
+            }
+            if (jitFlags.IsSet(JitFlags::JIT_FLAG_USE_BMI2))
+            {
+                if (configEnableISA(InstructionSet_BMI2))
+                {
+                    opts.setSupportedISA(InstructionSet_BMI2);
                 }
             }
         }
@@ -5239,7 +5114,7 @@ bool Compiler::compQuirkForPPP()
         assert((varDscExposedStruct->lvExactSize / TARGET_POINTER_SIZE) == 8);
 
         BYTE* oldGCPtrs = varDscExposedStruct->lvGcLayout;
-        BYTE* newGCPtrs = (BYTE*)compGetMem(8, CMK_LvaTable);
+        BYTE* newGCPtrs = getAllocator(CMK_LvaTable).allocate<BYTE>(8);
 
         for (int i = 0; i < 4; i++)
         {
@@ -5432,7 +5307,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
     info.compMethodName = eeGetMethodName(methodHnd, &classNamePtr);
     unsigned len        = (unsigned)roundUp(strlen(classNamePtr) + 1);
-    info.compClassName  = (char*)compGetMem(len, CMK_DebugOnly);
+    info.compClassName  = getAllocator(CMK_DebugOnly).allocate<char>(len);
     strcpy_s((char*)info.compClassName, len, classNamePtr);
 
     info.compFullName = eeGetMethodFullName(methodHnd);
@@ -5599,26 +5474,16 @@ void Compiler::compCompileFinish()
 
 #if MEASURE_MEM_ALLOC
     {
-        // Grab the relevant lock.
-        CritSecHolder statsLock(s_memStatsLock);
-
-        // Make the updates.
-        genMemStats.nraTotalSizeAlloc = compGetAllocator()->getTotalBytesAllocated();
-        genMemStats.nraTotalSizeUsed  = compGetAllocator()->getTotalBytesUsed();
-        memAllocHist.record((unsigned)((genMemStats.nraTotalSizeAlloc + 1023) / 1024));
-        memUsedHist.record((unsigned)((genMemStats.nraTotalSizeUsed + 1023) / 1024));
-        s_aggMemStats.Add(genMemStats);
-        if (genMemStats.allocSz > s_maxCompMemStats.allocSz)
-        {
-            s_maxCompMemStats = genMemStats;
-        }
+        compArenaAllocator->finishMemStats();
+        memAllocHist.record((unsigned)((compArenaAllocator->getTotalBytesAllocated() + 1023) / 1024));
+        memUsedHist.record((unsigned)((compArenaAllocator->getTotalBytesUsed() + 1023) / 1024));
     }
 
 #ifdef DEBUG
     if (s_dspMemStats || verbose)
     {
         printf("\nAllocations for %s (MethodHash=%08x)\n", info.compFullName, info.compMethodHash());
-        genMemStats.Print(jitstdout);
+        compArenaAllocator->dumpMemStats(jitstdout);
     }
 #endif // DEBUG
 #endif // MEASURE_MEM_ALLOC
@@ -5646,12 +5511,12 @@ void Compiler::compCompileFinish()
         (info.compLocalsCount <= 32) && (!opts.MinOpts()) && // We may have too many local variables, etc
         (getJitStressLevel() == 0) &&                        // We need extra memory for stress
         !opts.optRepeat &&                                   // We need extra memory to repeat opts
-        !compAllocator->bypassHostAllocator() && // ArenaAllocator::getDefaultPageSize() is artificially low for
-                                                 // DirectAlloc
+        !compArenaAllocator->bypassHostAllocator() && // ArenaAllocator::getDefaultPageSize() is artificially low for
+                                                      // DirectAlloc
         // Factor of 2x is because data-structures are bigger under DEBUG
-        (compAllocator->getTotalBytesAllocated() > (2 * ArenaAllocator::getDefaultPageSize())) &&
+        (compArenaAllocator->getTotalBytesAllocated() > (2 * ArenaAllocator::getDefaultPageSize())) &&
         // RyuJIT backend needs memory tuning! TODO-Cleanup: remove this case when memory tuning is complete.
-        (compAllocator->getTotalBytesAllocated() > (10 * ArenaAllocator::getDefaultPageSize())) &&
+        (compArenaAllocator->getTotalBytesAllocated() > (10 * ArenaAllocator::getDefaultPageSize())) &&
         !verbose) // We allocate lots of memory to convert sets to strings for JitDump
     {
         genSmallMethodsNeedingExtraMemoryCnt++;
@@ -6754,20 +6619,12 @@ START:
     if (inlineInfo)
     {
         // Use inliner's memory allocator when compiling the inlinee.
-        pAlloc = inlineInfo->InlinerCompiler->compGetAllocator();
+        pAlloc = inlineInfo->InlinerCompiler->compGetArenaAllocator();
     }
     else
     {
-        IEEMemoryManager* pMemoryManager = compHnd->getMemoryManager();
-
-        // Try to reuse the pre-inited allocator
-        pAlloc = ArenaAllocator::getPooledAllocator(pMemoryManager);
-
-        if (pAlloc == nullptr)
-        {
-            alloc  = ArenaAllocator(pMemoryManager);
-            pAlloc = &alloc;
-        }
+        alloc.initialize(compHnd->getMemoryManager());
+        pAlloc = &alloc;
     }
 
     Compiler* pComp;
@@ -6777,7 +6634,6 @@ START:
     {
         Compiler*       pComp;
         ArenaAllocator* pAlloc;
-        ArenaAllocator* alloc;
         bool            jitFallbackCompile;
 
         CORINFO_METHOD_HANDLE methodHnd;
@@ -6796,7 +6652,6 @@ START:
     } param;
     param.pComp              = nullptr;
     param.pAlloc             = pAlloc;
-    param.alloc              = &alloc;
     param.jitFallbackCompile = jitFallbackCompile;
     param.methodHnd          = methodHnd;
     param.classPtr           = classPtr;
@@ -6864,17 +6719,18 @@ START:
         }
         finallyErrorTrap()
         {
-            // Add a dummy touch to pComp so that it is kept alive, and is easy to get to
-            // during debugging since all other data can be obtained through it.
+            Compiler* pCompiler = pParamOuter->pComp;
+
+            // If OOM is thrown when allocating memory for a pComp, we will end up here.
+            // For this case, pComp and also pCompiler will be a nullptr
             //
-            if (pParamOuter->pComp) // If OOM is thrown when allocating memory for pComp, we will end up here.
-                                    // In that case, pComp is still NULL.
+            if (pCompiler != nullptr)
             {
-                pParamOuter->pComp->info.compCode = nullptr;
+                pCompiler->info.compCode = nullptr;
 
                 // pop the compiler off the TLS stack only if it was linked above
-                assert(JitTls::GetCompiler() == pParamOuter->pComp);
-                JitTls::SetCompiler(JitTls::GetCompiler()->prevCompiler);
+                assert(JitTls::GetCompiler() == pCompiler);
+                JitTls::SetCompiler(pCompiler->prevCompiler);
             }
 
             if (pParamOuter->inlineInfo == nullptr)
@@ -8241,7 +8097,7 @@ void JitTimer::PrintCsvMethodStats(Compiler* comp)
 
     fprintf(fp, "%Iu,", comp->info.compNativeCodeSize);
     fprintf(fp, "%Iu,", comp->compInfoBlkSize);
-    fprintf(fp, "%Iu,", comp->compGetAllocator()->getTotalBytesAllocated());
+    fprintf(fp, "%Iu,", comp->compGetArenaAllocator()->getTotalBytesAllocated());
     fprintf(fp, "%I64u,", m_info.m_totalCycles);
     fprintf(fp, "%f\n", CycleTimer::CyclesPerSecond());
     fclose(fp);
@@ -8258,54 +8114,6 @@ void JitTimer::Terminate(Compiler* comp, CompTimeSummaryInfo& sum, bool includeP
     sum.AddInfo(m_info, includePhases);
 }
 #endif // FEATURE_JIT_METHOD_PERF
-
-#if MEASURE_MEM_ALLOC
-// static vars.
-CritSecObject               Compiler::s_memStatsLock;    // Default constructor.
-Compiler::AggregateMemStats Compiler::s_aggMemStats;     // Default constructor.
-Compiler::MemStats          Compiler::s_maxCompMemStats; // Default constructor.
-
-const char* Compiler::MemStats::s_CompMemKindNames[] = {
-#define CompMemKindMacro(kind) #kind,
-#include "compmemkind.h"
-};
-
-void Compiler::MemStats::Print(FILE* f)
-{
-    fprintf(f, "count: %10u, size: %10llu, max = %10llu\n", allocCnt, allocSz, allocSzMax);
-    fprintf(f, "allocateMemory: %10llu, nraUsed: %10llu\n", nraTotalSizeAlloc, nraTotalSizeUsed);
-    PrintByKind(f);
-}
-
-void Compiler::MemStats::PrintByKind(FILE* f)
-{
-    fprintf(f, "\nAlloc'd bytes by kind:\n  %20s | %10s | %7s\n", "kind", "size", "pct");
-    fprintf(f, "  %20s-+-%10s-+-%7s\n", "--------------------", "----------", "-------");
-    float allocSzF = static_cast<float>(allocSz);
-    for (int cmk = 0; cmk < CMK_Count; cmk++)
-    {
-        float pct = 100.0f * static_cast<float>(allocSzByKind[cmk]) / allocSzF;
-        fprintf(f, "  %20s | %10llu | %6.2f%%\n", s_CompMemKindNames[cmk], allocSzByKind[cmk], pct);
-    }
-    fprintf(f, "\n");
-}
-
-void Compiler::AggregateMemStats::Print(FILE* f)
-{
-    fprintf(f, "For %9u methods:\n", nMethods);
-    if (nMethods == 0)
-    {
-        return;
-    }
-    fprintf(f, "  count:       %12u (avg %7u per method)\n", allocCnt, allocCnt / nMethods);
-    fprintf(f, "  alloc size : %12llu (avg %7llu per method)\n", allocSz, allocSz / nMethods);
-    fprintf(f, "  max alloc  : %12llu\n", allocSzMax);
-    fprintf(f, "\n");
-    fprintf(f, "  allocateMemory   : %12llu (avg %7llu per method)\n", nraTotalSizeAlloc, nraTotalSizeAlloc / nMethods);
-    fprintf(f, "  nraUsed    : %12llu (avg %7llu per method)\n", nraTotalSizeUsed, nraTotalSizeUsed / nMethods);
-    PrintByKind(f);
-}
-#endif // MEASURE_MEM_ALLOC
 
 #if LOOP_HOIST_STATS
 // Static fields.

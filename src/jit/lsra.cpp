@@ -605,11 +605,8 @@ LinearScanInterface* getLinearScanAllocator(Compiler* comp)
 
 LinearScan::LinearScan(Compiler* theCompiler)
     : compiler(theCompiler)
-#if MEASURE_MEM_ALLOC
-    , lsraAllocator(nullptr)
-#endif // MEASURE_MEM_ALLOC
-    , intervals(LinearScanMemoryAllocatorInterval(theCompiler))
-    , refPositions(LinearScanMemoryAllocatorRefPosition(theCompiler))
+    , intervals(theCompiler->getAllocator(CMK_LSRA_Interval))
+    , refPositions(theCompiler->getAllocator(CMK_LSRA_RefPosition))
     , listNodePool(theCompiler)
 {
 #ifdef DEBUG
@@ -2687,8 +2684,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
             // or if it is only related because they are multi-reg targets of the same node.
-            if (!RefTypeIsDef(nextRelatedRefPosition->refType) ||
-                isMultiRegRelated(nextRelatedRefPosition, refPosition->nodeLocation))
+            if (!RefTypeIsDef(nextRelatedRefPosition->refType))
             {
                 relatedInterval = nullptr;
             }
@@ -4922,18 +4918,6 @@ bool LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
     return isFree;
 }
 
-// isMultiRegRelated: is this RefPosition defining part of a multi-reg value
-//                    at the given location?
-//
-bool LinearScan::isMultiRegRelated(RefPosition* refPosition, LsraLocation location)
-{
-#ifdef FEATURE_MULTIREG_ARGS_OR_RET
-    return ((refPosition->nodeLocation == location) && refPosition->getInterval()->isMultiReg);
-#else
-    return false;
-#endif
-}
-
 //------------------------------------------------------------------------
 // LinearScan::freeRegister: Make a register available for use
 //
@@ -6355,7 +6339,7 @@ void LinearScan::recordMaxSpill()
     // only a few types should actually be seen here.
     JITDUMP("Recording the maximum number of concurrent spills:\n");
 #ifdef _TARGET_X86_
-    var_types returnType = compiler->tmpNormalizeType(compiler->info.compRetType);
+    var_types returnType = RegSet::tmpNormalizeType(compiler->info.compRetType);
     if (needDoubleTmpForFPCall || (returnType == TYP_DOUBLE))
     {
         JITDUMP("Adding a spill temp for moving a double call/return value between xmm reg and x87 stack.\n");
@@ -6369,7 +6353,7 @@ void LinearScan::recordMaxSpill()
 #endif // _TARGET_X86_
     for (int i = 0; i < TYP_COUNT; i++)
     {
-        if (var_types(i) != compiler->tmpNormalizeType(var_types(i)))
+        if (var_types(i) != RegSet::tmpNormalizeType(var_types(i)))
         {
             // Only normalized types should have anything in the maxSpill array.
             // We assume here that if type 'i' does not normalize to itself, then
@@ -6379,7 +6363,7 @@ void LinearScan::recordMaxSpill()
         if (maxSpill[i] != 0)
         {
             JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
-            compiler->tmpPreAllocateTemps(var_types(i), maxSpill[i]);
+            compiler->codeGen->regSet.tmpPreAllocateTemps(var_types(i), maxSpill[i]);
         }
     }
     JITDUMP("\n");
@@ -6449,6 +6433,7 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                 {
                     typ = treeNode->AsPutArgSplit()->GetRegType(refPosition->getMultiRegIdx());
                 }
+#if !defined(_TARGET_64BIT_)
                 else if (treeNode->OperIsPutArgReg())
                 {
                     // For double arg regs, the type is changed to long since they must be passed via `r0-r3`.
@@ -6456,12 +6441,13 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     var_types typNode = treeNode->TypeGet();
                     typ               = (typNode == TYP_LONG) ? TYP_INT : typNode;
                 }
+#endif // !_TARGET_64BIT_
 #endif // FEATURE_ARG_SPLIT
                 else
                 {
                     typ = treeNode->TypeGet();
                 }
-                typ = compiler->tmpNormalizeType(typ);
+                typ = RegSet::tmpNormalizeType(typ);
             }
 
             if (refPosition->spillAfter && !refPosition->reload)
@@ -8598,10 +8584,6 @@ void Interval::dump()
     if (isConstant)
     {
         printf(" (constant)");
-    }
-    if (isMultiReg)
-    {
-        printf(" (multireg)");
     }
 
     printf(" RefPositions {");

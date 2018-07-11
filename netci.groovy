@@ -68,75 +68,79 @@ class Constants {
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
     def static jitStressModeScenarios = [
-               'minopts'                        : ['COMPlus_JITMinOpts' : '1'],
-               'tieredcompilation'              : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'forcerelocs'                    : ['COMPlus_ForceRelocs' : '1'],
-               'jitstress1'                     : ['COMPlus_JitStress' : '1'],
-               'jitstress2'                     : ['COMPlus_JitStress' : '2'],
-               'jitstressregs1'                 : ['COMPlus_JitStressRegs' : '1'],
-               'jitstressregs2'                 : ['COMPlus_JitStressRegs' : '2'],
-               'jitstressregs3'                 : ['COMPlus_JitStressRegs' : '3'],
-               'jitstressregs4'                 : ['COMPlus_JitStressRegs' : '4'],
-               'jitstressregs8'                 : ['COMPlus_JitStressRegs' : '8'],
-               'jitstressregs0x10'              : ['COMPlus_JitStressRegs' : '0x10'],
-               'jitstressregs0x80'              : ['COMPlus_JitStressRegs' : '0x80'],
-               'jitstressregs0x1000'            : ['COMPlus_JitStressRegs' : '0x1000'],
-               'jitstress2_jitstressregs1'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
-               'jitstress2_jitstressregs2'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
-               'jitstress2_jitstressregs3'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
-               'jitstress2_jitstressregs4'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
-               'jitstress2_jitstressregs8'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
-               'jitstress2_jitstressregs0x10'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
-               'jitstress2_jitstressregs0x80'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
-               'jitstress2_jitstressregs0x1000' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
-               'tailcallstress'                 : ['COMPlus_TailcallStress' : '1'],
-               'jitsse2only'                    : ['COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
-               'jitnosimd'                      : ['COMPlus_FeatureSIMD' : '0'],
-               'jitincompletehwintrinsic'       : ['COMPlus_EnableIncompleteISAClass' : '1'],
-               'jitx86hwintrinsicnoavx'         : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX' : '0'], // testing the legacy SSE encoding
-               'jitx86hwintrinsicnoavx2'        : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX2' : '0'], // testing SNB/IVB
-               'jitx86hwintrinsicnosimd'        : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_FeatureSIMD' : '0'], // match "jitnosimd", may need to remove after decoupling HW intrinsic from FeatureSIMD
-               'jitnox86hwintrinsic'            : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableSSE' : '0' , 'COMPlus_EnableSSE2' : '0' , 'COMPlus_EnableSSE3' : '0' , 'COMPlus_EnableSSSE3' : '0' , 'COMPlus_EnableSSE41' : '0' , 'COMPlus_EnableSSE42' : '0' , 'COMPlus_EnableAVX' : '0' , 'COMPlus_EnableAVX2' : '0' , 'COMPlus_EnableAES' : '0' , 'COMPlus_EnableBMI1' : '0' , 'COMPlus_EnableBMI2' : '0' , 'COMPlus_EnableFMA' : '0' , 'COMPlus_EnableLZCNT' : '0' , 'COMPlus_EnablePCLMULQDQ' : '0' , 'COMPlus_EnablePOPCNT' : '0'],
-               'corefx_baseline'                : [ : ], // corefx baseline
-               'corefx_minopts'                 : ['COMPlus_JITMinOpts' : '1'],
-               'corefx_tieredcompilation'       : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'corefx_jitstress1'              : ['COMPlus_JitStress' : '1'],
-               'corefx_jitstress2'              : ['COMPlus_JitStress' : '2'],
-               'corefx_jitstressregs1'          : ['COMPlus_JitStressRegs' : '1'],
-               'corefx_jitstressregs2'          : ['COMPlus_JitStressRegs' : '2'],
-               'corefx_jitstressregs3'          : ['COMPlus_JitStressRegs' : '3'],
-               'corefx_jitstressregs4'          : ['COMPlus_JitStressRegs' : '4'],
-               'corefx_jitstressregs8'          : ['COMPlus_JitStressRegs' : '8'],
-               'corefx_jitstressregs0x10'       : ['COMPlus_JitStressRegs' : '0x10'],
-               'corefx_jitstressregs0x80'       : ['COMPlus_JitStressRegs' : '0x80'],
-               'corefx_jitstressregs0x1000'     : ['COMPlus_JitStressRegs' : '0x1000'],
-               'gcstress0x3'                    : ['COMPlus_GCStress' : '0x3'],
-               'gcstress0xc'                    : ['COMPlus_GCStress' : '0xC'],
-               'zapdisable'                     : ['COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'heapverify1'                    : ['COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_zapdisable'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_jitstress1'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
-               'gcstress0xc_jitstress2'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
+               'minopts'                        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JITMinOpts' : '1'],
+               'tieredcompilation'              : ['COMPlus_TieredCompilation' : '1'],
+               'forcerelocs'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_ForceRelocs' : '1'],
+               'jitstress1'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '1'],
+               'jitstress2'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2'],
+               'jitstress1_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '1'],
+               'jitstress2_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '2'],
+               'jitstressregs1'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '1'],
+               'jitstressregs2'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '2'],
+               'jitstressregs3'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '3'],
+               'jitstressregs4'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '4'],
+               'jitstressregs8'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '8'],
+               'jitstressregs0x10'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x10'],
+               'jitstressregs0x80'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x80'],
+               'jitstressregs0x1000'            : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x1000'],
+               'jitstress2_jitstressregs1'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
+               'jitstress2_jitstressregs2'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
+               'jitstress2_jitstressregs3'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
+               'jitstress2_jitstressregs4'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
+               'jitstress2_jitstressregs8'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
+               'jitstress2_jitstressregs0x10'   : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
+               'jitstress2_jitstressregs0x80'   : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
+               'jitstress2_jitstressregs0x1000' : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
+               'tailcallstress'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_TailcallStress' : '1'],
+               'jitsse2only'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
+               'jitnosimd'                      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_FeatureSIMD' : '0'],
+               'jitincompletehwintrinsic'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1'],
+               'jitx86hwintrinsicnoavx'         : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX' : '0'], // testing the legacy SSE encoding
+               'jitx86hwintrinsicnoavx2'        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX2' : '0'], // testing SNB/IVB
+               'jitx86hwintrinsicnosimd'        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_FeatureSIMD' : '0'], // match "jitnosimd", may need to remove after decoupling HW intrinsic from FeatureSIMD
+               'jitnox86hwintrinsic'            : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableSSE' : '0' , 'COMPlus_EnableSSE2' : '0' , 'COMPlus_EnableSSE3' : '0' , 'COMPlus_EnableSSSE3' : '0' , 'COMPlus_EnableSSE41' : '0' , 'COMPlus_EnableSSE42' : '0' , 'COMPlus_EnableAVX' : '0' , 'COMPlus_EnableAVX2' : '0' , 'COMPlus_EnableAES' : '0' , 'COMPlus_EnableBMI1' : '0' , 'COMPlus_EnableBMI2' : '0' , 'COMPlus_EnableFMA' : '0' , 'COMPlus_EnableLZCNT' : '0' , 'COMPlus_EnablePCLMULQDQ' : '0' , 'COMPlus_EnablePOPCNT' : '0'],
+               'corefx_baseline'                : ['COMPlus_TieredCompilation' : '0'], // corefx baseline
+               'corefx_minopts'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JITMinOpts' : '1'],
+               'corefx_tieredcompilation'       : ['COMPlus_TieredCompilation' : '1'],
+               'corefx_jitstress1'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '1'],
+               'corefx_jitstress2'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2'],
+               'corefx_jitstressregs1'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '1'],
+               'corefx_jitstressregs2'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '2'],
+               'corefx_jitstressregs3'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '3'],
+               'corefx_jitstressregs4'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '4'],
+               'corefx_jitstressregs8'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '8'],
+               'corefx_jitstressregs0x10'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x10'],
+               'corefx_jitstressregs0x80'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x80'],
+               'corefx_jitstressregs0x1000'     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x1000'],
+               'gcstress0x3'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0x3'],
+               'gcstress0xc'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC'],
+               'zapdisable'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'heapverify1'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_zapdisable'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_jitstress1'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
+               'gcstress0xc_jitstress2'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
     ]
 
     // This is a set of ReadyToRun stress scenarios
     def static r2rStressScenarios = [
-               'r2r_jitstress1'             : ["COMPlus_JitStress": "1"],
-               'r2r_jitstress2'             : ["COMPlus_JitStress": "2"],
-               'r2r_jitstressregs1'         : ["COMPlus_JitStressRegs": "1"],
-               'r2r_jitstressregs2'         : ["COMPlus_JitStressRegs": "2"],
-               'r2r_jitstressregs3'         : ["COMPlus_JitStressRegs": "3"],
-               'r2r_jitstressregs4'         : ["COMPlus_JitStressRegs": "4"],
-               'r2r_jitstressregs8'         : ["COMPlus_JitStressRegs": "8"],
-               'r2r_jitstressregs0x10'      : ["COMPlus_JitStressRegs": "0x10"],
-               'r2r_jitstressregs0x80'      : ["COMPlus_JitStressRegs": "0x80"],
-               'r2r_jitstressregs0x1000'    : ["COMPlus_JitStressRegs": "0x1000"],
-               'r2r_jitminopts'             : ["COMPlus_JITMinOpts": "1"], 
-               'r2r_jitforcerelocs'         : ["COMPlus_ForceRelocs": "1"],
-               'r2r_gcstress15'             : ["COMPlus_GCStress": "0xF"]
+               'r2r_jitstress1'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStress": "1"],
+               'r2r_jitstress2'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStress": "2"],
+               'r2r_jitstress1_tiered'      : ['COMPlus_TieredCompilation' : '1', "COMPlus_JitStress": "1"],
+               'r2r_jitstress2_tiered'      : ['COMPlus_TieredCompilation' : '1', "COMPlus_JitStress": "2"],
+               'r2r_jitstressregs1'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "1"],
+               'r2r_jitstressregs2'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "2"],
+               'r2r_jitstressregs3'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "3"],
+               'r2r_jitstressregs4'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "4"],
+               'r2r_jitstressregs8'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "8"],
+               'r2r_jitstressregs0x10'      : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x10"],
+               'r2r_jitstressregs0x80'      : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x80"],
+               'r2r_jitstressregs0x1000'    : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x1000"],
+               'r2r_jitminopts'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JITMinOpts": "1"], 
+               'r2r_jitforcerelocs'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_ForceRelocs": "1"],
+               'r2r_gcstress15'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_GCStress": "0xF"]
     ]
 
     // This is the basic set of scenarios
@@ -237,6 +241,8 @@ class Constants {
                // 'illink'
                'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'r2r_jitstress2_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs1':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs2':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs3':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -253,6 +259,8 @@ class Constants {
                'forcerelocs':                            [],
                'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress1_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress2_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs2':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs3':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -340,6 +348,8 @@ class Constants {
                // 'illink'
                'r2r_jitstress1',
                'r2r_jitstress2',
+               'r2r_jitstress1_tiered',
+               'r2r_jitstress2_tiered',
                'r2r_jitstressregs1',
                'r2r_jitstressregs2',
                'r2r_jitstressregs3',
@@ -356,6 +366,8 @@ class Constants {
                'forcerelocs',
                'jitstress1',
                'jitstress2',
+               'jitstress1_tiered',
+               'jitstress2_tiered',
                'jitstressregs1',
                'jitstressregs2',
                'jitstressregs3',
@@ -409,7 +421,7 @@ class Constants {
 
     // This is the set of architectures
     // Some of these are pseudo-architectures:
-    //    armem -- ARM builds/runs using an emulator. Used for Ubuntu/Ubuntu16.04/Tizen runs.
+    //    armem -- ARM builds/runs using an emulator. Used for Tizen runs.
     //    x86_arm_altjit -- ARM runs on x86 using the ARM altjit
     //    x64_arm64_altjit -- ARM64 runs on x64 using the ARM64 altjit
     def static architectureList = ['arm', 'armem', 'x86_arm_altjit', 'x64_arm64_altjit', 'arm64', 'x64', 'x86']
@@ -554,7 +566,6 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     assert architecture instanceof String
 
     def armArches = ['arm', 'armem', 'arm64']
-    def supportedArmLinuxOs = ['Ubuntu', 'Ubuntu16.04', 'Tizen']
 
     if (!(architecture in armArches)) {
         assert options == null
@@ -582,7 +593,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     // Ubuntu
     //
     // Arm32 emulator (Build, Test) -> arm-cross-latest
-    //       |-> os in supportedArmLinuxOs && (architecture == "armem")
+    //       |-> os == "Tizen" && (architecture == "armem")
     //
     // Arm32 hardware (Flow) -> Ubuntu 16.04 latest-or-auto (don't use limited arm hardware)
     //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_flow_job'] == true
@@ -611,10 +622,9 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         }
     } else {
         assert os != 'Windows_NT'
-        assert os in supportedArmLinuxOs
 
         if (architecture == 'arm64') {
-            assert (architecture == 'arm64') && (os == 'Ubuntu')
+            assert os == 'Ubuntu'
             def isFlow  = (options != null) && (options['is_flow_job'] == true)
             def isBuild = (options != null) && (options['is_build_job'] == true)
             if (isFlow || isBuild) {
@@ -632,13 +642,15 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
             }
         }
         else if (architecture == 'armem') {
-            // arm emulator (Ubuntu/Ubuntu16.04/Tizen). Build and test on same machine,
+            // arm emulator (Tizen). Build and test on same machine,
             // using Docker.
+            assert os == 'Tizen'
             Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest')
         }
         else {
             // arm Ubuntu on hardware.
-            assert (architecture == 'arm') && (os == 'Ubuntu')
+            assert architecture == 'arm'
+            assert os == 'Ubuntu'
             def isFlow  = (options != null) && (options['is_flow_job'] == true)
             def isBuild = (options != null) && (options['is_build_job'] == true)
             if (isFlow || isBuild) {
@@ -1012,13 +1024,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
             return "hseok82/dotnet-buildtools-prereqs:ubuntu-16.04-crossx86-ef0ac75-20175511035548"
         }
         else if (architecture == 'armem') {
-            if (os == 'Ubuntu') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180405193556"
-            }
-            else if (os == 'Ubuntu16.04') {
-                return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180404203310"
-            }
-            else if (os == 'Tizen') {
+            if (os == 'Tizen') {
                 return "tizendotnet/dotnet-buildtools-prereqs:ubuntu-16.04-cross-e435274-20180426002255-tizen-rootfs-5.0m1"
             }
         }
@@ -1101,13 +1107,8 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
             break
         case 'armem':
             // These are cross builds
-            if (os == 'Tizen') {
-                // ABI: softfp
-                baseName = 'armel_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
-            }
-            else {
-                baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
-            }
+            assert os == 'Tizen'
+            baseName = 'armel_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         case 'arm':
             baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
@@ -1245,6 +1246,8 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             break
         case 'r2r_jitstress1':
         case 'r2r_jitstress2':
+        case 'r2r_jitstress1_tiered':
+        case 'r2r_jitstress2_tiered':
         case 'r2r_jitstressregs1':
         case 'r2r_jitstressregs2':
         case 'r2r_jitstressregs3':
@@ -1353,9 +1356,12 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'jitstressregs0x80':
         case 'jitstressregs0x1000':
         case 'minopts':
+        case 'tieredcompilation':
         case 'forcerelocs':
         case 'jitstress1':
         case 'jitstress2':
+        case 'jitstress1_tiered':
+        case 'jitstress2_tiered':
         case 'jitstress2_jitstressregs1':
         case 'jitstress2_jitstressregs2':
         case 'jitstress2_jitstressregs3':
@@ -1374,6 +1380,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'jitx86hwintrinsicnosimd':
         case 'corefx_baseline':
         case 'corefx_minopts':
+        case 'corefx_tieredcompilation':
         case 'corefx_jitstress1':
         case 'corefx_jitstress2':
         case 'corefx_jitstressregs1':
@@ -1457,11 +1464,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     addPeriodicTriggerHelper(job, '@daily')
                 }
             }
-            break
-        
-        case 'tieredcompilation':
-        case 'corefx_tieredcompilation':
-            // No periodic jobs just yet, still testing
             break
 
         default:
@@ -1565,6 +1567,17 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                         break
                     }
+
+                    else  if (scenario == 'corefx_innerloop') {
+                        if (configuration == 'Checked') {
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                        }
+                        else {
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+CoreFX Tests.*")
+                        }
+                        break
+                    }
+
                     // fall through
 
                 case 'OSX10.12':
@@ -1623,6 +1636,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'gc_reliability_framework':
                             if (configuration == 'Release' || configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} GC Reliability Framework", "(?i).*test\\W+${os}\\W+${configuration}\\W+${scenario}.*")
+                            }
+                            break
+
+                        case 'corefx_innerloop':
+                            if (configuration == 'Checked') {
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                             }
                             break
 
@@ -1743,7 +1762,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                             break
                         case 'corefx_innerloop':
-                            if (configuration == 'Release' || configuration == 'Checked') {
+                            if (configuration == 'Checked') {
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
                             }
                             break
@@ -1791,16 +1810,8 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
             }
 
             switch (os) {
-                case 'Ubuntu':
-                case 'Ubuntu16.04':
-                    assert scenario != 'innerloop'
-                    Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Build",
-                            "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}\\W+Build.*")
-                    break
-
                 case 'Tizen':
                     architecture = 'armel'
-
                     if (scenario == 'innerloop') {
                         if (configuration == 'Checked') {
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build and Test")
@@ -2222,10 +2233,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 // Create CORE_ROOT and testhost
                                 buildCommands += "build-test.cmd ${lowerConfiguration} ${arch} buildtesthostonly"                                
                                 buildCommands += "tests\\runtest.cmd ${runtestArguments} CoreFXTestsAll"
-                                
+
                                 // Archive and process (only) the test results
                                 Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
                                 Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+
                             }
                             else {
                               def workspaceRelativeFxRoot = "_/fx"
@@ -2413,48 +2425,56 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
                     else {
-                        // Corefx stress testing
-                        assert os == 'Ubuntu'
-                        assert architecture == 'x64'
-                        assert lowerConfiguration == 'checked'
-                        assert isJitStressScenario(scenario)
+                        if(scenario == 'corefx_innerloop') {
+                            assert os == 'Ubuntu' || 'OSX10.12'
+                            assert architecture == 'x64'
 
-                        // Build coreclr
-                        buildCommands += "./build.sh ${lowerConfiguration} ${architecture}"
+                            buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
+                            buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
+                            buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
+                            
+                            break
+                            // TODO - uncomment once https://github.com/dotnet/coreclr/pull/18753 has been merged
+                            // Archive and process (only) the test results
+                            // Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                            // Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                        }
+                        else {
+                            // Corefx stress testing
+                            assert os == 'Ubuntu'
+                            assert architecture == 'x64'
+                            assert lowerConfiguration == 'checked'
+                            assert isJitStressScenario(scenario)
 
-                        def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
+                            // Build coreclr
+                            buildCommands += "./build.sh ${lowerConfiguration} ${architecture}"
 
-                        def envScriptCmds = envScriptCreate(os, scriptFileName)
-                        envScriptCmds += envScriptSetStressModeVariables(os, Constants.jitStressModeScenarios[scenario], scriptFileName)
-                        envScriptCmds += envScriptFinalize(os, scriptFileName)
-                        buildCommands += envScriptCmds
+                            def scriptFileName = "\$WORKSPACE/set_stress_test_env.sh"
 
-                        // Build and text corefx
-                        def workspaceRelativeFxRoot = "_/fx"
-                        def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
-                        def fxBranch = getFxBranch(branch)
+                            def envScriptCmds = envScriptCreate(os, scriptFileName)
+                            envScriptCmds += envScriptSetStressModeVariables(os, Constants.jitStressModeScenarios[scenario], scriptFileName)
+                            envScriptCmds += envScriptFinalize(os, scriptFileName)
+                            buildCommands += envScriptCmds
 
-                        buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
+                            // Build and text corefx
+                            def workspaceRelativeFxRoot = "_/fx"
+                            def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
+                            def fxBranch = getFxBranch(branch)
 
-                        // Archive and process (only) the test results
-                        Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                        Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                            buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
+
+                            // Archive and process (only) the test results
+                            Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                            Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                        }
                     }
                     break
                 case 'armem':
-                    // Emulator cross builds for ARM runs on Ubuntu, Ubuntu16.04 and Tizen currently
-                    assert (os == 'Ubuntu') || (os == 'Ubuntu16.04') || (os == 'Tizen')
+                    // Emulator cross builds for ARM runs on Tizen currently
+                    assert os == 'Tizen'
 
-                    // default values for Ubuntu
-                    def arm_abi = "arm"
-                    def linuxCodeName = "trusty"
-                    if (os == 'Ubuntu16.04') {
-                        linuxCodeName = "xenial"
-                    }
-                    else if (os == 'Tizen') {
-                        arm_abi = "armel"
-                        linuxCodeName = "tizen"
-                    }
+                    def arm_abi = "armel"
+                    def linuxCodeName = "tizen"
 
                     // Unzip the Windows test binaries first. Exit with 0
                     buildCommands += "unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/Windows_NT.x64.${configuration} || exit 0"
@@ -2462,14 +2482,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Unpack the corefx binaries
                     buildCommands += "mkdir ./bin/CoreFxBinDir"
                     buildCommands += "tar -xf ./bin/build.tar.gz -C ./bin/CoreFxBinDir"
-                    if (os != 'Tizen') {
-                        buildCommands += "chmod a+x ./bin/CoreFxBinDir/corerun"
-                    }
-                    // Test environment emulation using docker and qemu has some problem to use lttng library.
-                    // We should remove libcoreclrtraceptprovider.so to avoid test hang.
-                    if (os == 'Ubuntu') {
-                        buildCommands += "rm -f -v ./bin/CoreFxBinDir/libcoreclrtraceptprovider.so"
-                    }
 
                     // Call the ARM CI script to cross build and test using docker
                     buildCommands += """./tests/scripts/arm32_ci_script.sh \\
@@ -2609,7 +2621,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             }
             break
         case 'armem':
-            if ((os != 'Ubuntu') && (os != 'Ubuntu16.04') && (os != 'Tizen')) {
+            if (os != 'Tizen') {
                 return false
             }
             break
@@ -2808,10 +2820,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 }
                 break
             case 'corefx_innerloop':
-                if (os != 'Windows_NT'|| architecture != 'x64') {
+                if (os != 'Windows_NT' && os != 'Ubuntu' &&  os != 'OSX10.12') {
                     return false
                 }
-                if(configuration != 'Release' && configuration != 'Checked') {
+                if (architecture != 'x64') {
                     return false
                 }
                 break
@@ -2863,8 +2875,12 @@ Constants.allScenarios.each { scenario ->
                     // Create the new job
                     def newJob = job(Utilities.getFullJobName(project, jobName, isPR, folderName)) {}
 
-                    // Should we add corefx_innerloop to views?
-                    addToViews(newJob, isPR, architecture, os)
+                    // We don't want to include in view any job that is only used by a flow job (because we want the views to have only the
+                    // "top-level" jobs. Build only jobs are such jobs.
+                    if (!isBuildOnly)
+                    {
+                        addToViews(newJob, isPR, architecture, os)
+                    }
 
                     setJobMachineAffinity(architecture, os, true, false, false, newJob) // isBuildJob = true, isTestJob = false, isFlowJob = false
 
@@ -2875,7 +2891,7 @@ Constants.allScenarios.each { scenario ->
                     // Copy Windows build test binaries and corefx build artifacts for Linux cross build for armem.
                     // We don't use a flow job for this, but we do depend on there being existing builds with these
                     // artifacts produced.
-                    if (architecture == 'armem' && (os == 'Ubuntu' || os == 'Ubuntu16.04' || os == 'Tizen')) {
+                    if ((architecture == 'armem') && (os == 'Tizen')) {
                         // Define the Windows Tests and Corefx build job names
                         def lowerConfiguration = configuration.toLowerCase()
                         def WindowsTestsName = projectFolder + '/' +
@@ -2886,12 +2902,8 @@ Constants.allScenarios.each { scenario ->
                         def corefxFolder = Utilities.getFolderName('dotnet/corefx') + '/' +
                                            Utilities.getFolderName(fxBranch)
 
-                        def arm_abi = 'arm'
-                        def corefx_os = 'linux'
-                        if (os == 'Tizen') {
-                            arm_abi = 'armel'
-                            corefx_os = 'tizen'
-                        }
+                        def arm_abi = 'armel'
+                        def corefx_os = 'tizen'
 
                         // Let's use release CoreFX to test checked CoreCLR,
                         // because we do not generate checked CoreFX in CoreFX CI yet.
@@ -3158,6 +3170,12 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
         else if (scenario == 'r2r_jitstress2') {
             testOpts += ' --jitstress=2'
         }
+        else if (scenario == 'r2r_jitstress1_tiered') {
+            testOpts += ' --jitstress=1'
+        }
+        else if (scenario == 'r2r_jitstress2_tiered') {
+            testOpts += ' --jitstress=2'
+        }
         else if (scenario == 'r2r_jitstressregs1') {
             testOpts += ' --jitstressregs=1'
         }
@@ -3403,6 +3421,8 @@ ${runScript} \\
 
 // Create a test job that will be used by a flow job.
 // Returns the newly created job.
+// Note that we don't add tests jobs to the various views, since they are always used by a flow job, which is in the views,
+// and we want the views to be the minimal set of "top-level" jobs that represent all work.
 def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
@@ -3416,8 +3436,6 @@ def static CreateTestJob(def dslFactory, def project, def branch, def architectu
     }
 
     setJobMachineAffinity(architecture, os, false, true, false, newJob) // isBuildJob = false, isTestJob = true, isFlowJob = false
-
-    addToViews(newJob, isPR, architecture, os)
 
     if (scenario == 'jitdiff') {
         def osGroup = getOSGroup(os)

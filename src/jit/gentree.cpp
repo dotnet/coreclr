@@ -73,7 +73,7 @@ struct IndentStack
     const char**    indents;
 
     // Constructor for IndentStack.  Uses 'compiler' to determine the mode of printing.
-    IndentStack(Compiler* compiler) : stack(compiler)
+    IndentStack(Compiler* compiler) : stack(compiler->getAllocator(CMK_DebugOnly))
     {
         if (compiler->asciiTrees)
         {
@@ -2722,7 +2722,7 @@ unsigned Compiler::gtSetListOrder(GenTree* list, bool isListCallArgs, bool callA
     assert((list != nullptr) && list->OperIsAnyList());
     assert(!callArgsInRegs || isListCallArgs);
 
-    ArrayStack<GenTree*> listNodes(this);
+    ArrayStack<GenTree*> listNodes(getAllocator(CMK_ArrayStack));
 
     do
     {
@@ -6105,7 +6105,7 @@ GenTree* Compiler::gtNewZeroConNode(var_types type)
             break;
 
         default:
-            assert(!"Bad type");
+            noway_assert(!"Bad type in gtNewZeroConNode");
             zero = nullptr;
             break;
     }
@@ -6114,30 +6114,31 @@ GenTree* Compiler::gtNewZeroConNode(var_types type)
 
 GenTree* Compiler::gtNewOneConNode(var_types type)
 {
+    GenTree* one;
     switch (type)
     {
         case TYP_INT:
         case TYP_UINT:
-            return gtNewIconNode(1);
+            one = gtNewIconNode(1);
+            break;
 
         case TYP_LONG:
         case TYP_ULONG:
-            return gtNewLconNode(1);
+            one = gtNewLconNode(1);
+            break;
 
         case TYP_FLOAT:
-        {
-            GenTree* one = gtNewDconNode(1.0);
-            one->gtType  = type;
-            return one;
-        }
-
         case TYP_DOUBLE:
-            return gtNewDconNode(1.0);
+            one         = gtNewDconNode(1.0);
+            one->gtType = type;
+            break;
 
         default:
-            assert(!"Bad type");
-            return nullptr;
+            noway_assert(!"Bad type in gtNewOneConNode");
+            one = nullptr;
+            break;
     }
+    return one;
 }
 
 #ifdef FEATURE_SIMD
@@ -17193,7 +17194,7 @@ void GenTree::LabelIndex(Compiler* comp, bool isConst)
 FieldSeqNode FieldSeqStore::s_notAField(nullptr, nullptr);
 
 // FieldSeqStore methods.
-FieldSeqStore::FieldSeqStore(CompAllocator* alloc) : m_alloc(alloc), m_canonMap(new (alloc) FieldSeqNodeCanonMap(alloc))
+FieldSeqStore::FieldSeqStore(CompAllocator alloc) : m_alloc(alloc), m_canonMap(new (alloc) FieldSeqNodeCanonMap(alloc))
 {
 }
 
@@ -17207,7 +17208,7 @@ FieldSeqNode* FieldSeqStore::CreateSingleton(CORINFO_FIELD_HANDLE fieldHnd)
     }
     else
     {
-        res  = reinterpret_cast<FieldSeqNode*>(m_alloc->Alloc(sizeof(FieldSeqNode)));
+        res  = m_alloc.allocate<FieldSeqNode>(1);
         *res = fsn;
         m_canonMap->Set(fsn, res);
         return res;
@@ -17250,7 +17251,7 @@ FieldSeqNode* FieldSeqStore::Append(FieldSeqNode* a, FieldSeqNode* b)
         }
         else
         {
-            res  = reinterpret_cast<FieldSeqNode*>(m_alloc->Alloc(sizeof(FieldSeqNode)));
+            res  = m_alloc.allocate<FieldSeqNode>(1);
             *res = fsn;
             m_canonMap->Set(fsn, res);
             return res;
@@ -17509,6 +17510,17 @@ GenTreeHWIntrinsic* Compiler::gtNewScalarHWIntrinsicNode(var_types      type,
     SetOpLclRelatedToSIMDIntrinsic(op2);
 
     return new (this, GT_HWIntrinsic) GenTreeHWIntrinsic(type, op1, op2, hwIntrinsicID, TYP_UNKNOWN, 0);
+}
+
+GenTreeHWIntrinsic* Compiler::gtNewScalarHWIntrinsicNode(
+    var_types type, GenTree* op1, GenTree* op2, GenTree* op3, NamedIntrinsic hwIntrinsicID)
+{
+    SetOpLclRelatedToSIMDIntrinsic(op1);
+    SetOpLclRelatedToSIMDIntrinsic(op2);
+    SetOpLclRelatedToSIMDIntrinsic(op3);
+
+    return new (this, GT_HWIntrinsic)
+        GenTreeHWIntrinsic(type, gtNewArgList(op1, op2, op3), hwIntrinsicID, TYP_UNKNOWN, 0);
 }
 
 //---------------------------------------------------------------------------------------

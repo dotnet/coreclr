@@ -121,7 +121,7 @@ CodeGen::CodeGen(Compiler* theCompiler) : CodeGenInterface(theCompiler)
     setVerbose(compiler->verbose);
 #endif // DEBUG
 
-    compiler->tmpInit();
+    regSet.tmpInit();
 
     instInit();
 
@@ -2314,7 +2314,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     genFinalizeFrame();
 
-    unsigned maxTmpSize = compiler->tmpSize; // This is precise after LSRA has pre-allocated the temps.
+    unsigned maxTmpSize = regSet.tmpGetTotalSize(); // This is precise after LSRA has pre-allocated the temps.
 
     getEmitter()->emitBegFN(isFramePointerUsed()
 #if defined(DEBUG)
@@ -2581,7 +2581,7 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     /* Shut down the temp logic */
 
-    compiler->tmpDone();
+    regSet.tmpDone();
 
 #if DISPLAY_SIZES
 
@@ -3298,15 +3298,6 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
     }
 #endif
 
-#if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-    if (compiler->info.compIsVarArgs)
-    {
-        // We've already saved all int registers at the top of stack in the prolog.
-        // No need further action.
-        return;
-    }
-#endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
-
     unsigned  argMax;           // maximum argNum value plus 1, (including the RetBuffArg)
     unsigned  argNum;           // current argNum, always in [0..argMax-1]
     unsigned  fixedRetBufIndex; // argNum value used by the fixed return buffer argument (ARM64)
@@ -3401,13 +3392,18 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         // In other cases, we simply use the type of the lclVar to determine the type of the register.
         var_types getRegType(Compiler* compiler)
         {
-            LclVarDsc varDsc = compiler->lvaTable[varNum];
+            const LclVarDsc& varDsc = compiler->lvaTable[varNum];
             // Check if this is an HFA register arg and return the HFA type
             if (varDsc.lvIsHfaRegArg())
             {
+#if defined(_TARGET_WINDOWS_)
+                // Cannot have hfa types on windows arm targets
+                // in vararg methods.
+                assert(!compiler->info.compIsVarArgs);
+#endif // defined(_TARGET_WINDOWS_)
                 return varDsc.GetHfaType();
             }
-            return varDsc.lvType;
+            return compiler->mangleVarArgsType(varDsc.lvType);
         }
 
 #endif // !UNIX_AMD64_ABI
@@ -3415,8 +3411,11 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
     unsigned   varNum;
     LclVarDsc* varDsc;
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+
+    for (varNum = 0; varNum < compiler->lvaCount; ++varNum)
     {
+        varDsc = compiler->lvaTable + varNum;
+
         // Is this variable a register arg?
         if (!varDsc->lvIsParam)
         {
@@ -3466,7 +3465,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             }
         }
 
-        var_types regType = varDsc->TypeGet();
+        var_types regType = compiler->mangleVarArgsType(varDsc->TypeGet());
         // Change regType to the HFA type when we have a HFA argument
         if (varDsc->lvIsHfaRegArg())
         {
@@ -3661,11 +3660,6 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             regNumber regNum = genMapRegArgNumToRegNum(regArgNum + i, regType);
 
 #if !defined(UNIX_AMD64_ABI)
-            // lvArgReg could be INT or FLOAT reg. So the following assertion doesn't hold.
-            // The type of the register depends on the classification of the first eightbyte
-            // of the struct. For information on classification refer to the System V x86_64 ABI at:
-            // http://www.x86-64.org/documentation/abi.pdf
-
             assert((i > 0) || (regNum == varDsc->lvArgReg));
 #endif // defined(UNIX_AMD64_ABI)
             // Is the arg dead on entry to the method ?
@@ -3685,7 +3679,8 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     // refcnt.  This is in contrast with the non-LSRA case in which all
                     // non-tracked args are assumed live on entry.
                     noway_assert((varDsc->lvRefCnt == 0) || (varDsc->lvType == TYP_STRUCT) ||
-                                 (varDsc->lvAddrExposed && compiler->info.compIsVarArgs));
+                                 (varDsc->lvAddrExposed && compiler->info.compIsVarArgs) ||
+                                 (varDsc->lvAddrExposed && compiler->opts.compUseSoftFP));
 #endif // !_TARGET_X86_
                 }
                 // Mark it as processed and be done with it
@@ -3971,7 +3966,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         }
         else // Not a struct type
         {
-            storeType = genActualType(varDsc->TypeGet());
+            storeType = compiler->mangleVarArgsType(genActualType(varDsc->TypeGet()));
         }
         size = emitActualTypeSize(storeType);
 #ifdef _TARGET_X86_
@@ -4781,8 +4776,8 @@ void CodeGen::genCheckUseBlockInit()
 
     if (!TRACK_GC_TEMP_LIFETIMES)
     {
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempThis = compiler->tmpListBeg(); tempThis != nullptr; tempThis = compiler->tmpListNxt(tempThis))
+        assert(regSet.tmpAllFree());
+        for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
         {
             if (varTypeIsGC(tempThis->tdTempType()))
             {
@@ -6542,9 +6537,8 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
         if (!TRACK_GC_TEMP_LIFETIMES)
         {
-            assert(compiler->tmpAllFree());
-            for (TempDsc* tempThis = compiler->tmpListBeg(); tempThis != nullptr;
-                 tempThis          = compiler->tmpListNxt(tempThis))
+            assert(regSet.tmpAllFree());
+            for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
             {
                 if (!varTypeIsGC(tempThis->tdTempType()))
                 {
@@ -7695,7 +7689,7 @@ void CodeGen::genFinalizeFrame()
        here (where we have committed to the final numbers for the frame offsets)
        This will ensure that the prolog size is always correct
     */
-    getEmitter()->emitMaxTmpSize = compiler->tmpSize;
+    getEmitter()->emitMaxTmpSize = regSet.tmpGetTotalSize();
 
 #ifdef DEBUG
     if (compiler->opts.dspCode || compiler->opts.disAsm || compiler->opts.disAsm2 || verbose)
@@ -7970,8 +7964,8 @@ void CodeGen::genFnProlog()
 
     if (!TRACK_GC_TEMP_LIFETIMES)
     {
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempThis = compiler->tmpListBeg(); tempThis != nullptr; tempThis = compiler->tmpListNxt(tempThis))
+        assert(regSet.tmpAllFree());
+        for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
         {
             if (!varTypeIsGC(tempThis->tdTempType()))
             {
@@ -8552,7 +8546,7 @@ void CodeGen::genFnProlog()
     getEmitter()->emitEndProlog();
     compiler->unwindEndProlog();
 
-    noway_assert(getEmitter()->emitMaxTmpSize == compiler->tmpSize);
+    noway_assert(getEmitter()->emitMaxTmpSize == regSet.tmpGetTotalSize());
 }
 #ifdef _PREFAST_
 #pragma warning(pop)
@@ -11239,9 +11233,7 @@ void CodeGen::genIPmappingAdd(IL_OFFSETX offsx, bool isLabel)
 
     /* Create a mapping entry and append it to the list */
 
-    Compiler::IPmappingDsc* addMapping =
-        (Compiler::IPmappingDsc*)compiler->compGetMem(sizeof(*addMapping), CMK_DebugInfo);
-
+    Compiler::IPmappingDsc* addMapping = compiler->getAllocator(CMK_DebugInfo).allocate<Compiler::IPmappingDsc>(1);
     addMapping->ipmdNativeLoc.CaptureLocation(getEmitter());
     addMapping->ipmdILoffsx = offsx;
     addMapping->ipmdIsLabel = isLabel;
@@ -11300,9 +11292,7 @@ void CodeGen::genIPmappingAddToFront(IL_OFFSETX offsx)
 
     /* Create a mapping entry and prepend it to the list */
 
-    Compiler::IPmappingDsc* addMapping =
-        (Compiler::IPmappingDsc*)compiler->compGetMem(sizeof(*addMapping), CMK_DebugInfo);
-
+    Compiler::IPmappingDsc* addMapping = compiler->getAllocator(CMK_DebugInfo).allocate<Compiler::IPmappingDsc>(1);
     addMapping->ipmdNativeLoc.CaptureLocation(getEmitter());
     addMapping->ipmdILoffsx = offsx;
     addMapping->ipmdIsLabel = true;

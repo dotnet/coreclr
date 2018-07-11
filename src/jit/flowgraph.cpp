@@ -126,8 +126,6 @@ void Compiler::fgInit()
     /* This global flag is set whenever we add a throw block for a RngChk */
     fgRngChkThrowAdded = false; /* reset flag for fgIsCodeAdded() */
 
-    fgIncrCount = 0;
-
     /* We will record a list of all BBJ_RETURN blocks here */
     fgReturnBlocks = nullptr;
 
@@ -2337,7 +2335,7 @@ void Compiler::fgDfsInvPostOrderHelper(BasicBlock* block, BlockSet& visited, uns
 
     // Allocate a local stack to hold the DFS traversal actions necessary
     // to compute pre/post-ordering of the control flowgraph.
-    ArrayStack<DfsBlockEntry> stack(this);
+    ArrayStack<DfsBlockEntry> stack(getAllocator(CMK_ArrayStack));
 
     // Push the first block on the stack to seed the traversal.
     stack.Push(DfsBlockEntry(DSS_Pre, block));
@@ -2778,7 +2776,7 @@ void Compiler::fgTraverseDomTree(unsigned bbNum, BasicBlockList** domTree, unsig
 
         // Allocate a local stack to hold the Dfs traversal actions necessary
         // to compute pre/post-ordering of the dominator tree.
-        ArrayStack<DfsNumEntry> stack(this);
+        ArrayStack<DfsNumEntry> stack(getAllocator(CMK_ArrayStack));
 
         // Push the first entry number on the stack to seed the traversal.
         stack.Push(DfsNumEntry(DSS_Pre, bbNum));
@@ -3350,10 +3348,10 @@ Compiler::SwitchUniqueSuccSet Compiler::GetDescriptorForSwitch(BasicBlock* switc
     }
 }
 
-void Compiler::SwitchUniqueSuccSet::UpdateTarget(CompAllocator* alloc,
-                                                 BasicBlock*    switchBlk,
-                                                 BasicBlock*    from,
-                                                 BasicBlock*    to)
+void Compiler::SwitchUniqueSuccSet::UpdateTarget(CompAllocator alloc,
+                                                 BasicBlock*   switchBlk,
+                                                 BasicBlock*   from,
+                                                 BasicBlock*   to)
 {
     assert(switchBlk->bbJumpKind == BBJ_SWITCH); // Precondition.
     unsigned     jmpTabCnt = switchBlk->bbJumpSwt->bbsCount;
@@ -6808,8 +6806,6 @@ unsigned Compiler::fgGetNestingLevel(BasicBlock* block, unsigned* pFinallyNestin
 
 void Compiler::fgImport()
 {
-    fgHasPostfix = false;
-
     impImport(fgFirstBB);
 
     if (!opts.jitFlags->IsSet(JitFlags::JIT_FLAG_SKIP_VERIFICATION))
@@ -19287,7 +19283,7 @@ const char* Compiler::fgProcessEscapes(const char* nameIn, escapeMapping_t* map)
 
     if (subsitutionRequired)
     {
-        char* newName = (char*)compGetMem(lengthOut, CMK_DebugOnly);
+        char* newName = getAllocator(CMK_DebugOnly).allocate<char>(lengthOut);
         char* pDest;
         pDest = newName;
         pChar = nameIn;
@@ -21159,7 +21155,7 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
             case GT_FIELD_LIST:
                 if ((op2 != nullptr) && op2->OperIsAnyList())
                 {
-                    ArrayStack<GenTree*> stack(this);
+                    ArrayStack<GenTree*> stack(getAllocator(CMK_DebugOnly));
                     while ((tree->gtGetOp2() != nullptr) && tree->gtGetOp2()->OperIsAnyList())
                     {
                         stack.Push(tree);
