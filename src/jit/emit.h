@@ -1297,13 +1297,6 @@ protected:
 #endif                                     // MULTIREG_HAS_SECOND_GC_RET
     };
 
-    struct instrDescArmFP : instrDesc
-    {
-        regNumber r1;
-        regNumber r2;
-        regNumber r3;
-    };
-
     insUpdateModes emitInsUpdateMode(instruction ins);
     insFormat emitInsModeFormat(instruction ins, insFormat base);
 
