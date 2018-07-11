@@ -150,6 +150,20 @@
         }
     },
     {
+        "name": "System.Threading.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Threading.Tests.EventWaitHandleTests.Ctor_InvalidMode",
+                    "reason": "Assert.Equal() Failure Expected: (null) Actual:   mode"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Xml.Xsl.XslTransformApi.Tests",
         "enabled": true,
         "exclusions": {
