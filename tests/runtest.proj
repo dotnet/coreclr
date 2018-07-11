@@ -402,10 +402,13 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
       <!-- Workaround for packages on which Microsoft.NetCoreApp expresses a dependency 
       The <PackageToInclude> element doesn't allow a version to be specified and we end up with clashing assembly versions in Core_Root-->
       <NetCoreAppPackagedAssemblies Include="System.Text.Encoding.CodePages.dll"/>
+      <!-- Use xunit dependencies defined in CoreFX.depproj instead of conflicting versions from test dependencies. -->
+      <TestDependenciesToExclude Include="$(CORE_ROOT)\**\xunit*"/>
+      <CoreCLRBinariesToExclude Include="@(NetCoreAppPackagedAssemblies);@(TestDependenciesToExclude -> '%(Identity)')" />
     </ItemGroup>
 
     <ItemGroup>
-      <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" Exclude="$(CORE_ROOT)\**\@(NetCoreAppPackagedAssemblies -> '%(Identity)' )" />
+      <CoreCLRBinaries Include="$(CORE_ROOT)\**\*.*" Exclude="$(CORE_ROOT)\**\@(CoreCLRBinariesToExclude -> '%(Identity)' )" />
       <HostFxFile Include="$(ToolsDir)\dotnetcli\**\$(HostFxrFileName).$(HostFxrFileExtension)" />
       <DotnetExe Include="$(ToolsDir)\dotnetcli\$(DotnetExecutableName)" />
       <HostPolicyFile Include="$(ToolsDir)\dotnetcli\**\$(HostPolicyFileName).$(HostPolicyExtension)" />
