@@ -113,6 +113,8 @@ if defined __BuildAgainstPackagesArg (
 @if defined _echo @echo on
 
 set __RunArgs=-BuildOS=%__BuildOS% -BuildType=%__BuildType% -BuildArch=%__BuildArch%
+REM As we move from buildtools to arcade, __RunArgs should be replaced with __msbuildArgs
+set __msbuildArgs=/p:__BuildOS=%__BuildOS% /p:__BuildType=%__BuildType% /p:__BuildArch=%__BuildArch%
 
 if defined __ToolsetDir (
     rem arm64 builds currently use private toolset which has not been released yet
@@ -156,6 +158,12 @@ REM ===
 REM =========================================================================================
 call "%__ProjectDir%\init-tools.cmd"
 @if defined _echo @echo on
+set "__ToolsDir=%__ProjectDir%\Tools"
+set "__DotnetHost=%__ToolsDir%\dotnetcli\dotnet.exe"
+if not exist "%__DotnetHost%" (
+   echo %__DotnetHost% not found after init-tools.
+   exit /b 1
+)
 
 REM =========================================================================================
 REM ===
@@ -424,7 +432,8 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -BuildWrappers -MsBuildEventLogging=" " -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %TargetsWindowsArg% %__unprocessedBuildArgs%
+REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
+call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /p:BuildWrappers=true !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo Xunit Wrapper build failed
     exit /b 1
