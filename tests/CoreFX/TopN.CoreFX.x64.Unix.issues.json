@@ -66,6 +66,40 @@
         }
     },
     {
+        "name": "System.IO.Pipes.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutRead_ClientInOutWrite.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutWrite_ClientInOutRead.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                },
+                {
+                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerIn_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
+                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Net.Http.Functional.Tests",
         "enabled": true,
         "exclusions": {
@@ -102,35 +136,15 @@
         }
     },
     {
-        "name": "System.IO.Pipes.Tests",
+        "name": "System.Security.Cryptography.X509Certificates.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
             "classes": null,
             "methods": [
                 {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutRead_ClientInOutWrite.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOutWrite_ClientInOutRead.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerInOut_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerOut_ClientIn.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
-                },
-                {
-                    "name": "System.IO.Pipes.Tests.NamedPipeTest_Simple_ServerIn_ClientOut.Client_ReadWriteCancelledToken_Throws_OperationCanceledException",
-                    "reason": "https://github.com/dotnet/corefx/issues/16934"
+                    "name": "System.Security.Cryptography.X509Certificates.Tests.X509StoreTests.Constructor_DefaultStoreName",
+                    "reason": "Assert.Equal() Failure ↓ (pos 1) Expected: My Actual:   MY ↑ (pos 1)"
                 }
             ]
         }
