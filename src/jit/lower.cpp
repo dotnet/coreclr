@@ -5595,10 +5595,10 @@ void Lowering::getCastDescription(GenTree* treeNode, CastInfo* castInfo)
 
     if (castInfo->requiresOverflowCheck)
     {
-        ssize_t typeMin       = 0;
-        ssize_t typeMax       = 0;
-        ssize_t typeMask      = 0;
-        bool    signCheckOnly = false;
+        target_ssize_t typeMin       = 0;
+        target_ssize_t typeMax       = 0;
+        target_ssize_t typeMask      = 0;
+        bool           signCheckOnly = false;
 
         // Do we need to compare the value, or just check masks
         switch (dstType)
