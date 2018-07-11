@@ -32,6 +32,8 @@ class COMNumber
 {
 public:
     static FCDECL3_VII(void, DoubleToNumberFC, double value, int precision, NUMBER* number);
+    static FCDECL6(void, DoubleToStringWindows, char* buffer, int sizeInBytes, double value, int count, int* dec, int* sign);
+    static FCDECL4(int, DoubleToStringUnix, double value, char *format, char *buffer, int bufferLength);
     static FCDECL1(double, NumberToDoubleFC, NUMBER* number);
     static FCDECL2(FC_BOOL_RET, NumberBufferToDecimal, NUMBER* number, DECIMAL* value);
     

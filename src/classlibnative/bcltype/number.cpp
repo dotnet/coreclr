@@ -2008,3 +2008,23 @@ FCIMPL2(FC_BOOL_RET, COMNumber::NumberBufferToDecimal, NUMBER* number, DECIMAL* 
     FC_RETURN_BOOL(COMDecimal::NumberToDecimal(number, value) != 0);
 }
 FCIMPLEND
+
+FCIMPL6(void, COMNumber::DoubleToStringWindows, char* buffer, int sizeInBytes, double value, int count, int* dec, int* sign)
+{
+    FCALL_CONTRACT;
+#if defined(_MSC_VER)
+    _ecvt_s(buffer, sizeInBytes, value, count, dec, sign);
+#endif
+}
+FCIMPLEND
+
+FCIMPL4(int, COMNumber::DoubleToStringUnix, double value, char *format, char *buffer, int bufferLength)
+{
+    FCALL_CONTRACT;
+#if !defined(_MSC_VER)
+    return snprintf(buffer, bufferLength, format, value);
+#else
+    return -1;
+#endif
+}
+FCIMPLEND

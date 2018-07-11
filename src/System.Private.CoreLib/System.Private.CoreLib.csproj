@@ -269,6 +269,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Decimal.DecCalc.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Decimal.Currency.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DefaultBinder.CanConvert.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Enum.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Environment.cs" />
@@ -493,13 +494,17 @@
     <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <Compile Include="$(BclSourcesRoot)\System\Number.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Number.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
+    <Compile Include="$(BclSourcesRoot)\System\Number.Windows.cs" />
+    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Interop.Number.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />

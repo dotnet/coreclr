@@ -738,6 +738,8 @@ FCFuncStart(gWaitHandleFuncs)
 FCFuncEnd()
 
 FCFuncStart(gNumberFuncs)
+    FCFuncElement("DoubleToStringWindows", COMNumber::DoubleToStringWindows)
+    FCFuncElement("DoubleToStringUnix", COMNumber::DoubleToStringUnix)
     FCFuncElement("DoubleToNumber", COMNumber::DoubleToNumberFC)
     FCFuncElement("NumberToDouble", COMNumber::NumberToDoubleFC)
     FCFuncElement("NumberBufferToDecimal", COMNumber::NumberBufferToDecimal)
