@@ -122,10 +122,6 @@ namespace R2RDump
         {
             Filename = filename;
             Image = File.ReadAllBytes(filename);
-            for (int i = 0; i < Image.Length; i++)
-            {
-                Console.WriteLine($"{Image[i]:X}");
-            }
 
             fixed (byte* p = Image)
             {
@@ -135,8 +131,6 @@ namespace R2RDump
                 IsR2R = (_peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
                 if (!IsR2R)
                 {
-                    
-
                     throw new BadImageFormatException("The file is not a ReadyToRun image");
                 }
 

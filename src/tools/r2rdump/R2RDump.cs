@@ -404,6 +404,17 @@ namespace R2RDump
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.ToString());
+                if (_xml)
+                {
+                    XmlDocument document = new XmlDocument();
+                    XmlNode node = document.CreateNode("element", "Error", "");
+                    node.InnerText = e.Message;
+                    document.AppendChild(node);
+                    if (_writer != null)
+                    {
+                        document.Save(_writer);
+                    }
+                }
                 return 1;
             }
             finally

@@ -10,8 +10,6 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <R2RDumpCommand>$(ProjectDir)..\bin\Product\$(BuildOS).$(BuildArch).$(BuildType)\netcoreapp2.0\R2RDump.dll</R2RDumpCommand>
     <DotnetToolCommand>$(ProjectDir)..\Tools\dotnetcli\dotnet</DotnetToolCommand>
-    <BashR2RDumpCommand>$(ProjectDir)../bin/Product/$(BuildOS).$(BuildArch).$(BuildType)/netcoreapp2.0/R2RDump.dll</BashR2RDumpCommand>
-    <BashDotnetToolCommand>$(ProjectDir)../Tools/dotnetcli/dotnet</BashDotnetToolCommand>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -30,15 +28,15 @@
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)
-COPY /Y $(ProjectDir)src\readytorun\r2rdump\files\*.xml .
+COPY /Y $(ProjectDir)src\readytorun\r2rdump\files\$(BuildOS).$(BuildArch).$(BuildType)\*.xml .
 %Core_Root%\crossgen /readytorun /platform_assemblies_paths %Core_Root%%3B%25CD% /out HelloWorld.ni.dll HelloWorld.dll
 $(DotnetToolCommand) $(R2RDumpCommand) --in HelloWorld.ni.dll --out HelloWorld-test.xml -x -v
 ]]></CLRTestBatchPreCommands>
   <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
-cp $(ProjectDir)src/readytorun/r2rdump/files/*.xml .
+cp $(ProjectDir)src/readytorun/r2rdump/files/$(BuildOS).$(BuildArch).$(BuildType)/*.xml .
 $CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out HelloWorld.ni.dll HelloWorld.dll
-$(BashDotnetToolCommand) $(BashR2RDumpCommand) --in HelloWorld.ni.dll --out HelloWorld-test.xml -x -v
+$(DotnetToolCommand) $(R2RDumpCommand) --in HelloWorld.ni.dll --out HelloWorld-test.xml -x -v
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
 
