@@ -48,12 +48,12 @@ private:
 
     HRESULT ReverseBstr(BSTR str, BSTR *res)
     {
-        UINT len = ::SysStringLen(str);
-        UINT strDataLen = len * sizeof(str[0]);
+        UINT strDataLen = ::SysStringByteLen(str);
         BSTR resLocal = ::SysAllocStringByteLen(reinterpret_cast<LPCSTR>(str), strDataLen);
         if (resLocal == nullptr)
             return E_OUTOFMEMORY;
 
+        UINT len = ::SysStringLen(str);
         *res = ReverseInplace(len, resLocal);
 
         return S_OK;
@@ -145,8 +145,6 @@ public: // IStringTesting
         /*[in]*/ LPSTR a,
         /*[out]*/ LPSTR b)
     {
-        if (!EqualValue(a, b))
-            return E_UNEXPECTED;
         ReverseInplace(::strlen(b), b);
         return S_OK;
     }
@@ -227,8 +225,6 @@ public: // IStringTesting
         /*[in]*/ LPWSTR a,
         /*[out]*/ LPWSTR b)
     {
-        if (!EqualValue(a, b))
-            return E_UNEXPECTED;
         ReverseInplace(::wcslen(b), b);
         return S_OK;
     }
@@ -309,8 +305,6 @@ public: // IStringTesting
         /*[in]*/ BSTR a,
         /*[out]*/ BSTR b)
     {
-        if (!EqualValue(a, b))
-            return E_UNEXPECTED;
         ReverseInplace(::SysStringLen(b), b);
         return S_OK;
     }

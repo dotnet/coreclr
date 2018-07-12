@@ -14,6 +14,7 @@ namespace NetClient
     class StringTests
     {
         private readonly Server.Contract.Servers.StringTesting server;
+
         private readonly IEnumerable<Tuple<string, string>> addPairs = new Tuple<string, string>[]
         {
             Tuple.Create("", ""),
@@ -24,7 +25,11 @@ namespace NetClient
             Tuple.Create("结合", ""),
             Tuple.Create("a", "结合"),
             Tuple.Create("结合", "a"),
-            Tuple.Create("结合", "结合")
+            Tuple.Create("结合", "结合"),
+
+            // String marshalling is optimized where strings shorter than MAX_PATH are
+            // allocated on the stack. Longer strings have memory allocated for them.
+            Tuple.Create("123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901", "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901")
         };
 
         private readonly IEnumerable<string> reversableStrings = new string[]
@@ -33,7 +38,10 @@ namespace NetClient
             "a",
             "abc",
             "reversable string",
-            "Unicode 相反 Unicode"
+            "Unicode 相反 Unicode",
+
+            // Long string optimization validation
+            "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
         };
 
         public StringTests()
@@ -139,13 +147,13 @@ namespace NetClient
                 }
 
                 local = new StringBuilder(s);
-                actual = new StringBuilder(s);
+                actual = new StringBuilder();
                 this.server.Reverse_SB_LPStr_Out(local, out actual);
                 Assert.AreEqual(expected, actual.ToString());
                 Assert.AreEqual(expected, local.ToString());
 
                 local = new StringBuilder(s);
-                actual = new StringBuilder();
+                actual = new StringBuilder(s.Length);
                 this.server.Reverse_SB_LPStr_OutAttr(local, actual);
                 Assert.AreEqual(expected, actual.ToString());
                 Assert.AreEqual(expected, local.ToString());
@@ -212,13 +220,13 @@ namespace NetClient
                 }
 
                 local = new StringBuilder(s);
-                actual = new StringBuilder(s);
+                actual = new StringBuilder();
                 this.server.Reverse_SB_LPWStr_Out(local, out actual);
                 Assert.AreEqual(expected, actual.ToString());
                 Assert.AreEqual(expected, local.ToString());
 
                 local = new StringBuilder(s);
-                actual = new StringBuilder();
+                actual = new StringBuilder(s.Length);
                 this.server.Reverse_SB_LPWStr_OutAttr(local, actual);
                 Assert.AreEqual(expected, actual.ToString());
                 Assert.AreEqual(expected, local.ToString());
