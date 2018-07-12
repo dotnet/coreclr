@@ -238,7 +238,7 @@
                     "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
                 },
                 {
-                    "name": " System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
                     "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
                 },
                 {
