@@ -44,7 +44,6 @@ void emitDispShiftOpts(insOpts opt);
 void emitDispRegmask(int imm, bool encodedPC_LR);
 void emitDispRegRange(regNumber reg, int len, emitAttr attr);
 void emitDispReg(regNumber reg, emitAttr attr, bool addComma);
-void emitDispFloatReg(regNumber reg, emitAttr attr, bool addComma);
 void emitDispAddrR(regNumber reg, emitAttr attr);
 void emitDispAddrRI(regNumber reg, int imm, emitAttr attr);
 void emitDispAddrRR(regNumber reg1, regNumber reg2, emitAttr attr);

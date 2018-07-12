@@ -6612,10 +6612,6 @@ void emitter::emitDispReg(regNumber reg, emitAttr attr, bool addComma)
         printf(", ");
 }
 
-void emitter::emitDispFloatReg(regNumber reg, emitAttr attr, bool addComma)
-{
-}
-
 /*****************************************************************************
  *
  *  Display an addressing operand [reg]
