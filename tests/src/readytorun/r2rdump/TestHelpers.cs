@@ -4,11 +4,20 @@ using System.Linq;
 using System.Xml;
 using Xunit.Abstractions;
 using System.Text;
+using Xunit;
 
 namespace R2RDumpTest
 {
     class TestHelpers
     {
+        public static void RunTest(string name)
+        {
+            List<XmlNode> testXmlNodes = ReadXmlNodes($"{name}-test.xml", true).Cast<XmlNode>().ToList();
+            List<XmlNode> expectedXmlNodes = ReadXmlNodes($"{name}.xml", true).Cast<XmlNode>().ToList();
+            bool identical = XmlDiff(testXmlNodes, expectedXmlNodes);
+            Assert.True(identical);
+        }
+
         public static bool XmlDiff(List<XmlNode> testXmlNodes, List<XmlNode> expectedXmlNodes)
         {
             testXmlNodes.RemoveAll(node => !IsLeaf(node));

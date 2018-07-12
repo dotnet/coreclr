@@ -184,7 +184,7 @@
         <RelativeVirtualAddress>10296</RelativeVirtualAddress>
         <Size>13</Size>
       </R2RSection>
-      <Raw Index="3128">08 00 00 00 82 01 00 00 00 00 00 00 21</Raw>
+      <Raw Index="3128">08 00 00 00 83 01 00 00 00 00 00 00 21</Raw>
       <Contents />
     </Section>
   </Sections>
