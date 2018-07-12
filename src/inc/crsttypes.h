@@ -177,7 +177,7 @@ enum CrstType
     CrstThreadpoolWorker = 158,
     CrstThreadStaticDataHashTable = 159,
     CrstThreadStore = 160,
-    CrstTieredCompilation_Tier1CallCountingDelay = 161,
+    CrstTieredCompilation = 161,
     CrstTPMethodTable = 162,
     CrstTypeEquivalenceMap = 163,
     CrstTypeIDMap = 164,
@@ -361,7 +361,7 @@ int g_rgCrstLevelMap[] =
     11,			// CrstThreadpoolWorker
     4,			// CrstThreadStaticDataHashTable
     10,			// CrstThreadStore
-    9,			// CrstTieredCompilation_Tier1CallCountingDelay
+    9,			// CrstTieredCompilation
     9,			// CrstTPMethodTable
     3,			// CrstTypeEquivalenceMap
     7,			// CrstTypeIDMap
@@ -539,7 +539,7 @@ LPCSTR g_rgCrstNameMap[] =
     "CrstThreadpoolWorker",
     "CrstThreadStaticDataHashTable",
     "CrstThreadStore",
-    "CrstTieredCompilation_Tier1CallCountingDelay",
+    "CrstTieredCompilation",
     "CrstTPMethodTable",
     "CrstTypeEquivalenceMap",
     "CrstTypeIDMap",

@@ -71,18 +71,16 @@
 
 // Called at AppDomain construction
 TieredCompilationManager::TieredCompilationManager() :
+    m_lock(CrstTieredCompilation),
     m_isAppDomainShuttingDown(FALSE),
     m_countOptimizationThreadsRunning(0),
     m_callCountOptimizationThreshhold(1),
     m_optimizationQuantumMs(50),
     m_methodsPendingCountingForTier1(nullptr),
-    m_tier1CountingDelayTimerHandle(nullptr),
-    m_tier1CallCountingCandidateMethodRecentlyRecorded(false),
-    m_hasMethodsToOptimizeAfterDelay(false)
+    m_tieringDelayTimerHandle(nullptr),
+    m_tier1CallCountingCandidateMethodRecentlyRecorded(false)
 {
-    LIMITED_METHOD_CONTRACT;
-    m_lock.Init(LOCK_TYPE_DEFAULT);
-
+    WRAPPER_NO_CONTRACT;
     // On Unix, we can reach here before EEConfig is initialized, so defer config-based initialization to Init()
 }
 
@@ -97,13 +95,9 @@ void TieredCompilationManager::Init(ADID appDomainId)
     }
     CONTRACTL_END;
 
-    SpinLockHolder holder(&m_lock);
+    CrstHolder holder(&m_lock);
     m_domainId = appDomainId;
     m_callCountOptimizationThreshhold = g_pConfig->TieredCompilation_Tier1CallCountThreshold();
-    if (g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0)
-    {
-        m_tier1CountingDelayLock.Init(CrstTieredCompilation_Tier1CallCountingDelay);
-    }
 }
 
 // Called each time code in this AppDomain has been run. This is our sole entrypoint to begin
@@ -125,7 +119,7 @@ void TieredCompilationManager::OnMethodCalled(
 
     *shouldStopCountingCallsRef =
         // Stop call counting when the delay is in effect
-        m_methodsPendingCountingForTier1 != nullptr ||
+        IsTieringDelayActive() ||
         // Initiate the delay on tier 0 activity (when a new eligible method is called the first time)
         (currentCallCount == 1 && g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0) ||
         // Stop call counting when ready for tier 1 promotion
@@ -152,14 +146,19 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
 
     while (true)
     {
-        if (m_methodsPendingCountingForTier1 == nullptr && !TryInitiateTier1CountingDelay())
+        bool delayInitiatedHere = false;
+        if (!IsTieringDelayActive())
         {
-            break;
+            if (!TryInitiateTieringDelay())
+            {
+                break;
+            }
+            delayInitiatedHere = true;
         }
 
         bool success;
         {
-            CrstHolder holder(&m_tier1CountingDelayLock);
+            CrstHolder holder(&m_lock);
 
             SArray<MethodDesc*>* methodsPendingCountingForTier1 = m_methodsPendingCountingForTier1;
             if (methodsPendingCountingForTier1 == nullptr)
@@ -185,8 +184,11 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
             break;
         }
 
-        // Delay call counting for currently recoded methods further
-        m_tier1CallCountingCandidateMethodRecentlyRecorded = true;
+        if (!delayInitiatedHere)
+        {
+            // Delay call counting for currently recoded methods further
+            m_tier1CallCountingCandidateMethodRecentlyRecorded = true;
+        }
         return;
     }
 
@@ -236,18 +238,14 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
     // Insert the method into the optimization queue and trigger a thread to service
     // the queue if needed.
     //
-    // Terminal exceptions escape as exceptions, but all other errors should gracefully
-    // return to the caller. Non-terminal error conditions should be rare (ie OOM,
-    // OS failure to create thread) and we consider it reasonable for some methods
-    // to go unoptimized or have their optimization arbitrarily delayed under these
-    // circumstances. Note an error here could affect concurrent threads running this
+    // Note an error here could affect concurrent threads running this
     // code. Those threads will observe m_countOptimizationThreadsRunning > 0 and return,
     // then QueueUserWorkItem fails on this thread lowering the count and leaves them 
     // unserviced. Synchronous retries appear unlikely to offer any material improvement 
     // and complicating the code to narrow an already rare error case isn't desirable.
     {
         SListElem<NativeCodeVersion>* pMethodListItem = new (nothrow) SListElem<NativeCodeVersion>(t1NativeCodeVersion);
-        SpinLockHolder holder(&m_lock);
+        CrstHolder holder(&m_lock);
         if (pMethodListItem != NULL)
         {
             m_methodsToOptimize.InsertTail(pMethodListItem);
@@ -257,68 +255,40 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
             pMethodDesc, pMethodDesc->m_pszDebugClassName, pMethodDesc->m_pszDebugMethodName,
             t1NativeCodeVersion.GetVersionId()));
 
-        if (0 == m_countOptimizationThreadsRunning && !m_isAppDomainShuttingDown)
-        {
-            // Our current policy throttles at 1 thread, but in the future we
-            // could experiment with more parallelism.
-            IncrementWorkerThreadCount();
-        }
-        else
+        if (!IncrementWorkerThreadCountIfNeeded())
         {
             return;
         }
     }
 
-    if (m_methodsPendingCountingForTier1 != nullptr)
+    if (!TryAsyncOptimizeMethods())
     {
-        CrstHolder holder(&m_tier1CountingDelayLock);
-
-        if (m_methodsPendingCountingForTier1 != nullptr)
-        {
-            // The tier 1 call counting delay is in effect, so don't start optimizing yet. After the delay, the timer callback
-            // will optimize methods.
-            m_hasMethodsToOptimizeAfterDelay = true;
-            return;
-        }
-    }
-
-    EX_TRY
-    {
-        if (!ThreadpoolMgr::QueueUserWorkItem(StaticOptimizeMethodsCallback, this, QUEUE_ONLY, TRUE))
-        {
-            SpinLockHolder holder(&m_lock);
-            DecrementWorkerThreadCount();
-            STRESS_LOG1(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::OnMethodCalled: "
-                "ThreadpoolMgr::QueueUserWorkItem returned FALSE (no thread will run), method=%pM\n",
-                pMethodDesc);
-        }
-    }
-    EX_CATCH
-    {
-        SpinLockHolder holder(&m_lock);
+        CrstHolder holder(&m_lock);
         DecrementWorkerThreadCount();
-        STRESS_LOG2(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::OnMethodCalled: "
-            "Exception queuing work item to threadpool, hr=0x%x, method=%pM\n",
-            GET_EXCEPTION()->GetHR(), pMethodDesc);
     }
-    EX_END_CATCH(RethrowTerminalExceptions);
 }
 
 void TieredCompilationManager::Shutdown()
 {
     STANDARD_VM_CONTRACT;
 
-    SpinLockHolder holder(&m_lock);
+    CrstHolder holder(&m_lock);
     m_isAppDomainShuttingDown = TRUE;
 }
 
-bool TieredCompilationManager::TryInitiateTier1CountingDelay()
+bool TieredCompilationManager::IsTieringDelayActive()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_methodsPendingCountingForTier1 != nullptr;
+}
+
+bool TieredCompilationManager::TryInitiateTieringDelay()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
     _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
 
-    if (m_methodsPendingCountingForTier1 != nullptr)
+    if (IsTieringDelayActive())
     {
         return true;
     }
@@ -349,38 +319,55 @@ bool TieredCompilationManager::TryInitiateTier1CountingDelay()
     {
         return false;
     }
-
     timerContextHolder->AppDomainId = m_domainId;
     timerContextHolder->TimerId = 0;
-    {
-        CrstHolder holder(&m_tier1CountingDelayLock);
 
-        if (m_methodsPendingCountingForTier1 != nullptr)
+    {
+        CrstHolder holder(&m_lock);
+
+        if (IsTieringDelayActive())
         {
             return true;
         }
 
-        _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
-        if (!ThreadpoolMgr::CreateTimerQueueTimer(
-                &m_tier1CountingDelayTimerHandle,
-                Tier1DelayTimerCallback,
-                timerContextHolder,
-                g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
-                (DWORD)-1 /* Period, non-repeating */,
-                0 /* flags */))
+        // The timer is created inside the lock to avoid some unnecessary additional complexity that would otherwise arise from
+        // there being a failure point after the timer is successfully created. For instance, if the timer is created outside
+        // the lock and then inside the lock it is found that another thread beat us to it, there would be two active timers
+        // that may tick before the extra timer is deleted, along with additional concurrency issues.
+        _ASSERTE(m_tieringDelayTimerHandle == nullptr);
+        success = false;
+        EX_TRY
         {
-            _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
+            if (ThreadpoolMgr::CreateTimerQueueTimer(
+                    &m_tieringDelayTimerHandle,
+                    TieringDelayTimerCallback,
+                    timerContextHolder,
+                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    (DWORD)-1 /* Period, non-repeating */,
+                    0 /* flags */))
+            {
+                success = true;
+            }
+        }
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH(RethrowTerminalExceptions);
+        if (!success)
+        {
+            _ASSERTE(m_tieringDelayTimerHandle == nullptr);
             return false;
         }
 
         m_methodsPendingCountingForTier1 = methodsPendingCountingHolder.Extract();
+        _ASSERTE(IsTieringDelayActive());
     }
 
     timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
     return true;
 }
 
-void WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
+void WINAPI TieredCompilationManager::TieringDelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(timerFired);
@@ -389,7 +376,7 @@ void WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, B
     EX_TRY
     {
         GCX_COOP();
-        ManagedThreadBase::ThreadPool(timerContext->AppDomainId, Tier1DelayTimerCallbackInAppDomain, nullptr);
+        ManagedThreadBase::ThreadPool(timerContext->AppDomainId, TieringDelayTimerCallbackInAppDomain, nullptr);
     }
     EX_CATCH
     {
@@ -400,26 +387,46 @@ void WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, B
     EX_END_CATCH(RethrowTerminalExceptions);
 }
 
-void TieredCompilationManager::Tier1DelayTimerCallbackInAppDomain(LPVOID parameter)
+void TieredCompilationManager::TieringDelayTimerCallbackInAppDomain(LPVOID parameter)
 {
     WRAPPER_NO_CONTRACT;
-    GetAppDomain()->GetTieredCompilationManager()->Tier1DelayTimerCallbackWorker();
+    GetAppDomain()->GetTieredCompilationManager()->TieringDelayTimerCallbackWorker();
 }
 
-void TieredCompilationManager::Tier1DelayTimerCallbackWorker()
+void TieredCompilationManager::TieringDelayTimerCallbackWorker()
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(m_tieringDelayTimerHandle != nullptr);
+    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
-    // Reschedule the timer if a tier 0 JIT has been invoked since the timer was started to further delay call counting
+    // It's possible for the timer to tick before it is recorded that the delay is in effect, so wait for that to complete
+    while (!IsTieringDelayActive())
+    {
+        ClrSleepEx(0, false);
+    }
+
+    // Reschedule the timer if there has been recent tier 0 activity (when a new eligible method is called the first time) to
+    // further delay call counting
     if (m_tier1CallCountingCandidateMethodRecentlyRecorded)
     {
         m_tier1CallCountingCandidateMethodRecentlyRecorded = false;
 
-        _ASSERTE(m_tier1CountingDelayTimerHandle != nullptr);
-        if (ThreadpoolMgr::ChangeTimerQueueTimer(
-                m_tier1CountingDelayTimerHandle,
-                g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
-                (DWORD)-1 /* Period, non-repeating */))
+        bool success = false;
+        EX_TRY
+        {
+            if (ThreadpoolMgr::ChangeTimerQueueTimer(
+                    m_tieringDelayTimerHandle,
+                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    (DWORD)-1 /* Period, non-repeating */))
+            {
+                success = true;
+            }
+        }
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH(RethrowTerminalExceptions);
+        if (success)
         {
             return;
         }
@@ -430,18 +437,18 @@ void TieredCompilationManager::Tier1DelayTimerCallbackWorker()
     HANDLE tier1CountingDelayTimerHandle;
     bool optimizeMethods;
     {
-        CrstHolder holder(&m_tier1CountingDelayLock);
+        CrstHolder holder(&m_lock);
 
         methodsPendingCountingForTier1 = m_methodsPendingCountingForTier1;
         _ASSERTE(methodsPendingCountingForTier1 != nullptr);
         m_methodsPendingCountingForTier1 = nullptr;
 
-        tier1CountingDelayTimerHandle = m_tier1CountingDelayTimerHandle;
+        tier1CountingDelayTimerHandle = m_tieringDelayTimerHandle;
         _ASSERTE(tier1CountingDelayTimerHandle != nullptr);
-        m_tier1CountingDelayTimerHandle = nullptr;
+        m_tieringDelayTimerHandle = nullptr;
 
-        optimizeMethods = m_hasMethodsToOptimizeAfterDelay;
-        m_hasMethodsToOptimizeAfterDelay = false;
+        _ASSERTE(!IsTieringDelayActive());
+        optimizeMethods = IncrementWorkerThreadCountIfNeeded();
     }
 
     // Install call counters
@@ -470,6 +477,39 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
     pMethodDesc->GetPrecode()->ResetTargetInterlocked();
 }
 
+bool TieredCompilationManager::TryAsyncOptimizeMethods()
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(DebugGetWorkerThreadCount() != 0);
+
+    // Terminal exceptions escape as exceptions, but all other errors should gracefully
+    // return to the caller. Non-terminal error conditions should be rare (ie OOM,
+    // OS failure to create thread) and we consider it reasonable for some methods
+    // to go unoptimized or have their optimization arbitrarily delayed under these
+    // circumstances.
+    bool success = false;
+    EX_TRY
+    {
+        if (ThreadpoolMgr::QueueUserWorkItem(StaticOptimizeMethodsCallback, this, QUEUE_ONLY, TRUE))
+        {
+            success = true;
+        }
+        else
+        {
+            STRESS_LOG0(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::OnMethodCalled: "
+                "ThreadpoolMgr::QueueUserWorkItem returned FALSE (no thread will run)\n");
+        }
+    }
+    EX_CATCH
+    {
+        STRESS_LOG1(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::OnMethodCalled: "
+            "Exception queuing work item to threadpool, hr=0x%x\n",
+            GET_EXCEPTION()->GetHR());
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
+    return success;
+}
+
 // This is the initial entrypoint for the background thread, called by
 // the threadpool.
 DWORD WINAPI TieredCompilationManager::StaticOptimizeMethodsCallback(void *args)
@@ -485,12 +525,13 @@ DWORD WINAPI TieredCompilationManager::StaticOptimizeMethodsCallback(void *args)
 void TieredCompilationManager::OptimizeMethodsCallback()
 {
     STANDARD_VM_CONTRACT;
+    _ASSERTE(DebugGetWorkerThreadCount() != 0);
 
     // This app domain shutdown check isn't required for correctness
     // but it should reduce some unneeded exceptions trying
     // to enter a closed AppDomain
     {
-        SpinLockHolder holder(&m_lock);
+        CrstHolder holder(&m_lock);
         if (m_isAppDomainShuttingDown)
         {
             DecrementWorkerThreadCount();
@@ -527,6 +568,8 @@ void TieredCompilationManager::OptimizeMethodsCallback()
 void TieredCompilationManager::OptimizeMethods()
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(DebugGetWorkerThreadCount() != 0);
+    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
     ULONGLONG startTickCount = CLRGetTickCount64();
     NativeCodeVersion nativeCodeVersion;
@@ -536,30 +579,22 @@ void TieredCompilationManager::OptimizeMethods()
         while (true)
         {
             {
-                SpinLockHolder holder(&m_lock); 
-                nativeCodeVersion = GetNextMethodToOptimize();
-                if (nativeCodeVersion.IsNull() ||
-                    m_isAppDomainShuttingDown)
+                CrstHolder holder(&m_lock);
+
+                if (IsTieringDelayActive() || m_isAppDomainShuttingDown)
                 {
                     DecrementWorkerThreadCount();
                     break;
                 }
-                    
-            }
-            OptimizeMethod(nativeCodeVersion);
 
-            if (m_methodsPendingCountingForTier1 != nullptr)
-            {
-                CrstHolder holder(&m_tier1CountingDelayLock);
-
-                if (m_methodsPendingCountingForTier1 != nullptr)
+                nativeCodeVersion = GetNextMethodToOptimize();
+                if (nativeCodeVersion.IsNull())
                 {
-                    // The tier 1 call counting delay is in effect, so stop optimizing. After the delay, the timer callback
-                    // will optimize methods.
-                    m_hasMethodsToOptimizeAfterDelay = true;
+                    DecrementWorkerThreadCount();
                     break;
                 }
             }
+            OptimizeMethod(nativeCodeVersion);
 
             // If we have been running for too long return the thread to the threadpool and queue another event
             // This gives the threadpool a chance to service other requests on this thread before returning to
@@ -567,12 +602,10 @@ void TieredCompilationManager::OptimizeMethods()
             ULONGLONG currentTickCount = CLRGetTickCount64();
             if (currentTickCount >= startTickCount + m_optimizationQuantumMs)
             {
-                if (!ThreadpoolMgr::QueueUserWorkItem(StaticOptimizeMethodsCallback, this, QUEUE_ONLY, TRUE))
+                if (!TryAsyncOptimizeMethods())
                 {
-                    SpinLockHolder holder(&m_lock);
+                    CrstHolder holder(&m_lock);
                     DecrementWorkerThreadCount();
-                    STRESS_LOG0(LF_TIEREDCOMPILATION, LL_WARNING, "TieredCompilationManager::OptimizeMethods: "
-                        "ThreadpoolMgr::QueueUserWorkItem returned FALSE (no thread will run)\n");
                 }
                 break;
             }
@@ -580,6 +613,10 @@ void TieredCompilationManager::OptimizeMethods()
     }
     EX_CATCH
     {
+        {
+            CrstHolder holder(&m_lock);
+            DecrementWorkerThreadCount();
+        }
         STRESS_LOG2(LF_TIEREDCOMPILATION, LL_ERROR, "TieredCompilationManager::OptimizeMethods: "
             "Unhandled exception during method optimization, hr=0x%x, last method=%p\n",
             GET_EXCEPTION()->GetHR(), nativeCodeVersion.GetMethodDesc());
@@ -696,21 +733,42 @@ NativeCodeVersion TieredCompilationManager::GetNextMethodToOptimize()
     return NativeCodeVersion();
 }
 
-void TieredCompilationManager::IncrementWorkerThreadCount()
+bool TieredCompilationManager::IncrementWorkerThreadCountIfNeeded()
 {
-    STANDARD_VM_CONTRACT;
-    //m_lock should be held
+    WRAPPER_NO_CONTRACT;
+    // m_lock should be held
 
-    m_countOptimizationThreadsRunning++;
+    if (0 == m_countOptimizationThreadsRunning &&
+        !m_isAppDomainShuttingDown &&
+        !m_methodsToOptimize.IsEmpty() &&
+        !IsTieringDelayActive())
+    {
+        // Our current policy throttles at 1 thread, but in the future we
+        // could experiment with more parallelism.
+        m_countOptimizationThreadsRunning++;
+        return true;
+    }
+    return false;
 }
 
 void TieredCompilationManager::DecrementWorkerThreadCount()
 {
     STANDARD_VM_CONTRACT;
-    //m_lock should be held
+    // m_lock should be held
+    _ASSERTE(m_countOptimizationThreadsRunning != 0);
     
     m_countOptimizationThreadsRunning--;
 }
+
+#ifdef _DEBUG
+DWORD TieredCompilationManager::DebugGetWorkerThreadCount()
+{
+    WRAPPER_NO_CONTRACT;
+
+    CrstHolder holder(&m_lock);
+    return m_countOptimizationThreadsRunning;
+}
+#endif
 
 //static
 CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeVersion)

@@ -34,12 +34,14 @@ public:
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
 
 private:
-    bool TryInitiateTier1CountingDelay();
-    static void WINAPI Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired);
-    static void Tier1DelayTimerCallbackInAppDomain(LPVOID parameter);
-    void Tier1DelayTimerCallbackWorker();
+    bool IsTieringDelayActive();
+    bool TryInitiateTieringDelay();
+    static void WINAPI TieringDelayTimerCallback(PVOID parameter, BOOLEAN timerFired);
+    static void TieringDelayTimerCallbackInAppDomain(LPVOID parameter);
+    void TieringDelayTimerCallbackWorker();
     static void ResumeCountingCalls(MethodDesc* pMethodDesc);
 
+    bool TryAsyncOptimizeMethods();
     static DWORD StaticOptimizeMethodsCallback(void* args);
     void OptimizeMethodsCallback();
     void OptimizeMethods();
@@ -48,22 +50,22 @@ private:
     BOOL CompileCodeVersion(NativeCodeVersion nativeCodeVersion);
     void ActivateCodeVersion(NativeCodeVersion nativeCodeVersion);
 
-    void IncrementWorkerThreadCount();
+    bool IncrementWorkerThreadCountIfNeeded();
     void DecrementWorkerThreadCount();
+#ifdef _DEBUG
+    DWORD DebugGetWorkerThreadCount();
+#endif
 
-    SpinLock m_lock;
+    Crst m_lock;
     SList<SListElem<NativeCodeVersion>> m_methodsToOptimize;
     ADID m_domainId;
     BOOL m_isAppDomainShuttingDown;
     DWORD m_countOptimizationThreadsRunning;
     DWORD m_callCountOptimizationThreshhold;
     DWORD m_optimizationQuantumMs;
-
-    CrstExplicitInit m_tier1CountingDelayLock;
     SArray<MethodDesc*>* m_methodsPendingCountingForTier1;
-    HANDLE m_tier1CountingDelayTimerHandle;
+    HANDLE m_tieringDelayTimerHandle;
     bool m_tier1CallCountingCandidateMethodRecentlyRecorded;
-    bool m_hasMethodsToOptimizeAfterDelay;
 
     CLREvent m_asyncWorkDoneEvent;
 };
