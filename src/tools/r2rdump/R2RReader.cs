@@ -135,6 +135,11 @@ namespace R2RDump
                 }
 
                 Machine = _peReader.PEHeaders.CoffHeader.Machine;
+				if (!Machine.IsDefined(typeof(Machine), Machine))
+                {
+                    Machine = Machine.Amd64;
+                    R2RDump.WriteWarning($"Invalid Machine: {Machine}");
+                }
                 ImageBase = _peReader.PEHeaders.PEHeader.ImageBase;
 
                 // initialize R2RHeader
