@@ -20,14 +20,6 @@ struct CnsVal
 
 insSize emitInsSize(insFormat insFmt);
 
-BYTE* emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
-BYTE* emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
-BYTE* emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = NULL);
-
-BYTE* emitOutputR(BYTE* dst, instrDesc* id);
-BYTE* emitOutputRI(BYTE* dst, instrDesc* id);
-BYTE* emitOutputRR(BYTE* dst, instrDesc* id);
-BYTE* emitOutputIV(BYTE* dst, instrDesc* id);
 #ifdef FEATURE_ITINSTRUCTION
 BYTE* emitOutputIT(BYTE* dst, instruction ins, insFormat fmt, code_t condcode);
 #endif // FEATURE_ITINSTRUCTION
@@ -44,8 +36,6 @@ static unsigned emitOutput_Thumb2Instr(BYTE* dst, code_t code);
 /************************************************************************/
 
 #ifdef DEBUG
-
-const char* emitFPregName(unsigned reg, bool varName = true);
 
 void emitDispInst(instruction ins, insFlags flags);
 void emitDispReloc(int value, bool addComma);
@@ -111,25 +101,6 @@ emitter::code_t emitInsCode(instruction ins, insFormat fmt);
 void emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir);
 void emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir, int offset);
 
-/*****************************************************************************
-*
-*  Convert between an index scale in bytes to a smaller encoding used for
-*  storage in instruction descriptors.
-*/
-
-inline emitter::opSize emitEncodeScale(size_t scale)
-{
-    assert(scale == 1 || scale == 2 || scale == 4 || scale == 8);
-
-    return emitSizeEncode[scale - 1];
-}
-
-inline emitAttr emitDecodeScale(unsigned ensz)
-{
-    assert(ensz < 4);
-
-    return emitter::emitSizeDecode[ensz];
-}
 
 static bool isModImmConst(int imm);
 
