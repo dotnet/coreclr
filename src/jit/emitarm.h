@@ -101,9 +101,7 @@ emitter::code_t emitInsCode(instruction ins, insFormat fmt);
 void emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir);
 void emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir, int offset);
 
-
 static bool isModImmConst(int imm);
-
 static int encodeModImmConst(int imm);
 
 static int insUnscaleImm(int imm, emitAttr size);
