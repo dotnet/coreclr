@@ -279,10 +279,6 @@ def main(args):
 
     # Determine the RID to specify the to corefix build scripts.  This seems to
     # be way harder than it ought to be.
- 
-    # Gather up some arguments to pass to both build and build-tests.
-
-    config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
 
     # Run the primary (non-test) corefx build. We previously passed the argument:
     #
@@ -299,26 +295,35 @@ def main(args):
     # Cross build corefx for arm64 on x64.
     # Cross build corefx for arm32 on x86.
 
-    build_native_args = ''
+    build_native_args = 'Release %s -os:%s' % (arch, clr_os)
+
     if not Is_windows and arch == 'arm' :
         # We need to force clang5.0; we are building in a docker container that doesn't have
         # clang3.9, which is currently the default used by build-native.sh. We need to pass
         # "-cross", but we also pass "-portable", which build-native.sh normally passes
         # (there doesn't appear to be a way to pass these individually).
-        build_native_args = '-AdditionalArgs:"-portable -cross" -Clang:clang5.0'
+        build_native_args += ' -AdditionalArgs:"-portable -cross" -Clang:clang5.0'
 
     if not Is_windows and arch == 'arm64' :
         # We need to pass "-cross", but we also pass "-portable", which build-native.sh normally
         # passes (there doesn't appear to be a way to pass these individually).
-        build_native_args = '-AdditionalArgs:"-portable -cross"'
+        build_native_args += ' -AdditionalArgs:"-portable -cross"'
+
+    if Is_windows and arch == 'arm64' :
+        # We need to pass toolsetDir to specify the arm64 private toolset.
+        # This is temporary, until private toolset is no longer used. So hard-code the CI toolset dir.
+        build_native_args += ' toolsetDir C:\\ats2'
 
     command = ' '.join(('build-native.cmd' if Is_windows else './build-native.sh',
-                        config_args,
                         build_native_args))
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
         sys.exit(1)
+ 
+    # Gather up some arguments to pass to both build-managed and build-tests.
+
+    config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
 
     command = ' '.join(('build-managed.cmd' if Is_windows else './build-managed.sh', config_args))
     log(command)
