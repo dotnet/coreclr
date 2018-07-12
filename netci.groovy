@@ -2306,12 +2306,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (doCoreFxTesting) {
-                        // We shouldn't need to build the tests. However, run-corefx-tests.py currently depends on having the restored corefx
-                        // package available, to determine the correct corefx version git commit hash, and we need to build the tests before
-                        // running "tests\\runtest.cmd GenerateLayoutOnly". So build the pri-0 tests to make this happen.
-                        //
-                        // buildOpts += ' skiptests';
-                        buildOpts += " -priority=0"
+                        buildOpts += ' skiptests'
                     } else {
                         buildOpts += " -priority=${priority}"
                     }
@@ -2321,10 +2316,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     if (doCoreFxTesting) {
                         assert isBuildOnly
-
-                        // Generate the test layout because it restores the corefx package which allows run-corefx-tests.py
-                        // to determine the correct matching corefx version git commit hash.
-                        buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture} GenerateLayoutOnly"
 
                         // Set the stress mode variables; this is incorporated into the generated CoreFx RunTests.cmd files.
                         def envScriptPath = ''
