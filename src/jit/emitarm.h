@@ -37,7 +37,6 @@ static unsigned emitOutput_Thumb2Instr(BYTE* dst, code_t code);
 #ifdef DEBUG
 
 void emitDispInst(instruction ins, insFlags flags);
-void emitDispReloc(int value, bool addComma);
 void emitDispImm(int imm, bool addComma, bool alwaysHex = false);
 void emitDispCond(int cond);
 void emitDispShiftOpts(insOpts opt);

@@ -6443,27 +6443,6 @@ void emitter::emitDispInst(instruction ins, insFlags flags)
     } while (len < 8);
 }
 
-/*****************************************************************************
- *
- *  Display an reloc value
- *  If we are formatting for an assembly listing don't print the hex value
- *  since it will prevent us from doing assembly diffs
- */
-void emitter::emitDispReloc(int value, bool addComma)
-{
-    if (emitComp->opts.disAsm)
-    {
-        printf("(reloc)");
-    }
-    else
-    {
-        printf("(reloc 0x%x)", dspPtr(value));
-    }
-
-    if (addComma)
-        printf(", ");
-}
-
 #define STRICT_ARM_ASM 0
 
 /*****************************************************************************
