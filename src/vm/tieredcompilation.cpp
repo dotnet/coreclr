@@ -193,74 +193,6 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
     ResumeCountingCalls(pMethodDesc);
 }
 
-bool TieredCompilationManager::TryInitiateTier1CountingDelay()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(g_pConfig->TieredCompilation());
-    _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
-
-    if (m_methodsPendingCountingForTier1 != nullptr)
-    {
-        return true;
-    }
-
-    NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
-    if (methodsPendingCountingHolder == nullptr)
-    {
-        return false;
-    }
-
-    bool success = false;
-    EX_TRY
-    {
-        methodsPendingCountingHolder->Preallocate(64);
-        success = true;
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(RethrowTerminalExceptions);
-    if (!success)
-    {
-        return false;
-    }
-
-    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new(nothrow) ThreadpoolMgr::TimerInfoContext();
-    if (timerContextHolder == nullptr)
-    {
-        return false;
-    }
-
-    timerContextHolder->AppDomainId = m_domainId;
-    timerContextHolder->TimerId = 0;
-    {
-        CrstHolder holder(&m_tier1CountingDelayLock);
-
-        if (m_methodsPendingCountingForTier1 != nullptr)
-        {
-            return true;
-        }
-
-        _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
-        if (!ThreadpoolMgr::CreateTimerQueueTimer(
-                &m_tier1CountingDelayTimerHandle,
-                Tier1DelayTimerCallback,
-                timerContextHolder,
-                g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
-                (DWORD)-1 /* Period, non-repeating */,
-                0 /* flags */))
-        {
-            _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
-            return false;
-        }
-
-        m_methodsPendingCountingForTier1 = methodsPendingCountingHolder.Extract();
-    }
-
-    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
-    return true;
-}
-
 void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc)
 {
     STANDARD_VM_CONTRACT;
@@ -380,7 +312,75 @@ void TieredCompilationManager::Shutdown()
     m_isAppDomainShuttingDown = TRUE;
 }
 
-VOID WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
+bool TieredCompilationManager::TryInitiateTier1CountingDelay()
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(g_pConfig->TieredCompilation());
+    _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
+
+    if (m_methodsPendingCountingForTier1 != nullptr)
+    {
+        return true;
+    }
+
+    NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
+    if (methodsPendingCountingHolder == nullptr)
+    {
+        return false;
+    }
+
+    bool success = false;
+    EX_TRY
+    {
+        methodsPendingCountingHolder->Preallocate(64);
+        success = true;
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
+    if (!success)
+    {
+        return false;
+    }
+
+    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new(nothrow) ThreadpoolMgr::TimerInfoContext();
+    if (timerContextHolder == nullptr)
+    {
+        return false;
+    }
+
+    timerContextHolder->AppDomainId = m_domainId;
+    timerContextHolder->TimerId = 0;
+    {
+        CrstHolder holder(&m_tier1CountingDelayLock);
+
+        if (m_methodsPendingCountingForTier1 != nullptr)
+        {
+            return true;
+        }
+
+        _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
+        if (!ThreadpoolMgr::CreateTimerQueueTimer(
+                &m_tier1CountingDelayTimerHandle,
+                Tier1DelayTimerCallback,
+                timerContextHolder,
+                g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                (DWORD)-1 /* Period, non-repeating */,
+                0 /* flags */))
+        {
+            _ASSERTE(m_tier1CountingDelayTimerHandle == nullptr);
+            return false;
+        }
+
+        m_methodsPendingCountingForTier1 = methodsPendingCountingHolder.Extract();
+    }
+
+    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+    return true;
+}
+
+void WINAPI TieredCompilationManager::Tier1DelayTimerCallback(PVOID parameter, BOOLEAN timerFired)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(timerFired);
