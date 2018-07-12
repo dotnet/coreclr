@@ -1255,6 +1255,8 @@ protected:
         int     iddcDspVal;
     };
 
+#ifdef _TARGET_XARCH_
+
     struct instrDescAmd : instrDesc // large addrmode disp
     {
         ssize_t idaAmdVal;
@@ -1265,6 +1267,8 @@ protected:
         ssize_t idacCnsVal;
         ssize_t idacAmdVal;
     };
+
+#endif // _TARGET_XARCH_
 
     struct instrDescCGCA : instrDesc // call with ...
     {
@@ -1308,17 +1312,22 @@ protected:
     size_t emitGetInstrDescSize(const instrDesc* id);
     size_t emitGetInstrDescSizeSC(const instrDesc* id);
 
+#ifdef _TARGET_XARCH_
+
     ssize_t emitGetInsCns(instrDesc* id);
     ssize_t emitGetInsDsp(instrDesc* id);
     ssize_t emitGetInsAmd(instrDesc* id);
     ssize_t emitGetInsCnsDsp(instrDesc* id, ssize_t* dspPtr);
-    ssize_t emitGetInsSC(instrDesc* id);
+
     ssize_t emitGetInsCIdisp(instrDesc* id);
     unsigned emitGetInsCIargs(instrDesc* id);
 
     // Return the argument count for a direct call "id".
     int emitGetInsCDinfo(instrDesc* id);
 
+#endif // _TARGET_XARCH_
+
+    ssize_t emitGetInsSC(instrDesc* id);
     unsigned emitInsCount;
 
 /************************************************************************/
@@ -1784,6 +1793,8 @@ private:
         return (instrDescCnsDsp*)emitAllocInstr(sizeof(instrDescCnsDsp), attr);
     }
 
+#ifdef _TARGET_XARCH_
+
     instrDescAmd* emitAllocInstrAmd(emitAttr attr)
     {
         return (instrDescAmd*)emitAllocInstr(sizeof(instrDescAmd), attr);
@@ -1793,6 +1804,8 @@ private:
     {
         return (instrDescCnsAmd*)emitAllocInstr(sizeof(instrDescCnsAmd), attr);
     }
+
+#endif // _TARGET_XARCH_
 
     instrDescCGCA* emitAllocInstrCGCA(emitAttr attr)
     {
@@ -2416,6 +2429,8 @@ inline size_t emitter::emitGetInstrDescSizeSC(const instrDesc* id)
     }
 }
 
+#ifdef _TARGET_XARCH_
+
 /*****************************************************************************
  *
  *  The following helpers should be used to access the various values that
@@ -2491,6 +2506,8 @@ inline unsigned emitter::emitGetInsCIargs(instrDesc* id)
         return (unsigned)cns;
     }
 }
+
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************
  *
