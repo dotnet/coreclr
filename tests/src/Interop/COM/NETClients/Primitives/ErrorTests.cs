@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace ComClient
+namespace NetClient
 {
     using CoreFXTestLibrary;
     using System;
@@ -10,10 +10,10 @@ namespace ComClient
 
     class ErrorTests
     {
-        private readonly Server.Contract.IErrorMarshalTesting server;
+        private readonly Server.Contract.Servers.ErrorMarshalTesting server;
         public ErrorTests()
         {
-            this.server = (Server.Contract.IErrorMarshalTesting)new Server.Contract.Servers.ErrorMarshalTestingClass();
+            this.server = (Server.Contract.Servers.ErrorMarshalTesting)new Server.Contract.Servers.ErrorMarshalTestingClass();
         }
 
         public void Run()

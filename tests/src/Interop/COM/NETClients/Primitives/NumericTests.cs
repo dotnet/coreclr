@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace ComClient
+namespace NetClient
 {
     using CoreFXTestLibrary;
     using System;
@@ -11,7 +11,7 @@ namespace ComClient
     {
         private readonly int seed;
         private readonly Random rng;
-        private readonly Server.Contract.INumericTesting server;
+        private readonly Server.Contract.Servers.NumericTesting server;
 
         public NumericTests(int seed = 37)
         {
@@ -19,7 +19,7 @@ namespace ComClient
             Console.WriteLine($"Numeric RNG seed: {this.seed}");
 
             this.rng = new Random(this.seed);
-            this.server = (Server.Contract.INumericTesting)new Server.Contract.Servers.NumericTestingClass();
+            this.server = (Server.Contract.Servers.NumericTesting)new Server.Contract.Servers.NumericTestingClass();
         }
 
         public void Run()

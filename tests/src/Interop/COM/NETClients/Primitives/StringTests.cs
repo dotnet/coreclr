@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace ComClient
+namespace NetClient
 {
     using CoreFXTestLibrary;
     using System;
@@ -13,7 +13,7 @@ namespace ComClient
 
     class StringTests
     {
-        private readonly Server.Contract.IStringTesting server;
+        private readonly Server.Contract.Servers.StringTesting server;
         private readonly IEnumerable<Tuple<string, string>> addPairs = new Tuple<string, string>[]
         {
             Tuple.Create("", ""),
@@ -38,7 +38,7 @@ namespace ComClient
 
         public StringTests()
         {
-            this.server = (Server.Contract.IStringTesting)new Server.Contract.Servers.StringTestingClass();
+            this.server = (Server.Contract.Servers.StringTesting)new Server.Contract.Servers.StringTestingClass();
         }
 
         public void Run()

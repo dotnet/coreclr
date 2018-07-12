@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace ComClient
+namespace NetClient
 {
     using CoreFXTestLibrary;
     using System;
@@ -13,12 +13,12 @@ namespace ComClient
     {
         static private readonly IEnumerable<int> BaseData = Enumerable.Range(0, 10);
 
-        private readonly Server.Contract.IArrayTesting server;
+        private readonly Server.Contract.Servers.ArrayTesting server;
         private readonly double expectedMean;
 
         public ArrayTests()
         {
-            this.server = (Server.Contract.IArrayTesting)new Server.Contract.Servers.ArrayTestingClass();
+            this.server = (Server.Contract.Servers.ArrayTesting)new Server.Contract.Servers.ArrayTestingClass();
 
             double acc = 0.0;
             int[] rawData = BaseData.ToArray();
