@@ -5455,20 +5455,6 @@ BYTE* emitter::emitOutputIT(BYTE* dst, instruction ins, insFormat fmt, code_t co
 #endif // FEATURE_ITINSTRUCTION
 
 /*****************************************************************************
- *
- *  Output a 32-bit nop instruction.
- */
-
-BYTE* emitter::emitOutputNOP(BYTE* dst, instruction ins, insFormat fmt)
-{
-    code_t code = emitInsCode(ins, fmt);
-
-    dst += emitOutput_Thumb2Instr(dst, code);
-
-    return dst;
-}
-
-/*****************************************************************************
 *
  *  Append the machine code corresponding to the given instruction descriptor
  *  to the code block at '*dp'; the base of the code block is 'bp', and 'ig'

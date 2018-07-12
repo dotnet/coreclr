@@ -23,7 +23,6 @@ insSize emitInsSize(insFormat insFmt);
 #ifdef FEATURE_ITINSTRUCTION
 BYTE* emitOutputIT(BYTE* dst, instruction ins, insFormat fmt, code_t condcode);
 #endif // FEATURE_ITINSTRUCTION
-BYTE* emitOutputNOP(BYTE* dst, instruction ins, insFormat fmt);
 
 BYTE* emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* id);
 BYTE* emitOutputShortBranch(BYTE* dst, instruction ins, insFormat fmt, ssize_t distVal, instrDescJmp* id);
