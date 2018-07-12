@@ -904,7 +904,7 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode3B[3] = { IF_T1_E,  IF_T2_C8, IF_T2_L2 };
     const static insFormat formatEncode3C[3] = { IF_T1_E,  IF_T2_C1, IF_T2_L1 };
     const static insFormat formatEncode3D[3] = { IF_T1_L1, IF_T2_E2, IF_T2_I1 };
-    const static insFormat formatEncode3F[3] = { IF_T1_M,  IF_T2_J2, IF_T2_J3 };
+    const static insFormat formatEncode3E[3] = { IF_T1_M,  IF_T2_J2, IF_T2_J3 };
     const static insFormat formatEncode2A[2] = { IF_T1_K,  IF_T2_J1 };
     const static insFormat formatEncode2B[2] = { IF_T1_D1, IF_T1_D2 };
     const static insFormat formatEncode2C[2] = { IF_T1_D2, IF_T2_J3 };
@@ -1061,10 +1061,10 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
                 }
             }
             break;
-        case IF_EN3F:
+        case IF_EN3E:
             for (index = 0; index < 3; index++)
             {
-                if (fmt == formatEncode3F[index])
+                if (fmt == formatEncode3E[index])
                 {
                     found = true;
                     break;
