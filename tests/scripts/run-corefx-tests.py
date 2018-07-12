@@ -313,7 +313,7 @@ def main(args):
     if Is_windows and arch == 'arm64' :
         # We need to pass toolsetDir to specify the arm64 private toolset.
         # This is temporary, until private toolset is no longer used. So hard-code the CI toolset dir.
-        build_native_args += ' -ToolSetDir:c:\\arm64\\Toolset'
+        build_native_args += ' -ToolSetDir:c:\\ats2'
 
     command = ' '.join(('build-native.cmd' if Is_windows else './build-native.sh',
                         config_args,
