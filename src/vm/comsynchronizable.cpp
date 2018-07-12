@@ -804,6 +804,14 @@ FCIMPL0(Object*, ThreadNative::GetCurrentThread)
 }
 FCIMPLEND
 
+FCIMPL0(INT32, ThreadNative::GetCurrentOSThreadId)
+{
+    FCALL_CONTRACT;
+    Thread *pThread = GetThread();
+    _ASSERTE(pThread != NULL);
+    return pThread->GetOSThreadId();
+}
+FCIMPLEND
 
 FCIMPL3(void, ThreadNative::SetStart, ThreadBaseObject* pThisUNSAFE, Object* pDelegateUNSAFE, INT32 iRequestedStackSize)
 {

@@ -385,6 +385,8 @@ private:
     public:
         void *ProviderID;
         unsigned int EventID;
+        unsigned int ThreadID;
+        LARGE_INTEGER TimeStamp;
         const BYTE *Payload;
         unsigned int PayloadLength;
     };

@@ -1,9 +1,15 @@
+#define REFLECTION
+
 using System;
 using System.IO;
 using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Tracing.Tests.Common;
+
+#if REFLECTION
+using System.Reflection;
+#endif
 
 namespace Tracing.Tests
 {
@@ -76,7 +82,14 @@ namespace Tracing.Tests
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            Console.WriteLine($"[{m_name}] ID = {eventData.EventId} Name = {eventData.EventName}");
+            int osThreadId = -1;
+#if REFLECTION
+            PropertyInfo p = typeof(EventWrittenEventArgs).GetProperty("OSThreadId");
+            MethodInfo m = p.GetGetMethod();
+            osThreadId = (int)m.Invoke(eventData, null);
+#endif
+
+            Console.WriteLine($"[{m_name}] ThreadID = {osThreadId} ID = {eventData.EventId} Name = {eventData.EventName}");
             for (int i = 0; i < eventData.Payload.Count; i++)
             {
                 string payloadString = eventData.Payload[i] != null ? eventData.Payload[i].ToString() : string.Empty;

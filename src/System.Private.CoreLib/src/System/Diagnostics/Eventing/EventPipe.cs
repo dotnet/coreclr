@@ -16,6 +16,8 @@ namespace System.Diagnostics.Tracing
     {
         internal IntPtr ProviderID;
         internal uint EventID;
+        internal uint ThreadID;
+        internal Int64 TimeStamp;
         internal IntPtr Payload;
         internal uint PayloadLength;
     }
