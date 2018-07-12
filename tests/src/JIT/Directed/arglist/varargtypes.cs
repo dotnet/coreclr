@@ -22,12 +22,44 @@ namespace NativeVarargTest
         public long b;
     }
 
+    public struct EightByteStruct
+    {
+        public byte one;
+        public byte two;
+        public byte three;
+        public byte four;
+        public byte five;
+        public byte six;
+        public byte seven;
+        public byte eight;
+    }
+
     public struct FourIntStruct
     {
         public int a;
         public int b;
         public int c;
         public int d;
+    }
+
+    public struct SixteenByteStruct
+    {
+        public byte one;
+        public byte two;
+        public byte three;
+        public byte four;
+        public byte five;
+        public byte six;
+        public byte seven;
+        public byte eight;
+        public byte nine;
+        public byte ten;
+        public byte eleven;
+        public byte twelve;
+        public byte thirteen;
+        public byte fourteen;
+        public byte fifteen;
+        public byte sixteen;
     }
 
     public struct FourLongStruct
@@ -54,10 +86,17 @@ namespace NativeVarargTest
         public double a;
     }
 
-    struct TwoDoubleStruct
+    public struct TwoDoubleStruct
     {
         public double a;
         public double b;
+    }
+
+    public struct ThreeDoubleStruct
+    {
+        public double a;
+        public double b;
+        public double c;
     }
 
     public struct FourFloatStruct

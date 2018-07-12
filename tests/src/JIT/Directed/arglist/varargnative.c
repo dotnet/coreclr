@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -103,6 +102,16 @@ typedef struct
 } two_double_struct;
 
 /*
+ * struct three_double_struct (24 bytes)
+*/
+typedef struct 
+{
+    double one;
+    double two;
+    double three;
+} three_double_struct;
+
+/*
  * struct four_float_struct (16 bytes)
 */
 typedef struct 
@@ -123,6 +132,44 @@ typedef struct
     double three;
     double four;
 } four_double_struct;
+
+/*
+ * struct eight_byte_struct (8 bytes)
+*/
+typedef struct
+{
+    char one;
+    char two;
+    char three;
+    char four;
+    char five;
+    char six;
+    char seven;
+    char eight;
+} eight_byte_struct;
+
+/*
+ * struct sixteen_byte_struct (8 bytes)
+*/
+typedef struct
+{
+    char one;
+    char two;
+    char three;
+    char four;
+    char five;
+    char six;
+    char seven;
+    char eight;
+    char nine;
+    char ten;
+    char eleven;
+    char twelve;
+    char thirteen;
+    char fourteen;
+    char fifteen;
+    char sixteen;
+} sixteen_byte_struct;
 
 /* Tests */
 
@@ -202,8 +249,6 @@ DLLEXPORT __int64 test_passing_int_and_longs(int int_count, int long_count, ...)
     va_list ap;
     int index, count;
     __int64 sum;
-
-    printf ("int_count: %d\nlong_count:%d\n", int_count, long_count);
 
     count = int_count + long_count;
     va_start(ap, long_count);
@@ -361,11 +406,6 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
     va_end(ap);
     
     calculated[index] = '\0';
-
-    printf("Expected:   %s\n", expected);
-    printf("Calculated: %s\n", calculated);
-    
-    assert(strlen(expected) == strlen(calculated));
 
     free(calculated);
     
@@ -584,6 +624,20 @@ DLLEXPORT int check_passing_struct(int count, ...)
     return passed;
 }
 
+DLLEXPORT double check_passing_four_three_double_struct(three_double_struct one, three_double_struct two, three_double_struct three, three_double_struct four, ...)
+{
+    double sum;
+
+    sum = 0;
+
+    sum += one.one + one.two + one.three;
+    sum += two.one + two.two + two.three;
+    sum += three.one + three.two + three.three;
+    sum += four.one + four.two + four.three;
+
+    return sum;
+}
+
 /*
     Returns: 0 if passed, 1 if not
 */
@@ -611,4 +665,119 @@ DLLEXPORT int check_passing_four_sixteen_byte_structs(int count, ...)
 
     passed = expected_value == calculated_value ? 0 : 1;
     return passed;
+}
+
+DLLEXPORT char echo_byte(char arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT char echo_char(char arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT __int8 echo_short(__int8 arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT __int32 echo_int(__int32 arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT __int64 echo_int64(__int64 arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT float echo_float(float arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT double echo_double(double arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT one_int_struct echo_one_int_struct(one_int_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT two_int_struct echo_two_int_struct(two_int_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT one_long_long_struct echo_one_long_struct(one_long_long_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT two_long_long_struct echo_two_long_struct(two_long_long_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT four_long_long_struct echo_four_long_struct(four_long_long_struct arg)
+{
+    return arg;
+}
+
+DLLEXPORT four_long_long_struct echo_four_long_struct_with_vararg(four_long_long_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT eight_byte_struct echo_eight_byte_struct(eight_byte_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT four_int_struct echo_four_int_struct(four_int_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT sixteen_byte_struct echo_sixteen_byte_struct(sixteen_byte_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT one_float_struct echo_one_float_struct(one_float_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT two_float_struct echo_two_float_struct(two_float_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT one_double_struct echo_one_double_struct(one_double_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT two_double_struct echo_two_double_struct(two_double_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT three_double_struct echo_three_double_struct(three_double_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT four_float_struct echo_four_float_struct(four_float_struct arg, ...)
+{
+    return arg;
+}
+
+DLLEXPORT four_double_struct echo_four_double_struct(four_double_struct arg, ...)
+{
+    return arg;
 }

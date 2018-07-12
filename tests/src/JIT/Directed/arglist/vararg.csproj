@@ -25,6 +25,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="vararg.cs" />
+    <Compile Include="varargmanaged.cs"/>
     <Compile Include="varargtypes.cs" />
   </ItemGroup>
   <ItemGroup>
