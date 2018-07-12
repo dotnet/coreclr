@@ -1317,7 +1317,6 @@ protected:
     ssize_t emitGetInsCns(instrDesc* id);
     ssize_t emitGetInsDsp(instrDesc* id);
     ssize_t emitGetInsAmd(instrDesc* id);
-    ssize_t emitGetInsCnsDsp(instrDesc* id, ssize_t* dspPtr);
 
     ssize_t emitGetInsCIdisp(instrDesc* id);
     unsigned emitGetInsCIargs(instrDesc* id);
@@ -2453,36 +2452,6 @@ inline ssize_t emitter::emitGetInsDsp(instrDesc* id)
         return ((instrDescDsp*)id)->iddDspVal;
     }
     return 0;
-}
-
-inline ssize_t emitter::emitGetInsCnsDsp(instrDesc* id, ssize_t* dspPtr)
-{
-    if (id->idIsLargeCns())
-    {
-        if (id->idIsLargeDsp())
-        {
-            *dspPtr = ((instrDescCnsDsp*)id)->iddcDspVal;
-            return ((instrDescCnsDsp*)id)->iddcCnsVal;
-        }
-        else
-        {
-            *dspPtr = 0;
-            return ((instrDescCns*)id)->idcCnsVal;
-        }
-    }
-    else
-    {
-        if (id->idIsLargeDsp())
-        {
-            *dspPtr = ((instrDescDsp*)id)->iddDspVal;
-            return id->idSmallCns();
-        }
-        else
-        {
-            *dspPtr = 0;
-            return id->idSmallCns();
-        }
-    }
 }
 
 /*****************************************************************************
