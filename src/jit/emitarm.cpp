@@ -370,7 +370,8 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(emitGetInsSC(id) < 0x10000);
             break;
 
-        case IF_T2_N: // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+        case IF_T2_N:  // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+        case IF_T2_N3: // T2_N3   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
             assert(isGeneralRegister(id->idReg1()));
             break;
 
@@ -541,6 +542,7 @@ bool emitter::emitInsMayWriteToGCReg(instrDesc* id)
         case IF_T2_N:
         case IF_T2_N1:
         case IF_T2_N2:
+        case IF_T2_N3:
         case IF_T2_VFP3:
         case IF_T2_VFP2:
         case IF_T2_VLDST:
@@ -1860,9 +1862,13 @@ void emitter::emitIns_R_I(
         case INS_movt:
             assert(insDoesNotSetFlags(flags));
             sf = INS_FLAGS_NOT_SET;
-            if ((imm & 0x0000ffff) == imm || EA_IS_RELOC(attr))
+            if ((imm & 0x0000ffff) == imm)
             {
                 fmt = IF_T2_N;
+            }
+            else if (EA_IS_RELOC(attr))
+            {
+                fmt = IF_T2_N3;
             }
             else
             {
@@ -1957,7 +1963,7 @@ void emitter::emitIns_R_I(
     }
     assert((fmt == IF_T1_F) || (fmt == IF_T1_J0) || (fmt == IF_T1_J1) || (fmt == IF_T2_H2) || (fmt == IF_T2_I0) ||
            (fmt == IF_T2_K2) || (fmt == IF_T2_K3) || (fmt == IF_T2_L1) || (fmt == IF_T2_L2) || (fmt == IF_T2_M1) ||
-           (fmt == IF_T2_N) || (fmt == IF_T2_VLDST));
+           (fmt == IF_T2_N) || (fmt == IF_T2_N3) || (fmt == IF_T2_VLDST));
 
     assert(sf != INS_FLAGS_DONT_CARE);
 
@@ -5924,6 +5930,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 
         case IF_T2_N:  // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
         case IF_T2_N2: // T2_N2   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+        case IF_T2_N3: // T2_N3   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
             sz   = emitGetInstrDescSizeSC(id);
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
@@ -6863,9 +6870,10 @@ void emitter::emitDispInsHelp(
         case IF_T2_L1:
         case IF_T2_L2:
         case IF_T2_N:
+        case IF_T2_N3:
             emitDispReg(id->idReg1(), attr, true);
             imm = emitGetInsSC(id);
-            if (fmt == IF_T2_N)
+            if (fmt == IF_T2_N || fmt == IF_T2_N3)
             {
                 if (emitComp->opts.disDiffable)
                     imm = 0xD1FF;
@@ -6876,7 +6884,7 @@ void emitter::emitDispInsHelp(
                     printf("%s RELOC ", (id->idIns() == INS_movw) ? "LOW" : "HIGH");
                 }
             }
-            emitDispImm(imm, false, (fmt == IF_T2_N));
+            emitDispImm(imm, false, (fmt == IF_T2_N) || (fmt == IF_T2_N3));
             break;
 
         case IF_T2_N2:
