@@ -207,12 +207,12 @@ INST4(pli,     "pli",    0,LD, IF_EN4B,  0xF990F000, 0xF910FC00,  0xF910F000,  0
 
 //    enum     name      FP LD/ST         Rd,i16     Rd,i16     Rd,i16     Rd,i16
 //                                        T2_N       T2_N1      T2_N2      T2_N3
-INST4(movt,    "movt",   0, 0, IF_EN3E,   0xF2C00000,0xF2C00000,0xF2C00000,0xF2C00000)
+INST4(movt,    "movt",   0, 0, IF_EN4C,   0xF2C00000,0xF2C00000,0xF2C00000,0xF2C00000)
                                            //  Rd,i16            T2_N      11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
                                            //  Rd,i16            T2_N1     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
                                            //  Rd,i16            T2_N2     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
                                            //  Rd,i16            T2_N3     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
-INST4(movw,    "movw",   0, 0, IF_EN3E,   0xF2400000,0xF2400000,0xF2400000,0xF2400000)
+INST4(movw,    "movw",   0, 0, IF_EN4C,   0xF2400000,0xF2400000,0xF2400000,0xF2400000)
                                            //  Rd,+i16           T2_N      11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
                                            //  Rd,+i16           T2_N1     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
                                            //  Rd,+i16           T2_N2     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)

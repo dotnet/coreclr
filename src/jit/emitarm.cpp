@@ -899,11 +899,11 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     const static insFormat formatEncode5B[5] = { IF_T1_E,  IF_T1_D0, IF_T1_J0, IF_T2_L2, IF_T2_C8 };
     const static insFormat formatEncode4A[4] = { IF_T1_E,  IF_T1_C,  IF_T2_C4, IF_T2_C2 };
     const static insFormat formatEncode4B[4] = { IF_T2_K2, IF_T2_H2, IF_T2_C7, IF_T2_K3 };
+    const static insFormat formatEncode4C[4] = { IF_T2_N,  IF_T2_N1, IF_T2_N2, IF_T2_N3 };
     const static insFormat formatEncode3A[3] = { IF_T1_E,  IF_T2_C0, IF_T2_L0 };
     const static insFormat formatEncode3B[3] = { IF_T1_E,  IF_T2_C8, IF_T2_L2 };
     const static insFormat formatEncode3C[3] = { IF_T1_E,  IF_T2_C1, IF_T2_L1 };
     const static insFormat formatEncode3D[3] = { IF_T1_L1, IF_T2_E2, IF_T2_I1 };
-    const static insFormat formatEncode3E[3] = { IF_T2_N,  IF_T2_N1, IF_T2_N2 };
     const static insFormat formatEncode3F[3] = { IF_T1_M,  IF_T2_J2, IF_T2_J3 };
     const static insFormat formatEncode2A[2] = { IF_T1_K,  IF_T2_J1 };
     const static insFormat formatEncode2B[2] = { IF_T1_D1, IF_T1_D2 };
@@ -1009,6 +1009,17 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             }
             break;
 
+        case IF_EN4C:
+            for (index = 0; index < 4; index++)
+            {
+                if (fmt == formatEncode4C[index])
+                {
+                    found = true;
+                    break;
+                }
+            }
+            break;
+
         case IF_EN3A:
             for (index = 0; index < 3; index++)
             {
@@ -1044,16 +1055,6 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
             for (index = 0; index < 3; index++)
             {
                 if (fmt == formatEncode3D[index])
-                {
-                    found = true;
-                    break;
-                }
-            }
-            break;
-        case IF_EN3E:
-            for (index = 0; index < 3; index++)
-            {
-                if (fmt == formatEncode3E[index])
                 {
                     found = true;
                     break;
