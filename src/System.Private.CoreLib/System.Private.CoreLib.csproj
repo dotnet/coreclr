@@ -496,7 +496,6 @@
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Number.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Number.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
@@ -504,7 +503,6 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">
     <Compile Include="$(BclSourcesRoot)\System\Number.Windows.cs" />
-    <Compile Include="$(BclSourcesRoot)\Interop\Windows\Interop.Number.cs" />
     <Compile Include="$(BclSourcesRoot)\Interop\Windows\Kernel32\Interop.GetSystemDirectoryW.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Debug.Windows.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Windows.cs" />

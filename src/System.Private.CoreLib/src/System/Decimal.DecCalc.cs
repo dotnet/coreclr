@@ -5,7 +5,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using X86 = System.Runtime.Intrinsics.X86;
+//using X86 = System.Runtime.Intrinsics.X86;
 
 namespace System
 {
@@ -535,7 +535,7 @@ namespace System
                 if (iHiRes > 2)
                 {
                     iNewScale = (int)iHiRes * 32 - 64 - 1;
-                    iNewScale -= X86.Lzcnt.IsSupported ? (int)X86.Lzcnt.LeadingZeroCount(rgulRes[iHiRes]) : LeadingZeroCount(rgulRes[iHiRes]);
+                    iNewScale -= LeadingZeroCount(rgulRes[iHiRes]);
 
                     // Multiply bit position by log10(2) to figure it's power of 10.
                     // We scale the log by 256.  log(2) = .30103, * 256 = 77.  Doing this 
@@ -1593,9 +1593,9 @@ namespace System
                 //
                 uint ulMant;
                 // with SSE4.1 support ROUNDSD can be used
-                if (X86.Sse41.IsSupported)
-                    ulMant = (uint)(int)Math.Round(dbl);
-                else
+                //if (X86.Sse41.IsSupported)
+                //    ulMant = (uint)(int)Math.Round(dbl);
+                //else
                 {
                     ulMant = (uint)(int)dbl;
                     dbl -= (int)ulMant;  // difference between input & integer
@@ -1769,9 +1769,9 @@ namespace System
                 //
                 ulong ulMant;
                 // with SSE4.1 support ROUNDSD can be used
-                if (X86.Sse41.IsSupported)
-                    ulMant = (ulong)(long)Math.Round(dbl);
-                else
+                //if (X86.Sse41.IsSupported)
+                //    ulMant = (ulong)(long)Math.Round(dbl);
+                //else
                 {
                     ulMant = (ulong)(long)dbl;
                     dbl -= (long)ulMant;  // difference between input & integer
@@ -2044,7 +2044,7 @@ namespace System
                     if (ulTmp == 0)
                         ulTmp = d2.Mid;
 
-                    iCurScale = X86.Lzcnt.IsSupported ? (int)X86.Lzcnt.LeadingZeroCount(ulTmp) : LeadingZeroCount(ulTmp);
+                    iCurScale = LeadingZeroCount(ulTmp);
 
                     // Shift both dividend and divisor left by iCurScale.
                     // 

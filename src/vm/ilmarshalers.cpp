@@ -1320,8 +1320,6 @@ void ILCurrencyMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit
 
     EmitLoadNativeHomeAddr(pslILEmit);
     EmitLoadManagedValue(pslILEmit);
-
-    pslILEmit->EmitCALL(METHOD__CURRENCY__DECIMAL_CTOR, 2, 0);
 }
 
 void ILCurrencyMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
@@ -1330,8 +1328,6 @@ void ILCurrencyMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit
 
     EmitLoadManagedHomeAddr(pslILEmit);
     EmitLoadNativeValue(pslILEmit);
-
-    pslILEmit->EmitCALL(METHOD__DECIMAL__CURRENCY_CTOR, 2, 0);
 
     EmitLoadManagedHomeAddr(pslILEmit);
 

@@ -2,12 +2,17 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Diagnostics;
 
 namespace System
 {
     internal partial class Number
     {
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern unsafe int DoubleToStringUnix(double value, byte* format, byte* buffer, int bufferLength);
+
         // buffer size to hold digits (40), decimal point, number sign, exponent, exponent symbol 'e', exponent sign and null.
         private const int MAX_BUFFER_SIZE = 50;
 
@@ -59,7 +64,7 @@ namespace System
             format[4] = (byte)'e';
             format[5] = 0;
 
-            int tempBufferLength = Interop.Sys.DoubleToStringUnix(value, format, tempBuffer, MAX_BUFFER_SIZE);
+            int tempBufferLength = DoubleToStringUnix(value, format, tempBuffer, MAX_BUFFER_SIZE);
             Debug.Assert(tempBufferLength > 0 && MAX_BUFFER_SIZE > tempBufferLength);
 
             //

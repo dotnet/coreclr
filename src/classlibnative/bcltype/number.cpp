@@ -16,6 +16,9 @@
 #include "grisu3.h"
 #include "fp.h"
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
 
 typedef wchar_t wchar;
 
@@ -1983,48 +1986,21 @@ ParseSection:
 #pragma warning(pop)
 #endif
 
-FCIMPL3_VII(void, COMNumber::DoubleToNumberFC, double value, int precision, NUMBER* number)
-{
-    FCALL_CONTRACT;
 
-    DoubleToNumber(value, precision, number);
-}
-FCIMPLEND
-
-FCIMPL1(double, COMNumber::NumberToDoubleFC, NUMBER* number)
-{
-    FCALL_CONTRACT;
-
-    double d = 0;
-    NumberToDouble(number, &d);
-    return d;
-}
-FCIMPLEND
-
-FCIMPL2(FC_BOOL_RET, COMNumber::NumberBufferToDecimal, NUMBER* number, DECIMAL* value)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(COMDecimal::NumberToDecimal(number, value) != 0);
-}
-FCIMPLEND
-
+#if defined(_MSC_VER)
 FCIMPL6(void, COMNumber::DoubleToStringWindows, char* buffer, int sizeInBytes, double value, int count, int* dec, int* sign)
 {
     FCALL_CONTRACT;
-#if defined(_MSC_VER)
     _ecvt_s(buffer, sizeInBytes, value, count, dec, sign);
-#endif
 }
 FCIMPLEND
+#else
 
 FCIMPL4(int, COMNumber::DoubleToStringUnix, double value, char *format, char *buffer, int bufferLength)
 {
     FCALL_CONTRACT;
-#if !defined(_MSC_VER)
-    return snprintf(buffer, bufferLength, format, value);
-#else
-    return -1;
-#endif
+    int result = sprintf_s(buffer, bufferLength, format, value);
+    return result;
 }
 FCIMPLEND
+#endif

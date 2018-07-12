@@ -738,11 +738,11 @@ FCFuncStart(gWaitHandleFuncs)
 FCFuncEnd()
 
 FCFuncStart(gNumberFuncs)
+#if defined(_MSC_VER)
     FCFuncElement("DoubleToStringWindows", COMNumber::DoubleToStringWindows)
+#else
     FCFuncElement("DoubleToStringUnix", COMNumber::DoubleToStringUnix)
-    FCFuncElement("DoubleToNumber", COMNumber::DoubleToNumberFC)
-    FCFuncElement("NumberToDouble", COMNumber::NumberToDoubleFC)
-    FCFuncElement("NumberBufferToDecimal", COMNumber::NumberBufferToDecimal)
+#endif
 FCFuncEnd()
 
 #ifdef FEATURE_COMINTEROP
@@ -763,19 +763,7 @@ FCFuncEnd()
 #endif // FEATURE_COMINTEROP
 
 FCFuncStart(gDecimalFuncs)
-    FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_Flt_RetVoid, COMDecimal::InitSingle)
-    FCFuncElementSig(COR_CTOR_METHOD_NAME, &gsig_IM_Dbl_RetVoid, COMDecimal::InitDouble)
-    FCFuncElement("FCallAddSub", COMDecimal::DoAddSubThrow)
-    FCFuncElement("FCallMultiply", COMDecimal::DoMultiplyThrow)
-    FCFuncElement("FCallDivide", COMDecimal::DoDivideThrow)
-    FCFuncElement("FCallCompare", COMDecimal::DoCompare)
-    FCFuncElement("FCallFloor", COMDecimal::DoFloor)
-    FCFuncElement("FCallRound", COMDecimal::DoRound)
     FCFuncElement("FCallToCurrency", COMDecimal::DoToCurrency)
-    FCFuncElement("FCallToInt32", COMDecimal::ToInt32)    
-    FCFuncElement("ToDouble", COMDecimal::ToDouble)
-    FCFuncElement("ToSingle", COMDecimal::ToSingle)
-    FCFuncElement("FCallTruncate", COMDecimal::DoTruncate)
 FCFuncEnd()
 
 FCFuncStart(gCurrencyFuncs)

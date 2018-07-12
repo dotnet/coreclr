@@ -2,10 +2,16 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+
 namespace System
 {
     internal partial class Number
     {
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static unsafe extern void DoubleToStringWindows(byte* buffer, int sizeInBytes, double value, int count, int* dec, int* sign);
+
         private static unsafe void DoubleToNumber(double value, int precision, ref NumberBuffer number)
         {
             number.precision = precision;
@@ -21,7 +27,7 @@ namespace System
                 int sign;
                 fixed (NumberBuffer* pNumber = &number)
                 {
-                    Interop.Sys.DoubleToStringWindows(src, _CVTBUFSIZE, value, precision, &pNumber->scale, &sign);
+                    DoubleToStringWindows(src, _CVTBUFSIZE, value, precision, &pNumber->scale, &sign);
                 }
                 number.sign = sign != 0;
 
