@@ -1352,7 +1352,25 @@ namespace System.Runtime.InteropServices
 
         public static object GetComObjectData(object obj, object key)
         {
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported);
+            if (obj == null)
+            {
+                throw new ArgumentNullException(nameof(obj));
+            }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+            if (!(obj is __ComObject co))
+            {
+                throw new ArgumentException(SR.Argument_ObjNotComObject, nameof(obj));
+            }
+            if (obj.GetType().IsWindowsRuntimeObject)
+            {
+                throw new ArgumentException(SR.Argument_ObjIsWinRTObject, nameof(obj));
+            }
+
+            // Retrieve the data from the __ComObject.
+            return co.GetData(key);
         }
 
         /// <summary>
@@ -1363,7 +1381,25 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static bool SetComObjectData(object obj, object key, object data)
         {
-            throw new PlatformNotSupportedException(SR.Arg_PlatformNotSupported);
+            if (obj == null)
+            {
+                throw new ArgumentNullException(nameof(obj));
+            }
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key));
+            }
+            if (!(obj is __ComObject co))
+            {
+                throw new ArgumentException(SR.Argument_ObjNotComObject, nameof(obj));
+            }
+            if (obj.GetType().IsWindowsRuntimeObject)
+            {
+                throw new ArgumentException(SR.Argument_ObjIsWinRTObject, nameof(obj));
+            }
+
+            // Retrieve the data from the __ComObject.
+            return co.SetData(key, data);
         }
 
 #if FEATURE_COMINTEROP
