@@ -1301,6 +1301,17 @@ protected:
 #endif                                     // MULTIREG_HAS_SECOND_GC_RET
     };
 
+#ifdef _TARGET_ARM_
+
+    struct instrDescReloc : instrDesc
+    {
+        BYTE* idrRelocVal;
+    };
+
+    BYTE* emitGetInsRelocValue(instrDesc* id);
+
+#endif // _TARGET_ARM_
+
     insUpdateModes emitInsUpdateMode(instruction ins);
     insFormat emitInsModeFormat(instruction ins, insFormat base);
 
@@ -1817,6 +1828,9 @@ private:
     instrDesc* emitNewInstrCns(emitAttr attr, ssize_t cns);
     instrDesc* emitNewInstrDsp(emitAttr attr, ssize_t dsp);
     instrDesc* emitNewInstrCnsDsp(emitAttr attr, ssize_t cns, int dsp);
+#ifdef _TARGET_ARM_
+    instrDesc* emitNewInstrReloc(emitAttr attr, BYTE* addr);
+#endif // _TARGET_ARM_
     instrDescJmp* emitNewInstrJmp();
 
 #if !defined(_TARGET_ARM64_)
@@ -2427,6 +2441,22 @@ inline size_t emitter::emitGetInstrDescSizeSC(const instrDesc* id)
         return sizeof(instrDesc);
     }
 }
+
+#ifdef _TARGET_ARM_
+
+inline emitter::instrDesc* emitter::emitNewInstrReloc(emitAttr attr, BYTE* addr)
+{
+    assert(EA_IS_RELOC(attr));
+
+    instrDescReloc* id = (instrDescReloc*)emitAllocInstr(sizeof(instrDescReloc), attr);
+    assert(id->idIsReloc());
+
+    id->idrRelocVal = addr;
+
+    return id;
+}
+
+#endif // _TARGET_ARM_
 
 #ifdef _TARGET_XARCH_
 

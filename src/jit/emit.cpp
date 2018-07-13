@@ -6734,6 +6734,15 @@ ssize_t emitter::emitGetInsSC(instrDesc* id)
     }
 }
 
+#ifdef _TARGET_ARM_
+
+BYTE* emitter::emitGetInsRelocValue(instrDesc* id)
+{
+    return ((instrDescReloc*)id)->idrRelocVal;
+}
+
+#endif // _TARGET_ARM_
+
 /*****************************************************************************/
 #if EMIT_TRACK_STACK_DEPTH
 /*****************************************************************************

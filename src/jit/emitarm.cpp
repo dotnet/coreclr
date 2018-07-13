@@ -137,6 +137,12 @@ size_t emitter::emitSizeOfInsDsc(instrDesc* id)
             break;
     }
 
+    if (id->idInsFmt() == IF_T2_N3)
+    {
+        assert((id->idIns() == INS_movw) || (id->idIns() == INS_movt));
+        return sizeof(instrDescReloc);
+    }
+
     if (id->idIsLargeCns())
     {
         if (id->idIsLargeDsp())
@@ -370,14 +376,19 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(emitGetInsSC(id) < 0x10000);
             break;
 
-        case IF_T2_N:  // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
-        case IF_T2_N3: // T2_N3   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+        case IF_T2_N: // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
             assert(isGeneralRegister(id->idReg1()));
+            assert(!id->idIsReloc());
             break;
 
         case IF_T2_N2: // T2_N2   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
             assert(isGeneralRegister(id->idReg1()));
             assert((size_t)emitGetInsSC(id) < emitDataSize());
+            break;
+
+        case IF_T2_N3: // T2_N3   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+            assert(isGeneralRegister(id->idReg1()));
+            assert(id->idIsReloc());
             break;
 
         case IF_T2_I1: // T2_I1   ................ rrrrrrrrrrrrrrrr                          imm16
@@ -1979,7 +1990,7 @@ void emitter::emitIns_R_I(
 }
 
 void emitter::emitIns_MovRelocatableImmediate(
-    instruction ins, emitAttr attr, regNumber reg, ssize_t imm)
+    instruction ins, emitAttr attr, regNumber reg, BYTE* addr)
 {
     assert(EA_IS_RELOC(attr));
     assert((ins == INS_movw) || (ins == INS_movt));
@@ -1987,7 +1998,7 @@ void emitter::emitIns_MovRelocatableImmediate(
     insFormat fmt = IF_T2_N3;
     insFlags  sf  = INS_FLAGS_NOT_SET;
 
-    instrDesc* id  = emitNewInstrSC(attr, imm);
+    instrDesc* id  = emitNewInstrReloc(attr, addr);
     insSize    isz = emitInsSize(fmt);
 
     id->idIns(ins);
@@ -4933,6 +4944,24 @@ inline unsigned insEncodeBitFieldImm(int imm)
 
 /*****************************************************************************
  *
+ *  Returns an encoding for the immediate use by MOV/MOVW Thumb-2 encodings
+ */
+
+inline unsigned insEncodeImmT2_Mov(int imm)
+{
+    unsigned result;
+
+    assert((imm & 0x0000ffff) == imm);
+    result = (imm & 0x00ff);
+    result |= ((imm & 0x0700) << 4);
+    result |= ((imm & 0x0800) << 15);
+    result |= ((imm & 0xf000) << 4);
+
+    return result;
+}
+
+/*****************************************************************************
+ *
  *  Unscales the immediate based on the operand size in 'size'
  */
 /*static*/ int emitter::insUnscaleImm(int imm, emitAttr size)
@@ -5948,7 +5977,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             dst += emitOutput_Thumb2Instr(dst, code);
             break;
 
-        case IF_T2_N:  // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
+        case IF_T2_N: // T2_N    .....i......iiii .iiiddddiiiiiiii       R1                 imm16
             sz   = emitGetInstrDescSizeSC(id);
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
@@ -5965,11 +5994,8 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
             }
 
-            assert((imm & 0x0000ffff) == imm);
-            code |= (imm & 0x00ff);
-            code |= ((imm & 0x0700) << 4);
-            code |= ((imm & 0x0800) << 15);
-            code |= ((imm & 0xf000) << 4);
+            assert(!id->idIsReloc());
+            code |= insEncodeImmT2_Mov(imm);
             dst += emitOutput_Thumb2Instr(dst, code);
             break;
 
@@ -5978,11 +6004,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
             imm = emitGetInsSC(id);
-            assert(!id->idIsLclVar());
-            assert((ins == INS_movw) || (ins == INS_movt));
-            imm += (size_t)emitConsBlock;
-            if (!id->idIsCnsReloc() && !id->idIsDspReloc())
+            if (!id->idIsReloc())
             {
+                imm += (size_t)emitConsBlock;
                 if (ins == INS_movw)
                 {
                     imm &= 0xffff;
@@ -5991,37 +6015,32 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 {
                     imm = (imm >> 16) & 0xffff;
                 }
-            }
-
-            if (id->idIsCnsReloc() || id->idIsDspReloc())
-            {
-                assert((ins == INS_movt) || (ins == INS_movw));
+                code |= insEncodeImmT2_Mov(imm);
                 dst += emitOutput_Thumb2Instr(dst, code);
-                if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                    emitHandlePCRelativeMov32((void*)(dst - 8), (void*)imm);
             }
             else
             {
-                assert((imm & 0x0000ffff) == imm);
-                code |= (imm & 0x00ff);
-                code |= ((imm & 0x0700) << 4);
-                code |= ((imm & 0x0800) << 15);
-                code |= ((imm & 0xf000) << 4);
+                addr = emitConsBlock;
+                addr += imm;
+                assert((ins == INS_movt) || (ins == INS_movw));
                 dst += emitOutput_Thumb2Instr(dst, code);
+                if ((ins == INS_movt) && emitComp->info.compMatchedVM)
+                    emitHandlePCRelativeMov32((void*)(dst - 8), addr);
             }
             break;
 
         case IF_T2_N3: // T2_N3   .....i......iiii .iiiddddiiiiiiii       R1                 imm16
-            sz   = emitGetInstrDescSizeSC(id);
+            sz   = sizeof(instrDescReloc);
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
-            imm = emitGetInsSC(id);
 
-            assert(id->idIsCnsReloc() || id->idIsDspReloc());
             assert((ins == INS_movt) || (ins == INS_movw));
+            assert(id->idIsReloc());
+
+            addr = emitGetInsRelocValue(id);
             dst += emitOutput_Thumb2Instr(dst, code);
             if ((ins == INS_movt) && emitComp->info.compMatchedVM)
-                emitHandlePCRelativeMov32((void*)(dst - 8), (void*)imm);
+                emitHandlePCRelativeMov32((void*)(dst - 8), addr);
             break;
 
         case IF_T2_VFP3:
