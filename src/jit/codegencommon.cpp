@@ -5688,8 +5688,8 @@ void CodeGen::genMov32RelocatableImmediate(emitAttr size, size_t value, regNumbe
 {
     _ASSERTE(EA_IS_RELOC(size));
 
-    getEmitter()->emitIns_R_I(INS_movw, size, reg, value);
-    getEmitter()->emitIns_R_I(INS_movt, size, reg, value);
+    getEmitter()->emitIns_MovRelocatableImmediate(INS_movw, size, reg, value);
+    getEmitter()->emitIns_MovRelocatableImmediate(INS_movt, size, reg, value);
 
     if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELATIVE_CODE_RELOCS))
     {

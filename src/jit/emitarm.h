@@ -226,6 +226,7 @@ void emitIns_I(instruction ins, emitAttr attr, ssize_t imm);
 void emitIns_R(instruction ins, emitAttr attr, regNumber reg);
 
 void emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t imm, insFlags flags = INS_FLAGS_DONT_CARE);
+void emitIns_MovRelocatableImmediate(instruction ins, emitAttr attr, regNumber reg, ssize_t imm);
 
 void emitIns_R_R(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, insFlags flags = INS_FLAGS_DONT_CARE);
 
