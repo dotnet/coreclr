@@ -17,7 +17,6 @@
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 
 #include <sddl.h>                   // Windows security descriptor language
-#include <metahost.h>
 #include <SecurityUtil.h>
 #include "eeprofinterfaces.h"
 #include "eetoprofinterfaceimpl.h"
@@ -1194,55 +1193,6 @@ void ProfilingAPIAttachDetach::CreateAttachThread()
 }
 
 // ----------------------------------------------------------------------------
-// CLRProfilingClassFactoryImpl::CreateInstance
-// 
-// Description:
-//    A standard IClassFactory interface function to allow a profiling trigger 
-//    to query for IID_ICLRProfiling interface
-// 
-HRESULT CLRProfilingClassFactoryImpl::CreateInstance(IUnknown * pUnkOuter, REFIID riid, void ** ppv)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-
-    if (ppv == NULL)
-        return E_POINTER;
-
-    *ppv = NULL;
-
-    NewHolder<CLRProfilingImpl> pProfilingImpl = new (nothrow) CLRProfilingImpl();
-    if (pProfilingImpl == NULL)
-        return E_OUTOFMEMORY;
-
-    HRESULT hr = pProfilingImpl->QueryInterface(riid, ppv);
-    if (SUCCEEDED(hr))
-    {
-        pProfilingImpl.SuppressRelease();
-    }
-
-    return hr;
-}
-
-// ----------------------------------------------------------------------------
-// CLRProfilingClassFactoryImpl::LockServer
-// 
-// Description:
-//    A standard IClassFactory interface function that doesn't do anything interesting here
-// 
-HRESULT CLRProfilingClassFactoryImpl::LockServer(BOOL fLock)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return S_OK;
-}
-
-// ----------------------------------------------------------------------------
 // CLRProfilingImpl::AttachProfiler
 // 
 // Description:
@@ -1281,44 +1231,11 @@ HRESULT CLRProfilingImpl::AttachProfiler(DWORD dwProfileeProcessID,
                             wszRuntimeVersion);
 }
 
-// ----------------------------------------------------------------------------
-// ICLRProfilingGetClassObject
-// 
-// Description:
-//    A wrapper to create a CLRProfilingImpl object and to QueryInterface on the CLRProfilingImpl object
-// 
-HRESULT ICLRProfilingGetClassObject(REFCLSID rclsid, REFIID riid, void **ppv)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-        SO_NOT_MAINLINE;
-        PRECONDITION(rclsid == CLSID_CLRProfiling);
-    }
-    CONTRACTL_END;
-
-    if (ppv == NULL)
-        return E_POINTER;
-
-    *ppv = NULL;
-
-    NewHolder<CLRProfilingClassFactoryImpl> pCLRProfilingClassFactoryImpl = new (nothrow) CLRProfilingClassFactoryImpl();
-    if (pCLRProfilingClassFactoryImpl == NULL)
-        return E_OUTOFMEMORY;
-
-    HRESULT hr = pCLRProfilingClassFactoryImpl->QueryInterface(riid, ppv);
-    if (SUCCEEDED(hr))
-    {
-        pCLRProfilingClassFactoryImpl.SuppressRelease();
-    }
-
-    return hr;
-}
 
 // Contract for public APIs. These must be NOTHROW.
-bool
+EXTERN_C const IID IID_ICLRProfiling;
+
+HRESULT
 CreateCLRProfiling(
     __out void ** ppCLRProfilingInstance)
 {
@@ -1334,16 +1251,18 @@ CreateCLRProfiling(
     IUnknown * pCordb = NULL;
 
     LOG((LF_CORDB, LL_EVERYTHING, "Calling CreateCLRProfiling"));
+    
+    NewHolder<CLRProfilingImpl> pProfilingImpl = new (nothrow) CLRProfilingImpl();
+    if (pProfilingImpl == NULL)
+        return E_OUTOFMEMORY;
 
-    IClassFactory * pFactory = NULL;
-    hr = ICLRProfilingGetClassObject(CLSID_CLRProfiling, IID_IClassFactory, (void**)&pFactory);
+    hr = pProfilingImpl->QueryInterface(IID_ICLRProfiling, ppCLRProfilingInstance);
     if (SUCCEEDED(hr))
     {
-        hr = pFactory->CreateInstance(NULL, IID_ICLRProfiling, ppCLRProfilingInstance);
-        pFactory->Release();
-        return true;
+        pProfilingImpl.SuppressRelease();
+        return S_OK;
     }
-    return false;
+    return E_FAIL;
 }
 
 #endif // FEATURE_PROFAPI_ATTACH_DETACH 
