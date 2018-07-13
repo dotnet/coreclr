@@ -6,7 +6,7 @@ namespace System.Runtime.InteropServices
 {
     /// <summary>
     /// Any method marked with NativeCallableAttribute can be directly called from
-    /// native code.T he function token can be loaded to a local variable using LDFTN
+    /// native code. The function token can be loaded to a local variable using LDFTN
     /// and passed as a callback to native method.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method)]

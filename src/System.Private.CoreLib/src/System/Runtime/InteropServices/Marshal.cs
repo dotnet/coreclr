@@ -833,7 +833,7 @@ namespace System.Runtime.InteropServices
 
         /// <summary>
         /// Freeds all substructures pointed to by the native memory block.
-        /// "structureType" is used to provide layout information.
+        /// "structuretype" is used to provide layout information.
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void DestroyStructure(IntPtr ptr, Type structuretype);

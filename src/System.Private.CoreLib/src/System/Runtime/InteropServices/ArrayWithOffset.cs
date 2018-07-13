@@ -24,7 +24,7 @@ namespace System.Runtime.InteropServices
 
         public override bool Equals(object obj)
         {
-            return obj is ArrayWithOffset && Equals((ArrayWithOffset)ob);
+            return obj is ArrayWithOffset && Equals((ArrayWithOffset)obj);
         }
 
         public bool Equals(ArrayWithOffset obj)
