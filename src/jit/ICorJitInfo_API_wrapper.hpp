@@ -704,6 +704,26 @@ BOOL WrapICorJitInfo::areTypesEquivalent(
     return temp;
 }
 
+TypeCompareState WrapICorJitInfo::compareTypesForCast(
+    CORINFO_CLASS_HANDLE        fromClass,
+    CORINFO_CLASS_HANDLE        toClass)
+{
+    API_ENTER(compareTypesForCast);
+    TypeCompareState temp = wrapHnd->compareTypesForCast(fromClass, toClass);
+    API_LEAVE(compareTypesForCast);
+    return temp;
+}
+
+TypeCompareState WrapICorJitInfo::compareTypesForEquality(
+    CORINFO_CLASS_HANDLE        cls1,
+    CORINFO_CLASS_HANDLE        cls2)
+{
+    API_ENTER(compareTypesForEquality);
+    TypeCompareState temp = wrapHnd->compareTypesForEquality(cls1, cls2);
+    API_LEAVE(compareTypesForEquality);
+    return temp;
+}
+
 CORINFO_CLASS_HANDLE WrapICorJitInfo::mergeClasses(
             CORINFO_CLASS_HANDLE        cls1,
             CORINFO_CLASS_HANDLE        cls2)
@@ -1060,7 +1080,7 @@ const char* WrapICorJitInfo::getMethodNameFromMetadata(
         const char                **namespaceName  /* OUT */)
 {
     API_ENTER(getMethodNameFromMetadata);
-    const char* temp = wrapHnd->getMethodNameFromMetaData(ftn, moduleName, namespaceName);
+    const char* temp = wrapHnd->getMethodNameFromMetadata(ftn, className, namespaceName);
     API_LEAVE(getMethodNameFromMetadata);
     return temp;
 }
@@ -1441,6 +1461,16 @@ void* WrapICorJitInfo::getTailCallCopyArgsThunk(
     API_ENTER(getTailCallCopyArgsThunk);
     void *result = wrapHnd->getTailCallCopyArgsThunk(pSig, flags);
     API_LEAVE(getTailCallCopyArgsThunk);
+    return result;
+}
+
+bool WrapICorJitInfo::convertPInvokeCalliToCall(
+        CORINFO_RESOLVED_TOKEN * pResolvedToken,
+        bool fMustConvert)
+{
+    API_ENTER(convertPInvokeCalliToCall);
+    bool result = wrapHnd->convertPInvokeCalliToCall(pResolvedToken, fMustConvert);
+    API_LEAVE(convertPInvokeCalliToCall);
     return result;
 }
 
