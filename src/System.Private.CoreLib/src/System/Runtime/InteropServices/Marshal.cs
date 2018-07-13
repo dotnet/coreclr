@@ -1052,8 +1052,6 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHRForException_WinRT(Exception e);
 
-        internal static readonly Guid ManagedNameGuid = new Guid("{0F21F359-AB84-41E8-9A78-36D110E6D2F9}");
-
         /// <summary>
         /// Given a managed object that wraps an ITypeInfo, return its name.
         /// </summary>
@@ -1348,7 +1346,6 @@ namespace System.Runtime.InteropServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void InternalFinalReleaseComObject(object o);
-#endif // FEATURE_COMINTEROP
 
         public static object GetComObjectData(object obj, object key)
         {
@@ -1402,7 +1399,6 @@ namespace System.Runtime.InteropServices
             return co.SetData(key, data);
         }
 
-#if FEATURE_COMINTEROP
         /// <summary>
         /// This method takes the given COM object and wraps it in an object
         /// of the specified type. The type must be derived from __ComObject.
@@ -1426,19 +1422,25 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentException(SR.Argument_TypeIsWinRTType, nameof(t));
             }
 
-            // Check for the null case.
             if (o == null)
+            {
                 return null;
+            }
 
-            // Make sure the object is a COM object.
             if (!o.GetType().IsCOMObject)
+            {
                 throw new ArgumentException(SR.Argument_ObjNotComObject, nameof(o));
+            }
             if (o.GetType().IsWindowsRuntimeObject)
+            {
                 throw new ArgumentException(SR.Argument_ObjIsWinRTObject, nameof(o));
+            }
 
-            // Check to see if the type of the object is the requested type.
+            // Check to see if we have nothing to do.
             if (o.GetType() == t)
+            {
                 return o;
+            }
 
             // Check to see if we already have a cached wrapper for this type.
             object Wrapper = GetComObjectData(o, t);
@@ -1514,7 +1516,6 @@ namespace System.Runtime.InteropServices
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern int GetStartComSlot(Type t);
-
 #endif // FEATURE_COMINTEROP
 
         /// <summary>
