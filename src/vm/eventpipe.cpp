@@ -1237,6 +1237,8 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(
         pInstance->EventID = pNextInstance->GetEvent()->GetEventID();
         pInstance->ThreadID = pNextInstance->GetThreadId();
         pInstance->TimeStamp.QuadPart = pNextInstance->GetTimeStamp()->QuadPart;
+        pInstance->ActivityId = *pNextInstance->GetActivityId();
+        pInstance->RelatedActivityId = *pNextInstance->GetRelatedActivityId();
         pInstance->Payload = pNextInstance->GetData();
         pInstance->PayloadLength = pNextInstance->GetDataLength();
     }

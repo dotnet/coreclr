@@ -146,7 +146,7 @@ namespace System.Diagnostics.Tracing
                     {
                         // Dispatch the event.
                         ReadOnlySpan<Byte> payload = new ReadOnlySpan<byte>((void*)instanceData.Payload, (int)instanceData.PayloadLength);
-                        RuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, instanceData.TimeStamp, payload);
+                        RuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, instanceData.TimeStamp, instanceData.ActivityId, instanceData.ChildActivityId, payload);
                     }
                 }
 

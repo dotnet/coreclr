@@ -16,7 +16,7 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventID">The eventID corresponding to the event as defined in the auto-generated portion of the RuntimeEventSource class.</param>
         /// <param name="payload">A span pointing to the data payload for the event.</param>
         [NonEvent]
-        internal unsafe void ProcessEvent(uint eventID, uint osThreadID, Int64 timeStamp, ReadOnlySpan<Byte> payload)
+        internal unsafe void ProcessEvent(uint eventID, uint osThreadID, Int64 timeStamp, Guid activityId, Guid childActivityId, ReadOnlySpan<Byte> payload)
         {
             // Make sure the eventID is valid.
             if (eventID >= m_eventData.Length)
@@ -30,8 +30,8 @@ namespace System.Diagnostics.Tracing
                 eventId: (int)eventID,
                 osThreadId: &osThreadID,
                 timeStamp: null,
-                activityID: null,
-                childActivityID: null,
+                activityID: &activityId,
+                childActivityID: &childActivityId,
                 args: decodedPayloadFields);
         }
    }

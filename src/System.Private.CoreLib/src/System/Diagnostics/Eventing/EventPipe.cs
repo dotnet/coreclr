@@ -18,6 +18,8 @@ namespace System.Diagnostics.Tracing
         internal uint EventID;
         internal uint ThreadID;
         internal Int64 TimeStamp;
+        internal Guid ActivityId;
+        internal Guid ChildActivityId;
         internal IntPtr Payload;
         internal uint PayloadLength;
     }

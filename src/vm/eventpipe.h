@@ -387,6 +387,8 @@ private:
         unsigned int EventID;
         unsigned int ThreadID;
         LARGE_INTEGER TimeStamp;
+        GUID ActivityId;
+        GUID RelatedActivityId;
         const BYTE *Payload;
         unsigned int PayloadLength;
     };
