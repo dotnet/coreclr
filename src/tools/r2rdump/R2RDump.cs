@@ -95,7 +95,6 @@ namespace R2RDump
 
             if (verbose)
             {
-                _raw = true;
                 _disasm = true;
                 _unwind = true;
                 _gc = true;
@@ -404,6 +403,8 @@ namespace R2RDump
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.ToString());
+                Console.WriteLine();
+                Console.WriteLine(syntax.GetHelpText());
                 if (_xml)
                 {
                     XmlDocument document = new XmlDocument();

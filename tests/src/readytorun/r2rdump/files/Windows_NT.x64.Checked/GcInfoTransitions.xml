@@ -16,7 +16,6 @@
       <MinorVersion>2</MinorVersion>
       <Flags>3</Flags>
     </R2RHeader>
-    <Raw Index="1816">52 54 52 00 02 00 02 00 03 00 00 00 09 00 00 00 64 00 00 00 BC 23 00 00 25 00 00 00 65 00 00 00 94 23 00 00 28 00 00 00 66 00 00 00 68 24 00 00 24 00 00 00 67 00 00 00 D8 28 00 00 0A 00 00 00 69 00 00 00 30 29 00 00 3F 00 00 00 6A 00 00 00 55 24 00 00 10 00 00 00 6C 00 00 00 F0 28 00 00 09 00 00 00 6D 00 00 00 E2 28 00 00 03 00 00 00 6E 00 00 00 70 29 00 00 16 00 00 00</Raw>
   </Header>
   <Sections>
     <Count>9</Count>
@@ -25,7 +24,6 @@
         <RelativeVirtualAddress>9148</RelativeVirtualAddress>
         <Size>37</Size>
       </R2RSection>
-      <Raw Index="1980">43 6F 72 65 43 4C 52 20 34 2E 35 2E 33 30 33 31 39 2E 30 20 5F 5F 42 55 49 4C 44 4D 41 43 48 49 4E 45 5F 5F 00</Raw>
       <Contents>
         <CompilerIdentifier>CoreCLR 4.5.30319.0 __BUILDMACHINE__</CompilerIdentifier>
       </Contents>
@@ -35,7 +33,6 @@
         <RelativeVirtualAddress>9108</RelativeVirtualAddress>
         <Size>40</Size>
       </R2RSection>
-      <Raw Index="1940">00 10 00 00 18 00 00 00 01 00 00 00 3C 24 00 00 00 00 00 00 18 10 00 00 08 00 00 00 04 00 02 08 90 24 00 00 20 29 00 00</Raw>
       <Contents>
         <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="4096">
           <SectionSize>24</SectionSize>
@@ -52,8 +49,6 @@
           </Entries>
           <AuxiliaryDataRVA>0</AuxiliaryDataRVA>
         </R2RImportSection>
-        <SectionBytes Index="512">00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</SectionBytes>
-        <SignatureBytes Index="2108">48 24 00 00</SignatureBytes>
         <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="9288">
           <StartOffset>0</StartOffset>
           <Section>0</Section>
@@ -102,9 +97,6 @@
             <Offset>3360</Offset>
           </AuxiliaryData>
         </R2RImportSection>
-        <SectionBytes Index="536">55 24 02 A0 44 06 00 00</SectionBytes>
-        <SignatureBytes Index="2192">28 29 00 00</SignatureBytes>
-        <AuxiliaryDataBytes Index="3360">04 00 00 00 01 00 00 00 15 04 00 00 00 00 00 00 18 01 02 02 FD 02</AuxiliaryDataBytes>
         <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="10536">
           <StartOffset>0</StartOffset>
           <Section>6891812037717</Section>
@@ -117,7 +109,6 @@
         <RelativeVirtualAddress>9320</RelativeVirtualAddress>
         <Size>36</Size>
       </R2RSection>
-      <Raw Index="2152">10 28 00 00 16 28 00 00 FC 28 00 00 20 28 00 00 C3 28 00 00 08 29 00 00 D0 28 00 00 D6 28 00 00 FC 28 00 00</Raw>
       <Contents>
         <id0 Index="0">0x00002810</id0>
         <id1 Index="1">0x00002816</id1>
@@ -135,7 +126,6 @@
         <RelativeVirtualAddress>10456</RelativeVirtualAddress>
         <Size>10</Size>
       </R2RSection>
-      <Raw Index="3288">18 01 02 02 26 16 00 04 10 08</Raw>
       <Contents />
     </Section>
     <Section Index="READYTORUN_SECTION_DEBUG_INFO">
@@ -143,7 +133,6 @@
         <RelativeVirtualAddress>10544</RelativeVirtualAddress>
         <Size>63</Size>
       </R2RSection>
-      <Raw Index="3376">18 01 02 02 FD 02 5E 00 35 03 21 35 02 20 01 45 10 00 4B 03 39 10 52 23 3A 0A A2 B3 25 3A 2D A2 E3 27 3A 89 24 3A A9 21 3A B9 26 3A D9 23 00 02 01 45 10 10 00 36 03 21 95 21 00 02 01 45 10</Raw>
       <Contents />
     </Section>
     <Section Index="READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS">
@@ -151,7 +140,6 @@
         <RelativeVirtualAddress>9301</RelativeVirtualAddress>
         <Size>16</Size>
       </R2RSection>
-      <Raw Index="2133">33 C0 6A 01 FF 35 A1 EB FF FF FF 25 AB EB FF FF</Raw>
       <Contents />
     </Section>
     <Section Index="READYTORUN_SECTION_AVAILABLE_TYPES">
@@ -159,7 +147,6 @@
         <RelativeVirtualAddress>10480</RelativeVirtualAddress>
         <Size>9</Size>
       </R2RSection>
-      <Raw Index="3312">00 02 06 00 08 38 02 04 08</Raw>
       <Contents>
         <AvailableType Index="0">GcInfoTransitions.GcInfoTransitions</AvailableType>
         <AvailableType Index="1">.&lt;Module&gt;</AvailableType>
@@ -170,7 +157,6 @@
         <RelativeVirtualAddress>10466</RelativeVirtualAddress>
         <Size>3</Size>
       </R2RSection>
-      <Raw Index="3298">00 02 02</Raw>
       <Contents />
     </Section>
     <Section Index="READYTORUN_SECTION_INLINING_INFO">
@@ -178,7 +164,6 @@
         <RelativeVirtualAddress>10608</RelativeVirtualAddress>
         <Size>22</Size>
       </R2RSection>
-      <Raw Index="3440">10 00 00 00 01 00 00 00 00 00 00 00 82 01 00 00 01 00 00 00 21 31</Raw>
       <Contents />
     </Section>
   </Sections>
@@ -222,7 +207,6 @@
           <Size>22</Size>
           <Offset>3332</Offset>
         </GcInfo>
-        <Raw Index="3332">60 00 00 00 19 04 01 00 04 42 00 00 4F 24 00 00 30 8A BA 50 E9 81</Raw>
       </GcInfo>
       <RuntimeFunctions>
         <RuntimeFunction>
@@ -233,7 +217,6 @@
             <UnwindRVA>10492</UnwindRVA>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
-          <Raw Index="3088">0F 1F 44 00 00 C3</Raw>
           <UnwindInfo>
             <UnwindInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
               <Version>1</Version>
@@ -246,7 +229,6 @@
               <PersonalityRoutineRVA>9295</PersonalityRoutineRVA>
               <Size>8</Size>
             </UnwindInfo>
-            <Raw Index="3324">19 00 00 00 4F 24 00 00</Raw>
           </UnwindInfo>
         </RuntimeFunction>
       </RuntimeFunctions>
@@ -278,14 +260,30 @@
           <NumSafePoints>8</NumSafePoints>
           <NumInterruptibleRanges>0</NumInterruptibleRanges>
           <SafePointOffsets>
-            <unsignedInt>23</unsignedInt>
-            <unsignedInt>42</unsignedInt>
-            <unsignedInt>61</unsignedInt>
-            <unsignedInt>80</unsignedInt>
-            <unsignedInt>99</unsignedInt>
-            <unsignedInt>118</unsignedInt>
-            <unsignedInt>137</unsignedInt>
-            <unsignedInt>156</unsignedInt>
+            <SafePointOffset Index="0">
+              <Value>23</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="1">
+              <Value>42</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="2">
+              <Value>61</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="3">
+              <Value>80</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="4">
+              <Value>99</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="5">
+              <Value>118</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="6">
+              <Value>137</Value>
+            </SafePointOffset>
+            <SafePointOffset Index="7">
+              <Value>156</Value>
+            </SafePointOffset>
           </SafePointOffsets>
           <InterruptibleRanges />
           <SlotTable>
@@ -298,7 +296,6 @@
           <Size>153</Size>
           <Offset>3348</Offset>
         </GcInfo>
-        <Raw Index="3348">30 8A BA 50 E9 81 1A B3 4B E4 04 00 04 00 00 00 01 00 00 00 15 04 00 00 00 00 00 00 18 01 02 02 FD 02 5E 00 35 03 21 35 02 20 01 45 10 00 4B 03 39 10 52 23 3A 0A A2 B3 25 3A 2D A2 E3 27 3A 89 24 3A A9 21 3A B9 26 3A D9 23 00 02 01 45 10 10 00 36 03 21 95 21 00 02 01 45 10 00 10 00 00 00 01 00 00 00 00 00 00 00 82 01 00 00 01 00 00 00 21 31 00 00 00 00 00 00 66 8F 47 5B 00 00 00 00 02 00 00 00 1C 01 00 00 C0 29 00 00 C0 0D 00 00 00 00 00 00 66 8F 47 5B 00</Raw>
       </GcInfo>
       <RuntimeFunctions>
         <RuntimeFunction>
@@ -309,7 +306,6 @@
             <UnwindRVA>10504</UnwindRVA>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
-          <Raw Index="3104">48 83 EC 28 90 33 C9 BA 31 00 00 00 41 B8 01 00 00 00 FF 15 E0 E7 FF FF 33 C9 BA 32 00 00 00 41 B8 01 00 00 00 FF 15 CD E7 FF FF 33 C9 BA 33 00 00 00 41 B8 01 00 00 00 FF 15 BA E7 FF FF 33 C9 BA 34 00 00 00 41 B8 01 00 00 00 FF 15 A7 E7 FF FF 33 C9 BA 35 00 00 00 41 B8 01 00 00 00 FF 15 94 E7 FF FF 33 C9 BA 36 00 00 00 41 B8 01 00 00 00 FF 15 81 E7 FF FF 33 C9 BA 37 00 00 00 41 B8 01 00 00 00 FF 15 6E E7 FF FF 33 C9 BA 38 00 00 00 41 B8 01 00 00 00 FF 15 5B E7 FF FF 90 48 83 C4 28 C3</Raw>
           <UnwindInfo>
             <UnwindInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
               <Version>1</Version>
@@ -331,7 +327,6 @@
               <PersonalityRoutineRVA>609157120</PersonalityRoutineRVA>
               <Size>12</Size>
             </UnwindInfo>
-            <Raw Index="3336">19 04 01 00 04 42 00 00 4F 24 00 00</Raw>
           </UnwindInfo>
         </RuntimeFunction>
       </RuntimeFunctions>
@@ -374,7 +369,6 @@
           <Size>22</Size>
           <Offset>3332</Offset>
         </GcInfo>
-        <Raw Index="3332">60 00 00 00 19 04 01 00 04 42 00 00 4F 24 00 00 30 8A BA 50 E9 81</Raw>
       </GcInfo>
       <RuntimeFunctions>
         <RuntimeFunction>
@@ -385,7 +379,6 @@
             <UnwindRVA>10492</UnwindRVA>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
-          <Raw Index="3280">0F 1F 44 00 00 C3</Raw>
           <UnwindInfo>
             <UnwindInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
               <Version>1</Version>
@@ -398,7 +391,6 @@
               <PersonalityRoutineRVA>9295</PersonalityRoutineRVA>
               <Size>8</Size>
             </UnwindInfo>
-            <Raw Index="3324">19 00 00 00 4F 24 00 00</Raw>
           </UnwindInfo>
         </RuntimeFunction>
       </RuntimeFunctions>
