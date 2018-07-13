@@ -13,15 +13,14 @@ using TestLibrary;
 public class Reflection
 {
     /// <summary>
-    /// Try to reflect load ComImport Types by enumerate
+    /// Reflect load ComImport Types amd enumerate them
     /// </summary>
-    /// <returns></returns>
-    static bool RelectionLoad()
+    static bool ReflectionLoad()
     {
         try
         {
-            Console.WriteLine("Scenario: RelectionLoad");
-            var asm = Assembly.LoadFrom("NetServer.dll");
+            Console.WriteLine("Scenario: ReflectionLoad");
+            var asm = Assembly.LoadFrom("NETServer.dll");
             foreach (Type t in asm.GetTypes())
             {
                 Console.WriteLine(t.Name);
@@ -31,15 +30,14 @@ public class Reflection
         }
         catch (Exception e)
         {
-            Console.WriteLine("Caught unexpected exception: " + e);
+            Console.WriteLine($"Caught unexpected exception: {e}");
             return false;
         }
     }
 
     /// <summary>
-    /// Try to test Type.IsCOMObject
+    /// Type.IsCOMObject
     /// </summary>
-    /// <returns></returns>
     static bool TypeIsComObject()
     {
         try
@@ -63,23 +61,22 @@ public class Reflection
         }
         catch (Exception e)
         {
-            Console.WriteLine("Caught unexpected exception: " + e);
+            Console.WriteLine($"Caught unexpected exception: {e}");
             return false;
         }
     }
 
     /// <summary>
-    /// Try to create COM instance
+    /// Create COM instance via Activator
     /// </summary>
-    /// <returns></returns>
-    static bool AcivateCOMType()
+    static bool ActivateCOMType()
     {
         try
         {
-            Console.WriteLine("Scenario: AcivateCOMType");
+            Console.WriteLine("Scenario: ActivateCOMType");
             var contextMenu = (NETServer.ContextMenu)Activator.CreateInstance(typeof(NETServer.ContextMenu));
 
-            // Linux should throw PlatformNotSupportedException
+            // Non-Windows should throw PlatformNotSupportedException
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 return false;
@@ -87,35 +84,35 @@ public class Reflection
             
             if (contextMenu == null)
             {
-                Console.WriteLine("AcivateCOMType failed");
+                Console.WriteLine("ActivateCOMType failed");
                 return false;
             }
 
             return true;
         }
-        catch (System.Reflection.TargetInvocationException e)
+        catch (TargetInvocationException e)
         {
             if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && e.InnerException is PlatformNotSupportedException)
             {
                 return true;
             }
             
-            Console.WriteLine("Caught unexpected PlatformNotSupportedException: " + e);
+            Console.WriteLine($"Caught unexpected {nameof(PlatformNotSupportedException)}: {e}");
             return false;
         }
-        catch(System.Runtime.InteropServices.COMException e)
+        catch(COMException e)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 return true;
             }
             
-            Console.WriteLine("Caught unexpected COMException: " + e);
+            Console.WriteLine($"Caught unexpected {nameof(COMException)}: {e}");
             return false;
         }
         catch (Exception e)
         {
-            Console.WriteLine("Caught unexpected exception: " + e);
+            Console.WriteLine($"Caught unexpected exception: {e}");
             return false;
         }
     }
@@ -124,9 +121,9 @@ public class Reflection
     static int Main()
     {
         int failures = 0;
-        if (!RelectionLoad())
+        if (!ReflectionLoad())
         {
-            Console.WriteLine("RelectionLoad Failed");
+            Console.WriteLine("ReflectionLoad Failed");
             failures++;
         }
 
@@ -136,9 +133,9 @@ public class Reflection
             failures++;
         }
 
-        if (!AcivateCOMType())
+        if (!ActivateCOMType())
         {
-            Console.WriteLine("AcivateCOMType Failed");
+            Console.WriteLine("ActivateCOMType Failed");
             failures++;
         }
 
