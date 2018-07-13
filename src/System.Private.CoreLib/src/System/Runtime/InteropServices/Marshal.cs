@@ -2,16 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-/*=============================================================================
-**
-**
-**
-** Purpose: This class contains methods that are mainly used to marshal 
-**          between unmanaged and managed types.
-**
-**
-=============================================================================*/
-
 using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -32,6 +22,10 @@ namespace System.Runtime.InteropServices
         Allow = 1
     }
 
+    /// <summary>
+    /// This class contains methods that are mainly used to marshal between unmanaged
+    /// and managed types.
+    /// </summary>
     public static partial class Marshal
     {
         private const int LMEM_FIXED = 0;
@@ -40,7 +34,7 @@ namespace System.Runtime.InteropServices
         private const long HiWordMask = unchecked((long)0xffffffffffff0000L);
 #endif //!FEATURE_PAL
 #if FEATURE_COMINTEROP
-        private static Guid s_iidIUnknown = new Guid("00000000-0000-0000-C000-000000000046");
+        private static Guid IID_IUnknown = new Guid("00000000-0000-0000-C000-000000000046");
 #endif //FEATURE_COMINTEROP
 
         // Win32 has the concept of Atoms, where a pointer can either be a pointer
@@ -839,7 +833,7 @@ namespace System.Runtime.InteropServices
 
         /// <summary>
         /// Freeds all substructures pointed to by the native memory block.
-        /// "structureclass" is used to provide layout information.
+        /// "structureType" is used to provide layout information.
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void DestroyStructure(IntPtr ptr, Type structuretype);
@@ -1047,8 +1041,6 @@ namespace System.Runtime.InteropServices
         /// This function is only used in WinRT and converts ObjectDisposedException
         /// to RO_E_CLOSED
         /// </summary>
-        /// <param name="e"></param>
-        /// <returns></returns>
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHRForException_WinRT(Exception e);
 
@@ -1062,7 +1054,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(typeInfo));
             }
 
-            typeInfo.GetDocumentation(-1, out string strTypeLibName, out string strDocString, out int dwHelpContext, out string strHelpFile);
+            typeInfo.GetDocumentation(-1, out string strTypeLibName, out _, out _, out _);
             return strTypeLibName;
         }
 
@@ -1073,6 +1065,7 @@ namespace System.Runtime.InteropServices
         /// <summary>
         /// Return the IUnknown* for an Object if the current context is the one
         /// where the RCW was first seen. Will return null otherwise.
+        /// </summary>
         public static IntPtr /* IUnknown* */ GetIUnknownForObject(object o)
         {
             return GetIUnknownForObjectNative(o, false);
@@ -1310,8 +1303,6 @@ namespace System.Runtime.InteropServices
         /// Release the COM component and if the reference hits 0 zombie this object.
         /// Further usage of this Object might throw an exception
         /// </summary>
-        /// <param name="o"></param>
-        /// <returns></returns>
         public static int ReleaseComObject(object o)
         {
             if (!(o is __ComObject co))
@@ -1575,8 +1566,8 @@ namespace System.Runtime.InteropServices
         {
             CreateBindCtx(0, out IBindCtx bindctx);
 
-            MkParseDisplayName(bindctx, monikerName, out uint cbEaten, out IMoniker pmoniker);
-            BindMoniker(pmoniker, 0, ref s_iidIUnknown, out object obj);
+            MkParseDisplayName(bindctx, monikerName, out _, out IMoniker pmoniker);
+            BindMoniker(pmoniker, 0, ref IID_IUnknown, out object obj);
 
             return obj;
         }
