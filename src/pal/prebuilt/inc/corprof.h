@@ -15151,8 +15151,6 @@ EXTERN_C const IID IID_ICorProfilerInfo9;
 /* [object][local][helpstring][version][uuid] */
 
 
-EXTERN_C const IID IID_ICLRProfiling;
-
 #if defined(__cplusplus) && !defined(CINTERFACE)
 
 MIDL_INTERFACE("B349ABE3-B56F-4689-BFCD-76BF39D888EA")
