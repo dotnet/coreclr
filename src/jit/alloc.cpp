@@ -30,26 +30,38 @@ public:
     {
         assert(memoryManager != nullptr);
 
-        PageDescriptor* page = InterlockedExchangeT(&m_availablePage, nullptr);
-        if ((page != nullptr) && (page->m_memoryManager != memoryManager))
-        {
-            // The pool page belongs to a different memory manager, release it.
-            releasePage(page, page->m_memoryManager);
-            page = nullptr;
-        }
+        // Use InterlockedCompareExchangeT to get m_page just to ensure that we don't get a stale value.
+        PageDescriptor* page = InterlockedCompareExchangeT<PageDescriptor*>(&m_page, nullptr, nullptr);
 
-        assert((page == nullptr) || isPoolPage(page));
+        if (page != nullptr)
+        {
+            if (page->m_memoryManager != memoryManager)
+            {
+                // The pool page belongs to a different memory manager, ignore it.
+                page = nullptr;
+            }
+            else
+            {
+                PageDescriptor* available = InterlockedCompareExchangeT(&m_availablePage, nullptr, page);
+                if (available != page)
+                {
+                    // The pool page is not available (it's either already acquired or the pool was shutdown).
+                    assert((available == nullptr) || (available == &m_shutdownPage));
+                    page = nullptr;
+                }
+            }
+        }
 
         return page;
     }
 
     // Attempt to pool the specified page.
-    void tryPoolPage(PageDescriptor* page)
+    bool tryPoolPage(PageDescriptor* page)
     {
         assert(page != &m_shutdownPage);
 
         // Try to pool this page, give up if another thread has already pooled a page.
-        InterlockedCompareExchangeT(&m_page, page, nullptr);
+        return InterlockedCompareExchangeT(&m_page, page, nullptr) == nullptr;
     }
 
     // Check if a page is pooled.
@@ -58,32 +70,21 @@ public:
         return (m_page == nullptr);
     }
 
-    // Check if the specified page is pooled.
-    bool isPoolPage(PageDescriptor* page)
-    {
-        return (m_page == page);
-    }
-
     // Release the specified page.
     PageDescriptor* releasePage(PageDescriptor* page, IEEMemoryManager* memoryManager)
     {
-        // tryAcquirePage may end up releasing the shutdown page if shutdown was called.
-        assert((page == &m_shutdownPage) || isPoolPage(page));
-        assert((page == &m_shutdownPage) || (memoryManager != nullptr));
-
-        // Normally m_availablePage should be null when releasePage is called but it can
-        // be the shutdown page if shutdown is called while the pool page is in use.
-        assert((m_availablePage == nullptr) || (m_availablePage == &m_shutdownPage));
+        assert(page == m_page);
+        assert(memoryManager != nullptr);
 
         PageDescriptor* next = page->m_next;
         // Update the page's memory manager (replaces m_next that's not needed in this state).
         page->m_memoryManager = memoryManager;
         // Try to make the page available. This will fail if the pool was shutdown
         // and then we need to free the page here.
-        PageDescriptor* shutdownPage = InterlockedCompareExchangeT(&m_availablePage, page, nullptr);
-        if (shutdownPage != nullptr)
+        PageDescriptor* available = InterlockedCompareExchangeT(&m_availablePage, page, nullptr);
+        if (available != nullptr)
         {
-            assert(shutdownPage == &m_shutdownPage);
+            assert(available == &m_shutdownPage);
             freeHostMemory(memoryManager, page);
         }
 
@@ -96,16 +97,16 @@ public:
     {
         // If the pool page is available then acquire it now so it can be freed.
         // Also make the shutdown page available so that:
-        // - tryAcquirePage won't be return it because it has a null memory manager
+        // - tryAcquirePage won't be able acquire it because it is not the pool page
         // - releasePage won't be able to make the pool page available and instead will free it
-        PageDescriptor* page = InterlockedExchangeT(&m_availablePage, &m_shutdownPage);
+        PageDescriptor* available = InterlockedExchangeT(&m_availablePage, &m_shutdownPage);
 
-        assert(page != &m_shutdownPage);
-        assert((page == nullptr) || isPoolPage(page));
+        // Shutdown should not be called twice.
+        assert(available != &m_shutdownPage);
 
-        if ((page != nullptr) && (page->m_memoryManager != nullptr))
+        if ((available != nullptr) && (available != &m_shutdownPage))
         {
-            freeHostMemory(page->m_memoryManager, page);
+            freeHostMemory(available->m_memoryManager, available);
         }
     }
 };
@@ -150,6 +151,7 @@ ArenaAllocator::ArenaAllocator()
     : m_memoryManager(nullptr)
     , m_firstPage(nullptr)
     , m_lastPage(nullptr)
+    , m_poolPage(nullptr)
     , m_nextFreeByte(nullptr)
     , m_lastFreeByte(nullptr)
 {
@@ -234,6 +236,8 @@ void* ArenaAllocator::allocateNewPage(size_t size)
             {
                 assert(newPage->m_memoryManager == m_memoryManager);
                 assert(newPage->m_pageBytes == DEFAULT_PAGE_SIZE);
+
+                m_poolPage = newPage;
             }
         }
     }
@@ -250,7 +254,10 @@ void* ArenaAllocator::allocateNewPage(size_t size)
 
         if (tryPoolNewPage)
         {
-            s_pagePool.tryPoolPage(newPage);
+            if (s_pagePool.tryPoolPage(newPage))
+            {
+                m_poolPage = newPage;
+            }
         }
     }
 
@@ -290,7 +297,7 @@ void ArenaAllocator::destroy()
     PageDescriptor* page = m_firstPage;
 
     // If the first page is the pool page then return it to the pool.
-    if ((page != nullptr) && s_pagePool.isPoolPage(page))
+    if ((page != nullptr) && (page == m_poolPage))
     {
         page = s_pagePool.releasePage(page, m_memoryManager);
     }
@@ -298,7 +305,7 @@ void ArenaAllocator::destroy()
     // Free all of the allocated pages
     for (PageDescriptor* next; page != nullptr; page = next)
     {
-        assert(!s_pagePool.isPoolPage(page));
+        assert(page != m_poolPage);
         next = page->m_next;
         freeHostMemory(m_memoryManager, page);
     }
@@ -307,6 +314,7 @@ void ArenaAllocator::destroy()
     m_memoryManager = nullptr;
     m_firstPage     = nullptr;
     m_lastPage      = nullptr;
+    m_poolPage      = nullptr;
     m_nextFreeByte  = nullptr;
     m_lastFreeByte  = nullptr;
     assert(!isInitialized());

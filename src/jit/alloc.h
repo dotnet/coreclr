@@ -58,6 +58,7 @@ private:
 
     PageDescriptor* m_firstPage;
     PageDescriptor* m_lastPage;
+    PageDescriptor* m_poolPage;
 
     // These two pointers (when non-null) will always point into 'm_lastPage'.
     BYTE* m_nextFreeByte;
