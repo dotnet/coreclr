@@ -26,14 +26,14 @@
     <CoreFxCurrentRef>75ad475df08f27b5a88cb9b66723f6bcd65be6e2</CoreFxCurrentRef>
     <CoreClrCurrentRef>75ad475df08f27b5a88cb9b66723f6bcd65be6e2</CoreClrCurrentRef>
     <BuildToolsCurrentRef>75ad475df08f27b5a88cb9b66723f6bcd65be6e2</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>5a2e641f99ac2d6de46002b2373b5e30d8bf4605</PgoDataCurrentRef>
+    <PgoDataCurrentRef>a65c19fd00e51ae50bd0985cf4f990b387944b2c</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
     <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.5.0-servicing-26708-02</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
     <MicrosoftNETCorePlatformsPackageVersion>2.1.1-servicing-26708-02</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>2.1.0-release-20180714-0608</PgoDataPackageVersion>
+    <PgoDataPackageVersion>2.1.0-release-20180715-0216</PgoDataPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.1.3-servicing-26708-02</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <XunitPackageVersion>2.2.0-beta2-build3300</XunitPackageVersion>
     <XunitConsoleNetcorePackageVersion>1.0.2-prerelease-00177</XunitConsoleNetcorePackageVersion>
