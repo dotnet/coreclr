@@ -15,15 +15,11 @@
 class ICorJitHost
 {
 public:
-    // Allocate memory of the given size in bytes. All bytes of the returned block
-    // must be initialized to zero. If `usePageAllocator` is true, the implementation
-    // should use an allocator that deals in OS pages if one exists.
-    virtual void* allocateMemory(size_t size, bool usePageAllocator = false) = 0;
+    // Allocate memory of the given size in bytes.
+    virtual void* allocateMemory(size_t size) = 0;
 
-    // Frees memory previous obtained by a call to `ICorJitHost::allocateMemory`. The
-    // value of the `usePageAllocator` parameter must match the value that was
-    // provided to the call to used to allocate the memory.
-    virtual void freeMemory(void* block, bool usePageAllocator = false) = 0;
+    // Frees memory previous obtained by a call to `ICorJitHost::allocateMemory`.
+    virtual void freeMemory(void* block) = 0;
 
     // Return an integer config value for the given key, if any exists.
     virtual int getIntConfigValue(

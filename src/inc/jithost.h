@@ -16,8 +16,8 @@ private:
     JitHost& operator=(const JitHost& other) = delete;
 
 public:
-    virtual void* allocateMemory(size_t size, bool usePageAllocator);
-    virtual void freeMemory(void* block, bool usePageAllocator);
+    virtual void* allocateMemory(size_t size);
+    virtual void freeMemory(void* block);
     virtual int getIntConfigValue(const wchar_t* name, int defaultValue);
     virtual const wchar_t* getStringConfigValue(const wchar_t* name);
     virtual void freeStringConfigValue(const wchar_t* value);

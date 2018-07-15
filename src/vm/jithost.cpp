@@ -8,32 +8,18 @@
 #include "corjit.h"
 #include "jithost.h"
 
-void* JitHost::allocateMemory(size_t size, bool usePageAllocator)
+void* JitHost::allocateMemory(size_t size)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (usePageAllocator)
-    {
-        return GetEEMemoryManager()->ClrVirtualAlloc(nullptr, size, MEM_COMMIT, PAGE_READWRITE);
-    }
-    else
-    {
-        return ClrAllocInProcessHeap(0, S_SIZE_T(size));
-    }
+    return ClrAllocInProcessHeap(0, S_SIZE_T(size));
 }
 
-void JitHost::freeMemory(void* block, bool usePageAllocator)
+void JitHost::freeMemory(void* block)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (usePageAllocator)
-    {
-        GetEEMemoryManager()->ClrVirtualFree(block, 0, MEM_RELEASE);
-    }
-    else
-    {
-        ClrFreeInProcessHeap(0, block);
-    }
+    ClrFreeInProcessHeap(0, block);
 }
 
 int JitHost::getIntConfigValue(const wchar_t* name, int defaultValue)
