@@ -2,16 +2,22 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Runtime;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+#if !CORECLR
+using DoubleToStringUnix = Interop.Sys.DoubleToString;
+#endif
 
 namespace System
 {
     internal partial class Number
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+#if CORECLR
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern unsafe int DoubleToStringUnix(double value, byte* format, byte* buffer, int bufferLength);
+#endif
 
         // buffer size to hold digits (40), decimal point, number sign, exponent, exponent symbol 'e', exponent sign and null.
         private const int MAX_BUFFER_SIZE = 50;

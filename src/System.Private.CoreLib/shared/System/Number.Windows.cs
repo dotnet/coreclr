@@ -2,15 +2,20 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+#if !CORECLR
+using DoubleToStringWindows = System.Runtime.RuntimeImports._ecvt_s;
+#endif
 
 namespace System
 {
     internal partial class Number
     {
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static unsafe extern void DoubleToStringWindows(byte* buffer, int sizeInBytes, double value, int count, int* dec, int* sign);
+#if CORECLR
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern unsafe void DoubleToStringWindows(byte* buffer, int sizeInBytes, double value, int count, int* dec, int* sign);
+#endif
 
         private static unsafe void DoubleToNumber(double value, int precision, ref NumberBuffer number)
         {
