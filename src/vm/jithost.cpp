@@ -121,7 +121,7 @@ void* JitHost::allocateSlab(size_t size, size_t* pActualSize)
     }
 
     *pActualSize = size;
-    return new (nothrow) BYTE[size];
+    return ClrAllocInProcessHeap(0, S_SIZE_T(size));
 }
 
 void JitHost::freeSlab(void* slab, size_t actualSize)
@@ -145,7 +145,7 @@ void JitHost::freeSlab(void* slab, size_t actualSize)
         }
     }
 
-    delete [] (BYTE*)slab;
+    ClrFreeInProcessHeap(0, slab);
 }
 
 void JitHost::Init()
@@ -187,7 +187,7 @@ void JitHost::Reclaim()
                 s_pPreviousCachedList = slabToDelete->pNext;
             }
 
-            delete[](BYTE*)slabToDelete;
+            ClrFreeInProcessHeap(0, slabToDelete);
         }
     }
 }
