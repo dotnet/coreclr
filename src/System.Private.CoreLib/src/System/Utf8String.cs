@@ -2,9 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
-using System.Runtime.InteropServices;
+using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -82,5 +85,39 @@ namespace System
         // +1 is for the NUL terminator.)
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Utf8String FastAllocate(int length);  //TODO: Is public for experimentation in CoreFxLab. Will be private in its ultimate form.
+
+        internal ReadOnlySpan<byte> Bytes => MemoryMarshal.CreateReadOnlySpan(ref Unsafe.AsRef(in _firstByte), Length);
+
+        public override string ToString()
+        {
+            if (Length == 0)
+            {
+                return string.Empty;
+            }
+
+            // UTF8 -> UTF16 transcoding will never shrink the total number of code units,
+            // so we should never end up in a situation where the destination buffer is too
+            // small.
+
+            if ((uint)Length <= 64)
+            {
+                Span<char> chars = stackalloc char[Length];
+                int charCount = Encoding.UTF8.GetChars(Bytes, chars);
+                Debug.Assert(charCount > 0);
+
+                return new string(chars.Slice(0, charCount));
+            }
+            else
+            {
+                ArrayPool<char> pool = ArrayPool<char>.Shared;
+                var chars = pool.Rent(Length);
+                int charcount = Encoding.UTF8.GetChars(Bytes, chars);
+                Debug.Assert(charcount > 0);
+
+                var retVal = new string(chars, 0, charcount);
+                pool.Return(chars);
+                return retVal;
+            }
+        }
     }
 }
