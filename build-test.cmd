@@ -60,6 +60,7 @@ set __DoCrossgen=
 @REM and allow the "-priority=1" syntax.
 set __Priority=0
 set __PriorityArg=
+set __PassThroughArg=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -89,6 +90,7 @@ if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!pro
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
+if /i "%1" == "--"                    (set __PassThroughArg=%1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
@@ -229,7 +231,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call "%__ProjectDir%\run.cmd" build -Project="%__NativeTestIntermediatesDir%\install.vcxproj" -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__msbuildNativeArgs% %__RunArgs% %__PriorityArg% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project="%__NativeTestIntermediatesDir%\install.vcxproj" -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__msbuildNativeArgs% %__RunArgs% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -259,7 +261,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -BatchRestorePackages -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 
 if not defined __BuildAgainstPackagesArg goto SkipRestoreProduct
 set __BuildLogRootName=Tests_GenerateRuntimeLayout
@@ -270,7 +272,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct -RuntimeId="%__RuntimeId%" -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__unprocessedBuildArgs%
+call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\runtest.proj -BinPlaceRef -BinPlaceProduct -CopyCrossgenToProduct -RuntimeId="%__RuntimeId%" -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo BinPlace of mscorlib.dll failed
     exit /b 1
@@ -318,7 +320,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
 
     set TestBuildSlice=%%G
-    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__unprocessedBuildArgs%
+    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 
     if errorlevel 1 (
         echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
@@ -390,7 +392,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__unprocessedBuildArgs%
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testOverlay -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -412,7 +414,7 @@ set __msbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testHost -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__unprocessedBuildArgs%
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\runtest.proj -testHost -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %RuntimeIdArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
@@ -469,7 +471,7 @@ REM === Prep test binaries for Helix publishing
 REM ===
 REM =========================================================================================
 
-call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj  -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__PriorityArg% %__unprocessedBuildArgs%
+call %__ProjectDir%\run.cmd build -Project=%__ProjectDir%\tests\helixprep.proj  -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %RuntimeIdArg% %TargetsWindowsArg% %__CrossgenArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
     echo     %__BuildLog%
