@@ -55,7 +55,7 @@ private:
 
     void* allocateNewPage(size_t size);
 
-    static void* allocateHostMemory(size_t size, size_t *pActualSize);
+    static void* allocateHostMemory(size_t size, size_t* pActualSize);
     static void freeHostMemory(void* block, size_t size);
 
 #if MEASURE_MEM_ALLOC

@@ -43,10 +43,7 @@ size_t ArenaAllocator::getDefaultPageSize()
 // ArenaAllocator::ArenaAllocator:
 //    Default-constructs an arena allocator.
 ArenaAllocator::ArenaAllocator()
-    : m_firstPage(nullptr)
-    , m_lastPage(nullptr)
-    , m_nextFreeByte(nullptr)
-    , m_lastFreeByte(nullptr)
+    : m_firstPage(nullptr), m_lastPage(nullptr), m_nextFreeByte(nullptr), m_lastFreeByte(nullptr)
 {
 #if MEASURE_MEM_ALLOC
     memset(&m_stats, 0, sizeof(m_stats));
@@ -84,7 +81,7 @@ void* ArenaAllocator::allocateNewPage(size_t size)
         m_lastPage->m_usedBytes = m_nextFreeByte - m_lastPage->m_contents;
     }
 
-    PageDescriptor* newPage        = nullptr;
+    PageDescriptor* newPage = nullptr;
 
     if (!bypassHostAllocator())
     {
@@ -144,10 +141,10 @@ void ArenaAllocator::destroy()
     }
 
     // Clear out the allocator's fields
-    m_firstPage     = nullptr;
-    m_lastPage      = nullptr;
-    m_nextFreeByte  = nullptr;
-    m_lastFreeByte  = nullptr;
+    m_firstPage    = nullptr;
+    m_lastPage     = nullptr;
+    m_nextFreeByte = nullptr;
+    m_lastFreeByte = nullptr;
 }
 
 // The debug version of the allocator may allocate directly from the
@@ -171,7 +168,7 @@ void ArenaAllocator::destroy()
 //
 // Return Value:
 //    A pointer to the allocated memory.
-void* ArenaAllocator::allocateHostMemory(size_t size, size_t *pActualSize)
+void* ArenaAllocator::allocateHostMemory(size_t size, size_t* pActualSize)
 {
 #if defined(DEBUG)
     if (bypassHostAllocator())
