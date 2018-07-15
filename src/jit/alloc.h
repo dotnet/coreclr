@@ -29,7 +29,6 @@ private:
 
     struct PageDescriptor
     {
-        // Used when the page is allocated
         PageDescriptor* m_next;
 
         size_t m_pageBytes; // # of bytes allocated
@@ -39,8 +38,6 @@ private:
         BYTE m_contents[];
     };
 
-    // Anything less than 64K leaves VM holes since the OS allocates address space in this size.
-    // Thus if we want to make this smaller, we need to do a reserve / commit scheme
     enum
     {
         DEFAULT_PAGE_SIZE = 0x10000,
