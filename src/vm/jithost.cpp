@@ -51,6 +51,15 @@ void JitHost::freeStringConfigValue(const wchar_t* value)
     CLRConfig::FreeConfigString(const_cast<wchar_t*>(value));
 }
 
+//
+// Pool memory blocks for JIT to avoid frequent commit/decommit. The frequent commit/decommit has been 
+// shown to slow down the JIT significantly (10% or more). The memory blocks used by the JIT tend to be too big
+// to be covered by pooling done by the default malloc.
+//
+// - Keep up to some limit worth of memory, with loose affinization of memory blocks to threads.
+// - On finalizer thread, release the extra memory that was not used recently.
+//
+
 struct Slab
 {
     Slab * pNext;
@@ -62,6 +71,7 @@ static CrstStatic s_JitSlabAllocatorCrst;
 static Slab* s_pCurrentCachedList;
 static Slab* s_pPreviousCachedList;
 static size_t s_TotalCached;
+static DWORD s_lastFlush = 0;
 
 void* JitHost::allocateSlab(size_t size, size_t* pActualSize)
 {
@@ -143,14 +153,19 @@ void JitHost::Init()
     s_JitSlabAllocatorCrst.Init(CrstLeafLock);
 }
 
-DWORD s_lastFlush = 0;
-
 void JitHost::Reclaim()
 {
     if (s_pCurrentCachedList != NULL || s_pPreviousCachedList != NULL)
     {
         DWORD ticks = ::GetTickCount();
-        if (ticks - s_lastFlush < 2000) // Flush the free lists every 2 seconds
+
+        if (s_lastFlush == 0) // Just update s_lastFlush first time around
+        {
+            s_lastFlush = ticks;
+            return;
+        }
+
+        if ((DWORD)(ticks - s_lastFlush) < 2000) // Flush the free lists every 2 seconds
             return;
         s_lastFlush = ticks;
 
