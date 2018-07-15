@@ -111,7 +111,7 @@
           }
         },
         {
-          "Name": "DotNet-CoreClr-Trusted-Windows-x86",
+          "Name": "DotNet-CoreClr-Trusted-Windows",
           "Parameters": {
             "Architecture": "x86"
           },
