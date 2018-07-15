@@ -763,11 +763,9 @@ FCFuncEnd()
 #endif // FEATURE_COMINTEROP
 
 FCFuncStart(gDecimalFuncs)
-    FCFuncElement("FCallToCurrency", COMDecimal::DoToCurrency)
 FCFuncEnd()
 
 FCFuncStart(gCurrencyFuncs)
-    FCFuncElement("FCallToDecimal", COMCurrency::DoToDecimal)
 FCFuncEnd()
 
 FCFuncStart(gClrConfig)

@@ -355,9 +355,7 @@ namespace System
                         decimal.DecAddInt32(ref d, 1);
                         if ((d.High | d.Mid | d.Low) == 0)
                         {
-                            d.High = 0x19999999;
-                            d.Mid = 0x99999999;
-                            d.Low = 0x9999999A;
+                            d = new decimal(unchecked((int)0x9999999A), unchecked((int)0x99999999), 0x19999999, false, 0);
                             e++;
                         }
                     }
@@ -371,18 +369,12 @@ namespace System
             {
                 // Parsing a large scale zero can give you more precision than fits in the decimal.
                 // This should only happen for actual zeros or very small numbers that round to zero.
-                d.High = 0;
-                d.Low = 0;
-                d.Mid = 0;
-                d.Scale = DecimalPrecision - 1;
+                value = new decimal(0, 0, 0, false, DecimalPrecision - 1);
             }
             else
             {
-                d.Scale = -e;
+                value = new decimal((int)d.Low, (int)d.Mid, (int)d.High, number.sign, (byte)-e);
             }
-            d.IsNegative = number.sign;
-
-            value = d;
             return true;
         }
 

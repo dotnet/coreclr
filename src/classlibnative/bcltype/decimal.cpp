@@ -167,21 +167,6 @@ FCIMPL2(void, COMDecimal::DoRound, DECIMAL * d, INT32 decimals)
 }
 FCIMPLEND
 
-FCIMPL2_IV(void, COMDecimal::DoToCurrency, CY * result, DECIMAL d)
-{
-    FCALL_CONTRACT;
-
-    ENSURE_OLEAUT32_LOADED();
-
-    // GC is only triggered for throwing, no need to protect result
-    HRESULT hr = VarCyFromDec(&d, result);
-    if (FAILED(hr)) {
-        _ASSERTE(hr != E_INVALIDARG);
-        FCThrowResVoid(kOverflowException, W("Overflow_Currency"));
-    }
-}
-FCIMPLEND
-
 FCIMPL1(double, COMDecimal::ToDouble, FC_DECIMAL d)
 {
     FCALL_CONTRACT;
