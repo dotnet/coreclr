@@ -60,30 +60,17 @@ void JitHost::freeStringConfigValue(const wchar_t* value)
 // - On finalizer thread, release the extra memory that was not used recently.
 //
 
-struct Slab
-{
-    Slab * pNext;
-    size_t size;
-    Thread* affinity;
-};
-
-static CrstStatic s_JitSlabAllocatorCrst;
-static Slab* s_pCurrentCachedList;
-static Slab* s_pPreviousCachedList;
-static size_t s_TotalCached;
-static DWORD s_lastFlush = 0;
-
 void* JitHost::allocateSlab(size_t size, size_t* pActualSize)
 {
     size = max(size, sizeof(Slab));
 
     Thread* pCurrentThread = GetThread();
-    if (s_pCurrentCachedList != NULL || s_pPreviousCachedList != NULL)
+    if (m_pCurrentCachedList != NULL || m_pPreviousCachedList != NULL)
     {
-        CrstHolder lock(&s_JitSlabAllocatorCrst);
+        CrstHolder lock(&m_jitSlabAllocatorCrst);
         Slab** ppCandidate = NULL;
 
-        for (Slab ** ppList = &s_pCurrentCachedList; *ppList != NULL; ppList = &(*ppList)->pNext)
+        for (Slab ** ppList = &m_pCurrentCachedList; *ppList != NULL; ppList = &(*ppList)->pNext)
         {
             Slab* p = *ppList;
             if (p->size >= size && p->size <= 4 * size) // Avoid wasting more than 4x memory
@@ -96,7 +83,7 @@ void* JitHost::allocateSlab(size_t size, size_t* pActualSize)
 
         if (ppCandidate == NULL)
         {
-            for (Slab ** ppList = &s_pPreviousCachedList; *ppList != NULL; ppList = &(*ppList)->pNext)
+            for (Slab ** ppList = &m_pPreviousCachedList; *ppList != NULL; ppList = &(*ppList)->pNext)
             {
                 Slab* p = *ppList;
                 if (p->size == size) // Allocation from previous list requires exact match
@@ -113,7 +100,7 @@ void* JitHost::allocateSlab(size_t size, size_t* pActualSize)
             Slab* p = *ppCandidate;
             *ppCandidate = p->pNext;
 
-            s_TotalCached -= p->size;
+            m_totalCached -= p->size;
             *pActualSize = p->size;
 
             return p;
@@ -130,17 +117,17 @@ void JitHost::freeSlab(void* slab, size_t actualSize)
 
     if (actualSize < 0x100000) // Do not cache blocks that are more than 1MB
     {
-        CrstHolder lock(&s_JitSlabAllocatorCrst);
+        CrstHolder lock(&m_jitSlabAllocatorCrst);
 
-        if (s_TotalCached < 0x1000000) // Do not cache more than 16MB
+        if (m_totalCached < 0x1000000) // Do not cache more than 16MB
         {
-            s_TotalCached += actualSize;
+            m_totalCached += actualSize;
 
             Slab* pSlab = (Slab*)slab;
             pSlab->size = actualSize;
             pSlab->affinity = GetThread();
-            pSlab->pNext = s_pCurrentCachedList;
-            s_pCurrentCachedList = pSlab;
+            pSlab->pNext = m_pCurrentCachedList;
+            m_pCurrentCachedList = pSlab;
             return;
         }
     }
@@ -148,43 +135,43 @@ void JitHost::freeSlab(void* slab, size_t actualSize)
     ClrFreeInProcessHeap(0, slab);
 }
 
-void JitHost::Init()
+void JitHost::init()
 {
-    s_JitSlabAllocatorCrst.Init(CrstLeafLock);
+    m_jitSlabAllocatorCrst.Init(CrstLeafLock);
 }
 
-void JitHost::Reclaim()
+void JitHost::reclaim()
 {
-    if (s_pCurrentCachedList != NULL || s_pPreviousCachedList != NULL)
+    if (m_pCurrentCachedList != NULL || m_pPreviousCachedList != NULL)
     {
         DWORD ticks = ::GetTickCount();
 
-        if (s_lastFlush == 0) // Just update s_lastFlush first time around
+        if (m_lastFlush == 0) // Just update m_lastFlush first time around
         {
-            s_lastFlush = ticks;
+            m_lastFlush = ticks;
             return;
         }
 
-        if ((DWORD)(ticks - s_lastFlush) < 2000) // Flush the free lists every 2 seconds
+        if ((DWORD)(ticks - m_lastFlush) < 2000) // Flush the free lists every 2 seconds
             return;
-        s_lastFlush = ticks;
+        m_lastFlush = ticks;
 
-        // Flush all slabs in s_pPreviousCachedList
+        // Flush all slabs in m_pPreviousCachedList
         for (;;)
         {
             Slab* slabToDelete = NULL;
 
             {
-                CrstHolder lock(&s_JitSlabAllocatorCrst);
-                slabToDelete = s_pPreviousCachedList;
+                CrstHolder lock(&m_jitSlabAllocatorCrst);
+                slabToDelete = m_pPreviousCachedList;
                 if (slabToDelete == NULL)
                 {
-                    s_pPreviousCachedList = s_pCurrentCachedList;
-                    s_pCurrentCachedList = NULL;
+                    m_pPreviousCachedList = m_pCurrentCachedList;
+                    m_pCurrentCachedList = NULL;
                     break;
                 }
-                s_TotalCached -= slabToDelete->size;
-                s_pPreviousCachedList = slabToDelete->pNext;
+                m_totalCached -= slabToDelete->size;
+                m_pPreviousCachedList = slabToDelete->pNext;
             }
 
             ClrFreeInProcessHeap(0, slabToDelete);
@@ -192,13 +179,4 @@ void JitHost::Reclaim()
     }
 }
 
-JitHost JitHost::theJitHost;
-ICorJitHost* JitHost::getJitHost()
-{
-    STATIC_CONTRACT_SO_TOLERANT;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-
-    return &theJitHost;
-}
+JitHost JitHost::s_theJitHost;
