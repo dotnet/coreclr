@@ -12,6 +12,8 @@
 	<TargetFramework>netcoreapp2.0</TargetFramework>
 	<RuntimeFrameworkVersion>2.0.0</RuntimeFrameworkVersion>
 	<TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
+	<CLSCompliant>false</CLSCompliant>
+	<NoWarn>8002,NU1701</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

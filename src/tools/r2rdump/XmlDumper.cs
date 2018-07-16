@@ -129,7 +129,7 @@ namespace R2RDump
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
-            if (_gc)
+            if (_gc && method.GcInfo != null)
             {
                 XmlNode gcNode = XmlDocument.CreateNode("element", "GcInfo", "");
                 methodNode.AppendChild(gcNode);
@@ -175,7 +175,7 @@ namespace R2RDump
             {
                 DumpBytes(rtf.StartAddress, (uint)rtf.Size, rtfNode);
             }
-            if (_unwind)
+            if (_unwind && rtf.UnwindInfo != null)
             {
                 XmlNode unwindNode = null;
                 unwindNode = XmlDocument.CreateNode("element", "UnwindInfo", "");

@@ -369,11 +369,11 @@ namespace R2RDump
                 return 0;
             }
 
-            if (_inputFilenames.Count == 0)
-                throw new ArgumentException("Input filename must be specified (--in <file>)");
-
             try
             {
+                if (_inputFilenames.Count == 0)
+                    throw new ArgumentException("Input filename must be specified (--in <file>)");
+
                 foreach (string filename in _inputFilenames)
                 {
                     R2RReader r2r = new R2RReader(filename);
@@ -403,8 +403,11 @@ namespace R2RDump
             catch (Exception e)
             {
                 Console.WriteLine("Error: " + e.ToString());
-                Console.WriteLine();
-                Console.WriteLine(syntax.GetHelpText());
+                if (e is ArgumentException)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine(syntax.GetHelpText());
+                }
                 if (_xml)
                 {
                     XmlDocument document = new XmlDocument();

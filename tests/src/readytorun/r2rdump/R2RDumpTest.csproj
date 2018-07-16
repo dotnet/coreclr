@@ -7,6 +7,7 @@
     <AssemblyName>R2RDumpTest</AssemblyName>
     <SchemaVersion>2.0</SchemaVersion>
     <OutputType>Exe</OutputType>
+    <CLSCompliant>false</CLSCompliant>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <CoreClrDir>..\..\..\..\..\..\</CoreClrDir>
     <R2RDumpCommand>$(CoreClrDir)bin\Product\$(BuildOS).$(BuildArch).$(BuildType)\netcoreapp2.0\R2RDump.dll</R2RDumpCommand>
