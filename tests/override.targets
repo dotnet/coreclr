@@ -18,13 +18,11 @@
     </ItemGroup>
   </Target>
 
-  <!-- Remove duplicate runtime references that occur when referencing System.Private.CoreLib from and SDK style project -->
-  <Target Name="RemoveRuntimeReferences"
-          Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'" 
-          AfterTargets="ResolveReferences">
+  <!-- Remove package references when referencing System.Private.CoreLib from SDK style project --> 
+  <Target Name="CleanResolvedCompileFileDefinitions"  AfterTargets="ResolvePackageAssets" Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'" >
     <ItemGroup>
-      <ReferencePath Remove="@(ReferencePath)" Condition="$([System.String]::new('%(ReferencePath.HintPath)').EndsWith('System.Runtime.dll')) or $([System.String]::new('%(ReferencePath.HintPath)').EndsWith('System.Collections.dll'))" />
-    </ItemGroup>        
+      <ResolvedCompileFileDefinitions Remove="@(ResolvedCompileFileDefinitions)" />
+    </ItemGroup>
   </Target>
   
   <PropertyGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETFramework'">
