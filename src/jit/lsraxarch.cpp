@@ -2407,14 +2407,13 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             }
 
             case NI_AVX_SetAllVector256:
+            case NI_SSE2_SetAllVector128:
             {
-                if (varTypeIsIntegral(baseType))
+                if (!compiler->compSupports(InstructionSet_AVX2) && compiler->compSupports(InstructionSet_SSSE3) &&
+                    varTypeIsByte(baseType))
                 {
                     buildInternalFloatRegisterDefForNode(intrinsicTree, allSIMDRegs());
-                    if (!compiler->compSupports(InstructionSet_AVX2) && varTypeIsByte(baseType))
-                    {
-                        buildInternalFloatRegisterDefForNode(intrinsicTree, allSIMDRegs());
-                    }
+                    setInternalRegsDelayFree = true;
                 }
                 break;
             }

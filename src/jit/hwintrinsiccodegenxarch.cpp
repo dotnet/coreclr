@@ -1369,6 +1369,25 @@ void CodeGen::genSSEIntrinsic(GenTreeHWIntrinsic* node)
             break;
         }
 
+        case NI_SSE_SetAllVector128:
+        {
+            assert(baseType == TYP_FLOAT);
+            assert(op2 == nullptr);
+            if (compiler->compSupports(InstructionSet_AVX2))
+            {
+                emit->emitIns_R_R(INS_vbroadcastss, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
+            }
+            else if (compiler->compSupports(InstructionSet_AVX))
+            {
+                emit->emitIns_SIMD_R_R_I(INS_vpermilps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg, 0);
+            }
+            else
+            {
+                emit->emitIns_SIMD_R_R_R_I(INS_shufps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg, op1Reg, 0);
+            }
+            break;
+        }
+
         case NI_SSE_SetScalarVector128:
         {
             assert(baseType == TYP_FLOAT);
@@ -1624,6 +1643,78 @@ void CodeGen::genSSE2Intrinsic(GenTreeHWIntrinsic* node)
 
             instruction ins = HWIntrinsicInfo::lookupIns(intrinsicId, baseType);
             emit->emitIns_R_R(ins, emitTypeSize(TYP_INT), targetReg, op1Reg);
+            break;
+        }
+
+        case NI_SSE2_SetAllVector128:
+        {
+            assert(op2 == nullptr);
+            if (varTypeIsIntegral(baseType))
+            {
+                // If the argument is a integer, it needs to be moved into a XMM register
+                emit->emitIns_R_R(INS_mov_i2xmm, emitActualTypeSize(baseType), targetReg, op1Reg);
+            }
+            else
+            {
+                // generate code for Vector128<double>
+                assert(baseType == TYP_DOUBLE);
+                if (compiler->compSupports(InstructionSet_SSE3))
+                {
+                    emit->emitIns_R_R(INS_movddup, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
+                }
+                else
+                {
+                    if (targetReg != op1Reg)
+                    {
+                        emit->emitIns_R_R(INS_movaps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
+                    }
+                    emit->emitIns_R_R(INS_movlhps, emitTypeSize(TYP_SIMD16), targetReg, targetReg);
+                }
+                break;
+            }
+
+            // generate code for integer base types
+            if (compiler->compSupports(InstructionSet_AVX2))
+            {
+                // generate broadcast instructions if AVX2 is available
+                emit->emitIns_R_R(HWIntrinsicInfo::lookupIns(intrinsicId, baseType), emitTypeSize(TYP_SIMD16),
+                                  targetReg, targetReg);
+            }
+            else if (compiler->compSupports(InstructionSet_SSSE3) && varTypeIsByte(baseType))
+            {
+                regNumber tmpZeroReg = node->GetSingleTempReg();
+                emit->emitIns_R_R(INS_pxor, emitTypeSize(TYP_SIMD16), tmpZeroReg, tmpZeroReg);
+                emit->emitIns_SIMD_R_R_R(INS_pshufb, emitTypeSize(TYP_SIMD16), targetReg, targetReg, tmpZeroReg);
+            }
+            else
+            {
+                int ival = 0;
+                switch (baseType)
+                {
+                    case TYP_BYTE:
+                    case TYP_UBYTE:
+                        emit->emitIns_R_R(INS_punpcklbw, emitTypeSize(TYP_SIMD16), targetReg, targetReg);
+                        __fallthrough;
+
+                    case TYP_SHORT:
+                    case TYP_USHORT:
+                        emit->emitIns_R_R_I(INS_pshuflw, emitTypeSize(TYP_SIMD16), targetReg, targetReg, 224);
+                        break;
+
+                    case TYP_LONG:
+                    case TYP_ULONG:
+                        ival = 68;
+                        __fallthrough;
+
+                    case TYP_INT:
+                    case TYP_UINT:
+                        break;
+
+                    default:
+                        unreached();
+                }
+                emit->emitIns_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), targetReg, targetReg, ival);
+            }
             break;
         }
 
@@ -1917,9 +2008,8 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
             if (varTypeIsIntegral(baseType))
             {
                 // If the argument is a integer, it needs to be moved into a XMM register
-                regNumber tmpXMM = node->ExtractTempReg();
-                emit->emitIns_R_R(INS_mov_i2xmm, emitActualTypeSize(baseType), tmpXMM, op1Reg);
-                op1Reg = tmpXMM;
+                emit->emitIns_R_R(INS_mov_i2xmm, emitActualTypeSize(baseType), targetReg, op1Reg);
+                op1Reg = targetReg;
             }
 
             if (compiler->compSupports(InstructionSet_AVX2))
@@ -1933,31 +2023,32 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
                 switch (baseType)
                 {
                     case TYP_FLOAT:
-                        emit->emitIns_SIMD_R_R_I(INS_vpermilps, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, 0);
+                        emit->emitIns_SIMD_R_R_I(INS_vpermilps, emitTypeSize(TYP_SIMD16), targetReg, op1Reg, 0);
                         break;
                     case TYP_DOUBLE:
-                        emit->emitIns_R_R(INS_movddup, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg);
+                        emit->emitIns_R_R(INS_movddup, emitTypeSize(TYP_SIMD16), targetReg, op1Reg);
                         break;
                     case TYP_BYTE:
                     case TYP_UBYTE:
                     {
                         regNumber tmpZeroReg = node->GetSingleTempReg();
                         emit->emitIns_R_R(INS_pxor, emitTypeSize(TYP_SIMD16), tmpZeroReg, tmpZeroReg);
-                        emit->emitIns_SIMD_R_R_R(INS_pshufb, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, tmpZeroReg);
+                        emit->emitIns_SIMD_R_R_R(INS_pshufb, emitTypeSize(TYP_SIMD16), targetReg, targetReg,
+                                                 tmpZeroReg);
                         break;
                     }
                     case TYP_SHORT:
                     case TYP_USHORT:
-                        emit->emitIns_SIMD_R_R_I(INS_pshuflw, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, 0);
-                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, 80);
+                        emit->emitIns_SIMD_R_R_I(INS_pshuflw, emitTypeSize(TYP_SIMD16), targetReg, targetReg, 0);
+                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), targetReg, targetReg, 80);
                         break;
                     case TYP_INT:
                     case TYP_UINT:
-                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, 0);
+                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), targetReg, targetReg, 0);
                         break;
                     case TYP_LONG:
                     case TYP_ULONG:
-                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), op1Reg, op1Reg, 68);
+                        emit->emitIns_SIMD_R_R_I(INS_pshufd, emitTypeSize(TYP_SIMD16), targetReg, targetReg, 68);
                         break;
 
                     default:
@@ -1965,7 +2056,8 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
                         break;
                 }
                 // duplicate the XMM register to YMM register
-                emit->emitIns_SIMD_R_R_R_I(INS_vinsertf128, emitTypeSize(TYP_SIMD32), targetReg, op1Reg, op1Reg, 1);
+                emit->emitIns_SIMD_R_R_R_I(INS_vinsertf128, emitTypeSize(TYP_SIMD32), targetReg, targetReg, targetReg,
+                                           1);
             }
             break;
         }
@@ -1986,7 +2078,6 @@ void CodeGen::genAvxOrAvx2Intrinsic(GenTreeHWIntrinsic* node)
         {
             assert(op2 == nullptr);
             regNumber op1Reg = op1->gtRegNum;
-
             if (op1Reg != targetReg)
             {
                 emit->emitIns_R_R(ins, emitTypeSize(TYP_SIMD32), targetReg, op1Reg);
