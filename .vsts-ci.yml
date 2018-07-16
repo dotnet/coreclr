@@ -1,52 +1,56 @@
 phases:
-  variables:
-    Windows_NT_AgentQueue: Hosted VS2017
-- template: /eng/innerloop.yml
-  parameters:
-    agentOs: Windows_NT
-    queue:
-      name: Hosted VS2017
-      parallel: 3
-      matrix:
-        x64_checked_Innerloop:
-          buildConfig: checked
-          archType: x64
-        x86_checked_Innerloop:
-          buildConfig: checked
-          archType: x86
-        x86_release_Innerloop:
-          buildConfig: release
-          archType: x86
+- phase:
+  queue:
+    name: Hosted VS2017
+  steps:
+  - script: echo Hello World!
 
-- phase: Windows_NT_x64 Formatting
-    queue:
-      name: Hosted VS2017
-      steps:
-        - script: 'python -u tests\\scripts\\format.py -c %Agent.WorkingDirectory% -o Windows_NT -a x64'
-
-- template: /eng/ryujit-perf.yml
-  parameters:
-    agentOs: Windows_NT
-    queue:
-      name: Hosted VS2017
-      parallel: 4
-      matrix:
-        x64_release_full_opt_ryujit_perf:
-          scenario: full_opt
-          buildConfig: release
-          archType: x64
-        x64_release_min_opt_ryujit_perf:
-          scenario: min_opt
-          buildconfig: release
-          archType: x64
-        x86_release_full_opt_ryujit_perf:
-          scenario: full_opt
-          buildconfig: release
-          archType: x86
-        x86_release_min_opt_ryujit_perf:
-          scenario: min_opt
-          buildConfig: release
-          archType: x86
+#- template: /eng/innerloop.yml
+#  parameters:
+#    agentOs: Windows_NT
+#    queue:
+#      name: Hosted VS2017
+#      parallel: 3
+#      matrix:
+#        x64_checked_Innerloop:
+#          buildConfig: checked
+#          archType: x64
+#        x86_checked_Innerloop:
+#          buildConfig: checked
+#          archType: x86
+#        x86_release_Innerloop:
+#          buildConfig: release
+#          archType: x86
+#
+#- phase: Windows_NT_x64 Formatting
+#    queue:
+#      name: Hosted VS2017
+#      steps:
+#        - script: 'python -u tests\\scripts\\format.py -c %Agent.WorkingDirectory% -o Windows_NT -a x64'
+#
+#- template: /eng/ryujit-perf.yml
+#  parameters:
+#    agentOs: Windows_NT
+#    queue:
+#      name: Hosted VS2017
+#      parallel: 4
+#      matrix:
+#        x64_release_full_opt_ryujit_perf:
+#          scenario: full_opt
+#          buildConfig: release
+#          archType: x64
+#        x64_release_min_opt_ryujit_perf:
+#          scenario: min_opt
+#          buildconfig: release
+#          archType: x64
+#        x86_release_full_opt_ryujit_perf:
+#          scenario: full_opt
+#          buildconfig: release
+#          archType: x86
+#        x86_release_min_opt_ryujit_perf:
+#          scenario: min_opt
+#          buildConfig: release
+#          archType: x86
 
          
 #  CentOS7.1 x64 Checked Innerloop Build and Test
