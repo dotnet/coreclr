@@ -1,5 +1,5 @@
 phases:
-- phase: First phase
+- phase: First_phase
   queue:
     name: Hosted VS2017
   steps:
