@@ -122,7 +122,7 @@ public class Program
     [NativeCallable]
     public static int CallbackMethodNonBlittable(bool x1)
     {
-        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have non-blittable aruments");
+        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have non-blittable arguments");
         return -1;
     }
 
@@ -166,7 +166,7 @@ public class Program
     [NativeCallable]
     public static int CallbackMethodGeneric<T>(T arg)
     {
-        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have generic aruments");
+        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have generic arguments");
         return -1;
     }
 
