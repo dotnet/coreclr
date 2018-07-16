@@ -7033,13 +7033,17 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                 break;
 
                 case GT_NULLCHECK:
+                {
                     // Explicit null check.
-                    tree->gtVNPair =
-                        vnStore->VNPWithExc(ValueNumPair(ValueNumStore::VNForVoid(), ValueNumStore::VNForVoid()),
-                                            vnStore->VNPExcSetSingleton(
-                                                vnStore->VNPairForFunc(TYP_REF, VNF_NullPtrExc,
-                                                                       tree->gtOp.gtOp1->gtVNPair)));
-                    break;
+                    // Handle case where operand tree also may case exceptions.
+                    ValueNumPair excSet = vnStore->VNPExcSetSingleton(
+                        vnStore->VNPairForFunc(TYP_REF, VNF_NullPtrExc,
+                                               vnStore->VNPNormVal(tree->gtOp.gtOp1->gtVNPair)));
+
+                    excSet         = vnStore->VNPExcSetUnion(excSet, vnStore->VNPExcVal(tree->gtOp.gtOp1->gtVNPair));
+                    tree->gtVNPair = vnStore->VNPWithExc(vnStore->VNPForVoid(), excSet);
+                }
+                break;
 
                 case GT_LOCKADD: // Binop
                 case GT_XADD:    // Binop
