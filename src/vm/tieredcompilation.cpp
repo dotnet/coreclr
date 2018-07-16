@@ -146,17 +146,16 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
 
     while (true)
     {
-        bool delayInitiatedHere = false;
+        bool attemptedToInitiateDelay = false;
         if (!IsTieringDelayActive())
         {
             if (!TryInitiateTieringDelay())
             {
                 break;
             }
-            delayInitiatedHere = true;
+            attemptedToInitiateDelay = true;
         }
 
-        bool success;
         {
             CrstHolder holder(&m_lock);
 
@@ -168,7 +167,7 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
             }
 
             // Record the method to resume counting later (see Tier1DelayTimerCallback)
-            success = false;
+            bool success = false;
             EX_TRY
             {
                 methodsPendingCountingForTier1->Append(pMethodDesc);
@@ -178,16 +177,16 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(
             {
             }
             EX_END_CATCH(RethrowTerminalExceptions);
-        }
-        if (!success)
-        {
-            break;
-        }
+            if (!success)
+            {
+                break;
+            }
 
-        if (!delayInitiatedHere)
-        {
-            // Delay call counting for currently recoded methods further
-            m_tier1CallCountingCandidateMethodRecentlyRecorded = true;
+            if (!attemptedToInitiateDelay)
+            {
+                // Delay call counting for currently recoded methods further
+                m_tier1CallCountingCandidateMethodRecentlyRecorded = true;
+            }
         }
         return;
     }
@@ -287,11 +286,6 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
     _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
-
-    if (IsTieringDelayActive())
-    {
-        return true;
-    }
 
     NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
     if (methodsPendingCountingHolder == nullptr)
@@ -396,26 +390,35 @@ void TieredCompilationManager::TieringDelayTimerCallbackInAppDomain(LPVOID param
 void TieredCompilationManager::TieringDelayTimerCallbackWorker()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(m_tieringDelayTimerHandle != nullptr);
     _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
-    // It's possible for the timer to tick before it is recorded that the delay is in effect, so wait for that to complete
-    while (!IsTieringDelayActive())
+    HANDLE tieringDelayTimerHandle;
+    bool tier1CallCountingCandidateMethodRecentlyRecorded;
     {
-        ClrSleepEx(0, false);
+        // It's possible for the timer to tick before it is recorded that the delay is in effect. This lock guarantees that the
+        // delay is in effect.
+        CrstHolder holder(&m_lock);
+        _ASSERTE(IsTieringDelayActive());
+
+        tieringDelayTimerHandle = m_tieringDelayTimerHandle;
+        _ASSERTE(tieringDelayTimerHandle != nullptr);
+
+        tier1CallCountingCandidateMethodRecentlyRecorded = m_tier1CallCountingCandidateMethodRecentlyRecorded;
+        if (tier1CallCountingCandidateMethodRecentlyRecorded)
+        {
+            m_tier1CallCountingCandidateMethodRecentlyRecorded = false;
+        }
     }
 
     // Reschedule the timer if there has been recent tier 0 activity (when a new eligible method is called the first time) to
     // further delay call counting
-    if (m_tier1CallCountingCandidateMethodRecentlyRecorded)
+    if (tier1CallCountingCandidateMethodRecentlyRecorded)
     {
-        m_tier1CallCountingCandidateMethodRecentlyRecorded = false;
-
         bool success = false;
         EX_TRY
         {
             if (ThreadpoolMgr::ChangeTimerQueueTimer(
-                    m_tieringDelayTimerHandle,
+                    tieringDelayTimerHandle,
                     g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */))
             {
@@ -434,7 +437,6 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
 
     // Exchange information into locals inside the lock
     SArray<MethodDesc*>* methodsPendingCountingForTier1;
-    HANDLE tier1CountingDelayTimerHandle;
     bool optimizeMethods;
     {
         CrstHolder holder(&m_lock);
@@ -443,8 +445,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         _ASSERTE(methodsPendingCountingForTier1 != nullptr);
         m_methodsPendingCountingForTier1 = nullptr;
 
-        tier1CountingDelayTimerHandle = m_tieringDelayTimerHandle;
-        _ASSERTE(tier1CountingDelayTimerHandle != nullptr);
+        _ASSERTE(tieringDelayTimerHandle == m_tieringDelayTimerHandle);
         m_tieringDelayTimerHandle = nullptr;
 
         _ASSERTE(!IsTieringDelayActive());
@@ -460,7 +461,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
     }
     delete methodsPendingCountingForTier1;
 
-    ThreadpoolMgr::DeleteTimerQueueTimer(tier1CountingDelayTimerHandle, nullptr);
+    ThreadpoolMgr::DeleteTimerQueueTimer(tieringDelayTimerHandle, nullptr);
 
     if (optimizeMethods)
     {
