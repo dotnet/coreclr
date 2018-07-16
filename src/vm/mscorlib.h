@@ -887,6 +887,11 @@ DEFINE_PROPERTY(STRING,             LENGTH,                 Length,             
 DEFINE_CLASS(UTF8_STRING,           System,                 Utf8String)
 DEFINE_METHOD(UTF8_STRING,          CTORF_READONLYSPANOFBYTE,Ctor,                      IM_ReadOnlySpanOfByte_RetUtf8Str)
 DEFINE_METHOD(UTF8_STRING,          CTORF_READONLYSPANOFCHAR,Ctor,                      IM_ReadOnlySpanOfChar_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_BYTEARRAY_START_LEN,Ctor,                     IM_ArrByte_Int_Int_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_BYTEPTR,           Ctor,                      IM_PtrByte_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_CHARARRAY_START_LEN,Ctor,                     IM_ArrChar_Int_Int_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_CHARPTR,           Ctor,                      IM_PtrChar_RetUtf8Str)
+DEFINE_METHOD(UTF8_STRING,          CTORF_STRING,            Ctor,                      IM_String_RetUtf8Str)
 
 DEFINE_CLASS(STRING_BUILDER,        Text,                   StringBuilder)
 DEFINE_PROPERTY(STRING_BUILDER,     LENGTH,                 Length,                     Int)
