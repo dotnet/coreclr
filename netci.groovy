@@ -708,7 +708,13 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         def isBuild = options['use_arm64_build_machine'] == true
 
         if (isBuild == true) {
-            Utilities.setMachineAffinity(job, os, 'latest-arm64')
+            // Current set of machines with private Windows arm64 toolset:
+            // Utilities.setMachineAffinity(job, os, 'latest-arm64')
+            //
+            // New set of machines with public Windows arm64 toolset, coming from Helix:
+            job.with {
+                label('Windows.10.Amd64.ClientRS4.DevEx.Open')
+            }
         } else {
             Utilities.setMachineAffinity(job, os, 'arm64-windows_nt')
         }
