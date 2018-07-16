@@ -7039,9 +7039,10 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                     ValueNumPair excSet = vnStore->VNPExcSetSingleton(
                         vnStore->VNPairForFunc(TYP_REF, VNF_NullPtrExc,
                                                vnStore->VNPNormVal(tree->gtOp.gtOp1->gtVNPair)));
+                    ValueNumPair excSetBoth =
+                        vnStore->VNPExcSetUnion(excSet, vnStore->VNPExcVal(tree->gtOp.gtOp1->gtVNPair));
 
-                    excSet         = vnStore->VNPExcSetUnion(excSet, vnStore->VNPExcVal(tree->gtOp.gtOp1->gtVNPair));
-                    tree->gtVNPair = vnStore->VNPWithExc(vnStore->VNPForVoid(), excSet);
+                    tree->gtVNPair = vnStore->VNPWithExc(vnStore->VNPForVoid(), excSetBoth);
                 }
                 break;
 
