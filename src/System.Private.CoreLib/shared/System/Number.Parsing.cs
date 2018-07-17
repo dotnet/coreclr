@@ -198,7 +198,7 @@ namespace System
             return true;
         }
 
-        internal static unsafe int ParseInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static int ParseInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             if ((styles & ~NumberStyles.Integer) == 0)
             {
@@ -231,7 +231,7 @@ namespace System
             return result;
         }
 
-        internal static unsafe long ParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static long ParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             if ((styles & ~NumberStyles.Integer) == 0)
             {
@@ -264,7 +264,7 @@ namespace System
             return result;
         }
 
-        internal static unsafe uint ParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static uint ParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             uint result = 0;
 
@@ -298,7 +298,7 @@ namespace System
             return result;
         }
 
-        internal static unsafe ulong ParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static ulong ParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             ulong result = 0;
 
@@ -581,14 +581,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             // Parse leading sign.
@@ -737,14 +736,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             // Parse leading sign.
@@ -875,7 +873,7 @@ namespace System
             goto DoneAtEndButPotentialOverflow;
         }
 
-        internal static unsafe bool TryParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out long result)
+        internal static bool TryParseInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out long result)
         {
             if ((styles & ~NumberStyles.Integer) == 0)
             {
@@ -898,7 +896,7 @@ namespace System
                 NumberToInt64(ref number, ref result);
         }
 
-        internal static unsafe bool TryParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out uint result)
+        internal static bool TryParseUInt32(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out uint result)
         {
             if ((styles & ~NumberStyles.Integer) == 0)
             {
@@ -937,14 +935,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             // Parse leading sign.
@@ -1088,14 +1085,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             int answer = 0;
@@ -1178,7 +1174,7 @@ namespace System
             goto DoneAtEndButPotentialOverflow;
         }
         
-        internal static unsafe bool TryParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out ulong result)
+        internal static bool TryParseUInt64(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out ulong result)
         {
             if ((styles & ~NumberStyles.Integer) == 0)
             {
@@ -1217,14 +1213,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             // Parse leading sign.
@@ -1368,14 +1363,13 @@ namespace System
             // Skip past any whitespace at the beginning.  
             if ((styles & NumberStyles.AllowLeadingWhite) != 0 && IsWhite(num))
             {
-                index++;
-                while (true)
+                do
                 {
+                    index++;
                     if ((uint)index >= (uint)value.Length) goto FalseExit;
                     num = value[index];
-                    if (!IsWhite(num)) break;
-                    index++;
                 }
+                while (IsWhite(num));
             }
 
             long answer = 0;
@@ -1458,7 +1452,7 @@ namespace System
             goto DoneAtEndButPotentialOverflow;
         }
 
-        internal static unsafe decimal ParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static decimal ParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
             decimal result = 0;
@@ -1472,7 +1466,7 @@ namespace System
             return result;
         }
 
-        internal static unsafe double ParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static double ParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
             double d = 0;
@@ -1506,7 +1500,7 @@ namespace System
             return d;
         }
 
-        internal static unsafe float ParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
+        internal static float ParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
             double d = 0;
@@ -1544,7 +1538,7 @@ namespace System
             return castSingle;
         }
 
-        internal static unsafe bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result)
+        internal static bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result)
         {
             NumberBuffer number = default;
             result = 0;
@@ -1561,7 +1555,7 @@ namespace System
             return true;
         }
 
-        internal static unsafe bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
+        internal static bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
         {
             NumberBuffer number = default;
             result = 0;
@@ -1577,7 +1571,7 @@ namespace System
             return true;
         }
 
-        internal static unsafe bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
+        internal static bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
         {
             NumberBuffer number = default;
             result = 0;
@@ -1645,36 +1639,29 @@ namespace System
             return true;
         }
 
-        private static unsafe char* MatchChars(char* p, char* pEnd, string str)
+        private static unsafe char* MatchChars(char* p, char* pEnd, string value)
         {
-            fixed (char* stringPointer = str)
+            Debug.Assert(p != null && pEnd != null && p <= pEnd && value != null);
+            fixed (char* stringPointer = value)
             {
-                return MatchChars(p, pEnd, stringPointer);
-            }
-        }
-
-        private static unsafe char* MatchChars(char* p, char* pEnd, char* str)
-        {
-            Debug.Assert(p != null && pEnd != null && p <= pEnd && str != null);
-
-            if (*str == '\0')
-            {
-                return null;
-            }
-            
-            // We only hurt the failure case
-            // This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 as a
-            // space character we use 0x20 space character instead to mean the same.
-            while (true)
-            {
-                char cp = p < pEnd ? *p : '\0';
-                if (cp != *str && !(*str == '\u00a0' && cp == '\u0020'))
+                char* str = stringPointer;
+                if (*str != '\0')
                 {
-                    break;
+                    // We only hurt the failure case
+                    // This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 as a
+                    // space character we use 0x20 space character instead to mean the same.
+                    while (true)
+                    {
+                        char cp = p < pEnd ? *p : '\0';
+                        if (cp != *str && !(*str == '\u00a0' && cp == '\u0020'))
+                        {
+                            break;
+                        }
+                        p++;
+                        str++;
+                        if (*str == '\0') return p;
+                    }
                 }
-                p++;
-                str++;
-                if (*str == '\0') return p;
             }
 
             return null;
