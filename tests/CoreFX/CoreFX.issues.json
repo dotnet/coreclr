@@ -217,6 +217,36 @@
         }
     },
     {
+        "name": "System.Runtime.InteropServices.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Runtime.InteropServices.MarshalTests.SetComObjectData",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.PlatformNotSupportedException)\\nActual:   typeof(System.ArgumentNullException): Value cannot be null."
+                },
+                {
+                    "name": "System.Runtime.InteropServices.MarshalTests.GetComObjectData",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.PlatformNotSupportedException)\\nActual:   typeof(System.ArgumentNullException): Value cannot be null."
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.Remove_NonNullRcw_ThrowsPlatformNotSupportedException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.PlatformNotSupportedException)\\nActual:   typeof(System.ArgumentException): The object's type must be __ComObject or derived from __ComObject."
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.AddEventHandler_DispIdAttribute_ThrowsPlatformNotSupportedException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.PlatformNotSupportedException)\\Actual:   typeof(System.InvalidCastException): Unable to cast COM object of type 'ComObject' to interface type 'System.Runtime.InteropServices.ComTypes.IConnectionPointContainer'. This operation failed because the QueryInterface call on the COM component for the interface with IID '{B196B284-BAB4-101A-B69C-00AA00341D07}' failed due to the following error: No such interface supported (Exception from HRESULT: 0x80004002 (E_NOINTERFACE))."
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.Combine_NonNullRcw_ThrowsPlatformNotSupportedException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.PlatformNotSupportedException)\\nActual:   typeof(System.ArgumentException): The object's type must be __ComObject or derived from __ComObject."
+                }
+            ]
+        }
+    }
+    {
         "name": "System.Security.Cryptography.X509Certificates.Tests",
         "enabled": true,
         "exclusions": {
