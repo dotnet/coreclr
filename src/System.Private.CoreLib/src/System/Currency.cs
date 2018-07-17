@@ -18,7 +18,7 @@ namespace System
         //
         public Currency(decimal value)
         {
-            m_value = decimal.ToCurrency(value).m_value;
+            m_value = decimal.ToOACurrency(value);
         }
 
         // Constructs a Currency from a long value without scaling. The
@@ -50,14 +50,6 @@ namespace System
 
         // Converts a Currency to a decimal.
         //
-        public static decimal ToDecimal(Currency c)
-        {
-            decimal result = new decimal();
-            FCallToDecimal(ref result, c);
-            return result;
-        }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void FCallToDecimal(ref decimal result, Currency c);
+        public static decimal ToDecimal(Currency c) => decimal.FromOACurrency(c.m_value);
     }
 }

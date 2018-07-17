@@ -297,7 +297,6 @@ DEFINE_PROPERTY(CULTURE_INFO,       ID,                     LCID,               
 DEFINE_PROPERTY(CULTURE_INFO,       PARENT,                 Parent,                     CultureInfo)
 
 DEFINE_CLASS(CURRENCY,              System,                 Currency)
-DEFINE_METHOD(CURRENCY,             DECIMAL_CTOR,           .ctor,                      IM_Dec_RetVoid)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(CURRENCY_WRAPPER,      Interop,                CurrencyWrapper)
@@ -310,8 +309,7 @@ DEFINE_METHOD(DATE_TIME,            LONG_CTOR,              .ctor,              
 DEFINE_CLASS(DATE_TIME_OFFSET,      System,                 DateTimeOffset)
 #endif // FEATURE_COMINTEROP
 
-DEFINE_CLASS(DECIMAL,               System,                 Decimal)      
-DEFINE_METHOD(DECIMAL,              CURRENCY_CTOR,          .ctor,                      IM_Currency_RetVoid)
+DEFINE_CLASS(DECIMAL,               System,                 Decimal)
 
 DEFINE_CLASS_U(System,                 Delegate,            NoClass)
 DEFINE_FIELD_U(_target,                    DelegateObject,   _target)

@@ -33,7 +33,6 @@ public:
     static FCDECL3(void, DoMultiply, DECIMAL * d1, DECIMAL * d2, CLR_BOOL * overflowed);
 
     static FCDECL2(void, DoRound, DECIMAL * d1, INT32 decimals);
-    static FCDECL2_IV(void, DoToCurrency, CY * result, DECIMAL d);
     static FCDECL1(void, DoTruncate, DECIMAL * d);
     static FCDECL1(void, DoFloor, DECIMAL * d);
 
