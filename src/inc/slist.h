@@ -137,7 +137,7 @@ protected:
         else
         {
 #if 1
-            // Newer compiliers define offsetof to be __builtin_offsetof, which doesn't use the
+            // Newer compilers define offsetof to be __builtin_offsetof, which doesn't use the
             // old-school memory model trick to determine offset.
             const UINT_PTR offset = (((UINT_PTR)&(((T *)0x1000)->*LinkPtr))-0x1000);
             return (T*)__PTR(dac_cast<TADDR>(pLink) - offset);
