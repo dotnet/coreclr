@@ -11,7 +11,7 @@ namespace System
 {
     /// <summary>
     /// __ComObject is the root class for all COM wrappers. This class defines only
-    /// the basics. This class is used for wrapping COM objects accessed from COM+.
+    /// the basics. This class is used for wrapping COM objects accessed from managed.
     /// </summary>
     internal class __ComObject : MarshalByRefObject
     {

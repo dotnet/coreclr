@@ -832,7 +832,7 @@ namespace System.Runtime.InteropServices
         private static extern void PtrToStructureHelper(IntPtr ptr, object structure, bool allowValueClasses);
 
         /// <summary>
-        /// Freeds all substructures pointed to by the native memory block.
+        /// Frees all substructures pointed to by the native memory block.
         /// "structuretype" is used to provide layout information.
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
