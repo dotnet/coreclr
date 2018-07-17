@@ -1420,6 +1420,7 @@ private:
     static BOOL m_threadUseAllCpuGroups;
     static WORD m_initialGroup;
     static CPU_Group_Info *m_CPUGroupInfoArray;
+    static bool s_hadSingleProcessorAtStartup;
 
     static BOOL InitCPUGroupInfoAPI();
     static BOOL InitCPUGroupInfoArray();
@@ -1474,6 +1475,13 @@ public:
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
 #endif
+
+public:
+    static bool HadSingleProcessorAtStartup()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_hadSingleProcessorAtStartup;
+    }
 };
 
 int GetCurrentProcessCpuCount();
