@@ -26,6 +26,7 @@ namespace System.Diagnostics.Tracing
 
         private IntPtr m_RuntimeProviderID;
 
+        private UInt64 m_sessionID = 0;
         private bool m_stopDispatchTask;
         private Task m_dispatchTask = null;
         private object m_dispatchControlLock = new object();
@@ -73,13 +74,15 @@ namespace System.Diagnostics.Tracing
 
         private void CommitDispatchConfiguration()
         {
+            Debug.Assert(Monitor.IsEntered(m_dispatchControlLock));
+
             // Ensure that the dispatch task is stopped.
             // This is a no-op if the task is already stopped.
             StopDispatchTask();
 
             // Stop tracing.
             // This is a no-op if it's already disabled.
-            EventPipeInternal.Disable();
+            EventPipeInternal.Disable(m_sessionID);
 
             // Check to see if tracing should be enabled.
             if (m_subscriptions.Count <= 0)
@@ -102,7 +105,7 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel)
             };
 
-            EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
 
             // Start the dispatch task.
             StartDispatchTask();

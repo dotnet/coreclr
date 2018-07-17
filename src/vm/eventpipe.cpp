@@ -250,7 +250,7 @@ void EventPipe::Shutdown()
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        Disable();
+        Disable((EventPipeSessionID)s_pSession);
     }
     EX_CATCH { }
     EX_END_CATCH(SwallowAllExceptions);
@@ -279,7 +279,7 @@ void EventPipe::Shutdown()
 #endif
 }
 
-void EventPipe::Enable(
+EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     unsigned int circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
@@ -301,10 +301,10 @@ void EventPipe::Enable(
         static_cast<unsigned int>(numProviders));
 
     // Enable the session.
-    Enable(strOutputPath, pSession);
+    return Enable(strOutputPath, pSession);
 }
 
-void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
+EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
 {
     CONTRACTL
     {
@@ -318,13 +318,13 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
     // If tracing is not initialized or is already enabled, bail here.
     if(!s_tracingInitialized || s_pConfig == NULL || s_pConfig->Enabled())
     {
-        return;
+        return 0;
     }
 
     // If the state or arguments are invalid, bail here.
     if(pSession == NULL || !pSession->IsValid())
     {
-        return;
+        return 0;
     }
 
     // Enable the EventPipe EventSource.
@@ -365,9 +365,12 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
 
     // Enable the sample profiler
     SampleProfiler::Enable();
+
+    // Return the session ID.
+    return (EventPipeSessionID)s_pSession;
 }
 
-void EventPipe::Disable()
+void EventPipe::Disable(EventPipeSessionID sessionID)
 {
     CONTRACTL
     {
@@ -376,6 +379,13 @@ void EventPipe::Disable()
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    // Only perform the disable operation if the session ID
+    // matches the current active session.
+    if(sessionID != (EventPipeSessionID)s_pSession)
+    {
+        return;
+    }
 
     // Don't block GC during clean-up.
     GCX_PREEMP();
@@ -1026,7 +1036,7 @@ EventPipeEventInstance* EventPipe::GetNextEvent()
     return pInstance;
 }
 
-void QCALLTYPE EventPipeInternal::Enable(
+UINT64 QCALLTYPE EventPipeInternal::Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
@@ -1035,18 +1045,22 @@ void QCALLTYPE EventPipeInternal::Enable(
 {
     QCALL_CONTRACT;
 
+    UINT64 sessionID = 0;
+
     BEGIN_QCALL;
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
-    EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
+    sessionID = EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
     END_QCALL;
+
+    return sessionID;
 }
 
-void QCALLTYPE EventPipeInternal::Disable()
+void QCALLTYPE EventPipeInternal::Disable(UINT64 sessionID)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
-    EventPipe::Disable();
+    EventPipe::Disable(sessionID);
     END_QCALL;
 }
 
