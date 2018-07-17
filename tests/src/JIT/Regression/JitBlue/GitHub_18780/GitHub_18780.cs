@@ -12,7 +12,7 @@ public class GitHub_18780
         ok &= M1(0);
         ok &= M2();
         ok &= M3();
-        return ok ? 100 : 0;
+        return ok ? 100 : -1;
     }
 
     // The multiplication by uint.MaxValue was optimized to a NEG
