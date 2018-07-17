@@ -376,10 +376,13 @@ if defined __RuntimeId (
 )
 
 set TargetsWindowsArg=
+set TargetsWindowsMsbuildArg=
 if "%__TargetsWindows%"=="1" (
     set TargetsWindowsArg=-TargetsWindows=true
+    set TargetsWindowsMsbuildArg=/p:TargetsWindows=true
 ) else if "%__TargetsWindows%"=="0" (
     set TargetsWindowsArg=-TargetsWindows=false
+    set TargetsWindowsMsbuildArg=/p:TargetsWindows=false
 )
 
 echo %__MsgPrefix%Creating test overlay...
@@ -436,7 +439,7 @@ set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
 REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
-call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /p:BuildWrappers=true !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %__unprocessedBuildArgs%
+call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /p:BuildWrappers=true !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo Xunit Wrapper build failed
     exit /b 1
