@@ -247,7 +247,7 @@ def main(args):
     # Clone the corefx branch
 
     command = 'git clone -b %s --single-branch %s %s' % (
-        fx_branch, Corefx_url, fx_root)
+        'IncreaseTimeOutInRegexMatchTestsMatch_ExcessPrefixTest', 'https://github.com/echesakovMSFT/corefx.git', fx_root)
     log(command)
     if testing:
         if not os.path.exists(fx_root):
