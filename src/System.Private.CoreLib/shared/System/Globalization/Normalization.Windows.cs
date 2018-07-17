@@ -54,7 +54,7 @@ namespace System.Globalization
             return result;
         }
 
-        internal static string Normalize(string strInput, NormalizationForm normalizationForm)
+        internal static unsafe string Normalize(string strInput, NormalizationForm normalizationForm)
         {
             if (GlobalizationMode.Invariant)
             {
@@ -102,21 +102,22 @@ namespace System.Globalization
             // Don't break for empty strings (only possible for D & KD and not really possible at that)
             if (iLength == 0) return string.Empty;
 
-            // Someplace to stick our buffer
-            char[] cBuffer = null;
-
             for (;;)
             {
                 // (re)allocation buffer and normalize string
-                cBuffer = new char[iLength];
+                var cBuffer = stackalloc char[iLength];
+                int previousLength = iLength;
 
                 // NormalizeString pinvoke has SetLastError attribute property which will set the last error 
                 // to 0 (ERROR_SUCCESS) before executing the calls.
-                iLength = Interop.Normaliz.NormalizeString((int)normalizationForm, strInput, strInput.Length, cBuffer, cBuffer.Length);
+                iLength = Interop.Normaliz.NormalizeString((int)normalizationForm, strInput, strInput.Length, cBuffer, iLength);
                 lastError = Marshal.GetLastWin32Error();
 
                 if (lastError == Interop.Errors.ERROR_SUCCESS)
-                    break;
+                {
+                    // Copy our buffer into our new string, which will be the appropriate size
+                    return new string(cBuffer, 0, iLength);
+                }
 
                 // Could have an error (actually it'd be quite hard to have an error here)
                 switch (lastError)
@@ -124,7 +125,7 @@ namespace System.Globalization
                     // Do appropriate stuff for the individual errors:
                     case Interop.Errors.ERROR_INSUFFICIENT_BUFFER:
                         iLength = Math.Abs(iLength);
-                        Debug.Assert(iLength > cBuffer.Length, "Buffer overflow should have iLength > cBuffer.Length");
+                        Debug.Assert(iLength > previousLength, "Buffer overflow should have iLength > cBuffer.Length");
                         continue;
 
                     case Interop.Errors.ERROR_INVALID_PARAMETER:
@@ -140,9 +141,6 @@ namespace System.Globalization
                         throw new InvalidOperationException(SR.Format(SR.UnknownError_Num, lastError));
                 }
             }
-
-            // Copy our buffer into our new string, which will be the appropriate size
-            return new string(cBuffer, 0, iLength);
         }
     }
 }

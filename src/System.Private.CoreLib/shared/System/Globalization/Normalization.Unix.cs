@@ -41,23 +41,23 @@ namespace System.Globalization
 
             ValidateArguments(strInput, normalizationForm);
 
-            char[] buf = new char[strInput.Length];
+            var buf = stackalloc char[strInput.Length];
 
             for (int attempts = 2; attempts > 0; attempts--)
             {
-                int realLen = Interop.Globalization.NormalizeString(normalizationForm, strInput, strInput.Length, buf, buf.Length);
+                int realLen = Interop.Globalization.NormalizeString(normalizationForm, strInput, strInput.Length, buf, strInput.Length);
 
                 if (realLen == -1)
                 {
                     throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));
                 }
 
-                if (realLen <= buf.Length)
+                if (realLen <= strInput.Length)
                 {
                     return new string(buf, 0, realLen);
                 }
 
-                buf = new char[realLen];
+                buf = stackalloc char[realLen];
             }
 
             throw new ArgumentException(SR.Argument_InvalidCharSequenceNoIndex, nameof(strInput));

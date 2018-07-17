@@ -13,12 +13,11 @@ internal partial class Interop
         internal static extern bool IsNormalizedString(int normForm, string source, int length);
 
         [DllImport("Normaliz.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        internal static extern int NormalizeString(
+        internal static extern unsafe int NormalizeString(
                                         int normForm,
                                         string source,
                                         int sourceLength,
-                                        [System.Runtime.InteropServices.OutAttribute()]
-                                        char[] destination,
+                                        char* destination,
                                         int destinationLength);
     }
 }
