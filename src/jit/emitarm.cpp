@@ -7726,7 +7726,7 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
     if (intConst)
     {
-        emitIns_R_I(ins, attr, dst->gtRegNum, intConst->IconValue());
+        emitIns_R_I(ins, attr, dst->gtRegNum, (target_ssize_t)intConst->IconValue());
         return dst->gtRegNum;
     }
     else
@@ -7813,7 +7813,7 @@ regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, 
 
     if (intConst != nullptr)
     {
-        emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, intConst->IconValue(), flags);
+        emitIns_R_R_I(ins, attr, dst->gtRegNum, nonIntReg->gtRegNum, (target_ssize_t)intConst->IconValue(), flags);
     }
     else
     {
