@@ -4658,7 +4658,7 @@ namespace System.Diagnostics.Tracing
         internal EventWrittenEventArgs(EventSource eventSource)
         {
             m_eventSource = eventSource;
-            TimeStamp = DateTime.Now;
+            TimeStamp = DateTime.UtcNow;
         }
         private string m_message;
         private string m_eventName;
