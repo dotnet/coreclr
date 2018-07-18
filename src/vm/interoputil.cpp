@@ -3715,108 +3715,110 @@ BOOL IsMethodVisibleFromCom(MethodDesc *pMD)
     }
 }
 
-//---------------------------------------------------------------------------
-// This method determines if a type is visible from COM or not based on 
-// its visibility. This version of the method works with a type handle.
-// This version will ignore a type's generic attributes.
-//
-// This API should *never* be called directly!!!
-BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
+namespace
 {
-    CONTRACTL
+    //---------------------------------------------------------------------------
+    // This method determines if a type is visible from COM or not based on
+    // its visibility. This version of the method works with a type handle.
+    // This version will ignore a type's generic attributes.
+    //
+    // This API should *never* be called directly!!!
+    BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
     {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(!hndType.IsNull());        
-    }
-    CONTRACTL_END;
-    
-    DWORD                   dwFlags;
-    mdTypeDef               tdEnclosingType;
-    HRESULT                 hr;
-    const BYTE *            pVal;
-    ULONG                   cbVal;
-    MethodTable *           pMT = hndType.GetMethodTable(); 
-    _ASSERTE(pMT);    
-
-    mdTypeDef               mdType = pMT->GetCl();
-    IMDInternalImport *     pInternalImport = pMT->GetMDImport();
-    Assembly *              pAssembly = pMT->GetAssembly();
-
-    // If the type is a COM imported interface then it is visible from COM.
-    if (pMT->IsInterface() && pMT->IsComImport())
-        return TRUE;
-
-    // If the type is imported from WinRT (has the tdWindowsRuntime flag set), then it is visible from COM.
-    if (pMT->IsProjectedFromWinRT())
-        return TRUE;
-
-    // If the type is an array, then it is not visible from COM.
-    if (pMT->IsArray())
-        return FALSE;
-    
-    // Retrieve the flags for the current type.
-    tdEnclosingType = mdType;
-    if (FAILED(pInternalImport->GetTypeDefProps(tdEnclosingType, &dwFlags, 0)))
-    {
-        return FALSE;
-    }
-    
-    // Handle nested types.
-    while (IsTdNestedPublic(dwFlags))
-    {
-        hr = pInternalImport->GetNestedClassProps(tdEnclosingType, &tdEnclosingType);
-        if (FAILED(hr))
+        CONTRACTL
         {
-            return FALSE;
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+            PRECONDITION(!hndType.IsNull());
         }
-        
-        // Retrieve the flags for the enclosing type.
+        CONTRACTL_END;
+
+        DWORD                   dwFlags;
+        mdTypeDef               tdEnclosingType;
+        HRESULT                 hr;
+        const BYTE *            pVal;
+        ULONG                   cbVal;
+        MethodTable *           pMT = hndType.GetMethodTable();
+        _ASSERTE(pMT);
+
+        mdTypeDef               mdType = pMT->GetCl();
+        IMDInternalImport *     pInternalImport = pMT->GetMDImport();
+        Assembly *              pAssembly = pMT->GetAssembly();
+
+        // If the type is a COM imported interface then it is visible from COM.
+        if (pMT->IsInterface() && pMT->IsComImport())
+            return TRUE;
+
+        // If the type is imported from WinRT (has the tdWindowsRuntime flag set), then it is visible from COM.
+        if (pMT->IsProjectedFromWinRT())
+            return TRUE;
+
+        // If the type is an array, then it is not visible from COM.
+        if (pMT->IsArray())
+            return FALSE;
+
+        // Retrieve the flags for the current type.
+        tdEnclosingType = mdType;
         if (FAILED(pInternalImport->GetTypeDefProps(tdEnclosingType, &dwFlags, 0)))
         {
             return FALSE;
         }
+
+        // Handle nested types.
+        while (IsTdNestedPublic(dwFlags))
+        {
+            hr = pInternalImport->GetNestedClassProps(tdEnclosingType, &tdEnclosingType);
+            if (FAILED(hr))
+            {
+                return FALSE;
+            }
+
+            // Retrieve the flags for the enclosing type.
+            if (FAILED(pInternalImport->GetTypeDefProps(tdEnclosingType, &dwFlags, 0)))
+            {
+                return FALSE;
+            }
+        }
+
+        // If the outermost type is not visible then the specified type is not visible.
+        if (!IsTdPublic(dwFlags))
+            return FALSE;
+
+        // Check to see if the type has the ComVisible attribute set.
+        hr = pInternalImport->GetCustomAttributeByName(mdType, INTEROP_COMVISIBLE_TYPE, (const void**)&pVal, &cbVal);
+        if (hr == S_OK)
+        {
+            CustomAttributeParser cap(pVal, cbVal);
+            if (FAILED(cap.SkipProlog()))
+                return FALSE;
+
+            UINT8 u1;
+            if (FAILED(cap.GetU1(&u1)))
+                return FALSE;
+
+            return (BOOL)u1;
+        }
+
+        // Check to see if the assembly has the ComVisible attribute set.
+        hr = pAssembly->GetManifestImport()->GetCustomAttributeByName(pAssembly->GetManifestToken(), INTEROP_COMVISIBLE_TYPE, (const void**)&pVal, &cbVal);
+        if (hr == S_OK)
+        {
+            CustomAttributeParser cap(pVal, cbVal);
+            if (FAILED(cap.SkipProlog()))
+                return FALSE;
+
+            UINT8 u1;
+            if (FAILED(cap.GetU1(&u1)))
+                return FALSE;
+
+            return (BOOL)u1;
+        }
+
+        // The type is visible.
+        return TRUE;
     }
-    
-    // If the outermost type is not visible then the specified type is not visible.
-    if (!IsTdPublic(dwFlags))
-        return FALSE;
-
-    // Check to see if the type has the ComVisible attribute set.
-    hr = pInternalImport->GetCustomAttributeByName(mdType, INTEROP_COMVISIBLE_TYPE, (const void**)&pVal, &cbVal);
-    if (hr == S_OK)
-    {
-        CustomAttributeParser cap(pVal, cbVal);
-        if (FAILED(cap.SkipProlog()))
-            return FALSE;
-
-        UINT8 u1;
-        if (FAILED(cap.GetU1(&u1)))
-            return FALSE;
-
-        return (BOOL)u1;
-    }
-
-    // Check to see if the assembly has the ComVisible attribute set.
-    hr = pAssembly->GetManifestImport()->GetCustomAttributeByName(pAssembly->GetManifestToken(), INTEROP_COMVISIBLE_TYPE, (const void**)&pVal, &cbVal);
-    if (hr == S_OK)
-    {
-        CustomAttributeParser cap(pVal, cbVal);
-        if (FAILED(cap.SkipProlog()))
-            return FALSE;
-
-        UINT8 u1;
-        if (FAILED(cap.GetU1(&u1)))
-            return FALSE;
-
-        return (BOOL)u1;
-    }
-
-    // The type is visible.
-    return TRUE;
 }
-
 
 //---------------------------------------------------------------------------
 // This method determines if a type is visible from COM or not based on
