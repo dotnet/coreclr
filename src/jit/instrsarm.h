@@ -291,6 +291,7 @@ INST3(b,       "b",      0, 0, IF_EN3E,   0xE000,   0xF0009000, 0xF0009000)
                                    //  b       PC+-i24            T2_J2     11110Siiiiiiiiii 10j1jiiiiiiiiiii   F000 9000           imm(-16777216..16777214) (intra-procedure offset)
                                    //  b       PC+-i24            T2_J3     11110Siiiiiiiiii 10j1jiiiiiiiiiii   F000 9000           imm(-16777216..16777214) (inter-procedure offset)
 
+
 //    enum     name      FP LD/ST         PC+-imm8  PC+-imm20
 //                                          T1_K      T2_J1
 INST2(beq,     "beq",    0, 0, IF_EN2A,   0xD000,    0xF0008000)  

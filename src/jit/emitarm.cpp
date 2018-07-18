@@ -1989,8 +1989,7 @@ void emitter::emitIns_R_I(
     appendToCurIG(id);
 }
 
-void emitter::emitIns_MovRelocatableImmediate(
-    instruction ins, emitAttr attr, regNumber reg, BYTE* addr)
+void emitter::emitIns_MovRelocatableImmediate(instruction ins, emitAttr attr, regNumber reg, BYTE* addr)
 {
     assert(EA_IS_RELOC(attr));
     assert((ins == INS_movw) || (ins == INS_movt));
@@ -5558,8 +5557,8 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         {
             assert(id->idGCref() == GCT_NONE);
             target_ssize_t condcode = emitGetInsSC(id);
-            dst              = emitOutputIT(dst, ins, fmt, condcode);
-            sz               = SMALL_IDSC_SIZE;
+            dst                     = emitOutputIT(dst, ins, fmt, condcode);
+            sz                      = SMALL_IDSC_SIZE;
         }
         break;
 #endif // FEATURE_ITINSTRUCTION
