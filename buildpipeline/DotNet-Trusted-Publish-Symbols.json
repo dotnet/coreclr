@@ -45,6 +45,7 @@
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Extract symbol packages; if release branch, archive",
+      "condition": "and(succeeded(), ne(variables.PB_SecurityBuild, 'true'))",
       "timeoutInMinutes": 0,
       "task": {
         "id": "e213ff0f-5d5c-4791-802d-52ea3e7be1f1",
@@ -65,6 +66,7 @@
       "continueOnError": false,
       "alwaysRun": false,
       "displayName": "Publish Symbols to Artifact Services",
+      "condition": "and(succeeded(), ne(variables.PB_SecurityBuild, 'true'))",
       "timeoutInMinutes": 0,
       "task": {
         "id": "29827cd1-5c33-4ff0-a817-abd46970ffc4",
@@ -187,6 +189,10 @@
     },
     "PB_DotNetCoreShareDir": {
       "value": "passed-by-pipebuild",
+      "allowOverride": true
+    },
+    "PB_SecurityBuild": {
+      "value": "true",
       "allowOverride": true
     },
     "SymbolsProject": {
