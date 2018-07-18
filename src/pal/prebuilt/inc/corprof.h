@@ -15144,6 +15144,8 @@ EXTERN_C const IID IID_ICorProfilerInfo9;
 
 #endif  /* __ICorProfilerInfo9_INTERFACE_DEFINED__ */
 
+#ifndef DACCESS_COMPILE
+
 #ifndef __ICLRProfiling_INTERFACE_DEFINED__
 #define __ICLRProfiling_INTERFACE_DEFINED__
 
@@ -15227,7 +15229,7 @@ interface ICLRProfiling
 
 #endif 	/* C style interface */
 
-
+#endif  /* DACCESS_COMPILE */
 
 
 #endif 	/* __ICLRProfiling_INTERFACE_DEFINED__ */
