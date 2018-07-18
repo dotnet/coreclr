@@ -191,6 +191,10 @@
       "value": "passed-by-pipebuild",
       "allowOverride": true
     },
+    "PB_SecurityBuild": {
+      "value": "true",
+      "allowOverride": true
+    },
     "SymbolsProject": {
       "value": "CLR"
     },

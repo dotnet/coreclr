@@ -451,6 +451,10 @@
       "value": "$(Build.BuildNumber)",
       "allowOverride": true
     },
+    "PB_SecurityBuild": {
+      "value": "true",
+      "allowOverride": true
+    },
     "MyGetFeedUrl": {
       "value": "https://dotnet.myget.org/F/dotnet-core-test/api/v2/package",
       "allowOverride": true
