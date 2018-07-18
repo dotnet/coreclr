@@ -191,6 +191,9 @@ namespace System.Diagnostics.Tracing
             }
         }
 
+        /// <summary>
+        /// Converts a QueryPerformanceCounter (QPC) timestamp to a UTC DateTime.
+        /// </summary>
         private DateTime TimeStampToDateTime(Int64 timeStamp)
         {
             if (timeStamp == Int64.MaxValue)
