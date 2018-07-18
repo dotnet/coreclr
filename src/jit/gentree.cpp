@@ -14938,6 +14938,13 @@ bool Compiler::gtNodeHasSideEffects(GenTree* tree, unsigned flags)
 {
     if (flags & GTF_ASG)
     {
+        // TODO-Cleanup: This only checks for GT_ASG but according to OperRequiresAsgFlag there
+        // are many more opers that are considered to have an assignment side effect: atomic ops
+        // (GT_CMPXCHG & co.), GT_MEMORYBARRIER (not classified as an atomic op) and HW intrinsic
+        // memory stores. Atomic ops have special handling in gtExtractSideEffList but the others
+        // will simply be dropped is they are ever subject to an "extract side effects" operation.
+        // It is possible that the reason no bugs have yet been observed in this area is that the
+        // other nodes are likely to always be tree roots.
         if (tree->OperIsAssignment())
         {
             return true;
@@ -15156,9 +15163,13 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
                 return Compiler::WALK_SKIP_SUBTREES;
             }
 
-            // These have GTF_ASG but for some reason gtNodeHasSideEffects ignores them.
-            // Anyway, they must be preserved, no matter what side effect flags are passed in.
-            if (node->OperIs(GT_LOCKADD, GT_XADD, GT_XCHG, GT_CMPXCHG))
+            // TODO-Cleanup: These have GTF_ASG set but for some reason gtNodeHasSideEffects ignores
+            // them. See the related gtNodeHasSideEffects comment as well.
+            // Also, these nodes must always be preserved, no matter what side effect flags are passed
+            // in. But then it should never be the case that gtExtractSideEffList gets called without
+            // specifying GTF_ASG so there doesn't seem to be any reason to be inconsistent with
+            // gtNodeHasSideEffects and make this check unconditionally.
+            if (node->OperIsAtomicOp())
             {
                 m_sideEffects.Push(node);
                 return Compiler::WALK_SKIP_SUBTREES;

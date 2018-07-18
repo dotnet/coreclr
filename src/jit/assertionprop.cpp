@@ -4618,13 +4618,14 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
             //
             // Do a sanity check to ensure persistent side effects aren't discarded and
             // tell gtExtractSideEffList to ignore the root of the tree.
-            //
-            // Note that the check below is relaxed in order to allow discarding the
-            // root node even if it has exception side effects. It is assumed that
-            // the caller knows what it is doing (e.g. VN may be able to evaluate a
-            // DIV/MOD node to a constant and the node may still have GTF_EXCEPT set,
-            // even if it does not actually throw any exceptions).
             assert(!gtNodeHasSideEffects(oldTree, GTF_PERSISTENT_SIDE_EFFECTS));
+            //
+            // Exception side effects may be ignored if the root is known to be a constant
+            // (e.g. VN may evaluate a DIV/MOD node to a constant and the node may still
+            // have GTF_EXCEPT set, even if it does not actually throw any exceptions).
+            assert(!gtNodeHasSideEffects(oldTree, GTF_EXCEPT) ||
+                   vnStore->IsVNConstant(oldTree->gtVNPair.GetConservative()));
+
             ignoreRoot = true;
         }
 
