@@ -84,9 +84,9 @@ namespace Tracing.Tests
         {
             int osThreadId = -1;
 #if REFLECTION
-            PropertyInfo p = typeof(EventWrittenEventArgs).GetProperty("OSThreadId");
-            MethodInfo m = p.GetGetMethod();
-            osThreadId = (int)m.Invoke(eventData, null);
+            PropertyInfo threadProperty = typeof(EventWrittenEventArgs).GetProperty("OSThreadId");
+            MethodInfo threadMethod = threadProperty.GetGetMethod();
+            osThreadId = (int)threadMethod.Invoke(eventData, null);
 #endif
 
             Console.WriteLine($"[{m_name}] ThreadID = {osThreadId} ID = {eventData.EventId} Name = {eventData.EventName}");
