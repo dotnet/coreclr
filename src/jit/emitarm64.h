@@ -16,12 +16,6 @@ static bool strictArmAsm;
 /*         Routines that compute the size of / encode instructions      */
 /************************************************************************/
 
-struct CnsVal
-{
-    ssize_t cnsVal;
-    bool    cnsReloc;
-};
-
 #ifdef DEBUG
 
 /************************************************************************/

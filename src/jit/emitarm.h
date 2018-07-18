@@ -12,12 +12,6 @@ typedef unsigned int code_t;
 /*         Routines that compute the size of / encode instructions      */
 /************************************************************************/
 
-struct CnsVal
-{
-    int  cnsVal;
-    bool cnsReloc;
-};
-
 insSize emitInsSize(insFormat insFmt);
 
 #ifdef FEATURE_ITINSTRUCTION
