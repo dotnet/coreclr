@@ -463,7 +463,6 @@ if %__BuildNative% EQU 1 (
     call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
     @if defined _echo @echo on
 
-if /i "%__BuildArch%" == "arm64" (
 @echo TEMPORARY: see what is on the CI machine ==========================================================================
 set INCLUDE
 set LIB
@@ -485,7 +484,6 @@ cmake --version
 @echo What version of Visual Studio?
 set VSCMD_VER
 @echo ===================================================================================================================
-)
 
     if not defined VSINSTALLDIR (
         echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
