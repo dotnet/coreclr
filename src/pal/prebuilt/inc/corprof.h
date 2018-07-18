@@ -219,6 +219,13 @@ typedef interface ICorProfilerAssemblyReferenceProvider ICorProfilerAssemblyRefe
 #endif 	/* __ICorProfilerAssemblyReferenceProvider_FWD_DEFINED__ */
 
 
+#ifndef __ICLRProfiling_FWD_DEFINED__
+#define __ICLRProfiling_FWD_DEFINED__
+typedef interface ICLRProfiling ICLRProfiling;
+
+#endif 	/* __ICLRProfiling_FWD_DEFINED__ */
+
+
 /* header files for imported files */
 #include "unknwn.h"
 
@@ -15229,10 +15236,11 @@ interface ICLRProfiling
 
 #endif 	/* C style interface */
 
-#endif  /* DACCESS_COMPILE */
-
 
 #endif 	/* __ICLRProfiling_INTERFACE_DEFINED__ */
+
+
+#endif  /* DACCESS_COMPILE */
 
 
 
