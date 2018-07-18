@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
 
 namespace System.Buffers.Text
 {
@@ -103,8 +104,14 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-            // TODO: When x86 intrinsic support comes online, experiment with implementing this using lzcnt.
-            // return 16 - (int)((uint)Lzcnt.LeadingZeroCount(value | 1) >> 3);
+            if (Lzcnt.IsSupported)
+            {
+                var right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
+                var result = right / 4;
+                if (right % 4 > 0)
+                    result++;
+                return result;
+            }
 
             int digits = 1;
 
