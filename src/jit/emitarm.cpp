@@ -5557,7 +5557,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         case IF_T1_B: // T1_B    ........cccc....                                           cond
         {
             assert(id->idGCref() == GCT_NONE);
-            ssize_t condcode = emitGetInsSC(id);
+            target_ssize_t condcode = emitGetInsSC(id);
             dst              = emitOutputIT(dst, ins, fmt, condcode);
             sz               = SMALL_IDSC_SIZE;
         }
@@ -6006,7 +6006,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             imm = emitGetInsSC(id);
             if (!id->idIsReloc())
             {
-                imm += (size_t)emitConsBlock;
+                imm += (target_size_t)emitConsBlock;
                 if (ins == INS_movw)
                 {
                     imm &= 0xffff;
