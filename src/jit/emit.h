@@ -1241,18 +1241,18 @@ protected:
 
     struct instrDescCns : instrDesc // large const
     {
-        ssize_t idcCnsVal;
+        target_ssize_t idcCnsVal;
     };
 
     struct instrDescDsp : instrDesc // large displacement
     {
-        ssize_t iddDspVal;
+        target_ssize_t iddDspVal;
     };
 
     struct instrDescCnsDsp : instrDesc // large cons + disp
     {
-        ssize_t iddcCnsVal;
-        int     iddcDspVal;
+        target_ssize_t iddcCnsVal;
+        int            iddcDspVal;
     };
 
 #ifdef _TARGET_XARCH_
@@ -1337,7 +1337,7 @@ protected:
 
 #endif // _TARGET_XARCH_
 
-    ssize_t emitGetInsSC(instrDesc* id);
+    target_ssize_t emitGetInsSC(instrDesc* id);
     unsigned emitInsCount;
 
 /************************************************************************/
@@ -1824,10 +1824,10 @@ private:
 
     instrDesc* emitNewInstrSmall(emitAttr attr);
     instrDesc* emitNewInstr(emitAttr attr = EA_4BYTE);
-    instrDesc* emitNewInstrSC(emitAttr attr, ssize_t cns);
-    instrDesc* emitNewInstrCns(emitAttr attr, ssize_t cns);
-    instrDesc* emitNewInstrDsp(emitAttr attr, ssize_t dsp);
-    instrDesc* emitNewInstrCnsDsp(emitAttr attr, ssize_t cns, int dsp);
+    instrDesc* emitNewInstrSC(emitAttr attr, target_ssize_t cns);
+    instrDesc* emitNewInstrCns(emitAttr attr, target_ssize_t cns);
+    instrDesc* emitNewInstrDsp(emitAttr attr, target_ssize_t dsp);
+    instrDesc* emitNewInstrCnsDsp(emitAttr attr, target_ssize_t cns, int dsp);
 #ifdef _TARGET_ARM_
     instrDesc* emitNewInstrReloc(emitAttr attr, BYTE* addr);
 #endif // _TARGET_ARM_
@@ -2301,7 +2301,7 @@ inline emitter::instrDescLbl* emitter::emitNewInstrLbl()
 }
 #endif // !_TARGET_ARM64_
 
-inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, ssize_t dsp)
+inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, target_ssize_t dsp)
 {
     if (dsp == 0)
     {
@@ -2336,7 +2336,7 @@ inline emitter::instrDesc* emitter::emitNewInstrDsp(emitAttr attr, ssize_t dsp)
  *  Note that this very similar to emitter::emitNewInstrSC(), except it never
  *  allocates a small descriptor.
  */
-inline emitter::instrDesc* emitter::emitNewInstrCns(emitAttr attr, ssize_t cns)
+inline emitter::instrDesc* emitter::emitNewInstrCns(emitAttr attr, target_ssize_t cns)
 {
     if (instrDesc::fitsInSmallCns(cns))
     {
@@ -2399,7 +2399,7 @@ inline size_t emitter::emitGetInstrDescSize(const instrDesc* id)
  *  emitNewInstrCns() always allocates at least sizeof(instrDesc).
  */
 
-inline emitter::instrDesc* emitter::emitNewInstrSC(emitAttr attr, ssize_t cns)
+inline emitter::instrDesc* emitter::emitNewInstrSC(emitAttr attr, target_ssize_t cns)
 {
     instrDesc* id;
 
