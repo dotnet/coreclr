@@ -25,6 +25,27 @@ namespace System.Diagnostics.Tracing
     }
 
     [StructLayout(LayoutKind.Sequential)]
+    internal struct EventPipeSessionInfo
+    {
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct SystemTime
+        {
+            internal ushort Year;
+            internal ushort Month;
+            internal ushort DayOfWeek;
+            internal ushort Day;
+            internal ushort Hour;
+            internal ushort Minute;
+            internal ushort Second;
+            internal ushort Milliseconds;
+        }
+
+        internal SystemTime StartTime;
+        internal Int64 StartTimeStamp;
+        internal Int64 TimeStampFrequency;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
     internal struct EventPipeProviderConfiguration
     {
         [MarshalAs(UnmanagedType.LPWStr)]
@@ -196,6 +217,13 @@ namespace System.Diagnostics.Tracing
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe void WriteEventData(IntPtr eventHandle, uint eventID, EventProvider.EventData* pEventData, uint dataCount, Guid* activityId, Guid* relatedActivityId);
+
+
+        //
+        // These PInvokes are used as part of the EventPipeEventDispatcher.
+        //
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe bool GetSessionInfo(UInt64 sessionID, EventPipeSessionInfo* pSessionInfo);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe bool GetNextEvent(EventPipeEventInstanceData* pInstance);

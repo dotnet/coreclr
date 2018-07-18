@@ -245,7 +245,10 @@ class EventPipe
             int numProviders);
 
         // Disable tracing via the event pipe.
-        static void Disable(EventPipeSessionID sessionID);
+        static void Disable(EventPipeSessionID id);
+
+        // Get the session for the specified session ID.
+        static EventPipeSession* GetSession(EventPipeSessionID id);
 
         // Specifies whether or not the event pipe is enabled.
         static bool Enabled();
@@ -395,6 +398,14 @@ private:
         unsigned int PayloadLength;
     };
 
+    struct EventPipeSessionInfo
+    {
+    public:
+        SYSTEMTIME StartTime;
+        LARGE_INTEGER StartTimeStamp;
+        LARGE_INTEGER TimeStampFrequency;
+    };
+
 public:
 
     static UINT64 QCALLTYPE Enable(
@@ -405,6 +416,8 @@ public:
         INT32 numProviders);
 
     static void QCALLTYPE Disable(UINT64 sessionID);
+
+    static bool QCALLTYPE GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo);
 
     static INT_PTR QCALLTYPE CreateProvider(
         __in_z LPCWSTR providerName,

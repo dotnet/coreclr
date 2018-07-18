@@ -27,6 +27,10 @@ namespace System.Diagnostics.Tracing
         private IntPtr m_RuntimeProviderID;
 
         private UInt64 m_sessionID = 0;
+        private DateTime m_syncTimeUtc;
+        private Int64 m_syncTimeQPC;
+        private Int64 m_timeQPCFrequency;
+
         private bool m_stopDispatchTask;
         private Task m_dispatchTask = null;
         private object m_dispatchControlLock = new object();
@@ -90,7 +94,7 @@ namespace System.Diagnostics.Tracing
                 return;
             }
 
-            // Start collecting events.
+            // Determine the keywords and level that should be used based on the set of enabled EventListeners.
             EventKeywords aggregatedKeywords = EventKeywords.None;
             EventLevel highestLevel = EventLevel.LogAlways;
 
@@ -100,12 +104,37 @@ namespace System.Diagnostics.Tracing
                 highestLevel = (subscription.Level > highestLevel) ? subscription.Level : highestLevel;
             }
 
+            // Enable the EventPipe session.
             EventPipeProviderConfiguration[] providerConfiguration = new EventPipeProviderConfiguration[]
             {
                 new EventPipeProviderConfiguration(RuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel)
             };
 
             m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            Debug.Assert(m_sessionID != 0);
+
+            // Get the session information that is required to properly dispatch events.
+            EventPipeSessionInfo sessionInfo;
+            unsafe
+            {
+                if (!EventPipeInternal.GetSessionInfo(m_sessionID, &sessionInfo))
+                {
+                    Debug.Assert(false, "GetSessionInfo returned false.");
+                }
+            }
+
+            m_syncTimeUtc = new DateTime(
+                year: sessionInfo.StartTime.Year,
+                month: sessionInfo.StartTime.Month,
+                day: sessionInfo.StartTime.Day,
+                hour: sessionInfo.StartTime.Hour,
+                minute: sessionInfo.StartTime.Minute,
+                second: sessionInfo.StartTime.Second,
+                millisecond: sessionInfo.StartTime.Milliseconds,
+                kind: DateTimeKind.Utc);
+
+            m_syncTimeQPC = sessionInfo.StartTimeStamp;
+            m_timeQPCFrequency = sessionInfo.TimeStampFrequency;
 
             // Start the dispatch task.
             StartDispatchTask();
@@ -149,7 +178,8 @@ namespace System.Diagnostics.Tracing
                     {
                         // Dispatch the event.
                         ReadOnlySpan<Byte> payload = new ReadOnlySpan<byte>((void*)instanceData.Payload, (int)instanceData.PayloadLength);
-                        RuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, instanceData.TimeStamp, instanceData.ActivityId, instanceData.ChildActivityId, payload);
+                        DateTime dateTimeStamp = TimeStampToDateTime(instanceData.TimeStamp);
+                        RuntimeEventSource.Log.ProcessEvent(instanceData.EventID, instanceData.ThreadID, dateTimeStamp, instanceData.ActivityId, instanceData.ChildActivityId, payload);
                     }
                 }
 
@@ -159,6 +189,23 @@ namespace System.Diagnostics.Tracing
                     Thread.Sleep(10);
                 }
             }
+        }
+
+        private DateTime TimeStampToDateTime(Int64 timeStamp)
+        {
+            if (timeStamp == Int64.MaxValue)
+            {
+                return DateTime.MaxValue;
+            }
+
+            Debug.Assert((m_syncTimeUtc.Ticks != 0) && (m_syncTimeQPC != 0) && (m_timeQPCFrequency != 0));
+            Int64 inTicks = (Int64)((timeStamp - m_syncTimeQPC) * 10000000.0 / m_timeQPCFrequency) + m_syncTimeUtc.Ticks;
+            if((inTicks < 0)|| (DateTime.MaxTicks < inTicks))
+            {
+                inTicks = DateTime.MaxTicks;
+            }
+
+            return new DateTime(inTicks, DateTimeKind.Utc);
         }
     }
 #endif // FEATURE_PERFTRACING

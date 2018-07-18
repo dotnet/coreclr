@@ -370,7 +370,7 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
     return (EventPipeSessionID)s_pSession;
 }
 
-void EventPipe::Disable(EventPipeSessionID sessionID)
+void EventPipe::Disable(EventPipeSessionID id)
 {
     CONTRACTL
     {
@@ -382,7 +382,7 @@ void EventPipe::Disable(EventPipeSessionID sessionID)
 
     // Only perform the disable operation if the session ID
     // matches the current active session.
-    if(sessionID != (EventPipeSessionID)s_pSession)
+    if(id != (EventPipeSessionID)s_pSession)
     {
         return;
     }
@@ -471,6 +471,18 @@ void EventPipe::Disable(EventPipeSessionID sessionID)
         // Providers can't be deleted during tracing because they may be needed when serializing the file.
         s_pConfig->DeleteDeferredProviders();
     }
+}
+
+EventPipeSession* EventPipe::GetSession(EventPipeSessionID id)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeSession *pSession = NULL;
+    if((EventPipeSessionID)s_pSession == id)
+    {
+        pSession = s_pSession;
+    }
+    return pSession;
 }
 
 bool EventPipe::Enabled()
@@ -1062,6 +1074,29 @@ void QCALLTYPE EventPipeInternal::Disable(UINT64 sessionID)
     BEGIN_QCALL;
     EventPipe::Disable(sessionID);
     END_QCALL;
+}
+
+bool QCALLTYPE EventPipeInternal::GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo)
+{
+    QCALL_CONTRACT;
+
+    bool retVal = false;
+    BEGIN_QCALL;
+
+    if(pSessionInfo != NULL)
+    {
+        EventPipeSession *pSession = EventPipe::GetSession(sessionID);
+        if(pSession != NULL)
+        {
+            pSessionInfo->StartTime = pSession->GetStartTime();
+            pSessionInfo->StartTimeStamp.QuadPart = pSession->GetStartTimeStamp().QuadPart;
+            QueryPerformanceFrequency(&pSessionInfo->TimeStampFrequency);
+            retVal = true;
+        }
+    }
+
+    END_QCALL;
+    return retVal;
 }
 
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(

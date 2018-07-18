@@ -2043,14 +2043,14 @@ namespace System.Diagnostics.Tracing
         }
 
         // helper for writing to all EventListeners attached the current eventSource.  
-        internal unsafe void WriteToAllListeners(int eventId, uint* osThreadId, Int64* timeStamp, Guid* activityID, Guid* childActivityID, params object[] args)
+        internal unsafe void WriteToAllListeners(int eventId, uint* osThreadId, DateTime* timeStamp, Guid* activityID, Guid* childActivityID, params object[] args)
         {
             EventWrittenEventArgs eventCallbackArgs = new EventWrittenEventArgs(this);
             eventCallbackArgs.EventId = eventId;
             if (osThreadId != null)
                 eventCallbackArgs.OSThreadId = (int)*osThreadId;
             if (timeStamp != null)
-                eventCallbackArgs.TimeStamp = new DateTime(*timeStamp, DateTimeKind.Local);
+                eventCallbackArgs.TimeStamp = *timeStamp;
             if (activityID != null)
                 eventCallbackArgs.ActivityId = *activityID;
             if (childActivityID != null)
