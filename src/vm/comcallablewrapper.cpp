@@ -5524,13 +5524,6 @@ SLOT* ComCallWrapperTemplate::GetVTableSlot(ULONG index)
     RETURN m_rgpIPtr[index];
 }
 
-BOOL ComCallWrapperTemplate::HasInvisibleParent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (m_flags & enum_InvisibleParent);
-}
-
 // Determines whether the template is for a type that cannot be safely marshalled to 
 // an out of proc COM client
 BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
@@ -5543,7 +5536,7 @@ BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
 }
     CONTRACTL_END;
 
-    if (m_flags & enum_IsSafeTypeForMarshalling)
+    if (HasFlag(m_flags, ComCallWrapperTemplateFlags::IsSafeTypeForMarshalling))
     {
         return TRUE;
     }
@@ -5579,7 +5572,7 @@ BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
 
     if (isSafe)
     {
-        FastInterlockOr(&m_flags, enum_IsSafeTypeForMarshalling);
+        FastInterlockOr((DWORD*)&m_flags, (DWORD)ComCallWrapperTemplateFlags::IsSafeTypeForMarshalling);
     }
 
     return isSafe;
@@ -5639,7 +5632,7 @@ DefaultInterfaceType ComCallWrapperTemplate::GetDefaultInterface(MethodTable **p
     }
     CONTRACTL_END;
 
-    if ((m_flags & enum_DefaultInterfaceTypeComputed) == 0)
+    if (!HasFlag(m_flags, ComCallWrapperTemplateFlags::DefaultInterfaceTypeComputed))
     {
         // we have not computed the default interface yet
         TypeHandle th;
@@ -5648,11 +5641,11 @@ DefaultInterfaceType ComCallWrapperTemplate::GetDefaultInterface(MethodTable **p
         _ASSERTE(th.IsNull() || !th.IsTypeDesc());
         m_pDefaultItf = th.AsMethodTable();
 
-        FastInterlockOr(&m_flags, enum_DefaultInterfaceTypeComputed | (DWORD)defItfType);
+        FastInterlockOr((DWORD*)&m_flags, (DWORD)ComCallWrapperTemplateFlags::DefaultInterfaceTypeComputed | (DWORD)defItfType);
     }
 
     *ppDefaultItf = m_pDefaultItf;
-    return (DefaultInterfaceType)(m_flags & enum_DefaultInterfaceType);
+    return (DefaultInterfaceType)(m_flags & ComCallWrapperTemplateFlags::DefaultInterfaceType);
 }
 
 //--------------------------------------------------------------------------
@@ -6168,23 +6161,23 @@ ComMethodTable *ComCallWrapperTemplate::InitializeForInterface(MethodTable *pPar
 
     if (pItfMT->HasVariance())
     {
-        m_flags |= enum_SupportsVariantInterface;
+        m_flags |= ComCallWrapperTemplateFlags::SupportsVariantInterface;
     }
 
     // update pItfMT in case code:CreateComMethodTableForInterface decided to redirect the interface
     pItfMT = pItfComMT->GetMethodTable();
     if (pItfMT == MscorlibBinder::GetExistingClass(CLASS__ICUSTOM_QUERYINTERFACE))
     {
-        m_flags |= enum_ImplementsICustomQueryInterface;
+        m_flags |= ComCallWrapperTemplateFlags::ImplementsICustomQueryInterface;
     }
     else if (pItfMT->GetComInterfaceType() == ifInspectable)
     {
-        m_flags |= enum_SupportsIInspectable;
+        m_flags |= ComCallWrapperTemplateFlags::SupportsIInspectable;
     }
     else if (InlineIsEqualGUID(pItfComMT->GetIID(), IID_IMarshal))
     {
         // detect IMarshal so we can handle IAgileObject in a backward compatible way
-        m_flags |= enum_ImplementsIMarshal;
+        m_flags |= ComCallWrapperTemplateFlags::ImplementsIMarshal;
     }
 
     return pItfComMT;
@@ -6269,7 +6262,7 @@ ComCallWrapperTemplate* ComCallWrapperTemplate::CreateTemplate(TypeHandle thClas
         pTemplate->m_pWinRTRuntimeClass = (pClsFact != NULL ? pClsFact->GetClass() : NULL);
         pTemplate->m_pICustomQueryInterfaceGetInterfaceMD = NULL;
         pTemplate->m_pIIDToInterfaceTemplateCache = NULL;
-        pTemplate->m_flags = 0;
+        pTemplate->m_flags = ComCallWrapperTemplateFlags::None;
 
         // Determine the COM visibility of classes in our hierarchy.
         pTemplate->DetermineComVisibility();
@@ -6281,19 +6274,19 @@ ComCallWrapperTemplate* ComCallWrapperTemplate::CreateTemplate(TypeHandle thClas
         if (ClassSupportsIClassX(pMT))
         {
             // we will allow building IClassX for the class
-            pTemplate->m_flags |= enum_SupportsIClassX;
+            pTemplate->m_flags |= ComCallWrapperTemplateFlags::SupportsIClassX;
         }
 
         if (pMT->IsArray() && !pMT->IsMultiDimArray())
         {
             // SZ arrays support covariant interfaces
-            pTemplate->m_flags |= enum_SupportsVariantInterface;
+            pTemplate->m_flags |= ComCallWrapperTemplateFlags::SupportsVariantInterface;
         }
 
         if (IsOleAutDispImplRequiredForClass(pMT))
         {
             // Determine what IDispatch implementation this class should use
-            pTemplate->m_flags |= enum_UseOleAutDispatchImpl;
+            pTemplate->m_flags |= ComCallWrapperTemplateFlags::UseOleAutDispatchImpl;
         }
 
         // Eagerly create the interface CMTs.
@@ -6426,7 +6419,7 @@ ComCallWrapperTemplate *ComCallWrapperTemplate::CreateTemplateForInterface(Metho
     pTemplate->m_pWinRTRuntimeClass = NULL;
     pTemplate->m_pICustomQueryInterfaceGetInterfaceMD = NULL;
     pTemplate->m_pIIDToInterfaceTemplateCache = NULL;
-    pTemplate->m_flags = enum_RepresentsVariantInterface;
+    pTemplate->m_flags = ComCallWrapperTemplateFlags::RepresentsVariantInterface;
 
     // Initialize the one ComMethodTable
     ComMethodTable *pItfComMT;
@@ -6468,7 +6461,7 @@ void ComCallWrapperTemplate::DetermineComVisibility()
     }
     CONTRACTL_END;
 
-    m_flags &= (~enum_InvisibleParent);
+    m_flags &= (~ComCallWrapperTemplateFlags::InvisibleParent);
 
     // If the config switch is set, we ignore this.
     if ((g_pConfig == NULL) || (g_pConfig->LegacyComHierarchyVisibility() == FALSE))
@@ -6480,12 +6473,12 @@ void ComCallWrapperTemplate::DetermineComVisibility()
         // If our parent has an invisible parent
         if (m_pParent->HasInvisibleParent())
         {
-            m_flags |= enum_InvisibleParent;
+            m_flags |= ComCallWrapperTemplateFlags::InvisibleParent;
         }
         // If our parent is invisible
         else if (!IsTypeVisibleFromCom(m_pParent->m_thClass))
         {
-            m_flags |= enum_InvisibleParent;
+            m_flags |= ComCallWrapperTemplateFlags::InvisibleParent;
         }
     }
 }
@@ -6567,7 +6560,7 @@ MethodDesc * ComCallWrapperTemplate::GetICustomQueryInterfaceGetInterfaceMD()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(m_flags & enum_ImplementsICustomQueryInterface);
+        PRECONDITION(HasFlag(m_flags, ComCallWrapperTemplateFlags::ImplementsICustomQueryInterface));
     }
     CONTRACT_END;
 
