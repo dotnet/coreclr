@@ -242,7 +242,7 @@
                 {
                     "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.Combine_NonNullRcw_ThrowsPlatformNotSupportedException",
                     "reason": "outdated"
-O                }
+                }
             ]
         }
     },
