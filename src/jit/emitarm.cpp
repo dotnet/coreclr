@@ -5989,6 +5989,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
                 else
                 {
+                    assert(ins == INS_movt);
                     imm = (imm >> 16) & 0xffff;
                 }
             }
@@ -6012,6 +6013,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
                 else
                 {
+                    assert(ins == INS_movt);
                     imm = (imm >> 16) & 0xffff;
                 }
                 code |= insEncodeImmT2_Mov(imm);
