@@ -1187,52 +1187,6 @@ public:
     static BOOL nativeIsDigit(WCHAR c);
 };
 
-template <SIZE_T S>
-struct _INTEGER_TYPE_FOR_SIZE;
-
-template <>
-struct _INTEGER_TYPE_FOR_SIZE<1>
-{
-    typedef U1 type;
-};
-
-template <>
-struct _INTEGER_TYPE_FOR_SIZE<2>
-{
-    typedef U2 type;
-};
-
-template <>
-struct _INTEGER_TYPE_FOR_SIZE<4>
-{
-    typedef U4 type;
-};
-
-template <>
-struct _INTEGER_TYPE_FOR_SIZE<8>
-{
-    typedef U8 type;
-};
-
-template <typename T>
-struct _ENUM_FLAG_INTEGER
-{
-    typedef typename _INTEGER_TYPE_FOR_SIZE<sizeof(T)>::type type;
-};
-
-#define DEFINE_FLAG_OPERATORS(ENUM) \
-    inline constexpr ENUM operator | (ENUM a, ENUM b) { return static_cast<ENUM>(((_ENUM_FLAG_INTEGER<ENUM>::type)a) | ((_ENUM_FLAG_INTEGER<ENUM>::type)b)); } \
-    inline ENUM &operator |= (ENUM &a, ENUM b) { return (ENUM &)(((_ENUM_FLAG_INTEGER<ENUM>::type &)a) |= ((_ENUM_FLAG_INTEGER<ENUM>::type)b)); } \
-    inline constexpr ENUM operator & (ENUM a, ENUM b) { return static_cast<ENUM>(((_ENUM_FLAG_INTEGER<ENUM>::type)a) & ((_ENUM_FLAG_INTEGER<ENUM>::type)b)); } \
-    inline ENUM &operator &= (ENUM &a, ENUM b) { return (ENUM &)(((_ENUM_FLAG_INTEGER<ENUM>::type &)a) &= ((_ENUM_FLAG_INTEGER<ENUM>::type)b)); } \
-    inline constexpr ENUM operator ~ (ENUM a) { return static_cast<ENUM>(~((_ENUM_FLAG_INTEGER<ENUM>::type)a)); }
-
-template<typename ENUM>
-BOOL HasFlag(const ENUM &v, ENUM f)
-{
-    return (((_ENUM_FLAG_INTEGER<ENUM>::type)(v & f)) != 0) ? TRUE : FALSE;
-}
-
 #ifdef _DEBUG
 #define FORCEINLINE_NONDEBUG
 #else
