@@ -190,31 +190,6 @@ private:
 
 class WinRTManagedClassFactory;
 
-enum class ComCallWrapperTemplateFlags
-{
-    None = 0x0,
-
-    // first 3 bits are interpreted as DefaultInterfaceType
-    DefaultInterfaceType = 0x7,
-    DefaultInterfaceTypeComputed = 0x10,
-
-    InvisibleParent = 0x20,
-    ImplementsICustomQueryInterface = 0x40,
-    SupportsIInspectable = 0x80,
-    SupportsIClassX = 0x100,
-
-    SupportsVariantInterface = 0x200, // this is a template for a class that implements an interface with variance
-    RepresentsVariantInterface = 0x400, // this is a template for an interface with variance
-
-    UseOleAutDispatchImpl = 0x800, // the class is decorated with IDispatchImplAttribute(CompatibleImpl)
-
-    ImplementsIMarshal = 0x1000, // the class implements a managed interface with Guid == IID_IMarshal
-
-    IsSafeTypeForMarshalling = 0x2000, // The class can be safely marshalled out of process via DCOM
-};
-
-DEFINE_FLAG_OPERATORS(ComCallWrapperTemplateFlags);
-
 //--------------------------------------------------------------------------------
 // COM callable wrappers for CLR objects
 //--------------------------------------------------------------------------------
@@ -413,6 +388,7 @@ public:
     ComMethodTable* GetBasicComMT();
     ULONG           GetNumInterfaces();
     SLOT*           GetVTableSlot(ULONG index);
+    BOOL            HasInvisibleParent();
     void            CheckParentComVisibility(BOOL fForIDispatch);
     BOOL            CheckParentComVisibilityNoThrow(BOOL fForIDispatch);
     
@@ -426,52 +402,46 @@ public:
 
     IIDToInterfaceTemplateCache *GetOrCreateIIDToInterfaceTemplateCache();
 
-    BOOL HasInvisibleParent()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::InvisibleParent);
-    }
-
     BOOL SupportsICustomQueryInterface()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::ImplementsICustomQueryInterface);
+        return (m_flags & enum_ImplementsICustomQueryInterface);
     }
 
     BOOL SupportsIInspectable()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::SupportsIInspectable);
+        return (m_flags & enum_SupportsIInspectable);
     }
 
     BOOL SupportsVariantInterface()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::SupportsVariantInterface);
+        return (m_flags & enum_SupportsVariantInterface);
     }
 
     BOOL RepresentsVariantInterface()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::RepresentsVariantInterface);
+        return (m_flags & enum_RepresentsVariantInterface);
     }
 
     BOOL IsUseOleAutDispatchImpl()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::UseOleAutDispatchImpl);
+        return (m_flags & enum_UseOleAutDispatchImpl);
     }
 
     BOOL ImplementsIMarshal()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::ImplementsIMarshal);
+        return (m_flags & enum_ImplementsIMarshal);
     }
 
     BOOL SupportsIClassX()
     {
         LIMITED_METHOD_CONTRACT;
-        return HasFlag(m_flags, ComCallWrapperTemplateFlags::SupportsIClassX);
+        return (m_flags & enum_SupportsIClassX);
     }
 
     TypeHandle GetClassType()
@@ -495,6 +465,28 @@ public:
     static ComCallWrapperTemplate *CreateTemplateForInterface(MethodTable *pItfMT);
 
 private:
+    
+    enum ComCallWrapperTemplateFlags
+    {
+        // first 3 bits are interpreted as DefaultInterfaceType
+        enum_DefaultInterfaceType             = 0x7,
+        enum_DefaultInterfaceTypeComputed     = 0x10,
+
+        enum_InvisibleParent                  = 0x20,
+        enum_ImplementsICustomQueryInterface  = 0x40,
+        enum_SupportsIInspectable             = 0x80,
+        enum_SupportsIClassX                  = 0x100,
+
+        enum_SupportsVariantInterface         = 0x200, // this is a template for a class that implements an interface with variance
+        enum_RepresentsVariantInterface       = 0x400, // this is a template for an interface with variance
+
+        enum_UseOleAutDispatchImpl            = 0x800, // the class is decorated with IDispatchImplAttribute(CompatibleImpl)
+
+        enum_ImplementsIMarshal               = 0x1000, // the class implements a managed interface with Guid == IID_IMarshal
+
+        enum_IsSafeTypeForMarshalling         = 0x2000, // The class can be safely marshalled out of process via DCOM
+    };
+
     // Hide the constructor
     ComCallWrapperTemplate();
 
@@ -520,7 +512,7 @@ private:
     MethodTable*                            m_pWinRTRuntimeClass;
     ComMethodTable*                         m_pClassComMT;
     ComMethodTable*                         m_pBasicComMT;
-    ComCallWrapperTemplateFlags             m_flags;
+    DWORD                                   m_flags;
     MethodDesc*                             m_pICustomQueryInterfaceGetInterfaceMD;
     Volatile<IIDToInterfaceTemplateCache *> m_pIIDToInterfaceTemplateCache;
     ULONG                                   m_cbInterfaces;
