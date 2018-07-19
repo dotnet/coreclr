@@ -31,10 +31,10 @@
     <Compile Include="TestHelpers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="files\HelloWorld.csproj" />
-    <ProjectReference Include="files\MultipleRuntimeFunctions.csproj" />
-    <ProjectReference Include="files\GenericFunctions.csproj" />
-    <ProjectReference Include="files\GcInfoTransitions.csproj" />
+    <ProjectReference Include="files\HelloWorld\HelloWorld.csproj" />
+    <ProjectReference Include="files\MultipleRuntimeFunctions\MultipleRuntimeFunctions.csproj" />
+    <ProjectReference Include="files\GenericFunctions\GenericFunctions.csproj" />
+    <ProjectReference Include="files\GcInfoTransitions\GcInfoTransitions.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

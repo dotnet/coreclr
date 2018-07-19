@@ -162,6 +162,7 @@ namespace R2RDump
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {
             XmlNode rtfNode = XmlDocument.CreateNode("element", "RuntimeFunction", "");
+            AddIndexAttribute(rtfNode, $"{rtf.Id}");
             parentNode.AppendChild(rtfNode);
             AddXMLNode("MethodRid", rtf.Method.Rid.ToString(), rtfNode);
             Serialize(rtf, rtfNode);
