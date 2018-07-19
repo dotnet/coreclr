@@ -9,6 +9,7 @@ using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace R2RDump
 {
@@ -40,6 +41,9 @@ namespace R2RDump
     /// </summary>
     public struct FixupCell
     {
+        [XmlAttribute("Index")]
+        public int Index { get; set; }
+
         /// <summary>
         /// Zero-based index of the import table within the import tables section.
         /// </summary>
@@ -51,8 +55,9 @@ namespace R2RDump
         /// </summary>
         public uint CellOffset;
 
-        public FixupCell(uint tableIndex, uint cellOffset)
+        public FixupCell(int index, uint tableIndex, uint cellOffset)
         {
+            Index = index;
             TableIndex = tableIndex;
             CellOffset = cellOffset;
         }
@@ -215,7 +220,7 @@ namespace R2RDump
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetEntryPointInfoFromOffset(offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(_mdReader, rid, runtimeFunctionId, null, null, fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, null, null, fixups);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
                     {
@@ -264,7 +269,7 @@ namespace R2RDump
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetEntryPointInfoFromOffset((int)curParser.Offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(_mdReader, rid, runtimeFunctionId, args, tokens, fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, args, tokens, fixups);
                     if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
                     {
                         isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
@@ -518,7 +523,7 @@ namespace R2RDump
 
                 while (true)
                 {
-                    cells.Add(new FixupCell(curTableIndex, fixupIndex));
+                    cells.Add(new FixupCell(cells.Count, curTableIndex, fixupIndex));
 
                     uint delta = reader.ReadUInt();
 

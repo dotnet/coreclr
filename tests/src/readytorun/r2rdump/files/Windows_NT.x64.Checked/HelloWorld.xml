@@ -194,7 +194,7 @@
         <Token>100663297</Token>
         <EntryPointRuntimeFunctionId>0</EntryPointRuntimeFunctionId>
         <Fixups>
-          <FixupCell>
+          <FixupCell Index="0">
             <TableIndex>1</TableIndex>
             <CellOffset>0</CellOffset>
           </FixupCell>

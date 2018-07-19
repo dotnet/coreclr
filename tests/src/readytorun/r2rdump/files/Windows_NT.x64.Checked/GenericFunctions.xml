@@ -484,19 +484,19 @@
         <Token>100663300</Token>
         <EntryPointRuntimeFunctionId>3</EntryPointRuntimeFunctionId>
         <Fixups>
-          <FixupCell>
+          <FixupCell Index="0">
             <TableIndex>2</TableIndex>
             <CellOffset>0</CellOffset>
           </FixupCell>
-          <FixupCell>
+          <FixupCell Index="1">
             <TableIndex>4</TableIndex>
             <CellOffset>0</CellOffset>
           </FixupCell>
-          <FixupCell>
+          <FixupCell Index="2">
             <TableIndex>4</TableIndex>
             <CellOffset>1</CellOffset>
           </FixupCell>
-          <FixupCell>
+          <FixupCell Index="3">
             <TableIndex>4</TableIndex>
             <CellOffset>2</CellOffset>
           </FixupCell>

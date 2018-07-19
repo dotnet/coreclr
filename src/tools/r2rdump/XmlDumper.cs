@@ -125,7 +125,7 @@ namespace R2RDump
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
             XmlNode methodNode = XmlDocument.CreateNode("element", "Method", "");
-            AddIndexAttribute(methodNode, $"{method.Rid}");
+            AddIndexAttribute(methodNode, $"{method.Index}");
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
