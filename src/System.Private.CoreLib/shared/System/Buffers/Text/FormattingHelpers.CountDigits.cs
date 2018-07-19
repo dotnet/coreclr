@@ -104,7 +104,7 @@ namespace System.Buffers.Text
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int CountHexDigits(ulong value)
         {
-            if (Lzcnt.IsSupported)
+            if (Lzcnt.IsSupported && IntPtr.Size == 8)
             {
                 var right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
                 return (right + 3) >> 2;
