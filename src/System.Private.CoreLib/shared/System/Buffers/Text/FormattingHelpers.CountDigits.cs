@@ -106,7 +106,7 @@ namespace System.Buffers.Text
         {
             if (Lzcnt.IsSupported && IntPtr.Size == 8)
             {
-                var right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
+                int right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
                 return (right + 3) >> 2;
             }
 
