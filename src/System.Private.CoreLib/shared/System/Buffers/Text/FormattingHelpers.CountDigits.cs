@@ -107,10 +107,7 @@ namespace System.Buffers.Text
             if (Lzcnt.IsSupported)
             {
                 var right = 64 - (int)Lzcnt.LeadingZeroCount(value | 1);
-                var result = right / 4;
-                if (right % 4 > 0)
-                    result++;
-                return result;
+                return (right + 3) >> 2;
             }
 
             int digits = 1;
