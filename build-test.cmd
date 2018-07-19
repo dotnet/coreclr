@@ -46,6 +46,7 @@ set processedArgs=
 set __unprocessedBuildArgs=
 set __RunArgs=
 set __BuildAgainstPackagesArg=
+set __BuildAgainstPackagesMsbuildArg=
 set __SkipRestorePackages=
 set __SkipManaged=
 set __SkipNative=
@@ -82,7 +83,7 @@ if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!pr
 if /i "%1" == "skipnative"            (set __SkipNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "buildtesthostonly"     (set __SkipNative=1&set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "toolset_dir"           (set __ToolsetDir=%2&set __PassThroughArgs=%__PassThroughArgs% %2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
-if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "buildagainstpackages"  (set __ZipTests=1&set __BuildAgainstPackagesArg=-BuildTestsAgainstPackages&set __BuildAgainstPackagesMsbuildArg=/p:BuildTestsAgainstPackages=true&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skiprestorepackages"   (set __SkipRestorePackages=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ziptests"              (set __ZipTests=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -439,7 +440,7 @@ set __msbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 
 REM Build wrappers using the local SDK's msbuild. As we move to arcade, the other builds should be moved away from run.exe as well.
-call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /p:BuildWrappers=true !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__unprocessedBuildArgs%
+call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /p:BuildWrappers=true !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__BuildAgainstPackagesMsbuildArg% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo Xunit Wrapper build failed
     exit /b 1
