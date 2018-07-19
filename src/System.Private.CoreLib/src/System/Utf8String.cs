@@ -19,7 +19,7 @@ using nuint = System.UInt32;
 
 namespace System
 {
-    public unsafe sealed class Utf8String
+    public unsafe sealed class Utf8String : IEquatable<Utf8String>
     {
         /*
          * STATIC FIELDS
@@ -202,6 +202,32 @@ namespace System
 
         public int Length => _length;
 
+        public static bool operator ==(Utf8String a, Utf8String b)
+        {
+            // See main comments in Utf8String.Equals(Utf8String) method.
+            // Primary difference with this method is that we need to allow for the
+            // case where 'a' is null without incurring a null ref.
+
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(a, null) || ReferenceEquals(b, null))
+            {
+                return false;
+            }
+
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+
+            return a.AsSpan().SequenceEqual(b.AsSpan());
+        }
+
+        public static bool operator !=(Utf8String a, Utf8String b) => !(a == b);
+
         /// <summary>
         /// Converts this instance to a <see cref="ReadOnlySpan{byte}"/>.
         /// </summary>
@@ -215,10 +241,50 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ref byte DangerousGetMutableReference() => ref Unsafe.AsRef(in _firstByte);
 
+        public override bool Equals(object obj) => (obj is Utf8String other) && this.Equals(other);
+
+        public bool Equals(Utf8String value)
+        {
+            // Fast check - same instance?
+            if (ReferenceEquals(this, value))
+            {
+                return true;
+            }
+
+            // Being compared against null?
+            if (ReferenceEquals(value, null))
+            {
+                return false;
+            }
+
+            // It's possible 'this' could be null if somebody was futzing about with the IL,
+            // but we won't worry too much about this. The Length property getter below will
+            // throw a null ref in that case.
+
+            if (this.Length != value.Length)
+            {
+                return false;
+            }
+
+            // Same length, now check byte-for-byte equality.
+
+            // TODO: There's potential for optimization here, such as including the _length field
+            // or the null terminator in the "to-be-compared" span if it would better allow the
+            // equality comparison routine to consume more bytes at a time rather than drain off
+            // single bytes. We can make this optimization if perf runs show it's useful.
+
+            return this.AsSpan().SequenceEqual(value.AsSpan());
+        }
+
         // Creates a new zero-initialized instance of the specified length. Actual storage allocated is "length + 1" bytes (the extra
         // +1 is for the NUL terminator.)
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern Utf8String FastAllocate(int length);
+
+        public override int GetHashCode()
+        {
+            return Marvin.ComputeHash32(AsSpan(), Marvin.DefaultSeed);
+        }
 
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
