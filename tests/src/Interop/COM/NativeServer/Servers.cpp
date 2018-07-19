@@ -25,10 +25,6 @@ namespace
 
     HRESULT RemoveClsid(_In_ REFCLSID clsid)
     {
-#if defined(_ARM_)
-        return E_NOTIMPL;
-
-#else
         HRESULT hr;
 
         LPOLESTR clsidAsStrRaw;
@@ -65,15 +61,10 @@ namespace
             return __HRESULT_FROM_WIN32(res);
 
         return S_OK;
-#endif // _ARM_
     }
 
     HRESULT RegisterClsid(_In_ REFCLSID clsid, _In_opt_z_ const WCHAR *threadingModel)
     {
-#if defined(_ARM_)
-        return E_NOTIMPL;
-
-#else
         HRESULT hr;
 
         // Remove the CLSID in case it exists and has undesirable settings
@@ -162,7 +153,6 @@ namespace
         }
 
         return S_OK;
-#endif // _ARM_
     }
 }
 
