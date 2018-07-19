@@ -81,7 +81,6 @@ $(_XunitEpilog)
   <PropertyGroup>
     <OutputPath>$(XUnitTestBinBase)\$(CategoryWithSlash)</OutputPath>
     <RuntimeFrameworkVersion>$(MicrosoftNETCoreRuntimeCoreCLRPackageVersion)</RuntimeFrameworkVersion>
-    <RestorePackagesPath>$(ProjectDir)\..\packages</RestorePackagesPath>
  </PropertyGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
