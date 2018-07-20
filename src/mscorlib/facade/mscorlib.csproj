@@ -77,7 +77,7 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <StrongNameSig>Silverlight</StrongNameSig>
+    <StrongNameSig>SilverlightCert121</StrongNameSig>
   </PropertyGroup>
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
