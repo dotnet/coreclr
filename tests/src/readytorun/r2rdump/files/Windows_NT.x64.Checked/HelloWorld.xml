@@ -34,93 +34,108 @@
         <Size>60</Size>
       </R2RSection>
       <Contents>
-        <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="4096">
-          <SectionSize>24</SectionSize>
-          <Flags>CORCOMPILE_IMPORT_FLAGS_EAGER</Flags>
-          <Type>CORCOMPILE_IMPORT_TYPE_UNKNOWN</Type>
-          <EntrySize>0</EntrySize>
-          <SignatureRVA>9264</SignatureRVA>
-          <Entries>
-            <ImportSectionEntry Index="9276">
-              <StartOffset>0</StartOffset>
-              <Section>0</Section>
-              <SignatureSample>GgEagPAaCP8=</SignatureSample>
-            </ImportSectionEntry>
-          </Entries>
-          <AuxiliaryDataRVA>0</AuxiliaryDataRVA>
-        </R2RImportSection>
-        <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="9276">
-          <StartOffset>0</StartOffset>
-          <Section>0</Section>
-          <SignatureSample>GgEagPAaCP8=</SignatureSample>
-        </ImportSectionEntry>
-        <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="4136">
-          <SectionSize>8</SectionSize>
-          <Flags>CORCOMPILE_IMPORT_FLAGS_UNKNOWN</Flags>
-          <Type>CORCOMPILE_IMPORT_TYPE_STRING_HANDLE</Type>
-          <EntrySize>8</EntrySize>
-          <SignatureRVA>10316</SignatureRVA>
-          <Entries />
-          <AuxiliaryDataRVA>0</AuxiliaryDataRVA>
-        </R2RImportSection>
-        <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="4120">
-          <SectionSize>16</SectionSize>
-          <Flags>CORCOMPILE_IMPORT_FLAGS_PCODE</Flags>
-          <Type>CORCOMPILE_IMPORT_TYPE_STUB_DISPATCH</Type>
-          <EntrySize>8</EntrySize>
-          <SignatureRVA>9336</SignatureRVA>
-          <Entries>
-            <ImportSectionEntry Index="10322">
-              <StartOffset>0</StartOffset>
-              <Section>6891812037705</Section>
-              <SignatureSample>FQQVBQAAEAE=</SignatureSample>
-            </ImportSectionEntry>
-            <ImportSectionEntry Index="10324">
-              <StartOffset>8</StartOffset>
-              <Section>6891812037705</Section>
-              <SignatureSample>FQUAABABAgI=</SignatureSample>
-            </ImportSectionEntry>
-          </Entries>
-          <AuxiliaryDataRVA>10308</AuxiliaryDataRVA>
-          <AuxiliaryData>
-            <Version>2</Version>
-            <CodeLength>0</CodeLength>
-            <ReturnKind>RT_Object</ReturnKind>
-            <ValidRangeStart>0</ValidRangeStart>
-            <ValidRangeEnd>0</ValidRangeEnd>
-            <SecurityObjectStackSlot>-1</SecurityObjectStackSlot>
-            <GSCookieStackSlot>-1</GSCookieStackSlot>
-            <PSPSymStackSlot>-1</PSPSymStackSlot>
-            <GenericsInstContextStackSlot>-1</GenericsInstContextStackSlot>
-            <StackBaseRegister>4294967295</StackBaseRegister>
-            <SizeOfEditAndContinuePreservedArea>4294967295</SizeOfEditAndContinuePreservedArea>
-            <ReversePInvokeFrameStackSlot>-1</ReversePInvokeFrameStackSlot>
-            <SizeOfStackOutgoingAndScratchArea>0</SizeOfStackOutgoingAndScratchArea>
-            <NumSafePoints>0</NumSafePoints>
-            <NumInterruptibleRanges>0</NumInterruptibleRanges>
-            <SafePointOffsets />
-            <InterruptibleRanges />
-            <SlotTable>
-              <NumRegisters>0</NumRegisters>
-              <NumStackSlots>0</NumStackSlots>
-              <NumUntracked>0</NumUntracked>
-              <NumSlots>0</NumSlots>
-              <GcSlots />
-            </SlotTable>
-            <Size>22</Size>
-            <Offset>3140</Offset>
-          </AuxiliaryData>
-        </R2RImportSection>
-        <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="10322">
-          <StartOffset>0</StartOffset>
-          <Section>6891812037705</Section>
-          <SignatureSample>FQQVBQAAEAE=</SignatureSample>
-        </ImportSectionEntry>
-        <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="10324">
-          <StartOffset>8</StartOffset>
-          <Section>6891812037705</Section>
-          <SignatureSample>FQUAABABAgI=</SignatureSample>
-        </ImportSectionEntry>
+        <ImportSection Index="0">
+          <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
+            <SectionRVA>4096</SectionRVA>
+            <SectionSize>24</SectionSize>
+            <Flags>CORCOMPILE_IMPORT_FLAGS_EAGER</Flags>
+            <Type>CORCOMPILE_IMPORT_TYPE_UNKNOWN</Type>
+            <EntrySize>0</EntrySize>
+            <SignatureRVA>9264</SignatureRVA>
+            <Entries>
+              <ImportSectionEntry Index="0">
+                <StartOffset>0</StartOffset>
+                <Section>0</Section>
+                <SignatureRVA>9276</SignatureRVA>
+                <SignatureSample>GgEagPAaCP8=</SignatureSample>
+              </ImportSectionEntry>
+            </Entries>
+            <AuxiliaryDataRVA>0</AuxiliaryDataRVA>
+          </R2RImportSection>
+          <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
+            <StartOffset>0</StartOffset>
+            <Section>0</Section>
+            <SignatureRVA>9276</SignatureRVA>
+            <SignatureSample>GgEagPAaCP8=</SignatureSample>
+          </ImportSectionEntry>
+        </ImportSection>
+        <ImportSection Index="1">
+          <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="1">
+            <SectionRVA>4136</SectionRVA>
+            <SectionSize>8</SectionSize>
+            <Flags>CORCOMPILE_IMPORT_FLAGS_UNKNOWN</Flags>
+            <Type>CORCOMPILE_IMPORT_TYPE_STRING_HANDLE</Type>
+            <EntrySize>8</EntrySize>
+            <SignatureRVA>10316</SignatureRVA>
+            <Entries />
+            <AuxiliaryDataRVA>0</AuxiliaryDataRVA>
+          </R2RImportSection>
+        </ImportSection>
+        <ImportSection Index="2">
+          <R2RImportSection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="2">
+            <SectionRVA>4120</SectionRVA>
+            <SectionSize>16</SectionSize>
+            <Flags>CORCOMPILE_IMPORT_FLAGS_PCODE</Flags>
+            <Type>CORCOMPILE_IMPORT_TYPE_STUB_DISPATCH</Type>
+            <EntrySize>8</EntrySize>
+            <SignatureRVA>9336</SignatureRVA>
+            <Entries>
+              <ImportSectionEntry Index="0">
+                <StartOffset>0</StartOffset>
+                <Section>6891812037705</Section>
+                <SignatureRVA>10322</SignatureRVA>
+                <SignatureSample>FQQVBQAAEAE=</SignatureSample>
+              </ImportSectionEntry>
+              <ImportSectionEntry Index="1">
+                <StartOffset>8</StartOffset>
+                <Section>6891812037705</Section>
+                <SignatureRVA>10324</SignatureRVA>
+                <SignatureSample>FQUAABABAgI=</SignatureSample>
+              </ImportSectionEntry>
+            </Entries>
+            <AuxiliaryDataRVA>10308</AuxiliaryDataRVA>
+            <AuxiliaryData>
+              <Version>2</Version>
+              <CodeLength>0</CodeLength>
+              <ReturnKind>RT_Object</ReturnKind>
+              <ValidRangeStart>0</ValidRangeStart>
+              <ValidRangeEnd>0</ValidRangeEnd>
+              <SecurityObjectStackSlot>-1</SecurityObjectStackSlot>
+              <GSCookieStackSlot>-1</GSCookieStackSlot>
+              <PSPSymStackSlot>-1</PSPSymStackSlot>
+              <GenericsInstContextStackSlot>-1</GenericsInstContextStackSlot>
+              <StackBaseRegister>4294967295</StackBaseRegister>
+              <SizeOfEditAndContinuePreservedArea>4294967295</SizeOfEditAndContinuePreservedArea>
+              <ReversePInvokeFrameStackSlot>-1</ReversePInvokeFrameStackSlot>
+              <SizeOfStackOutgoingAndScratchArea>0</SizeOfStackOutgoingAndScratchArea>
+              <NumSafePoints>0</NumSafePoints>
+              <NumInterruptibleRanges>0</NumInterruptibleRanges>
+              <SafePointOffsets />
+              <InterruptibleRanges />
+              <SlotTable>
+                <NumRegisters>0</NumRegisters>
+                <NumStackSlots>0</NumStackSlots>
+                <NumUntracked>0</NumUntracked>
+                <NumSlots>0</NumSlots>
+                <GcSlots />
+              </SlotTable>
+              <Size>22</Size>
+              <Offset>3140</Offset>
+            </AuxiliaryData>
+          </R2RImportSection>
+          <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
+            <StartOffset>0</StartOffset>
+            <Section>6891812037705</Section>
+            <SignatureRVA>10322</SignatureRVA>
+            <SignatureSample>FQQVBQAAEAE=</SignatureSample>
+          </ImportSectionEntry>
+          <ImportSectionEntry xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="1">
+            <StartOffset>8</StartOffset>
+            <Section>6891812037705</Section>
+            <SignatureRVA>10324</SignatureRVA>
+            <SignatureSample>FQUAABABAgI=</SignatureSample>
+          </ImportSectionEntry>
+        </ImportSection>
       </Contents>
     </Section>
     <Section Index="READYTORUN_SECTION_RUNTIME_FUNCTIONS">
@@ -185,13 +200,14 @@
   </Sections>
   <Methods>
     <Count>2</Count>
-    <Method Index="1">
-      <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="1">
+    <Method Index="0">
+      <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
         <Name>Main</Name>
         <SignatureString>HelloWorld.HelloWorld.Main(String[])</SignatureString>
         <IsGeneric>false</IsGeneric>
         <DeclaringType>HelloWorld.HelloWorld</DeclaringType>
         <Token>100663297</Token>
+        <Rid>1</Rid>
         <EntryPointRuntimeFunctionId>0</EntryPointRuntimeFunctionId>
         <Fixups>
           <FixupCell Index="0">
@@ -300,13 +316,14 @@
         </RuntimeFunction>
       </RuntimeFunctions>
     </Method>
-    <Method Index="2">
-      <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="2">
+    <Method Index="1">
+      <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="1">
         <Name>.ctor</Name>
         <SignatureString>HelloWorld.HelloWorld..ctor()</SignatureString>
         <IsGeneric>false</IsGeneric>
         <DeclaringType>HelloWorld.HelloWorld</DeclaringType>
         <Token>100663298</Token>
+        <Rid>2</Rid>
         <EntryPointRuntimeFunctionId>1</EntryPointRuntimeFunctionId>
       </R2RMethod>
       <GcInfo>

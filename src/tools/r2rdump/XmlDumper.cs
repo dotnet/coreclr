@@ -270,25 +270,29 @@ namespace R2RDump
                 case R2RSection.SectionType.READYTORUN_SECTION_IMPORT_SECTIONS:
                     foreach (R2RImportSection importSection in _r2r.ImportSections)
                     {
-                        Serialize(importSection, contentsNode);
+                        XmlNode importSectionsNode = XmlDocument.CreateNode("element", "ImportSection", "");
+                        AddIndexAttribute(importSectionsNode, $"{importSection.Index}");
+                        contentsNode.AppendChild(importSectionsNode);
+
+                        Serialize(importSection, importSectionsNode);
                         if (_raw && importSection.Entries.Count != 0)
                         {
                             if (importSection.SectionRVA != 0)
                             {
-                                DumpBytes(importSection.SectionRVA, (uint)importSection.SectionSize, contentsNode, "SectionBytes");
+                                DumpBytes(importSection.SectionRVA, (uint)importSection.SectionSize, importSectionsNode, "SectionBytes");
                             }
                             if (importSection.SignatureRVA != 0)
                             {
-                                DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int), contentsNode, "SignatureBytes");
+                                DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int), importSectionsNode, "SignatureBytes");
                             }
                             if (importSection.AuxiliaryDataRVA != 0)
                             {
-                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, contentsNode, "AuxiliaryDataBytes");
+                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, importSectionsNode, "AuxiliaryDataBytes");
                             }
                         }
                         foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)
                         {
-                            Serialize(entry, contentsNode);
+                            Serialize(entry, importSectionsNode);
                         }
                     }
                     break;
