@@ -130,7 +130,7 @@ namespace System.Buffers.Text
         }
 
         
-        // Counts the number of trailing '0' digits in a decimal numnber.
+        // Counts the number of trailing '0' digits in a decimal number.
         // e.g., value =      0 => retVal = 0, valueWithoutTrailingZeros = 0
         //       value =   1234 => retVal = 0, valueWithoutTrailingZeros = 1234
         //       value = 320900 => retVal = 2, valueWithoutTrailingZeros = 3209

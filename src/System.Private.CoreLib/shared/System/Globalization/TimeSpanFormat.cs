@@ -57,7 +57,7 @@ namespace System.Globalization
 
                 if ((c | 0x20) == 'g') // special-case to optimize the remaining 'g'/'G' standard formats
                 {
-                    return FormatG(value, DateTimeFormatInfo.GetInstance(formatProvider), c == 'G' ? StandardTimeSpanFormat.G : StandardTimeSpanFormat.g);
+                    return FormatG(value, DateTimeFormatInfo.GetInstance(formatProvider), c == 'G' ? StandardFormat.G : StandardFormat.g);
                 }
 
                 throw new FormatException(SR.Format_InvalidString);
@@ -71,7 +71,7 @@ namespace System.Globalization
         {
             if (format.Length == 0)
             {
-                return TryFormatStandard(value, StandardTimeSpanFormat.C, null, destination, out charsWritten);
+                return TryFormatStandard(value, StandardFormat.C, null, destination, out charsWritten);
             }
 
             if (format.Length == 1)
@@ -79,15 +79,15 @@ namespace System.Globalization
                 char c = format[0];
                 if (c == 'c' || ((c | 0x20) == 't'))
                 {
-                    return TryFormatStandard(value, StandardTimeSpanFormat.C, null, destination, out charsWritten);
+                    return TryFormatStandard(value, StandardFormat.C, null, destination, out charsWritten);
                 }
                 else
                 {
-                    StandardTimeSpanFormat stsf =
-                        c == 'g' ? StandardTimeSpanFormat.g :
-                        c == 'G' ? StandardTimeSpanFormat.G :
+                    StandardFormat sf =
+                        c == 'g' ? StandardFormat.g :
+                        c == 'G' ? StandardFormat.G :
                         throw new FormatException(SR.Format_InvalidString);
-                   return TryFormatStandard(value, stsf, DateTimeFormatInfo.GetInstance(formatProvider).DecimalSeparator, destination, out charsWritten);
+                   return TryFormatStandard(value, sf, DateTimeFormatInfo.GetInstance(formatProvider).DecimalSeparator, destination, out charsWritten);
                 }
             }
 
@@ -109,11 +109,11 @@ namespace System.Globalization
         internal static string FormatC(TimeSpan value)
         {
             Span<char> destination = stackalloc char[26]; // large enough for any "c" TimeSpan
-            TryFormatStandard(value, StandardTimeSpanFormat.C, null, destination, out int charsWritten);
+            TryFormatStandard(value, StandardFormat.C, null, destination, out int charsWritten);
             return new string(destination.Slice(0, charsWritten));
         }
 
-        private static string FormatG(TimeSpan value, DateTimeFormatInfo dtfi, StandardTimeSpanFormat format)
+        private static string FormatG(TimeSpan value, DateTimeFormatInfo dtfi, StandardFormat format)
         {
             string decimalSeparator = dtfi.DecimalSeparator;
             int maxLength = 25 + decimalSeparator.Length; // large enough for any "g"/"G" TimeSpan
@@ -124,16 +124,11 @@ namespace System.Globalization
             return new string(destination.Slice(0, charsWritten));
         }
 
-        private enum StandardTimeSpanFormat
-        {
-            C = 0,
-            G = 1,
-            g = 2
-        }
+        private enum StandardFormat { C, G, g }
 
-        private static bool TryFormatStandard(TimeSpan value, StandardTimeSpanFormat format, string decimalSeparator, Span<char> destination, out int charsWritten)
+        private static bool TryFormatStandard(TimeSpan value, StandardFormat format, string decimalSeparator, Span<char> destination, out int charsWritten)
         {
-            Debug.Assert(format == StandardTimeSpanFormat.C || format == StandardTimeSpanFormat.G || format == StandardTimeSpanFormat.g);
+            Debug.Assert(format == StandardFormat.C || format == StandardFormat.G || format == StandardFormat.g);
 
             // First, calculate how large an output buffer is needed to hold the entire output.
             int requiredOutputLength = 8; // start with "hh:mm:ss" and adjust as necessary
@@ -169,7 +164,7 @@ namespace System.Globalization
             int fractionDigits = 0;
             switch (format)
             {
-                case StandardTimeSpanFormat.C:
+                case StandardFormat.C:
                     // "c": Write out a fraction only if it's non-zero, and write out all 7 digits of it.
                     if (fraction != 0)
                     {
@@ -178,7 +173,7 @@ namespace System.Globalization
                     }
                     break;
 
-                case StandardTimeSpanFormat.G:
+                case StandardFormat.G:
                     // "G": Write out a fraction regardless of whether it's 0, and write out all 7 digits of it.
                     fractionDigits = DateTimeFormat.MaxSecondsFractionDigits;
                     requiredOutputLength += fractionDigits + 1; // digits plus leading decimal separator
@@ -186,7 +181,7 @@ namespace System.Globalization
 
                 default:
                     // "g": Write out a fraction only if it's non-zero, and write out only the most significant digits.
-                    Debug.Assert(format == StandardTimeSpanFormat.g);
+                    Debug.Assert(format == StandardFormat.g);
                     if (fraction != 0)
                     {
                         fractionDigits = DateTimeFormat.MaxSecondsFractionDigits - FormattingHelpers.CountDecimalTrailingZeros(fraction, out fraction);
@@ -223,7 +218,7 @@ namespace System.Globalization
             }
 
             int hourDigits = 2;
-            if (format == StandardTimeSpanFormat.g && hours < 10)
+            if (format == StandardFormat.g && hours < 10)
             {
                 // "g": Only writing a one-digit hour, rather than expected two-digit hour
                 hourDigits = 1;
@@ -237,7 +232,7 @@ namespace System.Globalization
                 Debug.Assert(dayDigits <= 8);
                 requiredOutputLength += dayDigits + 1; // for the leading "d."
             }
-            else if (format == StandardTimeSpanFormat.G)
+            else if (format == StandardFormat.G)
             {
                 // "G": has a leading "0:" if days is 0
                 requiredOutputLength += 2;
@@ -262,7 +257,7 @@ namespace System.Globalization
             {
                 WriteDigits(days, destination.Slice(idx, dayDigits));
                 idx += dayDigits;
-                destination[idx++] = format == StandardTimeSpanFormat.C ? '.' : ':';
+                destination[idx++] = format == StandardFormat.C ? '.' : ':';
             }
 
             // Write "[h]h:mm:ss
@@ -286,7 +281,7 @@ namespace System.Globalization
             // Write fraction and separator, if necessary
             if (fractionDigits != 0)
             {
-                if (format == StandardTimeSpanFormat.C)
+                if (format == StandardFormat.C)
                 {
                     destination[idx++] = '.';
                 }
