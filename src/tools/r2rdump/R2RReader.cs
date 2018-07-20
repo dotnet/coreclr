@@ -414,7 +414,7 @@ namespace R2RDump
                                 int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                                 byte[] signatureSample = new byte[sigSampleLength];
                                 Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                                entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
+                                entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                             }
                         }
                         break;
@@ -429,7 +429,7 @@ namespace R2RDump
                             int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                             byte[] signatureSample = new byte[sigSampleLength];
                             Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                            entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
+                            entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                         }
                         break;
                 }

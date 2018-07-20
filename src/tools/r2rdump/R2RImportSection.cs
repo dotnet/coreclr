@@ -33,13 +33,15 @@ namespace R2RDump
 
         public struct ImportSectionEntry
         {
+            [XmlAttribute("Index")]
+            public int Index { get; set; }
             public int StartOffset { get; set; }
             public long Section { get; set; }
-            [XmlAttribute("Index")]
             public uint SignatureRVA { get; set; }
             public byte[] SignatureSample { get; set; }
-            public ImportSectionEntry(int startOffset, long section, uint signatureRVA, byte[] signatureSample)
+            public ImportSectionEntry(int index, int startOffset, long section, uint signatureRVA, byte[] signatureSample)
             {
+                Index = index;
                 StartOffset = startOffset;
                 Section = section;
                 SignatureRVA = signatureRVA;
