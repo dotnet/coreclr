@@ -3989,7 +3989,6 @@ interface ICorProfilerAssemblyReferenceProvider : IUnknown
 ** ICLRProfiling                                                                     **
 ** Activated using mscoree!CLRCreateInstance. Export AttachProfiler API to profilers **
 ***************************************************************************************/
-cpp_quote("#ifndef DACCESS_COMPILE")
 [
     uuid(B349ABE3-B56F-4689-BFCD-76BF39D888EA),
     version(1.0),
@@ -4006,4 +4005,3 @@ interface ICLRProfiling : IUnknown
         [in, size_is(cbClientData)] void * pvClientData,     // optional
         [in] UINT cbClientData);                             // optional
 }
-cpp_quote("#endif")
