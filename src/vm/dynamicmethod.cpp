@@ -953,40 +953,47 @@ void LCGMethodResolver::Destroy(BOOL fDomainUnload)
         m_LocalSig = SigPointer();
     }
 
-    // Get the global string literal interning map
-    GlobalStringLiteralMap<StringLiteralEntry>* pStringLiteralMap = SystemDomain::GetGlobalStringLiteralMapNoCreate();
-
-    // release references to all the string literals used in this Dynamic Method
-    if (pStringLiteralMap != NULL)
+    if (m_DynamicStringLiterals != NULL)
     {
-        // lock the global string literal interning map
-        // we cannot use GetGlobalStringLiteralMap() here because it might throw
-        CrstHolder gch(pStringLiteralMap->GetHashTableCrstGlobal());
+        // Get the global string literal interning map
+        GlobalStringLiteralMap<StringLiteralEntry>* pStringLiteralMap = SystemDomain::GetGlobalStringLiteralMapNoCreate();
 
-        // Access to m_DynamicStringLiterals doesn't need to be syncrhonized because 
-        // this can be run in only one thread: the finalizer thread.
-        while (m_DynamicStringLiterals != NULL)
+        // release references to all the string literals used in this Dynamic Method
+        if (pStringLiteralMap != NULL)
         {
-            m_DynamicStringLiterals->m_pEntry->Release();
-            m_DynamicStringLiterals = m_DynamicStringLiterals->m_pNext;
+            // lock the global string literal interning map
+            // we cannot use GetGlobalStringLiteralMap() here because it might throw
+            CrstHolder gch(pStringLiteralMap->GetHashTableCrstGlobal());
+
+            // Access to m_DynamicStringLiterals doesn't need to be syncrhonized because 
+            // this can be run in only one thread: the finalizer thread.
+            while (m_DynamicStringLiterals != NULL)
+            {
+                m_DynamicStringLiterals->m_pEntry->Release();
+                m_DynamicStringLiterals = m_DynamicStringLiterals->m_pNext;
+            }
         }
     }
 
-    GlobalStringLiteralMap<Utf8StringLiteralEntry>* pUtf8StringLiteralMap = SystemDomain::GetGlobalUtf8StringLiteralMapNoCreate();
-
-    // release references to all the string literals used in this Dynamic Method
-    if (pUtf8StringLiteralMap != NULL)
+    if (m_DynamicUtf8StringLiterals != NULL)
     {
-        // lock the global string literal interning map
-        // we cannot use GetGlobalStringLiteralMap() here because it might throw
-        CrstHolder gch(pUtf8StringLiteralMap->GetHashTableCrstGlobal());
+        // Get the global string literal interning map
+        GlobalStringLiteralMap<Utf8StringLiteralEntry>* pUtf8StringLiteralMap = SystemDomain::GetGlobalUtf8StringLiteralMapNoCreate();
 
-        // Access to m_DynamicStringLiterals doesn't need to be syncrhonized because 
-        // this can be run in only one thread: the finalizer thread.
-        while (m_DynamicUtf8StringLiterals != NULL)
+        // release references to all the string literals used in this Dynamic Method
+        if (pUtf8StringLiteralMap != NULL)
         {
-            m_DynamicUtf8StringLiterals->m_pEntry->Release();
-            m_DynamicUtf8StringLiterals = m_DynamicUtf8StringLiterals->m_pNext;
+            // lock the global string literal interning map
+            // we cannot use GetGlobalStringLiteralMap() here because it might throw
+            CrstHolder gch(pUtf8StringLiteralMap->GetHashTableCrstGlobal());
+
+            // Access to m_DynamicStringLiterals doesn't need to be syncrhonized because 
+            // this can be run in only one thread: the finalizer thread.
+            while (m_DynamicUtf8StringLiterals != NULL)
+            {
+                m_DynamicUtf8StringLiterals->m_pEntry->Release();
+                m_DynamicUtf8StringLiterals = m_DynamicUtf8StringLiterals->m_pNext;
+            }
         }
     }
 

@@ -655,7 +655,10 @@ WideCharToMultiByte(
           cchWideChar, lpMultiByteStr, cbMultiByte,
           lpDefaultChar, lpUsedDefaultChar);
 
-    if (dwFlags & ~WC_NO_BEST_FIT_CHARS)
+    // If CodePage != CP_UTF8 dwFlags can be either 0 or WC_NO_BEST_FIT_CHARS
+    // If CodePage == CP_UTF8 dwFlags can be either 0 or WC_ERROR_INVALID_CHARS
+    if (((dwFlags & ~WC_NO_BEST_FIT_CHARS) && (CodePage != CP_UTF8)) || 
+        ((dwFlags & ~WC_ERR_INVALID_CHARS) && (CodePage == CP_UTF8)))
     {  
         ERROR("dwFlags %d invalid\n", dwFlags);
         SetLastError(ERROR_INVALID_FLAGS);
@@ -688,11 +691,14 @@ WideCharToMultiByte(
     // UTF8ToUnicode in MultiByteToWideChar() on all systems.
     if (CodePage == CP_UTF8 || (CodePage == CP_ACP && GetACP() == CP_UTF8))
     {
+        // No special action is needed for WC_ERR_INVALID_CHARS. The only
+        // behavior of this API on Unix is to produce an error for invalid surrogate 
+        // pair use.
         if (cchWideChar == -1)
         {
             cchWideChar = PAL_wcslen(lpWideCharStr) + 1; 
         }
-        retval = UnicodeToUTF8(lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte);
+        retval = UnicodeToUTF8(lpWideCharStr, cchWideChar, lpMultiByteStr, cbMultiByte, dwFlags);
         goto EXIT;
     }
 

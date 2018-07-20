@@ -2914,10 +2914,11 @@ int UnicodeToUTF8(
     LPCWSTR lpSrcStr,
     int cchSrc,
     LPSTR lpDestStr,
-    int cchDest)
+    int cchDest,
+    DWORD dwFlags)
 {
     int ret;
-    UTF8Encoding enc(false);
+    UTF8Encoding enc(dwFlags & WC_ERR_INVALID_CHARS);
     try{
         ret = enc.GetByteCount((WCHAR*)lpSrcStr, cchSrc);
         if (cchDest){
