@@ -28,8 +28,6 @@ Note that `coreclr/Tools/msbuild.sh` exists as well to make the call shorter.
 
 **!! Note !! -- Passing /p:__BuildOs=[OSX|Linux] is required.** 
 
-Omitting the above will resulting in the following error: `error MSB4801: The task factory "CodeTaskFactory" could not be loaded because this version of MSBuild does not support it.`
-
 ## Building an Individual Test Example
 
 >`coreclr/Tools/msbuild.sh /maxcpucount  coreclr/tests/src/JIT/CodeGenBringUpTests/Array1.csproj /p:__BuildType=Release /p:__BuildOS=OSX`
