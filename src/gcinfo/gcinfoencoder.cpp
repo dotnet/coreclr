@@ -121,11 +121,6 @@ public:
 #endif
     }
 
-    inline size_t* DataPtr()
-    {
-        return m_pData;
-    }
-    
     inline void SetBit( size_t pos )
     {
         size_t element = pos / BITS_PER_SIZE_T;
@@ -915,21 +910,6 @@ void BitStreamWriter::MemoryBlockList::Dispose(IAllocator* allocator)
     m_head = nullptr;
     m_tail = nullptr;
 #endif
-}
-
-void BitStreamWriter::Write(BitArray& a, UINT32 count)
-{
-    size_t* dataPtr = a.DataPtr();
-    for(;;)
-    {
-        if(count <= BITS_PER_SIZE_T)
-        {
-            Write(*dataPtr, count);
-            break;
-        }
-        Write(*(dataPtr++), BITS_PER_SIZE_T);
-        count -= BITS_PER_SIZE_T;
-    }   
 }
 
 void GcInfoEncoder::FinalizeSlotIds()
