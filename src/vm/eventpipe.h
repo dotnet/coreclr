@@ -15,6 +15,9 @@ class EventPipeEvent;
 class EventPipeEventInstance;
 class EventPipeFile;
 class EventPipeJsonFile;
+#ifdef PROFILING_SUPPORTED
+class EventPipeProfilerApi;
+#endif
 class EventPipeBuffer;
 class EventPipeBufferManager;
 class EventPipeEventSource;
@@ -310,6 +313,9 @@ class EventPipe
         static EventPipeSession *s_pSession;
         static EventPipeBufferManager *s_pBufferManager;
         static EventPipeFile *s_pFile;
+#ifdef PROFILING_SUPPORTED
+        static EventPipeProfilerApi *s_pProfilerApi;
+#endif
         static EventPipeEventSource *s_pEventSource;
         static LPCWSTR s_pCommandLine;
 #ifdef _DEBUG

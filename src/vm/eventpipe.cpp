@@ -14,6 +14,9 @@
 #include "eventpipeprovider.h"
 #include "eventpipesession.h"
 #include "eventpipejsonfile.h"
+#ifdef PROFILING_SUPPORTED
+#include "eventpipeprofilerapi.h"
+#endif
 #include "eventtracebase.h"
 #include "sampleprofiler.h"
 
@@ -29,6 +32,9 @@ EventPipeConfiguration* EventPipe::s_pConfig = NULL;
 EventPipeSession* EventPipe::s_pSession = NULL;
 EventPipeBufferManager* EventPipe::s_pBufferManager = NULL;
 EventPipeFile* EventPipe::s_pFile = NULL;
+#ifdef PROFILING_SUPPORTED
+EventPipeProfilerApi* EventPipe::s_pProfilerApi = NULL;
+#endif
 EventPipeEventSource* EventPipe::s_pEventSource = NULL;
 LPCWSTR EventPipe::s_pCommandLine = NULL;
 #ifdef _DEBUG
@@ -342,6 +348,10 @@ void EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pSession)
         s_pFile = new EventPipeFile(eventPipeFileOutputPath);
     }
 
+#ifdef PROFILING_SUPPORTED
+    s_pProfilerApi = new EventPipeProfilerApi();
+#endif
+
 #ifdef _DEBUG
     if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EnableEventPipe) & 2) == 2)
     {
@@ -403,6 +413,14 @@ void EventPipe::Disable()
 
         // Flush all write buffers to make sure that all threads see the change.
         FlushProcessWriteBuffers();
+
+#ifdef PROFILING_SUPPORTED
+        if (s_pProfilerApi != NULL)
+        {
+            delete(s_pProfilerApi);
+            s_pProfilerApi = NULL;
+        }
+#endif
 
         // Write to the file.
         if(s_pFile != NULL)
@@ -615,6 +633,27 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
 
     if(!s_pConfig->RundownEnabled() && s_pBufferManager != NULL)
     {
+#ifdef PROFILING_SUPPORTED
+        BYTE *pData = payload.GetFlatData();
+        if (pData != NULL)
+        {
+            EventPipeEventInstance instance(
+                *s_pSession,
+                event,
+                pThread->GetOSThreadId(),
+                pData,
+                payload.GetSize(),
+                pActivityId,
+                pRelatedActivityId);
+
+            // Write to the EventPipeProfilerApi.
+            if (s_pProfilerApi != NULL)
+            {
+                s_pProfilerApi->WriteEvent(instance);
+            }
+        }
+#endif
+
         if(!s_pBufferManager->WriteEvent(pThread, *s_pSession, event, payload, pActivityId, pRelatedActivityId))
         {
             // This is used in DEBUG to make sure that we don't log an event synchronously that we didn't log to the buffer.

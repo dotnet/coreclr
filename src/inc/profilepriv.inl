@@ -767,6 +767,21 @@ inline BOOL CORProfilerDisableTieredCompilation()
          ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_DISABLE_TIERED_COMPILATION));
 }
 
+inline BOOL CORProfilerIsMonitoringEventPipe()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        CANNOT_TAKE_LOCK;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    return (CORProfilerPresent() &&
+        ((&g_profControlBlock)->dwEventMaskHigh & COR_PRF_HIGH_MONITOR_EVENT_PIPE));
+}
+
 #if defined(PROFILING_SUPPORTED) && !defined(CROSSGEN_COMPILE)
 
 #if defined(FEATURE_PROFAPI_ATTACH_DETACH)

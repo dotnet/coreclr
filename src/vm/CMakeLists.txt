@@ -190,6 +190,7 @@ set(VM_SOURCES_WKS
     eventpipefile.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
+    eventpipeprofilerapi.cpp
     eventpipeprovider.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp

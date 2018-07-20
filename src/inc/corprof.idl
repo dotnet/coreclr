@@ -625,9 +625,11 @@ typedef enum
 
     COR_PRF_HIGH_DISABLE_TIERED_COMPILATION         = 0x00000008,
 
+    COR_PRF_HIGH_MONITOR_EVENT_PIPE                 = 0x00000010,
+
     COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE              = 0,
 
-    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS,
+    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS | COR_PRF_HIGH_MONITOR_EVENT_PIPE,
 
     // MONITOR_IMMUTABLE represents all flags that may only be set during initialization.
     // Trying to change any of these flags elsewhere will result in a
@@ -2424,6 +2426,32 @@ interface ICorProfilerCallback9 : ICorProfilerCallback8
     // and subsequently unloaded.
 
     HRESULT DynamicMethodUnloaded([in] FunctionID functionId);
+}
+
+[
+    object,
+    uuid(CEC5B60E-C69C-495F-87F6-84D28EE16FFB),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerCallback10 : ICorProfilerCallback9
+{
+    // This event is triggered whenever an EventPipe event is configured to be delivered.
+    //
+    // Documentation Note: All pointers are only valid during the callback
+
+    HRESULT EventPipeEventDelivered(
+        [in] LPCWSTR eventName,
+        [in] DWORD eventId,
+        [in] DWORD eventVersion,
+        [in] ULONG cbMetadataBlob,
+        [in, size_is(cbMetadataBlob)] LPCBYTE metadataBlob,
+        [in] DWORD eventThreadId,
+        [in] const LARGE_INTEGER *eventTimestamp,
+        [in] ULONG cbEventData,
+        [in, size_is(cbEventData)] LPCBYTE eventData,
+        [in] ULONG numStackFrames,
+        [in, length_is(numStackFrames)] UINT_PTR stackFrames[]);
 }
 
 
