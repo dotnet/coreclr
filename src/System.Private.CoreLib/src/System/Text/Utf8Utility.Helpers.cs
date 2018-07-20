@@ -6,6 +6,7 @@ using System;
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 #if BIT64
 using nint = System.Int64;
@@ -297,7 +298,7 @@ namespace System.Text
 
             Debug.Assert(BitConverter.IsLittleEndian);
 
-            return (BitConverter.IsLittleEndian && IsInRangeInclusive(value & 0xC0FFU, 0x80C2U, 0x80DFU))
+            return (BitConverter.IsLittleEndian && UnicodeHelpers.IsInRangeInclusive(value & 0xC0FFU, 0x80C2U, 0x80DFU))
                 || (!BitConverter.IsLittleEndian && false); // this line - while weird - helps JITter produce optimal code
         }
 
@@ -314,7 +315,7 @@ namespace System.Text
 
             Debug.Assert(BitConverter.IsLittleEndian);
 
-            return (BitConverter.IsLittleEndian && IsInRangeInclusive(value & 0xC0FF0000U, 0x80C20000U, 0x80DF0000U))
+            return (BitConverter.IsLittleEndian && UnicodeHelpers.IsInRangeInclusive(value & 0xC0FF0000U, 0x80C20000U, 0x80DF0000U))
                 || (!BitConverter.IsLittleEndian && false); // this line - while weird - helps JITter produce optimal code
         }
 
@@ -375,32 +376,6 @@ namespace System.Text
         {
             // return (-&ref) & 3;
             return (nuint)Unsafe.ByteOffset(ref @ref, ref Unsafe.AsRef<byte>(null)) & 3;
-        }
-        
-        /// <summary>
-        /// Returns <see langword="true"/> iff <paramref name="value"/> is between
-        /// <paramref name="lowerBound"/> and <paramref name="upperBound"/>, inclusive.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool IsInRangeInclusive(uint value, uint lowerBound, uint upperBound) => ((value - lowerBound) <= (upperBound - lowerBound));
-        
-        /// <summary>
-        /// Returns <see langword="true"/> iff the low byte of <paramref name="value"/> is a UTF-8
-        /// continuation byte (10xxxxxx).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsUtf8ContinuationByte(uint value)
-        {
-            return ((value & 0xC0U) == 0x80U);
-        }
-
-        /// <summary>
-        /// Returns <see langword="true"/> iff the input byte is a UTF-8 continuation byte (10xxxxxx).
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsUtf8ContinuationByte(in byte value)
-        {
-            return Unsafe.As<byte, sbyte>(ref Unsafe.AsRef(in value)) < -64;
         }
 
         /// <summary>

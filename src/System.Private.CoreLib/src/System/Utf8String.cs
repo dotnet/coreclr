@@ -19,7 +19,7 @@ using nuint = System.UInt32;
 
 namespace System
 {
-    public unsafe sealed class Utf8String : IEquatable<Utf8String>
+    public sealed partial class Utf8String : IEquatable<Utf8String>
     {
         /*
          * STATIC FIELDS
@@ -34,167 +34,6 @@ namespace System
 
         private readonly int _length;
         private readonly byte _firstByte;
-
-        /*
-         * CONSTRUCTORS
-         * These are special. The implementation methods for these have a different signature from the
-         * declared constructors. Keep these ctors declared in the same order as listed in ecall.cpp.
-         */
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(ReadOnlySpan<byte> value);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(ReadOnlySpan<byte> value)
-        {
-            if (value.IsEmpty)
-            {
-                return Empty;
-            }
-
-            Utf8String newString = FastAllocate(value.Length);
-            Buffer.Memmove(
-                destination: ref newString.DangerousGetMutableReference(),
-                source: ref MemoryMarshal.GetNonNullPinnableReference(value),
-                elementCount: (nuint)value.Length);
-
-            // From jkotas: all stores of reference type instances into the GC heap
-            // are treated as volatile writes, so no need for an explicit memory
-            // barrier here.
-
-            // TODO: validation of incoming data.
-
-            return newString;
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(ReadOnlySpan<char> value);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(ReadOnlySpan<char> value)
-        {
-            if (value.IsEmpty)
-            {
-                return Empty;
-            }
-
-            // TODO: Use a list of buffers and perform the transcoding piecemeal,
-            // which reduces the constant factor on the O(n) operation.
-
-            Encoding e = Encoding.UTF8;
-            int length = e.GetByteCount(value);
-            Utf8String newString = FastAllocate(length);
-
-            unsafe
-            {
-                fixed (byte* pFirstByte = &newString._firstByte)
-                fixed (char* pFirstChar = &MemoryMarshal.GetNonNullPinnableReference(value))
-                {
-                    e.GetBytes(pFirstChar, length, pFirstByte, length);
-                }
-            }
-
-            // No validation needed, as transcoding always fixes up invalid characters.
-
-            return newString;
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(byte[] value, int startIndex, int length);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(byte[] value, int startIndex, int length)
-        {
-            // TODO: Real parameter validation with friendlier exception messages
-            return Ctor(value.AsSpan(startIndex, length));
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        [CLSCompliant(false)]
-        public extern Utf8String(byte* value);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(byte* value)
-        {
-            if (value == null)
-            {
-                return Empty;
-            }
-
-            return Ctor(new ReadOnlySpan<byte>(value, checked((int)strlen(value))));
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(char[] value, int startIndex, int length);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(char[] value, int startIndex, int length)
-        {
-            // TODO: Real parameter validation with friendlier exception messages
-            return Ctor(value.AsSpan(startIndex, length));
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        [CLSCompliant(false)]
-        public extern Utf8String(char* value);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(char* value)
-        {
-            if (value == null)
-            {
-                return Empty;
-            }
-
-            return Ctor(new ReadOnlySpan<char>(value, string.wcslen(value)));
-        }
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        public extern Utf8String(string value);
-
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
-#if !CORECLR
-        static
-#endif
-        private Utf8String Ctor(string value)
-        {
-            // TODO: Null check parameter
-            // TODO: Check for interning
-
-            return Ctor(value.AsSpan());
-        }
 
         /*
          * STANDARD PROPERTIES AND METHODS
@@ -227,6 +66,9 @@ namespace System
         }
 
         public static bool operator !=(Utf8String a, Utf8String b) => !(a == b);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Span<byte> AsMutableSpan() => MemoryMarshal.CreateSpan(ref DangerousGetMutableReference(), _length);
 
         /// <summary>
         /// Converts this instance to a <see cref="ReadOnlySpan{byte}"/>.
@@ -275,12 +117,7 @@ namespace System
 
             return this.AsSpan().SequenceEqual(value.AsSpan());
         }
-
-        // Creates a new zero-initialized instance of the specified length. Actual storage allocated is "length + 1" bytes (the extra
-        // +1 is for the NUL terminator.)
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern Utf8String FastAllocate(int length);
-
+        
         public override int GetHashCode()
         {
             return Marvin.ComputeHash32(AsSpan(), Marvin.DefaultSeed);
@@ -294,7 +131,7 @@ namespace System
             return (value == null || 0u >= (uint)value.Length) ? true : false;
         }
 
-        private static nuint strlen(byte* value)
+        private static unsafe nuint strlen(byte* value)
         {
             Debug.Assert(value != null);
 
@@ -338,6 +175,29 @@ namespace System
                 pool.Return(chars);
                 return retVal;
             }
+        }
+
+        /// <summary>
+        /// Characteristics of a <see cref="Utf8String"/> instance that can be determined by examining
+        /// the two storage bits of the object header.
+        /// </summary>
+        [Flags]
+        private enum Characteristics
+        {
+            /// <summary>
+            /// No characteristics have been determined.
+            /// </summary>
+            None = 0,
+
+            /// <summary>
+            /// This instance contains only ASCII data.
+            /// </summary>
+            IsAscii,
+
+            /// <summary>
+            /// This instance has been validated and is known to contain only well-formed UTF-8 sequences.
+            /// </summary>
+            IsWellFormed
         }
     }
 }

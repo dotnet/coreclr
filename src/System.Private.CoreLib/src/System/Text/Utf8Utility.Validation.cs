@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Diagnostics;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Runtime.InteropServices;
 
 #if BIT64
 using nint = System.Int64;
@@ -160,8 +161,26 @@ namespace System.Text
 
             return retVal;
         }
+        
+        /// <summary>
+        /// Returns the byte index in <paramref name="utf8Data"/> where the first invalid UTF-8 sequence begins,
+        /// or -1 if the buffer contains no invalid sequences. Also outs the <paramref name="isAscii"/> parameter
+        /// stating whether all data observed (up to the first invalid sequence or the end of the buffer, whichever
+        /// comes first) is ASCII.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int GetIndexOfFirstInvalidUtf8Sequence(ReadOnlySpan<byte> utf8Data, out bool isAscii)
+        {
+            ref byte refToFirstInvalidSequence = ref GetRefToFirstInvalidUtf8Sequence(ref MemoryMarshal.GetReference(utf8Data), utf8Data.Length, out int utf16CodeUnitCountAdjustment, out _);
+            isAscii = (utf16CodeUnitCountAdjustment != 0); // no adjustment from UTF-8 code unit count to UTF-16 code unit count implies ASCII data
+            int offsetToFirstInvalidSequence = (int)(nint)Unsafe.ByteOffset(ref MemoryMarshal.GetReference(utf8Data), ref refToFirstInvalidSequence);
+            if (offsetToFirstInvalidSequence == utf8Data.Length)
+            {
+                return -1;
+            }
+            return offsetToFirstInvalidSequence;
+        }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private static unsafe ref byte GetRefToFirstInvalidUtf8Sequence(ref byte inputBuffer, int inputLength, out int utf16CodeUnitCountAdjustment, out int scalarCountAdjustment)
         {
             // The fields below control where we read from the buffer.
@@ -522,7 +541,7 @@ namespace System.Text
                         // Is this three 3-byte sequences in a row?
                         // thisQWord = [ 10yyyyyy 1110zzzz | 10xxxxxx 10yyyyyy 1110zzzz | 10xxxxxx 10yyyyyy 1110zzzz ] [ 10xxxxxx ]
                         //               ---- CHAR 3  ----   --------- CHAR 2 ---------   --------- CHAR 1 ---------     -CHAR 3-
-                        if ((thisQWord & 0xC0F0C0C0F0C0C0F0UL) == 0x80E08080E08080E0UL && IsUtf8ContinuationByte(in Unsafe.Add(ref inputBuffer, 8)))
+                        if ((thisQWord & 0xC0F0C0C0F0C0C0F0UL) == 0x80E08080E08080E0UL && UnicodeHelpers.IsUtf8ContinuationByte(in Unsafe.Add(ref inputBuffer, 8)))
                         {
                             // Saw a proper bitmask for three incoming 3-byte sequences, perform the
                             // overlong and surrogate sequence checking now.
@@ -656,11 +675,11 @@ namespace System.Text
 
                         // At this point, toCheck = [ 11110www 00000000 00000000 10zzzzzz ].
 
-                        if (!IsInRangeInclusive(toCheck, 0xF0000090U, 0xF400008FU)) { goto Error; }
+                        if (!UnicodeHelpers.IsInRangeInclusive(toCheck, 0xF0000090U, 0xF400008FU)) { goto Error; }
                     }
                     else
                     {
-                        if (!IsInRangeInclusive(thisDWord, 0xF0900000U, 0xF48FFFFFU)) { goto Error; }
+                        if (!UnicodeHelpers.IsInRangeInclusive(thisDWord, 0xF0900000U, 0xF48FFFFFU)) { goto Error; }
                     }
 
                     // Validation complete.
@@ -709,7 +728,7 @@ namespace System.Text
                     if (firstByte < 0xE0U)
                     {
                         // 2-byte case
-                        if (firstByte >= 0xC2U && IsUtf8ContinuationByte(secondByte))
+                        if (firstByte >= 0xC2U && UnicodeHelpers.IsUtf8ContinuationByte(secondByte))
                         {
                             inputBuffer = ref Unsafe.Add(ref inputBuffer, 2);
                             tempUtf16CodeUnitCountAdjustment--; // 2 UTF-8 bytes -> 1 UTF-16 code unit (and 1 scalar)
@@ -723,18 +742,18 @@ namespace System.Text
                         {
                             if (firstByte == 0xE0U)
                             {
-                                if (!IsInRangeInclusive(secondByte, 0xA0U, 0xBFU)) { goto Error; }
+                                if (!UnicodeHelpers.IsInRangeInclusive(secondByte, 0xA0U, 0xBFU)) { goto Error; }
                             }
                             else if (firstByte == 0xEDU)
                             {
-                                if (!IsInRangeInclusive(secondByte, 0x80U, 0x9FU)) { goto Error; }
+                                if (!UnicodeHelpers.IsInRangeInclusive(secondByte, 0x80U, 0x9FU)) { goto Error; }
                             }
                             else
                             {
-                                if (!IsUtf8ContinuationByte(secondByte)) { goto Error; }
+                                if (!UnicodeHelpers.IsUtf8ContinuationByte(secondByte)) { goto Error; }
                             }
 
-                            if (IsUtf8ContinuationByte(thirdByte))
+                            if (UnicodeHelpers.IsUtf8ContinuationByte(thirdByte))
                             {
                                 inputBuffer = ref Unsafe.Add(ref inputBuffer, 3);
                                 tempUtf16CodeUnitCountAdjustment -= 2; // 3 UTF-8 bytes -> 2 UTF-16 code units (and 2 scalars)
