@@ -117,7 +117,10 @@ namespace System
 
             return this.AsSpan().SequenceEqual(value.AsSpan());
         }
-        
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private Characteristics GetCharacteristics() => default;
+
         public override int GetHashCode()
         {
             return Marvin.ComputeHash32(AsSpan(), Marvin.DefaultSeed);
@@ -143,6 +146,79 @@ namespace System
                 idx++;
             }
             return idx;
+        }
+
+        public Utf8String Substring(int startIndex)
+        {
+            if ((uint)startIndex >= (uint)Length)
+            {
+                if (startIndex == Length)
+                {
+                    // We allow the start index to point just past the end of the string; this creates an empty substring
+                    return Empty;
+                }
+                else
+                {
+                    // TODO: Throw the correct exception type with the correct resource
+                    throw new ArgumentOutOfRangeException(paramName: nameof(startIndex));
+                }
+            }
+
+            if (startIndex == 0)
+            {
+                return this;
+            }
+
+            // TODO: Validate that the bounds check below is elided
+            var slice = AsSpan().Slice(startIndex);
+            var unbaked = new UnbakedUtf8String(slice);
+
+            // Any flags (well-formed, ASCII, etc.) will transfer to the new substring as long as the new substring wasn't
+            // split in the middle of a multi-byte sequence. We can check this cheaply by seeing if the first byte of the
+            // substring is a continuation byte; if so then we know we've performed an invalid split. In that case we'll
+            // return the new substring as-is without applying any characteristics.
+
+            if (!UnicodeHelpers.IsUtf8ContinuationByte(in MemoryMarshal.GetReference(slice)))
+            {
+                unbaked.ApplyCharacteristics(this.GetCharacteristics());
+            }
+
+            return unbaked.BakeWithoutValidation();
+        }
+
+        public Utf8String Substring(int startIndex, int length)
+        {
+            if (((uint)startIndex > (uint)Length) || ((uint)length > (uint)(Length - startIndex)))
+            {
+                // TODO: Throw the correct exception type with the correct resource
+                throw new ArgumentOutOfRangeException();
+            }
+
+            if (length == 0)
+            {
+                return Empty;
+            }
+
+            if (length == Length)
+            {
+                return this;
+            }
+
+            // TODO: Validate that the bounds check below is elided
+            var slice = AsSpan().Slice(startIndex, length);
+            var unbaked = new UnbakedUtf8String(slice);
+
+            // See comments in Substring(int) for explanation of below logic. Difference here is that we check two bytes:
+            // the first byte of the substring; and the byte just past the end of the substring (which could be the null
+            // terminator, which is not a continuation byte).
+
+            ref byte firstByte = ref MemoryMarshal.GetReference(slice);
+            if (!UnicodeHelpers.IsUtf8ContinuationByte(in firstByte) && !UnicodeHelpers.IsUtf8ContinuationByte(in Unsafe.Add(ref firstByte, length)))
+            {
+                unbaked.ApplyCharacteristics(this.GetCharacteristics());
+            }
+
+            return unbaked.BakeWithoutValidation();
         }
 
         public override string ToString()

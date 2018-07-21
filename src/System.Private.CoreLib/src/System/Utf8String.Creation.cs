@@ -300,6 +300,11 @@ namespace System
                     elementCount: (nuint)source.Length);
             }
 
+            public void ApplyCharacteristics(Characteristics flags)
+            {
+                // TODO: Set flags on the Utf8String before returning it
+            }
+
             public Utf8String Bake(InvalidSequenceBehavior behavior)
             {
                 Debug.Assert(_value != null, "This method should only be called immediately after construction of a new Utf8String instance.");
@@ -418,6 +423,11 @@ namespace System
 
                 // TODO: Set IsWellFormed flag on the Utf8String instance.
                 return newInstance;
+            }
+
+            public Utf8String BakeWithoutValidation()
+            {
+                return _value;
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
