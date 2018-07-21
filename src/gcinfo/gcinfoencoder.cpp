@@ -112,10 +112,11 @@ class BitArray
 {
     friend class BitArrayIterator;
 public:
-    BitArray(IAllocator* pJitAllocator, size_t size_tCount)
+    BitArray(IAllocator* pJitAllocator, size_t numBits)
     {
-        m_pData = (size_t*)pJitAllocator->Alloc(size_tCount*sizeof(size_t));
-        m_pEndData = m_pData + size_tCount;
+        const size_t numTargetSizeT = (numBits + BITS_PER_TARGET_SIZE_T - 1) / BITS_PER_TARGET_SIZE_T;
+        m_pData = (target_size_t*)pJitAllocator->Alloc(TARGET_POINTER_SIZE * numTargetSizeT);
+        m_pEndData = m_pData + numTargetSizeT;
 #ifdef MUST_CALL_IALLOCATOR_FREE
         m_pJitAllocator = pJitAllocator;
 #endif
@@ -123,30 +124,30 @@ public:
 
     inline void SetBit( size_t pos )
     {
-        size_t element = pos / BITS_PER_SIZE_T;
-        int bpos = (int)(pos % BITS_PER_SIZE_T);
-        m_pData[element] |= ((size_t)1 << bpos);
+        size_t element = pos / BITS_PER_TARGET_SIZE_T;
+        int bpos = (int)(pos % BITS_PER_TARGET_SIZE_T);
+        m_pData[element] |= ((target_size_t)1 << bpos);
     }
 
     inline void ClearBit( size_t pos )
     {
-        size_t element = pos / BITS_PER_SIZE_T;
-        int bpos = (int)(pos % BITS_PER_SIZE_T);
-        m_pData[element] &= ~((size_t)1 << bpos);
+        size_t element = pos / BITS_PER_TARGET_SIZE_T;
+        int bpos = (int)(pos % BITS_PER_TARGET_SIZE_T);
+        m_pData[element] &= ~((target_size_t)1 << bpos);
     }
 
     inline void SetAll()
     {
-        size_t* ptr = m_pData;
+        target_size_t* ptr = m_pData;
         while(ptr < m_pEndData)
-            *(ptr++) = (size_t)(SSIZE_T)(-1);
+            *(ptr++) = (target_size_t)(target_ssize_t)(-1);
     }
     
     inline void ClearAll()
     {
-        size_t* ptr = m_pData;
+        target_size_t* ptr = m_pData;
         while(ptr < m_pEndData)
-            *(ptr++) = (size_t) 0;
+            *(ptr++) = (target_size_t)0;
     }
     
     inline void WriteBit( size_t pos, BOOL val)
@@ -157,36 +158,35 @@ public:
             ClearBit(pos);
     }
     
-    inline size_t ReadBit( size_t pos ) const
+    inline target_size_t ReadBit( size_t pos ) const
     {
-        size_t element = pos / BITS_PER_SIZE_T;
-        int bpos = (int)(pos % BITS_PER_SIZE_T);
-        return (m_pData[element] & ((size_t)1 << bpos));
+        size_t element = pos / BITS_PER_TARGET_SIZE_T;
+        int bpos = (int)(pos % BITS_PER_TARGET_SIZE_T);
+        return (m_pData[element] & ((target_size_t)1 << bpos));
     }
 
     inline bool operator==(const BitArray &other) const
     {
         _ASSERTE(other.m_pEndData - other.m_pData == m_pEndData - m_pData);
-        size_t* dest = m_pData;
-        size_t* src = other.m_pData;
-        return 0 == memcmp(dest, src, (m_pEndData - m_pData) * sizeof(*m_pData));
+        target_size_t* dest = m_pData;
+        target_size_t* src = other.m_pData;
+        return 0 == memcmp(dest, src, (m_pEndData - m_pData) * TARGET_POINTER_SIZE);
     }
 
     inline int GetHashCode() const
     {
         const int* src = (const int*)m_pData;
         int result = *src++;
-        while(src < (const int*)m_pEndData)
+        while (src < (const int*)m_pEndData)
             result = _rotr(result, 5) ^ *src++;
-            
         return result;
     }
 
     inline BitArray& operator=(const BitArray &other)
     {
         _ASSERTE(other.m_pEndData - other.m_pData == m_pEndData - m_pData);
-        size_t* dest = m_pData;
-        size_t* src = other.m_pData;
+        target_size_t* dest = m_pData;
+        target_size_t* src = other.m_pData;
         while(dest < m_pEndData)
             *(dest++) = *(src++);
             
@@ -196,8 +196,8 @@ public:
     inline BitArray& operator|=(const BitArray &other)
     {
         _ASSERTE(other.m_pEndData - other.m_pData == m_pEndData - m_pData);
-        size_t* dest = m_pData;
-        size_t* src = other.m_pData;
+        target_size_t* dest = m_pData;
+        target_size_t* src = other.m_pData;
         while(dest < m_pEndData)
             *(dest++) |= *(src++);
             
@@ -217,8 +217,8 @@ public:
     }
 
 private:
-    size_t * m_pData;
-    size_t * m_pEndData;
+    target_size_t * m_pData;
+    target_size_t * m_pEndData;
 #ifdef MUST_CALL_IALLOCATOR_FREE
     IAllocator* m_pJitAllocator;
 #endif
@@ -1160,9 +1160,8 @@ void GcInfoEncoder::Build()
         m_InterruptibleRanges.CopyTo(pRanges);
     }
 
-    int size_tCount = (m_NumSlots + BITS_PER_SIZE_T - 1) / BITS_PER_SIZE_T;
-    BitArray liveState(m_pAllocator, size_tCount);
-    BitArray couldBeLive(m_pAllocator, size_tCount);
+    BitArray liveState(m_pAllocator, m_NumSlots);
+    BitArray couldBeLive(m_pAllocator, m_NumSlots);
     liveState.ClearAll();
     couldBeLive.ClearAll();
 
@@ -1737,7 +1736,7 @@ void GcInfoEncoder::Build()
                     UINT32 liveStateOffset = 0;
                     if (!hashMap.Lookup(&liveState, &liveStateOffset))
                     {
-                        BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, size_tCount);
+                        BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, m_NumSlots);
                         *newLiveState = liveState;
                         hashMap.Set(newLiveState, (UINT32)(-1));
                     }
@@ -1765,7 +1764,7 @@ void GcInfoEncoder::Build()
                 UINT32 liveStateOffset = 0;
                 if (!hashMap.Lookup(&liveState, &liveStateOffset))
                 {
-                    BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, size_tCount);
+                    BitArray * newLiveState = new (m_pAllocator) BitArray(m_pAllocator, m_NumSlots);
                     *newLiveState = liveState;
                     hashMap.Set(newLiveState, (UINT32)(-1));
                 }
@@ -1967,7 +1966,7 @@ void GcInfoEncoder::Build()
             LifetimeTransition *pFirstPreserved = pFirstAfterStart;
             for(UINT32 slotIndex = 0; slotIndex < m_NumSlots; slotIndex++)
             {
-                size_t isLive = liveState.ReadBit(slotIndex);
+                target_size_t isLive = liveState.ReadBit(slotIndex);
                 if(isLive != liveStateAtPrevRange.ReadBit(slotIndex))
                 {
                     pFirstPreserved--;
