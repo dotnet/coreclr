@@ -5053,7 +5053,7 @@ inline void LclVarDsc::setLvRefCnt(unsigned short newValue, RefCountState state)
 // Return Value:
 //    Weighted ref count for the local.
 
-inline unsigned LclVarDsc::lvRefCntWtd(RefCountState state) const
+inline BasicBlock::weight_t LclVarDsc::lvRefCntWtd(RefCountState state) const
 {
 
 #if defined(DEBUG)
@@ -5081,7 +5081,7 @@ inline unsigned LclVarDsc::lvRefCntWtd(RefCountState state) const
 //    It is currently the caller's responsibilty to ensure this increment
 //    will not cause overflow.
 
-inline void LclVarDsc::incLvRefCntWtd(unsigned delta, RefCountState state)
+inline void LclVarDsc::incLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state)
 {
 
 #if defined(DEBUG)
@@ -5090,7 +5090,7 @@ inline void LclVarDsc::incLvRefCntWtd(unsigned delta, RefCountState state)
     assert(compiler->lvaRefCountState == state);
 #endif
 
-    unsigned oldRefCntWtd = m_lvRefCntWtd;
+    BasicBlock::weight_t oldRefCntWtd = m_lvRefCntWtd;
     m_lvRefCntWtd += delta;
     assert(m_lvRefCntWtd >= oldRefCntWtd);
 }
@@ -5106,7 +5106,7 @@ inline void LclVarDsc::incLvRefCntWtd(unsigned delta, RefCountState state)
 //    It is currently the caller's responsibilty to ensure this decrement
 //    will not cause underflow.
 
-inline void LclVarDsc::decLvRefCntWtd(unsigned delta, RefCountState state)
+inline void LclVarDsc::decLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state)
 {
 
 #if defined(DEBUG)
@@ -5130,7 +5130,7 @@ inline void LclVarDsc::decLvRefCntWtd(unsigned delta, RefCountState state)
 //    Generally after calling v->setLvRefCntWtd(Y), v->lvRefCntWtd() == Y.
 //    However this may not be true when v->lvImplicitlyReferenced == 1.
 
-inline void LclVarDsc::setLvRefCntWtd(unsigned newValue, RefCountState state)
+inline void LclVarDsc::setLvRefCntWtd(BasicBlock::weight_t newValue, RefCountState state)
 {
 
 #if defined(DEBUG)

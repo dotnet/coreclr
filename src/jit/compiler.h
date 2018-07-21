@@ -186,7 +186,7 @@ typedef JitExpandArray<LclSsaVarDsc> PerSsaArray;
 enum RefCountState
 {
     RCS_INVALID, // not valid to get/set ref counts
-    RCS_EARLY,   // early counts for struct promotion and passing
+    RCS_EARLY,   // early counts for struct promotion and struct passing
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
@@ -609,7 +609,8 @@ private:
                                // appearance count (computed during address-exposed analysis)
                                // that fgMakeOutgoingStructArgCopy consults during global morph
                                // to determine if eliding its copy is legal.
-    unsigned m_lvRefCntWtd;    // weighted reference count
+
+    BasicBlock::weight_t m_lvRefCntWtd; // weighted reference count
 
 public:
     unsigned short lvRefCnt(RefCountState state = RCS_NORMAL) const;
@@ -617,10 +618,10 @@ public:
     void decLvRefCnt(unsigned short delta, RefCountState state = RCS_NORMAL);
     void setLvRefCnt(unsigned short newValue, RefCountState state = RCS_NORMAL);
 
-    unsigned lvRefCntWtd(RefCountState state = RCS_NORMAL) const;
-    void incLvRefCntWtd(unsigned delta, RefCountState state = RCS_NORMAL);
-    void decLvRefCntWtd(unsigned delta, RefCountState state = RCS_NORMAL);
-    void setLvRefCntWtd(unsigned newValue, RefCountState state = RCS_NORMAL);
+    BasicBlock::weight_t lvRefCntWtd(RefCountState state = RCS_NORMAL) const;
+    void incLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state = RCS_NORMAL);
+    void decLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state = RCS_NORMAL);
+    void setLvRefCntWtd(BasicBlock::weight_t newValue, RefCountState state = RCS_NORMAL);
 
     int      lvStkOffs;   // stack offset of home
     unsigned lvExactSize; // (exact) size of the type in bytes
