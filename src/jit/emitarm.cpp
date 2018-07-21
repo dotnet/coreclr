@@ -6004,9 +6004,11 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
             imm = emitGetInsSC(id);
+            addr = emitConsBlock + imm;
             if (!id->idIsReloc())
             {
-                imm += (target_size_t)emitConsBlock;
+                assert(sizeof(size_t) == sizeof(target_size_t));
+                imm = (target_size_t)addr;
                 if (ins == INS_movw)
                 {
                     imm &= 0xffff;
@@ -6021,8 +6023,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                addr = emitConsBlock;
-                addr += imm;
                 assert((ins == INS_movt) || (ins == INS_movw));
                 dst += emitOutput_Thumb2Instr(dst, code);
                 if ((ins == INS_movt) && emitComp->info.compMatchedVM)
