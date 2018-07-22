@@ -3867,8 +3867,8 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block)
     class MarkLocalVarsVisitor final : public GenTreeVisitor<MarkLocalVarsVisitor>
     {
     private:
-        GenTreeStmt* m_stmt;
         BasicBlock*  m_block;
+        GenTreeStmt* m_stmt;
 
     public:
         enum
