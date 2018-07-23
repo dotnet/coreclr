@@ -2870,7 +2870,6 @@ public:
     LPVOID FindEntryPoint(HINSTANCE hMod) const;
 
 private:
-    Stub* GenerateStubForHost(LPVOID pNativeTarget, Stub *pInnerStub);
 #ifdef MDA_SUPPORTED    
     Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub, BOOL fCalledByStub);
 #endif // MDA_SUPPORTED
@@ -3055,7 +3054,6 @@ struct ComPlusCallInfo
         LPVOID      m_pInterceptStub;    // used for early-bound IL stub calls
     };
 
-    Stub *GenerateStubForHost(LoaderHeap *pHeap, Stub *pInnerStub);
 #else // _TARGET_X86_
     void InitStackArgumentSize()
     {

@@ -786,7 +786,7 @@ private:
     // to the thunk generated for unmanaged code to call back on.
     // If this is a delegate representing an unmanaged function pointer,
     // this may point to a stub that intercepts calls to the unmng target.
-    // It is currently used for pInvokeStackImbalance MDA and host hook.
+    // It is currently used for pInvokeStackImbalance MDA.
     // We differentiate between the two by setting the lowest bit if it's
     // an intercept stub.
     void*               m_pUMEntryThunkOrInterceptStub;

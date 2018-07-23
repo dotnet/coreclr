@@ -118,8 +118,6 @@ public:
 
     inline static ILStubCache*     GetILStubCache(NDirectStubParameters* pParams);
 
-    static Stub *GenerateStubForHost(Module *pModule, CorUnmanagedCallingConvention callConv, WORD wArgSize);
-
 private:
     NDirect() {LIMITED_METHOD_CONTRACT;};     // prevent "new"'s on this class
 
