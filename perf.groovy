@@ -547,7 +547,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
         } // os
 
         def flowJobTPRunList = throughputOSOptLevelList.collect { os ->
-            "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(project, "${os}_${opt_level}", architecture, isPR)}') }"
+            "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(project, os, architecture, isPR)}') }"
         }
         def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_${architecture}_flow", isPR, '')) {
             if (isPR) {
