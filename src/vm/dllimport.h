@@ -625,18 +625,10 @@ PCODE GetStubForInteropMethod(MethodDesc* pMD, DWORD dwStubFlags = 0, MethodDesc
 HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, MethodDesc **ppRetStubMD);
 #endif // FEATURE_COMINTEROP
 
-EXTERN_C BOOL CallNeedsHostHook(size_t target);
-
 //
 // Inlinable implementation allows compiler to strip all code related to host hook
 //
 inline BOOL NDirect::IsHostHookEnabled()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
-
-inline BOOL CallNeedsHostHook(size_t target)
 {
     LIMITED_METHOD_CONTRACT;
     return FALSE;

@@ -5598,10 +5598,9 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     if (NDirect::IsHostHookEnabled())
     {
 #ifdef _WIN64
-        // we will call CallNeedsHostHook on every invocation for back compat
         fHook = TRUE;
 #else // _WIN64
-        fHook = CallNeedsHostHook((size_t)pTarget);
+        fHook = FALSE;
 #endif // _WIN64
 
 #ifdef _DEBUG
