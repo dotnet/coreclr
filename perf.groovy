@@ -283,7 +283,7 @@ def static getFullPerfJobName(def project, def os, def arch, def isPR) {
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
     ['x64'].each { architecture ->
-        def fullBuildJobName = Utilities.getFullJobName(project, "perf_linux_${architecture}_build", isPR)
+        def fullBuildJobName = Utilities.getFullJobName(project, "perf_linux_build", isPR)
         def configuration = 'Release'
 
         def crossCompile = ""
@@ -410,9 +410,9 @@ parallel(
 
         if (isPR) {
             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-            builder.setGithubContext("Linux Perf ${architecture} Test Flow")
+            builder.setGithubContext("Linux Perf Test Flow")
             builder.triggerOnlyOnComment()
-            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+${architecture}\\W+perf\\W+flow.*")
+            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+perf\\W+flow.*")
             builder.triggerForBranch(branch)
             builder.emitTrigger(newFlowJob)
         }
@@ -424,14 +424,14 @@ parallel(
     } // architecture
 } // isPR
 
-def static getFullThroughputJobName(def project, def os, def isPR) {
-    return Utilities.getFullJobName(project, "perf_throughput_${os}", isPR)
+def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
+    return Utilities.getFullJobName(project, "perf_throughput_${os}_${arch}", isPR)
 }
 
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
     ['x64','arm'].each { architecture ->
-        def fullBuildJobName = Utilities.getFullJobName(project, 'perf_throughput_linux_build', isPR)
+        def fullBuildJobName = Utilities.getFullJobName(project, 'perf_throughput_linux_${architecture}_build', isPR)
         def configuration = 'Release'
 
         
@@ -472,7 +472,7 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
 
         throughputOSList.each { os ->
             throughputOptLevelList.each { opt_level ->
-                def newJob = job(getFullThroughputJobName(project, "${os}_${opt_level}", isPR)) {
+                def newJob = job(getFullThroughputJobName(project, "${os}_${opt_level}", architecture, isPR)) {
 
                     def machineLabel = 'ubuntu_1604_clr_perf'
                     if (architecture == 'arm') {
@@ -547,9 +547,9 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
         } // os
 
         def flowJobTPRunList = throughputOSOptLevelList.collect { os ->
-            "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(project, os, isPR)}') }"
+            "{ build(params + [PRODUCT_BUILD: b.build.number], '${getFullThroughputJobName(project, "${os}_${opt_level}", architecture, isPR)}') }"
         }
-        def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_flow", isPR, '')) {
+        def newFlowJob = buildFlowJob(Utilities.getFullJobName(project, "perf_throughput_linux_${architecture}_flow", isPR, '')) {
             if (isPR) {
                 parameters {
                     stringParam('BenchviewCommitName', '\${ghprbPullTitle}', 'The name that you will be used to build the full title of a run in Benchview.  The final name will be of the form <branch> private BenchviewCommitName')
@@ -571,9 +571,9 @@ def static getFullThroughputJobName(def project, def os, def isPR) {
 
         if (isPR) {
             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-            builder.setGithubContext("Linux Throughput Perf Test Flow")
+            builder.setGithubContext("Linux Throughput Perf ${architecture} Test Flow")
             builder.triggerOnlyOnComment()
-            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+flow.*")
+            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+${architecture}\\W+flow.*")
             builder.triggerForBranch(branch)
             builder.emitTrigger(newFlowJob)
         }
