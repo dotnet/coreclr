@@ -201,8 +201,7 @@
       <Contents />
     </Section>
   </Sections>
-  <Methods>
-    <Count>3</Count>
+  <Methods Count="3">
     <Method Index="0">
       <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
         <Name>abc</Name>

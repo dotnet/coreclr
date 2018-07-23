@@ -94,7 +94,8 @@ namespace R2RDump
         internal override void DumpSection(R2RSection section, XmlNode parentNode)
         {
             XmlNode sectionNode = XmlDocument.CreateNode("element", "Section", "");
-            AddIndexAttribute(sectionNode, $"{section.Type}");
+            AddXMLAttribute(sectionNode, "Index", $"{section.Type}");
+
             parentNode.AppendChild(sectionNode);
             Serialize(section, sectionNode);
 
@@ -112,7 +113,7 @@ namespace R2RDump
         {
             XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
             _rootNode.AppendChild(methodsNode);
-            AddXMLNode("Count", _r2r.R2RMethods.Count.ToString(), methodsNode);
+            AddXMLAttribute(methodsNode, "Count", _r2r.R2RMethods.Count.ToString());
             foreach (R2RMethod method in _r2r.R2RMethods)
             {
                 DumpMethod(method, methodsNode);
@@ -125,7 +126,7 @@ namespace R2RDump
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
             XmlNode methodNode = XmlDocument.CreateNode("element", "Method", "");
-            AddIndexAttribute(methodNode, $"{method.Index}");
+            AddXMLAttribute(methodNode, "Index", $"{method.Index}");
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
@@ -162,7 +163,7 @@ namespace R2RDump
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {
             XmlNode rtfNode = XmlDocument.CreateNode("element", "RuntimeFunction", "");
-            AddIndexAttribute(rtfNode, $"{rtf.Id}");
+            AddXMLAttribute(rtfNode, "Index", $"{rtf.Id}");
             parentNode.AppendChild(rtfNode);
             AddXMLNode("MethodRid", rtf.Method.Rid.ToString(), rtfNode);
             Serialize(rtf, rtfNode);
@@ -271,7 +272,7 @@ namespace R2RDump
                     foreach (R2RImportSection importSection in _r2r.ImportSections)
                     {
                         XmlNode importSectionsNode = XmlDocument.CreateNode("element", "ImportSection", "");
-                        AddIndexAttribute(importSectionsNode, $"{importSection.Index}");
+                        AddXMLAttribute(importSectionsNode, "Index", $"{importSection.Index}");
                         contentsNode.AppendChild(importSectionsNode);
 
                         Serialize(importSection, importSectionsNode);
@@ -303,8 +304,8 @@ namespace R2RDump
         {
             XmlNode queryNode = XmlDocument.CreateNode("element", title, "");
             _rootNode.AppendChild(queryNode);
-            AddXMLNode("Query", q, queryNode);
-            AddXMLNode("Count", count.ToString(), queryNode);
+            AddXMLAttribute(queryNode, "Query", q);
+            AddXMLAttribute(queryNode, "Count", count.ToString());
             return queryNode;
         }
 
@@ -323,17 +324,17 @@ namespace R2RDump
             XmlNode node = XmlDocument.CreateNode("element", name, "");
             if (!index.Equals(""))
             {
-                AddIndexAttribute(node, index);
+                AddXMLAttribute(node, "Index", index);
             }
             parentNode.AppendChild(node);
             node.InnerText = contents;
             return node;
         }
 
-        private void AddIndexAttribute(XmlNode node, string index)
+        private void AddXMLAttribute(XmlNode node, string name, string value)
         {
-            XmlAttribute attr = XmlDocument.CreateAttribute("Index");
-            attr.Value = index;
+            XmlAttribute attr = XmlDocument.CreateAttribute(name);
+            attr.Value = value;
             node.Attributes.SetNamedItem(attr);
         }
     }

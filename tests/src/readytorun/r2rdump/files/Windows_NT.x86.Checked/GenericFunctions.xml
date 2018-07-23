@@ -281,8 +281,7 @@
       <Contents />
     </Section>
   </Sections>
-  <Methods>
-    <Count>7</Count>
+  <Methods Count="7">
     <Method Index="0">
       <R2RMethod xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="0">
         <Name>.ctor</Name>
