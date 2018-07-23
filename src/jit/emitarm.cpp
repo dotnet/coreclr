@@ -6962,19 +6962,8 @@ void emitter::emitDispInsHelp(
 
         case IF_T2_N3:
             emitDispReg(id->idReg1(), attr, true);
-            imm = emitGetInsSC(id);
-            if (fmt == IF_T2_N || fmt == IF_T2_N3)
-            {
-                if (emitComp->opts.disDiffable)
-                    imm = 0xD1FF;
-                if (id->idIsCnsReloc() || id->idIsDspReloc())
-                {
-                    if (emitComp->opts.disDiffable)
-                        imm = 0xD1FFAB1E;
-                    printf("%s RELOC ", (id->idIns() == INS_movw) ? "LOW" : "HIGH");
-                }
-            }
-            emitDispImm(imm, false, (fmt == IF_T2_N) || (fmt == IF_T2_N3));
+            printf("%s RELOC ", (id->idIns() == INS_movw) ? "LOW" : "HIGH");
+            emitDispReloc(emitGetInsRelocValue(id));
             break;
 
         case IF_T2_N2:
