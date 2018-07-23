@@ -105,7 +105,7 @@ python_exe_list = {
     }
     'Linux': {
         'x64': 'python3.5',
-        'arm.g': 'python3.6'
+        'arm': 'python3.6'
     }
 }
 
