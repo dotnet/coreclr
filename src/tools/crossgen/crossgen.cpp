@@ -422,7 +422,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPWSTR pwzSearchPathForManagedPDB = NULL;
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
-    bool fExplicitReadyToRunSwitch = true;
+    bool fExplicitReadyToRunSwitch = false;
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     LPCWSTR pwszCLRJITPath = nullptr;
