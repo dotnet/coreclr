@@ -6943,6 +6943,13 @@ void emitter::emitDispInsHelp(
             break;
 
         case IF_T2_N:
+            emitDispReg(id->idReg1(), attr, true);
+            imm = emitGetInsSC(id);
+            if (emitComp->opts.disDiffable)
+                imm = 0xD1FF;
+            emitDispImm(imm, false, true);
+            break;
+
         case IF_T2_N3:
             emitDispReg(id->idReg1(), attr, true);
             imm = emitGetInsSC(id);
