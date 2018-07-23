@@ -6937,6 +6937,11 @@ void emitter::emitDispInsHelp(
         case IF_T1_J0: // Reg, Imm
         case IF_T2_L1:
         case IF_T2_L2:
+            emitDispReg(id->idReg1(), attr, true);
+            imm = emitGetInsSC(id);
+            emitDispImm(imm, false, false);
+            break;
+
         case IF_T2_N:
         case IF_T2_N3:
             emitDispReg(id->idReg1(), attr, true);
