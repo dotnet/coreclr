@@ -62,27 +62,7 @@ namespace System
 #if !CORECLR
         static
 #endif
-        private Utf8String Ctor(ReadOnlySpan<byte> value)
-        {
-            if (value.IsEmpty)
-            {
-                return Empty;
-            }
-
-            Utf8String newString = FastAllocate(value.Length);
-            Buffer.Memmove(
-                destination: ref newString.DangerousGetMutableReference(),
-                source: ref MemoryMarshal.GetNonNullPinnableReference(value),
-                elementCount: (nuint)value.Length);
-
-            // From jkotas: all stores of reference type instances into the GC heap
-            // are treated as volatile writes, so no need for an explicit memory
-            // barrier here.
-
-            // TODO: validation of incoming data.
-
-            return newString;
-        }
+        private Utf8String Ctor(ReadOnlySpan<byte> value) => Create(value);
 
         public static Utf8String Create(ReadOnlySpan<byte> value, InvalidSequenceBehavior behavior = InvalidSequenceBehavior.ReplaceInvalidSequence)
         {
@@ -188,22 +168,28 @@ namespace System
             // TODO: Use a list of buffers and perform the transcoding piecemeal,
             // which reduces the constant factor on the O(n) operation.
 
-            Encoding e = Encoding.UTF8;
-            int length = e.GetByteCount(value);
-            Utf8String newString = FastAllocate(length);
+            Characteristics characteristics = Characteristics.IsWellFormed; // transcoding always results in a well-formed output
 
-            unsafe
+            Encoding e = Encoding.UTF8;
+            int numBytesRequired = e.GetByteCount(value);
+
+            // During UTF-16 to UTF-8 transcoding, the number of code units will stay the same only if the original input is
+            // ASCII. Non-ASCII UTF-16 code units always expand into multiple UTF-8 code units (and a UTF-16 surrogate pair
+            // expands to 4 UTF-8 code units). Additionally, unpaired surrogate UTF-16 code units will get translated to the
+            // 3 UTF-8 code unit sequence U+FFFD by our transcoder.
+
+            if (numBytesRequired == value.Length)
             {
-                fixed (byte* pFirstByte = &newString._firstByte)
-                fixed (char* pFirstChar = &MemoryMarshal.GetNonNullPinnableReference(value))
-                {
-                    e.GetBytes(pFirstChar, length, pFirstByte, length);
-                }
+                characteristics |= Characteristics.IsAscii;
             }
 
-            // No validation needed, as transcoding always fixes up invalid characters.
+            var unbaked = new UnbakedUtf8String(e.GetByteCount(value));
 
-            return newString;
+            int numBytesConverted = e.GetBytes(value, unbaked.GetSpan());
+            Debug.Assert(numBytesConverted == unbaked.Length, "Incorrect number of bytes converted.");
+
+            unbaked.ApplyCharacteristics(characteristics);
+            return unbaked.BakeWithoutValidation();
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -299,6 +285,8 @@ namespace System
                     source: ref MemoryMarshal.GetReference(source),
                     elementCount: (nuint)source.Length);
             }
+
+            public int Length => _value.Length;
 
             public void ApplyCharacteristics(Characteristics flags)
             {
