@@ -571,7 +571,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 
         if (isPR) {
             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-            builder.setGithubContext("Linux Throughput Perf ${architecture} Test Flow")
+            builder.setGithubContext("Linux Throughput Perf Test Flow")
             builder.triggerOnlyOnComment()
             builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+${architecture}\\W+flow.*")
             builder.triggerForBranch(branch)
