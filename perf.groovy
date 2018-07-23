@@ -431,7 +431,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 // Create the Linux/OSX/CentOS coreclr test leg for debug and release and each scenario
 [true, false].each { isPR ->
     ['x64','arm'].each { architecture ->
-        def fullBuildJobName = Utilities.getFullJobName(project, 'perf_throughput_linux_${architecture}_build', isPR)
+        def fullBuildJobName = Utilities.getFullJobName(project, "perf_throughput_linux_${architecture}_build", isPR)
         def configuration = 'Release'
 
         
@@ -573,7 +573,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
             builder.setGithubContext("Linux Throughput Perf Test Flow")
             builder.triggerOnlyOnComment()
-            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+${architecture}\\W+flow.*")
+            builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+throughput\\W+flow.*")
             builder.triggerForBranch(branch)
             builder.emitTrigger(newFlowJob)
         }
