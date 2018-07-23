@@ -5567,7 +5567,7 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
 #ifdef MDA_SUPPORTED
     if (!IsQCall() && MDA_GET_ASSISTANT(PInvokeStackImbalance))
     {
-        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub, /* fCalledByStub */ FALSE);
+        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub);
     }
 #endif // MDA_SUPPORTED
 

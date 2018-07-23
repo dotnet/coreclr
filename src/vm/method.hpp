@@ -2871,7 +2871,7 @@ public:
 
 private:
 #ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub, BOOL fCalledByStub);
+    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
 #endif // MDA_SUPPORTED
 
 public:
