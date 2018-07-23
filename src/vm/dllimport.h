@@ -118,9 +118,6 @@ public:
 
     inline static ILStubCache*     GetILStubCache(NDirectStubParameters* pParams);
 
-
-    static BOOL IsHostHookEnabled();
-
     static Stub *GenerateStubForHost(Module *pModule, CorUnmanagedCallingConvention callConv, WORD wArgSize);
 
 private:
@@ -624,15 +621,6 @@ PCODE GetStubForInteropMethod(MethodDesc* pMD, DWORD dwStubFlags = 0, MethodDesc
 // Resolve and return the predefined IL stub method
 HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, MethodDesc **ppRetStubMD);
 #endif // FEATURE_COMINTEROP
-
-//
-// Inlinable implementation allows compiler to strip all code related to host hook
-//
-inline BOOL NDirect::IsHostHookEnabled()
-{
-    LIMITED_METHOD_CONTRACT;
-    return FALSE;
-}
 
 // 
 // Limit length of string field in IL stub ETW events so that the whole
