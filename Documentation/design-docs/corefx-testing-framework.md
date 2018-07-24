@@ -30,15 +30,31 @@ Defining all exclusions in a single file should be fairly straightforward. The s
 
 ## Blob Storage
 
+### Test Binary Refresh
+
+A pain point of using cached test binaries is the lack of an established regular mechanism to refresh the test binaries in blob storage. Currently the only way to refresh the tests is to establish a set of CoreFX test binaries (either via building them locally or by downloading them from Helix) and manually uploading them to blob storage. Any new test projects have to be manually added to the TestList.json at the root of every OS-specific directory.  
+
+A straightfoward way to implement this would be with a bot similar to maestro-bot, i.e. every time we update the CoreFX reference in CoreCLR, maestro-bot can send a request to refresh binaries. The request would be sent to an agent, which would fetch the latest built test binaries from Helix and update them in blob storage. Subsequently helper scripts can be used to generate test exclusions from failed tests so that CI is green while bugs are triaged.
+
+### Layout
+
 The current layout of blob storage is inelegant and not easy to support. We can define two potential paths for improvement:
 
-+ Remove the .txt files with test URLs. Add a simple request handler between the blob storage and the testing framework to resolve URLs automatically for every supported platform/OS combo. This is where the binary refresh logic can also live – i.e. every time we update the CoreFX reference in CoreCLR, maestro-bot can send a request to refresh binaries. Then we can use helper scripts to generate test exclusions from failed tests so that CI is green while bugs are triaged.
++ Remove the .txt files with test URLs. Add a simple request handler between the blob storage and the testing framework to resolve URLs automatically for every supported platform/OS combo. This is where the binary refresh logic can also live.
 
 + The blob storage features above would duplicate some Helix functionality. The test list in each blob storage folder copies Helix’s JSON format. This was done intentionally to be compatible with the produced test payloads. We can use a Helix API to integrate test binary refresh with something similar to dotnet-maestro-bot and copy test binaries from a Helix run on a regular interval.
 
 ## xUnit Console Runner
 
 Currently we depend on xunit.netcore.console.exe (our own implementation of an xUnit console runner) being present in the test payload. With the efforts going on in [the Arcade transition project](https://github.com/dotnet/corefx/projects/3) changes to the CoreFX test build format might happen, in which case we would need to start maintaining our one CoreFX console runner. If the binaries maintain backwards-compatibility (extremely likely) with the console runner, then we can simply call an instance of xunit.netcore.console.exe from the test host directory.
+
+## Paralellization
+
+The testing framework currently does not utilize Helix's parallelization capabilities - all tests are run on a single  machine. Being able to execute select tests on different machines would speed up time to completion for most CI jobs.
+
+Currently there is no convenient way to split up the test list - the most straightforward implementation would involve simply specifying the total number of machines and the current machine index and passing them to the testing framework, which would then only execute the specified portion.
+
+A more sophisticated approach would be to schedule the tests according to the average time and ensuring an even mix of long- and short-running test assemblies per machine.
 
 ## JIT Stress and OPT Scenarios
 
