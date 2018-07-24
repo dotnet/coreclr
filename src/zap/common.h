@@ -13,11 +13,11 @@
 #define __COMMON_H__
 
 #include <stdint.h>
+#include <stddef.h>
 #include <winwrap.h>
 #include <windows.h>
 #include <stdlib.h>
 #include <objbase.h>
-#include <stddef.h>
 #include <float.h>
 #include <limits.h>
 
@@ -35,7 +35,6 @@ typedef unsigned int TARGET_POINTER_TYPE;
 
 #include "utilcode.h"
 #include "corjit.h"
-#include "jithost.h"
 #include "corcompile.h"
 #include "iceefilegen.h"
 #include "corpriv.h"

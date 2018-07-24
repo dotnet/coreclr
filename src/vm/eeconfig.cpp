@@ -343,7 +343,6 @@ HRESULT EEConfig::Init()
     iGCPollType = GCPOLL_TYPE_DEFAULT;
 
 #ifdef _DEBUG
-    fGenerateStubForHost = FALSE;
     fShouldInjectFault = 0;
     testThreadAbort = 0;
     testADUnload = 0;
@@ -1171,9 +1170,7 @@ HRESULT EEConfig::sync()
     IfFailRet(ParseTypeList(wszPerfTypes, &pPerfTypesToLog));
 
     iPerfNumAllocsThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfNumAllocsThreshold);
-    iPerfAllocsSizeThreshold    = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfAllocsSizeThreshold);
-
-    fGenerateStubForHost = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_GenerateStubForHost);
+    iPerfAllocsSizeThreshold = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_PerfAllocsSizeThreshold);
 
     fShouldInjectFault = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_InjectFault);
 
@@ -1253,8 +1250,22 @@ HRESULT EEConfig::sync()
     {
         tieredCompilation_tier1CallCountThreshold = 1;
     }
+
     tieredCompilation_tier1CallCountingDelayMs =
         CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1CallCountingDelayMs);
+    if (CPUGroupInfo::HadSingleProcessorAtStartup())
+    {
+        DWORD delayMultiplier =
+            CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_Tier1DelaySingleProcMultiplier);
+        if (delayMultiplier > 1)
+        {
+            DWORD newDelay = tieredCompilation_tier1CallCountingDelayMs * delayMultiplier;
+            if (newDelay / delayMultiplier == tieredCompilation_tier1CallCountingDelayMs)
+            {
+                tieredCompilation_tier1CallCountingDelayMs = newDelay;
+            }
+        }
+    }
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

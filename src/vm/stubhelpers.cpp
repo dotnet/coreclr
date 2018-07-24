@@ -284,7 +284,6 @@ FORCEINLINE static void *GetCOMIPFromRCW_GetTargetNoInterception(IUnknown *pUnk,
     _ASSERTE(pComInfo->m_pInterceptStub == NULL || pComInfo->m_pInterceptStub == (LPVOID)-1);
     _ASSERTE(!pComInfo->HasCopyCtorArgs());
 #endif // _TARGET_X86_
-    _ASSERTE(!NDirect::IsHostHookEnabled());
 
     LPVOID *lpVtbl = *(LPVOID **)pUnk;
     return lpVtbl[pComInfo->m_cachedComSlot];
@@ -1693,17 +1692,6 @@ FCIMPL1(Object*, StubHelpers::AllocateInternal, EnregisteredTypeHandle pRegister
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(objRet);
-}
-FCIMPLEND
-
-FCIMPL1(void, StubHelpers::DecimalCanonicalizeInternal, DECIMAL *pDec)
-{
-    FCALL_CONTRACT;
-
-    if (FAILED(DecimalCanonicalize(pDec)))
-    {
-        FCThrowResVoid(kOverflowException, W("Overflow_Currency"));
-    }
 }
 FCIMPLEND
 

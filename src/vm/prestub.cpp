@@ -315,10 +315,11 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     {
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
-        // Mark the code as hot in case the method ends up in the native image
-        g_IBCLogger.LogMethodCodeAccess(this);
         pCode = JitCompileCode(pConfig);
     }
+
+    // Mark the code as hot in case the method ends up in the native image
+    g_IBCLogger.LogMethodCodeAccess(this);
 
     return pCode;
 }
@@ -742,15 +743,6 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
         }
 
     }
-
-#ifdef FEATURE_TIERED_COMPILATION
-    if (g_pConfig->TieredCompilation() && flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
-    {
-        // The flag above is only set (in TieredCompilationManager::GetJitFlags()) when this method was eligible for tiered
-        // compilation at the time when it was checked, and a tier 0 JIT was requested for this method
-        GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
-    }
-#endif // FEATURE_TIERED_COMPILATION
 
 #ifdef FEATURE_STACK_SAMPLING
     StackSampler::RecordJittingInfo(this, flags);

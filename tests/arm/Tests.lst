@@ -94364,14 +94364,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
-[ClassicCOMUnitTest.cmd_11855]
-RelativePath=Interop\ClassicCOM\ClassicCOMUnitTest\ClassicCOMUnitTest.cmd
-WorkingDir=Interop\ClassicCOM\ClassicCOMUnitTest
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
-HostStyle=0
-
 [Matrix4x4_ro.cmd_11856]
 RelativePath=JIT\SIMD\Matrix4x4_ro\Matrix4x4_ro.cmd
 WorkingDir=JIT\SIMD\Matrix4x4_ro
@@ -94823,6 +94815,14 @@ HostStyle=0
 [GitHub_18522_8.cmd_11913]
 RelativePath=JIT\Regression\JitBlue\GitHub_18522\GitHub_18522_8\GitHub_18522_8.cmd
 WorkingDir=JIT\Regression\JitBlue\GitHub_18522\GitHub_18522_8
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+
+[GitHub_18780.cmd_11914]
+RelativePath=JIT\Regression\JitBlue\GitHub_18780\GitHub_18780\GitHub_18780.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_18780\GitHub_18780
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS

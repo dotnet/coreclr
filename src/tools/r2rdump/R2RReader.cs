@@ -128,13 +128,18 @@ namespace R2RDump
                 IntPtr ptr = (IntPtr)p;
                 _peReader = new PEReader(p, Image.Length);
 
-                IsR2R = (_peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
+                IsR2R = ((_peReader.PEHeaders.CorHeader.Flags & CorFlags.ILLibrary) != 0);
                 if (!IsR2R)
                 {
                     throw new BadImageFormatException("The file is not a ReadyToRun image");
                 }
 
                 Machine = _peReader.PEHeaders.CoffHeader.Machine;
+				if (!Machine.IsDefined(typeof(Machine), Machine))
+                {
+                    Machine = Machine.Amd64;
+                    R2RDump.WriteWarning($"Invalid Machine: {Machine}");
+                }
                 ImageBase = _peReader.PEHeaders.PEHeader.ImageBase;
 
                 // initialize R2RHeader
@@ -301,7 +306,15 @@ namespace R2RDump
                         unwindInfo = new Amd64.UnwindInfo(Image, unwindOffset);
                         if (isEntryPoint[runtimeFunctionId])
                         {
-                            gcInfo = new GcInfo(Image, unwindOffset + ((Amd64.UnwindInfo)unwindInfo).Size, Machine, R2RHeader.MajorVersion);
+                            gcInfo = new GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                        }
+                    }
+                    else if (Machine == Machine.I386)
+                    {
+                        unwindInfo = new x86.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            //gcInfo = new GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
                         }
                     }
 

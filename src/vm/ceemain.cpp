@@ -175,6 +175,7 @@
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 #include "disassembler.h"
+#include "jithost.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -908,6 +909,8 @@ void EEStartupHelper(COINITIEE fFlags)
 
         ExecutionManager::Init();
 
+        JitHost::Init();
+
 #ifndef CROSSGEN_COMPILE
 
 #ifndef FEATURE_PAL      
@@ -1094,13 +1097,6 @@ void EEStartupHelper(COINITIEE fFlags)
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
 
 #ifndef CROSSGEN_COMPILE
-
-#ifdef FEATURE_TIERED_COMPILATION
-        if (g_pConfig->TieredCompilation())
-        {
-            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
-        }
-#endif
 
 #ifdef _DEBUG
 
@@ -1722,6 +1718,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
                     {
                         IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
                         
+                        CONTRACT_VIOLATION(GCViolation);
                         Module::WriteAllModuleProfileData(true);
                     }
                 }

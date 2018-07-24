@@ -13,9 +13,9 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    public interface BaseUnwindInfo
+    public abstract class BaseUnwindInfo
     {
-
+        public int Size { get; set; }
     }
 
     public class RuntimeFunction
@@ -23,6 +23,7 @@ namespace R2RDump
         /// <summary>
         /// The index of the runtime function
         /// </summary>
+        [XmlAttribute("Index")]
         public int Id { get; set; }
 
         /// <summary>
@@ -65,6 +66,10 @@ namespace R2RDump
             if (endRva != -1)
             {
                 Size = endRva - startRva;
+            }
+            else if (unwindInfo is x86.UnwindInfo)
+            {
+                Size = (int)((x86.UnwindInfo)unwindInfo).FunctionLength;
             }
             else if (gcInfo != null)
             {
@@ -128,6 +133,7 @@ namespace R2RDump
         /// <summary>
         /// The row id of the method
         /// </summary>
+        [XmlAttribute("Index")]
         public uint Rid { get; set; }
 
         /// <summary>
