@@ -1463,17 +1463,6 @@ public:
 
     bool OperIsImplicitIndir() const;
 
-    bool OperIsStore() const
-    {
-        return OperIsStore(gtOper);
-    }
-
-    static bool OperIsStore(genTreeOps gtOper)
-    {
-        return (gtOper == GT_STOREIND || gtOper == GT_STORE_LCL_VAR || gtOper == GT_STORE_LCL_FLD ||
-                gtOper == GT_STORE_BLK || gtOper == GT_STORE_OBJ || gtOper == GT_STORE_DYN_BLK);
-    }
-
     static bool OperIsAtomicOp(genTreeOps gtOper)
     {
         return (gtOper == GT_XADD || gtOper == GT_XCHG || gtOper == GT_LOCKADD || gtOper == GT_CMPXCHG);
@@ -1482,6 +1471,17 @@ public:
     bool OperIsAtomicOp() const
     {
         return OperIsAtomicOp(gtOper);
+    }
+
+    bool OperIsStore() const
+    {
+        return OperIsStore(gtOper);
+    }
+
+    static bool OperIsStore(genTreeOps gtOper)
+    {
+        return (gtOper == GT_STOREIND || gtOper == GT_STORE_LCL_VAR || gtOper == GT_STORE_LCL_FLD ||
+                OperIsStoreBlk(gtOper) || OperIsAtomicOp(gtOper));
     }
 
     // This is here for cleaner FEATURE_SIMD #ifdefs.
@@ -1720,6 +1720,9 @@ public:
 
     // Returns true if it is a node returning its value in more than one register
     inline bool IsMultiRegNode() const;
+
+    // Returns the regIndex'th register defined by a possibly-multireg node.
+    regNumber GetRegByIndex(int regIndex);
 
     // Returns true if it is a GT_COPY or GT_RELOAD node
     inline bool IsCopyOrReload() const;
@@ -6004,6 +6007,47 @@ inline bool GenTree::IsMultiRegNode() const
 #endif
 
     return false;
+}
+
+//-----------------------------------------------------------------------------------
+// GetRegByIndex: Get a specific register, based on regIndex, that is produced
+//                by this node.
+//
+// Arguments:
+//     regIndex - which register to return (must be 0 for non-multireg nodes)
+//
+// Return Value:
+//     The register, if any, assigned to this index for this node.
+//
+inline regNumber GenTree::GetRegByIndex(int regIndex)
+{
+    if (regIndex == 0)
+    {
+        return gtRegNum;
+    }
+    if (IsMultiRegCall())
+    {
+        return AsCall()->GetRegNumByIdx(regIndex);
+    }
+
+#if FEATURE_ARG_SPLIT
+    if (OperIsPutArgSplit())
+    {
+        return AsPutArgSplit()->GetRegNumByIdx(regIndex);
+    }
+#endif
+#if defined(_TARGET_ARM_)
+    if (OperIsMultiRegOp())
+    {
+        return AsMultiRegOp()->GetRegNumByIdx(regIndex);
+    }
+    if (OperIs(GT_COPY, GT_RELOAD))
+    {
+        return AsCopyOrReload()->GetRegNumByIdx(regIndex);
+    }
+#endif
+    assert(!"Invalid regIndex for GetRegFromMultiRegNode");
+    return REG_NA;
 }
 
 //-------------------------------------------------------------------------

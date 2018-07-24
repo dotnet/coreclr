@@ -73,7 +73,7 @@ namespace JIT.HardwareIntrinsics.X86
                 var testStruct = new TestStruct();
                 var random = new Random();
 
-                testStruct._fld = random.NextDouble();
+                testStruct._fld = TestLibrary.Generator.GetDouble();
                 return testStruct;
             }
 
@@ -101,7 +101,7 @@ namespace JIT.HardwareIntrinsics.X86
         static ScalarSimdUnaryOpTest__SetAllVector128Double()
         {
             var random = new Random();
-            _clsVar = random.NextDouble();
+            _clsVar = TestLibrary.Generator.GetDouble();
         }
 
         public ScalarSimdUnaryOpTest__SetAllVector128Double()
@@ -109,8 +109,8 @@ namespace JIT.HardwareIntrinsics.X86
             Succeeded = true;
 
             var random = new Random();
-            _fld = random.NextDouble();
-            _data = random.NextDouble();
+            _fld = TestLibrary.Generator.GetDouble();
+            _data = TestLibrary.Generator.GetDouble();
             _dataTable = new ScalarSimdUnaryOpTest__DataTable<Double>(new Double[RetElementCount], LargestVectorSize);
         }
 
@@ -233,10 +233,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<Double>(Vector128<Double>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<Double>(Vector128<Double>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

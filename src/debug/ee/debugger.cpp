@@ -12590,7 +12590,7 @@ bool Debugger::IsThreadAtSafePlaceWorker(Thread *thread)
                                  Debugger::AtSafePlaceStackWalkCallback,
                                  (VOID*)(&atSafePlace),
                                  QUICKUNWIND | HANDLESKIPPEDFRAMES |
-                                 DISABLE_MISSING_FRAME_DETECTION);
+                                 DISABLE_MISSING_FRAME_DETECTION | SKIP_GSCOOKIE_CHECK);
 
 #ifdef LOGGING
     if (!atSafePlace)

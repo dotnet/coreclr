@@ -171,17 +171,15 @@ namespace R2RDump
         {
             int rtfOffset = 0;
             int codeOffset = rtf.CodeOffset;
-            Dictionary<int, GcInfo.GcTransition> transitions = rtf.Method.GcInfo.Transitions;
-            GcSlotTable slotTable = rtf.Method.GcInfo.SlotTable;
             while (rtfOffset < rtf.Size)
             {
                 string instr;
                 int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
 
                 _writer.Write(instr);
-                if (transitions.ContainsKey(codeOffset))
+                if (rtf.Method.GcInfo != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
                 {
-                    _writer.WriteLine($"\t\t\t\t{transitions[codeOffset].GetSlotState(slotTable)}");
+                    _writer.WriteLine($"\t\t\t\t{rtf.Method.GcInfo.Transitions[codeOffset].GetSlotState(rtf.Method.GcInfo.SlotTable)}");
                 }
 
                 CoreDisTools.ClearOutputBuffer();
@@ -289,7 +287,6 @@ namespace R2RDump
                         }
                         foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)
                         {
-                            _writer.WriteLine();
                             _writer.WriteLine(entry.ToString());
                         }
                         _writer.WriteLine();

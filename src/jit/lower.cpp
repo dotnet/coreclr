@@ -479,10 +479,10 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         // the result of the child subtree to a temp.
         GenTree* rhs = node->gtOp.gtOp1;
 
-        unsigned lclNum                 = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
-        comp->lvaSortAgain              = true;
-        comp->lvaTable[lclNum].lvType   = rhs->TypeGet();
-        comp->lvaTable[lclNum].lvRefCnt = 1;
+        unsigned lclNum               = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
+        comp->lvaSortAgain            = true;
+        comp->lvaTable[lclNum].lvType = rhs->TypeGet();
+        comp->lvaTable[lclNum].setLvRefCnt(1);
 
         GenTreeLclVar* store =
             new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, rhs->TypeGet(), lclNum, BAD_IL_OFFSET);
@@ -1055,13 +1055,17 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
         putArg = new (comp, GT_PUTARG_SPLIT)
             GenTreePutArgSplit(arg, info->slotNum PUT_STRUCT_ARG_STK_ONLY_ARG(info->numSlots), info->numRegs,
                                call->IsFastTailCall(), call);
-        putArg->gtRegNum = info->regNum;
 
         // If struct argument is morphed to GT_FIELD_LIST node(s),
         // we can know GC info by type of each GT_FIELD_LIST node.
         // So we skip setting GC Pointer info.
         //
         GenTreePutArgSplit* argSplit = putArg->AsPutArgSplit();
+        for (unsigned regIndex = 0; regIndex < info->numRegs; regIndex++)
+        {
+            argSplit->SetRegNumByIdx(info->getRegNum(regIndex), regIndex);
+        }
+
         if (arg->OperGet() == GT_OBJ)
         {
             BYTE*       gcLayout = nullptr;
@@ -2048,9 +2052,9 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
 
-                        comp->lvaSortAgain                          = true;
-                        comp->lvaTable[tmpLclNum].lvType            = tmpType;
-                        comp->lvaTable[tmpLclNum].lvRefCnt          = 1;
+                        comp->lvaSortAgain               = true;
+                        comp->lvaTable[tmpLclNum].lvType = tmpType;
+                        comp->lvaTable[tmpLclNum].setLvRefCnt(1);
                         comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
                     }
 

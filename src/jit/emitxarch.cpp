@@ -293,6 +293,9 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_unpcklps:
         case INS_unpckhpd:
         case INS_unpcklpd:
+        case INS_vblendvps:
+        case INS_vblendvpd:
+        case INS_vpblendvb:
         case INS_vfmadd132pd:
         case INS_vfmadd213pd:
         case INS_vfmadd231pd:
@@ -357,6 +360,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
         case INS_vinserti128:
         case INS_vmaskmovps:
         case INS_vmaskmovpd:
+        case INS_vpblendd:
         case INS_vperm2i128:
         case INS_vperm2f128:
         case INS_vpermilpsvar:
@@ -4512,10 +4516,13 @@ void emitter::emitIns_R_R_S_I(
 //    opReg encoded in imm[7:4]
 static int encodeXmmRegAsIval(regNumber opReg)
 {
-    assert(opReg >= XMMBASE);
     // AVX/AVX2 supports 4-reg format for vblendvps/vblendvpd/vpblendvb,
     // which encodes the fourth register into imm8[7:4]
-    return (opReg - XMMBASE) << 4;
+    assert(opReg >= XMMBASE);
+    int ival = (opReg - XMMBASE) << 4;
+
+    assert((ival >= 0) && (ival <= 255));
+    return (int8_t)ival;
 }
 
 //------------------------------------------------------------------------
@@ -9379,7 +9386,8 @@ BYTE* emitter::emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc)
         {
             regNumber src1 = id->idReg2();
 
-            if ((id->idInsFmt() != IF_RWR_RRD_ARD) && (id->idInsFmt() != IF_RWR_RRD_ARD_CNS))
+            if ((id->idInsFmt() != IF_RWR_RRD_ARD) && (id->idInsFmt() != IF_RWR_RRD_ARD_CNS) &&
+                (id->idInsFmt() != IF_RWR_RRD_ARD_RRD))
             {
                 src1 = id->idReg1();
             }

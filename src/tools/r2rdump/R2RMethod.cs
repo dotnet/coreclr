@@ -23,6 +23,7 @@ namespace R2RDump
         /// <summary>
         /// The index of the runtime function
         /// </summary>
+        [XmlAttribute("Index")]
         public int Id { get; set; }
 
         /// <summary>
@@ -128,6 +129,7 @@ namespace R2RDump
         /// <summary>
         /// The row id of the method
         /// </summary>
+        [XmlAttribute("Index")]
         public uint Rid { get; set; }
 
         /// <summary>
@@ -142,6 +144,8 @@ namespace R2RDump
 
         [XmlIgnore]
         public GcInfo GcInfo { get; set; }
+
+        public FixupCell[] Fixups { get; set; }
 
         /// <summary>
         /// Maps all the generic parameters to the type in the instance
@@ -188,7 +192,7 @@ namespace R2RDump
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok)
+        public R2RMethod(MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok, FixupCell[] fixups)
         {
             Token = _mdtMethodDef | rid;
             Rid = rid;
@@ -217,12 +221,14 @@ namespace R2RDump
                 argCount = signatureReader.ReadCompressedInteger();
             }
 
+            Fixups = fixups;
+
             DisassemblingTypeProvider provider = new DisassemblingTypeProvider();
             if (IsGeneric && instanceArgs != null && tok != null)
             {
                 InitGenericInstances(genericParams, instanceArgs, tok);
             }
-            
+
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(new string[0], _genericParamInstanceMap.Values.ToArray());
             Signature = _methodDef.DecodeSignature(provider, genericContext);
 
@@ -296,6 +302,14 @@ namespace R2RDump
             sb.AppendLine($"Rid: {Rid}");
             sb.AppendLine($"EntryPointRuntimeFunctionId: {EntryPointRuntimeFunctionId}");
             sb.AppendLine($"Number of RuntimeFunctions: {RuntimeFunctions.Count}");
+            if (Fixups != null)
+            {
+                sb.AppendLine($"Number of fixups: {Fixups.Count()}");
+                foreach (FixupCell cell in Fixups)
+                {
+                    sb.AppendLine($"    TableIndex {cell.TableIndex}, Offset {cell.CellOffset:X4}");
+                }
+            }
 
             return sb.ToString();
         }

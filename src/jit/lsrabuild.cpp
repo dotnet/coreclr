@@ -250,8 +250,8 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
     RegRecord*   useRegRecord     = nullptr;
     regNumber    defReg           = REG_NA;
     regNumber    useReg           = REG_NA;
-    bool         defRegConflict   = false;
-    bool         useRegConflict   = false;
+    bool         defRegConflict   = ((defRegAssignment & useRegAssignment) == RBM_NONE);
+    bool         useRegConflict   = defRegConflict;
 
     // If the useRefPosition is a "delayRegFree", we can't change the registerAssignment
     // on it, or we will fail to ensure that the fixedReg is busy at the time the target
@@ -263,7 +263,7 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
     {
         INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_FIXED_DELAY_USE));
     }
-    if (defRefPosition->isFixedRegRef)
+    if (defRefPosition->isFixedRegRef && !defRegConflict)
     {
         defReg       = defRefPosition->assignedReg();
         defRegRecord = getRegisterRecord(defReg);
@@ -287,7 +287,7 @@ void LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* de
             }
         }
     }
-    if (useRefPosition->isFixedRegRef)
+    if (useRefPosition->isFixedRegRef && !useRegConflict)
     {
         useReg                               = useRefPosition->assignedReg();
         useRegRecord                         = getRegisterRecord(useReg);
@@ -401,7 +401,7 @@ void LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
 //    incorrectly allocate that register.
 //    TODO-CQ: This means that we may often require a copy at the use of this node's result.
 //    This case could be moved to BuildRefPositionsForNode, at the point where the def RefPosition is
-//    created, causing a RefTypeFixedRef to be added at that location. This, however, results in
+//    created, causing a RefTypeFixedReg to be added at that location. This, however, results in
 //    more PhysReg RefPositions (a throughput impact), and a large number of diffs that require
 //    further analysis to determine benefit.
 //    See Issue #11274.
@@ -516,12 +516,16 @@ RefPosition* LinearScan::newRefPosition(
 {
     RefPosition* newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
 
-    newRP->setReg(getRegisterRecord(reg));
+    RegRecord* regRecord = getRegisterRecord(reg);
+    newRP->setReg(regRecord);
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(0);
     newRP->setAllocateIfProfitable(false);
 
+    // We can't have two RefPositions on a RegRecord at the same location, unless they are different types.
+    assert((regRecord->lastRefPosition == nullptr) || (regRecord->lastRefPosition->nodeLocation < theLocation) ||
+           (regRecord->lastRefPosition->refType != theRefType));
     associateRefPosWithInterval(newRP);
 
     DBEXEC(VERBOSE, newRP->dump());
@@ -579,8 +583,9 @@ RefPosition* LinearScan::newRefPosition(Interval*    theInterval,
     bool insertFixedRef  = false;
     if (isFixedRegister)
     {
-        // Insert a RefTypeFixedReg for any normal def or use (not ParamDef or BB)
-        if (theRefType == RefTypeUse || theRefType == RefTypeDef)
+        // Insert a RefTypeFixedReg for any normal def or use (not ParamDef or BB),
+        // but not an internal use (it will already have a FixedRef for the def).
+        if ((theRefType == RefTypeDef) || ((theRefType == RefTypeUse) && !theInterval->isInternal))
         {
             insertFixedRef = true;
         }
@@ -759,6 +764,28 @@ regMaskTP LinearScan::getKillSetForStoreInd(GenTreeStoreInd* tree)
             killMask = compiler->compHelperCallKillSet(helper);
         }
     }
+    return killMask;
+}
+
+//------------------------------------------------------------------------
+// getKillSetForShiftRotate: Determine the liveness kill set for a shift or rotate node.
+//
+// Arguments:
+//    shiftNode - the shift or rotate node
+//
+// Return Value:    a register mask of the registers killed
+//
+regMaskTP LinearScan::getKillSetForShiftRotate(GenTreeOp* shiftNode)
+{
+    regMaskTP killMask = RBM_NONE;
+#ifdef _TARGET_XARCH_
+    assert(shiftNode->OperIsShiftOrRotate());
+    GenTree* shiftBy = shiftNode->gtGetOp2();
+    if (!shiftBy->isContained())
+    {
+        killMask = RBM_RCX;
+    }
+#endif // _TARGET_XARCH_
     return killMask;
 }
 
@@ -1006,6 +1033,18 @@ regMaskTP LinearScan::getKillSetForNode(GenTree* tree)
     regMaskTP killMask = RBM_NONE;
     switch (tree->OperGet())
     {
+        case GT_LSH:
+        case GT_RSH:
+        case GT_RSZ:
+        case GT_ROL:
+        case GT_ROR:
+#ifdef _TARGET_X86_
+        case GT_LSH_HI:
+        case GT_RSH_LO:
+#endif
+            killMask = getKillSetForShiftRotate(tree->AsOp());
+            break;
+
         case GT_MUL:
         case GT_MULHI:
 #if !defined(_TARGET_64BIT_)
@@ -1895,7 +1934,7 @@ void LinearScan::buildIntervals()
         // Use lvRefCnt instead of checking bbLiveIn because if it's volatile we
         // won't have done dataflow on it, but it needs to be marked as live-in so
         // it will get saved in the prolog.
-        if (!compiler->compJmpOpUsed && argDsc->lvRefCnt == 0 && !compiler->opts.compDbgCode)
+        if (!compiler->compJmpOpUsed && argDsc->lvRefCnt() == 0 && !compiler->opts.compDbgCode)
         {
             continue;
         }
@@ -1937,7 +1976,7 @@ void LinearScan::buildIntervals()
         else
         {
             // We can overwrite the register (i.e. codegen saves it on entry)
-            assert(argDsc->lvRefCnt == 0 || !argDsc->lvIsRegArg || argDsc->lvDoNotEnregister ||
+            assert(argDsc->lvRefCnt() == 0 || !argDsc->lvIsRegArg || argDsc->lvDoNotEnregister ||
                    !argDsc->lvLRACandidate || (varTypeIsFloating(argDsc->TypeGet()) && compiler->opts.compDbgCode));
         }
     }
@@ -2322,6 +2361,12 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
 {
     assert(!tree->isContained());
     RegisterType type = getDefType(tree);
+
+    if (dstCandidates != RBM_NONE)
+    {
+        assert((tree->gtRegNum == REG_NA) || (dstCandidates == genRegMask(tree->GetRegByIndex(multiRegIdx))));
+    }
+
 #ifdef FEATURE_MULTIREG_ARGS_OR_RET
     if (tree->TypeGet() == TYP_STRUCT)
     {
@@ -2501,10 +2546,6 @@ RefPosition* LinearScan::BuildUse(GenTree* operand, regMaskTP candidates, int mu
     Interval* interval;
     bool      regOptional = operand->IsRegOptional();
 
-    if (operand->gtRegNum != REG_NA)
-    {
-        candidates = genRegMask(operand->gtRegNum);
-    }
     if (isCandidateLocalRef(operand))
     {
         interval = getIntervalForLocalVarNode(operand->AsLclVarCommon());

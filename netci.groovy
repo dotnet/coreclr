@@ -68,75 +68,82 @@ class Constants {
     // need to be set to actually enable that stress mode.  The key of the map is the stress mode and
     // the values are the environment variables
     def static jitStressModeScenarios = [
-               'minopts'                        : ['COMPlus_JITMinOpts' : '1'],
-               'tieredcompilation'              : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'forcerelocs'                    : ['COMPlus_ForceRelocs' : '1'],
-               'jitstress1'                     : ['COMPlus_JitStress' : '1'],
-               'jitstress2'                     : ['COMPlus_JitStress' : '2'],
-               'jitstressregs1'                 : ['COMPlus_JitStressRegs' : '1'],
-               'jitstressregs2'                 : ['COMPlus_JitStressRegs' : '2'],
-               'jitstressregs3'                 : ['COMPlus_JitStressRegs' : '3'],
-               'jitstressregs4'                 : ['COMPlus_JitStressRegs' : '4'],
-               'jitstressregs8'                 : ['COMPlus_JitStressRegs' : '8'],
-               'jitstressregs0x10'              : ['COMPlus_JitStressRegs' : '0x10'],
-               'jitstressregs0x80'              : ['COMPlus_JitStressRegs' : '0x80'],
-               'jitstressregs0x1000'            : ['COMPlus_JitStressRegs' : '0x1000'],
-               'jitstress2_jitstressregs1'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
-               'jitstress2_jitstressregs2'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
-               'jitstress2_jitstressregs3'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
-               'jitstress2_jitstressregs4'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
-               'jitstress2_jitstressregs8'      : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
-               'jitstress2_jitstressregs0x10'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
-               'jitstress2_jitstressregs0x80'   : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
-               'jitstress2_jitstressregs0x1000' : ['COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
-               'tailcallstress'                 : ['COMPlus_TailcallStress' : '1'],
-               'jitsse2only'                    : ['COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
-               'jitnosimd'                      : ['COMPlus_FeatureSIMD' : '0'],
-               'jitincompletehwintrinsic'       : ['COMPlus_EnableIncompleteISAClass' : '1'],
-               'jitx86hwintrinsicnoavx'         : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX' : '0'], // testing the legacy SSE encoding
-               'jitx86hwintrinsicnoavx2'        : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX2' : '0'], // testing SNB/IVB
-               'jitx86hwintrinsicnosimd'        : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_FeatureSIMD' : '0'], // match "jitnosimd", may need to remove after decoupling HW intrinsic from FeatureSIMD
-               'jitnox86hwintrinsic'            : ['COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableSSE' : '0' , 'COMPlus_EnableSSE2' : '0' , 'COMPlus_EnableSSE3' : '0' , 'COMPlus_EnableSSSE3' : '0' , 'COMPlus_EnableSSE41' : '0' , 'COMPlus_EnableSSE42' : '0' , 'COMPlus_EnableAVX' : '0' , 'COMPlus_EnableAVX2' : '0' , 'COMPlus_EnableAES' : '0' , 'COMPlus_EnableBMI1' : '0' , 'COMPlus_EnableBMI2' : '0' , 'COMPlus_EnableFMA' : '0' , 'COMPlus_EnableLZCNT' : '0' , 'COMPlus_EnablePCLMULQDQ' : '0' , 'COMPlus_EnablePOPCNT' : '0'],
-               'corefx_baseline'                : [ : ], // corefx baseline
-               'corefx_minopts'                 : ['COMPlus_JITMinOpts' : '1'],
-               'corefx_tieredcompilation'       : ['COMPlus_EXPERIMENTAL_TieredCompilation' : '1'],
-               'corefx_jitstress1'              : ['COMPlus_JitStress' : '1'],
-               'corefx_jitstress2'              : ['COMPlus_JitStress' : '2'],
-               'corefx_jitstressregs1'          : ['COMPlus_JitStressRegs' : '1'],
-               'corefx_jitstressregs2'          : ['COMPlus_JitStressRegs' : '2'],
-               'corefx_jitstressregs3'          : ['COMPlus_JitStressRegs' : '3'],
-               'corefx_jitstressregs4'          : ['COMPlus_JitStressRegs' : '4'],
-               'corefx_jitstressregs8'          : ['COMPlus_JitStressRegs' : '8'],
-               'corefx_jitstressregs0x10'       : ['COMPlus_JitStressRegs' : '0x10'],
-               'corefx_jitstressregs0x80'       : ['COMPlus_JitStressRegs' : '0x80'],
-               'corefx_jitstressregs0x1000'     : ['COMPlus_JitStressRegs' : '0x1000'],
-               'gcstress0x3'                    : ['COMPlus_GCStress' : '0x3'],
-               'gcstress0xc'                    : ['COMPlus_GCStress' : '0xC'],
-               'zapdisable'                     : ['COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'heapverify1'                    : ['COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_zapdisable'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
-               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
-               'gcstress0xc_jitstress1'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
-               'gcstress0xc_jitstress2'             : ['COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
-               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
+               'minopts'                        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JITMinOpts' : '1'],
+               'tieredcompilation'              : ['COMPlus_TieredCompilation' : '1'], // this can be removed once tiered compilation is on by default
+               'no_tiered_compilation'          : ['COMPlus_TieredCompilation' : '0'],
+               'no_tiered_compilation_innerloop': ['COMPlus_TieredCompilation' : '0'],
+               'forcerelocs'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_ForceRelocs' : '1'],
+               'jitstress1'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '1'],
+               'jitstress2'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2'],
+               'jitstress1_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '1'],
+               'jitstress2_tiered'              : ['COMPlus_TieredCompilation' : '1', 'COMPlus_JitStress' : '2'],
+               'jitstressregs1'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '1'],
+               'jitstressregs2'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '2'],
+               'jitstressregs3'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '3'],
+               'jitstressregs4'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '4'],
+               'jitstressregs8'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '8'],
+               'jitstressregs0x10'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x10'],
+               'jitstressregs0x80'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x80'],
+               'jitstressregs0x1000'            : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x1000'],
+               'jitstress2_jitstressregs1'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '1'],
+               'jitstress2_jitstressregs2'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '2'],
+               'jitstress2_jitstressregs3'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '3'],
+               'jitstress2_jitstressregs4'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '4'],
+               'jitstress2_jitstressregs8'      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '8'],
+               'jitstress2_jitstressregs0x10'   : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x10'],
+               'jitstress2_jitstressregs0x80'   : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x80'],
+               'jitstress2_jitstressregs0x1000' : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2', 'COMPlus_JitStressRegs' : '0x1000'],
+               'tailcallstress'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_TailcallStress' : '1'],
+               'jitsse2only'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableAVX' : '0', 'COMPlus_EnableSSE3_4' : '0'],
+               'jitnosimd'                      : ['COMPlus_TieredCompilation' : '0', 'COMPlus_FeatureSIMD' : '0'],
+               'jitincompletehwintrinsic'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1'],
+               'jitx86hwintrinsicnoavx'         : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX' : '0'], // testing the legacy SSE encoding
+               'jitx86hwintrinsicnoavx2'        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableAVX2' : '0'], // testing SNB/IVB
+               'jitx86hwintrinsicnosimd'        : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_FeatureSIMD' : '0'], // match "jitnosimd", may need to remove after decoupling HW intrinsic from FeatureSIMD
+               'jitnox86hwintrinsic'            : ['COMPlus_TieredCompilation' : '0', 'COMPlus_EnableIncompleteISAClass' : '1', 'COMPlus_EnableSSE' : '0' , 'COMPlus_EnableSSE2' : '0' , 'COMPlus_EnableSSE3' : '0' , 'COMPlus_EnableSSSE3' : '0' , 'COMPlus_EnableSSE41' : '0' , 'COMPlus_EnableSSE42' : '0' , 'COMPlus_EnableAVX' : '0' , 'COMPlus_EnableAVX2' : '0' , 'COMPlus_EnableAES' : '0' , 'COMPlus_EnableBMI1' : '0' , 'COMPlus_EnableBMI2' : '0' , 'COMPlus_EnableFMA' : '0' , 'COMPlus_EnableLZCNT' : '0' , 'COMPlus_EnablePCLMULQDQ' : '0' , 'COMPlus_EnablePOPCNT' : '0'],
+               'corefx_baseline'                : ['COMPlus_TieredCompilation' : '0'], // corefx baseline
+               'corefx_minopts'                 : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JITMinOpts' : '1'],
+               'corefx_tieredcompilation'       : ['COMPlus_TieredCompilation' : '1'],  // this can be removed once tiered compilation is on by default
+               'corefx_jitstress1'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '1'],
+               'corefx_jitstress2'              : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStress' : '2'],
+               'corefx_jitstressregs1'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '1'],
+               'corefx_jitstressregs2'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '2'],
+               'corefx_jitstressregs3'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '3'],
+               'corefx_jitstressregs4'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '4'],
+               'corefx_jitstressregs8'          : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '8'],
+               'corefx_jitstressregs0x10'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x10'],
+               'corefx_jitstressregs0x80'       : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x80'],
+               'corefx_jitstressregs0x1000'     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_JitStressRegs' : '0x1000'],
+               'gcstress0x3'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0x3'],
+               'gcstress0xc'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC'],
+               'zapdisable'                     : ['COMPlus_TieredCompilation' : '0', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'heapverify1'                    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_zapdisable'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0'],
+               'gcstress0xc_zapdisable_jitstress2'  : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_zapdisable_heapverify1' : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_ZapDisable' : '1', 'COMPlus_ReadyToRun' : '0', 'COMPlus_HeapVerify' : '1'],
+               'gcstress0xc_jitstress1'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '1'],
+               'gcstress0xc_jitstress2'             : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JitStress'  : '2'],
+               'gcstress0xc_minopts_heapverify1'    : ['COMPlus_TieredCompilation' : '0', 'COMPlus_GCStress' : '0xC', 'COMPlus_JITMinOpts' : '1', 'COMPlus_HeapVerify' : '1']
     ]
 
     // This is a set of ReadyToRun stress scenarios
     def static r2rStressScenarios = [
-               'r2r_jitstress1'             : ["COMPlus_JitStress": "1"],
-               'r2r_jitstress2'             : ["COMPlus_JitStress": "2"],
-               'r2r_jitstressregs1'         : ["COMPlus_JitStressRegs": "1"],
-               'r2r_jitstressregs2'         : ["COMPlus_JitStressRegs": "2"],
-               'r2r_jitstressregs3'         : ["COMPlus_JitStressRegs": "3"],
-               'r2r_jitstressregs4'         : ["COMPlus_JitStressRegs": "4"],
-               'r2r_jitstressregs8'         : ["COMPlus_JitStressRegs": "8"],
-               'r2r_jitstressregs0x10'      : ["COMPlus_JitStressRegs": "0x10"],
-               'r2r_jitstressregs0x80'      : ["COMPlus_JitStressRegs": "0x80"],
-               'r2r_jitstressregs0x1000'    : ["COMPlus_JitStressRegs": "0x1000"],
-               'r2r_jitminopts'             : ["COMPlus_JITMinOpts": "1"], 
-               'r2r_jitforcerelocs'         : ["COMPlus_ForceRelocs": "1"],
-               'r2r_gcstress15'             : ["COMPlus_GCStress": "0xF"]
+               'r2r_jitstress1'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStress": "1"],
+               'r2r_jitstress2'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStress": "2"],
+               'r2r_jitstress1_tiered'      : ['COMPlus_TieredCompilation' : '1', "COMPlus_JitStress": "1"],
+               'r2r_jitstress2_tiered'      : ['COMPlus_TieredCompilation' : '1', "COMPlus_JitStress": "2"],
+               'r2r_jitstressregs1'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "1"],
+               'r2r_jitstressregs2'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "2"],
+               'r2r_jitstressregs3'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "3"],
+               'r2r_jitstressregs4'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "4"],
+               'r2r_jitstressregs8'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "8"],
+               'r2r_jitstressregs0x10'      : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x10"],
+               'r2r_jitstressregs0x80'      : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x80"],
+               'r2r_jitstressregs0x1000'    : ['COMPlus_TieredCompilation' : '0', "COMPlus_JitStressRegs": "0x1000"],
+               'r2r_jitminopts'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_JITMinOpts": "1"], 
+               'r2r_jitforcerelocs'         : ['COMPlus_TieredCompilation' : '0', "COMPlus_ForceRelocs": "1"],
+               'r2r_gcstress15'             : ['COMPlus_TieredCompilation' : '0', "COMPlus_GCStress": "0xF"],
+               'r2r_no_tiered_compilation'  : ['COMPlus_TieredCompilation' : '0'],
     ]
 
     // This is the basic set of scenarios
@@ -237,6 +244,8 @@ class Constants {
                // 'illink'
                'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'r2r_jitstress2_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs1':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs2':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstressregs3':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -248,11 +257,16 @@ class Constants {
                'r2r_jitminopts':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
                'r2r_jitforcerelocs':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_gcstress15':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
+               'r2r_no_tiered_compilation':              ["R2R_FAIL", "R2R_EXCLUDE"],
                'minopts':                                ["MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
                'tieredcompilation':                      [],
+               'no_tiered_compilation':                  [],
+               'no_tiered_compilation_innerloop':        [],
                'forcerelocs':                            [],
                'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress1_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
+               'jitstress2_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs2':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'jitstressregs3':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -340,6 +354,8 @@ class Constants {
                // 'illink'
                'r2r_jitstress1',
                'r2r_jitstress2',
+               'r2r_jitstress1_tiered',
+               'r2r_jitstress2_tiered',
                'r2r_jitstressregs1',
                'r2r_jitstressregs2',
                'r2r_jitstressregs3',
@@ -351,11 +367,16 @@ class Constants {
                'r2r_jitminopts',
                'r2r_jitforcerelocs',
                'r2r_gcstress15',
+               'r2r_no_tiered_compilation',
                'minopts',
                'tieredcompilation',
+               'no_tiered_compilation',
+               'no_tiered_compilation_innerloop',
                'forcerelocs',
                'jitstress1',
                'jitstress2',
+               'jitstress1_tiered',
+               'jitstress2_tiered',
                'jitstressregs1',
                'jitstressregs2',
                'jitstressregs3',
@@ -374,7 +395,90 @@ class Constants {
                'jitstress2_jitstressregs0x1000',
                'tailcallstress',
                // 'jitsse2only'                          // Only relevant to xarch
-               // 'jitnosimd'
+               // 'jitnosimd'                            // Only interesting on platforms where SIMD support exists.
+               // 'jitincompletehwintrinsic'
+               // 'jitx86hwintrinsicnoavx'
+               // 'jitx86hwintrinsicnoavx2'
+               // 'jitx86hwintrinsicnosimd'
+               // 'jitnox86hwintrinsic'
+               'corefx_baseline',
+               'corefx_minopts',
+               'corefx_tieredcompilation',
+               'corefx_jitstress1',
+               'corefx_jitstress2',
+               'corefx_jitstressregs1',
+               'corefx_jitstressregs2',
+               'corefx_jitstressregs3',
+               'corefx_jitstressregs4',
+               'corefx_jitstressregs8',
+               'corefx_jitstressregs0x10',
+               'corefx_jitstressregs0x80',
+               'corefx_jitstressregs0x1000',
+               'gcstress0x3',
+               'gcstress0xc',
+               'zapdisable',
+               'heapverify1',
+               'gcstress0xc_zapdisable',
+               'gcstress0xc_zapdisable_jitstress2',
+               'gcstress0xc_zapdisable_heapverify1',
+               'gcstress0xc_jitstress1',
+               'gcstress0xc_jitstress2',
+               'gcstress0xc_minopts_heapverify1'
+    ]
+
+    def static validLinuxArm64Scenarios = [
+               'innerloop',
+               'normal',
+               // 'ilrt'
+               'r2r',
+               // 'longgc'
+               // 'formatting'
+               // 'gcsimulator'
+               // 'jitdiff'
+               // 'standalone_gc'
+               // 'gc_reliability_framework'
+               // 'illink'
+               'r2r_jitstress1',
+               'r2r_jitstress2',
+               'r2r_jitstress1_tiered',
+               'r2r_jitstress2_tiered',
+               'r2r_jitstressregs1',
+               'r2r_jitstressregs2',
+               'r2r_jitstressregs3',
+               'r2r_jitstressregs4',
+               'r2r_jitstressregs8',
+               'r2r_jitstressregs0x10',
+               'r2r_jitstressregs0x80',
+               'r2r_jitstressregs0x1000',
+               'r2r_jitminopts',
+               'r2r_jitforcerelocs',
+               'r2r_gcstress15',
+               'minopts',
+               'tieredcompilation',
+               'forcerelocs',
+               'jitstress1',
+               'jitstress2',
+               'jitstress1_tiered',
+               'jitstress2_tiered',
+               'jitstressregs1',
+               'jitstressregs2',
+               'jitstressregs3',
+               'jitstressregs4',
+               'jitstressregs8',
+               'jitstressregs0x10',
+               'jitstressregs0x80',
+               'jitstressregs0x1000',
+               'jitstress2_jitstressregs1',
+               'jitstress2_jitstressregs2',
+               'jitstress2_jitstressregs3',
+               'jitstress2_jitstressregs4',
+               'jitstress2_jitstressregs8',
+               'jitstress2_jitstressregs0x10',
+               'jitstress2_jitstressregs0x80',
+               'jitstress2_jitstressregs0x1000',
+               'tailcallstress',
+               // 'jitsse2only'                         // Only relevant to xarch
+               'jitnosimd',                             // Only interesting on platforms where SIMD support exists.
                // 'jitincompletehwintrinsic'
                // 'jitx86hwintrinsicnoavx'
                // 'jitx86hwintrinsicnoavx2'
@@ -787,6 +891,12 @@ def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBui
     return true
 }
 
+// This means the job builds and runs the 'Pri0' test set. This does not mean the job is 
+// scheduled with a default PR trigger despite the correlation being true at the moment.
+def static isPri0TestScenario(def scenario) {
+    return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop')
+}
+
 def static getFxBranch(def branch) {
     def fxBranch = branch
     // Map 'dev/unix_test_workflow' to 'master' so we can test CoreFX jobs in the CoreCLR dev/unix_test_workflow
@@ -800,11 +910,9 @@ def static getFxBranch(def branch) {
 def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, isBuildOnly) {
     // 2 hours (120 minutes) is the default timeout
     def timeout = 120
-    def innerLoop = (scenario == "innerloop")
 
-    if (!innerLoop) {
-        // Pri-1 test builds take a long time. Default PR jobs are Pri-0; everything else is Pri-1
-        // (see calculateBuildCommands()). So up the Pri-1 build jobs timeout.
+    if (!isPri0TestScenario(scenario)) {
+        // Pri-1 test builds take a long time (see calculateBuildCommands()). So up the Pri-1 build jobs timeout.
         timeout = 240
     }
 
@@ -1127,9 +1235,16 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
          return
     }
 
+    // Ubuntu x86 CI jobs are failing. Disable non-PR triggered jobs to avoid these constant failures
+    // until this is fixed. Tracked by https://github.com/dotnet/coreclr/issues/19003.
+    if (architecture == 'x86' && os == 'Ubuntu') {
+        return
+    }
+
     // Check scenario.
     switch (scenario) {
         case 'innerloop':
+        case 'no_tiered_compilation_innerloop':
             break
         case 'normal':
             switch (architecture) {
@@ -1234,6 +1349,8 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             break
         case 'r2r_jitstress1':
         case 'r2r_jitstress2':
+        case 'r2r_jitstress1_tiered':
+        case 'r2r_jitstress2_tiered':
         case 'r2r_jitstressregs1':
         case 'r2r_jitstressregs2':
         case 'r2r_jitstressregs3':
@@ -1245,6 +1362,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'r2r_jitminopts':
         case 'r2r_jitforcerelocs':
         case 'r2r_gcstress15':
+        case 'r2r_no_tiered_compilation':
             assert !(os in bidailyCrossList)
 
             // GCStress=C is currently not supported on OS X
@@ -1342,9 +1460,13 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'jitstressregs0x80':
         case 'jitstressregs0x1000':
         case 'minopts':
+        case 'tieredcompilation':
+        case 'no_tiered_compilation':
         case 'forcerelocs':
         case 'jitstress1':
         case 'jitstress2':
+        case 'jitstress1_tiered':
+        case 'jitstress2_tiered':
         case 'jitstress2_jitstressregs1':
         case 'jitstress2_jitstressregs2':
         case 'jitstress2_jitstressregs3':
@@ -1363,6 +1485,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'jitx86hwintrinsicnosimd':
         case 'corefx_baseline':
         case 'corefx_minopts':
+        case 'corefx_tieredcompilation':
         case 'corefx_jitstress1':
         case 'corefx_jitstress2':
         case 'corefx_jitstressregs1':
@@ -1446,11 +1569,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     addPeriodicTriggerHelper(job, '@daily')
                 }
             }
-            break
-        
-        case 'tieredcompilation':
-        case 'corefx_tieredcompilation':
-            // No periodic jobs just yet, still testing
             break
 
         default:
@@ -1554,10 +1672,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                         break
                     }
-
-                    else  if (scenario == 'corefx_innerloop') {
+                    else if (scenario == 'corefx_innerloop') {
                         if (configuration == 'Checked') {
-                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")
                         }
                         else {
                             Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+CoreFX Tests.*")
@@ -1628,7 +1745,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
                         case 'corefx_innerloop':
                             if (configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")
                             }
                             break
 
@@ -1702,6 +1819,13 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test")
                             }
                             break
+                        case 'no_tiered_compilation_innerloop':
+                            // Default trigger
+                            if (configuration == 'Checked') {
+                                def displayStr = getStressModeDisplayName(scenario)
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                            }
+                            break
 
                         case 'normal':
                             if (configuration == 'Checked') {
@@ -1750,7 +1874,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             break
                         case 'corefx_innerloop':
                             if (configuration == 'Checked') {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")                                
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} CoreFX Tests")
                             }
                             break
 
@@ -1845,7 +1969,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
             switch (os) {
                 case 'Ubuntu':
-                    if (scenario == 'innerloop') {
+                    if (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop') {
                         if (configuration == 'Checked') {
                             Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
                         }
@@ -1984,6 +2108,13 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
 
+                case 'no_tiered_compilation_innerloop':
+                    if (configuration == 'Checked') {
+                        def displayStr = getStressModeDisplayName(scenario)
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                    }
+                    break
+
                 case 'normal':
                     if (configuration == 'Checked') {
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test",
@@ -2075,7 +2206,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
     def lowerConfiguration = configuration.toLowerCase()
 
     def priority = '1'
-    if (scenario == 'innerloop') {
+    if (isPri0TestScenario(scenario)) {
         priority = '0'
     }
 
@@ -2224,22 +2355,21 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                                 // Archive and process (only) the test results
                                 Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
                                 Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
-
                             }
                             else {
-                              def workspaceRelativeFxRoot = "_/fx"
-                              def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
-                              def fxBranch = getFxBranch(branch)
+                                def workspaceRelativeFxRoot = "_/fx"
+                                def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
+                                def fxBranch = getFxBranch(branch)
 
-                              buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
+                                buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
-                              // Archive and process (only) the test results
-                              Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
-                              Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                                // Archive and process (only) the test results
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
+                                Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
 
-                              //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
-                              Utilities.addArchival(newJob, "SetStressModes.bat", "", true, false)
-                              Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/testhost/**", "", true, false)
+                                //Archive additional build stuff to diagnose why my attempt at fault injection isn't causing CI to fail
+                                Utilities.addArchival(newJob, "SetStressModes.bat", "", true, false)
+                                Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/testhost/**", "", true, false)
                             }
                         }
                         else if (isGcReliabilityFramework(scenario)) {
@@ -2285,32 +2415,26 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
                     break
                 case 'arm':
+                case 'arm64':
                     assert isArmWindowsScenario(scenario)
 
-                    def buildArchitecture = 'arm'
                     def buildOpts = ''
 
+                    if (architecture == 'arm64') {
+                        buildOpts += " toolset_dir C:\\ats2"
+                    }
+
                     if (doCoreFxTesting) {
-                        // We shouldn't need to build the tests. However, run-corefx-tests.py currently depends on having the restored corefx
-                        // package available, to determine the correct corefx version git commit hash, and we need to build the tests before
-                        // running "tests\\runtest.cmd GenerateLayoutOnly". So build the pri-0 tests to make this happen.
-                        //
-                        // buildOpts += ' skiptests';
-                        buildOpts += " -priority=0"
+                        buildOpts += ' skiptests'
                     } else {
                         buildOpts += " -priority=${priority}"
                     }
 
                     // This is now a build only job. Do not run tests. Use the flow job.
-                    buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${buildArchitecture} ${buildOpts}"
+                    buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} ${buildOpts}"
 
                     if (doCoreFxTesting) {
                         assert isBuildOnly
-                        assert architecture == 'arm'
-
-                        // Generate the test layout because it restores the corefx package which allows run-corefx-tests.py
-                        // to determine the correct matching corefx version git commit hash.
-                        buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${architecture} GenerateLayoutOnly"
 
                         // Set the stress mode variables; this is incorporated into the generated CoreFx RunTests.cmd files.
                         def envScriptPath = ''
@@ -2326,10 +2450,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
                         def fxBranch = getFxBranch(branch)
 
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests"
+                        def toolsetDirOpt = ''
+                        if (architecture == 'arm64') {
+                            toolsetDirOpt = "-toolset_dir C:\\ats2"
+                        }
+
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests ${toolsetDirOpt}"
 
                         // Zip up the CoreFx runtime and tests. We don't need the CoreCLR binaries; they have been copied to the CoreFX tree.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-arm', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
                         buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\tests', '${workspaceRelativeFxRootWin}\\fxtests.zip')\"";
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
@@ -2337,24 +2466,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     } else {
                         // Zip up the tests directory so that we don't use so much space/time copying
                         // 10s of thousands of files around.
-                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${buildArchitecture}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
 
                         // Add archival.
                         Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
                     }
-                    break
-                case 'arm64':
-                    assert isArmWindowsScenario(scenario)
-
-                    // This is now a build only job. Do not run tests. Use the flow job.
-                    buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${architecture} toolset_dir C:\\ats2 -priority=${priority}"
-
-                    // Zip up the tests directory so that we don't use so much space/time copying
-                    // 10s of thousands of files around.
-                    buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}', '.\\bin\\tests\\tests.zip')\"";
-
-                    // Add archival.
-                    Utilities.addArchival(newJob, "bin/Product/**,bin/tests/tests.zip", "bin/Product/**/.nuget/**")
                     break
                 default:
                     println("Unknown architecture: ${architecture}");
@@ -2412,7 +2528,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
                     else {
-                        if(scenario == 'corefx_innerloop') {
+                        if (scenario == 'corefx_innerloop') {
                             assert os == 'Ubuntu' || 'OSX10.12'
                             assert architecture == 'x64'
 
@@ -2421,10 +2537,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
                             
                             break
-                            // TODO - uncomment once https://github.com/dotnet/coreclr/pull/18753 has been merged
                             // Archive and process (only) the test results
-                            // Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
-                            // Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
+                            Utilities.addArchival(newJob, "bin/Logs/**/testResults.xml")
+                            Utilities.addXUnitDotNETResults(newJob, "bin/Logs/**/testResults.xml")
                         }
                         else {
                             // Corefx stress testing
@@ -2582,7 +2697,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 def static shouldGenerateJob(def scenario, def isPR, def architecture, def configuration, def os, def isBuildOnly)
 {
     // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
-    // All other scenarios do Pri-1 testing.
     if (scenario == 'innerloop' && !isPR) {
         return false
     }
@@ -2639,7 +2753,8 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     if (isBuildOnly) {
         switch (architecture) {
             case 'arm':
-                // We use build only jobs for Windows arm cross-compilation corefx testing, so we need to generate builds for that.
+            case 'arm64':
+                // We use build only jobs for Windows arm/arm64 cross-compilation corefx testing, so we need to generate builds for that.
                 if (!isCoreFxScenario(scenario)) {
                     return false
                 }
@@ -2681,7 +2796,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 break
 
             case 'arm':
-                // We use build only jobs for Windows arm cross-compilation corefx testing, so we need to generate builds for that.
+                // We use build only jobs for Windows arm/arm64 cross-compilation corefx testing, so we need to generate builds for that.
                 // No "regular" Windows arm corefx jobs, e.g.
                 // For Ubuntu arm corefx testing, we use regular jobs (not "build only" since only Windows has "build only", and
                 // the Ubuntu arm "regular" jobs don't run tests anyway).
@@ -2699,7 +2814,9 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
 
             case 'arm64':
                 if (os == 'Windows_NT') {
-                    return false
+                    if (! (isBuildOnly && isCoreFxScenario(scenario)) ) {
+                        return false
+                    }
                 }
                 else {
                     if (!isCoreFxScenario(scenario)) {
@@ -2718,9 +2835,28 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         if (os != 'Windows_NT') {
             return false
         }
-        // Stress scenarios only run with Checked builds, not Release (they would work with Debug, but be slow).
-        if ((configuration != 'Checked') && isR2RStressScenario(scenario)) {
-            return false
+
+        if (isR2RBaselineScenario(scenario)) {
+            // no need for Debug scenario; Checked is sufficient
+            if (configuration != 'Checked' && configuration != 'Release') {
+                return false
+            }
+        }
+        else if (isR2RStressScenario(scenario)) {
+            // Stress scenarios only run with Checked builds, not Release (they would work with Debug, but be slow).
+            if (configuration != 'Checked') {
+                return false
+            }
+        }
+
+        switch (architecture) {
+            case 'arm':
+            case 'arm64':
+                // Windows arm/arm64 ready-to-run jobs use flow jobs and test jobs, but depend on "normal" (not R2R specific) build jobs.
+                return false
+
+            default:
+                break
         }
     }
     else {
@@ -2970,20 +3106,20 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 
             if (isCoreFxScenario(scenario)) {
 
-                // Only arm supported for corefx testing now.
-                assert architecture == 'arm'
+                // Only arm/arm64 supported for corefx testing now.
+                assert architecture == 'arm' || architecture == 'arm64'
 
                 // Unzip CoreFx runtime
-                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxruntime.zip', '_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-arm')\"")
+                batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxruntime.zip', '_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}')\"")
 
                 // Unzip CoreFx tests.
                 batchFile("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::ExtractToDirectory('_\\fx\\fxtests.zip', '_\\fx\\bin\\tests')\"")
 
                 // Add the script to run the corefx tests
-                def corefx_runtime_path   = "%WORKSPACE%\\_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-arm"
+                def corefx_runtime_path   = "%WORKSPACE%\\_\\fx\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}"
                 def corefx_tests_dir      = "%WORKSPACE%\\_\\fx\\bin\\tests"
-                def corefx_exclusion_file = "%WORKSPACE%\\tests\\arm\\corefx_test_exclusions.txt"
-                batchFile("call %WORKSPACE%\\tests\\scripts\\run-corefx-tests.bat ${corefx_runtime_path} ${corefx_tests_dir} ${corefx_exclusion_file}")
+                def corefx_exclusion_file = "%WORKSPACE%\\tests\\${architecture}\\corefx_test_exclusions.txt"
+                batchFile("call %WORKSPACE%\\tests\\scripts\\run-corefx-tests.bat ${corefx_runtime_path} ${corefx_tests_dir} ${corefx_exclusion_file} ${architecture}")
 
             } else { // !isCoreFxScenario(scenario)
 
@@ -3061,8 +3197,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                     addArchSpecificExclude(architecture, excludeTag)
                 }
 
-                // Innerloop jobs run Pri-0 tests; everyone else runs Pri-1.
-                if (scenario == 'innerloop') {
+                if (isPri0TestScenario(scenario)) {
                     addExclude("pri1")
                 }
 
@@ -3155,6 +3290,12 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             testOpts += ' --jitstress=1'
         }
         else if (scenario == 'r2r_jitstress2') {
+            testOpts += ' --jitstress=2'
+        }
+        else if (scenario == 'r2r_jitstress1_tiered') {
+            testOpts += ' --jitstress=1'
+        }
+        else if (scenario == 'r2r_jitstress2_tiered') {
             testOpts += ' --jitstress=2'
         }
         else if (scenario == 'r2r_jitstressregs1') {
@@ -3289,6 +3430,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     }
                 }
 
+                shell("mkdir ./bin/CoreFxBinDir")
                 shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
             }
 
@@ -3487,7 +3629,6 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def configuration, def os)
 {
     // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
-    // All other scenarios do Pri-1 testing.
     if (scenario == 'innerloop' && !isPR) {
         return false
     }
@@ -3545,7 +3686,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     else {
         // Non-Windows
         if (architecture == 'arm64') {
-            if (!(scenario in Constants.validLinuxArmScenarios)) {
+            if (!(scenario in Constants.validLinuxArm64Scenarios)) {
                 return false
             }
         }
@@ -3594,11 +3735,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 
     if (isJitStressScenario(scenario)) {
         if (configuration != 'Checked') {
-            return false
-        }
-
-        // On Windows, CoreFx tests currently not implemented for ARM64.
-        if (isCoreFxScenario(scenario) && (os == 'Windows_NT') && (architecture == 'arm64')) {
             return false
         }
     }
@@ -3684,7 +3820,7 @@ Constants.allScenarios.each { scenario ->
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
-                    def inputCoreCLRBuildScenario = scenario == 'innerloop' ? 'innerloop' : 'normal'
+                    def inputCoreCLRBuildScenario = isPri0TestScenario(scenario) ? 'innerloop' : 'normal'
                     def inputCoreCLRBuildIsBuildOnly = false
                     if (doCoreFxTesting) {
                         // Every CoreFx test depends on its own unique build.
@@ -3707,7 +3843,7 @@ Constants.allScenarios.each { scenario ->
                     def inputTestsBuildName = null
 
                     if (!windowsArmJob && !doCoreFxTesting) {
-                        def testBuildScenario = scenario == 'innerloop' ? 'innerloop' : 'normal'
+                        def testBuildScenario = isPri0TestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
                         if (architecture == "arm64") {
