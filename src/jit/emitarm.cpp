@@ -6004,7 +6004,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             sz   = emitGetInstrDescSizeSC(id);
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT2_D(id->idReg1());
-            imm = emitGetInsSC(id);
+            imm  = emitGetInsSC(id);
             addr = emitConsBlock + imm;
             if (!id->idIsReloc())
             {
