@@ -35,8 +35,7 @@ unsigned Compiler::s_lvaDoubleAlignedProcsCount = 0;
 void Compiler::lvaInit()
 {
     /* We haven't allocated stack variables yet */
-    lvaRefCountingStarted = false;
-    lvaLocalVarRefCounted = false;
+    lvaRefCountState = RCS_INVALID;
 
     lvaGenericsContextUseCount = 0;
 
@@ -442,7 +441,6 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
 #if FEATURE_MULTIREG_ARGS
         varDsc->lvOtherArgReg = REG_NA;
 #endif
-        varDsc->setPrefReg(varDsc->lvArgReg, this);
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
 #ifdef DEBUG
@@ -489,7 +487,6 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
 #if FEATURE_MULTIREG_ARGS
         varDsc->lvOtherArgReg = REG_NA;
 #endif
-        varDsc->setPrefReg(varDsc->lvArgReg, this);
         varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
         info.compRetBuffDefStack = 0;
@@ -843,7 +840,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 if (secondEightByteType != TYP_UNDEF)
                 {
                     varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType);
-                    varDsc->addPrefReg(genRegMask(varDsc->lvOtherArgReg), this);
                 }
 #else // ARM32 or ARM64
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
@@ -851,7 +847,6 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 if (cSlots == 2)
                 {
                     varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                    varDsc->addPrefReg(genRegMask(varDsc->lvOtherArgReg), this);
                 }
 #endif //  _TARGET_ARM64_
 #endif // defined(UNIX_AMD64_ABI)
@@ -862,13 +857,10 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, argType);
             }
 
-            varDsc->setPrefReg(varDsc->lvArgReg, this);
-
 #ifdef _TARGET_ARM_
             if (varDsc->TypeGet() == TYP_LONG)
             {
                 varDsc->lvOtherReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_INT);
-                varDsc->addPrefReg(genRegMask(varDsc->lvOtherReg), this);
             }
 #endif // _TARGET_ARM_
 
@@ -1066,7 +1058,6 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
 #if FEATURE_MULTIREG_ARGS
             varDsc->lvOtherArgReg = REG_NA;
 #endif
-            varDsc->setPrefReg(varDsc->lvArgReg, this);
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 
             varDscInfo->intRegArgNum++;
@@ -1133,7 +1124,6 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
 #if FEATURE_MULTIREG_ARGS
             varDsc->lvOtherArgReg = REG_NA;
 #endif
-            varDsc->setPrefReg(varDsc->lvArgReg, this);
             varDsc->lvOnFrame = true; // The final home for this incoming register might be our local stack frame
 #ifdef _TARGET_ARM_
             // This has to be spilled right in front of the real arguments and we have
@@ -2012,7 +2002,6 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
         {
             fieldVarDsc->lvIsRegArg = true;
             fieldVarDsc->lvArgReg   = varDsc->lvArgReg;
-            fieldVarDsc->setPrefReg(varDsc->lvArgReg, this); // Set the preferred register
 #if FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD)
             if (varTypeIsSIMD(fieldVarDsc) && !lvaIsImplicitByRefLocal(lclNum))
             {
@@ -2025,8 +2014,8 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* Stru
             }
 #endif // FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD)
 
-            lvaMarkRefsWeight = BB_UNITY_WEIGHT;            // incRefCnts can use this compiler global variable
-            fieldVarDsc->incRefCnts(BB_UNITY_WEIGHT, this); // increment the ref count for prolog initialization
+            fieldVarDsc->incRefCnts(BB_UNITY_WEIGHT, this,
+                                    RCS_EARLY); // increment the ref count for prolog initialization
         }
 #endif
 
@@ -2803,7 +2792,7 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
 // Decrement the ref counts for all locals contained in the tree and its children.
 void Compiler::lvaRecursiveDecRefCounts(GenTree* tree)
 {
-    assert(lvaLocalVarRefCounted);
+    assert(lvaLocalVarRefCounted());
 
     // We could just use the recursive walker for all cases but that is a
     // fairly heavyweight thing to spin up when we're usually just handling a leaf.
@@ -2856,7 +2845,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTree* tree)
     unsigned   lclNum;
     LclVarDsc* varDsc;
 
-    noway_assert(lvaRefCountingStarted || lvaLocalVarRefCounted);
+    noway_assert(lvaLocalVarRefCounted());
 
     if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
     {
@@ -2898,7 +2887,7 @@ void Compiler::lvaDecRefCnts(BasicBlock* block, GenTree* tree)
 // Increment the ref counts for all locals contained in the tree and its children.
 void Compiler::lvaRecursiveIncRefCounts(GenTree* tree)
 {
-    assert(lvaLocalVarRefCounted);
+    assert(lvaLocalVarRefCounted());
 
     // We could just use the recursive walker for all cases but that is a
     // fairly heavyweight thing to spin up when we're usually just handling a leaf.
@@ -2942,7 +2931,7 @@ void Compiler::lvaIncRefCnts(GenTree* tree)
     unsigned   lclNum;
     LclVarDsc* varDsc;
 
-    noway_assert(lvaRefCountingStarted || lvaLocalVarRefCounted);
+    noway_assert(lvaLocalVarRefCounted());
 
     if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
     {
@@ -2989,7 +2978,6 @@ void Compiler::lvaIncRefCnts(GenTree* tree)
  *    Return positive if dsc2 has a higher ref count
  *    Return negative if dsc1 has a higher ref count
  *    Return zero     if the ref counts are the same
- *    lvPrefReg is only used to break ties
  */
 
 /* static */
@@ -3049,24 +3037,17 @@ int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
     /* We have equal ref counts and weighted ref counts */
 
     /* Break the tie by: */
-    /* Increasing the weight by 2   if we have exactly one bit set in lvPrefReg   */
-    /* Increasing the weight by 1   if we have more than one bit set in lvPrefReg */
+    /* Increasing the weight by 2   if we are a register arg */
     /* Increasing the weight by 0.5 if we are a GC type */
     /* Increasing the weight by 0.5 if we were enregistered in the previous pass  */
 
     if (weight1)
     {
-        if (dsc1->lvPrefReg)
+        if (dsc1->lvIsRegArg)
         {
-            if ((dsc1->lvPrefReg & ~RBM_BYTE_REG_FLAG) && genMaxOneBit((unsigned)dsc1->lvPrefReg))
-            {
-                weight1 += 2 * BB_UNITY_WEIGHT;
-            }
-            else
-            {
-                weight1 += 1 * BB_UNITY_WEIGHT;
-            }
+            weight2 += 2 * BB_UNITY_WEIGHT;
         }
+
         if (varTypeIsGC(dsc1->TypeGet()))
         {
             weight1 += BB_UNITY_WEIGHT / 2;
@@ -3080,17 +3061,11 @@ int __cdecl Compiler::RefCntCmp(const void* op1, const void* op2)
 
     if (weight2)
     {
-        if (dsc2->lvPrefReg)
+        if (dsc2->lvIsRegArg)
         {
-            if ((dsc2->lvPrefReg & ~RBM_BYTE_REG_FLAG) && genMaxOneBit((unsigned)dsc2->lvPrefReg))
-            {
-                weight2 += 2 * BB_UNITY_WEIGHT;
-            }
-            else
-            {
-                weight2 += 1 * BB_UNITY_WEIGHT;
-            }
+            weight2 += 2 * BB_UNITY_WEIGHT;
         }
+
         if (varTypeIsGC(dsc2->TypeGet()))
         {
             weight2 += BB_UNITY_WEIGHT / 2;
@@ -3170,31 +3145,14 @@ int __cdecl Compiler::WtdRefCntCmp(const void* op1, const void* op2)
     }
 #endif
 
-    /* Increase the weight by 2 if we have exactly one bit set in lvPrefReg */
-    /* Increase the weight by 1 if we have more than one bit set in lvPrefReg */
-
-    if (weight1 && dsc1->lvPrefReg)
+    if (weight1 && dsc1->lvIsRegArg)
     {
-        if ((dsc1->lvPrefReg & ~RBM_BYTE_REG_FLAG) && genMaxOneBit((unsigned)dsc1->lvPrefReg))
-        {
-            weight1 += 2 * BB_UNITY_WEIGHT;
-        }
-        else
-        {
-            weight1 += 1 * BB_UNITY_WEIGHT;
-        }
+        weight1 += 2 * BB_UNITY_WEIGHT;
     }
 
-    if (weight2 && dsc2->lvPrefReg)
+    if (weight2 && dsc2->lvIsRegArg)
     {
-        if ((dsc2->lvPrefReg & ~RBM_BYTE_REG_FLAG) && genMaxOneBit((unsigned)dsc2->lvPrefReg))
-        {
-            weight2 += 2 * BB_UNITY_WEIGHT;
-        }
-        else
-        {
-            weight2 += 1 * BB_UNITY_WEIGHT;
-        }
+        weight2 += 2 * BB_UNITY_WEIGHT;
     }
 
     if (weight2 > weight1)
@@ -3299,13 +3257,6 @@ void Compiler::lvaDumpRefCounts()
             gtDispLclVar((unsigned)(lvaRefSorted[lclNum] - lvaTable));
             printf(" [%6s]: refCnt = %4u, refCntWtd = %6s", varTypeName(lvaRefSorted[lclNum]->TypeGet()), refCnt,
                    refCntWtd2str(refCntWtd));
-
-            regMaskSmall pref = lvaRefSorted[lclNum]->lvPrefReg;
-            if (pref)
-            {
-                printf(" pref ");
-                dspRegMask(pref);
-            }
             printf("\n");
         }
 
@@ -3670,13 +3621,21 @@ var_types LclVarDsc::lvaArgType()
     return type;
 }
 
-/*****************************************************************************
- *
- *  This is called by lvaMarkLclRefsCallback() to do variable ref marking
- */
+//------------------------------------------------------------------------
+// lvaMarkLclRefs: increment local var references counts and more
+//
+// Arguments:
+//     tree - some node in a tree
+//     block - block that the tree node belongs to
+//     stmt - stmt that the tree node belongs to
+//
+// Notes:
+//     Invoked via the MarkLocalVarsVisitor
 
-void Compiler::lvaMarkLclRefs(GenTree* tree)
+void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt)
 {
+    const BasicBlock::weight_t weight = block->getBBWeight(this);
+
     /* Is this a call to unmanaged code ? */
     if (tree->gtOper == GT_CALL && tree->gtFlags & GTF_CALL_UNMANAGED)
     {
@@ -3691,8 +3650,8 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
             LclVarDsc* varDsc = lvaTable + lclNum;
 
             /* Increment the ref counts twice */
-            varDsc->incRefCnts(lvaMarkRefsWeight, this);
-            varDsc->incRefCnts(lvaMarkRefsWeight, this);
+            varDsc->incRefCnts(weight, this);
+            varDsc->incRefCnts(weight, this);
         }
     }
 
@@ -3702,25 +3661,6 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
     {
         GenTree* op1 = tree->gtOp.gtOp1;
         GenTree* op2 = tree->gtOp.gtOp2;
-
-        /* Set target register for RHS local if assignment is of a "small" type */
-
-        if (varTypeIsByte(tree->gtType))
-        {
-            unsigned   lclNum;
-            LclVarDsc* varDsc = nullptr;
-
-            if (op2->gtOper == GT_LCL_VAR)
-            {
-                lclNum = op2->gtLclVarCommon.gtLclNum;
-                noway_assert(lclNum < lvaCount);
-                varDsc = &lvaTable[lclNum];
-            }
-#if CPU_HAS_BYTE_REGS
-            if (varDsc)
-                varDsc->addPrefReg(RBM_BYTE_REG_FLAG, this);
-#endif
-        }
 
 #if OPT_BOOL_OPS
 
@@ -3774,27 +3714,6 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
 #endif
     }
 
-#ifdef _TARGET_XARCH_
-    /* Special case: integer shift node by a variable amount */
-
-    if (tree->OperIsShiftOrRotate())
-    {
-        if (tree->gtType == TYP_INT)
-        {
-            GenTree* op2 = tree->gtOp.gtOp2;
-
-            if (op2->gtOper == GT_LCL_VAR)
-            {
-                unsigned lclNum = op2->gtLclVarCommon.gtLclNum;
-                assert(lclNum < lvaCount);
-                lvaTable[lclNum].setPrefReg(REG_ECX, this);
-            }
-        }
-
-        return;
-    }
-#endif
-
     if ((tree->gtOper != GT_LCL_VAR) && (tree->gtOper != GT_LCL_FLD))
     {
         return;
@@ -3810,7 +3729,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
 
     /* Increment the reference counts */
 
-    varDsc->incRefCnts(lvaMarkRefsWeight, this);
+    varDsc->incRefCnts(weight, this);
 
     if (lvaVarAddrExposed(lclNum))
     {
@@ -3828,7 +3747,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
     }
 
 #if ASSERTION_PROP
-    if (fgDomsComputed && IsDominatedByExceptionalEntry(lvaMarkRefsCurBlock))
+    if (fgDomsComputed && IsDominatedByExceptionalEntry(block))
     {
         SetVolatileHint(varDsc);
     }
@@ -3857,7 +3776,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
             else
             {
                 varDsc->lvSingleDef = true;
-                varDsc->lvDefStmt   = lvaMarkRefsCurStmt;
+                varDsc->lvDefStmt   = stmt;
             }
         }
         else // otherwise this is a ref of our variable
@@ -3867,7 +3786,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree)
                 // Lazy initialization
                 BlockSetOps::AssignNoCopy(this, varDsc->lvRefBlks, BlockSetOps::MakeEmpty(this));
             }
-            BlockSetOps::AddElemD(this, varDsc->lvRefBlks, lvaMarkRefsCurBlock->bbNum);
+            BlockSetOps::AddElemD(this, varDsc->lvRefBlks, block->bbNum);
         }
     }
 #endif // ASSERTION_PROP
@@ -3947,53 +3866,36 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block)
 {
     class MarkLocalVarsVisitor final : public GenTreeVisitor<MarkLocalVarsVisitor>
     {
+    private:
+        BasicBlock*  m_block;
+        GenTreeStmt* m_stmt;
+
     public:
         enum
         {
             DoPreOrder = true,
         };
 
-        MarkLocalVarsVisitor(Compiler* compiler) : GenTreeVisitor<MarkLocalVarsVisitor>(compiler)
+        MarkLocalVarsVisitor(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt)
+            : GenTreeVisitor<MarkLocalVarsVisitor>(compiler), m_block(block), m_stmt(stmt)
         {
         }
 
         Compiler::fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
         {
-            m_compiler->lvaMarkLclRefs(*use);
+            m_compiler->lvaMarkLclRefs(*use, m_block, m_stmt);
             return WALK_CONTINUE;
         }
     };
 
-#if ASSERTION_PROP
-    lvaMarkRefsCurBlock = block;
-#endif
-    lvaMarkRefsWeight = block->getBBWeight(this);
+    JITDUMP("\n*** marking local variables in block BB%02u (weight=%s)\n", block->bbNum,
+            refCntWtd2str(block->getBBWeight(this)));
 
-#ifdef DEBUG
-    if (verbose)
+    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        printf("\n*** marking local variables in block BB%02u (weight=%s)\n", block->bbNum,
-               refCntWtd2str(lvaMarkRefsWeight));
-    }
-#endif
-
-    MarkLocalVarsVisitor visitor(this);
-    for (GenTree* tree = block->FirstNonPhiDef(); tree; tree = tree->gtNext)
-    {
-        assert(tree->gtOper == GT_STMT);
-
-#if ASSERTION_PROP
-        lvaMarkRefsCurStmt = tree;
-#endif
-
-#ifdef DEBUG
-        if (verbose)
-        {
-            gtDispTree(tree);
-        }
-#endif
-
-        visitor.WalkTree(&tree->gtStmt.gtStmtExpr, nullptr);
+        MarkLocalVarsVisitor visitor(this, block, stmt);
+        DISPTREE(stmt);
+        visitor.WalkTree(&stmt->gtStmtExpr, nullptr);
     }
 }
 
@@ -4026,10 +3928,8 @@ void Compiler::lvaMarkLocalVars()
 
             lvaTable[info.compLvFrameListRoot].lvType = TYP_I_IMPL;
 
-            /* Set the refCnt, it is used in the prolog and return block(s) */
-
-            lvaTable[info.compLvFrameListRoot].setLvRefCnt(2);
-            lvaTable[info.compLvFrameListRoot].setLvRefCntWtd(2 * BB_UNITY_WEIGHT);
+            // This local has implicit prolog and epilog references
+            lvaTable[info.compLvFrameListRoot].lvImplicitlyReferenced = 1;
         }
     }
 
@@ -4109,9 +4009,10 @@ void Compiler::lvaMarkLocalVars()
         }
     }
 
-    /* Mark all local variable references */
+    // Ref counting is now enabled normally.
+    lvaRefCountState = RCS_NORMAL;
 
-    lvaRefCountingStarted = true;
+    /* Mark all local variable references */
     for (block = fgFirstBB; block; block = block->bbNext)
     {
         lvaMarkLocalVars(block);
@@ -4148,20 +4049,17 @@ void Compiler::lvaMarkLocalVars()
     }
 #endif
 
-    if (lvaKeepAliveAndReportThis() && lvaTable[0].lvRefCnt() == 0)
+    if (lvaKeepAliveAndReportThis())
     {
-        lvaTable[0].setLvRefCnt(1);
+        lvaTable[0].lvImplicitlyReferenced = 1;
         // This isn't strictly needed as we will make a copy of the param-type-arg
         // in the prolog. However, this ensures that the LclVarDsc corresponding to
         // info.compTypeCtxtArg is valid.
     }
-    else if (lvaReportParamTypeArg() && lvaTable[info.compTypeCtxtArg].lvRefCnt() == 0)
+    else if (lvaReportParamTypeArg())
     {
-        lvaTable[info.compTypeCtxtArg].setLvRefCnt(1);
+        lvaTable[info.compTypeCtxtArg].lvImplicitlyReferenced = 1;
     }
-
-    lvaLocalVarRefCounted = true;
-    lvaRefCountingStarted = false;
 
     lvaSortByRefCount();
 }
@@ -4176,12 +4074,8 @@ void Compiler::lvaAllocOutgoingArgSpaceVar()
     {
         lvaOutgoingArgSpaceVar = lvaGrabTemp(false DEBUGARG("OutgoingArgSpace"));
 
-        lvaTable[lvaOutgoingArgSpaceVar].lvType = TYP_LCLBLK;
-
-        /* Set the refCnts */
-
-        lvaTable[lvaOutgoingArgSpaceVar].setLvRefCnt(1);
-        lvaTable[lvaOutgoingArgSpaceVar].setLvRefCntWtd(BB_UNITY_WEIGHT);
+        lvaTable[lvaOutgoingArgSpaceVar].lvType                 = TYP_LCLBLK;
+        lvaTable[lvaOutgoingArgSpaceVar].lvImplicitlyReferenced = 1;
     }
 
     noway_assert(lvaOutgoingArgSpaceVar >= info.compLocalsCount && lvaOutgoingArgSpaceVar < lvaCount);

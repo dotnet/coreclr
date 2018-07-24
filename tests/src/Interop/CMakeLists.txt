@@ -3,9 +3,13 @@ if(WIN32)
     if(CLR_CMAKE_HOST_ARCH STREQUAL arm)
         list(APPEND LINK_LIBRARIES_ADDITIONAL
             ole32.lib
+            advapi32.lib
         )
     endif(CLR_CMAKE_HOST_ARCH STREQUAL arm)
 endif(WIN32)
+
+# Consumed by native test assets
+SET(CLR_INTEROP_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(common)
 add_subdirectory(NativeCallable)

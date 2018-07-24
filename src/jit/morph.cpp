@@ -2627,7 +2627,7 @@ GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
     if (tree->IsLocal())
     {
         auto result = gtClone(tree);
-        if (lvaLocalVarRefCounted)
+        if (lvaLocalVarRefCounted())
         {
             lvaTable[tree->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
         }
@@ -2640,7 +2640,7 @@ GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
         // At this point, *pOp is GT_COMMA(GT_ASG(V01, *pOp), V01) and result = V01
         // Therefore, the ref count has to be incremented 3 times for *pOp and result, if result will
         // be added by the caller.
-        if (lvaLocalVarRefCounted)
+        if (lvaLocalVarRefCounted())
         {
             lvaTable[result->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
             lvaTable[result->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
@@ -2759,6 +2759,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     bool     reMorphing              = call->AreArgsComplete();
     bool     callHasRetBuffArg       = call->HasRetBufArg();
     bool     callIsVararg            = call->IsVarargs();
+
+    JITDUMP("%sMorphing args for %d.%s:\n", (reMorphing) ? "Re" : "", call->gtTreeID, GenTree::OpName(call->gtOper));
 
 #ifdef _TARGET_UNIX_
     if (callIsVararg)
@@ -5224,9 +5226,9 @@ void Compiler::fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
             // on the caller's frame. If an argument lives on the caller caller's frame, it may get
             // overwritten if that frame is reused for the tail call. Therefore, we should always copy
             // struct parameters if they are passed as arguments to a tail call.
-            if (!call->IsTailCallViaHelper() && (varDsc->lvRefCnt() == 1) && !fgMightHaveLoop())
+            if (!call->IsTailCallViaHelper() && (varDsc->lvRefCnt(RCS_EARLY) == 1) && !fgMightHaveLoop())
             {
-                varDsc->setLvRefCnt(0);
+                varDsc->setLvRefCnt(0, RCS_EARLY);
                 args->gtOp.gtOp1 = lcl;
                 fp->node         = lcl;
 
@@ -5291,10 +5293,6 @@ void Compiler::fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
     // Create a reference to the temp
     GenTree* dest = gtNewLclvNode(tmp, lvaTable[tmp].lvType);
     dest->gtFlags |= (GTF_DONT_CSE | GTF_VAR_DEF); // This is a def of the local, "entire" by construction.
-
-    // TODO-Cleanup: This probably shouldn't be done here because arg morphing is done prior
-    // to ref counting of the lclVars.
-    lvaTable[tmp].incRefCnts(compCurBB->getBBWeight(this), this);
 
     if (argx->gtOper == GT_OBJ)
     {
@@ -5906,7 +5904,7 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
         bndsChk = arrBndsChk;
 
         // Make sure to increment ref-counts if already ref-counted.
-        if (lvaLocalVarRefCounted)
+        if (lvaLocalVarRefCounted())
         {
             lvaRecursiveIncRefCounts(index);
             lvaRecursiveIncRefCounts(arrRef);
@@ -8064,7 +8062,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
                 {
                     GenTree* lcl  = gtNewLclvNode(varNum, lclType);
                     GenTree* init = nullptr;
-                    if (lclType == TYP_STRUCT)
+                    if (varTypeIsStruct(lclType))
                     {
                         const bool isVolatile  = false;
                         const bool isCopyBlock = false;
@@ -13747,7 +13745,7 @@ DONE_MORPHING_CHILDREN:
                 else
                 {
                     /* The left operand is worthless, throw it away */
-                    if (lvaLocalVarRefCounted)
+                    if (lvaLocalVarRefCounted())
                     {
                         lvaRecursiveDecRefCounts(op1);
                     }
@@ -14319,7 +14317,7 @@ GenTree* Compiler::fgMorphModToSubMulDiv(GenTreeOp* tree)
     {
         numerator = fgMakeMultiUse(&tree->gtOp1);
     }
-    else if (lvaLocalVarRefCounted && numerator->OperIsLocal())
+    else if (lvaLocalVarRefCounted() && numerator->OperIsLocal())
     {
         // Morphing introduces new lclVar references. Increase ref counts
         lvaIncRefCnts(numerator);
@@ -14329,7 +14327,7 @@ GenTree* Compiler::fgMorphModToSubMulDiv(GenTreeOp* tree)
     {
         denominator = fgMakeMultiUse(&tree->gtOp2);
     }
-    else if (lvaLocalVarRefCounted && denominator->OperIsLocal())
+    else if (lvaLocalVarRefCounted() && denominator->OperIsLocal())
     {
         // Morphing introduces new lclVar references. Increase ref counts
         lvaIncRefCnts(denominator);
@@ -15689,7 +15687,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
 
     stmt->gtStmtExpr = morph;
 
-    if (lvaLocalVarRefCounted)
+    if (lvaLocalVarRefCounted())
     {
         // fgMorphTree may have introduced new lclVar references. Bump the ref counts if requested.
         lvaRecursiveIncRefCounts(stmt->gtStmtExpr);
@@ -17095,6 +17093,8 @@ void Compiler::fgMorph()
     fgUpdateFinallyTargetFlags();
 
     /* For x64 and ARM64 we need to mark irregular parameters */
+
+    lvaRefCountState = RCS_EARLY;
     fgMarkImplicitByRefArgs();
 
     /* Promote struct locals if necessary */
@@ -17123,6 +17123,7 @@ void Compiler::fgMorph()
 
     /* Fix any LclVar annotations on discarded struct promotion temps for implicit by-ref args */
     fgMarkDemotedImplicitByRefArgs();
+    lvaRefCountState = RCS_INVALID;
 
     EndPhase(PHASE_MORPH_GLOBAL);
 
@@ -17348,8 +17349,8 @@ Compiler::fgWalkResult Compiler::fgMorphStructField(GenTree* tree, fgWalkData* f
                     // chance, so have to check now.
                     JITDUMP(
                         "Incrementing ref count from %d to %d for V%02d in fgMorphStructField for promoted struct\n",
-                        varDsc->lvRefCnt(), varDsc->lvRefCnt() + 1, lclNum);
-                    varDsc->incLvRefCnt(1);
+                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
+                    varDsc->incLvRefCnt(1, RCS_EARLY);
                 }
 
                 tree->SetOper(GT_LCL_VAR);
@@ -17439,8 +17440,8 @@ Compiler::fgWalkResult Compiler::fgMorphStructField(GenTree* tree, fgWalkData* f
                     // lclVars, but here we're about to return SKIP_SUBTREES and rob it of the
                     // chance, so have to check now.
                     JITDUMP("Incrementing ref count from %d to %d for V%02d in fgMorphStructField for normed struct\n",
-                            varDsc->lvRefCnt(), varDsc->lvRefCnt() + 1, lclNum);
-                    varDsc->incLvRefCnt(1);
+                            varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
+                    varDsc->incLvRefCnt(1, RCS_EARLY);
                 }
 
                 tree->ChangeOper(GT_LCL_VAR);
@@ -17596,7 +17597,7 @@ void Compiler::fgMarkImplicitByRefArgs()
                 // appearance of implicit-by-ref param so that call arg morphing can do an
                 // optimization for single-use implicit-by-ref params whose single use is as
                 // an outgoing call argument.
-                varDsc->setLvRefCnt(0);
+                varDsc->setLvRefCnt(0, RCS_EARLY);
             }
         }
     }
@@ -17683,7 +17684,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                 // parameter if it weren't promoted at all (otherwise the initialization
                 // of the new temp would just be a needless memcpy at method entry).
                 bool undoPromotion = (lvaGetPromotionType(newVarDsc) == PROMOTION_TYPE_DEPENDENT) ||
-                                     (varDsc->lvRefCnt() <= varDsc->lvFieldCnt);
+                                     (varDsc->lvRefCnt(RCS_EARLY) <= varDsc->lvFieldCnt);
 
                 if (!undoPromotion)
                 {
@@ -17721,7 +17722,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                         // to the implicit byref parameter when morphing calls that pass the implicit byref
                         // out as an outgoing argument value, but that doesn't pertain to this field local
                         // which is now a field of a non-arg local.
-                        fieldVarDsc->setLvRefCnt(0);
+                        fieldVarDsc->setLvRefCnt(0, RCS_EARLY);
                     }
 
                     fieldVarDsc->lvIsParam = false;
@@ -17734,7 +17735,6 @@ void Compiler::fgRetypeImplicitByRefArgs()
 #if FEATURE_MULTIREG_ARGS
                     fieldVarDsc->lvOtherArgReg = REG_NA;
 #endif
-                    fieldVarDsc->lvPrefReg = 0;
                 }
 
                 // Hijack lvFieldLclStart to record the new temp number.
@@ -17838,12 +17838,12 @@ void Compiler::fgMarkDemotedImplicitByRefArgs()
                 // call morphing could identify single-use implicit byrefs; we're done with
                 // that, and want it to be in its default state of zero when we go to set
                 // real ref counts for all variables.
-                varDsc->setLvRefCnt(0);
+                varDsc->setLvRefCnt(0, RCS_EARLY);
 
                 // The temp struct is now unused; set flags appropriately so that we
                 // won't allocate space for it on the stack.
                 LclVarDsc* structVarDsc = &lvaTable[structLclNum];
-                structVarDsc->setLvRefCnt(0);
+                structVarDsc->setLvRefCnt(0, RCS_EARLY);
                 structVarDsc->lvAddrExposed = false;
 #ifdef DEBUG
                 structVarDsc->lvUnusedStruct = true;
@@ -17862,7 +17862,7 @@ void Compiler::fgMarkDemotedImplicitByRefArgs()
 
                     // The field local is now unused; set flags appropriately so that
                     // we won't allocate stack space for it.
-                    fieldVarDsc->setLvRefCnt(0);
+                    fieldVarDsc->setLvRefCnt(0, RCS_EARLY);
                     fieldVarDsc->lvAddrExposed = false;
                 }
             }
@@ -18257,10 +18257,10 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 // checks the ref counts for implicit byref params when deciding if it's legal
                 // to elide certain copies of them.
                 LclVarDsc* varDsc = &comp->lvaTable[lclNum];
-                JITDUMP("Incrementing ref count from %d to %d for V%02d in fgMorphStructField\n", varDsc->lvRefCnt(),
-                        varDsc->lvRefCnt() + 1, lclNum);
+                JITDUMP("Incrementing ref count from %d to %d for V%02d in fgMorphStructField\n",
+                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
 
-                varDsc->incLvRefCnt(1);
+                varDsc->incLvRefCnt(1, RCS_EARLY);
             }
             // This recognizes certain forms, and does all the work.  In that case, returns WALK_SKIP_SUBTREES,
             // else WALK_CONTINUE.  We do the same here.
@@ -18295,10 +18295,10 @@ Compiler::fgWalkResult Compiler::fgMarkAddrTakenLocalsPreCB(GenTree** pTree, fgW
                 // byref (here during address-exposed analysis); fgMakeOutgoingStructArgCopy
                 // checks the ref counts for implicit byref params when deciding if it's legal
                 // to elide certain copies of them.
-                JITDUMP("Incrementing ref count from %d to %d for V%02d in fgMorphStructField\n", varDsc->lvRefCnt(),
-                        varDsc->lvRefCnt() + 1, lclNum);
+                JITDUMP("Incrementing ref count from %d to %d for V%02d in fgMorphStructField\n",
+                        varDsc->lvRefCnt(RCS_EARLY), varDsc->lvRefCnt(RCS_EARLY) + 1, lclNum);
 
-                varDsc->incLvRefCnt(1);
+                varDsc->incLvRefCnt(1, RCS_EARLY);
             }
 
             if (axc == AXC_Addr || axc == AXC_AddrWide)
