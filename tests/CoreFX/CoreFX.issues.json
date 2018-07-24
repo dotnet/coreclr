@@ -399,6 +399,10 @@
                 {
                     "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
                     "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
                 }
             ]
         }
