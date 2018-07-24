@@ -424,6 +424,19 @@ parallel(
     } // architecture
 } // isPR
 
+def static getDockerImageName(def architecture, def os, def isBuild) {
+    // We must change some docker private images to official later
+    if (isBuild) {
+        if (architecture == 'arm') {
+            if (os == 'Ubuntu') {
+                return "microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+            }
+        }
+    }
+    println("Unknown architecture to use docker: ${architecture} ${os}");
+    assert false
+}
+
 def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
     return Utilities.getFullJobName(project, "perf_throughput_${os}_${arch}", isPR)
 }
@@ -439,20 +452,44 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
         def python = "python3.5"
 
         if (architecture == "arm") {
-            crossCompile = " cross crosscomponent"
             python = "python3.6"
-        }
-
-        // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
-        ['RHEL7.2'].each { os ->
+            def buildCommands = []
             def newBuildJob = job(fullBuildJobName) {
-                steps {
-                    shell("./build.sh verbose ${architecture} ${configuration}${crossCompile}")
+                // arm build is run on docker machine, so machine affinity doesn't matter
+                def additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
+                def dockerImage = getDockerImageName(architecture, 'Ubuntu', true)
+                def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
+
+                buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh release ${architecture} cross crosscomponent"
+
+                buildCommands.each { buildCommand ->
+                    shell(buildCommand)
+                }
+
+                Utilities.setMachineAffinity(newBuildJob, "Ubuntu16.04", 'latest-or-auto')
+                Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
+                Utilities.addArchival(newBuildJob, "bin/Product/**")
+                newBuildJob.with {
+                    publishers {
+                        azureVMAgentPostBuildAction {
+                            agentPostBuildAction('Delete agent after build execution (when idle).')
+                        }
+                    }
                 }
             }
-            Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
-            Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-            Utilities.addArchival(newBuildJob, "bin/Product/**")
+        }
+        else {
+            // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
+            ['RHEL7.2'].each { os ->
+                def newBuildJob = job(fullBuildJobName) {
+                    steps {
+                        shell("./build.sh verbose ${architecture} ${configuration}${crossCompile}")
+                    }
+                }
+                Utilities.setMachineAffinity(newBuildJob, os, 'latest-or-auto')
+                Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
+                Utilities.addArchival(newBuildJob, "bin/Product/**")
+            }
         }
 
         // Actual perf testing on the following OSes
