@@ -197,21 +197,6 @@ if /i "%1" == "nopgooptimize"       (set __PgoOptimize=0&set processedArgs=!proc
 if /i "%1" == "enforcepgo"          (set __EnforcePgo=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "ibcinstrument"       (set __IbcTuning=/Tuning&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
-if /i "%1" == "-toolset_dir" (
-    echo %__MsgPrefix%Warning: Ignoring -toolset_dir argument
-    set processedArgs=!processedArgs! %1 %2
-    shift
-    shift
-    goto Arg_Loop
-)
-if /i "%1" == "toolset_dir" (
-    echo %__MsgPrefix%Warning: Ignoring toolset_dir argument
-    set processedArgs=!processedArgs! %1 %2
-    shift
-    shift
-    goto Arg_Loop
-)
-
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
 ) else (
