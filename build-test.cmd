@@ -88,14 +88,6 @@ if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "-priority"             (set __Priority=%2&shift&set processedArgs=!processedArgs! %1=%2&shift&goto Arg_Loop)
 
-if /i "%1" == "toolset_dir" (
-    echo %__MsgPrefix%Warning: Ignoring toolset_dir argument
-    set processedArgs=!processedArgs! %1 %2
-    shift
-    shift
-    goto Arg_Loop
-)
-
 if [!processedArgs!]==[] (
   set __UnprocessedBuildArgs=%__args%
 ) else (
