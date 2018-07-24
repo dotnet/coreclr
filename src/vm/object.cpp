@@ -1077,7 +1077,7 @@ STRINGREF* StringObject::InitEmptyStringRefPtr() {
 
     GCX_COOP();
 
-    EEStringData data(0, W(""), TRUE);
+    EEStringData data(0, W(""));
     EmptyStringRefPtr = SystemDomain::System()->DefaultDomain()->GetLoaderAllocator()->GetStringObjRefPtrFromUnicodeString(&data);
     return EmptyStringRefPtr;
 }

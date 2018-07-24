@@ -128,7 +128,8 @@ DECLSPEC_ALIGN(16)
 static BYTE         g_pSharedDomainMemory[sizeof(SharedDomain)];
 
 // System Domain Statics
-GlobalStringLiteralMap* SystemDomain::m_pGlobalStringLiteralMap = NULL;
+GlobalStringLiteralMap<StringLiteralEntry>* SystemDomain::m_pGlobalStringLiteralMap = NULL;
+GlobalStringLiteralMap<Utf8StringLiteralEntry>* SystemDomain::m_pGlobalUtf8StringLiteralMap = NULL;
 
 DECLSPEC_ALIGN(16) 
 static BYTE         g_pSystemDomainMemory[sizeof(SystemDomain)];
@@ -1945,6 +1946,21 @@ STRINGREF *BaseDomain::GetOrInternString(STRINGREF *pString)
     return GetLoaderAllocator()->GetOrInternString(pString);
 }
 
+UTF8STRINGREF *BaseDomain::GetOrInternUtf8String(UTF8STRINGREF *pString)
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pString));
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    return GetLoaderAllocator()->GetOrInternUtf8String(pString);
+}
+
 void BaseDomain::InitLargeHeapHandleTable()
 {
     CONTRACTL
@@ -2259,6 +2275,11 @@ void SystemDomain::Terminate() // bNotifyProfiler is ignored
         m_pGlobalStringLiteralMap = NULL;
     }
 
+    if (m_pGlobalUtf8StringLiteralMap) {
+        delete m_pGlobalUtf8StringLiteralMap;
+        m_pGlobalUtf8StringLiteralMap = NULL;
+    }
+
 
     SharedDomain::Detach();
 
@@ -2465,14 +2486,37 @@ void SystemDomain::LazyInitGlobalStringLiteralMap()
     CONTRACTL_END;
 
     // Allocate the global string literal map.
-    NewHolder<GlobalStringLiteralMap> pGlobalStringLiteralMap(new GlobalStringLiteralMap());
+    NewHolder<GlobalStringLiteralMap<StringLiteralEntry>> pGlobalStringLiteralMap(new GlobalStringLiteralMap<StringLiteralEntry>());
 
     // Initialize the global string literal map.
     pGlobalStringLiteralMap->Init();
 
-    if (InterlockedCompareExchangeT<GlobalStringLiteralMap *>(&m_pGlobalStringLiteralMap, pGlobalStringLiteralMap, NULL) == NULL)
+    if (InterlockedCompareExchangeT<GlobalStringLiteralMap<StringLiteralEntry> *>(&m_pGlobalStringLiteralMap, pGlobalStringLiteralMap, NULL) == NULL)
     {
         pGlobalStringLiteralMap.SuppressRelease();
+    }
+}
+
+void SystemDomain::LazyInitGlobalUtf8StringLiteralMap()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    // Allocate the global string literal map.
+    NewHolder<GlobalStringLiteralMap<Utf8StringLiteralEntry>> pGlobalUtf8StringLiteralMap(new GlobalStringLiteralMap<Utf8StringLiteralEntry>());
+
+    // Initialize the global string literal map.
+    pGlobalUtf8StringLiteralMap->Init();
+
+    if (InterlockedCompareExchangeT<GlobalStringLiteralMap<Utf8StringLiteralEntry> *>(&m_pGlobalUtf8StringLiteralMap, pGlobalUtf8StringLiteralMap, NULL) == NULL)
+    {
+        pGlobalUtf8StringLiteralMap.SuppressRelease();
     }
 }
 

@@ -314,6 +314,8 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
+#define ObjectToUTF8STRINGREF(obj)   (UTF8STRINGREF(obj))
+#define UTF8STRINGREFToObject(objref) (*( (Utf8StringObject**) &(objref) ))
 
 #else   // _DEBUG_IMPL
 
@@ -324,6 +326,8 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
+#define ObjectToUTF8STRINGREF(obj)    ((PTR_Utf8StringObject) (obj))
+#define UTF8STRINGREFToObject(objref) ((PTR_Utf8StringObject) (objref))
 
 #endif // _DEBUG_IMPL
 

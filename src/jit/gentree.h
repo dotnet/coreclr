@@ -2703,6 +2703,31 @@ struct GenTreeStrCon : public GenTree
 #endif
 };
 
+/* gtUtf8StrCon -- string  constant (GT_CNS_UTF8STR) */
+struct GenTreeUtf8StrCon : public GenTree
+{
+    unsigned              gtSconCPX;
+    CORINFO_MODULE_HANDLE gtScpHnd;
+    CORINFO_CLASS_HANDLE  gtStringClass;
+
+    // Because this node can come from an inlined method we need to
+    // have the scope handle, since it will become a helper call.
+    GenTreeUtf8StrCon(unsigned              sconCPX,
+                      CORINFO_MODULE_HANDLE mod,
+                      CORINFO_CLASS_HANDLE stringClass DEBUGARG(bool largeNode = false))
+        : GenTree(GT_CNS_UTF8STR, TYP_REF DEBUGARG(largeNode))
+        , gtSconCPX(sconCPX)
+        , gtScpHnd(mod)
+        , gtStringClass(stringClass)
+    {
+    }
+#if DEBUGGABLE_GENTREE
+    GenTreeUtf8StrCon() : GenTree()
+    {
+    }
+#endif
+};
+
 // Common supertype of LCL_VAR, LCL_FLD, REG_VAR, PHI_ARG
 // This inherits from UnOp because lclvar stores are Unops
 struct GenTreeLclVarCommon : public GenTreeUnOp

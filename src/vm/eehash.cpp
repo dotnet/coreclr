@@ -125,16 +125,16 @@ EEHashEntry_t * EEUnicodeHashTableHelper::AllocateEntry(EEStringData *pKey, BOOL
     CONTRACTL_END
 
     EEHashEntry_t *pEntry;
+    _ASSERTE(!pKey->GetIsUtf8());
 
     if (bDeepCopy)
     {
         pEntry = (EEHashEntry_t *) new (nothrow) BYTE[SIZEOF_EEHASH_ENTRY + sizeof(EEStringData) + ((pKey->GetCharCount() + 1) * sizeof(WCHAR))];
         if (pEntry) {
             EEStringData *pEntryKey = (EEStringData *)(&pEntry->Key);
-            pEntryKey->SetIsOnlyLowChars (pKey->GetIsOnlyLowChars());
             pEntryKey->SetCharCount (pKey->GetCharCount());
-            pEntryKey->SetStringBuffer ((LPWSTR) ((LPBYTE)pEntry->Key + sizeof(EEStringData)));
-            memcpy((LPWSTR)pEntryKey->GetStringBuffer(), pKey->GetStringBuffer(), pKey->GetCharCount() * sizeof(WCHAR)); 
+            pEntryKey->SetUTF16StringBuffer ((LPWSTR) ((LPBYTE)pEntry->Key + sizeof(EEStringData)));
+            memcpy((LPWSTR)pEntryKey->GetUTF16StringBuffer(), pKey->GetUTF16StringBuffer(), pKey->GetCharCount() * sizeof(WCHAR)); 
         }
     }
     else
@@ -142,9 +142,8 @@ EEHashEntry_t * EEUnicodeHashTableHelper::AllocateEntry(EEStringData *pKey, BOOL
         pEntry = (EEHashEntry_t *) new (nothrow) BYTE[SIZEOF_EEHASH_ENTRY + sizeof(EEStringData)];
         if (pEntry) {
             EEStringData *pEntryKey = (EEStringData *) pEntry->Key;
-            pEntryKey->SetIsOnlyLowChars (pKey->GetIsOnlyLowChars());
             pEntryKey->SetCharCount (pKey->GetCharCount());
-            pEntryKey->SetStringBuffer (pKey->GetStringBuffer());
+            pEntryKey->SetUTF16StringBuffer (pKey->GetUTF16StringBuffer());
         }
     }
 
@@ -163,11 +162,12 @@ void EEUnicodeHashTableHelper::DeleteEntry(EEHashEntry_t *pEntry, void *pHeap)
 BOOL EEUnicodeHashTableHelper::CompareKeys(EEHashEntry_t *pEntry, EEStringData *pKey)
 {
     LIMITED_METHOD_CONTRACT;
+    _ASSERTE(!pKey->GetIsUtf8());
 
     EEStringData *pEntryKey = (EEStringData*) pEntry->Key;
 
     // Same buffer, same string.
-    if (pEntryKey->GetStringBuffer() == pKey->GetStringBuffer())
+    if (pEntryKey->GetUTF16StringBuffer() == pKey->GetUTF16StringBuffer())
         return TRUE;
 
     // Length not the same, never a match.
@@ -176,7 +176,7 @@ BOOL EEUnicodeHashTableHelper::CompareKeys(EEHashEntry_t *pEntry, EEStringData *
 
     // Compare the entire thing.
     // We'll deliberately ignore the bOnlyLowChars field since this derived from the characters
-    return !memcmp(pEntryKey->GetStringBuffer(), pKey->GetStringBuffer(), pEntryKey->GetCharCount() * sizeof(WCHAR));
+    return !memcmp(pEntryKey->GetUTF16StringBuffer(), pKey->GetUTF16StringBuffer(), pEntryKey->GetCharCount() * sizeof(WCHAR));
 }
 
 
@@ -184,7 +184,7 @@ DWORD EEUnicodeHashTableHelper::Hash(EEStringData *pKey)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return (HashBytes((const BYTE *) pKey->GetStringBuffer(), pKey->GetCharCount()*sizeof(WCHAR)));
+    return (HashBytes((const BYTE *) pKey->GetUTF16StringBuffer(), pKey->GetCharCount()*sizeof(WCHAR)));
 }
 
 
@@ -199,9 +199,8 @@ void EEUnicodeHashTableHelper::ReplaceKey(EEHashEntry_t *pEntry, EEStringData *p
 {
     LIMITED_METHOD_CONTRACT;
 
-    ((EEStringData*)pEntry->Key)->SetStringBuffer (pNewKey->GetStringBuffer());
+    ((EEStringData*)pEntry->Key)->SetUTF16StringBuffer (pNewKey->GetUTF16StringBuffer());
     ((EEStringData*)pEntry->Key)->SetCharCount (pNewKey->GetCharCount());
-    ((EEStringData*)pEntry->Key)->SetIsOnlyLowChars (pNewKey->GetIsOnlyLowChars());
 }
 
 // ============================================================================
@@ -254,7 +253,6 @@ void EEUnicodeStringLiteralHashTableHelper::DeleteEntry(EEHashEntry_t *pEntry, v
         delete [] (BYTE*)pEntry;
 }
 
-
 BOOL EEUnicodeStringLiteralHashTableHelper::CompareKeys(EEHashEntry_t *pEntry, EEStringData *pKey)
 {
     CONTRACTL
@@ -277,16 +275,295 @@ BOOL EEUnicodeStringLiteralHashTableHelper::CompareKeys(EEHashEntry_t *pEntry, E
         return FALSE;
 
     // Compare the entire thing.
-    // We'll deliberately ignore the bOnlyLowChars field since this derived from the characters
-    return (!memcmp(pEntryKey.GetStringBuffer(), pKey->GetStringBuffer(), pEntryKey.GetCharCount() * sizeof(WCHAR)));
+    return (!memcmp(pEntryKey.GetUTF16StringBuffer(), pKey->GetUTF16StringBuffer(), pEntryKey.GetCharCount() * sizeof(WCHAR)));
 }
-
 
 DWORD EEUnicodeStringLiteralHashTableHelper::Hash(EEStringData *pKey)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return (HashBytes((const BYTE *) pKey->GetStringBuffer(), pKey->GetCharCount() * sizeof(WCHAR)));
+    return (HashBytes((const BYTE *) pKey->GetUTF16StringBuffer(), pKey->GetCharCount() * sizeof(WCHAR)));
+}
+
+EEHashEntry_t * EEUnicodeUtf8StringLiteralHashTableHelper::AllocateEntry(EEStringData *pKey, BOOL bDeepCopy, void *pHeap)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        INJECT_FAULT(return NULL;);
+    }
+    CONTRACTL_END
+
+    // We assert here because we expect that the heap is not null for EEUnicodeStringLiteralHash table. 
+    // If someone finds more uses of this kind of hashtable then remove this asserte. 
+    // Also note that in case of heap being null we go ahead and use new /delete which is EXPENSIVE
+    // But for production code this might be ok if the memory is fragmented then thers a better chance 
+    // of getting smaller allocations than full pages.
+    _ASSERTE (pHeap);
+
+    if (pHeap)
+        return (EEHashEntry_t *) ((MemoryPool*)pHeap)->AllocateElementNoThrow ();
+    else
+        return (EEHashEntry_t *) new (nothrow) BYTE[SIZEOF_EEHASH_ENTRY];
+}
+
+
+void EEUnicodeUtf8StringLiteralHashTableHelper::DeleteEntry(EEHashEntry_t *pEntry, void *pHeap)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    // We assert here because we expect that the heap is not null for EEUnicodeStringLiteralHash table. 
+    // If someone finds more uses of this kind of hashtable then remove this asserte. 
+    // Also note that in case of heap being null we go ahead and use new /delete which is EXPENSIVE
+    // But for production code this might be ok if the memory is fragmented then thers a better chance 
+    // of getting smaller allocations than full pages.
+    _ASSERTE (pHeap);
+
+    if (pHeap)
+        ((MemoryPool*)pHeap)->FreeElement(pEntry);
+    else
+        delete [] (BYTE*)pEntry;
+}
+
+bool IsCharacter1ByteUtf8(char c)
+{
+    LIMITED_METHOD_CONTRACT;
+    return (c & 0x80) == 0;
+}
+
+bool IsCharacterFirstCodeUnitInMultibyteUtf8CodePoint(char c)
+{
+    LIMITED_METHOD_CONTRACT;
+    return (c & 0xC) == 0xC;
+}
+
+template <class TStateVar, class TUtf16DataFunctor>
+bool PerformOperationAcrossUtf8StringAsUtf16(const CHAR *pUtf8CurrentPtr, DWORD utf8CodeUnits, TStateVar *pStateVar, TUtf16DataFunctor functor)
+{
+    WRAPPER_NO_CONTRACT;
+
+#ifdef _DEBUG
+    // Use a much smaller buffer in debug builds to ensure testing of the multi-buffer scenario
+    WCHAR szBuf[16];
+#else
+    WCHAR szBuf[512];
+#endif
+    while (utf8CodeUnits != 0)
+    {
+        // Compare around 512 UTF16 Code Units at a time
+        int charactersTranslated;
+
+        // Case 1: Less than or equal to _countof(szBuf) UTF8 Code Units to feed in
+        if (utf8CodeUnits <= _countof(szBuf))
+        {
+            charactersTranslated = WszMultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, pUtf8CurrentPtr, utf8CodeUnits, szBuf, _countof(szBuf));
+            utf8CodeUnits = 0;
+        }
+        else
+        {
+            // Case 2: going to have to split the utf8 data.
+
+            // Find the start of a utf8 code point
+            int charactersToTranslate = _countof(szBuf);
+            int iterationsToFindValidPointToTruncate = 0;
+
+            while (!IsCharacter1ByteUtf8(pUtf8CurrentPtr[charactersToTranslate - 1]))
+            {
+                if (IsCharacterFirstCodeUnitInMultibyteUtf8CodePoint(pUtf8CurrentPtr[charactersToTranslate - 1]))
+                {
+                    charactersToTranslate -= 1;
+                    break;
+                }
+
+                charactersToTranslate--;
+                if (iterationsToFindValidPointToTruncate > 5)
+                {
+                    // An invalid UTF8 String cannot equal a UTF16 string of any form.
+                    // There must be a valid truncation point within 5 characters
+                    return false;
+                }
+                iterationsToFindValidPointToTruncate++;
+            }
+
+            charactersTranslated = WszMultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, pUtf8CurrentPtr, charactersToTranslate, szBuf, _countof(szBuf));
+            utf8CodeUnits -= charactersToTranslate;
+            pUtf8CurrentPtr += charactersToTranslate;
+        }
+
+        if (charactersTranslated == 0)
+        {
+            // Error during conversion from UTF8 to UTF16. 
+            // An invalid UTF8 String cannot equal a UTF16 string of any form.
+            // Therefore return FALSE
+            return false;
+        }
+
+        if (!functor.ProcessUtf8Data(pStateVar, szBuf, charactersTranslated))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+BOOL CompareEEStringDataMixedUtf8Utf16(EEStringData *pKey, EEStringData *pEntryKey)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Empty strings are equivalent
+    if ((pEntryKey->GetCharCount() == 0) && (pKey->GetCharCount() == 0))
+        return TRUE;
+
+    // Mixed compare
+    struct Utf16CompareState
+    {
+        const WCHAR *pUtf16CurrentPtr;
+        DWORD utf16CodeUnits;
+    } utf16CompareState;
+
+    class Utf16CompareDataFunctor
+    {
+        public:
+        bool ProcessUtf8Data(Utf16CompareState *pStateVar, const WCHAR *pUtf16Data, DWORD cchUtf16Data)
+        {
+            if (cchUtf16Data > pStateVar->utf16CodeUnits)
+            {
+                // UTF8 to UTF16 conversion resulted in a UTF16 string longer than the remaining UTF16 data to compare to
+                // Therefore, the strings must not be equal
+                return false;
+            }
+
+            if (memcmp(pUtf16Data, pStateVar->pUtf16CurrentPtr, cchUtf16Data * sizeof(WCHAR)) != 0)
+            {
+                // Comparison of UTF16 string data indicates that the strings are not identical
+                return false;
+            }
+
+            // Advance pointers and reduce counts
+            pStateVar->pUtf16CurrentPtr += cchUtf16Data;
+            pStateVar->utf16CodeUnits -= cchUtf16Data;
+
+            return true;
+        }
+    };
+
+    const CHAR *pUtf8Ptr;
+    DWORD utf8CodeUnits;
+
+    if (pEntryKey->GetIsUtf8())
+    {
+        pUtf8Ptr = pEntryKey->GetUTF8StringBuffer();
+        utf8CodeUnits = pEntryKey->GetCharCount();
+        utf16CompareState.pUtf16CurrentPtr = pKey->GetUTF16StringBuffer();
+        utf16CompareState.utf16CodeUnits = pKey->GetCharCount();
+    }
+    else
+    {
+        pUtf8Ptr = pKey->GetUTF8StringBuffer();
+        utf8CodeUnits = pKey->GetCharCount();
+        utf16CompareState.pUtf16CurrentPtr = pEntryKey->GetUTF16StringBuffer();
+        utf16CompareState.utf16CodeUnits = pEntryKey->GetCharCount();
+    }
+
+    if (!PerformOperationAcrossUtf8StringAsUtf16(pUtf8Ptr, utf8CodeUnits, &utf16CompareState, Utf16CompareDataFunctor()))
+    {
+        // Conversion to Utf16 failed, or comparison failed
+        return FALSE;
+    }
+    // At this point, all of the utf8 data has been processed
+
+    if (utf16CompareState.utf16CodeUnits != 0)
+    {
+        // If the utf16 data isn't complete, then the strings aren't equal
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+BOOL EEUnicodeUtf8StringLiteralHashTableHelper::CompareKeys(EEHashEntry_t *pEntry, EEStringData *pKey)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        FORBID_FAULT;
+    }
+    CONTRACTL_END
+
+    GCX_COOP();
+    
+    Utf8StringLiteralEntry *pHashData = (Utf8StringLiteralEntry *)pEntry->Data;
+
+    EEStringData pEntryKey;
+    pHashData->GetStringData(&pEntryKey);
+
+    // Compare the entire thing.
+    if (pKey->GetIsUtf8() == pEntryKey.GetIsUtf8())
+    {
+        // Length not the same, never a match.
+        if (pEntryKey.GetCharCount() != pKey->GetCharCount())
+            return FALSE;
+
+        if (pKey->GetIsUtf8())
+        {
+            return (!memcmp(pEntryKey.GetUTF8StringBuffer(), pKey->GetUTF8StringBuffer(), pEntryKey.GetCharCount() * sizeof(CHAR)));
+        }
+        else
+        {
+            return (!memcmp(pEntryKey.GetUTF16StringBuffer(), pKey->GetUTF16StringBuffer(), pEntryKey.GetCharCount() * sizeof(WCHAR)));
+        }
+    }
+    else
+    {
+        return CompareEEStringDataMixedUtf8Utf16(pKey, &pEntryKey);
+    }
+}
+
+DWORD EEUnicodeUtf8StringLiteralHashTableHelper::Hash(EEStringData *pKey)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (!pKey->GetIsUtf8())
+    {
+        return (HashBytes((const BYTE *) pKey->GetUTF16StringBuffer(), pKey->GetCharCount() * sizeof(WCHAR)));
+    }
+    else
+    {
+        // Generally try to convert Utf8 data to Utf16 and hash, but if the string isn't convertable, hash the entire thing
+        HashBytesState hashState;
+        InitHashBytesState(&hashState);
+
+        class HashBytesFunctor
+        {
+        public:
+            bool ProcessUtf8Data(HashBytesState *hashState, const WCHAR *pUtf16Data, DWORD cchUtf16Data)
+            {
+                LIMITED_METHOD_CONTRACT;
+                AddBytesToHash(hashState, (const BYTE *)pUtf16Data, cchUtf16Data * sizeof(WCHAR));
+                return true;
+            }
+        };
+
+        if (!PerformOperationAcrossUtf8StringAsUtf16(pKey->GetUTF8StringBuffer(), pKey->GetCharCount(), &hashState, HashBytesFunctor()))
+        {
+            // Conversion to Utf16 failed, just hash the Utf8 data
+            return (HashBytes((const BYTE *) pKey->GetUTF8StringBuffer(), pKey->GetCharCount() * sizeof(CHAR)));
+        }
+        else
+        {
+            // Hashing of UTF16 converted data complete, return computed hash
+            return GetHashFromHashBytesState(&hashState);
+        }
+    }
 }
 
 

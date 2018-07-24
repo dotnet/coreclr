@@ -2909,6 +2909,7 @@ MultiByteToWideChar(
             IN int cchWideChar);
 
 #define WC_NO_BEST_FIT_CHARS      0x00000400
+#define WC_ERR_INVALID_CHARS      0x00000080  // error for invalid chars
 
 PALIMPORT
 int

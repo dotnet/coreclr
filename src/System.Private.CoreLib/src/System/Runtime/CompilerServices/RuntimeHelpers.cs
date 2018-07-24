@@ -194,6 +194,25 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementation for how this happens.
             throw new InvalidOperationException();
         }
+
+        [Intrinsic]
+        public static Utf8String GetUtf8StringLiteral(string s)
+        {
+            // The body of this method is normally implemented via an intrinsic. This method should never be directly executed
+            Utf8String newUtf8String = null;
+
+            try
+            {
+                newUtf8String = new Utf8String(s.AsSpan());
+            }
+            catch (ArgumentException)
+            {
+                // To match the behavior of the jit in the presence of an invalid string, throw InvalidProgramException instead of ArgumentException
+                throw new InvalidProgramException();
+            }
+            
+            return Utf8String.Intern(newUtf8String);
+        }
     }
 }
 

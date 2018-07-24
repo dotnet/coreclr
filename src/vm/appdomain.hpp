@@ -60,7 +60,9 @@ class AppDomainEnum;
 class AssemblySink;
 class EEMarshalingData;
 class Context;
+template <class TEntryType>
 class GlobalStringLiteralMap;
+template <class TEntryType>
 class StringLiteralMap;
 class MngStdInterfacesInfo;
 class DomainModule;
@@ -1229,6 +1231,7 @@ public:
 
     STRINGREF *IsStringInterned(STRINGREF *pString);
     STRINGREF *GetOrInternString(STRINGREF *pString);
+    UTF8STRINGREF *GetOrInternUtf8String(UTF8STRINGREF *pString);
 
     virtual BOOL CanUnload()   { LIMITED_METHOD_CONTRACT; return FALSE; }    // can never unload BaseDomain
 
@@ -4183,6 +4186,7 @@ public:
     void Stop();
     void Terminate();
     static void LazyInitGlobalStringLiteralMap();
+    static void LazyInitGlobalUtf8StringLiteralMap();
 
     //****************************************************************************************
     //
@@ -4240,7 +4244,7 @@ public:
     }
 
 #ifndef DACCESS_COMPILE
-    static GlobalStringLiteralMap *GetGlobalStringLiteralMap()
+    static GlobalStringLiteralMap<StringLiteralEntry> *GetGlobalStringLiteralMap()
     {
         WRAPPER_NO_CONTRACT;
 
@@ -4251,12 +4255,30 @@ public:
         _ASSERTE(m_pGlobalStringLiteralMap);
         return m_pGlobalStringLiteralMap;
     }
-    static GlobalStringLiteralMap *GetGlobalStringLiteralMapNoCreate()
+    static GlobalStringLiteralMap<StringLiteralEntry> *GetGlobalStringLiteralMapNoCreate()
     {
         LIMITED_METHOD_CONTRACT;
 
         _ASSERTE(m_pGlobalStringLiteralMap);
         return m_pGlobalStringLiteralMap;
+    }
+    static GlobalStringLiteralMap<Utf8StringLiteralEntry> *GetGlobalUtf8StringLiteralMap()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (m_pGlobalUtf8StringLiteralMap == NULL)
+        {
+            SystemDomain::LazyInitGlobalUtf8StringLiteralMap();
+        }
+        _ASSERTE(m_pGlobalUtf8StringLiteralMap);
+        return m_pGlobalUtf8StringLiteralMap;
+    }
+    static GlobalStringLiteralMap<Utf8StringLiteralEntry> *GetGlobalUtf8StringLiteralMapNoCreate()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        _ASSERTE(m_pGlobalUtf8StringLiteralMap);
+        return m_pGlobalUtf8StringLiteralMap;
     }
 #endif // DACCESS_COMPILE
 
@@ -4680,7 +4702,8 @@ private:
     // even if have started unloading.
     static Thread *m_pAppDomainUnloadingThread;
 
-    static GlobalStringLiteralMap *m_pGlobalStringLiteralMap;
+    static GlobalStringLiteralMap<StringLiteralEntry> *m_pGlobalStringLiteralMap;
+    static GlobalStringLiteralMap<Utf8StringLiteralEntry> *m_pGlobalUtf8StringLiteralMap;
 
     static ULONG       s_dNumAppDomains;  // Maintain a count of children app domains.
 

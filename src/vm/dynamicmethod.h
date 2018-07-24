@@ -84,14 +84,19 @@ public:
 //---------------------------------------------------------------------------------------
 // 
 class StringLiteralEntry;
+class Utf8StringLiteralEntry;
 
 //---------------------------------------------------------------------------------------
 // 
-struct DynamicStringLiteral
+template <class TEntryType>
+struct DynamicStringLiteralTemplate
 {
-    DynamicStringLiteral *  m_pNext;
-    StringLiteralEntry *    m_pEntry;
+    DynamicStringLiteralTemplate<TEntryType> *  m_pNext;
+    TEntryType *    m_pEntry;
 };
+
+typedef DynamicStringLiteralTemplate<StringLiteralEntry> DynamicStringLiteral;
+typedef DynamicStringLiteralTemplate<Utf8StringLiteralEntry> DynamicUtf8StringLiteral;
 
 //---------------------------------------------------------------------------------------
 // 
@@ -135,7 +140,7 @@ public:
     void * GetRecordCodePointer()  { LIMITED_METHOD_CONTRACT; return m_recordCodePointer; }
 
     STRINGREF GetStringLiteral(mdToken token);
-    STRINGREF * GetOrInternString(STRINGREF *pString);
+    OBJECTREF * GetOrInternString(bool isUtf8StringLiteral, STRINGREF *pString);
     void AddToUsedIndCellList(BYTE * indcell);
 
 private:
@@ -162,6 +167,7 @@ private:
     ChunkAllocator m_jitMetaHeap;
     ChunkAllocator m_jitTempData;
     DynamicStringLiteral* m_DynamicStringLiterals;
+    DynamicUtf8StringLiteral* m_DynamicUtf8StringLiterals;
     IndCellList * m_UsedIndCellList;    // list to keep track of all the indirection cells used by the jitted code
     ExecutionManager::JumpStubCache * m_pJumpStubCache;
 };  // class LCGMethodResolver

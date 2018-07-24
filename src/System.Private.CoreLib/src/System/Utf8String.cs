@@ -8,6 +8,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
+using System.Threading;
+
 
 #if BIT64
 using nint = System.Int64;
@@ -274,6 +276,17 @@ namespace System
             /// This instance has been validated and is known to contain only well-formed UTF-8 sequences.
             /// </summary>
             IsWellFormed
+        }
+        
+        // TODO! Decide if string interning should be a public feature
+        internal static Utf8String Intern(Utf8String str)
+        {
+            if (str == null)
+            {
+                throw new ArgumentNullException(nameof(str));
+            }
+
+            return Thread.GetDomain().GetOrInternUtf8String(str);
         }
     }
 }

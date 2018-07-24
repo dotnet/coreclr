@@ -60,7 +60,11 @@ public:
     BOOL IsCollectible();
 };
 
+template <class T>
 class StringLiteralMap;
+class StringLiteralEntry;
+class Utf8StringLiteralEntry;
+
 class VirtualCallStubManager;
 template <typename ELEMENT>
 class ListLockEntryBase;
@@ -94,7 +98,8 @@ protected:
     OBJECTHANDLE        m_hLoaderAllocatorObjectHandle;
     FuncPtrStubs *      m_pFuncPtrStubs; // for GetMultiCallableAddrOfCode()
     // The LoaderAllocator specific string literal map.
-    StringLiteralMap   *m_pStringLiteralMap;
+    StringLiteralMap<StringLiteralEntry>   *m_pStringLiteralMap;
+    StringLiteralMap<Utf8StringLiteralEntry>   *m_pUtf8StringLiteralMap;
     CrstExplicitInit    m_crstLoaderAllocator;
     bool                m_fGCPressure;
     bool                m_fUnloaded;
@@ -428,9 +433,15 @@ public:
     // If the string is not currently in the hash table it will be added and if the
     // copy string flag is set then the string will be copied before it is inserted.
     STRINGREF *GetStringObjRefPtrFromUnicodeString(EEStringData *pStringData);
+    UTF8STRINGREF *GetUtf8StringObjRefPtrFromUnicodeString(EEStringData *pStringData);
     void LazyInitStringLiteralMap();
+    void LazyInitUtf8StringLiteralMap();
+
     STRINGREF *IsStringInterned(STRINGREF *pString);
     STRINGREF *GetOrInternString(STRINGREF *pString);
+    UTF8STRINGREF *IsUtf8StringInterned(UTF8STRINGREF *pString);
+    UTF8STRINGREF *GetOrInternUtf8String(UTF8STRINGREF *pString);
+
     void CleanupStringLiteralMap();
 
     void InitVirtualCallStubManager(BaseDomain *pDomain, BOOL fCollectible = FALSE);
