@@ -462,21 +462,23 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 
                 buildCommands += "${dockerCmd}\${WORKSPACE}/build.sh release ${architecture} cross crosscomponent"
 
-                buildCommands.each { buildCommand ->
-                    shell(buildCommand)
+                steps {
+                    buildCommands.each { buildCommand ->
+                        shell(buildCommand)
+                    }
                 }
 
                 Utilities.setMachineAffinity(newBuildJob, "Ubuntu16.04", 'latest-or-auto')
                 Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
                 Utilities.addArchival(newBuildJob, "bin/Product/**")
-                newBuildJob.with {
+            }
+            newBuildJob.with {
                     publishers {
                         azureVMAgentPostBuildAction {
                             agentPostBuildAction('Delete agent after build execution (when idle).')
                         }
                     }
                 }
-            }
         }
         else {
             // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
