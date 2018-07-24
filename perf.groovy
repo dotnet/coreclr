@@ -473,11 +473,10 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                         agentPostBuildAction('Delete agent after build execution (when idle).')
                     }
                 }
-
-                Utilities.setMachineAffinity(newBuildJob, "Ubuntu16.04", 'latest-or-auto')
-                Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
-                Utilities.addArchival(newBuildJob, "bin/Product/**")
             }
+            Utilities.setMachineAffinity(newBuildJob, "Ubuntu16.04", 'latest-or-auto')
+            Utilities.standardJobSetup(newBuildJob, project, isPR, "*/${branch}")
+            Utilities.addArchival(newBuildJob, "bin/Product/**")
         }
         else {
             // Build has to happen on RHEL7.2 (that's where we produce the bits we ship)
