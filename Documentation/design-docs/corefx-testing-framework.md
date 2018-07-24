@@ -46,7 +46,7 @@ The current layout of blob storage is inelegant and not easy to support. We can 
 
 ## xUnit Console Runner
 
-Currently we depend on xunit.netcore.console.exe (our own implementation of an xUnit console runner) being present in the test payload. With the efforts going on in [the Arcade transition project](https://github.com/dotnet/corefx/projects/3) changes to the CoreFX test build format might happen, in which case we would need to start maintaining our one CoreFX console runner. If the binaries maintain backwards-compatibility (extremely likely) with the console runner, then we can simply call an instance of xunit.netcore.console.exe from the test host directory.
+Currently we depend on xunit.netcore.console.exe (our own implementation of an xUnit console runner) being present in the test payload. With the efforts going on in [the Arcade transition project](https://github.com/dotnet/corefx/projects/3) changes to the CoreFX test build format might happen, in which case we would need to start maintaining our one CoreFX console runner. The reason for this is the lack of fine-grained test exclusion capabilities in earlier xUnit versions (before [test exclusions were added to core xUnit](https://github.com/xunit/xunit/pull/1734)). The testing framework implementation assumes that the console runner accepts exclusion parameters (e.g. -skipmethod; -skipclass ), which are the basis of being able to selectively disable individual test methods. If the binaries maintain backwards-compatibility (extremely likely) with the console runner, then we can simply call an instance of xunit.netcore.console.exe from the test host directory.
 
 ## Paralellization
 
