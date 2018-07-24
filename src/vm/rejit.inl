@@ -26,8 +26,10 @@ inline BOOL ReJitManager::IsReJITEnabled()
 {
     LIMITED_METHOD_CONTRACT;
 
-    DWORD dwRejitOnAttachDisabled = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_DISABLE_REJIT_ON_ATTACH);
-    return CORProfilerEnableRejit() || !dwRejitOnAttachDisabled;
+    static bool profilerStartupRejit = CORProfilerEnableRejit() != FALSE;
+    static ConfigDWORD rejitOnAttachEnabled;
+
+    return  profilerStartupRejit || (rejitOnAttachEnabled.val(CLRConfig::EXTERNAL_ProfAPI_RejitOnAttach) != 0);
 }
 
 #ifndef DACCESS_COMPILE
