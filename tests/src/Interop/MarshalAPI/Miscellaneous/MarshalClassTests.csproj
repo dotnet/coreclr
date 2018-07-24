@@ -12,7 +12,7 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
 
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
-    <NoWarn>0618;0649</NoWarn>
+    <NoWarn>0618;0649;$(NoWarn)</NoWarn>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">

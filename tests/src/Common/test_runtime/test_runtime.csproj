@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -13,6 +13,12 @@
     <PackageReference Include="Microsoft.NETCore.Platforms">
       <Version>$(MicrosoftNETCorePlatformsPackageVersion)</Version>
     </PackageReference>
+    <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+    </PackageReference>    
+    <PackageReference Include="Microsoft.DotNet.Cli.Utils">
+      <Version>1.0.0-preview2-003121</Version>
+    </PackageReference>    
     <PackageReference Include="Microsoft.DotNet.CoreCLR.TestDependencies">
       <Version>1.0.0-prerelease</Version>
     </PackageReference>
@@ -28,8 +34,8 @@
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
+    <TargetFrameworkIdentifier>.NETCoreApp,Version=v3.0</TargetFrameworkIdentifier>
+        <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
     <RuntimeIdentifiers>win-arm;win-arm64;win-x64;win-x86;$(TargetRid)</RuntimeIdentifiers>
     <ContainsPackageReferences>true</ContainsPackageReferences>
     <PrereleaseResolveNuGetPackages>false</PrereleaseResolveNuGetPackages>
