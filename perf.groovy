@@ -536,9 +536,10 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                     def osGroup = getOSGroup(os)
                     def runType = isPR ? 'private' : 'rolling'
                     def benchViewName = isPR ? 'coreclr-throughput private \$BenchviewCommitName' : 'coreclr-throughput rolling \$GIT_BRANCH_WITHOUT_ORIGIN \$GIT_COMMIT'
+                    def archString = architecture == 'arm' ? ' --arch=arm' : ''
 
                     steps {
-                        shell("bash ./tests/scripts/perf-prep.sh --throughput")
+                        shell("bash ./tests/scripts/perf-prep.sh --throughput${archString}")
                         shell("./init-tools.sh")
                         copyArtifacts(fullBuildJobName) {
                             includePatterns("bin/Product/**")
