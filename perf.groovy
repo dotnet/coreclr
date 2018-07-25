@@ -540,7 +540,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 
                     steps {
                         shell("bash ./tests/scripts/perf-prep.sh --throughput${archString}")
-                        shell("./init-tools.sh")
+                        //shell("./init-tools.sh")
                         copyArtifacts(fullBuildJobName) {
                             includePatterns("bin/Product/**")
                             buildSelector {
