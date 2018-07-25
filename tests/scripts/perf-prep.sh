@@ -64,6 +64,8 @@ echo "configuration = $perfConfig"
 # with what we find inside of the quotes after src=.  We then jump to label x on a match and if 
 # we don't match we delete the line.  This returns just the address of the last nupkg to curl.
 
+ifconfig
+
 if [ ! -d "./tests/scripts/Microsoft.Benchview.JSONFormat" ]; then
     curl "http://benchviewtestfeed.azurewebsites.net/nuget/FindPackagesById()?id='Microsoft.BenchView.JSONFormat'" | grep "content type" | sed "$ s/.*src=\"\([^\"]*\)\".*/\1/;tx;d;:x" | xargs curl -o benchview.zip
     unzip -q -o benchview.zip -d ./tests/scripts/Microsoft.BenchView.JSONFormat
