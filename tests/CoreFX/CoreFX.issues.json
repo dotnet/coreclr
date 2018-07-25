@@ -403,6 +403,14 @@
                 {
                     "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
                     "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
                 }
             ]
         }
