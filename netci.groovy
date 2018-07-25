@@ -174,9 +174,11 @@ class Constants {
                 'Release'
             ], 
             'arm': [
-                'Checked',
+                'Debug',
+                'Checked'
             ],
             'arm64': [
+                'Debug',
                 'Checked'
             ]
         ],
@@ -1990,7 +1992,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
                     switch (scenario) {
                         case 'innerloop':
-                            if (configuration == 'Checked') {
+                            if (configuration == 'Debug') {
+                                // Add default PR trigger for Windows arm Debug builds. This is a build only -- no tests are run --
+                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
+                                // People in arm64Users will get both this and the Checked Build and Test job.
+                                Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
+                            } else if (configuration == 'Checked') {
                                 Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
                             }
                             break
@@ -2064,7 +2071,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
                     switch (scenario) {
                         case 'innerloop':
-                            if (configuration == 'Checked') {
+                            if (configuration == 'Debug') {
+                                // Add default PR trigger for Windows arm64 Debug builds. This is a build only -- no tests are run --
+                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
+                                // People in arm64Users will get both this and the Checked Build and Test job.
+                                Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
+                            } else if (configuration == 'Checked') {
                                 Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
                             }
                             break
