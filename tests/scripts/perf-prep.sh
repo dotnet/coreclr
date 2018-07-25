@@ -72,7 +72,7 @@ if [ ! -d "./tests/scripts/Microsoft.Benchview.JSONFormat" ]; then
 fi
 
 # Install python 3.5.2 to run machinedata.py for machine data collection
-if [ $perfArch -eq "arm" ]; then
+if [ $perfArch == "arm" ]; then
     python3.6 --version
     python3.6 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
 else
