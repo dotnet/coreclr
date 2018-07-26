@@ -42,8 +42,13 @@ namespace R2RDump
         /// </summary>
         public int Size { get; set; }
 
-        public R2RSection(SectionType type, int rva, int size)
+        private bool _ignoreSensitive;
+        public bool ShouldSerializeRelativeVirtualAddress() { return !_ignoreSensitive; }
+        public bool ShouldSerializeSize() { return !_ignoreSensitive; }
+
+        public R2RSection(bool ignoreSensitive, SectionType type, int rva, int size)
         {
+            _ignoreSensitive = ignoreSensitive;
             Type = type;
             RelativeVirtualAddress = rva;
             Size = size;

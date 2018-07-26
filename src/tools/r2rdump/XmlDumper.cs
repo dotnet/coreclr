@@ -11,9 +11,11 @@ namespace R2RDump
     {
         public XmlDocument XmlDocument { get; }
         private XmlNode _rootNode;
+        private bool _ignoreSensitive;
 
-        public XmlDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
+        public XmlDumper(bool ignoreSensitive, R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
         {
+            _ignoreSensitive = ignoreSensitive;
             _r2r = r2r;
             _writer = writer;
             XmlDocument = new XmlDocument();
@@ -255,6 +257,8 @@ namespace R2RDump
                     }
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS:
+                    if (_ignoreSensitive)
+                        break;
                     int rtfOffset = _r2r.GetOffset(section.RelativeVirtualAddress);
                     int rtfEndOffset = rtfOffset + section.Size;
                     int rtfIndex = 0;
