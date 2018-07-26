@@ -4646,7 +4646,7 @@ namespace System.Diagnostics.Tracing
         }
 
         /// <summary>
-        /// Gets a DateTime that specifies when the event was written.
+        /// Gets a UTC DateTime that specifies when the event was written.
         /// </summary>
         public DateTime TimeStamp
         {
