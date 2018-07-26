@@ -22,11 +22,6 @@
   </Target>
 
   <PropertyGroup>
-    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(PublishTestNativeBins)' != 'true'">$(PackagesBinDir)**\*.nupkg</PublishPattern>
-    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(PublishTestNativeBins)' == 'true'">$(OutputPath)\bin\**</PublishPattern>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <PackageDownloadDirectory Condition="'$(DownloadDirectory)' == ''">$(PackagesDir)AzureTransfer\$(ConfigurationGroup)</PackageDownloadDirectory>
     <FinalPublishPattern>$(PackageDownloadDirectory)\**\*.nupkg</FinalPublishPattern>
     <FinalPublishPrivatePattern>$(PackageDownloadDirectory)\**\*Private*.nupkg</FinalPublishPrivatePattern>
@@ -34,6 +29,12 @@
     <FinalTransportPackagesPattern>$(PackageDownloadDirectory)\**\transport*.nupkg</FinalTransportPackagesPattern>
     <!-- The SignFiles target needs OutDir to be defined -->
     <OutDir>$(PackageDownloadDirectory)</OutDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(RepublishSignedPackages)' == 'true'">$(FinalPublishPattern)</PublishPattern>
+    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(PublishTestNativeBins)' != 'true'">$(PackagesBinDir)**\*.nupkg</PublishPattern>
+    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(PublishTestNativeBins)' == 'true'">$(OutputPath)\bin\**</PublishPattern>
   </PropertyGroup>
 
   <Target Name="GetPackagesToSign">
