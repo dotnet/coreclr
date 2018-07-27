@@ -1,6 +1,6 @@
 {
   "projects": [ "./tests/src", "./tests/src/Common" ],
   "sdk": {
-    "version": "2.1.301"
+    "version": "2.0.0"
   }
 }
