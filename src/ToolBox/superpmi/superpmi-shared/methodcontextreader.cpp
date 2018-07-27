@@ -503,18 +503,18 @@ void MethodContextReader::ReadExcludedMethods(std::string mchFileName)
     HANDLE excludeFileHandle = OpenFile(excludeFileName.c_str());
     if (excludeFileHandle != INVALID_HANDLE_VALUE)
     {
-        LARGE_INTEGER excludeFileSizeStruct;
-        GetFileSizeEx(excludeFileHandle, &excludeFileSizeStruct);
-        DWORD excludeFileSize = excludeFileSizeStruct.LowPart;
+        __int64 excludeFileSizeLong;
+        GetFileSizeEx(excludeFileHandle, (PLARGE_INTEGER)&excludeFileSizeLong);
+        unsigned excludeFileSize = (unsigned)excludeFileSizeLong;
 
         char* buffer = new char[excludeFileSize + 1];
         DWORD bytesRead;
-        bool success = (ReadFile(excludeFileHandle, buffer, excludeFileSize, &bytesRead, NULL) == TRUE);
+        bool  success = (ReadFile(excludeFileHandle, buffer, excludeFileSize, &bytesRead, NULL) == TRUE);
         CloseHandle(excludeFileHandle);
 
         if (!success || excludeFileSize != bytesRead)
         {
-            LogError("Failed to read the exclude file");
+            LogError("Failed to read the exclude file.");
             delete[] buffer;
             return;
         }
@@ -530,7 +530,7 @@ void MethodContextReader::ReadExcludedMethods(std::string mchFileName)
             {
                 curr++;
             }
-            
+
             std::string hash;
             while (*curr != 0 && !isspace(*curr))
             {
