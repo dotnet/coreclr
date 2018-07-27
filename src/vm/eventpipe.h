@@ -401,7 +401,7 @@ private:
     struct EventPipeSessionInfo
     {
     public:
-        SYSTEMTIME StartTime;
+        FILETIME StartTimeAsUTCFileTime;
         LARGE_INTEGER StartTimeStamp;
         LARGE_INTEGER TimeStampFrequency;
     };

@@ -29,7 +29,7 @@ EventPipeSession::EventPipeSession(
     m_pProviderList = new EventPipeSessionProviderList(
         pProviders,
         numProviders);
-    GetSystemTime(&m_sessionStartTime);
+    GetSystemTimeAsFileTime(&m_sessionStartTime);
     QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }
 

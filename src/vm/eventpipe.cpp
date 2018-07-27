@@ -1088,7 +1088,7 @@ bool QCALLTYPE EventPipeInternal::GetSessionInfo(UINT64 sessionID, EventPipeSess
         EventPipeSession *pSession = EventPipe::GetSession(sessionID);
         if(pSession != NULL)
         {
-            pSessionInfo->StartTime = pSession->GetStartTime();
+            pSessionInfo->StartTimeAsUTCFileTime = pSession->GetStartTime();
             pSessionInfo->StartTimeStamp.QuadPart = pSession->GetStartTimeStamp().QuadPart;
             QueryPerformanceFrequency(&pSessionInfo->TimeStampFrequency);
             retVal = true;

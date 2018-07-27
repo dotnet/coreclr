@@ -34,8 +34,8 @@ private:
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
     EventPipeSessionType m_sessionType;
 
-    // Start date and time.
-    SYSTEMTIME m_sessionStartTime;
+    // Start date and time in UTC.
+    FILETIME m_sessionStartTime;
 
     // Start timestamp.
     LARGE_INTEGER m_sessionStartTimeStamp;
@@ -82,8 +82,8 @@ public:
         m_rundownEnabled = value;
     }
 
-    // Get the session start time.
-    SYSTEMTIME GetStartTime() const
+    // Get the session start time in UTC.
+    FILETIME GetStartTime() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_sessionStartTime;

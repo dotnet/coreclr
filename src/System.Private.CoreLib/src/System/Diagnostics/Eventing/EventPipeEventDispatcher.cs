@@ -123,16 +123,7 @@ namespace System.Diagnostics.Tracing
                 }
             }
 
-            m_syncTimeUtc = new DateTime(
-                year: sessionInfo.StartTime.Year,
-                month: sessionInfo.StartTime.Month,
-                day: sessionInfo.StartTime.Day,
-                hour: sessionInfo.StartTime.Hour,
-                minute: sessionInfo.StartTime.Minute,
-                second: sessionInfo.StartTime.Second,
-                millisecond: sessionInfo.StartTime.Milliseconds,
-                kind: DateTimeKind.Utc);
-
+            m_syncTimeUtc = DateTime.FromFileTimeUtc(sessionInfo.StartTimeAsUTCFileTime);
             m_syncTimeQPC = sessionInfo.StartTimeStamp;
             m_timeQPCFrequency = sessionInfo.TimeStampFrequency;
 
