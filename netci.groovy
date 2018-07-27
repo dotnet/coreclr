@@ -1490,6 +1490,21 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} via ILLink", "(?i).*test\\W+${os}\\W+${architecture}\\W+${configuration}\\W+${scenario}.*")
                         break
                     }
+                    // Triggers on the non-flow jobs aren't necessary here
+                    // Corefx testing uses non-flow jobs.
+                    if (!isFlowJob && !isCoreFxScenario(scenario)) {
+                        break
+                    }
+
+                    if (scenario == 'no_tiered_compilation_innerloop') {
+                        // Default trigger
+                        if (configuration == 'Checked') {
+                            def displayStr = getStressModeDisplayName(scenario)
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                        }
+                        break
+                    }
+
                     // fall through
 
                 case 'OSX10.12':
