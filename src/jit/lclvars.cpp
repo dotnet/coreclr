@@ -1667,7 +1667,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
                 if (fieldSize != innerStructSize)
                 {
                     JITDUMP("Promotion blocked: struct contains struct field with one field,"
-                            "but that field is not the same size as its parent.");
+                            " but that field is not the same size as its parent.");
                     return;
                 }
 
