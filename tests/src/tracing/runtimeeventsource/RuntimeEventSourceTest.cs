@@ -82,12 +82,12 @@ namespace Tracing.Tests
 
         protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            int osThreadId = -1;
+            long osThreadId = -1;
             DateTime timeStamp;
 #if REFLECTION
             PropertyInfo threadProperty = typeof(EventWrittenEventArgs).GetProperty("OSThreadId");
             MethodInfo threadMethod = threadProperty.GetGetMethod();
-            osThreadId = (int)threadMethod.Invoke(eventData, null);
+            osThreadId = (long)threadMethod.Invoke(eventData, null);
             PropertyInfo timeStampProperty = typeof(EventWrittenEventArgs).GetProperty("TimeStamp");
             MethodInfo timeStampMethod = timeStampProperty.GetGetMethod();
             timeStamp = (DateTime)timeStampMethod.Invoke(eventData, null);

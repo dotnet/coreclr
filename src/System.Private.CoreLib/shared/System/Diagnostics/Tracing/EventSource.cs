@@ -4628,13 +4628,13 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Gets the identifier for the OS thread that wrote the event.
         /// </summary>
-        public int OSThreadId
+        public long OSThreadId
         {
             get
             {
                 if (!m_osThreadId.HasValue)
                 {
-                    m_osThreadId = Thread.CurrentOSThreadId;
+                    m_osThreadId = (long)RuntimeThread.CurrentOSThreadId;
                 }
 
                 return m_osThreadId.Value;
@@ -4665,7 +4665,7 @@ namespace System.Diagnostics.Tracing
         private EventSource m_eventSource;
         private ReadOnlyCollection<string> m_payloadNames;
         private Guid m_activityId;
-        private int? m_osThreadId;
+        private long? m_osThreadId;
         internal EventTags m_tags;
         internal EventOpcode m_opcode;
         internal EventLevel m_level;

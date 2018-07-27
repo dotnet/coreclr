@@ -343,16 +343,6 @@ namespace System.Threading
         [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
 
-        internal static int CurrentOSThreadId
-        {
-            get
-            {
-                return GetCurrentOSThreadId();
-            }
-        }
-        [MethodImplAttribute(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
-        private static extern int GetCurrentOSThreadId();
-
         private void SetStartHelper(Delegate start, int maxStackSize)
         {
             Debug.Assert(maxStackSize >= 0);
