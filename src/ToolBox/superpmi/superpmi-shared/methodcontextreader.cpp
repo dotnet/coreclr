@@ -570,13 +570,16 @@ void MethodContextReader::CleanExcludedMethods()
 // Return should this method context be excluded from the replay or not.
 bool MethodContextReader::IsMethodExcluded(MethodContext* mc)
 {
-    char md5HashBuf[MD5_HASH_BUFFER_SIZE] = {0};
-    mc->dumpMethodMD5HashToBuffer(md5HashBuf, MD5_HASH_BUFFER_SIZE);
-    for (StringList* node = excludedMethodsList; node != nullptr; node = node->next)
+    if (excludedMethodsList != nullptr)
     {
-        if (strcmp(node->hash.c_str(), md5HashBuf) == 0)
+        char md5HashBuf[MD5_HASH_BUFFER_SIZE] = {0};
+        mc->dumpMethodMD5HashToBuffer(md5HashBuf, MD5_HASH_BUFFER_SIZE);
+        for (StringList* node = excludedMethodsList; node != nullptr; node = node->next)
         {
-            return true;
+            if (strcmp(node->hash.c_str(), md5HashBuf) == 0)
+            {
+                return true;
+            }
         }
     }
     return false;
