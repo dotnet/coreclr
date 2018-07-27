@@ -1289,13 +1289,12 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     // They are setting up temporary locals that will later be placed into
     // outgoing regs or stack.
     // Note that atomic ops may be stores and still produce a value.
-    if ((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
-        arg->OperIsCopyBlkOp())
+    if (!arg->IsValue())
     {
-        assert(!arg->IsValue());
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
-    assert(arg->IsValue());
 
     fgArgTabEntry* info = comp->gtArgEntryByNode(call, arg);
     assert(info->node == arg);
@@ -5301,13 +5300,12 @@ void Lowering::DoPhase()
 //
 void Lowering::CheckCallArg(GenTree* arg)
 {
-    if ((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
-        arg->OperIsCopyBlkOp())
+    if (!arg->IsValue() && !arg->OperIsPutArgStk())
     {
-        assert(!arg->IsValue());
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
-    assert(arg->IsValue() || arg->OperIsPutArgStk());
 
     switch (arg->OperGet())
     {
