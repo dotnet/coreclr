@@ -20,16 +20,20 @@
     <Error Condition="'@(ForPublishing)' == ''" Text="No items were found matching pattern '$(PublishPattern)'." />
   </Target>
 
-  <PropertyGroup>
-    <PublishPattern Condition="'$(PublishPattern)' == ''">$(PackagesBinDir)**\*.nupkg</PublishPattern>
-  </PropertyGroup>
-
+  <!-- Set up publish patterns for "final" package publish - that is, the pipeline packages we download & publish to myget during official builds -->
   <PropertyGroup>
     <PackageDownloadDirectory Condition="'$(DownloadDirectory)' == ''">$(PackagesDir)AzureTransfer\$(ConfigurationGroup)</PackageDownloadDirectory>
     <FinalPublishPattern>$(PackageDownloadDirectory)\**\*.nupkg</FinalPublishPattern>
     <FinalSymbolsPackagesPattern>$(PackageDownloadDirectory)\**\*.symbols.nupkg</FinalSymbolsPackagesPattern>
     <!-- The SignFiles target needs OutDir to be defined -->
     <OutDir>$(PackageDownloadDirectory)</OutDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- If we're re-publishing signed final packages, use the location of the downloaded pipeline packages -->
+    <PublishPattern Condition="'$(PublishPattern)' == '' and '$(RepublishSignedFinalPackages)' == 'true'">$(FinalPublishPattern)</PublishPattern>
+    <!-- Otherwise, publish the packages built locally -->
+    <PublishPattern Condition="'$(PublishPattern)' == ''">$(PackagesBinDir)**\*.nupkg</PublishPattern>
   </PropertyGroup>
 
   <Target Name="GetPackagesToSign">
