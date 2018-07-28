@@ -3,6 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {}
 .assembly MCCTest {}
 .module mcc_i30.exe
@@ -12,7 +18,7 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i3c" as "#1" cdecl) 
+    .method assembly static pinvokeimpl("native_i3c" as "#1" cdecl)
         vararg valuetype MCCTest.VType3 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
     }
 
@@ -36,7 +42,7 @@
         [12] valuetype MCCTest.VType3 v12,
         [13] int32 rc
       )
-      
+
       // Initialize v1 thru v12
       ldloca.s   v1
       call       instance void MCCTest.VType3::Init()
@@ -82,19 +88,19 @@
       ldloc.s    v10
       ldloc.s    v11
       ldloc.s    v12
-      call   vararg valuetype MCCTest.VType3 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64, ..., 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3, 
-																valuetype MCCTest.VType3)
+      call   vararg valuetype MCCTest.VType3 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64, ...,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3,
+                                                                valuetype MCCTest.VType3)
 
       stloc.s    res
 
@@ -103,7 +109,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType3, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main

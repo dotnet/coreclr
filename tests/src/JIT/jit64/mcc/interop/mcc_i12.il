@@ -3,6 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {}
 .assembly MCCTest {}
 .module mcc_i12.exe
@@ -12,7 +18,7 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i1c.dll" as "#1" cdecl) 
+    .method assembly static pinvokeimpl("native_i1c.dll" as "#1" cdecl)
         vararg valuetype MCCTest.VType1 Sum(float32) cil managed preservesig {
     }
 
@@ -34,21 +40,21 @@
       ldc.r4     1
       neg
       tail.
-      call       vararg valuetype MCCTest.VType1 MCCTest.MyClass::Sum(float32, ..., 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
-                                                                        float32, 
+      call       vararg valuetype MCCTest.VType1 MCCTest.MyClass::Sum(float32, ...,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
+                                                                        float32,
                                                                         float32)
-		ret
-	}
+        ret
+    }
 
     .method public specialname rtspecialname instance void  .ctor()
     {
@@ -67,10 +73,10 @@
         [1] valuetype MCCTest.VType1 res,
         [2] int32 rc
       )
-      
+
       newobj     instance void MCCTest.MyClass::.ctor()
       stloc.s    me
-      
+
       ldloc.s    me
       call   instance valuetype MCCTest.VType1 MCCTest.MyClass::GetSum()
       stloc.s    res
@@ -80,7 +86,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType1, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main

@@ -3,7 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 
-
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 .assembly extern mscorlib
 {
@@ -222,8 +226,8 @@
                                                                                       int32)
     IL_0078:  stloc.2
     IL_0079:  ret
-    IL_007a:  
-  } 
+    IL_007a:
+  }
 
   .method public static void Main() il managed forwardref
   {
@@ -236,24 +240,24 @@
     IL_0002:  stsfld     int32 b1904::Count
     .try{
         IL_0010:  call       void b1904::RunTest()
-		  leave.s IL_0083
-	}
-    catch [mscorlib]System.TypeLoadException
-    {	  
-	pop
-        IL_0029:  ldstr      "Caught TypeLoadException exception: "
-	IL_002e:  ldsfld     int32 b1904::Count
-	IL_0033:  call       class System.String [mscorlib]System.Convert::ToString(int32)
-	IL_0038:  call       class System.String ['mscorlib']System.String::Concat(class System.String,
-                                                                               class System.String)
-	IL_003d:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
-	IL_0042:  ldsfld     int32 b1904::Count
-	IL_0047:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
-	IL_004c:  leave.s    IL_0083 
+          leave.s IL_0083
     }
-    IL_0083:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
-              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+    catch [mscorlib]System.TypeLoadException
+    {
+    pop
+        IL_0029:  ldstr      "Caught TypeLoadException exception: "
+    IL_002e:  ldsfld     int32 b1904::Count
+    IL_0033:  call       class System.String [mscorlib]System.Convert::ToString(int32)
+    IL_0038:  call       class System.String ['mscorlib']System.String::Concat(class System.String,
+                                                                               class System.String)
+    IL_003d:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
+    IL_0042:  ldsfld     int32 b1904::Count
+    IL_0047:  call       void ['System.Runtime.Extensions']System.Environment::set_ExitCode(int32)
+    IL_004c:  leave.s    IL_0083
+    }
+    IL_0083:  call       int32 ['System.Runtime.Extensions']System.Environment::get_ExitCode()
+              call       void ['System.Runtime.Extensions']System.Environment::Exit(int32)
               ret
-  } 
+  }
 
-} 
+}

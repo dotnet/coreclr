@@ -3,6 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {}
 .assembly MCCTest {}
 .module mcc_i34.exe
@@ -12,11 +18,11 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i3s" as "#1" stdcall) 
+    .method assembly static pinvokeimpl("native_i3s" as "#1" stdcall)
         valuetype MCCTest.VType3 Sum(unsigned int64, valuetype MCCTest.VType3, float64,	valuetype MCCTest.VType3, float32, valuetype MCCTest.VType3,
-									int32, valuetype MCCTest.VType3, unsigned int16, valuetype MCCTest.VType3, unsigned int32, valuetype MCCTest.VType3, 
-									float32, valuetype MCCTest.VType3, int64, valuetype MCCTest.VType3, float32, valuetype MCCTest.VType3,
-									float64, valuetype MCCTest.VType3, float32, valuetype MCCTest.VType3, int16, valuetype MCCTest.VType3) cil managed preservesig {
+                                    int32, valuetype MCCTest.VType3, unsigned int16, valuetype MCCTest.VType3, unsigned int32, valuetype MCCTest.VType3,
+                                    float32, valuetype MCCTest.VType3, int64, valuetype MCCTest.VType3, float32, valuetype MCCTest.VType3,
+                                    float64, valuetype MCCTest.VType3, float32, valuetype MCCTest.VType3, int16, valuetype MCCTest.VType3) cil managed preservesig {
     }
 
     .method private static int32 Main(string[] args)
@@ -39,7 +45,7 @@
         [12] valuetype MCCTest.VType3 v12,
         [13] int32 rc
       )
-      
+
       // Initialize v1 thru v12
       ldloca.s   v1
       call       instance void MCCTest.VType3::Init()
@@ -65,7 +71,7 @@
       call       instance void MCCTest.VType3::Init()
       ldloca.s   v12
       call       instance void MCCTest.VType3::Init()
-      
+
       ldc.i8     1
       ldloc.s    v1
       ldc.r8     2
@@ -92,18 +98,18 @@
       ldc.i8     12
       conv.i2
       ldloc.s    v12
-      call       valuetype MCCTest.VType3 MCCTest.MyClass::Sum(	unsigned int64,	valuetype MCCTest.VType3, 
-																float64,		valuetype MCCTest.VType3,
-																float32,		valuetype MCCTest.VType3,
-																int32,			valuetype MCCTest.VType3,
-																unsigned int16,	valuetype MCCTest.VType3,
-																unsigned int32,	valuetype MCCTest.VType3,
-																float32,		valuetype MCCTest.VType3,
-																int64,			valuetype MCCTest.VType3,
-																float32,		valuetype MCCTest.VType3,
-																float64,		valuetype MCCTest.VType3,
-																float32,		valuetype MCCTest.VType3,
-																int16,			valuetype MCCTest.VType3)
+      call       valuetype MCCTest.VType3 MCCTest.MyClass::Sum(	unsigned int64,	valuetype MCCTest.VType3,
+                                                                float64,		valuetype MCCTest.VType3,
+                                                                float32,		valuetype MCCTest.VType3,
+                                                                int32,			valuetype MCCTest.VType3,
+                                                                unsigned int16,	valuetype MCCTest.VType3,
+                                                                unsigned int32,	valuetype MCCTest.VType3,
+                                                                float32,		valuetype MCCTest.VType3,
+                                                                int64,			valuetype MCCTest.VType3,
+                                                                float32,		valuetype MCCTest.VType3,
+                                                                float64,		valuetype MCCTest.VType3,
+                                                                float32,		valuetype MCCTest.VType3,
+                                                                int16,			valuetype MCCTest.VType3)
 
       stloc.s    res
 
@@ -112,7 +118,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType3, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main

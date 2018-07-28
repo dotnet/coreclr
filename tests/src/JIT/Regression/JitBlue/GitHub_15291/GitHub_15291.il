@@ -7,14 +7,26 @@
 // Same test cases as in GitHub_15077, but without the extra
 // and masking done by CSC.
 
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
+.assembly extern System.Runtime
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {auto}
-.assembly extern System.Console {auto}
 .assembly GitHub_15219 {}
 
 .class private auto ansi beforefieldinit P
        extends [mscorlib]System.Object
 {
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           G32() cil managed noinlining
   {
     IL_0003:  ldc.i4.1
@@ -28,7 +40,7 @@
     IL_000e:  ret
   }
 
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           G31() cil managed noinlining
   {
     IL_0003:  ldc.i4.1
@@ -42,7 +54,7 @@
     IL_000e:  ret
   }
 
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           G64() cil managed noinlining
   {
     IL_0003:  ldc.i4.1
@@ -56,7 +68,7 @@
     IL_000e:  ret
   }
 
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           G63() cil managed noinlining
   {
     IL_0003:  ldc.i4.1
@@ -70,7 +82,7 @@
     IL_000e:  ret
   }
 
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           GM1() cil managed noinlining
   {
     IL_0002:  ldc.i4.1
@@ -84,7 +96,7 @@
     IL_000d:  ret
   }
 
-  .method public hidebysig static uint32 
+  .method public hidebysig static uint32
           Gx(int32 q) cil managed noinlining
   {
     IL_0000:  ldc.i4.1

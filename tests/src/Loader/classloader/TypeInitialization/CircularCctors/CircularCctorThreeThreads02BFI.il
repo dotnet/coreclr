@@ -2,12 +2,21 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-.assembly extern System.Console { }
-
 //  Microsoft (R) .NET Framework IL Disassembler.  Version 2.0.50103.00
 //  Copyright (C) Microsoft Corporation. All rights reserved.
 
 
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
+.assembly extern System.Threading.Thread
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
 
 // Metadata version: v2.0.50103
 .assembly extern mscorlib
@@ -17,7 +26,7 @@
 }
 .assembly CircularCctorThreeThreads02
 {
-  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )
   .hash algorithm 0x00008004
   .ver 0:0:0:0
 }
@@ -37,7 +46,7 @@
        extends [mscorlib]System.Object
 {
   .field public static int32 i
-  .method private hidebysig specialname rtspecialname static 
+  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed
   {
     // Code size       50 (0x32)
@@ -74,7 +83,7 @@
     IL_0016:  ret
   } // end of method A::SomeMethod
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -90,7 +99,7 @@
        extends [mscorlib]System.Object
 {
   .field public static int32 i
-  .method private hidebysig specialname rtspecialname static 
+  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed
   {
     // Code size       39 (0x27)
@@ -124,7 +133,7 @@
     IL_0016:  ret
   } // end of method B::SomeMethod
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -140,7 +149,7 @@
        extends [mscorlib]System.Object
 {
   .field public static int32 i
-  .method private hidebysig specialname rtspecialname static 
+  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed
   {
     // Code size       39 (0x27)
@@ -174,7 +183,7 @@
     IL_0016:  ret
   } // end of method C::SomeMethod
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -190,7 +199,7 @@
        extends [mscorlib]System.Object
 {
   .field public static int32 i
-  .method private hidebysig specialname rtspecialname static 
+  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed
   {
     // Code size       39 (0x27)
@@ -224,7 +233,7 @@
     IL_0016:  ret
   } // end of method D::SomeMethod
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -240,7 +249,7 @@
        extends [mscorlib]System.Object
 {
   .field public static int32 i
-  .method private hidebysig specialname rtspecialname static 
+  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed
   {
     // Code size       40 (0x28)
@@ -274,7 +283,7 @@
     IL_0016:  ret
   } // end of method E::SomeMethod
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -432,7 +441,7 @@
     IL_00f3:  ret
   } // end of method Test::Main
 
-  .method public hidebysig specialname rtspecialname 
+  .method public hidebysig specialname rtspecialname
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)

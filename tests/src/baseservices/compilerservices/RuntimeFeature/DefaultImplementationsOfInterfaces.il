@@ -7,12 +7,18 @@
 // This needs to succeed no matter whether default interfaces are supported.
 //
 
+.assembly extern mscorlib
+{
+  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
+  .ver 2:0:0:0
+}
+
 .assembly extern System.Runtime{}
 .assembly DefaultImplementationsOfInterfaces{}
 
 .class interface private abstract auto ansi DefaultInterface
 {
-  .method public hidebysig newslot virtual 
+  .method public hidebysig newslot virtual
           instance void  Method() cil managed
   {
     .maxstack  8
@@ -39,7 +45,7 @@
       leave.s    Supports
 
     }
-    catch [System.Runtime]System.TypeLoadException 
+    catch [System.Runtime]System.TypeLoadException
     {
       pop
       leave.s    DoesNotSupport
@@ -54,7 +60,7 @@
     ret
   }
 
-.method private hidebysig static int32 
+.method private hidebysig static int32
         Main() cil managed
 {
     .entrypoint

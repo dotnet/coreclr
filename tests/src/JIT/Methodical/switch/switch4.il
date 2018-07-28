@@ -3,11 +3,18 @@
 // See the LICENSE file in the project root for more information.
 // loop in switch
 
+
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern legacy library mscorlib {}
 .assembly 'switch4'
 {
-  
-  
+
+
 }
 
 .module 'switch4.exe'
@@ -56,17 +63,17 @@
     IL_002e:  bne.un.s   IL_0043
 
     IL_0030:  ldc.i4.s   100
-    IL_0032:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
+    IL_0032:  call       void ['System.Runtime.Extensions']System.Environment::set_ExitCode(int32)
     IL_0037:  ldstr      "Test passed"
     IL_003c:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0041:  br.s       IL_0053
 
     IL_0043:  ldc.i4.1
-    IL_0044:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
+    IL_0044:  call       void ['System.Runtime.Extensions']System.Environment::set_ExitCode(int32)
     IL_0049:  ldstr      "Test failed"
     IL_004e:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0053:  ret
-  } 
+  }
 
   .method public hidebysig static void Main() il managed
   {
@@ -74,9 +81,9 @@
     .maxstack  8
     IL_0000:  ldc.i4.1
     IL_0001:  call       void Test::DoSwitch(int32)
-    IL_0006:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
-              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+    IL_0006:  call       int32 ['System.Runtime.Extensions']System.Environment::get_ExitCode()
+              call       void ['System.Runtime.Extensions']System.Environment::Exit(int32)
               ret
-  } 
+  }
 
-} 
+}

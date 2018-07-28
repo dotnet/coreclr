@@ -3,6 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {}
 .assembly MCCTest {}
 .module mcc_i81.exe
@@ -12,7 +18,7 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i8c" as "#1" cdecl) 
+    .method assembly static pinvokeimpl("native_i8c" as "#1" cdecl)
         vararg valuetype MCCTest.VType8 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
     }
 
@@ -36,7 +42,7 @@
         [12] valuetype MCCTest.VType8 v12,
         [13] int32 rc
       )
-      
+
       // Initialize v1 thru v12
       ldloca.s   v1
       call       instance void MCCTest.VType8::Init()
@@ -83,19 +89,19 @@
       ldloc.s    v11
       ldloc.s    v12
       ldftn      vararg valuetype MCCTest.VType8 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64)
-      calli      vararg valuetype MCCTest.VType8(float64, int32, int64, float32, int16, float64, ..., 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8)
+      calli      vararg valuetype MCCTest.VType8(float64, int32, int64, float32, int16, float64, ...,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8)
 
       stloc.s    res
 
@@ -104,7 +110,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType8, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main

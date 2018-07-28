@@ -2,6 +2,19 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
+.assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib { }
 .assembly extern System.Console
 {
@@ -22,7 +35,7 @@
       .maxstack  4
       .locals (int32 V_0)
       ldc.i4.1
-      call       void [system.runtime.extensions]System.Environment::set_ExitCode(int32)
+      call       void [System.Runtime.Extensions]System.Environment::set_ExitCode(int32)
       ldsfld     int32 JitTest.Test::n
       ldc.i4.1
       bne.un.s   IL_0047
@@ -50,7 +63,7 @@ IL_0047:
       ldsfld     int32 JitTest.Test::n
       ldc.i4.1
       beq        MERGE
-      
+
       ldsfld     int32 JitTest.Test::m
       ldsfld     int32 JitTest.Test::n
       dup
@@ -64,7 +77,7 @@ MERGE:
       ret
     } // end of method Test::Main
 
-    .method private hidebysig  specialname rtspecialname static 
+    .method private hidebysig  specialname rtspecialname static
             void .cctor() il managed
     {
       // Code size       14 (0xe)
@@ -76,7 +89,7 @@ MERGE:
       IL_000d:  ret
     } // end of method Test::.cctor
 
-    .method public hidebysig  specialname rtspecialname 
+    .method public hidebysig  specialname rtspecialname
             instance void .ctor() il managed
     {
       // Code size       7 (0x7)

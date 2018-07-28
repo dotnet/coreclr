@@ -3,11 +3,18 @@
 // See the LICENSE file in the project root for more information.
 // non-empty stack before switch
 
+
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern legacy library mscorlib {}
 .assembly 'switch11'
 {
-  
-  
+
+
 }
 
 .module 'switch11.exe'
@@ -25,13 +32,13 @@
     IL_0002:  br.s       IL_0004
 
     IL_0004:  ldc.i4.s   100
-    IL_0006:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
+    IL_0006:  call       void ['System.Runtime.Extensions']System.Environment::set_ExitCode(int32)
     IL_000b:  ldstr      "Test passed"
     IL_0010:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0015:  pop
-              call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
-              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+              call       int32 ['System.Runtime.Extensions']System.Environment::get_ExitCode()
+              call       void ['System.Runtime.Extensions']System.Environment::Exit(int32)
               ret
-  } 
+  }
 
-} 
+}

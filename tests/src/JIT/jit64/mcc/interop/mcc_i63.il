@@ -2,6 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+
 .assembly extern mscorlib {}
 .assembly MCCTest {}
 .module mcc_i63.exe
@@ -11,7 +18,7 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i6c" as "#1" cdecl) 
+    .method assembly static pinvokeimpl("native_i6c" as "#1" cdecl)
         vararg valuetype MCCTest.VType6 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
     }
 
@@ -78,27 +85,27 @@
       ldloc.s    v10
       ldloc.s    v11
       ldloc.s    v12
-      call   vararg valuetype MCCTest.VType6 MCCTest.MyClass::GetSum2(float64, int32, int64, float32, int16, float64, ..., 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6, 
-																valuetype MCCTest.VType6)
-		ret
-	}
+      call   vararg valuetype MCCTest.VType6 MCCTest.MyClass::GetSum2(float64, int32, int64, float32, int16, float64, ...,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6,
+                                                                valuetype MCCTest.VType6)
+        ret
+    }
 
     .method private static vararg valuetype MCCTest.VType6 GetSum2(float64, int32, int64, float32, int16, float64)
     {
       jmp   vararg valuetype MCCTest.VType6 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64)
     }
-    
+
     .method public specialname rtspecialname instance void  .ctor()
     {
       .maxstack  1
@@ -116,10 +123,10 @@
         [1] valuetype MCCTest.VType6 res,
         [2] int32 rc
       )
-      
+
       newobj     instance void MCCTest.MyClass::.ctor()
       stloc.s    me
-      
+
       ldloc.s    me
       call   instance valuetype MCCTest.VType6 MCCTest.MyClass::GetSum()
       stloc.s    res
@@ -129,7 +136,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType6, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main
