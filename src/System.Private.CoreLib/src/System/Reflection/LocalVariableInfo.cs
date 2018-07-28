@@ -7,34 +7,19 @@ using System.Diagnostics;
 namespace System.Reflection
 {
     public class LocalVariableInfo
-    {
-        #region Private Data Members
-        private RuntimeType m_type;
-        private int m_isPinned;
-        private int m_localIndex;
-        #endregion
-
-        #region Constructor
+    {        
         protected LocalVariableInfo() { }
-        #endregion
+        public virtual Type LocalType { get { Debug.Fail("type must be set!"); return null; } }
+        public virtual bool IsPinned => false;
+        public virtual int LocalIndex => 0;
 
-        #region Object Overrides
         public override string ToString()
         {
+            // This is really how the desktop behaves if you don't override, including the NullReference when 
+            // it calls ToString() on LocalType's null return.
             string toString = LocalType.ToString() + " (" + LocalIndex + ")";
-
-            if (IsPinned)
-                toString += " (pinned)";
-
-            return toString;
+            return IsPinned ? toString += " (pinned)" : toString;
         }
-        #endregion
-
-        #region Public Members
-        public virtual Type LocalType { get { Debug.Assert(m_type != null, "type must be set!"); return m_type; } }
-        public virtual bool IsPinned { get { return m_isPinned != 0; } }
-        public virtual int LocalIndex { get { return m_localIndex; } }
-        #endregion
     }
 }
 
