@@ -36,8 +36,22 @@ extern "C" LPSTR ReturnFalseString()
     return ret;
 }
 
-//Test Method2
-extern "C" DLL_EXPORT LPSTR Marshal_InOut1(int lcid, LPSTR s)
+extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
+{
+    //Expected
+    printf("Expected:");
+    for(int i = 0; i< lenstrManaged;++i)
+        putchar(*(((char *)strManaged)+i));
+    printf("\tThe length of Expected:%d\n",lenstrManaged);
+
+    //Actual
+    printf("Actual:");
+    for( int j = 0; j < len; ++j )
+        putchar(*(((char *)s) + j));
+    printf("\tThe length of Actual:%d\n",len);
+}
+
+extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_First_Argument(int lcid, LPSTR s)
 {
     printf("LCID:%d\n\n",lcid);
 
@@ -45,19 +59,8 @@ extern "C" DLL_EXPORT LPSTR Marshal_InOut1(int lcid, LPSTR s)
     size_t len = strlen(s);
     if((len != lenstrManaged)||(memcmp(s,strManaged,len)!=0))
     {
-        printf("Error in Function Marshal_InOut(Native Client)\n");
-
-        //Expected
-        printf("Expected:");
-        for(int i = 0; i< lenstrManaged;++i)
-            putchar(*(((char *)strManaged)+i));
-        printf("\tThe length of Expected:%d\n",lenstrManaged);
-
-        //Actual
-        printf("Actual:");
-        for( int j = 0; j < len; ++j )
-            putchar(*(((char *)s) + j));
-        printf("\tThe length of Actual:%d\n",len);
+        printf("Error in Function MarshalStringBuilder_LCID_As_First_Argument(Native Client)\n");
+        PrintExpectedAndActual(s, len);
         return ReturnFalseString();
     }
 
@@ -68,25 +71,14 @@ extern "C" DLL_EXPORT LPSTR Marshal_InOut1(int lcid, LPSTR s)
     return ReturnString();
 }
 
-extern "C" DLL_EXPORT LPSTR Marshal_InOut2(LPSTR s,int lcid)
+extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(LPSTR s,int lcid)
 {	
     //Check the Input
     size_t len = strlen(s);
     if((len != lenstrManaged)||(memcmp(s,strManaged,len)!=0))
     {
-        printf("Error in Function Marshal_InOut(Native Client)\n");
-
-        //Expected
-        printf("Expected:");
-        for(int i = 0; i< lenstrManaged;++i)
-            putchar(*(((char *)strManaged)+i));
-        printf("\tThe length of Expected:%d\n",lenstrManaged);
-
-        //Actual
-        printf("Actual:");
-        for( int j = 0; j < len; ++j )
-            putchar(*(((char *)s) + j));
-        printf("\tThe length of Actual:%d\n",len);
+        printf("Error in Function MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(Native Client)\n");
+        PrintExpectedAndActual(s, len);
         return ReturnFalseString();
     }
 
@@ -98,25 +90,14 @@ extern "C" DLL_EXPORT LPSTR Marshal_InOut2(LPSTR s,int lcid)
     return ReturnString();
 }
 
-extern "C" DLL_EXPORT HRESULT WINAPI Marshal_InOut4(LPSTR s, int lcid, LPSTR * retVal)
+extern "C" DLL_EXPORT HRESULT WINAPI MarshalStringBuilder_LCID_PreserveSig_SetLastError(LPSTR s, int lcid, LPSTR * retVal)
 {
     //Check the Input
     size_t len = strlen(s);
     if((len != lenstrManaged)||(memcmp(s,strManaged,len)!=0))
     {
-        printf("Error in Function MarshalPointer_InOut\n");
-
-        //Expected
-        printf("Expected:");
-        for(int i = 0; i< lenstrManaged;++i)
-            putchar(*(((char *)strManaged)+i));
-        printf("\tThe length of Expected:%d\n",lenstrManaged);
-
-        //Actual
-        printf("Actual:");
-        for( int j = 0; j < len; ++j)
-            putchar(*(((char *)s) + j));
-        printf("\tThe length of Actual:%d\n",len);
+        printf("Error in Function MarshalStringBuilder_LCID_PreserveSig_SetLastError\n");
+        PrintExpectedAndActual(s, len);
 
         size_t lenstrFalseReturn = strlen(ReturnFalseString());
         *retVal = (LPSTR)CoTaskMemAlloc(sizeof(char)*(lenstrFalseReturn+1));
@@ -126,7 +107,7 @@ extern "C" DLL_EXPORT HRESULT WINAPI Marshal_InOut4(LPSTR s, int lcid, LPSTR * r
         return S_FALSE;
     }
 
-    //Allocate New
+    //In-Place Change
     strncpy_s(s,len + 1,strNative,lenstrNative);
 
     //Set the error code.
@@ -139,13 +120,3 @@ extern "C" DLL_EXPORT HRESULT WINAPI Marshal_InOut4(LPSTR s, int lcid, LPSTR * r
 
     return S_OK;
 }
-
-
-
-
-
-
-
-
-
-

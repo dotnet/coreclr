@@ -5,6 +5,6 @@
 LIBRARY LCIDNative.dll
 
 EXPORTS 
-        Marshal_InOut1 PRIVATE
-        Marshal_InOut2 PRIVATE
-        Marshal_InOut4 PRIVATE
+        MarshalStringBuilder_LCID_As_First_Argument PRIVATE
+        MarshalStringBuilder_LCID_As_Last_Argument_SetLastError PRIVATE
+        MarshalStringBuilder_LCID_PreserveSig_SetLastError PRIVATE

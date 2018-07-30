@@ -11,29 +11,31 @@ using CoreFXTestLibrary;
 
 class LCIDTest
 {
-    [DllImport(@"LCIDNative.dll", EntryPoint = "Marshal_InOut1")]
+    [DllImport(@"LCIDNative.dll", EntryPoint = "MarshalStringBuilder_LCID_As_First_Argument")]
     [LCIDConversionAttribute(0)]
     [return: MarshalAs(UnmanagedType.LPStr)]
-    private static extern StringBuilder MarshalStrB_InOut1([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
+    private static extern StringBuilder MarshalStringBuilder_LCID_As_First_Argument([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
 
-    [DllImport(@"LCIDNative.dll", EntryPoint = "Marshal_InOut2")]
+    [DllImport(@"LCIDNative.dll", EntryPoint = "MarshalStringBuilder_LCID_As_Last_Argument_SetLastError")]
     [LCIDConversionAttribute(1)]
     [return: MarshalAs(UnmanagedType.LPStr)]
-    private static extern StringBuilder MarshalStrB_InOut2([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
+    private static extern StringBuilder MarshalStringBuilder_LCID_As_Last_Argument([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
 
-    [DllImport(@"LCIDNative.dll", EntryPoint = "Marshal_InOut2", SetLastError = true)]
+    [DllImport(@"LCIDNative.dll", EntryPoint = "MarshalStringBuilder_LCID_As_Last_Argument_SetLastError", SetLastError = true)]
     [LCIDConversionAttribute(1)]
     [return: MarshalAs(UnmanagedType.LPStr)]
-    private static extern StringBuilder MarshalStrB_InOut3([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
+    private static extern StringBuilder MarshalStringBuilder_LCID_As_Last_Argument_SetLastError([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
 
-    [DllImport(@"LCIDNative.dll", EntryPoint = "Marshal_InOut4", PreserveSig = false, SetLastError = true)]
+    [DllImport(@"LCIDNative.dll", EntryPoint = "MarshalStringBuilder_LCID_PreserveSig_SetLastError", PreserveSig = false, SetLastError = true)]
     [LCIDConversionAttribute(1)]
     [return: MarshalAs(UnmanagedType.LPStr)]
-    private static extern StringBuilder MarshalStrB_InOut4([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
+    private static extern StringBuilder MarshalStringBuilder_LCID_PreserveSig_SetLastError([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
 
     //LCID as first argument
     static void Scenario1()
     {
+        Console.WriteLine("Scenairo1 started");
+
         string strManaged = "Managed";
         string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
@@ -41,15 +43,19 @@ class LCIDTest
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
         StringBuilder strPara1 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet1 = MarshalStrB_InOut1(strPara1);
+        StringBuilder strRet1 = MarshalStringBuilder_LCID_As_First_Argument(strPara1);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet1.ToString(), "Method MarshalStrB_InOut1[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara1.ToString(), "Method MarshalStrB_InOut1[Managed Side],The Passed string is wrong");
+        Assert.AreEqual(expectedStrRet.ToString(), strRet1.ToString(), "Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Return string is wrong");
+        Assert.AreEqual(strBNative.ToString(), strPara1.ToString(), "Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Passed string is wrong");
+        
+        Console.WriteLine("Scenairo1 end");
     }
 
     //LCID as last argument
     static void Scenario2()
     {
+        Console.WriteLine("Scenairo2 started");
+        
         string strManaged = "Managed";
         string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
@@ -57,19 +63,23 @@ class LCIDTest
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
         StringBuilder strPara2 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet2 = MarshalStrB_InOut2(strPara2);
+        StringBuilder strRet2 = MarshalStringBuilder_LCID_As_Last_Argument(strPara2);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet2.ToString(), "Method MarshalStrB_InOut2[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara2.ToString(), "Method MarshalStrB_InOut2[Managed Side],The Passed string is wrong");
+        Assert.AreEqual(expectedStrRet.ToString(), strRet2.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Return string is wrong");
+        Assert.AreEqual(strBNative.ToString(), strPara2.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Passed string is wrong");
 
         //Verify that error value is set.
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(0, result, "MarshalStrB_InOut2: GetLasterror returned wrong error code");
+        Assert.AreEqual(0, result, "MarshalStringBuilder_LCID_As_Last_Argument: GetLasterror returned wrong error code");
+        
+        Console.WriteLine("Scenairo2 end");
     }
 
     //SetLastError =true
     static void Scearnio3()
     {
+        Console.WriteLine("Scenairo3 started");
+        
         string strManaged = "Managed";
         string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
@@ -77,19 +87,23 @@ class LCIDTest
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
         StringBuilder strPara3 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet3 = MarshalStrB_InOut3(strPara3);
+        StringBuilder strRet3 = MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(strPara3);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet3.ToString(), "Method MarshalStrB_InOut3[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara3.ToString(), "Method MarshalStrB_InOut3[Managed Side],The Passed string is wrong");
+        Assert.AreEqual(expectedStrRet.ToString(), strRet3.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Return string is wrong");
+        Assert.AreEqual(strBNative.ToString(), strPara3.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Passed string is wrong");
 
         //Verify that error value is set
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(1090, result, "MarshalStrB_InOut3 : GetLasterror returned wrong error code");
+        Assert.AreEqual(1090, result, "MarshalStringBuilder_LCID_As_Last_Argument_SetLastError : GetLasterror returned wrong error code");
+
+        Console.WriteLine("Scenairo3 end");
     }
 
     //PreserveSig = false, SetLastError = true
     static void Scenario4()
     {
+        Console.WriteLine("Scenairo4 started");
+        
         string strManaged = "Managed";
         string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
@@ -97,14 +111,16 @@ class LCIDTest
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
         StringBuilder strPara4 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet4 = MarshalStrB_InOut4(strPara4);
+        StringBuilder strRet4 = MarshalStringBuilder_LCID_PreserveSig_SetLastError(strPara4);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet4.ToString(), "Method MarshalStrB_InOut4[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara4.ToString(), "Method MarshalStrB_InOut4[Managed Side],The Passed string is wrong");
+        Assert.AreEqual(expectedStrRet.ToString(), strRet4.ToString(), "Method MarshalStringBuilder_LCID_PreserveSig_SetLastError[Managed Side],The Return string is wrong");
+        Assert.AreEqual(strBNative.ToString(), strPara4.ToString(), "Method MarshalStringBuilder_LCID_PreserveSig_SetLastError[Managed Side],The Passed string is wrong");
 
         //Verify that error value is set
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(1090, result, "MarshalStrB_InOut4 : GetLasterror returned wrong error code");
+        Assert.AreEqual(1090, result, "MarshalStringBuilder_LCID_PreserveSig_SetLastError : GetLasterror returned wrong error code");
+
+        Console.WriteLine("Scenairo4 end");
     }
 
     public static int Main(string[] args)
