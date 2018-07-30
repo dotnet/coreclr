@@ -173,7 +173,7 @@ def validate_args(args):
         if not helper(arg):
             raise Exception('Argument: %s is not valid.' % (arg))
 
-    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64', 'arm.g']}
+    valid_archs = {'Windows_NT': ['x86', 'x64'], 'Linux': ['x64', 'arm']}
     valid_build_types = ['Release']
     valid_run_types = ['rolling', 'private']
     valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
