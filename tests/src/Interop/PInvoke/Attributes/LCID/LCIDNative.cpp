@@ -16,8 +16,6 @@ char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 char* strNative = " Native\0String\0";
 size_t lenstrNative = 7; //the len of strNative
 
-//Test Method1
-
 extern "C" LPSTR ReturnString()
 {
     size_t lenstrReturn = strlen(strReturn);
