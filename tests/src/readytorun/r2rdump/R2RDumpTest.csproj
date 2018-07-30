@@ -15,7 +15,6 @@
     <BashCoreClrDir>../../../../../../</BashCoreClrDir>
     <BashR2RDumpCommand>$(BashCoreClrDir)bin/Product/$(BuildOS).$(BuildArch).$(BuildType)/netcoreapp2.0/R2RDump.dll</BashR2RDumpCommand>
     <BashDotnetToolCommand>$(BashCoreClrDir)Tools/dotnetcli/dotnet</BashDotnetToolCommand>
-    <NoWarn>1685,0168</NoWarn>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -32,10 +31,10 @@
     <Compile Include="TestHelpers.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="files\HelloWorld\HelloWorld.csproj" />
-    <ProjectReference Include="files\MultipleRuntimeFunctions\MultipleRuntimeFunctions.csproj" />
-    <ProjectReference Include="files\GenericFunctions\GenericFunctions.csproj" />
-    <ProjectReference Include="files\GcInfoTransitions\GcInfoTransitions.csproj" />
+    <ProjectReference Include="files\HelloWorld.csproj" />
+    <ProjectReference Include="files\MultipleRuntimeFunctions.csproj" />
+    <ProjectReference Include="files\GenericFunctions.csproj" />
+    <ProjectReference Include="files\GcInfoTransitions.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
