@@ -72,7 +72,7 @@ fi
 # Install python 3.5.2 to run machinedata.py for machine data collection
 if [ $perfArch == "arm" ]; then
     python3.6 --version
-    python3.6 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py -machine_manufacturer NVIDIA
+    python3.6 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py --machine-manufacturer NVIDIA
 else
     python3 --version
     python3 ./tests/scripts/Microsoft.BenchView.JSONFormat/tools/machinedata.py
