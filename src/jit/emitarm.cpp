@@ -23,7 +23,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "instr.h"
 #include "emit.h"
 #include "codegen.h"
-#include <inttypes.h>
 
 /*****************************************************************************/
 
@@ -6547,7 +6546,7 @@ void emitter::emitDispImm(int imm, bool addComma, bool alwaysHex /* =false */)
  */
 void emitter::emitDispReloc(BYTE* addr)
 {
-    printf("0x%" PRIxPTR, emitComp->opts.disDiffable ? 0xD1FFAB1E : (uintptr_t)addr);
+    printf("0x%p", dspPtr(addr));
 }
 
 /*****************************************************************************
