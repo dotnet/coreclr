@@ -102,7 +102,7 @@ python_exe_list = {
     'Windows_NT': {
         'x64': 'py',
         'x86': 'py'
-    }
+    },
     'Linux': {
         'x64': 'python3.5',
         'arm': 'python3.6'
