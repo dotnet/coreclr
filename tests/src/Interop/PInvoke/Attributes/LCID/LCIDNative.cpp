@@ -8,13 +8,13 @@
 #include <xplatform.h>
 
 char* strManaged = "Managed\0String\0";
-int   lenstrManaged = 7; // the length of strManaged
+size_t lenstrManaged = 7; // the length of strManaged
 
 char* strReturn = "a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
 char* strNative = " Native\0String\0";
-int lenstrNative = 7; //the len of strNative
+size_t lenstrNative = 7; //the len of strNative
 
 //Test Method1
 
@@ -40,15 +40,15 @@ extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
 {
     //Expected
     printf("Expected:");
-    for(int i = 0; i< lenstrManaged;++i)
+    for(size_t i = 0; i< lenstrManaged;++i)
         putchar(*(((char *)strManaged)+i));
-    printf("\tThe length of Expected:%d\n",lenstrManaged);
+    printf("\tThe length of Expected:%d\n",static_cast<int>(lenstrManaged));
 
     //Actual
     printf("Actual:");
-    for( int j = 0; j < len; ++j )
+    for(size_t j = 0; j < len; ++j )
         putchar(*(((char *)s) + j));
-    printf("\tThe length of Actual:%d\n",len);
+    printf("\tThe length of Actual:%d\n",static_cast<int>(len));
 }
 
 extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_First_Argument(int lcid, LPSTR s)
