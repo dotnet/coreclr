@@ -361,8 +361,14 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator ReadOnlySpan<char>(string value) =>
-            value != null ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
+        public static implicit operator ReadOnlySpan<char>(string value) => value != null ? value.AsSpanFast() : default;
+
+        // Similar to the ROS<char> implicit operator or the MemoryExtensions.AsSpan(string) method, but doesn't
+        // incur the overhead of the null check. If 'this' is null it just immediately null refs rather than return
+        // an empty span.
+        //
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal ReadOnlySpan<char> AsSpanFast() => new ReadOnlySpan<char>(ref GetRawStringData(), Length);
 
         public object Clone()
         {

@@ -112,11 +112,9 @@ namespace System.Globalization
             return FindStringOrdinal(FIND_FROMEND, source, startIndex - count + 1, count, value, value.Length, ignoreCase);
         }
 
-        private unsafe int GetHashCodeOfStringCore(string source, CompareOptions options)
+        private unsafe int GetHashCodeOfStringCore(ReadOnlySpan<char> source, CompareOptions options)
         {
             Debug.Assert(!_invariantMode);
-
-            Debug.Assert(source != null);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
             if (source.Length == 0)
@@ -137,6 +135,11 @@ namespace System.Globalization
                 {
                     throw new ArgumentException(SR.Arg_ExternalException);
                 }
+
+                // Note in calls to LCMapStringEx below, the input buffer is specified in wchars (and wchar count),
+                // but the output buffer is specified in bytes (and byte count). This is because when generating
+                // sort keys, LCMapStringEx treats the output buffer as containing opaque binary data.
+                // See https://docs.microsoft.com/en-us/windows/desktop/api/winnls/nf-winnls-lcmapstringex.
 
                 byte[] borrowedArr = null;
                 Span<byte> span = sortKeyLength <= 512 ?

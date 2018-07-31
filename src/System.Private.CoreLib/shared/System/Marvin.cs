@@ -21,20 +21,19 @@ namespace System
         /// Compute a Marvin hash and collapse it into a 32-bit hash.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed) => ComputeHash32(ref MemoryMarshal.GetReference(data), data.Length, seed);
+        public static int ComputeHash32(ReadOnlySpan<byte> data, ulong seed) => ComputeHash32(ref MemoryMarshal.GetReference(data), (nuint)data.Length, seed);
 
         /// <summary>
         /// Compute a Marvin hash and collapse it into a 32-bit hash.
         /// </summary>
-        public static int ComputeHash32(ref byte data, int count, ulong seed)
+        public static int ComputeHash32(ref byte data, nuint count, ulong seed)
         {
-            nuint ucount = (nuint)count;
             uint p0 = (uint)seed;
             uint p1 = (uint)(seed >> 32);
 
             nuint byteOffset = 0;
 
-            while (ucount >= 8)
+            while (count >= 8)
             {
                 p0 += Unsafe.ReadUnaligned<uint>(ref Unsafe.AddByteOffset(ref data, byteOffset));
                 Block(ref p0, ref p1);
@@ -43,10 +42,10 @@ namespace System
                 Block(ref p0, ref p1);
 
                 byteOffset += 8;
-                ucount -= 8;
+                count -= 8;
             }
 
-            switch (ucount)
+            switch (count)
             {
                 case 4:
                     p0 += Unsafe.ReadUnaligned<uint>(ref Unsafe.AddByteOffset(ref data, byteOffset));
