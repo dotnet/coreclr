@@ -9,6 +9,56 @@ namespace System.Text
     /// </summary>
     internal static class UnicodeReader
     {
+        public static (SequenceValidity status, UnicodeScalar scalar, int charsConsumed) PeekFirstScalarUtf16(ReadOnlySpan<char> buffer)
+        {
+            if (buffer.IsEmpty)
+            {
+                return (SequenceValidity.Incomplete, UnicodeScalar.ReplacementChar, charsConsumed: 0);
+            }
+
+            // First, check for a single UTF-16 code unit (non-surrogate).
+
+            uint firstChar = buffer[0];
+            if (!UnicodeHelpers.IsSurrogateCodePoint(firstChar))
+            {
+                return (SequenceValidity.Valid, UnicodeScalar.DangerousCreateWithoutValidation(firstChar), charsConsumed: 1);
+            }
+
+            // The first code unit is a surrogate (hasn't yet been determined if high or low).
+            // Need to read the second code unit to see if this is a valid surrogate pair.
+
+            if (buffer.Length == 1)
+            {
+                goto BufferContainsOnlySingleChar;
+            }
+
+            uint secondChar = buffer[1];
+            if (!UnicodeHelpers.IsHighSurrogateCodePoint(firstChar) || !UnicodeHelpers.IsLowSurrogateCodePoint(secondChar))
+            {
+                goto InvalidSurrogateSequence;
+            }
+
+            // Valid surrogate pair!
+
+            return (SequenceValidity.Valid, UnicodeScalar.DangerousCreateWithoutValidation(UnicodeHelpers.GetScalarFromUtf16SurrogatePair(firstChar, secondChar)), charsConsumed: 2);
+
+        BufferContainsOnlySingleChar:
+
+            // A high surrogate at the end of the buffer is incomplete. Signal to the caller that we're waiting for more data.
+
+            if (UnicodeHelpers.IsHighSurrogateCodePoint(firstChar))
+            {
+                return (SequenceValidity.Incomplete, UnicodeScalar.ReplacementChar, charsConsumed: 1);
+            }
+
+        InvalidSurrogateSequence:
+
+            // At this point, we have either a high surrogate followed by something other than a low surrogate, or we have
+            // a low surrogate not preceded by a high surrogate. In either case this is an invalid sequence of length 1.
+
+            return (SequenceValidity.Invalid, UnicodeScalar.ReplacementChar, charsConsumed: 1);
+        }
+
         public static (SequenceValidity status, UnicodeScalar scalar, int charsConsumed) PeekFirstScalarUtf8(ReadOnlySpan<byte> buffer)
         {
             // This method is implemented to match the behavior of System.Text.Encoding.UTF8 in terms of
@@ -29,7 +79,7 @@ namespace System.Text
 
             if (buffer.Length == 0)
             {
-                return (SequenceValidity.Incomplete, default, default);
+                return (SequenceValidity.Incomplete, UnicodeScalar.ReplacementChar, charsConsumed: 0);
             }
 
             // First, check for ASCII.

@@ -32,7 +32,23 @@ namespace System.Text
 
             return (int)(codePoint >> 16);
         }
-        
+
+        /// <summary>
+        /// Returns a Unicode scalar value from two code points representing a UTF-16 surrogate pair.
+        /// </summary>
+        public static uint GetScalarFromUtf16SurrogatePair(uint highSurrogateCodePoint, uint lowSurrogateCodePoint)
+        {
+            UnicodeDebug.AssertIsHighSurrogateCodePoint(highSurrogateCodePoint);
+            UnicodeDebug.AssertIsLowSurrogateCodePoint(lowSurrogateCodePoint);
+
+            // This calculation comes from the Unicode specification, Table 3-5.
+            // Need to remove the D800 marker from the high surrogate and the DC00 marker from the low surrogate,
+            // then fix up the "wwww = uuuuu - 1" section of the bit distribution. The code is written as below
+            // to become just two instructions: shl, lea.
+
+            return (highSurrogateCodePoint << 10) + lowSurrogateCodePoint - ((0xD800U << 10) + 0xDC00U - (1 << 16));
+        }
+
         /// <summary>
         /// Given a Unicode scalar value, gets the number of UTF-16 code units required to represent this value.
         /// </summary>
@@ -144,6 +160,13 @@ namespace System.Text
         public static bool IsBmpCodePoint(uint value) => (value < 0x10000U);
 
         /// <summary>
+        /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-16 high surrogate code point,
+        /// i.e., is in [ U+D800..U+DBFF ], inclusive.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsHighSurrogateCodePoint(uint value) => IsInRangeInclusive(value, 0xD800U, 0xDBFFU);
+
+        /// <summary>
         /// Returns <see langword="true"/> iff <paramref name="value"/> is between
         /// <paramref name="lowerBound"/> and <paramref name="upperBound"/>, inclusive.
         /// </summary>
@@ -151,12 +174,18 @@ namespace System.Text
         public static bool IsInRangeInclusive(uint value, uint lowerBound, uint upperBound) => ((value - lowerBound) <= (upperBound - lowerBound));
 
         /// <summary>
+        /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-16 low surrogate code point,
+        /// i.e., is in [ U+DC00..U+DFFF ], inclusive.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsLowSurrogateCodePoint(uint value) => IsInRangeInclusive(value, 0xDC00U, 0xDFFFU);
+
+        /// <summary>
         /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-16 surrogate code point,
         /// i.e., is in [ U+D800..U+DFFF ], inclusive.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsSurrogateCodePoint(uint value) => IsInRangeInclusive(value, 0xD800U, 0xDFFFU);
-
 
         /// <summary>
         /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-8 continuation byte

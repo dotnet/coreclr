@@ -10,6 +10,18 @@ namespace System.Text
     internal static class UnicodeDebug
     {
         [Conditional("DEBUG")]
+        public static void AssertIsHighSurrogateCodePoint(uint codePoint)
+        {
+            Debug.Assert(UnicodeHelpers.IsHighSurrogateCodePoint(codePoint), $"The value {ToHexString(codePoint)} is not a valid UTF-16 high surrogate code point.");
+        }
+
+        [Conditional("DEBUG")]
+        public static void AssertIsLowSurrogateCodePoint(uint codePoint)
+        {
+            Debug.Assert(UnicodeHelpers.IsLowSurrogateCodePoint(codePoint), $"The value {ToHexString(codePoint)} is not a valid UTF-16 low surrogate code point.");
+        }
+
+        [Conditional("DEBUG")]
         public static void AssertIsValidCodePoint(uint codePoint)
         {
             Debug.Assert(UnicodeHelpers.IsValidCodePoint(codePoint), $"The value {ToHexString(codePoint)} is not a valid Unicode code point.");

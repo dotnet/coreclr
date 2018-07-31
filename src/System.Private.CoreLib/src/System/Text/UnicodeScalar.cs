@@ -4,6 +4,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 
 namespace System.Text
@@ -136,6 +137,26 @@ namespace System.Text
         /// </summary>
         [CLSCompliant(false)]
         public uint Value => _value;
+
+        private static UnicodeScalar ChangeCase(UnicodeScalar s, CultureInfo culture, bool toUpper)
+        {
+            if (culture == null)
+            {
+                throw new ArgumentNullException(nameof(culture));
+            }
+
+            Span<char> original = stackalloc char[2]; // worst case scenario = 2 code units (for a surrogate pair)
+            Span<char> modified = stackalloc char[2]; // case change should preserve UTF-16 code unit count
+
+            int utf16CharCount = s.ToUtf16(original);
+            culture.TextInfo.ChangeCase(original.Slice(0, utf16CharCount), modified, toUpper);
+
+            var result = UnicodeReader.PeekFirstScalarUtf16(modified);
+            Debug.Assert(result.status == SequenceValidity.Valid, "Expected case change operation to result in valid scalar value.");
+            Debug.Assert(result.charsConsumed == utf16CharCount, "Expected case change operation not to change UTF-16 code unit count.");
+
+            return result.scalar;
+        }
 
         public int CompareTo(UnicodeScalar other) => this.Value.CompareTo(other.Value);
 
@@ -422,39 +443,39 @@ namespace System.Text
             return (s.IsBmp) ? char.IsWhiteSpace((char)s.Value) : IsCategorySeparator(GetUnicodeCategory(s));
         }
 
-        public static UnicodeScalar ToLower(UnicodeScalar s, CultureInfo culture)
-        {
-            if (culture == null)
-            {
-                throw new ArgumentNullException(nameof(culture));
-            }
-
-            // TODO: Call new overloads on TextInfo when available; don't allocate
-            // TODO: Can we avoid validation on the return? (Depends how TextInfo is coded.)
-            return new UnicodeScalar(char.ConvertToUtf32(s.ToString().ToLower(culture), 0));
-        }
+        public static UnicodeScalar ToLower(UnicodeScalar s, CultureInfo culture) => ChangeCase(s, culture, toUpper: false);
 
         public static UnicodeScalar ToLowerInvariant(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
+            // Handle the most common case (ASCII data) first. Within the common case, we expect
+            // that there'll be a mix of lowercase & uppercase chars, so make the conversion branchless.
+
+            if (s.IsAscii || GlobalizationMode.Invariant)
+            {
+                bool isUpperAlpha = UnicodeHelpers.IsInRangeInclusive(s.Value, 'A', 'Z');
+                return DangerousCreateWithoutValidation(s.Value + ((isUpperAlpha) ? 0x20U : 0));
+            }
+
+            // Non-ASCII data requires going through the case folding tables.
+
             return ToLower(s, CultureInfo.InvariantCulture);
         }
 
-        public static UnicodeScalar ToUpper(UnicodeScalar s, CultureInfo culture)
-        {
-            if (culture == null)
-            {
-                throw new ArgumentNullException(nameof(culture));
-            }
-
-            // TODO: Call new overloads on TextInfo when available; don't allocate
-            // TODO: Can we avoid validation on the return? (Depends how TextInfo is coded.)
-            return new UnicodeScalar(char.ConvertToUtf32(s.ToString().ToUpper(culture), 0));
-        }
+        public static UnicodeScalar ToUpper(UnicodeScalar s, CultureInfo culture) => ChangeCase(s, culture, toUpper: true);
 
         public static UnicodeScalar ToUpperInvariant(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
+            // Handle the most common case (ASCII data) first. Within the common case, we expect
+            // that there'll be a mix of lowercase & uppercase chars, so make the conversion branchless.
+
+            if (s.IsAscii || GlobalizationMode.Invariant)
+            {
+                bool isLowerAlpha = UnicodeHelpers.IsInRangeInclusive(s.Value, 'a', 'z');
+                return DangerousCreateWithoutValidation(s.Value ^ ((isLowerAlpha) ? 0x20U : 0));
+            }
+
+            // Non-ASCII data requires going through the case folding tables.
+
             return ToUpper(s, CultureInfo.InvariantCulture);
         }
     }
