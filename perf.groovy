@@ -556,7 +556,7 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
                         -configuration \"${configuration}\" \\
                         -opt_level \"${opt_level}\" \\
                         -clr_root \"\${WORKSPACE}\" \\
-                        -assembly_root \"\${WORKSPACE}/Microsoft.Benchview.ThroughputBenchmarks.${architecture}.Windows_NT/lib\" \\
+                        -assembly_root \"\${WORKSPACE}/Microsoft.Benchview.ThroughputBenchmarks.x64.Windows_NT/lib\" \\
                         -run_type \"${runType}\" \\
                         -benchview_path \"\${WORKSPACE}/tests/scripts/Microsoft.BenchView.JSONFormat/tools\"""")
                     }
