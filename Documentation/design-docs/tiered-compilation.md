@@ -40,7 +40,7 @@ Design
 
 ## Historical context ##
 
-Tiered Compilation was prototyped in 2016, introduced into the runtime code in 2017, and offered as an opt-in Preview feature in .Net Core 2.1 RTM in 2018. This design doc was written after the fact. We had been trying to mitigate runtime startup and performance problems for nearly 20 years with various forms of pre-compilation (NGEN, ReadyToRun, MulticoreJit) but this was the first serious foray into using compilation tiers to achieve similar goals. The IL interpreter appears similar but as best I understand it was not primarily targeted at performance, but rather at portability into environments that did allow jitting. Although the idea of tiered compilation had come up repeatedly in the past it had never gained the degree of consensus/acceptance/momentum necessary to move forward relative to other performance investments.
+Tiered Compilation was prototyped in 2016, introduced into the runtime code in 2017, and offered as an opt-in Preview feature in .Net Core 2.1 RTM in 2018. This design doc was written after the fact. We had been trying to mitigate runtime startup and performance problems for nearly 20 years with various forms of pre-compilation (NGEN, ReadyToRun, MulticoreJit) but this was the first serious foray into using compilation tiers to achieve similar goals. The IL interpreter appears similar but as best I understand it was not primarily targeted at performance, but rather at portability into environments that did not allow jitting. Although the idea of tiered compilation had come up repeatedly in the past it had never gained the degree of consensus/acceptance/momentum necessary to move forward relative to other performance investments.
 
 ## Goals ##
 
