@@ -810,18 +810,5 @@ PORTABILITY_WARNING("Please specialize these definitions for your platform!")
 
 #endif
 
-#ifdef _TARGET_64BIT_
-typedef unsigned __int64 target_size_t;
-typedef __int64          target_ssize_t;
-#else
-typedef unsigned int target_size_t;
-typedef int          target_ssize_t;
-#endif
-
-C_ASSERT(sizeof(target_size_t) == TARGET_POINTER_SIZE);
-C_ASSERT(sizeof(target_ssize_t) == TARGET_POINTER_SIZE);
-
-#define BITS_PER_TARGET_SIZE_T (TARGET_POINTER_SIZE*CHAR_BIT)
-
 #endif // !__GCINFOTYPES_H__
 
