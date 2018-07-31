@@ -321,7 +321,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
 
     set TestBuildSlice=%%G
-    call "%__ProjectDir%\run.cmd" build -Project=%__ProjectDir%\tests\build.proj -MsBuildLog=!__msbuildLog! -MsBuildWrn=!__msbuildWrn! -MsBuildErr=!__msbuildErr! %__RunArgs% %__BuildAgainstPackagesArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
+    call %__DotnetHost% msbuild %__ProjectDir%\tests\build.proj !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %TargetsWindowsMsbuildArg% %__BuildAgainstPackagesMsbuildArg% %__unprocessedBuildArgs%
 
     if errorlevel 1 (
         echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
