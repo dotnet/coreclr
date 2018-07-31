@@ -678,6 +678,13 @@ bool ILCodeVersion::operator==(const ILCodeVersion & rhs) const
     }
 }
 
+BOOL ILCodeVersion::HasDefaultIL() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return (m_storageKind == StorageKind::Synthetic) || (AsNode()->GetIL() == NULL);
+}
+
 BOOL ILCodeVersion::IsNull() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
