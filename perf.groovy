@@ -455,7 +455,6 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
             python = "python3.6"
             def buildCommands = []
             def newBuildJob = job(fullBuildJobName) {
-                // arm build is run on docker machine, so machine affinity doesn't matter
                 def additionalOpts = "-e CAC_ROOTFS_DIR=/crossrootfs/x86"
                 def dockerImage = getDockerImageName(architecture, 'Ubuntu', true)
                 def dockerCmd = "docker run -i --rm -v \${WORKSPACE}:\${WORKSPACE} -w \${WORKSPACE} -e ROOTFS_DIR=/crossrootfs/${architecture} ${additionalOpts} ${dockerImage} "
@@ -540,7 +539,6 @@ def static getFullThroughputJobName(def project, def os, def arch, def isPR) {
 
                     steps {
                         shell("bash ./tests/scripts/perf-prep.sh --throughput${archString}")
-                        //shell("./init-tools.sh")
                         copyArtifacts(fullBuildJobName) {
                             includePatterns("bin/Product/**")
                             buildSelector {

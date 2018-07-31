@@ -178,7 +178,7 @@ def validate_args(args):
     valid_run_types = ['rolling', 'private']
     valid_os = ['Windows_NT', 'Ubuntu14.04', 'Ubuntu16.04']
     valid_opt_levels = ['full_opt', 'min_opt']
-    valid_jit_names = {'x64': ['ryujit'], 'x86': ['ryujit', 'legacy_backend'], 'arm': ['ryujit', 'legacy_backend']}
+    valid_jit_names = 'ryujit'
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
     build_type = next((b for b in valid_build_types if b.lower() == build_type.lower()), build_type)
@@ -307,10 +307,6 @@ def runIterations(dll_name, dll_path, iterations, crossgen_path, jit_path, assem
     if opt_level == 'min_opt':
         my_env['COMPlus_JITMinOpts'] = '1'
 
-    #if jit_name == 'legacy_backend':
-    #    my_env['COMPlus_AltJit'] = '*'
-    #    my_env['COMPlus_AltJitNgen'] = '*'
-
     log(" ".join(run_args))
 
     # Time.clock() returns seconds, with a resolution of 0.4 microseconds, so multiply by the multiplier to get milliseconds
@@ -345,9 +341,6 @@ def main(args):
 
     architecture, operating_system, os_group, build_type, run_type, clr_root, assembly_root, benchview_path, iterations, opt_level, jit_name, no_pgo = validate_args(args)
     arch = architecture
-
-    #if jit_name == 'legacy_backend':
-    #    architecture = 'x86lb'
 
     pgo_string = 'pgo'
 
