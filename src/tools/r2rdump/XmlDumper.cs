@@ -12,7 +12,7 @@ namespace R2RDump
         public XmlDocument XmlDocument { get; }
         private XmlNode _rootNode;
 
-        public XmlDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
+        public XmlDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, Disassembler disassembler, bool unwind, bool gc, bool sectionContents)
         {
             _r2r = r2r;
             _writer = writer;
@@ -168,7 +168,7 @@ namespace R2RDump
 
             if (_disasm)
             {
-                DumpDisasm(_disassembler, rtf, _r2r.GetOffset(rtf.StartAddress), _r2r.Image, rtfNode);
+                DumpDisasm(rtf, _r2r.GetOffset(rtf.StartAddress), rtfNode);
             }
 
             if (_raw)
@@ -189,7 +189,7 @@ namespace R2RDump
             }
         }
 
-        internal unsafe override void DumpDisasm(IntPtr Disasm, RuntimeFunction rtf, int imageOffset, byte[] image, XmlNode parentNode)
+        internal override void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode)
         {
             int rtfOffset = 0;
             int codeOffset = rtf.CodeOffset;
@@ -198,7 +198,7 @@ namespace R2RDump
             while (rtfOffset < rtf.Size)
             {
                 string instr;
-                int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
+                int instrSize = _disassembler.GetInstruction(rtf, imageOffset, rtfOffset, out instr);
 
                 AddXMLNode("offset"+codeOffset, instr, parentNode, $"{codeOffset}");
                 if (transitions.ContainsKey(codeOffset))
