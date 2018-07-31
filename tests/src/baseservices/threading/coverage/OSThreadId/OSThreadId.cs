@@ -16,14 +16,14 @@ namespace Threading.Tests
         {
             // The property to be tested is internal.
             Type runtimeThreadType = typeof(object).Assembly.GetType("Internal.Runtime.Augments.RuntimeThread");
-            Debug.Assert(runtimeThreadType != null);
+            Assert(runtimeThreadType != null);
             PropertyInfo osThreadIdProperty = runtimeThreadType.GetProperty("CurrentOSThreadId", BindingFlags.NonPublic | BindingFlags.Static);
-            Debug.Assert(osThreadIdProperty != null);
+            Assert(osThreadIdProperty != null);
             s_osThreadIdGetMethod = osThreadIdProperty.GetGetMethod(true);
-            Debug.Assert(s_osThreadIdGetMethod != null);
+            Assert(s_osThreadIdGetMethod != null);
 
             // Test the main thread.
-            Debug.Assert(GetCurrentThreadId() > 0);
+            Assert(GetCurrentThreadId() > 0);
 
             // Create more threads.
             Thread[] threads = new Thread[NumThreads];
@@ -53,8 +53,8 @@ namespace Threading.Tests
                 }
                 else
                 {
-                    Debug.Assert(s_threadIds[i] > 0);
-                    Debug.Assert(previousThreadId != s_threadIds[i]);
+                    Assert(s_threadIds[i] > 0);
+                    Assert(previousThreadId != s_threadIds[i]);
                     previousThreadId = s_threadIds[i];
                 }
             }
@@ -71,7 +71,7 @@ namespace Threading.Tests
         {
             // Get the thread index.
             int threadIndex = (int)state;
-            Debug.Assert(threadIndex >= 0 && threadIndex < NumThreads);
+            Assert(threadIndex >= 0 && threadIndex < NumThreads);
 
             // Wait for all threads to be created.
             s_resetEvent.WaitOne();
@@ -81,10 +81,18 @@ namespace Threading.Tests
             ulong threadId = GetCurrentThreadId();
 
             // Ensure that the thread ID is valid.
-            Debug.Assert(threadId > 0);
+            Assert(threadId > 0);
 
             // Save the thread ID so that it can be checked for duplicates.
             s_threadIds[threadIndex] = threadId;
+        }
+
+        private static void Assert(bool condition)
+        {
+            if (!condition)
+            {
+                throw new Exception("Assertion failed.");
+            }
         }
     }
 }
