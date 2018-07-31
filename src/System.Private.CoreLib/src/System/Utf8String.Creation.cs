@@ -305,7 +305,7 @@ namespace System
 
                 // Perform validation
 
-                int indexOfFirstInvalidUtf8Sequence = Utf8Utility.GetIndexOfFirstInvalidUtf8Sequence(_value.AsSpan(), out bool isAscii);
+                int indexOfFirstInvalidUtf8Sequence = Utf8Utility.GetIndexOfFirstInvalidUtf8Sequence(_value.AsSpanFast(), out bool isAscii);
                 if (indexOfFirstInvalidUtf8Sequence < 0)
                 {
                     // TODO: Set IsWellFormed flag on the Utf8String instance.
@@ -332,7 +332,7 @@ namespace System
                 // original size when substitutions are performed.
 
                 int totalBytesRequired = indexOfFirstInvalidUtf8Sequence;
-                var inputBuffer = _value.AsSpan().Slice(totalBytesRequired);
+                var inputBuffer = _value.AsSpanFast().Slice(totalBytesRequired);
 
                 // Then, in a loop, skip over ill-formed subsequences.
 
@@ -364,7 +364,7 @@ namespace System
                 // Create a new Utf8String instance and begin populating it.
 
                 Utf8String newInstance = FastAllocate(totalBytesRequired);
-                inputBuffer = _value.AsSpan();
+                inputBuffer = _value.AsSpanFast();
                 var destBuffer = newInstance.AsMutableSpan();
 
                 // First, copy over the initial data we know to be valid.
