@@ -6340,7 +6340,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 #if defined(_TARGET_ARM_)
         rZero1 = genGetZeroReg(initReg, pInitRegZeroed);
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, rZero2);
-        ssize_t stmImm = (ssize_t)(genRegMask(rZero1) | genRegMask(rZero2));
+        target_ssize_t stmImm = (target_ssize_t)(genRegMask(rZero1) | genRegMask(rZero2));
 #endif // _TARGET_ARM_
 
         if (!useLoop)
