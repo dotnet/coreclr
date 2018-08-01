@@ -5258,7 +5258,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         return;
     }
 
-    const size_t pageSize = compiler->eeGetPageSize();
+    const target_size_t pageSize = compiler->eeGetPageSize();
 
 #ifdef _TARGET_ARM_
     assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
