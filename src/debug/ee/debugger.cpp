@@ -3616,11 +3616,14 @@ HRESULT Debugger::SetIP( bool fCanSetIPOnly, Thread *thread,Module *module,
 
     LOG((LF_CORDB, LL_INFO1000, "D::SIP: In SetIP ==> fCanSetIPOnly:0x%x <==!\n", fCanSetIPOnly));
 
-    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();
-    ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(module, mdMeth);
-    if (!ilCodeVersion.IsDefaultVersion())
+    CodeVersionManager *pCodeVersionManager = module->GetCodeVersionManager();    
     {
-        return CORDBG_E_SET_IP_IMPOSSIBLE;
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+        ILCodeVersion ilCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(module, mdMeth);
+        if (!ilCodeVersion.IsDefaultVersion())
+        {
+            return CORDBG_E_SET_IP_IMPOSSIBLE;
+        }
     }
 
     pCtx = GetManagedStoppedCtx(thread);
