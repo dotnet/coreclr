@@ -100,6 +100,8 @@ namespace R2RDump
                 _sectionContents = true;
             }
 
+            _disasm = false; // TODO: this requires the coredistools nuget package with the most recent changes
+
             return argSyntax;
         }
 
