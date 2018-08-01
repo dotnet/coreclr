@@ -314,7 +314,7 @@ namespace System
             // OrdinalIgnoreCase equality for UTF-16 strings only holds when
             // the strings have the same code unit count.
 
-            bool retVal = (utf16CodeUnitCountA != utf16CodeUnitCountB)
+            bool retVal = (utf16CodeUnitCountA == utf16CodeUnitCountB)
                 && CompareInfo.EqualsOrdinalIgnoreCase(
                     ref MemoryMarshal.GetReference(spanA),
                     ref MemoryMarshal.GetReference(spanB),
