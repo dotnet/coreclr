@@ -111,7 +111,7 @@
 class BitArray
 {
     friend class BitArrayIterator;
-    typedef unsigned __int32 ChunkType;
+    typedef uint32_t ChunkType;
     static constexpr size_t NumBitsPerChunk = sizeof(ChunkType) * CHAR_BIT;
 public:
     BitArray(IAllocator* pJitAllocator, size_t numBits)
@@ -160,7 +160,7 @@ public:
             ClearBit(pos);
     }
     
-    inline unsigned __int32 ReadBit( size_t pos ) const
+    inline uint32_t ReadBit( size_t pos ) const
     {
         size_t element = pos / NumBitsPerChunk;
         int bpos = (int)(pos % NumBitsPerChunk);
@@ -1968,7 +1968,7 @@ void GcInfoEncoder::Build()
             LifetimeTransition *pFirstPreserved = pFirstAfterStart;
             for(UINT32 slotIndex = 0; slotIndex < m_NumSlots; slotIndex++)
             {
-                unsigned __int32 isLive = liveState.ReadBit(slotIndex);
+                uint32_t isLive = liveState.ReadBit(slotIndex);
                 if(isLive != liveStateAtPrevRange.ReadBit(slotIndex))
                 {
                     pFirstPreserved--;
