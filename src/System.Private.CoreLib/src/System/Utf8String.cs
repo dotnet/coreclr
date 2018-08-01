@@ -78,10 +78,32 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlySpan<byte> AsSpanFast() => MemoryMarshal.CreateReadOnlySpan(ref DangerousGetMutableReference(), Length);
 
+        internal string ConvertToUtf16PreservingCorruption()
+        {
+            // We rely on the fact that UTF-8 to UTF-16 transcoding never increases the overall
+            // code unit count, even in the face of invalid input.
+
+            char[] borrowedArr = null;
+            Span<char> span = Length <= 255 ?
+                stackalloc char[255] :
+                (borrowedArr = ArrayPool<char>.Shared.Rent(Length));
+            
+            int utf16CodeUnitCount = ConvertToUtf16PreservingCorruption(AsSpanFast(), span);
+            string retVal = new string(span.Slice(0, utf16CodeUnitCount));
+
+            // Return the borrowed arrays if necessary.
+            if (borrowedArr != null)
+            {
+                ArrayPool<char>.Shared.Return(borrowedArr);
+            }
+
+            return retVal;
+        }
+
         // Converts UTF-8 to UTF-16, preserving corrupted (ill-formed) sequences.
         // That is, an ill-formed UTF-8 input will result in an ill-formed UTF-16 output.
         // Returns the number of chars written.
-        internal static int ConvertToUtf16PreservingCorruption(ReadOnlySpan<byte> utf8, Span<char> utf16)
+        private static int ConvertToUtf16PreservingCorruption(ReadOnlySpan<byte> utf8, Span<char> utf16)
         {
             // TODO: Optimize me through vectorization and other tricks.
 
