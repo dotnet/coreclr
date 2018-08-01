@@ -2,18 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
 //
 // Verifies that RuntimeFeature::IsSupported("DefaultImplementationsOfInterfaces") matches reality.
 // This needs to succeed no matter whether default interfaces are supported.
 //
+.assembly extern mscorlib { auto }
+.assembly extern System.Runtime { auto }
 
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
-  .ver 2:0:0:0
-}
-
-.assembly extern System.Runtime{}
 .assembly DefaultImplementationsOfInterfaces{}
 
 .class interface private abstract auto ansi DefaultInterface

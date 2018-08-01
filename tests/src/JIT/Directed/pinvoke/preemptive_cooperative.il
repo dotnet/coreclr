@@ -3,26 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 
-
 .module extern kernel32.dll
+.assembly extern System.Console { auto }
+.assembly extern System.Threading.Thread { auto }
+.assembly extern mscorlib { auto }
 
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern System.Threading.Thread
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
-  .ver 4:0:0:0
-}
 .assembly preemptive_cooperative
 {
   .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )

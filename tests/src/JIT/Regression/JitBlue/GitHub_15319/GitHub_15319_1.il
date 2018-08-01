@@ -2,11 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
 // Test for remorphing subexpressions in casts of long shifts.
+.assembly extern System.Private.CoreLib { auto }
+.assembly extern mscorlib { auto }
 
-
-.assembly extern System.Private.CoreLib {}
-.assembly extern mscorlib {}
 .assembly GitHub_15319_1 {}
 
 .class private auto ansi beforefieldinit Q

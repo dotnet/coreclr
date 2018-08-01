@@ -3,26 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Console { auto }
+.assembly extern System.Runtime.Extensions { auto }
+.assembly extern mscorlib { auto }
 
-
-
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern System.Runtime.Extensions
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
-  .ver 2:0:0:0
-}
 .assembly tailcall
 {
   .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )

@@ -2,25 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
 // Test for casts of long shifts.
 //
 // Same test cases as in GitHub_15077, but without the extra
 // and masking done by CSC.
+.assembly extern System.Console { auto }
+.assembly extern System.Runtime { auto }
+.assembly extern mscorlib { auto }
 
-
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern System.Runtime
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern mscorlib {auto}
 .assembly GitHub_15219 {}
 
 .class private auto ansi beforefieldinit P

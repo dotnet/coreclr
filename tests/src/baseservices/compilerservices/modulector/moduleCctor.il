@@ -2,18 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         // .z\V.4..
-  .ver 2:0:0:0
-}
 
+.assembly extern mscorlib { auto }
 .assembly moduleCctor {}
-.assembly extern FieldTypes
-{
-  .publickeytoken = (C0 30 5C 36 38 0B A4 29 )                         // .0\68..)
-  .ver 0:0:0:0
-}
+.assembly extern FieldTypes { auto }
+
 
  .method private hidebysig specialname rtspecialname static
           void  .cctor() cil managed

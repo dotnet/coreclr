@@ -3,8 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 
-.assembly extern mscorlib {}
-.assembly extern System.Private.CoreLib{}
+.assembly extern mscorlib { auto }
+.assembly extern System.Private.CoreLib { auto }
+
 .assembly GitHub_13822
 {
 }

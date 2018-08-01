@@ -2,13 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
-  .ver 2:0:0:0
-}
 
+.assembly extern mscorlib { auto }
 .assembly extern System.Private.CoreLib { auto }
+
 .assembly test { }
 
 .class auto Program extends [System.Private.CoreLib]System.Object

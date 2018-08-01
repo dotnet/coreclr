@@ -2,20 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
 // Metadata version: v2.0.50727
+.assembly extern mscorlib { auto }
+.assembly extern System.Runtime.Extensions { auto }
 
-
-.assembly extern mscorlib
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )
-  .ver 2:0:0:0
-}
-
-.assembly extern System.Runtime.Extensions
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
 
 .module common.netmodule
 // MVID: {8A774AEE-5C13-4F6C-8345-881D79617488}

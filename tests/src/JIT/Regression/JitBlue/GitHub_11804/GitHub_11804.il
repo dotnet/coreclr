@@ -3,22 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 
-.assembly extern System.Private.CoreLib
-{
-  .publickeytoken = (7C EC 85 D7 BE A7 79 8E )                         // |.....y.
-  .ver 4:0:0:0
-}
-.assembly extern System.Numerics.Vectors
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                         // .?_....:
-  .ver 4:1:3:0
-}
-.assembly extern System.Runtime.CompilerServices.Unsafe
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                         // .?_....:
-  .ver 4:0:3:0
-}
-.assembly extern mscorlib{}
+.assembly extern System.Private.CoreLib { auto }
+.assembly extern System.Numerics.Vectors { auto }
+.assembly extern System.Runtime.CompilerServices.Unsafe { auto }
+.assembly extern mscorlib { auto }
+
 .assembly GitHub_11804
 {
   .custom instance void [System.Private.CoreLib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )

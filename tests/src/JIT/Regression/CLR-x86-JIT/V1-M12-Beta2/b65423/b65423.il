@@ -3,18 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 
-.assembly extern System.Runtime.Extensions
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
+.assembly extern System.Runtime.Extensions { auto }
+.assembly extern mscorlib { auto }
+.assembly extern Microsoft.VisualBasic { auto }
 
-.assembly extern mscorlib
-{
-}
-.assembly extern Microsoft.VisualBasic
-{
-}
 .assembly 'b1904'
 {
 }

@@ -3,8 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 
-.assembly extern System.Console { }
-.assembly extern mscorlib {}
+.assembly extern System.Console { auto }
+.assembly extern mscorlib { auto }
+
 // model revision #2
 // To compile: ilasm nesting7.il /err
 

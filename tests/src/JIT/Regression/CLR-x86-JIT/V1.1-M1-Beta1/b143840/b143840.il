@@ -3,25 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
+.assembly extern System.Console { auto }
+.assembly extern System.Runtime.Extensions { auto }
+.assembly extern System.Threading.Thread { auto }
+.assembly extern legacy library mscorlib { auto }
 
-.assembly extern System.Runtime.Extensions
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern System.Threading.Thread
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-
-.assembly extern legacy library mscorlib {}
 .assembly ExternalException {}
 .class private auto ansi beforefieldinit ExternalClass
        extends [mscorlib]System.Object
