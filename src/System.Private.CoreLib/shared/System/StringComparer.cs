@@ -11,7 +11,7 @@ namespace System
 {
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public abstract class StringComparer : IComparer, IEqualityComparer, IComparer<string>, IEqualityComparer<string>, IEqualityComparer<Utf8String>
+    public abstract class StringComparer : IComparer, IEqualityComparer, IComparer<string>, IEqualityComparer<string>
     {
         private static readonly CultureAwareComparer s_invariantCulture = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.None);
         private static readonly CultureAwareComparer s_invariantCultureIgnoreCase = new CultureAwareComparer(CultureInfo.InvariantCulture, CompareOptions.IgnoreCase);
@@ -138,23 +138,16 @@ namespace System
             if (x == y) return true;
             if (x == null || y == null) return false;
 
-            if (x is string xAsString)
+            string sa = x as string;
+            if (sa != null)
             {
-                // Original version of this code didn't call the Equals(string, string) virtual
-                // method if x was a string and y is non-null but not a string. Instead, it would
-                // dispatch to x.Equals(y), which will always return false. The code below is
-                // compatible with the original behavior.
-
-                return (y is string yAsString) && Equals(xAsString, yAsString);
+                string sb = y as string;
+                if (sb != null)
+                {
+                    return Equals(sa, sb);
+                }
             }
-            else if (x is Utf8String xAsUtf8String)
-            {
-                return Equals(xAsUtf8String, y as Utf8String);
-            }
-            else
-            {
-                return x.Equals(y);
-            }
+            return x.Equals(y);
         }
 
         public int GetHashCode(object obj)
@@ -164,70 +157,24 @@ namespace System
                 throw new ArgumentNullException(nameof(obj));
             }
 
-            if (obj is string objAsString)
+            string s = obj as string;
+            if (s != null)
             {
-                return GetHashCode(objAsString);
+                return GetHashCode(s);
             }
-            else if (obj is Utf8String objAsUtf8String)
-            {
-                return GetHashCode(objAsUtf8String);
-            }
-            else
-            {
-                return obj.GetHashCode();
-            }
+            return obj.GetHashCode();
         }
 
         public abstract int Compare(string x, string y);
         public abstract bool Equals(string x, string y);
         public abstract int GetHashCode(string obj);
-
-        public virtual bool Equals(Utf8String x, Utf8String y)
-        {
-            // If we're not overridden, the default implementation is to turn this
-            // into a UTF-16 string and to call Equals(...) on that instance.
-
-            if (ReferenceEquals(x, y))
-            {
-                return true;
-            }
-
-            if (ReferenceEquals(x, null) || ReferenceEquals(y, null))
-            {
-                return false;
-            }
-
-            // Note the call below to the corruption-preserving conversion routine.
-            // This prevents distinct invalid UTF-8 strings from being normalized to the
-            // same UTF-16 string (with U+FFFD replacement) and ending up being equal.
-
-            return Equals(x.ConvertToUtf16PreservingCorruption(), y.ConvertToUtf16PreservingCorruption());
-        }
-
-        public virtual int GetHashCode(Utf8String obj)
-        {
-            // If we're not overridden, the default implementation is to turn this
-            // into a UTF-16 string and to call GetHashCode(...) on that instance.
-
-            if (obj == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            }
-
-            // Note the call below to the corruption-preserving conversion routine.
-            // This prevents distinct invalid UTF-8 strings from being normalized to the
-            // same UTF-16 string (with U+FFFD replacement) and ending up with the
-            // same hash code.
-
-            return GetHashCode(obj.ConvertToUtf16PreservingCorruption());
-        }
     }
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public sealed class CultureAwareComparer : StringComparer, ISerializable
     {
-        private const CompareOptions ValidCompareMaskOffFlags = ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
+        internal const CompareOptions ValidCompareMaskOffFlags = ~(CompareOptions.IgnoreCase | CompareOptions.IgnoreSymbols | CompareOptions.IgnoreNonSpace | CompareOptions.IgnoreWidth | CompareOptions.IgnoreKanaType | CompareOptions.StringSort);
 
         private readonly CompareInfo _compareInfo; // Do not rename (binary serialization)
         private CompareOptions _options;
@@ -351,11 +298,6 @@ namespace System
             return x.Equals(y);
         }
 
-        public override bool Equals(Utf8String x, Utf8String y)
-        {
-            return Utf8String.Equals(x, y, (_ignoreCase) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-        }
-
         public override int GetHashCode(string obj)
         {
             if (obj == null)
@@ -369,16 +311,6 @@ namespace System
             }
 
             return obj.GetHashCode();
-        }
-
-        public override int GetHashCode(Utf8String obj)
-        {
-            if (obj == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            }
-
-            return obj.GetHashCode((_ignoreCase) ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         }
 
         // Equals method for the comparer itself. 
@@ -410,24 +342,12 @@ namespace System
 
         public override bool Equals(string x, string y) => string.Equals(x, y);
 
-        public override bool Equals(Utf8String x, Utf8String y) => Utf8String.Equals(x, y);
-
         public override int GetHashCode(string obj)
         {
             if (obj == null)
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }
-            return obj.GetHashCode();
-        }
-
-        public override int GetHashCode(Utf8String obj)
-        {
-            if (obj == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            }
-
             return obj.GetHashCode();
         }
 
@@ -449,8 +369,6 @@ namespace System
 
         public override bool Equals(string x, string y) => string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
 
-        public override bool Equals(Utf8String x, Utf8String y) => Utf8String.Equals(x, y, StringComparison.OrdinalIgnoreCase);
-
         public override int GetHashCode(string obj)
         {
             if (obj == null)
@@ -458,16 +376,6 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
             }
             return CompareInfo.GetIgnoreCaseHash(obj);
-        }
-
-        public override int GetHashCode(Utf8String obj)
-        {
-            if (obj == null)
-            {
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.obj);
-            }
-
-            return obj.GetHashCode(StringComparison.OrdinalIgnoreCase);
         }
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)

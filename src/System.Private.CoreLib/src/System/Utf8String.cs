@@ -278,6 +278,21 @@ namespace System
             }
         }
 
+        internal static bool EqualsOrdinalIgnoreCase(Utf8String a, Utf8String b)
+        {
+            if (ReferenceEquals(a, b))
+            {
+                return true;
+            }
+
+            if (ReferenceEquals(a, null) || ReferenceEquals(b, null))
+            {
+                return false;
+            }
+
+            return EqualsOrdinalIgnoreCase(a.AsSpanFast(), b.AsSpanFast());
+        }
+
         private static bool EqualsOrdinalIgnoreCase(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
         {
             // TODO: This has room for optimization, including special-casing ASCII input (which
