@@ -105,7 +105,10 @@ if [!processedArgs!]==[] (
 :ArgsDone
 
 @REM Special handling for -priority=N argument.
-if %__Priority% GTR 0 (set "__PriorityArg=-priority=%__Priority%")
+if %__Priority% GTR 0 (
+    set "__PriorityArg=-priority=%__Priority%"
+    set "__PriorityMsbuildArg=/p:priority=%__Priority%"
+)
 
 if defined __BuildAgainstPackagesArg (
     if not defined __RuntimeID (
@@ -321,7 +324,7 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __msbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
 
     set TestBuildSlice=%%G
-    call %__DotnetHost% msbuild %__ProjectDir%\tests\build.proj !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %__BuildAgainstPackagesMsbuildArg% %__PriorityArg% %__PassThroughArg% %__unprocessedBuildArgs%
+    call %__DotnetHost% msbuild %__ProjectDir%\tests\build.proj !__msbuildLog! !__msbuildWrn! !__msbuildErr! %__msbuildArgs% %__BuildAgainstPackagesMsbuildArg% %__PriorityMsbuildArg% %__PassThroughArg% %__unprocessedBuildArgs%
 
     if errorlevel 1 (
         echo %__MsgPrefix%Error: build failed. Refer to the build log files for details:
