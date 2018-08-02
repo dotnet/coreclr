@@ -505,7 +505,7 @@ namespace System.IO
             }
             else
             {
-                base.WriteLine(format, arg0);
+                base.Write(format, arg0);
             }
         }
 
@@ -517,7 +517,7 @@ namespace System.IO
             }
             else
             {
-                base.WriteLine(format, arg0, arg1);
+                base.Write(format, arg0, arg1);
             }
         }
 
@@ -529,7 +529,7 @@ namespace System.IO
             }
             else
             {
-                base.WriteLine(format, arg0, arg1, arg2);
+                base.Write(format, arg0, arg1, arg2);
             }
         }
 
@@ -541,10 +541,9 @@ namespace System.IO
             }
             else
             {
-                base.WriteLine(format, arg);
+                base.Write(format, arg);
             }
         }
-
 
         public override void WriteLine(string format, object arg0)
         {
