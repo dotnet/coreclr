@@ -362,6 +362,10 @@
       "value": "false",
       "allowOverride": true
     },
+    "PB_BlobNamePrefix": {
+      "value": "$(PB_PipeBuildIdentifier)/",
+      "allowOverride": true
+    },
     "PB_BuildType": {
       "value": "Release",
       "allowOverride": true
