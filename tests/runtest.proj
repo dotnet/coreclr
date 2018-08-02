@@ -256,7 +256,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                     {
                         sErrorText = System.IO.File.ReadAllText(errorFile)%3B
                     }
-                    catch(Exception ex)
+                    catch(Exception)
                     {
                       sErrorText = $"Unable to read error file: {errorFile}\n{ex}"%3B
                     }
@@ -268,7 +268,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                         outputText = outputReader.ReadToEnd()%3B
                         outputReader.Close()%3B
                     }
-                    catch(Exception ex)
+                    catch(Exception)
                     {
                         outputText = $"Unable to read error file: {outputFile}\n{ex}"%3B
                     }
