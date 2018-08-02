@@ -326,6 +326,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeConstructorInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeEventInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeFieldInfo.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeLocalVariableInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeMethodInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeModule.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeParameterInfo.cs" />

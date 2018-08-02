@@ -2430,7 +2430,7 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
     {
         METHODBODYREF MethodBodyObj;
         EXCEPTIONHANDLINGCLAUSEREF EHClauseObj;
-        LOCALVARIABLEINFOREF LocalVariableInfoObj;
+        RUNTIMELOCALVARIABLEINFOREF LocalVariableInfoObj;
         U1ARRAYREF                  U1Array;
         BASEARRAYREF                TempArray;
         REFLECTCLASSBASEREF         declaringType;
@@ -2469,7 +2469,7 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
             MethodTable * pExceptionHandlingClauseMT = MscorlibBinder::GetClass(CLASS__EH_CLAUSE);
             TypeHandle thEHClauseArray = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pExceptionHandlingClauseMT), ELEMENT_TYPE_SZARRAY);
 
-            MethodTable * pLocalVariableMT = MscorlibBinder::GetClass(CLASS__LOCAL_VARIABLE_INFO);
+            MethodTable * pLocalVariableMT = MscorlibBinder::GetClass(CLASS__RUNTIME_LOCAL_VARIABLE_INFO);
             TypeHandle thLocalVariableArray = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pLocalVariableMT), ELEMENT_TYPE_SZARRAY);
 
             Module* pModule = pMethod->GetModule();
@@ -2551,16 +2551,16 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
 
                 for (INT32 i = 0; i < cLocals; i ++)
                 {
-                    gc.LocalVariableInfoObj = (LOCALVARIABLEINFOREF)AllocateObject(pLocalVariableMT);
+                    gc.LocalVariableInfoObj = (RUNTIMELOCALVARIABLEINFOREF)AllocateObject(pLocalVariableMT);
 
-                    gc.LocalVariableInfoObj->m_localIndex = i;
+                    gc.LocalVariableInfoObj->_localIndex = i;
                     
                     metaSig.NextArg();
 
                     CorElementType eType;
                     IfFailThrow(metaSig.GetArgProps().PeekElemType(&eType));
                     if (ELEMENT_TYPE_PINNED == eType)
-                        gc.LocalVariableInfoObj->m_bIsPinned = TRUE;
+                        gc.LocalVariableInfoObj->_isPinned = TRUE;
 
                     TypeHandle  tempType= metaSig.GetArgProps().GetTypeHandleThrowing(pModule, &sigTypeContext);       
                     OBJECTREF refLocalType = tempType.GetManagedClassObject();
