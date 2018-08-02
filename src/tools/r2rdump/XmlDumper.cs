@@ -31,7 +31,7 @@ namespace R2RDump
 
             _ignoredProperties = new XmlAttributeOverrides();
             XmlAttributes attrs = new XmlAttributes();
-            attrs.XmlIgnore = true;
+            attrs.XmlIgnore = _ignoreSensitive;
             _ignoredProperties.Add(typeof(R2RHeader), "RelativeVirtualAddress", attrs);
             _ignoredProperties.Add(typeof(R2RHeader), "Size", attrs);
             _ignoredProperties.Add(typeof(R2RImportSection), "SectionRVA", attrs);
