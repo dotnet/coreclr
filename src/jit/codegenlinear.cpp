@@ -1382,7 +1382,7 @@ void CodeGen::genConsumePutStructArgStk(GenTreePutArgStk* putArgNode,
     assert((src->gtOper == GT_OBJ) || ((src->gtOper == GT_IND && varTypeIsSIMD(src))));
     GenTree* srcAddr = src->gtGetOp1();
 
-    size_t size = putArgNode->getArgSize();
+    unsigned int size = putArgNode->getArgSize();
 
     assert(dstReg != REG_NA);
     assert(srcReg != REG_NA);
