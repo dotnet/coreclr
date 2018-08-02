@@ -54,15 +54,10 @@ namespace R2RDump
 
         public BaseUnwindInfo UnwindInfo { get; }
 
-        private bool _ignoreSensitive;
-        public bool ShouldSerializeStartAddress() { return !_ignoreSensitive; }
-        public bool ShouldSerializeUnwindRVA() { return !_ignoreSensitive; }
-
         public RuntimeFunction() { }
 
-        public RuntimeFunction(bool ignoreSensitive, int id, int startRva, int endRva, int unwindRva, int codeOffset, R2RMethod method, BaseUnwindInfo unwindInfo, GcInfo gcInfo)
+        public RuntimeFunction(int id, int startRva, int endRva, int unwindRva, int codeOffset, R2RMethod method, BaseUnwindInfo unwindInfo, GcInfo gcInfo)
         {
-            _ignoreSensitive = ignoreSensitive;
             Id = id;
             StartAddress = startRva;
             UnwindRVA = unwindRva;

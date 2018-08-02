@@ -56,10 +56,6 @@ namespace R2RDump
         /// </summary>
         public IDictionary<R2RSection.SectionType, R2RSection> Sections { get; }
 
-        private bool _ignoreSensitive;
-        public bool ShouldSerializeRelativeVirtualAddress() { return !_ignoreSensitive; }
-        public bool ShouldSerializeSize() { return !_ignoreSensitive; }
-
         public R2RHeader() { }
 
         /// <summary>
@@ -69,9 +65,8 @@ namespace R2RDump
         /// <param name="rva">Relative virtual address of the ReadyToRun header</param>
         /// <param name="curOffset">Index in the image byte array to the start of the ReadyToRun header</param>
         /// <exception cref="BadImageFormatException">The signature must be 0x00525452</exception>
-        public R2RHeader(bool ignoreSensitive, byte[] image, int rva, int curOffset)
+        public R2RHeader(byte[] image, int rva, int curOffset)
         {
-            _ignoreSensitive = ignoreSensitive;
             RelativeVirtualAddress = rva;
             int startOffset = curOffset;
 
@@ -98,7 +93,7 @@ namespace R2RDump
                 {
                     R2RDump.WriteWarning("Invalid ReadyToRun section type");
                 }
-                Sections[sectionType] = new R2RSection(_ignoreSensitive, sectionType,
+                Sections[sectionType] = new R2RSection(sectionType,
                     NativeReader.ReadInt32(image, ref curOffset),
                     NativeReader.ReadInt32(image, ref curOffset));
             }

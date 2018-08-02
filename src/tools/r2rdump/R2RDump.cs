@@ -61,7 +61,7 @@ namespace R2RDump
         private TextWriter _writer;
         private Dictionary<R2RSection.SectionType, bool> _selectedSections = new Dictionary<R2RSection.SectionType, bool>();
         private Dumper _dumper;
-        bool _ignoreSensitive;
+        private bool _ignoreSensitive;
 
         private R2RDump()
         {
@@ -378,7 +378,7 @@ namespace R2RDump
 
                 foreach (string filename in _inputFilenames)
                 {
-                    R2RReader r2r = new R2RReader(filename, _ignoreSensitive);
+                    R2RReader r2r = new R2RReader(filename);
 
                     if (_disasm)
                     {

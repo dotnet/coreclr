@@ -67,7 +67,6 @@ namespace R2RDump
     {
         private readonly PEReader _peReader;
         private readonly MetadataReader _mdReader;
-        private bool _ignoreSensitive;
 
         /// <summary>
         /// Byte array containing the ReadyToRun image
@@ -124,9 +123,8 @@ namespace R2RDump
         /// </summary>
         /// <param name="filename">PE image</param>
         /// <exception cref="BadImageFormatException">The Cor header flag must be ILLibrary</exception>
-        public unsafe R2RReader(string filename, bool ignoreSensitive)
+        public unsafe R2RReader(string filename)
         {
-            _ignoreSensitive = ignoreSensitive;
             Filename = filename;
             Image = File.ReadAllBytes(filename);
 
@@ -152,7 +150,7 @@ namespace R2RDump
                 // initialize R2RHeader
                 DirectoryEntry r2rHeaderDirectory = _peReader.PEHeaders.CorHeader.ManagedNativeHeaderDirectory;
                 int r2rHeaderOffset = GetOffset(r2rHeaderDirectory.RelativeVirtualAddress);
-                R2RHeader = new R2RHeader(_ignoreSensitive, Image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
+                R2RHeader = new R2RHeader(Image, r2rHeaderDirectory.RelativeVirtualAddress, r2rHeaderOffset);
                 if (r2rHeaderDirectory.Size != R2RHeader.Size)
                 {
                     throw new BadImageFormatException("The calculated size of the R2RHeader doesn't match the size saved in the ManagedNativeHeaderDirectory");
@@ -325,7 +323,7 @@ namespace R2RDump
                         }
                     }
 
-                    RuntimeFunction rtf = new RuntimeFunction(_ignoreSensitive, runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
+                    RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
                     method.RuntimeFunctions.Add(rtf);
                     runtimeFunctionId++;
                     codeOffset += rtf.Size;
@@ -416,7 +414,7 @@ namespace R2RDump
                                 int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                                 byte[] signatureSample = new byte[sigSampleLength];
                                 Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                                entries.Add(new R2RImportSection.ImportSectionEntry(_ignoreSensitive, entries.Count, entryOffset, section, sigRva, signatureSample));
+                                entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                             }
                         }
                         break;
@@ -431,7 +429,7 @@ namespace R2RDump
                             int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                             byte[] signatureSample = new byte[sigSampleLength];
                             Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                            entries.Add(new R2RImportSection.ImportSectionEntry(_ignoreSensitive, entries.Count, entryOffset, section, sigRva, signatureSample));
+                            entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                         }
                         break;
                 }
@@ -442,7 +440,7 @@ namespace R2RDump
                 {
                     auxDataOffset = GetOffset(auxDataRVA);
                 }
-                ImportSections.Add(new R2RImportSection(_ignoreSensitive, ImportSections.Count, Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
+                ImportSections.Add(new R2RImportSection(ImportSections.Count, Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
             }
         }
 

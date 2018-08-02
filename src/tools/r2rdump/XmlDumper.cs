@@ -12,6 +12,7 @@ namespace R2RDump
         public XmlDocument XmlDocument { get; }
         private XmlNode _rootNode;
         private bool _ignoreSensitive;
+        private XmlAttributeOverrides _ignoredProperties;
 
         public XmlDumper(bool ignoreSensitive, R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
         {
@@ -27,6 +28,23 @@ namespace R2RDump
             _unwind = unwind;
             _gc = gc;
             _sectionContents = sectionContents;
+
+            _ignoredProperties = new XmlAttributeOverrides();
+            XmlAttributes attrs = new XmlAttributes();
+            attrs.XmlIgnore = true;
+            _ignoredProperties.Add(typeof(R2RHeader), "RelativeVirtualAddress", attrs);
+            _ignoredProperties.Add(typeof(R2RHeader), "Size", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SectionRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SectionSize", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "EntrySize", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SignatureRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "AuxiliaryDataRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection.ImportSectionEntry), "SignatureSample", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection.ImportSectionEntry), "SignatureRVA", attrs);
+            _ignoredProperties.Add(typeof(RuntimeFunction), "StartAddress", attrs);
+            _ignoredProperties.Add(typeof(RuntimeFunction), "UnwindRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RSection), "RelativeVirtualAddress", attrs);
+            _ignoredProperties.Add(typeof(R2RSection), "Size", attrs);
         }
 
         public XmlDocument GetXmlDocument()
@@ -318,7 +336,7 @@ namespace R2RDump
             using (XmlWriter xmlWriter = node.CreateNavigator().AppendChild())
             {
                 xmlWriter.WriteWhitespace("");
-                XmlSerializer Serializer = new XmlSerializer(obj.GetType());
+                XmlSerializer Serializer = new XmlSerializer(obj.GetType(), _ignoredProperties);
                 Serializer.Serialize(xmlWriter, obj);
             }
         }

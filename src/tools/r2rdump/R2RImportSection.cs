@@ -39,14 +39,8 @@ namespace R2RDump
             public long Section { get; set; }
             public uint SignatureRVA { get; set; }
             public byte[] SignatureSample { get; set; }
-
-            private bool _ignoreSensitive;
-            public bool ShouldSerializeSignatureSample() { return !_ignoreSensitive; }
-            public bool ShouldSerializeSignatureRVA() { return !_ignoreSensitive; }
-
-            public ImportSectionEntry(bool ignoreSensitive, int index, int startOffset, long section, uint signatureRVA, byte[] signatureSample)
+            public ImportSectionEntry(int index, int startOffset, long section, uint signatureRVA, byte[] signatureSample)
             {
-                _ignoreSensitive = ignoreSensitive;
                 Index = index;
                 StartOffset = startOffset;
                 Section = section;
@@ -103,16 +97,8 @@ namespace R2RDump
         public int AuxiliaryDataRVA { get; set; }
         public GcInfo AuxiliaryData { get; set; }
 
-        private bool _ignoreSensitive;
-        public bool ShouldSerializeSectionRVA() { return !_ignoreSensitive; }
-        public bool ShouldSerializeSectionSize() { return !_ignoreSensitive; }
-        public bool ShouldSerializeEntrySize() { return !_ignoreSensitive; }
-        public bool ShouldSerializeSignatureRVA() { return !_ignoreSensitive; }
-        public bool ShouldSerializeAuxiliaryDataRVA() { return !_ignoreSensitive; }
-
-        public R2RImportSection(bool ignoreSensitive, int index, byte[] image, int rva, int size, CorCompileImportFlags flags, byte type, byte entrySize, int signatureRVA, List<ImportSectionEntry> entries, int auxDataRVA, int auxDataOffset, Machine machine, ushort majorVersion)
+        public R2RImportSection(int index, byte[] image, int rva, int size, CorCompileImportFlags flags, byte type, byte entrySize, int signatureRVA, List<ImportSectionEntry> entries, int auxDataRVA, int auxDataOffset, Machine machine, ushort majorVersion)
         {
-            _ignoreSensitive = ignoreSensitive;
             Index = index;
             SectionRVA = rva;
             SectionSize = size;
