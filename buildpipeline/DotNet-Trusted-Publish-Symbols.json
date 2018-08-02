@@ -77,7 +77,7 @@
       },
       "inputs": {
         "filename": "sync.cmd",
-        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(PB_ContainerName) -BlobNamePrefix=$(PB_BlobNamePrefix)$(ConfigurationGroup)/symbolpkg/ -- /p:DownloadFlatFiles=true /p:BlobNameExtension=\".nupkg\" /p:DownloadDirectory=$(AzureContainerSymbolPackageDirectory)symbolpkg",
+        "arguments": "-ab -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -Container=$(Label) -BlobNamePrefix=$(PB_BlobNamePrefix)$(ConfigurationGroup)/symbolpkg/ -- /p:DownloadFlatFiles=true /p:BlobNameExtension=\".nupkg\" /p:DownloadDirectory=$(AzureContainerSymbolPackageDirectory)symbolpkg",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
@@ -228,7 +228,7 @@
       "allowOverride": true,
       "isSecret": true
     },
-    "PB_ContainerName": {
+    "Label": {
       "value": "$(Build.BuildNumber)",
       "allowOverride": true
     },

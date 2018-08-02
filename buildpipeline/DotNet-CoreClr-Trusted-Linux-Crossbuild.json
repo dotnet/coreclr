@@ -239,7 +239,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(Label) -distroRid=$(Rid) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -259,7 +259,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(Label) -distroRid=$(Rid) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -279,7 +279,7 @@
       },
       "inputs": {
         "filename": "docker",
-        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(PB_ContainerName) -distroRid=$(Rid) -PublishTestNativeBins -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/TestNativeBins/$(Rid)-$(Architecture) /p:OverwriteOnPublish=true",
+        "arguments": "run --rm $(DockerCommonRunArgs) ./publish-packages.sh -AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildType=$(PB_BuildType) -BuildArch=$(Architecture) -Container=$(Label) -distroRid=$(Rid) -PublishTestNativeBins -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/TestNativeBins/$(Rid)-$(Architecture) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }

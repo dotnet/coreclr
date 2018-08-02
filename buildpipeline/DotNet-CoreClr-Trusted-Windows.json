@@ -191,7 +191,7 @@
       },
       "inputs": {
         "filename": "publish-packages.cmd",
-        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(PB_ContainerName) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
+        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(Label) -PublishPackages -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/pkg /p:PublishFlatContainer=$(PublishFlat) /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
@@ -211,7 +211,7 @@
       },
       "inputs": {
         "filename": "publish-packages.cmd",
-        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(PB_ContainerName) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
+        "arguments": "-AzureAccount=$(CloudDropAccountName) -AzureToken=$(CloudDropAccessToken) -BuildArch=$(Architecture) -BuildType=$(PB_BuildType) -Container=$(Label) -PublishSymbols -- /p:RelativePath=$(PB_BlobNamePrefix)$(PB_BuildType)/symbolpkg /p:OverwriteOnPublish=true",
         "workingFolder": "",
         "failOnStandardError": "false"
       }
