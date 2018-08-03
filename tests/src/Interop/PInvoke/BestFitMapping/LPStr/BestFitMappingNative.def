@@ -1,0 +1,24 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+EXPORTS
+	LPStrBuffer_In_String
+	LPStrBuffer_InByRef_String
+	LPStrBuffer_InOutByRef_String
+	LPStrBuffer_In_StringBuilder
+	LPStrBuffer_InByRef_StringBuilder
+	LPStrBuffer_InOutByRef_StringBuilder
+	LPStrBuffer_In_Struct_String
+	LPStrBuffer_InByRef_Struct_String
+	LPStrBuffer_InOutByRef_Struct_String
+	LPStrBuffer_In_Array_String
+	LPStrBuffer_InByRef_Array_String
+	LPStrBuffer_InOutByRef_Array_String
+	LPStrBuffer_In_Class_String
+	LPStrBuffer_InByRef_Class_String
+	LPStrBuffer_InOutByRef_Class_String
+	LPStrBuffer_In_Array_Struct
+	LPStrBuffer_InByRef_Array_Struct
+	LPStrBuffer_InOutByRef_Array_Struct
+	LPStrBuffer_In_Struct_String_nothrow

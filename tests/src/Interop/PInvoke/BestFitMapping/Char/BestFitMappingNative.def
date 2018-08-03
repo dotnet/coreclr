@@ -1,0 +1,18 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+EXPORTS
+	Char_In
+	Char_InByRef
+	Char_InOutByRef
+	CharBuffer_In_String
+	CharBuffer_InByRef_String
+	CharBuffer_InOutByRef_String
+	CharBuffer_In_StringBuilder
+	CharBuffer_InByRef_StringBuilder
+	CharBuffer_InOutByRef_StringBuilder
+	Char_In_ArrayWithOffset
+	Char_InOut_ArrayWithOffset
+	Char_InByRef_ArrayWithOffset
+	Char_InOutByRef_ArrayWithOffset
