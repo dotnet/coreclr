@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 namespace System.Reflection
 {
-    internal class RuntimeLocalVariableInfo : LocalVariableInfo
+    internal sealed class RuntimeLocalVariableInfo : LocalVariableInfo
     {
         private RuntimeType _type;
         private int _localIndex;
