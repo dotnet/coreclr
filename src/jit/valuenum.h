@@ -85,6 +85,7 @@ struct VNFuncApp
 // We use this together with string concatenation to put this in printf format strings
 // static const char* const VN_DumpPrefix = "$";
 #define STR_VN "$"
+#define FMT_VN STR_VN "%x"
 
 class ValueNumStore
 {
@@ -361,9 +362,9 @@ public:
         return GetVNFunc(vn, &funcApp) && funcApp.m_func == VNF_ValWithExc;
     }
 
-    // Requires that "vn" is *not* a "VNF_ValWithExc" appliation.
-    // If vn "excSet" is not "VNForEmptyExcSet()", return "VNF_ValWithExc(vn, excSet)".  Otherwise,
-    // just return "vn".
+    // If vn "excSet" is "VNForEmptyExcSet()" we just return "vn"
+    // otherwise we use VNExcSetUnion to combine the exception sets of vn and excSet
+    // and return that ValueNumber
     ValueNum VNWithExc(ValueNum vn, ValueNum excSet);
 
     ValueNumPair VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP);
@@ -829,6 +830,14 @@ public:
     // Requires "mapStore" to be a map store VNFuncApp.
     // Prints a representation of a MapStore operation on standard out.
     void vnDumpMapStore(Compiler* comp, VNFuncApp* mapStore);
+
+    // Requires "valWithExc" to be a value with an exeception set VNFuncApp.
+    // Prints a representation of the exeception set on standard out.
+    void vnDumpValWithExc(Compiler* comp, VNFuncApp* valWithExc);
+
+    // Requires "excSeq" to be a ExcSetCons sequence.
+    // Prints a representation of the set of exceptions on standard out.
+    void vnDumpExcSeq(Compiler* comp, VNFuncApp* excSeq, bool isHead);
 
     // Returns the string name of "vnf".
     static const char* VNFuncName(VNFunc vnf);

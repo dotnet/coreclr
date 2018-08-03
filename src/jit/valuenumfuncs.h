@@ -51,14 +51,15 @@ ValueNumFuncDef(ValWithExc, 2, false, false, false)         // Args: 0: value nu
 
 ValueNumFuncDef(ExcSetCons, 2, false, false, false)         // Args: 0: exception; 1: exception set (including EmptyExcSet).  Invariant: "car"s are always in ascending order.
 
-// Various exception values.
-ValueNumFuncDef(NullPtrExc, 1, false, false, false)         // Null pointer exception.
+// Various exception values.   
+// Note that when the execution is always thrown, the value VNForVoid() is used as Arg0 for OverflowExc and DivideByZeroExc,
+ValueNumFuncDef(NullPtrExc, 1, false, false, false)         // Null pointer exception check.  Args: 0: address value,  throws when it is null
 ValueNumFuncDef(ArithmeticExc, 0, false, false, false)      // E.g., for signed its, MinInt / -1.
-ValueNumFuncDef(OverflowExc, 0, false, false, false)        // Integer overflow.
+ValueNumFuncDef(OverflowExc, 1, false, false, false)        // Integer overflow check. Args: 0: expression value,  throws when it overflows
 ValueNumFuncDef(ConvOverflowExc, 2, false, false, false)    // Integer overflow produced by converion.  Args: 0: input value; 1: var_types of target type
-                                                     // (shifted left one bit; low bit encode whether source is unsigned.) 
-ValueNumFuncDef(DivideByZeroExc, 0, false, false, false)    // Division by zero.
-ValueNumFuncDef(IndexOutOfRangeExc, 2, false, false, false) // Args: 0: array length; 1: index.  The exception raised if this bounds check fails.
+                                                            // (shifted left one bit; low bit encode whether source is unsigned.) 
+ValueNumFuncDef(DivideByZeroExc, 1, false, false, false)    // Division by zero check.  Args: 0: divisor value, throws when it is zero
+ValueNumFuncDef(IndexOutOfRangeExc, 2, false, false, false) // Args: 0: array length; 1: index value, throws when the bounds check fails.
 ValueNumFuncDef(InvalidCastExc, 2, false, false, false)     // Args: 0: ref value being cast; 1: handle of type being cast to.  Represents the exception thrown if the cast fails.
 ValueNumFuncDef(NewArrOverflowExc, 1, false, false, false)  // Raises Integer overflow when Arg 0 is negative
 ValueNumFuncDef(HelperMultipleExc, 0, false, false, false)  // Represents one or more different exceptions that may be thrown by a JitHelper

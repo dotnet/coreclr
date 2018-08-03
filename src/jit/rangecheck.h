@@ -191,7 +191,7 @@ struct Limit
                 return "Dependent";
 
             case keBinOpArray:
-                sprintf_s(buf, size, "VN%04X + %d", vn, cns);
+                sprintf_s(buf, size, STR_VN "%x + %d", vn, cns);
                 return buf;
 
             case keConstant:

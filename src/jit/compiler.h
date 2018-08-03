@@ -4154,12 +4154,10 @@ public:
     // Assumes that all inputs to "tree" have had value numbers assigned; assigns a VN to tree.
     // (With some exceptions: the VN of the lhs of an assignment is assigned as part of the
     // assignment.)
-    // If "evalAsgLhsInd" is true, evaluate a GT_IND node, even if it's labeled as the LHS of
-    // an assignment.
-    void fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd = false);
+    void fgValueNumberTree(GenTree* tree);
 
     // Does value-numbering for a block assignment.
-    void fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd);
+    void fgValueNumberBlockAssignment(GenTree* tree);
 
     // Does value-numbering for a cast tree.
     void fgValueNumberCastTree(GenTree* tree);
@@ -5683,7 +5681,7 @@ protected:
     {
         CSEdsc* csdNextInBucket; // used by the hash table
 
-        unsigned csdHashValue; // the orginal hashkey
+        unsigned csdHashKey; // the Hash Key - we usually use the normal liberal ValueNumber of csdTree
 
         unsigned csdIndex;          // 1..optCSECandidateCount
         char     csdLiveAcrossCall; // 0 or 1
@@ -5701,8 +5699,10 @@ protected:
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
         treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
 
-        ValueNum defConservativeVN; // if all def occurrences share the same conservative value
-                                    // number, this will reflect it; otherwise, NoVN.
+        ValueNum defLiberalExcVN;  // if all def occurrences share the same liberal exc set value
+                                   // number, this will reflect it; Set to NoVN whenever we saw different values
+        ValueNum defConservNormVN; // if all def occurrences share the same conservative normal value
+                                   // number, this will reflect it; otherwise, NoVN.
     };
 
     static const size_t s_optCSEhashSize;

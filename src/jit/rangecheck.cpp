@@ -75,10 +75,10 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTree* upper)
     ValueNumStore* vnStore = m_pCompiler->vnStore;
 
     // Get the VN for the upper limit.
-    ValueNum uLimitVN = upper->gtVNPair.GetConservative();
+    ValueNum uLimitVN = m_pCompiler->vnStore->VNNormVal(upper->gtVNPair.GetConservative());
 
 #ifdef DEBUG
-    JITDUMP("VN%04X upper bound is: ", uLimitVN);
+    JITDUMP(FMT_VN " upper bound is: ", uLimitVN);
     if (m_pCompiler->verbose)
     {
         vnStore->vnDump(m_pCompiler, uLimitVN);
@@ -208,8 +208,8 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
     GenTree* treeIndex        = bndsChk->gtIndex;
 
     // Take care of constant index first, like a[2], for example.
-    ValueNum idxVn    = treeIndex->gtVNPair.GetConservative();
-    ValueNum arrLenVn = bndsChk->gtArrLen->gtVNPair.GetConservative();
+    ValueNum idxVn    = m_pCompiler->vnStore->VNNormVal(treeIndex->gtVNPair.GetConservative());
+    ValueNum arrLenVn = m_pCompiler->vnStore->VNNormVal(bndsChk->gtArrLen->gtVNPair.GetConservative());
     int      arrSize  = 0;
 
     if (m_pCompiler->vnStore->IsVNConstant(arrLenVn))
@@ -234,7 +234,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
         arrSize = GetArrLength(arrLenVn);
     }
 
-    JITDUMP("ArrSize for lengthVN:%03X = %d\n", arrLenVn, arrSize);
+    JITDUMP("ArrSize for lengthVN: " FMT_VN " is %d\n", arrLenVn, arrSize);
     if (m_pCompiler->vnStore->IsVNConstant(idxVn) && (arrSize > 0))
     {
         ssize_t  idxVal    = -1;
@@ -244,7 +244,7 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
             return;
         }
 
-        JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn VN%X sz:%d>.\n", idxVal, arrLenVn,
+        JITDUMP("[RangeCheck::OptimizeRangeCheck] Is index %d in <0, arrLenVn " FMT_VN " sz:%d>.\n", idxVal, arrLenVn,
                 arrSize);
         if ((idxVal < arrSize) && (idxVal >= 0))
         {
@@ -642,8 +642,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
             m_pCompiler->optPrintAssertion(curAssertion, assertionIndex);
         }
 #endif
-
-        ValueNum arrLenVN = m_pCurBndsChk->gtArrLen->gtVNPair.GetConservative();
+        ValueNum arrLenVN = m_pCompiler->vnStore->VNNormVal(m_pCurBndsChk->gtArrLen->gtVNPair.GetConservative());
 
         if (m_pCompiler->vnStore->IsVNConstant(arrLenVN))
         {
@@ -704,7 +703,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
 
             if (limit.vn != arrLenVN)
             {
-                JITDUMP("Array length VN did not match cur=$%x, assert=$%x\n", arrLenVN, limit.vn);
+                JITDUMP("Array length VN did not match cur=" FMT_VN ", assert=" FMT_VN "\n", arrLenVN, limit.vn);
                 continue;
             }
 
@@ -760,8 +759,8 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
 // arguments. If not a phi argument, check if we assertions about local variables.
 void RangeCheck::MergeAssertion(BasicBlock* block, GenTree* op, Range* pRange DEBUGARG(int indent))
 {
-    JITDUMP("Merging assertions from pred edges of BB%02d for op [%06d] $%03x\n", block->bbNum, Compiler::dspTreeID(op),
-            op->gtVNPair.GetConservative());
+    JITDUMP("Merging assertions from pred edges of BB%02d for op [%06d] " FMT_VN "\n", block->bbNum,
+            Compiler::dspTreeID(op), op->gtVNPair.GetConservative());
     ASSERT_TP assertions = BitVecOps::UninitVal();
 
     // If we have a phi arg, we can get to the block from it and use its assertion out.
@@ -1104,7 +1103,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
     bool  newlyAdded = !m_pSearchPath->Set(expr, block);
     Range range      = Limit(Limit::keUndef);
 
-    ValueNum vn = expr->gtVNPair.GetConservative();
+    ValueNum vn = m_pCompiler->vnStore->VNNormVal(expr->gtVNPair.GetConservative());
     // If newly added in the current search path, then reduce the budget.
     if (newlyAdded)
     {

@@ -16914,6 +16914,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
 
     if (hasTrueExpr)
     {
+        // ToDo: Clear the GTF_COLON_COND flags
         if (dst != nullptr)
         {
             trueExpr = gtNewTempAssign(lclNum, trueExpr);
@@ -16925,6 +16926,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
     // Assign the falseExpr into the dst or tmp, insert in elseBlock
     if (hasFalseExpr)
     {
+        // ToDo: Clear the GTF_COLON_COND flags
         if (dst != nullptr)
         {
             falseExpr = gtNewTempAssign(lclNum, falseExpr);
