@@ -314,6 +314,11 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __AppendToLog=true
 )
 
+REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
+REM drastically fewer Pri-1 tests than expected.
+echo %__MsgPrefix%Check the managed tests build
+call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:Priority=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+
 :SkipManagedBuild
 REM Prepare the Test Drop
 REM Cleans any NI from the last run
