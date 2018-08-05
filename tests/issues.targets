@@ -196,6 +196,9 @@
         <ExcludeList Include="$(XunitTestBinBase)\baseservices\varargs\varargsupport_r\varargsupport_r.cmd">
             <Issue>Varargs supported on this platform</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\COM\NETClients\Primitives\NETClientPrimitives\NETClientPrimitives.cmd">
+            <Issue>19164</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are x86 failures -->
