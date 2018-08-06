@@ -72,10 +72,9 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
-                testStruct._fld1 = (ulong)(random.Next(0, int.MaxValue));
-                testStruct._fld2 = (ulong)(random.Next(0, int.MaxValue));
+                testStruct._fld1 = TestLibrary.Generator.GetUInt64();
+                testStruct._fld2 = TestLibrary.Generator.GetUInt64();
 
                 return testStruct;
             }
@@ -98,22 +97,19 @@ namespace JIT.HardwareIntrinsics.X86
 
         static ScalarBinaryOpTest__AndNotUInt64()
         {
-            var random = new Random();
-            _clsVar1 = (ulong)(random.Next(0, int.MaxValue));
-            _clsVar2 = (ulong)(random.Next(0, int.MaxValue));
+            _clsVar1 = TestLibrary.Generator.GetUInt64();
+            _clsVar2 = TestLibrary.Generator.GetUInt64();
         }
 
         public ScalarBinaryOpTest__AndNotUInt64()
         {
             Succeeded = true;
 
-            var random = new Random();
+            _fld1 = TestLibrary.Generator.GetUInt64();
+            _fld2 = TestLibrary.Generator.GetUInt64();
 
-            _fld1 = (ulong)(random.Next(0, int.MaxValue));
-            _fld2 = (ulong)(random.Next(0, int.MaxValue));
-
-            _data1 = (ulong)(random.Next(0, int.MaxValue));
-            _data2 = (ulong)(random.Next(0, int.MaxValue));
+            _data1 = TestLibrary.Generator.GetUInt64();
+            _data2 = TestLibrary.Generator.GetUInt64();
         }
 
         public bool IsSupported => Bmi1.IsSupported && (Environment.Is64BitProcess || ((typeof(UInt64) != typeof(long)) && (typeof(UInt64) != typeof(ulong))));
@@ -122,6 +118,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Bmi1.AndNot(
                 Unsafe.ReadUnaligned<UInt64>(ref Unsafe.As<UInt64, byte>(ref _data1)),
                 Unsafe.ReadUnaligned<UInt64>(ref Unsafe.As<UInt64, byte>(ref _data2))
@@ -132,6 +130,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Bmi1).GetMethod(nameof(Bmi1.AndNot), new Type[] { typeof(UInt64), typeof(UInt64) })
                                      .Invoke(null, new object[] {
                                         Unsafe.ReadUnaligned<UInt64>(ref Unsafe.As<UInt64, byte>(ref _data1)),
@@ -143,6 +143,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Bmi1.AndNot(
                 _clsVar1,
                 _clsVar2
@@ -153,6 +155,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var data1 = Unsafe.ReadUnaligned<UInt64>(ref Unsafe.As<UInt64, byte>(ref _data1));
             var data2 = Unsafe.ReadUnaligned<UInt64>(ref Unsafe.As<UInt64, byte>(ref _data2));
             var result = Bmi1.AndNot(data1, data2);
@@ -162,6 +166,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new ScalarBinaryOpTest__AndNotUInt64();
             var result = Bmi1.AndNot(test._fld1, test._fld2);
 
@@ -170,12 +176,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Bmi1.AndNot(_fld1, _fld2);
             ValidateResult(_fld1, _fld2, result);
         }
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Bmi1.AndNot(test._fld1, test._fld2);
 
@@ -184,12 +194,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -210,11 +224,11 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (isUnexpectedResult)
             {
-                Console.WriteLine($"{nameof(Bmi1)}.{nameof(Bmi1.AndNot)}<UInt64>(UInt64, UInt64): AndNot failed:");
-                Console.WriteLine($"    left: {left}");
-                Console.WriteLine($"   right: {right}");
-                Console.WriteLine($"  result: {result}");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Bmi1)}.{nameof(Bmi1.AndNot)}<UInt64>(UInt64, UInt64): AndNot failed:");
+                TestLibrary.TestFramework.LogInformation($"    left: {left}");
+                TestLibrary.TestFramework.LogInformation($"   right: {right}");
+                TestLibrary.TestFramework.LogInformation($"  result: {result}");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

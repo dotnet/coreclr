@@ -1449,8 +1449,6 @@ void Compiler::compShutdown()
     DisplayNowayAssertMap();
 #endif // MEASURE_NOWAY
 
-    ArenaAllocator::shutdown();
-
     /* Shut down the emitter */
 
     emitter::emitDone();
@@ -4697,7 +4695,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     // You can test the value of the following variable to see if
     // the local variable ref counts must be updated
     //
-    assert(lvaLocalVarRefCounted == true);
+    assert(lvaLocalVarRefCounted());
 
     if (!opts.MinOpts() && !opts.compDbgCode)
     {
@@ -6623,7 +6621,6 @@ START:
     }
     else
     {
-        alloc.initialize(compHnd->getMemoryManager());
         pAlloc = &alloc;
     }
 

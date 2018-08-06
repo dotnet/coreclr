@@ -7,16 +7,19 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    class XmlDumper : Dumper
+    public class XmlDumper : Dumper
     {
-        private XmlDocument _xmlDocument;
+        public XmlDocument XmlDocument { get; }
         private XmlNode _rootNode;
+        private bool _ignoreSensitive;
+        private XmlAttributeOverrides _ignoredProperties;
 
-        public XmlDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
+        public XmlDumper(bool ignoreSensitive, R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
         {
+            _ignoreSensitive = ignoreSensitive;
             _r2r = r2r;
             _writer = writer;
-            _xmlDocument = new XmlDocument();
+            XmlDocument = new XmlDocument();
 
             _raw = raw;
             _header = header;
@@ -25,17 +28,45 @@ namespace R2RDump
             _unwind = unwind;
             _gc = gc;
             _sectionContents = sectionContents;
+
+            _ignoredProperties = new XmlAttributeOverrides();
+            XmlAttributes attrs = new XmlAttributes();
+            attrs.XmlIgnore = _ignoreSensitive;
+            _ignoredProperties.Add(typeof(R2RHeader), "RelativeVirtualAddress", attrs);
+            _ignoredProperties.Add(typeof(R2RHeader), "Size", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SectionRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SectionSize", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "EntrySize", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "SignatureRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection), "AuxiliaryDataRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection.ImportSectionEntry), "SignatureSample", attrs);
+            _ignoredProperties.Add(typeof(R2RImportSection.ImportSectionEntry), "SignatureRVA", attrs);
+            _ignoredProperties.Add(typeof(RuntimeFunction), "StartAddress", attrs);
+            _ignoredProperties.Add(typeof(RuntimeFunction), "UnwindRVA", attrs);
+            _ignoredProperties.Add(typeof(R2RSection), "RelativeVirtualAddress", attrs);
+            _ignoredProperties.Add(typeof(R2RSection), "Size", attrs);
+        }
+
+        public XmlDocument GetXmlDocument()
+        {
+            Begin();
+            DumpHeader(true);
+            DumpAllMethods();
+            return XmlDocument;
         }
 
         internal override void Begin()
         {
-            _rootNode = _xmlDocument.CreateNode("element", "R2RDump", "");
-            _xmlDocument.AppendChild(_rootNode);
+            _rootNode = XmlDocument.CreateNode("element", "R2RDump", "");
+            XmlDocument.AppendChild(_rootNode);
             Serialize(_r2r, _rootNode);
         }
 
         internal override void End() {
-            _xmlDocument.Save(_writer);
+            if (_writer != null)
+            {
+                XmlDocument.Save(_writer);
+            }
         }
 
         internal override void WriteDivider(string title)
@@ -55,7 +86,7 @@ namespace R2RDump
         /// </summary>
         internal override void DumpHeader(bool dumpSections)
         {
-            XmlNode headerNode = _xmlDocument.CreateNode("element", "Header", "");
+            XmlNode headerNode = XmlDocument.CreateNode("element", "Header", "");
             _rootNode.AppendChild(headerNode);
             Serialize(_r2r.R2RHeader, headerNode);
 
@@ -66,7 +97,7 @@ namespace R2RDump
 
             if (dumpSections)
             {
-                XmlNode sectionsNode = _xmlDocument.CreateNode("element", "Sections", "");
+                XmlNode sectionsNode = XmlDocument.CreateNode("element", "Sections", "");
                 _rootNode.AppendChild(sectionsNode);
                 AddXMLNode("Count", _r2r.R2RHeader.Sections.Count.ToString(), sectionsNode);
 
@@ -82,7 +113,9 @@ namespace R2RDump
         /// </summary>
         internal override void DumpSection(R2RSection section, XmlNode parentNode)
         {
-            XmlNode sectionNode = _xmlDocument.CreateNode("element", "Section", "");
+            XmlNode sectionNode = XmlDocument.CreateNode("element", "Section", "");
+            AddXMLAttribute(sectionNode, "Index", $"{section.Type}");
+
             parentNode.AppendChild(sectionNode);
             Serialize(section, sectionNode);
 
@@ -98,9 +131,9 @@ namespace R2RDump
 
         internal override void DumpAllMethods()
         {
-            XmlNode methodsNode = _xmlDocument.CreateNode("element", "Methods", "");
+            XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
             _rootNode.AppendChild(methodsNode);
-            AddXMLNode("Count", _r2r.R2RMethods.Count.ToString(), methodsNode);
+            AddXMLAttribute(methodsNode, "Count", _r2r.R2RMethods.Count.ToString());
             foreach (R2RMethod method in _r2r.R2RMethods)
             {
                 DumpMethod(method, methodsNode);
@@ -112,13 +145,14 @@ namespace R2RDump
         /// </summary>
         internal override void DumpMethod(R2RMethod method, XmlNode parentNode)
         {
-            XmlNode methodNode = _xmlDocument.CreateNode("element", "Method", "");
+            XmlNode methodNode = XmlDocument.CreateNode("element", "Method", "");
+            AddXMLAttribute(methodNode, "Index", $"{method.Index}");
             parentNode.AppendChild(methodNode);
             Serialize(method, methodNode);
 
-            if (_gc)
+            if (_gc && method.GcInfo != null)
             {
-                XmlNode gcNode = _xmlDocument.CreateNode("element", "GcInfo", "");
+                XmlNode gcNode = XmlDocument.CreateNode("element", "GcInfo", "");
                 methodNode.AppendChild(gcNode);
                 Serialize(method.GcInfo, gcNode);
 
@@ -134,7 +168,7 @@ namespace R2RDump
             }
 
             XmlNode rtfsNode = null;
-            rtfsNode = _xmlDocument.CreateNode("element", "RuntimeFunctions", "");
+            rtfsNode = XmlDocument.CreateNode("element", "RuntimeFunctions", "");
             methodNode.AppendChild(rtfsNode);
 
             foreach (RuntimeFunction runtimeFunction in method.RuntimeFunctions)
@@ -148,7 +182,8 @@ namespace R2RDump
         /// </summary>
         internal override void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode)
         {
-            XmlNode rtfNode = _xmlDocument.CreateNode("element", "RuntimeFunction", "");
+            XmlNode rtfNode = XmlDocument.CreateNode("element", "RuntimeFunction", "");
+            AddXMLAttribute(rtfNode, "Index", $"{rtf.Id}");
             parentNode.AppendChild(rtfNode);
             AddXMLNode("MethodRid", rtf.Method.Rid.ToString(), rtfNode);
             Serialize(rtf, rtfNode);
@@ -162,10 +197,10 @@ namespace R2RDump
             {
                 DumpBytes(rtf.StartAddress, (uint)rtf.Size, rtfNode);
             }
-            if (_unwind)
+            if (_unwind && rtf.UnwindInfo != null)
             {
                 XmlNode unwindNode = null;
-                unwindNode = _xmlDocument.CreateNode("element", "UnwindInfo", "");
+                unwindNode = XmlDocument.CreateNode("element", "UnwindInfo", "");
                 rtfNode.AppendChild(unwindNode);
                 Serialize(rtf.UnwindInfo, unwindNode);
 
@@ -187,10 +222,10 @@ namespace R2RDump
                 string instr;
                 int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
 
-                AddXMLNode("offset"+codeOffset, instr, parentNode);
+                AddXMLNode("offset"+codeOffset, instr, parentNode, $"{codeOffset}");
                 if (transitions.ContainsKey(codeOffset))
                 {
-                    AddXMLNode("Transition", transitions[codeOffset].GetSlotState(slotTable), parentNode);
+                    AddXMLNode("Transition", transitions[codeOffset].GetSlotState(slotTable), parentNode, $"{codeOffset}");
                 }
 
                 CoreDisTools.ClearOutputBuffer();
@@ -220,33 +255,35 @@ namespace R2RDump
                 {
                     sb.Append($" {_r2r.Image[start + i]:X2}");
                 }
-                AddXMLNode(name, sb.ToString(), parentNode);
+                AddXMLNode(name, sb.ToString(), parentNode, $"{start}");
                 return;
             }
         }
 
         internal override void DumpSectionContents(R2RSection section, XmlNode parentNode)
         {
-            XmlNode contentsNode = _xmlDocument.CreateNode("element", "Contents", "");
+            XmlNode contentsNode = XmlDocument.CreateNode("element", "Contents", "");
             parentNode.AppendChild(contentsNode);
 
             switch (section.Type)
             {
                 case R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES:
-
+                    int availableTypesId = 0;
                     foreach (string name in _r2r.AvailableTypes)
                     {
-                        AddXMLNode("AvailableType", name, contentsNode);
+                        AddXMLNode("AvailableType", name, contentsNode, $"{availableTypesId++}");
                     }
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS:
+                    if (_ignoreSensitive)
+                        break;
                     int rtfOffset = _r2r.GetOffset(section.RelativeVirtualAddress);
                     int rtfEndOffset = rtfOffset + section.Size;
                     int rtfIndex = 0;
                     while (rtfOffset < rtfEndOffset)
                     {
                         uint rva = NativeReader.ReadUInt32(_r2r.Image, ref rtfOffset);
-                        AddXMLNode($"id{rtfIndex}", $"0x{rva:X8}", contentsNode);
+                        AddXMLNode($"id{rtfIndex}", $"0x{rva:X8}", contentsNode, $"{rtfIndex}");
                         rtfIndex++;
                     }
                     break;
@@ -256,25 +293,29 @@ namespace R2RDump
                 case R2RSection.SectionType.READYTORUN_SECTION_IMPORT_SECTIONS:
                     foreach (R2RImportSection importSection in _r2r.ImportSections)
                     {
-                        Serialize(importSection, contentsNode);
+                        XmlNode importSectionsNode = XmlDocument.CreateNode("element", "ImportSection", "");
+                        AddXMLAttribute(importSectionsNode, "Index", $"{importSection.Index}");
+                        contentsNode.AppendChild(importSectionsNode);
+
+                        Serialize(importSection, importSectionsNode);
                         if (_raw && importSection.Entries.Count != 0)
                         {
                             if (importSection.SectionRVA != 0)
                             {
-                                DumpBytes(importSection.SectionRVA, (uint)importSection.SectionSize, contentsNode, "SectionBytes");
+                                DumpBytes(importSection.SectionRVA, (uint)importSection.SectionSize, importSectionsNode, "SectionBytes");
                             }
                             if (importSection.SignatureRVA != 0)
                             {
-                                DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int), contentsNode, "SignatureBytes");
+                                DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int), importSectionsNode, "SignatureBytes");
                             }
                             if (importSection.AuxiliaryDataRVA != 0)
                             {
-                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, contentsNode, "AuxiliaryDataBytes");
+                                DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size, importSectionsNode, "AuxiliaryDataBytes");
                             }
                         }
                         foreach (R2RImportSection.ImportSectionEntry entry in importSection.Entries)
                         {
-                            Serialize(entry, contentsNode);
+                            Serialize(entry, importSectionsNode);
                         }
                     }
                     break;
@@ -283,10 +324,10 @@ namespace R2RDump
 
         internal override XmlNode DumpQueryCount(string q, string title, int count)
         {
-            XmlNode queryNode = _xmlDocument.CreateNode("element", title, "");
+            XmlNode queryNode = XmlDocument.CreateNode("element", title, "");
             _rootNode.AppendChild(queryNode);
-            AddXMLNode("Query", q, queryNode);
-            AddXMLNode("Count", count.ToString(), queryNode);
+            AddXMLAttribute(queryNode, "Query", q);
+            AddXMLAttribute(queryNode, "Count", count.ToString());
             return queryNode;
         }
 
@@ -295,17 +336,28 @@ namespace R2RDump
             using (XmlWriter xmlWriter = node.CreateNavigator().AppendChild())
             {
                 xmlWriter.WriteWhitespace("");
-                XmlSerializer Serializer = new XmlSerializer(obj.GetType());
+                XmlSerializer Serializer = new XmlSerializer(obj.GetType(), _ignoredProperties);
                 Serializer.Serialize(xmlWriter, obj);
             }
         }
 
-        private XmlNode AddXMLNode(String name, String contents, XmlNode parentNode)
+        private XmlNode AddXMLNode(String name, String contents, XmlNode parentNode, string index = "")
         {
-            XmlNode node = _xmlDocument.CreateNode("element", name, "");
+            XmlNode node = XmlDocument.CreateNode("element", name, "");
+            if (!index.Equals(""))
+            {
+                AddXMLAttribute(node, "Index", index);
+            }
             parentNode.AppendChild(node);
             node.InnerText = contents;
             return node;
+        }
+
+        private void AddXMLAttribute(XmlNode node, string name, string value)
+        {
+            XmlAttribute attr = XmlDocument.CreateAttribute(name);
+            attr.Value = value;
+            node.Attributes.SetNamedItem(attr);
         }
     }
 }

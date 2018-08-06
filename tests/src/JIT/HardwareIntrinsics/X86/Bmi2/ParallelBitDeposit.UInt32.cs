@@ -72,10 +72,9 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
-                testStruct._fld1 = (uint)(random.Next(0, int.MaxValue));
-                testStruct._fld2 = (uint)(random.Next(0, int.MaxValue));
+                testStruct._fld1 = TestLibrary.Generator.GetUInt32();
+                testStruct._fld2 = TestLibrary.Generator.GetUInt32();
 
                 return testStruct;
             }
@@ -98,22 +97,19 @@ namespace JIT.HardwareIntrinsics.X86
 
         static ScalarBinaryOpTest__ParallelBitDepositUInt32()
         {
-            var random = new Random();
-            _clsVar1 = (uint)(random.Next(0, int.MaxValue));
-            _clsVar2 = (uint)(random.Next(0, int.MaxValue));
+            _clsVar1 = TestLibrary.Generator.GetUInt32();
+            _clsVar2 = TestLibrary.Generator.GetUInt32();
         }
 
         public ScalarBinaryOpTest__ParallelBitDepositUInt32()
         {
             Succeeded = true;
 
-            var random = new Random();
+            _fld1 = TestLibrary.Generator.GetUInt32();
+            _fld2 = TestLibrary.Generator.GetUInt32();
 
-            _fld1 = (uint)(random.Next(0, int.MaxValue));
-            _fld2 = (uint)(random.Next(0, int.MaxValue));
-
-            _data1 = (uint)(random.Next(0, int.MaxValue));
-            _data2 = (uint)(random.Next(0, int.MaxValue));
+            _data1 = TestLibrary.Generator.GetUInt32();
+            _data2 = TestLibrary.Generator.GetUInt32();
         }
 
         public bool IsSupported => Bmi2.IsSupported && (Environment.Is64BitProcess || ((typeof(UInt32) != typeof(long)) && (typeof(UInt32) != typeof(ulong))));
@@ -122,6 +118,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Bmi2.ParallelBitDeposit(
                 Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data1)),
                 Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data2))
@@ -132,6 +130,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Bmi2).GetMethod(nameof(Bmi2.ParallelBitDeposit), new Type[] { typeof(UInt32), typeof(UInt32) })
                                      .Invoke(null, new object[] {
                                         Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data1)),
@@ -143,6 +143,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Bmi2.ParallelBitDeposit(
                 _clsVar1,
                 _clsVar2
@@ -153,6 +155,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var data1 = Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data1));
             var data2 = Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data2));
             var result = Bmi2.ParallelBitDeposit(data1, data2);
@@ -162,6 +166,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new ScalarBinaryOpTest__ParallelBitDepositUInt32();
             var result = Bmi2.ParallelBitDeposit(test._fld1, test._fld2);
 
@@ -170,12 +176,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Bmi2.ParallelBitDeposit(_fld1, _fld2);
             ValidateResult(_fld1, _fld2, result);
         }
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Bmi2.ParallelBitDeposit(test._fld1, test._fld2);
 
@@ -184,12 +194,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -232,11 +246,11 @@ isUnexpectedResult = (dest != result);
 
             if (isUnexpectedResult)
             {
-                Console.WriteLine($"{nameof(Bmi2)}.{nameof(Bmi2.ParallelBitDeposit)}<UInt32>(UInt32, UInt32): ParallelBitDeposit failed:");
-                Console.WriteLine($"    left: {left}");
-                Console.WriteLine($"   right: {right}");
-                Console.WriteLine($"  result: {result}");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Bmi2)}.{nameof(Bmi2.ParallelBitDeposit)}<UInt32>(UInt32, UInt32): ParallelBitDeposit failed:");
+                TestLibrary.TestFramework.LogInformation($"    left: {left}");
+                TestLibrary.TestFramework.LogInformation($"   right: {right}");
+                TestLibrary.TestFramework.LogInformation($"  result: {result}");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

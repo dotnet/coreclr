@@ -71,9 +71,8 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
-                testStruct._fld = (uint)(random.Next(0, int.MaxValue));
+                testStruct._fld = TestLibrary.Generator.GetUInt32();
                 return testStruct;
             }
 
@@ -100,17 +99,15 @@ namespace JIT.HardwareIntrinsics.X86
 
         static ScalarSimdUnaryOpTest__SetAllVector128UInt32()
         {
-            var random = new Random();
-            _clsVar = (uint)(random.Next(0, int.MaxValue));
+            _clsVar = TestLibrary.Generator.GetUInt32();
         }
 
         public ScalarSimdUnaryOpTest__SetAllVector128UInt32()
         {
             Succeeded = true;
 
-            var random = new Random();
-            _fld = (uint)(random.Next(0, int.MaxValue));
-            _data = (uint)(random.Next(0, int.MaxValue));
+            _fld = TestLibrary.Generator.GetUInt32();
+            _data = TestLibrary.Generator.GetUInt32();
             _dataTable = new ScalarSimdUnaryOpTest__DataTable<UInt32>(new UInt32[RetElementCount], LargestVectorSize);
         }
 
@@ -120,6 +117,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse2.SetAllVector128(
                 Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data))
             );
@@ -130,6 +129,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse2).GetMethod(nameof(Sse2.SetAllVector128), new Type[] { typeof(UInt32) })
                                      .Invoke(null, new object[] {
                                         Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data))
@@ -141,6 +142,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse2.SetAllVector128(
                 _clsVar
             );
@@ -151,6 +154,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var data = Unsafe.ReadUnaligned<UInt32>(ref Unsafe.As<UInt32, byte>(ref _data));
             var result = Sse2.SetAllVector128(data);
 
@@ -160,6 +165,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new ScalarSimdUnaryOpTest__SetAllVector128UInt32();
             var result = Sse2.SetAllVector128(test._fld);
 
@@ -169,6 +176,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse2.SetAllVector128(_fld);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -177,6 +186,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Sse2.SetAllVector128(test._fld);
 
@@ -186,12 +197,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -233,10 +248,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<UInt32>(Vector128<UInt32>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<UInt32>(Vector128<UInt32>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

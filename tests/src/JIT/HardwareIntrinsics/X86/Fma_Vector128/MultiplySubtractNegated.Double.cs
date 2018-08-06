@@ -100,7 +100,6 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
                 for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
                 Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Double>, byte>(ref testStruct._fld1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Double>>());
@@ -144,8 +143,6 @@ namespace JIT.HardwareIntrinsics.X86
 
         static SimpleTernaryOpTest__MultiplySubtractNegatedDouble()
         {
-            var random = new Random();
-
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Double>, byte>(ref _clsVar1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Double>>());
             for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetDouble(); }
@@ -157,8 +154,6 @@ namespace JIT.HardwareIntrinsics.X86
         public SimpleTernaryOpTest__MultiplySubtractNegatedDouble()
         {
             Succeeded = true;
-
-            var random = new Random();
 
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Double>, byte>(ref _fld1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Double>>());
@@ -179,6 +174,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Fma.MultiplySubtractNegated(
                 Unsafe.Read<Vector128<Double>>(_dataTable.inArray1Ptr),
                 Unsafe.Read<Vector128<Double>>(_dataTable.inArray2Ptr),
@@ -191,6 +188,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Fma.MultiplySubtractNegated(
                 Sse2.LoadVector128((Double*)(_dataTable.inArray1Ptr)),
                 Sse2.LoadVector128((Double*)(_dataTable.inArray2Ptr)),
@@ -203,6 +202,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Fma.MultiplySubtractNegated(
                 Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray1Ptr)),
                 Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray2Ptr)),
@@ -215,6 +216,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Fma).GetMethod(nameof(Fma.MultiplySubtractNegated), new Type[] { typeof(Vector128<Double>), typeof(Vector128<Double>), typeof(Vector128<Double>) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<Double>>(_dataTable.inArray1Ptr),
@@ -228,6 +231,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Fma).GetMethod(nameof(Fma.MultiplySubtractNegated), new Type[] { typeof(Vector128<Double>), typeof(Vector128<Double>), typeof(Vector128<Double>) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadVector128((Double*)(_dataTable.inArray1Ptr)),
@@ -241,6 +246,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Fma).GetMethod(nameof(Fma.MultiplySubtractNegated), new Type[] { typeof(Vector128<Double>), typeof(Vector128<Double>), typeof(Vector128<Double>) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray1Ptr)),
@@ -254,6 +261,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Fma.MultiplySubtractNegated(
                 _clsVar1,
                 _clsVar2,
@@ -266,6 +275,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector128<Double>>(_dataTable.inArray1Ptr);
             var secondOp = Unsafe.Read<Vector128<Double>>(_dataTable.inArray2Ptr);
             var thirdOp = Unsafe.Read<Vector128<Double>>(_dataTable.inArray3Ptr);
@@ -277,6 +288,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Sse2.LoadVector128((Double*)(_dataTable.inArray1Ptr));
             var secondOp = Sse2.LoadVector128((Double*)(_dataTable.inArray2Ptr));
             var thirdOp = Sse2.LoadVector128((Double*)(_dataTable.inArray3Ptr));
@@ -288,6 +301,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray1Ptr));
             var secondOp = Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray2Ptr));
             var thirdOp = Sse2.LoadAlignedVector128((Double*)(_dataTable.inArray3Ptr));
@@ -299,6 +314,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new SimpleTernaryOpTest__MultiplySubtractNegatedDouble();
             var result = Fma.MultiplySubtractNegated(test._fld1, test._fld2, test._fld3);
 
@@ -308,6 +325,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Fma.MultiplySubtractNegated(_fld1, _fld2, _fld3);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -316,6 +335,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Fma.MultiplySubtractNegated(test._fld1, test._fld2, test._fld3);
 
@@ -325,12 +346,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -393,12 +418,12 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Fma)}.{nameof(Fma.MultiplySubtractNegated)}<Double>(Vector128<Double>, Vector128<Double>, Vector128<Double>): {method} failed:");
-                Console.WriteLine($"   firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"  secondOp: ({string.Join(", ", secondOp)})");
-                Console.WriteLine($"   thirdOp: ({string.Join(", ", thirdOp)})");
-                Console.WriteLine($"    result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Fma)}.{nameof(Fma.MultiplySubtractNegated)}<Double>(Vector128<Double>, Vector128<Double>, Vector128<Double>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"   firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"  secondOp: ({string.Join(", ", secondOp)})");
+                TestLibrary.TestFramework.LogInformation($"   thirdOp: ({string.Join(", ", thirdOp)})");
+                TestLibrary.TestFramework.LogInformation($"    result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

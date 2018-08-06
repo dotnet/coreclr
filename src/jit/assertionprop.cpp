@@ -130,7 +130,7 @@ void Compiler::optAddCopies()
         }
 
         // We require that the weighted ref count be significant.
-        if (varDsc->lvRefCntWtd <= (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT / 2))
+        if (varDsc->lvRefCntWtd() <= (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT / 2))
         {
             continue;
         }
@@ -144,7 +144,7 @@ void Compiler::optAddCopies()
         BlockSet paramImportantUseDom(BlockSetOps::MakeFull(this));
 
         // This will be threshold for determining heavier-than-average uses
-        unsigned paramAvgWtdRefDiv2 = (varDsc->lvRefCntWtd + varDsc->lvRefCnt / 2) / (varDsc->lvRefCnt * 2);
+        unsigned paramAvgWtdRefDiv2 = (varDsc->lvRefCntWtd() + varDsc->lvRefCnt() / 2) / (varDsc->lvRefCnt() * 2);
 
         bool paramFoundImportantUse = false;
 
@@ -2698,7 +2698,7 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
         gtDispTree(newTree, nullptr, nullptr, true);
     }
 #endif
-    if (lvaLocalVarRefCounted)
+    if (lvaLocalVarRefCounted())
     {
         lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
     }
@@ -2812,7 +2812,7 @@ GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
     }
 
     // If global assertion prop, by now we should have ref counts, fix them.
-    if (lvaLocalVarRefCounted)
+    if (lvaLocalVarRefCounted())
     {
         lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
         lvaTable[copyLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
@@ -4605,18 +4605,40 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 {
     // If we have side effects, extract them and append newTree to the list.
     GenTree* sideEffList = nullptr;
-    if (oldTree->gtFlags & GTF_PERSISTENT_SIDE_EFFECTS)
+    if ((oldTree->gtFlags & GTF_SIDE_EFFECT) != 0)
     {
-        gtExtractSideEffList(oldTree, &sideEffList, GTF_PERSISTENT_SIDE_EFFECTS_IN_CSE);
+        bool ignoreRoot = false;
+
+        if (oldTree == newTree)
+        {
+            // If the caller passed the same tree as both old and new then it means
+            // that it expects that the root of the tree has no side effects and it
+            // won't be extracted. Otherwise the resulting comma tree would be invalid,
+            // having both op1 and op2 point to the same tree.
+            //
+            // Do a sanity check to ensure persistent side effects aren't discarded and
+            // tell gtExtractSideEffList to ignore the root of the tree.
+            assert(!gtNodeHasSideEffects(oldTree, GTF_PERSISTENT_SIDE_EFFECTS));
+            //
+            // Exception side effects may be ignored if the root is known to be a constant
+            // (e.g. VN may evaluate a DIV/MOD node to a constant and the node may still
+            // have GTF_EXCEPT set, even if it does not actually throw any exceptions).
+            assert(!gtNodeHasSideEffects(oldTree, GTF_EXCEPT) ||
+                   vnStore->IsVNConstant(oldTree->gtVNPair.GetConservative()));
+
+            ignoreRoot = true;
+        }
+
+        gtExtractSideEffList(oldTree, &sideEffList, GTF_SIDE_EFFECT, ignoreRoot);
     }
-    if (sideEffList)
+    if (sideEffList != nullptr)
     {
-        noway_assert(sideEffList->gtFlags & GTF_SIDE_EFFECT);
+        noway_assert((sideEffList->gtFlags & GTF_SIDE_EFFECT) != 0);
 
         // Increment the ref counts as we want to keep the side effects.
         lvaRecursiveIncRefCounts(sideEffList);
 
-        if (newTree)
+        if (newTree != nullptr)
         {
             newTree = gtNewOperNode(GT_COMMA, newTree->TypeGet(), sideEffList, newTree);
         }

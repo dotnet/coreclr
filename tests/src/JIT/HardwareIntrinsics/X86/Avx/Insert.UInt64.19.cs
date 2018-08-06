@@ -98,7 +98,6 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
                 for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)0; }
                 Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref testStruct._fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
@@ -130,8 +129,6 @@ namespace JIT.HardwareIntrinsics.X86
 
         static InsertScalarTest__InsertUInt6419()
         {
-            var random = new Random();
-
             for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)0; }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref _clsVar), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
         }
@@ -139,8 +136,6 @@ namespace JIT.HardwareIntrinsics.X86
         public InsertScalarTest__InsertUInt6419()
         {
             Succeeded = true;
-
-            var random = new Random();
 
             for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)0; }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<UInt64>, byte>(ref _fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector256<UInt64>>());
@@ -155,6 +150,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Avx.Insert(
                 Unsafe.Read<Vector256<UInt64>>(_dataTable.inArrayPtr),
                 (ulong)2,
@@ -167,6 +164,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Avx.Insert(
                 Avx.LoadVector256((UInt64*)(_dataTable.inArrayPtr)),
                 (ulong)2,
@@ -179,6 +178,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Avx.Insert(
                 Avx.LoadAlignedVector256((UInt64*)(_dataTable.inArrayPtr)),
                 (ulong)2,
@@ -191,6 +192,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Avx).GetMethod(nameof(Avx.Insert), new Type[] { typeof(Vector256<UInt64>), typeof(UInt64), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector256<UInt64>>(_dataTable.inArrayPtr),
@@ -204,6 +207,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Avx).GetMethod(nameof(Avx.Insert), new Type[] { typeof(Vector256<UInt64>), typeof(UInt64), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Avx.LoadVector256((UInt64*)(_dataTable.inArrayPtr)),
@@ -217,6 +222,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Avx).GetMethod(nameof(Avx.Insert), new Type[] { typeof(Vector256<UInt64>), typeof(UInt64), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Avx.LoadAlignedVector256((UInt64*)(_dataTable.inArrayPtr)),
@@ -230,6 +237,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Avx.Insert(
                 _clsVar,
                 (ulong)2,
@@ -242,6 +251,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector256<UInt64>>(_dataTable.inArrayPtr);
             var result = Avx.Insert(firstOp, (ulong)2, 19);
 
@@ -251,6 +262,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Avx.LoadVector256((UInt64*)(_dataTable.inArrayPtr));
             var result = Avx.Insert(firstOp, (ulong)2, 19);
 
@@ -260,6 +273,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Avx.LoadAlignedVector256((UInt64*)(_dataTable.inArrayPtr));
             var result = Avx.Insert(firstOp, (ulong)2, 19);
 
@@ -269,6 +284,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new InsertScalarTest__InsertUInt6419();
             var result = Avx.Insert(test._fld, (ulong)2, 19);
 
@@ -278,6 +295,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Avx.Insert(_fld, (ulong)2, 19);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -286,6 +305,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Avx.Insert(test._fld, (ulong)2, 19);
 
@@ -295,12 +316,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -349,10 +374,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Avx)}.{nameof(Avx.Insert)}<UInt64>(Vector256<UInt64><9>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Avx)}.{nameof(Avx.Insert)}<UInt64>(Vector256<UInt64><9>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

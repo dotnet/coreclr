@@ -340,12 +340,10 @@ typedef unsigned char   regNumberSmall;
   #define CODE_ALIGN               1       // code alignment requirement
 #if !defined(UNIX_X86_ABI)
   #define STACK_ALIGN              4       // stack alignment requirement
-  #define STACK_ALIGN_SHIFT        2       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
-  #define STACK_ALIGN_SHIFT_ALL    2       // Shift-right amount to convert stack size in bytes to size in STACK_ALIGN units
+  #define STACK_ALIGN_SHIFT        2       // Shift-right amount to convert size in bytes to size in STACK_ALIGN units == log2(STACK_ALIGN)
 #else
   #define STACK_ALIGN              16      // stack alignment requirement
-  #define STACK_ALIGN_SHIFT        4       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
-  #define STACK_ALIGN_SHIFT_ALL    4       // Shift-right amount to convert stack size in bytes to size in STACK_ALIGN units
+  #define STACK_ALIGN_SHIFT        4       // Shift-right amount to convert size in bytes to size in STACK_ALIGN units == log2(STACK_ALIGN)
 #endif // !UNIX_X86_ABI
 
   #define RBM_INT_CALLEE_SAVED    (RBM_EBX|RBM_ESI|RBM_EDI)
@@ -602,8 +600,7 @@ typedef unsigned char   regNumberSmall;
 
   #define CODE_ALIGN               1       // code alignment requirement
   #define STACK_ALIGN              16      // stack alignment requirement
-  #define STACK_ALIGN_SHIFT        3       // Shift-right amount to convert stack size in bytes to size in pointer sized words
-  #define STACK_ALIGN_SHIFT_ALL    4       // Shift-right amount to convert stack size in bytes to size in STACK_ALIGN units
+  #define STACK_ALIGN_SHIFT        4       // Shift-right amount to convert size in bytes to size in STACK_ALIGN units == log2(STACK_ALIGN)
 
 #if ETW_EBP_FRAMED
   #define RBM_ETW_FRAMED_EBP        RBM_NONE
@@ -958,7 +955,6 @@ typedef unsigned char   regNumberSmall;
 
   #define CODE_ALIGN               2       // code alignment requirement
   #define STACK_ALIGN              8       // stack alignment requirement
-  #define STACK_ALIGN_SHIFT        2       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
 
   #define RBM_INT_CALLEE_SAVED    (RBM_R4|RBM_R5|RBM_R6|RBM_R7|RBM_R8|RBM_R9|RBM_R10)
   #define RBM_INT_CALLEE_TRASH    (RBM_R0|RBM_R1|RBM_R2|RBM_R3|RBM_R12|RBM_LR)
@@ -1266,7 +1262,6 @@ typedef unsigned char   regNumberSmall;
 
   #define CODE_ALIGN               4       // code alignment requirement
   #define STACK_ALIGN              16      // stack alignment requirement
-  #define STACK_ALIGN_SHIFT        3       // Shift-right amount to convert stack size in bytes to size in DWORD_PTRs
 
   #define RBM_INT_CALLEE_SAVED    (RBM_R19|RBM_R20|RBM_R21|RBM_R22|RBM_R23|RBM_R24|RBM_R25|RBM_R26|RBM_R27|RBM_R28)
   #define RBM_INT_CALLEE_TRASH    (RBM_R0|RBM_R1|RBM_R2|RBM_R3|RBM_R4|RBM_R5|RBM_R6|RBM_R7|RBM_R8|RBM_R9|RBM_R10|RBM_R11|RBM_R12|RBM_R13|RBM_R14|RBM_R15|RBM_IP0|RBM_IP1|RBM_LR)
@@ -1286,9 +1281,12 @@ typedef unsigned char   regNumberSmall;
   #define RBM_ALLFLOAT            (RBM_FLT_CALLEE_SAVED | RBM_FLT_CALLEE_TRASH)
   #define RBM_ALLDOUBLE            RBM_ALLFLOAT
 
-  #define REG_VAR_ORDER            REG_R9,REG_R10,REG_R11,REG_R12,REG_R13,REG_R14,REG_R15,\
-                                   REG_R8,REG_R7,REG_R6,REG_R5,REG_R4,REG_R3,REG_R2,REG_R1,REG_R0,\
-                                   REG_R19,REG_R20,REG_R21,REG_R22,REG_R23,REG_R24,REG_R25,REG_R26,REG_R27,REG_R28,\
+  // REG_VAR_ORDER is: (CALLEE_TRASH & ~CALLEE_TRASH_NOGC), CALLEE_TRASH_NOGC, CALLEE_SAVED
+  #define REG_VAR_ORDER            REG_R0, REG_R1, REG_R2, REG_R3, REG_R4, REG_R5, \
+                                   REG_R6, REG_R7, REG_R8, REG_R9, REG_R10,        \
+                                   REG_R11, REG_R13, REG_R14,                      \
+                                   REG_R12, REG_R15, REG_IP0, REG_IP1,             \
+                                   REG_CALLEE_SAVED_ORDER
 
   #define REG_VAR_ORDER_FLT        REG_V16, REG_V17, REG_V18, REG_V19, \
                                    REG_V20, REG_V21, REG_V22, REG_V23, \
@@ -1373,7 +1371,7 @@ typedef unsigned char   regNumberSmall;
   #define REG_WRITE_BARRIER_SRC_BYREF    REG_R13
   #define RBM_WRITE_BARRIER_SRC_BYREF    RBM_R13
 
-  #define RBM_CALLEE_TRASH_NOGC          (RBM_R12|RBM_R15|RBM_IP1|RBM_DEFAULT_HELPER_CALL_TARGET)
+  #define RBM_CALLEE_TRASH_NOGC          (RBM_R12|RBM_R15|RBM_IP0|RBM_IP1|RBM_DEFAULT_HELPER_CALL_TARGET)
 
   // Registers killed by CORINFO_HELP_ASSIGN_REF and CORINFO_HELP_CHECKED_ASSIGN_REF.
   #define RBM_CALLEE_TRASH_WRITEBARRIER         (RBM_R14|RBM_CALLEE_TRASH_NOGC)
@@ -1585,12 +1583,9 @@ C_ASSERT((FEATURE_TAILCALL_OPT == 0) || (FEATURE_FASTTAILCALL == 1));
 #if CPU_HAS_BYTE_REGS
   #define RBM_BYTE_REGS           (RBM_EAX|RBM_ECX|RBM_EDX|RBM_EBX)
   #define RBM_NON_BYTE_REGS       (RBM_ESI|RBM_EDI)
-  // We reuse the ESP register as a flag for byteable registers in lvPrefReg
-  #define RBM_BYTE_REG_FLAG        RBM_ESP
 #else
   #define RBM_BYTE_REGS            RBM_ALLINT
   #define RBM_NON_BYTE_REGS        RBM_NONE
-  #define RBM_BYTE_REG_FLAG        RBM_NONE
 #endif
 // clang-format on
 
@@ -1989,11 +1984,14 @@ C_ASSERT((RBM_INT_CALLEE_SAVED & RBM_FPBASE) == RBM_NONE);
 
 #ifdef _TARGET_64BIT_
 typedef unsigned __int64 target_size_t;
-#else
+typedef __int64          target_ssize_t;
+#else  // !_TARGET_64BIT_
 typedef unsigned int target_size_t;
-#endif
+typedef int          target_ssize_t;
+#endif // !_TARGET_64BIT_
 
 C_ASSERT(sizeof(target_size_t) == TARGET_POINTER_SIZE);
+C_ASSERT(sizeof(target_ssize_t) == TARGET_POINTER_SIZE);
 
 /*****************************************************************************/
 #endif // _TARGET_H_

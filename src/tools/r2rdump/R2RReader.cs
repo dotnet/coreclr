@@ -9,6 +9,7 @@ using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Text;
+using System.Xml.Serialization;
 
 namespace R2RDump
 {
@@ -40,6 +41,9 @@ namespace R2RDump
     /// </summary>
     public struct FixupCell
     {
+        [XmlAttribute("Index")]
+        public int Index { get; set; }
+
         /// <summary>
         /// Zero-based index of the import table within the import tables section.
         /// </summary>
@@ -51,8 +55,9 @@ namespace R2RDump
         /// </summary>
         public uint CellOffset;
 
-        public FixupCell(uint tableIndex, uint cellOffset)
+        public FixupCell(int index, uint tableIndex, uint cellOffset)
         {
+            Index = index;
             TableIndex = tableIndex;
             CellOffset = cellOffset;
         }
@@ -128,13 +133,18 @@ namespace R2RDump
                 IntPtr ptr = (IntPtr)p;
                 _peReader = new PEReader(p, Image.Length);
 
-                IsR2R = (_peReader.PEHeaders.CorHeader.Flags == CorFlags.ILLibrary);
+                IsR2R = ((_peReader.PEHeaders.CorHeader.Flags & CorFlags.ILLibrary) != 0);
                 if (!IsR2R)
                 {
                     throw new BadImageFormatException("The file is not a ReadyToRun image");
                 }
 
                 Machine = _peReader.PEHeaders.CoffHeader.Machine;
+				if (!Machine.IsDefined(typeof(Machine), Machine))
+                {
+                    Machine = Machine.Amd64;
+                    R2RDump.WriteWarning($"Invalid Machine: {Machine}");
+                }
                 ImageBase = _peReader.PEHeaders.PEHeader.ImageBase;
 
                 // initialize R2RHeader
@@ -210,7 +220,7 @@ namespace R2RDump
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetEntryPointInfoFromOffset(offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(_mdReader, rid, runtimeFunctionId, null, null, fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, null, null, fixups);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
                     {
@@ -259,7 +269,7 @@ namespace R2RDump
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetEntryPointInfoFromOffset((int)curParser.Offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(_mdReader, rid, runtimeFunctionId, args, tokens, fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, args, tokens, fixups);
                     if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
                     {
                         isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
@@ -301,7 +311,15 @@ namespace R2RDump
                         unwindInfo = new Amd64.UnwindInfo(Image, unwindOffset);
                         if (isEntryPoint[runtimeFunctionId])
                         {
-                            gcInfo = new GcInfo(Image, unwindOffset + ((Amd64.UnwindInfo)unwindInfo).Size, Machine, R2RHeader.MajorVersion);
+                            gcInfo = new GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                        }
+                    }
+                    else if (Machine == Machine.I386)
+                    {
+                        unwindInfo = new x86.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            //gcInfo = new GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
                         }
                     }
 
@@ -396,7 +414,7 @@ namespace R2RDump
                                 int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                                 byte[] signatureSample = new byte[sigSampleLength];
                                 Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                                entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
+                                entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                             }
                         }
                         break;
@@ -411,7 +429,7 @@ namespace R2RDump
                             int sigSampleLength = Math.Min(8, Image.Length - sigOff);
                             byte[] signatureSample = new byte[sigSampleLength];
                             Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                            entries.Add(new R2RImportSection.ImportSectionEntry(entryOffset, section, sigRva, signatureSample));
+                            entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
                         }
                         break;
                 }
@@ -422,7 +440,7 @@ namespace R2RDump
                 {
                     auxDataOffset = GetOffset(auxDataRVA);
                 }
-                ImportSections.Add(new R2RImportSection(Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
+                ImportSections.Add(new R2RImportSection(ImportSections.Count, Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
             }
         }
 
@@ -505,7 +523,7 @@ namespace R2RDump
 
                 while (true)
                 {
-                    cells.Add(new FixupCell(curTableIndex, fixupIndex));
+                    cells.Add(new FixupCell(cells.Count, curTableIndex, fixupIndex));
 
                     uint delta = reader.ReadUInt();
 

@@ -479,10 +479,10 @@ GenTree* Lowering::LowerSwitch(GenTree* node)
         // the result of the child subtree to a temp.
         GenTree* rhs = node->gtOp.gtOp1;
 
-        unsigned lclNum                 = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
-        comp->lvaSortAgain              = true;
-        comp->lvaTable[lclNum].lvType   = rhs->TypeGet();
-        comp->lvaTable[lclNum].lvRefCnt = 1;
+        unsigned lclNum               = comp->lvaGrabTemp(true DEBUGARG("Lowering is creating a new local variable"));
+        comp->lvaSortAgain            = true;
+        comp->lvaTable[lclNum].lvType = rhs->TypeGet();
+        comp->lvaTable[lclNum].setLvRefCnt(1);
 
         GenTreeLclVar* store =
             new (comp, GT_STORE_LCL_VAR) GenTreeLclVar(GT_STORE_LCL_VAR, rhs->TypeGet(), lclNum, BAD_IL_OFFSET);
@@ -1288,8 +1288,11 @@ void Lowering::LowerArg(GenTreeCall* call, GenTree** ppArg)
     // Assignments/stores at this level are not really placing an argument.
     // They are setting up temporary locals that will later be placed into
     // outgoing regs or stack.
-    if (arg->OperIsStore() || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() || arg->OperIsCopyBlkOp())
+    // Note that atomic ops may be stores and still produce a value.
+    if (!arg->IsValue())
     {
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
 
@@ -2052,9 +2055,9 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                         tmpLclNum = comp->lvaGrabTemp(
                             true DEBUGARG("Fast tail call lowering is creating a new local variable"));
 
-                        comp->lvaSortAgain                          = true;
-                        comp->lvaTable[tmpLclNum].lvType            = tmpType;
-                        comp->lvaTable[tmpLclNum].lvRefCnt          = 1;
+                        comp->lvaSortAgain               = true;
+                        comp->lvaTable[tmpLclNum].lvType = tmpType;
+                        comp->lvaTable[tmpLclNum].setLvRefCnt(1);
                         comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
                     }
 
@@ -5297,8 +5300,10 @@ void Lowering::DoPhase()
 //
 void Lowering::CheckCallArg(GenTree* arg)
 {
-    if (arg->OperIsStore() || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() || arg->OperIsCopyBlkOp())
+    if (!arg->IsValue() && !arg->OperIsPutArgStk())
     {
+        assert((arg->OperIsStore() && !arg->IsValue()) || arg->IsArgPlaceHolderNode() || arg->IsNothingNode() ||
+               arg->OperIsCopyBlkOp());
         return;
     }
 

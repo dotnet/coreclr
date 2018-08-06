@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Text;
+using System.Xml.Serialization;
 
 namespace R2RDump.Amd64
 {
@@ -32,6 +33,9 @@ namespace R2RDump.Amd64
 
     public struct UnwindCode
     {
+        [XmlAttribute("Index")]
+        public int Index { get; set; }
+
         public byte CodeOffset { get; set; }
         public UnwindOpCodes UnwindOp { get; set; } //4 bits
         public byte OpInfo { get; set; } //4 bits
@@ -41,8 +45,10 @@ namespace R2RDump.Amd64
 
         public uint FrameOffset { get; set; }
 
-        public UnwindCode(byte[] image, ref int offset)
+        public UnwindCode(byte[] image, int index, ref int offset)
         {
+            Index = index;
+
             int off = offset;
             CodeOffset = NativeReader.ReadByte(image, ref off);
             byte op = NativeReader.ReadByte(image, ref off);
@@ -56,7 +62,7 @@ namespace R2RDump.Amd64
         }
     }
 
-    public struct UnwindInfo : BaseUnwindInfo
+    public class UnwindInfo : BaseUnwindInfo
     {
         private const int _sizeofUnwindCode = 2;
         private const int _offsetofUnwindCode = 4;
@@ -69,7 +75,8 @@ namespace R2RDump.Amd64
         public byte FrameOffset { get; set; } //4 bits
         public UnwindCode[] UnwindCode { get; set; }
         public uint PersonalityRoutineRVA { get; set; }
-        public int Size { get; set; }
+
+        public UnwindInfo() { }
 
         public UnwindInfo(byte[] image, int offset)
         {
@@ -85,7 +92,7 @@ namespace R2RDump.Amd64
             UnwindCode = new UnwindCode[CountOfUnwindCodes];
             for (int i = 0; i < CountOfUnwindCodes; i++)
             {
-                UnwindCode[i] = new UnwindCode(image, ref offset);
+                UnwindCode[i] = new UnwindCode(image, i, ref offset);
             }
 
             PersonalityRoutineRVA = NativeReader.ReadUInt32(image, ref offset);

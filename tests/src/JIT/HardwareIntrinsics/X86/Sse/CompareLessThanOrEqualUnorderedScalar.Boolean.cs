@@ -99,7 +99,6 @@ namespace JIT.HardwareIntrinsics.X86
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
-                var random = new Random();
 
                 for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSingle(); }
                 Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref testStruct._fld1), ref Unsafe.As<Single, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
@@ -134,8 +133,6 @@ namespace JIT.HardwareIntrinsics.X86
 
         static BooleanComparisonOpTest__CompareLessThanOrEqualUnorderedScalarBoolean()
         {
-            var random = new Random();
-
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _clsVar1), ref Unsafe.As<Single, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
             for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetSingle(); }
@@ -145,8 +142,6 @@ namespace JIT.HardwareIntrinsics.X86
         public BooleanComparisonOpTest__CompareLessThanOrEqualUnorderedScalarBoolean()
         {
             Succeeded = true;
-
-            var random = new Random();
 
             for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _fld1), ref Unsafe.As<Single, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
@@ -164,6 +159,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(
                 Unsafe.Read<Vector128<Single>>(_dataTable.inArray1Ptr),
                 Unsafe.Read<Vector128<Single>>(_dataTable.inArray2Ptr)
@@ -174,6 +171,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(
                 Sse.LoadVector128((Single*)(_dataTable.inArray1Ptr)),
                 Sse.LoadVector128((Single*)(_dataTable.inArray2Ptr))
@@ -184,6 +183,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(
                 Sse.LoadAlignedVector128((Single*)(_dataTable.inArray1Ptr)),
                 Sse.LoadAlignedVector128((Single*)(_dataTable.inArray2Ptr))
@@ -194,6 +195,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse).GetMethod(nameof(Sse.CompareLessThanOrEqualUnorderedScalar), new Type[] { typeof(Vector128<Single>), typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<Single>>(_dataTable.inArray1Ptr),
@@ -205,6 +208,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Sse).GetMethod(nameof(Sse.CompareLessThanOrEqualUnorderedScalar), new Type[] { typeof(Vector128<Single>), typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadVector128((Single*)(_dataTable.inArray1Ptr)),
@@ -216,6 +221,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Sse).GetMethod(nameof(Sse.CompareLessThanOrEqualUnorderedScalar), new Type[] { typeof(Vector128<Single>), typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadAlignedVector128((Single*)(_dataTable.inArray1Ptr)),
@@ -227,6 +234,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(
                 _clsVar1,
                 _clsVar2
@@ -237,6 +246,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var left = Unsafe.Read<Vector128<Single>>(_dataTable.inArray1Ptr);
             var right = Unsafe.Read<Vector128<Single>>(_dataTable.inArray2Ptr);
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(left, right);
@@ -246,6 +257,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var left = Sse.LoadVector128((Single*)(_dataTable.inArray1Ptr));
             var right = Sse.LoadVector128((Single*)(_dataTable.inArray2Ptr));
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(left, right);
@@ -255,6 +268,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var left = Sse.LoadAlignedVector128((Single*)(_dataTable.inArray1Ptr));
             var right = Sse.LoadAlignedVector128((Single*)(_dataTable.inArray2Ptr));
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(left, right);
@@ -264,6 +279,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new BooleanComparisonOpTest__CompareLessThanOrEqualUnorderedScalarBoolean();
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(test._fld1, test._fld2);
 
@@ -272,6 +289,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(_fld1, _fld2);
 
             ValidateResult(_fld1, _fld2, result);
@@ -279,6 +298,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
             var test = TestStruct.Create();
             var result = Sse.CompareLessThanOrEqualUnorderedScalar(test._fld1, test._fld2);
             ValidateResult(test._fld1, test._fld2, result);
@@ -286,12 +307,16 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunStructFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
             var test = TestStruct.Create();
             test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -332,11 +357,11 @@ namespace JIT.HardwareIntrinsics.X86
             {
                 Succeeded = false;
 
-                Console.WriteLine($"{nameof(Sse)}.{nameof(Sse.CompareLessThanOrEqualUnorderedScalar)}<Boolean>(Vector128<Single>, Vector128<Single>): {method} failed:");
-                Console.WriteLine($"    left: ({string.Join(", ", left)})");
-                Console.WriteLine($"   right: ({string.Join(", ", right)})");
-                Console.WriteLine($"  result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse)}.{nameof(Sse.CompareLessThanOrEqualUnorderedScalar)}<Boolean>(Vector128<Single>, Vector128<Single>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"    left: ({string.Join(", ", left)})");
+                TestLibrary.TestFramework.LogInformation($"   right: ({string.Join(", ", right)})");
+                TestLibrary.TestFramework.LogInformation($"  result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

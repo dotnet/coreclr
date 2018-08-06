@@ -8900,6 +8900,20 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
         // exactly derived class. It is up to the jit to determine whether
         // directly calling this method is correct.
         pDevirtMD = pDerivedMT->GetMethodDescForSlot(slot);
+
+        // If the derived method's slot does not match the vtable slot,
+        // bail on devirtualization, as the method was installed into
+        // the vtable slot via an explicit override and even if the
+        // method is final, the slot may not be.
+        //
+        // Note the jit could still safely devirtualize if it had an exact
+        // class, but such cases are likely rare.
+        WORD dslot = pDevirtMD->GetSlot();
+
+        if (dslot != slot)
+        {
+            return nullptr;
+        }
     }
 
     _ASSERTE(pDevirtMD->IsRestored());
@@ -12398,7 +12412,7 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
     if (g_pConfig->JitAlignLoops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
-    if (ReJitManager::IsReJITEnabled() || g_pConfig->AddRejitNops())
+    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
 #ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))

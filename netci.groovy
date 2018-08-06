@@ -174,9 +174,11 @@ class Constants {
                 'Release'
             ], 
             'arm': [
-                'Checked',
+                'Debug',
+                'Checked'
             ],
             'arm64': [
+                'Debug',
                 'Checked'
             ]
         ],
@@ -219,7 +221,7 @@ class Constants {
             'armem': [
                 'Checked'
             ]
-        ],
+        ]
     ]
 
     // A set of scenarios that are valid for arm/arm64 tests run on hardware. This is a map from valid scenario name
@@ -708,7 +710,13 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         def isBuild = options['use_arm64_build_machine'] == true
 
         if (isBuild == true) {
-            Utilities.setMachineAffinity(job, os, 'latest-arm64')
+            // Current set of machines with private Windows arm64 toolset:
+            // Utilities.setMachineAffinity(job, os, 'latest-arm64')
+            //
+            // New set of machines with public Windows arm64 toolset, coming from Helix:
+            job.with {
+                label('Windows.10.Amd64.ClientRS4.DevEx.Open')
+            }
         } else {
             Utilities.setMachineAffinity(job, os, 'arm64-windows_nt')
         }
@@ -873,22 +881,16 @@ def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBui
     }
 
     def validOsPrTriggerArchConfigs = Constants.prTriggeredValidInnerLoopCombos[os]
-
-    if (validOsPrTriggerArchConfigs == null) {
-        return false
-    }
-
-    if (validOsPrTriggerArchConfigs[architecture] != null) {
+    if (validOsPrTriggerArchConfigs != null) {
         def validOsPrTriggerConfigs = validOsPrTriggerArchConfigs[architecture]
-
-        if (!(configuration in validOsPrTriggerConfigs)) {
-            return false
+        if (validOsPrTriggerConfigs != null) {
+            if (configuration in validOsPrTriggerConfigs) {
+                return true
+            }
         }
-    } else {
-        return false
     }
 
-    return true
+    return false
 }
 
 // This means the job builds and runs the 'Pri0' test set. This does not mean the job is 
@@ -1224,6 +1226,7 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
 }
 
 def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def os, def configuration, def scenario, def isFlowJob, def isWindowsBuildOnlyJob, def bidailyCrossList) {
+    def isNormalOrInnerloop = (scenario == "normal" || scenario == "innerloop")
 
     // Limited hardware is restricted for non-PR triggers to certain branches.
     if (jobRequiresLimitedHardware(architecture, os) && (!(branch in Constants.LimitedHardwareBranches))) {
@@ -1233,6 +1236,12 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // No arm64 Ubuntu cron jobs for now: we don't have enough hardware.
     if ((architecture == 'arm64') && (os != 'Windows_NT')) {
          return
+    }
+
+    // Ubuntu x86 CI jobs are failing. Disable non-PR triggered jobs to avoid these constant failures
+    // until this is fixed. Tracked by https://github.com/dotnet/coreclr/issues/19003.
+    if (architecture == 'x86' && os == 'Ubuntu') {
+        return
     }
 
     // Check scenario.
@@ -1253,8 +1262,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     break
                 case 'arm64':
                     if (os == 'Windows_NT') {
-                        // Only the flow jobs get push triggers; the build and test jobs are triggered by the flow job.
-                        if (isFlowJob) {
+                        if (isFlowJob || (isNormalOrInnerloop && (configuration == 'Debug'))) {
                             // We would normally want a per-push trigger, but with limited hardware we can't keep up.
                             // Do the builds daily.
                             addPeriodicTriggerHelper(job, '@daily')
@@ -1269,8 +1277,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     break
                 case 'arm':
                     if (os == 'Windows_NT') {
-                        // Only the flow jobs get triggers; the build and test jobs are triggered by the flow job.
-                        if (isFlowJob) {
+                        if (isFlowJob || (isNormalOrInnerloop && (configuration == 'Debug'))) {
                             // We would normally want a push trigger, but with limited hardware we can't keep up.
                             // Do the builds daily.
                             addPeriodicTriggerHelper(job, '@daily')
@@ -1676,6 +1683,21 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         break
                     }
 
+                    // Triggers on the non-flow jobs aren't necessary here
+                    // Corefx testing uses non-flow jobs.
+                    if (!isFlowJob && !isCoreFxScenario(scenario)) {
+                        break
+                    }
+
+                    if (scenario == 'no_tiered_compilation_innerloop') {
+                        // Default trigger
+                        if (configuration == 'Checked') {
+                            def displayStr = getStressModeDisplayName(scenario)
+                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                        }
+                        break
+                    }
+
                     // fall through
 
                 case 'OSX10.12':
@@ -1813,14 +1835,13 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                                 Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test")
                             }
                             break
-                        //no_tiered_compilation_innerloop will be added as default once it is confirmed working
-                        //case 'no_tiered_compilation_innerloop':
-                        //    // Default trigger
-                        //    if (configuration == 'Checked') {
-                        //        def displayStr = getStressModeDisplayName(scenario)
-                        //        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr})")
-                        //    }
-                        //    break
+                        case 'no_tiered_compilation_innerloop':
+                            // Default trigger
+                            if (configuration == 'Checked') {
+                                def displayStr = getStressModeDisplayName(scenario)
+                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                            }
+                            break
 
                         case 'normal':
                             if (configuration == 'Checked') {
@@ -1935,11 +1956,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
         case 'arm': // editor brace matching: {
 
-            // Triggers on the non-flow jobs aren't necessary
-            if (!isFlowJob) {
-                break
-            }
-
             // Set up a private trigger
             def contextString = "${os} ${architecture} Cross ${configuration}"
             def triggerString = "(?i).*test\\W+${os}\\W+${architecture}\\W+Cross\\W+${configuration}"
@@ -1964,8 +1980,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
             switch (os) {
                 case 'Ubuntu':
-                //no_tiered_compilation_innerloop will be added as default once it is confirmed working
-                    if (scenario == 'innerloop' /*|| scenario == 'no_tiered_compilation_innerloop'*/) {
+                    // Triggers on the non-flow jobs aren't necessary
+                    if (!isFlowJob) {
+                        break
+                    }
+
+                    if (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop') {
                         if (configuration == 'Checked') {
                             Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
                         }
@@ -1976,22 +1996,28 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     break
 
                 case 'Windows_NT':
+                    assert isArmWindowsScenario(scenario)
+
+                    // For Debug normal/innerloop scenario, we don't do test runs, so we don't use flow jobs. That means we need a trigger for
+                    // the non-flow Build job. All others need a trigger on the flow job.
+                    def needsFlowJobTrigger = !(isNormalOrInnerloop && (configuration == 'Debug'))
+                    if (isFlowJob != needsFlowJobTrigger) {
+                        break
+                    }
+
                     switch (scenario) {
                         case 'innerloop':
-                            // Only Checked is an innerloop trigger.
-                            if (configuration == 'Checked')
-                            {
+                            if (configuration == 'Debug') {
+                                // Add default PR trigger for Windows arm Debug builds. This is a build only -- no tests are run --
+                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
+                                // People in arm64Users will get both this and the Checked Build and Test job.
+                                Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
+                            } else if (configuration == 'Checked') {
                                 Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
                             }
                             break
-                        case 'normal':
-                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
-                            break
                         default:
-                            // Stress jobs will use this code path.
-                            if (isArmWindowsScenario(scenario)) {
-                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
-                            }
+                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             break
                     }
                     break
@@ -2028,16 +2054,14 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
             switch (os) {
                 case 'Ubuntu':
-                case 'Ubuntu16.04':
                     switch (scenario) {
                         case 'innerloop':
                             if (configuration == 'Debug' && !isFlowJob) {
-                                Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} Cross ${configuration} Innerloop Build")
+                                Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
                             }
-                            
                             break
                         case 'normal':
-                            Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test", triggerString)
+                            Utilities.addGithubPRTriggerForBranch(job, branch, contextString, triggerString)
                             break
                         default:
                             if (isR2RScenario(scenario)) {
@@ -2051,27 +2075,28 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     break
 
                 case 'Windows_NT':
-                    // Triggers on the non-flow jobs aren't necessary here
-                    if (!isFlowJob) {
+                    assert isArmWindowsScenario(scenario)
+
+                    // For Debug normal/innerloop scenario, we don't do test runs, so we don't use flow jobs. That means we need a trigger for
+                    // the non-flow Build job. All others need a trigger on the flow job.
+                    def needsFlowJobTrigger = !(isNormalOrInnerloop && (configuration == 'Debug'))
+                    if (isFlowJob != needsFlowJobTrigger) {
                         break
                     }
 
-                    assert isArmWindowsScenario(scenario)
                     switch (scenario) {
                         case 'innerloop':
-                            if (configuration == 'Checked') {
+                            if (configuration == 'Debug') {
+                                // Add default PR trigger for Windows arm64 Debug builds. This is a build only -- no tests are run --
+                                // so the private test hardware is not used. Thus, it can be run by all users, not just arm64Users.
+                                // People in arm64Users will get both this and the Checked Build and Test job.
+                                Utilities.addGithubPRTriggerForBranch(job, branch, contextString)
+                            } else if (configuration == 'Checked') {
                                 Utilities.addDefaultPrivateGithubPRTriggerForBranch(job, branch, contextString, null, arm64Users)
                             }
-                            
-                            break
-                        case 'normal':
-                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             break
                         default:
-                            // Stress jobs will use this code path.
-                            if (isArmWindowsScenario(scenario)) {
-                                Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
-                            }
+                            Utilities.addPrivateGithubPRTriggerForBranch(job, branch, contextString, triggerString, null, arm64Users)
                             break
                     }
                     break
@@ -2104,13 +2129,12 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                     }
                     break
 
-                //no_tiered_compilation_innerloop will be added as default once it is confirmed working
-                //case 'no_tiered_compilation_innerloop':
-                //    if (configuration == 'Checked') {
-                //        def displayStr = getStressModeDisplayName(scenario)
-                //        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Build and Test (Jit - ${displayStr})")
-                //    }
-                //    break
+                case 'no_tiered_compilation_innerloop':
+                    if (configuration == 'Checked') {
+                        def displayStr = getStressModeDisplayName(scenario)
+                        Utilities.addGithubPRTriggerForBranch(job, branch, "${os} ${architecture} ${configuration} Innerloop Build and Test (Jit - ${displayStr})")
+                    }
+                    break
 
                 case 'normal':
                     if (configuration == 'Checked') {
@@ -2417,10 +2441,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def buildOpts = ''
 
-                    if (architecture == 'arm64') {
-                        buildOpts += " toolset_dir C:\\ats2"
-                    }
-
                     if (doCoreFxTesting) {
                         buildOpts += ' skiptests'
                     } else {
@@ -2447,12 +2467,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
                         def fxBranch = getFxBranch(branch)
 
-                        def toolsetDirOpt = ''
-                        if (architecture == 'arm64') {
-                            toolsetDirOpt = "-toolset_dir C:\\ats2"
-                        }
-
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests ${toolsetDirOpt}"
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests"
 
                         // Zip up the CoreFx runtime and tests. We don't need the CoreCLR binaries; they have been copied to the CoreFX tree.
                         buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-${architecture}', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
@@ -3427,6 +3442,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     }
                 }
 
+                shell("mkdir ./bin/CoreFxBinDir")
                 shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
             }
 
@@ -3637,10 +3653,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 
     switch (architecture) {
         case 'arm64':
-            if (os != "Ubuntu" && os != "Windows_NT") {
-                return false
-            }
-            break
         case 'arm':
             if (os != "Ubuntu" && os != "Windows_NT") {
                 return false
@@ -3675,7 +3687,13 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     // Filter based on scenario in OS.
 
     if (os == 'Windows_NT') {
+        assert architecture == 'arm' || architecture == 'arm64'
         if (!isArmWindowsScenario(scenario)) {
+            return false
+        }
+        if (isNormalOrInnerloop && (configuration == 'Debug')) {
+            // The arm32/arm64 Debug configuration for innerloop/normal scenario is a special case: it does a build only, and no test run.
+            // To do that, it doesn't require a flow job.
             return false
         }
     }
@@ -3772,6 +3790,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 
             case 'formatting':
                 return false
+
             case 'illink':
                 if (os != 'Windows_NT' && os != 'Ubuntu') {
                     return false
@@ -3783,7 +3802,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
                 break
 
             case 'innerloop':
-                // Nothing skipped
                 if (!isValidPrTriggeredInnerLoopJob(os, architecture, configuration, false)) {
                     return false
                 }

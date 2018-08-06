@@ -91,6 +91,14 @@
                 {
                     "name": "System.Drawing.Tests.FontTests.ToLogFont_NullLogFont_ThrowsArgumentNullException",
                     "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\r\\nExpected: typeof(System.ArgumentNullException)\\r\\nActual:   typeof(System.AccessViolationException): Attempted to read or write protected memory. This is often an indication that other memory is corrupt."
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
                 }
             ]
         }
@@ -217,6 +225,40 @@
         }
     },
     {
+        "name": "System.Runtime.InteropServices.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Runtime.InteropServices.MarshalTests.SetComObjectData",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.MarshalTests.GetComObjectData",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComAwareEventInfoTests.AddEventHandler_DispIdAttribute_ThrowsPlatformNotSupportedException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.Remove_NonNullRcw_ThrowsPlatformNotSupportedException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.AddEventHandler_DispIdAttribute_ThrowsPlatformNotSupportedException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Runtime.InteropServices.Tests.ComEventsHelperTests.Combine_NonNullRcw_ThrowsPlatformNotSupportedException",
+                    "reason": "outdated"
+                },
+            ]
+        }
+    },
+    {
         "name": "System.Security.Cryptography.X509Certificates.Tests",
         "enabled": true,
         "exclusions": {
@@ -226,6 +268,14 @@
                 {
                     "name": "System.Security.Cryptography.X509Certificates.Tests.X509StoreTests.Constructor_DefaultStoreName",
                     "reason": "Assert.Equal() Failure ↓ (pos 1) Expected: My Actual:   MY ↑ (pos 1)"
+                },
+                {
+                    "name": "System.Security.Cryptography.X509Certificates.Tests.LoadFromFileTests.TestLoadSignedFile",
+                    "reason": "Expected: Expected: CN=Microsoft Code Signing PCA, O=Microsoft···\r\nActual: C=US, S=Washington, L=Redmond, O=Microsoft···"
+                },
+                {
+                    "name": "System.Security.Cryptography.X509Certificates.Tests.LoadFromFileTests.TestSerial",
+                    "reason": "Expected: B00000000100DD9F3BD08B0AAF11B000000033\r\nActual: 33000000B011AF0A8BD03B9FDD0001000000B0\r\n"
                 }
             ]
         }
@@ -365,6 +415,18 @@
                 {
                     "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
                     "reason": "Assert.All() Failure: 1 out of 4 items in the collection did not pass.\r\n"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.EnsureCapacity_Generic_RequestingLargerCapacity_DoesNotInvalidateEnumeration",
+                    "reason": "outdated"
                 }
             ]
         }
@@ -413,7 +475,7 @@
                 {
                     "name": "System.Linq.Tests.EmptyPartitionTests.CantResetEnumerator",
                     "reason": "outdated"
-                },
+                }
             ]
         }
     },
@@ -424,6 +486,24 @@
             "namespaces": null,
             "classes": null,
             "methods": null
+        }
+    },
+    {
+        "name": "Microsoft.VisualBasic.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "Microsoft.VisualBasic.Tests.StringsTests.ChrW_CharCodeOutOfRange_ThrowsArgumentException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "Microsoft.VisualBasic.Tests.StringsTests.AscW_NullOrEmpty_ThrowsArgumentException",
+                    "reason": "outdated"
+                }
+            ]
         }
     }
 ]

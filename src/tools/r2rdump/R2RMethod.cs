@@ -13,9 +13,9 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
-    public interface BaseUnwindInfo
+    public abstract class BaseUnwindInfo
     {
-
+        public int Size { get; set; }
     }
 
     public class RuntimeFunction
@@ -23,6 +23,7 @@ namespace R2RDump
         /// <summary>
         /// The index of the runtime function
         /// </summary>
+        [XmlAttribute("Index")]
         public int Id { get; set; }
 
         /// <summary>
@@ -66,6 +67,10 @@ namespace R2RDump
             {
                 Size = endRva - startRva;
             }
+            else if (unwindInfo is x86.UnwindInfo)
+            {
+                Size = (int)((x86.UnwindInfo)unwindInfo).FunctionLength;
+            }
             else if (gcInfo != null)
             {
                 Size = gcInfo.CodeLength;
@@ -100,6 +105,12 @@ namespace R2RDump
 
         MetadataReader _mdReader;
         MethodDefinition _methodDef;
+
+        /// <summary>
+        /// An unique index for the method
+        /// </summary>
+        [XmlAttribute("Index")]
+        public int Index { get; set; }
 
         /// <summary>
         /// The name of the method
@@ -190,8 +201,9 @@ namespace R2RDump
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok, FixupCell[] fixups)
+        public R2RMethod(int index, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok, FixupCell[] fixups)
         {
+            Index = index;
             Token = _mdtMethodDef | rid;
             Rid = rid;
             EntryPointRuntimeFunctionId = entryPointId;

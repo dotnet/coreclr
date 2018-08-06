@@ -3678,7 +3678,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     // For LSRA, it may not be in regArgMaskLive if it has a zero
                     // refcnt.  This is in contrast with the non-LSRA case in which all
                     // non-tracked args are assumed live on entry.
-                    noway_assert((varDsc->lvRefCnt == 0) || (varDsc->lvType == TYP_STRUCT) ||
+                    noway_assert((varDsc->lvRefCnt() == 0) || (varDsc->lvType == TYP_STRUCT) ||
                                  (varDsc->lvAddrExposed && compiler->info.compIsVarArgs) ||
                                  (varDsc->lvAddrExposed && compiler->opts.compUseSoftFP));
 #endif // !_TARGET_X86_
@@ -3979,7 +3979,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
         if (!varDsc->lvOnFrame)
         {
-            noway_assert(varDsc->lvRefCnt == 0);
+            noway_assert(varDsc->lvRefCnt() == 0);
         }
         else
         {
@@ -4638,7 +4638,7 @@ void CodeGen::genCheckUseBlockInit()
 
         if (!varDsc->lvIsInReg() && !varDsc->lvOnFrame)
         {
-            noway_assert(varDsc->lvRefCnt == 0);
+            noway_assert(varDsc->lvRefCnt() == 0);
             continue;
         }
 
@@ -5684,12 +5684,12 @@ void CodeGen::genMov32RelocatableDataLabel(unsigned value, regNumber reg)
  *
  * Move of relocatable immediate to register
  */
-void CodeGen::genMov32RelocatableImmediate(emitAttr size, size_t value, regNumber reg)
+void CodeGen::genMov32RelocatableImmediate(emitAttr size, BYTE* addr, regNumber reg)
 {
     _ASSERTE(EA_IS_RELOC(size));
 
-    getEmitter()->emitIns_R_I(INS_movw, size, reg, value);
-    getEmitter()->emitIns_R_I(INS_movt, size, reg, value);
+    getEmitter()->emitIns_MovRelocatableImmediate(INS_movw, size, reg, addr);
+    getEmitter()->emitIns_MovRelocatableImmediate(INS_movt, size, reg, addr);
 
     if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_RELATIVE_CODE_RELOCS))
     {
@@ -7876,7 +7876,7 @@ void CodeGen::genFnProlog()
 
         if (!varDsc->lvIsInReg() && !varDsc->lvOnFrame)
         {
-            noway_assert(varDsc->lvRefCnt == 0);
+            noway_assert(varDsc->lvRefCnt() == 0);
             continue;
         }
 
@@ -8492,7 +8492,7 @@ void CodeGen::genFnProlog()
     // (our argument pointer register has a refcount > 0).
     unsigned argsStartVar = compiler->lvaVarargsBaseOfStkArgs;
 
-    if (compiler->info.compIsVarArgs && compiler->lvaTable[argsStartVar].lvRefCnt > 0)
+    if (compiler->info.compIsVarArgs && compiler->lvaTable[argsStartVar].lvRefCnt() > 0)
     {
         varDsc = &compiler->lvaTable[argsStartVar];
 

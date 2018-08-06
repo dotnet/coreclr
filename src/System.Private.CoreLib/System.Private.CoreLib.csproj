@@ -155,7 +155,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\InvalidComObjectException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayRankMismatchException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\SafeArrayTypeMismatchException.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NativeCallableAttribute.cs" />
     <Compile Condition="'$(FeatureCominterop)' != 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\DispatchWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
@@ -326,7 +325,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\INVOCATION_FLAGS.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\LoaderAllocator.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\LocalVariableInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdConstant.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdFieldInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\MdImport.cs" />
@@ -338,6 +336,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeConstructorInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeEventInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeFieldInfo.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeLocalVariableInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeMethodInfo.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeModule.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\RuntimeParameterInfo.cs" />
@@ -554,7 +553,7 @@
     <PropertyGroup>
       <CMakeDefinitionSaveFile>$(IntermediateOutputPath)..\cmake.definitions</CMakeDefinitionSaveFile>
     </PropertyGroup>
-    <Exec Command="python $(MSBuildThisFileDirectory)..\scripts\check-definitions.py &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
+    <Exec Command="&quot;$(PYTHON)&quot; $(MSBuildThisFileDirectory)..\scripts\check-definitions.py &quot;$(CMakeDefinitionSaveFile)&quot; &quot;$(DefineConstants)&quot; &quot;$(IgnoreDefineConstants)&quot; " />
   </Target>
   <PropertyGroup Condition="'$(BuildOS)' == 'Windows_NT'">
     <EnableDotnetAnalyzers Condition="'$(EnableDotnetAnalyzers)'==''">true</EnableDotnetAnalyzers>

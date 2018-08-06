@@ -81,6 +81,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     ilstubresolver.cpp
     inlinetracking.cpp
     instmethhash.cpp
+    jithost.cpp
     jitinterface.cpp
     loaderallocator.cpp
     memberload.cpp
@@ -298,8 +299,6 @@ set(VM_SOURCES_DAC_AND_WKS_WIN32
 list(APPEND VM_SOURCES_WKS
     ${VM_SOURCES_DAC_AND_WKS_WIN32}
     # These should not be included for Linux
-    appxutil.cpp
-    assemblynativeresource.cpp
     classcompat.cpp
     classfactory.cpp
     clrprivbinderwinrt.cpp

@@ -1338,7 +1338,7 @@ GenTree* Lowering::PreferredRegOptionalOperand(GenTree* tree)
             // weight as reg optional.
             // If either is not tracked, it may be that it was introduced after liveness
             // was run, in which case we will always prefer op1 (should we use raw refcnt??).
-            if (v1->lvTracked && v2->lvTracked && (v1->lvRefCntWtd >= v2->lvRefCntWtd))
+            if (v1->lvTracked && v2->lvTracked && (v1->lvRefCntWtd() >= v2->lvRefCntWtd()))
             {
                 preferredOp = op2;
             }
@@ -1693,18 +1693,15 @@ void Lowering::ContainCheckMul(GenTreeOp* node)
 //
 void Lowering::ContainCheckShiftRotate(GenTreeOp* node)
 {
+    assert(node->OperIsShiftOrRotate());
 #ifdef _TARGET_X86_
     GenTree* source = node->gtOp1;
-    if (node->OperIs(GT_LSH_HI, GT_RSH_LO))
+    if (node->OperIsShiftLong())
     {
         assert(source->OperGet() == GT_LONG);
         MakeSrcContained(node, source);
     }
-    else
 #endif // !_TARGET_X86_
-    {
-        assert(node->OperIsShiftOrRotate());
-    }
 
     GenTree* shiftBy = node->gtOp2;
     if (IsContainableImmed(node, shiftBy) && (shiftBy->gtIntConCommon.IconValue() <= 255) &&
