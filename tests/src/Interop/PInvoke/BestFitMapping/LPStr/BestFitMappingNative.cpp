@@ -12,18 +12,18 @@
 
 typedef struct TLPStr_Test_Struct
 {
-    LPSTR* pStr;
+    LPSTR pStr;
 } LPStr_Test_Struct;
 
 typedef struct TLPStr_Test_Class
 {
-    LPSTR* pStr;
+    LPSTR pStr;
 } LPStr_Test_Class;
 
 typedef struct TLPStrTestStructOfArrays
 {
-    LPSTR* pStr1;
-    LPSTR* pStr2;
+    LPSTR pStr1;
+    LPSTR pStr2;
 } LPStrTestStructOfArrays;
 
 extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_String(LPSTR pStr)
