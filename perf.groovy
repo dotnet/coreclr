@@ -410,7 +410,7 @@ parallel(
 
         if (isPR) {
             TriggerBuilder builder = TriggerBuilder.triggerOnPullRequest()
-            builder.setGithubContext("Linux Perf Test Flow")
+            builder.setGithubContext("Linux ${arch} Perf Test Flow")
             builder.triggerOnlyOnComment()
             builder.setCustomTriggerPhrase("(?i).*test\\W+linux\\W+perf\\W+flow.*")
             builder.triggerForBranch(branch)
