@@ -1,0 +1,20 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+LIBRARY NativeDateTime.dll
+
+EXPORTS 
+        MarshalExpStruct_InOut_cdecl PRIVATE
+        MarshalSeqStruct_InOut_cdecl PRIVATE
+        Marshal_InOut_cdecl PRIVATE
+        RevP_Marshal_InOut_cdecl PRIVATE
+        GetDel_Del_MarshalExpStruct_InOut_cdecl PRIVATE
+        GetDel_Del_MarshalSeqStruct_InOut_cdecl PRIVATE
+        GetDel_Marshal_InOut_cdecl PRIVATE
+        GetDel_Marshal_Out_stdcall PRIVATE
+        GetDel_Marshal_Ret_stdcall PRIVATE
+        Marshal_In_stdcall PRIVATE
+        Marshal_Out_stdcall PRIVATE
+        Marshal_Ret_stdcall PRIVATE
+        RevP_Marshal_Ret_stdcall PRIVATE
