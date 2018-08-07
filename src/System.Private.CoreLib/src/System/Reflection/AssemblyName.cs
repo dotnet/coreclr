@@ -24,8 +24,6 @@ namespace System.Reflection
 
         private StrongNameKeyPair _strongNameKeyPair;
 
-        private SerializationInfo _siInfo; // A temporary variable which we need during deserialization.
-
         private byte[] _hashForControl;
         private AssemblyHashAlgorithm _hashAlgorithm;
         private AssemblyHashAlgorithm _hashAlgorithmForControl;
@@ -63,27 +61,15 @@ namespace System.Reflection
 
         public Version Version
         {
-            get
-            {
-                return _version;
-            }
-            set
-            {
-                _version = value;
-            }
+            get { return _version; }
+            set { _version = value; }
         }
 
         // Locales, internally the LCID is used for the match.
         public CultureInfo CultureInfo
         {
-            get
-            {
-                return _cultureInfo;
-            }
-            set
-            {
-                _cultureInfo = value;
-            }
+            get { return _cultureInfo; }
+            set { _cultureInfo = value; }
         }
 
         public string CultureName
@@ -108,10 +94,10 @@ namespace System.Reflection
         {
             get
             {
-                if (CodeBase == null)
+                if (_codeBase == null)
                     return null;
                 else
-                    return EscapeCodeBase(CodeBase);
+                    return EscapeCodeBase(_codeBase);
             }
         }
 
@@ -190,12 +176,6 @@ namespace System.Reflection
             return nGetFileInformation(fullPath);
         }
 
-        internal void SetHashControl(byte[] hash, AssemblyHashAlgorithm hashAlgorithm)
-        {
-            _hashForControl = hash;
-            _hashAlgorithmForControl = hashAlgorithm;
-        }
-
         // The public key that is used to verify an assemblies
         // inclusion into the namespace. If the public key associated
         // with the namespace cannot verify the assembly the assembly
@@ -231,10 +211,10 @@ namespace System.Reflection
 
         // Flags modifying the name. So far the only flag is PublicKey, which
         // indicates that a full public key and not the compressed version is
-        // present. 
+        // present.
         // Processor Architecture flags are set only through ProcessorArchitecture
         // property and can't be set or retrieved directly
-        // Content Type flags are set only through ContentType property and can't be 
+        // Content Type flags are set only through ContentType property and can't be
         // set or retrieved directly
         public AssemblyNameFlags Flags
         {
@@ -276,7 +256,6 @@ namespace System.Reflection
             }
         }
 
-        // Returns the stringized version of the assembly name.
         public override string ToString()
         {
             string s = FullName;

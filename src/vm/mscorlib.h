@@ -144,7 +144,6 @@ DEFINE_FIELD_U(_publicKeyToken,            AssemblyNameBaseObject, _publicKeyTok
 DEFINE_FIELD_U(_cultureInfo,               AssemblyNameBaseObject, _cultureInfo)
 DEFINE_FIELD_U(_codeBase,                  AssemblyNameBaseObject, _codeBase)
 DEFINE_FIELD_U(_version,                   AssemblyNameBaseObject, _version)
-DEFINE_FIELD_U(_siInfo,                   AssemblyNameBaseObject, _siInfo)
 DEFINE_FIELD_U(_hashForControl,            AssemblyNameBaseObject, _hashForControl)
 DEFINE_FIELD_U(_hashAlgorithm,             AssemblyNameBaseObject, _hashAlgorithm)
 DEFINE_FIELD_U(_hashAlgorithmForControl, AssemblyNameBaseObject, _hashAlgorithmForControl)

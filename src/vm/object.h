@@ -1801,7 +1801,6 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF     _codeBase;
     OBJECTREF     _version;
     OBJECTREF     _strongNameKeyPair;
-    OBJECTREF     _siInfo;
     U1ARRAYREF    _hashForControl;
     DWORD         _hashAlgorithm;
     DWORD         _hashAlgorithmForControl;
