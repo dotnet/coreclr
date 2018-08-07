@@ -259,7 +259,7 @@ build_Tests()
         else
             __Priority=0
         fi
-        build_Tests_internal "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild /p:Priority=$__Priority"
+        build_Tests_internal "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild /p:CLRTestPriorityToBuild=$__Priority"
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: Check Test Build failed."
