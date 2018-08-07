@@ -15,10 +15,10 @@ namespace R2RDumpTest
 				Console.WriteLine(args[i]);
 			}
 
-			TestHelpers.RunTest("HelloWorld");
-			TestHelpers.RunTest("MultipleRuntimeFunctions");
-			TestHelpers.RunTest("GenericFunctions");
-			TestHelpers.RunTest("GcInfoTransitions");
+			TestHelpers.RunTest(args[0], "HelloWorld");
+			TestHelpers.RunTest(args[0], "MultipleRuntimeFunctions");
+			TestHelpers.RunTest(args[0], "GenericFunctions");
+			TestHelpers.RunTest(args[0], "GcInfoTransitions");
 			
 			Console.WriteLine("PASSED");
 			return 100;
