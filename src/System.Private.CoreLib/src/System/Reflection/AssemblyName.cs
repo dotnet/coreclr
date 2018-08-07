@@ -40,6 +40,18 @@ namespace System.Reflection
             _flags = AssemblyNameFlags.None;
         }
 
+        public AssemblyName(string assemblyName)
+        {
+            if (assemblyName == null)
+                throw new ArgumentNullException(nameof(assemblyName));
+            if ((assemblyName.Length == 0) ||
+                (assemblyName[0] == '\0'))
+                throw new ArgumentException(SR.Format_StringZeroLength);
+
+            _name = assemblyName;
+            nInit();
+        }
+
         // Set and get the name of the assembly. If this is a weak Name
         // then it optionally contains a site. For strong assembly names, 
         // the name partitions up the strong name's namespace
@@ -96,10 +108,10 @@ namespace System.Reflection
         {
             get
             {
-                if (_codeBase == null)
+                if (CodeBase == null)
                     return null;
                 else
-                    return EscapeCodeBase(_codeBase);
+                    return EscapeCodeBase(CodeBase);
             }
         }
 
@@ -142,8 +154,6 @@ namespace System.Reflection
                 }
             }
         }
-
-
 
         // Make a copy of this assembly name.
         public object Clone()
@@ -284,18 +294,6 @@ namespace System.Reflection
         public void OnDeserialization(object sender)
         {
             throw new PlatformNotSupportedException();
-        }
-
-        public AssemblyName(string assemblyName)
-        {
-            if (assemblyName == null)
-                throw new ArgumentNullException(nameof(assemblyName));
-            if ((assemblyName.Length == 0) ||
-                (assemblyName[0] == '\0'))
-                throw new ArgumentException(SR.Format_StringZeroLength);
-
-            _name = assemblyName;
-            nInit();
         }
 
         /// <summary>
