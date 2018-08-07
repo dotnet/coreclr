@@ -289,6 +289,13 @@ set __SkipTargetingPackBuild=false
 set __BuildLoopCount=2
 set __TestGroupToBuild=1
 
+REM HACK! FOR TESTING ONLY!
+if %__Priority% EQU 0 (
+    set __Priority=1
+) else (
+    set __Priority=0
+)
+
 if %__Priority% GTR 0 (set __BuildLoopCount=16&set __TestGroupToBuild=2)
 echo %__MsgPrefix%Building tests group %__TestGroupToBuild% with %__BuildLoopCount% subgroups
 
