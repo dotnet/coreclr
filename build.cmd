@@ -448,6 +448,28 @@ if %__BuildNative% EQU 1 (
     call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
     @if defined _echo @echo on
 
+@echo TEMPORARY: see what is on the CI machine ==========================================================================
+set INCLUDE
+set LIB
+set PATH
+set UCRTVersion
+set WindowsSDKVersion
+@echo Does it have the ARM64 files needed, from the 10.0.17134.0 SDK?
+where $INCLUDE:ksarm64.h
+where $INCLUDE:kxarm64.h
+where $INCLUDE:kxarm64unw.h
+@echo Does it have the ARM32 ones?
+where $INCLUDE:ksarm.h
+where $INCLUDE:kxarm.h
+where $INCLUDE:kxarmunw.h
+@echo What compiler?
+cl /Bv
+@echo What version of cmake?
+cmake --version
+@echo What version of Visual Studio?
+set VSCMD_VER
+@echo ===================================================================================================================
+
     if not defined VSINSTALLDIR (
         echo %__MsgPrefix%Error: VSINSTALLDIR variable not defined.
         exit /b 1
