@@ -771,16 +771,18 @@ namespace System
                     int hash2 = hash1;
 
 #if BIT64
-                    int c;
-                    char* s = src;
-                    while ((c = s[0]) != 0)
+                    char* current = src;
+                    char* end = current + this.Length;
+                    while (current < end - 1)
                     {
-                        hash1 = ((hash1 << 5) + hash1) ^ c;
-                        c = s[1];
-                        if (c == 0)
-                            break;
-                        hash2 = ((hash2 << 5) + hash2) ^ c;
-                        s += 2;
+                        hash1 = ((hash1 << 5) + hash1) ^ current[0];
+                        hash2 = ((hash2 << 5) + hash2) ^ current[1];
+                        current += 2;
+                    }
+
+                    if (current < end)
+                    {
+                        hash1 = ((hash1 << 5) + hash1) ^ current[0];
                     }
 #else // !BIT64 (32)
                     // 32 bit machines.
