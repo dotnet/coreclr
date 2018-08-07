@@ -11,9 +11,6 @@ namespace R2RDumpTest
 		static int Main(string[] args)
 		{
 			Console.WriteLine("Starting the test");
-			for (int i=0; i<args.Length; i++) {
-				Console.WriteLine(args[i]);
-			}
 
 			TestHelpers.RunTest(args[0], "HelloWorld");
 			TestHelpers.RunTest(args[0], "MultipleRuntimeFunctions");
