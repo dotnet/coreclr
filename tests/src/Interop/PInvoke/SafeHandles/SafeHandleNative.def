@@ -1,0 +1,37 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
+EXPORTS
+	SHParam_In
+	SHParam_Out
+	SHParam_OutRetVal
+	SHParam_Ref
+	SHParam_Multiple
+	
+	SHStructParam_In
+	SHStructParam_Out
+	SHStructParam_OutRetVal
+	SHStructParam_Ref1
+	SHStructParam_Ref2
+	SHStructParam_Multiple1
+	SHStructParam_Multiple2
+	SHStructParam_Multiple3
+	
+	SHReturn
+	SHArrayParam
+	SHStructArrayParam
+	SHReturnStruct
+	SHStructNestedParam
+	SHStructParam_In2
+	SHMixedParam1
+	SHStructWithManySHFldsParam_In
+	SHStructWithManySHFldsParam_Ref1
+	SHStructWithManySHFldsParam_Ref2
+	
+	SHFldInvalid_MA
+	SHInvalid_retMA16
+
+    SHInvalid_MA
+    SHInvalid_retMA
+	
