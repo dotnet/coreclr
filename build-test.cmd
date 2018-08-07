@@ -289,13 +289,6 @@ set __SkipTargetingPackBuild=false
 set __BuildLoopCount=2
 set __TestGroupToBuild=1
 
-REM HACK! FOR TESTING ONLY!
-if %__Priority% EQU 0 (
-    set __Priority=1
-) else (
-    set __Priority=0
-)
-
 if %__Priority% GTR 0 (set __BuildLoopCount=16&set __TestGroupToBuild=2)
 echo %__MsgPrefix%Building tests group %__TestGroupToBuild% with %__BuildLoopCount% subgroups
 
@@ -323,15 +316,15 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
 
 REM HACK! FOR TESTING ONLY!
 if %__Priority% EQU 0 (
-    set __Priority=1
+    set __HackPriority=1
 ) else (
-    set __Priority=0
+    set __HackPriority=0
 )
 
 REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
-call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__Priority% %__msbuildArgs% %__unprocessedBuildArgs%
+call %__DotnetHost% msbuild %__ProjectDir%\tests\runtest.proj /t:CheckTestBuild /p:CLRTestPriorityToBuild=%__HackPriority% %__msbuildArgs% %__unprocessedBuildArgs%
 if errorlevel 1 (
     echo %__MsgPrefix%Error: build failed.
     exit /b 1
