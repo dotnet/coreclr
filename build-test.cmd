@@ -321,6 +321,13 @@ for /l %%G in (1, 1, %__BuildLoopCount%) do (
     set __AppendToLog=true
 )
 
+REM HACK! FOR TESTING ONLY!
+if %__Priority% EQU 0 (
+    set __Priority=1
+) else (
+    set __Priority=0
+)
+
 REM Check that we've built about as many tests as we expect. This is primarily intended to prevent accidental changes that cause us to build
 REM drastically fewer Pri-1 tests than expected.
 echo %__MsgPrefix%Check the managed tests build
