@@ -8,29 +8,23 @@ namespace System.Reflection
 {
     public class MethodBody
     {
-        #region constructor
-        // This class can only be created from inside the EE.
         protected MethodBody() { }
-        #endregion
 
-        #region Private Data Members
-        private byte[] m_IL;
-        private ExceptionHandlingClause[] m_exceptionHandlingClauses;
-        private LocalVariableInfo[] m_localVariables;
-        internal MethodBase m_methodBase;
-        private int m_localSignatureMetadataToken;
-        private int m_maxStackSize;
-        private bool m_initLocals;
-        #endregion
+        private byte[] _IL = null;
+        private ExceptionHandlingClause[] _exceptionHandlingClauses = null;
+        private LocalVariableInfo[] _localVariables = null;
+#if CORECLR
+        internal MethodBase _methodBase;
+#endif
+        private int _localSignatureMetadataToken = 0;
+        private int _maxStackSize = 0;
+        private bool _initLocals = false;
 
-        #region Public Members
-        public virtual int LocalSignatureMetadataToken { get { return m_localSignatureMetadataToken; } }
-        public virtual IList<LocalVariableInfo> LocalVariables { get { return Array.AsReadOnly(m_localVariables); } }
-        public virtual int MaxStackSize { get { return m_maxStackSize; } }
-        public virtual bool InitLocals { get { return m_initLocals; } }
-        public virtual byte[] GetILAsByteArray() { return m_IL; }
-        public virtual IList<ExceptionHandlingClause> ExceptionHandlingClauses { get { return Array.AsReadOnly(m_exceptionHandlingClauses); } }
-        #endregion
+        public virtual int LocalSignatureMetadataToken => _localSignatureMetadataToken;
+        public virtual IList<LocalVariableInfo> LocalVariables => Array.AsReadOnly(_localVariables);
+        public virtual int MaxStackSize => _maxStackSize;
+        public virtual bool InitLocals => _initLocals;
+        public virtual byte[] GetILAsByteArray() => _IL;
+        public virtual IList<ExceptionHandlingClause> ExceptionHandlingClauses => Array.AsReadOnly(_exceptionHandlingClauses);
     }
 }
-

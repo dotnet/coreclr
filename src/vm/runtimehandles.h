@@ -70,14 +70,14 @@ private:
     MethodBody(MethodBody &r) { }    
 
 public:
-    U1ARRAYREF m_IL;
-    PTRARRAYREF m_exceptionClauses;
-    PTRARRAYREF m_localVariables;
-    OBJECTREF m_methodBase;
+    U1ARRAYREF _IL;
+    PTRARRAYREF _exceptionClauses;
+    PTRARRAYREF _localVariables;
+    OBJECTREF _methodBase;
 
-    INT32 m_localVarSigToken;
-    INT32 m_maxStackSize;
-    CLR_BOOL m_initLocals;    
+    INT32 _localVarSigToken;
+    INT32 _maxStackSize;
+    CLR_BOOL _initLocals;    
 };
 
 class RuntimeLocalVariableInfo : Object
