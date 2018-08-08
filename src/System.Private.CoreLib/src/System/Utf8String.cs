@@ -450,6 +450,16 @@ namespace System
             return (value == null || 0u >= (uint)value.Length) ? true : false;
         }
 
+        /// <summary>
+        /// Temporary method to help create UTF-8 string literals from UTF-16 string literals
+        /// until full language support comes online.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Utf8String Literal(string value)
+        {
+            return RuntimeHelpers.GetUtf8StringLiteral(value);
+        }
+
         private static unsafe nuint strlen(byte* value)
         {
             Debug.Assert(value != null);
