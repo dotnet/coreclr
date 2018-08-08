@@ -53,10 +53,10 @@ namespace System.Reflection
 
                 if (!MetadataToken.IsNullToken(m_catchMetadataToken))
                 {
-                    Type declaringType = m_methodBody.m_methodBase.DeclaringType;
-                    Module module = (declaringType == null) ? m_methodBody.m_methodBase.Module : declaringType.Module;
+                    Type declaringType = m_methodBody._methodBase.DeclaringType;
+                    Module module = (declaringType == null) ? m_methodBody._methodBase.Module : declaringType.Module;
                     type = module.ResolveType(m_catchMetadataToken, (declaringType == null) ? null : declaringType.GetGenericArguments(),
-                        m_methodBody.m_methodBase is MethodInfo ? m_methodBody.m_methodBase.GetGenericArguments() : null);
+                        m_methodBody._methodBase is MethodInfo ? m_methodBody._methodBase.GetGenericArguments() : null);
                 }
 
                 return type;

@@ -2491,28 +2491,28 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
 
             gc.MethodBodyObj = (METHODBODYREF)AllocateObject(MscorlibBinder::GetClass(CLASS__METHOD_BODY));
             
-            gc.MethodBodyObj->m_maxStackSize = header.GetMaxStack();
-            gc.MethodBodyObj->m_initLocals = !!(header.GetFlags() & CorILMethod_InitLocals);
+            gc.MethodBodyObj->_maxStackSize = header.GetMaxStack();
+            gc.MethodBodyObj->_initLocals = !!(header.GetFlags() & CorILMethod_InitLocals);
 
             if (header.IsFat())
-                gc.MethodBodyObj->m_localVarSigToken = header.GetLocalVarSigTok();
+                gc.MethodBodyObj->_localVarSigToken = header.GetLocalVarSigTok();
             else
-                gc.MethodBodyObj->m_localVarSigToken = 0;
+                gc.MethodBodyObj->_localVarSigToken = 0;
 
             // Allocate the array of IL and fill it in from the method header.
             BYTE* pIL = const_cast<BYTE*>(header.Code);
             COUNT_T cIL = header.GetCodeSize();
             gc.U1Array  = (U1ARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_U1, cIL);
 
-            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->m_IL, gc.U1Array, GetAppDomain());
-            memcpyNoGCRefs(gc.MethodBodyObj->m_IL->GetDataPtr(), pIL, cIL);
+            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_IL, gc.U1Array, GetAppDomain());
+            memcpyNoGCRefs(gc.MethodBodyObj->_IL->GetDataPtr(), pIL, cIL);
 
             // Allocate the array of exception clauses.
             INT32 cEh = (INT32)header.EHCount();
             const COR_ILMETHOD_SECT_EH* ehInfo = header.EH;
             gc.TempArray = (BASEARRAYREF) AllocateArrayEx(thEHClauseArray, &cEh, 1);
 
-            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->m_exceptionClauses, gc.TempArray, GetAppDomain());
+            SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_exceptionClauses, gc.TempArray, GetAppDomain());
             
             for (INT32 i = 0; i < cEh; i++)
             {                    
@@ -2533,7 +2533,7 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
                 else
                     gc.EHClauseObj->m_filterOffset = ehClause->GetFilterOffset();
                 
-                gc.MethodBodyObj->m_exceptionClauses->SetAt(i, (OBJECTREF) gc.EHClauseObj);
+                gc.MethodBodyObj->_exceptionClauses->SetAt(i, (OBJECTREF) gc.EHClauseObj);
                 SetObjectReference((OBJECTREF*)&(gc.EHClauseObj->m_methodBody), (OBJECTREF)gc.MethodBodyObj, GetAppDomain());
             }     
            
@@ -2547,7 +2547,7 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
                                 MetaSig::sigLocalVars);
                 INT32 cLocals = metaSig.NumFixedArgs();
                 gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
-                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->m_localVariables, gc.TempArray, GetAppDomain());
+                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray, GetAppDomain());
 
                 for (INT32 i = 0; i < cLocals; i ++)
                 {
@@ -2565,14 +2565,14 @@ FCIMPL2(MethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodObject *p
                     TypeHandle  tempType= metaSig.GetArgProps().GetTypeHandleThrowing(pModule, &sigTypeContext);       
                     OBJECTREF refLocalType = tempType.GetManagedClassObject();
                     gc.RuntimeLocalVariableInfoObj->SetType(refLocalType);
-                    gc.MethodBodyObj->m_localVariables->SetAt(i, (OBJECTREF) gc.RuntimeLocalVariableInfoObj);
+                    gc.MethodBodyObj->_localVariables->SetAt(i, (OBJECTREF) gc.RuntimeLocalVariableInfoObj);
                 }        
             }
             else
             {
                 INT32 cLocals = 0;
                 gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
-                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->m_localVariables, gc.TempArray, GetAppDomain());
+                SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray, GetAppDomain());
             }
         }
     }
