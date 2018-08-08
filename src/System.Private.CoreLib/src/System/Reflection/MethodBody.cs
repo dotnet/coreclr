@@ -8,29 +8,14 @@ namespace System.Reflection
 {
     public class MethodBody
     {
-        #region constructor
-        // This class can only be created from inside the EE.
+        internal MethodBase _methodBase;
         protected MethodBody() { }
-        #endregion
-
-        #region Private Data Members
-        private byte[] m_IL;
-        private ExceptionHandlingClause[] m_exceptionHandlingClauses;
-        private LocalVariableInfo[] m_localVariables;
-        internal MethodBase m_methodBase;
-        private int m_localSignatureMetadataToken;
-        private int m_maxStackSize;
-        private bool m_initLocals;
-        #endregion
-
-        #region Public Members
-        public virtual int LocalSignatureMetadataToken { get { return m_localSignatureMetadataToken; } }
-        public virtual IList<LocalVariableInfo> LocalVariables { get { return Array.AsReadOnly(m_localVariables); } }
-        public virtual int MaxStackSize { get { return m_maxStackSize; } }
-        public virtual bool InitLocals { get { return m_initLocals; } }
-        public virtual byte[] GetILAsByteArray() { return m_IL; }
-        public virtual IList<ExceptionHandlingClause> ExceptionHandlingClauses { get { return Array.AsReadOnly(m_exceptionHandlingClauses); } }
-        #endregion
+        public virtual int LocalSignatureMetadataToken => 0;
+        public virtual IList<LocalVariableInfo> LocalVariables => throw new ArgumentNullException("array");
+        public virtual int MaxStackSize => 0;
+        public virtual bool InitLocals => false;
+        public virtual byte[] GetILAsByteArray() => null;
+        public virtual IList<ExceptionHandlingClause> ExceptionHandlingClauses => throw new ArgumentNullException("array");
     }
 }
 
