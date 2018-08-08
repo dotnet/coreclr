@@ -2,11 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
-using System.Runtime.InteropServices;
+using System.Reflection;
 
 namespace System.ComponentModel
 {
@@ -22,6 +19,21 @@ namespace System.ComponentModel
         ///     This is the default value.
         /// </devdoc>
         private object _value;
+
+        // We cache "reflection" types for conversion fallback
+        static Type s_typeDescriptorTypeCached;
+        static MethodInfo s_convertFromInvariantStringMethodCached;
+
+        static DefaultValueAttribute()
+        {
+            // We discover/cache types for conversion fallback on first load
+            s_typeDescriptorTypeCached = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
+            Type typeConverterType = Type.GetType("System.ComponentModel.TypeConverter, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
+            if (typeConverterType != null)
+            {
+                s_convertFromInvariantStringMethodCached = typeConverterType.GetMethod("ConvertFromInvariantString", new Type[] { typeof(string) });
+            }
+        }
 
         /// <devdoc>
         /// <para>Initializes a new instance of the <see cref='System.ComponentModel.DefaultValueAttribute'/> class, converting the
@@ -44,13 +56,31 @@ namespace System.ComponentModel
                 {
                     _value = TimeSpan.Parse(value);
                 }
-                else
+                else if (type.Module == typeof(string).Module)
                 {
                     _value = Convert.ChangeType(value, type, CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    _value = ConvertFromInvariantString(type, value);
                 }
             }
             catch
             {
+            }
+
+            object ConvertFromInvariantString(Type typeToConvert, string stringValue)
+            {
+                // if we didn't found required types on initialization return null
+                if (s_typeDescriptorTypeCached == null || s_convertFromInvariantStringMethodCached == null)
+                    return null;
+
+                MethodInfo typeDescriptorTypeGetConverter = s_typeDescriptorTypeCached.GetMethod("GetConverter", new Type[] { typeToConvert });
+
+                // typeConverter cannot be null GetConverter return default converter
+                object typeConverter = typeDescriptorTypeGetConverter.Invoke(null, new[] { typeToConvert });
+
+                return s_convertFromInvariantStringMethodCached.Invoke(typeConverter, new[] { stringValue });
             }
         }
 
