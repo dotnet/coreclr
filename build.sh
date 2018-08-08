@@ -305,8 +305,8 @@ build_native()
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator $extraCmakeArguments $__cmakeargs"
-        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $__IncludeTests $generator "$extraCmakeArguments" "$__cmakeargs"
+        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         popd
     fi
 
@@ -358,7 +358,6 @@ build_cross_arch_component()
 
     export __CMakeBinDir="$__CrossComponentBinDir"
     export CROSSCOMPONENT=1
-    __IncludeTests=
 
     if [ $CROSSCOMPILE == 1 ]; then
         TARGET_ROOTFS="$ROOTFS_DIR"
@@ -613,7 +612,6 @@ esac
 
 __BuildType=Debug
 __CodeCoverage=
-__IncludeTests=Include_Tests
 __IgnoreWarnings=0
 
 # Set the various build properties here so that CMake and MSBuild can pick them up
@@ -637,6 +635,7 @@ __SkipCoreCLR=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
+__SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -826,11 +825,8 @@ while :; do
             __SkipCrossgen=1
             ;;
 
-        includetests|-includetests)
-            ;;
-
         skiptests|-skiptests)
-            __IncludeTests=
+            __SkipTests=1
             ;;
 
         skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
@@ -998,6 +994,14 @@ generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+
+# [TODO] Remove this when the `build-test.sh` script properly builds and deploys native test assets.
+# See use of build_Tests() in this script
+if [ $__SkipTests != 1 ]; then
+    echo "Adding CMake flags to build native tests for $__BuildOS.$__BuildArch.$__BuildType"
+    __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_TESTS=ON"
+fi
+
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 
 # Build cross-architecture components

@@ -53,10 +53,6 @@ for i in "${@:5}"; do
       echo "Code coverage is turned on for this build."
       code_coverage=ON
       ;;
-      INCLUDE_TESTS)
-      echo "Including tests directory in build."
-      build_tests=ON
-      ;;
       NINJA)
       generator=Ninja
       ;;
@@ -176,7 +172,6 @@ cmake \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCMAKE_EXPORT_COMPILE_COMMANDS=1 " \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
-  "-DCLR_CMAKE_BUILD_TESTS=$build_tests" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
   "$1"
