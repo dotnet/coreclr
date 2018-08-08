@@ -833,7 +833,7 @@ while :; do
             __IncludeTests=
             ;;
 
-        skipnuget|-skipnuget)
+        skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
             __SkipNuget=1
             ;;
 
