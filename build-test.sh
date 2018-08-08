@@ -152,7 +152,7 @@ generate_layout()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
+    build_MSBuild_projects "Restore_Packages" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up=-updateinvalidpackageversion
@@ -172,7 +172,7 @@ generate_layout()
 
     mkdir -p $CORE_ROOT
 
-    build_Tests_internal "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "-testOverlay" 
+    build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "-testOverlay"
 
     chmod +x $__BinDir/corerun
     chmod +x $__BinDir/crossgen
@@ -193,7 +193,7 @@ generate_testhost()
     echo "${__MsgPrefix}Creating test overlay..."    
     mkdir -p $TEST_HOST
 
-    build_Tests_internal "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "-testHost"
+    build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "-testHost"
 }
 
 
@@ -238,15 +238,15 @@ build_Tests()
     # ===
     # =========================================================================================
 
-    build_Tests_internal "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
+    build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
 
     if [ -n "$__BuildAgainstPackagesArg" ]; then
-        build_Tests_internal "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "Restore product binaries (run tests)" "-BinPlaceRef" "-BinPlaceProduct" "-CopyCrossgenToProduct"
+        build_MSBuild_projects "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "Restore product binaries (run tests)" "-BinPlaceRef" "-BinPlaceProduct" "-CopyCrossgenToProduct"
     fi
 
     echo "Starting the Managed Tests Build..."
 
-    build_Tests_internal "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
+    build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
 
     if [ $? -ne 0 ]; then
         echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -259,7 +259,7 @@ build_Tests()
         else
             __Priority=0
         fi
-        build_Tests_internal "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild /p:CLRTestPriorityToBuild=$__Priority"
+        build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild /p:CLRTestPriorityToBuild=$__Priority"
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: Check Test Build failed."
@@ -276,7 +276,7 @@ build_Tests()
 
         if [ ! -f $__XUnitWrapperBuiltMarker ]; then
 
-            build_Tests_internal "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "Test Xunit Wrapper" "-BuildWrappers" "-MsBuildEventLogging= " "-TargetsWindows=false"
+            build_MSBuild_projects "Tests_XunitWrapper" "$__ProjectDir/tests/runtest.proj" "Test Xunit Wrapper" "-BuildWrappers" "-MsBuildEventLogging= " "-TargetsWindows=false"
 
             if [ $? -ne 0 ]; then
                 echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -301,11 +301,11 @@ build_Tests()
 
     if [ $__ZipTests -ne 0 ]; then
         echo "${__MsgPrefix}ZIP tests packages..."
-        build_Tests_internal "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" "Prep test binaries for Helix publishing" " "
+        build_MSBuild_projects "Helix_Prep" "$__ProjectDir/tests/helixprep.proj" "Prep test binaries for Helix publishing" " "
     fi
 }
 
-build_Tests_internal()
+build_MSBuild_projects()
 {
     subDirectoryName=$1
     shift
