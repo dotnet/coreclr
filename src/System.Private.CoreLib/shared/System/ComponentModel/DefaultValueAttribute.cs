@@ -71,7 +71,7 @@ namespace System.ComponentModel
                 if (s_convertFromInvariantStringMethodCached == null)
                 {
                     Type typeConverterType = Type.GetType("System.ComponentModel.TypeConverter, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-                    Volatile.Write(ref s_convertFromInvariantStringMethodCached, (Func<MethodInfo>)Delegate.CreateDelegate(typeof(Func<MethodInfo>), typeConverterType != null ? typeConverterType.GetMethod("ConvertFromInvariantString", new Type[] { typeof(string) }) : null, "GetDefaultInstance"));
+                    Volatile.Write(ref s_convertFromInvariantStringMethodCached, (Func<MethodInfo>)Delegate.CreateDelegate(typeof(Func<MethodInfo>), typeConverterType?.GetMethod("ConvertFromInvariantString", new Type[] { typeof(string) }), "GetDefaultInstance"));
                 }
 
                 // use local var to avoid double delegate invocation
