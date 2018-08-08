@@ -11,7 +11,7 @@ namespace System.Reflection
         // This class can only be created from inside the EE.
         private RuntimeExceptionHandlingClause() { }
         
-        private MethodBody _methodBody;
+        private RuntimeMethodBody _methodBody;
         private ExceptionHandlingClauseOptions _flags;
         private int _tryOffset;
         private int _tryLength;

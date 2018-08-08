@@ -8,7 +8,6 @@ namespace System.Reflection
 {
     public class MethodBody
     {
-        internal MethodBase _methodBase;
         protected MethodBody() { }
         public virtual int LocalSignatureMetadataToken => 0;
         public virtual IList<LocalVariableInfo> LocalVariables => throw new ArgumentNullException("array");
