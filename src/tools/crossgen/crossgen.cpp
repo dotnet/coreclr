@@ -422,7 +422,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPWSTR pwzSearchPathForManagedPDB = NULL;
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
-    bool fExplicitReadyToRunSwitch = false;
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     LPCWSTR pwszCLRJITPath = nullptr;
@@ -514,7 +513,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         else if (MatchParameter(*argv, W("ReadyToRun")))
         {
             dwFlags |= NGENWORKER_FLAGS_READYTORUN;
-            fExplicitReadyToRunSwitch = true;
         }
         else if (MatchParameter(*argv, W("FragileNonVersionable")))
         {
@@ -834,12 +832,6 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     
     // Are we compiling mscorlib.dll? 
     bool fCompilingMscorlib = StringEndsWith((LPWSTR)pwzFilename, CoreLibName_IL_W);
-
-// Disable fragile NGen when compiling Mscorlib for ARM.
-#if !(defined(_TARGET_ARM_) || defined(_TARGET_ARM64_))
-    if (fCompilingMscorlib && !fExplicitReadyToRunSwitch)
-        dwFlags &= ~NGENWORKER_FLAGS_READYTORUN;
-#endif // !(_TARGET_ARM_ || _TARGET_ARM64_)
 
     if(pwzPlatformAssembliesPaths != nullptr)
     {
