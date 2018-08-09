@@ -5051,19 +5051,13 @@ public:
         if (!GCToOSInterface::CanGetCurrentProcessorNumber())
         {
             n_sniff_buffers = n_heaps*2+1;
-            size_t sniff_buf_size = 0;
-#ifdef FEATURE_REDHAWK
-            size_t n_cache_lines = 1 + n_heaps*n_sniff_buffers + 1;
-            sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
-#else
-            S_SIZE_T safe_sniff_buf_size = S_SIZE_T(1 + n_heaps*n_sniff_buffers + 1);
-            safe_sniff_buf_size *= HS_CACHE_LINE_SIZE;
-            if (safe_sniff_buf_size.IsOverflow())
+            size_t n_cache_lines = 1 + n_heaps * n_sniff_buffers + 1;
+            size_t sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
+            if (sniff_buf_size / HS_CACHE_LINE_SIZE != n_cache_lines) // check for overlow
             {
                 return FALSE;
             }
-            sniff_buf_size = safe_sniff_buf_size.Value();
-#endif //FEATURE_REDHAWK
+
             sniff_buffer = new (nothrow) uint8_t[sniff_buf_size];
             if (sniff_buffer == 0)
                 return FALSE;

@@ -22,7 +22,6 @@
 #include "gcenv.os.h"
 #include "gcenv.interlocked.h"
 #include "gcenv.interlocked.inl"
-#include "gcenv.safeint.h"
 #include "gcenv.object.h"
 #include "gcenv.sync.h"
 #include "gcinterface.h"
