@@ -2436,10 +2436,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // Basic archiving of the build, no pal tests
                     Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
 
-                    job.with {
+                    newJob.with {
                         publishers {
                             azureVMAgentPostBuildAction {
-                                agentPostBuildAction('Delete agent if the build was not successful (when idle).')
+                                agentPostBuildAction('Delete agent after build execution (when idle).')
                             }
                         }
                     }
