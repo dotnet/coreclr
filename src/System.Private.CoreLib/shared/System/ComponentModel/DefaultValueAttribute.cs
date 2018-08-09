@@ -66,7 +66,7 @@ namespace System.ComponentModel
                     if (s_getConverterMethodCached == null)
                     {
                         Type typeDescriptorObject = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-                        Volatile.Write(ref s_getConverterMethodCached, () => typeDescriptorObject?.GetMethod("GetConverter", new Type[] { typeof(object) }));
+                        Volatile.Write(ref s_getConverterMethodCached, () => typeDescriptorObject?.GetMethod("GetConverter", new Type[] { typeof(Type) }));
                     }
 
                     if (s_convertFromInvariantStringMethodCached == null)
