@@ -79,7 +79,7 @@ namespace System.ComponentModel
                     MethodInfo localGetConverterMethod = s_getConverterMethodCached();
                     MethodInfo localConvertFromInvariantStringMethod = s_convertFromInvariantStringMethodCached();
 
-                    // if we didn't found required types on initialization return null
+                    // if we didn't found required types on initialization fallback on old code
                     if (localGetConverterMethod == null || localConvertFromInvariantStringMethod == null)
                         return false;
 
