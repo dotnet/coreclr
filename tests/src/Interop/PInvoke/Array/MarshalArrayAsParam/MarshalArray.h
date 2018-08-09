@@ -311,28 +311,28 @@ bool ValidateS2LPArray(S2 HUGEP* pREC, S2 HUGEP* pRECCorrect, int numArrElement)
         else if(pREC[i].i64 != pRECCorrect[i].i64)
         {
             printf("\t The field of Int64 is not the expected!");
-            printf("\t\tpREC[%d].i64 = %d\n", i, pREC[i].i64);
-            printf("\t\tpRECCorrect[%d].i64 = %d\n", i, pRECCorrect[i].i64);
+            printf("\t\tpREC[%d].i64 = %lld\n", i, pREC[i].i64);
+            printf("\t\tpRECCorrect[%d].i64 = %lld\n", i, pRECCorrect[i].i64);
             return false;
         }
         else if(pREC[i].ui64 != pRECCorrect[i].ui64)
         {
             printf("\t The field of UInt64 is not the expected!");
-            printf("\t\tpREC[%d].ui64 = %d\n", i, pREC[i].ui64);
-            printf("\t\tpRECCorrect[%d].ui64 = %u\n", i, pRECCorrect[i].ui64);
+            printf("\t\tpREC[%d].ui64 = %llu\n", i, pREC[i].ui64);
+            printf("\t\tpRECCorrect[%d].ui64 = %llu\n", i, pRECCorrect[i].ui64);
             return false;
         }
         else if(pREC[i].sgl != pRECCorrect[i].sgl)
         {
             printf("\t The field of single is not the expected!");
-            printf("\t\tpREC[%d].sgl = %d\n", i, pREC[i].sgl);
+            printf("\t\tpREC[%d].sgl = %f\n", i, pREC[i].sgl);
             printf("\t\tpRECCorrect[%d].sgl = %f\n", i, pRECCorrect[i].sgl);
             return false;
         }
         else if(pREC[i].d != pRECCorrect[i].d)
         {
             printf("\t The field of double is not the expected!");
-            printf("\t\tpREC[%d].d = %d\n", i, pREC[i].d);
+            printf("\t\tpREC[%d].d = %f\n", i, pREC[i].d);
             printf("\t\tpRECCorrect[%d].d = %f\n", i, pRECCorrect[i].d);
             return false;
         }

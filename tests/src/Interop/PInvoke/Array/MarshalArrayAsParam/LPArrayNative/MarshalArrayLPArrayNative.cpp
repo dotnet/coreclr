@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <xplatform.h>
-#include "..\MarshalArray.h"
+#include "MarshalArray.h"
 
 template<typename T>
 bool Equals(T *pActual, int cActual, T *pExpected, int cExpected)
@@ -17,7 +17,7 @@ bool Equals(T *pActual, int cActual, T *pExpected, int cExpected)
     else if (cActual != cExpected)
         return false;
 
-    for (size_t i = 0; i < cExpected; ++i)
+    for (int i = 0; i < cExpected; ++i)
     {
         if (!IsObjectEquals(pActual[i], pExpected[i]))
         {
@@ -50,7 +50,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object(VARIANT *pActual, int cActual)
     CHECK_PARAM_NOT_EMPTY(pActual);
 
     //VARIANT expected[ARRAY_SIZE];
-    int nullIdx = ARRAY_SIZE / 2;
+    size_t nullIdx = ARRAY_SIZE / 2;
 
     for (size_t i = 0; i < ARRAY_SIZE; ++i)
     {
@@ -67,9 +67,9 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object(VARIANT *pActual, int cActual)
                 continue;
             }
         }
-        if ((pActual[i].vt != VT_I4) && (pActual[i].lVal != i))
+        if ((pActual[i].vt != VT_I4) && ((size_t)(pActual[i].lVal) != i))
         {
-            printf("====VARIANTS NOT EQUAL====\n", __FUNCTION__);
+            printf("====VARIANTS NOT EQUAL==== %s\n", __FUNCTION__);
             return TRUE;
         }
     }
@@ -164,7 +164,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_LPCSTR(LPCSTR *pActual, int cActual)
     CHECK_PARAM_NOT_EMPTY(pActual);
 
     LPSTR expected[ARRAY_SIZE];
-    int nullIdx = ARRAY_SIZE / 2;
+    size_t nullIdx = ARRAY_SIZE / 2;
     for (size_t i = 0; i < ARRAY_SIZE; ++i)
     {
         if (i == nullIdx)
@@ -204,7 +204,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Struct(TestStruct *pActual, int cActual)
     {
         expected[i].x = (int)i;
         expected[i].d = (int)i;
-        expected[i].l = i;
+        expected[i].l = (LONG64)i;
         expected[i].str = ToString((int)i);
     }
 
@@ -245,7 +245,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate(LPPDELEGATE pActual, int cActua
 
             if (i != pVar.lVal)
             {
-                printf("%s Error: delegate marshal error: expected: %d, pActual %d\n", __FUNCTION__, i, pVar.lVal);
+                printf("%s Error: delegate marshal error: expected: %d, pActual %ld\n", __FUNCTION__, i, pVar.lVal);
                 return false;
             }
         }

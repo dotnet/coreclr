@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <xplatform.h>
+
 using namespace std;
 
 const int ARRAY_SIZE = 100;
