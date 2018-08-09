@@ -81,10 +81,7 @@ private:
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(m_pBuffer <= pAddress && m_pLimit > pAddress);
 
-        if((size_t)pAddress % AlignmentSize != 0)
-        {
-            pAddress = pAddress + (AlignmentSize - ((size_t)pAddress % AlignmentSize));
-        }
+        pAddress = (BYTE*)ALIGN_UP(pAddress, AlignmentSize);
 
         _ASSERTE((size_t)pAddress % AlignmentSize == 0);
         return pAddress;
