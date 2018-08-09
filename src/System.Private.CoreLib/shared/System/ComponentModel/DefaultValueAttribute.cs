@@ -84,9 +84,7 @@ namespace System.ComponentModel
                         return false;
 
                     // typeConverter cannot be null GetConverter return default converter
-                    object typeConverter = localGetConverterMethod.Invoke(null, new[] { typeToConvert });
-
-                    conversionResult = localConvertFromInvariantStringMethod.Invoke(typeConverter, new[] { stringValue });
+                    conversionResult = localConvertFromInvariantStringMethod.Invoke(localGetConverterMethod.Invoke(null, new[] { typeToConvert }), new[] { stringValue });
 
                     return true;
                 }
