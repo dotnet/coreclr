@@ -20,9 +20,9 @@ class EventPipeBuffer
 
 private:
 
-    // Instances of EventPipeEventInstance in the buffer must be 4-byte aligned.
+    // Instances of EventPipeEventInstance in the buffer must be 8-byte aligned.
     // It is OK for the data payloads to be unaligned because they are opaque blobs that are copied via memcpy.
-    const size_t AlignmentSize = 4;
+    const size_t AlignmentSize = 8;
 
     // A pointer to the actual buffer.
     BYTE *m_pBuffer;
