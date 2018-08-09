@@ -53,7 +53,15 @@ EventPipeEventInstance::EventPipeEventInstance(
 
     m_pData = pData;
     m_dataLength = length;
-    QueryPerformanceCounter(&m_timeStamp);
+
+    // Declare the timeStamp as a local and require that it be 4-byte aligned.
+    // If the timeStamp is not 4-byte aligned, QueryPerformanceCounter will return E_NOACCESS on some versions of Windows.
+    // This codepath is more susceptible to having an unaligned m_timeStamp because EventPipeEventInstance
+    // is initialized via placement-new into the EventPipe circular buffer.
+    LARGE_INTEGER timeStamp;
+    QueryPerformanceCounter(&timeStamp);
+    m_timeStamp.QuadPart = timeStamp.QuadPart;
+    _ASSERTE(m_timeStamp.QuadPart > 0);
 
     if(event.NeedStack() && !session.RundownEnabled())
     {
