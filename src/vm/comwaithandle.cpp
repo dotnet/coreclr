@@ -234,7 +234,7 @@ FCIMPL4(INT32, WaitHandleNative::CorWaitMultipleNative, Object* waitObjectsUNSAF
     {
         COMPlusThrow(kNotSupportedException, W("NotSupported_WaitAllSTAThread"));
     }
-#endif // FEATURE_COMINTEROP && !FEATURE_CORECLR
+#endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
     WaitHandleArrayHolder arrayHolder;
     arrayHolder.Initialize(numWaiters, (PTRARRAYREF*) &waitObjects);
