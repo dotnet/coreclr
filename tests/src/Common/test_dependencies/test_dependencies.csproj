@@ -22,8 +22,9 @@
     <PackageReference Include="System.Security.Permissions">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
     </PackageReference>
+    <!-- If we ever service this package, update this version manually. -->
     <PackageReference Include="System.Runtime.Intrinsics.Experimental">
-      <Version>$(MicrosoftPrivateCoreFxNETCoreAppPackageVersion)</Version>
+      <Version>4.5.0-rtm</Version>
     </PackageReference>
   </ItemGroup>
   <PropertyGroup>
