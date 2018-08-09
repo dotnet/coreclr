@@ -7,7 +7,7 @@
 #include <windows.h>
 #include <oleauto.h>
 #include <xplatform.h>
-#include "../StructDefs.h"
+#include "StructDefs.h"
 
 /////////////////////////////////Internal Helper Methods
 /////////////////////////////////
