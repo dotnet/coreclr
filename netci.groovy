@@ -663,7 +663,15 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
 
     if (!(architecture in armArches)) {
         assert options == null
-        Utilities.setMachineAffinity(job, os, 'latest-or-auto')
+
+        if (os == "Windows_NT") {
+            // Set of machines from Helix with the current VS2017 toolset, usable by all Windows builds.
+            job.with {
+                label('Windows.10.Amd64.ClientRS4.DevEx.Open')
+            }
+        } else {
+            Utilities.setMachineAffinity(job, os, 'latest-or-auto')
+        }
 
         return
     }
@@ -710,10 +718,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         def isBuild = options['use_arm64_build_machine'] == true
 
         if (isBuild == true) {
-            // Current set of machines with private Windows arm64 toolset:
-            // Utilities.setMachineAffinity(job, os, 'latest-arm64')
-            //
-            // New set of machines with public Windows arm64 toolset, coming from Helix:
+            // Set of machines from Helix with the current VS2017 toolset, usable by all Windows builds.
             job.with {
                 label('Windows.10.Amd64.ClientRS4.DevEx.Open')
             }
@@ -1296,6 +1301,16 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Ubuntu x86 CI jobs are failing. Disable non-PR triggered jobs to avoid these constant failures
     // until this is fixed. Tracked by https://github.com/dotnet/coreclr/issues/19003.
     if (architecture == 'x86' && os == 'Ubuntu') {
+        return
+    }
+
+    // The dev/unix_test_workflow branch is used for netci.groovy testing. Don't waste any machine resources running
+    // periodic or push builds in this branch.
+    //
+    // NOTE: if you are actually testing changes to this 'addNonPRTriggers' code in the dev/unix_test_workflow branch,
+    //       you will need to temporarily disable this check.
+    //
+    if (branch == 'dev/unix_test_workflow') {
         return
     }
 
@@ -1894,22 +1909,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
         // editor brace matching: }
 
         case 'armel': // editor brace matching: {
-            job.with {
-                publishers {
-                    azureVMAgentPostBuildAction {
-                        agentPostBuildAction('Delete agent if the build was not successful (when idle).')
-                    }
+            assert os == 'Tizen'
+            if (scenario == 'innerloop') {
+                if (configuration == 'Checked') {
+                    isDefaultTrigger = true
                 }
-            }
-
-            switch (os) {
-                case 'Tizen':
-                    if (scenario == 'innerloop') {
-                        if (configuration == 'Checked') {
-                            isDefaultTrigger = true
-                        }
-                    }
-                    break
             }
 
             break
@@ -2431,6 +2435,15 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     // Basic archiving of the build, no pal tests
                     Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+
+                    job.with {
+                        publishers {
+                            azureVMAgentPostBuildAction {
+                                agentPostBuildAction('Delete agent if the build was not successful (when idle).')
+                            }
+                        }
+                    }
+
                     break
                 case 'arm64':
                 case 'arm':
