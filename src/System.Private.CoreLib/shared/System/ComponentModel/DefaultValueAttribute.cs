@@ -21,8 +21,8 @@ namespace System.ComponentModel
         /// </devdoc>
         private object _value;
 
-        // We cache "reflection" types for conversion fallback
-        static Func<Type> s_typeDescriptorTypeCached;
+        // We cache reflection types for TypeConverter conversion
+        static Func<MethodInfo> s_getConverterMethodCached;
         static Func<MethodInfo> s_convertFromInvariantStringMethodCached;
 
         /// <devdoc>
@@ -38,7 +38,11 @@ namespace System.ComponentModel
             // load an otherwise normal class.
             try
             {
-                if (type.IsSubclassOf(typeof(Enum)))
+                if (TryConvertFromInvariantString(type, value, out object convertedValue))
+                {
+                    _value = convertedValue;
+                }
+                else if (type.IsSubclassOf(typeof(Enum)))
                 {
                     _value = Enum.Parse(type, value, true);
                 }
@@ -46,48 +50,49 @@ namespace System.ComponentModel
                 {
                     _value = TimeSpan.Parse(value);
                 }
-                else if (type.Module == typeof(string).Module)
+                else
                 {
                     _value = Convert.ChangeType(value, type, CultureInfo.InvariantCulture);
                 }
-                else
+
+                return;
+
+                // Try to load and use TypeConverter/TypeDescriptor types
+                bool TryConvertFromInvariantString(Type typeToConvert, string stringValue, out object conversionResult)
                 {
-                    _value = ConvertFromInvariantString(type, value);
+                    conversionResult = null;
+
+                    // lazy init reflection objects
+                    if (s_getConverterMethodCached == null)
+                    {
+                        Type typeDescriptorObject = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
+                        Volatile.Write(ref s_getConverterMethodCached, () => typeDescriptorObject?.GetMethod("GetConverter", new Type[] { typeof(object) }));
+                    }
+
+                    if (s_convertFromInvariantStringMethodCached == null)
+                    {
+                        Type typeConverterType = Type.GetType("System.ComponentModel.TypeConverter, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
+                        Volatile.Write(ref s_convertFromInvariantStringMethodCached, () => typeConverterType?.GetMethod("ConvertFromInvariantString", new Type[] { typeof(string) }));
+                    }
+
+                    // use local var to avoid double delegate invocation
+                    MethodInfo localGetConverterMethod = s_getConverterMethodCached();
+                    MethodInfo localConvertFromInvariantStringMethod = s_convertFromInvariantStringMethodCached();
+
+                    // if we didn't found required types on initialization return null
+                    if (localGetConverterMethod == null || localConvertFromInvariantStringMethod == null)
+                        return false;
+
+                    // typeConverter cannot be null GetConverter return default converter
+                    object typeConverter = localGetConverterMethod.Invoke(null, new[] { typeToConvert });
+
+                    conversionResult = localConvertFromInvariantStringMethod.Invoke(typeConverter, new[] { stringValue });
+
+                    return true;
                 }
             }
             catch
             {
-            }
-
-            object ConvertFromInvariantString(Type typeToConvert, string stringValue)
-            {
-                // lazy init reflection objects
-                if (s_typeDescriptorTypeCached == null)
-                {
-                    Type typeDescriptorObject = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-                    Volatile.Write(ref s_typeDescriptorTypeCached, (Func<Type>)Delegate.CreateDelegate(typeof(Func<Type>), typeDescriptorObject, "GetDefaultInstance"));
-                }
-
-                if (s_convertFromInvariantStringMethodCached == null)
-                {
-                    Type typeConverterType = Type.GetType("System.ComponentModel.TypeConverter, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-                    Volatile.Write(ref s_convertFromInvariantStringMethodCached, (Func<MethodInfo>)Delegate.CreateDelegate(typeof(Func<MethodInfo>), typeConverterType?.GetMethod("ConvertFromInvariantString", new Type[] { typeof(string) }), "GetDefaultInstance"));
-                }
-
-                // use local var to avoid double delegate invocation
-                Type localTypeDescriptor = s_typeDescriptorTypeCached();
-                MethodInfo localConvertFromInvariantStringMethod = s_convertFromInvariantStringMethodCached();
-
-                // if we didn't found required types on initialization return null
-                if (localTypeDescriptor == null || localConvertFromInvariantStringMethod == null)
-                    return null;
-
-                MethodInfo typeDescriptorTypeGetConverter = localTypeDescriptor.GetMethod("GetConverter", new Type[] { typeToConvert });
-
-                // typeConverter cannot be null GetConverter return default converter
-                object typeConverter = typeDescriptorTypeGetConverter.Invoke(null, new[] { typeToConvert });
-
-                return localConvertFromInvariantStringMethod.Invoke(typeConverter, new[] { stringValue });
             }
         }
 
