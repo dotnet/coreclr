@@ -32,6 +32,18 @@ def static getOSGroup(def os) {
     return osGroupMap[os]
 }
 
+def static getCrossArchitecture(def os, def architecture, def scenario) {
+    switch (architecture) {
+        case 'arm':
+            return 'x86'
+
+        case 'arm64':
+            return 'x64'
+    }
+
+    assert false
+}
+
 // We use this class (vs variables) so that the static functions can access data here.
 class Constants {
 
@@ -159,7 +171,8 @@ class Constants {
                'standalone_gc',
                'gc_reliability_framework',
                'illink',
-               'corefx_innerloop']
+               'corefx_innerloop',
+               'crossgen_comparison']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -425,7 +438,8 @@ class Constants {
                'gcstress0xc_zapdisable_heapverify1',
                'gcstress0xc_jitstress1',
                'gcstress0xc_jitstress2',
-               'gcstress0xc_minopts_heapverify1'
+               'gcstress0xc_minopts_heapverify1',
+               'crossgen_comparison'
     ]
 
     def static validLinuxArm64Scenarios = [
@@ -897,6 +911,15 @@ def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBui
 // scheduled with a default PR trigger despite the correlation being true at the moment.
 def static isPri0TestScenario(def scenario) {
     return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop')
+}
+
+def static isCrossGenComparisonScenario(def scenario) {
+    return (scenario == 'crossgen_comparison')
+}
+
+def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
+    assert isCrossGenComparisonScenario(scenario)
+    return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
 }
 
 def static getFxBranch(def branch) {
@@ -2484,6 +2507,28 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
+                    else if (isCrossGenComparisonScenario(scenario)) {
+                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
+
+                        def crossArchitecture = getCrossArchitecture(os, architecture, scenario)
+
+                        def workspaceRelativeProductBinDir = "bin/Product/${osGroup}.${architecture}.${configuration}"
+                        def workspaceRelativeCoreLib = "${workspaceRelativeProductBinDir}/IL/System.Private.CoreLib.dll"
+                        def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
+                        def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
+                        def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
+                        def workspaceRelativeArtifactsArchive = "${os}.${architecture}.${configuration}.${scenario}.zip"
+
+                        def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
+                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArchitecture}/crossgen"
+
+                        buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeCrossResultDir}"
+
+                        Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
+                    }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                         // download the appropriate CoreFX packages.
@@ -2697,6 +2742,9 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             default:
                 break
         }
+    }
+    else if (isCrossGenComparisonScenario(scenario)) {
+        return shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
     }
     else {
         // Skip scenarios
@@ -3375,6 +3423,56 @@ ${runScript} \\
     return newJob
 }
 
+def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
+{
+    assert isCrossGenComparisonScenario(scenario)
+
+    def osGroup = getOSGroup(os)
+    def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
+
+    def crossArchitecture = getCrossArchitecture(os, architecture, scenario)
+    def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
+    def workspaceRelativeNativeResultDir = "_/${osGroup}.${architecture}_${architecture}.${configuration}"
+
+    def jobFolder = getJobFolder(scenario)
+    def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
+        parameters {
+            stringParam('CORECLR_BUILD', '', "Build number to copy CoreCLR ${osGroup} binaries from")
+        }
+
+        def workspaceRelativeArtifactsArchive = "${os}.${architecture}.${configuration}.${scenario}.zip"
+
+        steps {
+            copyArtifacts(inputCoreCLRBuildName) {
+                includePatterns("${workspaceRelativeArtifactsArchive}")
+                buildSelector {
+                    buildNumber('${CORECLR_BUILD}')
+                }
+            }
+
+            shell("unzip -o ${workspaceRelativeArtifactsArchive} || exit 0")
+
+            def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
+            def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
+            def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
+            def workspaceRelativeCrossGenExecutable = "${workspaceRelativeCoreRootDir}/crossgen"
+
+            def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
+            def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
+
+            shell("mkdir -p ${workspaceRelativeNativeResultDir}")
+            shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
+            shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
+            shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}")
+        } // steps
+    }  // job
+
+    Utilities.addArchival(newJob, "${workspaceRelativeCrossResultDir}/**")
+    Utilities.addArchival(newJob, "${workspaceRelativeNativeResultDir}/**")
+
+    return newJob
+}
+
 // Create a test job that will be used by a flow job.
 // Returns the newly created job.
 // Note that we don't add tests jobs to the various views, since they are always used by a flow job, which is in the views,
@@ -3387,7 +3485,12 @@ def static CreateTestJob(def dslFactory, def project, def branch, def architectu
     if (windowsArmJob) {
         assert inputTestsBuildName == null
         newJob = CreateWindowsArmTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
-    } else {
+    }
+    else if (isCrossGenComparisonScenario(scenario)) {
+        assert inputTestsBuildName == null
+        newJob = CreateNonWindowsCrossGenComparisonTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
+    }
+    else {
         newJob = CreateOtherTestJob(dslFactory, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName, inputTestsBuildName)
     }
 
@@ -3589,6 +3692,9 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
             return false
         }
     }
+    else if (isCrossGenComparisonScenario(scenario)) {
+        return shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
+    }
     else {
         // Skip scenarios
         switch (scenario) {
@@ -3658,6 +3764,7 @@ Constants.allScenarios.each { scenario ->
 
                     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
                     def doCoreFxTesting = isCoreFxScenario(scenario)
+                    def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
@@ -3671,6 +3778,10 @@ Constants.allScenarios.each { scenario ->
                             inputCoreCLRBuildIsBuildOnly = true
                         }
                     }
+                    if (doCrossGenComparison) {
+                        inputCoreCLRBuildScenario = scenario
+                    }
+
                     def inputCoreCLRFolderName = getJobFolder(inputCoreCLRBuildScenario)
                     def inputCoreCLRBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, inputCoreCLRBuildIsBuildOnly), isPR, inputCoreCLRFolderName)
@@ -3683,7 +3794,7 @@ Constants.allScenarios.each { scenario ->
 
                     def inputTestsBuildName = null
 
-                    if (!windowsArmJob && !doCoreFxTesting) {
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison) {
                         def testBuildScenario = isPri0TestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
