@@ -3869,6 +3869,13 @@ namespace System.Diagnostics.Tracing
         {
             // This will cause the OnEventSourceCreated callback to fire. 
             CallBackForExistingEventSources(true, (obj, args) => args.EventSource.AddListener((EventListener)obj));
+
+#if FEATURE_PERFTRACING
+            // Ensure that RuntimeEventSource is initialized so that EventListeners get an opportunity to subscribe to its events.
+            // This is required because RuntimeEventSource never emit events on its own, and thus will never be initialized
+            // in the normal way that EventSources are initialized.
+            GC.KeepAlive(RuntimeEventSource.Log);
+#endif // FEATURE_PERFTRACING
         }
 
         /// <summary>
