@@ -162,9 +162,12 @@ else
     overridefile=clang-compiler-override.txt
 fi
 
+# Determine the current script directory
+__currentScriptDir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 cmake \
   -G "$generator" \
-  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=$1/src/pal/tools/$overridefile" \
+  "-DCMAKE_USER_MAKE_RULES_OVERRIDE=${__currentScriptDir}/$overridefile" \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
