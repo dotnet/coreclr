@@ -58,7 +58,7 @@ EventPipeEventInstance::EventPipeEventInstance(
     // If the timeStamp is not 4-byte aligned, QueryPerformanceCounter will return E_NOACCESS on some versions of Windows.
     // This codepath is more susceptible to having an unaligned m_timeStamp because EventPipeEventInstance
     // is initialized via placement-new into the EventPipe circular buffer.
-    DECLSPEC_ALIGN(4) LARGE_INTEGER timeStamp;
+    LARGE_INTEGER timeStamp;
     QueryPerformanceCounter(&timeStamp);
     m_timeStamp.QuadPart = timeStamp.QuadPart;
     _ASSERTE(m_timeStamp.QuadPart > 0);
