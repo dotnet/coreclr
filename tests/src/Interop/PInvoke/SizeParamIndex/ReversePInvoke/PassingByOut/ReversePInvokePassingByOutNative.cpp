@@ -5,7 +5,7 @@
 // ReversePInvokePassingByOutNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
-#include "../helper.h"
+#include "helper.h"
 
 //Func Pointer
 typedef BOOL (__cdecl *DelByteArrByOutAsCdeclCaller)(BYTE** arrByte, BYTE* arraySize);
@@ -42,7 +42,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalByteArray_AsParam_AsByOut(D
 extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalSbyteArray_AsParam_AsByOut(DelSbyteArrByOutAsCdeclCaller caller)
 {
     CHAR arrSize = 1;
-    CHAR* arrSbyte = InitArray<CHAR>(arrSize);
+    CHAR* arrSbyte = InitArray<CHAR>((size_t)arrSize);
 
     if(!caller(&arrSize, &arrSbyte))
     {
@@ -51,7 +51,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalSbyteArray_AsParam_AsByOut(
         return FALSE;
     }
 
-    return CheckArray(arrSbyte, arrSize, (CHAR)127);
+    return CheckArray(arrSbyte, (size_t)arrSize, (CHAR)127);
 }
 
 //SHORT -1 ==> 20 size Array(Actual: 10 ==> 20)
@@ -67,14 +67,14 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalShortArray_AsParam_AsByOut(
         return FALSE;
     }
 
-    return CheckArray(arrShort, arrSize, (SHORT)20);
+    return CheckArray(arrShort, (size_t)arrSize, (SHORT)20);
 }
 
 //SHORT 10 ==> -1 size Array(Actual: 10 ==> 20)
 extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalShortArrayReturnNegativeSize_AsParam_AsByOut(DelShortArrByOutAsCdeclCaller caller)
 {
     SHORT arrSize = 10;
-    SHORT* arrShort = InitArray<SHORT>(arrSize);
+    SHORT* arrShort = InitArray<SHORT>((size_t)arrSize);
 
     if(!caller(&arrShort, &arrSize))
     {
@@ -109,7 +109,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalUshortArray_AsParam_AsByOut
 extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalInt32Array_AsParam_AsByOut(DelInt32ArrByOutAsCdeclCaller caller)
 {
     LONG arrSize = 10;
-    LONG* arrInt32 = InitArray<LONG>(arrSize);
+    LONG* arrInt32 = InitArray<LONG>((size_t)arrSize);
 
     if(!caller(&arrInt32, &arrSize))
     {
@@ -118,7 +118,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalInt32Array_AsParam_AsByOut(
         return FALSE;
     }
 
-    return CheckArray(arrInt32, arrSize, (LONG)20);
+    return CheckArray(arrInt32, (size_t)arrSize, (LONG)20);
 }
 
 //UInt32 10 ==> 20 size Array

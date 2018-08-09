@@ -5,7 +5,7 @@
 // PInvokePassingByRefNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
-#include "../helper.h"
+#include "helper.h"
 
 //#####################################################################
 //ByRef Array, ByRef SizeParamIndex

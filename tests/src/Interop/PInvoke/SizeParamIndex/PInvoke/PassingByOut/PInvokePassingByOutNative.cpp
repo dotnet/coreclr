@@ -5,7 +5,7 @@
 // PInvokePassingByOutNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
-#include "../helper.h"
+#include "helper.h"
 
 //#####################################################################
 //ByOut Array, ByRef SizeParamIndex
