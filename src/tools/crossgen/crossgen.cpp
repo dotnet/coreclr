@@ -7,6 +7,7 @@
 // to handle multiple code pages, etc, better.
 
 #include <stdio.h>
+#include <string.h>
 #include <fcntl.h>
 #include <io.h>
 
@@ -30,7 +31,9 @@ enum ReturnValues
     ASSEMBLY_NOT_FOUND = -3,
     INVALID_ARGUMENTS = -4
 };
-
+#ifdef _MSC_VER
+#pragma warning( disable : 4723)
+#endif
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
 STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
@@ -396,6 +399,24 @@ void ComputeTPAListFromPlatformAssembliesPath(LPCWSTR pwzPlatformAssembliesPaths
 }
 
 extern HMODULE g_hThisInst;
+
+template<typename FloatingPointType, typename UnsignedIntegerType>
+void PrintNaNBinaryRepresentation(const WCHAR* formatString)
+{
+    FloatingPointType cnsZero = 0.0;
+    FloatingPointType cnsOne  = 1.0;
+    FloatingPointType cnsInf  = cnsOne / cnsZero;
+    UnsignedIntegerType binaryRepresentation;
+
+    FloatingPointType cnsNan = cnsZero / cnsZero;
+    memcpy(&binaryRepresentation, &cnsNan, sizeof(cnsNan));
+    wprintf(formatString, binaryRepresentation);
+
+    cnsNan = cnsInf / cnsInf;
+    memcpy(&binaryRepresentation, &cnsNan, sizeof(cnsNan));
+    wprintf(formatString, binaryRepresentation);
+}
+
 
 int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
 {
@@ -918,6 +939,8 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
          );
     }
     
+    PrintNaNBinaryRepresentation<float, unsigned int>(W("NaN float ~ %x\n"));
+    PrintNaNBinaryRepresentation<double, unsigned long long>(W("NaN double ~ %llx\n"));
 
     if (FAILED(hr))
     {
