@@ -1,1 +1,1 @@
-https://cloudcijobs.blob.core.windows.net/coreclrci/CoreFXArchives/TestList.json
+https://cloudcijobs.blob.core.windows.net/coreclrcistaging/CoreFXArchives/TestList.json
