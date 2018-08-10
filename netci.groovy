@@ -159,7 +159,8 @@ class Constants {
                'standalone_gc',
                'gc_reliability_framework',
                'illink',
-               'corefx_innerloop']
+               'corefx_innerloop',
+               'crossgen_comparison']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -1937,6 +1938,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         switch (scenario) {
                             case 'innerloop':
                             case 'no_tiered_compilation_innerloop':
+                            case 'crossgen_comparison':
                                 if (configuration == 'Checked') {
                                     isDefaultTrigger = true
                                 }
@@ -2484,6 +2486,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
+                    else if (scenario == 'crossgen_comparison') {
+                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
+
+                        def crossArchitecture = "x86"
+                        def workspaceRelativeResultDir = "Linux.${crossArchitecture}_${architecture}.${configuration}"
+                        buildCommands += "${dockerCmd}mkdir Linux.${crossArchitecture}_${architecture}.${configuration}"
+
+                        def crossGenExecutable = "\${WORKSPACE}/bin/Product/Linux.${architecture}.${configuration}/${crossArchitecture}/crossgen"
+                        buildCommands += "${dockerCmd}python -u \${WORKSPACE}/tests/scripts/crossgen_comparison.py crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/bin/Product/Linux.${architecture}.${configuration}/IL/System.Private.CoreLib.dll --result_dir ${workspaceRelativeResultDir}"
+                        buildCommands += "${dockerCmd}python -u \${WORKSPACE}/tests/scripts/crossgen_comparison.py crossgen_framework --crossgen ${crossGenExecutable} --core_root /opt/code/bin/tests/Linux.arm.Checked/Tests/Core_Root --result_dir ${workspaceRelativeResultDir}"
+                        buildCommands += "zip -r ${workspaceRelativeResultDir}.zip ${workspaceRelativeResultDir}"
+                    }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                         // download the appropriate CoreFX packages.
@@ -2543,6 +2557,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     // Run basic corefx tests only on PR-triggered jobs
     // Runs under Release and Checked 
     if (scenario == 'corefx_innerloop' && !isPR) {
+        return false
+    }
+
+    if (scenario == 'crossgen_comparison' && !isPR) {
         return false
     }
 
@@ -2786,6 +2804,11 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 if (architecture != 'x64') {
+                    return false
+                }
+                break
+            case 'crossgen_comparison':
+                if (os != 'Ubuntu' || architecture != 'arm' || configuration != 'Checked') {
                     return false
                 }
                 break
@@ -3467,6 +3490,10 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     }
     
     if (scenario == 'corefx_innerloop') {
+        return false
+    }
+
+    if (scenario == 'crossgen_comparison') {
         return false
     }
 
