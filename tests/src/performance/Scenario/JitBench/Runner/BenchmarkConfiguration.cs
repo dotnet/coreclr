@@ -22,7 +22,9 @@ namespace JitBench
 
         public BenchmarkConfiguration WithMinOpts()
         {
-            return WithModifier("Minopts", "COMPLUS_JitMinOpts", "1");
+            return
+                WithModifier("Minopts", "COMPLUS_JitMinOpts", "1").
+                WithModifier("Tiering", "COMPLUS_TieredCompilation", "0");
         }
 
         public BenchmarkConfiguration WithNoR2R()

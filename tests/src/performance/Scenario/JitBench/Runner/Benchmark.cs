@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml;
 using Microsoft.Xunit.Performance.Api;
 using Microsoft.Xunit.Performance.Api.Profilers.Etw;
 
@@ -34,6 +35,61 @@ namespace JitBench
         }
 
         public abstract Task Setup(DotNetInstallation dotnetInstall, string intermediateOutputDir, bool useExistingSetup, ITestOutputHelper output);
+
+        protected void RetargetProjects(
+            DotNetInstallation dotNetInstall,
+            string rootDir,
+            IEnumerable<string> projectFileRelativePaths)
+        {
+            if (string.IsNullOrWhiteSpace(rootDir))
+            {
+                throw new ArgumentNullException(rootDir);
+            }
+            if (!Directory.Exists(rootDir))
+            {
+                throw new DirectoryNotFoundException($"Root directory was not found: {rootDir}");
+            }
+
+            foreach (string projectFileRelativePath in projectFileRelativePaths)
+            {
+                string projectFile = Path.Combine(rootDir, projectFileRelativePath);
+                if (!File.Exists(projectFile))
+                {
+                    throw new FileNotFoundException($"Project file was not found: {projectFile}");
+                }
+
+                var doc = new XmlDocument();
+                doc.Load(projectFile);
+                XmlElement root = doc.DocumentElement;
+
+                // Comment out all existing TargetFramework and RuntimeFrameworkVersion elements
+                foreach (XmlElement e in root.SelectNodes("PropertyGroup/TargetFramework").OfType<XmlElement>())
+                {
+                    e.ParentNode.ReplaceChild(doc.CreateComment(e.OuterXml), e);
+                }
+                foreach (XmlElement e in root.SelectNodes("PropertyGroup/RuntimeFrameworkVersion").OfType<XmlElement>())
+                {
+                    e.ParentNode.ReplaceChild(doc.CreateComment(e.OuterXml), e);
+                }
+
+                // Add TargetFramework and RuntimeFrameworkVersion elements with the requested values to the top
+                {
+                    XmlElement propertyGroupElement = doc.CreateElement("PropertyGroup");
+                    root.PrependChild(propertyGroupElement);
+
+                    XmlElement targetFrameworkElement = doc.CreateElement("TargetFramework");
+                    XmlElement runtimeFrameworkVersionElement = doc.CreateElement("RuntimeFrameworkVersion");
+                    propertyGroupElement.AppendChild(targetFrameworkElement);
+                    propertyGroupElement.AppendChild(runtimeFrameworkVersionElement);
+
+                    targetFrameworkElement.InnerText =
+                        DotNetSetup.GetTargetFrameworkMonikerForFrameworkVersion(dotNetInstall.FrameworkVersion);
+                    runtimeFrameworkVersionElement.InnerText = dotNetInstall.FrameworkVersion;
+                }
+
+                doc.Save(projectFile);
+            }
+        }
 
         public virtual Metric[] GetDefaultDisplayMetrics()
         {
