@@ -55,6 +55,6 @@
     </ItemGroup>
 
     <Message Text="Checking if the following DLLs are properly compiled with PGO" Importance="High" />
-    <Exec Command="python $(MSBuildThisFileDirectory)scripts\pgocheck.py @(PGOEnforcedFiles)" />
+    <Exec Command="&quot;$(PYTHON)&quot; $(MSBuildThisFileDirectory)scripts\pgocheck.py @(PGOEnforcedFiles)" />
   </Target>
 </Project>
