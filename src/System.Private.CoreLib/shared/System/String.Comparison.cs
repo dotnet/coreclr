@@ -753,8 +753,8 @@ namespace System
         // that string.Equals(A, B, C), then they will return the same hash code with this comparison C.
         public int GetHashCode(StringComparison comparisonType) => StringComparer.FromComparison(comparisonType).GetHashCode(this);
 
-        // Use this if and only if you need the hashcode to not change across app domains (e.g. you have an app domain agile
-        // hash table).
+        // Use this if and only if 'Denial of Service' attacks are not a concern (i.e. never used for free-form user input),
+        // or are otherwise mitigated
         internal unsafe int GetNonRandomizedHashCode()
         {
             fixed (char* src = &_firstChar)
