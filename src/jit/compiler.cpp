@@ -4444,6 +4444,27 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
 #endif // DEBUG
 }
 
+#ifdef _MSC_VER
+#pragma warning(disable : 4723)
+#endif
+
+template<typename FloatingPointType, typename UnsignedIntegerType>
+void PrintNaNBinaryRepresentation(const char* formatString)
+{
+    FloatingPointType cnsZero = 0.0;
+    FloatingPointType cnsOne = 1.0;
+    FloatingPointType cnsInf = cnsOne / cnsZero;
+    UnsignedIntegerType binaryRepresentation;
+
+    FloatingPointType cnsNan = cnsZero / cnsZero;
+    memcpy(&binaryRepresentation, &cnsNan, sizeof(cnsNan));
+    printf(formatString, binaryRepresentation);
+
+    cnsNan = cnsInf / cnsInf;
+    memcpy(&binaryRepresentation, &cnsNan, sizeof(cnsNan));
+    printf(formatString, binaryRepresentation);
+}
+
 //*********************************************************************************************
 // #Phases
 //
@@ -4456,6 +4477,17 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
 //
 void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags* compileFlags)
 {
+    static bool hasPrinted = false;
+
+    if (!hasPrinted)
+    {
+        printf("**********************************************************\n");
+        PrintNaNBinaryRepresentation<float, unsigned int>("NaN float ~ %x\n");
+        PrintNaNBinaryRepresentation<double, unsigned long long>("NaN double ~ %llx\n");
+        printf("**********************************************************\n");
+        hasPrinted = true;
+    }
+
     if (compIsForInlining())
     {
         // Notify root instance that an inline attempt is about to import IL
