@@ -755,54 +755,62 @@ namespace System
 
         // Use this if and only if you need the hashcode to not change across app domains (e.g. you have an app domain agile
         // hash table).
-        internal int GetLegacyNonRandomizedHashCode()
+        internal unsafe int GetNonRandomizedHashCode()
         {
-            unsafe
+            fixed (char* src = &_firstChar)
             {
-                fixed (char* src = &_firstChar)
+                Debug.Assert(src[this.Length] == '\0', "src[this.Length] == '\\0'");
+                Debug.Assert(((int)src) % 4 == 0, "Managed string should start at 4 bytes boundary");
+
+                uint hash1 = (5381 << 16) + 5381;
+                uint hash2 = hash1;
+
+                int length = this.Length;
+                uint* current = (uint*)src;
+
+                char* end = (src + length);
+#if BIT64
+                if (length >= 4 && (((int)current) & 7) != 0)
                 {
-                    Debug.Assert(src[this.Length] == '\0', "src[this.Length] == '\\0'");
-                    Debug.Assert(((int)src) % 4 == 0, "Managed string should start at 4 bytes boundary");
-#if BIT64
-                    int hash1 = 5381;
-#else // !BIT64 (32)
-                    int hash1 = (5381<<16) + 5381;
-#endif
-                    int hash2 = hash1;
-
-#if BIT64
-                    char* current = src;
-                    char* end = current + this.Length;
-                    while (current < end - 1)
-                    {
-                        hash1 = ((hash1 << 5) + hash1) ^ current[0];
-                        hash2 = ((hash2 << 5) + hash2) ^ current[1];
-                        current += 2;
-                    }
-
-                    if (current < end)
-                    {
-                        hash1 = ((hash1 << 5) + hash1) ^ current[0];
-                    }
-#else // !BIT64 (32)
-                    // 32 bit machines.
-                    int* pint = (int *)src;
-                    int len = this.Length;
-                    while (len > 2)
-                    {
-                        hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
-                        hash2 = ((hash2 << 5) + hash2 + (hash2 >> 27)) ^ pint[1];
-                        pint += 2;
-                        len  -= 4;
-                    }
-
-                    if (len > 0)
-                    {
-                        hash1 = ((hash1 << 5) + hash1 + (hash1 >> 27)) ^ pint[0];
-                    }
-#endif
-                    return hash1 + (hash2 * 1566083941);
+                    // Align to long
+                    uint curr = current[0];
+                    current++;
+                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ curr;
                 }
+#endif
+
+                while ((byte*)current < (byte*)(end - 3))
+                {
+#if BIT64
+                    ulong curr = *(ulong*)current;
+                    uint cur0 = (uint)curr;
+                    uint cur1 = (uint)(curr >> 32);
+#else // !BIT64 (32)
+                    uint cur0 = current[0];
+                    uint cur1 = current[1];
+#endif
+                    current += 2;
+                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ cur0;
+                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ cur1;
+                }
+
+                if ((byte*)current < (byte*)(end - 1))
+                {
+                    uint curr = current[0];
+                    uint cur0 = curr & 0xffff;
+                    uint cur1 = curr >> 16;
+                    current += 1;
+                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ cur0;
+                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ cur1;
+                }
+
+                if ((byte*)current < (byte*)end)
+                {
+                    uint curr = *(char*)current;
+                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ curr;
+                }
+
+                return (int)(hash1 + (hash2 * 1566083941));
             }
         }
 
