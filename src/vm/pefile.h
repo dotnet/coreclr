@@ -218,7 +218,6 @@ public:
     BOOL IsDynamic() const;
     BOOL IsResource() const;
     BOOL IsIStream() const;
-    BOOL IsIntrospectionOnly() const;
     // Returns self (if assembly) or containing assembly (if module)
     PEAssembly *GetAssembly() const;
 
@@ -255,7 +254,6 @@ public:
 
     LPCUTF8 GetSimpleName();
     HRESULT GetScopeName(LPCUTF8 * pszName);
-    BOOL IsStrongNameVerified();
     BOOL IsStrongNamed();
     const void *GetPublicKey(DWORD *pcbPK);
     ULONG GetHashAlgId();
@@ -454,7 +452,6 @@ protected:
         PEFILE_NATIVE_IMAGE_USED_EXCLUSIVELY =0x1000,
         PEFILE_SAFE_TO_HARDBINDTO     = 0x4000, // NGEN-only flag
 #endif        
-        PEFILE_INTROSPECTIONONLY      = 0x400,
     };
 
     // ------------------------------------------------------------
@@ -533,7 +530,6 @@ protected:
     Volatile<LONG>           m_refCount;
     SBuffer                 *m_hash;                   // cached SHA1 hash value
     int                     m_flags;
-    BOOL                    m_fStrongNameVerified;
 
 #ifdef DEBUGGING_SUPPORTED
 #ifdef FEATURE_PREJIT
@@ -674,8 +670,7 @@ class PEAssembly : public PEFile
         PEAssembly *       pParent,
         PEImage *          pPEImageIL, 
         PEImage *          pPEImageNI, 
-        ICLRPrivAssembly * pHostAssembly, 
-        BOOL               fIsIntrospectionOnly = FALSE);
+        ICLRPrivAssembly * pHostAssembly);
 
     // This opens the canonical mscorlib.dll
     static PEAssembly *OpenSystem(IUnknown *pAppCtx);
@@ -685,26 +680,22 @@ class PEAssembly : public PEFile
 
     static PEAssembly *Open(
         CoreBindResult* pBindResult,
-        BOOL isSystem,
-        BOOL isIntrospectionOnly);
+        BOOL isSystem);
 
     static PEAssembly *Create(
         PEAssembly *pParentAssembly,
-        IMetaDataAssemblyEmit *pEmit,
-        BOOL isIntrospectionOnly);
+        IMetaDataAssemblyEmit *pEmit);
 
     static PEAssembly *OpenMemory(
         PEAssembly *pParentAssembly,
         const void *flat,
         COUNT_T size, 
-        BOOL isIntrospectionOnly = FALSE,
         CLRPrivBinderLoadFile* pBinderToUse = NULL);
 
     static PEAssembly *DoOpenMemory(
         PEAssembly *pParentAssembly,
         const void *flat,
         COUNT_T size,
-        BOOL isIntrospectionOnly,
         CLRPrivBinderLoadFile* pBinderToUse);
 
   private:
@@ -736,7 +727,6 @@ class PEAssembly : public PEFile
     BOOL IsFullySigned();
 
     void SetStrongNameBypassed();
-    void VerifyStrongName();
 
     // ------------------------------------------------------------
     // Descriptive strings
@@ -789,7 +779,6 @@ class PEAssembly : public PEFile
         IMetaDataEmit *pEmit,
         PEFile *creator, 
         BOOL system, 
-        BOOL introspectionOnly = FALSE,
         PEImage * pPEImageIL = NULL,
         PEImage * pPEImageNI = NULL,
         ICLRPrivAssembly * pHostAssembly = NULL
@@ -811,13 +800,6 @@ class PEAssembly : public PEFile
 
 
 #endif  // FEATURE_PREJIT
-
-  private:
-    // Check both the StrongName and Authenticode signature of an assembly. If the application is using
-    // strong name bypass, then this call may not result in a strong name verificaiton. VerifyStrongName
-    // should be called if a strong name must be forced to verify.
-    void DoLoadSignatureChecks();
-
 
   private:
     // ------------------------------------------------------------

@@ -118,7 +118,7 @@ inline void PEFile::ValidateForExecution()
 
     // We do not need to check NGen images; if it had the attribute, it would have failed to load
     // at NGen time and so there would be no NGen image.
-    if (HasNativeImage() || IsIntrospectionOnly())
+    if (HasNativeImage())
         return;
 
     //
@@ -327,16 +327,6 @@ inline BOOL PEFile::IsIStream() const
 
     return (m_flags & PEFILE_ISTREAM) != 0;
 }
-
-inline BOOL PEFile::IsIntrospectionOnly() const
-{
-    WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-    {
-        return (m_flags & PEFILE_INTROSPECTIONONLY) != 0;
-    }
-}
-
 
 inline PEAssembly *PEFile::GetAssembly() const
 {
@@ -1343,9 +1333,7 @@ inline PTR_PEImageLayout PEFile::GetLoadedIL()
     SUPPORTS_DAC;
 
     _ASSERTE(HasOpenedILimage());
-    if(IsIntrospectionOnly())
-        return GetOpenedILimage()->GetLoadedIntrospectionLayout();
-    
+
     return GetOpenedILimage()->GetLoadedLayout();
 };
 
@@ -1368,10 +1356,6 @@ inline BOOL PEFile::IsLoaded(BOOL bAllowNative/*=TRUE*/)
     CONTRACTL_END;
     if(IsDynamic())
         return TRUE;
-    if(IsIntrospectionOnly())
-    {
-        return HasOpenedILimage() && GetOpenedILimage()->HasLoadedIntrospectionLayout();
-    }
 #ifdef FEATURE_PREJIT
     if (bAllowNative && HasNativeImage())
     {
@@ -1665,18 +1649,6 @@ inline BOOL PEFile::IsStrongNamed()
     DWORD flags = 0;
     IfFailThrow(GetMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, NULL, NULL, NULL, &flags));
     return (flags & afPublicKey) != NULL;
-}
-
-
-//---------------------------------------------------------------------------------------
-//
-// Check to see if this assembly has had its strong name signature verified yet.
-//
-
-inline BOOL PEFile::IsStrongNameVerified()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fStrongNameVerified;
 }
 
 inline const void *PEFile::GetPublicKey(DWORD *pcbPK)
