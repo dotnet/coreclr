@@ -12,6 +12,7 @@ class CrstStatic;
 class CrawlFrame;
 class EventPipeConfiguration;
 class EventPipeEvent;
+class EventPipeEventInstance;
 class EventPipeFile;
 class EventPipeJsonFile;
 class EventPipeBuffer;
@@ -214,6 +215,8 @@ public:
     }
 };
 
+typedef UINT64 EventPipeSessionID;
+
 class EventPipe
 {
     // Declare friends.
@@ -235,20 +238,26 @@ class EventPipe
         static void EnableOnStartup();
 
         // Enable tracing via the event pipe.
-        static void Enable(
+        static EventPipeSessionID Enable(
             LPCWSTR strOutputPath,
             unsigned int circularBufferSizeInMB,
             EventPipeProviderConfiguration *pProviders,
             int numProviders);
 
         // Disable tracing via the event pipe.
-        static void Disable();
+        static void Disable(EventPipeSessionID id);
+
+        // Get the session for the specified session ID.
+        static EventPipeSession* GetSession(EventPipeSessionID id);
 
         // Specifies whether or not the event pipe is enabled.
         static bool Enabled();
 
         // Create a provider.
         static EventPipeProvider* CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+
+        // Get a provider.
+        static EventPipeProvider* GetProvider(const SString &providerName);
 
         // Delete a provider.
         static void DeleteProvider(EventPipeProvider *pProvider);
@@ -273,6 +282,9 @@ class EventPipe
         // Save the command line for the current process.
         static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
+        // Get next event.
+        static EventPipeEventInstance* GetNextEvent();
+
     protected:
 
         // The counterpart to WriteEvent which after the payload is constructed
@@ -281,7 +293,7 @@ class EventPipe
     private:
 
         // Enable the specified EventPipe session.
-        static void Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
+        static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
 
         // Get the EnableOnStartup configuration from environment.
         static void GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession);
@@ -373,16 +385,39 @@ private:
         EVENT_ACTIVITY_CONTROL_CREATE_SET_ID = 5
     };
 
+    struct EventPipeEventInstanceData
+    {
+    public:
+        void *ProviderID;
+        unsigned int EventID;
+        unsigned int ThreadID;
+        LARGE_INTEGER TimeStamp;
+        GUID ActivityId;
+        GUID RelatedActivityId;
+        const BYTE *Payload;
+        unsigned int PayloadLength;
+    };
+
+    struct EventPipeSessionInfo
+    {
+    public:
+        FILETIME StartTimeAsUTCFileTime;
+        LARGE_INTEGER StartTimeStamp;
+        LARGE_INTEGER TimeStampFrequency;
+    };
+
 public:
 
-    static void QCALLTYPE Enable(
+    static UINT64 QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
         INT32 numProviders);
 
-    static void QCALLTYPE Disable();
+    static void QCALLTYPE Disable(UINT64 sessionID);
+
+    static bool QCALLTYPE GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo);
 
     static INT_PTR QCALLTYPE CreateProvider(
         __in_z LPCWSTR providerName,
@@ -396,6 +431,9 @@ public:
         UINT32 level,
         void *pMetadata,
         UINT32 metadataLength);
+
+    static INT_PTR QCALLTYPE GetProvider(
+        __in_z LPCWSTR providerName);
 
     static void QCALLTYPE DeleteProvider(
         INT_PTR provHandle);
@@ -417,6 +455,9 @@ public:
         EventData *pEventData,
         UINT32 eventDataCount,
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+
+    static bool QCALLTYPE GetNextEvent(
+        EventPipeEventInstanceData *pInstance); 
 };
 
 #endif // FEATURE_PERFTRACING

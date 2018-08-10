@@ -958,13 +958,26 @@ void SimpleComCallWrapper::BuildRefCountLogMessage(LPCWSTR wszOperation, StackSS
             obj = *((_UNCHECKED_OBJECTREF *)(handle));
 
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, CCWRefCountChange)) 
-            FireEtwCCWRefCountChange(
-                handle, 
-                (Object *)obj, 
-                this, 
-                dwEstimatedRefCount, 
-                NULL,                   // domain value is not interesting in CoreCLR
-                pszClassName, pszNamespace, wszOperation, GetClrInstanceId());
+        {
+            EX_TRY
+            {
+                SString className;
+                className.SetUTF8(pszClassName);
+                SString nameSpace;
+                nameSpace.SetUTF8(pszNamespace);
+
+                FireEtwCCWRefCountChange(
+                    handle, 
+                    (Object *)obj, 
+                    this, 
+                    dwEstimatedRefCount, 
+                    NULL,                   // domain value is not interesting in CoreCLR
+                    className.GetUnicode(), nameSpace.GetUnicode(), wszOperation, GetClrInstanceId());
+            }
+            EX_CATCH
+            { }
+            EX_END_CATCH(SwallowAllExceptions);
+        }
         
         if (g_pConfig->ShouldLogCCWRefCountChange(pszClassName, pszNamespace))
         {
