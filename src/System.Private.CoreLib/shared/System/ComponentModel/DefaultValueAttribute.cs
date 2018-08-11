@@ -20,7 +20,7 @@ namespace System.ComponentModel
         /// </devdoc>
         private object _value;
 
-        // Delegate 'TypeDescriptor.InternalConvertFromInvariantString' reflection object cache
+        // Delegate ad hoc created 'TypeDescriptor.ConvertFromInvariantString' reflection object cache
         static object s_convertFromInvariantString;
 
         /// <devdoc>
@@ -55,7 +55,7 @@ namespace System.ComponentModel
 
                 return;
 
-                // Looking for object TypeDescriptor.InternalConvertFromInvariantString(Type, string) and call to conversion function ConvertFromInvariantString
+                // Looking for ad hoc created TypeDescriptor.ConvertFromInvariantString(Type, string)
                 bool TryConvertFromInvariantString(Type typeToConvert, string stringValue, out object conversionResult)
                 {
                     conversionResult = null;
@@ -64,14 +64,7 @@ namespace System.ComponentModel
                     if (s_convertFromInvariantString == null)
                     {
                         Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
-
-                        Delegate convertFromInvariantString = null;
-                        if (typeDescriptorType != null)
-                        {
-                            convertFromInvariantString = Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "InternalConvertFromInvariantString", ignoreCase: false, throwOnBindFailure: false);
-                        }
-
-                        Volatile.Write(ref s_convertFromInvariantString, convertFromInvariantString ?? new object());
+                        Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType == null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
                     }
 
                     if (!(s_convertFromInvariantString is Func<Type, string, object> internalConvertFromInvariantString))
