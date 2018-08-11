@@ -34,5 +34,186 @@
             "classes": null,
             "methods": null
         }
+    },
+    {
+        "name": "System.Runtime.Serialization.Formatters.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateAgainstBlobs",
+                    "reason": "The stored blob for type System.CodeDom.MemberAttributes is outdated and needs to be updated."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.Tracing.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "BasicEventSourceTests.TestsUserErrors.Test_BadEventSource_MismatchedIds",
+                    "reason": "Assert.Equal() Failure Expected: 1 Actual: 2"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.DiagnosticSource.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Diagnostics.Tests.DiagnosticSourceEventSourceBridgeTests.TestShortcutKeywords",
+                    "reason": "Assert.Equal() Failure ↓ (pos 0) Expected: Activity1Start Actual:   Event ↑ (pos 0)"
+                },
+                {
+                    "name": "System.Diagnostics.Tests.ActivityTests.IdGenerationInternalParent",
+                    "reason": "Assert.Equal() Failure Expected: úúúda-4ecabd4ccb066678.child1-1. Actual:   úúúda-4ecabd4ccb066678.1."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.HttpListener.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Tests.HttpRequestStreamTests.Read_NullBuffer_ThrowsArgumentNullException",
+                    "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                },
+                {
+                    "name": "System.Net.Tests.HttpResponseStreamTests.Write_NullBuffer_ThrowsArgumentNullException",
+                    "reason": "Assert.Throws() Failure Expected: typeof(System.ArgumentNullException) Actual:   typeof(System.NullReferenceException): Object reference not set to an instance of an object."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.ComponentModel.TypeConverter.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_String",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64"
+                },
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertFrom_ULongFlagsEnum_EnumArray",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
+                },
+                {
+                    "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertTo_ULongFlagsEnum_EnumArray",
+                    "reason": "System.OverflowException : Value was either too large or too small for an Int64."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Net.Http.Functional.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Net.Http.Functional.Tests.PlatformHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
+                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
+                },
+                {
+                    "name": "System.Net.Http.Functional.Tests.SocketsHttpHandler_DiagnosticsTest.SendAsync_ExpectedDiagnosticSourceActivityLogging",
+                    "reason": "System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException System.Diagnostics.RemoteExecutorTestBase+RemoteInvokeHandle+RemoteExecutionException : Remote process failed with an unhandled exception."
+                }
+            ]
+        }
+    },
+    
+    {
+        "name":"System.IO.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Tests.DirectoryInfo_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.Directory_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Drawing.Common.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.InterpolationMode_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-2) is invalid for Enum type 'InterpolationMode'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.CompositingQuality_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-2) is invalid for Enum type 'CompositingQuality'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.PixelOffsetMode_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-2) is invalid for Enum type 'PixelOffsetMode'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.PageUnit_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-1) is invalid for Enum type 'GraphicsUnit'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.SmoothingMode_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-2) is invalid for Enum type 'SmoothingMode'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.CompositingMode_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-1) is invalid for Enum type 'CompositingMode'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.GraphicsTests.TextRenderingHint_SetInvalid_ThrowsInvalidEnumArgumentException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\nExpected: typeof(System.ComponentModel.InvalidEnumArgumentException)\\nActual:   typeof(System.ComponentModel.InvalidEnumArgumentException): The value of argument 'value' (-1) is invalid for Enum type 'TextRenderingHint'.\\nParameter name: value"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_PointFs",
+                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: Byte[] [208, 0, 8, 33, 6, ...]\\r\\nActual:   Byte[] [153, 27, 131, 228, 197, ...]"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawLineTests.DrawLines_PointFs",
+                    "reason": "Xunit.Sdk.EqualException Assert.Equal() Failure\\r\\nExpected: Byte[] [142, 194, 251, 180, 222, ...]\\r\\nActual:   Byte[] [212, 29, 140, 217, 143, ...]"
+                },
+                {
+                    "name": "System.Drawing.Tests.FontTests.ToLogFont_NullLogFont_ThrowsArgumentNullException",
+                    "reason": "Xunit.Sdk.ThrowsException Assert.Throws() Failure\\r\\nExpected: typeof(System.ArgumentNullException)\\r\\nActual:   typeof(System.AccessViolationException): Attempted to read or write protected memory. This is often an indication that other memory is corrupt."
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                },
+                {
+                    "name": "System.Drawing.Tests.Graphics_DrawBezierTests.DrawBezier_Point",
+                    "reason": "https://github.com/dotnet/corefx/issues/30180"
+                }
+            ]
+        }
     }
 ]
