@@ -76,10 +76,11 @@ namespace System.Collections.Generic
                 _comparer = comparer;
             }
 
-            if (typeof(TKey) == typeof(string) && _comparer == null)
+            if (typeof(TKey) == typeof(string))
             {
-                // To start, move off default comparer for string which is randomised
-                _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
+                // If one of the standard randomized comparers, to start move to non-randomized version for performance.
+                // We will switch back to randomized and rehash if collisions become high.
+                HashHelpers.SwitchToNonRandomizedHashCodeGeneratorIfAvailable(ref _comparer);
             }
         }
 
@@ -146,7 +147,10 @@ namespace System.Collections.Generic
         {
             get
             {
-                return (_comparer == null || _comparer is NonRandomizedStringEqualityComparer) ? EqualityComparer<TKey>.Default : _comparer;
+                IEqualityComparer<TKey> comparer = _comparer;
+                // Use public randomized comparer alternative for Comparer property (if non-randomized version is in use)
+                HashHelpers.TrySwitchRandomizedHashCodeGenerator(ref comparer);
+                return comparer ?? EqualityComparer<TKey>.Default;
             }
         }
 
@@ -651,12 +655,13 @@ namespace System.Collections.Generic
             _version++;
 
             // Value types never rehash
-            if (default(TKey) == null && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer)
+            if (default(TKey) == null && collisionCount > HashHelpers.HashCollisionThreshold)
             {
-                // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
-                // i.e. EqualityComparer<string>.Default.
-                _comparer = null;
-                Resize(entries.Length, true);
+                // We hit the collision threshold, so we'll try switching to an alternative randomized hashing
+                if (HashHelpers.TrySwitchRandomizedHashCodeGenerator(ref _comparer))
+                {
+                    Resize(entries.Length, true);
+                }
             }
 
             return true;

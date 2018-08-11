@@ -3,7 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace System.Collections
 {
@@ -87,6 +89,60 @@ namespace System.Collections
             }
 
             return GetPrime(newSize);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SwitchToNonRandomizedHashCodeGeneratorIfAvailable<TKey>(ref IEqualityComparer<TKey> comparer)
+        {
+            if (typeof(TKey) == typeof(string))
+            {
+                // For string to start, move off default comparer (null) which is randomized
+                if (comparer == null)
+                {
+                    comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
+                }
+                else if (ReferenceEquals(comparer, StringComparer.Ordinal))
+                {
+                    // For string to start, move off Ordinal which is randomized
+                    comparer = (IEqualityComparer<TKey>)NonRandomizedStringComparer.Default;
+                }
+                else if (ReferenceEquals(comparer, StringComparer.OrdinalIgnoreCase))
+                {
+                    // For string to start, move off OrdinalIgnoreCase which is randomized
+                    comparer = (IEqualityComparer<TKey>)NonRandomizedIgnoreCaseStringEqualityComparer.Default;
+                }
+            }
+
+            // No alternative hash code generator
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static bool TrySwitchRandomizedHashCodeGenerator<TKey>(ref IEqualityComparer<TKey> comparer)
+        {
+            // This method is the inverse of SwitchToNonRandomizedHashCodeGeneratorIfAvailable
+
+            if (comparer is NonRandomizedStringEqualityComparer)
+            {
+                // Switch to (null) which is randomized hashing
+                // i.e. EqualityComparer<string>.Default
+                comparer = null;
+                return true;
+            }
+            else if (comparer is NonRandomizedStringComparer)
+            {
+                // For Ordinal switch to StringComparer.Ordinal which is randomized hashing
+                comparer = (IEqualityComparer<TKey>)StringComparer.Ordinal;
+                return true;
+            }
+            else if (comparer is NonRandomizedIgnoreCaseStringEqualityComparer)
+            {
+                // For Ordinal switch to StringComparer.OrdinalIgnoreCase which is randomized hashing
+                comparer = (IEqualityComparer<TKey>)StringComparer.OrdinalIgnoreCase;
+                return true;
+            }
+
+            // No alternative hash code generator
+            return false;
         }
     }
 }
