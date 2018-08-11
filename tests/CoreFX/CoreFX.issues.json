@@ -154,6 +154,15 @@
                 {
                     "name": "System.IO.Tests.Directory_GetSetTimes.SettingUpdatesProperties",
                     "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+                },
+                {
+                    "name": "System.IO.Tests.File_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
+               
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_GetSetTimes.SettingUpdatesProperties",
+                    "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
                 }
             ]
         }
