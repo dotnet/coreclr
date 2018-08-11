@@ -1651,6 +1651,18 @@ inline BOOL PEFile::IsStrongNamed()
     return (flags & afPublicKey) != NULL;
 }
 
+
+//---------------------------------------------------------------------------------------
+//
+// Check to see if this assembly has had its strong name signature verified yet.
+//
+
+inline BOOL PEFile::IsStrongNameVerified()
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_fStrongNameVerified;
+}
+
 inline const void *PEFile::GetPublicKey(DWORD *pcbPK)
 {
     CONTRACTL

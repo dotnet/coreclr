@@ -926,8 +926,6 @@ BEGIN
 
     IDS_CLASSLOAD_NSTRUCT_NEGATIVE_OFFSET   "Could not load type '%1' from assembly '%2' because field '%3' was given a negative offset."
 
-    IDS_CLASSLOAD_ASSEMBLY_RESOLVE_RETURNED_INTROSPECTION "AssemblyResolveEvent handlers cannot return Assemblies loaded for reflection only."
-
     IDS_CLASSLOAD_OVERLAPPING_INTERFACES "The type '%1' in assembly '%2' has a contracting interface set for some instantiations"
     
     IDS_CLASSLOAD_32BITCLRLOADING64BITASSEMBLY "Attempted to load a 64-bit assembly on a 32-bit platform."

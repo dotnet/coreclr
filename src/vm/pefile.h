@@ -254,6 +254,7 @@ public:
 
     LPCUTF8 GetSimpleName();
     HRESULT GetScopeName(LPCUTF8 * pszName);
+    BOOL IsStrongNameVerified();
     BOOL IsStrongNamed();
     const void *GetPublicKey(DWORD *pcbPK);
     ULONG GetHashAlgId();
@@ -530,6 +531,7 @@ protected:
     Volatile<LONG>           m_refCount;
     SBuffer                 *m_hash;                   // cached SHA1 hash value
     int                     m_flags;
+    BOOL                    m_fStrongNameVerified;
 
 #ifdef DEBUGGING_SUPPORTED
 #ifdef FEATURE_PREJIT
@@ -727,6 +729,7 @@ class PEAssembly : public PEFile
     BOOL IsFullySigned();
 
     void SetStrongNameBypassed();
+    void VerifyStrongName();
 
     // ------------------------------------------------------------
     // Descriptive strings
@@ -800,6 +803,13 @@ class PEAssembly : public PEFile
 
 
 #endif  // FEATURE_PREJIT
+
+  private:
+    // Check both the StrongName and Authenticode signature of an assembly. If the application is using
+    // strong name bypass, then this call may not result in a strong name verificaiton. VerifyStrongName
+    // should be called if a strong name must be forced to verify.
+    void DoLoadSignatureChecks();
+
 
   private:
     // ------------------------------------------------------------

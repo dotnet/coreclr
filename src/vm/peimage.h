@@ -234,6 +234,9 @@ public:
     const WORD GetSubsystem();
     BOOL  IsFileLocked();
     const BOOL HasStrongNameSignature();
+#ifndef DACCESS_COMPILE
+    const HRESULT VerifyStrongName(DWORD* verifyOutputFlags);    
+#endif
 
     BOOL IsStrongNameSigned();
     BOOL IsIbcOptimized();
