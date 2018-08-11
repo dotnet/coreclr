@@ -777,7 +777,7 @@ while :; do
             __SkipNative=1
             ;;
 
-        # [REMOVE] Negate skip native which is the temporary default
+        # [REMOVE] Enable native build - the temporary default is to skip native
         --skipnative)
             __SkipNative=0
             ;;
