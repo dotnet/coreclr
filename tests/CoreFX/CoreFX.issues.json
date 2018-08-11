@@ -141,7 +141,7 @@
     },
     
     {
-        "name":"System.IO.Tests",
+        "name":"System.IO.FileSystem.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
