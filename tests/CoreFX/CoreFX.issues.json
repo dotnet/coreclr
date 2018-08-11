@@ -168,6 +168,20 @@
         }
     },
     {
+        "name": "System.IO.Pipelines.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.IO.Pipelines.Tests.FlushAsyncCancellationTests.ReadAsyncCompletesIfFlushAsyncCanceledMidFlush",
+                    "reason": "Unstable"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Drawing.Common.Tests",
         "enabled": true,
         "exclusions": {
