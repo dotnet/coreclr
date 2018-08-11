@@ -67,10 +67,10 @@ namespace System.ComponentModel
                         Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType == null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
                     }
 
-                    if (!(s_convertFromInvariantString is Func<Type, string, object> internalConvertFromInvariantString))
+                    if (!(s_convertFromInvariantString is Func<Type, string, object> convertFromInvariantString))
                         return false;
 
-                    conversionResult = internalConvertFromInvariantString(typeToConvert, stringValue);
+                    conversionResult = convertFromInvariantString(typeToConvert, stringValue);
 
                     return true;
                 }
