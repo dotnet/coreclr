@@ -765,49 +765,22 @@ namespace System
                 uint hash1 = (5381 << 16) + 5381;
                 uint hash2 = hash1;
 
+                uint* ptr = (uint*)src;
                 int length = this.Length;
-                uint* current = (uint*)src;
 
-                char* end = (src + length);
-#if BIT64
-                if (length >= 4 && (((int)current) & 7) != 0)
+                while (length > 2)
                 {
-                    // Align to long
-                    uint curr = current[0];
-                    current++;
-                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ curr;
-                }
-#endif
-
-                while ((byte*)current < (byte*)(end - 3))
-                {
-#if BIT64
-                    ulong curr = *(ulong*)current;
-                    uint cur0 = (uint)curr;
-                    uint cur1 = (uint)(curr >> 32);
-#else // !BIT64 (32)
-                    uint cur0 = current[0];
-                    uint cur1 = current[1];
-#endif
-                    current += 2;
-                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ cur0;
-                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ cur1;
+                    length -= 4;
+                    // Where length is 4n-1 (e.g. 3,7,11,15,19) this additionally consumes the null terminator
+                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ ptr[0];
+                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ ptr[1];
+                    ptr += 2;
                 }
 
-                if ((byte*)current < (byte*)(end - 1))
+                if (length > 0)
                 {
-                    uint curr = current[0];
-                    uint cur0 = curr & 0xffff;
-                    uint cur1 = curr >> 16;
-                    current += 1;
-                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ cur0;
-                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ cur1;
-                }
-
-                if ((byte*)current < (byte*)end)
-                {
-                    uint curr = *(char*)current;
-                    hash1 = (((hash1 << 5) | (hash1 >> 27)) + hash1) ^ curr;
+                    // Where length is 4n-3 (e.g. 1,5,9,13,17) this additionally consumes the null terminator
+                    hash2 = (((hash2 << 5) | (hash2 >> 27)) + hash2) ^ ptr[0];
                 }
 
                 return (int)(hash1 + (hash2 * 1566083941));
