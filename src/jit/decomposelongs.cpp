@@ -1341,17 +1341,6 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
     }
     else
     {
-        // Because calls must be created as HIR and lowered to LIR, we need to dump
-        // any LIR temps into lclVars before using them as arguments.
-        shiftByOp = RepresentOpAsLocalVar(shiftByOp, shift, &shift->gtOp.gtOp2);
-        loOp1     = RepresentOpAsLocalVar(loOp1, gtLong, &gtLong->gtOp.gtOp1);
-        hiOp1     = RepresentOpAsLocalVar(hiOp1, gtLong, &gtLong->gtOp.gtOp2);
-
-        Range().Remove(shiftByOp);
-        Range().Remove(gtLong);
-        Range().Remove(loOp1);
-        Range().Remove(hiOp1);
-
         unsigned helper;
 
         switch (oper)
@@ -1368,6 +1357,18 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
             default:
                 unreached();
         }
+
+#if 0
+        // Because calls must be created as HIR and lowered to LIR, we need to dump
+        // any LIR temps into lclVars before using them as arguments.
+        shiftByOp = RepresentOpAsLocalVar(shiftByOp, shift, &shift->gtOp.gtOp2);
+        loOp1     = RepresentOpAsLocalVar(loOp1, gtLong, &gtLong->gtOp.gtOp1);
+        hiOp1     = RepresentOpAsLocalVar(hiOp1, gtLong, &gtLong->gtOp.gtOp2);
+
+        Range().Remove(shiftByOp);
+        Range().Remove(gtLong);
+        Range().Remove(loOp1);
+        Range().Remove(hiOp1);
 
         GenTreeArgList* argList = m_compiler->gtNewArgList(loOp1, hiOp1, shiftByOp);
 
@@ -1389,6 +1390,37 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
         Range().Remove(shift);
         use.ReplaceWith(m_compiler, call);
         return call;
+#else
+        GenTreeArgList* arg3 = new (m_compiler, GT_LIST) GenTreeArgList(shiftByOp);
+        GenTreeArgList* arg2 = new (m_compiler, GT_LIST) GenTreeArgList(hiOp1, arg3);
+        GenTreeArgList* arg1 = new (m_compiler, GT_LIST) GenTreeArgList(loOp1, arg2);
+        GenTreeCall*    call = m_compiler->gtNewHelperCallNode(helper, TYP_LONG, arg1);
+        call->GetReturnTypeDesc()->InitializeLongReturnType(m_compiler);
+        call->fgArgInfo = new (m_compiler, CMK_fgArgInfo) fgArgInfo(m_compiler, call, 3);
+#ifdef _TARGET_X86_
+        call->fgArgInfo->AddRegArg(0, arg1->Current(), arg1, REG_EAX, 1, 1, false);
+        call->fgArgInfo->AddRegArg(1, arg2->Current(), arg2, REG_EDX, 1, 1, false);
+        call->fgArgInfo->AddRegArg(2, arg3->Current(), arg3, REG_ECX, 1, 1, false);
+#else
+        call->fgArgInfo->AddRegArg(0, arg1->Current(), arg1, REG_R0, 1, 1, false);
+        call->fgArgInfo->AddRegArg(1, arg2->Current(), arg2, REG_R1, 1, 1, false);
+        call->fgArgInfo->AddRegArg(2, arg3->Current(), arg3, REG_R2, 1, 1, false);
+#endif
+        call->fgArgInfo->ArgsComplete();
+        call->fgArgInfo->SortArgs();
+        call->fgArgInfo->EvalArgsToTemps();
+
+        if (shift->IsUnusedValue())
+        {
+            call->SetUnusedValue();
+        }
+
+        Range().InsertAfter(shift, call);
+        Range().Remove(shift);
+        Range().Remove(gtLong);
+        use.ReplaceWith(m_compiler, call);
+        return call;
+#endif
     }
 }
 
@@ -1436,8 +1468,17 @@ GenTree* DecomposeLongs::DecomposeToDivMulHelper(LIR::Use& use)
     GenTreeCall*    call = m_compiler->gtNewHelperCallNode(helper, TYP_LONG, arg1);
     call->GetReturnTypeDesc()->InitializeLongReturnType(m_compiler);
     call->fgArgInfo = new (m_compiler, CMK_fgArgInfo) fgArgInfo(m_compiler, call, 2);
+#ifdef _TARGET_X86_
     call->fgArgInfo->AddStkArg(0, arg1->Current(), arg1, 2, 1, false);
     call->fgArgInfo->AddStkArg(1, arg2->Current(), arg2, 2, 1, false);
+#else
+    call->fgArgInfo->AddRegArg(0, arg1->Current(), arg1, REG_ARG_0, 2, 1, false)->setRegNum(1, REG_ARG_1);
+    call->fgArgInfo->AddRegArg(1, arg2->Current(), arg2, REG_ARG_2, 2, 1, false)->setRegNum(1, REG_ARG_3);
+#endif
+    call->fgArgInfo->ArgsComplete();
+    call->fgArgInfo->SortArgs();
+    call->fgArgInfo->EvalArgsToTemps();
+
     Range().InsertAfter(def, call);
 
     if (!use.IsDummyUse())

@@ -2,6 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#ifdef _TARGET_X86_
+#define USE_HELPERS_FOR_INT_DIV
+#endif
+
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XX                                                                           XX
@@ -4429,7 +4433,6 @@ GenTree* Lowering::LowerAdd(GenTree* node)
 GenTree* Lowering::LowerDivModToHelperCall(GenTreeOp* node)
 {
     assert(node->OperIs(GT_DIV, GT_MOD, GT_UDIV, GT_UMOD));
-    assert(node->TypeGet() == TYP_INT);
 
     unsigned helper;
 
@@ -4451,16 +4454,17 @@ GenTree* Lowering::LowerDivModToHelperCall(GenTreeOp* node)
             unreached();
     }
 
-    GenTree* arg1 = comp->gtNewZeroConNode(TYP_INT);
-    GenTree* arg2 = comp->gtNewZeroConNode(TYP_INT);
+    GenTreeArgList* arg2 = new (comp, GT_LIST) GenTreeArgList(node->gtGetOp2());
+    GenTreeArgList* arg1 = new (comp, GT_LIST) GenTreeArgList(node->gtGetOp1(), arg2);
+    GenTreeCall* call = comp->gtNewHelperCallNode(helper, node->TypeGet(), arg1);
+    call->fgArgInfo = new (comp, CMK_fgArgInfo) fgArgInfo(comp, call, 2);
+    call->fgArgInfo->AddRegArg(0, arg1->Current(), arg1, REG_ARG_0, 1, 1, false);
+    call->fgArgInfo->AddRegArg(1, arg2->Current(), arg2, REG_ARG_1, 1, 1, false);
+    call->fgArgInfo->ArgsComplete();
+    call->fgArgInfo->SortArgs();
+    call->fgArgInfo->EvalArgsToTemps();
 
-    GenTreeArgList* argList = comp->gtNewArgList(arg1, arg2);
-
-    GenTreeCall* call = comp->gtNewHelperCallNode(helper, TYP_INT, argList)->AsCall();
-    call->gtFlags |= (node->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
-    call = comp->fgMorphArgs(call);
-    comp->fgCheckArgCnt();
-    BlockRange().InsertAfter(node, LIR::SeqTree(comp, call));
+    BlockRange().InsertAfter(node, call);
 
     LIR::Use nodeUse;
     if (BlockRange().TryGetUse(node, &nodeUse))
@@ -4471,15 +4475,6 @@ GenTree* Lowering::LowerDivModToHelperCall(GenTreeOp* node)
     {
         call->SetUnusedValue();
     }
-
-    LIR::Use argUse;
-    BlockRange().TryGetUse(arg1, &argUse);
-    argUse.ReplaceWith(comp, node->gtGetOp1());
-    BlockRange().TryGetUse(arg2, &argUse);
-    argUse.ReplaceWith(comp, node->gtGetOp2());
-
-    BlockRange().Remove(arg1);
-    BlockRange().Remove(arg2);
 
     BlockRange().Remove(node);
 
