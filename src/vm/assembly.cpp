@@ -1219,7 +1219,6 @@ Module * Assembly::FindModuleByTypeRef(
             if (pModule->HasBindableIdentity(tkType))
 #endif// FEATURE_COMINTEROP
             {
-                _ASSERTE(!IsAfContentType_WindowsRuntime(pModule->GetAssemblyRefFlags(tkType)));
                 if (loadFlag == Loader::SafeLookup)
                 {
                     pAssembly = pModule->LookupAssemblyRef(tkType);
