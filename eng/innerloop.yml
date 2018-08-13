@@ -4,15 +4,6 @@ parameters:
   archType: undefined-archType
   queue: {}
 
-resources:
-  repositories:
-  # shared library repository
-  - repository: arcade
-    type: github
-    endpoint: DotNet-Bot GitHub Connection
-    name: dotnet/arcade
-    ref: refs/heads/master
-
 phases:
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:

@@ -1,3 +1,12 @@
+resources:
+  repositories:
+  # shared library repository
+  - repository: arcade
+    type: github
+    endpoint: jofortes-personal
+    name: dotnet/arcade
+    ref: refs/heads/master
+
 phases:
 - template: /eng/innerloop.yml
   parameters:
