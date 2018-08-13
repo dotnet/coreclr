@@ -1039,7 +1039,7 @@ void AppDomain::DeleteNativeCodeRanges()
         return;
 
     // Shutdown assemblies
-    AssemblyIterator i = IterateAssembliesEx( (AssemblyIterationFlags)(kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeIntrospection | kIncludeFailedToLoad) );
+    AssemblyIterator i = IterateAssembliesEx( (AssemblyIterationFlags)(kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad) );
     CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
 
     while (i.Next(pDomainAssembly.This()))
@@ -1071,7 +1071,7 @@ void AppDomain::ShutdownAssemblies()
 
     // Stage 1: call code:Assembly::Terminate
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeIntrospection | kIncludeFailedToLoad | kIncludeCollected));
+        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
     DomainAssembly * pDomainAssembly = NULL;
 
     while (i.Next_UnsafeNoAddRef(&pDomainAssembly))
@@ -1086,7 +1086,7 @@ void AppDomain::ShutdownAssemblies()
     
     // Stage 2: Clear the list of assemblies
     i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeIntrospection | kIncludeFailedToLoad | kIncludeCollected));
+        kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
     while (i.Next_UnsafeNoAddRef(&pDomainAssembly))
     {
         // We are in shutdown path, no one else can get to the list anymore
@@ -1207,7 +1207,7 @@ void AppDomain::ReleaseFiles()
 
     // Shutdown assemblies
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded  | kIncludeExecution | kIncludeIntrospection | kIncludeFailedToLoad | kIncludeLoading));
+        kIncludeLoaded  | kIncludeExecution | kIncludeFailedToLoad | kIncludeLoading));
     CollectibleAssemblyHolder<DomainAssembly *> pAsm;
 
     while (i.Next(pAsm.This()))
@@ -3074,8 +3074,9 @@ void SystemDomain::SetThreadAptState (Thread::ApartmentState state)
         Thread::ApartmentState pState = pThread->SetApartment(Thread::AS_InSTA, TRUE);
         _ASSERTE(pState == Thread::AS_InSTA);
     }
-    else if (state == Thread::AS_InMTA)
+    else
     {
+        // If an apartment state was not explicitly requested, default to MTA
         Thread::ApartmentState pState = pThread->SetApartment(Thread::AS_InMTA, TRUE);
         _ASSERTE(pState == Thread::AS_InMTA);
     }
@@ -4861,8 +4862,7 @@ BOOL AppDomain::ContainsAssembly(Assembly * assem)
 {
     WRAPPER_NO_CONTRACT;
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
-        kIncludeLoaded | 
-        (assem->IsIntrospectionOnly() ? kIncludeIntrospection : kIncludeExecution)));
+        kIncludeLoaded | kIncludeExecution));
     CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
 
     while (i.Next(pDomainAssembly.This()))
@@ -6163,7 +6163,7 @@ DomainAssembly * AppDomain::FindAssembly(PEAssembly * pFile, FindAssemblyOptions
     AssemblyIterator i = IterateAssembliesEx((AssemblyIterationFlags)(
         kIncludeLoaded | 
         (includeFailedToLoad ? kIncludeFailedToLoad : 0) |
-        (pFile->IsIntrospectionOnly() ? kIncludeIntrospection : kIncludeExecution)));
+        kIncludeExecution));
     CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
 
     while (i.Next(pDomainAssembly.This()))
@@ -6765,8 +6765,7 @@ AppDomain::BindHostedPrivAssembly(
     PEAssembly *       pParentAssembly,
     ICLRPrivAssembly * pPrivAssembly, 
     IAssemblyName *    pAssemblyName, 
-    PEAssembly **      ppAssembly, 
-    BOOL               fIsIntrospectionOnly) // = FALSE
+    PEAssembly **      ppAssembly)
 {
     STANDARD_VM_CONTRACT;
 
@@ -6824,7 +6823,7 @@ AppDomain::BindHostedPrivAssembly(
     _ASSERTE(pPEImageIL != nullptr);
     
     // Create a PEAssembly using the IL and NI images.
-    PEAssemblyHolder pPEAssembly = PEAssembly::Open(pParentAssembly, pPEImageIL, pPEImageNI, pPrivAssembly, fIsIntrospectionOnly);
+    PEAssemblyHolder pPEAssembly = PEAssembly::Open(pParentAssembly, pPEImageIL, pPEImageNI, pPrivAssembly);
 
 
     // Ask the binder to verify.
@@ -6840,7 +6839,6 @@ AppDomain::BindHostedPrivAssembly(
 PEAssembly * AppDomain::BindAssemblySpec(
     AssemblySpec *         pSpec, 
     BOOL                   fThrowOnFileNotFound, 
-    BOOL                   fRaisePrebindEvents, 
     StackCrawlMark *       pCallerStackMark, 
     BOOL                   fUseHostBinderIfAvailable)
 {
@@ -6959,7 +6957,7 @@ EndTry2:;
                         {
                             // IsSystem on the PEFile should be false, even for mscorlib satellites
                             result = PEAssembly::Open(&bindResult,
-                                                      FALSE, pSpec->IsIntrospectionOnly());
+                                                      FALSE);
                         }
                         fAddFileToCache = true;
                         
@@ -9853,7 +9851,6 @@ Assembly* AppDomain::RaiseResourceResolveEvent(DomainAssembly* pAssembly, LPCSTR
 Assembly * 
 AppDomain::RaiseAssemblyResolveEvent(
     AssemblySpec * pSpec, 
-    BOOL           fIntrospection, 
     BOOL           fPreBind)
 {
     CONTRACT(Assembly*)
@@ -9931,12 +9928,6 @@ AppDomain::RaiseAssemblyResolveEvent(
 
     if (pAssembly != NULL)
     {
-        if  ((!(pAssembly->IsIntrospectionOnly())) != (!fIntrospection))
-        {
-            // Cannot return an introspection assembly from an execution callback or vice-versa
-            COMPlusThrow(kFileLoadException, pAssembly->IsIntrospectionOnly() ? IDS_CLASSLOAD_ASSEMBLY_RESOLVE_RETURNED_INTROSPECTION : IDS_CLASSLOAD_ASSEMBLY_RESOLVE_RETURNED_EXECUTION);
-        }
-
         // Check that the public key token matches the one specified in the spec
         // MatchPublicKeys throws as appropriate
         pSpec->MatchPublicKeys(pAssembly);
@@ -10908,24 +10899,13 @@ AppDomain::AssemblyIterator::Next_Unlocked(
             }
         }
 
-        // Next, reject DomainAssemblies whose execution / introspection status is
+        // Next, reject DomainAssemblies whose execution status is
         // not to be included in the enumeration
         
-        if (pDomainAssembly->IsIntrospectionOnly())
+        // execution assembly
+        if (!(m_assemblyIterationFlags & kIncludeExecution))
         {
-            // introspection assembly
-            if (!(m_assemblyIterationFlags & kIncludeIntrospection))
-            {
-                continue; // reject
-            }
-        }
-        else
-        {
-            // execution assembly
-            if (!(m_assemblyIterationFlags & kIncludeExecution))
-            {
-                continue; // reject
-            }
+            continue; // reject
         }
 
         // Next, reject collectible assemblies
@@ -10996,7 +10976,7 @@ AppDomain::AssemblyIterator::Next_UnsafeNoAddRef(
     
     // Make sure we are iterating all assemblies (see the only caller code:AppDomain::ShutdownAssemblies)
     _ASSERTE(m_assemblyIterationFlags == 
-        (kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeIntrospection | kIncludeFailedToLoad | kIncludeCollected));
+        (kIncludeLoaded | kIncludeLoading | kIncludeExecution | kIncludeFailedToLoad | kIncludeCollected));
     // It also means that we do not exclude anything
     _ASSERTE((m_assemblyIterationFlags & kExcludeCollectible) == 0);
     
@@ -11402,7 +11382,7 @@ AppDomain::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
     }
 
     m_Assemblies.EnumMemoryRegions(flags);
-    AssemblyIterator assem = IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeExecution | kIncludeIntrospection));
+    AssemblyIterator assem = IterateAssembliesEx((AssemblyIterationFlags)(kIncludeLoaded | kIncludeExecution));
     CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
     
     while (assem.Next(pDomainAssembly.This()))

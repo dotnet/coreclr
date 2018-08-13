@@ -393,8 +393,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Threading\Timer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Volatile.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\WaitHandle.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\SpinLock.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Threading\ThreadLocal.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenRegistration.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\CancellationTokenSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\Tasks\future.cs" />
@@ -482,9 +480,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\EqualityComparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\ArraySortHelper.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Collections\ObjectModel\ReadOnlyDictionary.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\SafeHandles\SafeRegistryHandle.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Numerics\Hashing\HashHelpers.cs" />
