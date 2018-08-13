@@ -8,22 +8,32 @@ resources:
     ref: refs/heads/master
 
 phases:
-- template: /eng/innerloop.yml
+- template: /eng/common/templates/phases/base.yml@arcade
   parameters:
-   agentOs: Windows_NT
-   queue:
-     name: Hosted VS2017
-     parallel: 3
-     matrix:
-       x64_checked_Innerloop:
-         buildConfig: checked
-         archType: x64
-       x86_checked_Innerloop:
-         buildConfig: checked
-         archType: x86
-       x86_release_Innerloop:
-         buildConfig: release
-         archType: x86
+    queue:
+      name: Helix
+      cancelTimeoutInMinutes: 120
+      parallel: 3
+      matrix:
+        x64_checked_Innerloop:
+          buildConfig: checked
+          archType: x64
+        x86_checked_Innerloop:
+          buildConfig: checked
+          archType: x86
+        x86_release_Innerloop:
+          buildConfig: release
+          archType: x86
+    agentOs: Windows_NT
+    phaseName: Windows_NT
+    steps:
+    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %buildConfig% -priority=0
+    - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
+    - script: build.cmd %buildconfig% %archType% linuxmscorlib
+    - script: build.cmd %buildconfig% %archType% osxmscorlib
+    - ${{ if eq(parameters.archType, 'x64') }}:
+      - script: build.cmd %buildconfig% arm64 linuxmscorlib
+    - script: powershell -NoProfile -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\bin\tests\Windows_NT.x64.Checked', '.\bin\tests\tests.zip')
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
