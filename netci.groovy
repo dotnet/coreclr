@@ -3498,6 +3498,10 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         return false
     }
 
+    if (scenario == 'crossgen_comparison') {
+        return (os == "Ubuntu" && architecture == "arm" && configuration == "Checked" && isPR)
+    }
+
     // Filter based on OS and architecture.
 
     switch (architecture) {
