@@ -679,7 +679,7 @@ if %__BuildNativeCoreLib% EQU 1 (
     set NEXTCMD="%__CrossgenExe%" %__IbcTuning% /Platform_Assemblies_Paths "%__BinDir%"\IL /out "%__BinDir%\System.Private.CoreLib.dll" "%__BinDir%\IL\System.Private.CoreLib.dll"
     echo %__MsgPrefix%!NEXTCMD!
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-    !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+    !NEXTCMD!
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
         REM Put it in the same log, helpful for Jenkins
@@ -690,7 +690,7 @@ if %__BuildNativeCoreLib% EQU 1 (
     set NEXTCMD="%__CrossgenExe%" /Platform_Assemblies_Paths "%__BinDir%" /CreatePdb "%__BinDir%\PDB" "%__BinDir%\System.Private.CoreLib.dll"
     echo %__MsgPrefix%!NEXTCMD!
     echo %__MsgPrefix%!NEXTCMD! >> "%__CrossGenCoreLibLog%"
-    !NEXTCMD! >> "%__CrossGenCoreLibLog%" 2>&1
+    !NEXTCMD!
     if NOT !errorlevel! == 0 (
         echo %__MsgPrefix%Error: CrossGen /CreatePdb System.Private.CoreLib build failed. Refer to %__CrossGenCoreLibLog%
         REM Put it in the same log, helpful for Jenkins
