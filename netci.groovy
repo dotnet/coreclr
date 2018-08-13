@@ -1723,6 +1723,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 contextString += " Innerloop"
                 triggerString += "\\W+Innerloop"
             }
+            else if (scenario == 'crossgen_comparison') {
+                contextString += " CrossGen Comparison"
+                triggerString += "\\W+CrossGen Comparison"
+            }
             else {
                 contextString += " ${scenario}"
                 triggerString += "\\W+${scenario}"
@@ -3490,10 +3494,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     }
     
     if (scenario == 'corefx_innerloop') {
-        return false
-    }
-
-    if (scenario == 'crossgen_comparison') {
         return false
     }
 
