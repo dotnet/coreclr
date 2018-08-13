@@ -901,6 +901,10 @@ def static isPri0TestScenario(def scenario) {
     return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop')
 }
 
+def static isCrossGenComparisonScenario(def scenario) {
+    return (scenario == 'crossgen_comparison')
+}
+
 def static getFxBranch(def branch) {
     def fxBranch = branch
     // Map 'dev/unix_test_workflow' to 'master' so we can test CoreFX jobs in the CoreCLR dev/unix_test_workflow
@@ -2565,8 +2569,8 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
-    if (scenario == 'crossgen_comparison' && !isPR) {
-        return false
+    if (isCrossGenComparisonScenario(scenario)) {
+        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
     }
 
     // Tizen is only supported for armem architecture
@@ -3498,8 +3502,8 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         return false
     }
 
-    if (scenario == 'crossgen_comparison') {
-        return (os == "Ubuntu" && architecture == "arm" && configuration == "Checked" && isPR)
+    if (isCrossGenComparisonScenario(scenario)) {
+        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
     }
 
     // Filter based on OS and architecture.
