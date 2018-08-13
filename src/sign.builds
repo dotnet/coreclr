@@ -17,6 +17,8 @@
     <!-- Ensure cross targeting components are signed properly -->
     <WindowsNativeLocation Include="$(BinDir)$(CrossTargetComponentFolder)\*.exe" />
     <WindowsNativeLocation Include="$(BinDir)$(CrossTargetComponentFolder)\*.dll" />
+    <!-- Sign api-ms-win-core-xstate-l2-1-0 binary as it is only catalog signed in the current SDK. -->
+    <WindowsNativeLocation Include="$(BinDir)Redist\ucrt\DLLs\api-ms-win-core-xstate-l2-1-0.dll" />
   </ItemGroup>
   <!-- sign the cross targeted files as well -->
   <ItemGroup Condition="'$(CrossTargetComponentFolder)' != ''">
