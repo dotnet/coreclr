@@ -426,7 +426,8 @@ class Constants {
                'gcstress0xc_zapdisable_heapverify1',
                'gcstress0xc_jitstress1',
                'gcstress0xc_jitstress2',
-               'gcstress0xc_minopts_heapverify1'
+               'gcstress0xc_minopts_heapverify1',
+               'crossgen_comparison'
     ]
 
     def static validLinuxArm64Scenarios = [
