@@ -2,11 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace Microsoft.Win32
 {
@@ -17,7 +14,12 @@ namespace Microsoft.Win32
      * @security(checkClassLinking=on)
      */
     //This class contains only static members and does not need to be serializable.
-    internal static class Registry
+#if REGISTRY_ASSEMBLY
+    public
+#else
+    internal
+#endif
+    static class Registry
     {
         /**
          * Current User Key.
@@ -141,5 +143,3 @@ namespace Microsoft.Win32
         }
     }
 }
-
-
