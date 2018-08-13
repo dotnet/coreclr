@@ -1,26 +1,20 @@
 phases:
-- phase: First_phase
-  queue:
-    name: Hosted VS2017
-  steps:
-  - script: echo Hello World!
-
-#- template: /eng/innerloop.yml
-#  parameters:
-#    agentOs: Windows_NT
-#    queue:
-#      name: Hosted VS2017
-#      parallel: 3
-#      matrix:
-#        x64_checked_Innerloop:
-#          buildConfig: checked
-#          archType: x64
-#        x86_checked_Innerloop:
-#          buildConfig: checked
-#          archType: x86
-#        x86_release_Innerloop:
-#          buildConfig: release
-#          archType: x86
+- template: /eng/innerloop.yml
+  parameters:
+   agentOs: Windows_NT
+   queue:
+     name: Hosted VS2017
+     parallel: 3
+     matrix:
+       x64_checked_Innerloop:
+         buildConfig: checked
+         archType: x64
+       x86_checked_Innerloop:
+         buildConfig: checked
+         archType: x86
+       x86_release_Innerloop:
+         buildConfig: release
+         archType: x86
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
@@ -52,7 +46,7 @@ phases:
 #          buildConfig: release
 #          archType: x86
 
-         
+
 #  CentOS7.1 x64 Checked Innerloop Build and Test
 #  CentOS7.1 x64 Debug Innerloop Build
 #  Linux-musl x64 Debug Build
