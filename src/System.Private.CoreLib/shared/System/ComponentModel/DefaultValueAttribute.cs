@@ -63,7 +63,7 @@ namespace System.ComponentModel
                     // lazy init reflection objects
                     if (s_convertFromInvariantString == null)
                     {
-                        Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
+                        Type typeDescriptorType = Type.GetType("System.ComponentModel.TypeDescriptor, System.ComponentModel.TypeConverter, Version=0.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089", throwOnError: false);
                         Volatile.Write(ref s_convertFromInvariantString, typeDescriptorType == null ? new object() : Delegate.CreateDelegate(typeof(Func<Type, string, object>), typeDescriptorType, "ConvertFromInvariantString", ignoreCase: false));
                     }
 
