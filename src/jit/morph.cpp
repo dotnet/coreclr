@@ -600,6 +600,10 @@ OPTIMIZECAST:
                             case GT_LCL_FLD:
                             case GT_ARR_ELEM:
                                 oper->gtType = dstType;
+                                // We're changing the type here so we need to update the VN;
+                                // in other cases we discard the cast without modifying oper
+                                // so the VN doesn't change.
+                                oper->SetVNsFromNode(tree);
                                 goto REMOVE_CAST;
                             default:
                                 break;
@@ -753,8 +757,6 @@ OPTIMIZECAST:
     return tree;
 
 REMOVE_CAST:
-    oper->SetVNsFromNode(tree);
-
     /* Here we've eliminated the cast, so just return it's operand */
     assert(!gtIsActiveCSE_Candidate(tree)); // tree cannot be a CSE candidate
 
@@ -4616,22 +4618,23 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     if (fgEntryPtr->regNum == REG_STK)
 #endif
     {
-        GenTreeLclVarCommon* lcl = nullptr;
+        GenTreeLclVarCommon* lcl       = nullptr;
+        GenTree*             actualArg = arg->gtEffectiveVal();
 
-        if (arg->OperGet() == GT_OBJ)
+        if (actualArg->OperGet() == GT_OBJ)
         {
-            if (arg->gtGetOp1()->OperIs(GT_ADDR) && arg->gtGetOp1()->gtGetOp1()->OperIs(GT_LCL_VAR))
+            if (actualArg->gtGetOp1()->OperIs(GT_ADDR) && actualArg->gtGetOp1()->gtGetOp1()->OperIs(GT_LCL_VAR))
             {
-                lcl = arg->gtGetOp1()->gtGetOp1()->AsLclVarCommon();
+                lcl = actualArg->gtGetOp1()->gtGetOp1()->AsLclVarCommon();
             }
         }
         else
         {
-            assert(arg->OperGet() == GT_LCL_VAR);
+            assert(actualArg->OperGet() == GT_LCL_VAR);
 
             // We need to construct a `GT_OBJ` node for the argument,
             // so we need to get the address of the lclVar.
-            lcl = arg->AsLclVarCommon();
+            lcl = actualArg->AsLclVarCommon();
         }
         if (lcl != nullptr)
         {
@@ -4642,7 +4645,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
             else if (arg->TypeGet() == TYP_STRUCT)
             {
                 // If this is a non-register struct, it must be referenced from memory.
-                if (!arg->OperIs(GT_OBJ))
+                if (!actualArg->OperIs(GT_OBJ))
                 {
                     // Create an Obj of the temp to use it as a call argument.
                     arg = gtNewOperNode(GT_ADDR, TYP_I_IMPL, arg);
@@ -8162,11 +8165,12 @@ GenTree* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
             // The argument is not assigned to a temp. We need to create a new temp and insert an assignment.
             // TODO: we can avoid a temp assignment if we can prove that the argument tree
             // doesn't involve any caller parameters.
-            unsigned tmpNum        = lvaGrabTemp(true DEBUGARG("arg temp"));
-            GenTree* tempSrc       = arg;
-            GenTree* tempDest      = gtNewLclvNode(tmpNum, tempSrc->gtType);
-            GenTree* tmpAssignNode = gtNewAssignNode(tempDest, tempSrc);
-            GenTree* tmpAssignStmt = gtNewStmt(tmpAssignNode, callILOffset);
+            unsigned tmpNum         = lvaGrabTemp(true DEBUGARG("arg temp"));
+            lvaTable[tmpNum].lvType = arg->gtType;
+            GenTree* tempSrc        = arg;
+            GenTree* tempDest       = gtNewLclvNode(tmpNum, tempSrc->gtType);
+            GenTree* tmpAssignNode  = gtNewAssignNode(tempDest, tempSrc);
+            GenTree* tmpAssignStmt  = gtNewStmt(tmpAssignNode, callILOffset);
             fgInsertStmtBefore(block, tmpAssignmentInsertionPoint, tmpAssignStmt);
             argInTemp = gtNewLclvNode(tmpNum, tempSrc->gtType);
         }

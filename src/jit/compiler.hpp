@@ -1682,13 +1682,22 @@ inline unsigned Compiler::lvaGrabTemp(bool shortLifetime DEBUGARG(const char* re
         lvaTable    = newLvaTable;
     }
 
-    lvaTable[lvaCount].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
-    lvaTable[lvaCount].lvIsTemp  = shortLifetime;
-    lvaTable[lvaCount].lvOnFrame = true;
-
-    unsigned tempNum = lvaCount;
-
+    const unsigned tempNum = lvaCount;
     lvaCount++;
+
+    lvaTable[tempNum].lvType    = TYP_UNDEF; // Initialize lvType, lvIsTemp and lvOnFrame
+    lvaTable[tempNum].lvIsTemp  = shortLifetime;
+    lvaTable[tempNum].lvOnFrame = true;
+
+    // If we've started normal ref counting and are in minopts or debug
+    // mark this variable as implictly referenced.
+    if (lvaLocalVarRefCounted())
+    {
+        if (opts.MinOpts() || opts.compDbgCode)
+        {
+            lvaTable[tempNum].lvImplicitlyReferenced = 1;
+        }
+    }
 
 #ifdef DEBUG
     if (verbose)
@@ -1812,7 +1821,7 @@ inline unsigned Compiler::lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG
 
 inline void LclVarDsc::lvaResetSortAgainFlag(Compiler* comp, RefCountState state)
 {
-    if (!comp->lvaTrackedFixed)
+    if (!comp->lvaTrackedFixed && !comp->opts.MinOpts() && !comp->opts.compDbgCode)
     {
         /* Flag this change, set lvaSortAgain to true */
         comp->lvaSortAgain = true;
@@ -1831,6 +1840,12 @@ inline void LclVarDsc::lvaResetSortAgainFlag(Compiler* comp, RefCountState state
 
 inline void LclVarDsc::decRefCnts(BasicBlock::weight_t weight, Compiler* comp, RefCountState state, bool propagate)
 {
+    // In minopts and debug codegen, we don't maintain normal ref counts.
+    if ((state == RCS_NORMAL) && (comp->opts.MinOpts() || comp->opts.compDbgCode))
+    {
+        return;
+    }
+
     /* Decrement lvRefCnt and lvRefCntWtd */
     Compiler::lvaPromotionType promotionType = DUMMY_INIT(Compiler::PROMOTION_TYPE_NONE);
     if (varTypeIsStruct(lvType))
@@ -1922,6 +1937,14 @@ inline void LclVarDsc::decRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
 
 inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, RefCountState state, bool propagate)
 {
+    // In minopts and debug codegen, we don't maintain normal ref counts.
+    if ((state == RCS_NORMAL) && (comp->opts.MinOpts() || comp->opts.compDbgCode))
+    {
+        // Note, at least, that there is at least one reference.
+        lvImplicitlyReferenced = 1;
+        return;
+    }
+
     Compiler::lvaPromotionType promotionType = DUMMY_INIT(Compiler::PROMOTION_TYPE_NONE);
     if (varTypeIsStruct(lvType))
     {
@@ -1942,8 +1965,6 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
             setLvRefCnt((unsigned short)newRefCnt, state);
         }
 
-        // This fires when an uninitialize value for 'weight' is used
-        assert(weight != 0xdddddddd);
         //
         // Increment lvRefCntWtd
         //

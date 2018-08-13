@@ -60,6 +60,7 @@ namespace R2RDump
         private TextWriter _writer;
         private Dictionary<R2RSection.SectionType, bool> _selectedSections = new Dictionary<R2RSection.SectionType, bool>();
         private Dumper _dumper;
+        private bool _ignoreSensitive;
 
         private R2RDump()
         {
@@ -90,6 +91,7 @@ namespace R2RDump
                 syntax.DefineOption("sc", ref _sectionContents, "Dump section contents");
                 syntax.DefineOption("v|verbose", ref verbose, "Dump raw bytes, disassembly, unwindInfo, gcInfo and section contents");
                 syntax.DefineOption("diff", ref _diff, "Compare two R2R images (not yet implemented)");
+                syntax.DefineOption("ignoreSensitive", ref _ignoreSensitive, "Ignores sensitive properties in xml dump to avoid failing tests");
             });
 
             if (verbose)
@@ -386,7 +388,7 @@ namespace R2RDump
 
                     if (_xml)
                     {
-                        _dumper = new XmlDumper(r2r, _writer, _raw, _header, _disasm, disassembler, _unwind, _gc, _sectionContents);
+                        _dumper = new XmlDumper(_ignoreSensitive, r2r, _writer, _raw, _header, _disasm, disassembler, _unwind, _gc, _sectionContents);
                     }
                     else
                     {

@@ -660,6 +660,7 @@ public:
         // For 32-bit architectures, we make local variable SIMD12 types 16 bytes instead of just 12. We can't do
         // this for arguments, which must be passed according the defined ABI. We don't want to do this for
         // dependently promoted struct fields, but we don't know that here. See lvaMapSimd12ToSimd16().
+        // (Note that for 64-bits, we are already rounding up to 16.)
         if ((lvType == TYP_SIMD12) && !lvIsParam)
         {
             assert(lvExactSize == 12);
@@ -2789,9 +2790,9 @@ public:
     void lvaSortByRefCount();
     void lvaDumpRefCounts();
 
-    void lvaMarkLocalVars(BasicBlock* block);
-
     void lvaMarkLocalVars(); // Local variable ref-counting
+    void lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers);
+    void lvaMarkLocalVars(BasicBlock* block, bool isRecompute);
 
     void lvaAllocOutgoingArgSpaceVar(); // Set up lvaOutgoingArgSpaceVar
 
@@ -2971,7 +2972,7 @@ public:
 protected:
     //---------------- Local variable ref-counting ----------------------------
 
-    void lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt);
+    void lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute);
     bool IsDominatedByExceptionalEntry(BasicBlock* block);
     void SetVolatileHint(LclVarDsc* varDsc);
 

@@ -39,20 +39,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 //
 bool Lowering::IsCallTargetInRange(void* addr)
 {
-#ifdef _TARGET_ARM64_
-    // TODO-ARM64-CQ:  This is a workaround to unblock the JIT from getting calls working.
-    // Currently, we'll be generating calls using blr and manually loading an absolute
-    // call target in a register using a sequence of load immediate instructions.
-    //
-    // As you can expect, this is inefficient and it's not the recommended way as per the
-    // ARM64 ABI Manual but will get us getting things done for now.
-    // The work to get this right would be to implement PC-relative calls, the bl instruction
-    // can only address things -128 + 128MB away, so this will require getting some additional
-    // code to get jump thunks working.
-    return true;
-#elif defined(_TARGET_ARM_)
     return comp->codeGen->validImmForBL((ssize_t)addr);
-#endif
 }
 
 //------------------------------------------------------------------------
