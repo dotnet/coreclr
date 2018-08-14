@@ -32,6 +32,18 @@ def static getOSGroup(def os) {
     return osGroupMap[os]
 }
 
+def static getCrossArchitecture(def os, def architecture, def scenario) {
+    switch (architecture) {
+        case 'arm':
+            return 'x86'
+
+        case 'arm64':
+            return 'x64'
+    }
+
+    assert false
+}
+
 // We use this class (vs variables) so that the static functions can access data here.
 class Constants {
 
@@ -2497,7 +2509,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     else if (isCrossGenComparisonScenario(scenario)) {
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
 
-                        def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture, scenario)
+                        def crossArchitecture = getCrossArchitecture(os, architecture, scenario)
 
                         def workspaceRelativeProductBinDir = "bin/Product/${osGroup}.${architecture}.${configuration}"
                         def workspaceRelativeCoreLib = "${workspaceRelativeProductBinDir}/IL/System.Private.CoreLib.dll"
@@ -3417,7 +3429,7 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
     def osGroup = getOSGroup(os)
     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
 
-    def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
+    def crossArchitecture = getCrossArchitecture(os, architecture, scenario)
     def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
     def workspaceRelativeNativeResultDir = "_/${osGroup}.${architecture}_${architecture}.${configuration}"
 
