@@ -297,7 +297,7 @@ void ChangeCharSetUnicodeSequential(CharSetUnicodeSequential* p)
 	LPCWSTR temp = (LPCWSTR)CoTaskMemAlloc(sizeof(WCHAR)*(len+1));
 	if(temp != NULL)
 	{
-		wcscpy_s((WCHAR*)temp, (len+1)*sizeof(WCHAR), strSource);
+		wcscpy_s((WCHAR*)temp, (len+1), strSource);
 		p->f1 = temp;
 		p->f2 = L'n';
 	}
