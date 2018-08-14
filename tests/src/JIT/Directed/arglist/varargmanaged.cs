@@ -830,8 +830,6 @@ namespace NativeVarargTest
         {
             ArgIterator it = new ArgIterator(__arglist);
 
-            Console.WriteLine("int_count: {0}\nlong_count:{1}\n", int_count, long_count);
-
             int count = int_count + long_count;
             long sum = 0;
 
@@ -852,8 +850,6 @@ namespace NativeVarargTest
         public static double TestPassingFloatsAndDoubles(int float_count, int double_count, __arglist)
         {
             ArgIterator it = new ArgIterator(__arglist);
-
-            Console.WriteLine("int_count: {0}\nlong_count:{1}\n", float_count, double_count);
 
             int count = float_count + double_count;
             double sum = 0;

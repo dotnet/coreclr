@@ -23,6 +23,15 @@ namespace NativeVarargTest
         // Extern Definitions
         ////////////////////////////////////////////////////////////////////////////
 
+        // printf
+#if WIN32
+        [DllImport("msvcrt", CallingConvention = CallingConvention.Cdecl)]
+        extern static void printf(string str, __arglist);
+#else
+        [DllImport("libc", CallingConvention = CallingConvention.Cdecl)]
+        extern static void printf(string str, __arglist);
+#endif
+
         [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int test_passing_ints(int count, __arglist);
 
@@ -4574,14 +4583,14 @@ namespace NativeVarargTest
             ++m_testCount;
             if (!success)
             {
-                Console.WriteLine("Failure: {0}", name);
+                printf("Failure: %s", __arglist(name));
 
                 ++m_failCount;
                 return new_val;
             }
             else
             {
-                Console.WriteLine("Passed: {0}", name);
+                printf("Passed: %s", __arglist(name));
                 ++m_passCount;
             }
 
@@ -4594,14 +4603,14 @@ namespace NativeVarargTest
             ++m_testCount;
             if (!success)
             {
-                Console.WriteLine("Failure: {0}", name);
+                printf("Failure: %s", __arglist(name));
 
                 ++m_failCount;
                 return new_val;
             }
             else
             {
-                Console.WriteLine("Passed: {0}", name);
+                printf("Passed: %s", __arglist(name));
                 ++m_passCount;
             }
 
@@ -4614,14 +4623,14 @@ namespace NativeVarargTest
             ++m_testCount;
             if (success != 100)
             {
-                Console.WriteLine("Failure: {0}", name);
+                printf("Failure: %s", __arglist(name));
 
                 ++m_failCount;
                 return new_val;
             }
             else
             {
-                Console.WriteLine("Passed: {0}", name);
+                printf("Passed: %s", __arglist(name));
                 ++m_passCount;
             }
 
@@ -4634,14 +4643,14 @@ namespace NativeVarargTest
             ++m_testCount;
             if (success != 100)
             {
-                Console.WriteLine("Failure: {0}", name);
+                printf("Failure: %s", __arglist(name));
 
                 ++m_failCount;
                 return new_val;
             }
             else
             {
-                Console.WriteLine("Passed: {0}", name);
+                printf("Passed: %s", __arglist(name));
                 ++m_passCount;
             }
 
@@ -5183,8 +5192,8 @@ namespace NativeVarargTest
             success = ReportFailure(TestEchoFourFloatStructNoVararg(), "TestEchoFourFloatStructNoVararg()", success, 106);
             success = ReportFailure(TestEchoFourDoubleStructNoVararg(), "TestEchoFourDoubleStructNoVararg()", success, 107);
 
-            Console.WriteLine("");
-            Console.WriteLine("{0} Tests run. {1} Passed, {2} Failed.", m_testCount, m_passCount, m_failCount);
+            printf("", __arglist());
+            printf("%d Tests run. %d Passed, %d Failed.", __arglist(m_testCount, m_passCount, m_failCount));
 
             return success;
         }
