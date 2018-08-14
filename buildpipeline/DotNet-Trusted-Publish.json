@@ -208,7 +208,7 @@
       },
       "inputs": {
         "filename": "msbuild",
-        "arguments": "src\\publish.proj /p:CloudDropAccountName=$(CloudDropAccountName) /p:CloudDropAccessToken=$(CloudDropAccessToken) /p:ContainerName=$(Label) /p:OverwriteOnPublish=true /p:RepublishSignedFinalPackages=true",
+        "arguments": "src\\publish.proj /p:CloudDropAccountName=$(CloudDropAccountName) /p:CloudDropAccessToken=$(CloudDropAccessToken) /p:ContainerName=$(Label) /p:OverwriteOnPublish=true /p:RepublishSignedFinalPackages=true /p:ConfigurationGroup=$(ConfigurationGroup) /p:__BuildType=$(ConfigurationGroup)",
         "workingFolder": "$(Pipeline.SourcesDirectory)",
         "failOnStandardError": "false"
       }
