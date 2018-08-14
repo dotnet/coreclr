@@ -2495,16 +2495,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
-                    else if (scenario == 'crossgen_comparison') {
-                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
+                    else if (isCrossGenComparisonScenario(scenario)) {
 
                         def crossArchitecture = "x86"
-                        def workspaceRelativeResultDir = "Linux.${crossArchitecture}_${architecture}.${configuration}"
-                        buildCommands += "${dockerCmd}mkdir Linux.${crossArchitecture}_${architecture}.${configuration}"
+                        def workspaceRelativeResultDir = "${osGroup}.${architecture}.${configuration}.${crossArchitecture}_${architecture}.${configuration}"
 
-                        def crossGenExecutable = "\${WORKSPACE}/bin/Product/Linux.${architecture}.${configuration}/${crossArchitecture}/crossgen"
-                        buildCommands += "${dockerCmd}python -u \${WORKSPACE}/tests/scripts/crossgen_comparison.py crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/bin/Product/Linux.${architecture}.${configuration}/IL/System.Private.CoreLib.dll --result_dir ${workspaceRelativeResultDir}"
-                        buildCommands += "${dockerCmd}python -u \${WORKSPACE}/tests/scripts/crossgen_comparison.py crossgen_framework --crossgen ${crossGenExecutable} --core_root /opt/code/bin/tests/Linux.arm.Checked/Tests/Core_Root --result_dir ${workspaceRelativeResultDir}"
+                        def workspaceRelativeCrossGenExecutable = "bin/Product/${osGroup}.${architecture}.${configuration}/${crossArchitecture}/crossgen"
+                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
+
+                        def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
+                        def crossGenComparisonScript = "\${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript}"
+
+                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
+
+                        buildCommands += "${dockerCmd}mkdir ${osGroup}.${architecture}.${configuration}.${crossArchitecture}_${architecture}.${configuration}"
+                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll --result_dir ${workspaceRelativeResultDir}"
+                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_framework --crossgen ${crossGenExecutable} --core_root /opt/code/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root --result_dir ${workspaceRelativeResultDir}"
                         buildCommands += "zip -r ${workspaceRelativeResultDir}.zip ${workspaceRelativeResultDir}"
                     }
                     else {
