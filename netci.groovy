@@ -2496,21 +2496,32 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
                     else if (isCrossGenComparisonScenario(scenario)) {
-                        def crossArchitecture = "x86"
+                        def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
 
+                        def crossGenExecutable = "\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/${crossArchitecture}/crossgen"
                         def workspaceRelativeResultDir = "${osGroup}.${architecture}.${configuration}.${crossArchitecture}_${architecture}.${configuration}"
-
-                        def workspaceRelativeCrossGenExecutable = "bin/Product/${osGroup}.${architecture}.${configuration}/${crossArchitecture}/crossgen"
-                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
-
                         def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
                         def crossGenComparisonScript = "\${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript}"
+                        def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
+                        def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
 
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
-                        buildCommands += "${dockerCmd}mkdir ${osGroup}.${architecture}.${configuration}.${crossArchitecture}_${architecture}.${configuration}"
-                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll --result_dir ${workspaceRelativeResultDir}"
-                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_framework --crossgen ${crossGenExecutable} --core_root /opt/code/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root --result_dir ${workspaceRelativeResultDir}"
+                        buildCommands += "${dockerCmd}mkdir ${workspaceRelativeResultDir}"
+                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeResultDir}"
+                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeResultDir}"
+
+                        def workspaceRelativeArchiveCoreLib  = "ILCoreLib.${osGroup}.${architecture}.${configuration}.zip"
+                        def workspaceRelativeArchiveCoreRoot = "Core_Root.${osGroup}.${architecture}.${configuration}.zip"
+
+                        // These commands are assumed to be run from the root of the workspace.
+                        buildCommands += "zip -r ${archiveCoreLib} ${workspaceRelativeCoreLib}"
+                        buildCommands += "zip -r ${archiveCoreRoot} ${workspaceRelativeCoreRootDir}"
                         buildCommands += "zip -r ${workspaceRelativeResultDir}.zip ${workspaceRelativeResultDir}"
+
+                        Utilities.addArchival(newJob, "${workspaceRelativeCrossGenComparisonScript}")
+                        Utilities.addArchival(newJob, "${workspaceRelativeResultDir}.zip")
+                        Utilities.addArchival(newJob, "${workspaceRelativeArchiveCoreLib}")
+                        Utilities.addArchival(newJob, "${workspaceRelativeArchiveCoreRoot}")
                     }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
