@@ -741,7 +741,7 @@
         <DeclaringType>GenericFunctions.GenericFunctions</DeclaringType>
         <Token>100663299</Token>
         <Rid>3</Rid>
-        <EntryPointRuntimeFunctionId>5</EntryPointRuntimeFunctionId>
+        <EntryPointRuntimeFunctionId>6</EntryPointRuntimeFunctionId>
       </R2RMethod>
       <GcInfo>
         <GcInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -784,13 +784,13 @@
             </GcSlots>
           </SlotTable>
           <Size>73</Size>
-          <Offset>4128</Offset>
+          <Offset>4152</Offset>
         </GcInfo>
       </GcInfo>
       <RuntimeFunctions>
-        <RuntimeFunction Index="5">
+        <RuntimeFunction Index="6">
           <MethodRid>3</MethodRid>
-          <RuntimeFunction xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="5">
+          <RuntimeFunction xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="6">
             <Size>45</Size>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
@@ -959,7 +959,7 @@
         <DeclaringType>GenericFunctions.GenericFunctions</DeclaringType>
         <Token>100663299</Token>
         <Rid>3</Rid>
-        <EntryPointRuntimeFunctionId>6</EntryPointRuntimeFunctionId>
+        <EntryPointRuntimeFunctionId>5</EntryPointRuntimeFunctionId>
       </R2RMethod>
       <GcInfo>
         <GcInfo xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -1002,13 +1002,13 @@
             </GcSlots>
           </SlotTable>
           <Size>73</Size>
-          <Offset>4152</Offset>
+          <Offset>4128</Offset>
         </GcInfo>
       </GcInfo>
       <RuntimeFunctions>
-        <RuntimeFunction Index="6">
+        <RuntimeFunction Index="5">
           <MethodRid>3</MethodRid>
-          <RuntimeFunction xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="6">
+          <RuntimeFunction xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Index="5">
             <Size>47</Size>
             <CodeOffset>0</CodeOffset>
           </RuntimeFunction>
