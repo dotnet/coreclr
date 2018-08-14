@@ -1948,7 +1948,9 @@ void CodeGen::genCodeForCast(GenTreeOp* tree)
 
 CodeGen::GenIntCastDesc::GenIntCastDesc(GenTreeCast* cast)
 {
-    const var_types srcType      = genActualType(cast->gtGetOp1()->TypeGet());
+    GenTree* src = cast->gtGetOp1();
+
+    const var_types srcType      = genActualType(src->TypeGet());
     const bool      srcUnsigned  = cast->IsUnsigned();
     const unsigned  srcSize      = genTypeSize(srcType);
     const var_types castType     = cast->gtCastType;
@@ -2061,6 +2063,117 @@ CodeGen::GenIntCastDesc::GenIntCastDesc(GenTreeCast* cast)
 
         m_extendKind    = COPY;
         m_extendSrcSize = srcSize;
+    }
+
+    if (src->isUsedFromMemory())
+    {
+        bool     memUnsigned = varTypeIsUnsigned(src->TypeGet());
+        unsigned memSize     = genTypeSize(src->TypeGet());
+
+        if (m_checkKind != CHECK_NONE)
+        {
+            // For overflow checking casts the memory load is performed as usual and
+            // the cast only checks if the resulting TYP_(U)INT/TYP_(U)LONG value is
+            // within the cast type's range.
+            //
+            // There is one specific case that normally requires sign extending the
+            // loaded value - casting TYP_INT to TYP_ULONG. But this isn't needed:
+            //   - the overflow check guarantees that the TYP_INT value is positive
+            //     so zero extend can be used instead
+            //   - this case is 64 bit specific and both x64 and arm64 zero extend
+            //     while loading (even when using SIGN_EXTEND_SMALL_INT because the
+            //     the value is positive)
+            //
+            // Other TYP_(U)INT/TYP_(U)LONG widening casts do not require overflow
+            // checks so they are not handled here.
+
+            if (memSize < 4)
+            {
+                m_loadKind = memUnsigned ? LOAD_ZERO_EXTEND_SMALL_INT : LOAD_SIGN_EXTEND_SMALL_INT;
+            }
+            else
+            {
+                m_loadKind = LOAD;
+            }
+
+            m_loadSrcSize = memSize;
+
+            m_extendKind = COPY;
+        }
+        else
+        {
+            if (castSize <= memSize)
+            {
+                // If we have a narrowing cast then we can narrow the memory load itself.
+                // The upper bits contained in the wider memory location and the sign/zero
+                // extension bits that a small type load would have produced are anyway
+                // discarded by the cast.
+                //
+                // Handle the sign changing cast as well, just to pick up the sign of the
+                // cast type (see the memSize < 4 case below).
+                //
+                // This effectively turns all casts into widening or sign changing casts.
+                memSize     = castSize;
+                memUnsigned = castUnsigned;
+            }
+
+            if (memSize < 4)
+            {
+                m_loadKind    = memUnsigned ? LOAD_ZERO_EXTEND_SMALL_INT : LOAD_SIGN_EXTEND_SMALL_INT;
+                m_loadSrcSize = memSize;
+
+                // Most of the time the load itself is sufficient, even on 64 bit where we
+                // may need to widen directly to 64 bit (CodeGen needs to ensure that 64 bit
+                // instructions are used on 64 bit targets). But there are 2 exceptions that
+                // involve loading signed values and then zero extending:
+
+                // Loading a TYP_BYTE and then casting to TYP_USHORT - bits 8-15 will contain
+                // the sign bit of the original value while bits 16-31/63 will be 0. There's
+                // no single instruction that does this so we'll need to emit an extra zero
+                // extend to zero out bits 16-31/63.
+                if ((memSize == 1) && !memUnsigned && (castType == TYP_USHORT))
+                {
+                    assert(m_extendKind == ZERO_EXTEND_SMALL_INT);
+                    assert(m_extendSrcSize == 2);
+                }
+#ifdef _TARGET_64BIT_
+                // Loading a small signed value and then zero extending to TYP_LONG - on x64
+                // this requires a 32 bit MOVSX but the emitter lacks support for it so we'll
+                // need to emit a 32 bit MOV to zero out the upper 32 bits. This kind of
+                // signed/unsigned mix should be rare.
+                else if (!memUnsigned && (castSize == 8) && srcUnsigned)
+                {
+                    assert(m_extendKind == ZERO_EXTEND_INT);
+                    assert(m_extendSrcSize == 4);
+                }
+#endif
+                // Various other combinations do not need extra instructions. For example:
+                // - Unsigned value load and sign extending cast - if the value is unsigned
+                //   then sign extending is in fact zero extending.
+                // - TYP_SHORT value load and cast to TYP_UINT - that's a TYP_INT to TYP_UINT
+                //   cast that's basically a NOP.
+                else
+                {
+                    m_extendKind = COPY;
+                }
+            }
+#ifdef _TARGET_64BIT_
+            else if ((memSize == 4) && !srcUnsigned && (castSize == 8))
+            {
+                m_loadKind    = LOAD_SIGN_EXTEND_INT;
+                m_loadSrcSize = memSize;
+
+                m_extendKind = COPY;
+            }
+#endif
+            else
+            {
+                m_loadKind    = LOAD;
+                m_loadSrcSize = memSize;
+
+                m_extendKind = COPY;
+            }
+        }
     }
 }
 

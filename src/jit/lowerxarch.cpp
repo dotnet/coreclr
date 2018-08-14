@@ -1829,7 +1829,25 @@ void Lowering::ContainCheckCast(GenTreeCast* node)
         srcType = genUnsignedType(srcType);
     }
 
-    if (!node->gtOverflow() && (varTypeIsFloating(castToType) || varTypeIsFloating(srcType)))
+    if (varTypeIsIntegral(castToType) && varTypeIsIntegral(srcType))
+    {
+        if (IsContainableMemoryOp(castOp))
+        {
+            MakeSrcContained(node, castOp);
+        }
+#if !defined(_TARGET_64BIT_)
+        else if (varTypeIsLong(srcType))
+        {
+            noway_assert(castOp->OperGet() == GT_LONG);
+            castOp->SetContained();
+        }
+#endif
+        else
+        {
+            castOp->SetRegOptional();
+        }
+    }
+    else if (!node->gtOverflow() && (varTypeIsFloating(castToType) || varTypeIsFloating(srcType)))
     {
 #ifdef DEBUG
         // If converting to float/double, the operand must be 4 or 8 byte in size.
@@ -1855,13 +1873,6 @@ void Lowering::ContainCheckCast(GenTreeCast* node)
             }
         }
     }
-#if !defined(_TARGET_64BIT_)
-    if (varTypeIsLong(srcType))
-    {
-        noway_assert(castOp->OperGet() == GT_LONG);
-        castOp->SetContained();
-    }
-#endif // !defined(_TARGET_64BIT_)
 }
 
 //------------------------------------------------------------------------

@@ -758,17 +758,28 @@ void Lowering::ContainCheckStoreLoc(GenTreeLclVarCommon* storeLoc)
 //
 void Lowering::ContainCheckCast(GenTreeCast* node)
 {
-#ifdef _TARGET_ARM_
     GenTree*  castOp     = node->CastOp();
     var_types castToType = node->CastToType();
     var_types srcType    = castOp->TypeGet();
 
-    if (varTypeIsLong(castOp))
+    if (varTypeIsIntegral(castToType) && varTypeIsIntegral(srcType))
     {
-        assert(castOp->OperGet() == GT_LONG);
-        MakeSrcContained(node, castOp);
+        if (IsContainableMemoryOp(castOp))
+        {
+            MakeSrcContained(node, castOp);
+        }
+#if !defined(_TARGET_64BIT_)
+        else if (varTypeIsLong(srcType))
+        {
+            noway_assert(castOp->OperGet() == GT_LONG);
+            castOp->SetContained();
+        }
+#endif
+        else
+        {
+            castOp->SetRegOptional();
+        }
     }
-#endif // _TARGET_ARM_
 }
 
 //------------------------------------------------------------------------

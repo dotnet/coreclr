@@ -2955,22 +2955,91 @@ void CodeGen::genIntCastOverflowCheck(GenTreeCast* cast, const GenIntCastDesc& d
 //    cast - The GT_CAST node
 //
 // Assumptions:
-//    The cast node is not a contained node and must have an assigned register.
 //    Neither the source nor target type can be a floating point type.
-//
-// TODO-ARM64-CQ: Allow castOp to be a contained node without an assigned register.
 //
 void CodeGen::genIntToIntCast(GenTreeCast* cast)
 {
-    genConsumeRegs(cast->gtGetOp1());
+    GenTree* src = cast->gtGetOp1();
 
-    const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
+    genConsumeRegs(src);
+
+    regNumber       srcReg = cast->gtGetOp1()->gtRegNum;
     const regNumber dstReg = cast->gtRegNum;
-
-    assert(genIsValidIntReg(srcReg));
     assert(genIsValidIntReg(dstReg));
 
     GenIntCastDesc desc(cast);
+
+    if (src->isUsedFromMemory())
+    {
+        instruction ins;
+        unsigned    insSize;
+
+        switch (desc.LoadKind())
+        {
+            case GenIntCastDesc::LOAD_ZERO_EXTEND_SMALL_INT:
+                ins     = (desc.LoadSrcSize() == 1) ? INS_ldrb : INS_ldrh;
+                insSize = TARGET_POINTER_SIZE;
+                break;
+            case GenIntCastDesc::LOAD_SIGN_EXTEND_SMALL_INT:
+                ins     = (desc.LoadSrcSize() == 1) ? INS_ldrsb : INS_ldrsh;
+                insSize = TARGET_POINTER_SIZE;
+                break;
+#ifdef _TARGET_64BIT_
+            case GenIntCastDesc::LOAD_SIGN_EXTEND_INT:
+                ins     = INS_ldrsw;
+                insSize = 8;
+                break;
+#endif
+            default:
+                assert(desc.LoadKind() == GenIntCastDesc::LOAD);
+                ins     = INS_ldr;
+                insSize = desc.LoadSrcSize();
+                break;
+        }
+
+        // Note that we load directly into the destination register, this avoids the
+        // need for a temporary register but assumes that enregistered variables are
+        // not live in exception handlers.
+
+        if (src->OperIs(GT_IND))
+        {
+            getEmitter()->emitInsLoadStoreOp(ins, EA_ATTR(insSize), dstReg, src->AsIndir());
+        }
+        else
+        {
+            unsigned lclNum;
+            unsigned lclOffs;
+
+            if (src->isUsedFromSpillTemp())
+            {
+                TempDsc* tmpDsc = getSpillTempDsc(src);
+                lclNum          = tmpDsc->tdTempNum();
+                lclOffs         = 0;
+                regSet.tmpRlsTemp(tmpDsc);
+            }
+            else if (src->OperIs(GT_LCL_VAR))
+            {
+                lclNum  = src->AsLclVar()->GetLclNum();
+                lclOffs = 0;
+                assert(src->IsRegOptional() || !compiler->lvaTable[lclNum].lvIsRegCandidate());
+            }
+            else if (src->OperIs(GT_LCL_FLD))
+            {
+                lclNum  = src->AsLclFld()->GetLclNum();
+                lclOffs = src->AsLclFld()->gtLclOffs;
+            }
+            else
+            {
+                unreached();
+            }
+
+            getEmitter()->emitIns_R_S(ins, EA_ATTR(insSize), dstReg, lclNum, lclOffs);
+        }
+
+        srcReg = dstReg;
+    }
+
+    assert(genIsValidIntReg(srcReg));
 
     if (desc.CheckKind() != GenIntCastDesc::CHECK_NONE)
     {

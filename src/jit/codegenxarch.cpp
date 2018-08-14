@@ -6409,23 +6409,54 @@ void CodeGen::genIntCastOverflowCheck(GenTreeCast* cast, const GenIntCastDesc& d
 //    cast - The GT_CAST node
 //
 // Assumptions:
-//    The cast node is not a contained node and must have an assigned register.
 //    Neither the source nor target type can be a floating point type.
-//    On x86 casts to (U)BYTE require that the source be in a byte register.
-//
-// TODO-XArch-CQ: Allow castOp to be a contained node without an assigned register.
+//    On x86 casts to (U)BYTE require that the source be in a byte register if not contained.
 //
 void CodeGen::genIntToIntCast(GenTreeCast* cast)
 {
-    genConsumeRegs(cast->gtGetOp1());
+    GenTree* src = cast->gtGetOp1();
 
-    const regNumber srcReg = cast->gtGetOp1()->gtRegNum;
+    genConsumeRegs(src);
+
+    regNumber       srcReg = src->gtRegNum;
     const regNumber dstReg = cast->gtRegNum;
-
-    assert(genIsValidIntReg(srcReg));
     assert(genIsValidIntReg(dstReg));
 
     GenIntCastDesc desc(cast);
+
+    if (src->isUsedFromMemory())
+    {
+        instruction ins;
+
+        switch (desc.LoadKind())
+        {
+            case GenIntCastDesc::LOAD_ZERO_EXTEND_SMALL_INT:
+                ins = INS_movzx;
+                break;
+            case GenIntCastDesc::LOAD_SIGN_EXTEND_SMALL_INT:
+                ins = INS_movsx;
+                break;
+#ifdef _TARGET_64BIT_
+            case GenIntCastDesc::LOAD_SIGN_EXTEND_INT:
+                ins = INS_movsxd;
+                break;
+#endif
+            default:
+                assert(desc.LoadKind() == GenIntCastDesc::LOAD);
+                ins = INS_mov;
+                break;
+        }
+
+        // Note that we load directly into the destination register, this avoids the
+        // need for a temporary register but assumes that enregistered variables are
+        // not live in exception handlers.
+
+        getEmitter()->emitInsBinary(ins, EA_ATTR(desc.LoadSrcSize()), cast, src);
+
+        srcReg = dstReg;
+    }
+
+    assert(genIsValidIntReg(srcReg));
 
     if (desc.CheckKind() != GenIntCastDesc::CHECK_NONE)
     {

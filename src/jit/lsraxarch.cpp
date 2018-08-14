@@ -2699,9 +2699,14 @@ int LinearScan::BuildCast(GenTreeCast* cast)
     // register to extract the upper 32 bits of the 64 bit source register.
     if (cast->gtOverflow() && varTypeIsLong(srcType) && (castType == TYP_UINT))
     {
-        // Here we don't need internal register to be different from targetReg,
-        // rather require it to be different from operand's reg.
         buildInternalIntRegisterDefForNode(cast);
+
+        // If the cast operand ends up being in memory then the value will be loaded directly
+        // into the destination register and thus the internal register has to be different.
+        if (src->isContained() || src->IsRegOptional())
+        {
+            setInternalRegsDelayFree = true;
+        }
     }
 #endif
 
