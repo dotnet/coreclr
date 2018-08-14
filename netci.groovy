@@ -3452,10 +3452,6 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
             shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${workspaceRelativeCrossGenExecutable} --il_corelib ${workspaceRelativeCoreLib} --result_dir ${workspaceRelativeNativeResultDir}")
             shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${workspaceRelativeCrossGenExecutable} --core_root ${workspaceRelativeCoreRootDir} --result_dir ${workspaceRelativeNativeResultDir}")
             shell("${crossGenComparisonCmd}compare --base_dir ${workspaceRelativeNativeResultDir} --diff_dir ${workspaceRelativeCrossResultDir}")
-
-            def workspaceRelativeResultArchive = "CrossGenComparisonResult.zip"
-            shell("zip -r ${workspaceRelativeResultArchive} ${workspaceRelativeNativeResultDir} ${workspaceRelativeCrossResultDir}")
-            Utilities.addArchival(newJob, "${workspaceRelativeResultArchive}")
         } // steps
     }  // job
 
