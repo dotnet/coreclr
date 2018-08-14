@@ -2747,7 +2747,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             default:
                 break
         }
-    } 
+    }
     else if (isCrossGenComparisonScenario(scenario)) {
         return shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
     }
