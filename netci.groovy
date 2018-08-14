@@ -3694,6 +3694,7 @@ Constants.allScenarios.each { scenario ->
 
                     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
                     def doCoreFxTesting = isCoreFxScenario(scenario)
+                    def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
@@ -3707,6 +3708,10 @@ Constants.allScenarios.each { scenario ->
                             inputCoreCLRBuildIsBuildOnly = true
                         }
                     }
+                    if (doCrossGenComparison) {
+                        inputCoreCLRBuildScenario = scenario
+                    }
+
                     def inputCoreCLRFolderName = getJobFolder(inputCoreCLRBuildScenario)
                     def inputCoreCLRBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, inputCoreCLRBuildIsBuildOnly), isPR, inputCoreCLRFolderName)
@@ -3719,7 +3724,7 @@ Constants.allScenarios.each { scenario ->
 
                     def inputTestsBuildName = null
 
-                    if (!windowsArmJob && !doCoreFxTesting) {
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison) {
                         def testBuildScenario = isPri0TestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
