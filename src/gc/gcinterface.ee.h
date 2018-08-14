@@ -409,6 +409,24 @@ public:
     // Returns an IGCToCLREventSink instance that can be used to fire events.
     virtual
     IGCToCLREventSink* EventSink() = 0;
+
+    virtual
+    bool CanEnableGCNumaAware() = 0;
+
+    virtual
+    bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no) = 0;
+
+    virtual
+    void* VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node) = 0;
+
+    virtual
+    bool CanEnableGCCPUGroups() = 0;
+
+    virtual
+    uint16_t GetNumActiveProcessors() = 0;
+
+    virtual
+    void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

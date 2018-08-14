@@ -1429,3 +1429,46 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
 
     return &g_gcToClrEventSink;
 }
+
+bool GCToEEInterface::CanEnableGCNumaAware()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::CanEnableGCNumaAware();
+}
+
+bool GCToEEInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no);
+}
+
+void* GCToEEInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::VirtualAllocExNuma(GetCurrentProcess(), lpAddr, dwSize, allocType, prot, node);
+}
+
+
+bool GCToEEInterface::CanEnableGCCPUGroups()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::CanEnableGCCPUGroups();
+}
+
+uint16_t GCToEEInterface::GetNumActiveProcessors()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::GetNumActiveProcessors();
+}
+
+void GCToEEInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::GetGroupForProcessor(processor_number, group_number, group_processor_number);
+}

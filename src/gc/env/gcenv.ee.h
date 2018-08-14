@@ -85,6 +85,14 @@ public:
     static void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
     static void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     static IGCToCLREventSink* EventSink();
+
+    static bool CanEnableGCNumaAware();
+    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
+    static void* VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node);
+
+    static bool CanEnableGCCPUGroups();
+    static uint16_t GetNumActiveProcessors();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
 };
 
 #endif // __GCENV_EE_H__

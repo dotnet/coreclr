@@ -5066,7 +5066,7 @@ public:
 
         //can not enable gc numa aware, force all heaps to be in
         //one numa node by filling the array with all 0s
-        if (!NumaNodeInfo::CanEnableGCNumaAware())
+        if (!GCToEEInterface::CanEnableGCNumaAware())
             memset(heap_no_to_numa_node, 0, sizeof (heap_no_to_numa_node)); 
 
         return TRUE;
@@ -5262,7 +5262,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
     affinity->Processor = GCThreadAffinity::None;
 
     uint16_t gn, gpn;
-    CPUGroupInfo::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
+    GCToEEInterface::GetGroupForProcessor((uint16_t)heap_number, &gn, &gpn);
 
     int bit_number = 0;
     for (uintptr_t mask = 1; mask !=0; mask <<=1) 
@@ -5274,7 +5274,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
             affinity->Group = gn;
             heap_select::set_cpu_group_for_heap(heap_number, gn);
             heap_select::set_group_proc_for_heap(heap_number, gpn);
-            if (NumaNodeInfo::CanEnableGCNumaAware())
+            if (GCToEEInterface::CanEnableGCNumaAware())
             {  
                 PROCESSOR_NUMBER proc_no;
                 proc_no.Group    = gn;
@@ -5282,7 +5282,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
                 proc_no.Reserved = 0;
 
                 uint16_t node_no = 0;
-                if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                if (GCToEEInterface::GetNumaProcessorNodeEx(&proc_no, &node_no))
                     heap_select::set_numa_node_for_heap(heap_number, node_no);
             }
             else
@@ -5315,14 +5315,14 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
                     dprintf (3, ("Using processor %d for heap %d", proc_number, heap_number));
                     affinity->Processor = proc_number;
                     heap_select::set_proc_no_for_heap(heap_number, proc_number);
-                    if (NumaNodeInfo::CanEnableGCNumaAware())
+                    if (GCToEEInterface::CanEnableGCNumaAware())
                     {
                         uint16_t node_no = 0;
                         PROCESSOR_NUMBER proc_no;
                         proc_no.Group = 0;
                         proc_no.Number = (uint8_t)proc_number;
                         proc_no.Reserved = 0;
-                        if (NumaNodeInfo::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                        if (GCToEEInterface::GetNumaProcessorNodeEx(&proc_no, &node_no))
                         {
                             heap_select::set_numa_node_for_heap(heap_number, node_no);
                         }
@@ -5464,10 +5464,10 @@ bool virtual_alloc_commit_for_heap(void* addr, size_t size, int h_number)
     if (!CLRMemoryHosted())
 #endif
     {
-        if (NumaNodeInfo::CanEnableGCNumaAware())
+        if (GCToEEInterface::CanEnableGCNumaAware())
         {
             uint32_t numa_node = heap_select::find_numa_node_from_heap_no(h_number);
-            void * ret = NumaNodeInfo::VirtualAllocExNuma(GetCurrentProcess(), addr, size, 
+            void * ret = GCToEEInterface::VirtualAllocExNuma(addr, size, 
                                                           MEM_COMMIT, PAGE_READWRITE, numa_node);
             if (ret != NULL)
                 return true;
@@ -13343,7 +13343,7 @@ try_again:
                     org_hp->alloc_context_count--;
                     max_hp->alloc_context_count++;
                     acontext->set_alloc_heap(GCHeap::GetHeap(max_hp->heap_number));
-                    if (CPUGroupInfo::CanEnableGCCPUGroups())
+                    if (GCToEEInterface::CanEnableGCCPUGroups())
                     {   //only set ideal processor when max_hp and org_hp are in the same cpu
                         //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
                         uint16_t org_gn = heap_select::find_cpu_group_from_heap_no(org_hp->heap_number);
@@ -24914,7 +24914,7 @@ void gc_heap::gc_thread_stub (void* arg)
         // We are about to set affinity for GC threads. It is a good place to set up NUMA and
         // CPU groups because the process mask, processor number, and group number are all
         // readily available.
-        if (CPUGroupInfo::CanEnableGCCPUGroups())
+        if (GCToEEInterface::CanEnableGCCPUGroups())
             set_thread_group_affinity_for_heap(heap->heap_number, &affinity);
         else
             set_thread_affinity_mask_for_heap(heap->heap_number, &affinity);
@@ -33499,8 +33499,8 @@ HRESULT GCHeap::Initialize ()
 
     uint32_t nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
     // GetGCProcessCpuCount only returns up to 64 procs.
-    uint32_t nhp_from_process = CPUGroupInfo::CanEnableGCCPUGroups() ?
-                                CPUGroupInfo::GetNumActiveProcessors():
+    uint32_t nhp_from_process = GCToEEInterface::CanEnableGCCPUGroups() ?
+                                GCToEEInterface::GetNumActiveProcessors():
                                 GCToOSInterface::GetCurrentProcessCpuCount();
 
     uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
