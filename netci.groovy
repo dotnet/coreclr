@@ -3440,18 +3440,20 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
 
             def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
             def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
+            def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
             def workspaceRelativeCrossGenExecutable = "${workspaceRelativeCoreRootDir}/crossgen"
 
             def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
             def workspaceRelativeNativeResultDir = "_/${osGroup}.${architecture}_${architecture}.${configuration}"
 
-            def crossGenComparisonCmd = "python -u tests/scripts/crossgen_comparison.py "
+            def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
+            def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
 
             // These commands are assumed to be run from the root of the workspace.
             shell("mkdir -p ${workspaceRelativeNativeResultDir}")
-            shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${workspaceRelativeCrossGenExecutable} --il_corelib ${workspaceRelativeCoreLib} --result_dir ${workspaceRelativeNativeResultDir}")
-            shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${workspaceRelativeCrossGenExecutable} --core_root ${workspaceRelativeCoreRootDir} --result_dir ${workspaceRelativeNativeResultDir}")
-            shell("${crossGenComparisonCmd}compare --base_dir ${workspaceRelativeNativeResultDir} --diff_dir ${workspaceRelativeCrossResultDir}")
+            shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
+            shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
+            shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}")
         } // steps
     }  // job
 
