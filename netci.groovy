@@ -3411,7 +3411,7 @@ ${runScript} \\
     return newJob
 }
 
-def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
+def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     assert isCrossGenComparisonScenario(scenario)
 
