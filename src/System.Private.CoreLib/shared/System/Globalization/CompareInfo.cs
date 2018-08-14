@@ -1280,40 +1280,7 @@ namespace System.Globalization
         {
             return (this.Name.GetHashCode());
         }
-
-        internal static int GetIgnoreCaseHash(string source)
-        {
-            Debug.Assert(source != null, "source must not be null");
-            return GetIgnoreCaseHash(source.AsSpanFast());
-        }
-
-        internal static int GetIgnoreCaseHash(ReadOnlySpan<char> source)
-        {
-            // Do not allocate on the stack if string is empty
-            if (source.Length == 0)
-            {
-                return string.GetHashCode(source);
-            }
-
-            char[] borrowedArr = null;
-            Span<char> span = source.Length <= 255 ?
-                stackalloc char[255] :
-                (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
-
-            int charsWritten = source.ToUpperInvariant(span);
-            Debug.Assert((uint)charsWritten <= source.Length);
-
-            int hash = string.GetHashCode(span.Slice(0, charsWritten));
-
-            // Return the borrowed array if necessary.
-            if (borrowedArr != null)
-            {
-                ArrayPool<char>.Shared.Return(borrowedArr);
-            }
-
-            return hash;
-        }
-
+        
         ////////////////////////////////////////////////////////////////////////
         //
         //  GetHashCodeOfString
@@ -1355,7 +1322,7 @@ namespace System.Globalization
 
             if (_invariantMode)
             {
-                return ((options & CompareOptions.IgnoreCase) != 0) ? GetIgnoreCaseHash(source) : source.GetHashCode();
+                return ((options & CompareOptions.IgnoreCase) != 0) ? source.GetHashCodeOrdinalIgnoreCase() : source.GetHashCode();
             }
 
             return GetHashCodeOfStringCore(source, options);
@@ -1373,7 +1340,7 @@ namespace System.Globalization
 
             if (_invariantMode)
             {
-                return ((options & CompareOptions.IgnoreCase) != 0) ? GetIgnoreCaseHash(source) : string.GetHashCode(source);
+                return ((options & CompareOptions.IgnoreCase) != 0) ? string.GetHashCodeOrdinalIgnoreCase(source) : string.GetHashCode(source);
             }
 
             return GetHashCodeOfStringCore(source, options);
@@ -1398,7 +1365,7 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return GetIgnoreCaseHash(source);
+                return string.GetHashCodeOrdinalIgnoreCase(source);
             }
 
             //

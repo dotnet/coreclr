@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
 
-
 #if BIT64
 using nint = System.Int64;
 using nuint = System.UInt64;

@@ -744,28 +744,14 @@ namespace System
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
-        public override int GetHashCode()
-        {
-            return Marvin.ComputeHash32(ref Unsafe.As<char, byte>(ref _firstChar), (nuint)_stringLength * 2, Marvin.DefaultSeed);
-        }
+        public override int GetHashCode() => Marvin.ComputeHash32Ordinal(AsSpanFast());
 
         // Gets a hash code for this string and this comparison. If strings A and B and comparison C are such
         // that string.Equals(A, B, C), then they will return the same hash code with this comparison C.
         public int GetHashCode(StringComparison comparisonType) => StringComparer.FromComparison(comparisonType).GetHashCode(this);
 
         // A span-based equivalent of String.GetHashCode(). Computes an ordinal hash code.
-        public static int GetHashCode(ReadOnlySpan<char> value)
-        {
-            // The input span could contain > 1bn elements, which would cause the total number
-            // of bytes to overflow. MemoryMarshal.AsBytes throws an exception if it sees such
-            // overflow, but we don't want to fail in the face of large inputs. So we'll handle
-            // the calculation ourselves.
-
-            return Marvin.ComputeHash32(
-                data: ref Unsafe.As<char, byte>(ref MemoryMarshal.GetReference(value)),
-                count: (nuint)value.Length * sizeof(char),
-                seed: Marvin.DefaultSeed);
-        }
+        public static int GetHashCode(ReadOnlySpan<char> value) => Marvin.ComputeHash32Ordinal(value);
 
         // A span-based equivalent of String.GetHashCode(StringComparison). Uses the specified comparison type.
         public static int GetHashCode(ReadOnlySpan<char> value, StringComparison comparisonType)
@@ -799,7 +785,7 @@ namespace System
                     return GetHashCode(value);
 
                 case StringComparison.OrdinalIgnoreCase:
-                    return CompareInfo.GetIgnoreCaseHash(value);
+                    return Marvin.ComputeHash32OrdinalIgnoreCase(value);
 
                 default:
                     ThrowHelper.ThrowArgumentException(ExceptionResource.NotSupported_StringComparison, ExceptionArgument.comparisonType);
@@ -808,6 +794,10 @@ namespace System
 
             return culture.CompareInfo.GetHashCodeOfString(value, compareOptions);
         }
+
+        internal int GetHashCodeOrdinalIgnoreCase() => Marvin.ComputeHash32OrdinalIgnoreCase(AsSpanFast());
+
+        internal static int GetHashCodeOrdinalIgnoreCase(ReadOnlySpan<char> value) => Marvin.ComputeHash32OrdinalIgnoreCase(value);
 
         // Use this if and only if you need the hashcode to not change across app domains (e.g. you have an app domain agile
         // hash table).

@@ -149,7 +149,16 @@ namespace System.Text
             Span<char> modified = stackalloc char[2]; // case change should preserve UTF-16 code unit count
 
             int utf16CharCount = s.ToUtf16(original);
-            culture.TextInfo.ChangeCase(original.Slice(0, utf16CharCount), modified, toUpper);
+            var slice = original.Slice(0, utf16CharCount);
+            var textInfo = culture.TextInfo;
+            if (toUpper)
+            {
+                textInfo.ChangeCaseToUpper(slice, modified);
+            }
+            else
+            {
+                textInfo.ChangeCaseToLower(slice, modified);
+            }
 
             var result = UnicodeReader.PeekFirstScalarUtf16(modified);
             Debug.Assert(result.status == SequenceValidity.Valid, "Expected case change operation to result in valid scalar value.");

@@ -242,7 +242,7 @@ namespace System
             if (GlobalizationMode.Invariant)
                 TextInfo.ToLowerAsciiInvariant(source, destination);
             else
-                culture.TextInfo.ChangeCase(source, destination, toUpper: false);
+                culture.TextInfo.ChangeCaseToLower(source, destination);
             return source.Length;
         }
 
@@ -264,7 +264,7 @@ namespace System
             if (GlobalizationMode.Invariant)
                 TextInfo.ToLowerAsciiInvariant(source, destination);
             else
-                CultureInfo.InvariantCulture.TextInfo.ChangeCase(source, destination, toUpper: false);
+                CultureInfo.InvariantCulture.TextInfo.ChangeCaseToLower(source, destination);
             return source.Length;
         }
 
@@ -293,7 +293,7 @@ namespace System
             if (GlobalizationMode.Invariant)
                 TextInfo.ToUpperAsciiInvariant(source, destination);
             else
-                culture.TextInfo.ChangeCase(source, destination, toUpper: true);
+                culture.TextInfo.ChangeCaseToUpper(source, destination);
             return source.Length;
         }
 
@@ -315,7 +315,7 @@ namespace System
             if (GlobalizationMode.Invariant)
                 TextInfo.ToUpperAsciiInvariant(source, destination);
             else
-                CultureInfo.InvariantCulture.TextInfo.ChangeCase(source, destination, toUpper: true);
+                CultureInfo.InvariantCulture.TextInfo.ChangeCaseToUpper(source, destination);
             return source.Length;
         }
 
