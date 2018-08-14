@@ -79,10 +79,8 @@ CordbThread::CordbThread(CordbProcess * pProcess, VMPTR_Thread vmThread) :
     m_pAppDomain(NULL),
     m_debugState(THREAD_RUN),
     m_fFramesFresh(false),
-#if !defined(DBG_TARGET_ARM) // @ARMTODO
     m_fFloatStateValid(false), 
     m_floatStackTop(0),
-#endif // !DBG_TARGET_ARM @ARMTODO
     m_fException(false),
     m_fCreationEventQueued(false),
     m_EnCRemapFunctionIP(NULL),
@@ -109,7 +107,7 @@ CordbThread::CordbThread(CordbProcess * pProcess, VMPTR_Thread vmThread) :
     m_vmLeftSideContext = VMPTR_CONTEXT::NullPtr();
     m_vmExcepObjHandle = VMPTR_OBJECTHANDLE::NullPtr();
 
-#if defined(_DEBUG) && !defined(DBG_TARGET_ARM) // @ARMTODO
+#if defined(_DEBUG)
     for (unsigned int i = 0;
          i < (sizeof(m_floatValues) / sizeof(m_floatValues[0]));
          i++)
@@ -1211,7 +1209,7 @@ HRESULT CordbThread::CreateEval(ICorDebugEval ** ppEval)
 // we can compare DAC & the RS and make sure DACs working.
 void CheckAgainstDAC(CordbFunction * pFunc, void * pIP, mdMethodDef mdExpected)
 {
-    // This is a hook to add DAC checks agaisnt a {function, ip}
+    // This is a hook to add DAC checks against a {function, ip}
 }
 
 
@@ -1328,10 +1326,8 @@ void CordbThread::MarkStackFramesDirty()
 
     _ASSERTE(GetProcess()->ThreadHoldsProcessLock());
 
-#if !defined(DBG_TARGET_ARM) // @ARMTODO
     // invalidate the cached floating point state
     m_fFloatStateValid = false;
-#endif // !defined(DBG_TARGET_ARM) @ARMTODO
 
     // This flag is only true between the window when we get an exception callback and 
     // when we call continue.  Since this function is only called when we continue, we 
@@ -1433,15 +1429,14 @@ HRESULT CordbThread::FindFrame(ICorDebugFrame ** ppFrame, FramePointer fp)
 }
 
 
-#if !defined(DBG_TARGET_ARM) // @ARMTODO
 
-#if defined(CROSS_COMPILE) && defined(_TARGET_ARM64_)
+#if defined(CROSS_COMPILE) && (defined(_TARGET_ARM64_) || defined(_TARGET_ARM_))
 extern "C" double FPFillR8(void* pFillSlot)
 {
     _ASSERTE(!"nyi for platform");
     return 0;
 }
-#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) 
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
 extern "C" double FPFillR8(void* pFillSlot);
 #endif
 
@@ -1536,7 +1531,7 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
     m_floatStackTop = floatStackTop;
 } // CordbThread::Get32bitFPRegisters
 
-#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
 
 // CordbThread::Get64bitFPRegisters
 // Converts the values in the floating point register area of the context to real number values. See
@@ -1596,6 +1591,8 @@ void CordbThread::LoadFloatState()
     Get64bitFPRegisters((FPRegister64*) &(tempContext.Xmm0), 0, 16);
 #elif defined(_TARGET_ARM64_)
     Get64bitFPRegisters((FPRegister64*) &(tempContext.V), 0, 32);
+#elif defined (_TARGET_ARM_)
+    Get64bitFPRegisters((FPRegister64*) &(tempContext.D), 0, 32);
 #else 
     _ASSERTE(!"nyi for platform");
 #endif // !_TARGET_X86_
@@ -1603,7 +1600,6 @@ void CordbThread::LoadFloatState()
     m_fFloatStateValid = true;
 } // CordbThread::LoadFloatState
 
-#endif // !DBG_TARGET_ARM @ARMTODO
 
 const bool SetIP_fCanSetIPOnly = TRUE;
 const bool SetIP_fSetIP = FALSE;
@@ -2840,9 +2836,11 @@ CordbUnmanagedThread::~CordbUnmanagedThread()
 #define WINNT_TLS_OFFSET_X86    0xe10     // TLS[0] at fs:[WINNT_TLS_OFFSET]
 #define WINNT_TLS_OFFSET_AMD64  0x1480
 #define WINNT_TLS_OFFSET_ARM    0xe10
+#define WINNT_TLS_OFFSET_ARM64  0x1480
 #define WINNT5_TLSEXPANSIONPTR_OFFSET_X86   0xf94 // TLS[64] at [fs:[WINNT5_TLSEXPANSIONPTR_OFFSET]]
 #define WINNT5_TLSEXPANSIONPTR_OFFSET_AMD64 0x1780
 #define WINNT5_TLSEXPANSIONPTR_OFFSET_ARM   0xf94
+#define WINNT5_TLSEXPANSIONPTR_OFFSET_ARM64 0x1780
 
 HRESULT CordbUnmanagedThread::LoadTLSArrayPtr(void)
 {
@@ -3775,6 +3773,13 @@ VOID CordbUnmanagedThread::LogContext(DT_CONTEXT* pContext)
         DBG_ADDR(pContext->Rip),
         DBG_ADDR(pContext->Rsp),
         pContext->EFlags));    // EFlags is still 32bits on AMD64
+#elif defined(DBG_TARGET_ARM64)
+    LOG((LF_CORDB, LL_INFO10000,
+        "CUT::LC: Pc=" FMT_ADDR ", Sp=" FMT_ADDR ", Lr=" FMT_ADDR ", Cpsr=" FMT_ADDR "\n",
+        DBG_ADDR(pContext->Pc),
+        DBG_ADDR(pContext->Sp),
+        DBG_ADDR(pContext->Lr),
+        DBG_ADDR(pContext->Cpsr)));
 #else   // DBG_TARGET_X86
     PORTABILITY_ASSERT("LogContext needs a PC and stack pointer.");
 #endif  // DBG_TARGET_X86
@@ -3918,8 +3923,8 @@ HRESULT CordbUnmanagedThread::SetupFirstChanceHijack(EHijackReason::EHijackReaso
         GetProcess()->GetDAC()->Hijack(VMPTR_Thread::NullPtr(),
                                        GetOSTid(),
                                        pExceptionRecord,
-                                       (CONTEXT*) GetHijackCtx(),
-                                       sizeof(CONTEXT),
+                                       (T_CONTEXT*) GetHijackCtx(),
+                                       sizeof(T_CONTEXT),
                                        reason,
                                        NULL,
                                        &LSContextAddr);
@@ -3965,7 +3970,7 @@ HRESULT CordbUnmanagedThread::SetupGenericHijack(DWORD eventCode, const EXCEPTIO
         return HRESULT_FROM_WIN32(GetLastError());
     }
 
-#if defined(DBG_TARGET_AMD64)
+#if defined(DBG_TARGET_AMD64) || defined(DBG_TARGET_ARM64)
 
     // On X86 Debugger::GenericHijackFunc() ensures the stack is walkable
     // by simply using the EBP chain, therefore we can execute the hijack
@@ -3992,8 +3997,8 @@ HRESULT CordbUnmanagedThread::SetupGenericHijack(DWORD eventCode, const EXCEPTIO
                     pThread->m_vmThreadToken,
                     dwThreadId,
                     pRecord, 
-                    (CONTEXT*) GetHijackCtx(),
-                    sizeof(CONTEXT),
+                    (T_CONTEXT*) GetHijackCtx(),
+                    sizeof(T_CONTEXT),
                     EHijackReason::kGenericHijack, 
                     NULL,
                     NULL);
@@ -4013,7 +4018,7 @@ HRESULT CordbUnmanagedThread::SetupGenericHijack(DWORD eventCode, const EXCEPTIO
     }
     // else (non-threadstore threads) fallthrough
 
-#endif // DBG_TARGET_AMD64
+#endif // DBG_TARGET_AMD64 || defined(DBG_TARGET_ARM64)
 
     // Remember that we've hijacked the guy.
     SetState(CUTS_GenericHijacked);
@@ -4179,7 +4184,7 @@ void CordbUnmanagedThread::SetupForSkipBreakpoint(NativePatch * pNativePatch)
     }
 #endif
 #if defined(DBG_TARGET_X86)
-    STRESS_LOG2(LF_CORDB, LL_INFO100, "CUT::SetupSkip. adddr=%p. Opcode=%x\n", pNativePatch->pAddress, (DWORD) pNativePatch->opcode);
+    STRESS_LOG2(LF_CORDB, LL_INFO100, "CUT::SetupSkip. addr=%p. Opcode=%x\n", pNativePatch->pAddress, (DWORD) pNativePatch->opcode);
 #endif
 
     // Replace the BP w/ the opcode.
@@ -4219,11 +4224,11 @@ void CordbUnmanagedThread::FixupForSkipBreakpoint()
     if (GetProcess()->GetNativePatch(m_pPatchSkipAddress) != NULL)
     {
         ApplyRemotePatch(GetProcess(), m_pPatchSkipAddress);
-        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. adddr=%p\n", m_pPatchSkipAddress);
+        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. addr=%p\n", m_pPatchSkipAddress);
     }
     else
     {
-        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-readding. adddr=%p\n", m_pPatchSkipAddress);
+        STRESS_LOG1(LF_CORDB, LL_INFO100, "CUT::FixupSetupSkip. Patch removed. Not-reading. addr=%p\n", m_pPatchSkipAddress);
     }
 
     m_pPatchSkipAddress = NULL;
@@ -4383,6 +4388,11 @@ void CordbUnmanagedThread::SaveRaiseExceptionEntryContext()
     m_raiseExceptionExceptionFlags = (DWORD)m_raiseExceptionEntryContext.Rdx;
     m_raiseExceptionNumberParameters = (DWORD)m_raiseExceptionEntryContext.R8;
     pExceptionInformation = (REMOTE_PTR)m_raiseExceptionEntryContext.R9;
+#elif defined(DBG_TARGET_ARM64)
+    m_raiseExceptionExceptionCode = (DWORD)m_raiseExceptionEntryContext.X0;
+    m_raiseExceptionExceptionFlags = (DWORD)m_raiseExceptionEntryContext.X1;
+    m_raiseExceptionNumberParameters = (DWORD)m_raiseExceptionEntryContext.X2;
+    pExceptionInformation = (REMOTE_PTR)m_raiseExceptionEntryContext.X3;
 #elif defined(DBG_TARGET_X86)
     hr = m_pProcess->SafeReadStruct(PTR_TO_CORDB_ADDRESS((BYTE*)m_raiseExceptionEntryContext.Esp+4), &m_raiseExceptionExceptionCode);
     if(FAILED(hr))
@@ -4505,11 +4515,14 @@ HRESULT ApplyRemotePatch(CordbProcess * pProcess, const void * pRemoteAddress)
 {
 #if defined(DBG_TARGET_X86) || defined(DBG_TARGET_AMD64)
     const BYTE patch = CORDbg_BREAK_INSTRUCTION;
-    HRESULT hr = pProcess->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pRemoteAddress), &patch);
-    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
+#elif defined(DBG_TARGET_ARM64)
+    const PRD_TYPE patch = CORDbg_BREAK_INSTRUCTION;
 #else
+    const BYTE patch = 0;
     PORTABILITY_ASSERT("NYI: ApplyRemotePatch for this platform");
 #endif
+    HRESULT hr = pProcess->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pRemoteAddress), &patch);
+    SIMPLIFYING_ASSUMPTION_SUCCEEDED(hr);
     return S_OK;
 }
 
@@ -4520,6 +4533,13 @@ HRESULT ApplyRemotePatch(CordbProcess * pProcess, const void * pRemoteAddress, P
 #if defined(DBG_TARGET_X86) || defined(DBG_TARGET_AMD64)
     // Read out opcode. 1 byte on x86
     BYTE opcode;
+#elif defined(DBG_TARGET_ARM64)
+    // Read out opcode. 4 bytes on arm64
+    PRD_TYPE opcode;
+#else
+    BYTE opcode;
+    PORTABILITY_ASSERT("NYI: ApplyRemotePatch for this platform");
+#endif
 
     HRESULT hr = pProcess->SafeReadStruct(PTR_TO_CORDB_ADDRESS(pRemoteAddress), &opcode);
     if (FAILED(hr))
@@ -4528,9 +4548,6 @@ HRESULT ApplyRemotePatch(CordbProcess * pProcess, const void * pRemoteAddress, P
     }
     
     *pOpcode = (PRD_TYPE) opcode;
-#else
-    PORTABILITY_ASSERT("NYI: ApplyRemotePatch for this platform");
-#endif
     ApplyRemotePatch(pProcess, pRemoteAddress);
     return S_OK;
 }
@@ -4543,14 +4560,18 @@ HRESULT RemoveRemotePatch(CordbProcess * pProcess, const void * pRemoteAddress, 
 #if defined(DBG_TARGET_X86) || defined(DBG_TARGET_AMD64)
     // Replace the BP w/ the opcode.
     BYTE opcode2 = (BYTE) opcode;
+#elif defined(DBG_TARGET_ARM64)
+    // 4 bytes on arm64
+    PRD_TYPE opcode2 = opcode;
+#else
+    PRD_TYPE opcode2 = opcode;
+    PORTABILITY_ASSERT("NYI: RemoveRemotePatch for this platform");
+#endif
 
     pProcess->SafeWriteStruct(PTR_TO_CORDB_ADDRESS(pRemoteAddress), &opcode2);
 
     // This may fail because the module has been unloaded.  In which case, the patch is also 
     // gone so it makes sense to return success.
-#else
-    PORTABILITY_ASSERT("NYI: RemoveRemotePatch for this platform");
-#endif
     return S_OK;
 }
 #endif // FEATURE_INTEROP_DEBUGGING
@@ -5662,11 +5683,11 @@ const DT_CONTEXT * CordbRuntimeUnwindableFrame::GetContext() const
 // default constructor to make the compiler happy
 CordbMiscFrame::CordbMiscFrame()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     this->parentIP       = 0;
     this->fpParentOrSelf = LEAF_MOST_FRAME;
     this->fIsFilterFunclet = false;
-#endif // _WIN64
+#endif // WIN64EXCEPTIONS
 }
 
 // the real constructor which stores the funclet-related information in the CordbMiscFrame
@@ -6136,7 +6157,7 @@ HRESULT CordbNativeFrame::IsMatchingParentFrame(ICorDebugNativeFrame2 * pPotenti
             ThrowHR(CORDBG_E_NOT_CHILD_FRAME);
         }
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
         CordbNativeFrame * pFrameToCheck = static_cast<CordbNativeFrame *>(pPotentialParentFrame);
         if (pFrameToCheck->IsFunclet())
         {
@@ -6150,7 +6171,7 @@ HRESULT CordbNativeFrame::IsMatchingParentFrame(ICorDebugNativeFrame2 * pPotenti
             IDacDbiInterface * pDAC = GetProcess()->GetDAC();
             *pIsParent = pDAC->IsMatchingParentFrame(fpToCheck, fpParent);
         }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
     }
     EX_CATCH_HRESULT(hr);
 
@@ -7058,7 +7079,6 @@ CordbNativeFrame::GetLocalMemoryRegisterValue(CORDB_ADDRESS highWordAddress,
     return hr;
 }
 
-#if !defined(DBG_TARGET_ARM) // @ARMTODO
 HRESULT CordbNativeFrame::GetLocalFloatingPointValue(DWORD index,
                                                      CordbType * pType,
                                                      ICorDebugValue **ppValue)
@@ -7083,6 +7103,11 @@ HRESULT CordbNativeFrame::GetLocalFloatingPointValue(DWORD index,
         (index <= REGISTER_ARM64_V31)))
         return E_INVALIDARG;
     index -= REGISTER_ARM64_V0;
+#elif defined(DBG_TARGET_ARM)
+    if (!((index >= REGISTER_ARM_D0) &&
+        (index <= REGISTER_ARM_D31)))
+        return E_INVALIDARG;
+    index -= REGISTER_ARM_D0;
 #else
     if (!((index >= REGISTER_X86_FPSTACK_0) &&
           (index <= REGISTER_X86_FPSTACK_7)))
@@ -7150,7 +7175,6 @@ HRESULT CordbNativeFrame::GetLocalFloatingPointValue(DWORD index,
 
     return hr;
 }
-#endif // !DBG_TARGET_ARM @ARMTODO
 
 //---------------------------------------------------------------------------------------
 //
@@ -7239,14 +7263,14 @@ bool CordbNativeFrame::IsLeafFrame() const
 
 SIZE_T CordbNativeFrame::GetInspectionIP()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     // On 64-bit, if this is a funclet, then return the offset of the parent method frame at which 
     // the exception occurs.  Otherwise just return the normal offset.
     return (IsFunclet() ? GetParentIP() : m_ip);
 #else
     // Always return the normal offset on all other platforms.
     return m_ip;
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 //---------------------------------------------------------------------------------------
@@ -7259,11 +7283,11 @@ SIZE_T CordbNativeFrame::GetInspectionIP()
 
 bool CordbNativeFrame::IsFunclet()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     return (m_misc.parentIP != NULL);
-#else  // !DBG_TARGET_WIN64 && !DBG_TARGET_ARM
+#else
     return false;
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 //---------------------------------------------------------------------------------------
@@ -7276,15 +7300,15 @@ bool CordbNativeFrame::IsFunclet()
 
 bool CordbNativeFrame::IsFilterFunclet()
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     return (IsFunclet() && m_misc.fIsFilterFunclet);
-#else  // !DBG_TARGET_WIN64 && !DBG_TARGET_ARM
+#else
     return false;
-#endif // DBG_TARGET_WIN64
+#endif // WIN64EXCEPTIONS
 }
 
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
 //---------------------------------------------------------------------------------------
 //
 // Return the offset of the parent method frame at which the exception occurs.
@@ -7297,7 +7321,7 @@ SIZE_T CordbNativeFrame::GetParentIP()
 {
     return m_misc.parentIP;
 }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 
 // Accessor for the shim private hook code:CordbThread::ConvertFrameForILMethodWithoutMetadata.
 // Refer to that function for comments on the return value, the argument, etc.
@@ -8325,7 +8349,7 @@ HRESULT CordbJITILFrame::GetNativeVariable(CordbType *type,
 
     HRESULT hr = S_OK;
 
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     if (m_nativeFrame->IsFunclet())
     {
         if ( (pNativeVarInfo->loc.vlType != ICorDebugInfo::VLT_STK) &&
@@ -8337,7 +8361,7 @@ HRESULT CordbJITILFrame::GetNativeVariable(CordbType *type,
             return E_FAIL;
         }
     }
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 
     switch (pNativeVarInfo->loc.vlType)
     {
@@ -8790,9 +8814,6 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
 
 HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue **ppReturnValue)
 {
-#if defined(DBG_TARGET_ARM) 
-    return E_NOTIMPL;
-#else
 
 
 #if defined(DBG_TARGET_X86)
@@ -8801,14 +8822,21 @@ HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue 
     const CorDebugRegister floatRegister = REGISTER_AMD64_XMM0;
 #elif  defined(DBG_TARGET_ARM64)
     const CorDebugRegister floatRegister = REGISTER_ARM64_V0;
+#elif  defined(DBG_TARGET_ARM)
+    const CorDebugRegister floatRegister = REGISTER_ARM_D0;
 #endif
     
 #if defined(DBG_TARGET_X86)
     const CorDebugRegister ptrRegister = REGISTER_X86_EAX;
+    const CorDebugRegister ptrHighWordRegister = REGISTER_X86_EDX;
 #elif defined(DBG_TARGET_AMD64)
     const CorDebugRegister ptrRegister = REGISTER_AMD64_RAX;
 #elif  defined(DBG_TARGET_ARM64)
     const CorDebugRegister ptrRegister = REGISTER_ARM64_X0;
+#elif  defined(DBG_TARGET_ARM)
+    const CorDebugRegister ptrRegister = REGISTER_ARM_R0;
+    const CorDebugRegister ptrHighWordRegister = REGISTER_ARM_R1;
+
 #endif
 
     CorElementType corReturnType = pType->GetElementType();
@@ -8820,14 +8848,13 @@ HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue 
     case ELEMENT_TYPE_R4:
     case ELEMENT_TYPE_R8:
         return m_nativeFrame->GetLocalFloatingPointValue(floatRegister, pType, ppReturnValue);
-  
-#ifdef DBG_TARGET_X86
+
+#if defined(DBG_TARGET_X86) || defined(DBG_TARGET_ARM)
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
-        return m_nativeFrame->GetLocalDoubleRegisterValue(REGISTER_X86_EDX, REGISTER_X86_EAX, pType, ppReturnValue);
+        return m_nativeFrame->GetLocalDoubleRegisterValue(ptrHighWordRegister, ptrRegister, pType, ppReturnValue);
 #endif
     }
-#endif
 }
 
 HRESULT CordbJITILFrame::EnumerateLocalVariablesEx(ILCodeKind flags, ICorDebugValueEnum **ppValueEnum)

@@ -1327,7 +1327,7 @@ public:
 
         for (lclNum = 0, varDsc = m_pCompiler->lvaTable; lclNum < m_pCompiler->lvaCount; lclNum++, varDsc++)
         {
-            if (varDsc->lvRefCnt == 0)
+            if (varDsc->lvRefCnt() == 0)
             {
                 continue;
             }
@@ -1368,7 +1368,7 @@ public:
                 // will consider this LclVar as being enregistered.
                 // Now we reduce the remaining regAvailEstimate by
                 // an appropriate amount.
-                if (varDsc->lvRefCnt <= 2)
+                if (varDsc->lvRefCnt() <= 2)
                 {
                     // a single use single def LclVar only uses 1
                     regAvailEstimate -= 1;
@@ -1435,22 +1435,22 @@ public:
             {
                 if (CodeOptKind() == Compiler::SMALL_CODE)
                 {
-                    aggressiveRefCnt = varDsc->lvRefCnt + BB_UNITY_WEIGHT;
+                    aggressiveRefCnt = varDsc->lvRefCnt() + BB_UNITY_WEIGHT;
                 }
                 else
                 {
-                    aggressiveRefCnt = varDsc->lvRefCntWtd + BB_UNITY_WEIGHT;
+                    aggressiveRefCnt = varDsc->lvRefCntWtd() + BB_UNITY_WEIGHT;
                 }
             }
             if ((moderateRefCnt == 0) && (enregCount > ((CNT_CALLEE_ENREG * 3) + (CNT_CALLEE_TRASH * 2))))
             {
                 if (CodeOptKind() == Compiler::SMALL_CODE)
                 {
-                    moderateRefCnt = varDsc->lvRefCnt;
+                    moderateRefCnt = varDsc->lvRefCnt();
                 }
                 else
                 {
-                    moderateRefCnt = varDsc->lvRefCntWtd;
+                    moderateRefCnt = varDsc->lvRefCntWtd();
                 }
             }
         }
@@ -1683,7 +1683,7 @@ public:
     }
 #endif
 
-    // Given a CSE candidate decide whether it passes or fails the profitablity heuristic
+    // Given a CSE candidate decide whether it passes or fails the profitability heuristic
     // return true if we believe that it is profitable to promote this candidate to a CSE
     //
     bool PromotionCheck(CSE_Candidate* candidate)
@@ -1757,7 +1757,7 @@ public:
         unsigned extra_no_cost  = 0;
 
         // The 'cseRefCnt' is the RefCnt that we will have if we promote this CSE into a new LclVar
-        // Each CSE Def will contain two Refs and each CSE Use wil have one Ref of this new LclVar
+        // Each CSE Def will contain two Refs and each CSE Use will have one Ref of this new LclVar
         unsigned cseRefCnt = (candidate->DefCount() * 2) + candidate->UseCount();
 
         if (CodeOptKind() == Compiler::SMALL_CODE)
@@ -1935,12 +1935,6 @@ public:
         no_cse_cost  = candidate->UseCount() * candidate->Cost();
         yes_cse_cost = (candidate->DefCount() * cse_def_cost) + (candidate->UseCount() * cse_use_cost);
 
-#if CPU_LONG_USES_REGPAIR
-        if (candidate->Expr()->TypeGet() == TYP_LONG)
-        {
-            yes_cse_cost *= 2;
-        }
-#endif
         no_cse_cost += extra_no_cost;
         yes_cse_cost += extra_yes_cost;
 
@@ -1998,11 +1992,6 @@ public:
             // increase the cutoffs for aggressive and moderate CSE's
             //
             int incr = BB_UNITY_WEIGHT;
-
-#if CPU_LONG_USES_REGPAIR
-            if (successfulCandidate->Expr()->TypeGet() == TYP_LONG)
-                incr *= 2;
-#endif
 
             if (cseRefCnt > aggressiveRefCnt)
             {

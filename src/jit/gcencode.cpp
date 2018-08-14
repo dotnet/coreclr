@@ -1906,7 +1906,7 @@ PendingArgsStack::PendingArgsStack(unsigned maxDepth, Compiler* pComp)
     /* Do we need an array as well as the mask ? */
 
     if (pasMaxDepth > BITS_IN_pasMask)
-        pasTopArray = (BYTE*)pComp->compGetMem(pasMaxDepth - BITS_IN_pasMask);
+        pasTopArray = pComp->getAllocator(CMK_Unknown).allocate<BYTE>(pasMaxDepth - BITS_IN_pasMask);
 }
 
 //-----------------------------------------------------------------------------
@@ -2217,17 +2217,13 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 }
                 else
                 {
-/* Stack-passed arguments which are not enregistered
- * are always reported in this "untracked stack
- * pointers" section of the GC info even if lvTracked==true
- */
+                    /* Stack-passed arguments which are not enregistered
+                     * are always reported in this "untracked stack
+                     * pointers" section of the GC info even if lvTracked==true
+                     */
 
-/* Has this argument been enregistered? */
-#ifndef LEGACY_BACKEND
+                    /* Has this argument been enregistered? */
                     if (!varDsc->lvOnFrame)
-#else  // LEGACY_BACKEND
-                    if (varDsc->lvRegister)
-#endif // LEGACY_BACKEND
                     {
                         /* if a CEE_JMP has been used, then we need to report all the arguments
                            even if they are enregistered, since we will be using this value
@@ -2244,7 +2240,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                             /* If this non-enregistered pointer arg is never
                              * used, we don't need to report it
                              */
-                            assert(varDsc->lvRefCnt == 0); // This assert is currently a known issue for X86-RyuJit
+                            assert(varDsc->lvRefCnt() == 0); // This assert is currently a known issue for X86-RyuJit
                             continue;
                         }
                         else if (varDsc->lvIsRegArg && varDsc->lvTracked)
@@ -2369,8 +2365,9 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
         /* Count&Write spill temps that hold pointers */
 
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempItem = compiler->tmpListBeg(); tempItem != nullptr; tempItem = compiler->tmpListNxt(tempItem))
+        assert(compiler->codeGen->regSet.tmpAllFree());
+        for (TempDsc* tempItem = compiler->codeGen->regSet.tmpListBeg(); tempItem != nullptr;
+             tempItem          = compiler->codeGen->regSet.tmpListNxt(tempItem))
         {
             if (varTypeIsGC(tempItem->tdTempType()))
             {
@@ -4150,11 +4147,8 @@ void GCInfo::gcMakeRegPtrTable(
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
     const bool noTrackedGCSlots =
-        (compiler->opts.MinOpts() && !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT)
-#if !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
-         && !JitConfig.JitMinOptsTrackGCrefs()
-#endif // !defined(JIT32_GCENCODER) || !defined(LEGACY_BACKEND)
-             );
+        (compiler->opts.MinOpts() && !compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
+         !JitConfig.JitMinOptsTrackGCrefs());
 
     if (mode == MAKE_REG_PTR_MODE_ASSIGN_SLOTS)
     {
@@ -4208,11 +4202,7 @@ void GCInfo::gcMakeRegPtrTable(
                 // Has this argument been fully enregistered?
                 CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifndef LEGACY_BACKEND
                 if (!varDsc->lvOnFrame)
-#else  // LEGACY_BACKEND
-                if (varDsc->lvRegister)
-#endif // LEGACY_BACKEND
                 {
                     // If a CEE_JMP has been used, then we need to report all the arguments
                     // even if they are enregistered, since we will be using this value
@@ -4230,7 +4220,7 @@ void GCInfo::gcMakeRegPtrTable(
                     {
                         // If this non-enregistered pointer arg is never
                         // used, we don't need to report it.
-                        assert(varDsc->lvRefCnt == 0);
+                        assert(varDsc->lvRefCnt() == 0);
                         continue;
                     }
                     else if (varDsc->lvIsRegArg && varDsc->lvTracked)
@@ -4341,8 +4331,9 @@ void GCInfo::gcMakeRegPtrTable(
     {
         // Count&Write spill temps that hold pointers.
 
-        assert(compiler->tmpAllFree());
-        for (TempDsc* tempItem = compiler->tmpListBeg(); tempItem != nullptr; tempItem = compiler->tmpListNxt(tempItem))
+        assert(compiler->codeGen->regSet.tmpAllFree());
+        for (TempDsc* tempItem = compiler->codeGen->regSet.tmpListBeg(); tempItem != nullptr;
+             tempItem          = compiler->codeGen->regSet.tmpListNxt(tempItem))
         {
             if (varTypeIsGC(tempItem->tdTempType()))
             {

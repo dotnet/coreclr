@@ -42,10 +42,6 @@
 
 #include "clrnt.h"
 
-// Values for the names of Watson
-const WCHAR kWatsonName1[] = W("drwatson");
-const WCHAR kWatsonName2[] = W("drwtsn32");
-
 #include "random.h"
 
 #define WINDOWS_KERNEL32_DLLNAME_A "kernel32"
@@ -136,17 +132,6 @@ typedef LPSTR   LPUTF8;
 #include "nsutilpriv.h"
 
 #include "stdmacros.h"
-
-/*
-// This is for WinCE
-#ifdef VERIFY
-#undef VERIFY
-#endif
-
-#ifdef _ASSERTE
-#undef _ASSERTE
-#endif
-*/
 
 //********** Macros. **********************************************************
 #ifndef FORCEINLINE
@@ -519,6 +504,14 @@ inline void *__cdecl operator new(size_t, void *_P)
 #else
 #define IN_WIN64(x)
 #define IN_WIN32(x)     x
+#endif
+
+#ifdef _TARGET_64BIT_
+#define IN_TARGET_64BIT(x)     x
+#define IN_TARGET_32BIT(x)
+#else
+#define IN_TARGET_64BIT(x)
+#define IN_TARGET_32BIT(x)     x
 #endif
 
 void * __cdecl
@@ -1049,55 +1042,36 @@ inline int CountBits(int iNum)
 
 #include "bitposition.h"
 
-// Used to remove trailing zeros from Decimal types.
-// NOTE: Assumes hi32 bits are empty (used for conversions from Cy->Dec)
-inline HRESULT DecimalCanonicalize(DECIMAL* dec)
+// Convert the currency to a decimal and canonicalize.
+inline void VarDecFromCyCanonicalize(CY cyIn, DECIMAL* dec)
 {
     WRAPPER_NO_CONTRACT;
 
-    // Clear the VARENUM field
-    (*(USHORT*)dec) = 0;
-
-    // Remove trailing zeros:
-    DECIMAL temp;
-    DECIMAL templast;
-    temp = templast = *dec;
-
-    // Ensure the hi 32 bits are empty (should be if we came from a currency)
-    if ((DECIMAL_HI32(temp) != 0) || (DECIMAL_SCALE(temp) > 4))
-        return DISP_E_OVERFLOW;
-
-    // Return immediately if dec represents a zero.
-    if (DECIMAL_LO32(temp) == 0 && DECIMAL_MID32(temp) == 0)
-        return S_OK;
-
-    // Compare to the original to see if we've
-    // lost non-zero digits (and make sure we don't overflow the scale BYTE)
-
-#ifdef _PREFAST_
-#pragma warning(push)
-#pragma warning(disable:6219) // "Suppress PREFast warning about Implicit cast between semantically different integer types" 
-#endif
-    while ((DECIMAL_SCALE(temp) <= 4) && (VARCMP_EQ == VarDecCmp(dec, &temp)))
+    (*(ULONG*)dec) = 0;
+    DECIMAL_HI32(*dec) = 0;
+    if (cyIn.int64 == 0) // For compatibility, a currency of 0 emits the Decimal "0.0000" (scale set to 4).
     {
-
-#ifdef _PREFAST_
-#pragma warning(pop)
-#endif
-        templast = temp;
-
-        // Remove the last digit and normalize.  Ignore temp.Hi32
-        // as Currency values will have a max of 64 bits of data.
-        DECIMAL_SCALE(temp)--;
-        UINT64 temp64 = (((UINT64) DECIMAL_MID32(temp)) << 32) + DECIMAL_LO32(temp);
-        temp64 /= 10;
-
-        DECIMAL_MID32(temp) = (ULONG)(temp64 >> 32);
-        DECIMAL_LO32(temp) = (ULONG)temp64;
+        DECIMAL_SCALE(*dec) = 4;
+        DECIMAL_LO32(*dec) = 0;
+        DECIMAL_MID32(*dec) = 0;
+        return;
     }
-    *dec = templast;
 
-    return S_OK;
+    if (cyIn.int64 < 0) {
+        DECIMAL_SIGN(*dec) = DECIMAL_NEG;
+        cyIn.int64 = -cyIn.int64;
+    }
+
+    BYTE scale = 4;
+    ULONGLONG absoluteCy = (ULONGLONG)cyIn.int64;
+    while (scale != 0 && ((absoluteCy % 10) == 0))
+    {
+        scale--;
+        absoluteCy /= 10;
+    }
+    DECIMAL_SCALE(*dec) = scale;
+    DECIMAL_LO32(*dec) = (ULONG)absoluteCy;
+    DECIMAL_MID32(*dec) = (ULONG)(absoluteCy >> 32);
 }
 
 //*****************************************************************************
@@ -1431,6 +1405,7 @@ private:
     static BOOL m_threadUseAllCpuGroups;
     static WORD m_initialGroup;
     static CPU_Group_Info *m_CPUGroupInfoArray;
+    static bool s_hadSingleProcessorAtStartup;
 
     static BOOL InitCPUGroupInfoAPI();
     static BOOL InitCPUGroupInfoArray();
@@ -1485,6 +1460,13 @@ public:
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
 #endif
+
+public:
+    static bool HadSingleProcessorAtStartup()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_hadSingleProcessorAtStartup;
+    }
 };
 
 int GetCurrentProcessCpuCount();
@@ -4239,7 +4221,6 @@ HRESULT validateTokenSig(
 // metadata contained in the image.
 //*****************************************************************************
 HRESULT GetImageRuntimeVersionString(PVOID pMetaData, LPCSTR* pString);
-void  AdjustImageRuntimeVersion (SString* pVersion);
 
 //*****************************************************************************
 // The registry keys and values that contain the information regarding
@@ -5007,85 +4988,6 @@ FORCEINLINE void HolderSysFreeString(BSTR str) { CONTRACT_VIOLATION(ThrowsViolat
 
 typedef Wrapper<BSTR, DoNothing, HolderSysFreeString> BSTRHolder;
 
-BOOL FileExists(LPCWSTR filename);
-
-
-// a class for general x.x version info
-class MajorMinorVersionInfo
-{
-protected:
-    WORD version[2];
-    BOOL bInitialized;
-public:
-    //cctors
-    MajorMinorVersionInfo() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        bInitialized = FALSE;
-        ZeroMemory(version,sizeof(version));
-    };
-
-    MajorMinorVersionInfo(WORD wMajor, WORD wMinor) 
-    {
-        WRAPPER_NO_CONTRACT;
-        Init(wMajor,wMinor);
-    };
-
-    // getters
-    BOOL IsInitialized() const 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return bInitialized;
-    };
-
-    WORD Major() const 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return version[0];
-    };
-
-    WORD Minor() const 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return version[1];
-    };
-
-    // setters
-    void Init(WORD wMajor, WORD wMinor) 
-    {
-        LIMITED_METHOD_CONTRACT;
-        version[0]=wMajor;
-        version[1]=wMinor;
-        bInitialized=TRUE;
-    };
-};
-
-// CLR runtime version info in Major/Minor form
-class RUNTIMEVERSIONINFO : public MajorMinorVersionInfo 
-{
-    static RUNTIMEVERSIONINFO notDefined;
-public:
-    // cctors
-    RUNTIMEVERSIONINFO() {};
-
-    RUNTIMEVERSIONINFO(WORD wMajor, WORD wMinor) : 
-      MajorMinorVersionInfo(wMajor,wMinor){};  
-
-    // CLR version specific helpers
-    BOOL IsPreWhidbey() const
-    {
-        WRAPPER_NO_CONTRACT;
-        return (Major() == 1) && (Minor() <= 1); 
-    }
-
-    static const RUNTIMEVERSIONINFO& NotApplicable()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return notDefined;
-    }
-};
-
-
 // HMODULE_TGT represents a handle to a module in the target process.  In non-DAC builds this is identical
 // to HMODULE (HINSTANCE), which is the base address of the module.  In DAC builds this must be a target address,
 // and so is represented by TADDR. 
@@ -5156,9 +5058,6 @@ void OnUninitializedCoreClrCallbacks();
 BOOL IsProcessCorruptedStateException(DWORD dwExceptionCode, BOOL fCheckForSO = TRUE);
 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
-
-
-BOOL IsV2RuntimeLoaded(void);
 
 namespace UtilCode
 {

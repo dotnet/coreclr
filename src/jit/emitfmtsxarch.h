@@ -111,7 +111,7 @@ IF_DEF(RRW_RRW_CNS, IS_R1_RW|IS_R2_RW,          SCNS)     // r/w    reg , r/w  r
 IF_DEF(RWR_RRD_RRD, IS_R1_WR|IS_R2_RD|IS_R3_RD, NONE)     // write  reg , read reg2 , read reg3
 IF_DEF(RWR_RRD_RRD_CNS, IS_R1_WR|IS_R2_RD|IS_R3_RD, SCNS) // write  reg , read reg2 , read reg3, const
 
-IF_DEF(RWR_RRD_RRD_RRD, IS_R1_WR|IS_R2_RD|IS_R3_RD|IS_R4_RD, NONE)     // write  reg , read reg2 , read reg3 , read reg4
+IF_DEF(RWR_RRD_RRD_RRD, IS_R1_WR|IS_R2_RD|IS_R3_RD|IS_R4_RD, CNS)     // write  reg , read reg2 , read reg3 , read reg4
 //----------------------------------------------------------------------------
 // The following formats are used for direct addresses (e.g. static data members)
 //----------------------------------------------------------------------------
@@ -129,6 +129,7 @@ IF_DEF(RRW_MRD_CNS, IS_GM_RD|IS_R1_RW,          DSP_CNS)  // r/w    reg , read [
 IF_DEF(RWR_RRD_MRD, IS_GM_RD|IS_R1_WR|IS_R2_RD, DSP)      // write  reg , read reg2 , read [mem]
 IF_DEF(RWR_MRD_CNS, IS_GM_RD|IS_R1_WR,          DSP_CNS)  // write  reg , read [mem], const
 IF_DEF(RWR_RRD_MRD_CNS, IS_GM_RD|IS_R1_WR|IS_R2_RD, DSP_CNS) // write  reg , read reg2 , read [mem], const
+IF_DEF(RWR_RRD_MRD_RRD, IS_GM_RD|IS_R1_WR|IS_R2_RD|IS_R3_RD, DSP_CNS) // write  reg , read reg2 , read [mem], read reg3
 IF_DEF(RWR_MRD_OFF, IS_GM_RD|IS_R1_WR,          DSP)      // write  reg , offset mem
 
 IF_DEF(MRD_RRD,     IS_GM_RD|IS_R1_RD,          DSP)      // read  [mem], read  reg
@@ -159,6 +160,7 @@ IF_DEF(RRW_SRD_CNS, IS_SF_RD|IS_R1_RW,          CNS )     // r/w    reg , read [
 IF_DEF(RWR_RRD_SRD, IS_SF_RD|IS_R1_WR|IS_R2_RD, NONE)     // write  reg , read  reg2, read [stk]
 IF_DEF(RWR_SRD_CNS, IS_SF_RD|IS_R1_WR,          CNS )     // write  reg , read [stk], const
 IF_DEF(RWR_RRD_SRD_CNS, IS_SF_RD|IS_R1_WR|IS_R2_RD, CNS ) // write  reg , read  reg2, read [stk], const
+IF_DEF(RWR_RRD_SRD_RRD, IS_SF_RD|IS_R1_WR|IS_R2_RD|IS_R3_RD, CNS ) // write  reg , read  reg2, read [stk], read reg3
 
 IF_DEF(SRD_RRD,     IS_SF_RD|IS_R1_RD,          NONE)     // read  [stk], read  reg
 IF_DEF(SWR_RRD,     IS_SF_WR|IS_R1_RD,          NONE)     // write [stk], read  reg
@@ -187,10 +189,13 @@ IF_DEF(RRW_ARD_CNS, IS_AM_RD|IS_R1_RW,          AMD_CNS)  // r/w    reg , read [
 IF_DEF(RWR_RRD_ARD, IS_AM_RD|IS_R1_WR|IS_R2_RD, AMD )     // write  reg , read  reg2, read [adr]
 IF_DEF(RWR_ARD_CNS, IS_AM_RD|IS_R1_WR,          AMD_CNS)  // write  reg , read [adr], const
 IF_DEF(RWR_RRD_ARD_CNS, IS_AM_RD|IS_R1_WR|IS_R2_RD, AMD_CNS) // write  reg , read  reg2, read [adr], const
+IF_DEF(RWR_RRD_ARD_RRD, IS_AM_RD|IS_R1_WR|IS_R2_RD|IS_R3_RD, AMD_CNS) // write  reg , read  reg2, read [adr], read reg3
 
 IF_DEF(ARD_RRD,     IS_AM_RD|IS_R1_RD,          AMD )     // read  [adr], read  reg
 IF_DEF(AWR_RRD,     IS_AM_WR|IS_R1_RD,          AMD )     // write [adr], read  reg
 IF_DEF(ARW_RRD,     IS_AM_RW|IS_R1_RD,          AMD )     // r/w   [adr], read  reg
+
+IF_DEF(AWR_RRD_RRD, IS_AM_WR|IS_R1_RD|IS_R2_RD, AMD )     // write  [adr], read  reg, read  reg
 
 IF_DEF(ARD_CNS,     IS_AM_RD,                   AMD_CNS)  // read  [adr], const
 IF_DEF(AWR_CNS,     IS_AM_WR,                   AMD_CNS)  // write [adr], const
@@ -199,55 +204,6 @@ IF_DEF(ARW_CNS,     IS_AM_RW,                   AMD_CNS)  // r/w   [adr], const
 IF_DEF(AWR_RRD_CNS, IS_AM_WR|IS_R1_RD,          AMD_CNS)  // write [adr], read reg, const
 
 IF_DEF(ARW_SHF,     IS_AM_RW,                   AMD_CNS)  // shift [adr], const
-
-
-
-//----------------------------------------------------------------------------
-// The following formats are used for FP coprocessor instructions
-//----------------------------------------------------------------------------
-#if FEATURE_STACK_FP_X87
-
-IF_DEF(FRD,         IS_FP_STK,                  NONE)     // read  ST(n)
-IF_DEF(FWR,         IS_FP_STK,                  NONE)     // write ST(n)
-IF_DEF(FRW,         IS_FP_STK,                  NONE)     // r/w   ST(n)
-
-IF_DEF(TRD,         IS_FP_STK,                  NONE)     // read  ST(0)
-IF_DEF(TWR,         IS_FP_STK,                  NONE)     // write ST(0)
-IF_DEF(TRW,         IS_FP_STK,                  NONE)     // r/w   ST(0)
-
-IF_DEF(FRD_TRD,     IS_FP_STK,                  NONE)     // read  ST(n), read ST(0)
-IF_DEF(FWR_TRD,     IS_FP_STK,                  NONE)     // write ST(n), read ST(0)
-IF_DEF(FRW_TRD,     IS_FP_STK,                  NONE)     // r/w   ST(n), read ST(0)
-
-IF_DEF(TRD_FRD,     IS_FP_STK,                  NONE)     // read  ST(0), read ST(n)
-IF_DEF(TWR_FRD,     IS_FP_STK,                  NONE)     // write ST(0), read ST(n)
-IF_DEF(TRW_FRD,     IS_FP_STK,                  NONE)     // r/w   ST(0), read ST(n)
-
-IF_DEF(TRD_SRD,     IS_FP_STK|IS_SF_RD,         NONE)     // read  ST(0), read [stk]
-IF_DEF(TWR_SRD,     IS_FP_STK|IS_SF_RD,         NONE)     // write ST(0), read [stk]
-IF_DEF(TRW_SRD,     IS_FP_STK|IS_SF_RD,         NONE)     // r/w   ST(0), read [stk]
-
-//////(SRD_TRD,     IS_FP_STK|IS_SF_RD,         NONE)     // read  [stk], read ST(n)
-IF_DEF(SWR_TRD,     IS_FP_STK|IS_SF_WR,         NONE)     // write [stk], read ST(n)
-//////(SRW_TRD,     IS_FP_STK|IS_SF_RW,         NONE)     // r/w   [stk], read ST(n)
-
-IF_DEF(TRD_MRD,     IS_FP_STK|IS_GM_RD,         NONE)     // read  ST(0), read [mem]
-IF_DEF(TWR_MRD,     IS_FP_STK|IS_GM_RD,         NONE)     // write ST(0), read [mem]
-IF_DEF(TRW_MRD,     IS_FP_STK|IS_GM_RD,         NONE)     // r/w   ST(0), read [mem]
-
-//////(MRD_TRD,     IS_FP_STK|IS_GM_RD,         NONE)     // read  [mem], read ST(n)
-IF_DEF(MWR_TRD,     IS_FP_STK|IS_GM_WR,         NONE)     // write [mem], read ST(n)
-//////(MRW_TRD,     IS_FP_STK|IS_GM_RW,         NONE)     // r/w   [mem], read ST(n)
-
-IF_DEF(TRD_ARD,     IS_FP_STK|IS_AM_RD,         AMD )     // read  ST(0), read [adr]
-IF_DEF(TWR_ARD,     IS_FP_STK|IS_AM_RD,         AMD )     // write ST(0), read [adr]
-IF_DEF(TRW_ARD,     IS_FP_STK|IS_AM_RD,         AMD )     // r/w   ST(0), read [adr]
-
-//////(ARD_TRD,     IS_FP_STK|IS_AM_RD,         AMD )     // read  [adr], read ST(n)
-IF_DEF(AWR_TRD,     IS_FP_STK|IS_AM_WR,         AMD )     // write [adr], read ST(n)
-//////(ARW_TRD,     IS_FP_STK|IS_AM_RW,         AMD )     // r/w   [adr], read ST(n)
-
-#endif // FEATURE_STACK_FP_X87
 
 //////////////////////////////////////////////////////////////////////////////
 

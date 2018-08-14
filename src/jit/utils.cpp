@@ -138,27 +138,8 @@ const char* getRegName(regNumber reg, bool isFloat)
     {
         return "NA";
     }
-#if defined(_TARGET_X86_) && defined(LEGACY_BACKEND)
-    static const char* const regNames[] = {
-#define REGDEF(name, rnum, mask, sname) sname,
-#include "register.h"
-    };
 
-    static const char* const floatRegNames[] = {
-#define REGDEF(name, rnum, mask, sname) sname,
-#include "registerxmm.h"
-    };
-    if (isFloat)
-    {
-        assert(reg < ArrLen(floatRegNames));
-        return floatRegNames[reg];
-    }
-    else
-    {
-        assert(reg < ArrLen(regNames));
-        return regNames[reg];
-    }
-#elif defined(_TARGET_ARM64_)
+#if defined(_TARGET_ARM64_)
     static const char* const regNames[] = {
 #define REGDEF(name, rnum, mask, xname, wname) xname,
 #include "register.h"
@@ -251,16 +232,6 @@ const char* getRegNameFloat(regNumber reg, var_types type)
         }
         return regName;
     }
-
-#elif defined(_TARGET_X86_) && defined(LEGACY_BACKEND)
-
-    static const char* regNamesFloat[] = {
-#define REGDEF(name, rnum, mask, sname) sname,
-#include "registerxmm.h"
-    };
-    assert((unsigned)reg < ArrLen(regNamesFloat));
-
-    return regNamesFloat[reg];
 
 #elif defined(_TARGET_ARM64_)
 
@@ -409,16 +380,6 @@ void dspRegMask(regMaskTP regMask, size_t minSiz)
         regPrev = regNum;
     }
 
-#if CPU_HAS_BYTE_REGS
-    if (regMask & RBM_BYTE_REG_FLAG)
-    {
-        const char* nam = "BYTE";
-        printf("%s%s", sep, nam);
-        minSiz -= (strlen(sep) + strlen(nam));
-    }
-#endif
-
-#if !FEATURE_STACK_FP_X87
     if (strlen(sep) > 0)
     {
         // We've already printed something.
@@ -465,7 +426,6 @@ void dspRegMask(regMaskTP regMask, size_t minSiz)
 
         regPrev = regNum;
     }
-#endif
 
     printf("]");
 
@@ -984,7 +944,7 @@ FixedBitVect* FixedBitVect::bitVectInit(UINT size, Compiler* comp)
 
     assert(bitVectMemSize * bitChunkSize() >= size);
 
-    bv = (FixedBitVect*)comp->compGetMem(sizeof(FixedBitVect) + bitVectMemSize, CMK_FixedBitVect);
+    bv = (FixedBitVect*)comp->getAllocator(CMK_FixedBitVect).allocate<char>(sizeof(FixedBitVect) + bitVectMemSize);
     memset(bv->bitVect, 0, bitVectMemSize);
 
     bv->bitVectSize = size;
@@ -1522,10 +1482,8 @@ void HelperCallProperties::init()
 // MyAssembly;mscorlib;System
 // MyAssembly;mscorlib System
 
-AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator* alloc) : m_alloc(alloc)
+AssemblyNamesList2::AssemblyNamesList2(const wchar_t* list, HostAllocator alloc) : m_alloc(alloc)
 {
-    assert(m_alloc != nullptr);
-
     WCHAR          prevChar   = '?';     // dummy
     LPWSTR         nameStart  = nullptr; // start of the name currently being processed. nullptr if no current name
     AssemblyName** ppPrevLink = &m_pNames;
@@ -1592,8 +1550,8 @@ AssemblyNamesList2::~AssemblyNamesList2()
         AssemblyName* cur = pName;
         pName             = pName->m_next;
 
-        m_alloc->Free(cur->m_assemblyName);
-        m_alloc->Free(cur);
+        m_alloc.deallocate(cur->m_assemblyName);
+        m_alloc.deallocate(cur);
     }
 }
 
@@ -2063,7 +2021,7 @@ const SignedMagic<int64_t>* TryGetSignedMagic(int64_t divisor)
 //
 // Notes:
 //    This code is previously from UTC where it notes it was taken from
-//   _The_PowerPC_Compiler_Writer's_Guide_, pages 57-58. The paper is is based on
+//   _The_PowerPC_Compiler_Writer's_Guide_, pages 57-58. The paper is based on
 //   is "Division by invariant integers using multiplication" by Torbjorn Granlund
 //   and Peter L. Montgomery in PLDI 94
 

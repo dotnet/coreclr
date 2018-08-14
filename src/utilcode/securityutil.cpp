@@ -10,7 +10,6 @@
 
 #include "securitywrapper.h"
 
-// This is defined in ipcmanagerinterface.h, but including that is problematic at the moment...
 // These are the right that we will give to the global section and global events used
 // in communicating between debugger and debugee
 //
@@ -408,8 +407,6 @@ HRESULT SecurityUtil::SetSecurityDescriptorMandatoryLabel(PSID psidIntegrityLeve
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
-
-    HRESULT hr;
 
     DWORD cbSid = GetLengthSid(psidIntegrityLevelLabel);
     DWORD cbAceStart = offsetof(SYSTEM_MANDATORY_LABEL_ACE, SidStart);

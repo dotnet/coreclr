@@ -94,16 +94,6 @@ inline PTR_PEImageLayout PEImage::GetLoadedLayout()
     return m_pLayouts[IMAGE_LOADED]; //no addref
 }
 
-inline PTR_PEImageLayout PEImage::GetLoadedIntrospectionLayout()
-{
-    LIMITED_METHOD_CONTRACT;
-    SUPPORTS_DAC;
-
-    _ASSERTE(m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL);
-    return m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]; //no addref
-}
-
-
 //
 // GetExistingLayout - get an layout corresponding to the specified mask, or null if none.
 // Does not take any locks or call AddRef.
@@ -125,8 +115,6 @@ inline PTR_PEImageLayout PEImage::GetExistingLayoutInternal(DWORD imageLayoutMas
 
     if (imageLayoutMask&PEImageLayout::LAYOUT_LOADED)
         pRetVal=m_pLayouts[IMAGE_LOADED];
-    if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_LOADED_FOR_INTROSPECTION)) 
-        pRetVal=m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION];
     if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_MAPPED))
         pRetVal=m_pLayouts[IMAGE_MAPPED];
     if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_FLAT))
@@ -146,14 +134,7 @@ inline BOOL PEImage::HasLoadedLayout()
 inline BOOL PEImage::IsOpened()
 {
     LIMITED_METHOD_CONTRACT;
-    return m_pLayouts[IMAGE_LOADED]!=NULL ||m_pLayouts[IMAGE_MAPPED]!=NULL || m_pLayouts[IMAGE_FLAT] !=NULL || m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL;
-}
-
-
-inline BOOL PEImage::HasLoadedIntrospectionLayout() //introspection only!!!
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL;
+    return m_pLayouts[IMAGE_LOADED]!=NULL ||m_pLayouts[IMAGE_MAPPED]!=NULL || m_pLayouts[IMAGE_FLAT] !=NULL;
 }
 
 
@@ -241,21 +222,6 @@ inline BOOL PEImage::PassiveDomainOnly()
     LIMITED_METHOD_CONTRACT;
     return m_bPassiveDomainOnly;
 }
-
-#ifdef FEATURE_PREJIT    
-
-inline const BOOL PEImage::GetNativeILHasSecurityDirectory()   
-{
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->GetNativeILHasSecurityDirectory();
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->GetNativeILHasSecurityDirectory();
-    }
-}
-#endif
 
 inline const BOOL PEImage::HasDirectoryEntry(int entry)   
 {
@@ -408,18 +374,6 @@ inline const BOOL PEImage::HasStrongNameSignature()
 
 #endif // !DACCESS_COMPILE
 
-inline BOOL PEImage::IsStrongNameSigned()   
-{
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->IsStrongNameSigned();
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->IsStrongNameSigned();
-    }
-}
-
 inline BOOL PEImage::IsIbcOptimized()   
 {
     WRAPPER_NO_CONTRACT;
@@ -431,22 +385,6 @@ inline BOOL PEImage::IsIbcOptimized()
         return pLayout->GetNativeILIsIbcOptimized();
     }
 }
-
-#ifndef DACCESS_COMPILE
-
-inline void PEImage::GetImageBits(DWORD layout, SBuffer &result)
-{
-    WRAPPER_NO_CONTRACT;
-    PEImageLayoutHolder pLayout(GetLayout(layout,LAYOUT_CREATEIFNEEDED));
-    BYTE* buffer=result.OpenRawBuffer(pLayout->GetSize());
-    PREFIX_ASSUME(buffer != NULL);
-    memcpyNoGCRefs(buffer,pLayout->GetBase(),pLayout->GetSize());
-    result.CloseRawBuffer(pLayout->GetSize());
-}
-
-#endif
-
-
 
 #ifdef FEATURE_PREJIT 
 inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize) 

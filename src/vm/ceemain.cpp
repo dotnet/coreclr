@@ -145,16 +145,12 @@
 #include "comdelegate.h"
 #include "appdomain.hpp"
 #include "perfcounters.h"
-#ifdef FEATURE_IPCMAN
-#include "ipcmanagerinterface.h"
-#endif // FEATURE_IPCMAN
 #include "eventtrace.h"
 #include "corhost.h"
 #include "binder.h"
 #include "olevariant.h"
 #include "comcallablewrapper.h"
 #include "apithreadstress.h"
-#include "ipcfunccall.h"
 #include "perflog.h"
 #include "../dlls/mscorrc/resource.h"
 #ifdef FEATURE_USE_LCID
@@ -175,6 +171,7 @@
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 #include "disassembler.h"
+#include "jithost.h"
 
 #ifndef FEATURE_PAL
 #include "dwreport.h"
@@ -233,12 +230,6 @@
 #ifdef FEATURE_GDBJIT
 #include "gdbjit.h"
 #endif // FEATURE_GDBJIT
-
-#ifdef FEATURE_IPCMAN
-static HRESULT InitializeIPCManager(void);
-static void PublishIPCManager(void);
-static void TerminateIPCManager(void);
-#endif // FEATURE_IPCMAN
 
 #ifndef CROSSGEN_COMPILE
 static int GetThreadUICultureId(__out LocaleIDValue* pLocale);  // TODO: This shouldn't use the LCID.  We should rely on name instead
@@ -704,14 +695,6 @@ void EEStartupHelper(COINITIEE fFlags)
         ETWFireEvent(EEStartupStart_V1);
 #endif // FEATURE_EVENT_TRACE
 
-#ifdef FEATURE_IPCMAN
-        // Give PerfMon a chance to hook up to us
-        // Do this both *before* and *after* ipcman init so corperfmonext.dll
-        // has a chance to release stale private blocks that IPCMan could collide with.
-        // do this early to maximize window between perfmon refresh and ipc block creation.
-        IPCFuncCallSource::DoThreadSafeCall();
-#endif // FEATURE_IPCMAN
-
         InitGSCookie();
 
         Frame::Init();
@@ -819,22 +802,11 @@ void EEStartupHelper(COINITIEE fFlags)
         }
 #endif // FEATURE_PREJIT
 
-#ifdef FEATURE_IPCMAN
-        // Initialize all our InterProcess Communications with COM+
-        IfFailGoLog(InitializeIPCManager());
-#endif // FEATURE_IPCMAN
-
 #ifdef ENABLE_PERF_COUNTERS
         hr = PerfCounters::Init();
         _ASSERTE(SUCCEEDED(hr));
         IfFailGo(hr);
 #endif
-
-#ifdef FEATURE_IPCMAN
-        // Marks the data in the IPC blocks as initialized so that readers know
-        // that it is safe to read data from the blocks
-        PublishIPCManager();
-#endif //FEATURE_IPCMAN
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -883,11 +855,6 @@ void EEStartupHelper(COINITIEE fFlags)
         g_pEEShutDownEvent = new CLREvent();
         g_pEEShutDownEvent->CreateManualEvent(FALSE);
 
-#ifdef FEATURE_IPCMAN
-        // Initialize CCLRSecurityAttributeManager
-        CCLRSecurityAttributeManager::ProcessInit();
-#endif // FEATURE_IPCMAN
-
         VirtualCallStubManager::InitStatic();
 
         GCInterface::m_MemoryPressureLock.Init(CrstGCMemoryPressure);
@@ -907,6 +874,8 @@ void EEStartupHelper(COINITIEE fFlags)
         COMDelegate::Init();
 
         ExecutionManager::Init();
+
+        JitHost::Init();
 
 #ifndef CROSSGEN_COMPILE
 
@@ -960,14 +929,6 @@ void EEStartupHelper(COINITIEE fFlags)
         }
 #endif
 
-#ifdef FEATURE_IPCMAN
-        // Give PerfMon a chance to hook up to us
-        // Do this both *before* and *after* ipcman init so corperfmonext.dll
-        // has a chance to release stale private blocks that IPCMan could collide with.
-        IPCFuncCallSource::DoThreadSafeCall();
-        STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "Returned successfully from second call to  IPCFuncCallSource::DoThreadSafeCall");
-#endif // FEATURE_IPCMAN
-
         InitPreStubManager();
 
 #ifdef FEATURE_COMINTEROP
@@ -1011,8 +972,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Now we really have fully initialized the garbage collector
         SetGarbageCollectorFullyInitialized();
-
-        InitializePinHandleTable();
 
 #ifdef DEBUGGING_SUPPORTED
         // Make a call to publish the DefaultDomain for the debugger
@@ -1097,13 +1056,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifdef FEATURE_TIERED_COMPILATION
-        if (g_pConfig->TieredCompilation())
-        {
-            SystemDomain::System()->DefaultDomain()->GetTieredCompilationManager()->InitiateTier1CountingDelay();
-        }
-#endif
-
 #ifdef _DEBUG
 
         //if g_fEEStarted was false when we loaded the System Module, we did not run ExpandAll on it.  In
@@ -1123,6 +1075,10 @@ void EEStartupHelper(COINITIEE fFlags)
         g_Mscorlib.CheckExtended();
 
 #endif // _DEBUG
+
+#ifdef HAVE_GCCOVER
+        MethodDesc::Init();
+#endif
 
 #endif // !CROSSGEN_COMPILE
 
@@ -1720,6 +1676,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
                     {
                         IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
                         
+                        CONTRACT_VIOLATION(GCViolation);
                         Module::WriteAllModuleProfileData(true);
                     }
                 }
@@ -1881,21 +1838,9 @@ part2:
                 //@TODO: find the right place for this
                 VirtualCallStubManager::UninitStatic();
 
-#ifdef FEATURE_IPCMAN
-                // Terminate the InterProcess Communications with COM+
-                TerminateIPCManager();
-#endif // FEATURE_IPCMAN
-
 #ifdef ENABLE_PERF_LOG
                 PerfLog::PerfLogDone();
 #endif //ENABLE_PERF_LOG
-
-#ifdef FEATURE_IPCMAN
-                // Give PerfMon a chance to hook up to us
-                // Have perfmon resync list *after* we close IPC so that it will remove
-                // this process
-                IPCFuncCallSource::DoThreadSafeCall();
-#endif // FEATURE_IPCMAN
 
                 Frame::Term();
 
@@ -2452,7 +2397,7 @@ void InitializeGarbageCollector()
     // in the object, there is no gc descriptor, and thus no need to adjust
     // the pointer to skip the gc descriptor.
 
-    g_pFreeObjectMethodTable->SetBaseSize(ObjSizeOf (ArrayBase));
+    g_pFreeObjectMethodTable->SetBaseSize(ARRAYBASE_BASESIZE);
     g_pFreeObjectMethodTable->SetComponentSize(1);
 
     hr = GCHeapUtilities::LoadAndInitialize();
@@ -2630,12 +2575,6 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
     return TRUE;
 }
 
-
-#ifdef FEATURE_IPCMAN
-extern CCLRSecurityAttributeManager s_CLRSecurityAttributeManager;
-#endif // FEATURE_IPCMAN
-
-
 #ifdef DEBUGGING_SUPPORTED
 //
 // InitializeDebugger initialized the Runtime-side COM+ Debugging Services
@@ -2753,163 +2692,7 @@ static void TerminateDebugger(void)
 
 }
 
-
-#ifdef FEATURE_IPCMAN
-// ---------------------------------------------------------------------------
-// Initialize InterProcess Communications for COM+
-// 1. Allocate an IPCManager Implementation and hook it up to our interface *
-// 2. Call proper init functions to activate relevant portions of IPC block
-// ---------------------------------------------------------------------------
-static HRESULT InitializeIPCManager(void)
-{
-    CONTRACTL{
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    HINSTANCE hInstIPCBlockOwner = 0;
-
-    DWORD pid = 0;
-    // Allocate the Implementation. Everyone else will work through the interface
-    g_pIPCManagerInterface = new (nothrow) IPCWriterInterface();
-
-    if (g_pIPCManagerInterface == NULL)
-    {
-        hr = E_OUTOFMEMORY;
-        goto errExit;
-    }
-
-    pid = GetCurrentProcessId();
-
-
-    // Do general init
-    hr = g_pIPCManagerInterface->Init();
-
-    if (!SUCCEEDED(hr))
-    {
-        goto errExit;
-    }
-
-    // Generate private IPCBlock for our PID. Note that for the other side of the debugger,
-    // they'll hook up to the debuggee's pid (and not their own). So we still
-    // have to pass the PID in.
-    EX_TRY
-    {
-        // <TODO>This should go away in the future.</TODO>
-        hr = g_pIPCManagerInterface->CreateLegacyPrivateBlockTempV4OnPid(pid, FALSE, &hInstIPCBlockOwner);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr == HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS))
-    {
-        // We failed to create the IPC block because it has already been created. This means that
-        // two mscoree's have been loaded into the process.
-        PathString strFirstModule;
-        PathString strSecondModule;
-        EX_TRY
-        {
-            // Get the name and path of the first loaded MSCOREE.DLL.
-            if (!hInstIPCBlockOwner || !WszGetModuleFileName(hInstIPCBlockOwner, strFirstModule))
-                strFirstModule.Set(W("<Unknown>"));
-
-            // Get the name and path of the second loaded MSCOREE.DLL.
-            if (!WszGetModuleFileName(g_pMSCorEE, strSecondModule))
-               strSecondModule.Set(W("<Unknown>"));
-        }
-        EX_CATCH_HRESULT(hr);
-        // Load the format strings for the title and the message body.
-        EEMessageBoxCatastrophic(IDS_EE_TWO_LOADED_MSCOREE_MSG, IDS_EE_TWO_LOADED_MSCOREE_TITLE, strFirstModule, strSecondModule);
-        goto errExit;
-    }
-    else
-    {
-        PathString temp;
-        if (!WszGetModuleFileName(GetModuleInst(),
-                                  temp
-                                  ))
-        {
-            hr = HRESULT_FROM_GetLastErrorNA();
-        }
-        else
-        {
-            EX_TRY
-            {
-                if (temp.GetCount() + 1 > MAX_LONGPATH)
-                {
-                    hr = E_FAIL;
-                }
-                else
-                {
-                    wcscpy_s((PWSTR)g_pIPCManagerInterface->GetInstancePath(),temp.GetCount() + 1,temp);
-                }
-            }
-            EX_CATCH_HRESULT(hr);
-        }
-    }
-
-    // Generate public IPCBlock for our PID.
-    EX_TRY
-    {
-        hr = g_pIPCManagerInterface->CreateSxSPublicBlockOnPid(pid);
-    }
-    EX_CATCH_HRESULT(hr);
-
-
-errExit:
-    // If any failure, shut everything down.
-    if (!SUCCEEDED(hr))
-        TerminateIPCManager();
-
-    return hr;
-}
-#endif // FEATURE_IPCMAN
-
 #endif // DEBUGGING_SUPPORTED
-
-
-// ---------------------------------------------------------------------------
-// Marks the IPC block as initialized so that other processes know that the
-// block is safe to read
-// ---------------------------------------------------------------------------
-#ifdef FEATURE_IPCMAN
-static void PublishIPCManager(void)
-{
-    CONTRACTL{
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    if (g_pIPCManagerInterface != NULL)
-        g_pIPCManagerInterface->Publish();
-}
-#endif // FEATURE_IPCMAN
-
-
-
-#ifdef FEATURE_IPCMAN
-// ---------------------------------------------------------------------------
-// Terminate all InterProcess operations
-// ---------------------------------------------------------------------------
-static void TerminateIPCManager(void)
-{
-    CONTRACTL{
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    if (g_pIPCManagerInterface != NULL)
-    {
-        g_pIPCManagerInterface->Terminate();
-        delete g_pIPCManagerInterface;
-        g_pIPCManagerInterface = NULL;
-    }
-
-}
-#endif // FEATURE_IPCMAN
 
 #ifndef LOCALE_SPARENT
 #define LOCALE_SPARENT 0x0000006d
@@ -2919,6 +2702,7 @@ static void TerminateIPCManager(void)
 // Impl for UtilLoadStringRC Callback: In VM, we let the thread decide culture
 // copy culture name into szBuffer and return length
 // ---------------------------------------------------------------------------
+extern BOOL g_fFatalErrorOccuredOnGCThread;
 static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
 {
     CONTRACTL
@@ -2941,7 +2725,23 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
 
         Thread * pThread = GetThread();
 
-        if (pThread != NULL) {
+        // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
+        // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
+        // getting localized with a non-default thread-specific culture.
+        // A canonical stack trace that gets here is a fatal error in the GC that comes through:
+        // coreclr.dll!GetThreadUICultureNames
+        // coreclr.dll!CCompRC::LoadLibraryHelper
+        // coreclr.dll!CCompRC::LoadLibrary
+        // coreclr.dll!CCompRC::GetLibrary
+        // coreclr.dll!CCompRC::LoadString
+        // coreclr.dll!CCompRC::LoadString
+        // coreclr.dll!SString::LoadResourceAndReturnHR
+        // coreclr.dll!SString::LoadResourceAndReturnHR
+        // coreclr.dll!SString::LoadResource
+        // coreclr.dll!EventReporter::EventReporter
+        // coreclr.dll!EEPolicy::LogFatalError
+        // coreclr.dll!EEPolicy::HandleFatalError
+        if (pThread != NULL && !g_fFatalErrorOccuredOnGCThread) {
 
             // Switch to cooperative mode, since we'll be looking at managed objects
             // and we don't want them moving on us.
@@ -3071,8 +2871,24 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
-    if (pThread != NULL) {
-
+    // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
+    // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
+    // getting localized with a non-default thread-specific culture.
+    // A canonical stack trace that gets here is a fatal error in the GC that comes through:
+    // coreclr.dll!GetThreadUICultureNames
+    // coreclr.dll!CCompRC::LoadLibraryHelper
+    // coreclr.dll!CCompRC::LoadLibrary
+    // coreclr.dll!CCompRC::GetLibrary
+    // coreclr.dll!CCompRC::LoadString
+    // coreclr.dll!CCompRC::LoadString
+    // coreclr.dll!SString::LoadResourceAndReturnHR
+    // coreclr.dll!SString::LoadResourceAndReturnHR
+    // coreclr.dll!SString::LoadResource
+    // coreclr.dll!EventReporter::EventReporter
+    // coreclr.dll!EEPolicy::LogFatalError
+    // coreclr.dll!EEPolicy::HandleFatalError
+    if (pThread != NULL && !g_fFatalErrorOccuredOnGCThread)
+    {
         // Switch to cooperative mode, since we'll be looking at managed objects
         // and we don't want them moving on us.
         GCX_COOP();
@@ -3130,7 +2946,24 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 
     Thread * pThread = GetThread();
 
-    if (pThread != NULL) {
+    // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
+    // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
+    // getting localized with a non-default thread-specific culture.
+    // A canonical stack trace that gets here is a fatal error in the GC that comes through:
+    // coreclr.dll!GetThreadUICultureNames
+    // coreclr.dll!CCompRC::LoadLibraryHelper
+    // coreclr.dll!CCompRC::LoadLibrary
+    // coreclr.dll!CCompRC::GetLibrary
+    // coreclr.dll!CCompRC::LoadString
+    // coreclr.dll!CCompRC::LoadString
+    // coreclr.dll!SString::LoadResourceAndReturnHR
+    // coreclr.dll!SString::LoadResourceAndReturnHR
+    // coreclr.dll!SString::LoadResource
+    // coreclr.dll!EventReporter::EventReporter
+    // coreclr.dll!EEPolicy::LogFatalError
+    // coreclr.dll!EEPolicy::HandleFatalError
+    if (pThread != NULL && !g_fFatalErrorOccuredOnGCThread)
+    {
 
         // Switch to cooperative mode, since we'll be looking at managed objects
         // and we don't want them moving on us.

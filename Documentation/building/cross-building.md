@@ -16,13 +16,13 @@ Build using "-arm" as the architecture. For example:
     C:\coreclr> build.cmd -arm -debug
 
 
-Cross Compilation for ARM on Linux
-==================================
+Cross Compilation for ARM, ARM64 or x86 on Linux
+================================================
 
 Through cross compilation, on Linux it is possible to build CoreCLR for arm or arm64.
 
-Requirements
-------------
+Requirements for targetting Debian based distros
+------------------------------------------------
 
 You need a Debian based host and the following packages needs to be installed:
 
@@ -37,14 +37,30 @@ and conversely for arm64:
     ben@ubuntu ~/git/coreclr/ $ sudo apt-get install binutils-aarch64-linux-gnu
 
 
+Requirements for targetting ARM or ARM64 Alpine Linux
+-----------------------------------------------------
+
+You can use any Linux distro as a host. The qemu, qemu-user-static and binfmt-support packages need to be installed (the names may be different for some distros).
+
+In addition, to cross compile CoreCLR, the binutils for Alpine need to be built from the https://github.com/richfelker/musl-cross-make repo, since they are not available as packages.
+
+To build them, use the following steps:
+* Clone the repo
+* Create a new config.mak file in the root directory of the repo and add the following lines into it:
+  * `TARGET = armv6-alpine-linux-musleabihf` for ARM or `TARGET = aarch64-alpine-linux-musl` for ARM64
+  * `OUTPUT = /usr`
+  * `BINUTILS_CONFIG=--enable-gold=yes`
+* Run `make` with current directory set to the root of the repo
+* Run `sudo make install`
+
 Generating the rootfs
 ---------------------
 The `cross\build-rootfs.sh` script can be used to download the files needed for cross compilation. It will generate an rootfs as this is what CoreCLR targets.
 
     Usage: ./cross/build-rootfs.sh [BuildArch] [LinuxCodeName] [lldbx.y] [--skipunmount]
     BuildArch can be: arm(default), armel, arm64, x86
-    LinuxCodeName - optional, Code name for Linux, can be: trusty(default), vivid, wily, xenial. If BuildArch is armel, LinuxCodeName is jessie(default) or tizen.
-    lldbx.y - optional, LLDB version, can be: lldb3.6(default), lldb3.8
+    LinuxCodeName - optional, Code name for Linux, can be: trusty(default), vivid, wily, xenial or alpine. If BuildArch is armel, LinuxCodeName is jessie(default) or tizen.
+    lldbx.y - optional, LLDB version, can be: lldb3.6(default), lldb3.8. This is ignored when building rootfs for Alpine Linux.
 
 The `build-rootfs.sh` script must be run as root as it has to make some symlinks to the system, it will by default generate the rootfs in `cross\rootfs\<BuildArch>` however this can be changed by setting the `ROOTFS_DIR` environment variable.
 
@@ -79,11 +95,11 @@ Once the rootfs has been generated, it will be possible to cross compile CoreCLR
 
 So, without `ROOTFS_DIR`:
 
-    ben@ubuntu ~/git/coreclr/ $ ./build.sh arm debug verbose cross -rebuild
+    ben@ubuntu ~/git/coreclr/ $ ./build.sh arm debug verbose cross
 
 And with:
 
-    ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build.sh arm debug verbose cross -rebuild
+    ben@ubuntu ~/git/coreclr/ $ ROOTFS_DIR=/home/ben/coreclr-cross/arm ./build.sh arm debug verbose cross
 
 As usual the resulting binaries will be found in `bin/Product/BuildOS.BuildArch.BuildType/`
 
@@ -115,7 +131,7 @@ The following instructions assume you are on a Linux machine such as Ubuntu 14.0
 To build System.Private.CoreLib for Linux, run the following command:
 
 ```
-    lgs@ubuntu ~/git/coreclr/ $ build.sh arm debug verbose -rebuild
+    lgs@ubuntu ~/git/coreclr/ $ build.sh arm debug verbose
 ```
 
 The output is at bin/Product/<BuildOS>.arm.Debug/System.Private.CoreLib.dll.

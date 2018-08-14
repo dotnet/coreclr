@@ -525,7 +525,7 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
     pJitStartup jitStartupFn = (pJitStartup)GetProcAddress(*phJit, "jitStartup");
     if (jitStartupFn != nullptr)
     {
-        jitStartupFn(JitHost::getJitHost());
+        jitStartupFn(m_pEECompileInfo->GetJitHost());
     }
 
     //get the appropriate compiler interface
@@ -599,7 +599,7 @@ void Zapper::InitEE(BOOL fForceDebug, BOOL fForceProfile, BOOL fForceInstrument)
     //
 
 #ifdef FEATURE_MERGE_JIT_AND_ENGINE
-    jitStartup(JitHost::getJitHost());
+    jitStartup(m_pEECompileInfo->GetJitHost());
     m_pJitCompiler = getJit();
 
     if (m_pJitCompiler == NULL)
@@ -1289,12 +1289,12 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 
     switch (CPU_X86_FAMILY(pVersionInfo->cpuInfo.dwCPUType))
     {
-    case CPU_X86_PENTIUM_4:
-        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_TARGET_P4);
-        break;
+        case CPU_X86_PENTIUM_4:
+            m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_TARGET_P4);
+            break;
 
-    default:
-        break;
+        default:
+            break;
     }
 
     if (CPU_X86_USE_CMOV(pVersionInfo->cpuInfo.dwFeatures))
@@ -1307,14 +1307,6 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
     m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
 
 #endif // _TARGET_X86_
-
-#if defined(_TARGET_ARM64_)
-    static ConfigDWORD fFeatureSIMD;
-    if (fFeatureSIMD.val(CLRConfig::EXTERNAL_FeatureSIMD) != 0)
-    {
-        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
-    }
-#endif
 
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)
@@ -1465,6 +1457,7 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
     DefineOutputAssembly(strAssemblyName, &hashAlgId);
 
     SString strNativeImagePath;
+    SString strNativeImageTempPath;
     HANDLE hFile = INVALID_HANDLE_VALUE;
     StackSArray<HANDLE> hFiles;
 
@@ -1513,7 +1506,10 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
 
         pAssemblyModule->SetPdbFileName(SString(strAssemblyName, SL(W(".ni.pdb"))));
 
-        hFile = pAssemblyModule->SaveImage(strNativeImagePath.GetUnicode(), pNativeImageSig);
+        strNativeImageTempPath = strNativeImagePath;
+        strNativeImageTempPath.Append(W(".tmp"));
+
+        hFile = pAssemblyModule->SaveImage(strNativeImageTempPath.GetUnicode(), strNativeImagePath.GetUnicode(), pNativeImageSig);
     }
 
     // Throw away the assembly if we have hit fatal error during compilation
@@ -1526,6 +1522,11 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
     for (SArray<HANDLE>::Iterator i = hFiles.Begin(); i != hFiles.End(); ++i)
     {
         CloseHandle(*i);
+    }
+
+    if (!WszMoveFileEx(strNativeImageTempPath.GetUnicode(), strNativeImagePath.GetUnicode(), MOVEFILE_REPLACE_EXISTING))
+    {
+        ThrowLastError();
     }
 
     if (!m_pOpt->m_silent)

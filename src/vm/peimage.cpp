@@ -159,26 +159,6 @@ void PEImage::GetAll(SArray<PEImage*> &images)
     }
 }
 
-/* static */
-ULONG PEImage::HashStreamIds(UINT64 id1, DWORD id2)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    ULONG hash = 5381;
-
-    hash ^= id2;
-    hash = _rotl(hash, 4);
-
-    void *data = &id1;
-    hash ^= *(INT32 *) data;
-
-    hash = _rotl(hash, 4);
-    ((INT32 *&)data)++;
-    hash ^= *(INT32 *) data;
-
-    return hash;
-}
-
 PEImage::~PEImage()
 {
     CONTRACTL
@@ -808,8 +788,6 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
         m_pLayouts[IMAGE_MAPPED]->EnumMemoryRegions(flags);
     if (m_pLayouts[IMAGE_LOADED].IsValid() &&  m_pLayouts[IMAGE_LOADED]!=NULL)
         m_pLayouts[IMAGE_LOADED]->EnumMemoryRegions(flags);
-    if (m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION].IsValid() &&  m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL)
-        m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]->EnumMemoryRegions(flags);
 }
 
 #endif // #ifdef DACCESS_COMPILE
@@ -1179,19 +1157,6 @@ void PEImage::LoadFromMapped()
         SetLayout(IMAGE_LOADED,pLayout.Extract());
 }
 
-void PEImage::LoadForIntrospection()
-{
-    STANDARD_VM_CONTRACT;
-
-    if (HasLoadedIntrospectionLayout())
-        return;
-
-    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-    SimpleWriteLockHolder lock(m_pLayoutLock);
-    if(m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]==NULL)
-        SetLayout(IMAGE_LOADED_FOR_INTROSPECTION,pLayout.Extract());
-}
-
 void PEImage::LoadNoFile()
 {
     CONTRACTL
@@ -1212,32 +1177,25 @@ void PEImage::LoadNoFile()
 }
 
 
-void PEImage::LoadNoMetaData(BOOL bIntrospection)
+void PEImage::LoadNoMetaData()
 {
     STANDARD_VM_CONTRACT;
 
-     if (bIntrospection)
-     {
-        if (HasLoadedIntrospectionLayout())
-            return;
-     }
-     else
-         if (HasLoadedLayout())
-            return;
+    if (HasLoadedLayout())
+        return;
 
     SimpleWriteLockHolder lock(m_pLayoutLock);
-    int layoutKind=bIntrospection?IMAGE_LOADED_FOR_INTROSPECTION:IMAGE_LOADED;
-    if (m_pLayouts[layoutKind]!=NULL)
+    if (m_pLayouts[IMAGE_LOADED]!=NULL)
         return;
     if (m_pLayouts[IMAGE_FLAT]!=NULL)
     {
         m_pLayouts[IMAGE_FLAT]->AddRef();
-        SetLayout(layoutKind,m_pLayouts[IMAGE_FLAT]);
+        SetLayout(IMAGE_LOADED,m_pLayouts[IMAGE_FLAT]);
     }
     else
     {
         _ASSERTE(!m_path.IsEmpty());
-        SetLayout(layoutKind,PEImageLayout::LoadFlat(GetFileHandle(),this));
+        SetLayout(IMAGE_LOADED,PEImageLayout::LoadFlat(GetFileHandle(),this));
     }
 }
 
@@ -1301,23 +1259,6 @@ HANDLE PEImage::GetFileHandle()
     return m_hFile;
 }
 
-// Like GetFileHandle, but can be called without the PEImage being locked for writing.
-// Only intend to be called by NGen.
-HANDLE PEImage::GetFileHandleLocking()
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-    }
-    CONTRACTL_END;
-
-    if (m_hFile!=INVALID_HANDLE_VALUE)
-        return m_hFile;
-
-    SimpleWriteLockHolder lock(m_pLayoutLock);
-    return GetFileHandle();
-}
-
 void PEImage::SetFileHandle(HANDLE hFile)
 {
     CONTRACTL
@@ -1359,33 +1300,6 @@ HRESULT PEImage::TryOpenFile()
     return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
 }
 
-
-
-HANDLE PEImage::GetProtectingFileHandle(BOOL bProtectIfNotOpenedYet)
-{
-    STANDARD_VM_CONTRACT;
-
-    if (m_hFile==INVALID_HANDLE_VALUE && !bProtectIfNotOpenedYet)
-        return INVALID_HANDLE_VALUE;
-
-    HANDLE hRet=INVALID_HANDLE_VALUE;
-    {
-        ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-        hRet=WszCreateFile((LPCWSTR) m_path,
-                                            GENERIC_READ,
-                                            FILE_SHARE_READ,
-                                            NULL,
-                                            OPEN_EXISTING,
-                                            FILE_ATTRIBUTE_NORMAL,
-                                            NULL);
-    }
-    if (hRet == INVALID_HANDLE_VALUE)
-        ThrowLastError();
-    if (m_hFile!=INVALID_HANDLE_VALUE && !CompareFiles(m_hFile,hRet))
-        ThrowHR(FUSION_E_REF_DEF_MISMATCH);
-
-    return hRet;
-}
 
 BOOL PEImage::IsPtrInImage(PTR_CVOID data)
 {

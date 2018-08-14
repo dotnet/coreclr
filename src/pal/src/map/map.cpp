@@ -31,6 +31,7 @@ Abstract:
 #include "pal/file.hpp"
 #include "pal/malloc.hpp"
 
+#include <stddef.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mman.h>
@@ -1661,7 +1662,7 @@ static INT MAPFileMapToMmapFlags( DWORD flags )
     else if ( FILE_MAP_WRITE == flags )
     {
         TRACE( "FILE_MAP_WRITE\n" );
-        /* The limitation of x86 archetecture
+        /* The limitation of x86 architecture
         means you cant have writable but not readable
         page. In Windows maps of FILE_MAP_WRITE can still be
         read from. */
@@ -2351,7 +2352,7 @@ void * MAPMapPEFile(HANDLE hFile)
     InternalEnterCriticalSection(pThread, &mapping_critsec);
 
 #ifdef BIT64
-    // First try to reserve virtual memory using ExecutableAllcator. This allows all PE images to be
+    // First try to reserve virtual memory using ExecutableAllocator. This allows all PE images to be
     // near each other and close to the coreclr library which also allows the runtime to generate
     // more efficient code (by avoiding usage of jump stubs). Alignment to a 64 KB granularity should
     // not be necessary (alignment to page size should be sufficient), but see

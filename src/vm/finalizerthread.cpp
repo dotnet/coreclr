@@ -7,11 +7,11 @@
 
 #include "finalizerthread.h"
 #include "threadsuspend.h"
+#include "jithost.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
 #endif
-
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 #include "profattach.h"
@@ -583,13 +583,9 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
                 bPriorityBoosted = TRUE;
         }
 
-        GetFinalizerThread()->DisablePreemptiveGC();
+        JitHost::Reclaim();
 
-        // TODO: The following call causes 12 more classes loaded.
-        //if (!fNameSet) {
-        //    fNameSet = TRUE;
-        //    GetFinalizerThread()->SetName(L"FinalizerThread");
-        //}
+        GetFinalizerThread()->DisablePreemptiveGC();
 
 #ifdef _DEBUG
         // <TODO> workaround.  make finalization very lazy for gcstress 3 or 4.  
@@ -904,7 +900,7 @@ void FinalizerThread::FinalizerThreadCreate()
     // actual thread terminates.
     GetFinalizerThread()->IncExternalCount();
 
-    if (GetFinalizerThread()->CreateNewThread(0, &FinalizerThreadStart, NULL, W("Finalizer")) )
+    if (GetFinalizerThread()->CreateNewThread(0, &FinalizerThreadStart, NULL, W(".NET Finalizer")) )
     {
         DWORD dwRet = GetFinalizerThread()->StartThread();
 

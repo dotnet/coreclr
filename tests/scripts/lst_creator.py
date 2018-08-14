@@ -48,8 +48,9 @@ def create_list_file(file_name, metadata):
     Args:
         file_name (str): Location to write the lstFile
         metadata ({ str: { str: str } }): Dictionary mapping test name to
-                                        : a dictionary of key/value
-                                        : attributes.
+                                        : a tuple, the first tuple's value is
+                                        : a dictionary of key/value attributes,
+                                        : the second is test index.
 
     """
 
@@ -258,7 +259,7 @@ def parse_lst_file(lst_file):
             index = int(unique_name.split("_")[-1])
             metadata = defaultdict(lambda: None)
 
-            attributes = item.split(os.linesep)
+            attributes = item.split("\n")
             for attribute in attributes:
                 # Skip the removed new lines.
                 if len(attribute) == 0:
@@ -300,7 +301,7 @@ def main(args):
         sys.exit(1)
 
     if pri0_test_dir is None or not os.path.isdir(pri0_test_dir):
-        print "Error the Pri1 test directory passed is not a valid directory."
+        print "Error the Pri0 test directory passed is not a valid directory."
         sys.exit(1)
 
     if pri1_test_dir is None or not os.path.isdir(pri1_test_dir):

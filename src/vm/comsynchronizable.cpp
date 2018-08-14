@@ -467,13 +467,23 @@ void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE)
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ThreadCreating))
             FireEtwThreadCreating(pNewThread, GetClrInstanceId());
 
+        // copy out the managed name into a buffer that will not move if a GC happens
+        const WCHAR* nativeThreadName = NULL;
+        InlineSString<64> threadNameBuffer;
+        STRINGREF managedThreadName = gc.pThis->GetName();
+        if (managedThreadName != NULL)
+        {
+            managedThreadName->GetSString(threadNameBuffer);
+            nativeThreadName = threadNameBuffer.GetUnicode();
+        }
+
         // As soon as we create the new thread, it is eligible for suspension, etc.
         // So it gets transitioned to cooperative mode before this call returns to
         // us.  It is our duty to start it running immediately, so that GC isn't blocked.
 
         BOOL success = pNewThread->CreateNewThread(
                                         pNewThread->RequestedThreadStackSize() /* 0 stackSize override*/,
-                                        KickOffThread, share);
+                                        KickOffThread, share, nativeThreadName);
 
         if (!success)
         {
@@ -794,6 +804,27 @@ FCIMPL0(Object*, ThreadNative::GetCurrentThread)
 }
 FCIMPLEND
 
+UINT64 QCALLTYPE ThreadNative::GetCurrentOSThreadId()
+{
+    QCALL_CONTRACT;
+
+    // The Windows API GetCurrentThreadId returns a 32-bit integer thread ID.
+    // On some non-Windows platforms (e.g. OSX), the thread ID is a 64-bit value.
+    // We special case the API for non-Windows to get the 64-bit value and zero-extend
+    // the Windows value to return a single data type on all platforms.
+
+    UINT64 threadId;
+
+    BEGIN_QCALL;
+#ifndef FEATURE_PAL
+    threadId = (UINT64) GetCurrentThreadId();
+#else
+    threadId = (UINT64) PAL_GetCurrentOSThreadId();
+#endif
+    END_QCALL;
+
+    return threadId;
+}
 
 FCIMPL3(void, ThreadNative::SetStart, ThreadBaseObject* pThisUNSAFE, Object* pDelegateUNSAFE, INT32 iRequestedStackSize)
 {
@@ -1495,7 +1526,6 @@ LPVOID F_CALL_CONV ThreadNative::FastGetDomain()
     }
     CONTRACTL_END;
 
-    Thread *pThread;
     AppDomain *pDomain;
     OBJECTHANDLE ExposedObject;
 
@@ -1547,7 +1577,7 @@ void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, 
 #ifndef FEATURE_PAL
     // Set on Windows 10 Creators Update and later machines the unmanaged thread name as well. That will show up in ETW traces and debuggers which is very helpful
     // if more and more threads get a meaningful name
-    if (len > 0 && name != NULL)
+    if (len > 0 && name != NULL && pThread->GetThreadHandle() != INVALID_HANDLE_VALUE)
     {
         SetThreadName(pThread->GetThreadHandle(), name);
     }

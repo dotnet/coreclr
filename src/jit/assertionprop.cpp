@@ -130,7 +130,7 @@ void Compiler::optAddCopies()
         }
 
         // We require that the weighted ref count be significant.
-        if (varDsc->lvRefCntWtd <= (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT / 2))
+        if (varDsc->lvRefCntWtd() <= (BB_LOOP_WEIGHT * BB_UNITY_WEIGHT / 2))
         {
             continue;
         }
@@ -144,7 +144,7 @@ void Compiler::optAddCopies()
         BlockSet paramImportantUseDom(BlockSetOps::MakeFull(this));
 
         // This will be threshold for determining heavier-than-average uses
-        unsigned paramAvgWtdRefDiv2 = (varDsc->lvRefCntWtd + varDsc->lvRefCnt / 2) / (varDsc->lvRefCnt * 2);
+        unsigned paramAvgWtdRefDiv2 = (varDsc->lvRefCntWtd() + varDsc->lvRefCnt() / 2) / (varDsc->lvRefCnt() * 2);
 
         bool paramFoundImportantUse = false;
 
@@ -2698,7 +2698,7 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
         gtDispTree(newTree, nullptr, nullptr, true);
     }
 #endif
-    if (lvaLocalVarRefCounted)
+    if (lvaLocalVarRefCounted())
     {
         lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
     }
@@ -2812,7 +2812,7 @@ GenTree* Compiler::optCopyAssertionProp(AssertionDsc* curAssertion,
     }
 
     // If global assertion prop, by now we should have ref counts, fix them.
-    if (lvaLocalVarRefCounted)
+    if (lvaLocalVarRefCounted())
     {
         lvaTable[lclNum].decRefCnts(compCurBB->getBBWeight(this), this);
         lvaTable[copyLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
@@ -3271,7 +3271,7 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
 #endif
     else
     {
-        // We currently don't fold/optimze when the GT_LCL_VAR has been cast to a small type
+        // We currently don't fold/optimize when the GT_LCL_VAR has been cast to a small type
         return nullptr;
     }
 
@@ -4605,18 +4605,40 @@ GenTree* Compiler::optPrepareTreeForReplacement(GenTree* oldTree, GenTree* newTr
 {
     // If we have side effects, extract them and append newTree to the list.
     GenTree* sideEffList = nullptr;
-    if (oldTree->gtFlags & GTF_PERSISTENT_SIDE_EFFECTS)
+    if ((oldTree->gtFlags & GTF_SIDE_EFFECT) != 0)
     {
-        gtExtractSideEffList(oldTree, &sideEffList, GTF_PERSISTENT_SIDE_EFFECTS_IN_CSE);
+        bool ignoreRoot = false;
+
+        if (oldTree == newTree)
+        {
+            // If the caller passed the same tree as both old and new then it means
+            // that it expects that the root of the tree has no side effects and it
+            // won't be extracted. Otherwise the resulting comma tree would be invalid,
+            // having both op1 and op2 point to the same tree.
+            //
+            // Do a sanity check to ensure persistent side effects aren't discarded and
+            // tell gtExtractSideEffList to ignore the root of the tree.
+            assert(!gtNodeHasSideEffects(oldTree, GTF_PERSISTENT_SIDE_EFFECTS));
+            //
+            // Exception side effects may be ignored if the root is known to be a constant
+            // (e.g. VN may evaluate a DIV/MOD node to a constant and the node may still
+            // have GTF_EXCEPT set, even if it does not actually throw any exceptions).
+            assert(!gtNodeHasSideEffects(oldTree, GTF_EXCEPT) ||
+                   vnStore->IsVNConstant(oldTree->gtVNPair.GetConservative()));
+
+            ignoreRoot = true;
+        }
+
+        gtExtractSideEffList(oldTree, &sideEffList, GTF_SIDE_EFFECT, ignoreRoot);
     }
-    if (sideEffList)
+    if (sideEffList != nullptr)
     {
-        noway_assert(sideEffList->gtFlags & GTF_SIDE_EFFECT);
+        noway_assert((sideEffList->gtFlags & GTF_SIDE_EFFECT) != 0);
 
         // Increment the ref counts as we want to keep the side effects.
         lvaRecursiveIncRefCounts(sideEffList);
 
-        if (newTree)
+        if (newTree != nullptr)
         {
             newTree = gtNewOperNode(GT_COMMA, newTree->TypeGet(), sideEffList, newTree);
         }
@@ -4687,7 +4709,24 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
     // Prepare the tree for replacement so any side effects can be extracted.
     GenTree* sideEffList = optPrepareTreeForReplacement(test, nullptr);
 
-    while (sideEffList)
+    // Transform the relop's operands to be both zeroes.
+    ValueNum vnZero             = vnStore->VNZeroForType(TYP_INT);
+    relop->gtOp.gtOp1           = gtNewIconNode(0);
+    relop->gtOp.gtOp1->gtVNPair = ValueNumPair(vnZero, vnZero);
+    relop->gtOp.gtOp2           = gtNewIconNode(0);
+    relop->gtOp.gtOp2->gtVNPair = ValueNumPair(vnZero, vnZero);
+
+    // Update the oper and restore the value numbers.
+    ValueNum vnCns       = relop->gtVNPair.GetConservative();
+    ValueNum vnLib       = relop->gtVNPair.GetLiberal();
+    bool     evalsToTrue = (vnStore->CoercedConstantValue<INT64>(vnCns) != 0);
+    relop->SetOper(evalsToTrue ? GT_EQ : GT_NE);
+    relop->gtVNPair = ValueNumPair(vnLib, vnCns);
+
+    // Insert side effects back after they were removed from the JTrue stmt.
+    // It is important not to allow duplicates exist in the IR, that why we delete
+    // these side effects from the JTrue stmt before insert them back here.
+    while (sideEffList != nullptr)
     {
         GenTree* newStmt;
         if (sideEffList->OperGet() == GT_COMMA)
@@ -4700,23 +4739,10 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* stmt, Ge
             newStmt     = fgInsertStmtNearEnd(block, sideEffList);
             sideEffList = nullptr;
         }
-
+        // fgMorphBlockStmt could potentially affect stmts after the current one,
+        // for example when it decides to fgRemoveRestOfBlock.
         fgMorphBlockStmt(block, newStmt->AsStmt() DEBUGARG(__FUNCTION__));
     }
-
-    // Transform the relop's operands to be both zeroes.
-    ValueNum vnZero             = vnStore->VNZeroForType(TYP_INT);
-    relop->gtOp.gtOp1           = gtNewIconNode(0);
-    relop->gtOp.gtOp1->gtVNPair = ValueNumPair(vnZero, vnZero);
-    relop->gtOp.gtOp2           = gtNewIconNode(0);
-    relop->gtOp.gtOp2->gtVNPair = ValueNumPair(vnZero, vnZero);
-
-    // Update the oper and restore the value numbers.
-    ValueNum vnCns       = relop->gtVNPair.GetConservative();
-    ValueNum vnLib       = relop->gtVNPair.GetLiberal();
-    bool     evalsToTrue = vnStore->CoercedConstantValue<INT64>(vnCns) != 0;
-    relop->SetOper(evalsToTrue ? GT_EQ : GT_NE);
-    relop->gtVNPair = ValueNumPair(vnLib, vnCns);
 
     return test;
 }
@@ -4772,9 +4798,6 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
         case GT_RSH:
         case GT_RSZ:
         case GT_NEG:
-#ifdef LEGACY_BACKEND
-        case GT_CHS:
-#endif
         case GT_CAST:
         case GT_INTRINSIC:
             break;
@@ -4824,6 +4847,8 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
 
     // Successful propagation, mark as assertion propagated and skip
     // sub-tree (with side-effects) visits.
+    // TODO #18291: at that moment stmt could be already removed from the stmt list.
+
     optAssertionProp_Update(newTree, tree, stmt);
 
     JITDUMP("After constant propagation on [%06u]:\n", tree->gtTreeID);

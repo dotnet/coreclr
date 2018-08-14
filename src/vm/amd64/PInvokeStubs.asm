@@ -32,8 +32,8 @@ LEAF_ENTRY GenericPInvokeCalliHelper, _TEXT
         jz              GenericPInvokeCalliGenILStub
 
         ;
-        ; We need to distinguish between a MethodDesc* and an unmanaged target in PInvokeStubForHost().  
-        ; The way we do this is to shift the managed target to the left by one bit and then set the 
+        ; We need to distinguish between a MethodDesc* and an unmanaged target.
+        ; The way we do this is to shift the managed target to the left by one bit and then set the
         ; least significant bit to 1.  This works because MethodDesc* are always 8-byte aligned.
         ;
         shl             PINVOKE_CALLI_TARGET_REGISTER, 1

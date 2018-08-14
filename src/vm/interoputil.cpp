@@ -3716,29 +3716,29 @@ BOOL IsMethodVisibleFromCom(MethodDesc *pMD)
 }
 
 //---------------------------------------------------------------------------
-// This method determines if a type is visible from COM or not based on 
+// This method determines if a type is visible from COM or not based on
 // its visibility. This version of the method works with a type handle.
 // This version will ignore a type's generic attributes.
 //
 // This API should *never* be called directly!!!
-BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
+static BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(!hndType.IsNull());        
+        PRECONDITION(!hndType.IsNull());
     }
     CONTRACTL_END;
-    
+
     DWORD                   dwFlags;
     mdTypeDef               tdEnclosingType;
     HRESULT                 hr;
     const BYTE *            pVal;
     ULONG                   cbVal;
-    MethodTable *           pMT = hndType.GetMethodTable(); 
-    _ASSERTE(pMT);    
+    MethodTable *           pMT = hndType.GetMethodTable();
+    _ASSERTE(pMT);
 
     mdTypeDef               mdType = pMT->GetCl();
     IMDInternalImport *     pInternalImport = pMT->GetMDImport();
@@ -3755,14 +3755,14 @@ BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
     // If the type is an array, then it is not visible from COM.
     if (pMT->IsArray())
         return FALSE;
-    
+
     // Retrieve the flags for the current type.
     tdEnclosingType = mdType;
     if (FAILED(pInternalImport->GetTypeDefProps(tdEnclosingType, &dwFlags, 0)))
     {
         return FALSE;
     }
-    
+
     // Handle nested types.
     while (IsTdNestedPublic(dwFlags))
     {
@@ -3771,14 +3771,14 @@ BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
         {
             return FALSE;
         }
-        
+
         // Retrieve the flags for the enclosing type.
         if (FAILED(pInternalImport->GetTypeDefProps(tdEnclosingType, &dwFlags, 0)))
         {
             return FALSE;
         }
     }
-    
+
     // If the outermost type is not visible then the specified type is not visible.
     if (!IsTdPublic(dwFlags))
         return FALSE;
@@ -3816,7 +3816,6 @@ BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType)
     // The type is visible.
     return TRUE;
 }
-
 
 //---------------------------------------------------------------------------
 // This method determines if a type is visible from COM or not based on
@@ -5256,7 +5255,7 @@ TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound)
     SString ssAssemblyName(SString::Utf8Literal, "WindowsRuntimeAssemblyName, ContentType=WindowsRuntime");
     DomainAssembly *pAssembly = LoadDomainAssembly(&ssAssemblyName, NULL, 
                                                    NULL, 
-                                                   bThrowIfNotFound, FALSE, ssTypeName);
+                                                   bThrowIfNotFound, ssTypeName);
     if (pAssembly != NULL)
     {
         typeHandle = TypeName::GetTypeFromAssembly(*ssTypeName, pAssembly->GetAssembly(), bThrowIfNotFound);
@@ -5709,7 +5708,7 @@ void WinRTGuidGenerator::PopulateNamesAppendNamePointers(MethodTable *pMT, SArra
     // Scan through strings, and build list of pointers to them. This assumes that the strings are seperated by a single null character
     PWSTR pszName = (PWSTR)pBuffer;
     pszNames = (PCWSTR*)(pBuffer + cbNamesOld);
-    for (COUNT_T i = 0, P; i < cNames; i++)
+    for (COUNT_T i = 0; i < cNames; i++)
     {
         pszNames[i] = pszName;
         pszName += wcslen(pszName) + 1;
@@ -5954,7 +5953,7 @@ MethodTable *WinRTInterfaceRedirector::GetWinRTTypeForRedirectedInterfaceIndex(W
         const NonMscorlibRedirectedInterfaceInfo *pInfo = &s_rNonMscorlibInterfaceInfos[id & ~NON_MSCORLIB_MARKER];
         SString assemblyQualifiedTypeName(SString::Utf8, pInfo->m_szWinRTInterfaceAssemblyQualifiedTypeName);
 
-        RETURN TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
+        RETURN TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode()).GetMethodTable();
     }
 }
 
@@ -5971,7 +5970,7 @@ MethodDesc *WinRTInterfaceRedirector::LoadMethodFromRedirectedAssembly(LPCUTF8 s
 
     SString assemblyQualifiedTypeName(SString::Utf8, szAssemblyQualifiedTypeName);
 
-    MethodTable *pMT = TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
+    MethodTable *pMT = TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode()).GetMethodTable();
     return MemberLoader::FindMethodByName(pMT, szMethodName);
 }
 
@@ -6240,13 +6239,13 @@ MethodTable *WinRTDelegateRedirector::GetWinRTTypeForRedirectedDelegateIndex(Win
     case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventHandler:
     {
         SString assemblyQualifiedTypeName(SString::Utf8, NCCEHWINRT_ASM_QUAL_TYPE_NAME);
-        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
+        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode()).GetMethodTable();
     }
 
     case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventHandler:
     {
         SString assemblyQualifiedTypeName(SString::Utf8, PCEHWINRT_ASM_QUAL_TYPE_NAME);
-        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode(), FALSE).GetMethodTable();
+        return TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedTypeName.GetUnicode()).GetMethodTable();
     }
 
     default:

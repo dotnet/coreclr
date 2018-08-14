@@ -111,7 +111,7 @@ struct InterfaceInfo_t
 #endif
 
     // Method table of the interface
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
     RelativeFixupPointer<PTR_MethodTable> m_pMethodTable;
 #else
     FixupPointer<PTR_MethodTable> m_pMethodTable;
@@ -627,7 +627,7 @@ public:
 typedef DPTR(MethodTableWriteableData) PTR_MethodTableWriteableData;
 typedef DPTR(MethodTableWriteableData const) PTR_Const_MethodTableWriteableData;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef UNIX_AMD64_ABI_ITF
 inline
 SystemVClassificationType CorInfoType2UnixAmd64Classification(CorElementType eeType)
 {
@@ -731,7 +731,7 @@ struct SystemVStructRegisterPassingHelper
 
 typedef DPTR(SystemVStructRegisterPassingHelper) SystemVStructRegisterPassingHelperPtr;
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // UNIX_AMD64_ABI_ITF
 
 //===============================================================================================
 //
@@ -993,11 +993,6 @@ public:
     }
 #endif // FEATURE_COMINTEROP
 
-    BOOL IsIntrospectionOnly();
-
-    // Checks this type and its instantiation for "IsIntrospectionOnly"
-    BOOL ContainsIntrospectionOnlyTypes();
-
 #ifndef DACCESS_COMPILE
     VOID EnsureActive();
     VOID EnsureInstanceActive();
@@ -1036,10 +1031,10 @@ public:
     // during object construction.
     void CheckRunClassInitAsIfConstructingThrowing();
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#if defined(UNIX_AMD64_ABI_ITF)
     // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
     bool ClassifyEightBytes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#endif // defined(UNIX_AMD64_ABI_ITF)
 
     // Copy m_dwFlags from another method table
     void CopyFlags(MethodTable * pOldMT)
@@ -1076,12 +1071,12 @@ public:
 
 private:
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#if defined(UNIX_AMD64_ABI_ITF)
     void AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel) const;
     // Builds the internal data structures and classifies struct eightbytes for Amd System V calling convention.
     bool ClassifyEightBytesWithManagedLayout(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
     bool ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassingHelperPtr helperPtr, unsigned int nestingLevel, unsigned int startOffsetOfStruct, bool isNativeStruct);
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#endif // defined(UNIX_AMD64_ABI_ITF)
 
     DWORD   GetClassIndexFromToken(mdTypeDef typeToken)
     {
@@ -1542,13 +1537,18 @@ public:
         WRAPPER_NO_CONTRACT;
         STATIC_CONTRACT_SO_TOLERANT;
         CONSISTENCY_CHECK(slotNumber < GetNumVtableSlots());
-        PTR_PCODE pSlot = GetSlotPtrRaw(slotNumber);
-        if (IsZapped() && slotNumber >= GetNumVirtuals())
+
+        TADDR pSlot = GetSlotPtrRaw(slotNumber);
+        if (slotNumber < GetNumVirtuals())
+        {
+            return VTableIndir2_t::GetValueMaybeNullAtPtr(pSlot);
+        }
+        else if (IsZapped() && slotNumber >= GetNumVirtuals())
         {
             // Non-virtual slots in NGened images are relative pointers
-            return RelativePointer<PCODE>::GetValueAtPtr(dac_cast<TADDR>(pSlot));
+            return RelativePointer<PCODE>::GetValueAtPtr(pSlot);
         }
-        return *pSlot;
+        return *dac_cast<PTR_PCODE>(pSlot);
     }
 
     // Special-case for when we know that the slot number corresponds
@@ -1562,10 +1562,11 @@ public:
 
         DWORD index = GetIndexOfVtableIndirection(slotNum);
         TADDR base = dac_cast<TADDR>(&(GetVtableIndirections()[index]));
-        return *(VTableIndir_t::GetValueMaybeNullAtPtr(base) + GetIndexAfterVtableIndirection(slotNum));
+        DPTR(VTableIndir2_t) baseAfterInd = VTableIndir_t::GetValueMaybeNullAtPtr(base) + GetIndexAfterVtableIndirection(slotNum);
+        return VTableIndir2_t::GetValueMaybeNullAtPtr(dac_cast<TADDR>(baseAfterInd));
     }
 
-    PTR_PCODE GetSlotPtrRaw(UINT32 slotNum)
+    TADDR GetSlotPtrRaw(UINT32 slotNum)
     {
         WRAPPER_NO_CONTRACT;
         STATIC_CONTRACT_SO_TOLERANT;
@@ -1576,25 +1577,26 @@ public:
             // Virtual slots live in chunks pointed to by vtable indirections
             DWORD index = GetIndexOfVtableIndirection(slotNum);
             TADDR base = dac_cast<TADDR>(&(GetVtableIndirections()[index]));
-            return VTableIndir_t::GetValueMaybeNullAtPtr(base) + GetIndexAfterVtableIndirection(slotNum);
+            DPTR(VTableIndir2_t) baseAfterInd = VTableIndir_t::GetValueMaybeNullAtPtr(base) + GetIndexAfterVtableIndirection(slotNum);
+            return dac_cast<TADDR>(baseAfterInd);
         }
         else if (HasSingleNonVirtualSlot())
         {
             // Non-virtual slots < GetNumVtableSlots live in a single chunk pointed to by an optional member,
             // except when there is only one in which case it lives in the optional member itself
             _ASSERTE(slotNum == GetNumVirtuals());
-            return dac_cast<PTR_PCODE>(GetNonVirtualSlotsPtr());
+            return GetNonVirtualSlotsPtr();
         }
         else
         {
             // Non-virtual slots < GetNumVtableSlots live in a single chunk pointed to by an optional member
             _ASSERTE(HasNonVirtualSlotsArray());
             g_IBCLogger.LogMethodTableNonVirtualSlotsAccess(this);
-            return GetNonVirtualSlotsArray() + (slotNum - GetNumVirtuals());
+            return dac_cast<TADDR>(GetNonVirtualSlotsArray() + (slotNum - GetNumVirtuals()));
         }
     }
 
-    PTR_PCODE GetSlotPtr(UINT32 slotNum)
+    TADDR GetSlotPtr(UINT32 slotNum)
     {
         WRAPPER_NO_CONTRACT;
         STATIC_CONTRACT_SO_TOLERANT;
@@ -1660,10 +1662,12 @@ public:
     #define VTABLE_SLOTS_PER_CHUNK 8
     #define VTABLE_SLOTS_PER_CHUNK_LOG2 3
 
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
-    typedef RelativePointer<PTR_PCODE> VTableIndir_t;
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
+    typedef RelativePointer<PCODE> VTableIndir2_t;
+    typedef RelativePointer<DPTR(VTableIndir2_t)> VTableIndir_t;
 #else
-    typedef PlainPointer<PTR_PCODE> VTableIndir_t;
+    typedef PlainPointer<PCODE> VTableIndir2_t;
+    typedef PlainPointer<DPTR(VTableIndir2_t)> VTableIndir_t;
 #endif
 
     static DWORD GetIndexOfVtableIndirection(DWORD slotNum);
@@ -1692,10 +1696,10 @@ public:
         BOOL Finished();
         DWORD GetIndex();
         DWORD GetOffsetFromMethodTable();
-        PTR_PCODE GetIndirectionSlot();
+        DPTR(VTableIndir2_t) GetIndirectionSlot();
 
 #ifndef DACCESS_COMPILE
-        void SetIndirectionSlot(PTR_PCODE pChunk);
+        void SetIndirectionSlot(DPTR(VTableIndir2_t) pChunk);
 #endif
 
         DWORD GetStartSlot();
@@ -2088,7 +2092,7 @@ public:
     bool IsNativeHFA();
     CorElementType GetNativeHFAType();
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     inline bool IsRegPassedStruct()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2100,7 +2104,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         SetFlag(enum_flag_IsRegStructPassed);
     }
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // defined(UNIX_AMD64_ABI)
 
 #ifdef FEATURE_64BIT_ALIGNMENT
     // Returns true iff the native view of this type requires 64-bit aligment.
@@ -2173,7 +2177,7 @@ public:
     // THE METHOD TABLE PARENT (SUPERCLASS/BASE CLASS)
     //
 
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
 #define PARENT_MT_FIXUP_OFFSET (-FIXUP_POINTER_INDIRECTION)
     typedef RelativeFixupPointer<PTR_MethodTable> ParentMT_t;
 #else
@@ -2205,7 +2209,7 @@ public:
     inline static PTR_VOID GetParentMethodTableOrIndirection(PTR_VOID pMT)
     {
         WRAPPER_NO_CONTRACT;
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
         PTR_MethodTable pMethodTable = dac_cast<PTR_MethodTable>(pMT);
         PTR_MethodTable pParentMT = ReadPointerMaybeNull((MethodTable*) pMethodTable, &MethodTable::m_pParentMethodTable);
         return dac_cast<PTR_VOID>(pParentMT);
@@ -3111,7 +3115,7 @@ public:
     // must have a dictionary entry. On the other hand, for instantiations shared with Dict<string,double> the opposite holds.
     //
 
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
     typedef RelativePointer<PTR_Dictionary> PerInstInfoElem_t;
     typedef RelativePointer<DPTR(PerInstInfoElem_t)> PerInstInfo_t;
 #else
@@ -3919,18 +3923,18 @@ private:
         enum_flag_HasPreciseInitCctors      = 0x00000400,   // Do we need to run class constructors at allocation time? (Not perf important, could be moved to EEClass
 
 #if defined(FEATURE_HFA)
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-#error Can't define both FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING
+#if defined(UNIX_AMD64_ABI)
+#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
 #endif
         enum_flag_IsHFA                     = 0x00000800,   // This type is an HFA (Homogenous Floating-point Aggregate)
 #endif // FEATURE_HFA
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 #if defined(FEATURE_HFA)
-#error Can't define both FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING
+#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
 #endif
         enum_flag_IsRegStructPassed         = 0x00000800,   // This type is a System V register passed struct.
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         enum_flag_IsByRefLike               = 0x00001000,
 
@@ -4182,7 +4186,7 @@ private:
 
     RelativePointer<PTR_Module> m_pLoaderModule;    // LoaderModule. It is equal to the ZapModule in ngened images
     
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
     RelativePointer<PTR_MethodTableWriteableData> m_pWriteableData;
 #else
     PlainPointer<PTR_MethodTableWriteableData> m_pWriteableData;
@@ -4198,7 +4202,7 @@ private:
     static const TADDR UNION_MASK = 3; 
 
     union {
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
         RelativePointer<DPTR(EEClass)> m_pEEClass;
         RelativePointer<TADDR> m_pCanonMT;
 #else
@@ -4233,7 +4237,7 @@ private:
     public:
     union
     {
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
         RelativePointer<PTR_InterfaceInfo>   m_pInterfaceMap;
 #else
         PlainPointer<PTR_InterfaceInfo>   m_pInterfaceMap;

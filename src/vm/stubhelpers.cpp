@@ -284,7 +284,6 @@ FORCEINLINE static void *GetCOMIPFromRCW_GetTargetNoInterception(IUnknown *pUnk,
     _ASSERTE(pComInfo->m_pInterceptStub == NULL || pComInfo->m_pInterceptStub == (LPVOID)-1);
     _ASSERTE(!pComInfo->HasCopyCtorArgs());
 #endif // _TARGET_X86_
-    _ASSERTE(!NDirect::IsHostHookEnabled());
 
     LPVOID *lpVtbl = *(LPVOID **)pUnk;
     return lpVtbl[pComInfo->m_cachedComSlot];
@@ -807,63 +806,6 @@ FCIMPL2(IUnknown*, StubHelpers::UriMarshaler__CreateNativeUriInstance, WCHAR* pR
 }
 FCIMPLEND
 
-ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgs* QCALLTYPE 
-StubHelpers::EventArgsMarshaler__CreateNativeNCCEventArgsInstance
-(int action, ABI::Windows::UI::Xaml::Interop::IBindableVector *newItem, ABI::Windows::UI::Xaml::Interop::IBindableVector *oldItem, int newIndex, int oldIndex)
-{
-    QCALL_CONTRACT;
-
-   ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgs *pArgsRC = NULL;
-
-    BEGIN_QCALL;
-
-    EventArgsMarshalingInfo *marshalingInfo = GetAppDomain()->GetMarshalingData()->GetEventArgsMarshalingInfo();
-    ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory *pFactory = marshalingInfo->GetNCCEventArgsFactory();
-
-    SafeComHolderPreemp<IInspectable> pInner;
-    HRESULT hr;
-    hr = pFactory->CreateInstanceWithAllParameters(
-        (ABI::Windows::UI::Xaml::Interop::NotifyCollectionChangedAction)action,
-        (ABI::Windows::UI::Xaml::Interop::IBindableVector *)newItem,
-        (ABI::Windows::UI::Xaml::Interop::IBindableVector *)oldItem,
-        newIndex,
-        oldIndex,
-        NULL,
-        &pInner,
-        &pArgsRC);
-    IfFailThrow(hr);
-
-    END_QCALL;
-
-    return pArgsRC;
-}
-
-ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgs* QCALLTYPE 
-	StubHelpers::EventArgsMarshaler__CreateNativePCEventArgsInstance(HSTRING name)
-{
-    QCALL_CONTRACT;
-
-    ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgs *pArgsRC = NULL;
-
-    BEGIN_QCALL;
-
-    EventArgsMarshalingInfo *marshalingInfo = GetAppDomain()->GetMarshalingData()->GetEventArgsMarshalingInfo();
-    ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory *pFactory = marshalingInfo->GetPCEventArgsFactory();
-
-    SafeComHolderPreemp<IInspectable> pInner;
-    HRESULT hr;
-    hr = pFactory->CreateInstance(
-        name,
-        NULL,
-        &pInner,
-        &pArgsRC);
-    IfFailThrow(hr);
-
-    END_QCALL;
-
-    return pArgsRC;
-}
-
 // A helper to convert an IP to object using special flags.
 FCIMPL1(Object *, StubHelpers::InterfaceMarshaler__ConvertToManagedWithoutUnboxing, IUnknown *pNative)
 {
@@ -1166,6 +1108,7 @@ FCIMPL2(void*, StubHelpers::GetDelegateTarget, DelegateObject *pThisUNSAFE, UINT
 #if defined(_WIN64)
     UINT_PTR target = (UINT_PTR)orefThis->GetMethodPtrAux();
 
+    // See code:GenericPInvokeCalliHelper
     // The lowest bit is used to distinguish between MD and target on 64-bit.
     target = (target << 1) | 1;
 
@@ -1749,17 +1692,6 @@ FCIMPL1(Object*, StubHelpers::AllocateInternal, EnregisteredTypeHandle pRegister
     HELPER_METHOD_FRAME_END();
 
     return OBJECTREFToObject(objRet);
-}
-FCIMPLEND
-
-FCIMPL1(void, StubHelpers::DecimalCanonicalizeInternal, DECIMAL *pDec)
-{
-    FCALL_CONTRACT;
-
-    if (FAILED(DecimalCanonicalize(pDec)))
-    {
-        FCThrowResVoid(kOverflowException, W("Overflow_Currency"));
-    }
 }
 FCIMPLEND
 

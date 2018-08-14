@@ -75,7 +75,7 @@ class ShuffleIterator
     // Argument location description
     ArgLocDesc* m_argLocDesc;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Current eightByte used for struct arguments in registers
     int m_currentEightByte;
 #endif    
@@ -86,7 +86,7 @@ class ShuffleIterator
     // Current stack slot index (relative to the ArgLocDesc::m_idxStack)
     int m_currentStackSlotIndex;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Get next shuffle offset for struct passed in registers. There has to be at least one offset left.
     UINT16 GetNextOfsInStruct()
     {
@@ -129,7 +129,7 @@ class ShuffleIterator
         _ASSERTE(false);
         return 0;
     }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 public:
 
@@ -137,7 +137,7 @@ public:
     ShuffleIterator(ArgLocDesc* argLocDesc)
     :
         m_argLocDesc(argLocDesc),
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         m_currentEightByte(0),
 #endif
         m_currentGenRegIndex(0),
@@ -150,7 +150,7 @@ public:
     bool HasNextOfs()
     {
         return (m_currentGenRegIndex < m_argLocDesc->m_cGenReg) || 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
                (m_currentFloatRegIndex < m_argLocDesc->m_cFloatReg) ||
 #endif
                (m_currentStackSlotIndex < m_argLocDesc->m_cStack);        
@@ -161,7 +161,7 @@ public:
     {
         int index;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
         // Check if the argLocDesc is for a struct in registers
         EEClass* eeClass = m_argLocDesc->m_eeClass;
@@ -178,7 +178,7 @@ public:
 
             return (UINT16)index | ShuffleEntry::REGMASK | ShuffleEntry::FPREGMASK;
         }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         // Shuffle any registers first (the order matters since otherwise we could end up shuffling a stack slot
         // over a register we later need to shuffle down as well).
@@ -214,7 +214,7 @@ public:
 
 #endif
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 // Return an index of argument slot. First indices are reserved for general purpose registers,
 // the following ones for float registers and then the rest for stack slots.
 // This index is independent of how many registers are actually used to pass arguments.
@@ -238,7 +238,7 @@ int GetNormalizedArgumentSlotIndex(UINT16 offset)
 
     return index;
 }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<ShuffleEntry> * pShuffleEntryArray)
 {
@@ -378,9 +378,9 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     ArgLocDesc sArgSrc;
     ArgLocDesc sArgDst;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     int argSlots = NUM_FLOAT_ARGUMENT_REGISTERS + NUM_ARGUMENT_REGISTERS + sArgPlacerSrc.SizeOfArgStack() / sizeof(size_t);
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     // If the target method in non-static (this happens for open instance delegates), we need to account for
     // the implicit this parameter.
@@ -405,6 +405,10 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
     {
         // The return buffer argument is implicit in both signatures.
 
+#if !defined(_TARGET_ARM64_) || !defined(CALLDESCR_RETBUFFARGREG)
+        // The ifdef above disables this code if the ret buff arg is always in the same register, which
+        // means that we don't need to do any shuffling for it.
+
         sArgPlacerSrc.GetRetBuffArgLoc(&sArgSrc);
         sArgPlacerDst.GetRetBuffArgLoc(&sArgDst);
 
@@ -419,6 +423,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         // along) in the case where it's not a no-op (i.e. the source and destination ops are different).
         if (entry.srcofs != entry.dstofs)
             pShuffleEntryArray->Append(entry);
+#endif // !defined(_TARGET_ARM64_) || !defined(CALLDESCR_RETBUFFARGREG)
     }
 
     // Iterate all the regular arguments. mapping source registers and stack locations to the corresponding
@@ -454,7 +459,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         _ASSERTE(!iteratorDst.HasNextOfs());
     }
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // The Unix AMD64 ABI can cause a struct to be passed on stack for the source and in registers for the destination.
     // That can cause some arguments that are passed on stack for the destination to be passed in registers in the source.
     // An extreme example of that is e.g.:
@@ -494,7 +499,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         }
     }
     while (reordered);
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     entry.srcofs = ShuffleEntry::SENTINEL;
     entry.dstofs = 0;
@@ -1433,15 +1438,12 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         MethodDesc *pStubMD = pClass->m_pForwardStubMD;
         _ASSERTE(pStubMD != NULL && pStubMD->IsILStub());
 
-
-#ifdef MDA_SUPPORTED
+#if defined(MDA_SUPPORTED)
         if (MDA_GET_ASSISTANT(PInvokeStackImbalance))
         {
             pInterceptStub = GenerateStubForMDA(pMD, pStubMD, pCallback, pInterceptStub);
         }
 #endif // MDA_SUPPORTED
-
-
     }
 
     if (pInterceptStub != NULL)
@@ -1454,7 +1456,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     }
 
     GCPROTECT_END();
-#endif // defined(_TARGET_X86_)
+#endif // _TARGET_X86_
 
     return delObj;
 }
@@ -2448,6 +2450,12 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
         //Label_nextDelegate:
         pCode->EmitLabel(nextDelegate);
 
+#ifdef DEBUGGING_SUPPORTED
+        pCode->EmitLoadThis();
+        pCode->EmitLDLOC(dwLoopCounterNum);
+        pCode->EmitCALL(METHOD__STUBHELPERS__MULTICAST_DEBUGGER_TRACE_HELPER, 2, 0);
+#endif // DEBUGGING_SUPPORTED
+
         // compare LoopCounter with InvocationCount. If equal then branch to Label_endOfMethod
         pCode->EmitLDLOC(dwLoopCounterNum);
         pCode->EmitLDLOC(dwInvocationCountNum);
@@ -2476,12 +2484,6 @@ FCIMPL1(PCODE, COMDelegate::GetMulticastInvoke, Object* refThisIn)
         pCode->EmitLDC(1);
         pCode->EmitADD();
         pCode->EmitSTLOC(dwLoopCounterNum);
-
-#ifdef DEBUGGING_SUPPORTED
-        pCode->EmitLoadThis();
-        pCode->EmitLDLOC(dwLoopCounterNum);
-        pCode->EmitCALL(METHOD__STUBHELPERS__MULTICAST_DEBUGGER_TRACE_HELPER, 2, 0);
-#endif // DEBUGGING_SUPPORTED
 
         // branch to next delegate
         pCode->EmitBR(nextDelegate);
@@ -3220,11 +3222,6 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
         return NULL;
     }
 #endif
-
-    // Devdiv bug 296229: if the target method is dangerous, forcing the delegate creation to go through the 
-    // slow path where we will do a demand to ensure security.
-    if (InvokeUtil::IsDangerousMethod(pTargetMethod))
-        return NULL;
 
     // DELEGATE KINDS TABLE
     //

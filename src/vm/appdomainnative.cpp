@@ -203,9 +203,6 @@ enum
     APPX_FLAGS_INITIALIZED =        0x01,
 
     APPX_FLAGS_APPX_MODEL =         0x02,
-    APPX_FLAGS_APPX_DESIGN_MODE =   0x04,
-    APPX_FLAGS_APPX_MASK =          APPX_FLAGS_APPX_MODEL |
-                                    APPX_FLAGS_APPX_DESIGN_MODE,
 };
 
 // static
@@ -220,9 +217,6 @@ INT32 QCALLTYPE AppDomainNative::GetAppXFlags()
     if (AppX::IsAppXProcess())
     {
         flags |= APPX_FLAGS_APPX_MODEL;
-
-        if (AppX::IsAppXDesignMode())
-            flags |= APPX_FLAGS_APPX_DESIGN_MODE;
     }
 
     END_QCALL;
@@ -267,8 +261,7 @@ FCIMPL2(Object*, AppDomainNative::GetAssemblies, AppDomainBaseObject* refThisUNS
         //  to the array.  Quit when the array is full, in case assemblies have been
         //  loaded into this appdomain, on another thread.
         AppDomain::AssemblyIterator i = pApp->IterateAssembliesEx((AssemblyIterationFlags)(
-            kIncludeLoaded | 
-            (forIntrospection ? kIncludeIntrospection : kIncludeExecution)));
+            kIncludeLoaded | kIncludeExecution));
         CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
         
         while (i.Next(pDomainAssembly.This()) && (numAssemblies < nArrayElems))
@@ -419,22 +412,6 @@ FCIMPL1(Object*, AppDomainNative::GetDynamicDir, AppDomainBaseObject* refThisUNS
 }
 FCIMPLEND
 
-FCIMPL1(FC_BOOL_RET, AppDomainNative::IsFinalizingForUnload, AppDomainBaseObject* refThisUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BOOL            retVal = FALSE;
-    APPDOMAINREF    refThis = (APPDOMAINREF) refThisUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refThis);
-
-    AppDomain* pApp = ValidateArg(refThis);
-    retVal = pApp->IsFinalizing();
-
-    HELPER_METHOD_FRAME_END();
-    FC_RETURN_BOOL(retVal);
-}
-FCIMPLEND
-
 FCIMPL2(StringObject*, AppDomainNative::nApplyPolicy, AppDomainBaseObject* refThisUNSAFE, AssemblyNameBaseObject* refAssemblyNameUNSAFE)
 {
     FCALL_CONTRACT;
@@ -470,8 +447,7 @@ FCIMPL2(StringObject*, AppDomainNative::nApplyPolicy, AppDomainBaseObject* refTh
     AssemblySpec spec;
     spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
                         &gc.assemblyName,
-                        FALSE, /*fIsStringized*/ 
-                        FALSE /*fForIntrospection*/
+                        FALSE /*fIsStringized*/
                        );
 
     StackSString sDisplayName;

@@ -1331,7 +1331,8 @@ class ICorCompilePreloader
     CORCOMPILE_SECTION(READONLY_HOT) \
     CORCOMPILE_SECTION(READONLY_WARM) \
     CORCOMPILE_SECTION(READONLY_COLD) \
-    CORCOMPILE_SECTION(READONLY_VCHUNKS_AND_DICTIONARY) \
+    CORCOMPILE_SECTION(READONLY_VCHUNKS) \
+    CORCOMPILE_SECTION(READONLY_DICTIONARY) \
     CORCOMPILE_SECTION(CLASS_COLD) \
     CORCOMPILE_SECTION(CROSS_DOMAIN_INFO) \
     CORCOMPILE_SECTION(METHOD_PRECODE_COLD) \
@@ -1744,6 +1745,8 @@ class ICorCompileInfo
     virtual HRESULT GetBaseJitFlags(
             IN  CORINFO_METHOD_HANDLE   hMethod,
             OUT CORJIT_FLAGS           *pFlags) = 0;
+
+    virtual ICorJitHost* GetJitHost() = 0;
 
     // needed for stubs to obtain the number of bytes to copy into the native image
     // return the beginning of the stub and the size to copy (in bytes)

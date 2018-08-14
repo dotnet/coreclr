@@ -800,14 +800,6 @@ public:
             m_slIL.AdjustTargetStackDeltaForExtraParam();
         }
 
-#if defined(_TARGET_X86_)
-        // unmanaged CALLI will get an extra arg with the real target address if host hook is enabled
-        if (SF_IsCALLIStub(m_dwStubFlags) && NDirect::IsHostHookEnabled())
-        {
-            pcsMarshal->SetStubTargetArgType(ELEMENT_TYPE_I, false);
-        }
-#endif // _TARGET_X86_
-
         // Don't touch target signatures from this point on otherwise it messes up the
         // cache in ILStubState::GetStubTargetMethodSig.
 
@@ -1396,12 +1388,7 @@ public:
         BinderMethodID getCOMIPMethod;
         bool fDoPostCallIPCleanup = true;
 
-        if (!SF_IsNGENedStub(dwStubFlags) && NDirect::IsHostHookEnabled())
-        {
-            // always use the non-optimized helper if we are hosted
-            getCOMIPMethod = METHOD__STUBHELPERS__GET_COM_IP_FROM_RCW;
-        }
-        else if (SF_IsWinRTStub(dwStubFlags))
+        if (SF_IsWinRTStub(dwStubFlags))
         {
             // WinRT uses optimized helpers
             if (SF_IsWinRTSharedGenericStub(dwStubFlags))
@@ -2253,31 +2240,14 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
                 // if we ever NGEN CALLI stubs, this would have to be done differently
                 _ASSERTE(!SF_IsNGENedStub(dwStubFlags));
 
-#ifndef CROSSGEN_COMPILE
-
-#ifdef _TARGET_X86_
-
-                {
-                    // for managed-to-unmanaged CALLI that requires marshaling, the target is passed
-                    // as the secret argument to the stub by GenericPInvokeCalliHelper (asmhelpers.asm)
-                    EmitLoadStubContext(pcsEmit, dwStubFlags);
-                }
-
-
-#else // _TARGET_X86_
-
-                {
-                    // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
-                    EmitLoadStubContext(pcsEmit, dwStubFlags);
-#ifndef _TARGET_ARM_
-                    pcsEmit->EmitLDC(1);
-                    pcsEmit->EmitSHR_UN();
+                // for managed-to-unmanaged CALLI that requires marshaling, the target is passed
+                // as the secret argument to the stub by GenericPInvokeCalliHelper (asmhelpers.asm)
+                EmitLoadStubContext(pcsEmit, dwStubFlags);
+#ifdef _WIN64
+                // the secret arg has been shifted to left and ORed with 1 (see code:GenericPInvokeCalliHelper)
+                pcsEmit->EmitLDC(1);
+                pcsEmit->EmitSHR_UN();
 #endif
-                }
-
-#endif // _TARGET_X86_
-
-#endif // CROSSGEN_COMPILE
             }
             else
 #ifdef FEATURE_COMINTEROP
@@ -5213,17 +5183,6 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
         }
 #endif // MDA_SUPPORTED
 
-        if (NDirect::IsHostHookEnabled())
-        {
-            MethodTable *pMT = pMD->GetMethodTable();
-            if (pMT->IsProjectedFromWinRT() || pMT->IsWinRTRedirectedInterface(TypeHandle::Interop_ManagedToNative))
-            {
-                // WinRT NGENed stubs are optimized for the non-hosted scenario and
-                // must be rejected if we are hosted.
-                return NULL;
-            }
-        }
-
         if (fGcMdaEnabled)
             return NULL;
 
@@ -5246,13 +5205,6 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
 #ifdef FEATURE_COMINTEROP
             if (SF_IsWinRTDelegateStub(dwStubFlags))
             {
-                if (NDirect::IsHostHookEnabled() && pMD->GetMethodTable()->IsProjectedFromWinRT())
-                {
-                    // WinRT NGENed stubs are optimized for the non-hosted scenario and
-                    // must be rejected if we are hosted.
-                    return NULL;
-                }
-
                 return pClass->m_pComPlusCallInfo->m_pStubMD.GetValueMaybeNull();
             }
             else
@@ -5609,33 +5561,13 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
 
     Stub *pInterceptStub = NULL;
 
-    BOOL fHook = FALSE;
-
-    // Host hooks are not supported for Mac CoreCLR.
-    if (NDirect::IsHostHookEnabled())
-    {
-#ifdef _WIN64
-        // we will call CallNeedsHostHook on every invocation for back compat
-        fHook = TRUE;
-#else // _WIN64
-        fHook = CallNeedsHostHook((size_t)pTarget);
-#endif // _WIN64
-
-#ifdef _DEBUG
-        if (g_pConfig->ShouldGenerateStubForHost())
-        {
-            fHook = TRUE;
-        }
-#endif
-    }
-
 #ifdef _TARGET_X86_
 
 
 #ifdef MDA_SUPPORTED
     if (!IsQCall() && MDA_GET_ASSISTANT(PInvokeStackImbalance))
     {
-        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub, fHook);
+        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub);
     }
 #endif // MDA_SUPPORTED
 
@@ -5647,7 +5579,7 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     EnsureWritablePages(pWriteableData);
     g_IBCLogger.LogNDirectCodeAccess(this);
 
-    if (pInterceptStub != NULL WIN64_ONLY(|| fHook))
+    if (pInterceptStub != NULL)
     {
         ndirect.m_pNativeNDirectTarget = pTarget;
         
@@ -5890,6 +5822,14 @@ bool         NDirect::s_fSecureLoadLibrarySupported = false;
 #define TOLOWER(a) (((a) >= W('A') && (a) <= W('Z')) ? (W('a') + (a - W('A'))) : (a))
 #define TOHEX(a)   ((a)>=10 ? W('a')+(a)-10 : W('0')+(a))
 
+#ifdef FEATURE_PAL
+#define PLATFORM_SHARED_LIB_SUFFIX_W PAL_SHLIB_SUFFIX_W
+#define PLATFORM_SHARED_LIB_PREFIX_W PAL_SHLIB_PREFIX_W
+#else // !FEATURE_PAL
+#define PLATFORM_SHARED_LIB_SUFFIX_W W(".dll")
+#define PLATFORM_SHARED_LIB_PREFIX_W W("")
+#endif // !FEATURE_PAL
+
 // static
 HMODULE NDirect::LoadLibraryFromPath(LPCWSTR libraryPath)
 {
@@ -6043,60 +5983,104 @@ HMODULE NDirect::LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR 
 }
 
 #ifdef FEATURE_PAL
-static void DetermineLibNameVariations(const char* const** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+static const int MaxVariationCount = 4;
+static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
 {
-    if (libNameIsRelativePath)
-    {
-        // We check if the suffix is contained in the name, because on Linux it is common to append
-        // a version number to the library name (e.g. 'libicuuc.so.57').
-        bool containsSuffix;
-        SString::CIterator it = libName.Begin();
-        if (libName.FindASCII(it, PAL_SHLIB_SUFFIX))
-        {
-            it += strlen(PAL_SHLIB_SUFFIX);
-            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
-        }
-        else
-        {
-            containsSuffix = false;
-        }
+    // Supported lib name variations
+    static auto NameFmt = W("%.0s%s%.0s");
+    static auto PrefixNameFmt = W("%s%s%.0s");
+    static auto NameSuffixFmt = W("%.0s%s%s");
+    static auto PrefixNameSuffixFmt = W("%s%s%s");
 
-        if (containsSuffix)
-        {
-            static const char* const SuffixLast[] =
-            {
-                "%.0s%s",   // name
-                "%s%s%.0s", // prefix+name
-                "%.0s%s%s", // name+suffix
-                "%s%s%s"    // prefix+name+suffix
-            };
-            *libNameVariations = SuffixLast;
-            *numberOfVariations = COUNTOF(SuffixLast);
-        }
-        else
-        {
-            static const char* const SuffixFirst[] =
-            {
-                "%.0s%s%s", // name+suffix
-                "%s%s%s",   // prefix+name+suffix
-                "%.0s%s",   // name
-                "%s%s%.0s"  // prefix+name
-            };
-            *libNameVariations = SuffixFirst;
-            *numberOfVariations = COUNTOF(SuffixFirst);
-        }
+    _ASSERTE(*numberOfVariations >= MaxVariationCount);
+
+    int varCount = 0;
+    if (!libNameIsRelativePath)
+    {
+        libNameVariations[varCount++] = NameFmt;
     }
     else
     {
-        static const char* const NameOnly[] =
+        // We check if the suffix is contained in the name, because on Linux it is common to append
+        // a version number to the library name (e.g. 'libicuuc.so.57').
+        bool containsSuffix = false;
+        SString::CIterator it = libName.Begin();
+        if (libName.Find(it, PLATFORM_SHARED_LIB_SUFFIX_W))
         {
-            "%.0s%s"
-        };
-        *libNameVariations = NameOnly;
-        *numberOfVariations = COUNTOF(NameOnly);
+            it += COUNTOF(PLATFORM_SHARED_LIB_SUFFIX_W);
+            containsSuffix = it == libName.End() || *it == (WCHAR)'.';
+        }
+
+        // If the path contains a path delimiter, we don't add a prefix
+        it = libName.Begin();
+        bool containsDelim = libName.Find(it, DIRECTORY_SEPARATOR_STR_W);
+
+        if (containsSuffix)
+        {
+            libNameVariations[varCount++] = NameFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameFmt;
+
+            libNameVariations[varCount++] = NameSuffixFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameSuffixFmt;
+        }
+        else
+        {
+            libNameVariations[varCount++] = NameSuffixFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameSuffixFmt;
+
+            libNameVariations[varCount++] = NameFmt;
+
+            if (!containsDelim)
+                libNameVariations[varCount++] = PrefixNameFmt;
+        }
     }
+
+    *numberOfVariations = varCount;
 }
-#endif
+#else // FEATURE_PAL
+static const int MaxVariationCount = 2;
+static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* numberOfVariations, const SString& libName, bool libNameIsRelativePath)
+{
+    // Supported lib name variations
+    static auto NameFmt = W("%.0s%s%.0s");
+    static auto NameSuffixFmt = W("%.0s%s%s");
+
+    _ASSERTE(*numberOfVariations >= MaxVariationCount);
+
+    int varCount = 0;
+
+    // The purpose of following code is to workaround LoadLibrary limitation: 
+    // LoadLibrary won't append extension if filename itself contains '.'. Thus it will break the following scenario:
+    // [DllImport("A.B")] // The full name for file is "A.B.dll". This is common code pattern for cross-platform PInvoke
+    // The workaround for above scenario is to call LoadLibrary with "A.B" first, if it fails, then call LoadLibrary with "A.B.dll"
+    auto it = libName.Begin();
+    if (!libNameIsRelativePath ||
+        !libName.Find(it, W('.')) || 
+        libName.EndsWith(W(".")) || 
+        libName.EndsWithCaseInsensitive(W(".dll")) || 
+        libName.EndsWithCaseInsensitive(W(".exe")))
+    {
+        // Follow LoadLibrary rules in MSDN doc: https://msdn.microsoft.com/en-us/library/windows/desktop/ms684175(v=vs.85).aspx
+        // If the string specifies a full path, the function searches only that path for the module.
+        // If the string specifies a module name without a path and the file name extension is omitted, the function appends the default library extension .dll to the module name.
+        // To prevent the function from appending .dll to the module name, include a trailing point character (.) in the module name string.
+        libNameVariations[varCount++] = NameFmt;
+    }
+    else
+    {
+        libNameVariations[varCount++] = NameFmt;
+        libNameVariations[varCount++] = NameSuffixFmt;
+    }
+
+    *numberOfVariations = varCount;
+}
+#endif // FEATURE_PAL
 
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
@@ -6163,28 +6147,21 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
 
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
     DWORD dllImportSearchPathFlag = 0;
-#ifdef FEATURE_PAL
     // P/Invokes are often declared with variations on the actual library name.
     // For example, it's common to leave off the extension/suffix of the library
     // even if it has one, or to leave off a prefix like "lib" even if it has one
     // (both of these are typically done to smooth over cross-platform differences). 
     // We try to dlopen with such variations on the original.
-    const char* const* prefixSuffixCombinations = nullptr;
-    int numberOfVariations = 0;
-    DetermineLibNameVariations(&prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
+    const WCHAR* prefixSuffixCombinations[MaxVariationCount] = {};
+    int numberOfVariations = COUNTOF(prefixSuffixCombinations);
+    DetermineLibNameVariations(prefixSuffixCombinations, &numberOfVariations, wszLibName, libNameIsRelativePath);
     for (int i = 0; hmod == NULL && i < numberOfVariations; i++)
     {
         SString currLibNameVariation;
-        currLibNameVariation.Printf(prefixSuffixCombinations[i], PAL_SHLIB_PREFIX, name, PAL_SHLIB_SUFFIX);
-#else
-    {
-        LPCWSTR currLibNameVariation = wszLibName;
-#endif
-        if (hmod == NULL)
-        {
-            // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path 
-            hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
-        }
+        currLibNameVariation.Printf(prefixSuffixCombinations[i], PLATFORM_SHARED_LIB_PREFIX_W, wszLibName, PLATFORM_SHARED_LIB_SUFFIX_W);
+
+        // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
 
         BOOL searchAssemblyDirectory = TRUE;
         if (hmod == NULL)
@@ -6663,7 +6640,7 @@ PCODE GetILStubForCalli(VASigCookie *pVASigCookie, MethodDesc *pMD)
 
 //
 // Truncates a SString by first converting it to unicode and truncate it 
-// if it is larger than size. "..." will be appened if it is truncated.
+// if it is larger than size. "..." will be appended if it is truncated.
 //
 void TruncateUnicodeString(SString &string, COUNT_T bufSize)
 {

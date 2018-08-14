@@ -207,7 +207,7 @@ namespace CorUnix
     {
         friend
             PAL_ERROR
-            CorUnix::InternalCreateThread(
+            InternalCreateThread(
                 CPalThread *,
                 LPSECURITY_ATTRIBUTES,
                 DWORD,
@@ -250,8 +250,6 @@ namespace CorUnix
                 HANDLE *phThread
                 );
 
-        friend CatchHardwareExceptionHolder;
-        
     private:
 
         CPalThread *m_pNext;
@@ -552,6 +550,18 @@ namespace CorUnix
             return m_hardwareExceptionHolderCount > 0;
         }
 
+        inline void
+        IncrementHardwareExceptionHolderCount()
+        {
+            ++m_hardwareExceptionHolderCount;
+        }
+
+        inline void
+        DecrementHardwareExceptionHolderCount()
+        {
+            --m_hardwareExceptionHolderCount;
+        }
+
         LPTHREAD_START_ROUTINE
         GetStartAddress(
             void
@@ -808,6 +818,13 @@ Abstract:
 inline SIZE_T THREADSilentGetCurrentThreadId() {
     uint64_t tid;
     pthread_threadid_np(pthread_self(), &tid);
+    return (SIZE_T)tid;
+}
+#elif defined(__FreeBSD__)
+#include <sys/thr.h>
+inline SIZE_T THREADSilentGetCurrentThreadId() {
+    long tid;
+    thr_self(&tid);
     return (SIZE_T)tid;
 }
 #elif defined(__NetBSD__)

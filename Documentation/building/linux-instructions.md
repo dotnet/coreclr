@@ -38,8 +38,19 @@ In order to get clang-3.9, llvm-3.9 and lldb-3.9 on Ubuntu 14.04, we need to add
     ~$ wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key | sudo apt-key add -
     ~$ sudo apt-get update
 
-Note: arm clang has a known issue with CompareExchange (#15074), so for arm you have to use clang-4.0 or higher, the official build uses clang-5.0.
-    
+Note: ARM clang has a known issue with CompareExchange
+([#15074](https://github.com/dotnet/coreclr/issues/15074)), so for ARM you must
+use clang-4.0 or higher.  Moreover, when building with clang-5.0, the
+following errors occur:
+
+```
+coreclr/src/debug/inc/arm/primitives.h:66:1: error: __declspec attribute 'selectany' is
+      not supported [-Werror,-Wignored-attributes]
+```
+
+This is fixed in clang-5.0.2, which can be installed from the apt
+repository listed below.
+
 For other version of Debian/Ubuntu, please visit http://apt.llvm.org/.
 
 Then install the packages you need:
@@ -98,9 +109,32 @@ After the build is complete you will be able to find the output in the `bin` fol
 Build for ARM/Linux
 ===================
 
-Libunwind-arm requires fixes that are not included in Ubuntu 14.04, yet. The fix allows libunwind-arm not to break when it is ordered to access unaccessible memory locations.
+The CI system and official builds use Docker to build ARM for Linux (for example, see the latest build [here](https://ci.dot.net/job/dotnet_coreclr/job/master/job/arm_cross_checked_ubuntu/lastSuccessfulBuild/consoleText)). The Docker container has pre-built rootfs directories containing the required tools. To build this way, do the following:
 
-First, import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090
+* Install Docker, probably Community Edition, on Windows, Mac, or Linux, from https://www.docker.com/. Some useful post-install setup is:
+  * Linux: add your user to the docker group, this will avoid running docker with `sudo`:
+
+    `sudo usermod -a <your account name> -G docker`
+
+  * Windows: switch to Linux containers. This can be done by right clicking on the Docker icon in the lower right corner and clicking "Switch to Linux containers".
+* Build using the Docker container (this is a `bash` script, for simplicity):
+
+```
+ROOT=/Users/me/git/coreclr
+DOCKER_ARGS="run -i --rm -v ${ROOT}:/mnt/coreclr -w /mnt/coreclr -e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86 microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420"
+docker ${DOCKER_ARGS} /mnt/coreclr/build.sh arm checked cross crosscomponent
+docker ${DOCKER_ARGS} /mnt/coreclr/build-test.sh arm checked cross generatelayoutonly
+```
+
+Make sure you update the `ROOT` environment to point to your git clone of the coreclr repo.
+
+The current Docker tag being used by the CI can be found in the `getDockerImageName` function in the [netci.groovy](https://github.com/dotnet/coreclr/blob/master/netci.groovy) file.
+
+Libunwind issue
+---------------
+ARM libunwind versions before 1.3 require a fix. The fix allows libunwind not to break when it is ordered to access unaccessible memory locations. See [this](https://github.com/dotnet/coreclr/pull/3923) issue for history.
+
+If required, first import the patch from the libunwind upstream: http://git.savannah.gnu.org/gitweb/?p=libunwind.git;a=commit;h=770152268807e460184b4152e23aba9c86601090.
 
 Then, expand the coverage of the upstream patch by:
 
@@ -124,7 +158,7 @@ index 1ed3dbf..c643032 100644
 ```
 
 Additional optimization levels for ARM/Linux: -Oz and -Ofast
-============================================================
+------------------------------------------------------------
 
 This instruction is to enable additional optimization levels such as -Oz and -Ofast on ARM/Linux. The below table shows what we have to enable for the code optimization of the CoreCLR run-time either the size or speed on embedded devices. 
 

@@ -440,6 +440,7 @@ EEToProfInterfaceImpl::EEToProfInterfaceImpl() :
     m_pLeave3WithInfo(NULL),
     m_pTailcall3WithInfo(NULL),
     m_fUnrevertiblyModifiedIL(FALSE),
+    m_fModifiedRejitState(FALSE),
     m_pFunctionIDHashTable(NULL),
     m_pFunctionIDHashTableRWLock(NULL),
     m_dwConcurrentGCWaitTimeoutInMs(INFINITE),
@@ -960,6 +961,13 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
             REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
             m_pCallback8->Release();
             m_pCallback8 = NULL;
+        }
+
+        if (m_pCallback9 != NULL)
+        {
+            REMOVE_STACK_GUARD_FOR_PROFILER_CALL;
+            m_pCallback9->Release();
+            m_pCallback9 = NULL;
         }
 
         // Only unload the V4 profiler if this is not part of shutdown.  This protects
@@ -2049,6 +2057,16 @@ HRESULT EEToProfInterfaceImpl::EnsureProfilerDetachable()
         return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;
     }
 
+    if (m_fModifiedRejitState)
+    {
+        LOG((
+            LF_CORPROF, 
+            LL_ERROR, 
+            "**PROF: Profiler may not detach because it enabled Rejit.\n"));
+
+        return CORPROF_E_IRREVERSIBLE_INSTRUMENTATION_PRESENT;   
+    }
+
     return S_OK;
 }
 
@@ -2415,6 +2433,16 @@ HRESULT EEToProfInterfaceImpl::SetEventMask(DWORD dwEventMask, DWORD dwEventMask
                 }        
             }
         }        
+    }
+
+    if ((dwEventMask & COR_PRF_ENABLE_REJIT) != 0)
+    {
+        if ((g_profControlBlock.curProfStatus.Get() != kProfStatusInitializingForStartupLoad) && !ReJitManager::IsReJITEnabled())
+        {
+            return CORPROF_E_REJIT_NOT_ENABLED;
+        }
+
+        g_profControlBlock.pProfInterface->SetModifiedRejitState();
     }
 
     // High event bits

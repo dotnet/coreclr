@@ -64,11 +64,17 @@ namespace JIT.HardwareIntrinsics.X86
                     test.RunLclVarScenario_LoadAligned();
                 }
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
@@ -85,6 +91,29 @@ namespace JIT.HardwareIntrinsics.X86
 
     public sealed unsafe class SimpleUnaryOpTest__RoundToPositiveInfinitySingle
     {
+        private struct TestStruct
+        {
+            public Vector128<Single> _fld;
+
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
+
+                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref testStruct._fld), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
+
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(SimpleUnaryOpTest__RoundToPositiveInfinitySingle testClass)
+            {
+                var result = Sse41.RoundToPositiveInfinity(_fld);
+
+                Unsafe.Write(testClass._dataTable.outArrayPtr, result);
+                testClass.ValidateResult(_fld, testClass._dataTable.outArrayPtr);
+            }
+        }
+
         private static readonly int LargestVectorSize = 16;
 
         private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector128<Single>>() / sizeof(Single);
@@ -100,9 +129,7 @@ namespace JIT.HardwareIntrinsics.X86
 
         static SimpleUnaryOpTest__RoundToPositiveInfinitySingle()
         {
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _clsVar), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
         }
 
@@ -110,12 +137,10 @@ namespace JIT.HardwareIntrinsics.X86
         {
             Succeeded = true;
 
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _fld), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             _dataTable = new SimpleUnaryOpTest__DataTable<Single, Single>(_data, new Single[RetElementCount], LargestVectorSize);
         }
 
@@ -125,6 +150,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse41.RoundToPositiveInfinity(
                 Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr)
             );
@@ -135,6 +162,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Sse41.RoundToPositiveInfinity(
                 Sse.LoadVector128((Single*)(_dataTable.inArrayPtr))
             );
@@ -145,6 +174,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Sse41.RoundToPositiveInfinity(
                 Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr))
             );
@@ -155,6 +186,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.RoundToPositiveInfinity), new Type[] { typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr)
@@ -166,6 +199,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.RoundToPositiveInfinity), new Type[] { typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadVector128((Single*)(_dataTable.inArrayPtr))
@@ -177,6 +212,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.RoundToPositiveInfinity), new Type[] { typeof(Vector128<Single>) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr))
@@ -188,6 +225,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse41.RoundToPositiveInfinity(
                 _clsVar
             );
@@ -198,6 +237,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr);
             var result = Sse41.RoundToPositiveInfinity(firstOp);
 
@@ -207,6 +248,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Sse.LoadVector128((Single*)(_dataTable.inArrayPtr));
             var result = Sse41.RoundToPositiveInfinity(firstOp);
 
@@ -216,6 +259,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr));
             var result = Sse41.RoundToPositiveInfinity(firstOp);
 
@@ -223,8 +268,10 @@ namespace JIT.HardwareIntrinsics.X86
             ValidateResult(firstOp, _dataTable.outArrayPtr);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
             var test = new SimpleUnaryOpTest__RoundToPositiveInfinitySingle();
             var result = Sse41.RoundToPositiveInfinity(test._fld);
 
@@ -232,16 +279,39 @@ namespace JIT.HardwareIntrinsics.X86
             ValidateResult(test._fld, _dataTable.outArrayPtr);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse41.RoundToPositiveInfinity(_fld);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(_fld, _dataTable.outArrayPtr);
         }
 
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = Sse41.RoundToPositiveInfinity(test._fld);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(test._fld, _dataTable.outArrayPtr);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
+        }
+
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -296,10 +366,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse41)}.{nameof(Sse41.RoundToPositiveInfinity)}<Single>(Vector128<Single>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse41)}.{nameof(Sse41.RoundToPositiveInfinity)}<Single>(Vector128<Single>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

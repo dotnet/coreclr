@@ -805,6 +805,10 @@ public:
     void dmpConstructStringLiteral(DLD key, DLD value);
     InfoAccessType repConstructStringLiteral(CORINFO_MODULE_HANDLE module, mdToken metaTok, void** ppValue);
 
+    void recConvertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fMustConvert, bool result);
+    void dmpConvertPInvokeCalliToCall(DLD key, DWORDLONG value);
+    bool repConvertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fMustConvert);
+
     void recEmptyStringLiteral(void** ppValue, InfoAccessType result);
     void dmpEmptyStringLiteral(DWORD key, DLD value);
     InfoAccessType repEmptyStringLiteral(void** ppValue);
@@ -1226,9 +1230,7 @@ public:
     void dmpGetClassName(DWORDLONG key, DWORD value);
     const char* repGetClassName(CORINFO_CLASS_HANDLE cls);
 
-    void recGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls,
-                                     char*                className,
-                                     const char**         namespaceName);
+    void recGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, char* className, const char** namespaceName);
     void dmpGetClassNameFromMetadata(DLD key, DD value);
     const char* repGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName);
 
@@ -1313,6 +1315,7 @@ enum mcPackets
     Packet_CompareTypesForEquality                       = 164, // Added 10/4/17
     Packet_CompileMethod                                 = 143, // retired as 141 on 2013/07/09
     Packet_ConstructStringLiteral                        = 15,
+    Packet_ConvertPInvokeCalliToCall                     = 169, // Added 4/29/18
     Packet_EmbedClassHandle                              = 16,
     Packet_EmbedFieldHandle                              = 17,
     Packet_EmbedGenericHandle                            = 18,
@@ -1404,7 +1407,7 @@ enum mcPackets
     Packet_GetTokenTypeAsHandle                          = 89,
     Packet_GetTypeForBox                                 = 90,
     Packet_GetTypeForPrimitiveValueClass                 = 91,
-    Packet_GetTypeForPrimitiveNumericClass                 = 168, // Added 12/7/2017
+    Packet_GetTypeForPrimitiveNumericClass               = 168, // Added 12/7/2017
     Packet_GetUnboxedEntry                               = 165, // Added 10/26/17
     Packet_GetUnBoxHelper                                = 92,
     Packet_GetReadyToRunHelper                           = 150, // Added 10/10/2014

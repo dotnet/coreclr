@@ -107,7 +107,6 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     AssemblySpec spec;
     spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
                         &gc.assemblyName,
-                        FALSE,
                         FALSE);
     
     if (!spec.HasUniqueIdentity())
@@ -146,7 +145,7 @@ FCIMPL7(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     
     {
         GCX_PREEMP();
-        pAssembly = spec.LoadAssembly(FILE_LOADED, fThrowOnFileNotFound, FALSE /*fRaisePrebindEvents*/, stackMark);
+        pAssembly = spec.LoadAssembly(FILE_LOADED, fThrowOnFileNotFound, stackMark);
     }
 
     if (pAssembly != NULL)
@@ -239,7 +238,7 @@ Assembly* AssemblyNative::LoadFromPEImage(ICLRPrivBinder* pBinderContext, PEImag
     BINDER_SPACE::Assembly* assem;
     assem = BINDER_SPACE::GetAssemblyFromPrivAssemblyFast(pAssembly);
     
-    PEAssemblyHolder pPEAssembly(PEAssembly::Open(pParentAssembly, assem->GetPEImage(), assem->GetNativePEImage(), pAssembly, FALSE));
+    PEAssemblyHolder pPEAssembly(PEAssembly::Open(pParentAssembly, assem->GetPEImage(), assem->GetNativePEImage(), pAssembly));
 
     DomainAssembly *pDomainAssembly = pCurDomain->LoadDomainAssembly(&spec, pPEAssembly, FILE_LOADED);
     RETURN pDomainAssembly->GetAssembly();
@@ -416,7 +415,7 @@ void QCALLTYPE AssemblyNative::GetType(QCall::AssemblyHandle pAssembly, LPCWSTR 
     BOOL prohibitAsmQualifiedName = TRUE;
 
     // Load the class from this assembly (fail if it is in a different one).
-    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, pAssembly->IsIntrospectionOnly(), prohibitAsmQualifiedName, NULL, FALSE, (OBJECTREF*)keepAlive.m_ppObject);
+    retTypeHandle = TypeName::GetTypeManaged(wszName, pAssembly, bThrowOnError, bIgnoreCase, prohibitAsmQualifiedName, NULL, FALSE, (OBJECTREF*)keepAlive.m_ppObject);
 
     if (!retTypeHandle.IsNull())
     {
@@ -439,7 +438,6 @@ void QCALLTYPE AssemblyNative::GetForwardedType(QCall::AssemblyHandle pAssembly,
 
     BEGIN_QCALL;
 
-    HRESULT hr;
     LPCSTR pszNameSpace;
     LPCSTR pszClassName;
     mdToken mdImpl;
@@ -1089,67 +1087,9 @@ void QCALLTYPE AssemblyNative::GetEntryPoint(QCall::AssemblyHandle pAssembly, QC
 
 //---------------------------------------------------------------------------------------
 //
-// Get the raw bytes making up this assembly
-//
-// Arguments:
-//    pAssembly   - Assembly to get the data of
-//    retRawBytes - [out] raw bytes of the assembly
-//
-
-// static
-void QCALLTYPE AssemblyNative::GetRawBytes(QCall::AssemblyHandle pAssembly,
-                                           QCall::ObjectHandleOnStack retRawBytes)
-{
-    QCALL_CONTRACT;
-    BEGIN_QCALL;
-
-    PEFile *pPEFile = pAssembly->GetFile();
-    if (pPEFile != NULL)
-    {
-        PEImage *pPEImage = pPEFile->GetILimage();
-
-        if (pPEImage != NULL)
-        {
-            SBuffer dataBuffer;
-            pPEImage->GetImageBits(PEImageLayout::LAYOUT_FLAT, dataBuffer);
-
-            if (dataBuffer.GetSize() > 0)
-            {
-                retRawBytes.SetByteArray(dataBuffer, dataBuffer.GetSize());
-            }
-        }
-    }
-    
-    END_QCALL;
-}
-
-//---------------------------------------------------------------------------------------
-//
 // Release QCALL for System.SafePEFileHandle
 //
 //
-
-// static
-void QCALLTYPE AssemblyNative::ReleaseSafePEFileHandle(PEFile *pPEFile)
-{
-    CONTRACTL
-    {
-        QCALL_CHECK;
-        PRECONDITION(CheckPointer(pPEFile));
-    }
-    CONTRACTL_END;
-
-    BEGIN_QCALL;
-
-    pPEFile->Release();
-
-    END_QCALL;
-}
-
-// save the manifest to disk!
-extern void ManagedBitnessFlagsToUnmanagedBitnessFlags(
-    INT32 portableExecutableKind, INT32 imageFileMachine,
-    DWORD* pPeFlags, DWORD* pCorhFlags);
 
 void QCALLTYPE AssemblyNative::GetFullName(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retString)
 {
@@ -1205,22 +1145,6 @@ void QCALLTYPE AssemblyNative::GetEntryAssembly(QCall::ObjectHandleOnStack retAs
     return;
 }
 
-// return the on disk assembly module for reflection emit. This only works for dynamic assembly.
-FCIMPL1(ReflectModuleBaseObject *, AssemblyNative::GetOnDiskAssemblyModule, AssemblyBaseObject* pAssemblyUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    ASSEMBLYREF refAssembly = (ASSEMBLYREF)ObjectToOBJECTREF(pAssemblyUNSAFE);
-    
-    if (refAssembly == NULL)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    DomainAssembly *pAssembly = refAssembly->GetDomainAssembly();
-
-    FC_RETURN_MODULE_OBJECT(pAssembly->GetCurrentAssembly()->GetOnDiskManifestModule(), refAssembly);
-}
-FCIMPLEND
-
 // return the in memory assembly module for reflection emit. This only works for dynamic assembly.
 FCIMPL1(ReflectModuleBaseObject *, AssemblyNative::GetInMemoryAssemblyModule, AssemblyBaseObject* pAssemblyUNSAFE)
 {
@@ -1258,27 +1182,6 @@ void QCALLTYPE AssemblyNative::GetImageRuntimeVersion(QCall::AssemblyHandle pAss
 
     END_QCALL;
 }
-
-
-
-#ifdef FEATURE_APPX
-/*static*/
-BOOL QCALLTYPE AssemblyNative::IsDesignerBindingContext(QCall::AssemblyHandle pAssembly)
-{
-    QCALL_CONTRACT;
-
-    BOOL fRet = FALSE;
-
-    BEGIN_QCALL;
-
-    PEFile *pPEFile = pAssembly->GetFile();
-    fRet = pPEFile->IsDesignerBindingContext();
-
-    END_QCALL;
-
-    return fRet;
-}
-#endif // FEATURE_APPX
 
 /*static*/
 INT_PTR QCALLTYPE AssemblyNative::InitializeAssemblyLoadContext(INT_PTR ptrManagedAssemblyLoadContext, BOOL fRepresentsTPALoadContext)

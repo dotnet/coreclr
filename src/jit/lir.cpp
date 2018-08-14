@@ -171,7 +171,7 @@ void LIR::Use::AssertIsValid() const
 //          /--*  t18 int
 //          *  jmpTrue   void
 //
-// Elminating the now-dead compare and its operands using `LIR::Range::Remove`
+// Eliminating the now-dead compare and its operands using `LIR::Range::Remove`
 // would then give us:
 //
 //    t18 =    const     int    1
@@ -1435,7 +1435,7 @@ public:
     CheckLclVarSemanticsHelper(Compiler*         compiler,
                                const LIR::Range* range,
                                SmallHashTable<GenTree*, bool, 32U>& unusedDefs)
-        : compiler(compiler), range(range), unusedDefs(unusedDefs), unusedLclVarReads(compiler)
+        : compiler(compiler), range(range), unusedDefs(unusedDefs), unusedLclVarReads(compiler->getAllocator())
     {
     }
 
@@ -1572,7 +1572,7 @@ bool LIR::Range::CheckLIR(Compiler* compiler, bool checkUnusedValues) const
         slowNode     = slowNode->gtNext;
     }
 
-    SmallHashTable<GenTree*, bool, 32> unusedDefs(compiler);
+    SmallHashTable<GenTree*, bool, 32> unusedDefs(compiler->getAllocator());
 
     bool     pastPhis = false;
     GenTree* prev     = nullptr;

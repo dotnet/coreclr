@@ -651,7 +651,7 @@ Assembly *Assembly::CreateDynamic(AppDomain *pDomain, CreateDynamicAssemblyArgs 
         IfFailThrow(pAssemblyEmit->DefineAssembly(publicKey, publicKey.GetSize(), ulHashAlgId,
                                                    name, &assemData, dwFlags,
                                                    &ma));
-        pFile = PEAssembly::Create(pCallerAssembly->GetManifestFile(), pAssemblyEmit, args->access & ASSEMBLY_ACCESS_REFLECTION_ONLY);
+        pFile = PEAssembly::Create(pCallerAssembly->GetManifestFile(), pAssemblyEmit);
 
         // Dynamically created modules (aka RefEmit assemblies) do not have a LoadContext associated with them since they are not bound
         // using an actual binder. As a result, we will assume the same binding/loadcontext information for the dynamic assembly as its
@@ -876,12 +876,6 @@ DomainAssembly *Assembly::FindDomainAssembly(AppDomain *pDomain)
 
     PREFIX_ASSUME (GetManifestModule() !=NULL); 
     RETURN GetManifestModule()->FindDomainAssembly(pDomain);
-}
-
-BOOL Assembly::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_pManifestFile->IsIntrospectionOnly();
 }
 
 PTR_LoaderHeap Assembly::GetLowFrequencyHeap()
@@ -1219,7 +1213,6 @@ Module * Assembly::FindModuleByTypeRef(
             if (pModule->HasBindableIdentity(tkType))
 #endif// FEATURE_COMINTEROP
             {
-                _ASSERTE(!IsAfContentType_WindowsRuntime(pModule->GetAssemblyRefFlags(tkType)));
                 if (loadFlag == Loader::SafeLookup)
                 {
                     pAssembly = pModule->LookupAssemblyRef(tkType);
@@ -1798,11 +1791,7 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
 
                 Thread::ApartmentState state = Thread::AS_Unknown;
                 state = SystemDomain::GetEntryPointThreadAptState(pMeth->GetMDImport(), pMeth->GetMemberDef());
-
-                // If the entry point has an explicit thread apartment state, set it
-                // before running the AppDomainManager initialization code.
-                if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
-                    SystemDomain::SetThreadAptState(state);
+                SystemDomain::SetThreadAptState(state);
 #endif // FEATURE_COMINTEROP
             }
 
@@ -1894,7 +1883,7 @@ MethodDesc* Assembly::GetEntryPoint()
     // byMDInternalRO::FindParamOfMethod and we will bail out. 
     // 
     // If it does not exist (return value CLDB_E_RECORD_NOTFOUND) or if it is found (S_OK),
-    // we do not bother as the values would have come upon ensurin a valid parameter record
+    // we do not bother as the values would have come upon ensuring a valid parameter record
     // list.
     mdParamDef pdParam;
     HRESULT hrValidParamList = pModule->GetMDImport()->FindParamOfMethod(mdEntry, 0, &pdParam);

@@ -22,7 +22,7 @@ namespace JIT.HardwareIntrinsics.X86
     {
         private static void TestAllOnesByte()
         {
-            var test = new BooleanComparisonOpTest__TestAllOnesByte();
+            var test = new BooleanUnaryOpTest__TestAllOnesByte();
 
             if (test.IsSupported)
             {
@@ -65,11 +65,17 @@ namespace JIT.HardwareIntrinsics.X86
                     test.RunLclVarScenario_LoadAligned();
                 }
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
@@ -84,8 +90,29 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class BooleanComparisonOpTest__TestAllOnesByte
+    public sealed unsafe class BooleanUnaryOpTest__TestAllOnesByte
     {
+        private struct TestStruct
+        {
+            public Vector128<Byte> _fld;
+
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
+
+                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetByte(); }
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Byte>, byte>(ref testStruct._fld), ref Unsafe.As<Byte, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Byte>>());
+
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(BooleanUnaryOpTest__TestAllOnesByte testClass)
+            {
+                var result = Sse41.TestAllOnes(_fld);
+                testClass.ValidateResult(_fld, result);
+            }
+        }
+
         private static readonly int LargestVectorSize = 16;
 
         private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector128<Byte>>() / sizeof(Byte);
@@ -98,24 +125,20 @@ namespace JIT.HardwareIntrinsics.X86
 
         private BooleanUnaryOpTest__DataTable<Byte> _dataTable;
 
-        static BooleanComparisonOpTest__TestAllOnesByte()
+        static BooleanUnaryOpTest__TestAllOnesByte()
         {
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetByte(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Byte>, byte>(ref _clsVar), ref Unsafe.As<Byte, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Byte>>());
         }
 
-        public BooleanComparisonOpTest__TestAllOnesByte()
+        public BooleanUnaryOpTest__TestAllOnesByte()
         {
             Succeeded = true;
 
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetByte(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Byte>, byte>(ref _fld), ref Unsafe.As<Byte, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Byte>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (byte)(random.Next(0, byte.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetByte(); }
             _dataTable = new BooleanUnaryOpTest__DataTable<Byte>(_data, LargestVectorSize);
         }
 
@@ -125,6 +148,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse41.TestAllOnes(
                 Unsafe.Read<Vector128<Byte>>(_dataTable.inArrayPtr)
             );
@@ -134,6 +159,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Sse41.TestAllOnes(
                 Sse2.LoadVector128((Byte*)(_dataTable.inArrayPtr))
             );
@@ -143,6 +170,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Sse41.TestAllOnes(
                 Sse2.LoadAlignedVector128((Byte*)(_dataTable.inArrayPtr))
             );
@@ -152,6 +181,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.TestAllOnes), new Type[] { typeof(Vector128<Byte>) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<Byte>>(_dataTable.inArrayPtr)
@@ -162,6 +193,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.TestAllOnes), new Type[] { typeof(Vector128<Byte>) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadVector128((Byte*)(_dataTable.inArrayPtr))
@@ -172,6 +205,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.TestAllOnes), new Type[] { typeof(Vector128<Byte>) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadAlignedVector128((Byte*)(_dataTable.inArrayPtr))
@@ -182,6 +217,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse41.TestAllOnes(
                 _clsVar
             );
@@ -191,6 +228,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var value = Unsafe.Read<Vector128<Byte>>(_dataTable.inArrayPtr);
             var result = Sse41.TestAllOnes(value);
 
@@ -199,6 +238,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var value = Sse2.LoadVector128((Byte*)(_dataTable.inArrayPtr));
             var result = Sse41.TestAllOnes(value);
 
@@ -207,29 +248,54 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var value = Sse2.LoadAlignedVector128((Byte*)(_dataTable.inArrayPtr));
             var result = Sse41.TestAllOnes(value);
 
             ValidateResult(value, result);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
-            var test = new BooleanComparisonOpTest__TestAllOnesByte();
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
+            var test = new BooleanUnaryOpTest__TestAllOnesByte();
             var result = Sse41.TestAllOnes(test._fld);
 
             ValidateResult(test._fld, result);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse41.TestAllOnes(_fld);
 
             ValidateResult(_fld, result);
         }
 
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = Sse41.TestAllOnes(test._fld);
+            ValidateResult(test._fld, result);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
+        }
+
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -273,10 +339,10 @@ namespace JIT.HardwareIntrinsics.X86
             {
                 Succeeded = false;
 
-                Console.WriteLine($"{nameof(Sse41)}.{nameof(Sse41.TestAllOnes)}<Byte>(Vector128<Byte>): {method} failed:");
-                Console.WriteLine($"    value: ({string.Join(", ", value)})");
-                Console.WriteLine($"  result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse41)}.{nameof(Sse41.TestAllOnes)}<Byte>(Vector128<Byte>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"    value: ({string.Join(", ", value)})");
+                TestLibrary.TestFramework.LogInformation($"  result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

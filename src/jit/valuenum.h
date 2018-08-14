@@ -103,7 +103,7 @@ public:
     class VNMap : public JitHashTable<fromType, keyfuncs, ValueNum>
     {
     public:
-        VNMap(CompAllocator* alloc) : JitHashTable<fromType, keyfuncs, ValueNum>(alloc)
+        VNMap(CompAllocator alloc) : JitHashTable<fromType, keyfuncs, ValueNum>(alloc)
         {
         }
         ~VNMap()
@@ -128,7 +128,7 @@ private:
     Compiler* m_pComp;
 
     // For allocations.  (Other things?)
-    CompAllocator* m_alloc;
+    CompAllocator m_alloc;
 
     // TODO-Cleanup: should transform "attribs" into a struct with bit fields.  That would be simpler...
 
@@ -237,7 +237,7 @@ public:
     static void InitValueNumStoreStatics();
 
     // Initialize an empty ValueNumStore.
-    ValueNumStore(Compiler* comp, CompAllocator* allocator);
+    ValueNumStore(Compiler* comp, CompAllocator allocator);
 
     // Returns "true" iff "vnf" (which may have been created by a cast from an integral value) represents
     // a legal value number function.
@@ -670,6 +670,12 @@ public:
     {
     };
 
+    // Return true if two value numbers would compare equal.
+    bool VNIsEqual(ValueNum vn1, ValueNum vn2)
+    {
+        return (vn1 == vn2) && (vn1 != NoVN) && !varTypeIsFloating(TypeOfVN(vn1));
+    }
+
 private:
     struct Chunk;
 
@@ -910,7 +916,7 @@ private:
         // Initialize a chunk, starting at "*baseVN", for the given "typ", "attribs", and "loopNum" (using "alloc" for
         // allocations).
         // (Increments "*baseVN" by ChunkSize.)
-        Chunk(CompAllocator*         alloc,
+        Chunk(CompAllocator          alloc,
               ValueNum*              baseVN,
               var_types              typ,
               ChunkExtraAttribs      attribs,

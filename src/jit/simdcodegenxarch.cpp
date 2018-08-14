@@ -15,17 +15,15 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator.
-
 #ifdef _TARGET_XARCH_
+#ifdef FEATURE_SIMD
+
 #include "emit.h"
 #include "codegen.h"
 #include "sideeffects.h"
 #include "lower.h"
 #include "gcinfo.h"
 #include "gcinfoencoder.h"
-
-#ifdef FEATURE_SIMD
 
 // Instruction immediates
 
@@ -2234,7 +2232,7 @@ void CodeGen::genSIMDIntrinsicDotProduct(GenTreeSIMD* simdNode)
             // tmp = v0
             // tmp = shuffle(tmp, tmp, SHUFFLE_XYZW)          // tmp = (0+1, 1+0, 2+3, 3+2)
             // v0 = v0 + tmp                                  // v0  = (0+1+2+3, 0+1+2+3, 0+1+2+3, 0+1+2+3)
-            //                                                // Essentially horizontal addtion of all elements.
+            //                                                // Essentially horizontal addition of all elements.
             //                                                // We could achieve the same using SSEv3 instruction
             //                                                // HADDPS.
             //
@@ -3093,7 +3091,7 @@ void CodeGen::genSIMDIntrinsicUpperRestore(GenTreeSIMD* simdNode)
 
 //------------------------------------------------------------------------
 // genSIMDIntrinsic: Generate code for a SIMD Intrinsic.  This is the main
-// routine which in turn calls apropriate genSIMDIntrinsicXXX() routine.
+// routine which in turn calls appropriate genSIMDIntrinsicXXX() routine.
 //
 // Arguments:
 //    simdNode - The GT_SIMD node
@@ -3209,4 +3207,3 @@ void CodeGen::genSIMDIntrinsic(GenTreeSIMD* simdNode)
 
 #endif // FEATURE_SIMD
 #endif //_TARGET_XARCH_
-#endif // !LEGACY_BACKEND

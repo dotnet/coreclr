@@ -26,7 +26,6 @@
 //
 #include "arraynative.h"
 #include "stringnative.h"
-#include "stringbuffer.h"
 #include "objectnative.h"
 #include "comdelegate.h"
 #include "customattribute.h"
@@ -42,8 +41,6 @@
 #include "comsynchronizable.h"
 #include "floatdouble.h"
 #include "floatsingle.h"
-#include "decimal.h"
-#include "currency.h"
 #include "comdatetime.h"
 #include "number.h"
 #include "compatibilityswitch.h"
@@ -85,10 +82,6 @@
 
 #ifdef FEATURE_MULTICOREJIT
 #include "multicorejit.h"
-#endif
-
-#ifdef FEATURE_COMINTEROP
-#include "windowsruntimebufferhelper.h"
 #endif
 
 #if defined(FEATURE_EVENTSOURCE_XPLAT)

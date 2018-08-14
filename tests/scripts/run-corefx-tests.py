@@ -82,7 +82,7 @@ def validate_args(args):
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
         (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
-            (str, str, str, str, str, str, str, str)
+            (str, str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
     an exception stating x argument is incorrect.
@@ -267,6 +267,15 @@ def main(args):
     if returncode != 0:
         sys.exit(1)
 
+    # Print the currently checked out commit hash. Mostly useful if you just checked
+    # out HEAD, which is the default.
+
+    command = "git rev-parse HEAD"
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        sys.exit(1)
+
     # On Unix, coreFx build.sh requires HOME to be set, and it isn't by default
     # under our CI system, so set it now.
 
@@ -276,11 +285,8 @@ def main(args):
             os.makedirs(fx_home)
         os.putenv('HOME', fx_home)
         log('HOME=' + fx_home)
-
-    # Determine the RID to specify the to corefix build scripts.  This seems to
-    # be way harder than it ought to be.
  
-    # Gather up some arguments to pass to both build and build-tests.
+    # Gather up some arguments to pass to build-managed, build-native, and build-tests scripts.
 
     config_args = '-Release -os:%s -buildArch:%s' % (clr_os, arch)
 
@@ -296,35 +302,38 @@ def main(args):
     # runtime with the runtime built in the coreclr build. The result will be that perhaps
     # some, hopefully few, corefx tests will fail, but the builds will never fail.
 
+    # Cross build corefx for arm64 on x64.
+    # Cross build corefx for arm32 on x86.
+
+    build_native_args = ''
+
+    if not Is_windows and arch == 'arm' :
+        # We need to force clang5.0; we are building in a docker container that doesn't have
+        # clang3.9, which is currently the default used by build-native.sh. We need to pass
+        # "-cross", but we also pass "-portable", which build-native.sh normally passes
+        # (there doesn't appear to be a way to pass these individually).
+        build_native_args += ' -AdditionalArgs:"-portable -cross" -Clang:clang5.0'
+
     if not Is_windows and arch == 'arm64' :
-        # Cross build corefx for arm64 on x64
-        command = ' '.join(('./build-native.sh', config_args))
-        log(command)
-        returncode = 0 if testing else os.system(command)
-        if returncode != 0:
-            sys.exit(1)
+        # We need to pass "-cross", but we also pass "-portable", which build-native.sh normally
+        # passes (there doesn't appear to be a way to pass these individually).
+        build_native_args += ' -AdditionalArgs:"-portable -cross"'
 
-        command = ' '.join(('./build-managed.sh', '-release'))
-        log(command)
-        returncode = 0 if testing else os.system(command)
-        if returncode != 0:
-            sys.exit(1)
+    command = ' '.join(('build-native.cmd' if Is_windows else './build-native.sh',
+                        config_args,
+                        build_native_args))
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        log('Error: exit code %s' % returncode)
+        sys.exit(1)
 
-        # Rename runtime to arm64
-        os.rename(os.path.join(fx_root,'bin','runtime', 'netcoreapp-%s-%s-%s' % (clr_os, 'Release', 'x64')),
-                  os.path.join(fx_root,'bin','runtime', 'netcoreapp-%s-%s-%s' % (clr_os, 'Release', 'arm64')))
-
-        os.rename(os.path.join(fx_root,'bin','testhost', 'netcoreapp-%s-%s-%s' % (clr_os, 'Release', 'x64')),
-                  os.path.join(fx_root,'bin','testhost', 'netcoreapp-%s-%s-%s' % (clr_os, 'Release', 'arm64')))
-
-    else:
-        command = ' '.join(('build.cmd' if Is_windows else './build.sh',
-                            config_args))
-        log(command)
-        returncode = 0 if testing else os.system(command)
-        if returncode != 0:
-            sys.exit(1)
-
+    command = ' '.join(('build-managed.cmd' if Is_windows else './build-managed.sh', config_args))
+    log(command)
+    returncode = 0 if testing else os.system(command)
+    if returncode != 0:
+        log('Error: exit code %s' % returncode)
+        sys.exit(1)
 
     # Override the built corefx runtime (which it picked up by copying from packages determined
     # by its dependencies.props file). Note that we always build Release corefx.
@@ -344,22 +353,6 @@ def main(args):
     log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
     copy_files(core_root, fx_runtime)
 
-    if not Is_windows and arch == 'arm64' :
-        fx_arm64_native = os.path.join(fx_root,
-                                       'bin',
-                                       '%s.%s.%s' % (clr_os, 'arm64', 'Release'),
-                                       'native')
-        log('Copying CoreFx Arm64 Native libraries: %s => %s' % (fx_arm64_native, fx_runtime))
-        copy_files(fx_arm64_native, fx_runtime)
-
-        # Replace dotnet binary with corerun softlink, to make run-test.sh work as is on ARM64 platform
-        # with the built runtime.
-        dotnet_base= os.path.join(fx_root,'bin','testhost', 'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch))
-        os.remove(os.path.join(dotnet_base,'dotnet'))
-        os.chdir(dotnet_base)
-        os.symlink(os.path.join('shared','Microsoft.NETCore.App','9.9.9','corerun'), 'dotnet')
-        os.chdir(fx_root)
-
     # Build the build-tests command line.
 
     if Is_windows:
@@ -369,20 +362,36 @@ def main(args):
 
     # If we're doing altjit testing, then don't run any tests that don't work with altjit.
     if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
-        # The property value we need to specify is a semicolon separated list of two values,
-        # so the two values must be enclosed in double quotes. Without the quotes, msbuild
-        # thinks the item after the semicolon is a different named property. Also, the double
-        # quotes need preceeding backslashes or else run.exe (invoked from build-tests.cmd)
-        # will eat them. They need to be double backslashes so Python preserves the backslashes.
-        without_categories = '/p:WithoutCategories=\\"IgnoreForCI;XsltcExeRequired\\"'
+        # The property value we need to specify for the WithoutCategories property is a semicolon
+        # separated list of two values, so the two values must be enclosed in double quotes, namely:
+        #
+        #  /p:WithoutCategories="IgnoreForCI;XsltcExeRequired"
+        #
+        # Without the quotes, msbuild interprets the semicolon as separating two name/value pairs,
+        # which is incorrect (and causes an error).
+        #
+        # If we pass this on the command-line, it requires an extraordinary number of backslashes
+        # to prevent special Python, dotnet CLI, CMD, and other command-line processing, as the command
+        # filters through batch files, the RUN tool, dotnet CLI, and finally gets to msbuild. To avoid
+        # this, and make it simpler and hopefully more resilient to scripting changes, we create an
+        # msbuild response file with the required text and pass the response file on to msbuild.
+
+        without_categories_filename = os.path.join(fx_root, 'msbuild_commands.rsp')
+        without_categories_string = '/p:WithoutCategories="IgnoreForCI;XsltcExeRequired"'
+        with open(without_categories_filename, "w") as without_categories_file:
+            without_categories_file.write(without_categories_string)
+        without_categories = "-- @%s" % without_categories_filename
+
+        log('Response file %s contents:' % without_categories_filename)
+        log('%s' % without_categories_string)
+        log('[end response file contents]')
     else:
-        without_categories = '/p:WithoutCategories=IgnoreForCI'
+        without_categories = '-- /p:WithoutCategories=IgnoreForCI'
 
     command = ' '.join((
         command,
         config_args,
         '-SkipTests' if no_run_tests else '',
-        '--',
         without_categories
     ))
 
@@ -397,6 +406,7 @@ def main(args):
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
+        log('Error: exit code %s' % returncode)
         sys.exit(1)
 
     sys.exit(0)

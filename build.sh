@@ -22,9 +22,11 @@ then
    exit 1
 fi
 
+export PYTHON
+
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -40,6 +42,7 @@ usage()
     echo "-configureonly - do not perform any builds; just configure the build."
     echo "-skipconfigure - skip build configuration."
     echo "-skipnative - do not build native components."
+    echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
     echo "-skiptests - skip the tests in the 'tests' subdirectory."
     echo "-skipnuget - skip building nuget packages."
@@ -49,7 +52,6 @@ usage()
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
     echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
     echo "-officialbuildid=^<ID^>: specify the official build ID to be used by this build."
-    echo "-Rebuild: passes /t:rebuild to the build projects."
     echo "-stripSymbols - Optional argument to strip native symbols during the build."
     echo "-skipgenerateversion - disable version generation even if MSBuild is supported."
     echo "-ignorewarnings - do not treat warnings as errors"
@@ -66,11 +68,14 @@ initHostDistroRid()
     if [ "$__HostOS" == "Linux" ]; then
         if [ -e /etc/os-release ]; then
             source /etc/os-release
-            if [[ $ID == "alpine" || $ID == "rhel" ]]; then
+            if [[ $ID == "rhel" ]]; then
                 # remove the last version digit
                 VERSION_ID=${VERSION_ID%.*}
             fi
             __HostDistroRid="$ID.$VERSION_ID-$__HostArch"
+            if [[ $ID == "alpine" ]]; then
+                __HostDistroRid="linux-musl-$__HostArch"
+            fi
         elif [ -e /etc/redhat-release ]; then
             local redhatRelease=$(</etc/redhat-release)
             if [[ $redhatRelease == "CentOS release 6."* || $redhatRelease == "Red Hat Enterprise Linux Server release 6."* ]]; then
@@ -217,6 +222,9 @@ generate_event_logging_sources()
     echo "Laying out dynamically generated EventPipe Implementation"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir/eventpipe"
 
+    echo "Laying out dynamically generated EventSource classes"
+    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
+
     # determine the logging system
     case $__BuildOS in
         Linux|FreeBSD)
@@ -239,7 +247,7 @@ generate_event_logging_sources()
 generate_event_logging()
 {
     # Event Logging Infrastructure
-    if [[ $__SkipCoreCLR == 0 || $__ConfigureOnly == 1 ]]; then
+    if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
         generate_event_logging_sources "$__IntermediatesDir" "the native build system"
     fi
 
@@ -381,6 +389,11 @@ isMSBuildOnNETCoreSupported()
         return
     fi
 
+    if [ $__SkipManaged == 1 ]; then
+        __isMSBuildOnNETCoreSupported=0
+        return
+    fi
+
     if [ "$__HostArch" == "x64" ]; then
         if [ "$__HostOS" == "Linux" ]; then
             __isMSBuildOnNETCoreSupported=1
@@ -443,6 +456,11 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs -OptimizationDataDir=\"$__PackagesDir/optimization.$__BuildOS-$__BuildArch.IBC.CoreCLR/$__IbcOptDataVersion/data/\""
         __ExtraBuildArgs="$__ExtraBuildArgs -EnableProfileGuidedOptimization=true"
     fi
+
+    if [[ "$__BuildManagedTools" -eq "1" ]]; then
+        __ExtraBuildArgs="$__ExtraBuildArgs -BuildManagedTools=true"
+    fi
+
     $__ProjectRoot/run.sh build -Project=$__ProjectDir/build.proj -MsBuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log" -MsBuildLog="/flp:Verbosity=normal;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log" -BuildTarget -__IntermediatesDir=$__IntermediatesDir -__RootBinDir=$__RootBinDir -BuildNugetPackage=false -UseSharedCompilation=false $__RunArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -619,6 +637,7 @@ __PgoOptimize=1
 __IbcTuning=""
 __ConfigureOnly=0
 __SkipConfigure=0
+__SkipManaged=0
 __SkipRestore=""
 __SkipNuget=0
 __SkipCoreCLR=0
@@ -638,6 +657,7 @@ __PortableBuild=1
 __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
+__BuildManagedTools=1
 
 # Get the number of processors available to the scheduler
 # Other techniques such as `nproc` only get the number of
@@ -797,6 +817,10 @@ while :; do
             __DoCrossArchBuild=1
             ;;
 
+        skipmanaged|-skipmanaged)
+            __SkipManaged=1
+            ;;
+
         skipmscorlib|-skipmscorlib)
             __SkipMSCorLib=1
             ;;
@@ -874,6 +898,10 @@ while :; do
               echo "ERROR: 'osgroup' requires a non-empty option argument"
               exit 1
             fi
+            ;;
+        rebuild|-rebuild)
+            echo "ERROR: 'Rebuild' is not supported.  Please remove it."
+            exit 1
             ;;
 
         *)

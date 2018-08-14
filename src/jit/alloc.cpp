@@ -9,46 +9,6 @@
 #endif // defined(_MSC_VER)
 
 //------------------------------------------------------------------------
-// PooledAllocator:
-//    This subclass of `ArenaAllocator` is a singleton that always keeps
-//    a single default-sized page allocated. We try to use the singleton
-//    allocator as often as possible (i.e. for all non-concurrent
-//    method compilations).
-class PooledAllocator : public ArenaAllocator
-{
-private:
-    enum
-    {
-        POOLED_ALLOCATOR_NOTINITIALIZED = 0,
-        POOLED_ALLOCATOR_IN_USE         = 1,
-        POOLED_ALLOCATOR_AVAILABLE      = 2,
-        POOLED_ALLOCATOR_SHUTDOWN       = 3,
-    };
-
-    static PooledAllocator s_pooledAllocator;
-    static LONG            s_pooledAllocatorState;
-
-    PooledAllocator() : ArenaAllocator()
-    {
-    }
-    PooledAllocator(IEEMemoryManager* memoryManager);
-
-    PooledAllocator(const PooledAllocator& other) = delete;
-    PooledAllocator& operator=(const PooledAllocator& other) = delete;
-
-public:
-    PooledAllocator& operator=(PooledAllocator&& other);
-
-    void destroy() override;
-
-    static void shutdown();
-
-    static ArenaAllocator* getPooledAllocator(IEEMemoryManager* memoryManager);
-};
-
-size_t ArenaAllocator::s_defaultPageSize = 0;
-
-//------------------------------------------------------------------------
 // ArenaAllocator::bypassHostAllocator:
 //    Indicates whether or not the ArenaAllocator should bypass the JIT
 //    host when allocating memory for arena pages.
@@ -76,64 +36,19 @@ bool ArenaAllocator::bypassHostAllocator()
 //    The default size of an arena page.
 size_t ArenaAllocator::getDefaultPageSize()
 {
-    return s_defaultPageSize;
+    return DEFAULT_PAGE_SIZE;
 }
 
 //------------------------------------------------------------------------
 // ArenaAllocator::ArenaAllocator:
 //    Default-constructs an arena allocator.
 ArenaAllocator::ArenaAllocator()
-    : m_memoryManager(nullptr)
-    , m_firstPage(nullptr)
-    , m_lastPage(nullptr)
-    , m_nextFreeByte(nullptr)
-    , m_lastFreeByte(nullptr)
+    : m_firstPage(nullptr), m_lastPage(nullptr), m_nextFreeByte(nullptr), m_lastFreeByte(nullptr)
 {
-}
-
-//------------------------------------------------------------------------
-// ArenaAllocator::ArenaAllocator:
-//    Constructs an arena allocator.
-//
-// Arguments:
-//    memoryManager - The `IEEMemoryManager` instance that will be used to
-//                    allocate memory for arena pages.
-ArenaAllocator::ArenaAllocator(IEEMemoryManager* memoryManager)
-    : m_memoryManager(memoryManager)
-    , m_firstPage(nullptr)
-    , m_lastPage(nullptr)
-    , m_nextFreeByte(nullptr)
-    , m_lastFreeByte(nullptr)
-{
-    assert(getDefaultPageSize() != 0);
-    assert(isInitialized());
-}
-
-//------------------------------------------------------------------------
-// ArenaAllocator::operator=:
-//    Move-assigns a `ArenaAllocator`.
-ArenaAllocator& ArenaAllocator::operator=(ArenaAllocator&& other)
-{
-    assert(!isInitialized());
-
-    m_memoryManager = other.m_memoryManager;
-    m_firstPage     = other.m_firstPage;
-    m_lastPage      = other.m_lastPage;
-    m_nextFreeByte  = other.m_nextFreeByte;
-    m_lastFreeByte  = other.m_lastFreeByte;
-
-    other.m_memoryManager = nullptr;
-    other.m_firstPage     = nullptr;
-    other.m_lastPage      = nullptr;
-    other.m_nextFreeByte  = nullptr;
-    other.m_lastFreeByte  = nullptr;
-
-    return *this;
-}
-
-bool ArenaAllocator::isInitialized()
-{
-    return m_memoryManager != nullptr;
+#if MEASURE_MEM_ALLOC
+    memset(&m_stats, 0, sizeof(m_stats));
+    memset(&m_statsAllocators, 0, sizeof(m_statsAllocators));
+#endif // MEASURE_MEM_ALLOC
 }
 
 //------------------------------------------------------------------------
@@ -146,21 +61,14 @@ bool ArenaAllocator::isInitialized()
 //
 // Return Value:
 //    A pointer to the first usable byte of the newly allocated page.
-void* ArenaAllocator::allocateNewPage(size_t size, bool canThrow)
+void* ArenaAllocator::allocateNewPage(size_t size)
 {
-    assert(isInitialized());
-
     size_t pageSize = sizeof(PageDescriptor) + size;
 
     // Check for integer overflow
     if (pageSize < size)
     {
-        if (canThrow)
-        {
-            NOMEM();
-        }
-
-        return nullptr;
+        NOMEM();
     }
 
     // If the current page is now full, update a few statistics
@@ -173,34 +81,28 @@ void* ArenaAllocator::allocateNewPage(size_t size, bool canThrow)
         m_lastPage->m_usedBytes = m_nextFreeByte - m_lastPage->m_contents;
     }
 
-    // Round up to a default-sized page if necessary
-    if (pageSize <= s_defaultPageSize)
-    {
-        pageSize = s_defaultPageSize;
-    }
+    PageDescriptor* newPage = nullptr;
 
-    // Round to the nearest multiple of OS page size if necessary
     if (!bypassHostAllocator())
     {
+        // Round to the nearest multiple of default page size
         pageSize = roundUp(pageSize, DEFAULT_PAGE_SIZE);
     }
 
-    // Allocate the new page
-    PageDescriptor* newPage = (PageDescriptor*)allocateHostMemory(pageSize);
     if (newPage == nullptr)
     {
-        if (canThrow)
+        // Allocate the new page
+        newPage = static_cast<PageDescriptor*>(allocateHostMemory(pageSize, &pageSize));
+
+        if (newPage == nullptr)
         {
             NOMEM();
         }
-
-        return nullptr;
     }
 
     // Append the new page to the end of the list
     newPage->m_next      = nullptr;
     newPage->m_pageBytes = pageSize;
-    newPage->m_previous  = m_lastPage;
     newPage->m_usedBytes = 0; // m_usedBytes is meaningless until a new page is allocated.
                               // Instead of letting it contain garbage (so to confuse us),
                               // set it to zero.
@@ -229,21 +131,20 @@ void* ArenaAllocator::allocateNewPage(size_t size, bool canThrow)
 //    Performs any necessary teardown for an `ArenaAllocator`.
 void ArenaAllocator::destroy()
 {
-    assert(isInitialized());
+    PageDescriptor* page = m_firstPage;
 
     // Free all of the allocated pages
-    for (PageDescriptor *page = m_firstPage, *next; page != nullptr; page = next)
+    for (PageDescriptor* next; page != nullptr; page = next)
     {
         next = page->m_next;
-        freeHostMemory(page);
+        freeHostMemory(page, page->m_pageBytes);
     }
 
     // Clear out the allocator's fields
-    m_memoryManager = nullptr;
-    m_firstPage     = nullptr;
-    m_lastPage      = nullptr;
-    m_nextFreeByte  = nullptr;
-    m_lastFreeByte  = nullptr;
+    m_firstPage    = nullptr;
+    m_lastPage     = nullptr;
+    m_nextFreeByte = nullptr;
+    m_lastFreeByte = nullptr;
 }
 
 // The debug version of the allocator may allocate directly from the
@@ -263,25 +164,21 @@ void ArenaAllocator::destroy()
 //
 // Arguments:
 //    size - The number of bytes to allocate.
+//    pActualSize - The number of byte actually allocated.
 //
 // Return Value:
 //    A pointer to the allocated memory.
-void* ArenaAllocator::allocateHostMemory(size_t size)
+void* ArenaAllocator::allocateHostMemory(size_t size, size_t* pActualSize)
 {
-    assert(isInitialized());
-
 #if defined(DEBUG)
     if (bypassHostAllocator())
     {
+        *pActualSize = size;
         return ::HeapAlloc(GetProcessHeap(), 0, size);
     }
-    else
-    {
-        return ClrAllocInProcessHeap(0, S_SIZE_T(size));
-    }
-#else  // defined(DEBUG)
-    return m_memoryManager->ClrVirtualAlloc(nullptr, size, MEM_COMMIT, PAGE_READWRITE);
 #endif // !defined(DEBUG)
+
+    return g_jitHost->allocateSlab(size, pActualSize);
 }
 
 //------------------------------------------------------------------------
@@ -290,22 +187,17 @@ void* ArenaAllocator::allocateHostMemory(size_t size)
 //
 // Arguments:
 //    block - A pointer to the memory to free.
-void ArenaAllocator::freeHostMemory(void* block)
+void ArenaAllocator::freeHostMemory(void* block, size_t size)
 {
-    assert(isInitialized());
-
 #if defined(DEBUG)
     if (bypassHostAllocator())
     {
         ::HeapFree(GetProcessHeap(), 0, block);
+        return;
     }
-    else
-    {
-        ClrFreeInProcessHeap(0, block);
-    }
-#else  // defined(DEBUG)
-    m_memoryManager->ClrVirtualFree(block, 0, MEM_RELEASE);
 #endif // !defined(DEBUG)
+
+    g_jitHost->freeSlab(block, size);
 }
 
 //------------------------------------------------------------------------
@@ -317,8 +209,6 @@ void ArenaAllocator::freeHostMemory(void* block)
 //    See above.
 size_t ArenaAllocator::getTotalBytesAllocated()
 {
-    assert(isInitialized());
-
     size_t bytes = 0;
     for (PageDescriptor* page = m_firstPage; page != nullptr; page = page->m_next)
     {
@@ -345,8 +235,6 @@ size_t ArenaAllocator::getTotalBytesAllocated()
 //    that are unused across all area pages.
 size_t ArenaAllocator::getTotalBytesUsed()
 {
-    assert(isInitialized());
-
     if (m_lastPage != nullptr)
     {
         m_lastPage->m_usedBytes = m_nextFreeByte - m_lastPage->m_contents;
@@ -361,176 +249,90 @@ size_t ArenaAllocator::getTotalBytesUsed()
     return bytes;
 }
 
-//------------------------------------------------------------------------
-// ArenaAllocator::startup:
-//    Performs any necessary initialization for the arena allocator
-//    subsystem.
-void ArenaAllocator::startup()
+#if MEASURE_MEM_ALLOC
+CritSecObject                     ArenaAllocator::s_statsLock;
+ArenaAllocator::AggregateMemStats ArenaAllocator::s_aggStats;
+ArenaAllocator::MemStats          ArenaAllocator::s_maxStats;
+
+const char* ArenaAllocator::MemStats::s_CompMemKindNames[] = {
+#define CompMemKindMacro(kind) #kind,
+#include "compmemkind.h"
+};
+
+void ArenaAllocator::MemStats::Print(FILE* f)
 {
-    s_defaultPageSize = bypassHostAllocator() ? (size_t)MIN_PAGE_SIZE : (size_t)DEFAULT_PAGE_SIZE;
+    fprintf(f, "count: %10u, size: %10llu, max = %10llu\n", allocCnt, allocSz, allocSzMax);
+    fprintf(f, "allocateMemory: %10llu, nraUsed: %10llu\n", nraTotalSizeAlloc, nraTotalSizeUsed);
+    PrintByKind(f);
 }
 
-//------------------------------------------------------------------------
-// ArenaAllocator::shutdown:
-//    Performs any necessary teardown for the arena allocator subsystem.
-void ArenaAllocator::shutdown()
+void ArenaAllocator::MemStats::PrintByKind(FILE* f)
 {
-    PooledAllocator::shutdown();
-}
-
-PooledAllocator PooledAllocator::s_pooledAllocator;
-LONG            PooledAllocator::s_pooledAllocatorState = POOLED_ALLOCATOR_NOTINITIALIZED;
-
-//------------------------------------------------------------------------
-// PooledAllocator::PooledAllocator:
-//    Constructs a `PooledAllocator`.
-PooledAllocator::PooledAllocator(IEEMemoryManager* memoryManager) : ArenaAllocator(memoryManager)
-{
-}
-
-//------------------------------------------------------------------------
-// PooledAllocator::operator=:
-//    Move-assigns a `PooledAllocator`.
-PooledAllocator& PooledAllocator::operator=(PooledAllocator&& other)
-{
-    *((ArenaAllocator*)this) = std::move((ArenaAllocator &&)other);
-    return *this;
-}
-
-//------------------------------------------------------------------------
-// PooledAllocator::shutdown:
-//    Performs any necessary teardown for the pooled allocator.
-//
-// Notes:
-//    If the allocator has been initialized and is in use when this method is called,
-//    it is up to whatever is using the pooled allocator to call `destroy` in order
-//    to free its memory.
-void PooledAllocator::shutdown()
-{
-    LONG oldState = InterlockedExchange(&s_pooledAllocatorState, POOLED_ALLOCATOR_SHUTDOWN);
-    switch (oldState)
+    fprintf(f, "\nAlloc'd bytes by kind:\n  %20s | %10s | %7s\n", "kind", "size", "pct");
+    fprintf(f, "  %20s-+-%10s-+-%7s\n", "--------------------", "----------", "-------");
+    float allocSzF = static_cast<float>(allocSz);
+    for (int cmk = 0; cmk < CMK_Count; cmk++)
     {
-        case POOLED_ALLOCATOR_NOTINITIALIZED:
-        case POOLED_ALLOCATOR_SHUTDOWN:
-        case POOLED_ALLOCATOR_IN_USE:
-            return;
+        float pct = 100.0f * static_cast<float>(allocSzByKind[cmk]) / allocSzF;
+        fprintf(f, "  %20s | %10llu | %6.2f%%\n", s_CompMemKindNames[cmk], allocSzByKind[cmk], pct);
+    }
+    fprintf(f, "\n");
+}
 
-        case POOLED_ALLOCATOR_AVAILABLE:
-            // The pooled allocator was initialized and not in use; we must destroy it.
-            s_pooledAllocator.destroy();
-            break;
+void ArenaAllocator::AggregateMemStats::Print(FILE* f)
+{
+    fprintf(f, "For %9u methods:\n", nMethods);
+    if (nMethods == 0)
+    {
+        return;
+    }
+    fprintf(f, "  count:       %12u (avg %7u per method)\n", allocCnt, allocCnt / nMethods);
+    fprintf(f, "  alloc size : %12llu (avg %7llu per method)\n", allocSz, allocSz / nMethods);
+    fprintf(f, "  max alloc  : %12llu\n", allocSzMax);
+    fprintf(f, "\n");
+    fprintf(f, "  allocateMemory   : %12llu (avg %7llu per method)\n", nraTotalSizeAlloc, nraTotalSizeAlloc / nMethods);
+    fprintf(f, "  nraUsed    : %12llu (avg %7llu per method)\n", nraTotalSizeUsed, nraTotalSizeUsed / nMethods);
+    PrintByKind(f);
+}
+
+ArenaAllocator::MemStatsAllocator* ArenaAllocator::getMemStatsAllocator(CompMemKind kind)
+{
+    assert(kind < CMK_Count);
+
+    if (m_statsAllocators[kind].m_arena == nullptr)
+    {
+        m_statsAllocators[kind].m_arena = this;
+        m_statsAllocators[kind].m_kind  = kind;
+    }
+
+    return &m_statsAllocators[kind];
+}
+
+void ArenaAllocator::finishMemStats()
+{
+    m_stats.nraTotalSizeAlloc = getTotalBytesAllocated();
+    m_stats.nraTotalSizeUsed  = getTotalBytesUsed();
+
+    CritSecHolder statsLock(s_statsLock);
+    s_aggStats.Add(m_stats);
+    if (m_stats.allocSz > s_maxStats.allocSz)
+    {
+        s_maxStats = m_stats;
     }
 }
 
-//------------------------------------------------------------------------
-// PooledAllocator::getPooledAllocator:
-//    Returns the pooled allocator if it is not already in use.
-//
-// Arguments:
-//    memoryManager: The `IEEMemoryManager` instance in use by the caller.
-//
-// Return Value:
-//    A pointer to the pooled allocator if it is available or `nullptr`
-//    if it is already in use.
-//
-// Notes:
-//    Calling `destroy` on the returned allocator will return it to the
-//    pool.
-ArenaAllocator* PooledAllocator::getPooledAllocator(IEEMemoryManager* memoryManager)
+void ArenaAllocator::dumpMemStats(FILE* file)
 {
-    LONG oldState = InterlockedExchange(&s_pooledAllocatorState, POOLED_ALLOCATOR_IN_USE);
-    switch (oldState)
-    {
-        case POOLED_ALLOCATOR_IN_USE:
-        case POOLED_ALLOCATOR_SHUTDOWN:
-            // Either the allocator is in use or this call raced with a call to `shutdown`.
-            // Return `nullptr`.
-            return nullptr;
-
-        case POOLED_ALLOCATOR_AVAILABLE:
-            if (s_pooledAllocator.m_memoryManager != memoryManager)
-            {
-                // The allocator is available, but it was initialized with a different
-                // memory manager. Release it and return `nullptr`.
-                InterlockedExchange(&s_pooledAllocatorState, POOLED_ALLOCATOR_AVAILABLE);
-                return nullptr;
-            }
-
-            return &s_pooledAllocator;
-
-        case POOLED_ALLOCATOR_NOTINITIALIZED:
-        {
-            PooledAllocator allocator(memoryManager);
-            if (allocator.allocateNewPage(0, false) == nullptr)
-            {
-                // Failed to grab the initial memory page.
-                InterlockedExchange(&s_pooledAllocatorState, POOLED_ALLOCATOR_NOTINITIALIZED);
-                return nullptr;
-            }
-
-            s_pooledAllocator = std::move(allocator);
-        }
-
-            return &s_pooledAllocator;
-
-        default:
-            assert(!"Unknown pooled allocator state");
-            unreached();
-    }
+    m_stats.Print(file);
 }
 
-//------------------------------------------------------------------------
-// PooledAllocator::destroy:
-//    Performs any necessary teardown for an `PooledAllocator` and returns the allocator
-//    to the pool.
-void PooledAllocator::destroy()
+void ArenaAllocator::dumpAggregateMemStats(FILE* file)
 {
-    assert(isInitialized());
-    assert(this == &s_pooledAllocator);
-    assert(s_pooledAllocatorState == POOLED_ALLOCATOR_IN_USE || s_pooledAllocatorState == POOLED_ALLOCATOR_SHUTDOWN);
-    assert(m_firstPage != nullptr);
-
-    // Free all but the first allocated page
-    for (PageDescriptor *page = m_firstPage->m_next, *next; page != nullptr; page = next)
-    {
-        next = page->m_next;
-        freeHostMemory(page);
-    }
-
-    // Reset the relevant state to point back to the first byte of the first page
-    m_firstPage->m_next = nullptr;
-    m_lastPage          = m_firstPage;
-    m_nextFreeByte      = m_firstPage->m_contents;
-    m_lastFreeByte      = (BYTE*)m_firstPage + m_firstPage->m_pageBytes;
-
-    assert(getTotalBytesAllocated() == s_defaultPageSize);
-
-    // If we've already been shut down, free the first page. Otherwise, return the allocator to the pool.
-    if (s_pooledAllocatorState == POOLED_ALLOCATOR_SHUTDOWN)
-    {
-        ArenaAllocator::destroy();
-    }
-    else
-    {
-        InterlockedExchange(&s_pooledAllocatorState, POOLED_ALLOCATOR_AVAILABLE);
-    }
+    s_aggStats.Print(file);
 }
 
-//------------------------------------------------------------------------
-// ArenaAllocator::getPooledAllocator:
-//    Returns the pooled allocator if it is not already in use.
-//
-// Arguments:
-//    memoryManager: The `IEEMemoryManager` instance in use by the caller.
-//
-// Return Value:
-//    A pointer to the pooled allocator if it is available or `nullptr`
-//    if it is already in use.
-//
-// Notes:
-//    Calling `destroy` on the returned allocator will return it to the
-//    pool.
-ArenaAllocator* ArenaAllocator::getPooledAllocator(IEEMemoryManager* memoryManager)
+void ArenaAllocator::dumpMaxMemStats(FILE* file)
 {
-    return PooledAllocator::getPooledAllocator(memoryManager);
+    s_maxStats.Print(file);
 }
+#endif // MEASURE_MEM_ALLOC

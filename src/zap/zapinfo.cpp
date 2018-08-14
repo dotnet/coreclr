@@ -422,6 +422,10 @@ void ZapInfo::CompileMethod()
     if (m_currentMethodInfo.ILCodeSize == 0)
         return;
 
+    // If we are doing partial ngen, only compile methods with profile data
+    if (!CurrentMethodHasProfileData() && m_zapper->m_pOpt->m_fPartialNGen)
+        return;
+
     // During ngen we look for a hint attribute on the method that indicates
     // the method should be preprocessed for early
     // preparation. This normally happens automatically, but for methods that
@@ -1070,7 +1074,7 @@ void ZapInfo::allocMem(
         }
         else if (optForSize || (roDataSize < 8))
         {
-            align = sizeof(TADDR);
+            align = TARGET_POINTER_SIZE;
         }
         else
         {
@@ -1686,6 +1690,13 @@ void* ZapInfo::getTailCallCopyArgsThunk (
     return m_pImage->GetWrappers()->GetStub(pStub);
 }
 
+bool ZapInfo::convertPInvokeCalliToCall(
+                    CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                    bool fMustConvert)
+{
+    return false;
+}
+
 #ifdef FEATURE_READYTORUN_COMPILER
 ReadyToRunHelper MapReadyToRunHelper(CorInfoHelpFunc func, bool * pfOptimizeForSize)
 {
@@ -1741,13 +1752,13 @@ void * ZapInfo::getHelperFtn (CorInfoHelpFunc ftnNum, void **ppIndirection)
     switch (ftnNum)
     {
     case CORINFO_HELP_PROF_FCN_ENTER:
-        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexEnterAddr * sizeof(TADDR));
+        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexEnterAddr * TARGET_POINTER_SIZE);
         return NULL;
     case CORINFO_HELP_PROF_FCN_LEAVE:
-        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexLeaveAddr * sizeof(TADDR));
+        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexLeaveAddr * TARGET_POINTER_SIZE);
         return NULL;
     case CORINFO_HELP_PROF_FCN_TAILCALL:
-        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexTailcallAddr * sizeof(TADDR));
+        *ppIndirection = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexTailcallAddr * TARGET_POINTER_SIZE);
         return NULL;
 #ifdef _TARGET_AMD64_
     case CORINFO_HELP_STOP_FOR_GC:
@@ -2036,7 +2047,7 @@ void ZapInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
     //
     // Profiling handle is opaque token. It does not have to be aligned thus we can not store it in the same location as token.
     //
-    *pProfilerHandle = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexClientData * sizeof(TADDR));
+    *pProfilerHandle = m_pImage->GetInnerPtr(GetProfilingHandleImport(), kZapProfilingHandleImportValueIndexClientData * TARGET_POINTER_SIZE);
 
     // All functions get hooked in ngen /Profile
     *pbHookFunction = TRUE;
@@ -2314,7 +2325,7 @@ void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection
     AppendConditionalImport(pImport);
 
     // Field address is not aligned thus we can not store it in the same location as token.
-    *ppIndirection = m_pImage->GetInnerPtr(pImport, sizeof(TADDR));
+    *ppIndirection = m_pImage->GetInnerPtr(pImport, TARGET_POINTER_SIZE);
 
     return NULL;
 }
@@ -2563,7 +2574,7 @@ void ZapInfo::recordRelocation(void *location, void *target,
         break;
 
     case IMAGE_REL_BASED_PTR:
-        *(UNALIGNED TADDR *)location = (TADDR)targetOffset;
+        *(UNALIGNED TARGET_POINTER_TYPE *)location = (TARGET_POINTER_TYPE)targetOffset;
         break;
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
@@ -2614,7 +2625,7 @@ void ZapInfo::recordRelocation(void *location, void *target,
         SIZE_T totalCodeSize = m_pCode->GetSize() + ((m_pColdCode != NULL) ? m_pColdCode->GetSize() : 0);
 
         // Prealocate relocations (assume that every other pointer may need relocation)
-        COUNT_T nEstimatedRelocations = (COUNT_T)(totalCodeSize / (2 * sizeof(TADDR)));
+        COUNT_T nEstimatedRelocations = (COUNT_T)(totalCodeSize / (2 * TARGET_POINTER_SIZE));
         if (nEstimatedRelocations > 1)
             m_CodeRelocations.Preallocate(nEstimatedRelocations);
     }
@@ -2642,8 +2653,6 @@ WORD ZapInfo::getRelocTypeHint(void * target)
 
 void ZapInfo::getModuleNativeEntryPointRange(void** pStart, void** pEnd)
 {
-    ULONG rvaStart, rvaEnd;
-
     // Initialize outparams to default range of (0,0).
     *pStart = 0;
     *pEnd = 0;

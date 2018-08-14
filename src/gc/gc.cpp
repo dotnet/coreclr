@@ -3874,7 +3874,7 @@ class CObjectHeader : public Object
 {
 public:
 
-#ifdef FEATURE_REDHAWK
+#if defined(FEATURE_REDHAWK) || defined(BUILD_AS_STANDALONE)
     // The GC expects the following methods that are provided by the Object class in the CLR but not provided
     // by Redhawk's version of Object.
     uint32_t GetNumComponents()
@@ -5051,19 +5051,13 @@ public:
         if (!GCToOSInterface::CanGetCurrentProcessorNumber())
         {
             n_sniff_buffers = n_heaps*2+1;
-            size_t sniff_buf_size = 0;
-#ifdef FEATURE_REDHAWK
-            size_t n_cache_lines = 1 + n_heaps*n_sniff_buffers + 1;
-            sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
-#else
-            S_SIZE_T safe_sniff_buf_size = S_SIZE_T(1 + n_heaps*n_sniff_buffers + 1);
-            safe_sniff_buf_size *= HS_CACHE_LINE_SIZE;
-            if (safe_sniff_buf_size.IsOverflow())
+            size_t n_cache_lines = 1 + n_heaps * n_sniff_buffers + 1;
+            size_t sniff_buf_size = n_cache_lines * HS_CACHE_LINE_SIZE;
+            if (sniff_buf_size / HS_CACHE_LINE_SIZE != n_cache_lines) // check for overlow
             {
                 return FALSE;
             }
-            sniff_buf_size = safe_sniff_buf_size.Value();
-#endif //FEATURE_REDHAWK
+
             sniff_buffer = new (nothrow) uint8_t[sniff_buf_size];
             if (sniff_buffer == 0)
                 return FALSE;
@@ -5345,7 +5339,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
 bool gc_heap::create_gc_thread ()
 {
     dprintf (3, ("Creating gc thread\n"));
-    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, "Server GC");
+    return GCToEEInterface::CreateThread(gc_thread_stub, this, false, ".NET Server GC");
 }
 
 #ifdef _MSC_VER
@@ -5463,7 +5457,7 @@ void gc_heap::gc_thread_function ()
 
 bool virtual_alloc_commit_for_heap(void* addr, size_t size, int h_number)
 {
-#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if defined(MULTIPLE_HEAPS) && !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL) && !defined(BUILD_AS_STANDALONE)
     // Currently there is no way for us to specific the numa node to allocate on via hosting interfaces to
     // a host. This will need to be added later.
 #if !defined(FEATURE_CORECLR)
@@ -6594,19 +6588,13 @@ void gc_heap::set_brick (size_t index, ptrdiff_t val)
 }
 
 inline
-int gc_heap::brick_entry (size_t index)
+int gc_heap::get_brick_entry (size_t index)
 {
-    int val = brick_table [index];
-    if (val == 0)
-    {
-        return -32768;
-    }
-    else if (val < 0)
-    {
-        return val;
-    }
-    else
-        return val-1;
+#ifdef MULTIPLE_HEAPS
+    return VolatileLoadWithoutBarrier(&brick_table [index]);
+#else
+    return brick_table[index];
+#endif
 }
 
 
@@ -9017,7 +9005,7 @@ inline size_t my_get_size (Object* ob)
 #ifdef COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointersOrCollectible()
 
-#define get_class_object(i) method_table(i)->GetLoaderAllocatorObjectForGC()
+#define get_class_object(i) GCToEEInterface::GetLoaderAllocatorObjectForGC((Object *)i)
 #define is_collectible(i) method_table(i)->Collectible()
 #else //COLLECTIBLE_CLASS
 #define contain_pointers_or_collectible(i) header(i)->ContainsPointers()
@@ -11697,7 +11685,7 @@ check_other_factors:
     dprintf (2, ("FGN: we estimate gen%d will be collected", n));
 
 #ifdef BACKGROUND_GC
-    // When background GC is enabled it decreases the accurancy of our predictability -
+    // When background GC is enabled it decreases the accuracy of our predictability -
     // by the time the GC happens, we may not be under BGC anymore. If we try to 
     // predict often enough it should be ok.
     if ((n == max_generation) &&
@@ -16311,6 +16299,7 @@ void gc_heap::update_collection_counts ()
 inline
 BOOL AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
+#ifndef BUILD_AS_STANDALONE
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -16321,11 +16310,13 @@ BOOL AnalyzeSurvivorsRequested(int condemnedGeneration)
             return TRUE;
         }
     }
+#endif // BUILD_AS_STANDALONE
     return FALSE;
 }
 
 void DACNotifyGcMarkEnd(int condemnedGeneration)
 {
+#ifndef BUILD_AS_STANDALONE
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -16336,6 +16327,7 @@ void DACNotifyGcMarkEnd(int condemnedGeneration)
             DACNotify::DoGCNotification(gea);
         }
     }
+#endif // BUILD_AS_STANDALONE
 }
 #endif // HEAP_ANALYZE
 
@@ -17155,7 +17147,7 @@ uint8_t* gc_heap::find_object (uint8_t* interior, uint8_t* low)
 #endif //MULTIPLE_HEAPS
 #endif //FFIND_OBJECT
 
-    int brick_entry = brick_table [brick_of (interior)];
+    int brick_entry = get_brick_entry(brick_of (interior));
     if (brick_entry == 0)
     {
         // this is a pointer to a large object
@@ -17513,7 +17505,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
         }
     }
 
-    dprintf (3, ("enquing P #%Id(%Ix): %Ix. oldest: %Id, LO: %Ix, pre: %d", 
+    dprintf (3, ("enqueuing P #%Id(%Ix): %Ix. oldest: %Id, LO: %Ix, pre: %d", 
         mark_stack_tos, &mark_stack_array[mark_stack_tos], plug, mark_stack_bos, last_object_in_last_plug, (save_pre_plug_info_p ? 1 : 0)));
     mark& m = mark_stack_array[mark_stack_tos];
     m.first = plug;
@@ -21110,7 +21102,7 @@ void gc_heap::compact_loh()
             {
                 if (!heap_segment_read_only_p (seg))
                 {
-                    // We grew the segment to accommondate allocations.
+                    // We grew the segment to accommodate allocations.
                     if (heap_segment_plan_allocated (seg) > heap_segment_allocated (seg))
                     {
                         if ((heap_segment_plan_allocated (seg) - plug_skew)  > heap_segment_used (seg))
@@ -26731,7 +26723,7 @@ BOOL gc_heap::create_bgc_thread(gc_heap* gh)
 
     //dprintf (2, ("Creating BGC thread"));
 
-    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, "Background GC");
+    gh->bgc_thread_running = GCToEEInterface::CreateThread(gh->bgc_thread_stub, gh, true, ".NET Background GC");
     return gh->bgc_thread_running;
 }
 
@@ -27326,7 +27318,7 @@ uint8_t* gc_heap::find_first_object (uint8_t* start, uint8_t* first_object)
             {
                 break;
             }
-            if ((brick_entry =  brick_table [ prev_brick ]) >= 0)
+            if ((brick_entry = get_brick_entry(prev_brick)) >= 0)
             {
                 break;
             }
@@ -34221,10 +34213,6 @@ GCHeap::AllocAlign8Common(void* _hp, alloc_context* acontext, size_t size, uint3
 #endif //COUNT_CYCLES
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
-
     if (size < LARGE_OBJECT_SIZE)
     {
 #ifdef TRACE_GC
@@ -34400,10 +34388,6 @@ GCHeap::Alloc(gc_alloc_context* context, size_t size, uint32_t flags REQD_ALIGN_
         assert (acontext->get_alloc_heap());
     }
 #endif //MULTIPLE_HEAPS
-
-#ifndef FEATURE_REDHAWK
-    GCStress<gc_on_alloc>::MaybeTrigger(acontext);
-#endif // FEATURE_REDHAWK
 
 #ifdef MULTIPLE_HEAPS
     gc_heap* hp = acontext->get_alloc_heap()->pGenGCHeap;

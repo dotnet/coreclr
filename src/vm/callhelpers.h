@@ -30,6 +30,11 @@ struct CallDescrData
     UINT32                      fpReturnSize;
     PCODE                       pTarget;
 
+#ifdef CALLDESCR_RETBUFFARGREG
+    // Pointer to return buffer arg location
+    UINT64*                     pRetBuffArg;
+#endif
+
     //
     // Return value
     //
@@ -130,6 +135,21 @@ private:
 
         m_argIt.ForceSigWalk();
     }
+
+    void DefaultInit(TypeHandle th)
+    {
+        CONTRACTL
+        {
+            MODE_ANY;
+        GC_TRIGGERS;
+        THROWS;
+        }
+        CONTRACTL_END;
+
+        m_pCallTarget = m_pMD->GetCallTarget(NULL, th);
+
+        m_argIt.ForceSigWalk();
+}
 
 #ifdef FEATURE_INTERPRETER
 public:
@@ -234,6 +254,25 @@ public:
         DefaultInit(porProtectedThis);
     }
     
+    MethodDescCallSite(MethodDesc* pMD, TypeHandle th) :
+        m_pMD(pMD),
+        m_methodSig(pMD, th),
+        m_argIt(&m_methodSig)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
+        // We don't have a "this" pointer - ensure that we have activated the containing module
+        m_pMD->EnsureActive();
+
+        DefaultInit(th);
+    }
+
     //
     // Only use this constructor if you're certain you know where
     // you're going and it cannot be affected by generics/virtual

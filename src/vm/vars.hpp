@@ -79,14 +79,12 @@ class LoaderHeap;
 class IGCHeap;
 class Object;
 class StringObject;
-class TransparentProxyObject;
 class ArrayClass;
 class MethodTable;
 class MethodDesc;
 class SyncBlockCache;
 class SyncTableEntry;
 class ThreadStore;
-class IPCWriterInterface;
 namespace ETW { class CEtwTracer; };
 class DebugInterface;
 class DebugInfoManager;
@@ -158,7 +156,6 @@ class OBJECTREF {
         class ArrayBase* m_asArray;
         class PtrArray* m_asPtrArray;
         class DelegateObject* m_asDelegate;
-        class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
@@ -316,8 +313,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
-#define ObjectToSTRINGBUFFERREF(obj)    (STRINGBUFFERREF(obj))
-#define STRINGBUFFERREFToObject(objref) (*( (StringBufferObject**) &(objref) ))
 
 #else   // _DEBUG_IMPL
 
@@ -328,8 +323,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
-#define ObjectToSTRINGBUFFERREF(obj)    ((Ptr_StringBufferObject) (obj))
-#define STRINGBUFFERREFToObject(objref) ((Ptr_StringBufferObject) (objref))
 
 #endif // _DEBUG_IMPL
 
@@ -444,12 +437,6 @@ typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_IPCMAN
-// support for IPCManager
-typedef DPTR(IPCWriterInterface) PTR_IPCWriterInterface;
-GPTR_DECL(IPCWriterInterface,  g_pIPCManagerInterface);
-#endif // FEATURE_IPCMAN
-
 // support for Event Tracing for Windows (ETW)
 EXTERN ETW::CEtwTracer* g_pEtwTracer;
 
@@ -528,6 +515,7 @@ EXTERN BOOL g_fComStarted;
 //
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
+EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
 #ifndef DACCESS_COMPILE
 EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;

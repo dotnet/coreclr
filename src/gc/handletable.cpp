@@ -80,7 +80,7 @@ __inline PTR_HandleTable Table(HHANDLETABLE hTable)
 /*
  * HndCreateHandleTable
  *
- * Alocates and initializes a handle table.
+ * Allocates and initializes a handle table.
  *
  */
 HHANDLETABLE HndCreateHandleTable(const uint32_t *pTypeFlags, uint32_t uTypeCount, ADIndex uADIndex)
@@ -300,14 +300,6 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
         SO_INTOLERANT;
     }
     CONTRACTL_END;
-
-#if defined( _DEBUG) && !defined(FEATURE_REDHAWK)
-    if (g_pConfig->ShouldInjectFault(INJECTFAULT_HANDLETABLE))
-    {
-        FAULT_NOT_FATAL();
-        return NULL;
-    }
-#endif // _DEBUG && !FEATURE_REDHAWK
 
     // If we are creating a variable-strength handle, verify that the
     // requested variable handle type is valid.

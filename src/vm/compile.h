@@ -355,6 +355,8 @@ class CEECompileInfo : public ICorCompileInfo
             IN  CORINFO_METHOD_HANDLE    hMethod,
             OUT CORJIT_FLAGS            *pFlags);
 
+    ICorJitHost* GetJitHost();
+
     void* GetStubSize(void *pStubAddress, DWORD *pSizeToCopy);
 
     HRESULT GetStubClone(void *pStub, BYTE *pBuffer, DWORD dwBufferSize);
@@ -789,7 +791,6 @@ class CompilationDomain : public AppDomain,
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 

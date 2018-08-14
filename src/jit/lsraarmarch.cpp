@@ -19,8 +19,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARMARCH_ // This file is ONLY used for ARM and ARM64 architectures
 
 #include "jit.h"
@@ -35,18 +33,20 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 // Arguments:
 //    indirTree - GT_IND, GT_STOREIND or block gentree node
 //
-void LinearScan::BuildIndir(GenTreeIndir* indirTree)
+// Return Value:
+//    The number of sources consumed by this node.
+//
+int LinearScan::BuildIndir(GenTreeIndir* indirTree)
 {
-    TreeNodeInfo* info = currentNodeInfo;
+    int srcCount = 0;
     // If this is the rhs of a block copy (i.e. non-enregisterable struct),
     // it has no register requirements.
     if (indirTree->TypeGet() == TYP_STRUCT)
     {
-        return;
+        return srcCount;
     }
 
-    bool isStore   = (indirTree->gtOper == GT_STOREIND);
-    info->srcCount = GetIndirInfo(indirTree);
+    bool isStore = (indirTree->gtOper == GT_STOREIND);
 
     GenTree* addr  = indirTree->Addr();
     GenTree* index = nullptr;
@@ -68,11 +68,12 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
 
         if (type == TYP_FLOAT)
         {
-            info->internalIntCount = 1;
+            buildInternalIntRegisterDefForNode(indirTree);
         }
         else if (type == TYP_DOUBLE)
         {
-            info->internalIntCount = 2;
+            buildInternalIntRegisterDefForNode(indirTree);
+            buildInternalIntRegisterDefForNode(indirTree);
         }
     }
 #endif
@@ -89,12 +90,12 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
         if ((index != nullptr) && (cns != 0))
         {
             // ARM does not support both Index and offset so we need an internal register
-            info->internalIntCount++;
+            buildInternalIntRegisterDefForNode(indirTree);
         }
         else if (!emitter::emitIns_valid_imm_for_ldst_offset(cns, emitTypeSize(indirTree)))
         {
             // This offset can't be contained in the ldr/str instruction, so we need an internal register
-            info->internalIntCount++;
+            buildInternalIntRegisterDefForNode(indirTree);
         }
     }
 
@@ -102,13 +103,22 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
     if (indirTree->TypeGet() == TYP_SIMD12)
     {
         // If indirTree is of TYP_SIMD12, addr is not contained. See comment in LowerIndir().
-        assert(!indirTree->Addr()->isContained());
+        assert(!addr->isContained());
 
         // Vector3 is read/written as two reads/writes: 8 byte and 4 byte.
         // To assemble the vector properly we would need an additional int register
-        info->internalIntCount = 1;
+        buildInternalIntRegisterDefForNode(indirTree);
     }
 #endif // FEATURE_SIMD
+
+    srcCount = BuildIndirUses(indirTree);
+    buildInternalRegisterUses();
+
+    if (indirTree->gtOper != GT_STOREIND)
+    {
+        BuildDef(indirTree);
+    }
+    return srcCount;
 }
 
 //------------------------------------------------------------------------
@@ -118,36 +128,33 @@ void LinearScan::BuildIndir(GenTreeIndir* indirTree)
 //    call - The call node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
-void LinearScan::BuildCall(GenTreeCall* call)
+int LinearScan::BuildCall(GenTreeCall* call)
 {
-    TreeNodeInfo*   info              = currentNodeInfo;
     bool            hasMultiRegRetVal = false;
     ReturnTypeDesc* retTypeDesc       = nullptr;
+    regMaskTP       dstCandidates     = RBM_NONE;
 
-    info->srcCount = 0;
+    int srcCount = 0;
+    int dstCount = 0;
     if (call->TypeGet() != TYP_VOID)
     {
         hasMultiRegRetVal = call->HasMultiRegRetVal();
         if (hasMultiRegRetVal)
         {
             // dst count = number of registers in which the value is returned by call
-            retTypeDesc    = call->GetReturnTypeDesc();
-            info->dstCount = retTypeDesc->GetReturnRegCount();
+            retTypeDesc = call->GetReturnTypeDesc();
+            dstCount    = retTypeDesc->GetReturnRegCount();
         }
         else
         {
-            info->dstCount = 1;
+            dstCount = 1;
         }
     }
-    else
-    {
-        info->dstCount = 0;
-    }
 
-    GenTree*              ctrlExpr     = call->gtControlExpr;
-    LocationInfoListNode* ctrlExprInfo = nullptr;
+    GenTree*  ctrlExpr           = call->gtControlExpr;
+    regMaskTP ctrlExprCandidates = RBM_NONE;
     if (call->gtCallType == CT_INDIRECT)
     {
         // either gtControlExpr != null or gtCallAddr != null.
@@ -160,8 +167,6 @@ void LinearScan::BuildCall(GenTreeCall* call)
     // set reg requirements on call target represented as control sequence.
     if (ctrlExpr != nullptr)
     {
-        ctrlExprInfo = getLocationInfo(ctrlExpr);
-
         // we should never see a gtControlExpr whose type is void.
         assert(ctrlExpr->TypeGet() != TYP_VOID);
 
@@ -171,14 +176,20 @@ void LinearScan::BuildCall(GenTreeCall* call)
         {
             // Fast tail call - make sure that call target is always computed in R12(ARM32)/IP0(ARM64)
             // so that epilog sequence can generate "br xip0/r12" to achieve fast tail call.
-            ctrlExprInfo->info.setSrcCandidates(this, RBM_FASTTAILCALL_TARGET);
+            ctrlExprCandidates = RBM_FASTTAILCALL_TARGET;
         }
     }
 #ifdef _TARGET_ARM_
     else
     {
-        info->internalIntCount = 1;
+        buildInternalIntRegisterDefForNode(call);
     }
+
+    if (call->NeedsNullCheck())
+    {
+        buildInternalIntRegisterDefForNode(call);
+    }
+
 #endif // _TARGET_ARM_
 
     RegisterType registerType = call->TypeGet();
@@ -190,26 +201,26 @@ void LinearScan::BuildCall(GenTreeCall* call)
     {
         // The ARM CORINFO_HELP_INIT_PINVOKE_FRAME helper uses a custom calling convention that returns with
         // TCB in REG_PINVOKE_TCB. fgMorphCall() sets the correct argument registers.
-        info->setDstCandidates(this, RBM_PINVOKE_TCB);
+        dstCandidates = RBM_PINVOKE_TCB;
     }
     else
 #endif // _TARGET_ARM_
         if (hasMultiRegRetVal)
     {
         assert(retTypeDesc != nullptr);
-        info->setDstCandidates(this, retTypeDesc->GetABIReturnRegs());
+        dstCandidates = retTypeDesc->GetABIReturnRegs();
     }
     else if (varTypeIsFloating(registerType))
     {
-        info->setDstCandidates(this, RBM_FLOATRET);
+        dstCandidates = RBM_FLOATRET;
     }
     else if (registerType == TYP_LONG)
     {
-        info->setDstCandidates(this, RBM_LNGRET);
+        dstCandidates = RBM_LNGRET;
     }
     else
     {
-        info->setDstCandidates(this, RBM_INTRET);
+        dstCandidates = RBM_INTRET;
     }
 
     // First, count reg args
@@ -234,26 +245,8 @@ void LinearScan::BuildCall(GenTreeCall* call)
         {
             // late arg that is not passed in a register
             assert(curArgTabEntry->regNum == REG_STK);
-            GenTree* putArgChild = argNode->gtGetOp1();
-            if (!varTypeIsStruct(putArgChild) && !putArgChild->OperIs(GT_FIELD_LIST))
-            {
-                unsigned expectedSlots = 1;
-#ifdef _TARGET_ARM_
-                // The `double` types could been transformed to `long` on arm, while the actual longs
-                // have been decomposed.
-                if (putArgChild->TypeGet() == TYP_LONG)
-                {
-                    useList.GetTreeNodeInfo(argNode).srcCount = 2;
-                    expectedSlots                             = 2;
-                }
-                else if (putArgChild->TypeGet() == TYP_DOUBLE)
-                {
-                    expectedSlots = 2;
-                }
-#endif // !_TARGET_ARM_
-                // Validate the slot count for this arg.
-                assert(curArgTabEntry->numSlots == expectedSlots);
-            }
+            // These should never be contained.
+            assert(!argNode->isContained());
             continue;
         }
 
@@ -265,8 +258,6 @@ void LinearScan::BuildCall(GenTreeCall* call)
             // There could be up to 2-4 PUTARG_REGs in the list (3 or 4 can only occur for HFAs)
             for (GenTreeFieldList* entry = argNode->AsFieldList(); entry != nullptr; entry = entry->Rest())
             {
-                info->srcCount++;
-                appendLocationInfoToList(entry->Current());
 #ifdef DEBUG
                 assert(entry->Current()->OperIs(GT_PUTARG_REG));
                 assert(entry->Current()->gtRegNum == argReg);
@@ -281,17 +272,22 @@ void LinearScan::BuildCall(GenTreeCall* call)
                 }
 #endif // _TARGET_ARM_
 #endif
+                BuildUse(entry->Current(), genRegMask(entry->Current()->gtRegNum));
+                srcCount++;
             }
         }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         else if (argNode->OperGet() == GT_PUTARG_SPLIT)
         {
             unsigned regCount = argNode->AsPutArgSplit()->gtNumRegs;
             assert(regCount == curArgTabEntry->numRegs);
-            info->srcCount += regCount;
-            appendLocationInfoToList(argNode);
+            for (unsigned int i = 0; i < regCount; i++)
+            {
+                BuildUse(argNode, genRegMask(argNode->AsPutArgSplit()->GetRegNumByIdx(i)), i);
+            }
+            srcCount += regCount;
         }
-#endif
+#endif // FEATURE_ARG_SPLIT
         else
         {
             assert(argNode->OperIs(GT_PUTARG_REG));
@@ -304,14 +300,15 @@ void LinearScan::BuildCall(GenTreeCall* call)
             if (argNode->TypeGet() == TYP_LONG)
             {
                 assert(argNode->IsMultiRegNode());
-                info->srcCount += 2;
-                appendLocationInfoToList(argNode);
+                BuildUse(argNode, genRegMask(argNode->gtRegNum), 0);
+                BuildUse(argNode, genRegMask(genRegArgNext(argNode->gtRegNum)), 1);
+                srcCount += 2;
             }
             else
 #endif // _TARGET_ARM_
             {
-                appendLocationInfoToList(argNode);
-                info->srcCount++;
+                BuildUse(argNode, genRegMask(argNode->gtRegNum));
+                srcCount++;
             }
         }
     }
@@ -326,7 +323,7 @@ void LinearScan::BuildCall(GenTreeCall* call)
     GenTree* args = call->gtCallArgs;
     while (args)
     {
-        GenTree* arg = args->gtOp.gtOp1;
+        GenTree* arg = args->gtGetOp1();
 
         // Skip arguments that have been moved to the Late Arg list
         if (!(args->gtFlags & GTF_LATE_ARG))
@@ -335,11 +332,11 @@ void LinearScan::BuildCall(GenTreeCall* call)
             fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, arg);
             assert(curArgTabEntry);
 #endif
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
             // PUTARG_SPLIT nodes must be in the gtCallLateArgs list, since they
             // define registers used by the call.
             assert(arg->OperGet() != GT_PUTARG_SPLIT);
-#endif
+#endif // FEATURE_ARG_SPLIT
             if (arg->gtOper == GT_PUTARG_STK)
             {
                 assert(curArgTabEntry->regNum == REG_STK);
@@ -349,35 +346,33 @@ void LinearScan::BuildCall(GenTreeCall* call)
                 assert(!arg->IsValue() || arg->IsUnusedValue());
             }
         }
-        args = args->gtOp.gtOp2;
+        args = args->gtGetOp2();
     }
 
     // If it is a fast tail call, it is already preferenced to use IP0.
     // Therefore, no need set src candidates on call tgt again.
-    if (call->IsVarargs() && callHasFloatRegArgs && !call->IsFastTailCall() && (ctrlExprInfo != nullptr))
+    if (call->IsVarargs() && callHasFloatRegArgs && !call->IsFastTailCall() && (ctrlExpr != nullptr))
     {
         NYI_ARM("float reg varargs");
 
         // Don't assign the call target to any of the argument registers because
         // we will use them to also pass floating point arguments as required
         // by Arm64 ABI.
-        ctrlExprInfo->info.setSrcCandidates(this, allRegs(TYP_INT) & ~(RBM_ARG_REGS));
+        ctrlExprCandidates = allRegs(TYP_INT) & ~(RBM_ARG_REGS);
     }
 
-    if (ctrlExprInfo != nullptr)
+    if (ctrlExpr != nullptr)
     {
-        useList.Append(ctrlExprInfo);
-        info->srcCount++;
+        BuildUse(ctrlExpr, ctrlExprCandidates);
+        srcCount++;
     }
 
-#ifdef _TARGET_ARM_
+    buildInternalRegisterUses();
 
-    if (call->NeedsNullCheck())
-    {
-        info->internalIntCount++;
-    }
-
-#endif // _TARGET_ARM_
+    // Now generate defs and kills.
+    regMaskTP killMask = getKillSetForCall(call);
+    BuildDefsWithKills(call, dstCount, dstCandidates, killMask);
+    return srcCount;
 }
 
 //------------------------------------------------------------------------
@@ -387,20 +382,18 @@ void LinearScan::BuildCall(GenTreeCall* call)
 //    argNode - a GT_PUTARG_STK node
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 // Notes:
 //    Set the child node(s) to be contained when we have a multireg arg
 //
-void LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
+int LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
 {
-    TreeNodeInfo* info = currentNodeInfo;
     assert(argNode->gtOper == GT_PUTARG_STK);
 
-    GenTree* putArgChild = argNode->gtOp.gtOp1;
+    GenTree* putArgChild = argNode->gtGetOp1();
 
-    info->srcCount = 0;
-    info->dstCount = 0;
+    int srcCount = 0;
 
     // Do we have a TYP_STRUCT argument (or a GT_FIELD_LIST), if so it must be a multireg pass-by-value struct
     if ((putArgChild->TypeGet() == TYP_STRUCT) || (putArgChild->OperGet() == GT_FIELD_LIST))
@@ -413,24 +406,22 @@ void LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
             // We consume all of the items in the GT_FIELD_LIST
             for (GenTreeFieldList* current = putArgChild->AsFieldList(); current != nullptr; current = current->Rest())
             {
-                appendLocationInfoToList(current->Current());
-                info->srcCount++;
+                BuildUse(current->Current());
+                srcCount++;
             }
         }
         else
         {
+            // We can use a ldp/stp sequence so we need two internal registers for ARM64; one for ARM.
+            buildInternalIntRegisterDefForNode(argNode);
 #ifdef _TARGET_ARM64_
-            // We could use a ldp/stp sequence so we need two internal registers
-            info->internalIntCount = 2;
-#else  // _TARGET_ARM_
-            // We could use a ldr/str sequence so we need a internal register
-            info->internalIntCount = 1;
-#endif // _TARGET_ARM_
+            buildInternalIntRegisterDefForNode(argNode);
+#endif // _TARGET_ARM64_
 
             if (putArgChild->OperGet() == GT_OBJ)
             {
                 assert(putArgChild->isContained());
-                GenTree* objChild = putArgChild->gtOp.gtOp1;
+                GenTree* objChild = putArgChild->gtGetOp1();
                 if (objChild->OperGet() == GT_LCL_VAR_ADDR)
                 {
                     // We will generate all of the code for the GT_PUTARG_STK, the GT_OBJ and the GT_LCL_VAR_ADDR
@@ -443,8 +434,7 @@ void LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
                     // We will generate all of the code for the GT_PUTARG_STK and its child node
                     // as one contained operation
                     //
-                    appendLocationInfoToList(objChild);
-                    info->srcCount = 1;
+                    srcCount = BuildOperandUses(objChild);
                 }
             }
             else
@@ -457,11 +447,13 @@ void LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
     else
     {
         assert(!putArgChild->isContained());
-        info->srcCount = GetOperandInfo(putArgChild);
+        srcCount = BuildOperandUses(putArgChild);
     }
+    buildInternalRegisterUses();
+    return srcCount;
 }
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 //------------------------------------------------------------------------
 // BuildPutArgSplit: Set the NodeInfo for a GT_PUTARG_SPLIT node
 //
@@ -469,20 +461,20 @@ void LinearScan::BuildPutArgStk(GenTreePutArgStk* argNode)
 //    argNode - a GT_PUTARG_SPLIT node
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
 // Notes:
 //    Set the child node(s) to be contained
 //
-void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
+int LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
 {
-    TreeNodeInfo* info = currentNodeInfo;
+    int srcCount = 0;
     assert(argNode->gtOper == GT_PUTARG_SPLIT);
 
-    GenTree* putArgChild = argNode->gtOp.gtOp1;
+    GenTree* putArgChild = argNode->gtGetOp1();
 
     // Registers for split argument corresponds to source
-    info->dstCount = argNode->gtNumRegs;
+    int dstCount = argNode->gtNumRegs;
 
     regNumber argReg  = argNode->gtRegNum;
     regMaskTP argMask = RBM_NONE;
@@ -490,8 +482,6 @@ void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
     {
         argMask |= genRegMask((regNumber)((unsigned)argReg + i));
     }
-    info->setDstCandidates(this, argMask);
-    info->setSrcCandidates(this, argMask);
 
     if (putArgChild->OperGet() == GT_FIELD_LIST)
     {
@@ -509,21 +499,33 @@ void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
         {
             GenTree* node = fieldListPtr->gtGetOp1();
             assert(!node->isContained());
-            LocationInfoListNode* nodeInfo        = getLocationInfo(node);
-            unsigned              currentRegCount = nodeInfo->info.dstCount;
-            regMaskTP             sourceMask      = RBM_NONE;
-            if (sourceRegCount < argNode->gtNumRegs)
+            // The only multi-reg nodes we should see are OperIsMultiRegOp()
+            unsigned currentRegCount;
+#ifdef _TARGET_ARM_
+            if (node->OperIsMultiRegOp())
             {
-                for (unsigned regIndex = 0; regIndex < currentRegCount; regIndex++)
-                {
-                    sourceMask |= genRegMask((regNumber)((unsigned)argReg + sourceRegCount + regIndex));
-                }
-                nodeInfo->info.setSrcCandidates(this, sourceMask);
+                currentRegCount = node->AsMultiRegOp()->GetRegCount();
             }
-            sourceRegCount += currentRegCount;
-            useList.Append(nodeInfo);
+            else
+#endif // _TARGET_ARM
+            {
+                assert(!node->IsMultiRegNode());
+                currentRegCount = 1;
+            }
+            // Consume all the registers, setting the appropriate register mask for the ones that
+            // go into registers.
+            for (unsigned regIndex = 0; regIndex < currentRegCount; regIndex++)
+            {
+                regMaskTP sourceMask = RBM_NONE;
+                if (sourceRegCount < argNode->gtNumRegs)
+                {
+                    sourceMask = genRegMask((regNumber)((unsigned)argReg + sourceRegCount));
+                }
+                sourceRegCount++;
+                BuildUse(node, sourceMask, regIndex);
+            }
         }
-        info->srcCount += sourceRegCount;
+        srcCount += sourceRegCount;
         assert(putArgChild->isContained());
     }
     else
@@ -532,11 +534,9 @@ void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
         assert(putArgChild->OperGet() == GT_OBJ);
 
         // We can use a ldr/str sequence so we need an internal register
-        info->internalIntCount = 1;
-        regMaskTP internalMask = RBM_ALLINT & ~argMask;
-        info->setInternalCandidates(this, internalMask);
+        buildInternalIntRegisterDefForNode(argNode, allRegs(TYP_INT) & ~argMask);
 
-        GenTree* objChild = putArgChild->gtOp.gtOp1;
+        GenTree* objChild = putArgChild->gtGetOp1();
         if (objChild->OperGet() == GT_LCL_VAR_ADDR)
         {
             // We will generate all of the code for the GT_PUTARG_SPLIT, the GT_OBJ and the GT_LCL_VAR_ADDR
@@ -546,12 +546,15 @@ void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
         }
         else
         {
-            info->srcCount = GetIndirInfo(putArgChild->AsIndir());
+            srcCount = BuildIndirUses(putArgChild->AsIndir());
         }
         assert(putArgChild->isContained());
     }
+    buildInternalRegisterUses();
+    BuildDefs(argNode, dstCount, argMask);
+    return srcCount;
 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
 //------------------------------------------------------------------------
 // BuildBlockStore: Set the NodeInfo for a block store.
@@ -560,35 +563,21 @@ void LinearScan::BuildPutArgSplit(GenTreePutArgSplit* argNode)
 //    blkNode       - The block store node of interest
 //
 // Return Value:
-//    None.
+//    The number of sources consumed by this node.
 //
-void LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
+int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
 {
-    TreeNodeInfo* info    = currentNodeInfo;
-    GenTree*      dstAddr = blkNode->Addr();
-    unsigned      size    = blkNode->gtBlkSize;
-    GenTree*      source  = blkNode->Data();
+    GenTree* dstAddr  = blkNode->Addr();
+    unsigned size     = blkNode->gtBlkSize;
+    GenTree* source   = blkNode->Data();
+    int      srcCount = 0;
 
-    LocationInfoListNode* dstAddrInfo = nullptr;
-    LocationInfoListNode* sourceInfo  = nullptr;
-    LocationInfoListNode* sizeInfo    = nullptr;
-
-    // Sources are dest address and initVal or source.
-    // We may require an additional source or temp register for the size.
-    if (!dstAddr->isContained())
-    {
-        info->srcCount++;
-        dstAddrInfo = getLocationInfo(dstAddr);
-    }
-    assert(info->dstCount == 0);
     GenTree* srcAddrOrFill = nullptr;
     bool     isInitBlk     = blkNode->OperIsInitBlkOp();
 
-    regMaskTP dstAddrRegMask = RBM_NONE;
-    regMaskTP sourceRegMask  = RBM_NONE;
-    regMaskTP blkSizeRegMask = RBM_NONE;
-
-    short     internalIntCount      = 0;
+    regMaskTP dstAddrRegMask        = RBM_NONE;
+    regMaskTP sourceRegMask         = RBM_NONE;
+    regMaskTP blkSizeRegMask        = RBM_NONE;
     regMaskTP internalIntCandidates = RBM_NONE;
 
     if (isInitBlk)
@@ -600,11 +589,6 @@ void LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
             initVal = initVal->gtGetOp1();
         }
         srcAddrOrFill = initVal;
-        if (!initVal->isContained())
-        {
-            info->srcCount++;
-            sourceInfo = getLocationInfo(initVal);
-        }
 
         if (blkNode->gtBlkOpKind == GenTreeBlk::BlkOpKindUnroll)
         {
@@ -633,25 +617,22 @@ void LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
             assert(source->isContained());
             srcAddrOrFill = source->gtGetOp1();
             assert(!srcAddrOrFill->isContained());
-            sourceInfo = getLocationInfo(srcAddrOrFill);
-            info->srcCount++;
         }
         if (blkNode->OperGet() == GT_STORE_OBJ)
         {
             // CopyObj
             // We don't need to materialize the struct size but we still need
             // a temporary register to perform the sequence of loads and stores.
-            internalIntCount = 1;
+            // We can't use the special Write Barrier registers, so exclude them from the mask
+            internalIntCandidates = allRegs(TYP_INT) & ~(RBM_WRITE_BARRIER_DST_BYREF | RBM_WRITE_BARRIER_SRC_BYREF);
+            buildInternalIntRegisterDefForNode(blkNode, internalIntCandidates);
 
             if (size >= 2 * REGSIZE_BYTES)
             {
                 // We will use ldp/stp to reduce code size and improve performance
                 // so we need to reserve an extra internal register
-                internalIntCount++;
+                buildInternalIntRegisterDefForNode(blkNode, internalIntCandidates);
             }
-
-            // We can't use the special Write Barrier registers, so exclude them from the mask
-            internalIntCandidates = RBM_ALLINT & ~(RBM_WRITE_BARRIER_DST_BYREF | RBM_WRITE_BARRIER_SRC_BYREF);
 
             // If we have a dest address we want it in RBM_WRITE_BARRIER_DST_BYREF.
             dstAddrRegMask = RBM_WRITE_BARRIER_DST_BYREF;
@@ -673,15 +654,14 @@ void LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
                 // we should unroll the loop to improve CQ.
                 // For reference see the code in lsraxarch.cpp.
 
-                internalIntCount      = 1;
-                internalIntCandidates = RBM_ALLINT;
+                buildInternalIntRegisterDefForNode(blkNode);
 
 #ifdef _TARGET_ARM64_
                 if (size >= 2 * REGSIZE_BYTES)
                 {
                     // We will use ldp/stp to reduce code size and improve performance
                     // so we need to reserve an extra internal register
-                    internalIntCount++;
+                    buildInternalIntRegisterDefForNode(blkNode);
                 }
 #endif // _TARGET_ARM64_
             }
@@ -698,65 +678,42 @@ void LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
             }
         }
     }
-    if (dstAddrInfo != nullptr)
+
+    if ((size != 0) && (blkSizeRegMask != RBM_NONE))
     {
-        if (dstAddrRegMask != RBM_NONE)
-        {
-            dstAddrInfo->info.setSrcCandidates(this, dstAddrRegMask);
-        }
-        useList.Append(dstAddrInfo);
-    }
-    if (sourceRegMask != RBM_NONE)
-    {
-        if (sourceInfo != nullptr)
-        {
-            sourceInfo->info.setSrcCandidates(this, sourceRegMask);
-        }
-        else
-        {
-            // This is a local source; we'll use a temp register for its address.
-            internalIntCandidates |= sourceRegMask;
-            internalIntCount++;
-        }
-    }
-    if (sourceInfo != nullptr)
-    {
-        useList.Add(sourceInfo, blkNode->IsReverseOp());
+        // Reserve a temp register for the block size argument.
+        buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
     }
 
-    if (blkNode->OperIs(GT_STORE_DYN_BLK))
+    if (!dstAddr->isContained() && !blkNode->IsReverseOp())
     {
+        srcCount++;
+        BuildUse(dstAddr, dstAddrRegMask);
+    }
+    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
+    {
+        srcCount++;
+        BuildUse(srcAddrOrFill, sourceRegMask);
+    }
+    if (!dstAddr->isContained() && blkNode->IsReverseOp())
+    {
+        srcCount++;
+        BuildUse(dstAddr, dstAddrRegMask);
+    }
+
+    if (size == 0)
+    {
+        assert(blkNode->OperIs(GT_STORE_DYN_BLK));
         // The block size argument is a third argument to GT_STORE_DYN_BLK
-        info->srcCount++;
-
+        srcCount++;
         GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
-        sizeInfo           = getLocationInfo(blockSize);
-        useList.Add(sizeInfo, blkNode->AsDynBlk()->gtEvalSizeFirst);
+        BuildUse(blockSize, blkSizeRegMask);
     }
 
-    if (blkSizeRegMask != RBM_NONE)
-    {
-        if (size != 0)
-        {
-            // Reserve a temp register for the block size argument.
-            internalIntCandidates |= blkSizeRegMask;
-            internalIntCount++;
-        }
-        else
-        {
-            // The block size argument is a third argument to GT_STORE_DYN_BLK
-            assert((blkNode->gtOper == GT_STORE_DYN_BLK) && (sizeInfo != nullptr));
-            info->setSrcCount(3);
-            sizeInfo->info.setSrcCandidates(this, blkSizeRegMask);
-        }
-    }
-    if (internalIntCount != 0)
-    {
-        info->internalIntCount = internalIntCount;
-        info->setInternalCandidates(this, internalIntCandidates);
-    }
+    buildInternalRegisterUses();
+    regMaskTP killMask = getKillSetForBlockStore(blkNode);
+    BuildDefsWithKills(blkNode, 0, RBM_NONE, killMask);
+    return srcCount;
 }
 
 #endif // _TARGET_ARMARCH_
-
-#endif // !LEGACY_BACKEND

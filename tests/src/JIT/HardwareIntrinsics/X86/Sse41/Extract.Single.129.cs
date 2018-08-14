@@ -21,10 +21,8 @@ namespace JIT.HardwareIntrinsics.X86
     {
         private static void ExtractSingle129()
         {
-            var test = new SimpleUnaryOpTest__ExtractSingle129();
-            
-            try
-            {
+            var test = new ExtractScalarTest__ExtractSingle129();
+
             if (test.IsSupported)
             {
                 // Validates basic functionality works, using Unsafe.Read
@@ -66,21 +64,22 @@ namespace JIT.HardwareIntrinsics.X86
                     test.RunLclVarScenario_LoadAligned();
                 }
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
                 // Validates we throw on unsupported hardware
                 test.RunUnsupportedScenario();
-            }
-            }
-            catch (PlatformNotSupportedException)
-            {
-                test.Succeeded = true;
             }
 
             if (!test.Succeeded)
@@ -90,8 +89,31 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class SimpleUnaryOpTest__ExtractSingle129
+    public sealed unsafe class ExtractScalarTest__ExtractSingle129
     {
+        private struct TestStruct
+        {
+            public Vector128<Single> _fld;
+
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
+
+                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref testStruct._fld), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
+
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(ExtractScalarTest__ExtractSingle129 testClass)
+            {
+                var result = Sse41.Extract(_fld, 129);
+
+                Unsafe.Write(testClass._dataTable.outArrayPtr, result);
+                testClass.ValidateResult(_fld, testClass._dataTable.outArrayPtr);
+            }
+        }
+
         private static readonly int LargestVectorSize = 16;
 
         private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector128<Single>>() / sizeof(Single);
@@ -105,33 +127,31 @@ namespace JIT.HardwareIntrinsics.X86
 
         private SimpleUnaryOpTest__DataTable<Single, Single> _dataTable;
 
-        static SimpleUnaryOpTest__ExtractSingle129()
+        static ExtractScalarTest__ExtractSingle129()
         {
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _clsVar), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
         }
 
-        public SimpleUnaryOpTest__ExtractSingle129()
+        public ExtractScalarTest__ExtractSingle129()
         {
             Succeeded = true;
 
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<Single>, byte>(ref _fld), ref Unsafe.As<Single, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<Single>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (float)(random.NextDouble()); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetSingle(); }
             _dataTable = new SimpleUnaryOpTest__DataTable<Single, Single>(_data, new Single[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Sse41.IsSupported;
+        public bool IsSupported => Sse41.IsSupported && (Environment.Is64BitProcess || ((typeof(Single) != typeof(long)) && (typeof(Single) != typeof(ulong))));
 
         public bool Succeeded { get; set; }
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse41.Extract(
                 Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr),
                 129
@@ -143,6 +163,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Sse41.Extract(
                 Sse.LoadVector128((Single*)(_dataTable.inArrayPtr)),
                 129
@@ -154,6 +176,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Sse41.Extract(
                 Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr)),
                 129
@@ -165,6 +189,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.Extract), new Type[] { typeof(Vector128<Single>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr),
@@ -177,6 +203,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.Extract), new Type[] { typeof(Vector128<Single>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadVector128((Single*)(_dataTable.inArrayPtr)),
@@ -189,6 +217,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Sse41).GetMethod(nameof(Sse41.Extract), new Type[] { typeof(Vector128<Single>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr)),
@@ -201,6 +231,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse41.Extract(
                 _clsVar,
                 129
@@ -212,6 +244,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector128<Single>>(_dataTable.inArrayPtr);
             var result = Sse41.Extract(firstOp, 129);
 
@@ -221,6 +255,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Sse.LoadVector128((Single*)(_dataTable.inArrayPtr));
             var result = Sse41.Extract(firstOp, 129);
 
@@ -230,6 +266,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Sse.LoadAlignedVector128((Single*)(_dataTable.inArrayPtr));
             var result = Sse41.Extract(firstOp, 129);
 
@@ -237,25 +275,50 @@ namespace JIT.HardwareIntrinsics.X86
             ValidateResult(firstOp, _dataTable.outArrayPtr);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
-            var test = new SimpleUnaryOpTest__ExtractSingle129();
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
+            var test = new ExtractScalarTest__ExtractSingle129();
             var result = Sse41.Extract(test._fld, 129);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(test._fld, _dataTable.outArrayPtr);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse41.Extract(_fld, 129);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(_fld, _dataTable.outArrayPtr);
         }
 
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = Sse41.Extract(test._fld, 129);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(test._fld, _dataTable.outArrayPtr);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
+        }
+
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -299,10 +362,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse41)}.{nameof(Sse41.Extract)}<Single>(Vector128<Single><9>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse41)}.{nameof(Sse41.Extract)}<Single>(Vector128<Single><9>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

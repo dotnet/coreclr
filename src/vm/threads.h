@@ -970,7 +970,7 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 //                         ex: Windows/Unix ARM/ARM64, Unix-AMD64.
 //                         
 //                       
-// FEATURE_UNIX_AMD64_STRUCT_PASSING is a specific kind of FEATURE_MULTIREG_RETURN
+// UNIX_AMD64_ABI is a specific kind of FEATURE_MULTIREG_RETURN
 // [GcInfo v1 and v2]       specified by SystemV ABI for AMD64
 //                                   
 
@@ -1949,7 +1949,7 @@ public:
     // Creates a raw OS thread; use this only for CLR-internal threads that never execute user code.
     // StackSizeBucket determines how large the stack should be.
     //
-    static HANDLE CreateUtilityThread(StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, DWORD flags = 0, DWORD* pThreadId = NULL);
+    static HANDLE CreateUtilityThread(StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, LPCWSTR pName, DWORD flags = 0, DWORD* pThreadId = NULL);
 
     //--------------------------------------------------------------
     // Destructor
@@ -3359,6 +3359,14 @@ public:
     // 
     // Refer to StackFrameIterator::Filter for detailed comments on this flag.
     #define GC_FUNCLET_REFERENCE_REPORTING 0x8000
+
+    // Stackwalking normally checks GS cookies on the fly, but there are cases in which the JIT reports
+    // incorrect epilog information. This causes the debugger to request stack walks in the epilog, checking
+    // an now invalid cookie. This flag allows the debugger stack walks to disable GS cookie checking.
+    
+    // This is a workaround for the debugger stackwalking. In general, the stackwalker and CrawlFrame
+    // may still execute GS cookie tracking/checking code paths.
+    #define SKIP_GSCOOKIE_CHECK 0x10000
 
     StackWalkAction StackWalkFramesEx(
                         PREGDISPLAY pRD,        // virtual register set at crawl start
@@ -4813,9 +4821,9 @@ public:
 private:
     BYTE* m_pbDestCode;
     BYTE* m_pbSrcCode;
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     LPVOID m_pLastAVAddress;
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 
 public:
     void CommitGCStressInstructionUpdate();
@@ -4824,24 +4832,35 @@ public:
         LIMITED_METHOD_CONTRACT;
         PRECONDITION(!HasPendingGCStressInstructionUpdate());
 
-        m_pbDestCode = pbDestCode;
-        m_pbSrcCode = pbSrcCode;
+        VolatileStoreWithoutBarrier<BYTE*>(&m_pbSrcCode, pbSrcCode);
+        VolatileStore<BYTE*>(&m_pbDestCode, pbDestCode);
     }
     bool HasPendingGCStressInstructionUpdate()
     {
         LIMITED_METHOD_CONTRACT;
-        CONSISTENCY_CHECK((NULL == m_pbDestCode) == (NULL == m_pbSrcCode));
-        return m_pbDestCode != NULL;
+        BYTE* dest = VolatileLoad(&m_pbDestCode);
+        return dest != NULL;
     }
-    void ClearGCStressInstructionUpdate()
+    bool TryClearGCStressInstructionUpdate(BYTE** ppbDestCode, BYTE** ppbSrcCode)
     {
         LIMITED_METHOD_CONTRACT;
-        PRECONDITION(HasPendingGCStressInstructionUpdate());
+        bool result = false;
 
-        m_pbDestCode = NULL;
-        m_pbSrcCode = NULL;
+        if(HasPendingGCStressInstructionUpdate())
+        {
+            *ppbDestCode = FastInterlockExchangePointer(&m_pbDestCode, NULL);
+
+            if(*ppbDestCode != NULL)
+            {
+                result = true;
+                *ppbSrcCode = FastInterlockExchangePointer(&m_pbSrcCode, NULL);
+
+                CONSISTENCY_CHECK(*ppbSrcCode != NULL);
+            }
+        }
+        return result;
     }
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     void SetLastAVAddress(LPVOID address)
     {
         LIMITED_METHOD_CONTRACT;
@@ -4852,7 +4871,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pLastAVAddress;
     }
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
 #if defined(_DEBUG) && defined(FEATURE_STACK_PROBE)

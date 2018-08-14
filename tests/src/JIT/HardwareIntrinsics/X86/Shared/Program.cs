@@ -3,8 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Intrinsics.X86;
 
 namespace JIT.HardwareIntrinsics.X86
 {
@@ -19,9 +20,11 @@ namespace JIT.HardwareIntrinsics.X86
         {
             var isPassing = true;
 
+            PrintSupportedIsa();
+
             foreach (string testToRun in GetTestsToRun(args))
             {
-                Console.WriteLine($"Running {testToRun} test...");
+                TestLibrary.TestFramework.BeginTestCase(testToRun);
 
                 try
                 {
@@ -29,9 +32,12 @@ namespace JIT.HardwareIntrinsics.X86
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine($"Error: {e.Message}");
+                    TestLibrary.TestFramework.LogError(e.GetType().ToString(), e.Message);
+                    TestLibrary.TestFramework.LogVerbose(e.StackTrace);
                     isPassing = false;
                 }
+
+                TestLibrary.TestFramework.EndTestCase();
             }
 
             return isPassing ? PASS : FAIL;
@@ -61,9 +67,30 @@ namespace JIT.HardwareIntrinsics.X86
             return (testsToRun.Count == 0) ? TestList.Keys : testsToRun;
         }
 
+        private static void PrintSupportedIsa()
+        {
+            TestLibrary.TestFramework.LogInformation("Supported ISAs:");
+            TestLibrary.TestFramework.LogInformation($"  AES:       {Aes.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  AVX:       {Avx.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  AVX2:      {Avx2.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  BMI1:      {Bmi1.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  BMI2:      {Bmi2.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  FMA:       {Fma.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  LZCNT:     {Lzcnt.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  PCLMULQDQ: {Pclmulqdq.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  POPCNT:    {Popcnt.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSE:       {Sse.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSE2:      {Sse2.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSE3:      {Sse3.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSE4.1:    {Sse41.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSE4.2:    {Sse42.IsSupported}");
+            TestLibrary.TestFramework.LogInformation($"  SSSE3:     {Ssse3.IsSupported}");
+            TestLibrary.TestFramework.LogInformation(string.Empty);
+        }
+
         private static void PrintUsage()
         {
-            Console.WriteLine($@"Usage:
+            TestLibrary.TestFramework.LogInformation($@"Usage:
 {Environment.GetCommandLineArgs()[0]} [testName]
 
   [testName]: The name of the function to test.
@@ -73,7 +100,7 @@ namespace JIT.HardwareIntrinsics.X86
   Available Test Names:");
             foreach (string testName in TestList.Keys)
             {
-                Console.WriteLine($"    {testName}");
+                TestLibrary.TestFramework.LogInformation($"    {testName}");
             }
 
             Environment.Exit(FAIL);

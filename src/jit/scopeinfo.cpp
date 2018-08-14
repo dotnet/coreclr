@@ -160,7 +160,7 @@ CodeGen::siScope* CodeGen::siNewScope(unsigned LVnum, unsigned varNum)
         siEndTrackedScope(varIndex);
     }
 
-    siScope* newScope = (siScope*)compiler->compGetMem(sizeof(*newScope), CMK_SiScope);
+    siScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<siScope>(1);
 
     newScope->scStartLoc.CaptureLocation(getEmitter());
     assert(newScope->scStartLoc.Valid());
@@ -377,19 +377,27 @@ void CodeGen::siInit()
 
     if (compiler->info.compVarScopesCount == 0)
     {
-        return;
+        siLatestTrackedScopes = nullptr;
     }
-
+    else
+    {
 #if FEATURE_EH_FUNCLETS
-    siInFuncletRegion = false;
+        siInFuncletRegion = false;
 #endif // FEATURE_EH_FUNCLETS
 
-    for (unsigned i = 0; i < lclMAX_TRACKED; i++)
-    {
-        siLatestTrackedScopes[i] = nullptr;
-    }
+        unsigned scopeCount = compiler->lvaTrackedCount;
 
-    compiler->compResetScopeLists();
+        if (scopeCount == 0)
+        {
+            siLatestTrackedScopes = nullptr;
+        }
+        else
+        {
+            siLatestTrackedScopes = new (compiler->getAllocator(CMK_SiScope)) siScope* [scopeCount] {};
+        }
+
+        compiler->compResetScopeLists();
+    }
 }
 
 /*****************************************************************************
@@ -467,7 +475,7 @@ void CodeGen::siBeginBlock(BasicBlock* block)
             // So we need to check if this tracked variable is actually used.
             if (!compiler->lvaTable[varNum].lvIsInReg() && !compiler->lvaTable[varNum].lvOnFrame)
             {
-                assert(compiler->lvaTable[varNum].lvRefCnt == 0);
+                assert(compiler->lvaTable[varNum].lvRefCnt() == 0);
                 continue;
             }
 
@@ -669,8 +677,6 @@ void CodeGen::siUpdate()
         LclVarDsc* lclVar = &compiler->lvaTable[lclNum];
         assert(lclVar->lvTracked);
 #endif
-
-        siScope* scope = siLatestTrackedScopes[varIndex];
         siEndTrackedScope(varIndex);
     }
 
@@ -825,7 +831,7 @@ void CodeGen::siDispOpenScopes()
 
 CodeGen::psiScope* CodeGen::psiNewPrologScope(unsigned LVnum, unsigned slotNum)
 {
-    psiScope* newScope = (psiScope*)compiler->compGetMem(sizeof(*newScope), CMK_SiScope);
+    psiScope* newScope = compiler->getAllocator(CMK_SiScope).allocate<psiScope>(1);
 
     newScope->scStartLoc.CaptureLocation(getEmitter());
     assert(newScope->scStartLoc.Valid());
@@ -954,7 +960,7 @@ void CodeGen::psiBegProlog()
         if (lclVarDsc1->lvIsRegArg)
         {
             bool isStructHandled = false;
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
             if (varTypeIsStruct(lclVarDsc1))
             {
@@ -1002,7 +1008,7 @@ void CodeGen::psiBegProlog()
 
                 isStructHandled = true;
             }
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#endif // !defined(UNIX_AMD64_ABI)
             if (!isStructHandled)
             {
 #ifdef DEBUG
@@ -1194,7 +1200,7 @@ void CodeGen::psiMoveToReg(unsigned varNum, regNumber reg, regNumber otherReg)
  *                      CodeGen::psiMoveToStack
  *
  * A incoming register-argument is being moved to its final home on the stack
- * (ie. all adjustements to {F/S}PBASE have been made
+ * (ie. all adjustments to {F/S}PBASE have been made
  */
 
 void CodeGen::psiMoveToStack(unsigned varNum)

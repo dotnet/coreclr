@@ -37,8 +37,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref);
  *  +-- code:StringObject       - String objects are specialized objects for string
  *  |                        storage/retrieval for higher performance
  *  |
- *  +-- code:StringBufferObject - StringBuffer instance layout.  
- *  |
  *  +-- BaseObjectWithCachedData - Object Plus one object field for caching.
  *  |       |
  *  |            +-  ReflectClassBaseObject    - The base object for the RuntimeType class
@@ -97,11 +95,28 @@ class ArgDestination;
 
 struct RCW;
 
+#ifdef _TARGET_64BIT_
+#define OBJHEADER_SIZE      (sizeof(DWORD) /* m_alignpad */ + sizeof(DWORD) /* m_SyncBlockValue */)
+#else
+#define OBJHEADER_SIZE      sizeof(DWORD) /* m_SyncBlockValue */
+#endif
+
+#define OBJECT_SIZE         TARGET_POINTER_SIZE /* m_pMethTab */
+#define OBJECT_BASESIZE     (OBJHEADER_SIZE + OBJECT_SIZE)
+
+#ifdef _TARGET_64BIT_
+#define ARRAYBASE_SIZE      (OBJECT_SIZE /* m_pMethTab */ + sizeof(DWORD) /* m_NumComponents */ + sizeof(DWORD) /* pad */)
+#else
+#define ARRAYBASE_SIZE      (OBJECT_SIZE /* m_pMethTab */ + sizeof(DWORD) /* m_NumComponents */)
+#endif
+
+#define ARRAYBASE_BASESIZE  (OBJHEADER_SIZE + ARRAYBASE_SIZE)
+
 //
 // The generational GC requires that every object be at least 12 bytes
 // in size.   
 
-#define MIN_OBJECT_SIZE     (2*sizeof(BYTE*) + sizeof(ObjHeader))
+#define MIN_OBJECT_SIZE     (2*TARGET_POINTER_SIZE + OBJHEADER_SIZE)
 
 #define PTRALIGNCONST (DATA_ALIGNMENT-1)
 
@@ -826,6 +841,8 @@ public:
     OBJECTREF    m_Array[1];
 };
 
+#define OFFSETOF__PtrArray__m_Array_              ARRAYBASE_SIZE
+
 /* a TypedByRef is a structure that is used to implement VB's BYREF variants.  
    it is basically a tuple of an address of some data along with a TypeHandle
    that indicates the type of the address */
@@ -916,7 +933,7 @@ typedef PTR_StringObject STRINGREF;
  * Special String implementation for performance.   
  *
  *   m_StringLength - Length of string in number of WCHARs
- *   m_Characters   - The string buffer
+ *   m_FirstChar    - The string buffer
  *
  */
 
@@ -934,9 +951,6 @@ typedef PTR_StringObject STRINGREF;
 #define STRING_STATE_FAST_OPS         0x80000000
 #define STRING_STATE_SPECIAL_SORT     0xC0000000
 
-#ifdef _MSC_VER
-#pragma warning(disable : 4200)     // disable zero-sized array warning
-#endif
 class StringObject : public Object
 {
 #ifdef DACCESS_COMPILE
@@ -949,11 +963,7 @@ class StringObject : public Object
 
   private:
     DWORD   m_StringLength;
-    WCHAR   m_Characters[0];
-    // GC will see a StringObject like this:
-    //   DWORD m_StringLength
-    //   WCHAR m_Characters[0]
-    //   DWORD m_OptionalPadding (this is an optional field and will appear based on need)
+    WCHAR   m_FirstChar;
 
   public:
     VOID    SetStringLength(DWORD len)                   { LIMITED_METHOD_CONTRACT; _ASSERTE(len >= 0); m_StringLength = len; }
@@ -963,12 +973,11 @@ class StringObject : public Object
    ~StringObject() {LIMITED_METHOD_CONTRACT; }
    
   public:
+    static DWORD GetBaseSize();
     static SIZE_T GetSize(DWORD stringLength);
 
     DWORD   GetStringLength()                           { LIMITED_METHOD_DAC_CONTRACT; return( m_StringLength );}
-    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) );  }
-    WCHAR*  GetBuffer(DWORD *pdwSize)                   { LIMITED_METHOD_CONTRACT; _ASSERTE((this != nullptr) && pdwSize); *pdwSize = GetStringLength(); return GetBuffer();  }
-    WCHAR*  GetBufferNullable()                         { LIMITED_METHOD_CONTRACT; return( (this == nullptr) ? nullptr : (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_Characters) ) );  }
+    WCHAR*  GetBuffer()                                 { LIMITED_METHOD_CONTRACT; _ASSERTE(this != nullptr); return (WCHAR*)( dac_cast<TADDR>(this) + offsetof(StringObject, m_FirstChar) );  }
 
     DWORD GetHighCharState() {
         WRAPPER_NO_CONTRACT;
@@ -994,7 +1003,7 @@ class StringObject : public Object
     static UINT GetBufferOffset()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (UINT)(offsetof(StringObject, m_Characters));
+        return (UINT)(offsetof(StringObject, m_FirstChar));
     }
     static UINT GetStringLengthOffset()
     {
@@ -1453,7 +1462,7 @@ private:
     //  at run time, not compile time.
     OBJECTREF     m_ExecutionContext;
     OBJECTREF     m_SynchronizationContext;
-    OBJECTREF     m_Name;
+    STRINGREF     m_Name;
     OBJECTREF     m_Delegate;
     OBJECTREF     m_ThreadStartArg;
 
@@ -1507,6 +1516,10 @@ public:
     
     }
 
+    STRINGREF GetName() {
+        LIMITED_METHOD_CONTRACT;
+        return m_Name;
+    }
     OBJECTREF GetDelegate()                   { LIMITED_METHOD_CONTRACT; return m_Delegate; }
     void      SetDelegate(OBJECTREF delegate);
 
@@ -1781,36 +1794,35 @@ class AssemblyNameBaseObject : public Object
     // Modifying the order or fields of this object may require other changes to the
     //  classlib class definition of this object.
 
-    OBJECTREF     m_pSimpleName; 
-    U1ARRAYREF    m_pPublicKey;
-    U1ARRAYREF    m_pPublicKeyToken;
-    OBJECTREF     m_pCultureInfo;
-    OBJECTREF     m_pCodeBase;
-    OBJECTREF     m_pVersion;
-    OBJECTREF     m_StrongNameKeyPair;
-    OBJECTREF     m_siInfo;
-    U1ARRAYREF    m_HashForControl;
-    DWORD         m_HashAlgorithm;
-    DWORD         m_HashAlgorithmForControl;
-    DWORD         m_VersionCompatibility;
-    DWORD         m_Flags;
+    OBJECTREF     _name; 
+    U1ARRAYREF    _publicKey;
+    U1ARRAYREF    _publicKeyToken;
+    OBJECTREF     _cultureInfo;
+    OBJECTREF     _codeBase;
+    OBJECTREF     _version;
+    OBJECTREF     _strongNameKeyPair;
+    U1ARRAYREF    _hashForControl;
+    DWORD         _hashAlgorithm;
+    DWORD         _hashAlgorithmForControl;
+    DWORD         _versionCompatibility;
+    DWORD         _flags;
 
   protected:
     AssemblyNameBaseObject() { LIMITED_METHOD_CONTRACT; }
    ~AssemblyNameBaseObject() { LIMITED_METHOD_CONTRACT; }
    
   public:
-    OBJECTREF GetSimpleName() { LIMITED_METHOD_CONTRACT; return m_pSimpleName; }
-    U1ARRAYREF GetPublicKey() { LIMITED_METHOD_CONTRACT; return m_pPublicKey; }
-    U1ARRAYREF GetPublicKeyToken() { LIMITED_METHOD_CONTRACT; return m_pPublicKeyToken; }
-    OBJECTREF GetStrongNameKeyPair() { LIMITED_METHOD_CONTRACT; return m_StrongNameKeyPair; }
-    OBJECTREF GetCultureInfo() { LIMITED_METHOD_CONTRACT; return m_pCultureInfo; }
-    OBJECTREF GetAssemblyCodeBase() { LIMITED_METHOD_CONTRACT; return m_pCodeBase; }
-    OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return m_pVersion; }
-    DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return m_HashAlgorithm; }
-    DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return m_Flags; }
-    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return m_HashForControl;}
-    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return m_HashAlgorithmForControl; }
+    OBJECTREF GetSimpleName() { LIMITED_METHOD_CONTRACT; return _name; }
+    U1ARRAYREF GetPublicKey() { LIMITED_METHOD_CONTRACT; return _publicKey; }
+    U1ARRAYREF GetPublicKeyToken() { LIMITED_METHOD_CONTRACT; return _publicKeyToken; }
+    OBJECTREF GetStrongNameKeyPair() { LIMITED_METHOD_CONTRACT; return _strongNameKeyPair; }
+    OBJECTREF GetCultureInfo() { LIMITED_METHOD_CONTRACT; return _cultureInfo; }
+    OBJECTREF GetAssemblyCodeBase() { LIMITED_METHOD_CONTRACT; return _codeBase; }
+    OBJECTREF GetVersion() { LIMITED_METHOD_CONTRACT; return _version; }
+    DWORD GetAssemblyHashAlgorithm() { LIMITED_METHOD_CONTRACT; return _hashAlgorithm; }
+    DWORD GetFlags() { LIMITED_METHOD_CONTRACT; return _flags; }
+    U1ARRAYREF GetHashForControl() { LIMITED_METHOD_CONTRACT; return _hashForControl;}
+    DWORD GetHashAlgorithmForControl() { LIMITED_METHOD_CONTRACT; return _hashAlgorithmForControl; }
 };
 
 // VersionBaseObject
@@ -2099,151 +2111,6 @@ typedef WeakReferenceObject* WEAKREFERENCEREF;
 
 STRINGREF AllocateString(SString sstr);
 CHARARRAYREF AllocateCharArray(DWORD dwArrayLength);
-
-
-class TransparentProxyObject : public Object
-{
-    friend class MscorlibBinder;
-    friend class CheckAsmOffsets;
-
-public:
-    MethodTable * GetMethodTableBeingProxied()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _pMT;
-    }
-    void SetMethodTableBeingProxied(MethodTable * pMT)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _pMT = pMT;
-    }
-
-    MethodTable * GetInterfaceMethodTable()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _pInterfaceMT;
-    }
-    void SetInterfaceMethodTable(MethodTable * pInterfaceMT)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _pInterfaceMT = pInterfaceMT;
-    }
-
-    void * GetStub()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _stub;
-    }
-    void SetStub(void * pStub)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _stub = pStub;
-    }
-
-    OBJECTREF GetStubData()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _stubData;
-    }
-    void SetStubData(OBJECTREF stubData)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&_stubData, stubData, GetAppDomain());
-    }
-
-    OBJECTREF GetRealProxy()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _rp;
-    }
-    void SetRealProxy(OBJECTREF realProxy)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&_rp, realProxy, GetAppDomain());
-    }
-
-    static int GetOffsetOfRP() { LIMITED_METHOD_CONTRACT; return offsetof(TransparentProxyObject, _rp); }
-    
-protected:
-    TransparentProxyObject()
-    {LIMITED_METHOD_CONTRACT;}; // don't instantiate this class directly
-    ~TransparentProxyObject(){LIMITED_METHOD_CONTRACT;};
-
-private:
-    OBJECTREF       _rp;
-    OBJECTREF       _stubData;
-    MethodTable*    _pMT;
-    MethodTable*    _pInterfaceMT;
-    void*           _stub;
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<TransparentProxyObject> TRANSPARENTPROXYREF;
-#else
-typedef TransparentProxyObject*     TRANSPARENTPROXYREF;
-#endif
-
-
-class RealProxyObject : public Object
-{
-    friend class MscorlibBinder;
-
-public:
-    DWORD GetOptFlags()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _optFlags;
-    }
-    VOID SetOptFlags(DWORD flags)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _optFlags = flags;
-    }
-
-    DWORD GetDomainID()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _domainID;
-    }
-
-    TRANSPARENTPROXYREF GetTransparentProxy()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (TRANSPARENTPROXYREF&)_tp;
-    }
-    void SetTransparentProxy(TRANSPARENTPROXYREF tp)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&_tp, (OBJECTREF)tp, GetAppDomain());
-    }
-
-    static int GetOffsetOfIdentity() { LIMITED_METHOD_CONTRACT; return offsetof(RealProxyObject, _identity); }
-    static int GetOffsetOfServerObject() { LIMITED_METHOD_CONTRACT; return offsetof(RealProxyObject, _serverObject); }
-    static int GetOffsetOfServerIdentity() { LIMITED_METHOD_CONTRACT; return offsetof(RealProxyObject, _srvIdentity); }
-
-protected:
-    RealProxyObject()
-    {
-        LIMITED_METHOD_CONTRACT;
-    }; // don't instantiate this class directly
-    ~RealProxyObject(){ LIMITED_METHOD_CONTRACT; };
-
-private:
-    OBJECTREF       _tp;
-    OBJECTREF       _identity;
-    OBJECTREF       _serverObject;
-    DWORD           _flags;
-    DWORD           _optFlags;
-    DWORD           _domainID;
-    OBJECTHANDLE    _srvIdentity;
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<RealProxyObject> REALPROXYREF;
-#else
-typedef RealProxyObject*     REALPROXYREF;
-#endif
-
 
 #ifdef FEATURE_COMINTEROP
 
@@ -2539,136 +2406,6 @@ typedef BStrWrapper*     BSTRWRAPPEROBJECTREF;
 
 #endif // FEATURE_COMINTEROP
 
-class StringBufferObject;
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<StringBufferObject> STRINGBUFFERREF;
-#else   // USE_CHECKED_OBJECTREFS
-typedef StringBufferObject * STRINGBUFFERREF;
-#endif  // USE_CHECKED_OBJECTREFS
-
-//
-// StringBufferObject
-//
-// Note that the "copy on write" bit is buried within the implementation
-// of the object in order to make the implementation smaller.
-//
-
-
-class StringBufferObject : public Object
-{
-    friend class MscorlibBinder;
-
-  private:
-    CHARARRAYREF m_ChunkChars;
-    StringBufferObject *m_ChunkPrevious;
-    UINT32 m_ChunkLength;
-    UINT32 m_ChunkOffset;
-    INT32 m_MaxCapacity;
-
-    WCHAR* GetBuffer()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (WCHAR *)m_ChunkChars->GetDirectPointerToNonObjectElements();
-    }
-        
-    // This function assumes that requiredLength will be less 
-    // than the max capacity of the StringBufferObject   
-    DWORD GetAllocationLength(DWORD dwRequiredLength)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE((INT32)dwRequiredLength <= m_MaxCapacity);
-        DWORD dwCurrentLength = GetArrayLength();
-
-        // round the current length to the nearest multiple of 2
-        // that is >= the required length
-        if(dwCurrentLength < dwRequiredLength)
-        {
-            dwCurrentLength = (dwRequiredLength + 1) & ~1;        
-        }
-        return dwCurrentLength;
-    }
-
-  protected:
-   StringBufferObject() { LIMITED_METHOD_CONTRACT; };
-   ~StringBufferObject() { LIMITED_METHOD_CONTRACT; };
-
-  public:
-    INT32 GetMaxCapacity()
-    {
-        return m_MaxCapacity;
-    }
-
-    DWORD GetArrayLength() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(m_ChunkChars);
-        return m_ChunkOffset + m_ChunkChars->GetNumComponents();
-    }
-
-    // Given an ANSI string, use it to replace the StringBufferObject's internal buffer
-    VOID ReplaceBufferWithAnsi(CHARARRAYREF *newArrayRef, __in CHAR *newChars, DWORD dwNewCapacity)
-    {
-#ifndef DACCESS_COMPILE
-        SetObjectReference((OBJECTREF *)&m_ChunkChars, (OBJECTREF)(*newArrayRef), GetAppDomain());
-#endif //!DACCESS_COMPILE
-        WCHAR *thisChars = GetBuffer();
-        // NOTE: This call to MultiByte also writes out the null terminator
-        // which is currently part of the String representation.
-        INT32 ncWritten = MultiByteToWideChar(CP_ACP,
-                                              MB_PRECOMPOSED,
-                                              newChars,
-                                              -1,
-                                              (LPWSTR)thisChars,
-                                              dwNewCapacity+1);
-
-        if (ncWritten == 0)
-        {
-            // Normally, we'd throw an exception if the string couldn't be converted.
-            // In this particular case, we paper over it instead. The reason is
-            // that most likely reason a P/Invoke-called api returned a
-            // poison string is that the api failed for some reason, and hence
-            // exercised its right to leave the buffer in a poison state.
-            // Because P/Invoke cannot discover if an api failed, it cannot
-            // know to ignore the buffer on the out marshaling path.
-            // Because normal P/Invoke procedure is for the caller to check error
-            // codes manually, we don't want to throw an exception on him.
-            // We certainly don't want to randomly throw or not throw based on the
-            // nondeterministic contents of a buffer passed to a failing api.
-            *thisChars = W('\0');
-            ncWritten++;
-        }
-
-        m_ChunkOffset = 0;
-        m_ChunkLength = ncWritten-1;
-        m_ChunkPrevious = NULL;
-    }
-
-    // Given a Unicode string, use it to replace the StringBufferObject's internal buffer
-    VOID ReplaceBuffer(CHARARRAYREF *newArrayRef, __in_ecount(dwNewCapacity) WCHAR *newChars, DWORD dwNewCapacity)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-#ifndef DACCESS_COMPILE
-        SetObjectReference((OBJECTREF *)&m_ChunkChars, (OBJECTREF)(*newArrayRef), GetAppDomain());
-#endif //!DACCESS_COMPILE
-        WCHAR *thisChars = GetBuffer();
-        memcpyNoGCRefs(thisChars, newChars, sizeof(WCHAR)*dwNewCapacity);
-        thisChars[dwNewCapacity] = W('\0');
-        m_ChunkLength = dwNewCapacity;
-        m_ChunkPrevious = NULL;
-        m_ChunkOffset = 0; 
-    }
-
-    static void ReplaceBuffer(STRINGBUFFERREF *thisRef, __in_ecount(newLength) WCHAR *newBuffer, INT32 newLength);
-    static void ReplaceBufferAnsi(STRINGBUFFERREF *thisRef, __in_ecount(newCapacity) CHAR *newBuffer, INT32 newCapacity);    
-};
-
 class SafeHandle : public Object
 {
     friend class MscorlibBinder;
@@ -2833,6 +2570,10 @@ private:
     OBJECTREF   _invocationList;
     INT_PTR     _invocationCount;
 };
+
+#define OFFSETOF__DelegateObject__target          OBJECT_SIZE /* m_pMethTab */
+#define OFFSETOF__DelegateObject__methodPtr       (OFFSETOF__DelegateObject__target + TARGET_POINTER_SIZE /* _target */ + TARGET_POINTER_SIZE /* _methodBase */)
+#define OFFSETOF__DelegateObject__methodPtrAux    (OFFSETOF__DelegateObject__methodPtr + TARGET_POINTER_SIZE /* _methodPtr */)
 
 #ifdef USE_CHECKED_OBJECTREFS
 typedef REF<DelegateObject> DELEGATEREF;
@@ -3461,7 +3202,7 @@ public:
     static inline void *Value(void *src, MethodTable *nullableMT)
     {
         Nullable *nullable = (Nullable *)src;
-        return nullable->ValueAddr(nullableMT);        
+        return nullable->ValueAddr(nullableMT);
     }
     
 private:

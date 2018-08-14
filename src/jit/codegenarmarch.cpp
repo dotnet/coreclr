@@ -15,8 +15,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARMARCH_ // This file is ONLY used for ARM and ARM64 architectures
 
 #include "codegen.h"
@@ -327,11 +325,11 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             genPutArgReg(treeNode->AsOp());
             break;
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
             genPutArgSplit(treeNode->AsPutArgSplit());
             break;
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
         case GT_CALL:
             genCallInstruction(treeNode->AsCall());
@@ -342,7 +340,6 @@ void CodeGen::genCodeForTreeNode(GenTree* treeNode)
             break;
 
 #ifdef _TARGET_ARM64_
-        case GT_LOCKADD:
         case GT_XCHG:
         case GT_XADD:
             genLockedInstructions(treeNode->AsOp());
@@ -592,24 +589,24 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
     bool isStruct = (targetType == TYP_STRUCT) || (source->OperGet() == GT_FIELD_LIST);
 
-    if (varTypeIsSIMD(targetType))
-    {
-        assert(!source->isContained());
-
-        regNumber srcReg = genConsumeReg(source);
-
-        emitAttr storeAttr = emitTypeSize(targetType);
-
-        assert((srcReg != REG_NA) && (genIsValidFloatReg(srcReg)));
-        emit->emitIns_S_R(INS_str, storeAttr, srcReg, varNumOut, argOffsetOut);
-
-        argOffsetOut += EA_SIZE_IN_BYTES(storeAttr);
-        assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
-        return;
-    }
-
     if (!isStruct) // a normal non-Struct argument
     {
+        if (varTypeIsSIMD(targetType))
+        {
+            assert(!source->isContained());
+
+            regNumber srcReg = genConsumeReg(source);
+
+            emitAttr storeAttr = emitTypeSize(targetType);
+
+            assert((srcReg != REG_NA) && (genIsValidFloatReg(srcReg)));
+            emit->emitIns_S_R(INS_str, storeAttr, srcReg, varNumOut, argOffsetOut);
+
+            argOffsetOut += EA_SIZE_IN_BYTES(storeAttr);
+            assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
+            return;
+        }
+
         instruction storeIns  = ins_Store(targetType);
         emitAttr    storeAttr = emitTypeSize(targetType);
 
@@ -652,26 +649,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
 
         if (source->OperGet() == GT_FIELD_LIST)
         {
-            // Deal with the multi register passed struct args.
-            GenTreeFieldList* fieldListPtr = source->AsFieldList();
-
-            // Evaluate each of the GT_FIELD_LIST items into their register
-            // and store their register into the outgoing argument area
-            for (; fieldListPtr != nullptr; fieldListPtr = fieldListPtr->Rest())
-            {
-                GenTree* nextArgNode = fieldListPtr->gtOp.gtOp1;
-                genConsumeReg(nextArgNode);
-
-                regNumber reg  = nextArgNode->gtRegNum;
-                var_types type = nextArgNode->TypeGet();
-                emitAttr  attr = emitTypeSize(type);
-
-                // Emit store instructions to store the registers produced by the GT_FIELD_LIST into the outgoing
-                // argument area
-                emit->emitIns_S_R(ins_Store(type), attr, reg, varNumOut, argOffsetOut);
-                argOffsetOut += EA_SIZE_IN_BYTES(attr);
-                assert(argOffsetOut <= argOffsetMax); // We can't write beyound the outgoing area area
-            }
+            genPutArgStkFieldList(treeNode, varNumOut);
         }
         else // We must have a GT_OBJ or a GT_LCL_VAR
         {
@@ -820,7 +798,7 @@ void CodeGen::genPutArgStk(GenTreePutArgStk* treeNode)
                 {
                     // Load from our varNumImp source
                     emit->emitIns_R_R_S_S(INS_ldp, emitTypeSize(type0), emitTypeSize(type1), loReg, hiReg, varNumInp,
-                                          0);
+                                          structOffset);
                 }
                 else
                 {
@@ -983,7 +961,7 @@ void CodeGen::genPutArgReg(GenTreeOp* tree)
     genProduceReg(tree);
 }
 
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
 //---------------------------------------------------------------------
 // genPutArgSplit - generate code for a GT_PUTARG_SPLIT node
 //
@@ -1030,6 +1008,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
             {
                 var_types type   = treeNode->GetRegType(regIndex);
                 regNumber argReg = treeNode->GetRegNumByIdx(regIndex);
+#ifdef _TARGET_ARM_
                 if (type == TYP_LONG)
                 {
                     // We should only see long fields for DOUBLEs passed in 2 integer registers, via bitcast.
@@ -1047,6 +1026,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
                     assert(argReg == treeNode->GetRegNumByIdx(regIndex));
                     fieldReg = nextArgNode->AsMultiRegOp()->GetRegNumByIdx(1);
                 }
+#endif // _TARGET_ARM_
 
                 // If child node is not already in the register we need, move it
                 if (argReg != fieldReg)
@@ -1197,7 +1177,7 @@ void CodeGen::genPutArgSplit(GenTreePutArgSplit* treeNode)
     }
     genProduceReg(treeNode);
 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
 
 //----------------------------------------------------------------------------------
 // genMultiRegCallStoreToLocal: store multi-reg return value of a call node to a local
@@ -1711,38 +1691,24 @@ void CodeGen::genCodeForIndexAddr(GenTreeIndexAddr* node)
         genJumpToThrowHlpBlk(genJumpKindForOper(GT_GE, CK_UNSIGNED), SCK_RNGCHK_FAIL, node->gtIndRngFailBB);
     }
 
-    // Compute the address of the array element.
-    switch (node->gtElemSize)
+    // Can we use a ScaledAdd instruction?
+    //
+    if (isPow2(node->gtElemSize) && (node->gtElemSize <= 32768))
     {
-        case 1:
-            // dest = base + index
-            getEmitter()->emitIns_R_R_R(INS_add, emitActualTypeSize(node), node->gtRegNum, base->gtRegNum,
-                                        index->gtRegNum);
-            break;
+        DWORD scale;
+        BitScanForward(&scale, node->gtElemSize);
 
-        case 2:
-        case 4:
-        case 8:
-        case 16:
-        {
-            DWORD lsl;
-            BitScanForward(&lsl, node->gtElemSize);
+        // dest = base + index * scale
+        genScaledAdd(emitActualTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum, scale);
+    }
+    else // we have to load the element size and use a MADD (multiply-add) instruction
+    {
+        // tmpReg = element size
+        CodeGen::genSetRegToIcon(tmpReg, (ssize_t)node->gtElemSize, TYP_INT);
 
-            // dest = base + index * scale
-            genScaledAdd(emitActualTypeSize(node), node->gtRegNum, base->gtRegNum, index->gtRegNum, lsl);
-            break;
-        }
-
-        default:
-        {
-            // tmp = scale
-            CodeGen::genSetRegToIcon(tmpReg, (ssize_t)node->gtElemSize, TYP_INT);
-
-            // dest = index * tmp + base
-            getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitActualTypeSize(node), node->gtRegNum, index->gtRegNum, tmpReg,
-                                          base->gtRegNum);
-            break;
-        }
+        // dest = index * tmpReg + base
+        getEmitter()->emitIns_R_R_R_R(INS_MULADD, emitActualTypeSize(node), node->gtRegNum, index->gtRegNum, tmpReg,
+                                      base->gtRegNum);
     }
 
     // dest = dest + elemOffs
@@ -2239,7 +2205,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #endif // _TARGET_ARM_
             }
         }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
         else if (curArgTabEntry->isSplit)
         {
             assert(curArgTabEntry->numRegs >= 1);
@@ -2254,7 +2220,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
                 }
             }
         }
-#endif
+#endif // FEATURE_ARG_SPLIT
         else
         {
             regNumber argReg = curArgTabEntry->regNum;
@@ -2432,6 +2398,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #if 0 && defined(_TARGET_ARM64_)
         // Use this path if you want to load an absolute call target using 
         //  a sequence of movs followed by an indirect call (blr instruction)
+        // If this path is enabled, we need to ensure that REG_IP0 is assigned during Lowering.
 
         // Load the call target address in x16
         instGen_Set_Reg_To_Imm(EA_8BYTE, REG_IP0, (ssize_t) addr);
@@ -2690,7 +2657,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             regSet.AddMaskVars(genRegMask(argReg));
             gcInfo.gcMarkRegPtrVal(argReg, loadType);
 
-            if (compiler->lvaIsMultiregStruct(varDsc))
+            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
             {
                 if (varDsc->lvIsHfa())
                 {
@@ -2721,7 +2688,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
 
             fixedIntArgMask |= genRegMask(argReg);
 
-            if (compiler->lvaIsMultiregStruct(varDsc))
+            if (compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
             {
                 assert(argRegNext != REG_NA);
                 fixedIntArgMask |= genRegMask(argRegNext);
@@ -2892,10 +2859,8 @@ void CodeGen::genIntToIntCast(GenTree* treeNode)
     GenTree* castOp = treeNode->gtCast.CastOp();
     emitter* emit   = getEmitter();
 
-    var_types dstType     = treeNode->CastToType();
-    var_types srcType     = genActualType(castOp->TypeGet());
-    emitAttr  movSize     = emitActualTypeSize(dstType);
-    bool      movRequired = false;
+    var_types dstType = treeNode->CastToType();
+    var_types srcType = genActualType(castOp->TypeGet());
 
     assert(genTypeSize(srcType) <= genTypeSize(TYP_I_IMPL));
 
@@ -2908,8 +2873,6 @@ void CodeGen::genIntToIntCast(GenTree* treeNode)
     assert(genIsValidIntReg(targetReg));
     assert(genIsValidIntReg(sourceReg));
 
-    instruction ins = INS_invalid;
-
     genConsumeReg(castOp);
     Lowering::CastInfo castInfo;
 
@@ -2918,7 +2881,9 @@ void CodeGen::genIntToIntCast(GenTree* treeNode)
 
     if (castInfo.requiresOverflowCheck)
     {
-        emitAttr cmpSize = EA_ATTR(genTypeSize(srcType));
+        bool     movRequired = (sourceReg != targetReg);
+        emitAttr movSize     = emitActualTypeSize(dstType);
+        emitAttr cmpSize     = EA_ATTR(genTypeSize(srcType));
 
         if (castInfo.signCheckOnly)
         {
@@ -3008,72 +2973,63 @@ void CodeGen::genIntToIntCast(GenTree* treeNode)
             emitJumpKind jmpLT = genJumpKindForOper(GT_LT, CK_SIGNED);
             genJumpToThrowHlpBlk(jmpLT, SCK_OVERFLOW);
         }
-        ins = INS_mov;
+
+        if (movRequired)
+        {
+            emit->emitIns_R_R(INS_mov, movSize, targetReg, sourceReg);
+        }
     }
     else // Non-overflow checking cast.
     {
-        if (genTypeSize(srcType) == genTypeSize(dstType))
+        const unsigned srcSize = genTypeSize(srcType);
+        const unsigned dstSize = genTypeSize(dstType);
+        instruction    ins;
+        emitAttr       insSize;
+
+        if (dstSize < 4)
         {
-            ins = INS_mov;
+            // Casting to a small type really means widening from that small type to INT/LONG.
+            ins     = ins_Move_Extend(dstType, true);
+            insSize = emitActualTypeSize(treeNode->TypeGet());
         }
+#ifdef _TARGET_64BIT_
+        // dstType cannot be a long type on 32 bit targets, such casts should have been decomposed.
+        // srcType cannot be a small type since it's the "actual type" of the cast operand.
+        // This means that widening casts do not occur on 32 bit targets.
+        else if (dstSize > srcSize)
+        {
+            // (U)INT to (U)LONG widening cast
+            assert((srcSize == 4) && (dstSize == 8));
+            // Make sure the node type has the same size as the destination type.
+            assert(genTypeSize(treeNode->TypeGet()) == dstSize);
+
+            ins = treeNode->IsUnsigned() ? INS_mov : INS_sxtw;
+            // SXTW requires EA_8BYTE but MOV requires EA_4BYTE in order to zero out the upper 32 bits.
+            insSize = (ins == INS_sxtw) ? EA_8BYTE : EA_4BYTE;
+        }
+#endif
         else
         {
-            var_types extendType = TYP_UNKNOWN;
+            // Sign changing cast or narrowing cast
+            assert(dstSize <= srcSize);
+            // Note that narrowing casts are possible only on 64 bit targets.
+            assert(srcSize <= genTypeSize(TYP_I_IMPL));
+            // Make sure the node type has the same size as the destination type.
+            assert(genTypeSize(treeNode->TypeGet()) == dstSize);
 
-            if (genTypeSize(srcType) < genTypeSize(dstType))
-            {
-                // If we need to treat a signed type as unsigned
-                if ((treeNode->gtFlags & GTF_UNSIGNED) != 0)
-                {
-                    extendType = genUnsignedType(srcType);
-                }
-                else
-                    extendType = srcType;
-#ifdef _TARGET_ARM_
-                movSize = emitTypeSize(extendType);
-#endif // _TARGET_ARM_
-                if (extendType == TYP_UINT)
-                {
-#ifdef _TARGET_ARM64_
-                    // If we are casting from a smaller type to
-                    // a larger type, then we need to make sure the
-                    // higher 4 bytes are zero to gaurentee the correct value.
-                    // Therefore using a mov with EA_4BYTE in place of EA_8BYTE
-                    // will zero the upper bits
-                    movSize = EA_4BYTE;
-#endif // _TARGET_ARM64_
-                    movRequired = true;
-                }
-            }
-            else // (genTypeSize(srcType) > genTypeSize(dstType))
-            {
-                // If we need to treat a signed type as unsigned
-                if ((treeNode->gtFlags & GTF_UNSIGNED) != 0)
-                {
-                    extendType = genUnsignedType(dstType);
-                }
-                else
-                    extendType = dstType;
-#if defined(_TARGET_ARM_)
-                movSize = emitTypeSize(extendType);
-#elif defined(_TARGET_ARM64_)
-                if (extendType == TYP_INT)
-                {
-                    movSize = EA_8BYTE; // a sxtw instruction requires EA_8BYTE
-                }
-#endif // _TARGET_*
-            }
-
-            ins = ins_Move_Extend(extendType, true);
+            // This cast basically does nothing, even when narrowing it is the job of the
+            // consumer of this node to use the appropiate register size (32 or 64 bit)
+            // and not rely on the cast to set the upper 32 bits in a certain manner.
+            // Still, we will need to generate a MOV instruction if the source and target
+            // registers are different.
+            ins     = (sourceReg != targetReg) ? INS_mov : INS_none;
+            insSize = EA_SIZE(dstSize);
         }
-    }
 
-    // We should never be generating a load from memory instruction here!
-    assert(!emit->emitInsIsLoad(ins));
-
-    if ((ins != INS_mov) || movRequired || (targetReg != sourceReg))
-    {
-        emit->emitIns_R_R(ins, movSize, targetReg, sourceReg);
+        if (ins != INS_none)
+        {
+            emit->emitIns_R_R(ins, insSize, targetReg, sourceReg);
+        }
     }
 
     genProduceReg(treeNode);
@@ -3500,11 +3456,20 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* blkOp)
 void CodeGen::genScaledAdd(emitAttr attr, regNumber targetReg, regNumber baseReg, regNumber indexReg, int scale)
 {
     emitter* emit = getEmitter();
+    if (scale == 0)
+    {
+        // target = base + index
+        getEmitter()->emitIns_R_R_R(INS_add, attr, targetReg, baseReg, indexReg);
+    }
+    else
+    {
+// target = base + index<<scale
 #if defined(_TARGET_ARM_)
-    emit->emitIns_R_R_R_I(INS_add, attr, targetReg, baseReg, indexReg, scale, INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+        emit->emitIns_R_R_R_I(INS_add, attr, targetReg, baseReg, indexReg, scale, INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
 #elif defined(_TARGET_ARM64_)
-    emit->emitIns_R_R_R_I(INS_add, attr, targetReg, baseReg, indexReg, scale, INS_OPTS_LSL);
+        emit->emitIns_R_R_R_I(INS_add, attr, targetReg, baseReg, indexReg, scale, INS_OPTS_LSL);
 #endif
+    }
 }
 
 //------------------------------------------------------------------------
@@ -3539,59 +3504,52 @@ void CodeGen::genLeaInstruction(GenTreeAddrMode* lea)
         GenTree* memBase = lea->Base();
         GenTree* index   = lea->Index();
 
-        DWORD lsl;
+        DWORD scale;
 
         assert(isPow2(lea->gtScale));
-        BitScanForward(&lsl, lea->gtScale);
+        BitScanForward(&scale, lea->gtScale);
 
-        assert(lsl <= 4);
+        assert(scale <= 4);
 
         if (offset != 0)
         {
             regNumber tmpReg = lea->GetSingleTempReg();
 
-            if (emitter::emitIns_valid_imm_for_add(offset))
+            // When generating fully interruptible code we have to use the "large offset" sequence
+            // when calculating a EA_BYREF as we can't report a byref that points outside of the object
+            //
+            bool useLargeOffsetSeq = compiler->genInterruptible && (size == EA_BYREF);
+
+            if (!useLargeOffsetSeq && emitter::emitIns_valid_imm_for_add(offset))
             {
-                if (lsl > 0)
-                {
-                    // Generate code to set tmpReg = base + index*scale
-                    genScaledAdd(size, tmpReg, memBase->gtRegNum, index->gtRegNum, lsl);
-                }
-                else // no scale
-                {
-                    // Generate code to set tmpReg = base + index
-                    emit->emitIns_R_R_R(INS_add, size, tmpReg, memBase->gtRegNum, index->gtRegNum);
-                }
+                // Generate code to set tmpReg = base + index*scale
+                genScaledAdd(size, tmpReg, memBase->gtRegNum, index->gtRegNum, scale);
 
                 // Then compute target reg from [tmpReg + offset]
                 emit->emitIns_R_R_I(INS_add, size, lea->gtRegNum, tmpReg, offset);
             }
-            else // large offset
+            else // large offset sequence
             {
-                // First load/store tmpReg with the large offset constant
-                instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
-                // Then add the base register
-                //      rd = rd + base
-                emit->emitIns_R_R_R(INS_add, size, tmpReg, tmpReg, memBase->gtRegNum);
-
                 noway_assert(tmpReg != index->gtRegNum);
+                noway_assert(tmpReg != memBase->gtRegNum);
 
-                // Then compute target reg from [tmpReg + index*scale]
-                genScaledAdd(size, lea->gtRegNum, tmpReg, index->gtRegNum, lsl);
+                // First load/store tmpReg with the offset constant
+                //      rTmp = imm
+                instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
+
+                // Then add the scaled index register
+                //      rTmp = rTmp + index*scale
+                genScaledAdd(EA_PTRSIZE, tmpReg, tmpReg, index->gtRegNum, scale);
+
+                // Then compute target reg from [base + tmpReg ]
+                //      rDst = base + rTmp
+                emit->emitIns_R_R_R(INS_add, size, lea->gtRegNum, memBase->gtRegNum, tmpReg);
             }
         }
         else
         {
-            if (lsl > 0)
-            {
-                // Then compute target reg from [base + index*scale]
-                genScaledAdd(size, lea->gtRegNum, memBase->gtRegNum, index->gtRegNum, lsl);
-            }
-            else
-            {
-                // Then compute target reg from [base + index]
-                emit->emitIns_R_R_R(INS_add, size, lea->gtRegNum, memBase->gtRegNum, index->gtRegNum);
-            }
+            // Then compute target reg from [base + index*scale]
+            genScaledAdd(size, lea->gtRegNum, memBase->gtRegNum, index->gtRegNum, scale);
         }
     }
     else if (lea->Base())
@@ -3893,5 +3851,3 @@ void CodeGen::genStructReturn(GenTree* treeNode)
     } // op1 must be multi-reg GT_CALL
 }
 #endif // _TARGET_ARMARCH_
-
-#endif // !LEGACY_BACKEND

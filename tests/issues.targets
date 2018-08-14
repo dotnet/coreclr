@@ -187,6 +187,18 @@
         <ExcludeList Include="$(XunitTestBinBase)\Loader\classloader\TypeGeneratorTests\TypeGeneratorTest683\Generated683\*">
             <Issue>6707</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\GitHub_18056\Bool_And_Op_cs_do\Bool_And_Op_cs_do.cmd">
+            <Issue>18056</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\baseservices\varargs\varargsupport\varargsupport.cmd">
+            <Issue>Varargs supported on this platform</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\baseservices\varargs\varargsupport_r\varargsupport_r.cmd">
+            <Issue>Varargs supported on this platform</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\COM\NETClients\Primitives\NETClientPrimitives\NETClientPrimitives.cmd">
+            <Issue>19164</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are x86 failures -->
@@ -207,9 +219,6 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.cmd">
             <Issue>2420. x86 JIT doesn't support implicit tail call optimization or tail. call pop ret sequence</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\Dev11\External\dev11_239804\ShowLocallocAlignment\ShowLocallocAlignment.cmd">
-            <Issue>7163, fails on both legacy backend and RyuJIT</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Regression\JitBlue\DevDiv_255294\DevDiv_255294\DevDiv_255294.cmd">
             <Issue>11469, The test causes OutOfMemory exception in crossgen mode.</Issue> 
         </ExcludeList>
@@ -224,6 +233,11 @@
         <ExcludeList Include="$(XunitTestBinBase)\JIT\opt\Tailcall\TailcallVerifyWithPrefix\TailcallVerifyWithPrefix.cmd">
             <Issue>2420</Issue>
         </ExcludeList>
+    </ItemGroup>
+
+    <!-- The following are ARM64_altjit crossgen failures. For x64_arm64_altjit buildArm==x64. -->
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64'">
     </ItemGroup>
 
     <!-- Tests that need to be triaged for vararg usage as that is not supported -->
@@ -537,6 +551,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\Interop\StructMarshalling\PInvoke\MarshalStructAsLayoutExp\MarshalStructAsLayoutExp.cmd">
             <Issue>needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\Interop\COM\NETClients\Primitives\NETClientPrimitives\NETClientPrimitives.cmd">
+            <Issue>by design Windows only</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\IL\PInvokeTail\PInvokeTail\PInvokeTail.cmd">
             <Issue>needs triage</Issue>
@@ -1711,16 +1728,8 @@
         <ExcludeList Include="$(XunitTestBinBase)\managed\Compilation\Compilation\Compilation.cmd">
             <Issue>needs triage</Issue>
         </ExcludeList>
-    </ItemGroup>
-
-    <!-- The following are tests that fail on Windows -->
-
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsourcetrace\eventsourcetrace\eventsourcetrace.cmd">
-            <Issue>15494</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\tracing\tracevalidation\tracelogging\tracelogging\tracelogging.cmd">
-            <Issue>15494</Issue>
+        <ExcludeList Include="$(XunitTestBinBase)\tracing\eventsource\eventpipeandetw\eventpipeandetw\eventpipeandetw.cmd">
+            <Issue>by design Windows only</Issue>
         </ExcludeList>
     </ItemGroup>
 

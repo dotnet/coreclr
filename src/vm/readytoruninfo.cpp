@@ -254,7 +254,6 @@ BOOL ReadyToRunInfo::GetEnclosingToken(IMDInternalImport * pImport, mdToken mdTy
     }
     CONTRACTL_END;
 
-    mdToken mdEncloser;
     switch (TypeFromToken(mdType))
     {
     case mdtTypeDef:
@@ -461,13 +460,6 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
     {
         // Log message is ignored in this case.
         DoLog(NULL);
-        return NULL;
-    }
-
-    // Ignore ReadyToRun for introspection-only loads
-    if (pFile->IsIntrospectionOnly())
-    {
-        DoLog("Ready to Run disabled - module loaded for reflection");
         return NULL;
     }
 
@@ -889,7 +881,7 @@ DWORD ReadyToRunInfo::GetFieldBaseOffset(MethodTable * pMT)
 
     dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, dwAlignment);
 
-    return (DWORD)sizeof(Object) + dwCumulativeInstanceFieldPos - dwOffsetBias;
+    return OBJECT_SIZE + dwCumulativeInstanceFieldPos - dwOffsetBias;
 }
 
 BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)

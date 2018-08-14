@@ -678,6 +678,13 @@ bool ILCodeVersion::operator==(const ILCodeVersion & rhs) const
     }
 }
 
+BOOL ILCodeVersion::HasDefaultIL() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return (m_storageKind == StorageKind::Synthetic) || (AsNode()->GetIL() == NULL);
+}
+
 BOOL ILCodeVersion::IsNull() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
@@ -773,23 +780,38 @@ PTR_COR_ILMETHOD ILCodeVersion::GetIL() const
     }
     CONTRACTL_END
 
+    PTR_COR_ILMETHOD pIL = NULL;
     if (m_storageKind == StorageKind::Explicit)
     {
-        return AsNode()->GetIL();
+        pIL = AsNode()->GetIL();
     }
-    else
+    
+    // For the default code version we always fetch the globally stored default IL for a method
+    //
+    // In the non-default code version we assume NULL is the equivalent of explicitly requesting to
+    // re-use the default IL. Ideally there would be no reason to create a new version that re-uses
+    // the default IL (just use the default code version for that) but we do it here for compat. We've 
+    // got some profilers that use ReJIT to create a new code version and then instead of calling
+    // ICorProfilerFunctionControl::SetILFunctionBody they call ICorProfilerInfo::SetILFunctionBody. 
+    // This mutates the default IL so that it is now correct for their new code version. Of course this
+    // also overwrote the previous default IL so now the default code version GetIL() is out of sync
+    // with the jitted code. In the majority of cases we never re-read the IL after the initial
+    // jitting so this issue goes unnoticed.
+    //
+    // If changing the default IL after it is in use becomes more problematic in the future we would
+    // need to add enforcement that prevents profilers from using ICorProfilerInfo::SetILFunctionBody
+    // that way + coordinate with them because it is a breaking change for any profiler currently doing it.
+    if(pIL == NULL)
     {
         PTR_Module pModule = GetModule();
         PTR_MethodDesc pMethodDesc = dac_cast<PTR_MethodDesc>(pModule->LookupMethodDef(GetMethodDef()));
-        if (pMethodDesc == NULL)
+        if (pMethodDesc != NULL)
         {
-            return NULL;
-        }
-        else
-        {
-            return dac_cast<PTR_COR_ILMETHOD>(pMethodDesc->GetILHeader(TRUE));
+            pIL = dac_cast<PTR_COR_ILMETHOD>(pMethodDesc->GetILHeader(TRUE));
         }
     }
+
+    return pIL;
 }
 
 PTR_COR_ILMETHOD ILCodeVersion::GetILNoThrow() const
@@ -925,6 +947,9 @@ HRESULT ILCodeVersion::SetActiveNativeCodeVersion(NativeCodeVersion activeNative
 ILCodeVersionNode* ILCodeVersion::AsNode()
 {
     LIMITED_METHOD_CONTRACT;
+    //This is dangerous - NativeCodeVersion coerces non-explicit versions to NULL but ILCodeVersion assumes the caller
+    //will never invoke AsNode() on a non-explicit node. Asserting for now as a minimal fix, but we should revisit this.
+    _ASSERTE(m_storageKind == StorageKind::Explicit);
     return m_pVersionNode;
 }
 #endif //DACCESS_COMPILE
@@ -932,6 +957,9 @@ ILCodeVersionNode* ILCodeVersion::AsNode()
 PTR_ILCodeVersionNode ILCodeVersion::AsNode() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
+    //This is dangerous - NativeCodeVersion coerces non-explicit versions to NULL but ILCodeVersion assumes the caller
+    //will never invoke AsNode() on a non-explicit node. Asserting for now as a minimal fix, but we should revisit this.
+    _ASSERTE(m_storageKind == StorageKind::Explicit);
     return m_pVersionNode;
 }
 
@@ -1966,7 +1994,7 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         CAN_TAKE_LOCK;
         PRECONDITION(CheckPointer(pActiveVersions));
@@ -2280,7 +2308,7 @@ HRESULT CodeVersionManager::EnumerateClosedMethodDescs(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
         CAN_TAKE_LOCK;
         PRECONDITION(CheckPointer(pMD, NULL_OK));
@@ -2520,8 +2548,6 @@ HRESULT CodeVersionManager::DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode)
     }
     CONTRACTL_END;
 
-    HRESULT hr;
-
     _ASSERTE(LockOwnedByCurrentThread());
 
     NativeCodeVersion activeCodeVersion = GetActiveILCodeVersion(pMD).GetActiveNativeCodeVersion(pMD);
@@ -2540,6 +2566,7 @@ HRESULT CodeVersionManager::DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode)
     _ASSERTE(!"How did we get here? IsVersionableWithJumpStamp() should have been FALSE above");
     return S_OK;
 #else
+    HRESULT hr;
     MethodDescVersioningState* pVersioningState;
     if (FAILED(hr = GetOrCreateMethodDescVersioningState(pMD, &pVersioningState)))
     {

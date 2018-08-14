@@ -43,11 +43,11 @@ struct ArgLocDesc
     int     m_idxStack;           // First stack slot used (or -1)
     int     m_cStack;             // Count of stack slots used (or 0)
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
     EEClass* m_eeClass;           // For structs passed in register, it points to the EEClass of the struct
 
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 #if defined(_TARGET_ARM64_)
     bool    m_isSinglePrecision;  // For determining if HFA is single or double
@@ -78,7 +78,7 @@ struct ArgLocDesc
 #if defined(_TARGET_ARM64_)
         m_isSinglePrecision = FALSE;
 #endif // defined(_TARGET_ARM64_)
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         m_eeClass = NULL;
 #endif
     }
@@ -120,8 +120,9 @@ struct TransitionBlock
             INT64 x19, x20, x21, x22, x23, x24, x25, x26, x27, x28;
         };
     };
-    ArgumentRegisters       m_argumentRegisters;
     TADDR padding; // Keep size of TransitionBlock as multiple of 16-byte. Simplifies code in PROLOG_WITH_TRANSITION_BLOCK
+    INT64 m_x8RetBuffReg;
+    ArgumentRegisters       m_argumentRegisters;
 #else
     PORTABILITY_ASSERT("TransitionBlock");
 #endif
@@ -135,9 +136,19 @@ struct TransitionBlock
         return offsetof(TransitionBlock, m_ReturnAddress);
     }
 
+#ifdef _TARGET_ARM64_
+    static int GetOffsetOfRetBuffArgReg()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return offsetof(TransitionBlock, m_x8RetBuffReg);
+    }
+#endif
+
     static BYTE GetOffsetOfArgs()
     {
         LIMITED_METHOD_CONTRACT;
+
+        // Offset of the stack args (which are after the TransitionBlock)
         return sizeof(TransitionBlock);
     }
 
@@ -157,7 +168,7 @@ struct TransitionBlock
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         return offset >= sizeof(TransitionBlock);
 #else        
         int ofsArgRegs = GetOffsetOfArgumentRegisters();
@@ -180,7 +191,7 @@ struct TransitionBlock
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         _ASSERTE(offset != TransitionBlock::StructInRegsOffset);
 #endif        
         return (offset - GetOffsetOfArgumentRegisters()) / TARGET_POINTER_SIZE;
@@ -199,7 +210,7 @@ struct TransitionBlock
     static BOOL IsFloatArgumentRegisterOffset(int offset)
     {
         LIMITED_METHOD_CONTRACT;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         return (offset != TransitionBlock::StructInRegsOffset) && (offset < 0);
 #else        
         return offset < 0;
@@ -212,7 +223,7 @@ struct TransitionBlock
     static BOOL HasFloatRegister(int offset, ArgLocDesc* argLocDescForStructInRegs)
     {
         LIMITED_METHOD_CONTRACT;
-    #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    #if defined(UNIX_AMD64_ABI)
         if (offset == TransitionBlock::StructInRegsOffset)
         {
             return argLocDescForStructInRegs->m_cFloatReg > 0;
@@ -248,7 +259,7 @@ struct TransitionBlock
     }
 
     static const int InvalidOffset = -1;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Special offset value to represent  struct passed in registers. Such a struct can span both
     // general purpose and floating point registers, so it can have two different offsets.
     static const int StructInRegsOffset = -2;
@@ -399,7 +410,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         // No arguments are passed by reference on AMD64 on Unix
         return FALSE;
 #else
@@ -416,12 +427,12 @@ public:
         LIMITED_METHOD_CONTRACT;
 
 #ifdef _TARGET_AMD64_
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         PORTABILITY_ASSERT("ArgIteratorTemplate::IsVarArgPassedByRef");                
         return FALSE;
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         return IsArgPassedByRef(size);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 #else
         return (size > ENREGISTERED_PARAMTYPE_MAXSIZE);
@@ -491,14 +502,18 @@ public:
     // in signatures (this pointer and the like). Whether or not these can be used successfully before all the
     // explicit arguments have been scanned is platform dependent.
     void GetThisLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetThisOffset(), pLoc); }
-    void GetRetBuffArgLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetRetBuffArgOffset(), pLoc); }
     void GetParamTypeLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetParamTypeArgOffset(), pLoc); }
     void GetVASigCookieLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetVASigCookieOffset(), pLoc); }
+
+#ifndef CALLDESCR_RETBUFFARGREG
+    void GetRetBuffArgLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetRetBuffArgOffset(), pLoc); }
+#endif
+
 #endif // !_TARGET_X86_
 
     ArgLocDesc* GetArgLocDescForStructInRegs()
     {
-#if (defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)) || defined (_TARGET_ARM64_)
+#if defined(UNIX_AMD64_ABI) || defined (_TARGET_ARM64_)
         return m_hasArgLocDescForStructInRegs ? &m_argLocDescForStructInRegs : NULL;
 #else
         return NULL;
@@ -584,11 +599,17 @@ public:
             cSlots = 1;
         }
 
+#ifdef _TARGET_ARM64_
+        // Sanity check to make sure no caller is trying to get an ArgLocDesc that
+        // describes the return buffer reg field that's in the TransitionBlock.
+        _ASSERTE(argOffset != TransitionBlock::GetOffsetOfRetBuffArgReg());
+#endif
+
         if (!TransitionBlock::IsStackArgumentOffset(argOffset))
         {
             pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
             pLoc->m_cGenReg = cSlots;
-         }
+        }
         else
         {
             pLoc->m_idxStack = TransitionBlock::GetStackArgumentIndexFromOffset(argOffset);
@@ -603,13 +624,13 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         if (m_hasArgLocDescForStructInRegs)
         {
             *pLoc = m_argLocDescForStructInRegs;
             return;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         if (argOffset == TransitionBlock::StructInRegsOffset)
         {
@@ -650,10 +671,10 @@ protected:
     CorElementType      m_argType;
     int                 m_argSize;
     TypeHandle          m_argTypeHandle;
-#if (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)) || defined(_TARGET_ARM64_)
+#if (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
     ArgLocDesc          m_argLocDescForStructInRegs;
     bool                m_hasArgLocDescForStructInRegs;
-#endif // _TARGET_AMD64_ && UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // (_TARGET_AMD64_ && UNIX_AMD64_ABI) || _TARGET_ARM64_
 
 #ifdef _TARGET_X86_
     int                 m_curOfs;           // Current position of the stack iterator
@@ -665,9 +686,7 @@ protected:
     int                 m_idxGenReg;        // Next general register to be assigned a value
     int                 m_idxStack;         // Next stack slot to be assigned a value
     int                 m_idxFPReg;         // Next floating point register to be assigned a value
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     bool                m_fArgInRegisters;  // Indicates that the current argument is stored in registers
-#endif    
 #else
     int                 m_curOfs;           // Current position of the stack iterator
 #endif
@@ -711,6 +730,13 @@ protected:
     void GetSimpleLoc(int offset, ArgLocDesc * pLoc)
     { 
         WRAPPER_NO_CONTRACT; 
+
+#ifdef CALLDESCR_RETBUFFARGREG
+        // Codepaths where this could happen have been removed. If this occurs, something
+        // has been missed and this needs another look.
+        _ASSERTE(offset != TransitionBlock::GetOffsetOfRetBuffArgReg());
+#endif
+
         pLoc->Init();
         pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(offset);
         pLoc->m_cGenReg = 1;
@@ -749,7 +775,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetRetBuffArgOffset()
     // x86 is special as always
     ret += this->HasThis() ? offsetof(ArgumentRegisters, EDX) : offsetof(ArgumentRegisters, ECX);
 #elif _TARGET_ARM64_
-    ret += (int) offsetof(ArgumentRegisters, x[8]);
+    ret = TransitionBlock::GetOffsetOfRetBuffArgReg();
 #else
     if (this->HasThis())
         ret += TARGET_POINTER_SIZE;
@@ -931,6 +957,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         m_dwFlags |= ITERATION_STARTED;
     }
 
+    // We're done going through the args for this MetaSig
     if (m_argNum == this->NumFixedArgs())
         return TransitionBlock::InvalidOffset;
 
@@ -943,7 +970,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     m_argSize = argSize;
     m_argTypeHandle = thValueType;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     m_hasArgLocDescForStructInRegs = false;
 #endif
 
@@ -988,7 +1015,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     case ELEMENT_TYPE_VALUETYPE:
     {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         MethodTable *pMT = m_argTypeHandle.AsMethodTable();
         if (pMT->IsRegPassedStruct())
         {
@@ -1035,9 +1062,9 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         cFPRegs = 0;
         cGenRegs = 0;
 
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         argSize = sizeof(TADDR);        
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         break;
     }
@@ -1060,7 +1087,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         return argOfs;
     }
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     m_fArgInRegisters = false;
 #endif        
 
@@ -1314,15 +1341,40 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     }
     else
     {
+        // Only x0-x7 are valid argument registers (x8 is always the return buffer)
         if (m_idxGenReg + cArgSlots <= 8)
         {
+            // The entirety of the arg fits in the register slots.
+
             int argOfs = TransitionBlock::GetOffsetOfArgumentRegisters() + m_idxGenReg * 8;
             m_idxGenReg += cArgSlots;
             return argOfs;
         }
         else
         {
-            m_idxGenReg = 8;
+#ifdef _WIN32
+            if (this->IsVarArg() && m_idxGenReg < 8)
+            {
+                // Address the Windows ARM64 varargs case where an arg is split between regs and stack.
+                // This can happen in the varargs case because the first 64 bytes of the stack are loaded
+                // into x0-x7, and any remaining stack arguments are placed normally.
+                int argOfs = TransitionBlock::GetOffsetOfArgumentRegisters() + m_idxGenReg * 8;
+
+                // Increase m_idxStack to account for the space used for the remainder of the arg after
+                // register slots are filled.
+                m_idxStack += (m_idxGenReg + cArgSlots - 8);
+
+                // We used up the remaining reg slots.
+                m_idxGenReg = 8; 
+
+                return argOfs;
+            }
+            else
+#endif
+            {
+                // Don't use reg slots for this. It will be passed purely on the stack arg space.
+                m_idxGenReg = 8;
+            }
         }
     }
 
@@ -1380,7 +1432,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         {
             _ASSERTE(!thValueType.IsNull());
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             MethodTable *pMT = thValueType.AsMethodTable();
             if (pMT->IsRegPassedStruct())
             {
@@ -1412,7 +1464,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
 
                 break;
             }
-#else // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
 
 #ifdef FEATURE_HFA
             if (thValueType.IsHFA() && !this->IsVarArg())
@@ -1440,7 +1492,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
 
             if  (size <= ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE)
                 break;
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
         }
 #endif // ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
 
@@ -1562,7 +1614,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
         int stackElemSize;
 
 #ifdef _TARGET_AMD64_
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         if (m_fArgInRegisters)
         {
             // Arguments passed in registers don't consume any stack 
@@ -1570,11 +1622,11 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
         }
 
         stackElemSize = StackElemSize(GetArgSize());
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         // All stack arguments take just one stack slot on AMD64 because of arguments bigger 
         // than a stack slot are passed by reference. 
         stackElemSize = STACK_ELEM_SIZE;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 #else // _TARGET_AMD64_
         stackElemSize = StackElemSize(GetArgSize());
 #if defined(ENREGISTERED_PARAMTYPE_MAXSIZE)

@@ -16,12 +16,6 @@ static bool strictArmAsm;
 /*         Routines that compute the size of / encode instructions      */
 /************************************************************************/
 
-struct CnsVal
-{
-    ssize_t cnsVal;
-    bool    cnsReloc;
-};
-
 #ifdef DEBUG
 
 /************************************************************************/
@@ -32,7 +26,6 @@ const char* emitFPregName(unsigned reg, bool varName = true);
 const char* emitVectorRegName(regNumber reg);
 
 void emitDispInst(instruction ins);
-void emitDispReloc(int value, bool addComma);
 void emitDispImm(ssize_t imm, bool addComma, bool alwaysHex = false);
 void emitDispFloatZero();
 void emitDispFloatImm(ssize_t imm8);
@@ -67,9 +60,6 @@ void emitDispIns(instrDesc* id,
 /************************************************************************/
 
 private:
-instrDesc* emitNewInstrAmd(emitAttr attr, int dsp);
-instrDesc* emitNewInstrAmdCns(emitAttr attr, int dsp, int cns);
-
 instrDesc* emitNewInstrCallDir(int              argCnt,
                                VARSET_VALARG_TP GCvars,
                                regMaskTP        gcrefRegs,
@@ -84,11 +74,6 @@ instrDesc* emitNewInstrCallInd(int              argCnt,
                                regMaskTP        byrefRegs,
                                emitAttr         retSize,
                                emitAttr         secondRetSize);
-
-void emitGetInsCns(instrDesc* id, CnsVal* cv);
-ssize_t emitGetInsAmdCns(instrDesc* id, CnsVal* cv);
-void emitGetInsDcmCns(instrDesc* id, CnsVal* cv);
-ssize_t emitGetInsAmdAny(instrDesc* id);
 
 /************************************************************************/
 /*               Private helpers for instruction output                 */

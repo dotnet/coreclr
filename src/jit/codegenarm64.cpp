@@ -15,8 +15,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARM64_
 #include "emit.h"
 #include "codegen.h"
@@ -120,7 +118,7 @@ bool CodeGen::genInstrWithConstant(instruction ins,
 
         // first we load the immediate into tmpReg
         instGen_Set_Reg_To_Imm(size, tmpReg, imm);
-        regTracker.rsTrackRegTrash(tmpReg);
+        regSet.verifyRegUsed(tmpReg);
 
         // when we are in an unwind code region
         // we record the extra instructions using unwindPadding()
@@ -1004,7 +1002,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         // Load the CallerSP of the main function (stored in the PSP of the dynamically containing funclet or function)
         genInstrWithConstant(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
                              genFuncletInfo.fiCallerSP_to_PSP_slot_delta, REG_R2, false);
-        regTracker.rsTrackRegTrash(REG_R1);
+        regSet.verifyRegUsed(REG_R1);
 
         // Store the PSP value (aka CallerSP)
         genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
@@ -1021,7 +1019,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         // compute the CallerSP, given the frame pointer. x3 is scratch.
         genInstrWithConstant(INS_add, EA_PTRSIZE, REG_R3, REG_FPBASE, -genFuncletInfo.fiFunction_CallerSP_to_FP_delta,
                              REG_R2, false);
-        regTracker.rsTrackRegTrash(REG_R3);
+        regSet.verifyRegUsed(REG_R3);
 
         genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
                              genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
@@ -1427,7 +1425,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
         }
     }
 
-    regTracker.rsTrackRegIntCns(reg, imm);
+    regSet.verifyRegUsed(reg);
 }
 
 /***********************************************************************************
@@ -1450,7 +1448,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
             if (con->ImmedValNeedsReloc(compiler))
             {
                 instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
-                regTracker.rsTrackRegTrash(targetReg);
+                regSet.verifyRegUsed(targetReg);
             }
             else
             {
@@ -1889,7 +1887,7 @@ void CodeGen::genLclHeap(GenTree* tree)
             goto BAILOUT;
         }
 
-        // 'amount' is the total numbe of bytes to localloc to properly STACK_ALIGN
+        // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
         amount = AlignUp(amount, STACK_ALIGN);
     }
     else
@@ -1967,16 +1965,18 @@ void CodeGen::genLclHeap(GenTree* tree)
         // We should reach here only for non-zero, constant size allocations.
         assert(amount > 0);
 
-        // For small allocations we will generate up to four stp instructions
-        size_t cntStackAlignedWidthItems = (amount >> STACK_ALIGN_SHIFT);
-        if (cntStackAlignedWidthItems <= 4)
+        // For small allocations we will generate up to four stp instructions, to zero 16 to 64 bytes.
+        static_assert_no_msg(STACK_ALIGN == (REGSIZE_BYTES * 2));
+        assert(amount % (REGSIZE_BYTES * 2) == 0); // stp stores two registers at a time
+        size_t stpCount = amount / (REGSIZE_BYTES * 2);
+        if (stpCount <= 4)
         {
-            while (cntStackAlignedWidthItems != 0)
+            while (stpCount != 0)
             {
                 // We can use pre-indexed addressing.
-                // stp ZR, ZR, [SP, #-16]!
+                // stp ZR, ZR, [SP, #-16]!   // STACK_ALIGN is 16
                 getEmitter()->emitIns_R_R_R_I(INS_stp, EA_PTRSIZE, REG_ZR, REG_ZR, REG_SPBASE, -16, INS_OPTS_PRE_INDEX);
-                cntStackAlignedWidthItems -= 1;
+                stpCount -= 1;
             }
 
             goto ALLOC_DONE;
@@ -2652,8 +2652,12 @@ void CodeGen::genJumpTable(GenTree* treeNode)
     genProduceReg(treeNode);
 }
 
-// generate code for the locked operations:
-// GT_LOCKADD, GT_XCHG, GT_XADD
+//------------------------------------------------------------------------
+// genLockedInstructions: Generate code for a GT_XADD or GT_XCHG node.
+//
+// Arguments:
+//    treeNode - the GT_XADD/XCHG node
+//
 void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
 {
     GenTree*  data      = treeNode->gtOp.gtOp2;
@@ -2662,93 +2666,118 @@ void CodeGen::genLockedInstructions(GenTreeOp* treeNode)
     regNumber dataReg   = data->gtRegNum;
     regNumber addrReg   = addr->gtRegNum;
 
-    regNumber exResultReg  = treeNode->ExtractTempReg(RBM_ALLINT);
-    regNumber storeDataReg = (treeNode->OperGet() == GT_XCHG) ? dataReg : treeNode->ExtractTempReg(RBM_ALLINT);
-    regNumber loadReg      = (targetReg != REG_NA) ? targetReg : storeDataReg;
-
-    // Check allocator assumptions
-    //
-    // The register allocator should have extended the lifetimes of all input and internal registers so that
-    // none interfere with the target.
-    noway_assert(addrReg != targetReg);
-
-    noway_assert(addrReg != loadReg);
-    noway_assert(dataReg != loadReg);
-
-    noway_assert(addrReg != storeDataReg);
-    noway_assert((treeNode->OperGet() == GT_XCHG) || (addrReg != dataReg));
-
-    assert(addr->isUsedFromReg());
-    noway_assert(exResultReg != REG_NA);
-    noway_assert(exResultReg != targetReg);
-    noway_assert((targetReg != REG_NA) || (treeNode->OperGet() != GT_XCHG));
-
-    // Store exclusive unpredictable cases must be avoided
-    noway_assert(exResultReg != storeDataReg);
-    noway_assert(exResultReg != addrReg);
-
     genConsumeAddress(addr);
     genConsumeRegs(data);
 
-    // NOTE: `genConsumeAddress` marks the consumed register as not a GC pointer, as it assumes that the input registers
-    // die at the first instruction generated by the node. This is not the case for these atomics as the  input
-    // registers are multiply-used. As such, we need to mark the addr register as containing a GC pointer until
-    // we are finished generating the code for this node.
-
-    gcInfo.gcMarkRegPtrVal(addrReg, addr->TypeGet());
-
-    // TODO-ARM64-CQ Use ARMv8.1 atomics if available
-    // https://github.com/dotnet/coreclr/issues/11881
-
-    // Emit code like this:
-    //   retry:
-    //     ldxr loadReg, [addrReg]
-    //     add storeDataReg, loadReg, dataReg         # Only for GT_XADD & GT_LOCKADD
-    //                                                # GT_XCHG storeDataReg === dataReg
-    //     stxr exResult, storeDataReg, [addrReg]
-    //     cbnz exResult, retry
-
-    BasicBlock* labelRetry = genCreateTempLabel();
-    genDefineTempLabel(labelRetry);
-
     emitAttr dataSize = emitActualTypeSize(data);
-    // The following instruction includes a acquire half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
-    getEmitter()->emitIns_R_R(INS_ldaxr, dataSize, loadReg, addrReg);
 
-    switch (treeNode->OperGet())
+    if (compiler->compSupports(InstructionSet_Atomics))
     {
-        case GT_XADD:
-        case GT_LOCKADD:
-            if (data->isContainedIntOrIImmed())
-            {
-                // Even though INS_add is specified here, the encoder will choose either
-                // an INS_add or an INS_sub and encode the immediate as a positive value
-                genInstrWithConstant(INS_add, dataSize, storeDataReg, loadReg, data->AsIntConCommon()->IconValue(),
-                                     REG_NA);
-            }
-            else
-            {
-                getEmitter()->emitIns_R_R_R(INS_add, dataSize, storeDataReg, loadReg, dataReg);
-            }
-            break;
-        case GT_XCHG:
-            assert(!data->isContained());
-            storeDataReg = dataReg;
-            break;
-        default:
-            unreached();
+        assert(!data->isContainedIntOrIImmed());
+
+        switch (treeNode->gtOper)
+        {
+            case GT_XCHG:
+                getEmitter()->emitIns_R_R_R(INS_swpal, dataSize, dataReg, targetReg, addrReg);
+                break;
+            case GT_XADD:
+                if ((targetReg == REG_NA) || (targetReg == REG_ZR))
+                {
+                    getEmitter()->emitIns_R_R(INS_staddl, dataSize, dataReg, addrReg);
+                }
+                else
+                {
+                    getEmitter()->emitIns_R_R_R(INS_ldaddal, dataSize, dataReg, targetReg, addrReg);
+                }
+                break;
+            default:
+                assert(!"Unexpected treeNode->gtOper");
+        }
+
+        instGen_MemoryBarrier(INS_BARRIER_ISH);
     }
+    else
+    {
+        regNumber exResultReg  = treeNode->ExtractTempReg(RBM_ALLINT);
+        regNumber storeDataReg = (treeNode->OperGet() == GT_XCHG) ? dataReg : treeNode->ExtractTempReg(RBM_ALLINT);
+        regNumber loadReg      = (targetReg != REG_NA) ? targetReg : storeDataReg;
 
-    // The following instruction includes a release half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
-    getEmitter()->emitIns_R_R_R(INS_stlxr, dataSize, exResultReg, storeDataReg, addrReg);
+        // Check allocator assumptions
+        //
+        // The register allocator should have extended the lifetimes of all input and internal registers so that
+        // none interfere with the target.
+        noway_assert(addrReg != targetReg);
 
-    getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
+        noway_assert(addrReg != loadReg);
+        noway_assert(dataReg != loadReg);
 
-    gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
+        noway_assert(addrReg != storeDataReg);
+        noway_assert((treeNode->OperGet() == GT_XCHG) || (addrReg != dataReg));
+
+        assert(addr->isUsedFromReg());
+        noway_assert(exResultReg != REG_NA);
+        noway_assert(exResultReg != targetReg);
+        noway_assert((targetReg != REG_NA) || (treeNode->OperGet() != GT_XCHG));
+
+        // Store exclusive unpredictable cases must be avoided
+        noway_assert(exResultReg != storeDataReg);
+        noway_assert(exResultReg != addrReg);
+
+        // NOTE: `genConsumeAddress` marks the consumed register as not a GC pointer, as it assumes that the input
+        // registers
+        // die at the first instruction generated by the node. This is not the case for these atomics as the  input
+        // registers are multiply-used. As such, we need to mark the addr register as containing a GC pointer until
+        // we are finished generating the code for this node.
+
+        gcInfo.gcMarkRegPtrVal(addrReg, addr->TypeGet());
+
+        // Emit code like this:
+        //   retry:
+        //     ldxr loadReg, [addrReg]
+        //     add storeDataReg, loadReg, dataReg         # Only for GT_XADD
+        //                                                # GT_XCHG storeDataReg === dataReg
+        //     stxr exResult, storeDataReg, [addrReg]
+        //     cbnz exResult, retry
+        //     dmb ish
+
+        BasicBlock* labelRetry = genCreateTempLabel();
+        genDefineTempLabel(labelRetry);
+
+        // The following instruction includes a acquire half barrier
+        getEmitter()->emitIns_R_R(INS_ldaxr, dataSize, loadReg, addrReg);
+
+        switch (treeNode->OperGet())
+        {
+            case GT_XADD:
+                if (data->isContainedIntOrIImmed())
+                {
+                    // Even though INS_add is specified here, the encoder will choose either
+                    // an INS_add or an INS_sub and encode the immediate as a positive value
+                    genInstrWithConstant(INS_add, dataSize, storeDataReg, loadReg, data->AsIntConCommon()->IconValue(),
+                                         REG_NA);
+                }
+                else
+                {
+                    getEmitter()->emitIns_R_R_R(INS_add, dataSize, storeDataReg, loadReg, dataReg);
+                }
+                break;
+            case GT_XCHG:
+                assert(!data->isContained());
+                storeDataReg = dataReg;
+                break;
+            default:
+                unreached();
+        }
+
+        // The following instruction includes a release half barrier
+        getEmitter()->emitIns_R_R_R(INS_stlxr, dataSize, exResultReg, storeDataReg, addrReg);
+
+        getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
+
+        instGen_MemoryBarrier(INS_BARRIER_ISH);
+
+        gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
+    }
 
     if (treeNode->gtRegNum != REG_NA)
     {
@@ -2774,89 +2803,110 @@ void CodeGen::genCodeForCmpXchg(GenTreeCmpXchg* treeNode)
     regNumber dataReg      = data->gtRegNum;
     regNumber addrReg      = addr->gtRegNum;
     regNumber comparandReg = comparand->gtRegNum;
-    regNumber exResultReg  = treeNode->ExtractTempReg(RBM_ALLINT);
-
-    // Check allocator assumptions
-    //
-    // The register allocator should have extended the lifetimes of all input and internal registers so that
-    // none interfere with the target.
-    noway_assert(addrReg != targetReg);
-    noway_assert(dataReg != targetReg);
-    noway_assert(comparandReg != targetReg);
-    noway_assert(addrReg != dataReg);
-    noway_assert(targetReg != REG_NA);
-    noway_assert(exResultReg != REG_NA);
-    noway_assert(exResultReg != targetReg);
-
-    assert(addr->isUsedFromReg());
-    assert(data->isUsedFromReg());
-    assert(!comparand->isUsedFromMemory());
-
-    // Store exclusive unpredictable cases must be avoided
-    noway_assert(exResultReg != dataReg);
-    noway_assert(exResultReg != addrReg);
 
     genConsumeAddress(addr);
     genConsumeRegs(data);
     genConsumeRegs(comparand);
 
-    // NOTE: `genConsumeAddress` marks the consumed register as not a GC pointer, as it assumes that the input registers
-    // die at the first instruction generated by the node. This is not the case for these atomics as the  input
-    // registers are multiply-used. As such, we need to mark the addr register as containing a GC pointer until
-    // we are finished generating the code for this node.
-
-    gcInfo.gcMarkRegPtrVal(addrReg, addr->TypeGet());
-
-    // TODO-ARM64-CQ Use ARMv8.1 atomics if available
-    // https://github.com/dotnet/coreclr/issues/11881
-
-    // Emit code like this:
-    //   retry:
-    //     ldxr targetReg, [addrReg]
-    //     cmp targetReg, comparandReg
-    //     bne compareFail
-    //     stxr exResult, dataReg, [addrReg]
-    //     cbnz exResult, retry
-    //   compareFail:
-
-    BasicBlock* labelRetry       = genCreateTempLabel();
-    BasicBlock* labelCompareFail = genCreateTempLabel();
-    genDefineTempLabel(labelRetry);
-
-    // The following instruction includes a acquire half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
-    getEmitter()->emitIns_R_R(INS_ldaxr, emitTypeSize(treeNode), targetReg, addrReg);
-
-    if (comparand->isContainedIntOrIImmed())
+    if (compiler->compSupports(InstructionSet_Atomics))
     {
-        if (comparand->IsIntegralConst(0))
+        emitAttr dataSize = emitActualTypeSize(data);
+
+        // casal use the comparand as the target reg
+        if (targetReg != comparandReg)
         {
-            getEmitter()->emitIns_J_R(INS_cbnz, emitActualTypeSize(treeNode), labelCompareFail, targetReg);
+            getEmitter()->emitIns_R_R(INS_mov, dataSize, targetReg, comparandReg);
+
+            // Catch case we destroyed data or address before use
+            noway_assert(addrReg != targetReg);
+            noway_assert(dataReg != targetReg);
         }
-        else
-        {
-            getEmitter()->emitIns_R_I(INS_cmp, emitActualTypeSize(treeNode), targetReg,
-                                      comparand->AsIntConCommon()->IconValue());
-            getEmitter()->emitIns_J(INS_bne, labelCompareFail);
-        }
+        getEmitter()->emitIns_R_R_R(INS_casal, dataSize, targetReg, dataReg, addrReg);
+
+        instGen_MemoryBarrier(INS_BARRIER_ISH);
     }
     else
     {
-        getEmitter()->emitIns_R_R(INS_cmp, emitActualTypeSize(treeNode), targetReg, comparandReg);
-        getEmitter()->emitIns_J(INS_bne, labelCompareFail);
+        regNumber exResultReg = treeNode->ExtractTempReg(RBM_ALLINT);
+
+        // Check allocator assumptions
+        //
+        // The register allocator should have extended the lifetimes of all input and internal registers so that
+        // none interfere with the target.
+        noway_assert(addrReg != targetReg);
+        noway_assert(dataReg != targetReg);
+        noway_assert(comparandReg != targetReg);
+        noway_assert(addrReg != dataReg);
+        noway_assert(targetReg != REG_NA);
+        noway_assert(exResultReg != REG_NA);
+        noway_assert(exResultReg != targetReg);
+
+        assert(addr->isUsedFromReg());
+        assert(data->isUsedFromReg());
+        assert(!comparand->isUsedFromMemory());
+
+        // Store exclusive unpredictable cases must be avoided
+        noway_assert(exResultReg != dataReg);
+        noway_assert(exResultReg != addrReg);
+
+        // NOTE: `genConsumeAddress` marks the consumed register as not a GC pointer, as it assumes that the input
+        // registers
+        // die at the first instruction generated by the node. This is not the case for these atomics as the  input
+        // registers are multiply-used. As such, we need to mark the addr register as containing a GC pointer until
+        // we are finished generating the code for this node.
+
+        gcInfo.gcMarkRegPtrVal(addrReg, addr->TypeGet());
+
+        // TODO-ARM64-CQ Use ARMv8.1 atomics if available
+        // https://github.com/dotnet/coreclr/issues/11881
+
+        // Emit code like this:
+        //   retry:
+        //     ldxr targetReg, [addrReg]
+        //     cmp targetReg, comparandReg
+        //     bne compareFail
+        //     stxr exResult, dataReg, [addrReg]
+        //     cbnz exResult, retry
+        //   compareFail:
+        //     dmb ish
+
+        BasicBlock* labelRetry       = genCreateTempLabel();
+        BasicBlock* labelCompareFail = genCreateTempLabel();
+        genDefineTempLabel(labelRetry);
+
+        // The following instruction includes a acquire half barrier
+        getEmitter()->emitIns_R_R(INS_ldaxr, emitTypeSize(treeNode), targetReg, addrReg);
+
+        if (comparand->isContainedIntOrIImmed())
+        {
+            if (comparand->IsIntegralConst(0))
+            {
+                getEmitter()->emitIns_J_R(INS_cbnz, emitActualTypeSize(treeNode), labelCompareFail, targetReg);
+            }
+            else
+            {
+                getEmitter()->emitIns_R_I(INS_cmp, emitActualTypeSize(treeNode), targetReg,
+                                          comparand->AsIntConCommon()->IconValue());
+                getEmitter()->emitIns_J(INS_bne, labelCompareFail);
+            }
+        }
+        else
+        {
+            getEmitter()->emitIns_R_R(INS_cmp, emitActualTypeSize(treeNode), targetReg, comparandReg);
+            getEmitter()->emitIns_J(INS_bne, labelCompareFail);
+        }
+
+        // The following instruction includes a release half barrier
+        getEmitter()->emitIns_R_R_R(INS_stlxr, emitTypeSize(treeNode), exResultReg, dataReg, addrReg);
+
+        getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
+
+        genDefineTempLabel(labelCompareFail);
+
+        instGen_MemoryBarrier(INS_BARRIER_ISH);
+
+        gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
     }
-
-    // The following instruction includes a release half barrier
-    // TODO-ARM64-CQ Evaluate whether this is necessary
-    // https://github.com/dotnet/coreclr/issues/14346
-    getEmitter()->emitIns_R_R_R(INS_stlxr, emitTypeSize(treeNode), exResultReg, dataReg, addrReg);
-
-    getEmitter()->emitIns_J_R(INS_cbnz, EA_4BYTE, labelRetry, exResultReg);
-
-    genDefineTempLabel(labelCompareFail);
-
-    gcInfo.gcMarkRegSetNpt(addr->gtGetRegMask());
 
     genProduceReg(treeNode);
 }
@@ -3666,7 +3716,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                emitter::emitNoGChelper(helper));
 
     regMaskTP killMask = compiler->compHelperCallKillSet((CorInfoHelpFunc)helper);
-    regTracker.rsTrashRegSet(killMask);
+    regSet.verifyRegistersUsed(killMask);
 }
 
 #ifdef FEATURE_SIMD
@@ -4893,7 +4943,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-#include "hwintrinsicArm64.h"
+#include "hwintrinsic.h"
 
 instruction CodeGen::getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types instrType)
 {
@@ -4901,7 +4951,7 @@ instruction CodeGen::getOpForHWIntrinsic(GenTreeHWIntrinsic* node, var_types ins
 
     unsigned int instrTypeIndex = varTypeIsFloating(instrType) ? 0 : varTypeIsUnsigned(instrType) ? 2 : 1;
 
-    instruction ins = compiler->getHWIntrinsicInfo(intrinsicID).instrs[instrTypeIndex];
+    instruction ins = HWIntrinsicInfo::lookup(intrinsicID).instrs[instrTypeIndex];
     assert(ins != INS_invalid);
 
     return ins;
@@ -4922,7 +4972,7 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
 {
     NamedIntrinsic intrinsicID = node->gtHWIntrinsicId;
 
-    switch (compiler->getHWIntrinsicInfo(intrinsicID).form)
+    switch (HWIntrinsicInfo::lookup(intrinsicID).form)
     {
         case HWIntrinsicInfo::UnaryOp:
             genHWIntrinsicUnaryOp(node);
@@ -6237,6 +6287,71 @@ void CodeGen::genArm64EmitterUnitTests()
     theEmitter->emitIns_R_R_R(INS_asrv, EA_4BYTE, REG_R8, REG_R9, REG_R10);
     theEmitter->emitIns_R_R_R(INS_rorv, EA_4BYTE, REG_R8, REG_R9, REG_R10);
 
+#endif // ALL_ARM64_EMITTER_UNIT_TESTS
+
+#ifdef ALL_ARM64_EMITTER_UNIT_TESTS
+    //
+    // ARMv8.1 LSE Atomics
+    //
+    genDefineTempLabel(genCreateTempLabel());
+
+    theEmitter->emitIns_R_R_R(INS_casb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casab, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casalb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_caslb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_cash, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casah, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casalh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_caslh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_cas, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casa, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casal, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casl, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_cas, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casa, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casal, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_casl, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddab, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddalb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddlb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddah, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddalh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddlh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldadd, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldadda, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddal, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddl, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldadd, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldadda, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddal, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_ldaddl, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpab, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpalb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swplb, EA_1BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swph, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpah, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpalh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swplh, EA_2BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swp, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpa, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpal, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpl, EA_4BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swp, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpa, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpal, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+    theEmitter->emitIns_R_R_R(INS_swpl, EA_8BYTE, REG_R8, REG_R9, REG_R10);
+
+    theEmitter->emitIns_R_R(INS_staddb, EA_1BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_staddlb, EA_1BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_staddh, EA_2BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_staddlh, EA_2BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_stadd, EA_4BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_staddl, EA_4BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_stadd, EA_8BYTE, REG_R8, REG_R10);
+    theEmitter->emitIns_R_R(INS_staddl, EA_8BYTE, REG_R8, REG_R10);
 #endif // ALL_ARM64_EMITTER_UNIT_TESTS
 
 #ifdef ALL_ARM64_EMITTER_UNIT_TESTS
@@ -8351,5 +8466,3 @@ void CodeGen::genArm64EmitterUnitTests()
 #endif // defined(DEBUG)
 
 #endif // _TARGET_ARM64_
-
-#endif // !LEGACY_BACKEND

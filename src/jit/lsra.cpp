@@ -13,11 +13,11 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   Preconditions
     - All register requirements are expressed in the code stream, either as destination
       registers of tree nodes, or as internal registers.  These requirements are
-      expressed in the TreeNodeInfo computed for each node, which includes:
-      - The number of register sources and destinations.
+      expressed in the RefPositions built for each node by BuildNode(), which includes:
+      - The register uses and definitions.
       - The register restrictions (candidates) of the target register, both from itself,
         as producer of the value (dstCandidates), and from its consuming node (srcCandidates).
-        Note that the srcCandidates field of TreeNodeInfo refers to the destination register
+        Note that when we talk about srcCandidates we are referring to the destination register
         (not any of its sources).
       - The number (internalCount) of registers required, and their register restrictions (internalCandidates).
         These are neither inputs nor outputs of the node, but used in the sequence of code generated for the tree.
@@ -49,12 +49,11 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     Tree nodes (GenTree):
     - GenTree::gtRegNum (and gtRegPair for ARM) is annotated with the register
       assignment for a node. If the node does not require a register, it is
-      annotated as such (for single registers, gtRegNum = REG_NA; for register
-      pair type, gtRegPair = REG_PAIR_NONE). For a variable definition or interior
+      annotated as such (gtRegNum = REG_NA). For a variable definition or interior
       tree node (an "implicit" definition), this is the register to put the result.
       For an expression use, this is the place to find the value that has previously
       been computed.
-      - In most cases, this register must satisfy the constraints specified by the TreeNodeInfo.
+      - In most cases, this register must satisfy the constraints specified for the RefPosition.
       - In some cases, this is difficult:
         - If a lclVar node currently lives in some register, it may not be desirable to move it
           (i.e. its current location may be desirable for future uses, e.g. if it's a callee save register,
@@ -97,8 +96,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #include "lsra.h"
 
 #ifdef DEBUG
@@ -133,13 +130,15 @@ void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
     {
         tree->gtRegNum = reg;
     }
-#if defined(_TARGET_ARM_)
+#if FEATURE_ARG_SPLIT
+#ifdef _TARGET_ARM_
     else if (tree->OperIsMultiRegOp())
     {
         assert(regIdx == 1);
         GenTreeMultiRegOp* mul = tree->AsMultiRegOp();
         mul->gtOtherReg        = reg;
     }
+#endif // _TARGET_ARM_
     else if (tree->OperGet() == GT_COPY)
     {
         assert(regIdx == 1);
@@ -151,7 +150,7 @@ void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
         GenTreePutArgSplit* putArg = tree->AsPutArgSplit();
         putArg->SetRegNumByIdx(reg, regIdx);
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
     else
     {
         assert(tree->IsMultiRegCall());
@@ -181,7 +180,7 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
             // ref position.
             GenTreeLclVarCommon* lclCommon = treeNode->AsLclVarCommon();
             LclVarDsc*           varDsc    = &(compiler->lvaTable[lclCommon->gtLclNum]);
-            weight                         = varDsc->lvRefCntWtd;
+            weight                         = varDsc->lvRefCntWtd();
             if (refPos->getInterval()->isSpilled)
             {
                 // Decrease the weight if the interval has already been spilled.
@@ -239,66 +238,13 @@ regMaskTP LinearScan::allRegs(RegisterType rt)
     }
 }
 
-//--------------------------------------------------------------------------
-// allMultiRegCallNodeRegs: represents a set of registers that can be used
-// to allocate a multi-reg call node.
-//
-// Arguments:
-//    call   -  Multi-reg call node
-//
-// Return Value:
-//    Mask representing the set of available registers for multi-reg call
-//    node.
-//
-// Note:
-// Multi-reg call node available regs = Bitwise-OR(allregs(GetReturnRegType(i)))
-// for all i=0..RetRegCount-1.
-regMaskTP LinearScan::allMultiRegCallNodeRegs(GenTreeCall* call)
+regMaskTP LinearScan::allByteRegs()
 {
-    assert(call->HasMultiRegRetVal());
-
-    ReturnTypeDesc* retTypeDesc = call->GetReturnTypeDesc();
-    regMaskTP       resultMask  = allRegs(retTypeDesc->GetReturnRegType(0));
-
-    unsigned count = retTypeDesc->GetReturnRegCount();
-    for (unsigned i = 1; i < count; ++i)
-    {
-        resultMask |= allRegs(retTypeDesc->GetReturnRegType(i));
-    }
-
-    return resultMask;
-}
-
-//--------------------------------------------------------------------------
-// allRegs: returns the set of registers that can accomodate the type of
-// given node.
-//
-// Arguments:
-//    tree   -  GenTree node
-//
-// Return Value:
-//    Mask representing the set of available registers for given tree
-//
-// Note: In case of multi-reg call node, the full set of registers must be
-// determined by looking at types of individual return register types.
-// In this case, the registers may include registers from different register
-// sets and will not be limited to the actual ABI return registers.
-regMaskTP LinearScan::allRegs(GenTree* tree)
-{
-    regMaskTP resultMask;
-
-    // In case of multi-reg calls, allRegs is defined as
-    // Bitwise-Or(allRegs(GetReturnRegType(i)) for i=0..ReturnRegCount-1
-    if (tree->IsMultiRegCall())
-    {
-        resultMask = allMultiRegCallNodeRegs(tree->AsCall());
-    }
-    else
-    {
-        resultMask = allRegs(tree->TypeGet());
-    }
-
-    return resultMask;
+#ifdef _TARGET_X86_
+    return availableIntRegs & RBM_BYTE_REGS;
+#else
+    return availableIntRegs;
+#endif
 }
 
 regMaskTP LinearScan::allSIMDRegs()
@@ -659,17 +605,13 @@ LinearScanInterface* getLinearScanAllocator(Compiler* comp)
 
 LinearScan::LinearScan(Compiler* theCompiler)
     : compiler(theCompiler)
-#if MEASURE_MEM_ALLOC
-    , lsraAllocator(nullptr)
-#endif // MEASURE_MEM_ALLOC
-    , intervals(LinearScanMemoryAllocatorInterval(theCompiler))
-    , refPositions(LinearScanMemoryAllocatorRefPosition(theCompiler))
+    , intervals(theCompiler->getAllocator(CMK_LSRA_Interval))
+    , refPositions(theCompiler->getAllocator(CMK_LSRA_RefPosition))
     , listNodePool(theCompiler)
 {
 #ifdef DEBUG
-    maxNodeLocation    = 0;
-    activeRefPosition  = nullptr;
-    specialPutArgCount = 0;
+    maxNodeLocation   = 0;
+    activeRefPosition = nullptr;
 
     // Get the value of the environment variable that controls stress for register allocation
     lsraStressMask = JitConfig.JitStressRegs();
@@ -701,7 +643,7 @@ LinearScan::LinearScan(Compiler* theCompiler)
         else if (dump == true)
         {
             printf("JitStressRegs = %x for method %s, hash = 0x%x.\n",
-                   lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
+                lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
             printf("");         // in our logic this causes a flush
         }
     }
@@ -746,8 +688,7 @@ LinearScan::LinearScan(Compiler* theCompiler)
 
     // Block sequencing (the order in which we schedule).
     // Note that we don't initialize the bbVisitedSet until we do the first traversal
-    // (currently during Lowering's second phase, where it sets the TreeNodeInfo).
-    // This is so that any blocks that are added during the first phase of Lowering
+    // This is so that any blocks that are added during the first traversal
     // are accounted for (and we don't have BasicBlockEpoch issues).
     blockSequencingDone   = false;
     blockSequence         = nullptr;
@@ -758,105 +699,9 @@ LinearScan::LinearScan(Compiler* theCompiler)
     // Information about each block, including predecessor blocks used for variable locations at block entry.
     blockInfo = nullptr;
 
-    // Populate the register mask table.
-    // The first two masks in the table are allint/allfloat
-    // The next N are the masks for each single register.
-    // After that are the dynamically added ones.
-    regMaskTable               = new (compiler, CMK_LSRA) regMaskTP[numMasks];
-    regMaskTable[ALLINT_IDX]   = allRegs(TYP_INT);
-    regMaskTable[ALLFLOAT_IDX] = allRegs(TYP_DOUBLE);
-
-    regNumber reg;
-    for (reg = REG_FIRST; reg < REG_COUNT; reg = REG_NEXT(reg))
-    {
-        regMaskTable[FIRST_SINGLE_REG_IDX + reg - REG_FIRST] = (reg == REG_STK) ? RBM_NONE : genRegMask(reg);
-    }
-    nextFreeMask = FIRST_SINGLE_REG_IDX + REG_COUNT;
-    noway_assert(nextFreeMask <= numMasks);
+    pendingDelayFree = false;
+    tgtPrefUse       = nullptr;
 }
-
-// Return the reg mask corresponding to the given index.
-regMaskTP LinearScan::GetRegMaskForIndex(RegMaskIndex index)
-{
-    assert(index < numMasks);
-    assert(index < nextFreeMask);
-    return regMaskTable[index];
-}
-
-// Given a reg mask, return the index it corresponds to. If it is not a 'well known' reg mask,
-// add it at the end. This method has linear behavior in the worst cases but that is fairly rare.
-// Most methods never use any but the well-known masks, and when they do use more
-// it is only one or two more.
-LinearScan::RegMaskIndex LinearScan::GetIndexForRegMask(regMaskTP mask)
-{
-    RegMaskIndex result;
-    if (isSingleRegister(mask))
-    {
-        result = genRegNumFromMask(mask) + FIRST_SINGLE_REG_IDX;
-    }
-    else if (mask == allRegs(TYP_INT))
-    {
-        result = ALLINT_IDX;
-    }
-    else if (mask == allRegs(TYP_DOUBLE))
-    {
-        result = ALLFLOAT_IDX;
-    }
-    else
-    {
-        for (int i = FIRST_SINGLE_REG_IDX + REG_COUNT; i < nextFreeMask; i++)
-        {
-            if (regMaskTable[i] == mask)
-            {
-                return i;
-            }
-        }
-
-        // We only allocate a fixed number of masks. Since we don't reallocate, we will throw a
-        // noway_assert if we exceed this limit.
-        noway_assert(nextFreeMask < numMasks);
-
-        regMaskTable[nextFreeMask] = mask;
-        result                     = nextFreeMask;
-        nextFreeMask++;
-    }
-    assert(mask == regMaskTable[result]);
-    return result;
-}
-
-// We've decided that we can't use one or more registers during register allocation (probably FPBASE),
-// but we've already added it to the register masks. Go through the masks and remove it.
-void LinearScan::RemoveRegistersFromMasks(regMaskTP removeMask)
-{
-    if (VERBOSE)
-    {
-        JITDUMP("Removing registers from LSRA register masks: ");
-        INDEBUG(dumpRegMask(removeMask));
-        JITDUMP("\n");
-    }
-
-    regMaskTP mask = ~removeMask;
-    for (int i = 0; i < nextFreeMask; i++)
-    {
-        regMaskTable[i] &= mask;
-    }
-
-    JITDUMP("After removing registers:\n");
-    DBEXEC(VERBOSE, dspRegisterMaskTable());
-}
-
-#ifdef DEBUG
-void LinearScan::dspRegisterMaskTable()
-{
-    printf("LSRA register masks. Total allocated: %d, total used: %d\n", numMasks, nextFreeMask);
-    for (int i = 0; i < nextFreeMask; i++)
-    {
-        printf("%2u: ", i);
-        dspRegMask(regMaskTable[i]);
-        printf("\n");
-    }
-}
-#endif // DEBUG
 
 //------------------------------------------------------------------------
 // getNextCandidateFromWorkList: Get the next candidate for block sequencing
@@ -905,9 +750,6 @@ BasicBlock* LinearScan::getNextCandidateFromWorkList()
 //    will be allocated.
 //    This method clears the bbVisitedSet on LinearScan, and when it returns the set
 //    contains all the bbNums for the block.
-//    This requires a traversal of the BasicBlocks, and could potentially be
-//    combined with the first traversal (currently the one in Lowering that sets the
-//    TreeNodeInfo).
 
 void LinearScan::setBlockSequence()
 {
@@ -1024,7 +866,7 @@ void LinearScan::setBlockSequence()
             // the blocks - but fgBBcount does not appear to be updated when blocks are removed.
             if (nextBlock == nullptr /* && bbSeqCount != compiler->fgBBcount*/ && !verifiedAllBBs)
             {
-                // If we don't encounter all blocks by traversing the regular sucessor links, do a full
+                // If we don't encounter all blocks by traversing the regular successor links, do a full
                 // traversal of all the blocks, and add them in layout order.
                 // This may include:
                 //   - internal-only blocks (in the fgAddCodeList) which may not be in the flow graph
@@ -1514,7 +1356,10 @@ void LinearScan::identifyCandidatesExceptionDataflow()
 
 bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 {
-    // We shouldn't be called if opt settings do not permit register variables.
+    if (!enregisterLocalVars)
+    {
+        return false;
+    }
     assert((compiler->opts.compFlags & CLFLG_REGVAR) != 0);
 
     if (!varDsc->lvTracked)
@@ -1543,6 +1388,95 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
     {
         return false;
     }
+
+    // Don't enregister if the ref count is zero.
+    if (varDsc->lvRefCnt() == 0)
+    {
+        varDsc->setLvRefCntWtd(0);
+        return false;
+    }
+
+    // Variables that are address-exposed are never enregistered, or tracked.
+    // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
+    // Pinned variables may not be tracked (a condition of the GCInfo representation)
+    // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
+    // references when using the general GC encoding.
+    unsigned lclNum = (unsigned)(varDsc - compiler->lvaTable);
+    if (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
+    {
+#ifdef DEBUG
+        Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
+        if (!varDsc->lvAddrExposed)
+        {
+            dner = Compiler::DNER_IsStruct;
+        }
+#endif // DEBUG
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(dner));
+        return false;
+    }
+    else if (varDsc->lvPinned)
+    {
+        varDsc->lvTracked = 0;
+#ifdef JIT32_GCENCODER
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_PinningRef));
+#endif // JIT32_GCENCODER
+        return false;
+    }
+
+    //  Are we not optimizing and we have exception handlers?
+    //   if so mark all args and locals as volatile, so that they
+    //   won't ever get enregistered.
+    //
+    if (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
+    {
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
+    }
+
+    if (varDsc->lvDoNotEnregister)
+    {
+        return false;
+    }
+
+    switch (genActualType(varDsc->TypeGet()))
+    {
+#if CPU_HAS_FP_SUPPORT
+        case TYP_FLOAT:
+        case TYP_DOUBLE:
+            return !compiler->opts.compDbgCode;
+
+#endif // CPU_HAS_FP_SUPPORT
+
+        case TYP_INT:
+        case TYP_LONG:
+        case TYP_REF:
+        case TYP_BYREF:
+            break;
+
+#ifdef FEATURE_SIMD
+        case TYP_SIMD12:
+        case TYP_SIMD16:
+        case TYP_SIMD32:
+            return !varDsc->lvPromoted;
+
+        // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
+        // (passing & returning as TYP_LONG).
+        case TYP_SIMD8:
+            return false;
+#endif // FEATURE_SIMD
+
+        case TYP_STRUCT:
+            return false;
+
+        case TYP_UNDEF:
+        case TYP_UNKNOWN:
+            noway_assert(!"lvType not set correctly");
+            varDsc->lvType = TYP_INT;
+            return false;
+
+        default:
+            return false;
+    }
+
     return true;
 }
 
@@ -1681,27 +1615,33 @@ void LinearScan::identifyCandidates()
         {
             if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
             {
-                refCntStkParam += varDsc->lvRefCnt;
+                refCntStkParam += varDsc->lvRefCnt();
             }
             else if (!isRegCandidate(varDsc) || varDsc->lvDoNotEnregister)
             {
-                refCntStk += varDsc->lvRefCnt;
+                refCntStk += varDsc->lvRefCnt();
                 if ((varDsc->lvType == TYP_DOUBLE) ||
                     ((varTypeIsStruct(varDsc) && varDsc->lvStructDoubleAlign &&
                       (compiler->lvaGetPromotionType(varDsc) != Compiler::PROMOTION_TYPE_INDEPENDENT))))
                 {
-                    refCntWtdStkDbl += varDsc->lvRefCntWtd;
+                    refCntWtdStkDbl += varDsc->lvRefCntWtd();
                 }
             }
             else
             {
-                refCntReg += varDsc->lvRefCnt;
-                refCntWtdReg += varDsc->lvRefCntWtd;
+                refCntReg += varDsc->lvRefCnt();
+                refCntWtdReg += varDsc->lvRefCntWtd();
             }
         }
 #endif // DOUBLE_ALIGN
 
-        /* Track all locals that can be enregistered */
+        // Start with the assumption that it's a candidate.
+
+        varDsc->lvLRACandidate = 1;
+
+        // Start with lvRegister as false - set it true only if the variable gets
+        // the same register assignment throughout
+        varDsc->lvRegister = false;
 
         if (!isRegCandidate(varDsc))
         {
@@ -1713,124 +1653,9 @@ void LinearScan::identifyCandidates()
             continue;
         }
 
-        assert(varDsc->lvTracked);
-
-        varDsc->lvLRACandidate = 1;
-
-        // Start with lvRegister as false - set it true only if the variable gets
-        // the same register assignment throughout
-        varDsc->lvRegister = false;
-
-        /* If the ref count is zero */
-        if (varDsc->lvRefCnt == 0)
-        {
-            /* Zero ref count, make this untracked */
-            varDsc->lvRefCntWtd    = 0;
-            varDsc->lvLRACandidate = 0;
-        }
-
-        // Variables that are address-exposed are never enregistered, or tracked.
-        // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
-        // Pinned variables may not be tracked (a condition of the GCInfo representation)
-        // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
-        // references when using the general GC encoding.
-
-        if (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
-        {
-            varDsc->lvLRACandidate = 0;
-#ifdef DEBUG
-            Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
-            if (!varDsc->lvAddrExposed)
-            {
-                dner = Compiler::DNER_IsStruct;
-            }
-#endif // DEBUG
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(dner));
-        }
-        else if (varDsc->lvPinned)
-        {
-            varDsc->lvTracked = 0;
-#ifdef JIT32_GCENCODER
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_PinningRef));
-#endif // JIT32_GCENCODER
-        }
-
-        //  Are we not optimizing and we have exception handlers?
-        //   if so mark all args and locals as volatile, so that they
-        //   won't ever get enregistered.
-        //
-        if (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
-        {
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
-        }
-
-        if (varDsc->lvDoNotEnregister)
-        {
-            varDsc->lvLRACandidate                = 0;
-            localVarIntervals[varDsc->lvVarIndex] = nullptr;
-            continue;
-        }
-
-        var_types type = genActualType(varDsc->TypeGet());
-
-        switch (type)
-        {
-#if CPU_HAS_FP_SUPPORT
-            case TYP_FLOAT:
-            case TYP_DOUBLE:
-                if (compiler->opts.compDbgCode)
-                {
-                    varDsc->lvLRACandidate = 0;
-                }
-#ifdef ARM_SOFTFP
-                if (varDsc->lvIsParam && varDsc->lvIsRegArg)
-                {
-                    type = (type == TYP_DOUBLE) ? TYP_LONG : TYP_INT;
-                }
-#endif // ARM_SOFTFP
-                break;
-#endif // CPU_HAS_FP_SUPPORT
-
-            case TYP_INT:
-            case TYP_LONG:
-            case TYP_REF:
-            case TYP_BYREF:
-                break;
-
-#ifdef FEATURE_SIMD
-            case TYP_SIMD12:
-            case TYP_SIMD16:
-            case TYP_SIMD32:
-                if (varDsc->lvPromoted)
-                {
-                    varDsc->lvLRACandidate = 0;
-                }
-                break;
-
-            // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
-            // (passing & returning as TYP_LONG).
-            case TYP_SIMD8:
-#endif // FEATURE_SIMD
-
-            case TYP_STRUCT:
-            {
-                varDsc->lvLRACandidate = 0;
-            }
-            break;
-
-            case TYP_UNDEF:
-            case TYP_UNKNOWN:
-                noway_assert(!"lvType not set correctly");
-                varDsc->lvType = TYP_INT;
-
-                __fallthrough;
-
-            default:
-                varDsc->lvLRACandidate = 0;
-        }
-
         if (varDsc->lvLRACandidate)
         {
+            var_types type   = genActualType(varDsc->TypeGet());
             Interval* newInt = newInterval(type);
             newInt->setLocalNumber(compiler, lclNum, this);
             VarSetOps::AddElemD(compiler, registerCandidateVars, varDsc->lvVarIndex);
@@ -1857,7 +1682,7 @@ void LinearScan::identifyCandidates()
             {
                 largeVectorVarCount++;
                 VarSetOps::AddElemD(compiler, largeVectorVars, varDsc->lvVarIndex);
-                unsigned refCntWtd = varDsc->lvRefCntWtd;
+                unsigned refCntWtd = varDsc->lvRefCntWtd();
                 if (refCntWtd >= thresholdLargeVectorRefCntWtd)
                 {
                     VarSetOps::AddElemD(compiler, largeVectorCalleeSaveCandidateVars, varDsc->lvVarIndex);
@@ -1868,7 +1693,7 @@ void LinearScan::identifyCandidates()
                 if (regType(type) == FloatRegisterType)
             {
                 floatVarCount++;
-                unsigned refCntWtd = varDsc->lvRefCntWtd;
+                unsigned refCntWtd = varDsc->lvRefCntWtd();
                 if (varDsc->lvIsRegArg)
                 {
                     // Don't count the initial reference for register params.  In those cases,
@@ -2493,11 +2318,7 @@ void LinearScan::setFrameType()
     }
 
     // If we are using FPBASE as the frame register, we cannot also use it for
-    // a local var. Note that we may have already added it to the register masks,
-    // which are computed when the LinearScan class constructor is created, and
-    // used during lowering. Luckily, the TreeNodeInfo only stores an index to
-    // the masks stored in the LinearScan class, so we only need to walk the
-    // unique masks and remove FPBASE.
+    // a local var.
     regMaskTP removeMask = RBM_NONE;
     if (frameType == FT_EBP_FRAME)
     {
@@ -2520,7 +2341,6 @@ void LinearScan::setFrameType()
 
     if ((removeMask != RBM_NONE) && ((availableIntRegs & removeMask) != 0))
     {
-        RemoveRegistersFromMasks(removeMask);
         // We know that we're already in "read mode" for availableIntRegs. However,
         // we need to remove these registers, so subsequent users (like callers
         // to allRegs()) get the right thing. The RemoveRegistersFromMasks() code
@@ -2864,8 +2684,7 @@ regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition*
         {
             // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
             // or if it is only related because they are multi-reg targets of the same node.
-            if (!RefTypeIsDef(nextRelatedRefPosition->refType) ||
-                isMultiRegRelated(nextRelatedRefPosition, refPosition->nodeLocation))
+            if (!RefTypeIsDef(nextRelatedRefPosition->refType))
             {
                 relatedInterval = nullptr;
             }
@@ -3547,15 +3366,8 @@ bool LinearScan::isSpillCandidate(Interval*     current,
 #endif
     {
         RefPosition* nextPhysRegPosition = physRegRecord->getNextRefPosition();
-#ifdef _TARGET_ARM64_
-        // On ARM64, we may need to actually allocate IP0 and IP1 in some cases, but we don't include it in
-        // the allocation order for tryAllocateFreeReg.
-        if ((physRegRecord->regNum != REG_IP0) && (physRegRecord->regNum != REG_IP1))
-#endif // _TARGET_ARM64_
-        {
-            assert((nextPhysRegPosition != nullptr) && (nextPhysRegPosition->nodeLocation == refLocation) &&
-                   (candidateBit != refPosition->registerAssignment));
-        }
+        assert((nextPhysRegPosition != nullptr) && (nextPhysRegPosition->nodeLocation == refLocation) &&
+               (candidateBit != refPosition->registerAssignment));
         return false;
     }
 
@@ -5099,18 +4911,6 @@ bool LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
     return isFree;
 }
 
-// isMultiRegRelated: is this RefPosition defining part of a multi-reg value
-//                    at the given location?
-//
-bool LinearScan::isMultiRegRelated(RefPosition* refPosition, LsraLocation location)
-{
-#ifdef FEATURE_MULTIREG_ARGS_OR_RET
-    return ((refPosition->nodeLocation == location) && refPosition->getInterval()->isMultiReg);
-#else
-    return false;
-#endif
-}
-
 //------------------------------------------------------------------------
 // LinearScan::freeRegister: Make a register available for use
 //
@@ -5416,7 +5216,7 @@ void LinearScan::allocateRegisters()
                 // inserting a store.
                 LclVarDsc* varDsc = currentInterval->getLocalVar(compiler);
                 assert(varDsc != nullptr);
-                if (refType == RefTypeParamDef && varDsc->lvRefCntWtd <= BB_UNITY_WEIGHT)
+                if (refType == RefTypeParamDef && varDsc->lvRefCntWtd() <= BB_UNITY_WEIGHT)
                 {
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_ENTRY_REG_ALLOCATED, currentInterval));
                     didDump  = true;
@@ -5462,7 +5262,7 @@ void LinearScan::allocateRegisters()
             {
                 assert(!currentInterval->isLocalVar);
                 Interval* srcInterval = currentInterval->relatedInterval;
-                assert(srcInterval->isLocalVar);
+                assert(srcInterval != nullptr && srcInterval->isLocalVar);
                 if (refType == RefTypeDef)
                 {
                     assert(srcInterval->recentRefPosition->nodeLocation == currentLocation - 1);
@@ -5767,7 +5567,7 @@ void LinearScan::allocateRegisters()
 
                     // There MUST be caller-save registers available, because they have all just been killed.
                     // Amd64 Windows: xmm4-xmm5 are guaranteed to be available as xmm0-xmm3 are used for passing args.
-                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be avilable as xmm0-xmm7 are used for passing args.
+                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be available as xmm0-xmm7 are used for passing args.
                     // X86 RyuJIT Windows: xmm4-xmm7 are guanrateed to be available.
                     assert(assignedRegister != REG_NA);
 
@@ -5775,7 +5575,7 @@ void LinearScan::allocateRegisters()
                     // Note:
                     //   i) The reason we have to spill is that SaveDef position is allocated after the Kill positions
                     //      of the call node are processed.  Since callee-trash registers are killed by call node
-                    //      we explicity spill and unassign the register.
+                    //      we explicitly spill and unassign the register.
                     //  ii) These will look a bit backward in the dump, but it's a pain to dump the alloc before the
                     //  spill).
                     unassignPhysReg(getRegisterRecord(assignedRegister), currentRefPosition);
@@ -5953,7 +5753,7 @@ void LinearScan::allocateRegisters()
 // Arguments:
 //    reg      -    register to be updated
 //    interval -    interval to be assigned
-//    regType  -    regsiter type
+//    regType  -    register type
 //
 // Return Value:
 //    None
@@ -5993,7 +5793,7 @@ void LinearScan::updateAssignedInterval(RegRecord* reg, Interval* interval, Regi
 // Arguments:
 //    reg      -    register to be updated
 //    interval -    interval to be assigned
-//    regType  -    regsiter type
+//    regType  -    register type
 //
 // Return Value:
 //    None
@@ -6532,7 +6332,7 @@ void LinearScan::recordMaxSpill()
     // only a few types should actually be seen here.
     JITDUMP("Recording the maximum number of concurrent spills:\n");
 #ifdef _TARGET_X86_
-    var_types returnType = compiler->tmpNormalizeType(compiler->info.compRetType);
+    var_types returnType = RegSet::tmpNormalizeType(compiler->info.compRetType);
     if (needDoubleTmpForFPCall || (returnType == TYP_DOUBLE))
     {
         JITDUMP("Adding a spill temp for moving a double call/return value between xmm reg and x87 stack.\n");
@@ -6546,7 +6346,7 @@ void LinearScan::recordMaxSpill()
 #endif // _TARGET_X86_
     for (int i = 0; i < TYP_COUNT; i++)
     {
-        if (var_types(i) != compiler->tmpNormalizeType(var_types(i)))
+        if (var_types(i) != RegSet::tmpNormalizeType(var_types(i)))
         {
             // Only normalized types should have anything in the maxSpill array.
             // We assume here that if type 'i' does not normalize to itself, then
@@ -6556,7 +6356,7 @@ void LinearScan::recordMaxSpill()
         if (maxSpill[i] != 0)
         {
             JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
-            compiler->tmpPreAllocateTemps(var_types(i), maxSpill[i]);
+            compiler->codeGen->regSet.tmpPreAllocateTemps(var_types(i), maxSpill[i]);
         }
     }
     JITDUMP("\n");
@@ -6621,11 +6421,12 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     ReturnTypeDesc* retTypeDesc = treeNode->AsCall()->GetReturnTypeDesc();
                     typ                         = retTypeDesc->GetReturnRegType(refPosition->getMultiRegIdx());
                 }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
                 else if (treeNode->OperIsPutArgSplit())
                 {
                     typ = treeNode->AsPutArgSplit()->GetRegType(refPosition->getMultiRegIdx());
                 }
+#if !defined(_TARGET_64BIT_)
                 else if (treeNode->OperIsPutArgReg())
                 {
                     // For double arg regs, the type is changed to long since they must be passed via `r0-r3`.
@@ -6633,12 +6434,13 @@ void LinearScan::updateMaxSpill(RefPosition* refPosition)
                     var_types typNode = treeNode->TypeGet();
                     typ               = (typNode == TYP_LONG) ? TYP_INT : typNode;
                 }
-#endif // _TARGET_ARM_
+#endif // !_TARGET_64BIT_
+#endif // FEATURE_ARG_SPLIT
                 else
                 {
                     typ = treeNode->TypeGet();
                 }
-                typ = compiler->tmpNormalizeType(typ);
+                typ = RegSet::tmpNormalizeType(typ);
             }
 
             if (refPosition->spillAfter && !refPosition->reload)
@@ -6950,18 +6752,20 @@ void LinearScan::resolveRegisters()
                                 GenTreeCall* call = treeNode->AsCall();
                                 call->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
-#ifdef _TARGET_ARM_
+#if FEATURE_ARG_SPLIT
                             else if (treeNode->OperIsPutArgSplit())
                             {
                                 GenTreePutArgSplit* splitArg = treeNode->AsPutArgSplit();
                                 splitArg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
+#ifdef _TARGET_ARM_
                             else if (treeNode->OperIsMultiRegOp())
                             {
                                 GenTreeMultiRegOp* multiReg = treeNode->AsMultiRegOp();
                                 multiReg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
                             }
-#endif
+#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
                         }
 
                         // If the value is reloaded or moved to a different register, we need to insert
@@ -7111,7 +6915,7 @@ void LinearScan::resolveRegisters()
                     {
                         // Dead interval
                         varDsc->lvLRACandidate = false;
-                        if (varDsc->lvRefCnt == 0)
+                        if (varDsc->lvRefCnt() == 0)
                         {
                             varDsc->lvOnFrame = false;
                         }
@@ -7866,7 +7670,7 @@ void LinearScan::resolveEdges()
     // We will try to avoid resolution across critical edges in cases where all the critical-edge
     // targets of a block have the same home.  We will then split the edges only for the
     // remaining mismatches.  We visit the out-edges, as that allows us to share the moves that are
-    // common among allt he targets.
+    // common among all the targets.
 
     if (hasCriticalEdges)
     {
@@ -8287,7 +8091,7 @@ void LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     if (genIsValidDoubleReg(fromReg))
                     {
                         // Ensure that either:
-                        // - the Interval targetting fromReg is not double, or
+                        // - the Interval targeting fromReg is not double, or
                         // - the other half of the double is free.
                         Interval* otherInterval = sourceIntervals[source[fromReg]];
                         regNumber upperHalfReg  = REG_NEXT(fromReg);
@@ -8659,11 +8463,6 @@ void RefPosition::dump()
 {
     printf("<RefPosition #%-3u @%-3u", rpNum, nodeLocation);
 
-    if (nextRefPosition)
-    {
-        printf(" ->#%-3u", nextRefPosition->rpNum);
-    }
-
     printf(" %s ", getRefTypeName(refType));
 
     if (this->isPhysRegRef)
@@ -8779,10 +8578,6 @@ void Interval::dump()
     {
         printf(" (constant)");
     }
-    if (isMultiReg)
-    {
-        printf(" (multireg)");
-    }
 
     printf(" RefPositions {");
     for (RefPosition* refPosition = this->firstRefPosition; refPosition != nullptr;
@@ -8850,43 +8645,71 @@ void RegRecord::tinyDump()
     printf("<Reg:%-3s> ", getRegName(regNum));
 }
 
-void TreeNodeInfo::dump(LinearScan* lsra)
+void LinearScan::dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCount, int dstCount)
 {
-    printf("<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
+    if (!VERBOSE)
+    {
+        return;
+    }
+    // This is formatted like the old dump to make diffs easier. TODO-Cleanup: improve.
+    int       internalIntCount   = 0;
+    int       internalFloatCount = 0;
+    regMaskTP internalCandidates = RBM_NONE;
+    for (int i = 0; i < internalCount; i++)
+    {
+        RefPosition* def = internalDefs[i];
+        if (def->getInterval()->registerType == TYP_INT)
+        {
+            internalIntCount++;
+        }
+        else
+        {
+            internalFloatCount++;
+        }
+        internalCandidates |= def->registerAssignment;
+    }
+    if (dstCandidates == RBM_NONE)
+    {
+        dstCandidates = varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT);
+    }
+    if (internalCandidates == RBM_NONE)
+    {
+        internalCandidates = allRegs(TYP_INT);
+    }
+    printf("    +<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
     printf(" src=");
-    dumpRegMask(getSrcCandidates(lsra));
+    dumpRegMask(varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT));
     printf(" int=");
-    dumpRegMask(getInternalCandidates(lsra));
+    dumpRegMask(internalCandidates);
     printf(" dst=");
-    dumpRegMask(getDstCandidates(lsra));
-    if (isLocalDefUse)
+    dumpRegMask(dstCandidates);
+    if (node->IsUnusedValue())
     {
         printf(" L");
     }
-    if (isInitialized)
-    {
-        printf(" I");
-    }
-    if (isDelayFree)
+    printf(" I");
+    if (pendingDelayFree)
     {
         printf(" D");
     }
-    if (isTgtPref)
-    {
-        printf(" P");
-    }
-    if (isInternalRegDelayFree)
+    if (setInternalRegsDelayFree)
     {
         printf(" ID");
     }
     printf(">");
+    node->dumpLIRFlags();
+    printf("\n  consume= %d produce=%d\n", srcCount, dstCount);
 }
 
 void LinearScan::dumpDefList()
 {
+    if (!VERBOSE)
+    {
+        return;
+    }
     JITDUMP("DefList: { ");
     bool first = true;
-    for (LocationInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+    for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
          listNode = listNode->Next())
     {
         GenTree* node = listNode->treeNode;
@@ -9279,7 +9102,7 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                                 printf("\n                               Use:");
                                 interval->microDump();
                                 printf("(#%d)", currentRefPosition->rpNum);
-                                if (currentRefPosition->isFixedRegRef)
+                                if (currentRefPosition->isFixedRegRef && !interval->isInternal)
                                 {
                                     assert(genMaxOneBit(currentRefPosition->registerAssignment));
                                     assert(lastFixedRegRefPos != nullptr);
@@ -10283,7 +10106,7 @@ void LinearScan::verifyFinalAllocation()
     }
 
     // Now, verify the resolution blocks.
-    // Currently these are nearly always at the end of the method, but that may not alwyas be the case.
+    // Currently these are nearly always at the end of the method, but that may not always be the case.
     // So, we'll go through all the BBs looking for blocks whose bbNum is greater than bbNumMaxBeforeResolution.
     for (BasicBlock* currentBlock = compiler->fgFirstBB; currentBlock != nullptr; currentBlock = currentBlock->bbNext)
     {
@@ -10467,5 +10290,3 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
     }
 }
 #endif // DEBUG
-
-#endif // !LEGACY_BACKEND

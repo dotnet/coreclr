@@ -15,8 +15,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARM_
 #include "codegen.h"
 #include "lower.h"
@@ -80,7 +78,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
 
     if (EA_IS_RELOC(size))
     {
-        genMov32RelocatableImmediate(size, imm, reg);
+        genMov32RelocatableImmediate(size, (BYTE*)imm, reg);
     }
     else if (imm == 0)
     {
@@ -109,7 +107,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
 
             if (getEmitter()->isLowRegister(reg) && (imm_hi16 == 0xffff) && ((imm_lo16 & 0x8000) == 0x8000))
             {
-                getEmitter()->emitIns_R_R(INS_sxth, EA_2BYTE, reg, reg);
+                getEmitter()->emitIns_R_R(INS_sxth, EA_4BYTE, reg, reg);
             }
             else
             {
@@ -121,7 +119,7 @@ void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, 
         }
     }
 
-    regTracker.rsTrackRegIntCns(reg, imm);
+    regSet.verifyRegUsed(reg);
 }
 
 //------------------------------------------------------------------------
@@ -145,7 +143,7 @@ void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTre
             if (con->ImmedValNeedsReloc(compiler))
             {
                 instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
-                regTracker.rsTrackRegTrash(targetReg);
+                regSet.verifyRegUsed(targetReg);
             }
             else
             {
@@ -362,16 +360,19 @@ void CodeGen::genLclHeap(GenTree* tree)
         size_t amount = size->gtIntCon.gtIconVal;
         amount        = AlignUp(amount, STACK_ALIGN);
 
-        // For small allocations we will generate up to four stp instructions
-        size_t cntStackAlignedWidthItems = (amount >> STACK_ALIGN_SHIFT);
-        if (cntStackAlignedWidthItems <= 4)
+        // For small allocations we will generate up to four push instructions (either 2 or 4, exactly,
+        // since STACK_ALIGN is 8, and REGSIZE_BYTES is 4).
+        static_assert_no_msg(STACK_ALIGN == (REGSIZE_BYTES * 2));
+        assert(amount % REGSIZE_BYTES == 0);
+        size_t pushCount = amount / REGSIZE_BYTES;
+        if (pushCount <= 4)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
 
-            while (cntStackAlignedWidthItems != 0)
+            while (pushCount != 0)
             {
                 inst_IV(INS_push, (unsigned)genRegMask(regCnt));
-                cntStackAlignedWidthItems -= 1;
+                pushCount -= 1;
             }
 
             goto ALLOC_DONE;
@@ -1601,7 +1602,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
         else
         {
             getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, callTargetReg, (ssize_t)pAddr);
-            regTracker.rsTrackRegTrash(callTargetReg);
+            regSet.verifyRegUsed(callTargetReg);
         }
 
         getEmitter()->emitIns_Call(emitter::EC_INDIR_R, compiler->eeFindHelper(helper),
@@ -1626,7 +1627,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                    (CorInfoHelpFunc)helper == CORINFO_HELP_PROF_FCN_LEAVE);
     }
 
-    regTracker.rsTrashRegSet(RBM_CALLEE_TRASH);
+    regSet.verifyRegistersUsed(RBM_CALLEE_TRASH);
 }
 
 //------------------------------------------------------------------------
@@ -1702,5 +1703,3 @@ void CodeGen::genCodeForMulLong(GenTreeMultiRegOp* node)
 }
 
 #endif // _TARGET_ARM_
-
-#endif // !LEGACY_BACKEND

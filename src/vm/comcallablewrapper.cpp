@@ -44,7 +44,6 @@
 #include "caparser.h"
 #include "appdomain.inl"
 #include "rcwwalker.h"
-#include "windowsruntimebufferhelper.h"
 #include "winrttypenameconverter.h"
 #include "typestring.h"
 
@@ -958,13 +957,26 @@ void SimpleComCallWrapper::BuildRefCountLogMessage(LPCWSTR wszOperation, StackSS
             obj = *((_UNCHECKED_OBJECTREF *)(handle));
 
         if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, CCWRefCountChange)) 
-            FireEtwCCWRefCountChange(
-                handle, 
-                (Object *)obj, 
-                this, 
-                dwEstimatedRefCount, 
-                NULL,                   // domain value is not interesting in CoreCLR
-                pszClassName, pszNamespace, wszOperation, GetClrInstanceId());
+        {
+            EX_TRY
+            {
+                SString className;
+                className.SetUTF8(pszClassName);
+                SString nameSpace;
+                nameSpace.SetUTF8(pszNamespace);
+
+                FireEtwCCWRefCountChange(
+                    handle, 
+                    (Object *)obj, 
+                    this, 
+                    dwEstimatedRefCount, 
+                    NULL,                   // domain value is not interesting in CoreCLR
+                    className.GetUnicode(), nameSpace.GetUnicode(), wszOperation, GetClrInstanceId());
+            }
+            EX_CATCH
+            { }
+            EX_END_CATCH(SwallowAllExceptions);
+        }
         
         if (g_pConfig->ShouldLogCCWRefCountChange(pszClassName, pszNamespace))
         {
@@ -1078,25 +1090,13 @@ VOID SimpleComCallWrapper::Cleanup()
     m_pWrap = NULL;
     m_pMT = NULL;
 
-    if (HasOverlappedRef())
+    if (m_pCPList)
     {
-        if (m_operlappedPtr)
-        {
-            WindowsRuntimeBufferHelper::ReleaseOverlapped(m_operlappedPtr);
-            m_operlappedPtr = NULL;            
-        }
-        UnMarkOverlappedRef();
-    }
-    else
-    {         
-        if (m_pCPList)  // enum_HasOverlappedRef
-        {
-            for (UINT i = 0; i < m_pCPList->Size(); i++)
-                delete (*m_pCPList)[i];
+        for (UINT i = 0; i < m_pCPList->Size(); i++)
+            delete (*m_pCPList)[i];
 
-            delete m_pCPList;
-            m_pCPList = NULL;
-        }
+        delete m_pCPList;
+        m_pCPList = NULL;
     }
     
     // if this object was made agile, then we will have stashed away the original handle
@@ -1419,8 +1419,6 @@ void SimpleComCallWrapper::SetUpCPList()
     
     CQuickArray<MethodTable *> SrcItfList;
         
-    _ASSERTE(!HasOverlappedRef());
-
     // If the list has already been set up, then return.
     if (m_pCPList)
         return;
@@ -1443,8 +1441,6 @@ void SimpleComCallWrapper::SetUpCPListHelper(MethodTable **apSrcItfMTs, int cSrc
         PRECONDITION(CheckPointer(apSrcItfMTs));
     }
     CONTRACTL_END;
-
-    _ASSERTE(!HasOverlappedRef());
         
     CPListHolder pCPList = NULL;
     ComCallWrapper *pWrap = GetMainWrapper();
@@ -1604,9 +1600,6 @@ BOOL SimpleComCallWrapper::SupportsIReflect(MethodTable *pClass)
 
     // We want to disallow passing out IDispatchEx for Type inheritors to close a security hole. 
     if (pClass == g_pRuntimeTypeClass)
-        return FALSE;
-
-    if (MscorlibBinder::IsClass(pClass, CLASS__CLASS_INTROSPECTION_ONLY))
         return FALSE;
 
     if (MscorlibBinder::IsClass(pClass, CLASS__TYPE_BUILDER))
@@ -1934,18 +1927,9 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(REFIID riid)
 
     CASE_IID_INLINE(  enum_IAgileObject            ,0x94ea2b94,0xe9cc,0x49e0,0xc0,0xff,0xee,0x64,0xca,0x8f,0x5b,0x90)
         {
-            // Don't implement IAgileObject if we are aggregated, if we are in a non AppX process, if the object explicitly implements IMarshal,
-            // or if its ICustomQI returns Failed or Handled for IID_IMarshal (compat).
-            //
-            // The AppX check was primarily done to ensure that we dont break VS in classic mode when it loads the desktop CLR since it needs
-            // objects to be non-Agile. In Apollo, we had objects agile in CoreCLR and even though we introduced AppX support in PhoneBlue,
-            // we should not constrain object agility using the desktop constraint, especially since VS does not rely on CoreCLR for its 
-            // desktop execution. 
-            //
-            // Keeping the Apollo behaviour also ensures that we allow SL 8.1 scenarios (which do not pass the AppX flag like the modern host) 
-            // to use CorDispatcher for async, in the expected manner, as the OS implementation for CoreDispatcher expects objects to be Agile.
-            if (!IsAggregated() 
-            )
+            // Don't implement IAgileObject if we are aggregated, if the object explicitly implements IMarshal, or if its ICustomQI returns
+            // Failed or Handled for IID_IMarshal (compat).
+            if (!IsAggregated())
             {
                 ComCallWrapperTemplate *pTemplate = GetComCallWrapperTemplate();
                 if (!pTemplate->ImplementsIMarshal())
@@ -2039,9 +2023,7 @@ BOOL SimpleComCallWrapper::FindConnectionPoint(REFIID riid, IConnectionPoint **p
         PRECONDITION(CheckPointer(ppCP));
     }
     CONTRACTL_END;
-    
-    _ASSERTE(!HasOverlappedRef());
-
+ 
     // If the connection point list hasn't been set up yet, then set it up now.
     if (!m_pCPList)
         SetUpCPList();
@@ -2077,8 +2059,6 @@ void SimpleComCallWrapper::EnumConnectionPoints(IEnumConnectionPoints **ppEnumCP
         PRECONDITION(CheckPointer(ppEnumCP));
     }
     CONTRACTL_END;
-
-    _ASSERTE(!HasOverlappedRef());
 
     // If the connection point list hasn't been set up yet, then set it up now.
     if (!m_pCPList)
@@ -2126,9 +2106,9 @@ void SimpleComCallWrapper::EnumConnectionPoints(IEnumConnectionPoints **ppEnumCP
 //  VTable and Stubs: can share stub code, we need to have different vtables
 //                    for different interfaces, so the stub can jump to different
 //                    marshalling code.
-//  Stubs : adjust this pointer and jump to the approp. address,
+//  Stubs : adjust this pointer and jump to the appropriate address,
 //  Marshalling params and results, based on the method signature the stub jumps to
-//  approp. code to handle marshalling and unmarshalling.
+//  appropriate code to handle marshalling and unmarshalling.
 //  
 //--------------------------------------------------------------------------
 
@@ -5547,13 +5527,6 @@ SLOT* ComCallWrapperTemplate::GetVTableSlot(ULONG index)
     RETURN m_rgpIPtr[index];
 }
 
-BOOL ComCallWrapperTemplate::HasInvisibleParent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (m_flags & enum_InvisibleParent);
-}
-
 // Determines whether the template is for a type that cannot be safely marshalled to 
 // an out of proc COM client
 BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
@@ -5588,7 +5561,7 @@ BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
         if (pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__ASSEMBLYBASE)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MEMBER)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MODULEBASE)) ||
-        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__METHOD_BODY)) ||
+        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__RUNTIME_METHOD_BODY)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__PARAMETER)))
         {
             isSafe = FALSE;
@@ -5675,7 +5648,7 @@ DefaultInterfaceType ComCallWrapperTemplate::GetDefaultInterface(MethodTable **p
     }
 
     *ppDefaultItf = m_pDefaultItf;
-    return (DefaultInterfaceType)(m_flags & enum_DefaultInterfaceType);
+    return (DefaultInterfaceType)(m_flags & enum_DefaultInterfaceTypeMask);
 }
 
 //--------------------------------------------------------------------------

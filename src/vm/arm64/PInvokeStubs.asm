@@ -45,11 +45,6 @@ __PInvokeStubFuncName SETS "$FuncPrefix":CC:"Stub"
 __PInvokeGenStubFuncName SETS "$FuncPrefix":CC:"GenILStub"
 __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 
-       IF "$VASigCookieReg" == "x1"
-__PInvokeStubFuncName SETS "$__PInvokeStubFuncName":CC:"_RetBuffArg"
-__PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
-        ENDIF
-
         NESTED_ENTRY $__PInvokeStubFuncName
 
         ; get the stub
@@ -58,6 +53,15 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         ; if null goto stub generation
         cbz                 x9, %0
 
+        IF "$FuncPrefix" == "GenericPInvokeCalli"
+            ;
+            ; We need to distinguish between a MethodDesc* and an unmanaged target.
+            ; The way we do this is to shift the managed target to the left by one bit and then set the
+            ; least significant bit to 1.  This works because MethodDesc* are always 8-byte aligned.
+            ;
+            lsl             $HiddenArg, $HiddenArg, #1
+            orr             $HiddenArg, $HiddenArg, #1
+        ENDIF
 
         EPILOG_BRANCH_REG   x9 
 
@@ -75,20 +79,24 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         mov                 x2, $HiddenArg 
 
         ; x1 = VaSigCookie
-        IF "$VASigCookieReg" != "x1"
         mov                 x1, $VASigCookieReg
-        ENDIF
 
         ; x0 = pTransitionBlock
-        add                 x0, sp, #__PWTB_TransitionBlock      
+        add                 x0, sp, #__PWTB_TransitionBlock
 
         ; save hidden arg
         mov                 x19, $HiddenArg 
 
+        ; save VASigCookieReg
+        mov                 x20, $VASigCookieReg
+
         bl                  $__PInvokeStubWorkerName
 
+        ; restore VASigCookieReg
+        mov                 $VASigCookieReg, x20
+
         ; restore hidden arg (method desc or unmanaged target)
-        mov                 $HiddenArg , x19
+        mov                 $HiddenArg, x19
 
 
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
@@ -103,7 +111,6 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 
 ; ------------------------------------------------------------------
 ; VarargPInvokeStub & VarargPInvokeGenILStub
-; There is a separate stub when the method has a hidden return buffer arg.
 ;
 ; in:
 ; x0 = VASigCookie*
@@ -118,19 +125,9 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 ;
 ; in:
 ; x15 = VASigCookie*
-; x14 = Unmanaged target
+; x12 = Unmanaged target
 ;
-        PINVOKE_STUB GenericPInvokeCalli, x15, x14, {true}
-
-; ------------------------------------------------------------------
-; VarargPInvokeStub_RetBuffArg & VarargPInvokeGenILStub_RetBuffArg
-; Vararg PInvoke Stub when the method has a hidden return buffer arg
-;
-; in:
-; x1 = VASigCookie*
-; x12 = MethodDesc*       
-; 
-        PINVOKE_STUB VarargPInvoke, x1, x12, {false}
+        PINVOKE_STUB GenericPInvokeCalli, x15, x12, {true}
 
 
 ; Must be at very end of file 

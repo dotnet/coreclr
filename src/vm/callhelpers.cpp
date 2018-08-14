@@ -208,6 +208,12 @@ void * DispatchCallSimple(
     callDescrData.pSrc = pSrc;
     callDescrData.numStackSlots = numStackSlotsToCopy;
 #endif
+
+#ifdef CALLDESCR_RETBUFFARGREG
+    UINT64 retBuffArgPlaceholder = 0;
+    callDescrData.pRetBuffArg = &retBuffArgPlaceholder;
+#endif
+
 #ifdef CALLDESCR_FPARGREGS
     callDescrData.pFloatArgumentRegisters = NULL;
 #endif
@@ -420,7 +426,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
 
 #ifdef _DEBUG
         {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
             // Validate that the return value is not too big for the buffer passed
             if (m_pMD->GetMethodTable()->IsRegPassedStruct())
             {
@@ -430,7 +436,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                     _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
                 }
             }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
             // The metasig should be reset
             _ASSERTE(m_methodSig.GetArgNum() == 0);
@@ -539,7 +545,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
             // We need to pass in a pointer, but be careful of the ARG_SLOT calling convention. We might already have a pointer in the ARG_SLOT.
             PVOID pSrc = stackSize > sizeof(ARG_SLOT) ? (LPVOID)ArgSlotToPtr(pArguments[arg]) : (LPVOID)ArgSlotEndianessFixup((ARG_SLOT*)&pArguments[arg], stackSize);
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             if (argDest.IsStructPassedInRegs())
             {
                 TypeHandle th;
@@ -548,7 +554,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 argDest.CopyStructToRegisters(pSrc, th.AsMethodTable()->GetNumInstanceFieldBytes(), 0);
             }
             else
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
             {
                 PVOID pDest = argDest.GetDestinationAddress();
 
@@ -596,6 +602,9 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
     callDescrData.numStackSlots = nStackBytes / STACK_ELEM_SIZE;
 #ifdef CALLDESCR_ARGREGS
     callDescrData.pArgumentRegisters = (ArgumentRegisters*)(pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters());
+#endif
+#ifdef CALLDESCR_RETBUFFARGREG
+    callDescrData.pRetBuffArg = (UINT64*)(pTransitionBlock + TransitionBlock::GetOffsetOfRetBuffArgReg());
 #endif
 #ifdef CALLDESCR_FPARGREGS
     callDescrData.pFloatArgumentRegisters = pFloatArgumentRegisters;

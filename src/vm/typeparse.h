@@ -50,7 +50,6 @@ DomainAssembly * LoadDomainAssembly(
     Assembly * pRequestingAssembly, 
     ICLRPrivBinder * pPrivHostBinder,
     BOOL       bThrowIfNotFound, 
-    BOOL       bIntrospectionOnly, 
     SString *  pssOuterTypeName);
 
 class TypeNameFactory : public ITypeNameFactory
@@ -165,7 +164,7 @@ private:
             TypeNameComma               = 0x0010,
             TypeNamePlus                = 0x0020,
             TypeNameAstrix              = 0x0040,
-            TypeNameAmperstand          = 0x0080,
+            TypeNameAmpersand           = 0x0080,
             TypeNameBackSlash           = 0x0100,
             TypeNameEnd                 = 0x4000,
 
@@ -184,7 +183,7 @@ private:
             TypeNameEAQN                = TypeNameIdentifier,
             TypeNameEASSEMSPEC          = TypeNameIdentifier,
             TypeNameARRAY               = TypeNameOpenSqBracket,
-            TypeNameQUALIFIER           = TypeNameAmperstand | TypeNameAstrix | TypeNameARRAY | TypeNameEmpty,
+            TypeNameQUALIFIER           = TypeNameAmpersand | TypeNameAstrix | TypeNameARRAY | TypeNameEmpty,
             TypeNameRANK                = TypeNameComma | TypeNameEmpty,            
         } TypeNameTokens;
 
@@ -323,12 +322,12 @@ public:
     //-------------------------------------------------------------------------------------------
     static TypeHandle GetTypeFromAssembly(LPCWSTR szTypeName, Assembly *pAssembly, BOOL bThrowIfNotFound = TRUE);
 
-    TypeHandle GetTypeFromAsm(BOOL bForIntrospection);
+    TypeHandle GetTypeFromAsm();
 
     //-------------------------------------------------------------------------------------------
     // Retrieves a type. Will assert if the name is not fully qualified.
     //-------------------------------------------------------------------------------------------
-    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName, BOOL bForIntrospection);
+    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName);
 
 
     //-------------------------------------------------------------------------------------------
@@ -366,7 +365,6 @@ public:
         DomainAssembly* pAssemblyGetType,
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
-        BOOL bIntrospectionOnly,
         BOOL bProhibitAssemblyQualifiedName,
         StackCrawlMark* pStackMark,
         BOOL bLoadTypeFromPartialNameHack,
@@ -427,7 +425,6 @@ private:
     TypeHandle GetTypeWorker(
         BOOL bThrowIfNotFound, 
         BOOL bIgnoreCase, 
-        BOOL bIntrospectionOnly, 
         Assembly* pAssemblyGetType,
 
         BOOL fEnableCASearchRules,  

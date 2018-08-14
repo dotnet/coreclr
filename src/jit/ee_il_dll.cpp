@@ -382,7 +382,7 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
     jitFlags.SetFromFlags(cpuCompileFlags);
 
 #ifdef FEATURE_SIMD
-#if defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND)
+#if defined(_TARGET_XARCH_)
     if (!jitFlags.IsSet(JitFlags::JIT_FLAG_PREJIT) && jitFlags.IsSet(JitFlags::JIT_FLAG_FEATURE_SIMD) &&
         jitFlags.IsSet(JitFlags::JIT_FLAG_USE_AVX2))
     {
@@ -399,7 +399,7 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
             return 32;
         }
     }
-#endif // !(defined(_TARGET_XARCH_) && !defined(LEGACY_BACKEND))
+#endif // defined(_TARGET_XARCH_)
     if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
     {
         JITDUMP("getMaxIntrinsicSIMDVectorLength: returning 16\n");
@@ -431,7 +431,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
     // to accommodate irregular sized structs, they are passed byref
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
     CORINFO_CLASS_HANDLE argClass;
     CorInfoType          argTypeJit = strip(info.compCompHnd->getArgType(sig, list, &argClass));
     var_types            argType    = JITtype2varType(argTypeJit);
@@ -440,7 +440,7 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
         unsigned structSize = info.compCompHnd->getClassSize(argClass);
         return structSize; // TODO: roundUp() needed here?
     }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
     return TARGET_POINTER_SIZE;
 
 #else // !_TARGET_AMD64_
@@ -475,6 +475,15 @@ unsigned Compiler::eeGetArgSize(CORINFO_ARG_LIST_HANDLE list, CORINFO_SIG_INFO* 
             {
                 var_types hfaType = GetHfaType(argClass); // set to float or double if it is an HFA, otherwise TYP_UNDEF
                 bool      isHfa   = (hfaType != TYP_UNDEF);
+#ifndef _TARGET_UNIX_
+                if (info.compIsVarArgs)
+                {
+                    // Arm64 Varargs ABI requires passing in general purpose
+                    // registers. Force the decision of whether this is an HFA
+                    // to false to correctly pass as if it was not an HFA.
+                    isHfa = false;
+                }
+#endif // _TARGET_UNIX_
                 if (!isHfa)
                 {
                     // This struct is passed by reference using a single 'slot'
@@ -524,7 +533,7 @@ GenTree* Compiler::eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig)
 
 unsigned Compiler::eeGetArrayDataOffset(var_types type)
 {
-    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : offsetof(CORINFO_Array, u1Elems);
+    return varTypeIsGC(type) ? eeGetEEInfo()->offsetOfObjArrayData : OFFSETOF__CORINFO_Array__data;
 }
 
 //------------------------------------------------------------------------
@@ -724,7 +733,7 @@ void Compiler::eeGetVars()
     {
         // Allocate a bit-array for all the variables and initialize to false
 
-        bool*    varInfoProvided = (bool*)compGetMem(info.compLocalsCount * sizeof(varInfoProvided[0]));
+        bool*    varInfoProvided = getAllocator(CMK_Unknown).allocate<bool>(info.compLocalsCount);
         unsigned i;
         for (i = 0; i < info.compLocalsCount; i++)
         {
@@ -1158,7 +1167,7 @@ int Compiler::eeGetJitDataOffs(CORINFO_FIELD_HANDLE field)
  *                      ICorStaticInfo wrapper functions
  */
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
 #ifdef DEBUG
 void Compiler::dumpSystemVClassificationType(SystemVClassificationType ct)
@@ -1224,7 +1233,7 @@ void Compiler::eeGetSystemVAmd64PassStructInRegisterDescriptor(
 #endif // DEBUG
 }
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 bool Compiler::eeTryResolveToken(CORINFO_RESOLVED_TOKEN* resolvedToken)
 {

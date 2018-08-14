@@ -19,15 +19,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 /*****************************************************************************/
 
-#if COUNT_RANGECHECKS
-/* static */
-unsigned Compiler::optRangeChkRmv = 0;
-/* static */
-unsigned Compiler::optRangeChkAll = 0;
-#endif
-
-/*****************************************************************************/
-
 void Compiler::optInit()
 {
     optLoopsMarked = false;
@@ -35,6 +26,8 @@ void Compiler::optInit()
 
     /* Initialize the # of tracked loops to 0 */
     optLoopCount = 0;
+    optLoopTable = nullptr;
+
     /* Keep track of the number of calls and indirect calls made by this method */
     optCallCount         = 0;
     optIndirectCallCount = 0;
@@ -1148,20 +1141,29 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
     assert(entry->bbNum <= bottom->bbNum);
     assert(head->bbNum < top->bbNum || head->bbNum > bottom->bbNum);
 
-    // If the new loop contains any existing ones, add it in the right place.
     unsigned char loopInd = optLoopCount;
-    for (unsigned char prevPlus1 = optLoopCount; prevPlus1 > 0; prevPlus1--)
+
+    if (optLoopTable == nullptr)
     {
-        unsigned char prev = prevPlus1 - 1;
-        if (optLoopTable[prev].lpContainedBy(first, bottom))
-        {
-            loopInd = prev;
-        }
+        assert(loopInd == 0);
+        optLoopTable = getAllocator(CMK_LoopOpt).allocate<LoopDsc>(MAX_LOOP_NUM);
     }
-    // Move up any loops if necessary.
-    for (unsigned j = optLoopCount; j > loopInd; j--)
+    else
     {
-        optLoopTable[j] = optLoopTable[j - 1];
+        // If the new loop contains any existing ones, add it in the right place.
+        for (unsigned char prevPlus1 = optLoopCount; prevPlus1 > 0; prevPlus1--)
+        {
+            unsigned char prev = prevPlus1 - 1;
+            if (optLoopTable[prev].lpContainedBy(first, bottom))
+            {
+                loopInd = prev;
+            }
+        }
+        // Move up any loops if necessary.
+        for (unsigned j = optLoopCount; j > loopInd; j--)
+        {
+            optLoopTable[j] = optLoopTable[j - 1];
+        }
     }
 
 #ifdef DEBUG
@@ -1190,6 +1192,8 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
     optLoopTable[loopInd].lpParent  = BasicBlock::NOT_IN_LOOP;
     optLoopTable[loopInd].lpChild   = BasicBlock::NOT_IN_LOOP;
     optLoopTable[loopInd].lpSibling = BasicBlock::NOT_IN_LOOP;
+
+    optLoopTable[loopInd].lpAsgVars = AllVarSetOps::UninitVal();
 
     optLoopTable[loopInd].lpFlags = 0;
 
@@ -1472,7 +1476,7 @@ class LoopSearch
 {
 
     // Keeping track of which blocks are in the loop requires two block sets since we may add blocks
-    // as we go but the BlockSet type's max ID doesn't increase to accomodate them.  Define a helper
+    // as we go but the BlockSet type's max ID doesn't increase to accommodate them.  Define a helper
     // struct to make the ensuing code more readable.
     struct LoopBlockSet
     {
@@ -3197,16 +3201,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
 
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX != constLimitX)
                     {
@@ -3235,13 +3233,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3257,16 +3248,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_LT:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX < constLimitX)
                     {
@@ -3295,13 +3280,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3317,16 +3295,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_LE:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX <= constLimitX)
                     {
@@ -3355,13 +3327,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3377,16 +3342,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_GT:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX > constLimitX)
                     {
@@ -3415,13 +3374,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3437,16 +3389,10 @@ bool Compiler::optComputeLoopRep(int        constInit,
         case GT_GE:
             switch (iterOper)
             {
-#ifdef LEGACY_BACKEND
-                case GT_ASG_SUB:
-#endif
                 case GT_SUB:
                     iterInc = -iterInc;
                     __fallthrough;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_ADD:
-#endif
                 case GT_ADD:
                     if (constInitX >= constLimitX)
                     {
@@ -3475,13 +3421,6 @@ bool Compiler::optComputeLoopRep(int        constInit,
                     *iterCount = loopCount;
                     return true;
 
-#ifdef LEGACY_BACKEND
-                case GT_ASG_MUL:
-                case GT_ASG_DIV:
-                case GT_ASG_RSH:
-                case GT_ASG_LSH:
-                case GT_ASG_UDIV:
-#endif
                 case GT_MUL:
                 case GT_DIV:
                 case GT_RSH:
@@ -3966,7 +3905,7 @@ void Compiler::optUnrollLoops()
 
             /* Make sure to update loop table */
 
-            /* Use the LPFLG_REMOVED flag and update the bbLoopMask acordingly
+            /* Use the LPFLG_REMOVED flag and update the bbLoopMask accordingly
                 * (also make head and bottom NULL - to hit an assert or GPF) */
 
             optLoopTable[lnum].lpFlags |= LPFLG_REMOVED;
@@ -5772,32 +5711,74 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
         switch (tree->gtOper)
         {
             case GT_AND:
+                noway_assert(genActualType(tree->gtType) == genActualType(op1->gtType));
                 noway_assert(genActualType(tree->gtType) == genActualType(op2->gtType));
 
-                // Is op2 a small constant than can be narrowed into dstt?
-                // if so the result of the GT_AND will also fit into 'dstt' and can be narrowed
-                if ((op2->gtOper == GT_CNS_INT) && optNarrowTree(op2, srct, dstt, NoVNPair, false))
+                GenTree* opToNarrow;
+                opToNarrow = nullptr;
+                GenTree** otherOpPtr;
+                otherOpPtr = nullptr;
+                bool foundOperandThatBlocksNarrowing;
+                foundOperandThatBlocksNarrowing = false;
+
+                // If 'dstt' is unsigned and one of the operands can be narrowed into 'dsst',
+                // the result of the GT_AND will also fit into 'dstt' and can be narrowed.
+                // The same is true if one of the operands is an int const and can be narrowed into 'dsst'.
+                if (!gtIsActiveCSE_Candidate(op2) && ((op2->gtOper == GT_CNS_INT) || varTypeIsUnsigned(dstt)))
                 {
-                    // We will change the type of the tree and narrow op2
+                    if (optNarrowTree(op2, srct, dstt, NoVNPair, false))
+                    {
+                        opToNarrow = op2;
+                        otherOpPtr = &tree->gtOp.gtOp1;
+                    }
+                    else
+                    {
+                        foundOperandThatBlocksNarrowing = true;
+                    }
+                }
+
+                if ((opToNarrow == nullptr) && !gtIsActiveCSE_Candidate(op1) &&
+                    ((op1->gtOper == GT_CNS_INT) || varTypeIsUnsigned(dstt)))
+                {
+                    if (optNarrowTree(op1, srct, dstt, NoVNPair, false))
+                    {
+                        opToNarrow = op1;
+                        otherOpPtr = &tree->gtOp.gtOp2;
+                    }
+                    else
+                    {
+                        foundOperandThatBlocksNarrowing = true;
+                    }
+                }
+
+                if (opToNarrow != nullptr)
+                {
+                    // We will change the type of the tree and narrow opToNarrow
                     //
                     if (doit)
                     {
                         tree->gtType = genActualType(dstt);
                         tree->SetVNs(vnpNarrow);
 
-                        optNarrowTree(op2, srct, dstt, NoVNPair, true);
-                        // We may also need to cast away the upper bits of op1
+                        optNarrowTree(opToNarrow, srct, dstt, NoVNPair, true);
+                        // We may also need to cast away the upper bits of *otherOpPtr
                         if (srcSize == 8)
                         {
                             assert(tree->gtType == TYP_INT);
-                            op1 = gtNewCastNode(TYP_INT, op1, false, TYP_INT);
+                            GenTree* castOp = gtNewCastNode(TYP_INT, *otherOpPtr, false, TYP_INT);
 #ifdef DEBUG
-                            op1->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+                            castOp->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
 #endif
-                            tree->gtOp.gtOp1 = op1;
+                            *otherOpPtr = castOp;
                         }
                     }
                     return true;
+                }
+
+                if (foundOperandThatBlocksNarrowing)
+                {
+                    noway_assert(doit == false);
+                    return false;
                 }
 
                 goto COMMON_BINOP;
@@ -5814,10 +5795,9 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
 
             case GT_OR:
             case GT_XOR:
-            COMMON_BINOP:
                 noway_assert(genActualType(tree->gtType) == genActualType(op1->gtType));
                 noway_assert(genActualType(tree->gtType) == genActualType(op2->gtType));
-
+            COMMON_BINOP:
                 if (gtIsActiveCSE_Candidate(op1) || gtIsActiveCSE_Candidate(op2) ||
                     !optNarrowTree(op1, srct, dstt, NoVNPair, doit) || !optNarrowTree(op2, srct, dstt, NoVNPair, doit))
                 {
@@ -5843,6 +5823,13 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
             case GT_IND:
 
             NARROW_IND:
+
+                if ((dstSize > genTypeSize(tree->gtType)) &&
+                    (varTypeIsUnsigned(dstt) && !varTypeIsUnsigned(tree->gtType)))
+                {
+                    return false;
+                }
+
                 /* Simply change the type of the tree */
 
                 if (doit && (dstSize <= genTypeSize(tree->gtType)))
@@ -5900,9 +5887,11 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                     {
                         dstt = genSignedType(dstt);
 
-                        if (oprSize == dstSize)
+                        if ((oprSize == dstSize) &&
+                            ((varTypeIsUnsigned(dstt) == varTypeIsUnsigned(oprt)) || !varTypeIsSmall(dstt)))
                         {
-                            // Same size: change the CAST into a NOP
+                            // Same size and there is no signedness mismatch for small types: change the CAST
+                            // into a NOP
                             tree->ChangeOper(GT_NOP);
                             tree->gtType     = dstt;
                             tree->gtOp.gtOp2 = nullptr;
@@ -5910,8 +5899,7 @@ bool Compiler::optNarrowTree(GenTree* tree, var_types srct, var_types dstt, Valu
                         }
                         else
                         {
-                            // oprSize is smaller
-                            assert(oprSize < dstSize);
+                            // oprSize is smaller or there is a signedness mismatch for small types
 
                             // Change the CastToType in the GT_CAST node
                             tree->CastToType() = dstt;
@@ -7784,6 +7772,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
                     case GT_XCHG:    // Binop
                     case GT_CMPXCHG: // Specialop
                     {
+                        assert(!tree->OperIs(GT_LOCKADD) && "LOCKADD should not appear before lowering");
                         memoryHavoc |= memoryKindSet(GcHeap, ByrefExposed);
                     }
                     break;
@@ -7952,7 +7941,7 @@ Compiler::fgWalkResult Compiler::optRemoveTreeVisitor(GenTree** pTree, fgWalkDat
 
     // Look for any local variable references
 
-    if (tree->gtOper == GT_LCL_VAR && comp->lvaLocalVarRefCounted)
+    if (tree->gtOper == GT_LCL_VAR && comp->lvaLocalVarRefCounted())
     {
         unsigned   lclNum;
         LclVarDsc* varDsc;
@@ -8267,12 +8256,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     }
 
     // TODO-CQ: CLONE: Mark increasing or decreasing loops.
-    if ((
-#ifdef LEGACY_BACKEND
-            pLoop->lpIterOper() != GT_ASG_ADD &&
-#endif
-            pLoop->lpIterOper() != GT_ADD) ||
-        (pLoop->lpIterConst() != 1))
+    if ((pLoop->lpIterOper() != GT_ADD) || (pLoop->lpIterConst() != 1))
     {
         JITDUMP("> Loop iteration operator not matching\n");
         return false;
@@ -8285,16 +8269,8 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
         return false;
     }
 
-    if (!(((pLoop->lpTestOper() == GT_LT || pLoop->lpTestOper() == GT_LE) && (pLoop->lpIterOper() == GT_ADD
-#ifdef LEGACY_BACKEND
-                                                                              || pLoop->lpIterOper() == GT_ASG_ADD
-#endif
-                                                                              )) ||
-          ((pLoop->lpTestOper() == GT_GT || pLoop->lpTestOper() == GT_GE) && (pLoop->lpIterOper() == GT_SUB
-#ifdef LEGACY_BACKEND
-                                                                              || pLoop->lpIterOper() == GT_ASG_SUB
-#endif
-                                                                              ))))
+    if (!(((pLoop->lpTestOper() == GT_LT || pLoop->lpTestOper() == GT_LE) && (pLoop->lpIterOper() == GT_ADD)) ||
+          ((pLoop->lpTestOper() == GT_GT || pLoop->lpTestOper() == GT_GE) && (pLoop->lpIterOper() == GT_SUB))))
     {
         JITDUMP("> Loop test (%s) doesn't agree with the direction (%s) of the pLoop->\n",
                 GenTree::OpName(pLoop->lpTestOper()), GenTree::OpName(pLoop->lpIterOper()));
@@ -8978,7 +8954,7 @@ void Compiler::optOptimizeBools()
                         B1: brtrue(t1, BX)
                         B2: brtrue(t2, BX)
                         B3:
-                   we wil try to fold it to :
+                   we will try to fold it to :
                         B1: brtrue(t1|t2, BX)
                         B3:
                 */
@@ -9182,7 +9158,7 @@ void Compiler::optOptimizeBools()
 
             // The new top level node that we just created does feed directly into
             // a comparison against zero, so set the GTF_SET_FLAGS bit so that
-            // we generate an instuction that sets the flags, which allows us
+            // we generate an instruction that sets the flags, which allows us
             // to omit the cmp with zero instruction.
 
             // Request that the codegen for cmpOp1 sets the condition flags

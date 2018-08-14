@@ -70,11 +70,8 @@ public:
     };
     PTR_PEImageLayout GetLayout(DWORD imageLayoutMask,DWORD flags); //with ref
     PTR_PEImageLayout GetLoadedLayout(); //no ref
-    PTR_PEImageLayout GetLoadedIntrospectionLayout(); //no ref, introspection only
     BOOL IsOpened();
     BOOL HasLoadedLayout();
-    BOOL HasLoadedIntrospectionLayout();
-    
 
 public:
     // ------------------------------------------------------------
@@ -135,10 +132,9 @@ public:
 
     void   Load();
     void   SetLoadedHMODULE(HMODULE hMod);
-    void   LoadNoMetaData(BOOL bIntrospection);
+    void   LoadNoMetaData();
     void   LoadNoFile();
-    void   LoadFromMapped();  
-    void   LoadForIntrospection();
+    void   LoadFromMapped();
 
     void AllocateLazyCOWPages();
 #endif
@@ -157,27 +153,13 @@ public:
     const SString &GetPath();
     BOOL IsFile();
     HANDLE GetFileHandle();
-    HANDLE GetFileHandleLocking();
     void SetFileHandle(HANDLE hFile);
     HRESULT TryOpenFile();    
-
-    HANDLE GetProtectingFileHandle(BOOL bProtectIfNotOpenedYet);
 
     LPCWSTR GetPathForErrorMessages();
 
     // Equality
     BOOL Equals(PEImage *pImage);
-    static ULONG HashStreamIds(UINT64 id1, DWORD id2);
-
-    // Hashing utilities.  (These require a flat version of the file, and 
-    // will open one if necessary.)
-
-#ifndef DACCESS_COMPILE
-    void GetImageBits(DWORD layout, SBuffer &result);
-#endif
-
-    void ComputeHash(ALG_ID algorithm, SBuffer &result);
-    CHECK CheckHash(ALG_ID algorithm, const void *pbHash, COUNT_T cbHash);
 
     void GetMVID(GUID *pMvid);
     const BOOL HasV1Metadata();
@@ -185,7 +167,6 @@ public:
     BOOL MDImportLoaded();
     IMDInternalImport* GetNativeMDImport(BOOL loadAllowed = TRUE);    
 
-    BOOL HasSecurityDirectory();
     BOOL HasContents() ;
     BOOL HasNativeHeader() ;
     BOOL IsPtrInImage(PTR_CVOID data);
@@ -224,7 +205,6 @@ public:
     BOOL PassiveDomainOnly();
     BOOL IsReferenceAssembly();
 #ifdef FEATURE_PREJIT  
-    const BOOL GetNativeILHasSecurityDirectory();
     const BOOL IsNativeILILOnly();
     const BOOL IsNativeILDll();
     void GetNativeILPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine);
@@ -238,11 +218,7 @@ public:
     const WORD GetSubsystem();
     BOOL  IsFileLocked();
     const BOOL HasStrongNameSignature();
-#ifndef DACCESS_COMPILE
-    const HRESULT VerifyStrongName(DWORD* verifyOutputFlags);    
-#endif
 
-    BOOL IsStrongNameSigned();
     BOOL IsIbcOptimized();
     BOOL Has32BitNTHeaders();
 
@@ -329,8 +305,7 @@ protected:
         IMAGE_FLAT=0,
         IMAGE_MAPPED=1,
         IMAGE_LOADED=2,
-        IMAGE_LOADED_FOR_INTROSPECTION=3,
-        IMAGE_COUNT=4
+        IMAGE_COUNT=3
     };
     
     SimpleRWLock *m_pLayoutLock;

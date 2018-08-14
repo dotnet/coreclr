@@ -285,7 +285,27 @@ do                                                      \
         if (CorTypeInfo::IsPrimitiveType(corElemType))
         {
             pfwalk->m_managedSize = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+            switch (corElemType)
+            {
+                // The System V ABI for i386 defines different packing for these types.
+                case ELEMENT_TYPE_I8:
+                case ELEMENT_TYPE_U8:
+                case ELEMENT_TYPE_R8:
+                {
+                    pfwalk->m_managedAlignmentReq = 4;
+                    break;
+                }
+
+                default:
+                {
+                    pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
+                    break;
+                }
+            }
+#else // _TARGET_X86_ && UNIX_X86_ABI
             pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
+#endif
         }
         else if (corElemType == ELEMENT_TYPE_PTR)
         {
@@ -1619,7 +1639,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     //
     //   Each field has an alignment requirement. The alignment-requirement
     //   of a scalar field is the smaller of its size and the declared packsize.
-    //   The alighnment-requirement of a struct field is the smaller of the
+    //   The alignment-requirement of a struct field is the smaller of the
     //   declared packsize and the largest of the alignment-requirement
     //   of its fields. The alignment requirement of an array is that
     //   of one of its elements.
@@ -2007,7 +2027,7 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             }
 
             // The cleanup work list is not used to clean up the native contents. It is used
-            // to handle cleanup of any additionnal resources the FieldMarshalers allocate.
+            // to handle cleanup of any additional resources the FieldMarshalers allocate.
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
         }
@@ -4180,12 +4200,7 @@ VOID FieldMarshaler_Currency::ScalarUpdateCLRImpl(const VOID *pNative, LPVOID pC
     // no need to switch to preemptive mode because it's very primitive operaion, doesn't take 
     // long and is guaranteed not to call 3rd party code. 
     // But if we do need to switch to preemptive mode, we can't pass the managed pointer to native code directly
-    HRESULT hr = VarDecFromCy( *(CURRENCY*)pNative, (DECIMAL *)pCLR );
-    if (FAILED(hr))
-        COMPlusThrowHR(hr);
-
-    if (FAILED(DecimalCanonicalize((DECIMAL*)pCLR)))
-        COMPlusThrow(kOverflowException, W("Overflow_Currency"));
+    VarDecFromCyCanonicalize( *(CURRENCY*)pNative, (DECIMAL *)pCLR );
 }
 
 VOID FieldMarshaler_DateTimeOffset::ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const

@@ -942,7 +942,7 @@ MethodTable* CreateMinimalMethodTable(Module* pContainingModule,
     pMT->SetLoaderModule(pContainingModule);
     pMT->SetLoaderAllocator(pContainingModule->GetLoaderAllocator());
     pMT->SetInternalCorElementType(ELEMENT_TYPE_CLASS);
-    pMT->SetBaseSize(ObjSizeOf(Object));
+    pMT->SetBaseSize(OBJECT_BASESIZE);
 
 #ifdef _DEBUG
     pClass->SetDebugClassName("dynamicClass");
@@ -2219,7 +2219,7 @@ BOOL MethodTable::IsClassPreInited()
 
 //========================================================================================
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#if defined(UNIX_AMD64_ABI_ITF)
 
 #if defined(_DEBUG) && defined(LOGGING)
 static
@@ -3153,7 +3153,7 @@ void  MethodTable::AssignClassifiedEightByteTypes(SystemVStructRegisterPassingHe
     }
 }
 
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#endif // defined(UNIX_AMD64_ABI_ITF)
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 //==========================================================================================
@@ -4029,10 +4029,7 @@ OBJECTREF MethodTable::GetManagedClassObject()
 
         REFLECTCLASSBASEREF  refClass = NULL;
         GCPROTECT_BEGIN(refClass);
-        if (GetAssembly()->IsIntrospectionOnly())
-            refClass = (REFLECTCLASSBASEREF) AllocateObject(MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY));
-        else
-            refClass = (REFLECTCLASSBASEREF) AllocateObject(g_pRuntimeTypeClass);
+        refClass = (REFLECTCLASSBASEREF) AllocateObject(g_pRuntimeTypeClass);
 
         LoaderAllocator *pLoaderAllocator = GetLoaderAllocator();
 
@@ -4297,7 +4294,8 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
     {
         if (!image->IsStored(it.GetIndirectionSlot()))
         {
-            if (CanInternVtableChunk(image, it))
+            if (!MethodTable::VTableIndir2_t::isRelative
+                && CanInternVtableChunk(image, it))
                 image->StoreInternedStructure(it.GetIndirectionSlot(), it.GetSize(), DataImage::ITEM_VTABLE_CHUNK);
             else
                 image->StoreStructure(it.GetIndirectionSlot(), it.GetSize(), DataImage::ITEM_VTABLE_CHUNK);
@@ -4989,7 +4987,7 @@ void MethodTable::Fixup(DataImage *image)
             // Virtual slots live in chunks pointed to by vtable indirections
 
             slotBase = (PVOID) GetVtableIndirections()[GetIndexOfVtableIndirection(slotNumber)].GetValueMaybeNull();
-            slotOffset = GetIndexAfterVtableIndirection(slotNumber) * sizeof(PCODE);
+            slotOffset = GetIndexAfterVtableIndirection(slotNumber) * sizeof(MethodTable::VTableIndir2_t);
         }
         else if (HasSingleNonVirtualSlot())
         {
@@ -5016,7 +5014,7 @@ void MethodTable::Fixup(DataImage *image)
         if (pMD->GetMethodTable() == this)
         {
             ZapRelocationType relocType;
-            if (slotNumber >= GetNumVirtuals())
+            if (slotNumber >= GetNumVirtuals() || MethodTable::VTableIndir2_t::isRelative)
                 relocType = IMAGE_REL_BASED_RelativePointer;
             else
                 relocType = IMAGE_REL_BASED_PTR;
@@ -5039,9 +5037,15 @@ void MethodTable::Fixup(DataImage *image)
             _ASSERTE(pSourceMT->GetMethodDescForSlot(slotNumber) == pMD);
 #endif
 
+            ZapRelocationType relocType;
+            if (MethodTable::VTableIndir2_t::isRelative)
+                relocType = IMAGE_REL_BASED_RELPTR;
+            else
+                relocType = IMAGE_REL_BASED_PTR;
+
             if (image->CanEagerBindToMethodDesc(pMD) && pMD->GetLoaderModule() == pZapModule)
             {
-                pMD->FixupSlot(image, slotBase, slotOffset);
+                pMD->FixupSlot(image, slotBase, slotOffset, relocType);
             }
             else
             {
@@ -5050,7 +5054,7 @@ void MethodTable::Fixup(DataImage *image)
                     ZapNode * importThunk = image->GetVirtualImportThunk(pMD->GetMethodTable(), pMD, slotNumber);
                     // On ARM, make sure that the address to the virtual thunk that we write into the
                     // vtable "chunk" has the Thumb bit set.
-                    image->FixupFieldToNode(slotBase, slotOffset, importThunk ARM_ARG(THUMB_CODE));
+                    image->FixupFieldToNode(slotBase, slotOffset, importThunk ARM_ARG(THUMB_CODE) NOT_ARM_ARG(0), relocType);
                 }
                 else
                 {
@@ -5959,7 +5963,7 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
             SetIsDependenciesLoaded();
 
 #if defined(FEATURE_COMINTEROP) && !defined(DACCESS_COMPILE)
-            if (WinRTSupported() && g_fEEStarted && !ContainsIntrospectionOnlyTypes())
+            if (WinRTSupported() && g_fEEStarted)
             {
                 _ASSERTE(GetAppDomain() != NULL);
 
@@ -9360,7 +9364,7 @@ CHECK MethodTable::CheckActivated()
 }
 
 #ifdef _MSC_VER
-// Optimization intended for EnsureInstanceActive, IsIntrospectionOnly, EnsureActive only
+// Optimization intended for EnsureInstanceActive, EnsureActive only
 #pragma optimize("t", on)
 #endif // _MSC_VER
 //==========================================================================================
@@ -9414,40 +9418,6 @@ VOID MethodTable::EnsureInstanceActive()
 
 }
 #endif //!DACCESS_COMPILE
-
-//==========================================================================================
-BOOL MethodTable::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetAssembly()->IsIntrospectionOnly();
-}
-
-//==========================================================================================
-BOOL MethodTable::ContainsIntrospectionOnlyTypes()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    // check this type
-    if (IsIntrospectionOnly())
-        return TRUE;
-
-    // check the instantiation
-    Instantiation inst = GetInstantiation();
-    for (DWORD i = 0; i < inst.GetNumArgs(); i++)
-    {
-        CONSISTENCY_CHECK(!inst[i].IsEncodedFixup());
-        if (inst[i].ContainsIntrospectionOnlyTypes())
-            return TRUE;
-    }
-
-    return FALSE;
-}
 
 //==========================================================================================
 #ifndef DACCESS_COMPILE
@@ -9790,7 +9760,15 @@ void MethodTable::SetSlot(UINT32 slotNumber, PCODE slotCode)
     _ASSERTE(IsThumbCode(slotCode));
 #endif
 
-    *GetSlotPtrRaw(slotNumber) = slotCode;
+    TADDR slot = GetSlotPtrRaw(slotNumber);
+    if (slotNumber < GetNumVirtuals())
+    {
+        ((MethodTable::VTableIndir2_t *) slot)->SetValueMaybeNull(slotCode);
+    }
+    else
+    {
+        *((PCODE *)slot) = slotCode;
+    }
 }
 
 //==========================================================================================

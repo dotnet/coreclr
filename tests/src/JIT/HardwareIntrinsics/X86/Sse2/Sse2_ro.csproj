@@ -20,7 +20,7 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <PropertyGroup>
-    <DebugType>None</DebugType>
+    <DebugType>Embedded</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
   <ItemGroup>
@@ -87,9 +87,7 @@
     <Compile Include="CompareUnordered.Double.cs" />
     <Compile Include="Divide.Double.cs" />
     <Compile Include="DivideScalar.Double.cs" />
-    <Compile Include="Extract.Int16.1.cs" />
     <Compile Include="Extract.UInt16.1.cs" />
-    <Compile Include="Extract.Int16.129.cs" />
     <Compile Include="Extract.UInt16.129.cs" />
     <Compile Include="Insert.Int16.1.cs" />
     <Compile Include="Insert.UInt16.1.cs" />
@@ -194,7 +192,7 @@
     <Compile Include="..\Shared\Program.cs" />
     <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
     <Compile Include="..\Shared\SimpleUnOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\ScalarUnOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\ScalarSimdUnOpTest_DataTable.cs" />
     <Compile Include="Sse2Verify.cs" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />

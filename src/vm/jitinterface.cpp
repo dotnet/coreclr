@@ -489,12 +489,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
+#ifdef PLATFORM_UNIX
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
+#endif // PLATFORM_UNIX
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -1456,12 +1458,12 @@ static CorInfoHelpFunc getInstanceFieldHelper(FieldDesc * pField, CORINFO_ACCESS
         break;
     case ELEMENT_TYPE_I4:
     case ELEMENT_TYPE_U4:
-    IN_WIN32(default:)
+    IN_TARGET_32BIT(default:)
         helper = CORINFO_HELP_GETFIELD32;
         break;
     case ELEMENT_TYPE_I8:
     case ELEMENT_TYPE_U8:
-    IN_WIN64(default:)
+    IN_TARGET_64BIT(default:)
         helper = CORINFO_HELP_GETFIELD64;
         break;
     case ELEMENT_TYPE_R4:
@@ -1645,7 +1647,7 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
         // FieldDesc::GetOffset() does not include the size of Object
         if (!pFieldMT->IsValueType())
         {
-            pResult->offset += sizeof(Object);
+            pResult->offset += OBJECT_SIZE;
         }
     }
 
@@ -2226,7 +2228,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             {
                 // Get offset into the value class of the first pointer field (includes a +Object)
                 size_t cbSeriesSize = pByValueSeries->GetSeriesSize() + pMT->GetBaseSize();
-                size_t cbOffset = pByValueSeries->GetSeriesOffset() - sizeof(Object);
+                size_t cbOffset = pByValueSeries->GetSeriesOffset() - OBJECT_SIZE;
 
                 _ASSERTE (cbOffset % TARGET_POINTER_SIZE == 0);
                 _ASSERTE (cbSeriesSize % TARGET_POINTER_SIZE == 0);
@@ -2256,7 +2258,7 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#if defined(UNIX_AMD64_ABI_ITF)
     JIT_TO_EE_TRANSITION();
 
     _ASSERTE(structPassInRegDescPtr != nullptr);
@@ -2291,27 +2293,31 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
         }
         _ASSERTE(methodTablePtr != nullptr);
 
-        // If we have full support for FEATURE_UNIX_AMD64_STRUCT_PASSING, and not just the interface,
+        // If we have full support for UNIX_AMD64_ABI, and not just the interface,
         // then we've cached whether this is a reg passed struct in the MethodTable, computed during
         // MethodTable construction. Otherwise, we are just building in the interface, and we haven't
         // computed or cached anything, so we need to compute it now.
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         bool canPassInRegisters = useNativeLayout ? methodTablePtr->GetLayoutInfo()->IsNativeStructPassedInRegisters()
                                                   : methodTablePtr->IsRegPassedStruct();
-#else // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#else // !defined(UNIX_AMD64_ABI)
+        bool canPassInRegisters = false;
         SystemVStructRegisterPassingHelper helper((unsigned int)th.GetSize());
-        bool canPassInRegisters = methodTablePtr->ClassifyEightBytes(&helper, 0, 0, useNativeLayout);
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+        if (th.GetSize() <= CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS)
+        {
+            canPassInRegisters = methodTablePtr->ClassifyEightBytes(&helper, 0, 0, useNativeLayout);
+        }
+#endif // !defined(UNIX_AMD64_ABI)
 
         if (canPassInRegisters)
         {
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             SystemVStructRegisterPassingHelper helper((unsigned int)th.GetSize());
             bool result = methodTablePtr->ClassifyEightBytes(&helper, 0, 0, useNativeLayout);
 
             // The answer must be true at this point.
             _ASSERTE(result);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
             structPassInRegDescPtr->passedInRegisters = true;
 
@@ -2332,9 +2338,9 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
     EE_TO_JIT_TRANSITION();
 
     return true;
-#else // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#else // !defined(UNIX_AMD64_ABI_ITF)
     return false;
-#endif // !defined(FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF)
+#endif // !defined(UNIX_AMD64_ABI_ITF)
 }
 
 /*********************************************************************/
@@ -2785,7 +2791,7 @@ void CEEInfo::ScanInstantiation(Module * pModule, Instantiation inst)
 // is not "active". And we don't want to intercept every call during runtime, so during compile time we track static calls and 
 // everything that can result in new virtual calls.
 //
-// The current algoritm (scan the parent type chain and instantiation variables) is more than enough to maintain this invariant.
+// The current algorithm (scan the parent type chain and instantiation variables) is more than enough to maintain this invariant.
 // One could come up with a more efficient algorithm that still maintains the invariant, but it may introduce backward compatibility
 // issues.
 //
@@ -5680,7 +5686,7 @@ void CEEInfo::getCallInfo(
 
                 MethodTable* pTypeParamMT = typeParam.GetMethodTable();
 
-                // No accees check is need for Var, MVar, or FnPtr.
+                // No access check is need for Var, MVar, or FnPtr.
                 if (pTypeParamMT != NULL)
                     canAccessMethod = ClassLoader::CanAccessClass(&accessContext,
                                                                   pTypeParamMT,
@@ -7041,7 +7047,8 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_AS)->GetMemberDef() ||
              tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__OBJECT_AS)->GetMemberDef() ||
-             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF)->GetMemberDef())
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF_POINTER)->GetMemberDef() ||
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__AS_REF_IN)->GetMemberDef())
     {
         // Return the argument that was passed in.
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_RET };
@@ -7297,9 +7304,9 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
         // The implementation in mscorlib already does this, so we will only substitute a new
         // IL body if we're running on a 64-bit platform.
         //
-        IN_WIN64(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
-        IN_WIN64(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Long,  CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(ULong, CEE_LDIND_I8, CEE_STIND_I8))
+        IN_TARGET_64BIT(VOLATILE_IMPL(Dbl,   CEE_LDIND_R8, CEE_STIND_R8))
     };
 
     mdMethodDef md = ftn->GetMemberDef();
@@ -8036,6 +8043,9 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
         if (dontInline(inlineResult))
         {
             const char * str = (reason ? reason : "");
+            SString strReason;
+            strReason.SetANSI(str);
+
 
             FireEtwMethodJitInliningFailed(methodBeingCompiledNames[0].GetUnicode(),
                                            methodBeingCompiledNames[1].GetUnicode(),
@@ -8047,7 +8057,7 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
                                            inlineeNames[1].GetUnicode(),
                                            inlineeNames[2].GetUnicode(),
                                            inlineResult == INLINE_NEVER,
-                                           str,
+                                           strReason.GetUnicode(),
                                            GetClrInstanceId());
         }
         else
@@ -8324,7 +8334,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
             static const char * const tailCallType[] = {
                 "optimized tail call", "recursive loop", "helper assisted tailcall"
             };
-            _ASSERTE(tailCallResult >= 0 && (size_t)tailCallResult < sizeof(tailCallType) / sizeof(tailCallType[0]));
+            _ASSERTE(tailCallResult >= 0 && (size_t)tailCallResult < _countof(tailCallType));
             LOG((LF_JIT, LL_INFO100000,
                  "While compiling '%S', %Splicit tail call from '%S' to '%S' generated as a %s.\n",
                  currentMethodName.GetUnicode(), fIsTailPrefix ? W("ex") : W("im"),
@@ -8360,6 +8370,8 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
         if (tailCallResult == TAILCALL_FAIL)
         {
             const char * str = (reason ? reason : "");
+            SString strReason;
+            strReason.SetANSI(str);
 
             FireEtwMethodJitTailCallFailed(methodBeingCompiledNames[0].GetUnicode(),
                                            methodBeingCompiledNames[1].GetUnicode(),
@@ -8371,7 +8383,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
                                            calleeNames[1].GetUnicode(),
                                            calleeNames[2].GetUnicode(),
                                            fIsTailPrefix,
-                                           str,
+                                           strReason.GetUnicode(),
                                            GetClrInstanceId());
         }
         else
@@ -8744,8 +8756,9 @@ void CEEInfo::getMethodVTableOffset (CORINFO_METHOD_HANDLE methodHnd,
     _ASSERTE(method->GetSlot() < method->GetMethodTable()->GetNumVirtuals());
 
     *pOffsetOfIndirection = MethodTable::GetVtableOffset() + MethodTable::GetIndexOfVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir_t);
-    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * sizeof(PCODE);
+    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir2_t);
     *isRelative = MethodTable::VTableIndir_t::isRelative ? 1 : 0;
+    _ASSERTE(MethodTable::VTableIndir_t::isRelative == MethodTable::VTableIndir2_t::isRelative);
 
     EE_TO_JIT_TRANSITION_LEAF();
 }
@@ -8887,6 +8900,20 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethodHelper(CORINFO_METHOD_HANDLE 
         // exactly derived class. It is up to the jit to determine whether
         // directly calling this method is correct.
         pDevirtMD = pDerivedMT->GetMethodDescForSlot(slot);
+
+        // If the derived method's slot does not match the vtable slot,
+        // bail on devirtualization, as the method was installed into
+        // the vtable slot via an explicit override and even if the
+        // method is final, the slot may not be.
+        //
+        // Note the jit could still safely devirtualize if it had an exact
+        // class, but such cases are likely rare.
+        WORD dslot = pDevirtMD->GetSlot();
+
+        if (dslot != slot)
+        {
+            return nullptr;
+        }
     }
 
     _ASSERTE(pDevirtMD->IsRestored());
@@ -9123,8 +9150,17 @@ void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
 
         _ASSERTE((accessFlags & CORINFO_ACCESS_THIS) || !ftn->IsRemotingInterceptedViaVirtualDispatch());
 
-        ret = ftn->GetAddrOfSlot();
-        accessType = IAT_PVALUE;
+        ret = (void *)ftn->GetAddrOfSlot();
+
+        if (MethodTable::VTableIndir2_t::isRelative
+            && ftn->IsVtableSlot())
+        {
+            accessType = IAT_RELPVALUE;
+        }
+        else
+        {
+            accessType = IAT_PVALUE;
+        }
     }
 
 
@@ -9351,7 +9387,7 @@ unsigned CEEInfo::getFieldOffset (CORINFO_FIELD_HANDLE fieldHnd)
     }
     else if (!field->GetApproxEnclosingMethodTable()->IsValueType())
     {
-        result += sizeof(Object);
+        result += OBJECT_SIZE;
     }
 
     EE_TO_JIT_TRANSITION();
@@ -10081,24 +10117,43 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 
     JIT_TO_EE_TRANSITION();
 
-    InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+    if (!IsReadyToRunCompilation())
+    {
+        InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
 
-    // Offsets into the Thread structure
-    pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
-    pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+        // Offsets into the Thread structure
+        pEEInfoOut->offsetOfThreadFrame = Thread::GetOffsetOfCurrentFrame();
+        pEEInfoOut->offsetOfGCState     = Thread::GetOffsetOfGCFlag();
+    }
+    else
+    {
+        // inlinedCallFrameInfo is not used for R2R compilation
+        ZeroMemory(&pEEInfoOut->inlinedCallFrameInfo, sizeof(pEEInfoOut->inlinedCallFrameInfo));
+
+        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;
+        pEEInfoOut->offsetOfGCState     = (DWORD)-1;
+    }
+
+#ifndef CROSSBITNESS_COMPILE
+    // The assertions must hold in every non-crossbitness scenario
+    _ASSERTE(OFFSETOF__DelegateObject__target       == DelegateObject::GetOffsetOfTarget());
+    _ASSERTE(OFFSETOF__DelegateObject__methodPtr    == DelegateObject::GetOffsetOfMethodPtr());
+    _ASSERTE(OFFSETOF__DelegateObject__methodPtrAux == DelegateObject::GetOffsetOfMethodPtrAux());
+    _ASSERTE(OFFSETOF__PtrArray__m_Array_           == PtrArray::GetDataOffset());
+#endif
 
     // Delegate offsets
-    pEEInfoOut->offsetOfDelegateInstance    = DelegateObject::GetOffsetOfTarget();
-    pEEInfoOut->offsetOfDelegateFirstTarget = DelegateObject::GetOffsetOfMethodPtr();
+    pEEInfoOut->offsetOfDelegateInstance    = OFFSETOF__DelegateObject__target;
+    pEEInfoOut->offsetOfDelegateFirstTarget = OFFSETOF__DelegateObject__methodPtr;
 
     // Secure delegate offsets
-    pEEInfoOut->offsetOfSecureDelegateIndirectCell = DelegateObject::GetOffsetOfMethodPtrAux();
+    pEEInfoOut->offsetOfSecureDelegateIndirectCell = OFFSETOF__DelegateObject__methodPtrAux;
 
     // Remoting offsets
-    pEEInfoOut->offsetOfTransparentProxyRP = TransparentProxyObject::GetOffsetOfRP();
-    pEEInfoOut->offsetOfRealProxyServer    = RealProxyObject::GetOffsetOfServerObject();
+    pEEInfoOut->offsetOfTransparentProxyRP = (DWORD)-1;
+    pEEInfoOut->offsetOfRealProxyServer    = (DWORD)-1;
 
-    pEEInfoOut->offsetOfObjArrayData       = (DWORD)PtrArray::GetDataOffset();
+    pEEInfoOut->offsetOfObjArrayData       = OFFSETOF__PtrArray__m_Array_;
 
     pEEInfoOut->sizeOfReversePInvokeFrame  = (DWORD)-1;
 
@@ -10618,7 +10673,7 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 
     // NOTE: the lack of JIT/EE transition markers in this method is intentional. Any
     //       transitions into the EE proper should occur either via the call to
-    //       `EEFilterException` (which is appropraitely marked) or via JIT/EE
+    //       `EEFilterException` (which is appropriately marked) or via JIT/EE
     //       interface calls made by `function`.
 
     bool success = true;
@@ -11487,8 +11542,8 @@ void CEEJitInfo::recordRelocation(void * location,
 
             // Write the 21 bits pc-relative page address into location.
             INT64 targetPage = (INT64)target & 0xFFFFFFFFFFFFF000LL;
-            INT64 lcoationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
-            INT64 relPage = (INT64)(targetPage - lcoationPage);
+            INT64 locationPage = (INT64)location & 0xFFFFFFFFFFFFF000LL;
+            INT64 relPage = (INT64)(targetPage - locationPage);
             INT32 imm21 = (INT32)(relPage >> 12) & 0x1FFFFF;
             PutArm64Rel21((UINT32 *)location, imm21);
         }
@@ -12357,7 +12412,7 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
     if (g_pConfig->JitAlignLoops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
-    if (ReJitManager::IsReJITEnabled() || g_pConfig->AddRejitNops())
+    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
 #ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))
@@ -13216,10 +13271,10 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     MethodDesc * pMD = NULL;
 
+#ifndef CROSSGEN_COMPILE
     PCCOR_SIGNATURE pSig;
     DWORD cSig;
-
-    mdSignature token;
+#endif // CROSSGEN_COMPILE
 
     size_t result = 0;
     
@@ -13336,12 +13391,13 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     case ENCODE_VARARGS_METHODDEF:
         {
-            token = TokenFromRid(
-                        CorSigUncompressData(pBlob),
-                        mdtMethodDef);
+            mdSignature token = TokenFromRid(
+                                    CorSigUncompressData(pBlob),
+                                    mdtMethodDef);
 
             IfFailThrow(pInfoModule->GetMDImport()->GetSigOfMethodDef(token, &cSig, &pSig));
-
+        }
+        {
         VarArgs:
             result = (size_t) CORINFO_VARARGS_HANDLE(currentModule->GetVASigCookie(Signature(pSig, cSig)));
         }
@@ -13700,7 +13756,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     void * ftn = NULL;
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)) && !defined(FEATURE_PAL)
 
     JIT_TO_EE_TRANSITION();
 
@@ -13710,9 +13766,14 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     EE_TO_JIT_TRANSITION();
 
-#endif // _TARGET_AMD64_ || _TARGET_ARM_
+#endif // (_TARGET_AMD64_ || _TARGET_ARM_) && !FEATURE_PAL
 
     return ftn;
+}
+
+bool CEEInfo::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
+{
+    return false;
 }
 
 void CEEInfo::allocMem (

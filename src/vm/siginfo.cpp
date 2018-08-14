@@ -3364,14 +3364,6 @@ BOOL CompareTypeDefsForEquivalence(mdToken tk1, mdToken tk2, Module *pModule1, M
     }
 
     // *************************************************************************
-    // 2c. the two types cannot be equivalent across IntrospectionOnly/Non-introspection boundaries
-    // *************************************************************************
-    if (!!pModule1->GetAssembly()->IsIntrospectionOnly() != !!pModule2->GetAssembly()->IsIntrospectionOnly())
-    {
-        return FALSE;
-    }
-
-    // *************************************************************************
     // 3. type is an interface, struct, enum, or delegate
     // *************************************************************************
     if (IsTdInterface(dwAttrType1))
@@ -4981,7 +4973,7 @@ void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTa
         while (srcPtr < srcPtrStop)                                         
         {   
             (*fn)(dac_cast<PTR_PTR_Object>(srcPtr), sc, 0);
-            srcPtr++;
+            srcPtr = (PTR_OBJECTREF)(PTR_BYTE(srcPtr) + TARGET_POINTER_SIZE);
         }                                                               
         cur--;                                                              
     } while (cur >= last);
@@ -4996,13 +4988,13 @@ void ReportPointersFromValueTypeArg(promote_func *fn, ScanContext *sc, PTR_Metho
         return;
     }
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)    
+#if defined(UNIX_AMD64_ABI)    
     if (pSrc->IsStructPassedInRegs())
     {
         pSrc->ReportPointersFromStructInRegisters(fn, sc, pMT->GetNumInstanceFieldBytes());
         return;
     }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     ReportPointersFromValueType(fn, sc, pMT, pSrc->GetDestinationAddress());
 }

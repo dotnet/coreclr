@@ -282,12 +282,6 @@
       "values": [ "false", "true"],
       "defaultValue": "true"
     },
-    "Rebuild": {
-      "description": "Specifies rebuild target.",
-      "valueType": "target",
-      "values": [],
-      "defaultValue": ""
-    },
     "MsBuildLog": {
       "description": "Specifies build logs for build alias.",
       "valueType": "passThrough",
@@ -318,6 +312,12 @@
       "values": [ true, false ],
       "defaultValue": false
     },
+    "BuildManagedTools": {
+      "description": "",
+      "valueType": "property",
+      "values": [ true, false ],
+      "defaultValue": true
+    },
     "SignType": {
       "description": "Sets the SignType.",
       "valueType": "property",
@@ -338,6 +338,12 @@
     },
     "CreateNonWindowsTestOverlay": {
       "description": "Runs CreateNonWindowsTestOverlay target.",
+      "valueType": "target",
+      "values": [],
+      "defaultValue": ""
+    },
+    "CreateTestHost": {
+      "description": "Place test dependencies in the /bin/testhost folder to be used to run CoreFX tests",
       "valueType": "target",
       "values": [],
       "defaultValue": ""
@@ -508,6 +514,12 @@
           "description": "Runs test overlay target.",
           "settings": {
             "CreateTestOverlay": "default"
+          }
+        },
+        "testHost": {
+          "description": "Runs test host target, which creates a dotnet executable from the built CoreCLR repo to run pre-built CoreFX test assemblies",
+          "settings": {
+            "CreateTestHost": "default"
           }
         },
         "priority": {

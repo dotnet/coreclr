@@ -590,7 +590,7 @@ void STDCALL CopyValueClassArgUnchecked(ArgDestination *argDest, void* src, Meth
     STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
     if (argDest->IsStructPassedInRegs())
     {
@@ -606,7 +606,7 @@ void STDCALL CopyValueClassArgUnchecked(ArgDestination *argDest, void* src, Meth
         return;
     }
 
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
     // destOffset is only valid for Nullable<T> passed in registers
     _ASSERTE(destOffset == 0);
 
@@ -621,7 +621,7 @@ void InitValueClassArg(ArgDestination *argDest, MethodTable *pMT)
     STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
     if (argDest->IsStructPassedInRegs())
     {
@@ -1300,63 +1300,6 @@ BOOL StringObject::SetTrailByte(BYTE bTrailByte) {
     return TRUE;
 }
 
-
-/*================================ReplaceBuffer=================================
-**This is a helper function designed to be used by N/Direct it replaces the entire
-**contents of the String with a new string created by some native method.  This 
-**will not be exposed through the StringBuilder class.
-==============================================================================*/
-void StringBufferObject::ReplaceBuffer(STRINGBUFFERREF *thisRef, __in_ecount(newLength) WCHAR *newBuffer, INT32 newLength) {
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(newBuffer));
-        PRECONDITION(newLength>=0);
-        PRECONDITION(CheckPointer(thisRef));
-        PRECONDITION(IsProtectedByGCFrame(thisRef));
-    } CONTRACTL_END;
-
-    if(newLength > (*thisRef)->GetMaxCapacity())
-    {
-        COMPlusThrowArgumentOutOfRange(W("capacity"), W("ArgumentOutOfRange_Capacity"));
-    }
-
-    CHARARRAYREF newCharArray = AllocateCharArray((*thisRef)->GetAllocationLength(newLength+1));
-    (*thisRef)->ReplaceBuffer(&newCharArray, newBuffer, newLength);
-}
-
-
-/*================================ReplaceBufferAnsi=================================
-**This is a helper function designed to be used by N/Direct it replaces the entire
-**contents of the String with a new string created by some native method.  This 
-**will not be exposed through the StringBuilder class.
-**
-**This version does Ansi->Unicode conversion along the way. Although
-**making it a member of COMStringBuffer exposes more stringbuffer internals
-**than necessary, it does avoid requiring a temporary buffer to hold
-**the Ansi->Unicode conversion.
-==============================================================================*/
-void StringBufferObject::ReplaceBufferAnsi(STRINGBUFFERREF *thisRef, __in_ecount(newCapacity) CHAR *newBuffer, INT32 newCapacity) {
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(newBuffer));
-        PRECONDITION(CheckPointer(thisRef));
-        PRECONDITION(IsProtectedByGCFrame(thisRef));
-        PRECONDITION(newCapacity>=0);
-    } CONTRACTL_END;
-
-    if(newCapacity > (*thisRef)->GetMaxCapacity())
-    {
-        COMPlusThrowArgumentOutOfRange(W("capacity"), W("ArgumentOutOfRange_Capacity"));
-    }
-
-    CHARARRAYREF newCharArray = AllocateCharArray((*thisRef)->GetAllocationLength(newCapacity+1));
-    (*thisRef)->ReplaceBufferWithAnsi(&newCharArray, newBuffer, newCapacity);
-}
-
 #ifdef USE_CHECKED_OBJECTREFS
 
 //-------------------------------------------------------------
@@ -1715,9 +1658,9 @@ void __fastcall ZeroMemoryInGCHeap(void* mem, size_t size)
         *memBytes++ = 0;
 
     // now write pointer sized pieces
-    // volatile ensures that this doesn't get optimized back into a memset call (see #12207)
+    // volatile ensures that this doesn't get optimized back into a memset call
     size_t nPtrs = (endBytes - memBytes) / sizeof(PTR_PTR_VOID);
-    volatile PTR_PTR_VOID memPtr = (PTR_PTR_VOID) memBytes;
+    PTR_VOID volatile * memPtr = (PTR_PTR_VOID) memBytes;
     for (size_t i = 0; i < nPtrs; i++)
         *memPtr++ = 0;
 
@@ -2107,7 +2050,7 @@ BOOL Nullable::UnBoxIntoArgNoGC(ArgDestination *argDest, OBJECTREF boxedVal, Met
     }
     CONTRACTL_END;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     if (argDest->IsStructPassedInRegs())
     {
         // We should only get here if we are unboxing a T as a Nullable<T>
@@ -2145,7 +2088,7 @@ BOOL Nullable::UnBoxIntoArgNoGC(ArgDestination *argDest, OBJECTREF boxedVal, Met
         return TRUE;
     }
 
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     return UnBoxNoGC(argDest->GetDestinationAddress(), boxedVal, destMT);
 }

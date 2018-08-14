@@ -822,15 +822,11 @@ public:
     GCPollType GetGCPollType() { LIMITED_METHOD_CONTRACT; return iGCPollType; }
 
 #ifdef _DEBUG
-    BOOL ShouldGenerateStubForHost() const {LIMITED_METHOD_CONTRACT; return fGenerateStubForHost;}
-    void DisableGenerateStubForHost() {LIMITED_METHOD_CONTRACT; fGenerateStubForHost = FALSE;}
-
     DWORD GetHostTestADUnload() const {LIMITED_METHOD_CONTRACT; return testADUnload;}
 
     DWORD GetHostTestThreadAbort() const {LIMITED_METHOD_CONTRACT; return testThreadAbort;}
 
 #define INJECTFAULT_LOADERHEAP      0x1
-#define INJECTFAULT_HANDLETABLE     0x1
 #define INJECTFAULT_GCHEAP          0x2
 #define INJECTFAULT_SO              0x4
 #define INJECTFAULT_GMHEAP          0x8
@@ -1103,7 +1099,6 @@ private: //----------------------------------------------------------------
     GCPollType iGCPollType;
 
 #ifdef _DEBUG
-    BOOL fGenerateStubForHost;
     DWORD fShouldInjectFault;
     DWORD testADUnload;
     DWORD testThreadAbort;

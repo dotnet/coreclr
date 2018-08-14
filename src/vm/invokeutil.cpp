@@ -649,9 +649,14 @@ void InvokeUtil::ValidField(TypeHandle th, OBJECTREF* value)
         COMPlusThrow(kArgumentException,W("Arg_ObjObj"));
 }
 
-// InternalCreateObject
-// This routine will create the specified object from the value
-OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
+//
+// CreateObjectAfterInvoke
+// This routine will create the specified object from the value returned by the Invoke target. 
+//
+// This does not handle the ELEMENT_TYPE_VALUETYPE case. The caller must preallocate the box object and
+// copy the value type into it afterward.
+//
+OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -663,8 +668,10 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
     CONTRACTL_END;
 
     CorElementType type = th.GetSignatureCorElementType();
-    MethodTable *pMT = NULL;
     OBJECTREF obj = NULL;
+
+    // WARNING: pValue can be an inner reference into a managed object and it is not protected from GC. You must do nothing that
+    // triggers a GC until the all the data it points to has been captured in a GC-protected location.
 
     // Handle the non-table types
     switch (type) {
@@ -677,18 +684,6 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
         break;
     }
 
-    case ELEMENT_TYPE_FNPTR:
-        pMT = MscorlibBinder::GetElementType(ELEMENT_TYPE_I);
-        goto PrimitiveType;
-
-    case ELEMENT_TYPE_VALUETYPE:
-    {
-        _ASSERTE(!th.IsTypeDesc());
-        pMT = th.AsMethodTable();
-        obj = pMT->Box(pValue);
-        break;
-    }
-
     case ELEMENT_TYPE_CLASS:        // Class
     case ELEMENT_TYPE_SZARRAY:      // Single Dim, Zero
     case ELEMENT_TYPE_ARRAY:        // General Array
@@ -698,35 +693,15 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
         obj = *(OBJECTREF *)pValue;
         break;
     
-    case ELEMENT_TYPE_BOOLEAN:      // boolean
-    case ELEMENT_TYPE_I1:           // byte
-    case ELEMENT_TYPE_U1:
-    case ELEMENT_TYPE_I2:           // short
-    case ELEMENT_TYPE_U2:           
-    case ELEMENT_TYPE_CHAR:         // char
-    case ELEMENT_TYPE_I4:           // int
-    case ELEMENT_TYPE_U4:
-    case ELEMENT_TYPE_I8:           // long
-    case ELEMENT_TYPE_U8:       
-    case ELEMENT_TYPE_R4:           // float
-    case ELEMENT_TYPE_R8:           // double
-    case ELEMENT_TYPE_I:
-    case ELEMENT_TYPE_U:
-        _ASSERTE(!th.IsTypeDesc());
-        pMT = th.AsMethodTable();
-    PrimitiveType:
+    case ELEMENT_TYPE_FNPTR:
         {
-            // Don't use MethodTable::Box here for perf reasons
-            PREFIX_ASSUME(pMT != NULL);
-            obj = AllocateObject(pMT);
-            DWORD size = pMT->GetNumInstanceFieldBytes();
-            memcpyNoGCRefs(obj->UnBox(), pValue, size);
+            LPVOID capturedValue = *(LPVOID*)pValue;
+            INDEBUG(pValue = (LPVOID)0xcccccccc); // We're about to allocate a GC object - can no longer trust pValue
+            obj = AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
+            *(LPVOID*)(obj->UnBox()) = capturedValue;
         }
         break;
     
-    case ELEMENT_TYPE_BYREF:
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefReturn"));
-    case ELEMENT_TYPE_END:
     default:
         _ASSERTE(!"Unknown Type");
         COMPlusThrow(kNotSupportedException);
@@ -1486,7 +1461,7 @@ void InvokeUtil::CanAccessField(RefSecContext*  pCtx,
 }
 
 //
-// Ensure that a type is accessable, throwing a TypeLoadException if not
+// Ensure that a type is accessible, throwing a TypeLoadException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1538,7 +1513,7 @@ void InvokeUtil::CheckAccessClass(RefSecContext *pCtx,
 }
 
 //
-// Ensure that a method is accessable, throwing a MethodAccessException if not
+// Ensure that a method is accessible, throwing a MethodAccessException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1579,7 +1554,7 @@ void InvokeUtil::CheckAccessMethod(RefSecContext       *pCtx,
 }
 
 //
-// Ensure that a field is accessable, throwing a FieldAccessException if not
+// Ensure that a field is accessible, throwing a FieldAccessException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1622,7 +1597,7 @@ void InvokeUtil::CheckAccessField(RefSecContext       *pCtx,
 
 
 //
-// Check accessability of a field or method.
+// Check accessibility of a field or method.
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1705,95 +1680,3 @@ AccessCheckOptions::AccessCheckType InvokeUtil::GetInvocationAccessCheckType(BOO
 }
 
 #endif // CROSSGEN_COMPILE
-
-struct DangerousAPIEntry
-{
-    BinderClassID   classID;
-    const LPCSTR    *pszAPINames;
-    DWORD           cAPINames;
-};
-
-#define DEFINE_DANGEROUS_API(classID, szAPINames) static const LPCSTR g__ ## classID ## __DangerousAPIs[] = { szAPINames };
-#include "dangerousapis.h"
-#undef DEFINE_DANGEROUS_API
-
-#define DEFINE_DANGEROUS_API(classID, szAPINames) { CLASS__ ## classID, g__ ## classID ## __DangerousAPIs, NumItems(g__ ## classID ## __DangerousAPIs)},
-static const DangerousAPIEntry DangerousAPIs[] = 
-{
-#include "dangerousapis.h"
-};
-#undef DEFINE_DANGEROUS_API
-
-/*static*/
-bool InvokeUtil::IsDangerousMethod(MethodDesc *pMD)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    MethodTable *pMT = pMD->GetMethodTable();
-
-    if (pMT->GetModule()->IsSystem())
-    {
-        // All methods on these types are considered dangerous
-        static const BinderClassID dangerousTypes[] = {
-            CLASS__TYPE_HANDLE,
-            CLASS__METHOD_HANDLE,
-            CLASS__FIELD_HANDLE,
-            CLASS__ACTIVATOR,
-            CLASS__DELEGATE,
-            CLASS__MULTICAST_DELEGATE,
-            CLASS__RUNTIME_HELPERS
-        };
-
-
-        static bool fInited = false;
-
-        if (!VolatileLoad(&fInited))
-        {
-            // Make sure all types are loaded so that we can use faster GetExistingClass()
-            for (unsigned i = 0; i < NumItems(dangerousTypes); i++)
-            {
-                MscorlibBinder::GetClass(dangerousTypes[i]);
-            }
-
-            for (unsigned i = 0; i < NumItems(DangerousAPIs); i++)
-            {
-                MscorlibBinder::GetClass(DangerousAPIs[i].classID);
-            }
-
-            VolatileStore(&fInited, true);
-        }
-
-        for (unsigned i = 0; i < NumItems(dangerousTypes); i++)
-        {
-            if (MscorlibBinder::GetExistingClass(dangerousTypes[i]) == pMT)
-                return true;
-        }
-
-        for (unsigned i = 0; i < NumItems(DangerousAPIs); i++)
-        {
-            DangerousAPIEntry entry = DangerousAPIs[i];
-            if (MscorlibBinder::GetExistingClass(entry.classID) == pMT)
-            {
-                LPCUTF8 szMethodName = pMD->GetName();
-                for (unsigned j = 0; j < entry.cAPINames; j++)
-                {
-                    if (strcmp(szMethodName, entry.pszAPINames[j]) == 0)
-                        return true;
-                }
-
-                break;
-            }
-        }
-    }
-
-    // For reduce compat risks we treat non-ctors on DynamicMethod as safe.
-    if (pMT->IsDelegate() && pMD->IsCtor())
-        return true;
-
-    return false;
-}

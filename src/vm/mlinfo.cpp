@@ -894,7 +894,6 @@ void *EventArgsMarshalingInfo::operator new(size_t size, LoaderHeap *pHeap)
     RETURN mem;
 }
 
-
 void EventArgsMarshalingInfo::operator delete(void *pMem)
 {
     LIMITED_METHOD_CONTRACT;
@@ -912,23 +911,19 @@ EventArgsMarshalingInfo::EventArgsMarshalingInfo()
     }
     CONTRACTL_END;
 
-    // Create on-demand as we don't want to create the factories in NGEN time
-    m_pNCCEventArgsFactory = NULL;
-    m_pPCEventArgsFactory = NULL;
-
     // Load the System.Collections.Specialized.NotifyCollectionChangedEventArgs class.
     SString qualifiedNCCEventArgsTypeName(SString::Utf8, NCCEVENTARGS_ASM_QUAL_TYPE_NAME);
-    m_hndSystemNCCEventArgsType = TypeName::GetTypeFromAsmQualifiedName(qualifiedNCCEventArgsTypeName.GetUnicode(), FALSE);
+    m_hndSystemNCCEventArgsType = TypeName::GetTypeFromAsmQualifiedName(qualifiedNCCEventArgsTypeName.GetUnicode());
     _ASSERTE(!m_hndSystemNCCEventArgsType.IsNull() && "Cannot load System.Collections.Specialized.NotifyCollectionChangedEventArgs!");
 
     // Load the System.ComponentModel.PropertyChangedEventArgs class.
     SString qualifiedPCEventArgsTypeName(SString::Utf8, PCEVENTARGS_ASM_QUAL_TYPE_NAME);
-    m_hndSystemPCEventArgsType = TypeName::GetTypeFromAsmQualifiedName(qualifiedPCEventArgsTypeName.GetUnicode(), FALSE);
+    m_hndSystemPCEventArgsType = TypeName::GetTypeFromAsmQualifiedName(qualifiedPCEventArgsTypeName.GetUnicode());
     _ASSERTE(!m_hndSystemPCEventArgsType.IsNull() && "Cannot load System.ComponentModel.PropertyChangedEventArgs!");
 
     // Load the NCCEventArgs marshaler class.
     SString qualifiedNCCEventArgsMarshalerTypeName(SString::Utf8, NCCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME);
-    TypeHandle hndNCCEventArgsMarshalerType = TypeName::GetTypeFromAsmQualifiedName(qualifiedNCCEventArgsMarshalerTypeName.GetUnicode(), FALSE);
+    TypeHandle hndNCCEventArgsMarshalerType = TypeName::GetTypeFromAsmQualifiedName(qualifiedNCCEventArgsMarshalerTypeName.GetUnicode());
 
     // Retrieve the method to convert a .NET NCCEventArgs to a WinRT NCCEventArgs.
     m_pSystemNCCEventArgsToWinRTNCCEventArgsMD = MemberLoader::FindMethodByName(hndNCCEventArgsMarshalerType.GetMethodTable(), EVENTARGS_TO_WINRT_EVENTARGS_METH_NAME);
@@ -940,7 +935,7 @@ EventArgsMarshalingInfo::EventArgsMarshalingInfo()
 
     // Load the PCEventArgs marshaler class.
     SString qualifiedPCEventArgsMarshalerTypeName(SString::Utf8, PCEVENTARGS_MARSHALER_ASM_QUAL_TYPE_NAME);
-    TypeHandle hndPCEventArgsMarshalerType = TypeName::GetTypeFromAsmQualifiedName(qualifiedPCEventArgsMarshalerTypeName.GetUnicode(), FALSE);
+    TypeHandle hndPCEventArgsMarshalerType = TypeName::GetTypeFromAsmQualifiedName(qualifiedPCEventArgsMarshalerTypeName.GetUnicode());
 
     // Retrieve the method to convert a .NET PCEventArgs to a WinRT PCEventArgs.
     m_pSystemPCEventArgsToWinRTPCEventArgsMD = MemberLoader::FindMethodByName(hndPCEventArgsMarshalerType.GetMethodTable(), EVENTARGS_TO_WINRT_EVENTARGS_METH_NAME);
@@ -953,25 +948,7 @@ EventArgsMarshalingInfo::EventArgsMarshalingInfo()
 
 EventArgsMarshalingInfo::~EventArgsMarshalingInfo()
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_pNCCEventArgsFactory)
-    {
-        SafeRelease(m_pNCCEventArgsFactory);
-        m_pNCCEventArgsFactory = NULL;
-    }
-    
-    if (m_pPCEventArgsFactory)
-    {
-        SafeRelease(m_pPCEventArgsFactory);
-        m_pPCEventArgsFactory = NULL;
-    }
+   LIMITED_METHOD_CONTRACT;
 }
 
 void *UriMarshalingInfo::operator new(size_t size, LoaderHeap *pHeap)
@@ -1015,7 +992,7 @@ UriMarshalingInfo::UriMarshalingInfo()
 
     // Load the System.Uri class.
     SString qualifiedUriTypeName(SString::Utf8, URI_ASM_QUAL_TYPE_NAME);
-    m_hndSystemUriType = TypeName::GetTypeFromAsmQualifiedName(qualifiedUriTypeName.GetUnicode(), FALSE);
+    m_hndSystemUriType = TypeName::GetTypeFromAsmQualifiedName(qualifiedUriTypeName.GetUnicode());
     _ASSERTE(!m_hndSystemUriType.IsNull() && "Cannot load System.Uri!");
     
     m_SystemUriOriginalStringGetterMD = MemberLoader::FindPropertyMethod(m_hndSystemUriType.GetMethodTable(), ORIGINALSTRING_PROPERTY_NAME, PropertyGet);
@@ -1062,12 +1039,12 @@ OleColorMarshalingInfo::OleColorMarshalingInfo() :
     SString qualifiedColorTranslatorTypeName(SString::Utf8, COLOR_TRANSLATOR_ASM_QUAL_TYPE_NAME);
 
     // Load the color translator class.
-    TypeHandle hndColorTranslatorType = TypeName::GetTypeFromAsmQualifiedName(qualifiedColorTranslatorTypeName.GetUnicode(), FALSE);
+    TypeHandle hndColorTranslatorType = TypeName::GetTypeFromAsmQualifiedName(qualifiedColorTranslatorTypeName.GetUnicode());
 
     
     SString qualifiedColorTypeName(SString::Utf8, COLOR_ASM_QUAL_TYPE_NAME);
     // Load the color class.
-    m_hndColorType = TypeName::GetTypeFromAsmQualifiedName(qualifiedColorTypeName.GetUnicode(), FALSE);
+    m_hndColorType = TypeName::GetTypeFromAsmQualifiedName(qualifiedColorTypeName.GetUnicode());
     
     // Retrieve the method to convert an OLE_COLOR to a System.Drawing.Color.
     m_OleColorToSystemColorMD = MemberLoader::FindMethodByName(hndColorTranslatorType.GetMethodTable(), OLECOLOR_TO_SYSTEMCOLOR_METH_NAME);

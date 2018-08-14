@@ -89,8 +89,6 @@ const emitJumpKind emitReverseJumpKinds[] = {
 
 size_t emitter::emitSizeOfInsDsc(instrDesc* id)
 {
-    assert(!emitIsTinyInsDsc(id));
-
     if (emitIsScnsInsDsc(id))
         return SMALL_IDSC_SIZE;
 
@@ -270,6 +268,15 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             break;
 
         case IF_LS_3D: // LS_3D   .X.......X.mmmmm ......nnnnnttttt      Wm Rt Rn
+            assert(isIntegerRegister(id->idReg1()));
+            assert(isIntegerRegister(id->idReg2()));
+            assert(isIntegerRegister(id->idReg3()));
+            assert(emitGetInsSC(id) == 0);
+            assert(!id->idIsLclVar());
+            assert(insOptsNone(id->idInsOpt()));
+            break;
+
+        case IF_LS_3E: // LS_3E   .X.........mmmmm ......nnnnnttttt      Rm Rt Rn ARMv8.1 LSE Atomics
             assert(isIntegerRegister(id->idReg1()));
             assert(isIntegerRegister(id->idReg2()));
             assert(isIntegerRegister(id->idReg3()));
@@ -882,6 +889,12 @@ bool emitter::emitInsMayWriteToGCReg(instrDesc* id)
                 assert(emitInsIsLoad(ins));
                 return true;
             }
+
+        case IF_LS_3E: // LS_3E   .X.........mmmmm ......nnnnnttttt      Rm Rt Rn ARMv8.1 LSE Atomics
+            // ARMv8.1 Atomics
+            assert(emitInsIsStore(ins));
+            assert(emitInsIsLoad(ins));
+            return true;
 
         default:
             return false;
@@ -1950,6 +1963,7 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
         case IF_LS_3B:
         case IF_LS_3C:
         case IF_LS_3D:
+        case IF_LS_3E:
         case IF_DI_1A:
         case IF_DI_1B:
         case IF_DI_1C:
@@ -3531,7 +3545,7 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
                     {
                         if (loByte == 0xFF)
                         {
-                            imm8 |= (1 << pos);
+                            imm8 |= (ssize_t{1} << pos);
                         }
                         uimm >>= 8;
                         pos++;
@@ -4051,6 +4065,25 @@ void emitter::emitIns_R_R(
         case INS_tst:
             assert(insOptsNone(opt));
             emitIns_R_R_I(ins, attr, reg1, reg2, 0, INS_OPTS_NONE);
+            return;
+
+        case INS_staddb:
+            emitIns_R_R_R(INS_ldaddb, attr, reg1, REG_ZR, reg2);
+            return;
+        case INS_staddlb:
+            emitIns_R_R_R(INS_ldaddlb, attr, reg1, REG_ZR, reg2);
+            return;
+        case INS_staddh:
+            emitIns_R_R_R(INS_ldaddh, attr, reg1, REG_ZR, reg2);
+            return;
+        case INS_staddlh:
+            emitIns_R_R_R(INS_ldaddlh, attr, reg1, REG_ZR, reg2);
+            return;
+        case INS_stadd:
+            emitIns_R_R_R(INS_ldadd, attr, reg1, REG_ZR, reg2);
+            return;
+        case INS_staddl:
+            emitIns_R_R_R(INS_ldaddl, attr, reg1, REG_ZR, reg2);
             return;
 
         case INS_fmov:
@@ -5386,6 +5419,48 @@ void emitter::emitIns_R_R_R(
             assert(isGeneralRegisterOrZR(reg2));
             assert(isGeneralRegisterOrSP(reg3));
             fmt = IF_LS_3D;
+            break;
+
+        case INS_casb:
+        case INS_casab:
+        case INS_casalb:
+        case INS_caslb:
+        case INS_cash:
+        case INS_casah:
+        case INS_casalh:
+        case INS_caslh:
+        case INS_cas:
+        case INS_casa:
+        case INS_casal:
+        case INS_casl:
+        case INS_ldaddb:
+        case INS_ldaddab:
+        case INS_ldaddalb:
+        case INS_ldaddlb:
+        case INS_ldaddh:
+        case INS_ldaddah:
+        case INS_ldaddalh:
+        case INS_ldaddlh:
+        case INS_ldadd:
+        case INS_ldadda:
+        case INS_ldaddal:
+        case INS_ldaddl:
+        case INS_swpb:
+        case INS_swpab:
+        case INS_swpalb:
+        case INS_swplb:
+        case INS_swph:
+        case INS_swpah:
+        case INS_swpalh:
+        case INS_swplh:
+        case INS_swp:
+        case INS_swpa:
+        case INS_swpal:
+        case INS_swpl:
+            assert(isGeneralRegisterOrZR(reg1));
+            assert(isGeneralRegisterOrZR(reg2));
+            assert(isGeneralRegisterOrSP(reg3));
+            fmt = IF_LS_3E;
             break;
 
         case INS_sha256h:
@@ -7789,8 +7864,9 @@ void emitter::emitIns_Call(EmitCallType          callType,
 /*static*/ emitter::code_t emitter::insEncodeDatasizeLS(emitter::code_t code, emitAttr size)
 {
     bool exclusive = ((code & 0x35000000) == 0);
+    bool atomic    = ((code & 0x31200C00) == 0x30200000);
 
-    if ((code & 0x00800000) && !exclusive) // Is this a sign-extending opcode? (i.e. ldrsw, ldrsh, ldrsb)
+    if ((code & 0x00800000) && !exclusive && !atomic) // Is this a sign-extending opcode? (i.e. ldrsw, ldrsh, ldrsb)
     {
         if ((code & 0x80000000) == 0) // Is it a ldrsh or ldrsb and not ldrsw ?
         {
@@ -8424,7 +8500,6 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
     BYTE*    srcAddr;
     BYTE*    dstAddr;
     ssize_t  distVal;
-    ssize_t  loBits;
 
     // Set default ins/fmt from id.
     instruction ins = id->idIns();
@@ -9040,7 +9115,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     insFormat     fmt  = id->idInsFmt();
     emitAttr      size = id->idOpSize();
     unsigned char callInstrSize = 0;
-    unsigned      condcode;
 
 #ifdef DEBUG
 #if DUMP_GC_TABLES
@@ -9061,11 +9135,8 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         ssize_t  imm;
         ssize_t  index;
         ssize_t  index2;
-        unsigned scale;
         unsigned cmode;
         unsigned immShift;
-        bool     hasShift;
-        emitAttr extSize;
         emitAttr elemsize;
         emitAttr datasize;
 
@@ -9276,6 +9347,15 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             // Arm64 store exclusive unpredictable cases
             assert(id->idReg1() != id->idReg2());
             assert(id->idReg1() != id->idReg3());
+            code |= insEncodeDatasizeLS(code, id->idOpSize()); // X
+            code |= insEncodeReg_Rm(id->idReg1());             // mmmmm
+            code |= insEncodeReg_Rt(id->idReg2());             // ttttt
+            code |= insEncodeReg_Rn(id->idReg3());             // nnnnn
+            dst += emitOutput_Instr(dst, code);
+            break;
+
+        case IF_LS_3E: // LS_3E   .X.........mmmmm ......nnnnnttttt      Rm Rt Rn ARMv8.1 LSE Atomics
+            code = emitInsCode(ins, fmt);
             code |= insEncodeDatasizeLS(code, id->idOpSize()); // X
             code |= insEncodeReg_Rm(id->idReg1());             // mmmmm
             code |= insEncodeReg_Rt(id->idReg2());             // ttttt
@@ -10084,7 +10164,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             }
             else
             {
-                TempDsc* tmpDsc = emitComp->tmpFindNum(varNum);
+                TempDsc* tmpDsc = codeGen->regSet.tmpFindNum(varNum);
                 vt              = tmpDsc->tdTempType();
             }
             if (vt == TYP_REF || vt == TYP_BYREF)
@@ -10108,7 +10188,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 }
                 else
                 {
-                    TempDsc* tmpDsc = emitComp->tmpFindNum(varNum);
+                    TempDsc* tmpDsc = codeGen->regSet.tmpFindNum(varNum);
                     vt              = tmpDsc->tdTempType();
                 }
                 if (vt == TYP_REF || vt == TYP_BYREF)
@@ -10174,27 +10254,6 @@ void emitter::emitDispInst(instruction ins)
         printf(" ");
         len++;
     } while (len < 8);
-}
-
-/*****************************************************************************
- *
- *  Display an reloc value
- *  If we are formatting for an assembly listing don't print the hex value
- *  since it will prevent us from doing assembly diffs
- */
-void emitter::emitDispReloc(int value, bool addComma)
-{
-    if (emitComp->opts.disAsm)
-    {
-        printf("(reloc)");
-    }
-    else
-    {
-        printf("(reloc 0x%x)", dspPtr(value));
-    }
-
-    if (addComma)
-        printf(", ");
 }
 
 /*****************************************************************************
@@ -10578,7 +10637,7 @@ void emitter::emitDispExtendReg(regNumber reg, insOpts opt, ssize_t imm)
         if (imm > 0)
         {
             printf("*");
-            emitDispImm(1 << imm, false);
+            emitDispImm(ssize_t{1} << imm, false);
         }
     }
 }
@@ -10759,7 +10818,6 @@ void emitter::emitDispIns(
         ssize_t      imm;
         int          doffs;
         bool         isExtendAlias;
-        bool         canEncode;
         bitMaskImm   bmi;
         halfwordImm  hwi;
         condFlagsImm cfi;
@@ -10981,6 +11039,13 @@ void emitter::emitDispIns(
         case IF_LS_3D: // LS_3D   .X.......X.mmmmm ......nnnnnttttt      Wm Rt Rn
             assert(insOptsNone(id->idInsOpt()));
             emitDispReg(id->idReg1(), EA_4BYTE, true);
+            emitDispReg(id->idReg2(), emitInsTargetRegSize(id), true);
+            emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
+            break;
+
+        case IF_LS_3E: // LS_3E   .X.........mmmmm ......nnnnnttttt      Rm Rt Rn ARMv8.1 LSE Atomics
+            assert(insOptsNone(id->idInsOpt()));
+            emitDispReg(id->idReg1(), emitInsTargetRegSize(id), true);
             emitDispReg(id->idReg2(), emitInsTargetRegSize(id), true);
             emitDispAddrRI(id->idReg3(), id->idInsOpt(), 0);
             break;
@@ -11264,7 +11329,7 @@ void emitter::emitDispIns(
                     const ssize_t mask8 = 0xFF;
                     for (unsigned b = 0; b < 8; b++)
                     {
-                        if (imm & (1 << b))
+                        if (imm & (ssize_t{1} << b))
                         {
                             imm64 |= (mask8 << (b * 8));
                         }

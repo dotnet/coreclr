@@ -357,7 +357,7 @@ uint8_t* GCToEEInterface::GetLoaderAllocatorObjectForGC(Object* pObject)
     }
     CONTRACTL_END;
 
-    return pObject->GetMethodTable()->GetLoaderAllocatorObjectForGC();
+    return pObject->GetGCSafeMethodTable()->GetLoaderAllocatorObjectForGC();
 }
 
 bool GCToEEInterface::IsPreemptiveGCDisabled()
@@ -879,10 +879,17 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         g_lowest_address = args->lowest_address;
         VolatileStore(&g_highest_address, args->highest_address);
 
-#if defined(_ARM64_)
+#if defined(_ARM64_) || defined(_ARM_)
         // Need to reupdate for changes to g_highest_address g_lowest_address
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+
+#ifdef _ARM_
+        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
+        {
+            ::FlushWriteBarrierInstructionCache();
+        }
+#endif
 
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
         if(!is_runtime_suspended)
@@ -1002,7 +1009,7 @@ bool GCToEEInterface::ForceFullGCToBeBlocking()
     // a blocking GC. In the past, this workaround was done to fix an Stress AV, but the root
     // cause of the AV was never discovered and this workaround remains in place.
     //
-    // It would be nice if this were not necessary. However, it's not clear if the aformentioned
+    // It would be nice if this were not necessary. However, it's not clear if the aforementioned
     // stress bug is still lurking and will return if this workaround is removed. We should
     // do some experiments: remove this workaround and see if the stress bug still repros.
     // If so, we should find the root cause instead of relying on this.
@@ -1185,7 +1192,7 @@ namespace
     bool CreateSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const char* name)
+        const wchar_t* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1240,25 +1247,7 @@ namespace
 
             return 0;
         };
-
-        InlineSString<MaxThreadNameSize> wideName;
-        const WCHAR* namePtr = nullptr;
-        EX_TRY
-        {
-            if (name != nullptr)
-            {
-                wideName.SetUTF8(name);
-                namePtr = wideName.GetUnicode();
-            }
-        }
-        EX_CATCH
-        {
-            // we're not obligated to provide a name - if it's not valid,
-            // just report nullptr as the name.
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-
-        if (!args.Thread->CreateNewThread(0, threadStub, &args, namePtr))
+        if (!args.Thread->CreateNewThread(0, threadStub, &args, name))
         {
             args.Thread->DecExternalCount(FALSE);
             args.ThreadStartedEvent.CloseEvent();
@@ -1286,7 +1275,7 @@ namespace
     bool CreateNonSuspendableThread(
         void (*threadStart)(void*),
         void* argument,
-        const char* name)
+        const wchar_t* name)
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -1318,7 +1307,7 @@ namespace
             return 0;
         };
 
-        args.Thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, threadStub, &args);
+        args.Thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, threadStub, &args, name);
         if (args.Thread == INVALID_HANDLE_VALUE)
         {
             args.ThreadStartedEvent.CloseEvent();
@@ -1337,14 +1326,31 @@ namespace
 
 bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)
 {
+    InlineSString<MaxThreadNameSize> wideName;
+    const WCHAR* namePtr = nullptr;
+    EX_TRY
+    {
+        if (name != nullptr)
+        {
+            wideName.SetUTF8(name);
+            namePtr = wideName.GetUnicode();
+        }
+    }
+        EX_CATCH
+    {
+        // we're not obligated to provide a name - if it's not valid,
+        // just report nullptr as the name.
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+
     LIMITED_METHOD_CONTRACT;
     if (is_suspendable)
     {
-        return CreateSuspendableThread(threadStart, arg, name);
+        return CreateSuspendableThread(threadStart, arg, namePtr);
     }
     else
     {
-        return CreateNonSuspendableThread(threadStart, arg, name);
+        return CreateNonSuspendableThread(threadStart, arg, namePtr);
     }
 }
 
@@ -1365,17 +1371,13 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
     OverlappedDataObject *pOverlapped = (OverlappedDataObject *)object;
     if (pOverlapped->m_userObject != NULL)
     {
-        //callback(OBJECTREF_TO_UNCHECKED_OBJECTREF(pOverlapped->m_userObject), (ScanContext *)lp1, GC_CALL_PINNED);
-        if (pOverlapped->m_isArray)
+        if (pOverlapped->m_userObject->GetGCSafeMethodTable() == g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT]->GetMethodTable())
         {
             // OverlappedDataObject is very special.  An async pin handle keeps it alive.
             // During GC, we also make sure
             // 1. m_userObject itself does not move if m_userObject is not array
             // 2. Every object pointed by m_userObject does not move if m_userObject is array
-            // We do not want to pin m_userObject if it is array.  But m_userObject may be updated
-            // during relocation phase before OverlappedDataObject is doing relocation.
-            // m_userObjectInternal is used to track the location of the m_userObject before it is updated.
-            pOverlapped->m_userObjectInternal = static_cast<void*>(OBJECTREFToObject(pOverlapped->m_userObject));
+            // We do not want to pin m_userObject if it is array.
             ArrayBase* pUserObject = (ArrayBase*)OBJECTREFToObject(pOverlapped->m_userObject);
             Object **ppObj = (Object**)pUserObject->GetDataPtr(TRUE);
             size_t num = pUserObject->GetNumComponents();
@@ -1388,11 +1390,6 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
         {
             callback(&OBJECTREF_TO_UNCHECKED_OBJECTREF(pOverlapped->m_userObject), (ScanContext *)sc, GC_CALL_PINNED);
         }
-    }
-
-    if (pOverlapped->GetAppDomainId() != DefaultADID && pOverlapped->GetAppDomainIndex().m_dwIndex == DefaultADID)
-    {
-        OverlappedDataObject::MarkCleanupNeededFromGC();
     }
 }
 
@@ -1413,7 +1410,7 @@ void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*call
     {
         Object * pUserObject = OBJECTREFToObject(pOverlapped->m_userObject);
         callback(object, pUserObject, context);
-        if (pOverlapped->m_isArray)
+        if (pOverlapped->m_userObject->GetGCSafeMethodTable() == g_pPredefinedArrayTypes[ELEMENT_TYPE_OBJECT]->GetMethodTable())
         {
             ArrayBase* pUserArrayObject = (ArrayBase*)pUserObject;
             Object **pObj = (Object**)pUserArrayObject->GetDataPtr(TRUE);

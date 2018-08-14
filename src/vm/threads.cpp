@@ -1615,9 +1615,9 @@ Thread::Thread()
 #ifdef HAVE_GCCOVER
     m_pbDestCode = NULL;
     m_pbSrcCode = NULL;
-#ifdef _TARGET_X86_
+#if defined(GCCOVER_TOLERATE_SPURIOUS_AV)
     m_pLastAVAddress = NULL;
-#endif // _TARGET_X86_
+#endif // defined(GCCOVER_TOLERATE_SPURIOUS_AV)
 #endif // HAVE_GCCOVER
 
     m_fCompletionPortDrained = FALSE;
@@ -2226,7 +2226,8 @@ BOOL Thread::CreateNewThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, voi
     bRet = CreateNewOSThread(stackSize, start, args);
 #ifndef FEATURE_PAL
     UndoRevert(bReverted, token);
-    SetThreadName(m_ThreadHandle, pName);
+    if (pName != NULL)
+        SetThreadName(m_ThreadHandle, pName);
 #endif // !FEATURE_PAL
 
     return bRet;
@@ -2254,7 +2255,7 @@ DWORD WINAPI Thread::intermediateThreadProc(PVOID arg)
     return ThreadFcnPtr(args);
 }
 
-HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, DWORD flags, DWORD* pThreadId)
+HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTHREAD_START_ROUTINE start, void *args, LPCWSTR pName, DWORD flags, DWORD* pThreadId)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2284,6 +2285,10 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 
     DWORD threadId;
     HANDLE hThread = CreateThread(NULL, stackSize, start, args, flags, &threadId);
+#ifndef FEATURE_PAL
+    SetThreadName(hThread, pName);
+#endif // !FEATURE_PAL
+
 
     if (pThreadId)
         *pThreadId = threadId;
@@ -6772,7 +6777,7 @@ HRESULT Thread::CLRSetThreadStackGuarantee(SetThreadStackGuaranteeScope fScope)
         //
         // -plus we might need some more for debugger EH dispatch, Watson, etc...
         // -also need to take into account that we can lose up to 1 page of the guard region
-        // -additionally, we need to provide some region to hosts to allow for lock aquisition in a hosted scenario
+        // -additionally, we need to provide some region to hosts to allow for lock acquisition in a hosted scenario
         //
         EXTRA_PAGES = 3;
         INDEBUG(EXTRA_PAGES += 1);
@@ -8541,7 +8546,6 @@ BOOL Thread::HaveExtraWorkForFinalizer()
     LIMITED_METHOD_CONTRACT;
 
     return m_ThreadTasks
-        || OverlappedDataObject::CleanupNeededFromGC()
         || ThreadpoolMgr::HaveTimerInfosToFlush()
         || ExecutionManager::IsCacheCleanupRequired()
         || Thread::CleanupNeededForFinalizedThread()
@@ -8600,8 +8604,6 @@ void Thread::DoExtraWorkForFinalizer()
     {
         ExecutionManager::ClearCaches();
     }
-
-    OverlappedDataObject::RequestCleanupFromGC();
 
     // If there were any TimerInfos waiting to be released, they'll get flushed now
     ThreadpoolMgr::FlushQueueOfTimerInfos();

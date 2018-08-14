@@ -408,12 +408,12 @@ class EEClassLayoutInfo
             e_ZERO_SIZED                =   0x04,
             // The size of the struct is explicitly specified in the meta-data.
             e_HAS_EXPLICIT_SIZE         = 0x08,
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
+#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
 #endif // FEATURE_HFA
             e_NATIVE_PASS_IN_REGISTERS  = 0x10, // Flag wheter a native struct is passed in registers.
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
             // HFA type of the unmanaged layout
             e_R4_HFA                    = 0x10,
@@ -510,13 +510,13 @@ class EEClassLayoutInfo
             return m_cbPackingSize;
         }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         bool IsNativeStructPassedInRegisters()
         {
             LIMITED_METHOD_CONTRACT;
             return (m_bFlags & e_NATIVE_PASS_IN_REGISTERS) != 0;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         CorElementType GetNativeHFATypeRaw();
 #ifdef FEATURE_HFA
@@ -580,13 +580,13 @@ class EEClassLayoutInfo
             m_bFlags |= (hfaType == ELEMENT_TYPE_R4) ? e_R4_HFA : e_R8_HFA;
         }
 #endif
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         void SetNativeStructPassedInRegisters()
         {
             LIMITED_METHOD_CONTRACT;
             m_bFlags |= e_NATIVE_PASS_IN_REGISTERS;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 };
 
@@ -713,14 +713,14 @@ class EEClassOptionalFields
     #define    MODULE_NON_DYNAMIC_STATICS      ((DWORD)-1)
     DWORD m_cbModuleDynamicID;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Number of eightBytes in the following arrays
     int m_numberEightBytes; 
     // Classification of the eightBytes
     SystemVClassificationType m_eightByteClassifications[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
     // Size of data the eightBytes
     unsigned int m_eightByteSizes[CLR_SYSTEMV_MAX_EIGHTBYTES_COUNT_TO_PASS_IN_REGISTERS];
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     // Set default values for optional fields.
     inline void Init();
@@ -1589,7 +1589,7 @@ public:
     DWORD GetReliabilityContract();
 
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Get number of eightbytes used by a struct passed in registers.
     inline int GetNumberEightBytes()
     {
@@ -1626,7 +1626,7 @@ public:
             GetOptionalFields()->m_eightByteSizes[i] = eightByteSizes[i];
         }
     }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING    
+#endif // UNIX_AMD64_ABI    
 
 #if defined(FEATURE_HFA)
     bool CheckForHFA(MethodTable ** pByValueClassCache);
@@ -1796,100 +1796,8 @@ public:
 #if defined(_DEBUG)
 public:
     enum{
-        AUXFLAG_APP_DOMAIN_AGILE                = 0x00000001,
-        AUXFLAG_CHECK_APP_DOMAIN_AGILE          = 0x00000002,
-        AUXFLAG_APP_DOMAIN_AGILITY_DONE         = 0x00000004,
-        AUXFLAG_DESTROYED                       = 0x00000008, // The Destruct() method has already been called on this class
+        AUXFLAG_DESTROYED = 0x00000008, // The Destruct() method has already been called on this class
     };
-
-    inline DWORD GetAuxFlagsRaw()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_wAuxFlags;
-    }
-    inline DWORD*  GetAuxFlagsPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (DWORD*)(&m_wAuxFlags);
-    }
-    inline void SetAuxFlags(DWORD flag)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wAuxFlags |= (WORD)flag;
-    }
-
-    // This flag is set (in a checked build only?) for classes whose
-    // instances are always app domain agile.  This can
-    // be either because of type system guarantees or because
-    // the class is explicitly marked.
-    inline BOOL IsAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_wAuxFlags & AUXFLAG_APP_DOMAIN_AGILE);
-    }
-    inline void SetAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wAuxFlags |= AUXFLAG_APP_DOMAIN_AGILE;
-    }
-    // This flag is set in a checked build for classes whose
-    // instances may be marked app domain agile, but agility
-    // isn't guaranteed by type safety.  The JIT will compile
-    // in extra checks to field assignment on some fields
-    // in such a class.
-    inline BOOL IsCheckAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_wAuxFlags & AUXFLAG_CHECK_APP_DOMAIN_AGILE);
-    }
-
-    inline void SetCheckAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wAuxFlags |= AUXFLAG_CHECK_APP_DOMAIN_AGILE;
-    }
-
-    // This flag is set in a checked build to indicate that the
-    // appdomain agility for a class had been set. This is used
-    // for debugging purposes to make sure that we don't allocate
-    // an object before the agility is set.
-    inline BOOL IsAppDomainAgilityDone()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_wAuxFlags & AUXFLAG_APP_DOMAIN_AGILITY_DONE);
-    }
-    inline void SetAppDomainAgilityDone()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wAuxFlags |= AUXFLAG_APP_DOMAIN_AGILITY_DONE;
-    }
-    //
-    // This predicate checks whether or not the class is "naturally"
-    // app domain agile - that is:
-    //      (1) it is in the system domain
-    //      (2) all the fields are app domain agile
-    //      (3) it has no finalizer
-    //
-    // Or, this also returns true for a proxy type which is allowed
-    // to have cross app domain refs.
-    //
-    inline BOOL IsTypesafeAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return IsAppDomainAgile() && !IsCheckAppDomainAgile();
-    }
-    //
-    // This predictate tests whether any instances are allowed
-    // to be app domain agile.
-    //
-    inline BOOL IsNeverAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return !IsAppDomainAgile() && !IsCheckAppDomainAgile();
-    }
-    static void SetAppDomainAgileAttribute(MethodTable * pMT);
-
-    static void GetPredefinedAgility(Module *pModule, mdTypeDef td, BOOL *pfIsAgile, BOOL *pfIsCheckAgile);
 #endif // defined(_DEBUG)
 
     //-------------------------------------------------------------

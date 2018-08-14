@@ -8,16 +8,12 @@ set(BCLTYPE_SOURCES
     arraynative.cpp
     arrayhelpers.cpp
     bignum.cpp
-    currency.cpp
-    decimal.cpp
     diyfp.cpp
     grisu3.cpp
-    windowsruntimebufferhelper.cpp
     number.cpp
     oavariant.cpp
     objectnative.cpp
     stringnative.cpp
-    stringbuffer.cpp
     system.cpp
     varargsnative.cpp
     variant.cpp

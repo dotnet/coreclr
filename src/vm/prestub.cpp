@@ -65,6 +65,16 @@ EXTERN_C void MarkMethodNotPitchingCandidate(MethodDesc* pMD);
 
 EXTERN_C void STDCALL ThePreStubPatch();
 
+#if defined(HAVE_GCCOVER)
+CrstStatic MethodDesc::m_GCCoverCrst;
+
+void MethodDesc::Init()
+{
+    m_GCCoverCrst.Init(CrstGCCover);
+}
+
+#endif
+
 //==========================================================================
 
 PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BOOL fFullBackPatch)
@@ -305,10 +315,11 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     {
         LOG((LF_CLASSLOADER, LL_INFO1000000,
             "    In PrepareILBasedCode, calling JitCompileCode\n"));
-        // Mark the code as hot in case the method ends up in the native image
-        g_IBCLogger.LogMethodCodeAccess(this);
         pCode = JitCompileCode(pConfig);
     }
+
+    // Mark the code as hot in case the method ends up in the native image
+    g_IBCLogger.LogMethodCodeAccess(this);
 
     return pCode;
 }
@@ -733,15 +744,6 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
 
     }
 
-#ifdef FEATURE_TIERED_COMPILATION
-    if (g_pConfig->TieredCompilation() && flags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0))
-    {
-        // The flag above is only set (in TieredCompilationManager::GetJitFlags()) when this method was eligible for tiered
-        // compilation at the time when it was checked, and a tier 0 JIT was requested for this method
-        GetAppDomain()->GetTieredCompilationManager()->OnTier0JitInvoked();
-    }
-#endif // FEATURE_TIERED_COMPILATION
-
 #ifdef FEATURE_STACK_SAMPLING
     StackSampler::RecordJittingInfo(this, flags);
 #endif // FEATURE_STACK_SAMPLING
@@ -874,32 +876,49 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
         }
 
     _ASSERTE(pCode != NULL);
-    
+
+#ifdef HAVE_GCCOVER
+    // Instrument for coverage before trying to publish this version
+    // of the code as the native code, to avoid other threads seeing
+    // partially instrumented methods.
+    if (GCStress<cfg_instr_jit>::IsEnabled())
+    {
+        // Do the instrumentation and publish atomically, so that the
+        // instrumentation data always matches the published code.
+        CrstHolder gcCoverLock(&m_GCCoverCrst);
+
+        // Make sure no other thread has stepped in before us.
+        if ((pOtherCode = pConfig->IsJitCancellationRequested()))
+        {
+            return pOtherCode;
+        }
+
+        SetupGcCoverage(this, (BYTE*)pCode);
+
+        // This thread should always win the publishing race
+        // since we're under a lock.
+        if (!pConfig->SetNativeCode(pCode, &pOtherCode))
+        {
+            _ASSERTE(!"GC Cover native code publish failed");
+        }
+    }
+    else
+#endif // HAVE_GCCOVER
+
     // Aside from rejit, performing a SetNativeCodeInterlocked at this point
     // generally ensures that there is only one winning version of the native
     // code. This also avoid races with profiler overriding ngened code (see
     // matching SetNativeCodeInterlocked done after
     // JITCachedFunctionSearchStarted)
+    if (!pConfig->SetNativeCode(pCode, &pOtherCode))
     {
-        if (!pConfig->SetNativeCode(pCode, &pOtherCode))
-        {
-            // Another thread beat us to publishing its copy of the JITted code.
-            return pOtherCode;
-        }
-#if defined(FEATURE_JIT_PITCHING)
-        else
-        {
-            SavePitchingCandidate(this, *pSizeOfCode);
-        }
-#endif
+        // Another thread beat us to publishing its copy of the JITted code.
+        return pOtherCode;
     }
 
-#ifdef HAVE_GCCOVER
-    if (GCStress<cfg_instr_jit>::IsEnabled())
-    {
-        SetupGcCoverage(this, (BYTE*)pCode);
-    }
-#endif // HAVE_GCCOVER
+#if defined(FEATURE_JIT_PITCHING)
+    SavePitchingCandidate(this, *pSizeOfCode);
+#endif
 
     // We succeeded in jitting the code, and our jitted code is the one that's going to run now.
     pEntry->m_hrResultCode = S_OK;
@@ -1522,7 +1541,7 @@ extern "C" PCODE STDCALL PreStubWorker(TransitionBlock * pTransitionBlock, Metho
                 INDEBUG(curobj = NULL); // curobj is unprotected and CanCastTo() can trigger GC
                 if (!objectType.CanCastTo(methodType)) 
                 {
-                    // Apperantly ICastable magic was involved when we chose this method to be called
+                    // Apparently ICastable magic was involved when we chose this method to be called
                     // that's why we better stick to the MethodTable it belongs to, otherwise 
                     // DoPrestub() will fail not being able to find implementation for pMD in pDispatchingMT.
 
@@ -1630,16 +1649,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     // Running a prestub on a method causes us to access its MethodTable
     g_IBCLogger.LogMethodDescAccess(this);
-
-    // A secondary layer of defense against executing code in inspection-only assembly.
-    // This should already have been taken care of by not allowing inspection assemblies
-    // to be activated. However, this is a very inexpensive piece of insurance in the name
-    // of security.
-    if (IsIntrospectionOnly())
-    {
-        _ASSERTE(!"A ReflectionOnly assembly reached the prestub. This should not have happened.");
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY);
-    }
 
     if (ContainsGenericVariables())
     {
@@ -1963,7 +1972,7 @@ PCODE TheVarargNDirectStub(BOOL hasRetBuffArg)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
     if (hasRetBuffArg)
     {
         return GetEEFuncEntryPoint(VarargPInvokeStub_RetBuffArg);

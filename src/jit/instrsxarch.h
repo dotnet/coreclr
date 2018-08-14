@@ -194,7 +194,6 @@ INST3( xorps,       "xorps"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PCK
 
 INST3( cvttsd2si,   "cvttsd2si"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEDBL(0x2C)) // cvt with trunc scalar double to signed DWORDs
 
-#ifndef LEGACY_BACKEND
 INST3( movntdq,     "movntdq"     , 0, IUM_WR, 0, 0, PCKDBL(0xE7), BAD_CODE, BAD_CODE)
 INST3( movnti,      "movnti"      , 0, IUM_WR, 0, 0, PCKFLT(0xC3), BAD_CODE, BAD_CODE)
 INST3( movntpd,     "movntpd"     , 0, IUM_WR, 0, 0, PCKDBL(0x2B), BAD_CODE, BAD_CODE)
@@ -387,11 +386,11 @@ INST3( unpcklpd,    "unpcklpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,    
 INST3( packssdw,    "packssdw"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x6B))   // Pack (narrow) int to short with saturation
 INST3( packsswb,    "packsswb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x63))   // Pack (narrow) short to byte with saturation
 INST3( packuswb,    "packuswb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE,      PCKDBL(0x67))   // Pack (narrow) short to unsigned byte with saturation
-#endif // !LEGACY_BACKEND
+
 INST3(LAST_SSE2_INSTRUCTION, "LAST_SSE2_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
-#ifndef LEGACY_BACKEND
 INST3(FIRST_SSE4_INSTRUCTION, "FIRST_SSE4_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
+
 //    enum           name           FP updmode rf wf    MR            MI        RM
 INST3( dpps,         "dpps"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x40))   // Packed dot product of two float vector regs
 INST3( dppd,         "dppd"        , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x41))   // Packed dot product of two double vector regs
@@ -481,6 +480,7 @@ INST3( vinserti128,  "inserti128"  , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vzeroupper,   "zeroupper"   , 0, IUM_WR, 0, 0, 0xC577F8,     BAD_CODE, BAD_CODE)      // Zero upper 128-bits of all YMM regs (includes 2-byte fixed VEX prefix)
 INST3( vperm2i128,   "perm2i128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x46))   // Permute 128-bit halves of input register
 INST3( vpermq,       "permq"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x00))   // Permute 64-bit of input register
+INST3( vpblendd,     "pblendd"     , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x02))   // Blend Packed DWORDs
 INST3( vblendvps,    "blendvps"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4A))   // Variable Blend Packed Singles
 INST3( vblendvpd,    "blendvpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4B))   // Variable Blend Packed Doubles
 INST3( vpblendvb,    "pblendvb"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x4C))   // Variable Blend Packed Bytes
@@ -498,19 +498,99 @@ INST3( vpermilpdvar, "permilpdvar" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vperm2f128,   "perm2f128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x06))   // Permute Floating-Point Values
 INST3(vbroadcastf128,"broadcastf128",0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1A))   // Broadcast packed float values read from memory to entire ymm register
 INST3(vbroadcasti128,"broadcasti128",0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x5A))   // Broadcast packed integer values read from memory to entire ymm register
-INST3(vmaskmovps,    "maskmovps"    ,0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2C))   // Conditional SIMD Packed Loads Float
-INST3(vmaskmovpd,    "maskmovpd"    ,0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x2D))   // Conditional SIMD Packed Loads Double
+INST3(vmaskmovps,    "maskmovps"    ,0, IUM_WR, 0, 0, SSE38(0x2E),  BAD_CODE, SSE38(0x2C))   // Conditional SIMD Packed Single-Precision Floating-Point Loads and Stores
+INST3(vmaskmovpd,    "maskmovpd"    ,0, IUM_WR, 0, 0, SSE38(0x2F),  BAD_CODE, SSE38(0x2D))   // Conditional SIMD Packed Double-Precision Floating-Point Loads and Stores
+
+INST3(FIRST_FMA_INSTRUCTION, "FIRST_FMA_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
+//    enum            name             FP updmode rf wf MR            MI        RM
+INST3(vfmadd132pd,    "fmadd132pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x98))   // Fused Multiply-Add of Packed Double-Precision Floating-Point Values
+INST3(vfmadd213pd,    "fmadd213pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA8))   //
+INST3(vfmadd231pd,    "fmadd231pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB8))   //
+INST3(vfmadd132ps,    "fmadd132ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x98))   // Fused Multiply-Add of Packed Single-Precision Floating-Point Values
+INST3(vfmadd213ps,    "fmadd213ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA8))   //
+INST3(vfmadd231ps,    "fmadd231ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB8))   //
+INST3(vfmadd132sd,    "fmadd132sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x99))   // Fused Multiply-Add of Scalar Double-Precision Floating-Point Values
+INST3(vfmadd213sd,    "fmadd213sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA9))   //
+INST3(vfmadd231sd,    "fmadd231sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB9))   //
+INST3(vfmadd132ss,    "fmadd132ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x99))   // Fused Multiply-Add of Scalar Single-Precision Floating-Point Values
+INST3(vfmadd213ss,    "fmadd213ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA9))   //
+INST3(vfmadd231ss,    "fmadd231ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB9))   //
+INST3(vfmaddsub132pd, "fmaddsub132pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x96))   // Fused Multiply-Alternating Add/Subtract of Packed Double-Precision Floating-Point Values
+INST3(vfmaddsub213pd, "fmaddsub213pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA6))   //
+INST3(vfmaddsub231pd, "fmaddsub231pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB6))   //
+INST3(vfmaddsub132ps, "fmaddsub132ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x96))   // Fused Multiply-Alternating Add/Subtract of Packed Single-Precision Floating-Point Values
+INST3(vfmaddsub213ps, "fmaddsub213ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA6))   //
+INST3(vfmaddsub231ps, "fmaddsub231ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB6))   //
+INST3(vfmsubadd132pd, "fmsubadd132pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x97))   // Fused Multiply-Alternating Subtract/Add of Packed Double-Precision Floating-Point Values
+INST3(vfmsubadd213pd, "fmsubadd213pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA7))   //
+INST3(vfmsubadd231pd, "fmsubadd231pd", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB7))   //
+INST3(vfmsubadd132ps, "fmsubadd132ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x97))   // Fused Multiply-Alternating Subtract/Add of Packed Single-Precision Floating-Point Values
+INST3(vfmsubadd213ps, "fmsubadd213ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xA7))   //
+INST3(vfmsubadd231ps, "fmsubadd231ps", 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xB7))   //
+INST3(vfmsub132pd,    "fmsub132pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9A))   // Fused Multiply-Subtract of Packed Double-Precision Floating-Point Values
+INST3(vfmsub213pd,    "fmsub213pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAA))   //
+INST3(vfmsub231pd,    "fmsub231pd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBA))   //
+INST3(vfmsub132ps,    "fmsub132ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9A))   // Fused Multiply-Subtract of Packed Single-Precision Floating-Point Values
+INST3(vfmsub213ps,    "fmsub213ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAA))   //
+INST3(vfmsub231ps,    "fmsub231ps",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBA))   //
+INST3(vfmsub132sd,    "fmsub132sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9B))   // Fused Multiply-Subtract of Scalar Double-Precision Floating-Point Values
+INST3(vfmsub213sd,    "fmsub213sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAB))   //
+INST3(vfmsub231sd,    "fmsub231sd",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBB))   //
+INST3(vfmsub132ss,    "fmsub132ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9B))   // Fused Multiply-Subtract of Scalar Single-Precision Floating-Point Values
+INST3(vfmsub213ss,    "fmsub213ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAB))   //
+INST3(vfmsub231ss,    "fmsub231ss",    0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBB))   //
+INST3(vfnmadd132pd,   "fmnadd132pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9C))   // Fused Negative Multiply-Add of Packed Double-Precision Floating-Point Values
+INST3(vfnmadd213pd,   "fmnadd213pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAC))   //
+INST3(vfnmadd231pd,   "fmnadd231pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBC))   //
+INST3(vfnmadd132ps,   "fmnadd132ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9C))   // Fused Negative Multiply-Add of Packed Single-Precision Floating-Point Values
+INST3(vfnmadd213ps,   "fmnadd213ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAC))   //
+INST3(vfnmadd231ps,   "fmnadd231ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBC))   //
+INST3(vfnmadd132sd,   "fmnadd132sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9D))   // Fused Negative Multiply-Add of Scalar Double-Precision Floating-Point Values
+INST3(vfnmadd213sd,   "fmnadd213sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAD))   //
+INST3(vfnmadd231sd,   "fmnadd231sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBD))   //
+INST3(vfnmadd132ss,   "fmnadd132ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9D))   // Fused Negative Multiply-Add of Scalar Single-Precision Floating-Point Values
+INST3(vfnmadd213ss,   "fmnadd213ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAD))   //
+INST3(vfnmadd231ss,   "fmnadd231ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBD))   //
+INST3(vfnmsub132pd,   "fmnsub132pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9E))   // Fused Negative Multiply-Subtract of Packed Double-Precision Floating-Point Values
+INST3(vfnmsub213pd,   "fmnsub213pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAE))   //
+INST3(vfnmsub231pd,   "fmnsub231pd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBE))   //
+INST3(vfnmsub132ps,   "fmnsub132ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9E))   // Fused Negative Multiply-Subtract of Packed Single-Precision Floating-Point Values
+INST3(vfnmsub213ps,   "fmnsub213ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAE))   //
+INST3(vfnmsub231ps,   "fmnsub231ps",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBE))   //
+INST3(vfnmsub132sd,   "fmnsub132sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9F))   // Fused Negative Multiply-Subtract of Scalar Double-Precision Floating-Point Values
+INST3(vfnmsub213sd,   "fmnsub213sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAF))   //
+INST3(vfnmsub231sd,   "fmnsub231sd",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBF))   //
+INST3(vfnmsub132ss,   "fmnsub132ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x9F))   // Fused Negative Multiply-Subtract of Scalar Single-Precision Floating-Point Values
+INST3(vfnmsub213ss,   "fmnsub213ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xAF))   //
+INST3(vfnmsub231ss,   "fmnsub231ss",   0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xBF))   //
+INST3(LAST_FMA_INSTRUCTION, "LAST_FMA_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
+
+// BMI1
+INST3(FIRST_BMI_INSTRUCTION, "FIRST_BMI_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
+INST3(andn,           "andn",          0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF2))   // Logical AND NOT
+INST3(blsi,           "blsi",          0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF3))   // Extract Lowest Set Isolated Bit
+INST3(blsmsk,         "blsmsk",        0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF3))   // Get Mask Up to Lowest Set Bit
+INST3(blsr,           "blsr",          0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF3))   // Reset Lowest Set Bit
+
+// BMI2
+INST3(pdep,           "pdep",          0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF5))   // Parallel Bits Deposit
+INST3(pext,           "pext",          0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0xF5))   // Parallel Bits Extract
+INST3(LAST_BMI_INSTRUCTION, "LAST_BMI_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
+
 INST3(LAST_AVX_INSTRUCTION, "LAST_AVX_INSTRUCTION",  0, IUM_WR, 0, 0, BAD_CODE, BAD_CODE, BAD_CODE)
 
 // Scalar instructions in SSE4.2
 INST3( crc32,        "crc32"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, PACK4(0xF2, 0x0F, 0x38, 0xF0))
+
+// BMI1
+INST3( tzcnt,        "tzcnt"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEFLT(0xBC))    // Count the Number of Trailing Zero Bits
 
 // LZCNT
 INST3( lzcnt,        "lzcnt"       , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEFLT(0xBD))
 
 // POPCNT
 INST3( popcnt,       "popcnt"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSEFLT(0xB8))
-#endif // !LEGACY_BACKEND
+
 //    enum     name            FP  updmode rf wf R/M,R/M[reg]  R/M,icon
 
 INST2(ret    , "ret"          , 0, IUM_RD, 0, 0, 0x0000C3, 0x0000C2)
@@ -545,25 +625,25 @@ INST2(sar_N  , "sar"          , 0, IUM_RW, 0, 1, 0x0038C0, 0x0038C0)
 
 INST1(r_movsb, "rep movsb"    , 0, IUM_RD, 0, 0, 0x00A4F3)
 INST1(r_movsd, "rep movsd"    , 0, IUM_RD, 0, 0, 0x00A5F3)
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_)
 INST1(r_movsq, "rep movsq"    , 0, IUM_RD, 0, 0, 0xF3A548)
-#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
+#endif // defined(_TARGET_AMD64_)
 INST1(movsb  , "movsb"        , 0, IUM_RD, 0, 0, 0x0000A4)
 INST1(movsd  , "movsd"        , 0, IUM_RD, 0, 0, 0x0000A5)
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_)
 INST1(movsq, "movsq"          , 0, IUM_RD, 0, 0, 0x00A548)
-#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
+#endif // defined(_TARGET_AMD64_)
 
 INST1(r_stosb, "rep stosb"    , 0, IUM_RD, 0, 0, 0x00AAF3)
 INST1(r_stosd, "rep stosd"    , 0, IUM_RD, 0, 0, 0x00ABF3)
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_)
 INST1(r_stosq, "rep stosq"    , 0, IUM_RD, 0, 0, 0xF3AB48)
-#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
+#endif // defined(_TARGET_AMD64_)
 INST1(stosb,   "stosb"        , 0, IUM_RD, 0, 0, 0x0000AA)
 INST1(stosd,   "stosd"        , 0, IUM_RD, 0, 0, 0x0000AB)
-#if !defined(LEGACY_BACKEND) && defined(_TARGET_AMD64_)
+#if defined(_TARGET_AMD64_)
 INST1(stosq,   "stosq"        , 0, IUM_RD, 0, 0, 0x00AB48)
-#endif // !LEGACY_BACKEND || !defined(_TARGET_AMD64_)
+#endif // defined(_TARGET_AMD64_)
 
 INST1(int3   , "int3"         , 0, IUM_RD, 0, 0, 0x0000CC)
 INST1(nop    , "nop"          , 0, IUM_RD, 0, 0, 0x000090)
@@ -595,53 +675,6 @@ INST1(shrd   , "shrd"         , 0, IUM_RW, 0, 1, 0x0F00AC)
 INST1(fld    , "fld"          , 1, IUM_WR, 0, 0, 0x0000D9)
 INST1(fstp   , "fstp"         , 1, IUM_WR, 0, 0, 0x0018D9)
 #endif // _TARGET_X86
-
-#if FEATURE_STACK_FP_X87
-INST1(fnstsw , "fnstsw"       , 1, IUM_WR, 1, 0, 0x0020DF)
-INST1(fcom   , "fcom"         , 1, IUM_RD, 0, 1, 0x0010D8)
-INST1(fcomp  , "fcomp"        , 1, IUM_RD, 0, 1, 0x0018D8)
-INST1(fcompp , "fcompp"       , 1, IUM_RD, 0, 1, 0x00D9DE)
-INST1(fcomi  , "fcomi"        , 1, IUM_RD, 0, 1, 0x00F0DB)
-INST1(fcomip , "fcomip"       , 1, IUM_RD, 0, 1, 0x00F0DF)
-
-INST1(fchs   , "fchs"         , 1, IUM_RW, 0, 1, 0x00E0D9)
-INST1(fabs   , "fabs"         , 1, IUM_RW, 0, 1, 0x00E1D9)
-INST1(fsin   , "fsin"         , 1, IUM_RW, 0, 1, 0x00FED9)
-INST1(fcos   , "fcos"         , 1, IUM_RW, 0, 1, 0x00FFD9)
-INST1(fsqrt  , "fsqrt"        , 1, IUM_RW, 0, 1, 0x00FAD9)
-INST1(fldl2e , "fldl2e"       , 1, IUM_RW, 0, 1, 0x00EAD9)
-INST1(frndint, "frndint"      , 1, IUM_RW, 0, 1, 0x00FCD9)
-INST1(f2xm1  , "f2xm1"        , 1, IUM_RW, 0, 1, 0x00F0D9)
-INST1(fscale , "fscale"       , 1, IUM_RW, 0, 1, 0x00FDD9)
-
-INST1(fld1   , "fld1"         , 1, IUM_WR, 0, 0, 0x00E8D9)
-INST1(fldz   , "fldz"         , 1, IUM_WR, 0, 0, 0x00EED9)
-INST1(fst    , "fst"          , 1, IUM_WR, 0, 0, 0x0010D9)
-
-INST1(fadd   , "fadd"         , 1, IUM_RW, 0, 0, 0x0000D8)
-INST1(faddp  , "faddp"        , 1, IUM_RW, 0, 0, 0x0000DA)
-INST1(fsub   , "fsub"         , 1, IUM_RW, 0, 0, 0x0020D8)
-INST1(fsubp  , "fsubp"        , 1, IUM_RW, 0, 0, 0x0028DA)
-INST1(fsubr  , "fsubr"        , 1, IUM_RW, 0, 0, 0x0028D8)
-INST1(fsubrp , "fsubrp"       , 1, IUM_RW, 0, 0, 0x0020DA)
-INST1(fmul   , "fmul"         , 1, IUM_RW, 0, 0, 0x0008D8)
-INST1(fmulp  , "fmulp"        , 1, IUM_RW, 0, 0, 0x0008DA)
-INST1(fdiv   , "fdiv"         , 1, IUM_RW, 0, 0, 0x0030D8)
-INST1(fdivp  , "fdivp"        , 1, IUM_RW, 0, 0, 0x0038DA)
-INST1(fdivr  , "fdivr"        , 1, IUM_RW, 0, 0, 0x0038D8)
-INST1(fdivrp , "fdivrp"       , 1, IUM_RW, 0, 0, 0x0030DA)
-
-INST1(fxch   , "fxch"         , 1, IUM_RW, 0, 0, 0x00C8D9)
-INST1(fprem  , "fprem"        , 0, IUM_RW, 0, 1, 0x00F8D9)
-
-INST1(fild   , "fild"         , 1, IUM_RD, 0, 0, 0x0000DB)
-INST1(fildl  , "fild"         , 1, IUM_RD, 0, 0, 0x0028DB)
-INST1(fistp  , "fistp"        , 1, IUM_WR, 0, 0, 0x0018DB)
-INST1(fistpl , "fistp"        , 1, IUM_WR, 0, 0, 0x0038DB)
-
-INST1(fldcw  , "fldcw"        , 1, IUM_RD, 0, 0, 0x0028D9)
-INST1(fnstcw , "fnstcw"       , 1, IUM_WR, 0, 0, 0x0038D9)
-#endif // FEATURE_STACK_FP_X87
 
 INST1(seto   , "seto"         , 0, IUM_WR, 1, 0, 0x0F0090)
 INST1(setno  , "setno"        , 0, IUM_WR, 1, 0, 0x0F0091)

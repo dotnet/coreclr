@@ -20,6 +20,9 @@ Revision History:
 --*/
 
 #include "pal/utf8.h"
+#include "pal/malloc.hpp"
+
+using namespace CorUnix;
 
 #define FASTLOOP
 
@@ -253,6 +256,8 @@ class DecoderFallbackBuffer
     // These wrap the internal methods so that we can check for people doing stuff that's incorrect
 
 public:
+    virtual ~DecoderFallbackBuffer() = default;
+
     virtual bool Fallback(BYTE bytesUnknown[], int index, int size) = 0;
 
     // Get next character
@@ -552,7 +557,7 @@ public:
 
     virtual DecoderFallbackBuffer* CreateFallbackBuffer()
     {
-        return new DecoderExceptionFallbackBuffer();
+        return InternalNew<DecoderExceptionFallbackBuffer>();
     }
 
     // Maximum number of characters that this instance of this fallback could return
@@ -564,7 +569,7 @@ public:
 
 DecoderFallbackBuffer* DecoderReplacementFallback::CreateFallbackBuffer()
 {
-    return new DecoderReplacementFallbackBuffer(this);
+    return InternalNew<DecoderReplacementFallbackBuffer>(this);
 }
 
 class EncoderFallbackException : public ArgumentException
@@ -728,6 +733,8 @@ class EncoderFallbackBuffer
     // These wrap the internal methods so that we can check for people doing stuff that is incorrect
 
 public:
+    virtual ~EncoderFallbackBuffer() = default;
+
     virtual bool Fallback(WCHAR charUnknown, int index) = 0;
 
     virtual bool Fallback(WCHAR charUnknownHigh, WCHAR charUnknownLow, int index) = 0;
@@ -1044,7 +1051,7 @@ public:
 
     virtual EncoderFallbackBuffer* CreateFallbackBuffer()
     {
-        return new EncoderExceptionFallbackBuffer();
+        return InternalNew<EncoderExceptionFallbackBuffer>();
     }
 
     // Maximum number of characters that this instance of this fallback could return
@@ -1056,7 +1063,7 @@ public:
 
 EncoderFallbackBuffer* EncoderReplacementFallback::CreateFallbackBuffer()
 {
-    return new EncoderReplacementFallbackBuffer(this);
+    return InternalNew<EncoderReplacementFallbackBuffer>(this);
 }
 
 class UTF8Encoding
@@ -1620,6 +1627,8 @@ public:
         Contract::Assert(fallback == nullptr || fallback->GetRemaining() == 0,
             "[UTF8Encoding.GetCharCount]Expected empty fallback buffer at end");
 
+        InternalDelete(fallback);
+
         return charCount;
 
     }
@@ -1863,7 +1872,7 @@ public:
                     if (ch > 0x7F)
                         goto ProcessChar;
 
-                    *pTarget = (char)ch;
+                    *pTarget = (WCHAR)ch;
                     pTarget++;
                 }
                 // we are done
@@ -1899,7 +1908,7 @@ public:
                     if (ch > 0x7F) {
                         goto LongCode;
                     }
-                    *pTarget = (char)ch;
+                    *pTarget = (WCHAR)ch;
                     pTarget++;
                 }
 
@@ -2022,7 +2031,7 @@ public:
 
                         ch = (chc << 6) | (ch & 0x3F);
 
-                        *pTarget = (char)(((ch >> 10) & 0x7FF) +
+                        *pTarget = (WCHAR)(((ch >> 10) & 0x7FF) +
                             (SHORT)(CharUnicodeInfo::HIGH_SURROGATE_START - (0x10000 >> 10)));
                         pTarget++;
 
@@ -2122,6 +2131,8 @@ public:
         // (don't have to check m_throwOnOverflow for chars)
         Contract::Assert(fallback == nullptr || fallback->GetRemaining() == 0,
             "[UTF8Encoding.GetChars]Expected empty fallback buffer at end");
+
+        InternalDelete(fallback);
 
         return PtrDiff(pTarget, chars);
     }
@@ -2511,6 +2522,8 @@ public:
             ch = 0;
         }
 
+        InternalDelete(fallbackBuffer); 
+
         return (int)(pTarget - bytes);
     }
 
@@ -2837,6 +2850,8 @@ public:
 
         Contract::Assert(fallbackBuffer == nullptr || fallbackBuffer->GetRemaining() == 0,
             "[UTF8Encoding.GetByteCount]Expected Empty fallback buffer");
+
+        InternalDelete(fallbackBuffer);
 
         return byteCount;
     }

@@ -352,6 +352,10 @@ Crst NativeImageCache
     Unordered
 End
 
+Crst GCCover
+    AcquiredBefore LoaderHeap ReJITSharedDomainTable
+End
+
 Crst GCMemoryPressure
 End
 
@@ -785,5 +789,9 @@ Crst NotifyGdb
 End
 
 Crst ReadyToRunEntryPointToMethodDescMap
-    AcquiredBefore ExecuteManRangeLock
+    AcquiredBefore ExecuteManRangeLock UniqueStack
+End
+
+Crst TieredCompilation
+    AcquiredBefore ThreadpoolTimerQueue
 End

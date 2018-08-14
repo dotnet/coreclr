@@ -1901,9 +1901,7 @@ protected:
         return m_dwPersistedFlags.LoadWithoutBarrier() & LOW_LEVEL_SYSTEM_ASSEMBLY_BY_NAME;
     }
 
-    BOOL IsIntrospectionOnly();
-
-#ifndef DACCESS_COMMPILE
+#ifndef DACCESS_COMPILE
     VOID EnsureActive();
     VOID EnsureAllocated();    
     VOID EnsureLibraryLoaded();
@@ -2672,10 +2670,6 @@ public:
     UINT32 GetFieldTlsOffset(DWORD field);
     UINT32 GetTlsIndex();
 
-    PCCOR_SIGNATURE GetSignature(RVA signature);
-    RVA GetSignatureRva(PCCOR_SIGNATURE signature);
-    CHECK CheckSignatureRva(RVA signature);
-    CHECK CheckSignature(PCCOR_SIGNATURE signature);
     BOOL IsSigInIL(PCCOR_SIGNATURE signature);
 
     mdToken GetEntryPointToken();

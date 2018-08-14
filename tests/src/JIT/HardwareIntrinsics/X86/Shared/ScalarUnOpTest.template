@@ -21,35 +21,33 @@ namespace JIT.HardwareIntrinsics.X86
     {
         private static void {Method}{RetBaseType}()
         {
-            bool skipIf32Bit = (typeof({Op1BaseType}) == typeof(Int64)) ||
-                               (typeof({Op1BaseType}) == typeof(UInt64));
-
-            if (skipIf32Bit && !Environment.Is64BitProcess)
-            {
-                return;
-            }
-
-            var test = new SimpleScalarUnaryOpTest__{Method}{RetBaseType}();
+            var test = new ScalarUnaryOpTest__{Method}{RetBaseType}();
 
             if (test.IsSupported)
             {
-                // Validates basic functionality works
-                test.RunBasicScenario();
+                // Validates basic functionality works, using Unsafe.ReadUnaligned
+                test.RunBasicScenario_UnsafeRead();
 
-                // Validates calling via reflection works
-                test.RunReflectionScenario();
+                // Validates calling via reflection works, using Unsafe.ReadUnaligned
+                test.RunReflectionScenario_UnsafeRead();
 
                 // Validates passing a static member works
                 test.RunClsVarScenario();
 
-                // Validates passing a local works
-                test.RunLclVarScenario();
+                // Validates passing a local works, using Unsafe.ReadUnaligned
+                test.RunLclVarScenario_UnsafeRead();
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
@@ -64,101 +62,140 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class SimpleScalarUnaryOpTest__{Method}{RetBaseType}
+    public sealed unsafe class ScalarUnaryOpTest__{Method}{RetBaseType}
     {
-        private static readonly int LargestVectorSize = {LargestVectorSize};
+        private struct TestStruct
+        {
+            public {Op1BaseType} _fld;
 
-        private static readonly int RetElementCount = Unsafe.SizeOf<{RetVectorType}<{RetBaseType}>>() / sizeof({RetBaseType});
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
 
-        private static readonly Random Random = new Random();
+                testStruct._fld = {NextValueOp1};
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(ScalarUnaryOpTest__{Method}{RetBaseType} testClass)
+            {
+                var result = {Isa}.{Method}(_fld);
+                testClass.ValidateResult(_fld, result);
+            }
+        }
+
+        private static {Op1BaseType} _data;
 
         private static {Op1BaseType} _clsVar;
 
         private {Op1BaseType} _fld;
 
-        private SimpleScalarUnaryOpTest__DataTable<{RetBaseType}> _dataTable;
-
-        static SimpleScalarUnaryOpTest__{Method}{RetBaseType}()
+        static ScalarUnaryOpTest__{Method}{RetBaseType}()
         {
             _clsVar = {NextValueOp1};
         }
 
-        public SimpleScalarUnaryOpTest__{Method}{RetBaseType}()
+        public ScalarUnaryOpTest__{Method}{RetBaseType}()
         {
             Succeeded = true;
 
+            
             _fld = {NextValueOp1};
-            _dataTable = new SimpleScalarUnaryOpTest__DataTable<{RetBaseType}>(new {RetBaseType}[RetElementCount], LargestVectorSize);
+            _data = {NextValueOp1};
         }
 
-        public bool IsSupported => {Isa}.IsSupported;
+        public bool IsSupported => {Isa}.IsSupported && (Environment.Is64BitProcess || ((typeof({RetBaseType}) != typeof(long)) && (typeof({RetBaseType}) != typeof(ulong))));
 
         public bool Succeeded { get; set; }
 
-        public void RunBasicScenario()
+        public void RunBasicScenario_UnsafeRead()
         {
-            var firstOp = {NextValueOp1};
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = {Isa}.{Method}(
-                firstOp
+                Unsafe.ReadUnaligned<{Op1BaseType}>(ref Unsafe.As<{Op1BaseType}, byte>(ref _data))
             );
 
-            Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            ValidateResult(_data, result);
         }
 
-        public void RunReflectionScenario()
+        public void RunReflectionScenario_UnsafeRead()
         {
-            var firstOp = {NextValueOp1};
-            var method = typeof({Isa}).GetMethod(nameof({Isa}.{Method}), new Type[] { typeof({Op1BaseType}) });
-            var result = method.Invoke(null, new object[] { firstOp });
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
 
-            Unsafe.Write(_dataTable.outArrayPtr, ({RetVectorType}<{RetBaseType}>)(result));
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            var result = typeof({Isa}).GetMethod(nameof({Isa}.{Method}), new Type[] { typeof({Op1BaseType}) })
+                                     .Invoke(null, new object[] {
+                                        Unsafe.ReadUnaligned<{Op1BaseType}>(ref Unsafe.As<{Op1BaseType}, byte>(ref _data))
+                                     });
+
+            ValidateResult(_data, ({RetBaseType})result);
         }
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = {Isa}.{Method}(
                 _clsVar
             );
 
-            Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_clsVar, _dataTable.outArrayPtr);
+            ValidateResult(_clsVar, result);
         }
 
-        public void RunLclVarScenario()
+        public void RunLclVarScenario_UnsafeRead()
         {
-            var firstOp = {NextValueOp1};
-            var result = {Isa}.{Method}(firstOp);
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
 
-            Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            var data = Unsafe.ReadUnaligned<{Op1BaseType}>(ref Unsafe.As<{Op1BaseType}, byte>(ref _data));
+            var result = {Isa}.{Method}(data);
+
+            ValidateResult(data, result);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
-            var test = new SimpleScalarUnaryOpTest__{Method}{RetBaseType}();
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
+            var test = new ScalarUnaryOpTest__{Method}{RetBaseType}();
             var result = {Isa}.{Method}(test._fld);
 
-            Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(test._fld, _dataTable.outArrayPtr);
+            ValidateResult(test._fld, result);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
-            var result = {Isa}.{Method}(_fld);
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
 
-            Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_fld, _dataTable.outArrayPtr);
+            var result = {Isa}.{Method}(_fld);
+            ValidateResult(_fld, result);
+        }
+
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = {Isa}.{Method}(test._fld);
+
+            ValidateResult(test._fld, result);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
         }
 
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
             {
-                RunBasicScenario();
+                RunBasicScenario_UnsafeRead();
             }
             catch (PlatformNotSupportedException)
             {
@@ -166,39 +203,18 @@ namespace JIT.HardwareIntrinsics.X86
             }
         }
 
-        private void ValidateResult({Op1BaseType} firstOp, void* result, [CallerMemberName] string method = "")
+        private void ValidateResult({Op1BaseType} data, {RetBaseType} result, [CallerMemberName] string method = "")
         {
-            {RetBaseType}[] outArray = new {RetBaseType}[RetElementCount];
+            var isUnexpectedResult = false;
 
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<{RetBaseType}, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), (uint)Unsafe.SizeOf<{RetVectorType}<{RetBaseType}>>());
+            {ValidateResult}
 
-            ValidateResult(firstOp, outArray, method);
-        }
-
-        private void ValidateResult({Op1BaseType} firstOp, {RetBaseType}[] result, [CallerMemberName] string method = "")
-        {
-            if ({ValidateFirstResult})
+            if (isUnexpectedResult)
             {
-                Succeeded = false;
-            }
-            else
-            {
-                for (var i = 1; i < RetElementCount; i++)
-                {
-                    if ({ValidateRemainingResults})
-                    {
-                        Succeeded = false;
-                        break;
-                    }
-                }
-            }
-
-            if (!Succeeded)
-            {
-                Console.WriteLine($"{nameof({Isa})}.{nameof({Isa}.{Method})}<{RetBaseType}>({Op1VectorType}<{Op1BaseType}>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof({Isa})}.{nameof({Isa}.{Method})}<{RetBaseType}>({Op1BaseType}): {Method} failed:");
+                TestLibrary.TestFramework.LogInformation($"    data: {data}");
+                TestLibrary.TestFramework.LogInformation($"  result: {result}");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

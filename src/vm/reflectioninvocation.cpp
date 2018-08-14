@@ -28,29 +28,6 @@
 #include "dbginterface.h"
 #include "argdestination.h"
 
-// these flags are defined in XXXInfo.cs and only those that are used are replicated here
-#define INVOCATION_FLAGS_UNKNOWN                    0x00000000
-#define INVOCATION_FLAGS_INITIALIZED                0x00000001
-
-// it's used for both method and field to signify that no access is allowed
-#define INVOCATION_FLAGS_NO_INVOKE                  0x00000002
-
-// #define unused                                   0x00000004
-
-// because field and method are different we can reuse the same bits
-//method
-#define INVOCATION_FLAGS_IS_CTOR                    0x00000010
-#define INVOCATION_FLAGS_RISKY_METHOD               0x00000020
-// #define unused                                   0x00000040
-#define INVOCATION_FLAGS_IS_DELEGATE_CTOR           0x00000080
-#define INVOCATION_FLAGS_CONTAINS_STACK_POINTERS    0x00000100
-// field
-#define INVOCATION_FLAGS_SPECIAL_FIELD              0x00000010
-#define INVOCATION_FLAGS_FIELD_SPECIAL_CAST         0x00000020
-
-// temporary flag used for flagging invocation of method vs ctor
-#define INVOCATION_FLAGS_CONSTRUCTOR_INVOKE         0x10000000
-
 /**************************************************************************/
 /* if the type handle 'th' is a byref to a nullable type, return the
    type handle to the nullable type in the byref.  Otherwise return 
@@ -190,9 +167,6 @@ FCIMPL5(Object*, RuntimeFieldHandle::GetValue, ReflectFieldObject *pFieldUNSAFE,
     {
         pAssem = declaringType.GetAssembly();
     }
-
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowEx(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
 
     // We should throw NotSupportedException here. 
     // But for backward compatibility we are throwing FieldAccessException instead.
@@ -354,9 +328,6 @@ FCIMPL7(void, RuntimeFieldHandle::SetValue, ReflectFieldObject *pFieldUNSAFE, Ob
         pAssem = declaringType.GetAssembly();
     }
 
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowExVoid(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
-
     // We should throw NotSupportedException here. 
     // But for backward compatibility we are throwing FieldAccessException instead.
     if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
@@ -426,9 +397,6 @@ FCIMPL5(Object*, RuntimeTypeHandle::CreateInstance, ReflectClassBaseObject* refT
     TypeHandle thisTH = refThis->GetType();
 
     Assembly *pAssem = thisTH.GetAssembly();
-
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowEx(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
 
     if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
         FCThrowRes(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
@@ -645,56 +613,6 @@ FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsInstanceOfType, ReflectClassBaseObject
     FC_INNER_RETURN(FC_BOOL_RET, IsInstanceOfTypeHelper(obj, refType));
 }
 FCIMPLEND
-
-FCIMPL1(DWORD, ReflectionInvocation::GetSpecialSecurityFlags, ReflectMethodObject *pMethodUNSAFE) {
-    CONTRACTL {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-    
-    DWORD dwFlags = 0;
-
-    struct
-    {
-        REFLECTMETHODREF refMethod;
-    }
-    gc;
-
-    gc.refMethod = (REFLECTMETHODREF)ObjectToOBJECTREF(pMethodUNSAFE);
-
-    if (!gc.refMethod)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    MethodDesc* pMethod = gc.refMethod->GetMethod();
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    // this is an information that is critical for ctors, otherwise is not important
-    // we get it here anyway to simplify code
-    MethodTable *pMT = pMethod->GetMethodTable();
-    _ASSERTE(pMT);
-
-    // We should also check the return type here. 
-    // Is there an easier way to get the return type of a method?
-    MetaSig metaSig(pMethod);
-    TypeHandle retTH = metaSig.GetRetTypeHandleThrowing();
-    MethodTable *pRetMT = retTH.GetMethodTable();
-
-    // If either the declaring type or the return type contains stack pointers (ByRef or typedbyref), 
-    // the type cannot be boxed and thus cannot be invoked through reflection invocation.
-    if ( pMT->IsByRefLike() || (pRetMT != NULL && pRetMT->IsByRefLike()) )
-        dwFlags |= INVOCATION_FLAGS_CONTAINS_STACK_POINTERS;
-
-    // Is this a call to a potentially dangerous method? (If so, we're going
-    // to demand additional permission).
-    if (InvokeUtil::IsDangerousMethod(pMethod))
-        dwFlags |= INVOCATION_FLAGS_RISKY_METHOD;
-
-    HELPER_METHOD_FRAME_END();
-    return dwFlags;
-}
-FCIMPLEND
-
 
 /****************************************************************************/
 /* boxed Nullable<T> are represented as a boxed T, so there is no unboxed
@@ -1059,9 +977,6 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 
     Assembly *pAssem = pMeth->GetAssembly();
 
-    if (pAssem->IsIntrospectionOnly())
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY);
-
     // We should throw NotSupportedException here. 
     // But for backward compatibility we are throwing TargetException instead.
     if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
@@ -1134,6 +1049,9 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 #ifdef CALLDESCR_ARGREGS
     callDescrData.pArgumentRegisters = (ArgumentRegisters*)(pTransitionBlock + TransitionBlock::GetOffsetOfArgumentRegisters());
 #endif
+#ifdef CALLDESCR_RETBUFFARGREG
+    callDescrData.pRetBuffArg = (UINT64*)(pTransitionBlock + TransitionBlock::GetOffsetOfRetBuffArgReg());
+#endif
 #ifdef CALLDESCR_FPARGREGS
     callDescrData.pFloatArgumentRegisters = NULL;
 #endif
@@ -1165,11 +1083,29 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
     // if we have the magic Value Class return, we need to allocate that class
     // and place a pointer to it on the stack.
 
+    BOOL hasRefReturnAndNeedsBoxing = FALSE; // Indicates that the method has a BYREF return type and the target type needs to be copied into a preallocated boxed object.
+
     TypeHandle retTH = gc.pSig->GetReturnTypeHandle();
+
+    TypeHandle refReturnTargetTH;  // Valid only if retType == ELEMENT_TYPE_BYREF. Caches the TypeHandle of the byref target.
     BOOL fHasRetBuffArg = argit.HasRetBuffArg();
-    CorElementType retType = retTH.GetInternalCorElementType();
-    if (retType == ELEMENT_TYPE_VALUETYPE || fHasRetBuffArg) {
+    CorElementType retType = retTH.GetSignatureCorElementType();
+    BOOL hasValueTypeReturn = retTH.IsValueType() && retType != ELEMENT_TYPE_VOID;
+    _ASSERTE(hasValueTypeReturn || !fHasRetBuffArg); // only valuetypes are returned via a return buffer.
+    if (hasValueTypeReturn) {
         gc.retVal = retTH.GetMethodTable()->Allocate();
+    }
+    else if (retType == ELEMENT_TYPE_BYREF)
+    {
+        refReturnTargetTH = retTH.AsTypeDesc()->GetTypeParam();
+
+        // If the target of the byref is a value type, we need to preallocate a boxed object to hold the managed return value.
+        if (refReturnTargetTH.IsValueType())
+        {
+            _ASSERTE(refReturnTargetTH.GetSignatureCorElementType() != ELEMENT_TYPE_VOID); // Managed Reflection layer has a bouncer for "ref void" returns.
+            hasRefReturnAndNeedsBoxing = TRUE;
+            gc.retVal = refReturnTargetTH.GetMethodTable()->Allocate();
+        }
     }
 
     // Copy "this" pointer
@@ -1396,13 +1332,23 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
         gc.retVal = Nullable::NormalizeBox(gc.retVal);
     }
     else
-    if (retType == ELEMENT_TYPE_VALUETYPE)
+    if (hasValueTypeReturn || hasRefReturnAndNeedsBoxing)
     {
         _ASSERTE(gc.retVal != NULL);
 
+        if (hasRefReturnAndNeedsBoxing)
+        {
+            // Method has BYREF return and the target type is one that needs boxing. We need to copy into the boxed object we have allocated for this purpose.
+            LPVOID pReturnedReference = *(LPVOID*)&callDescrData.returnValue;
+            if (pReturnedReference == NULL)
+            {
+                COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
+            }
+            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+        }
         // if the structure is returned by value, then we need to copy in the boxed object
         // we have allocated for this purpose.
-        if (!fHasRetBuffArg) 
+        else if (!fHasRetBuffArg) 
         {
             CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
         }
@@ -1417,9 +1363,20 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             // If the return type is a Nullable<T> box it into the correct form
         gc.retVal = Nullable::NormalizeBox(gc.retVal);
     }
+    else if (retType == ELEMENT_TYPE_BYREF)
+    {
+        // WARNING: pReturnedReference is an unprotected inner reference so we must not trigger a GC until the referenced value has been safely captured.
+        LPVOID pReturnedReference = *(LPVOID*)&callDescrData.returnValue;
+        if (pReturnedReference == NULL)
+        {
+            COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
+        }
+
+        gc.retVal = InvokeUtil::CreateObjectAfterInvoke(refReturnTargetTH, pReturnedReference);
+    }
     else 
     {
-        gc.retVal = InvokeUtil::CreateObject(retTH, &callDescrData.returnValue);
+        gc.retVal = InvokeUtil::CreateObjectAfterInvoke(retTH, &callDescrData.returnValue);
     }
 
     while (byRefToNullables != NULL) {
@@ -1557,9 +1514,6 @@ FCIMPL4(Object*, RuntimeFieldHandle::GetValueDirect, ReflectFieldObject *pFieldU
     FieldDesc *pField = gc.refField->GetField();
 
     Assembly *pAssem = pField->GetModule()->GetAssembly();
-
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowEx(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
 
     // We should throw NotSupportedException here. 
     // But for backward compatibility we are throwing FieldAccessException instead.
@@ -1722,9 +1676,6 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
     FieldDesc *pField = gc.refField->GetField();
 
     Assembly *pAssem = pField->GetModule()->GetAssembly();
-
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowExVoid(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
 
     // We should throw NotSupportedException here. 
     // But for backward compatibility we are throwing FieldAccessException instead.
@@ -1940,9 +1891,6 @@ FCIMPL1(void, ReflectionInvocation::RunClassConstructor, ReflectClassBaseObject 
 
     Assembly *pAssem = pMT->GetAssembly();
 
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowExVoid(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
-
     if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
     {
         FCThrowResVoid(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
@@ -1977,9 +1925,6 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
     Module *pModule = refModule->GetModule();
 
     Assembly *pAssem = pModule->GetAssembly();
-
-    if (pAssem->IsIntrospectionOnly())
-        FCThrowExVoid(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY, NULL, NULL, NULL);
 
     if (pAssem->IsDynamic() && !pAssem->HasRunAccess())
         FCThrowResVoid(kNotSupportedException, W("NotSupported_DynamicAssemblyNoRunAccess"));
@@ -2306,7 +2251,7 @@ void ExecuteCodeWithGuaranteedCleanupHelper (ECWGC_GC *gc)
 // ExecuteCodeWithGuaranteedCleanup ensures that we will call the backout code delegate even if an SO occurs. We do this by calling the 
 // try delegate from within an EX_TRY/EX_CATCH block that will catch any thrown exceptions and thus cause the stack to be unwound. This 
 // guarantees that the backout delegate is called with at least DEFAULT_ENTRY_PROBE_SIZE pages of stack. After the backout delegate is called, 
-// we re-raise any exceptions that occurred inside the try delegate. Note that any CER that uses large or arbitraty amounts of stack in 
+// we re-raise any exceptions that occurred inside the try delegate. Note that any CER that uses large or arbitrary amounts of stack in 
 // it's try block must use ExecuteCodeWithGuaranteedCleanup. 
 //
 // ExecuteCodeWithGuaranteedCleanup also guarantees that the backount code will be run before any filters higher up on the stack. This

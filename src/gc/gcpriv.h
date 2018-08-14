@@ -275,7 +275,7 @@ void GCLog (const char *fmt, ... );
 #define dprintf(l,x)
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
+#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 #undef  assert
 #define assert _ASSERTE
 #undef  ASSERT
@@ -1733,7 +1733,7 @@ protected:
     PER_HEAP
     void set_brick (size_t index, ptrdiff_t val);
     PER_HEAP
-    int brick_entry (size_t index);
+    int get_brick_entry (size_t index);
 #ifdef MARK_ARRAY
     PER_HEAP
     unsigned int mark_array_marked (uint8_t* add);

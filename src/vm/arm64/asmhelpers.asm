@@ -381,12 +381,12 @@ shadowupdateend
         adrp     x12,  g_ephemeral_low
         ldr      x12,  [x12, g_ephemeral_low]
         cmp      x15,  x12
-        blt      Exit
+        blo      Exit
 
         adrp     x12, g_ephemeral_high 
         ldr      x12, [x12, g_ephemeral_high]
         cmp      x15,  x12
-        bgt      Exit
+        bhi      Exit
 
         ; Check if we need to update the card table        
         adrp     x12, g_card_table
@@ -533,7 +533,7 @@ LNullThis
     GBLA ComCallPreStub_FirstStackAdjust
 
 ComCallPreStub_FrameSize         SETA (SIZEOF__GSCookie + SIZEOF__ComMethodFrame)
-ComCallPreStub_FirstStackAdjust  SETA (SIZEOF__ArgumentRegisters + 2 * 8) ; reg args , fp & lr already pushed
+ComCallPreStub_FirstStackAdjust  SETA (8 + SIZEOF__ArgumentRegisters + 2 * 8) ; x8, reg args , fp & lr already pushed
 ComCallPreStub_StackAlloc        SETA ComCallPreStub_FrameSize - ComCallPreStub_FirstStackAdjust 
 ComCallPreStub_StackAlloc        SETA ComCallPreStub_StackAlloc + SIZEOF__FloatArgumentRegisters + 8; 8 for ErrorReturn
     IF ComCallPreStub_StackAlloc:MOD:16 != 0
@@ -603,7 +603,7 @@ ComCallPreStub_ErrorExit
     GBLA GenericComCallStub_FirstStackAdjust
 
 GenericComCallStub_FrameSize         SETA (SIZEOF__GSCookie + SIZEOF__ComMethodFrame)
-GenericComCallStub_FirstStackAdjust  SETA (SIZEOF__ArgumentRegisters + 2 * 8)
+GenericComCallStub_FirstStackAdjust  SETA (8 + SIZEOF__ArgumentRegisters + 2 * 8)
 GenericComCallStub_StackAlloc        SETA GenericComCallStub_FrameSize - GenericComCallStub_FirstStackAdjust
 GenericComCallStub_StackAlloc        SETA GenericComCallStub_StackAlloc + SIZEOF__FloatArgumentRegisters
 
@@ -676,7 +676,7 @@ COMToCLRDispatchHelper_RegSetup
     ldp x2, x3, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 16)]
     ldp x4, x5, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 32)]
     ldp x6, x7, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 48)]
-    ldr x8, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 64)]
+    ldr x8, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters - 8)]
 
     ldr x1, [x1, #(SIZEOF__ComMethodFrame - SIZEOF__ArgumentRegisters + 8)]
 
@@ -1262,9 +1262,9 @@ Fail
         mov x4, $frameFlags
         bl DynamicHelperWorker
         cbnz x0, %FT0
-        ldr x0, [sp, #__PWTB_ArgumentRegisters]
+        ldr x0, [sp, #__PWTB_ArgumentRegister_FirstArg]
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
-0		
+0
         mov x12, x0
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
         EPILOG_BRANCH_REG  x12
@@ -1278,7 +1278,7 @@ Fail
         
 #ifdef FEATURE_PREJIT
 ;; ------------------------------------------------------------------
-;; void StubDispatchFixupStub(args in regs x0-x7 & stack and possibly retbuff arg in x8, x11:IndirectionCellAndFlags, x12:DispatchToken)
+;; void StubDispatchFixupStub(args in regs x0-x7 & stack and possibly retbuff arg in x8, x11:IndirectionCellAndFlags)
 ;;
 ;; The stub dispatch thunk which transfers control to StubDispatchFixupWorker.
         NESTED_ENTRY StubDispatchFixupStub
@@ -1290,11 +1290,11 @@ Fail
         mov x2, #0 ; sectionIndex
         mov x3, #0 ; pModule
         bl StubDispatchFixupWorker
-        mov x9, x0
+        mov x12, x0
 
         EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
         PATCH_LABEL StubDispatchFixupPatchLabel
-        EPILOG_BRANCH_REG  x9
+        EPILOG_BRANCH_REG  x12
 
         NESTED_END
 #endif

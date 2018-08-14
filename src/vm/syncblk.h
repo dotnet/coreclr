@@ -85,7 +85,6 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 
 #include "synch.h"
 
-
 // At a negative offset from each Object is an ObjHeader.  The 'size' of the
 // object includes these bytes.  However, we rely on the previous object allocation
 // to zero out the ObjHeader for the current allocation.  And the limits of the
@@ -787,9 +786,9 @@ private:
     // to the thunk generated for unmanaged code to call back on.
     // If this is a delegate representing an unmanaged function pointer,
     // this may point to a stub that intercepts calls to the unmng target.
-    // It is currently used for pInvokeStackImbalance MDA and host hook.
-    // We differentiate between the two by setting the lowest bit if it's
-    // an intercept stub.
+    // An example of an intercept call is pInvokeStackImbalance MDA.
+    // We differentiate between a thunk or intercept stub by setting the lowest
+    // bit if it is an intercept stub.
     void*               m_pUMEntryThunkOrInterceptStub;
 
 #ifdef FEATURE_COMINTEROP
@@ -1609,13 +1608,6 @@ struct ThreadQueue
                                           void* pUserData);
 #endif
 };
-
-
-// The true size of an object is whatever C++ thinks, plus the ObjHeader we
-// allocate before it.
-
-#define ObjSizeOf(c)    (sizeof(c) + sizeof(ObjHeader))
-
 
 inline void AwareLock::SetPrecious()
 {

@@ -460,7 +460,7 @@ Arguments:
 
     SpOffset - Specifies a stack offset. Positive values are simply used
         as a base offset. Negative values assume a predecrement behavior:
-        a 0 offset is used for restoration, but the absoute value of the
+        a 0 offset is used for restoration, but the absolute value of the
         offset is added to the final Sp.
 
     FirstRegister - Specifies the index of the first register to restore.
@@ -536,7 +536,7 @@ Arguments:
 
     SpOffset - Specifies a stack offset. Positive values are simply used
         as a base offset. Negative values assume a predecrement behavior:
-        a 0 offset is used for restoration, but the absoute value of the
+        a 0 offset is used for restoration, but the absolute value of the
         offset is added to the final Sp.
 
     FirstRegister - Specifies the index of the first register to restore.
@@ -658,7 +658,6 @@ Return Value:
     ULONG FunctionLength;
     ULONG HeaderWord;
     ULONG NextCode;
-    ULONG Offset;
     DWORD64 OffsetInFunction;
     ULONG ScopeNum;
     ULONG ScopeSize;
@@ -1293,7 +1292,6 @@ Return Value:
     ULONG HBit;
     ULONG HOpcodes;
     ULONG IRegOpcodes;
-    ULONG InstCount;
     ULONG IntSize;
     ULONG LocalSize;
     DWORD64 OffsetInFunction;

@@ -542,12 +542,6 @@ public:
     void CheckRestore() const;
     BOOL IsExternallyVisible() const;
 
-    // Is this type part of an assembly loaded for introspection?
-    BOOL IsIntrospectionOnly() const;
-
-    // Checks this type and its components for "IsIntrospectionOnly"
-    BOOL ContainsIntrospectionOnlyTypes() const;
-
     // Does this type participate in type equivalence?
     inline BOOL HasTypeEquivalence() const;
 
@@ -573,14 +567,6 @@ public:
     }
 
     INDEBUGIMPL(BOOL Verify();)             // DEBUGGING Make certain this is a valid type handle 
-
-#if defined(_DEBUG)
-    BOOL IsAppDomainAgile() const;
-    BOOL IsCheckAppDomainAgile() const;
-
-    BOOL IsArrayOfElementsAppDomainAgile() const;
-    BOOL IsArrayOfElementsCheckAppDomainAgile() const;
-#endif
 
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);

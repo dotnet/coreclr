@@ -21,7 +21,7 @@ namespace JIT.HardwareIntrinsics.X86
     {
         private static void ShiftLeftLogicalUInt641()
         {
-            var test = new SimpleUnaryOpTest__ShiftLeftLogicalUInt641();
+            var test = new ImmUnaryOpTest__ShiftLeftLogicalUInt641();
 
             if (test.IsSupported)
             {
@@ -64,11 +64,17 @@ namespace JIT.HardwareIntrinsics.X86
                     test.RunLclVarScenario_LoadAligned();
                 }
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
@@ -83,8 +89,31 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class SimpleUnaryOpTest__ShiftLeftLogicalUInt641
+    public sealed unsafe class ImmUnaryOpTest__ShiftLeftLogicalUInt641
     {
+        private struct TestStruct
+        {
+            public Vector128<UInt64> _fld;
+
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
+
+                for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<UInt64>, byte>(ref testStruct._fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<UInt64>>());
+
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(ImmUnaryOpTest__ShiftLeftLogicalUInt641 testClass)
+            {
+                var result = Sse2.ShiftLeftLogical(_fld, 1);
+
+                Unsafe.Write(testClass._dataTable.outArrayPtr, result);
+                testClass.ValidateResult(_fld, testClass._dataTable.outArrayPtr);
+            }
+        }
+
         private static readonly int LargestVectorSize = 16;
 
         private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector128<UInt64>>() / sizeof(UInt64);
@@ -98,24 +127,20 @@ namespace JIT.HardwareIntrinsics.X86
 
         private SimpleUnaryOpTest__DataTable<UInt64, UInt64> _dataTable;
 
-        static SimpleUnaryOpTest__ShiftLeftLogicalUInt641()
+        static ImmUnaryOpTest__ShiftLeftLogicalUInt641()
         {
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<UInt64>, byte>(ref _clsVar), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<UInt64>>());
         }
 
-        public SimpleUnaryOpTest__ShiftLeftLogicalUInt641()
+        public ImmUnaryOpTest__ShiftLeftLogicalUInt641()
         {
             Succeeded = true;
 
-            var random = new Random();
-
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector128<UInt64>, byte>(ref _fld), ref Unsafe.As<UInt64, byte>(ref _data[0]), (uint)Unsafe.SizeOf<Vector128<UInt64>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = (ulong)(random.Next(0, int.MaxValue)); }
+            for (var i = 0; i < Op1ElementCount; i++) { _data[i] = TestLibrary.Generator.GetUInt64(); }
             _dataTable = new SimpleUnaryOpTest__DataTable<UInt64, UInt64>(_data, new UInt64[RetElementCount], LargestVectorSize);
         }
 
@@ -125,6 +150,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse2.ShiftLeftLogical(
                 Unsafe.Read<Vector128<UInt64>>(_dataTable.inArrayPtr),
                 1
@@ -136,6 +163,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
+
             var result = Sse2.ShiftLeftLogical(
                 Sse2.LoadVector128((UInt64*)(_dataTable.inArrayPtr)),
                 1
@@ -147,6 +176,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunBasicScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
+
             var result = Sse2.ShiftLeftLogical(
                 Sse2.LoadAlignedVector128((UInt64*)(_dataTable.inArrayPtr)),
                 1
@@ -158,6 +189,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
             var result = typeof(Sse2).GetMethod(nameof(Sse2.ShiftLeftLogical), new Type[] { typeof(Vector128<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Unsafe.Read<Vector128<UInt64>>(_dataTable.inArrayPtr),
@@ -170,6 +203,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
+
             var result = typeof(Sse2).GetMethod(nameof(Sse2.ShiftLeftLogical), new Type[] { typeof(Vector128<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadVector128((UInt64*)(_dataTable.inArrayPtr)),
@@ -182,6 +217,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunReflectionScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
+
             var result = typeof(Sse2).GetMethod(nameof(Sse2.ShiftLeftLogical), new Type[] { typeof(Vector128<UInt64>), typeof(byte) })
                                      .Invoke(null, new object[] {
                                         Sse2.LoadAlignedVector128((UInt64*)(_dataTable.inArrayPtr)),
@@ -194,6 +231,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse2.ShiftLeftLogical(
                 _clsVar,
                 1
@@ -205,6 +244,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_UnsafeRead()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
             var firstOp = Unsafe.Read<Vector128<UInt64>>(_dataTable.inArrayPtr);
             var result = Sse2.ShiftLeftLogical(firstOp, 1);
 
@@ -214,6 +255,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_Load()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
+
             var firstOp = Sse2.LoadVector128((UInt64*)(_dataTable.inArrayPtr));
             var result = Sse2.ShiftLeftLogical(firstOp, 1);
 
@@ -223,6 +266,8 @@ namespace JIT.HardwareIntrinsics.X86
 
         public void RunLclVarScenario_LoadAligned()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
+
             var firstOp = Sse2.LoadAlignedVector128((UInt64*)(_dataTable.inArrayPtr));
             var result = Sse2.ShiftLeftLogical(firstOp, 1);
 
@@ -230,25 +275,50 @@ namespace JIT.HardwareIntrinsics.X86
             ValidateResult(firstOp, _dataTable.outArrayPtr);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
-            var test = new SimpleUnaryOpTest__ShiftLeftLogicalUInt641();
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
+            var test = new ImmUnaryOpTest__ShiftLeftLogicalUInt641();
             var result = Sse2.ShiftLeftLogical(test._fld, 1);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(test._fld, _dataTable.outArrayPtr);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse2.ShiftLeftLogical(_fld, 1);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(_fld, _dataTable.outArrayPtr);
         }
 
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = Sse2.ShiftLeftLogical(test._fld, 1);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(test._fld, _dataTable.outArrayPtr);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
+        }
+
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
@@ -303,10 +373,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.ShiftLeftLogical)}<UInt64>(Vector128<UInt64><9>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.ShiftLeftLogical)}<UInt64>(Vector128<UInt64><9>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }

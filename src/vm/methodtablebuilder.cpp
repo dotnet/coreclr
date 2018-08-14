@@ -89,7 +89,6 @@ MethodTableBuilder::CreateClass( Module *pModule,
 
     EEClass *pEEClass = NULL;
     IMDInternalImport *pInternalImport;
-    HRESULT hrToThrow;
 
     //<TODO>============================================================================
     // vtabsize and static size need to be converted from pointer sizes to #'s
@@ -1869,23 +1868,23 @@ MethodTableBuilder::BuildMethodTableThrowing(
 #ifdef FEATURE_HFA
         GetHalfBakedClass()->CheckForHFA(pByValueClassCache);
 #endif
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
+#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
 #endif // FEATURE_HFA
         SystemVAmd64CheckForPassStructInRegister();
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
     }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
+#error Can't have FEATURE_HFA and UNIX_AMD64_ABI defined at the same time.
 #endif // FEATURE_HFA
     if (HasLayout())
     {
         SystemVAmd64CheckForPassNativeStructInRegister();
     }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 #ifdef FEATURE_HFA
     if (HasLayout())
     {
@@ -1920,13 +1919,6 @@ MethodTableBuilder::BuildMethodTableThrowing(
     }
 
     SetFinalizationSemantics();
-
-#if defined(_DEBUG)
-    // Figure out if we're domain agile..
-    // Note that this checks a bunch of field directly on the class & method table,
-    // so it needs to come late in the game.
-    EEClass::SetAppDomainAgileAttribute(pMT);
-#endif
 
     // Allocate dynamic slot if necessary
     if (bmtProp->fDynamicStatics)
@@ -3871,8 +3863,8 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
         case ELEMENT_TYPE_I4:
         case ELEMENT_TYPE_U4:
-        IN_WIN32(case ELEMENT_TYPE_I:)
-        IN_WIN32(case ELEMENT_TYPE_U:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_I:)
+        IN_TARGET_32BIT(case ELEMENT_TYPE_U:)
         case ELEMENT_TYPE_R4:
             {
                 dwLog2FieldSize = 2;
@@ -3902,8 +3894,8 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
        
         case ELEMENT_TYPE_I8:
         case ELEMENT_TYPE_U8:
-        IN_WIN64(case ELEMENT_TYPE_I:)
-        IN_WIN64(case ELEMENT_TYPE_U:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_I:)
+        IN_TARGET_64BIT(case ELEMENT_TYPE_U:)
             {
 #ifdef FEATURE_64BIT_ALIGNMENT
                 // Record that this field requires alignment for Int64/UInt64.
@@ -7459,7 +7451,7 @@ MethodTableBuilder::PlaceInterfaceMethods()
                 else
                 {
                     // Iterate through the methods on the interface, and if they have a slot which was filled in
-                    // on an equivalent interface inherited from the parent fill in the approrpriate slot.
+                    // on an equivalent interface inherited from the parent fill in the appropriate slot.
                     // This code path is only used when there is an implicit implementation of an interface
                     // that was not implemented on a parent type, but there was an equivalent interface implemented
                     // on a parent type.
@@ -7727,7 +7719,7 @@ VOID MethodTableBuilder::PlaceRegularStaticFields()
     if (bmtProp->fDynamicStatics)
     {
         _ASSERTE(dwNonGCOffset == 0 ||  // no statics at all
-                 dwNonGCOffset == DomainLocalModule::DynamicEntry::GetOffsetOfDataBlob()); // We need space to point to the GC statics
+                 dwNonGCOffset == OFFSETOF__DomainLocalModule__NormalDynamicEntry__m_pDataBlob); // We need space to point to the GC statics
         bmtProp->dwNonGCRegularStaticFieldBytes = dwCumulativeStaticFieldPos;
     }
     else
@@ -7849,7 +7841,7 @@ VOID MethodTableBuilder::PlaceThreadStaticFields()
     if (bmtProp->fDynamicStatics)
     {
         _ASSERTE(dwNonGCOffset == 0 ||  // no thread statics at all
-                 dwNonGCOffset == ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob()); // We need space to point to the GC statics
+                 dwNonGCOffset == OFFSETOF__ThreadLocalModule__DynamicEntry__m_pDataBlob); // We need space to point to the GC statics
         bmtProp->dwNonGCThreadStaticFieldBytes = dwCumulativeStaticFieldPos;
     }
     else
@@ -7925,7 +7917,7 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
             for (i = 0; i < MAX_LOG2_PRIMITIVE_FIELD_SIZE; i++) {
                 DWORD j;
 
-                if (IS_ALIGNED(dwCumulativeInstanceFieldPos, 1<<(i+1)))
+                if (IS_ALIGNED(dwCumulativeInstanceFieldPos, size_t{ 1 } << (i + 1)))
                     continue;
 
                 // check whether there are any bigger fields
@@ -7977,7 +7969,7 @@ VOID    MethodTableBuilder::PlaceInstanceFields(MethodTable ** pByValueClassCach
                 }
 
                 // Place the field
-                dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, 1 << i);
+                dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, size_t{ 1 } << i);
 
                 pFieldDescList[j].SetOffset(dwCumulativeInstanceFieldPos - dwOffsetBias);
                 dwCumulativeInstanceFieldPos += (1 << i);
@@ -8165,7 +8157,7 @@ DWORD MethodTableBuilder::GetFieldSize(FieldDesc *pFD)
     return (1 << (DWORD)(DWORD_PTR&)(pFD->m_pMTOfEnclosingClass));
 }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
 // checks whether the struct is enregisterable.
 void MethodTableBuilder::SystemVAmd64CheckForPassStructInRegister()
 {
@@ -8250,7 +8242,7 @@ void MethodTableBuilder::StoreEightByteClassification(SystemVStructRegisterPassi
     eeClass->SetEightByteClassification(helper->eightByteCount, helper->eightByteClassifications, helper->eightByteSizes);
 }
 
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 //---------------------------------------------------------------------------------------
 //
@@ -8359,7 +8351,7 @@ MethodTableBuilder::HandleExplicitLayout(
         if (CorTypeInfo::IsObjRef(pFD->GetFieldType()))
         {
             // Check that the ref offset is pointer aligned
-            if ((pFD->GetOffset_NoLogging() & ((ULONG)sizeof(OBJECTREF) - 1)) != 0)
+            if ((pFD->GetOffset_NoLogging() & ((ULONG)TARGET_POINTER_SIZE - 1)) != 0)
             {
                 badOffset = pFD->GetOffset_NoLogging();
                 fieldTrust.SetTrust(ExplicitFieldTrust::kNone);
@@ -8597,7 +8589,7 @@ MethodTableBuilder::HandleExplicitLayout(
     {
         CONSISTENCY_CHECK(pSeries <= map->GetHighestSeries());
 
-        memset((void*)&vcLayout[pSeries->GetSeriesOffset()-sizeof(Object)], oref, pSeries->GetSeriesSize() + pMT->GetBaseSize());
+        memset((void*)&vcLayout[pSeries->GetSeriesOffset() - OBJECT_SIZE], oref, pSeries->GetSeriesSize() + pMT->GetBaseSize());
         pSeries++;
     }
 
@@ -8679,8 +8671,8 @@ void MethodTableBuilder::FindPointerSeriesExplicit(UINT instanceSliceSize,
     // ref-non-ref-non, and since only ref series are recorded and non-ref series
     // are skipped, the max number of series is total instance size / 2 / sizeof(ref).
     // But watch out for the case where we have e.g. an instanceSlizeSize of 4.
-    DWORD sz = (instanceSliceSize + (2 * sizeof(OBJECTREF)) - 1);
-    bmtGCSeries->pSeries = new bmtGCSeriesInfo::Series[sz/2/sizeof(OBJECTREF)];
+    DWORD sz = (instanceSliceSize + (2 * TARGET_POINTER_SIZE) - 1);
+    bmtGCSeries->pSeries = new bmtGCSeriesInfo::Series[sz/2/ TARGET_POINTER_SIZE];
 
     BYTE *loc = pFieldLayout;
     BYTE *layoutEnd = pFieldLayout + instanceSliceSize;
@@ -8733,7 +8725,7 @@ MethodTableBuilder::HandleGCForExplicitLayout()
         CGCDesc::Init( (PVOID) pMT, 1);
         pSeries = ((CGCDesc*)pMT)->GetLowestSeries();
         pSeries->SetSeriesSize( (size_t) (0) - (size_t) pMT->GetBaseSize());
-        pSeries->SetSeriesOffset(sizeof(Object));
+        pSeries->SetSeriesOffset(OBJECT_SIZE);
     }
     else
 #endif // FEATURE_COLLECTIBLE_TYPES
@@ -8759,7 +8751,7 @@ MethodTableBuilder::HandleGCForExplicitLayout()
             BAD_FORMAT_NOTHROW_ASSERT(pSeries <= CGCDesc::GetCGCDescFromMT(pMT)->GetHighestSeries());
 
             pSeries->SetSeriesSize( (size_t) bmtGCSeries->pSeries[i].len - (size_t) pMT->GetBaseSize() );
-            pSeries->SetSeriesOffset(bmtGCSeries->pSeries[i].offset + sizeof(Object) + dwInstanceSliceOffset);
+            pSeries->SetSeriesOffset(bmtGCSeries->pSeries[i].offset + OBJECT_SIZE + dwInstanceSliceOffset);
             pSeries++;
         }
     }
@@ -9737,8 +9729,8 @@ void MethodTableBuilder::CheckForSystemTypes()
         {
             // Strings are not "normal" objects, so we need to mess with their method table a bit
             // so that the GC can figure out how big each string is...
-            DWORD baseSize = ObjSizeOf(StringObject) + sizeof(WCHAR);
-            pMT->SetBaseSize(baseSize); // NULL character included
+            DWORD baseSize = StringObject::GetBaseSize();
+            pMT->SetBaseSize(baseSize);
 
             GetHalfBakedClass()->SetBaseSizePadding(baseSize - bmtFP->NumInstanceFieldBytes);
 
@@ -9987,7 +9979,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
         else
         {
             // Use the locally allocated chunk
-            it.SetIndirectionSlot((PTR_PCODE)(pData+dwCurrentUnsharedSlotOffset));
+            it.SetIndirectionSlot((MethodTable::VTableIndir2_t *)(pData+dwCurrentUnsharedSlotOffset));
             dwCurrentUnsharedSlotOffset += it.GetSize();
         }
     }
@@ -10309,7 +10301,7 @@ MethodTableBuilder::SetupMethodTable2(
     // when the instance is in its "boxed" state.
     if (!IsInterface())
     {
-        DWORD baseSize = Max<DWORD>(bmtFP->NumInstanceFieldBytes + ObjSizeOf(Object), MIN_OBJECT_SIZE);
+        DWORD baseSize = Max<DWORD>(bmtFP->NumInstanceFieldBytes + OBJECT_BASESIZE, MIN_OBJECT_SIZE);
         baseSize = (baseSize + ALLOC_ALIGN_CONSTANT) & ~ALLOC_ALIGN_CONSTANT;  // m_BaseSize must be aligned
         pMT->SetBaseSize(baseSize);
 
@@ -10553,7 +10545,7 @@ MethodTableBuilder::SetupMethodTable2(
 
                 if (pMD->HasNonVtableSlot())
                 {
-                    *pMD->GetAddrOfSlot() = addr;
+                    *((PCODE *)pMD->GetAddrOfSlot()) = addr;
                 }
                 else
                 {
@@ -11309,7 +11301,7 @@ VOID MethodTableBuilder::HandleGCForValueClasses(MethodTable ** pByValueClassCac
         CGCDesc::Init( (PVOID) pMT, 1);
         pSeries = ((CGCDesc*)pMT)->GetLowestSeries();
         pSeries->SetSeriesSize( (size_t) (0) - (size_t) pMT->GetBaseSize());
-        pSeries->SetSeriesOffset(sizeof(Object));
+        pSeries->SetSeriesOffset(OBJECT_SIZE);
     }
     else
 #endif // FEATURE_COLLECTIBLE_TYPES
@@ -11337,8 +11329,8 @@ VOID MethodTableBuilder::HandleGCForValueClasses(MethodTable ** pByValueClassCac
         if (bmtFP->NumInstanceGCPointerFields)
         {
             // See gcdesc.h for an explanation of why we adjust by subtracting BaseSize
-            pSeries->SetSeriesSize( (size_t) (bmtFP->NumInstanceGCPointerFields * sizeof(OBJECTREF)) - (size_t) pMT->GetBaseSize());
-            pSeries->SetSeriesOffset(bmtFP->GCPointerFieldStart+sizeof(Object));
+            pSeries->SetSeriesSize( (size_t) (bmtFP->NumInstanceGCPointerFields * TARGET_POINTER_SIZE) - (size_t) pMT->GetBaseSize());
+            pSeries->SetSeriesOffset(bmtFP->GCPointerFieldStart + OBJECT_SIZE);
             pSeries++;
         }
 

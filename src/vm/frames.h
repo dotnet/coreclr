@@ -2004,6 +2004,7 @@ protected:
 #elif defined (_TARGET_ARM64_)
     TADDR           m_fp;
     TADDR           m_ReturnAddress;
+    TADDR           m_x8; // ret buff arg
     ArgumentRegisters m_argumentRegisters;
 #else
     TADDR           m_ReturnAddress;  // return address into unmanaged code
@@ -2957,6 +2958,7 @@ public:
         WRAPPER_NO_CONTRACT;
 
 #ifdef _WIN64
+        // See code:GenericPInvokeCalliHelper
         return ((m_Datum != NULL) && !(dac_cast<TADDR>(m_Datum) & 0x1));
 #else // _WIN64
         return ((dac_cast<TADDR>(m_Datum) & ~0xffff) != 0);

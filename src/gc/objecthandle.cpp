@@ -285,7 +285,7 @@ void CALLBACK AsyncPinObject(_UNCHECKED_OBJECTREF *pObjRef, uintptr_t *pExtraInf
     Object **pRef = (Object **)pObjRef;
     _ASSERTE(lp2);
     promote_func* callback = (promote_func*)lp2;
-    callback(pRef, (ScanContext *)lp1, GC_CALL_PINNED);
+    callback(pRef, (ScanContext *)lp1, 0);
     Object* pPinnedObj = *pRef;
     if (!HndIsNullOrDestroyedHandle(pPinnedObj))
     {
@@ -469,7 +469,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
 #endif
         break;
 
-#if defined(FEATURE_COMINTEROP) && !defined(FEATURE_REDHAWK)
+#if defined(FEATURE_COMINTEROP) && !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
     case    HNDTYPE_REFCOUNTED:
         rootFlags |= kEtwGCRootFlagsRefCounted;
         if (*pRef != NULL)
@@ -776,8 +776,7 @@ bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
 
         // No free slot.
         // Let's create a new node
-        NewHolder<HandleTableMap> newMap;
-        newMap = new (nothrow) HandleTableMap;
+        HandleTableMap *newMap = new (nothrow) HandleTableMap;
         if (!newMap)
         {
             return false;
@@ -786,17 +785,16 @@ bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
         newMap->pBuckets = new (nothrow) HandleTableBucket * [ INITIAL_HANDLE_TABLE_ARRAY_SIZE ];
         if (!newMap->pBuckets)
         {
+            delete newMap;
             return false;
         }
-
-        newMap.SuppressRelease();
 
         newMap->dwMaxIndex = last->dwMaxIndex + INITIAL_HANDLE_TABLE_ARRAY_SIZE;
         newMap->pNext = NULL;
         ZeroMemory(newMap->pBuckets,
                 INITIAL_HANDLE_TABLE_ARRAY_SIZE * sizeof (HandleTableBucket *));
 
-        if (Interlocked::CompareExchangePointer(&last->pNext, newMap.GetValue(), NULL) != NULL) 
+        if (Interlocked::CompareExchangePointer(&last->pNext, newMap, NULL) != NULL) 
         {
             // This thread loses.
             delete [] newMap->pBuckets;

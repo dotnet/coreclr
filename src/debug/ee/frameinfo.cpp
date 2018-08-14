@@ -1563,7 +1563,7 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
     // The only exception is dynamic methods.  We want to report them when SIS is turned on.
     if ((md != NULL) && md->IsILStub() && pCF->IsFrameless())
     {
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
         if(md->AsDynamicMethodDesc()->IsMulticastStub())
         {
             use = true;
@@ -2141,7 +2141,9 @@ StackWalkAction DebuggerWalkStack(Thread *thread,
 
         result = g_pEEInterface->StackWalkFramesEx(thread, &data.regDisplay,
                                                    DebuggerWalkStackProc,
-                                                   &data, flags | HANDLESKIPPEDFRAMES | NOTIFY_ON_U2M_TRANSITIONS | ALLOW_ASYNC_STACK_WALK);
+                                                   &data,
+                                                   flags | HANDLESKIPPEDFRAMES | NOTIFY_ON_U2M_TRANSITIONS |
+                                                   ALLOW_ASYNC_STACK_WALK | SKIP_GSCOOKIE_CHECK);
     }
     else
     {

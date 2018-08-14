@@ -374,14 +374,23 @@ public:
 #endif // DEBUG
     }
 
+    // When dumping stuff we could try to read a PhasedVariable
+    // This method tells us whether we should read the PhasedVariable
+    bool HasFinalValue() const
+    {
+#ifdef DEBUG
+        return (const_cast<PhasedVar*>(this))->m_writePhase == false;
+#else
+        return true;
+#endif // DEBUG
+    }
+
     // Functions/operators to write the value. Must be in the write phase.
 
     PhasedVar& operator=(const T& value)
     {
 #ifdef DEBUG
-#ifndef LEGACY_BACKEND
         assert(m_writePhase);
-#endif // !LEGACY_BACKEND
         m_initialized = true;
 #endif // DEBUG
         m_value = value;
@@ -391,9 +400,7 @@ public:
     PhasedVar& operator&=(const T& value)
     {
 #ifdef DEBUG
-#ifndef LEGACY_BACKEND
         assert(m_writePhase);
-#endif // !LEGACY_BACKEND
         m_initialized = true;
 #endif // DEBUG
         m_value &= value;
@@ -532,12 +539,12 @@ class AssemblyNamesList2
         AssemblyName* m_next;
     };
 
-    AssemblyName*  m_pNames; // List of names
-    HostAllocator* m_alloc;  // HostAllocator to use in this class
+    AssemblyName* m_pNames; // List of names
+    HostAllocator m_alloc;  // HostAllocator to use in this class
 
 public:
     // Take a Unicode string list of assembly names, parse it, and store it.
-    AssemblyNamesList2(const wchar_t* list, __in HostAllocator* alloc);
+    AssemblyNamesList2(const wchar_t* list, HostAllocator alloc);
 
     ~AssemblyNamesList2();
 

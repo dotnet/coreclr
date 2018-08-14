@@ -704,7 +704,6 @@ public:
         InterlockedUpdateFlags(mdcNotInline, set);
     }
 
-    BOOL IsIntrospectionOnly();
 #ifndef DACCESS_COMPILE
     VOID EnsureActive();
 #endif
@@ -1133,7 +1132,16 @@ public:
         }
     }
 
-    PTR_PCODE GetAddrOfSlot();
+    inline BOOL IsVirtualSlot()
+    {
+        return GetSlot() < GetMethodTable()->GetNumVirtuals();
+    }
+    inline BOOL IsVtableSlot()
+    {
+        return IsVirtualSlot() && !HasNonVtableSlot();
+    }
+
+    TADDR GetAddrOfSlot();
 
     PTR_MethodDesc GetDeclMethodDesc(UINT32 slotNumber);
 
@@ -1876,6 +1884,14 @@ private:
     PCODE JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, JitListLockEntry* pEntry);
     PCODE JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEntry* pLockEntry, ULONG* pSizeOfCode, CORJIT_FLAGS* pFlags);
 #endif // DACCESS_COMPILE
+
+#ifdef HAVE_GCCOVER
+private:
+    static CrstStatic m_GCCoverCrst;
+
+public:
+    static void Init();
+#endif
 };
 
 #ifndef DACCESS_COMPILE
@@ -2566,7 +2582,7 @@ public:
         };
 
         // The writeable part of the methoddesc.
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
         RelativePointer<PTR_NDirectWriteableData>    m_pWriteableData;
 #else
         PlainPointer<PTR_NDirectWriteableData>    m_pWriteableData;
@@ -2853,9 +2869,8 @@ public:
     LPVOID FindEntryPoint(HINSTANCE hMod) const;
 
 private:
-    Stub* GenerateStubForHost(LPVOID pNativeTarget, Stub *pInnerStub);
 #ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub, BOOL fCalledByStub);
+    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
 #endif // MDA_SUPPORTED
 
 public:
@@ -3038,7 +3053,6 @@ struct ComPlusCallInfo
         LPVOID      m_pInterceptStub;    // used for early-bound IL stub calls
     };
 
-    Stub *GenerateStubForHost(LoaderHeap *pHeap, Stub *pInnerStub);
 #else // _TARGET_X86_
     void InitStackArgumentSize()
     {
@@ -3382,7 +3396,7 @@ public: // <TODO>make private: JITinterface.cpp accesses through this </TODO>
         //
         // For generic method definitions that are not the typical method definition (e.g. C<int>.m<U>)
         // this field is null; to obtain the instantiation use LoadMethodInstantiation
-#if defined(PLATFORM_UNIX) && defined(_TARGET_ARM_)
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
     RelativePointer<PTR_Dictionary> m_pPerInstInfo;  //SHARED
 #else
     PlainPointer<PTR_Dictionary> m_pPerInstInfo;  //SHARED

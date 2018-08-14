@@ -472,7 +472,7 @@ bool MethodContext::Equal(MethodContext* other)
 //------------------------------------------------------------------------------
 // MethodContext::recGlobalContext
 //    This method copies any relevant global (i.e. per-JIT-instance) data from
-//    the given method context. Currently this is limited to configuiration
+//    the given method context. Currently this is limited to configuration
 //    values, but may grow to encompass other information in the future (e.g.
 //    any information that is exposed by the ICorJitHost interface and is
 //    therefore accessible outside the context of a call to
@@ -1926,7 +1926,8 @@ void MethodContext::recGetTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls,
 }
 void MethodContext::dmpGetTypeForPrimitiveNumericClass(DWORDLONG key, DWORD value)
 {
-    printf("GetTypeForPrimitiveNumericClass key cls-%016llX, value cit-%u(%s)", key, value, toString((CorInfoType)value));
+    printf("GetTypeForPrimitiveNumericClass key cls-%016llX, value cit-%u(%s)", key, value,
+           toString((CorInfoType)value));
 }
 CorInfoType MethodContext::repGetTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls)
 {
@@ -2435,6 +2436,41 @@ InfoAccessType MethodContext::repConstructStringLiteral(CORINFO_MODULE_HANDLE mo
     return (InfoAccessType)temp2.B;
 }
 
+void MethodContext::recConvertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fMustConvert, bool result)
+{
+    if (ConvertPInvokeCalliToCall == nullptr)
+        ConvertPInvokeCalliToCall = new LightWeightMap<DLD, DWORDLONG>();
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+    key.A = (DWORDLONG)pResolvedToken->tokenScope;
+    key.B = (DWORD)pResolvedToken->token;
+
+    DWORDLONG value = (DWORDLONG)(result ? pResolvedToken->hMethod : 0);
+
+    ConvertPInvokeCalliToCall->Add(key, value);
+    DEBUG_REC(dmpConvertPInvokeCalliToCall(key, value));
+}
+void MethodContext::dmpConvertPInvokeCalliToCall(DLD key, DWORDLONG value)
+{
+    printf("ConvertPInvokeCalliToCall key mod-%016llX tok-%08X, value %016llX", key.A, key.B, value);
+}
+bool MethodContext::repConvertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fMustConvert)
+{
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+    key.A = (DWORDLONG)pResolvedToken->tokenScope;
+    key.B = (DWORD)pResolvedToken->token;
+
+    DWORDLONG value = ConvertPInvokeCalliToCall->Get(key);
+    DEBUG_REP(dmpGetArgType(key, value));
+
+    pResolvedToken->hMethod = (CORINFO_METHOD_HANDLE)value;
+    return value != 0;
+}
+
 void MethodContext::recEmptyStringLiteral(void** pValue, InfoAccessType result)
 {
     if (EmptyStringLiteral == nullptr)
@@ -2471,7 +2507,7 @@ void MethodContext::recGetArgType(CORINFO_SIG_INFO*       sig,
     ZeroMemory(&key, sizeof(GetArgType)); // We use the input structs as a key and use memcmp to compare.. so
                                           // we need to zero out padding too
     // Only setting values for things the EE seems to pay attention to... this is necessary since some of the values
-    // are unset and fail our precise comparisions...
+    // are unset and fail our precise comparisons ...
     key.flags                  = (DWORD)sig->flags;
     key.numArgs                = (DWORD)sig->numArgs;
     key.sigInst_classInstCount = (DWORD)sig->sigInst.classInstCount;
@@ -4326,6 +4362,8 @@ void MethodContext::dmpCanInlineTypeCheckWithObjectVTable(DWORDLONG key, DWORD v
 }
 BOOL MethodContext::repCanInlineTypeCheckWithObjectVTable(CORINFO_CLASS_HANDLE cls)
 {
+    AssertCodeMsg(CanInlineTypeCheckWithObjectVTable != nullptr, EXCEPTIONCODE_MC,
+                  "No map for CanInlineTypeCheckWithObjectVTable");
     return (BOOL)CanInlineTypeCheckWithObjectVTable->Get((DWORDLONG)cls);
 }
 
@@ -5393,7 +5431,7 @@ void MethodContext::recCompareTypesForCast(CORINFO_CLASS_HANDLE fromClass,
 }
 void MethodContext::dmpCompareTypesForCast(DLDL key, DWORD value)
 {
-    printf("CompareTypesForCast key fromClas=%016llX, toClass=%016llx, result=%d", key.A, key.B, value);
+    printf("CompareTypesForCast key fromClass=%016llX, toClass=%016llx, result=%d", key.A, key.B, value);
 }
 TypeCompareState MethodContext::repCompareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLASS_HANDLE toClass)
 {
@@ -5704,20 +5742,17 @@ const char* MethodContext::repGetClassName(CORINFO_CLASS_HANDLE cls)
     return name;
 }
 
-void MethodContext::recGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls,
-                                                char*               className,
-                                                const char**        namespaceName)
+void MethodContext::recGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, char* className, const char** namespaceName)
 {
     if (GetClassNameFromMetadata == nullptr)
         GetClassNameFromMetadata = new LightWeightMap<DLD, DD>();
-    DD value;
+    DD  value;
     DLD key;
     key.A = (DWORDLONG)cls;
     key.B = (namespaceName != nullptr);
 
     if (className != nullptr)
-        value.A = 
-            GetClassNameFromMetadata->AddBuffer((unsigned char*)className, (DWORD)strlen(className) + 1);
+        value.A = GetClassNameFromMetadata->AddBuffer((unsigned char*)className, (DWORD)strlen(className) + 1);
     else
         value.A = (DWORD)-1;
 
@@ -5744,8 +5779,8 @@ void MethodContext::dmpGetClassNameFromMetadata(DLD key, DD value)
 const char* MethodContext::repGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
 {
     const char* result = nullptr;
-    DD         value;
-    DLD        key;
+    DD          value;
+    DLD         key;
     key.A = (DWORDLONG)cls;
     key.B = (namespaceName != nullptr);
 
@@ -5773,7 +5808,9 @@ const char* MethodContext::repGetClassNameFromMetadata(CORINFO_CLASS_HANDLE cls,
     return result;
 }
 
-void MethodContext::recGetTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, CORINFO_CLASS_HANDLE result, unsigned index)
+void MethodContext::recGetTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls,
+                                                    CORINFO_CLASS_HANDLE result,
+                                                    unsigned             index)
 {
     if (GetTypeInstantiationArgument == nullptr)
         GetTypeInstantiationArgument = new LightWeightMap<DWORDLONG, DWORDLONG>();
@@ -5790,7 +5827,6 @@ void MethodContext::dmpGetTypeInstantiationArgument(DWORDLONG key, DWORDLONG val
     GetTypeInstantiationArgument->Unlock();
 }
 
-
 CORINFO_CLASS_HANDLE MethodContext::repGetTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
 {
     CORINFO_CLASS_HANDLE result = nullptr;
@@ -5803,10 +5839,10 @@ CORINFO_CLASS_HANDLE MethodContext::repGetTypeInstantiationArgument(CORINFO_CLAS
         itemIndex = GetTypeInstantiationArgument->GetIndex(key);
     if (itemIndex >= 0)
     {
-        value = GetTypeInstantiationArgument->Get(key);
+        value  = GetTypeInstantiationArgument->Get(key);
         result = (CORINFO_CLASS_HANDLE)value;
     }
-    
+
     DEBUG_REP(dmpGetTypeInstantiationArgument(key, value));
     return result;
 }

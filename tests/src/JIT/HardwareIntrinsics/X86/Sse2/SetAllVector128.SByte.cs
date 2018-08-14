@@ -21,35 +21,33 @@ namespace JIT.HardwareIntrinsics.X86
     {
         private static void SetAllVector128SByte()
         {
-            bool skipIf32Bit = (typeof(SByte) == typeof(Int64)) ||
-                               (typeof(SByte) == typeof(UInt64));
-
-            if (skipIf32Bit && !Environment.Is64BitProcess)
-            {
-                return;
-            }
-
-            var test = new SimpleScalarUnaryOpTest__SetAllVector128SByte();
+            var test = new ScalarSimdUnaryOpTest__SetAllVector128SByte();
 
             if (test.IsSupported)
             {
                 // Validates basic functionality works
-                test.RunBasicScenario();
+                test.RunBasicScenario_UnsafeRead();
 
                 // Validates calling via reflection works
-                test.RunReflectionScenario();
+                test.RunReflectionScenario_UnsafeRead();
 
                 // Validates passing a static member works
                 test.RunClsVarScenario();
 
                 // Validates passing a local works
-                test.RunLclVarScenario();
+                test.RunLclVarScenario_UnsafeRead();
 
-                // Validates passing the field of a local works
-                test.RunLclFldScenario();
+                // Validates passing the field of a local class works
+                test.RunClassLclFldScenario();
 
-                // Validates passing an instance member works
-                test.RunFldScenario();
+                // Validates passing an instance member of a class works
+                test.RunClassFldScenario();
+
+                // Validates passing the field of a local struct works
+                test.RunStructLclFldScenario();
+
+                // Validates passing an instance member of a struct works
+                test.RunStructFldScenario();
             }
             else
             {
@@ -64,60 +62,88 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class SimpleScalarUnaryOpTest__SetAllVector128SByte
+    public sealed unsafe class ScalarSimdUnaryOpTest__SetAllVector128SByte
     {
+        private struct TestStruct
+        {
+            public SByte _fld;
+
+            public static TestStruct Create()
+            {
+                var testStruct = new TestStruct();
+
+                testStruct._fld = TestLibrary.Generator.GetSByte();
+                return testStruct;
+            }
+
+            public void RunStructFldScenario(ScalarSimdUnaryOpTest__SetAllVector128SByte testClass)
+            {
+                var result = Sse2.SetAllVector128(_fld);
+
+                Unsafe.Write(testClass._dataTable.outArrayPtr, result);
+                testClass.ValidateResult(_fld, testClass._dataTable.outArrayPtr);
+            }
+        }
+
         private static readonly int LargestVectorSize = 16;
 
         private static readonly int RetElementCount = Unsafe.SizeOf<Vector128<SByte>>() / sizeof(SByte);
 
-        private static readonly Random Random = new Random();
+        private static SByte _data;
 
         private static SByte _clsVar;
 
         private SByte _fld;
 
-        private SimpleScalarUnaryOpTest__DataTable<SByte> _dataTable;
+        private ScalarSimdUnaryOpTest__DataTable<SByte> _dataTable;
 
-        static SimpleScalarUnaryOpTest__SetAllVector128SByte()
+        static ScalarSimdUnaryOpTest__SetAllVector128SByte()
         {
-            _clsVar = (sbyte)(Random.Next(sbyte.MinValue, sbyte.MaxValue));
+            _clsVar = TestLibrary.Generator.GetSByte();
         }
 
-        public SimpleScalarUnaryOpTest__SetAllVector128SByte()
+        public ScalarSimdUnaryOpTest__SetAllVector128SByte()
         {
             Succeeded = true;
 
-            _fld = (sbyte)(Random.Next(sbyte.MinValue, sbyte.MaxValue));
-            _dataTable = new SimpleScalarUnaryOpTest__DataTable<SByte>(new SByte[RetElementCount], LargestVectorSize);
+            _fld = TestLibrary.Generator.GetSByte();
+            _data = TestLibrary.Generator.GetSByte();
+            _dataTable = new ScalarSimdUnaryOpTest__DataTable<SByte>(new SByte[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Sse2.IsSupported;
+        public bool IsSupported => Sse2.IsSupported && (Environment.Is64BitProcess || ((typeof(SByte) != typeof(long)) && (typeof(SByte) != typeof(ulong))));
 
         public bool Succeeded { get; set; }
 
-        public void RunBasicScenario()
+        public void RunBasicScenario_UnsafeRead()
         {
-            var firstOp = (sbyte)(Random.Next(sbyte.MinValue, sbyte.MaxValue));
+            TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
+
             var result = Sse2.SetAllVector128(
-                firstOp
+                Unsafe.ReadUnaligned<SByte>(ref Unsafe.As<SByte, byte>(ref _data))
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            ValidateResult(_data, _dataTable.outArrayPtr);
         }
 
-        public void RunReflectionScenario()
+        public void RunReflectionScenario_UnsafeRead()
         {
-            var firstOp = (sbyte)(Random.Next(sbyte.MinValue, sbyte.MaxValue));
-            var method = typeof(Sse2).GetMethod(nameof(Sse2.SetAllVector128), new Type[] { typeof(SByte) });
-            var result = method.Invoke(null, new object[] { firstOp });
+            TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
+
+            var result = typeof(Sse2).GetMethod(nameof(Sse2.SetAllVector128), new Type[] { typeof(SByte) })
+                                     .Invoke(null, new object[] {
+                                        Unsafe.ReadUnaligned<SByte>(ref Unsafe.As<SByte, byte>(ref _data))
+                                     });
 
             Unsafe.Write(_dataTable.outArrayPtr, (Vector128<SByte>)(result));
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            ValidateResult(_data, _dataTable.outArrayPtr);
         }
 
         public void RunClsVarScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
+
             var result = Sse2.SetAllVector128(
                 _clsVar
             );
@@ -126,39 +152,66 @@ namespace JIT.HardwareIntrinsics.X86
             ValidateResult(_clsVar, _dataTable.outArrayPtr);
         }
 
-        public void RunLclVarScenario()
+        public void RunLclVarScenario_UnsafeRead()
         {
-            var firstOp = (sbyte)(Random.Next(sbyte.MinValue, sbyte.MaxValue));
-            var result = Sse2.SetAllVector128(firstOp);
+            TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
+
+            var data = Unsafe.ReadUnaligned<SByte>(ref Unsafe.As<SByte, byte>(ref _data));
+            var result = Sse2.SetAllVector128(data);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(firstOp, _dataTable.outArrayPtr);
+            ValidateResult(data, _dataTable.outArrayPtr);
         }
 
-        public void RunLclFldScenario()
+        public void RunClassLclFldScenario()
         {
-            var test = new SimpleScalarUnaryOpTest__SetAllVector128SByte();
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
+
+            var test = new ScalarSimdUnaryOpTest__SetAllVector128SByte();
             var result = Sse2.SetAllVector128(test._fld);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(test._fld, _dataTable.outArrayPtr);
         }
 
-        public void RunFldScenario()
+        public void RunClassFldScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
+
             var result = Sse2.SetAllVector128(_fld);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(_fld, _dataTable.outArrayPtr);
         }
 
+        public void RunStructLclFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
+
+            var test = TestStruct.Create();
+            var result = Sse2.SetAllVector128(test._fld);
+
+            Unsafe.Write(_dataTable.outArrayPtr, result);
+            ValidateResult(test._fld, _dataTable.outArrayPtr);
+        }
+
+        public void RunStructFldScenario()
+        {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunStructFldScenario));
+
+            var test = TestStruct.Create();
+            test.RunStructFldScenario(this);
+        }
+
         public void RunUnsupportedScenario()
         {
+            TestLibrary.TestFramework.BeginScenario(nameof(RunUnsupportedScenario));
+
             Succeeded = false;
 
             try
             {
-                RunBasicScenario();
+                RunBasicScenario_UnsafeRead();
             }
             catch (PlatformNotSupportedException)
             {
@@ -195,10 +248,10 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                Console.WriteLine($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<SByte>(Vector128<SByte>): {method} failed:");
-                Console.WriteLine($"  firstOp: ({string.Join(", ", firstOp)})");
-                Console.WriteLine($"   result: ({string.Join(", ", result)})");
-                Console.WriteLine();
+                TestLibrary.TestFramework.LogInformation($"{nameof(Sse2)}.{nameof(Sse2.SetAllVector128)}<SByte>(Vector128<SByte>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"  firstOp: ({string.Join(", ", firstOp)})");
+                TestLibrary.TestFramework.LogInformation($"   result: ({string.Join(", ", result)})");
+                TestLibrary.TestFramework.LogInformation(string.Empty);
             }
         }
     }
