@@ -1728,7 +1728,7 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 contextString += " Innerloop"
                 triggerString += "\\W+Innerloop"
             }
-            else if (scenario == 'crossgen_comparison') {
+            else if (isCrossGenComparisonScenario(scenario)) {
                 contextString += " CrossGen Comparison"
                 triggerString += "\\W+CrossGen Comparison"
             }
@@ -1947,7 +1947,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         switch (scenario) {
                             case 'innerloop':
                             case 'no_tiered_compilation_innerloop':
-                            case 'crossgen_comparison':
                                 if (configuration == 'Checked') {
                                     isDefaultTrigger = true
                                 }
