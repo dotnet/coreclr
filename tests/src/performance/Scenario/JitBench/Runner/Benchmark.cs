@@ -59,7 +59,10 @@ namespace JitBench
                 }
 
                 var doc = new XmlDocument();
-                doc.Load(projectFile);
+                using (var sr = new StreamReader(projectFile))
+                {
+                    doc.Load(sr);
+                }
                 XmlElement root = doc.DocumentElement;
 
                 // Comment out all existing TargetFramework and RuntimeFrameworkVersion elements
