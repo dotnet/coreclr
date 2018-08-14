@@ -3418,6 +3418,10 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
     def osGroup = getOSGroup(os)
     def jobName = getJobName(configuration, architecture, os, scenario, false) + "_tst"
 
+    def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
+    def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
+    def workspaceRelativeNativeResultDir = "_/${osGroup}.${architecture}_${architecture}.${configuration}"
+
     def jobFolder = getJobFolder(scenario)
     def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
         parameters {
@@ -3436,15 +3440,10 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
 
             shell("unzip -o ${workspaceRelativeArtifactsArchive} || exit 0")
 
-            def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
-
             def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
             def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
             def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
             def workspaceRelativeCrossGenExecutable = "${workspaceRelativeCoreRootDir}/crossgen"
-
-            def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
-            def workspaceRelativeNativeResultDir = "_/${osGroup}.${architecture}_${architecture}.${configuration}"
 
             def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
             def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
@@ -3456,6 +3455,9 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
             shell("${crossGenComparisonCmd}compare --base_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir} --diff_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}")
         } // steps
     }  // job
+
+    Utilities.addArchival(newJob, "${workspaceRelativeCrossResultDir}/**")
+    Utilities.addArchival(newJob, "${workspaceRelativeNativeResultDir}/**")
 
     return newJob
 }
