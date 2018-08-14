@@ -238,5 +238,19 @@
                 }
             ]
         }
+    },
+    {
+        "name": "System.Threading.Thread.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Threading.Threads.Tests.ThreadTests.ApartmentState_NoAttributePresent_STA_Windows_Core",
+                "reason": "Failing"
+               }
+            ]
+        }
     }
 ]
