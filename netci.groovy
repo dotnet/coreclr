@@ -2585,10 +2585,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         return false
     }
 
-    if (isCrossGenComparisonScenario(scenario)) {
-        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
-    }
-
     // Tizen is only supported for armem architecture
     if (os == 'Tizen' && architecture != 'armem') {
         return false
@@ -2740,6 +2736,9 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             default:
                 break
         }
+    } 
+    else if (isCrossGenComparisonScenario(scenario)) {
+        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
     }
     else {
         // Skip scenarios
@@ -2829,11 +2828,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 if (architecture != 'x64') {
-                    return false
-                }
-                break
-            case 'crossgen_comparison':
-                if (os != 'Ubuntu' || architecture != 'arm' || configuration != 'Checked') {
                     return false
                 }
                 break
