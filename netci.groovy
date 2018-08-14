@@ -917,6 +917,11 @@ def static isCrossGenComparisonScenario(def scenario) {
     return (scenario == 'crossgen_comparison')
 }
 
+def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
+    assert isCrossGenComparisonScenario(scenario)
+    return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked');
+}
+
 def static getFxBranch(def branch) {
     def fxBranch = branch
     // Map 'dev/unix_test_workflow' to 'master' so we can test CoreFX jobs in the CoreCLR dev/unix_test_workflow
@@ -2743,7 +2748,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         }
     } 
     else if (isCrossGenComparisonScenario(scenario)) {
-        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
+        return shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
     }
     else {
         // Skip scenarios
@@ -3692,7 +3697,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
         }
     }
     else if (isCrossGenComparisonScenario(scenario)) {
-        return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
+        return shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
     }
     else {
         // Skip scenarios
