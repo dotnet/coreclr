@@ -2514,8 +2514,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeArchiveCoreRoot = "Core_Root.${osGroup}.${architecture}.${configuration}.zip"
 
                         // These commands are assumed to be run from the root of the workspace.
-                        buildCommands += "zip -r ${archiveCoreLib} ${workspaceRelativeCoreLib}"
-                        buildCommands += "zip -r ${archiveCoreRoot} ${workspaceRelativeCoreRootDir}"
+                        buildCommands += "zip -r ${workspaceRelativeArchiveCoreLib} ${workspaceRelativeCoreLib}"
+                        buildCommands += "zip -r ${workspaceRelativeArchiveCoreRoot} ${workspaceRelativeCoreRootDir}"
                         buildCommands += "zip -r ${workspaceRelativeResultDir}.zip ${workspaceRelativeResultDir}"
 
                         Utilities.addArchival(newJob, "${workspaceRelativeCrossGenComparisonScript}")
