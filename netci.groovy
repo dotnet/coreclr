@@ -3448,7 +3448,6 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
             def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
             def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeCrossGenExecutable}"
 
-            // These commands are assumed to be run from the root of the workspace.
             shell("mkdir -p ${workspaceRelativeNativeResultDir}")
             shell("${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
             shell("${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeNativeResultDir}")
