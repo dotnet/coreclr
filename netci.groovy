@@ -2496,33 +2496,26 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
                     else if (isCrossGenComparisonScenario(scenario)) {
-                        def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
-
-                        def crossGenExecutable = "\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/${crossArchitecture}/crossgen"
-                        def workspaceRelativeResultBaseDir = "ResultBase.${osGroup}.${architecture}.${configuration}"
-                        def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
-                        def crossGenComparisonScript = "\${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript}"
-                        def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
-                        def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
-
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
-                        buildCommands += "${dockerCmd}mkdir ${workspaceRelativeResultBaseDir}"
-                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeResultBaseDir}"
-                        buildCommands += "${dockerCmd}python -u ${crossGenComparisonScript} crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeResultBaseDir}"
 
-                        def workspaceRelativeArchiveCoreLib = "ILCoreLib.${osGroup}.${architecture}.${configuration}.zip"
-                        def workspaceRelativeArchiveCoreRoot = "Core_Root.${osGroup}.${architecture}.${configuration}.zip"
-                        def workspaceRelativeArchiveResultBase = "${workspaceRelativeResultBaseDir}.zip"
+                        def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture, scenario)
 
-                        // These commands are assumed to be run from the root of the workspace.
-                        buildCommands += "zip -r ${workspaceRelativeArchiveCoreLib} ${workspaceRelativeCoreLib}"
-                        buildCommands += "zip -r ${workspaceRelativeArchiveCoreRoot} ${workspaceRelativeCoreRootDir}"
-                        buildCommands += "zip -r ${workspaceRelativeArchiveResultBase} ${workspaceRelativeResultBaseDir}"
+                        def workspaceRelativeProductBinDir = "bin/Product/${osGroup}.${architecture}.${configuration}"
+                        def workspaceRelativeCoreLib = "${workspaceRelativeProductBinDir}/IL/System.Private.CoreLib.dll"
+                        def workspaceRelativeCoreRootDir = "bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root"
+                        def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
+                        def workspaceRelativeCrossResultDir = "_/${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
+                        def workspaceRelativeArtifactsArchive = "${os}.${architecture}.${configuration}.${scenario}.zip"
 
-                        Utilities.addArchival(newJob, "${workspaceRelativeCrossGenComparisonScript}")
-                        Utilities.addArchival(newJob, "${workspaceRelativeArchiveCoreLib}")
-                        Utilities.addArchival(newJob, "${workspaceRelativeArchiveCoreRoot}")
-                        Utilities.addArchival(newJob, "${workspaceRelativeArchiveResultBase}")
+                        def crossGenComparisonCmd = "python -u \${WORKSPACE}${workspaceRelativeCrossGenComparisonScript} "
+                        def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArchitecture}/crossgen"
+
+                        buildCommands += "${dockerCmd}mkdir -p ${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd} crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}${crossGenComparisonCmd} crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeCrossResultDir}"
+
+                        Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
                     else {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
