@@ -248,7 +248,7 @@
             "methods": [
                { 
                 "name": "System.Threading.Threads.Tests.ThreadTests.ApartmentState_NoAttributePresent_STA_Windows_Core",
-                "reason": "Failing"
+                "reason": "https://github.com/dotnet/coreclr/issues/19478"
                }
             ]
         }
