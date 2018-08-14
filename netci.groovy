@@ -2510,7 +2510,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def crossGenComparisonCmd = "python -u \${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript} "
                         def crossGenExecutable = "\${WORKSPACE}/${workspaceRelativeProductBinDir}/${crossArchitecture}/crossgen"
 
-                        buildCommands += "${dockerCmd}mkdir -p ${workspaceRelativeCrossResultDir}"
+                        buildCommands += "${dockerCmd}mkdir -p \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
                         buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_corelib --crossgen ${crossGenExecutable} --il_corelib \${WORKSPACE}/${workspaceRelativeCoreLib} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
                         buildCommands += "${dockerCmd}${crossGenComparisonCmd}crossgen_framework --crossgen ${crossGenExecutable} --core_root \${WORKSPACE}/${workspaceRelativeCoreRootDir} --result_dir \${WORKSPACE}/${workspaceRelativeCrossResultDir}"
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeCrossResultDir}"
