@@ -2499,7 +2499,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def crossArchitecture = "x86" // TODO: Replace with getCrossArchitecture(os, architecture)
 
                         def crossGenExecutable = "\${WORKSPACE}/bin/Product/${osGroup}.${architecture}.${configuration}/${crossArchitecture}/crossgen"
-                        def workspaceRelativeResultDir = "${osGroup}.${architecture}.${configuration}.${crossArchitecture}_${architecture}.${configuration}"
+                        def workspaceRelativeResultDir = "${osGroup}.${crossArchitecture}_${architecture}.${configuration}"
                         def workspaceRelativeCrossGenComparisonScript = "tests/scripts/crossgen_comparison.py"
                         def crossGenComparisonScript = "\${WORKSPACE}/${workspaceRelativeCrossGenComparisonScript}"
                         def workspaceRelativeCoreLib = "bin/Product/${osGroup}.${architecture}.${configuration}/IL/System.Private.CoreLib.dll"
