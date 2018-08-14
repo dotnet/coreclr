@@ -3336,6 +3336,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 shell("python -u ${workspaceRelativeCrossGenComparisonScript} crossgen_corelib --crossgen ${workspaceRelativeCrossGenExecutable} --il_corelib ${workspaceRelativeCoreLib} --result_dir ${workspaceRelativeResultDiffDir}")
                 shell("python -u ${workspaceRelativeCrossGenComparisonScript} crossgen_framework --crossgen ${workspaceRelativeCrossGenExecutable} --core_root ${workspaceRelativeCoreRootDir} --result_dir ${workspaceRelativeResultDiffDir}")
+                shell("python -u ${workspaceRelativeCrossGenComparisonScript} compare --base_dir ${workspaceRelativeResultBaseDir} --diff_dir ${workspaceRelativeResultDiffDir}")
             }
             else {
                 // Unzip the tests first.  Exit with 0
