@@ -522,7 +522,8 @@ class Constants {
                'gcstress0xc_zapdisable_heapverify1',
                'gcstress0xc_jitstress1',
                'gcstress0xc_jitstress2',
-               'gcstress0xc_minopts_heapverify1'
+               'gcstress0xc_minopts_heapverify1',
+               'crossgen_comparison'
     ]
 
     def static configurationList = ['Debug', 'Checked', 'Release']
@@ -919,7 +920,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked');
+    return (os == 'Ubuntu' && (architecture == 'arm' || architecture == 'arm64') && configuration == 'Checked');
 }
 
 def static getFxBranch(def branch) {
