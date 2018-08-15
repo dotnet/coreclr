@@ -208,24 +208,6 @@ DLLEXPORT __int64 test_passing_longs(int count, ...)
     return sum;
 }
 
-DLLEXPORT float test_passing_floats(int count, ...)
-{
-    va_list ap;
-    int index;
-    float sum;
-
-    va_start(ap, count);
-
-    sum = 0;
-    for (index = 0; index < count; ++index)
-    {
-        sum += (float)va_arg(ap, double);
-    }
-
-    va_end(ap);
-    return sum;
-}
-
 DLLEXPORT double test_passing_doubles(int count, ...)
 {
     va_list ap;
@@ -421,7 +403,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
     
     int expected_value_i;
     __int64 expected_value_l;
-    float expected_value_f;
+    double expected_value_f;
     double expected_value_d;
 
     int passed = 0;
@@ -553,7 +535,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
                 two_float_struct s;
                 float sum;
 
-                expected_value_f = (float)va_arg(ap, double);
+                expected_value_f = va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {
@@ -573,7 +555,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
                 four_float_struct s;
                 float sum;
 
-                expected_value_f = (float)va_arg(ap, double);
+                expected_value_f = va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {

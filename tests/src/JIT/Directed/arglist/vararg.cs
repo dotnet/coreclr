@@ -211,7 +211,7 @@ namespace NativeVarargTest
         static bool TestPassingFloats(float[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            float expectedSum = test_passing_floats(expectedValues.Length, __arglist(expectedValues[0], expectedValues[1], expectedValues[2], expectedValues[3]));
+            float expectedSum = test_passing_floats(expectedValues.Length, __arglist(((double)expectedValues[0], (double)expectedValues[1], (double)expectedValues[2], (double)expectedValues[3]));
 
             float sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -403,7 +403,7 @@ namespace NativeVarargTest
         {
             Debug.Assert(expectedFloatValues.Length == 2);
             Debug.Assert(expectedDoubleValues.Length == 2);
-            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, expectedDoubleValues.Length, __arglist(expectedFloatValues[0], expectedFloatValues[1], expectedDoubleValues[0], expectedDoubleValues[1]));
+            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, expectedDoubleValues.Length, __arglist(((double)expectedFloatValues[0], (double)expectedFloatValues[1], expectedDoubleValues[0], expectedDoubleValues[1]));
 
             double sum = 0;
             for (int i = 0; i < expectedFloatValues.Length; ++i)
@@ -662,50 +662,50 @@ namespace NativeVarargTest
         /// <param name="expectedValues"></param>
         /// <returns>bool</returns>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TestPassingManyFloats(float[] expectedValues)
+        static bool TestPassingManyFloats(double[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 41);
             float expectedSum = test_passing_floats(expectedValues.Length, __arglist(expectedValues[0],
-                                                                                    expectedValues[1],
-                                                                                    expectedValues[2],
-                                                                                    expectedValues[3],
-                                                                                    expectedValues[4],
-                                                                                    expectedValues[5],
-                                                                                    expectedValues[6],
-                                                                                    expectedValues[7],
-                                                                                    expectedValues[8],
-                                                                                    expectedValues[9],
-                                                                                    expectedValues[10],
-                                                                                    expectedValues[11],
-                                                                                    expectedValues[12],
-                                                                                    expectedValues[13],
-                                                                                    expectedValues[14],
-                                                                                    expectedValues[15],
-                                                                                    expectedValues[16],
-                                                                                    expectedValues[17],
-                                                                                    expectedValues[18],
-                                                                                    expectedValues[19],
-                                                                                    expectedValues[20],
-                                                                                    expectedValues[21],
-                                                                                    expectedValues[22],
-                                                                                    expectedValues[23],
-                                                                                    expectedValues[24],
-                                                                                    expectedValues[25],
-                                                                                    expectedValues[26],
-                                                                                    expectedValues[27],
-                                                                                    expectedValues[28],
-                                                                                    expectedValues[29],
-                                                                                    expectedValues[30],
-                                                                                    expectedValues[31],
-                                                                                    expectedValues[32],
-                                                                                    expectedValues[33],
-                                                                                    expectedValues[34],
-                                                                                    expectedValues[35],
-                                                                                    expectedValues[36],
-                                                                                    expectedValues[37],
-                                                                                    expectedValues[38],
-                                                                                    expectedValues[39],
-                                                                                    expectedValues[40]));
+                                                                                     expectedValues[1],
+                                                                                     expectedValues[2],
+                                                                                     expectedValues[3],
+                                                                                     expectedValues[4],
+                                                                                     expectedValues[5],
+                                                                                     expectedValues[6],
+                                                                                     expectedValues[7],
+                                                                                     expectedValues[8],
+                                                                                     expectedValues[9],
+                                                                                     expectedValues[10],
+                                                                                     expectedValues[11],
+                                                                                     expectedValues[12],
+                                                                                     expectedValues[13],
+                                                                                     expectedValues[14],
+                                                                                     expectedValues[15],
+                                                                                     expectedValues[16],
+                                                                                     expectedValues[17],
+                                                                                     expectedValues[18],
+                                                                                     expectedValues[19],
+                                                                                     expectedValues[20],
+                                                                                     expectedValues[21],
+                                                                                     expectedValues[22],
+                                                                                     expectedValues[23],
+                                                                                     expectedValues[24],
+                                                                                     expectedValues[25],
+                                                                                     expectedValues[26],
+                                                                                     expectedValues[27],
+                                                                                     expectedValues[28],
+                                                                                     expectedValues[29],
+                                                                                     expectedValues[30],
+                                                                                     expectedValues[31],
+                                                                                     expectedValues[32],
+                                                                                     expectedValues[33],
+                                                                                     expectedValues[34],
+                                                                                     expectedValues[35],
+                                                                                     expectedValues[36],
+                                                                                     expectedValues[37],
+                                                                                     expectedValues[38],
+                                                                                     expectedValues[39],
+                                                                                     expectedValues[40]));
 
             float sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -5007,7 +5007,8 @@ namespace NativeVarargTest
                 1002L
             }), "TestPassingManyLongs", success, 6);
 
-            success = ReportFailure(TestPassingManyFloats(new float[]
+            // Passing doubles to native method.
+            success = ReportFailure(TestPassingManyFloats(new double[]
             {
                 1002,
                 40,
