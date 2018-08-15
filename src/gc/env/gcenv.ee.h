@@ -71,7 +71,7 @@ public:
     static void EnableFinalization(bool foundFinalizers);
 
     static void HandleFatalError(unsigned int exitCode);
-    static bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
+    static bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj);
     static bool ForceFullGCToBeBlocking();
     static bool EagerFinalized(Object* obj);
     static MethodTable* GetFreeObjectMethodTable();
@@ -93,6 +93,13 @@ public:
     static bool CanEnableGCCPUGroups();
     static uint16_t GetNumActiveProcessors();
     static void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
+
+    static uint32_t GetDefaultDomainIndex();
+    static void *GetAppDomainAtIndex(uint32_t appDomainIndex);
+    static bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
+    static uint32_t GetIndexOfAppDomainBeingUnloaded();
+    static uint32_t GetTotalNumSizedRefHandles();
+    static bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain);
 };
 
 #endif // __GCENV_EE_H__

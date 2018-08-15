@@ -278,7 +278,7 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     abort();
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj)
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
 {
     return true;
 }
@@ -340,4 +340,63 @@ void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* s
 
 void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
+}
+
+bool GCToEEInterface::CanEnableGCNumaAware()
+{
+    return false;
+}
+
+bool GCToEEInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+{
+    return false;
+}
+
+void* GCToEEInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
+{
+    return nullptr;
+}
+
+bool GCToEEInterface::CanEnableGCCPUGroups()
+{
+    return false;
+}
+
+uint16_t GCToEEInterface::GetNumActiveProcessors()
+{
+    return -1;
+}
+
+void GCToEEInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
+{
+}
+
+uint32_t GCToEEInterface::GetDefaultDomainIndex()
+{
+    return -1;
+}
+
+void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
+{
+    return nullptr;
+}
+
+bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
+{
+    return false;
+}
+
+uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
+{
+    return -1;
+}
+
+uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
+{
+    return -1;
+}
+
+bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
+{
+    return false;
 }

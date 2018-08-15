@@ -489,23 +489,4 @@ struct ADIndex
     BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
 };
 
-class AppDomain
-{
-public:
-    ADIndex GetIndex() { return ADIndex(RH_DEFAULT_DOMAIN_ID); }
-    BOOL IsRudeUnload() { return FALSE; }
-    BOOL NoAccessToHandleTable() { return FALSE; }
-    void DecNumSizedRefHandles() {}
-};
-
-class SystemDomain
-{
-public:
-    static SystemDomain *System() { return NULL; }
-    static AppDomain *GetAppDomainAtIndex(ADIndex /*index*/) { return (AppDomain *)-1; }
-    static AppDomain *AppDomainBeingUnloaded() { return NULL; }
-    AppDomain *DefaultDomain() { return NULL; }
-    DWORD GetTotalNumSizedRefHandles() { return 0; }
-};
-
 #endif // __GCENV_BASE_INCLUDED__

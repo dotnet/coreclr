@@ -49,7 +49,7 @@ public:
 
     void EnableFinalization(bool foundFinalizers);
     void HandleFatalError(unsigned int exitCode);
-    bool ShouldFinalizeObjectForUnload(AppDomain* pDomain, Object* obj);
+    bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj);
     bool ForceFullGCToBeBlocking();
     bool EagerFinalized(Object* obj);
     MethodTable* GetFreeObjectMethodTable();
@@ -71,6 +71,13 @@ public:
     bool CanEnableGCCPUGroups();
     uint16_t GetNumActiveProcessors();
     void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
+    
+    uint32_t GetDefaultDomainIndex();
+    void *GetAppDomainAtIndex(uint32_t appDomainIndex);
+    bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
+    uint32_t GetIndexOfAppDomainBeingUnloaded();
+    uint32_t GetTotalNumSizedRefHandles();
+    bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain);
 };
 
 } // namespace standalone

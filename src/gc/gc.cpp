@@ -19548,7 +19548,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
 #endif //MULTIPLE_HEAPS
 
-        num_sizedrefs = SystemDomain::System()->GetTotalNumSizedRefHandles();
+        num_sizedrefs = GCToEEInterface::GetTotalNumSizedRefHandles();
 
 #ifdef MULTIPLE_HEAPS
 
@@ -25707,7 +25707,7 @@ void gc_heap::background_mark_phase ()
 #endif //WRITE_WATCH
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-            num_sizedrefs = SystemDomain::System()->GetTotalNumSizedRefHandles();
+            num_sizedrefs = GCToEEInterface::GetTotalNumSizedRefHandles();
 
             // this c_write is not really necessary because restart_vm
             // has an instruction that will flush the cpu cache (interlocked
@@ -35615,7 +35615,7 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-bool GCHeap::FinalizeAppDomain(AppDomain *pDomain, bool fRunFinalizers)
+bool GCHeap::FinalizeAppDomain(void *pDomain, bool fRunFinalizers)
 {
 #ifdef MULTIPLE_HEAPS
     bool foundp = false;
@@ -35937,7 +35937,7 @@ CFinalize::GetNumberFinalizableObjects()
 }
 
 BOOL
-CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain, 
+CFinalize::FinalizeSegForAppDomain (void *pDomain, 
                                     BOOL fRunFinalizers, 
                                     unsigned int Seg)
 {
@@ -35980,7 +35980,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
             }
             else
             {
-                if (pDomain->IsRudeUnload())
+                if (GCToEEInterface::AppDomainIsRudeUnload(pDomain))
                 {
                     MoveItem (i, Seg, FreeList);
                 }
@@ -35997,7 +35997,7 @@ CFinalize::FinalizeSegForAppDomain (AppDomain *pDomain,
 }
 
 bool
-CFinalize::FinalizeAppDomain (AppDomain *pDomain, bool fRunFinalizers)
+CFinalize::FinalizeAppDomain (void *pDomain, bool fRunFinalizers)
 {
     bool finalizedFound = false;
 
