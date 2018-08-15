@@ -59,8 +59,10 @@ namespace JitBench
                 }
 
                 var doc = new XmlDocument();
+                Encoding docEncoding;
                 using (var sr = new StreamReader(projectFile))
                 {
+                    docEncoding = sr.CurrentEncoding;
                     doc.Load(sr);
                 }
                 XmlElement root = doc.DocumentElement;
@@ -90,7 +92,10 @@ namespace JitBench
                     runtimeFrameworkVersionElement.InnerText = dotNetInstall.FrameworkVersion;
                 }
 
-                doc.Save(projectFile);
+                using (var sw = new StreamWriter(projectFile, docEncoding))
+                {
+                    doc.Save(sw);
+                }
             }
         }
 
