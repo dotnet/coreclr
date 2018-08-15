@@ -7986,14 +7986,13 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
     if (call->CanTailCall())
     {
         // It should be an explicit (i.e. tail prefixed) tail call or a stress tail call or an implicit tail call
-        assert(call->IsTailPrefixedCall() || (!call->IsTailPrefixedCall() && (call->IsStressTailCall() != call->IsImplicitTailCall())));
+        assert(call->IsTailPrefixedCall() ? !call->IsStressTailCall() && !call->IsImplicitTailCall() : (call->IsStressTailCall() != call->IsImplicitTailCall()));
 
         // It cannot be an inline candidate
         assert(!call->IsInlineCandidate());
 
         const char* szFailReason   = nullptr;
         bool        hasStructParam = false;
-
         if (call->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC)
         {
             szFailReason = "Might turn into an intrinsic";
