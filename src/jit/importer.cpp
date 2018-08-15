@@ -19897,6 +19897,12 @@ void Compiler::impMarkInlineCandidateHelper(GenTreeCall*           call,
         return;
     }
 
+    if (call->IsStressTailCall())
+    {
+        inlineResult.NoteFatal(InlineObservation::CALLSITE_STRESS_TAIL_CALL);
+        return;
+    }
+
     // Tail recursion elimination takes precedence over inlining.
     // TODO: We may want to do some of the additional checks from fgMorphCall
     // here to reduce the chance we don't inline a call that won't be optimized
