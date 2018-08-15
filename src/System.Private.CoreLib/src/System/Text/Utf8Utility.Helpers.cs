@@ -375,7 +375,7 @@ namespace System.Text
         private static unsafe nuint GetNumberOfBytesToNextDWordAlignment(ref byte @ref)
         {
             // return (-&ref) & 3;
-            return (nuint)Unsafe.ByteOffset(ref @ref, ref Unsafe.AsRef<byte>(null)) & 3;
+            return (nuint)(-(nint)Unsafe.AsPointer(ref @ref)) & 3;
         }
 
         /// <summary>
