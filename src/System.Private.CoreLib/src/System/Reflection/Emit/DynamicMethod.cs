@@ -513,6 +513,33 @@ namespace System.Reflection.Emit
             return null;
         }
 
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public DynamicILInfo GetDynamicILInfo()
+        {
+#pragma warning disable 618
+            new SecurityPermission(SecurityPermissionFlag.UnmanagedCode).Demand();
+#pragma warning restore 618
+
+            if (m_DynamicILInfo != null)
+                return m_DynamicILInfo;
+
+            return GetDynamicILInfo(new DynamicScope());
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated
+        internal DynamicILInfo GetDynamicILInfo(DynamicScope scope)
+        {
+            if (m_DynamicILInfo == null)
+            {
+                byte[] methodSignature = SignatureHelper.GetMethodSigHelper(
+                        null, CallingConvention, ReturnType, null, null, m_parameterTypes, null, null).GetSignature(true);
+                m_DynamicILInfo = new DynamicILInfo(scope, this, methodSignature);
+            }
+
+            return m_DynamicILInfo;
+        }
+
+
         public ILGenerator GetILGenerator()
         {
             return GetILGenerator(64);
