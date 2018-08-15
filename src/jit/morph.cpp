@@ -7992,6 +7992,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
 
         const char* szFailReason   = nullptr;
         bool        hasStructParam = false;
+
         if (call->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC)
         {
             szFailReason = "Might turn into an intrinsic";
@@ -8022,8 +8023,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             szFailReason = "GcChecks";
         }
 #endif
-#if FEATURE_TAILCALL_OPT
-        else
+        else if (FEATURE_TAILCALL_OPT || call->IsTailCallStress())
         {
             // We are still not sure whether it can be a tail call. Because, when converting
             // a call to an implicit tail call, we must check that there are no locals with
@@ -8057,7 +8057,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 // We still must check for any struct parameters and set 'hasStructParam'
                 // so that we won't transform the recursive tail call into a loop.
                 //
-                if (call->IsImplicitTailCall())
+                if (call->IsImplicitTailCall() || call->IsTailCallStress())
                 {
                     if (varDsc->lvHasLdAddrOp)
                     {
@@ -8101,6 +8101,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                         break;
                     }
                 }
+#if FEATURE_TAILCALL_OPT
                 if (varTypeIsStruct(varDsc->TypeGet()) && varDsc->lvIsParam)
                 {
                     hasStructParam = true;
@@ -8109,6 +8110,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                     // look at the rest of parameters.
                     continue;
                 }
+#endif // FEATURE_TAILCALL_OPT
             }
 
             if (hasAddrExposedVars)
@@ -8124,7 +8126,6 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 szFailReason = "Has Pinned Vars";
             }
         }
-#endif // FEATURE_TAILCALL_OPT
 
         var_types callType = call->TypeGet();
 
