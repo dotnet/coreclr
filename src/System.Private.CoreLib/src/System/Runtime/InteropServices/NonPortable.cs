@@ -143,6 +143,11 @@ namespace System.Runtime.InteropServices
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
+        public static int GetEndComSlot(Type t)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
+        }
+
         public static Type GetTypeFromCLSID(Guid clsid) 
         {
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
@@ -166,6 +171,11 @@ namespace System.Runtime.InteropServices
             }
 
             return false;
+        }
+
+        public static bool IsTypeVisibleFromCom(Type t)
+        {
+            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
         }
 
         public static int QueryInterface(IntPtr pUnk, ref Guid iid, out IntPtr ppv)
