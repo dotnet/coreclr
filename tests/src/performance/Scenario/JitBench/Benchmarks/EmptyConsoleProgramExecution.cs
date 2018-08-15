@@ -37,7 +37,7 @@ namespace JitBench
             const string sourceFile = "Program.cs";
             const string csprojFile = "console.csproj";
 
-            string consoleProjectMainDir = GetJitBenchRepoRootDir(intermediateOutputDir);
+            string consoleProjectMainDir = GetRootDir(intermediateOutputDir);
             FileTasks.DeleteDirectory(consoleProjectMainDir, output);
             FileTasks.CreateDirectory(consoleProjectMainDir, output);
 
@@ -96,9 +96,9 @@ namespace JitBench
         }
 
         private static string GetAppSrcDirectory(string outputDir) =>
-            Path.Combine(GetJitBenchRepoRootDir(outputDir));
+            Path.Combine(GetRootDir(outputDir));
 
-        private static string GetJitBenchRepoRootDir(string outputDir) =>
+        private static string GetRootDir(string outputDir) =>
             Path.Combine(outputDir, "EmptyDotNetConsoleProject");
     }
 }
