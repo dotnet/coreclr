@@ -4138,7 +4138,8 @@ public:
 
     // For a GC heap store at curTree, record the new curMemoryVN's and update curTree's MemorySsaMap.
     // As GcHeap is a subset of ByrefExposed, this will also record the ByrefExposed store.
-    void recordGcHeapStore(GenTree* curTree, ValueNum gcHeapVN DEBUGARG(const char* msg));
+    // If curTree creates any exception sets they are recorded in newExcSetVN
+    void recordGcHeapStore(GenTree* curTree, ValueNum gcHeapVN, ValueNum newExcSetVN DEBUGARG(const char* msg));
 
     // For a store to an address-exposed local at curTree, record the new curMemoryVN and update curTree's MemorySsaMap.
     void recordAddressExposedLocalStore(GenTree* curTree, ValueNum memoryVN DEBUGARG(const char* msg));
@@ -5699,8 +5700,11 @@ protected:
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
         treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
 
-        ValueNum defLiberalExcVN;  // if all def occurrences share the same liberal exc set value
-                                   // number, this will reflect it; Set to NoVN whenever we saw different values
+        ValueNum defExcSetPromise; // The exception set that is now required for all defs of this CSE.
+                                   // This will be set to NoVN if we decide to abandon this CSE
+
+        ValueNum defExcSetCurrent; // The set of exceptions we currently can use for CSE uses.
+
         ValueNum defConservNormVN; // if all def occurrences share the same conservative normal value
                                    // number, this will reflect it; otherwise, NoVN.
     };

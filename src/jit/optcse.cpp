@@ -673,7 +673,7 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTree* stmt)
     //
     ValueNum vnLibNorm = vnStore->VNNormVal(vnLib);
 
-    // We assign either vnLib or vnLinNorm as the hash key
+    // We assign either vnLib or vnLibNorm as the hash key
     if (tree->OperGet() == GT_COMMA)
     {
         // op2 is the value produced by a GT_COMMA
@@ -699,7 +699,7 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTree* stmt)
         // and the parent comma as the CSE use (but with a different exc set)
         // This would prevent us from making any CSE with the comma
         //
-        assert(vnLibNorm == vnStore->VNNormVal(vnOp2Lib)); // (We don't need to assert this)
+        assert(vnLibNorm == vnStore->VNNormVal(vnOp2Lib));
     }
     else // Not a GT_COMMA
     {
@@ -787,7 +787,8 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTree* stmt)
             hashDsc->csdUseCount       = 0;
             hashDsc->csdDefWtCnt       = 0;
             hashDsc->csdUseWtCnt       = 0;
-            hashDsc->defLiberalExcVN   = vnStore->VNForNull(); // uninit value
+            hashDsc->defExcSetPromise  = vnStore->VNForEmptyExcSet();
+            hashDsc->defExcSetCurrent  = vnStore->VNForNull(); // uninit value
             hashDsc->defConservNormVN  = vnStore->VNForNull(); // uninit value
 
             hashDsc->csdTree     = tree;
@@ -1255,7 +1256,10 @@ void Compiler::optValnumCSE_Availablity()
                     CSEdsc*      desc   = optCSEfindDsc(CSEnum);
                     unsigned     stmw   = block->getBBWeight(this);
                     bool         isUse  = BitVecOps::IsMember(cseTraits, available_cses, cseBit);
+                    bool         isDef  = !isUse; // If is isn't a CSE use, it is a CSE def
 #ifdef DEBUG
+                    VNFuncApp excSeq;
+
                     if (verbose)
                     {
                         printf("BB%02u ", block->bbNum);
@@ -1265,7 +1269,7 @@ void Compiler::optValnumCSE_Availablity()
                     }
 #endif
                     // Have we decided to abandon work on this CSE?
-                    if (desc->defLiberalExcVN == ValueNumStore::NoVN)
+                    if (desc->defExcSetPromise == ValueNumStore::NoVN)
                     {
                         // This candidate had defs with differing liberal exc set VNs
                         // We have abandoned CSE promotion for this candidate
@@ -1277,54 +1281,11 @@ void Compiler::optValnumCSE_Availablity()
                         continue;
                     }
 
+                    ValueNum theLiberalExcVN = vnStore->VNExcVal(tree->gtVNPair.GetLiberal());
+
                     // Is this a CSE use or a def?
 
-                    if (isUse)
-                    {
-                        ValueNum theLiberalExcVN = vnStore->VNExcVal(tree->gtVNPair.GetLiberal());
-
-                        // Are we visiting a use first, before visiting any defs of this CSE?
-                        // This is an atypical case that can occur with a bottom tested loop.
-                        //
-                        if (desc->defLiberalExcVN == vnStore->VNForNull())
-                        {
-                            // If this use has an exception set, record it.
-                            // It will be our required exception set for all CSE defs
-                            //
-                            if (theLiberalExcVN != vnStore->VNForEmptyExcSet())
-                            {
-                                desc->defLiberalExcVN = theLiberalExcVN;
-                            }
-                        }
-                        else // we have already seen a def for this CSE
-                        {
-                            // A CSE use can always have no exc set, but it cannot have a different
-                            // exc set than the one from the CSE def
-                            //
-                            if ((theLiberalExcVN != vnStore->VNForEmptyExcSet()) &&
-                                (theLiberalExcVN != desc->defLiberalExcVN))
-                            {
-                                // We can't safely make this into a CSE use, because
-                                // this use has a different exeception set than what
-                                // our CSE defs are promising to give us.
-                                //
-                                // Note that we could have a subset of exceptions
-                                // and we could allow that by using a subset check above.
-
-                                // So this can't be a CSE use
-                                tree->gtCSEnum = NO_CSE;
-
-                                JITDUMP(" NO_CSE - This use has an exception set that is different from the defs!\n");
-                                continue;
-                            }
-                        }
-
-                        // If we get here we have accepted this node as a valid CSE use
-
-                        desc->csdUseCount += 1;
-                        desc->csdUseWtCnt += stmw;
-                    }
-                    else // We are visiting a CSE def
+                    if (isDef)
                     {
                         // @ToDo - Remove this block as it no longer applies
                         if (tree->gtFlags & GTF_COLON_COND)
@@ -1338,47 +1299,85 @@ void Compiler::optValnumCSE_Availablity()
 
                         // This is a CSE def
 
-                        ValueNum theLiberalExcVN = vnStore->VNExcVal(tree->gtVNPair.GetLiberal());
-
-                        // Is defLiberalExcVN still set to the uninit marker value of VNForNull() ?
-                        if (desc->defLiberalExcVN == vnStore->VNForNull())
+                        // Is defExcSetCurrent still set to the uninit marker value of VNForNull() ?
+                        if (desc->defExcSetCurrent == vnStore->VNForNull())
                         {
-                            // This is the first time visited, so record its liberal exc set VN
-                            desc->defLiberalExcVN = theLiberalExcVN;
+                            // This is the first time visited, so record this defs exeception set
+                            desc->defExcSetCurrent = theLiberalExcVN;
                         }
-                        else // We have already recorded an exception set for this CSE
+
+                        // Have we seen a CSE use and made a promise of an exception set?
+                        //
+                        if (desc->defExcSetPromise != vnStore->VNForEmptyExcSet())
                         {
-                            // Is it different exception set?
-                            if (theLiberalExcVN != desc->defLiberalExcVN)
+                            // The exeception set held in desc->defExcSetPromise must be a subset of theLiberalExcVN
+                            //
+                            if (vnStore->VNExcIsSubset(theLiberalExcVN, desc->defExcSetPromise))
                             {
-                                // If we haven't yet visted any uses we can change the defLiberalExcVN to the
-                                // EmptyExcSet
-                                // we could instead perform a set union here to get a few additional cases.
-                                if ((desc->csdUseCount == 0) && (theLiberalExcVN == vnStore->VNForEmptyExcSet()))
+                                // This new def still satisfies any promise made to all the CSE uses that we have
+                                // encountered
+                                //
+                                if (desc->defExcSetCurrent !=
+                                    theLiberalExcVN) // no update is needed when these are the same VN
                                 {
-                                    // Change the defLiberalExcVN to a subset of its prior value
-                                    desc->defLiberalExcVN = theLiberalExcVN; // the EmptyExcSet
-                                    JITDUMP(" changing the defLiberalExcVN to the EmptyExcSet!\n");
-                                }
-                                else // We have defs that each have different exeception sets
-                                {
-                                    // This candidate has defs with differing exception sets
-                                    // and we have already processed one or more use candidates.
+                                    // We will change the value of desc->defExcSetCurrent to be the intersection of
+                                    // these two sets.
+                                    // This is the set of exceptions that all CSE defs have (that we have visted so far)
+                                    //
+                                    ValueNum intersectionExcSet =
+                                        vnStore->VNExcSetIntersection(desc->defExcSetCurrent, theLiberalExcVN);
+#ifdef DEBUG
+                                    if (this->verbose)
+                                    {
+                                        vnStore->GetVNFunc(desc->defExcSetCurrent, &excSeq);
+                                        printf(">>> defExcSetCurrent is ");
+                                        vnStore->vnDumpExcSeq(this, &excSeq, true);
+                                        printf("\n");
 
-                                    // We will abandon any CSE promotion for this candidate
-                                    desc->defLiberalExcVN =
-                                        ValueNumStore::NoVN; // record the marker to abandon the CSE candidate
-                                    tree->gtCSEnum = NO_CSE;
+                                        vnStore->GetVNFunc(theLiberalExcVN, &excSeq);
+                                        printf(">>> theLiberalExcVN is ");
+                                        vnStore->vnDumpExcSeq(this, &excSeq, true);
+                                        printf("\n");
 
-                                    JITDUMP(" Abandon - CSE candidate has defs with different exception sets!\n");
-                                    continue;
+                                        if (intersectionExcSet == vnStore->VNForEmptyExcSet())
+                                        {
+                                            printf(">>> the intersectionExcSet is the EmptyExcSet\n");
+                                        }
+                                        else
+                                        {
+                                            vnStore->GetVNFunc(intersectionExcSet, &excSeq);
+                                            printf(">>> the intersectionExcSet is ");
+                                            vnStore->vnDumpExcSeq(this, &excSeq, true);
+                                            printf("\n");
+                                        }
+                                    }
+#endif // DEBUG
+                                    // Change the defExcSetCurrent to be a subset of its prior value
+                                    //
+                                    assert(vnStore->VNExcIsSubset(desc->defExcSetCurrent, intersectionExcSet));
+                                    desc->defExcSetCurrent = intersectionExcSet;
                                 }
+                            }
+                            else // This CSE def does not satisfy one (or more) of the exceptions already promised to a
+                                 // CSE use
+                            {
+                                // So, we will abandon all CSE promotions for this candidate
+                                //
+                                // We use the marker value of NoVN to indicate that we
+                                // should abandon this CSE candidate
+                                //
+                                desc->defExcSetPromise = ValueNumStore::NoVN;
+                                tree->gtCSEnum         = NO_CSE;
+
+                                JITDUMP(" Abandon - CSE candidate has defs with exception sets that do not satisfy "
+                                        "some CSE use\n");
+                                continue;
                             }
                         }
 
                         // Record or update the value of desc->defConservNormVN
                         //
-                        ValueNum theConservNormVN = vnStore->VNNormVal(tree->gtVNPair.GetConservative());
+                        ValueNum theConservNormVN = vnStore->VNConservativeNormVal(tree->gtVNPair);
 
                         // Is defConservNormVN still set to the uninit marker value of VNForNull() ?
                         if (desc->defConservNormVN == vnStore->VNForNull())
@@ -1407,6 +1406,71 @@ void Compiler::optValnumCSE_Availablity()
 
                         // This CSE becomes available after this def
                         BitVecOps::AddElemD(cseTraits, available_cses, cseBit);
+                    }
+                    else // We are visiting a CSE use
+                    {
+                        assert(isUse);
+
+                        // If the CSE use has no requirements for an exception set then we don't have to do anything
+                        // here
+                        //
+                        if (theLiberalExcVN != vnStore->VNForEmptyExcSet())
+                        {
+                            // Are we visiting a use first, before visiting any defs of this CSE?
+                            // This is an atypical case that can occur with a bottom tested loop.
+                            //
+                            // Is defExcSetCurrent still set to the uninit marker value of VNForNull() ?
+                            if (desc->defExcSetCurrent == vnStore->VNForNull())
+                            {
+                                // Update defExcSetPromise, this is our required exception set for all CSE defs
+                                // that we encounter later.
+                                //
+                                // We could see multiple uses before a def, so we require the Union of all exception
+                                // sets
+                                //
+                                desc->defExcSetPromise =
+                                    vnStore->VNExcSetUnion(desc->defExcSetPromise, theLiberalExcVN);
+                            }
+                            else // we have already seen a def for this CSE and defExcSetCurrent is setup
+                            {
+                                if (vnStore->VNExcIsSubset(desc->defExcSetCurrent, theLiberalExcVN))
+                                {
+                                    // The current set of exceptions produced by all CSE defs have (that we have visted
+                                    // so far)
+                                    // meets our requirement
+                                    //
+                                    // Add any exception items to the defExcSetPromise set
+                                    //
+                                    desc->defExcSetPromise =
+                                        vnStore->VNExcSetUnion(desc->defExcSetPromise, theLiberalExcVN);
+                                }
+                            }
+
+                            // At this point defExcSetPromise contains all of the exception items that we can promise
+                            // here.
+                            //
+                            if (!vnStore->VNExcIsSubset(desc->defExcSetPromise, theLiberalExcVN))
+                            {
+                                // We can't safely make this into a CSE use, because this
+                                // CSE use has an exeception set item that is not promised
+                                // by all of our CSE defs.
+                                //
+                                // We will omit this CSE use from the graph and proceed,
+                                // the other uses and defs can still participate in the CSE optimization.
+
+                                // So this can't be a CSE use
+                                tree->gtCSEnum = NO_CSE;
+
+                                JITDUMP(
+                                    " NO_CSE - This use has an exception set item that isn't contained in the defs!\n");
+                                continue;
+                            }
+                        }
+
+                        // If we get here we have accepted this node as a valid CSE use
+
+                        desc->csdUseCount += 1;
+                        desc->csdUseWtCnt += stmw;
                     }
                 }
             }
@@ -1673,7 +1737,7 @@ public:
 
                 tempMask = BitVecOps::MakeSingleton(m_pCompiler->cseTraits, genCSEnum2bit(dsc->csdIndex));
                 printf("CSE #%02u, {$%-3x, $%-3x} cseMask=%s,useCnt=%d: [def=%3u, use=%3u", dsc->csdIndex,
-                       dsc->csdHashKey, dsc->defLiberalExcVN, genES2str(m_pCompiler->cseTraits, tempMask),
+                       dsc->csdHashKey, dsc->defExcSetPromise, genES2str(m_pCompiler->cseTraits, tempMask),
                        dsc->csdUseCount, def, use);
                 printf("] :: ");
                 m_pCompiler->gtDispTree(expr, nullptr, nullptr, true);
@@ -2355,32 +2419,37 @@ public:
                 cse->gtDebugFlags |= GTF_DEBUG_VAR_CSE_REF;
 #endif // DEBUG
 
-// Now we need to unmark any nested CSE's uses that are found in 'exp'
-// As well we extract any nested CSE defs that are found in 'exp' and
-// these are appended to the sideEffList
+                // Now we need to unmark any nested CSE's uses that are found in 'exp'
+                // As well we extract any nested CSE defs that are found in 'exp' and
+                // these are appended to the sideEffList
 
-// Afterwards the set of nodes in the 'sideEffectList' are preserved and
-// all other nodes are removed and have their ref counts decremented
-//
+                // Afterwards the set of nodes in the 'sideEffectList' are preserved and
+                // all other nodes are removed and have their ref counts decremented
+                //
+                bool unmarkResult = m_pCompiler->optValnumCSE_UnmarkCSEs(exp, &sideEffList);
+
 #ifdef DEBUG
-                unsigned CSEindex = exp->gtCSEnum;
-#endif
-                exp->gtCSEnum = NO_CSE; // clear the gtCSEnum field
-                bool result   = m_pCompiler->optValnumCSE_UnmarkCSEs(exp, &sideEffList);
+                if (m_pCompiler->verbose)
+                {
+                    printf("\nCSE #%02u use at ", exp->gtCSEnum);
+                    Compiler::printTreeID(exp);
+                }
+#endif // DEBUG
 
-                // When 'result' is false we ran into a case where 'exp contains a nested CSE use
+                exp->gtCSEnum = NO_CSE; // clear the gtCSEnum field
+
+                // When 'unmarkResult' is false we ran into a case where 'exp contains a nested CSE use
                 // that has persistent side effects.  It is very difficult to construct the proper
                 // side effect list for this case.
                 // Additionally this case is extremely uncommon, so we just give up on replacing
                 // this particular CSE use when we have this case.  [VSO 566984]
                 //
-                if (result == false)
+                if (unmarkResult == false)
                 {
 #ifdef DEBUG
                     if (m_pCompiler->verbose)
                     {
-                        printf("\nThis CSE use has a nested CSE defs with persistent side effects...\n");
-                        m_pCompiler->gtDispTree(exp);
+                        printf(" has nested CSE defs with persistent side effects.\n");
                         printf("Abandoning this CSE use subsitution\n");
                     }
 #endif
@@ -2391,11 +2460,10 @@ public:
 #ifdef DEBUG
                     if (m_pCompiler->verbose)
                     {
-                        printf("\nCSE #%02u use at ", CSEindex);
-                        Compiler::printTreeID(exp);
                         printf(" replaced in BB%02u with temp use.\n", blk->bbNum);
                     }
 #endif // DEBUG
+
                     // If we have any side effects or extracted CSE defs then we need to create a GT_COMMA tree instead
                     //
                     if (sideEffList)
@@ -2558,7 +2626,7 @@ public:
         for (; (cnt > 0); cnt--, ptr++)
         {
             Compiler::CSEdsc* dsc = *ptr;
-            if (dsc->defLiberalExcVN == ValueNumStore::NoVN)
+            if (dsc->defExcSetPromise == ValueNumStore::NoVN)
             {
                 JITDUMP("Abandoned CSE #%02u because we had defs with different Exc sets\n");
                 continue;
@@ -2578,7 +2646,7 @@ public:
             if (m_pCompiler->verbose)
             {
                 printf("\nConsidering CSE #%02u {$%-3x, $%-3x} [def=%2u, use=%2u, cost=%2u] CSE Expression:\n",
-                       candidate.CseIndex(), dsc->csdHashKey, dsc->defLiberalExcVN, candidate.DefCount(),
+                       candidate.CseIndex(), dsc->csdHashKey, dsc->defExcSetPromise, candidate.DefCount(),
                        candidate.UseCount(), candidate.Cost());
                 m_pCompiler->gtDispTree(candidate.Expr());
                 printf("\n");

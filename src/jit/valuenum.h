@@ -81,11 +81,9 @@ struct VNFuncApp
     }
 };
 
-// A unique prefix character to use when dumping a tree's gtVN in the tree dumps
-// We use this together with string concatenation to put this in printf format strings
-// static const char* const VN_DumpPrefix = "$";
-#define STR_VN "$"
-#define FMT_VN STR_VN "%x"
+// We use a unique prefix character when printing value numbers in dumps:  i.e.  $1c0
+// This define is used with string concatenation to put this in printf format strings
+#define FMT_VN "$%x"
 
 class ValueNumStore
 {
@@ -344,16 +342,36 @@ public:
     // It returns NoVN for a "typ" that has no one value, such as TYP_REF.
     ValueNum VNOneForType(var_types typ);
 
+    // Returns the value number for negative one of the given "typ".
+    // It returns NoVN for a "typ" that has no negative one value, such as TYP_REF, or TYP_UINT
+    ValueNum VNNegOneForType(var_types typ);
+
     // Return the value number representing the singleton exception set containing the exception value "x".
     ValueNum VNExcSetSingleton(ValueNum x);
     ValueNumPair VNPExcSetSingleton(ValueNumPair x);
 
+    // Returns true if the current pair of items are in ascending order and they are not duplicates.
+    // Used to verify that exception sets are in ascending order when processing them.
+    bool VNCheckAscending(ValueNum item, ValueNum xs1);
+
     // Returns the VN representing the union of the two exception sets "xs0" and "xs1".
-    // These must be VNForEmtpyExcSet() or applications of VNF_ExcSetCons, obeying
+    // These must be VNForEmptyExcSet() or applications of VNF_ExcSetCons, obeying
     // the ascending order invariant (which is preserved in the result.)
-    ValueNum VNExcSetUnion(ValueNum xs0, ValueNum xs1 DEBUGARG(bool topLevel = true));
+    ValueNum VNExcSetUnion(ValueNum xs0, ValueNum xs1);
 
     ValueNumPair VNPExcSetUnion(ValueNumPair xs0vnp, ValueNumPair xs1vnp);
+
+    // Returns the VN representing the intersection of the two exception sets "xs0" and "xs1".
+    // These must be VNForEmptyExcSet() or applications of VNF_ExcSetCons, obeying
+    // the ascending order invariant (which is preserved in the result.)
+    ValueNum VNExcSetIntersection(ValueNum xs0, ValueNum xs1);
+
+    ValueNumPair VNPExcSetIntersection(ValueNumPair xs0vnp, ValueNumPair xs1vnp);
+
+    // Returns true if every exeception singleton in the vnCandidateSet is also present
+    // in the vnFullSet.
+    // Both arguments must be either VNForEmptyExcSet() or applications of VNF_ExcSetCons.
+    bool VNExcIsSubset(ValueNum vnFullSet, ValueNum vnCandidateSet);
 
     // Returns "true" iff "vn" is an application of "VNF_ValWithExc".
     bool VNHasExc(ValueNum vn)
@@ -369,21 +387,29 @@ public:
 
     ValueNumPair VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP);
 
-    // If "vnWx" is a "VNF_ValWithExc(normal, excSet)" application, sets "*pvn" to "normal", and
-    // "*pvnx" to "excSet".  Otherwise, just sets "*pvn" to "normal".
+    // If "vnWx" is a "VNF_ValWithExc(normal, excSet)" value, this sets "*pvn" to the Normal value
+    // and sets "*pvnx" to Exception set value.  Otherwise, this just sets "*pvn" to to the Normal value.
+    // "pvnx" represents the set of all exceptions that can happen for the expression
     void VNUnpackExc(ValueNum vnWx, ValueNum* pvn, ValueNum* pvnx);
 
-    void VNPUnpackExc(ValueNumPair vnWx, ValueNumPair* pvn, ValueNumPair* pvnx);
+    void VNPUnpackExc(ValueNumPair vnpWx, ValueNumPair* pvnp, ValueNumPair* pvnpx);
 
     // If "vn" is a "VNF_ValWithExc(norm, excSet)" value, returns the "norm" argument; otherwise,
     // just returns "vn".
+    // The Normal value is the value number of the expression when no exceptions occurred
     ValueNum VNNormVal(ValueNum vn);
-    ValueNumPair VNPNormVal(ValueNumPair vn);
+    ValueNumPair VNPNormVal(ValueNumPair vnp);
 
     // If "vn" is a "VNF_ValWithExc(norm, excSet)" value, returns the "excSet" argument; otherwise,
     // just returns "EmptyExcSet()".
     ValueNum VNExcVal(ValueNum vn);
-    ValueNumPair VNPExcVal(ValueNumPair vn);
+    ValueNumPair VNPExcVal(ValueNumPair vnp);
+
+    // First gets the Liberal part of VNPair, then returns its Normal value.
+    ValueNum VNLiberalNormVal(ValueNumPair vnp);
+
+    // First gets the Conservative part of VNPair, then returns its Normal value.
+    ValueNum VNConservativeNormVal(ValueNumPair vnp);
 
     // True "iff" vn is a value known to be non-null.  (For example, the result of an allocation...)
     bool IsKnownNonNull(ValueNum vn);

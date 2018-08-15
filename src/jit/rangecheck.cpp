@@ -75,7 +75,7 @@ bool RangeCheck::BetweenBounds(Range& range, int lower, GenTree* upper)
     ValueNumStore* vnStore = m_pCompiler->vnStore;
 
     // Get the VN for the upper limit.
-    ValueNum uLimitVN = m_pCompiler->vnStore->VNNormVal(upper->gtVNPair.GetConservative());
+    ValueNum uLimitVN = m_pCompiler->vnStore->VNConservativeNormVal(upper->gtVNPair);
 
 #ifdef DEBUG
     JITDUMP(FMT_VN " upper bound is: ", uLimitVN);
@@ -208,8 +208,8 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTree* stmt, GenTree* t
     GenTree* treeIndex        = bndsChk->gtIndex;
 
     // Take care of constant index first, like a[2], for example.
-    ValueNum idxVn    = m_pCompiler->vnStore->VNNormVal(treeIndex->gtVNPair.GetConservative());
-    ValueNum arrLenVn = m_pCompiler->vnStore->VNNormVal(bndsChk->gtArrLen->gtVNPair.GetConservative());
+    ValueNum idxVn    = m_pCompiler->vnStore->VNConservativeNormVal(treeIndex->gtVNPair);
+    ValueNum arrLenVn = m_pCompiler->vnStore->VNConservativeNormVal(bndsChk->gtArrLen->gtVNPair);
     int      arrSize  = 0;
 
     if (m_pCompiler->vnStore->IsVNConstant(arrLenVn))
@@ -642,7 +642,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
             m_pCompiler->optPrintAssertion(curAssertion, assertionIndex);
         }
 #endif
-        ValueNum arrLenVN = m_pCompiler->vnStore->VNNormVal(m_pCurBndsChk->gtArrLen->gtVNPair.GetConservative());
+        ValueNum arrLenVN = m_pCompiler->vnStore->VNConservativeNormVal(m_pCurBndsChk->gtArrLen->gtVNPair);
 
         if (m_pCompiler->vnStore->IsVNConstant(arrLenVN))
         {
@@ -1103,7 +1103,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
     bool  newlyAdded = !m_pSearchPath->Set(expr, block);
     Range range      = Limit(Limit::keUndef);
 
-    ValueNum vn = m_pCompiler->vnStore->VNNormVal(expr->gtVNPair.GetConservative());
+    ValueNum vn = m_pCompiler->vnStore->VNConservativeNormVal(expr->gtVNPair);
     // If newly added in the current search path, then reduce the budget.
     if (newlyAdded)
     {

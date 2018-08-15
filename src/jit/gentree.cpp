@@ -17016,8 +17016,8 @@ void GenTree::ParseArrayAddressWork(
                 break;
         }
         // If we didn't return above, must be a constribution to the non-constant part of the index VN.
-        ValueNum vn = comp->GetValueNumStore()->VNNormVal(gtVNPair.GetLiberal()); // We don't care about exceptions for
-                                                                                  // this purpose.
+        // We don't care about exceptions for this purpose.
+        ValueNum vn = comp->GetValueNumStore()->VNLiberalNormVal(gtVNPair);
         if (inputMul != 1)
         {
             ValueNum mulVN = comp->GetValueNumStore()->VNForLongCon(inputMul);
