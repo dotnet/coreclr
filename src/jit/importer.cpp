@@ -7394,9 +7394,10 @@ bool Compiler::impTailCallRetTypeCompatible(var_types            callerRetType,
 enum
 {
     PREFIX_TAILCALL_EXPLICIT = 0x00000001, // call has "tail" IL prefix
+    PREFIX_TAILCALL_STRESS = 0x00000002, // call is under "tail call" stress mode
     PREFIX_TAILCALL_IMPLICIT =
         0x00000010, // call is treated as having "tail" prefix even though there is no "tail" IL prefix
-    PREFIX_TAILCALL    = (PREFIX_TAILCALL_EXPLICIT | PREFIX_TAILCALL_IMPLICIT),
+    PREFIX_TAILCALL    = (PREFIX_TAILCALL_EXPLICIT | PREFIX_TAILCALL_STRESS | PREFIX_TAILCALL_IMPLICIT),
     PREFIX_VOLATILE    = 0x00000100,
     PREFIX_UNALIGNED   = 0x00001000,
     PREFIX_CONSTRAINED = 0x00010000,
@@ -7512,6 +7513,12 @@ bool Compiler::impIsImplicitTailCallCandidate(
 
     // must not be tail prefixed
     if (prefixFlags & PREFIX_TAILCALL_EXPLICIT)
+    {
+        return false;
+    }
+
+    // must not be under "tail call" stress mode
+    if (prefixFlags & PREFIX_TAILCALL_STRESS)
     {
         return false;
     }
@@ -8732,8 +8739,10 @@ DONE:
 
         // Check for permission to tailcall
         bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
+        bool tailCallStress = (tailCall & PREFIX_TAILCALL_STRESS) != 0;
+        bool isTailPrefixed = explicitTailCall || tailCallStress;
 
-        assert(!explicitTailCall || compCurBB->bbJumpKind == BBJ_RETURN);
+        assert(!isTailPrefixed || compCurBB->bbJumpKind == BBJ_RETURN);
 
         if (canTailCall)
         {
@@ -8742,7 +8751,7 @@ DONE:
                 ((call->gtCall.gtCallType != CT_USER_FUNC) || call->gtCall.IsVirtual()) ? nullptr : methHnd;
             GenTree* thisArg = call->gtCall.gtCallObjp;
 
-            if (info.compCompHnd->canTailCall(info.compMethodHnd, methHnd, exactCalleeHnd, explicitTailCall))
+            if (info.compCompHnd->canTailCall(info.compMethodHnd, methHnd, exactCalleeHnd, isTailPrefixed))
             {
                 if (explicitTailCall)
                 {
@@ -8753,6 +8762,19 @@ DONE:
                     if (verbose)
                     {
                         printf("\nGTF_CALL_M_EXPLICIT_TAILCALL bit set for call ");
+                        printTreeID(call);
+                        printf("\n");
+                    }
+#endif
+                }
+                else if (tailCallStress)
+                {
+                    call->gtCall.gtCallMoreFlags |= GTF_CALL_M_TAILCALL_STRESS;
+
+#ifdef DEBUG
+                    if (verbose)
+                    {
+                        printf("\nGTF_CALL_M_TAILCALL_STRESS bit set for call ");
                         printTreeID(call);
                         printf("\n");
                     }
@@ -8810,12 +8832,12 @@ DONE:
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nRejecting %splicit tail call for call ", explicitTailCall ? "ex" : "im");
+                printf("\nRejecting %s for call ", explicitTailCall ? "explicit tail call" : (tailCallStress ? "tail call stress" : "implicit tail call"));
                 printTreeID(call);
                 printf(": %s\n", szCanTailCallFailReason);
             }
 #endif
-            info.compCompHnd->reportTailCallDecision(info.compMethodHnd, methHnd, explicitTailCall, TAILCALL_FAIL,
+            info.compCompHnd->reportTailCallDecision(info.compMethodHnd, methHnd, isTailPrefixed, TAILCALL_FAIL,
                                                      szCanTailCallFailReason);
         }
     }
@@ -9345,6 +9367,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
                 // convention for result return.
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
             }
             else
             {
@@ -9381,6 +9404,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
                 // convention for result return.
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
             }
             else
             {
@@ -10876,7 +10900,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
     const BYTE* delegateCreateStart = nullptr;
 
     int  prefixFlags = 0;
-    bool explicitTailCall, constraintCall, readonlyCall;
+    bool explicitTailCall, constraintCall, readonlyCall, tailCallStress;
 
     typeInfo tiRetVal;
 
@@ -14124,8 +14148,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                                               hasTailPrefix)) // Is it legal to do tailcall?
                             {
                                 // Stress the tailcall.
-                                JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_TAILCALL_EXPLICIT)");
-                                prefixFlags |= PREFIX_TAILCALL_EXPLICIT;
+                                JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_TAILCALL_STRESS)");
+                                prefixFlags |= PREFIX_TAILCALL_STRESS;
                             }
                         }
                     }
@@ -14162,6 +14186,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 // Treat this call as tail call for verification only if "tail" prefixed (i.e. explicit tail call).
                 explicitTailCall = (prefixFlags & PREFIX_TAILCALL_EXPLICIT) != 0;
+                tailCallStress = (prefixFlags & PREFIX_TAILCALL_STRESS) != 0;
                 readonlyCall     = (prefixFlags & PREFIX_READONLY) != 0;
 
                 if (opcode != CEE_CALLI && opcode != CEE_NEWOBJ)
@@ -14175,7 +14200,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (tiVerificationNeeded)
                 {
                     verVerifyCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
-                                  explicitTailCall, readonlyCall, delegateCreateStart, codeAddr - 1,
+                                  explicitTailCall || tailCallStress, readonlyCall, delegateCreateStart, codeAddr - 1,
                                   &callInfo DEBUGARG(info.compFullName));
                 }
 
@@ -14189,7 +14214,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                if (explicitTailCall || newBBcreatedForTailcallStress) // If newBBcreatedForTailcallStress is true, we
+                if (explicitTailCall || (tailCallStress && newBBcreatedForTailcallStress)) // If newBBcreatedForTailcallStress is true, we
                                                                        // have created a new BB after the "call"
                 // instruction in fgMakeBasicBlocks(). So we need to jump to RET regardless.
                 {

@@ -7984,8 +7984,8 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
     }
     if (call->CanTailCall())
     {
-        // It should either be an explicit (i.e. tail prefixed) or an implicit tail call
-        assert(call->IsTailPrefixedCall() ^ call->IsImplicitTailCall());
+        // It should either be a tail prefixed call (i.e either explicit or tail call stress) or an implicit tail call
+        assert(call->IsTailPrefixedCall() != call->IsImplicitTailCall());
 
         // It cannot be an inline candidate
         assert(!call->IsInlineCandidate());
@@ -8193,6 +8193,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         // Clear these flags before calling fgMorphCall() to avoid recursion.
         bool isTailPrefixed = call->IsTailPrefixedCall();
         call->gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
+        call->gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
 
 #if FEATURE_TAILCALL_OPT
         call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
