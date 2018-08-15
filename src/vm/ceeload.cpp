@@ -4232,12 +4232,6 @@ BOOL Module::IsVisibleToDebugger()
         return FALSE;
     }
 
-    if (IsIntrospectionOnly())
-    {
-        return FALSE;
-    }
-
-
     // If for whatever other reason, we can't run it, then don't notify the debugger about it.
     Assembly * pAssembly = GetAssembly();
     if (!pAssembly->HasRunAccess())
@@ -4400,21 +4394,6 @@ UINT32 Module::GetTlsIndex()
     return m_file->GetTlsIndex();
 }
 
-PCCOR_SIGNATURE Module::GetSignature(RVA signature)
-{
-    WRAPPER_NO_CONTRACT;
-
-    return m_file->GetSignature(signature);
-}
-
-RVA Module::GetSignatureRva(PCCOR_SIGNATURE signature)
-{
-    WRAPPER_NO_CONTRACT;
-
-    return m_file->GetSignatureRva(signature);
-}
-
-
 
 // In DAC builds this function was being called on host addresses which may or may not
 // have been marshalled from the target. Such addresses can't be reliably mapped back to
@@ -4465,20 +4444,6 @@ StubMethodHashTable *Module::GetStubMethodHashTable()
     return m_pStubMethodHashTable;
 }
 #endif // FEATURE_PREJIT
-
-CHECK Module::CheckSignatureRva(RVA signature)
-{
-    WRAPPER_NO_CONTRACT;
-    CHECK(m_file->CheckSignatureRva(signature));
-    CHECK_OK;
-}
-
-CHECK Module::CheckSignature(PCCOR_SIGNATURE signature)
-{
-    WRAPPER_NO_CONTRACT;
-    CHECK(m_file->CheckSignature(signature));
-    CHECK_OK;
-}
 
 void Module::InitializeStringData(DWORD token, EEStringData *pstrData, CQuickBytes *pqb)
 {
@@ -5273,12 +5238,6 @@ Module::GetAssemblyIfLoaded(
 #ifdef FEATURE_COMINTEROP
             if (szWinRtNamespace != NULL)
             {
-                if (IsIntrospectionOnly())
-                {   // We do not have to implement this method for ReflectionOnly WinRT type requests
-                    // ReflectionOnly WinRT types will never have instances on GC heap to be inspected by stackwalking or by debugger
-                    break;
-                }
-                
                 _ASSERTE(szWinRtClassName != NULL);
                 
                 CLRPrivBinderWinRT * pWinRtBinder = pAppDomainExamine->GetWinRtBinder();
@@ -5342,7 +5301,6 @@ Module::GetAssemblyIfLoaded(
                 if (FAILED(spec.InitializeSpecInternal(kAssemblyRef, 
                                                        pMDImport, 
                                                        pCurAssemblyInExamineDomain,
-                                                       IsIntrospectionOnly(), 
                                                        FALSE /*fAllowAllocation*/)))
                 {
                     continue;
@@ -5403,8 +5361,6 @@ Module::GetAssemblyIfLoaded(
             // as the shared assembly context may have different binding rules as compared to the root context. At this time, we prefer to not fix this scenario until
             // there is customer need for a fix.
         }
-        else if (IsIntrospectionOnly())
-            eligibleForAdditionalChecks = FALSE;
 
         AssemblySpec specSearchAssemblyRef;
 
@@ -5416,7 +5372,6 @@ Module::GetAssemblyIfLoaded(
             if (FAILED(specSearchAssemblyRef.InitializeSpecInternal(kAssemblyRef, 
                                                     pMDImport, 
                                                     NULL,
-                                                    FALSE, 
                                                     FALSE /*fAllowAllocation*/)))
             {
                 eligibleForAdditionalChecks = FALSE; // If an assemblySpec can't be constructed then we're not going to succeed
@@ -5493,7 +5448,6 @@ Module::GetAssemblyIfLoaded(
                                 if (FAILED(specFoundAssemblyRef.InitializeSpecInternal(assemblyRef, 
                                                                         pImportFoundNativeImage, 
                                                                         NULL,
-                                                                        FALSE, 
                                                                         FALSE /*fAllowAllocation*/)))
                                 {
                                     continue; // If the spec cannot be loaded, it isn't the one we're looking for
@@ -5625,7 +5579,7 @@ DomainAssembly * Module::LoadAssembly(
                 szWinRtTypeNamespace, 
                 szWinRtTypeClassName);
         AssemblySpec spec;
-        spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly(), IsIntrospectionOnly());
+        spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly());
         // Set the binding context in the AssemblySpec if one is available. This can happen if the LoadAssembly ended up
         // invoking the custom AssemblyLoadContext implementation that returned a reference to an assembly bound to a different
         // AssemblyLoadContext implementation.
@@ -5644,7 +5598,6 @@ DomainAssembly * Module::LoadAssembly(
     if (pDomainAssembly != NULL)
     {
         _ASSERTE(
-            IsIntrospectionOnly() ||                        // GetAssemblyIfLoaded will not find introspection-only assemblies
             !fHasBindableIdentity ||                        // GetAssemblyIfLoaded will not find non-bindable assemblies
             pDomainAssembly->IsSystem() ||                  // GetAssemblyIfLoaded will not find mscorlib (see AppDomain::FindCachedFile)
             !pDomainAssembly->IsLoaded() ||                 // GetAssemblyIfLoaded will not find not-yet-loaded assemblies
@@ -13826,14 +13779,8 @@ LookupMapBase::ListEnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 #endif // DACCESS_COMPILE
 
 
-// Optimization intended for Module::IsIntrospectionOnly and Module::EnsureActive only
+// Optimization intended for Module::EnsureActive only
 #include <optsmallperfcritical.h>
-
-BOOL Module::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetAssembly()->IsIntrospectionOnly();
-}
 
 #ifndef DACCESS_COMPILE
 VOID Module::EnsureActive()

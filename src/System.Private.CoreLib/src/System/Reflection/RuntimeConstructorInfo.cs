@@ -260,9 +260,6 @@ namespace System.Reflection
         {
             get
             {
-                Type declaringType = DeclaringType;
-                if ((declaringType == null && Module.Assembly.ReflectionOnly) || declaringType is ReflectionOnlyType)
-                    throw new InvalidOperationException(SR.InvalidOperation_NotAllowedInReflectionOnly);
                 return new RuntimeMethodHandle(this);
             }
         }
@@ -288,12 +285,8 @@ namespace System.Reflection
             if (declaringType == null)
                 throw new ArgumentNullException(nameof(declaringType));
 
-            // ctor is ReflectOnly
-            if (declaringType is ReflectionOnlyType)
-                throw new InvalidOperationException(SR.Arg_ReflectionOnlyInvoke);
-
             // ctor is declared on interface class
-            else if (declaringType.IsInterface)
+            if (declaringType.IsInterface)
                 throw new MemberAccessException(
                     string.Format(CultureInfo.CurrentUICulture, SR.Acc_CreateInterfaceEx, declaringType));
 
@@ -370,9 +363,9 @@ namespace System.Reflection
 
         public override MethodBody GetMethodBody()
         {
-            MethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
+            RuntimeMethodBody mb = RuntimeMethodHandle.GetMethodBody(this, ReflectedTypeInternal);
             if (mb != null)
-                mb.m_methodBase = this;
+                mb._methodBase = this;
             return mb;
         }
 

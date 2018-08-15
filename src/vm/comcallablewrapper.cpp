@@ -1602,9 +1602,6 @@ BOOL SimpleComCallWrapper::SupportsIReflect(MethodTable *pClass)
     if (pClass == g_pRuntimeTypeClass)
         return FALSE;
 
-    if (MscorlibBinder::IsClass(pClass, CLASS__CLASS_INTROSPECTION_ONLY))
-        return FALSE;
-
     if (MscorlibBinder::IsClass(pClass, CLASS__TYPE_BUILDER))
         return FALSE;
 
@@ -5564,7 +5561,7 @@ BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
         if (pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__ASSEMBLYBASE)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MEMBER)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MODULEBASE)) ||
-        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__METHOD_BODY)) ||
+        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__RUNTIME_METHOD_BODY)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__PARAMETER)))
         {
             isSafe = FALSE;

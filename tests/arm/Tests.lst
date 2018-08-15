@@ -10417,7 +10417,7 @@ RelativePath=Exceptions\ForeignThread\ForeignThreadExceptions\ForeignThreadExcep
 WorkingDir=Exceptions\ForeignThread\ForeignThreadExceptions
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_FAIL;12898
+Categories=EXPECTED_PASS
 HostStyle=0
 
 [box-unbox-generics013.cmd_1310]
@@ -82033,7 +82033,7 @@ RelativePath=baseservices\threading\regressions\beta2\437044\437044.cmd
 WorkingDir=baseservices\threading\regressions\beta2\437044
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;Pri1
+Categories=EXPECTED_PASS;Pri1;GCSTRESS_EXCLUDE
 HostStyle=0
 
 [KeyCollectionCtor.cmd_10305]
