@@ -92,7 +92,7 @@ namespace JitBench
                     runtimeFrameworkVersionElement.InnerText = dotNetInstall.FrameworkVersion;
                 }
 
-                using (var sw = new StreamWriter(projectFile, docEncoding))
+                using (var sw = new StreamWriter(projectFile, false, docEncoding))
                 {
                     doc.Save(sw);
                 }
