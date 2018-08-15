@@ -175,7 +175,11 @@ namespace System.Runtime.InteropServices
 
         public static bool IsTypeVisibleFromCom(Type t)
         {
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_ComInterop);
+            if (t == null)
+            {
+                throw new ArgumentNullException(nameof(t));
+            }
+            return false;
         }
 
         public static int QueryInterface(IntPtr pUnk, ref Guid iid, out IntPtr ppv)
