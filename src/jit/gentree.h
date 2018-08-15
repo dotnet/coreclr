@@ -3459,7 +3459,7 @@ struct GenTreeCall final : public GenTree
 #define GTF_CALL_M_GUARDED_DEVIRT        0x00100000 // GT_CALL -- this call is a candidate for guarded devirtualization
 #define GTF_CALL_M_GUARDED               0x00200000 // GT_CALL -- this call was transformed by guarded devirtualization
 #define GTF_CALL_M_ALLOC_SIDE_EFFECTS    0x00400000 // GT_CALL -- this is a call to an allocator with side effects
-#define GTF_CALL_M_STRESS_TAILCALL       0x00800000 // GT_CALL -- this is a call under tail call stress
+#define GTF_CALL_M_STRESS_TAILCALL       0x00800000 // GT_CALL -- this is a call under stress tail call
 
     // clang-format on
 

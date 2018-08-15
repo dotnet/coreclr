@@ -8691,6 +8691,10 @@ DONE:
 
     if (tailCall)
     {
+        const bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
+        const bool stressTailCall = (tailCall & PREFIX_STRESS_TAILCALL) != 0;
+        const bool implicitTailCall = (tailCall & PREFIX_TAILCALL_IMPLICIT) != 0;
+
         // This check cannot be performed for implicit tail calls for the reason
         // that impIsImplicitTailCallCandidate() is not checking whether return
         // types are compatible before marking a call node with PREFIX_TAILCALL_IMPLICIT.
@@ -8705,7 +8709,7 @@ DONE:
         //
         // For implicit tail calls, we perform this check after return types are
         // known to be compatible.
-        if ((tailCall & PREFIX_TAILCALL_EXPLICIT) && (verCurrentState.esStackDepth != 0))
+        if (explicitTailCall && (verCurrentState.esStackDepth != 0))
         {
             BADCODE("Stack should be empty after tailcall");
         }
@@ -8723,7 +8727,7 @@ DONE:
         }
 
         // Stack empty check for implicit tail calls.
-        if (canTailCall && (tailCall & PREFIX_TAILCALL_IMPLICIT) && (verCurrentState.esStackDepth != 0))
+        if (canTailCall && implicitTailCall && (verCurrentState.esStackDepth != 0))
         {
 #ifdef _TARGET_AMD64_
             // JIT64 Compatibility:  Opportunistic tail call stack mismatch throws a VerificationException
@@ -8738,11 +8742,7 @@ DONE:
         // assert(compCurBB is not a try block protected by a finally block);
 
         // Check for permission to tailcall
-        bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
-        bool tailCallStress = (tailCall & PREFIX_STRESS_TAILCALL) != 0;
-        bool isTailPrefixed = explicitTailCall || tailCallStress;
-
-        assert(!isTailPrefixed || compCurBB->bbJumpKind == BBJ_RETURN);
+        assert((!explicitTailCall && !stressTailCall) || compCurBB->bbJumpKind == BBJ_RETURN);
 
         if (canTailCall)
         {
@@ -8751,7 +8751,7 @@ DONE:
                 ((call->gtCall.gtCallType != CT_USER_FUNC) || call->gtCall.IsVirtual()) ? nullptr : methHnd;
             GenTree* thisArg = call->gtCall.gtCallObjp;
 
-            if (info.compCompHnd->canTailCall(info.compMethodHnd, methHnd, exactCalleeHnd, isTailPrefixed))
+            if (info.compCompHnd->canTailCall(info.compMethodHnd, methHnd, exactCalleeHnd, explicitTailCall))
             {
                 if (explicitTailCall)
                 {
@@ -8767,7 +8767,7 @@ DONE:
                     }
 #endif
                 }
-                else if (tailCallStress)
+                else if (stressTailCall)
                 {
                     call->gtCall.gtCallMoreFlags |= GTF_CALL_M_STRESS_TAILCALL;
 
@@ -8784,7 +8784,7 @@ DONE:
                 {
 #if FEATURE_TAILCALL_OPT
                     // Must be an implicit tail call.
-                    assert((tailCall & PREFIX_TAILCALL_IMPLICIT) != 0);
+                    assert(implicitTailCall);
 
                     // It is possible that a call node is both an inline candidate and marked
                     // for opportunistic tail calling.  In-lining happens before morhphing of
@@ -8832,12 +8832,12 @@ DONE:
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nRejecting %s for call ", explicitTailCall ? "explicit tail call" : (tailCallStress ? "tail call stress" : "implicit tail call"));
+                printf("\nRejecting %s tail call for call ", explicitTailCall ? "explicit" : (stressTailCall ? "stress" : "implicit"));
                 printTreeID(call);
                 printf(": %s\n", szCanTailCallFailReason);
             }
 #endif
-            info.compCompHnd->reportTailCallDecision(info.compMethodHnd, methHnd, isTailPrefixed, TAILCALL_FAIL,
+            info.compCompHnd->reportTailCallDecision(info.compMethodHnd, methHnd, explicitTailCall, TAILCALL_FAIL,
                                                      szCanTailCallFailReason);
         }
     }
@@ -10900,7 +10900,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
     const BYTE* delegateCreateStart = nullptr;
 
     int  prefixFlags = 0;
-    bool explicitTailCall, constraintCall, readonlyCall, tailCallStress;
+    bool explicitTailCall, constraintCall, readonlyCall, stressTailCall;
 
     typeInfo tiRetVal;
 
@@ -14186,7 +14186,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 // Treat this call as tail call for verification only if "tail" prefixed (i.e. explicit tail call).
                 explicitTailCall = (prefixFlags & PREFIX_TAILCALL_EXPLICIT) != 0;
-                tailCallStress = (prefixFlags & PREFIX_STRESS_TAILCALL) != 0;
+                stressTailCall = (prefixFlags & PREFIX_STRESS_TAILCALL) != 0;
                 readonlyCall     = (prefixFlags & PREFIX_READONLY) != 0;
 
                 if (opcode != CEE_CALLI && opcode != CEE_NEWOBJ)
@@ -14200,7 +14200,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 if (tiVerificationNeeded)
                 {
                     verVerifyCall(opcode, &resolvedToken, constraintCall ? &constrainedResolvedToken : nullptr,
-                                  explicitTailCall || tailCallStress, readonlyCall, delegateCreateStart, codeAddr - 1,
+                                  explicitTailCall || stressTailCall, readonlyCall, delegateCreateStart, codeAddr - 1,
                                   &callInfo DEBUGARG(info.compFullName));
                 }
 
@@ -14214,7 +14214,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     return;
                 }
 
-                if (explicitTailCall || (tailCallStress && newBBcreatedForTailcallStress)) // If newBBcreatedForTailcallStress is true, we
+                if (explicitTailCall || (stressTailCall && newBBcreatedForTailcallStress)) // If newBBcreatedForTailcallStress is true, we
                                                                        // have created a new BB after the "call"
                 // instruction in fgMakeBasicBlocks(). So we need to jump to RET regardless.
                 {
