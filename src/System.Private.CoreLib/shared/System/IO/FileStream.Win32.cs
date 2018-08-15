@@ -47,10 +47,10 @@ namespace System.IO
 
         private static bool GetDefaultIsAsync(SafeFileHandle handle)
         {
-            return handle.IsAsync ?? !IsHandleSynchronous(handle) ?? DefaultIsAsync;
+            return handle.IsAsync ?? !IsHandleSynchronous(handle, ignoreInvalid: true) ?? DefaultIsAsync;
         }
 
-        private static unsafe bool? IsHandleSynchronous(SafeFileHandle fileHandle)
+        private static unsafe bool? IsHandleSynchronous(SafeFileHandle fileHandle, bool ignoreInvalid)
         {
             if (fileHandle.IsInvalid)
                 return null;
@@ -71,7 +71,14 @@ namespace System.IO
                     break;
                 case Interop.NtDll.STATUS_INVALID_HANDLE:
                     fileHandle.Dispose();
-                    throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_INVALID_HANDLE);
+                    if (!ignoreInvalid)
+                    {
+                        throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_INVALID_HANDLE);
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 default:
                     // Something else is preventing access
                     Debug.Fail("Unable to get the file mode information, status was" + status.ToString());
@@ -92,7 +99,7 @@ namespace System.IO
                 return;
 
             // If we can't check the handle, just assume it is ok.
-            if (!(IsHandleSynchronous(handle) ?? true))
+            if (!(IsHandleSynchronous(handle, ignoreInvalid: false) ?? true))
                 throw new ArgumentException(SR.Arg_HandleNotSync, nameof(handle));
         }
     }

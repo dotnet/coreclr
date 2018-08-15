@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
-using System.Security;
 
 namespace System.IO
 {
