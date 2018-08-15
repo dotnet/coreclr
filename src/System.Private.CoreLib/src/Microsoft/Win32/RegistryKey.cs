@@ -135,6 +135,15 @@ namespace Microsoft.Win32
             return _keyName;
         }
 
+        public string Name
+        {
+            get
+            {
+                EnsureNotDisposed();
+                return _keyName;
+            }
+        }
+
         private static void FixupPath(StringBuilder path)
         {
             Debug.Assert(path != null);
@@ -297,13 +306,14 @@ namespace Microsoft.Win32
          *
          * @return the RegistryKey requested.
          */
-        internal static RegistryKey GetBaseKey(IntPtr hKey)
+        internal static RegistryKey OpenBaseKey(RegistryHive hKey)
         {
-            return GetBaseKey(hKey, RegistryView.Default);
+            return OpenBaseKey(hKey, RegistryView.Default);
         }
 
-        internal static RegistryKey GetBaseKey(IntPtr hKey, RegistryView view)
+        internal static RegistryKey OpenBaseKey(RegistryHive hKeyHive, RegistryView view)
         {
+            IntPtr hKey = (IntPtr)((int)hKeyHive);
             int index = ((int)hKey) & 0x0FFFFFFF;
             Debug.Assert(index >= 0 && index < s_hkeyNames.Length, "index is out of range!");
             Debug.Assert((((int)hKey) & 0xFFFFFFF0) == 0x80000000, "Invalid hkey value!");
