@@ -8102,7 +8102,6 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                         break;
                     }
                 }
-#if FEATURE_TAILCALL_OPT
                 if (varTypeIsStruct(varDsc->TypeGet()) && varDsc->lvIsParam)
                 {
                     hasStructParam = true;
@@ -8111,7 +8110,6 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                     // look at the rest of parameters.
                     continue;
                 }
-#endif // FEATURE_TAILCALL_OPT
             }
 
             if (hasAddrExposedVars)
