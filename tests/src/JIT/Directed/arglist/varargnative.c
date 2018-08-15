@@ -281,7 +281,7 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     sum = 0;
     for (index = 0; index < float_count; ++index)
     {
-        sum += va_arg(ap, float);
+        sum += va_arg(ap, double);
     }
 
     for (index = 0; index < double_count; ++index)
@@ -293,15 +293,14 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     return sum;
 }
 
-DLLEXPORT float test_passing_int_and_float(float expected_value, ...)
+DLLEXPORT double test_passing_int_and_double(double expected_value, ...)
 {
     va_list ap;
     int index, count;
-    float sum;
+    double sum;
 
     count = 6;
     va_start(ap, expected_value);
-
 
     sum = 0;
     for (index = 0; index < 6; ++index)
@@ -311,7 +310,7 @@ DLLEXPORT float test_passing_int_and_float(float expected_value, ...)
         }
         else
         {
-            sum += va_arg(ap, float);
+            sum += va_arg(ap, double);
         }
     }
 
@@ -363,7 +362,7 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
 
     va_start(ap, format);
 
-    while (ch = *format++) {
+    while ((ch = *format++)) {
         if ('%' == ch)
         {
             switch (ch = *format++)
@@ -374,10 +373,10 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
                 case 'c':
                 case 'd':
                     i_temp = va_arg(ap, __int64);
-                    itoa(i_temp, buffer, 10);
+                    snprintf(buffer, 50, "%d", i_temp);
                     temp_str = buffer;
 
-                    while (temp_ch = *temp_str++)
+                    while ((temp_ch = *temp_str++))
                     {
                         calculated[index++] = temp_ch;
                     }
@@ -389,7 +388,7 @@ DLLEXPORT int check_string_from_format(char* expected, char* format, ...)
                     snprintf(buffer, 50, "%.2f", d_temp);
                     temp_str = buffer;
 
-                    while (temp_ch = *temp_str++)
+                    while ((temp_ch = *temp_str++))
                     {
                         calculated[index++] = temp_ch;
                     }
@@ -554,7 +553,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
                 two_float_struct s;
                 float sum;
 
-                expected_value_f = va_arg(ap, float);
+                expected_value_f = (float)va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {
@@ -574,7 +573,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
                 four_float_struct s;
                 float sum;
 
-                expected_value_f = va_arg(ap, float);
+                expected_value_f = (float)va_arg(ap, double);
                 sum = 0;
 
                 while (struct_count--) {
