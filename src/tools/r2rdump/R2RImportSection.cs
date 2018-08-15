@@ -10,8 +10,14 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
+    /// <summary>
+    /// based on src/inc/readytorun.h READYTORUN_IMPORT_SECTION
+    /// </summary>
     public struct R2RImportSection
     {
+        /// <summary>
+        /// based on src/inc/corcompile.h CorCompileImportType
+        /// </summary>
         public enum CorCompileImportType
         {
             CORCOMPILE_IMPORT_TYPE_UNKNOWN = 0,
@@ -23,6 +29,9 @@ namespace R2RDump
             CORCOMPILE_IMPORT_TYPE_VIRTUAL_METHOD = 6,
         };
 
+        /// <summary>
+        /// based on src/inc/corcompile.h CorCompileImportFlags
+        /// </summary>
         public enum CorCompileImportFlags
         {
             CORCOMPILE_IMPORT_FLAGS_UNKNOWN = 0x0000,

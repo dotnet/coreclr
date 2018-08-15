@@ -124,6 +124,9 @@ namespace R2RDump.x86
             return sb.ToString();
         }
 
+        /// <summary>
+        /// based on GCDump::DumpGCTable
+        /// </summary>
         private void DecodeUntracked(byte[] image, InfoHdrSmall header, ref int offset)
         {
             uint calleeSavedRegs = 0;
@@ -144,7 +147,7 @@ namespace R2RDump.x86
 
                 char reg = header.EbpFrame ? 'B' : 'S';
 
-                stkOffsDelta = NativeReader.DecodeSigned(image, ref offset);
+                stkOffsDelta = NativeReader.DecodeSignedGc(image, ref offset);
                 int stkOffs = lastStkOffs - stkOffsDelta;
                 lastStkOffs = stkOffs;
 
@@ -162,6 +165,9 @@ namespace R2RDump.x86
             }
         }
 
+        /// <summary>
+        /// based on GCDump::DumpGCTable
+        /// </summary>
         private void DecodeFrameVariableLifetimeTable(byte[] image, InfoHdrSmall header, ref int offset)
         {
             uint count = header.VarPtrTableSize;

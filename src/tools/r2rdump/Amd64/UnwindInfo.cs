@@ -7,6 +7,9 @@ using System.Xml.Serialization;
 
 namespace R2RDump.Amd64
 {
+    /// <summary>
+    /// based on src\inc\win64unwind.h _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindOpCodes
     {
         UWOP_PUSH_NONVOL = 0,
@@ -23,6 +26,9 @@ namespace R2RDump.Amd64
         UWOP_SET_FPREG_LARGE,
     }
 
+    /// <summary>
+    /// based on src\inc\win64unwind.h _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindFlags
     {
         UNW_FLAG_NHANDLER = 0x0,
@@ -31,6 +37,9 @@ namespace R2RDump.Amd64
         UNW_FLAG_CHAININFO = 0x4,
     }
 
+    /// <summary>
+    /// based on src\inc\win64unwind.h _UNWIND_CODE
+    /// </summary>
     public struct UnwindCode
     {
         [XmlAttribute("Index")]
@@ -62,6 +71,9 @@ namespace R2RDump.Amd64
         }
     }
 
+    /// <summary>
+    /// based on src\inc\win64unwind.h _UNWIND_INFO
+    /// </summary>
     public class UnwindInfo : BaseUnwindInfo
     {
         private const int _sizeofUnwindCode = 2;
@@ -78,6 +90,9 @@ namespace R2RDump.Amd64
 
         public UnwindInfo() { }
 
+        /// <summary>
+        /// based on ZapUnwindData::Save
+        /// </summary>
         public UnwindInfo(byte[] image, int offset)
         {
             byte versionAndFlags = NativeReader.ReadByte(image, ref offset);
@@ -140,6 +155,9 @@ namespace R2RDump.Amd64
             return sb.ToString();
         }
 
+        /// <summary>
+        /// based on src\jit\unwindamd64.cpp DumpUnwindInfo
+        /// </summary>
         private string GetUnwindCode(ref int i)
         {
             StringBuilder sb = new StringBuilder();

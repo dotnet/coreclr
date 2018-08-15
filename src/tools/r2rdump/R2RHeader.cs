@@ -8,6 +8,9 @@ using System.Text;
 
 namespace R2RDump
 {
+    /// <summary>
+    /// based on src/inc/readytorun.h READYTORUN_HEADER
+    /// </summary>
     public class R2RHeader
     {
         [Flags]

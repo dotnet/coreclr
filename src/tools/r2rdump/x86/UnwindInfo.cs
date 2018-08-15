@@ -7,6 +7,9 @@ using System.Xml.Serialization;
 
 namespace R2RDump.x86
 {
+    /// <summary>
+    /// based on src\inc\win64unwind.h _UNWIND_INFO
+    /// </summary>
     public class UnwindInfo : BaseUnwindInfo
     {
         public uint FunctionLength { get; set; }

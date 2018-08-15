@@ -6,6 +6,9 @@ using System.Text;
 
 namespace R2RDump
 {
+    /// <summary>
+    /// based on NativeFormat::NativeArray
+    /// </summary>
     class NativeArray
     {
         private const int _blockSize = 16;

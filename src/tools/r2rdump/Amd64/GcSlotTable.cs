@@ -64,6 +64,9 @@ namespace R2RDump.Amd64
 
         public GcSlotTable() { }
 
+        /// <summary>
+        /// based on GcSlotDecoder::DecodeSlotTable
+        /// </summary>
         public GcSlotTable(byte[] image, Machine machine, GcInfoTypes gcInfoTypes, ref int bitOffset)
         {
             if (NativeReader.ReadBits(image, 1, ref bitOffset) != 0)

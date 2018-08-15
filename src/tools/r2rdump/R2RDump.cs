@@ -114,8 +114,6 @@ namespace R2RDump
                 _sectionContents = true;
             }
 
-            _disasm = false; // TODO: this requires the coredistools nuget package with the most recent changes
-
             return argSyntax;
         }
 
@@ -395,6 +393,7 @@ namespace R2RDump
 
                 foreach (string filename in _inputFilenames)
                 {
+                    // parse the ReadyToRun image
                     R2RReader r2r = new R2RReader(filename);
 
                     if (_disasm)
@@ -411,6 +410,7 @@ namespace R2RDump
                         _dumper = new TextDumper(r2r, _writer, _raw, _header, _disasm, disassembler, _unwind, _gc, _sectionContents);
                     }
 
+                    // output the ReadyToRun info
                     Dump(r2r);
                 }
             }

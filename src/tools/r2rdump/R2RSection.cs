@@ -11,6 +11,9 @@ namespace R2RDump
 {
     public struct R2RSection
     {
+        /// <summary>
+        /// based on src/inc/readytorun.h ReadyToRunSectionType
+        /// </summary>
         public enum SectionType
         {
             READYTORUN_SECTION_COMPILER_IDENTIFIER = 100,

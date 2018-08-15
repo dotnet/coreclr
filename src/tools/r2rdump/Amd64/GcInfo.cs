@@ -12,6 +12,9 @@ namespace R2RDump.Amd64
 {
     public class GcInfo : BaseGcInfo
     {
+        /// <summary>
+        /// based on C:\Repos\coreclr\src\inc\gcinfodecoder.h GcInfoHeaderFlags
+        /// </summary>
         private enum GcInfoHeaderFlags
         {
             GC_INFO_IS_VARARG = 0x1,
@@ -81,6 +84,9 @@ namespace R2RDump.Amd64
 
         public GcInfo() { }
 
+        /// <summary>
+        /// based on GcInfoDecoder::GcInfoDecoder
+        /// </summary>
         public GcInfo(byte[] image, int offset, Machine machine, ushort majorVersion)
         {
             Offset = offset;
@@ -266,6 +272,9 @@ namespace R2RDump.Amd64
             return sb.ToString();
         }
 
+        /// <summary>
+        /// based on GcInfoDecoder::GcInfoDecoder
+        /// </summary>
         private void ParseHeaderFlags(byte[] image, ref int bitOffset)
         {
             GcInfoHeaderFlags headerFlags;
@@ -305,6 +314,9 @@ namespace R2RDump.Amd64
             return safePoints;
         }
 
+        /// <summary>
+        /// based on beginning of GcInfoDecoder::EnumerateLiveSlots
+        /// </summary>
         private List<InterruptibleRange> EnumerateInterruptibleRanges(byte[] image, int interruptibleRangeDelta1EncBase, int interruptibleRangeDelta2EncBase, ref int bitOffset)
         {
             List<InterruptibleRange> ranges = new List<InterruptibleRange>();
@@ -333,6 +345,9 @@ namespace R2RDump.Amd64
             return (readyToRunMajorVersion == 1) ? 1 : GCINFO_VERSION;
         }
 
+        /// <summary>
+        /// based on end of GcInfoDecoder::EnumerateLiveSlots and GcInfoEncoder::Build
+        /// </summary>
         public Dictionary<int, List<BaseGcTransition>> GetTranstions(byte[] image, ref int bitOffset)
         {
             int totalInterruptibleLength = 0;
@@ -348,7 +363,7 @@ namespace R2RDump.Amd64
                 }
             }
 
-            int numChunks = (totalInterruptibleLength + _gcInfoTypes.NUM_NORM_CODE_OFFSETS_PER_CHUNK - 1) / _gcInfoTypes.NUM_NORM_CODE_OFFSETS_PER_CHUNK; //=2
+            int numChunks = (totalInterruptibleLength + _gcInfoTypes.NUM_NORM_CODE_OFFSETS_PER_CHUNK - 1) / _gcInfoTypes.NUM_NORM_CODE_OFFSETS_PER_CHUNK;
             int numBitsPerPointer = (int)NativeReader.DecodeVarLengthUnsigned(image, _gcInfoTypes.POINTER_SIZE_ENCBASE, ref bitOffset);
             if (numBitsPerPointer == 0)
             {

@@ -262,6 +262,7 @@ namespace R2RDump
 
         /// <summary>
         /// Get the RVAs of the runtime functions for each method
+        /// based on ZapUnwindInfo::Save
         /// </summary>
         private void ParseRuntimeFunctions(bool[] isEntryPoint, int runtimeFunctionOffset, int runtimeFunctionSize)
         {
@@ -312,6 +313,9 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Iterates through a native hashtable to get all RIDs
+        /// </summary>
         private void ParseAvailableTypes()
         {
             if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES))
@@ -334,6 +338,9 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Converts the bytes in the compiler identifier section to characters in a string
+        /// </summary>
         private string ParseCompilerIdentifier()
         {
             if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_COMPILER_IDENTIFIER))
@@ -347,6 +354,9 @@ namespace R2RDump
             return Encoding.UTF8.GetString(identifier);
         }
 
+        /// <summary>
+        /// based on ZapImportSectionsTable::Save
+        /// </summary>
         private void ParseImportSections()
         {
             if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_IMPORT_SECTIONS))
@@ -459,6 +469,7 @@ namespace R2RDump
 
         /// <summary>
         /// Reads the method entrypoint from the offset. Used for non-generic methods
+        /// based on NativeImageDumper::DumpReadyToRunMethods
         /// </summary>
         private void GetEntryPointInfoFromOffset(int offset, out int runtimeFunctionIndex, out FixupCell[] fixupCells)
         {
