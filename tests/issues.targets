@@ -1956,9 +1956,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/eventpipeandetw/eventpipeandetw/*">
             <Issue>by design Windows only</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)\readytorun\r2rdump\R2RDumpTest\R2RDumpTest.cmd">
-            <Issue>19441</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\arglist\vararg\vararg.cmd">
             <Issue>not supported on unix</Issue>
         </ExcludeList>
