@@ -41,10 +41,7 @@ namespace System.IO
             }
         }
 
-        private static bool GetDefaultIsAsync(SafeFileHandle handle)
-        {
-            return handle.IsAsync.HasValue ? handle.IsAsync.Value : DefaultIsAsync;
-        }
+        private static bool GetDefaultIsAsync(SafeFileHandle handle) => handle.IsAsync ?? DefaultIsAsync;
 
         private static unsafe bool? IsHandleSynchronous(SafeFileHandle handle)
         {
@@ -89,7 +86,7 @@ namespace System.IO
             {
                 // If we can't check the handle, just assume it is ok.
                 if (!(IsHandleSynchronous() ?? true))
-                    throw new ArgumentException(SR.Arg_HandleNotSync, "handle");
+                    throw new ArgumentException(SR.Arg_HandleNotSync, nameof(handle));
             }
         }
     }

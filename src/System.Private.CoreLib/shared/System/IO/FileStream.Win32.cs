@@ -93,7 +93,7 @@ namespace System.IO
 
             // If we can't check the handle, just assume it is ok.
             if (!(IsHandleSynchronous(handle) ?? true))
-                throw new ArgumentException(SR.Arg_HandleNotSync, "handle");
+                throw new ArgumentException(SR.Arg_HandleNotSync, nameof(handle));
         }
     }
 }
