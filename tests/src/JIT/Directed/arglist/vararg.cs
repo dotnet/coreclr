@@ -51,7 +51,7 @@ namespace NativeVarargTest
         extern static double test_passing_floats_and_doubles(int float_count, int double_count, __arglist);
 
         [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
-        extern static double test_passing_int_and_float(double expected_value, __arglist);
+        extern static double test_passing_int_and_double(double expected_value, __arglist);
 
         [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
         extern static double test_passing_long_and_double(double expected_value, __arglist);
@@ -446,7 +446,7 @@ namespace NativeVarargTest
 
             expectedSum = a + b + c + f1 + f2 + f3;
 
-            double calculatedSum = test_passing_int_and_float(
+            double calculatedSum = test_passing_int_and_double(
                 expectedSum,
                 __arglist(
                     a,
