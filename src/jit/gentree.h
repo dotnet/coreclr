@@ -3553,7 +3553,7 @@ struct GenTreeCall final : public GenTree
     // either a tail call (i.e. IsTailCall() is true) or a non-tail call.
     bool IsTailPrefixedCall() const
     {
-        return (gtCallMoreFlags & (GTF_CALL_M_EXPLICIT_TAILCALL | GTF_CALL_M_STRESS_TAILCALL)) != 0;
+        return (gtCallMoreFlags & GTF_CALL_M_EXPLICIT_TAILCALL) != 0;
     }
 
     bool IsTailCallStress() const
@@ -3572,7 +3572,7 @@ struct GenTreeCall final : public GenTree
     // and providing a hint that this can be converted to a tail call.
     bool CanTailCall() const
     {
-        return IsTailPrefixedCall() || IsImplicitTailCall();
+        return IsTailPrefixedCall() || IsTailCallStress() || IsImplicitTailCall();
     }
 
     bool IsTailCallViaHelper() const
