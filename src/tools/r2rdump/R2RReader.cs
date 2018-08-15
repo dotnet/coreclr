@@ -199,7 +199,7 @@ namespace R2RDump
                 {
                     int runtimeFunctionId;
                     FixupCell[] fixups;
-                    GetEntryPointInfoFromOffset(offset, out runtimeFunctionId, out fixups);
+                    GetRuntimeFunctionIndexFromOffset(offset, out runtimeFunctionId, out fixups);
                     R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, null, null, fixups);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
@@ -248,7 +248,7 @@ namespace R2RDump
 
                     int runtimeFunctionId;
                     FixupCell[] fixups;
-                    GetEntryPointInfoFromOffset((int)curParser.Offset, out runtimeFunctionId, out fixups);
+                    GetRuntimeFunctionIndexFromOffset((int)curParser.Offset, out runtimeFunctionId, out fixups);
                     R2RMethod method = new R2RMethod(R2RMethods.Count, _mdReader, rid, runtimeFunctionId, args, tokens, fixups);
                     if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
                     {
@@ -471,7 +471,7 @@ namespace R2RDump
         /// Reads the method entrypoint from the offset. Used for non-generic methods
         /// based on NativeImageDumper::DumpReadyToRunMethods
         /// </summary>
-        private void GetEntryPointInfoFromOffset(int offset, out int runtimeFunctionIndex, out FixupCell[] fixupCells)
+        private void GetRuntimeFunctionIndexFromOffset(int offset, out int runtimeFunctionIndex, out FixupCell[] fixupCells)
         {
             fixupCells = null;
 
