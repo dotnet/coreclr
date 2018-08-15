@@ -61,10 +61,15 @@ namespace System.IO
             return SafeFileHandle.Open(_path, openFlags, (int)OpenPermissions);
         }
 
+        private static bool GetDefaultIsAsync(SafeFileHandle handle)
+        {
+            return handle.IsAsync.HasValue ? handle.IsAsync.Value : false;
+        }
+
         /// <summary>Initializes a stream for reading or writing a Unix file.</summary>
         /// <param name="mode">How the file should be opened.</param>
         /// <param name="share">What other access to the file should be allowed.  This is currently ignored.</param>
-        private void Init(FileMode mode, FileShare share)
+        private void Init(FileMode mode, FileShare share, string originalPath)
         {
             _fileHandle.IsAsync = _useAsyncIO;
 
