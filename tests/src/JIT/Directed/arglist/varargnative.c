@@ -219,7 +219,7 @@ DLLEXPORT float test_passing_floats(int count, ...)
     sum = 0;
     for (index = 0; index < count; ++index)
     {
-        sum += va_arg(ap, float);
+        sum += (float)va_arg(ap, double);
     }
 
     va_end(ap);
