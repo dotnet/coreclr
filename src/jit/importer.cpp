@@ -7394,10 +7394,10 @@ bool Compiler::impTailCallRetTypeCompatible(var_types            callerRetType,
 enum
 {
     PREFIX_TAILCALL_EXPLICIT = 0x00000001, // call has "tail" IL prefix
-    PREFIX_TAILCALL_STRESS = 0x00000002, // call is under "tail call" stress mode
+    PREFIX_STRESS_TAILCALL = 0x00000002, // call is under "tail call" stress mode
     PREFIX_TAILCALL_IMPLICIT =
         0x00000010, // call is treated as having "tail" prefix even though there is no "tail" IL prefix
-    PREFIX_TAILCALL    = (PREFIX_TAILCALL_EXPLICIT | PREFIX_TAILCALL_STRESS | PREFIX_TAILCALL_IMPLICIT),
+    PREFIX_TAILCALL    = (PREFIX_TAILCALL_EXPLICIT | PREFIX_STRESS_TAILCALL | PREFIX_TAILCALL_IMPLICIT),
     PREFIX_VOLATILE    = 0x00000100,
     PREFIX_UNALIGNED   = 0x00001000,
     PREFIX_CONSTRAINED = 0x00010000,
@@ -7518,7 +7518,7 @@ bool Compiler::impIsImplicitTailCallCandidate(
     }
 
     // must not be under "tail call" stress mode
-    if (prefixFlags & PREFIX_TAILCALL_STRESS)
+    if (prefixFlags & PREFIX_STRESS_TAILCALL)
     {
         return false;
     }
@@ -8739,7 +8739,7 @@ DONE:
 
         // Check for permission to tailcall
         bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
-        bool tailCallStress = (tailCall & PREFIX_TAILCALL_STRESS) != 0;
+        bool tailCallStress = (tailCall & PREFIX_STRESS_TAILCALL) != 0;
         bool isTailPrefixed = explicitTailCall || tailCallStress;
 
         assert(!isTailPrefixed || compCurBB->bbJumpKind == BBJ_RETURN);
@@ -14148,8 +14148,8 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                                                               hasTailPrefix)) // Is it legal to do tailcall?
                             {
                                 // Stress the tailcall.
-                                JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_TAILCALL_STRESS)");
-                                prefixFlags |= PREFIX_TAILCALL_STRESS;
+                                JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_STRESS_TAILCALL)");
+                                prefixFlags |= PREFIX_STRESS_TAILCALL;
                             }
                         }
                     }
@@ -14186,7 +14186,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
                 // Treat this call as tail call for verification only if "tail" prefixed (i.e. explicit tail call).
                 explicitTailCall = (prefixFlags & PREFIX_TAILCALL_EXPLICIT) != 0;
-                tailCallStress = (prefixFlags & PREFIX_TAILCALL_STRESS) != 0;
+                tailCallStress = (prefixFlags & PREFIX_STRESS_TAILCALL) != 0;
                 readonlyCall     = (prefixFlags & PREFIX_READONLY) != 0;
 
                 if (opcode != CEE_CALLI && opcode != CEE_NEWOBJ)
