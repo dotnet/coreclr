@@ -32,109 +32,109 @@ namespace NativeVarargTest
         extern static void printf(string str, __arglist);
 #endif
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int test_passing_ints(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static long test_passing_longs(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static float test_passing_floats(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double test_passing_doubles(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static long test_passing_int_and_longs(int int_count, int long_count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double test_passing_floats_and_doubles(int float_count, int double_count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double test_passing_int_and_double(double expected_value, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double test_passing_long_and_double(double expected_value, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int check_string_from_format(string expected, string format, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double check_passing_four_three_double_struct(ThreeDoubleStruct a, ThreeDoubleStruct b, ThreeDoubleStruct c, ThreeDoubleStruct d, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int check_passing_struct(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int check_passing_four_sixteen_byte_structs(int count, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static byte echo_byte(byte arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static char echo_char(char arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static short echo_short(short arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static int echo_int(int arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static long echo_int64(long arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static float echo_float(float arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double echo_double(double arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static OneIntStruct echo_one_int_struct(OneIntStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static TwoIntStruct echo_two_int_struct(TwoIntStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static OneLongStruct echo_one_long_struct(OneLongStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static TwoLongStruct echo_two_long_struct(TwoLongStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static EightByteStruct echo_eight_byte_struct(EightByteStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static FourIntStruct echo_four_int_struct(FourIntStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static FourLongStruct echo_four_long_struct_with_vararg(FourLongStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static FourLongStruct echo_four_long_struct(FourLongStruct arg);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static SixteenByteStruct echo_sixteen_byte_struct(SixteenByteStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static OneFloatStruct echo_one_float_struct(OneFloatStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static TwoFloatStruct echo_two_float_struct(TwoFloatStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static OneDoubleStruct echo_one_double_struct(OneDoubleStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static TwoDoubleStruct echo_two_double_struct(TwoDoubleStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static ThreeDoubleStruct echo_three_double_struct(ThreeDoubleStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static FourFloatStruct echo_four_float_struct(FourFloatStruct arg, __arglist);
 
-        [DllImport("vararg", CallingConvention = CallingConvention.Cdecl)]
+        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static FourDoubleStruct echo_four_double_struct(FourDoubleStruct arg, __arglist);
 
         ////////////////////////////////////////////////////////////////////////////
@@ -211,7 +211,7 @@ namespace NativeVarargTest
         static bool TestPassingFloats(float[] expectedValues)
         {
             Debug.Assert(expectedValues.Length == 4);
-            float expectedSum = test_passing_floats(expectedValues.Length, __arglist(((double)expectedValues[0], (double)expectedValues[1], (double)expectedValues[2], (double)expectedValues[3]));
+            float expectedSum = test_passing_floats(expectedValues.Length, __arglist((double)expectedValues[0], (double)expectedValues[1], (double)expectedValues[2], (double)expectedValues[3]));
 
             float sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
@@ -403,7 +403,7 @@ namespace NativeVarargTest
         {
             Debug.Assert(expectedFloatValues.Length == 2);
             Debug.Assert(expectedDoubleValues.Length == 2);
-            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, expectedDoubleValues.Length, __arglist(((double)expectedFloatValues[0], (double)expectedFloatValues[1], expectedDoubleValues[0], expectedDoubleValues[1]));
+            double expectedSum = test_passing_floats_and_doubles(expectedFloatValues.Length, expectedDoubleValues.Length, __arglist((double)expectedFloatValues[0], (double)expectedFloatValues[1], expectedDoubleValues[0], expectedDoubleValues[1]));
 
             double sum = 0;
             for (int i = 0; i < expectedFloatValues.Length; ++i)
@@ -707,7 +707,7 @@ namespace NativeVarargTest
                                                                                      expectedValues[39],
                                                                                      expectedValues[40]));
 
-            float sum = 0;
+            double sum = 0;
             for (int i = 0; i < expectedValues.Length; ++i)
             {
                 sum += expectedValues[i];
@@ -1004,7 +1004,7 @@ namespace NativeVarargTest
 
             int firstExpectedValue = first.a + first.b;
             long secondExpectedValue = second.a;
-            float thirdExpectedValue = third.a + third.b;
+            double thirdExpectedValue = third.a + third.b;
             double fourthExpectedValue = fourth.a;
 
             success = ReportFailure(check_passing_struct(6, __arglist(0, 0, 0, 8, 1, firstExpectedValue, first)) == 0, "check_passing_struct(6, __arglist(0, 0, 0, 8, 1, firstExpectedValue, first)) == 0", success, 16);
@@ -1048,7 +1048,7 @@ namespace NativeVarargTest
             long firstExpectedValue = first.a + first.b;
             long secondExpectedValue = second.a + second.b + second.c + second.d;
             double thirdExpectedValue = third.a + third.b;
-            float fourthExpectedValue = fourth.a + fourth.b + fourth.c + fourth.d;
+            double fourthExpectedValue = fourth.a + fourth.b + fourth.c + fourth.d;
 
             success = ReportFailure(check_passing_struct(6, __arglist(0, 0, 0, 16, 1, firstExpectedValue, first)) == 0, "check_passing_struct(6, __arglist(0, 0, 0, 16, 1, firstExpectedValue, first)) == 0", success, 20);
             success = ReportFailure(check_passing_struct(6, __arglist(1, 0, 0, 16, 1, secondExpectedValue, second)) == 0, "check_passing_struct(6, __arglist(1, 0, 0, 16, 1, secondExpectedValue, second)) == 0", success, 21);

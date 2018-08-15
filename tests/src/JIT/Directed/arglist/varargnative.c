@@ -208,6 +208,24 @@ DLLEXPORT __int64 test_passing_longs(int count, ...)
     return sum;
 }
 
+DLLEXPORT float test_passing_floats(int count, ...)
+{
+    va_list ap;
+    int index;
+    double sum;
+
+    va_start(ap, count);
+
+    sum = 0;
+    for (index = 0; index < count; ++index)
+    {
+        sum += va_arg(ap, double);
+    }
+
+    va_end(ap);
+    return (float)sum;
+}
+
 DLLEXPORT double test_passing_doubles(int count, ...)
 {
     va_list ap;
