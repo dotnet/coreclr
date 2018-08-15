@@ -8023,7 +8023,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             szFailReason = "GcChecks";
         }
 #endif
-        else if (FEATURE_TAILCALL_OPT || call->IsTailCallStress())
+        else if (FEATURE_TAILCALL_OPT || call->IsStressTailCall())
         {
             // We are still not sure whether it can be a tail call. Because, when converting
             // a call to an implicit tail call, we must check that there are no locals with
@@ -8057,7 +8057,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 // We still must check for any struct parameters and set 'hasStructParam'
                 // so that we won't transform the recursive tail call into a loop.
                 //
-                if (call->IsImplicitTailCall() || call->IsTailCallStress())
+                if (call->IsImplicitTailCall() || call->IsStressTailCall())
                 {
                     if (varDsc->lvHasLdAddrOp)
                     {
