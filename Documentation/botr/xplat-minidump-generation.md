@@ -63,8 +63,6 @@ The createdump utility can also be run from the command line on arbitrary .NET C
 
 `sudo createdump <pid>`  
 
-**Utility Command Line Options**:
-
     createdump [options] pid
     -f, --name - dump path and file name. The pid can be placed in the name with %d. The default is "/tmp/coredump.%d"
     -n, --normal - create minidump (default).
