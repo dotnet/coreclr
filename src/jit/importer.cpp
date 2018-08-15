@@ -8769,12 +8769,12 @@ DONE:
                 }
                 else if (tailCallStress)
                 {
-                    call->gtCall.gtCallMoreFlags |= GTF_CALL_M_TAILCALL_STRESS;
+                    call->gtCall.gtCallMoreFlags |= GTF_CALL_M_STRESS_TAILCALL;
 
 #ifdef DEBUG
                     if (verbose)
                     {
-                        printf("\nGTF_CALL_M_TAILCALL_STRESS bit set for call ");
+                        printf("\nGTF_CALL_M_STRESS_TAILCALL bit set for call ");
                         printTreeID(call);
                         printf("\n");
                     }
@@ -9367,7 +9367,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
                 // convention for result return.
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
-                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_STRESS_TAILCALL;
             }
             else
             {
@@ -9404,7 +9404,7 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
                 // convention for result return.
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
                 op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
-                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
+                op->gtCall.gtCallMoreFlags &= ~GTF_CALL_M_STRESS_TAILCALL;
             }
             else
             {

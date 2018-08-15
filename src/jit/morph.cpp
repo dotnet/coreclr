@@ -8194,7 +8194,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         // Clear these flags before calling fgMorphCall() to avoid recursion.
         bool isTailPrefixed = call->IsTailPrefixedCall();
         call->gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
-        call->gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL_STRESS;
+        call->gtCallMoreFlags &= ~GTF_CALL_M_STRESS_TAILCALL;
 
 #if FEATURE_TAILCALL_OPT
         call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;

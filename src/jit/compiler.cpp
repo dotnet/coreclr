@@ -9599,9 +9599,9 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     {
                         chars += printf("[CALL_M_PINVOKE]");
                     }
-                    if (call->gtCallMoreFlags & GTF_CALL_M_TAILCALL_STRESS)
+                    if (call->gtCallMoreFlags & GTF_CALL_M_STRESS_TAILCALL)
                     {
-                        chars += printf("[CALL_M_TAILCALL_STRESS]");
+                        chars += printf("[CALL_M_STRESS_TAILCALL]");
                     }
                 }
                 break;
