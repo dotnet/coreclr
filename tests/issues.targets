@@ -1,4 +1,3 @@
-
 <?xml version="1.0" ?>
 <Project DefaultTargets = "GetListOfTestCmds" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <!-- All OS/Arch common excludes -->
@@ -1956,6 +1955,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/eventpipeandetw/eventpipeandetw/*">
             <Issue>by design Windows only</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)\readytorun\r2rdump\R2RDumpTest\R2RDumpTest.cmd">
+            <Issue>19441</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)\JIT\Directed\arglist\vararg\vararg.cmd">
             <Issue>not supported on unix</Issue>
