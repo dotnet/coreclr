@@ -83,6 +83,7 @@ IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMi
   popd
   Exit /b 0
 :Compatible1
+  set COMPlus_TieredCompilation=0
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
       <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
