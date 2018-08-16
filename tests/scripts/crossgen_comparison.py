@@ -1,4 +1,25 @@
-#!  /usr/bin/env python
+#!/usr/bin/env python
+#
+# Licensed to the .NET Foundation under one or more agreements.
+# The .NET Foundation licenses this file to you under the MIT license.
+# See the LICENSE file in the project root for more information.
+#
+################################################################################
+#
+# Module: crossgen_comparison.py
+#
+# Notes:
+#
+# Script that
+#   1) runs crossgen on System.Private.CoreLib.dll and CoreFX assemblies and
+#   collects information about the crossgen behaviour (such as the return code,
+#   stdout/stderr streams, SHA256 hash sum of the resulting file).
+#   2) compares the collected information from two crossgen scenarios (e.g.
+#   x86_arm vs. arm_arm) and report all the differences in their behaviour
+#   (such as mismatches in the resulting files; hash sums, or missing files).
+#
+################################################################################
+################################################################################
 
 import argparse
 import glob
@@ -9,6 +30,50 @@ import tempfile
 import sys
 import subprocess
 
+################################################################################
+# Argument Parser
+################################################################################
+
+def build_argument_parser():
+    description = """Script that runs crossgen on different assemblies and
+        collects/compares information about the crossgen behaviour."""
+
+    parser = argparse.ArgumentParser(description=description)
+
+    subparsers = parser.add_subparsers()
+
+    crossgen_corelib_description = """Runs crossgen on IL System.Private.CoreLib.dll and
+        collects information about the run."""
+
+    corelib_parser = subparsers.add_parser('crossgen_corelib', description=crossgen_corelib_description)
+    corelib_parser.add_argument('--crossgen', dest='crossgen_executable_filename', required=True)
+    corelib_parser.add_argument('--il_corelib', dest='il_corelib_filename', required=True)
+    corelib_parser.add_argument('--result_dir', dest='result_dirname', required=True)
+    corelib_parser.set_defaults(func=crossgen_corelib)
+
+    frameworks_parser_description = """Runs crossgen on each assembly in Core_Root and 
+        collects information about all the runs."""
+
+    frameworks_parser = subparsers.add_parser('crossgen_framework', description=frameworks_parser_description)
+    frameworks_parser.add_argument('--crossgen', dest='crossgen_executable_filename', required=True)
+    frameworks_parser.add_argument('--core_root', dest='core_root', required=True)
+    frameworks_parser.add_argument('--result_dir', dest='result_dirname', required=True)
+    frameworks_parser.set_defaults(func=crossgen_framework)
+
+    compare_parser_description = """Compares collected information from two crossgen scenarios - base vs diff"""
+
+    compare_parser = subparsers.add_parser('compare', description=compare_parser_description)
+    compare_parser.add_argument('--base_dir', dest='base_dirname', required=True)
+    compare_parser.add_argument('--diff_dir', dest='diff_dirname', required=True)
+    compare_parser.set_defaults(func=compare)
+
+    return parser
+
+################################################################################
+# Globals
+################################################################################
+
+# List of framework assemblies used for crossgen_framework command
 g_Framework_Assemblies = [
     'CommandLine.dll',
     'Microsoft.CodeAnalysis.CSharp.dll',
@@ -211,6 +276,11 @@ class CrossGenRunner:
         self.no_logo = no_logo
         self.platform_assemblies_paths_sep = ";"
 
+    """
+        Creates a subprocess running crossgen with specified set of arguments, 
+        communicates with the owner process - waits for its termination and pulls 
+        returncode, stdour, stderr.
+    """
     def run(self, in_filename, out_filename, platform_assemblies_paths):
         p = subprocess.Popen(self._build_args(in_filename, out_filename, platform_assemblies_paths), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()
@@ -229,17 +299,24 @@ class CrossGenRunner:
         return args
 
 def compute_file_hashsum(filename):
+    """
+        Compute SHA256 file hashsum for {filename}.
+    """
     algo=hashlib.sha256()
-    block_size_in_bytes = 65536
+    maximum_block_size_in_bytes = 65536
     with open(filename, 'rb') as file:
         while True:
-            block = file.read(block_size_in_bytes)
+            block = file.read(maximum_block_size_in_bytes)
             if block:
                 algo.update(block)
             else:
                 break
     return algo.hexdigest()
 
+
+################################################################################
+# Collected during crossgen run information and JSON encoders/decoders.
+################################################################################
 class CrossGenResult:
     def __init__(self, assembly_name, returncode, stdout, stderr, out_file_hashsum):
         self.assembly_name = assembly_name
@@ -273,6 +350,10 @@ class CrossGenResultDecoder(json.JSONDecoder):
             return CrossGenResult(assembly_name, returncode, stdout, stderr, out_file_hashsum)
         except KeyError:
             return dict
+
+################################################################################
+# Helper Functions
+################################################################################
 
 def crossgen_assembly(crossgen_executable_filename, in_filename, out_filename, platform_assemblies_paths):
     runner = CrossGenRunner(crossgen_executable_filename)
@@ -347,26 +428,11 @@ def compare(args):
 
     sys.exit(1 if has_mismatch_error else 0)
 
+################################################################################
+# __main__
+################################################################################
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
-
-    corelib_parser = subparsers.add_parser('crossgen_corelib')
-    corelib_parser.add_argument('--crossgen', dest='crossgen_executable_filename')
-    corelib_parser.add_argument('--il_corelib', dest='il_corelib_filename')
-    corelib_parser.add_argument('--result_dir', dest='result_dirname')
-    corelib_parser.set_defaults(func=crossgen_corelib)
-
-    frameworks_parser = subparsers.add_parser('crossgen_framework')
-    frameworks_parser.add_argument('--crossgen', dest='crossgen_executable_filename')
-    frameworks_parser.add_argument('--core_root', dest='core_root')
-    frameworks_parser.add_argument('--result_dir', dest='result_dirname')
-    frameworks_parser.set_defaults(func=crossgen_framework)
-
-    compare_parser = subparsers.add_parser('compare')
-    compare_parser.add_argument('--base_dir', dest='base_dirname')
-    compare_parser.add_argument('--diff_dir', dest='diff_dirname')
-    compare_parser.set_defaults(func=compare)
-
+    parser = build_argument_parser()
     args = parser.parse_args()
     func = args.func(args)
