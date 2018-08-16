@@ -1331,6 +1331,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     switch (scenario) {
         case 'innerloop':
         case 'no_tiered_compilation_innerloop':
+        case 'crossgen_comparison':
             break
         case 'normal':
             switch (architecture) {
