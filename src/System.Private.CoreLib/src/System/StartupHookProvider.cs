@@ -28,17 +28,13 @@ namespace System
             List<Tuple<string, string>> startupHooksParsed = new List<Tuple<string, string>>();
             foreach (string startupHook in startupHooks)
             {
-                string[] assemblyPathAndTypeName = startupHook.Split(new char[] { '!' });
-                if (assemblyPathAndTypeName.Length != 2)
+                int separatorIndex = startupHook.LastIndexOf('!');
+                if (separatorIndex <= 0 || separatorIndex == startupHook.Length - 1)
                 {
                     throw new ArgumentException(SR.Argument_InvalidStartupHookSyntax);
                 }
-                string assemblyPath = assemblyPathAndTypeName[0];
-                string typeName = assemblyPathAndTypeName[1];
-                if (String.IsNullOrEmpty(assemblyPath) || String.IsNullOrEmpty(typeName))
-                {
-                    throw new ArgumentException(SR.Argument_InvalidStartupHookSyntax);
-                }
+                string assemblyPath = startupHook.Substring(0, separatorIndex);
+                string typeName = startupHook.Substring(separatorIndex + 1);
                 startupHooksParsed.Add(Tuple.Create(assemblyPath, typeName));
             }
 
@@ -48,7 +44,7 @@ namespace System
                 var assemblyPath = startupHook.Item1;
                 if (!File.Exists(assemblyPath))
                 {
-                    throw new FileNotFoundException(SR.Format(SR.FileNotFound_ResolveAssembly, assemblyPath));
+                    throw new FileNotFoundException(SR.Format(SR.FileNotFound_ResolveAssembly, Path.GetFullPath(assemblyPath)));
                 }
             }
 
@@ -78,10 +74,9 @@ namespace System
                 throw new MissingMethodException(typeName, initializeMethodName);
             }
 
-            Debug.Assert(initializeMethod.IsPublic);
             if (!(initializeMethod.IsStatic && initializeMethod.ReturnType == typeof(void)))
             {
-                throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature, typeName + "." + initializeMethodName));
+                throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature, typeName + Type.Delimiter + initializeMethodName));
             }
 
             initializeMethod.Invoke(null, null);
