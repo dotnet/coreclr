@@ -129,7 +129,6 @@ INLINE_OBSERVATION(CROSS_BOUNDARY_CALLI,      bool,   "cross-boundary calli",   
 INLINE_OBSERVATION(CROSS_BOUNDARY_SECURITY,   bool,   "cross-boundary security check", FATAL,       CALLSITE)
 INLINE_OBSERVATION(EXCEEDS_THRESHOLD,         bool,   "exceeds profit threshold",      FATAL,       CALLSITE)
 INLINE_OBSERVATION(EXPLICIT_TAIL_PREFIX,      bool,   "explicit tail prefix",          FATAL,       CALLSITE)
-INLINE_OBSERVATION(STRESS_TAIL_CALL,          bool,   "stress tail call",              FATAL,       CALLSITE)
 INLINE_OBSERVATION(GENERIC_DICTIONARY_LOOKUP, bool,   "runtime dictionary lookup",     FATAL,       CALLSITE)
 INLINE_OBSERVATION(HAS_CALL_VIA_LDVIRTFTN,    bool,   "call via ldvirtftn",            FATAL,       CALLSITE)
 INLINE_OBSERVATION(HAS_COMPLEX_HANDLE,        bool,   "complex handle access",         FATAL,       CALLSITE)

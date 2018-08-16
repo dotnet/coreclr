@@ -6741,7 +6741,6 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
     // impMarkInlineCandidate() is expected not to mark tail prefixed calls
     // and recursive tail calls as inline candidates.
     noway_assert(!call->IsTailPrefixedCall());
-    noway_assert(!call->IsStressTailCall());
     noway_assert(!call->IsImplicitTailCall() || !gtIsRecursiveCall(call));
 
     /* If the caller's stack frame is marked, then we can't do any inlining. Period.
