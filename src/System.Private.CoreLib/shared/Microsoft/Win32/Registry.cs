@@ -84,5 +84,21 @@ namespace Microsoft.Win32
             }
         }
 
+        public static void SetValue(string keyName, string valueName, object value)
+        {
+            SetValue(keyName, valueName, value, RegistryValueKind.Unknown);
+        }
+
+        public static void SetValue(string keyName, string valueName, object value, RegistryValueKind valueKind)
+        {
+            string subKeyName;
+            RegistryKey basekey = GetBaseKeyFromKeyName(keyName, out subKeyName);
+
+            using (RegistryKey key = basekey.CreateSubKey(subKeyName))
+            {
+                Debug.Assert(key != null, "An exception should be thrown if failed!");
+                key.SetValue(valueName, value, valueKind);
+            }
+        }
     }
 }

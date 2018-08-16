@@ -144,6 +144,13 @@ namespace Microsoft.Win32
             }
         }
 
+        // This dummy method is added to have the same implemenatation of Registry class.
+        // Its not being used anywhere.
+        public RegistryKey CreateSubKey(string subkey)
+        {
+            return null;
+        }
+
         private static void FixupPath(StringBuilder path)
         {
             Debug.Assert(path != null);
