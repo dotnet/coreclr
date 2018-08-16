@@ -38,16 +38,6 @@ namespace System
                 startupHooksParsed.Add((AssemblyPath: assemblyPath, TypeName: typeName));
             }
 
-            // Ensure the startup dlls exist
-            foreach (var startupHook in startupHooksParsed)
-            {
-                var assemblyPath = startupHook.AssemblyPath;
-                if (!File.Exists(assemblyPath))
-                {
-                    throw new FileNotFoundException(SR.Format(SR.FileNotFound_ResolveAssembly, Path.GetFullPath(assemblyPath)));
-                }
-            }
-
             // Call each hook in turn
             foreach (var startupHook in startupHooksParsed)
             {
