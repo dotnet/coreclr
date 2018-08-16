@@ -276,12 +276,7 @@ build_Tests()
     else
         echo "Checking the Managed Tests Build..."
 
-        if [ -n __priority1 ]; then
-            __Priority=1
-        else
-            __Priority=0
-        fi
-        build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild /p:CLRTestPriorityToBuild=$__Priority"
+        build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "-ExtraParameters:/t:CheckTestBuild"
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: Check Test Build failed."
