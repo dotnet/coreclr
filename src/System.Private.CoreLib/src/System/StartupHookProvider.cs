@@ -25,7 +25,7 @@ namespace System
             string[] startupHooks = Marshal.PtrToStringUTF8(startupHooksVariable).Split(new char[] { Path.PathSeparator });
 
             // Parse startup hook variable
-            List<Tuple<string, string>> startupHooksParsed = new List<Tuple<string, string>>();
+            var startupHooksParsed = new List<(string AssemblyPath, string TypeName)>();
             foreach (string startupHook in startupHooks)
             {
                 int separatorIndex = startupHook.LastIndexOf('!');
@@ -35,13 +35,13 @@ namespace System
                 }
                 string assemblyPath = startupHook.Substring(0, separatorIndex);
                 string typeName = startupHook.Substring(separatorIndex + 1);
-                startupHooksParsed.Add(Tuple.Create(assemblyPath, typeName));
+                startupHooksParsed.Add((AssemblyPath: assemblyPath, TypeName: typeName));
             }
 
             // Ensure the startup dlls exist
             foreach (var startupHook in startupHooksParsed)
             {
-                var assemblyPath = startupHook.Item1;
+                var assemblyPath = startupHook.AssemblyPath;
                 if (!File.Exists(assemblyPath))
                 {
                     throw new FileNotFoundException(SR.Format(SR.FileNotFound_ResolveAssembly, Path.GetFullPath(assemblyPath)));
@@ -51,7 +51,7 @@ namespace System
             // Call each hook in turn
             foreach (var startupHook in startupHooksParsed)
             {
-                CallStartupHook(startupHook.Item1, startupHook.Item2);
+                CallStartupHook(startupHook.AssemblyPath, startupHook.TypeName);
             }
         }
 
@@ -61,7 +61,6 @@ namespace System
         {
             Debug.Assert(!String.IsNullOrEmpty(assemblyPath));
             Debug.Assert(!String.IsNullOrEmpty(typeName));
-            Debug.Assert(File.Exists(assemblyPath));
 
             string fullAssemblyPath = Path.GetFullPath(assemblyPath);
             Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(fullAssemblyPath);
