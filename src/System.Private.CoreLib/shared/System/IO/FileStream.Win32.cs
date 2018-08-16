@@ -76,7 +76,6 @@ namespace System.IO
                     }
                     else
                     {
-                        fileHandle.Dispose();
                         return null;
                     }
                 default:
