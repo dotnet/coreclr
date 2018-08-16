@@ -9,7 +9,7 @@ using System.Text;
 namespace R2RDump.x86
 {
     /// <summary>
-    /// based on src\gcdump\i386\gcdumpx86.cpp RegName
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/gcdump/i386/gcdumpx86.cpp">src\gcdump\i386\gcdumpx86.cpp</a> RegName
     /// </summary>
     public enum Registers
     {
@@ -24,7 +24,7 @@ namespace R2RDump.x86
     };
 
     /// <summary>
-    /// based on src\gcdump\i386\gcdumpx86.cpp CalleeSavedRegName
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/gcdump/i386/gcdumpx86.cpp">src\gcdump\i386\gcdumpx86.cpp</a> CalleeSavedRegName
     /// </summary>
     public enum CalleeSavedRegisters
     {

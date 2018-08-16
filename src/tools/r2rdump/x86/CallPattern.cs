@@ -8,7 +8,7 @@ namespace R2RDump.x86
     {
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp decodeCallPattern
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeCallPattern
         /// </summary>
         public static void DecodeCallPattern(uint pattern, out uint argCnt, out uint regMask, out uint argMask, out uint codeDelta)
         {
@@ -21,12 +21,12 @@ namespace R2RDump.x86
         }
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp callCommonDelta
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> callCommonDelta
         /// </summary>
         public static uint[] callCommonDelta = { 6, 8, 10, 12 };
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp callPatternTable
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> callPatternTable
         /// </summary>
         private static uint[] callPatternTable = 
         {

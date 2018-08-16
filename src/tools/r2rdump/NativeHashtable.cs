@@ -8,7 +8,7 @@ using System.Text;
 namespace R2RDump
 {
     /// <summary>
-    /// based on NativeFormat::NativeParser
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">NativeFormat::NativeParser</a>
     /// </summary>
     struct NativeParser
     {
@@ -80,7 +80,7 @@ namespace R2RDump
     }
 
     /// <summary>
-    /// based on NativeFormat::NativeHashtable
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">NativeFormat::NativeHashtable</a>
     /// </summary>
     struct NativeHashtable
     {

@@ -127,7 +127,7 @@ namespace R2RDump
 
         // <summary>
         /// Decode variable length numbers
-        /// based on src\inc\gcinfodecoder.h DecodeVarLengthUnsigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfodecoder.h">src\inc\gcinfodecoder.h</a> DecodeVarLengthUnsigned
         /// </summary>
         /// <param name="image">PE image</param>
         /// <param name="len">Number of bits to read</param>
@@ -152,7 +152,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// based on src\inc\gcinfodecoder.h DecodeVarLengthSigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfodecoder.h">src\inc\gcinfodecoder.h</a> DecodeVarLengthSigned
         /// </summary>
         public static int DecodeVarLengthSigned(byte[] image, int len, ref int bitOffset)
         {
@@ -174,7 +174,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// based on src\vm\nativeformatreader.h DecodeUnsigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">src\vm\nativeformatreader.h</a> DecodeUnsigned
         /// </summary>
         public static uint DecodeUnsigned(byte[] image, uint offset, ref uint pValue)
         {
@@ -233,7 +233,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// based on src\vm\nativeformatreader.h DecodeSigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">src\vm\nativeformatreader.h</a> DecodeSigned
         /// </summary>
         public static uint DecodeSigned(byte[] image, uint offset, ref int pValue)
         {
@@ -292,7 +292,7 @@ namespace R2RDump
         }
 
         // <summary>
-        /// based on src\debug\daccess\nidump.cpp DacSigUncompressData and DacSigUncompressBigData
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/debug/daccess/nidump.cpp">src\debug\daccess\nidump.cpp</a> DacSigUncompressData and DacSigUncompressBigData
         /// </summary>
         public static uint ReadCompressedData(byte[] image, ref int start)
         {
@@ -319,7 +319,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp decodeUnsigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeUnsigned
         /// </summary>
         public static uint DecodeUnsignedGc(byte[] image, ref int start)
         {
@@ -337,7 +337,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp decodeSigned
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeSigned
         /// </summary>
         public static int DecodeSignedGc(byte[] image, ref int start)
         {
@@ -359,7 +359,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp decodeUDelta
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> decodeUDelta
         /// </summary>
         public static uint DecodeUDelta(byte[] image, ref int start, uint lastValue)
         {

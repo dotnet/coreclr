@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 namespace R2RDump.x86
 {
     /// <summary>
-    /// based on src\inc\win64unwind.h _UNWIND_INFO
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_INFO
     /// </summary>
     public class UnwindInfo : BaseUnwindInfo
     {

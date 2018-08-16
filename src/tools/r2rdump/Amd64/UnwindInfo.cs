@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 namespace R2RDump.Amd64
 {
     /// <summary>
-    /// based on src\inc\win64unwind.h _UNWIND_OP_CODES
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
     /// </summary>
     public enum UnwindOpCodes
     {
@@ -27,7 +27,7 @@ namespace R2RDump.Amd64
     }
 
     /// <summary>
-    /// based on src\inc\win64unwind.h _UNWIND_OP_CODES
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
     /// </summary>
     public enum UnwindFlags
     {
@@ -38,7 +38,7 @@ namespace R2RDump.Amd64
     }
 
     /// <summary>
-    /// based on src\inc\win64unwind.h _UNWIND_CODE
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_CODE
     /// </summary>
     public struct UnwindCode
     {
@@ -72,7 +72,7 @@ namespace R2RDump.Amd64
     }
 
     /// <summary>
-    /// based on src\inc\win64unwind.h _UNWIND_INFO
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_INFO
     /// </summary>
     public class UnwindInfo : BaseUnwindInfo
     {
@@ -91,7 +91,7 @@ namespace R2RDump.Amd64
         public UnwindInfo() { }
 
         /// <summary>
-        /// based on ZapUnwindData::Save
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/zap/zapcode.cpp">ZapUnwindData::Save</a>
         /// </summary>
         public UnwindInfo(byte[] image, int offset)
         {
@@ -156,7 +156,7 @@ namespace R2RDump.Amd64
         }
 
         /// <summary>
-        /// based on src\jit\unwindamd64.cpp DumpUnwindInfo
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/jit/unwindamd64.cpp">src\jit\unwindamd64.cpp</a> DumpUnwindInfo
         /// </summary>
         private string GetUnwindCode(ref int i)
         {

@@ -262,7 +262,7 @@ namespace R2RDump
 
         /// <summary>
         /// Get the RVAs of the runtime functions for each method
-        /// based on ZapUnwindInfo::Save
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/zap/zapcode.cpp">ZapUnwindInfo::Save</a>
         /// </summary>
         private void ParseRuntimeFunctions(bool[] isEntryPoint, int runtimeFunctionOffset, int runtimeFunctionSize)
         {
@@ -355,7 +355,7 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// based on ZapImportSectionsTable::Save
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/zap/zapimport.cpp">ZapImportSectionsTable::Save</a>
         /// </summary>
         private void ParseImportSections()
         {
@@ -469,7 +469,7 @@ namespace R2RDump
 
         /// <summary>
         /// Reads the method entrypoint from the offset. Used for non-generic methods
-        /// based on NativeImageDumper::DumpReadyToRunMethods
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/debug/daccess/nidump.cpp">NativeImageDumper::DumpReadyToRunMethods</a>
         /// </summary>
         private void GetRuntimeFunctionIndexFromOffset(int offset, out int runtimeFunctionIndex, out FixupCell[] fixupCells)
         {

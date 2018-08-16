@@ -11,12 +11,12 @@ using System.Xml.Serialization;
 namespace R2RDump
 {
     /// <summary>
-    /// based on src/inc/readytorun.h READYTORUN_IMPORT_SECTION
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/readytorun.h">src/inc/readytorun.h</a> READYTORUN_IMPORT_SECTION
     /// </summary>
     public struct R2RImportSection
     {
         /// <summary>
-        /// based on src/inc/corcompile.h CorCompileImportType
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportType
         /// </summary>
         public enum CorCompileImportType
         {
@@ -30,7 +30,7 @@ namespace R2RDump
         };
 
         /// <summary>
-        /// based on src/inc/corcompile.h CorCompileImportFlags
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportFlags
         /// </summary>
         public enum CorCompileImportFlags
         {

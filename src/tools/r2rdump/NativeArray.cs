@@ -7,7 +7,7 @@ using System.Text;
 namespace R2RDump
 {
     /// <summary>
-    /// based on NativeFormat::NativeArray
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/nativeformatreader.h">NativeFormat::NativeArray</a>
     /// </summary>
     class NativeArray
     {

@@ -65,7 +65,7 @@ namespace R2RDump.Amd64
         public GcSlotTable() { }
 
         /// <summary>
-        /// based on GcSlotDecoder::DecodeSlotTable
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/gcinfodecoder.cpp">GcSlotDecoder::DecodeSlotTable</a>
         /// </summary>
         public GcSlotTable(byte[] image, Machine machine, GcInfoTypes gcInfoTypes, ref int bitOffset)
         {

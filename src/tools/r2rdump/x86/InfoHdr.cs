@@ -10,7 +10,7 @@ using System.Xml.Serialization;
 namespace R2RDump.x86
 {
     /// <summary>
-    /// based on src\inc\gcinfotypes.h InfoHdrSmall
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfotypes.h">src\inc\gcinfotypes.h</a> InfoHdrSmall
     /// </summary>
     public struct InfoHdrSmall
     {
@@ -164,7 +164,7 @@ namespace R2RDump.x86
         private const uint YES = HAS_VARPTR;
 
         /// <summary>
-        /// based on src\inc\gcinfotypes.h GetInfoHdr
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfotypes.h">src\inc\gcinfotypes.h</a> GetInfoHdr
         /// </summary>
         public static InfoHdrSmall GetInfoHdr(byte encoding)
         {
@@ -173,7 +173,7 @@ namespace R2RDump.x86
 
         /// <summary>
         /// Initialize the GcInfo header
-        /// based on src\inc\gcdecoder.cpp DecodeHeader and GCDump::DumpInfoHdr
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> DecodeHeader and <a href="https://github.com/dotnet/coreclr/blob/master/src/gcdump/i386/gcdumpx86.cpp">GCDump::DumpInfoHdr</a>
         /// </summary>
         public static InfoHdrSmall DecodeHeader(byte[] image, ref int offset, int codeLength)
         {
@@ -380,7 +380,7 @@ namespace R2RDump.x86
         }
 
         /// <summary>
-        /// based on src\inc\gcdecoder.cpp infoHdrShortcut
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcdecoder.cpp">src\inc\gcdecoder.cpp</a> infoHdrShortcut
         /// </summary>
         private static InfoHdrSmall[] _infoHdrShortcut = {
             new InfoHdrSmall(  0,  1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0,  0,  0          ),  //    1139  00

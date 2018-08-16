@@ -12,7 +12,7 @@ namespace R2RDump
     public struct R2RSection
     {
         /// <summary>
-        /// based on src/inc/readytorun.h ReadyToRunSectionType
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/readytorun.h">src/inc/readytorun.h</a> ReadyToRunSectionType
         /// </summary>
         public enum SectionType
         {

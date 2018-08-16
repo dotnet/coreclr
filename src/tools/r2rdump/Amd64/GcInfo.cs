@@ -13,7 +13,7 @@ namespace R2RDump.Amd64
     public class GcInfo : BaseGcInfo
     {
         /// <summary>
-        /// based on C:\Repos\coreclr\src\inc\gcinfodecoder.h GcInfoHeaderFlags
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfodecoder.h">src/inc/gcinfodecoder.h</a> GcInfoHeaderFlags
         /// </summary>
         private enum GcInfoHeaderFlags
         {
@@ -85,7 +85,7 @@ namespace R2RDump.Amd64
         public GcInfo() { }
 
         /// <summary>
-        /// based on GcInfoDecoder::GcInfoDecoder
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/gcinfodecoder.cpp">GcInfoDecoder::GcInfoDecoder</a>
         /// </summary>
         public GcInfo(byte[] image, int offset, Machine machine, ushort majorVersion)
         {
@@ -265,7 +265,7 @@ namespace R2RDump.Amd64
         }
 
         /// <summary>
-        /// based on GcInfoDecoder::GcInfoDecoder
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/gcinfodecoder.cpp">GcInfoDecoder::GcInfoDecoder</a>
         /// </summary>
         private void ParseHeaderFlags(byte[] image, ref int bitOffset)
         {
@@ -307,7 +307,7 @@ namespace R2RDump.Amd64
         }
 
         /// <summary>
-        /// based on beginning of GcInfoDecoder::EnumerateLiveSlots
+        /// based on beginning of <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/gcinfodecoder.cpp">GcInfoDecoder::EnumerateLiveSlots</a>
         /// </summary>
         private List<InterruptibleRange> EnumerateInterruptibleRanges(byte[] image, int interruptibleRangeDelta1EncBase, int interruptibleRangeDelta2EncBase, ref int bitOffset)
         {
@@ -338,7 +338,7 @@ namespace R2RDump.Amd64
         }
 
         /// <summary>
-        /// based on end of GcInfoDecoder::EnumerateLiveSlots and GcInfoEncoder::Build
+        /// based on end of <a href="https://github.com/dotnet/coreclr/blob/master/src/vm/gcinfodecoder.cpp">GcInfoDecoder::EnumerateLiveSlots and GcInfoEncoder::Build</a>
         /// </summary>
         public Dictionary<int, List<BaseGcTransition>> GetTranstions(byte[] image, ref int bitOffset)
         {

@@ -9,7 +9,7 @@ using System.Text;
 namespace R2RDump
 {
     /// <summary>
-    /// based on src\inc\gcinfotypes.h infoHdrAdjustConstants
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfotypes.h">src\inc\gcinfotypes.h</a> infoHdrAdjustConstants
     /// </summary>
     enum InfoHdrAdjustConstants
     {
@@ -27,7 +27,7 @@ namespace R2RDump
 
     /// <summary>
     /// Enum to define codes that are used to incrementally adjust the InfoHdr structure.
-    /// based on src\inc\gcinfotypes.h infoHdrAdjustConstants
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfotypes.h">src\inc\gcinfotypes.h</a> infoHdrAdjustConstants
     /// </summary>
     enum InfoHdrAdjust
     {
@@ -69,7 +69,7 @@ namespace R2RDump
     };
 
     /// <summary>
-    /// based on macros defined in src\inc\gcinfotypes.h
+    /// based on macros defined in <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/gcinfotypes.h">src\inc\gcinfotypes.h</a>
     /// </summary>
     public class GcInfoTypes
     {

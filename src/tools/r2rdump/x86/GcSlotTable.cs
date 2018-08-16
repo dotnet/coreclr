@@ -125,7 +125,7 @@ namespace R2RDump.x86
         }
 
         /// <summary>
-        /// based on GCDump::DumpGCTable
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/gcdump/i386/gcdumpx86.cpp">GCDump::DumpGCTable</a>
         /// </summary>
         private void DecodeUntracked(byte[] image, InfoHdrSmall header, ref int offset)
         {
@@ -166,7 +166,7 @@ namespace R2RDump.x86
         }
 
         /// <summary>
-        /// based on GCDump::DumpGCTable
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/gcdump/i386/gcdumpx86.cpp">GCDump::DumpGCTable</a>
         /// </summary>
         private void DecodeFrameVariableLifetimeTable(byte[] image, InfoHdrSmall header, ref int offset)
         {

@@ -59,7 +59,7 @@ A [NativeHashtable](NativeHashtable.cs) mapping type hashcodes of types defined 
 
 ### READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
 
-A [NativeHashtable](NativeHashtable.cs) mapping type hashcodes of generic instances to the (methodFlags, methodRowId, list of types). Each type in the list of types corresponds to a generic type in the method.
+A [NativeHashtable](NativeHashtable.cs) mapping type hashcodes of generic instances to the (methodFlags, methodRowId, list of types, runtimeFunctionId). Each type in the list of types corresponds to a generic type in the method.
 
 Eg. GenericMethod&lt;S, T&gt;(T arg1, S arg2) instantiated for &lt;int, UserDefinedStruct&gt; is in the hashtable as:
 

@@ -41,7 +41,7 @@ namespace R2RDump
     }
 
     /// <summary>
-    /// based on src/inc/pal.h _RUNTIME_FUNCTION
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/pal/inc/pal.h">src/pal/inc/pal.h</a> _RUNTIME_FUNCTION
     /// </summary>
     public class RuntimeFunction
     {
