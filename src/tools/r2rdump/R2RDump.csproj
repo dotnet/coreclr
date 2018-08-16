@@ -14,11 +14,16 @@
 	<TargetFrameworkIdentifier>.NETCoreApp</TargetFrameworkIdentifier>
 	<CLSCompliant>false</CLSCompliant>
 	<NoWarn>8002,NU1701</NoWarn>
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
 
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.NETCore.CoreDisTools">
-      <Version>1.0.1-prerelease-00003</Version>
+    <PackageReference Include="runtime.win-x64.Microsoft.NETCore.CoreDisTools"> <!-- TODO: Remove runtime package and add dependency to identity package -->
+      <Version>1.0.1-prerelease-00005</Version>
+    </PackageReference>
+    <PackageReference Include="runtime.win-x86.Microsoft.NETCore.CoreDisTools"> <!-- TODO: Remove runtime package and add dependency to identity package -->
+      <Version>1.0.1-prerelease-00005</Version>
     </PackageReference>
     <PackageReference Include="System.CommandLine">
       <Version>0.1.0-e160119-1</Version>
