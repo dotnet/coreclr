@@ -22,7 +22,7 @@ namespace System
         private static void ProcessStartupHooks(IntPtr startupHooksVariable)
         {
             Debug.Assert(startupHooksVariable != IntPtr.Zero);
-            string[] startupHooks = Marshal.PtrToStringUTF8(startupHooksVariable).Split(new char[] { Path.PathSeparator });
+            string[] startupHooks = Marshal.PtrToStringUTF8(startupHooksVariable).Split(Path.PathSeparator);
 
             // Parse startup hook variable
             var startupHooksParsed = new List<(string AssemblyPath, string TypeName)>();
@@ -35,6 +35,10 @@ namespace System
                 }
                 string assemblyPath = startupHook.Substring(0, separatorIndex);
                 string typeName = startupHook.Substring(separatorIndex + 1);
+                if (PathInternal.IsPartiallyQualified(assemblyPath))
+                {
+                    throw new ArgumentException(SR.Argument_AbsolutePathRequired);
+                }
                 startupHooksParsed.Add((AssemblyPath: assemblyPath, TypeName: typeName));
             }
 
@@ -51,9 +55,9 @@ namespace System
         {
             Debug.Assert(!String.IsNullOrEmpty(assemblyPath));
             Debug.Assert(!String.IsNullOrEmpty(typeName));
+            Debug.Assert(!PathInternal.IsPartiallyQualified(assemblyPath));
 
-            string fullAssemblyPath = Path.GetFullPath(assemblyPath);
-            Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(fullAssemblyPath);
+            Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             Debug.Assert(assembly != null);
             Type type = assembly.GetType(typeName, throwOnError: true);
 
