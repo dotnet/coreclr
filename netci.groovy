@@ -257,6 +257,8 @@ class Constants {
                // 'standalone_gc'
                // 'gc_reliability_framework'
                // 'illink'
+               // 'corefx_innerloop'
+               // 'crossgen_comparison'
                'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -367,6 +369,7 @@ class Constants {
                // 'standalone_gc'
                // 'gc_reliability_framework'
                // 'illink'
+               // 'corefx_innerloop'
                'crossgen_comparison',
                'r2r_jitstress1',
                'r2r_jitstress2',
@@ -454,6 +457,8 @@ class Constants {
                // 'standalone_gc'
                // 'gc_reliability_framework'
                // 'illink'
+               // 'corefx_innerloop'
+               // 'crossgen_comparison'
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
