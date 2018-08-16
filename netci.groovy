@@ -367,6 +367,7 @@ class Constants {
                // 'standalone_gc'
                // 'gc_reliability_framework'
                // 'illink'
+               'crossgen_comparison',
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
@@ -438,8 +439,7 @@ class Constants {
                'gcstress0xc_zapdisable_heapverify1',
                'gcstress0xc_jitstress1',
                'gcstress0xc_jitstress2',
-               'gcstress0xc_minopts_heapverify1',
-               'crossgen_comparison'
+               'gcstress0xc_minopts_heapverify1'
     ]
 
     def static validLinuxArm64Scenarios = [
