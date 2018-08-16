@@ -66,17 +66,61 @@ namespace System
             Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(fullAssemblyPath);
             Debug.Assert(assembly != null);
             Type type = assembly.GetType(typeName, throwOnError: true);
-            MethodInfo initializeMethod = type.GetMethod(initializeMethodName, Type.EmptyTypes);
 
+            // Look for a public static method without any parameters
+            MethodInfo initializeMethod = type.GetMethod(initializeMethodName,
+                                                         BindingFlags.Public | BindingFlags.Static,
+                                                         null, // use default binder
+                                                         Type.EmptyTypes, // parameters
+                                                         null); // no parameter modifiers
+
+            bool wrongSignature = false;
             if (initializeMethod == null)
             {
-                throw new MissingMethodException(typeName, initializeMethodName);
+                // There weren't any public static methods without
+                // parameters. Look for any methods with the correct
+                // name, to provide precise error handling.
+                try
+                {
+                    // This could find zero, one, or multiple methods
+                    // with the correct name.
+                    initializeMethod = type.GetMethod(initializeMethodName,
+                                                      BindingFlags.Public | BindingFlags.NonPublic |
+                                                      BindingFlags.Static | BindingFlags.Instance);
+                }
+                catch (AmbiguousMatchException)
+                {
+                    // Found multiple
+                    Debug.Assert(initializeMethod == null);
+                    wrongSignature = true;
+                }
+                if (initializeMethod != null)
+                {
+                    // Found one
+                    wrongSignature = true;
+                }
+                else
+                {
+                    // Didn't find any
+                    throw new MissingMethodException(typeName, initializeMethodName);
+                }
+            }
+            else if (initializeMethod.ReturnType != typeof(void))
+            {
+                wrongSignature = true;
             }
 
-            if (!(initializeMethod.IsStatic && initializeMethod.ReturnType == typeof(void)))
+            if (wrongSignature)
             {
-                throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature, typeName + Type.Delimiter + initializeMethodName));
+                throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature,
+                                                      typeName + Type.Delimiter + initializeMethodName));
             }
+
+            Debug.Assert(initializeMethod != null &&
+                         initializeMethod.IsPublic &&
+                         initializeMethod.IsStatic &&
+                         initializeMethod.ReturnType == typeof(void) &&
+                         initializeMethod.GetParameters().Length == 0);
 
             initializeMethod.Invoke(null, null);
         }
