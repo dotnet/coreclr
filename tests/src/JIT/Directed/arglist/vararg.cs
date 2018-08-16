@@ -57,9 +57,6 @@ namespace NativeVarargTest
         extern static double test_passing_long_and_double(double expected_value, __arglist);
 
         [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
-        extern static int check_string_from_format(string expected, string format, __arglist);
-
-        [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
         extern static double check_passing_four_three_double_struct(ThreeDoubleStruct a, ThreeDoubleStruct b, ThreeDoubleStruct c, ThreeDoubleStruct d, __arglist);
 
         [DllImport("varargnative", CallingConvention = CallingConvention.Cdecl)]
@@ -788,176 +785,6 @@ namespace NativeVarargTest
             return sum == expectedSum;
         }
 
-        /// <summary>
-        /// Given an input set create an arglist to pass to a vararg callee.
-        /// 
-        /// This is mostly to simulate calling printf from Managed code.
-        /// Based on the % values the callee will create and return a cstring
-        /// 
-        /// Compare the c string with the value expected, return true if they
-        /// are equal.
-        /// 
-        /// </summary>
-        /// <param name="expectedValues"></param>
-        /// <returns>bool</returns>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TestPrintF()
-        {
-            bool success = true;
-
-            success = ReportFailure(TestPrintFIntLongDouble("%d,%d,%f", 10, 11, 24.1), "TestPrintFIntLongDouble(%d,%d,%f, 10, 11, 24.1)", success, false);
-            success = ReportFailure(TestPrintFDoubleDoubleIntIntLongDouble("%f,%f,%d,%d,%d,%f", 10.1, 11.1, 12, 2, 4L, 0.21), "TestPrintFDoubleDoubleIntIntLongDouble(%f,%f,%d,%d,%d,%f, 10.1, 11.1, 12, 2, 4L, 0.21)", success, false);
-            success = ReportFailure(TestPrintFManyLong(), "TestPrintFManyLong()", success, false);
-
-            return success;
-        }
-
-        /// <summary>
-        /// This is a helper for TestPrintF
-        ///
-        /// This will create a string with three arguments:
-        ///
-        /// int,
-        /// long,
-        /// double
-        /// 
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TestPrintFIntLongDouble(string format, int val1, long val2, double val3)
-        {
-            int returnedVal = check_string_from_format(String.Format("{0},{1},{2:0.00}", val1, val2, val3), 
-                                                        format, 
-                                                        __arglist(val1, val2, val3));
-
-            return returnedVal == 0;
-        }
-
-        /// <summary>
-        /// This is a helper for TestPrintF
-        ///
-        /// This will create a string with three arguments:
-        ///
-        /// int,
-        /// long,
-        /// double
-        /// 
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TestPrintFDoubleDoubleIntIntLongDouble(string format, double val1, double val2, int val3, int val4, long val5, double val6)
-        {
-            int returnedVal = check_string_from_format(String.Format("{0:0.00},{1:0.00},{2},{3},{4},{5:0.00}", val1, val2, val3, val4, val5, val6), 
-                                                        format, 
-                                                        __arglist(val1, val2, val3, val4, val5, val6));
-
-            return returnedVal == 0;
-        }
-
-        /// <summary>
-        /// This is a helper for TestPrintF
-        ///
-        /// This will create a string with three arguments:
-        ///
-        /// int,
-        /// long,
-        /// double
-        /// 
-        /// </summary>
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        static bool TestPrintFManyLong()
-        {
-            long[] values = {
-                100,
-                200,
-                30,
-                400,
-                500,
-                600,
-                7,
-                80,
-                9,
-                10,
-                11,
-                12,
-                13,
-                14,
-                15,
-                16,
-                17,
-                18,
-                19,
-                20,
-                21,
-                2200,
-                234,
-                24,
-                25,
-                26,
-                27,
-                28,
-                29,
-                30,
-                31,
-                32,
-                33,
-                34,
-                35,
-                36,
-                37,
-                38,
-                39,
-                40
-            };
-
-            string format = "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d";
-
-            int returnedVal = check_string_from_format(String.Join(",", values), 
-                                                    format, 
-                                                    __arglist(
-                                                        values[0],
-                                                        values[1],
-                                                        values[2],
-                                                        values[3],
-                                                        values[4],
-                                                        values[5],
-                                                        values[6],
-                                                        values[7],
-                                                        values[8],
-                                                        values[9],
-                                                        values[10],
-                                                        values[11],
-                                                        values[12],
-                                                        values[13],
-                                                        values[14],
-                                                        values[15],
-                                                        values[16],
-                                                        values[17],
-                                                        values[18],
-                                                        values[19],
-                                                        values[20],
-                                                        values[21],
-                                                        values[22],
-                                                        values[23],
-                                                        values[24],
-                                                        values[25],
-                                                        values[26],
-                                                        values[27],
-                                                        values[28],
-                                                        values[29],
-                                                        values[30],
-                                                        values[31],
-                                                        values[32],
-                                                        values[33],
-                                                        values[34],
-                                                        values[35],
-                                                        values[36],
-                                                        values[37],
-                                                        values[38],
-                                                        values[39]
-                                                    ));
-
-            return returnedVal == 0;
-        }
-    
         /// <summary>
         /// Given an input set create an arglist to pass to a vararg callee.
         /// 
@@ -5109,8 +4936,6 @@ namespace NativeVarargTest
             success = ReportFailure(TestPassingEmptyLongs(new long[] { }), "TestPassingEmptyLongs(new long[] { })", success, 12);
             success = ReportFailure(TestPassingEmptyFloats(new float[] { }), "TestPassingEmptyFloats(new float[] { })", success, 13);
             success = ReportFailure(TestPassingEmptyDouble(new double[] { }), "TestPassingEmptyDouble(new double[] { })", success, 14);
-
-            success = ReportFailure(TestPrintF(), "TestPrintF()", success, 15);
 
             returnValue = ReportFailure(TestPassingStructs(), "TestPassingStructs()", success, TestPassingStructs());
 
