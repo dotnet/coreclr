@@ -18,6 +18,28 @@
 #   x86_arm vs. arm_arm) and report all the differences in their behaviour
 #   (such as mismatches in the resulting files; hash sums, or missing files).
 #
+# Example:
+#
+# The following command
+#
+#  ~/git/coreclr$ python tests/scripts/crossgen_comparison.py crossgen_corelib
+#  --crossgen bin/Product/Linux.arm.Checked/crossgen
+#  --il_corelib bin/Product/Linux.arm.Checked/IL/System.Private.CoreLib.dll
+#  --result_dir Linux.arm_arm.Checked
+#
+# runs arm_arm crossgen on System.Private.CoreLib.dll and puts all the
+# information in file Linux.arm_arm.Checked/System.Private.CoreLib.dll.json
+#
+#  ~/git/coreclr$ cat Linux.arm_arm.Checked/System.Private.CoreLib.dll.json
+#   {
+#     "AssemblyName": "System.Private.CoreLib.dll",
+#     "ReturnCode": 0,
+#     "OutputFileHash": "4d27c7f694c20974945e4f7cb43263286a18c56f4d00aac09f6124caa372ba0a",
+#     "StdErr": [],
+#     "StdOut": [
+#       "Native image /tmp/System.Private.CoreLib.dll generated successfully."
+#     ]
+#   }
 ################################################################################
 ################################################################################
 
@@ -315,7 +337,7 @@ def compute_file_hashsum(filename):
 
 
 ################################################################################
-# Collected during crossgen run information and JSON encoders/decoders.
+# This describes collected during crossgen information.
 ################################################################################
 class CrossGenResult:
     def __init__(self, assembly_name, returncode, stdout, stderr, out_file_hashsum):
@@ -325,6 +347,9 @@ class CrossGenResult:
         self.stderr = stderr
         self.out_file_hashsum = out_file_hashsum
 
+################################################################################
+# JSON Encoder for CrossGenResult objects.
+################################################################################
 class CrossGenResultEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, CrossGenResult):
@@ -337,6 +362,9 @@ class CrossGenResultEncoder(json.JSONEncoder):
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
+################################################################################
+# JSON Decoder for CrossGenResult objects.
+################################################################################
 class CrossGenResultDecoder(json.JSONDecoder):
     def __init__(self, *args, **kwargs):
         json.JSONDecoder.__init__(self, object_hook=self._decode_object, *args, **kwargs)
