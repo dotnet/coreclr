@@ -70,13 +70,13 @@ namespace System.IO
                     // We we're successful
                     break;
                 case Interop.NtDll.STATUS_INVALID_HANDLE:
-                    fileHandle.Dispose();
                     if (!ignoreInvalid)
                     {
                         throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_INVALID_HANDLE);
                     }
                     else
                     {
+                        fileHandle.Dispose();
                         return null;
                     }
                 default:
