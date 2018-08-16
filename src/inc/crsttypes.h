@@ -176,18 +176,19 @@ enum CrstType
     CrstThreadpoolWorker = 157,
     CrstThreadStaticDataHashTable = 158,
     CrstThreadStore = 159,
-    CrstTPMethodTable = 160,
-    CrstTypeEquivalenceMap = 161,
-    CrstTypeIDMap = 162,
-    CrstUMEntryThunkCache = 163,
-    CrstUMThunkHash = 164,
-    CrstUniqueStack = 165,
-    CrstUnresolvedClassLock = 166,
-    CrstUnwindInfoTableLock = 167,
-    CrstVSDIndirectionCellLock = 168,
-    CrstWinRTFactoryCache = 169,
-    CrstWrapperTemplate = 170,
-    kNumberOfCrstTypes = 171
+    CrstTieredCompilation = 160,
+    CrstTPMethodTable = 161,
+    CrstTypeEquivalenceMap = 162,
+    CrstTypeIDMap = 163,
+    CrstUMEntryThunkCache = 164,
+    CrstUMThunkHash = 165,
+    CrstUniqueStack = 166,
+    CrstUnresolvedClassLock = 167,
+    CrstUnwindInfoTableLock = 168,
+    CrstVSDIndirectionCellLock = 169,
+    CrstWinRTFactoryCache = 170,
+    CrstWrapperTemplate = 171,
+    kNumberOfCrstTypes = 172
 };
 
 #endif // __CRST_TYPES_INCLUDED
@@ -358,6 +359,7 @@ int g_rgCrstLevelMap[] =
     11,			// CrstThreadpoolWorker
     4,			// CrstThreadStaticDataHashTable
     10,			// CrstThreadStore
+    9,			// CrstTieredCompilation
     9,			// CrstTPMethodTable
     3,			// CrstTypeEquivalenceMap
     7,			// CrstTypeIDMap
@@ -534,6 +536,7 @@ LPCSTR g_rgCrstNameMap[] =
     "CrstThreadpoolWorker",
     "CrstThreadStaticDataHashTable",
     "CrstThreadStore",
+    "CrstTieredCompilation",
     "CrstTPMethodTable",
     "CrstTypeEquivalenceMap",
     "CrstTypeIDMap",
