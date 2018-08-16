@@ -71,7 +71,7 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Span<byte> AsMutableSpan() => MemoryMarshal.CreateSpan(ref DangerousGetMutableReference(), _length);
-        
+
         // Similar to the AsSpan() extension method, but doesn't map a null 'this' to the empty ROS.
         // Instead, null 'this' is observed as a null reference exception.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -86,7 +86,7 @@ namespace System
             Span<char> span = Length <= 255 ?
                 stackalloc char[255] :
                 (borrowedArr = ArrayPool<char>.Shared.Rent(Length));
-            
+
             int utf16CodeUnitCount = ConvertToUtf16PreservingCorruption(AsSpanFast(), span);
             string retVal = new string(span.Slice(0, utf16CodeUnitCount));
 
@@ -441,12 +441,27 @@ namespace System
 
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
+        public static bool IsEmptyOrWhiteSpace(ReadOnlySpan<byte> value)
+        {
+            return value.IsEmpty || IsWhiteSpaceCore(value);
+        }
+
         internal bool IsKnownAscii() => GetCharacteristics().HasFlag(Characteristics.IsAscii);
 
         public static bool IsNullOrEmpty(Utf8String value)
         {
             // See comments in String.IsNullOrEmpty for why the code is written this way.
             return (value == null || 0u >= (uint)value.Length) ? true : false;
+        }
+
+        public static bool IsNullOrWhiteSpace(Utf8String value)
+        {
+            return IsNullOrEmpty(value) || IsWhiteSpaceCore(value.AsSpanFast());
+        }
+
+        private static bool IsWhiteSpaceCore(ReadOnlySpan<byte> value)
+        {
+            return Utf8Utility.GetIndexOfFirstNonWhiteSpaceChar(value) == value.Length;
         }
 
         /// <summary>
@@ -505,7 +520,7 @@ namespace System
 
             if (!UnicodeHelpers.IsUtf8ContinuationByte(in MemoryMarshal.GetReference(slice)))
             {
-                unbaked.ApplyCharacteristics(this.GetCharacteristics());
+                unbaked.CopyCharacteristicsFrom(this);
             }
 
             return unbaked.BakeWithoutValidation();
@@ -540,7 +555,7 @@ namespace System
             ref byte firstByte = ref MemoryMarshal.GetReference(slice);
             if (!UnicodeHelpers.IsUtf8ContinuationByte(in firstByte) && !UnicodeHelpers.IsUtf8ContinuationByte(in Unsafe.Add(ref firstByte, length)))
             {
-                unbaked.ApplyCharacteristics(this.GetCharacteristics());
+                unbaked.CopyCharacteristicsFrom(this);
             }
 
             return unbaked.BakeWithoutValidation();
@@ -579,6 +594,60 @@ namespace System
         }
 
         /// <summary>
+        /// Returns a new <see cref="Utf8String"/> that represents the current instance with all leading
+        /// and trailing whitespace characters removed.
+        /// </summary>
+        public Utf8String Trim() => TrimHelper(TrimType.Both);
+
+        /// <summary>
+        /// Returns a new <see cref="Utf8String"/> that represents the current instance with all trailing
+        /// whitespace characters removed.
+        /// </summary>
+        public Utf8String TrimEnd() => TrimHelper(TrimType.Tail);
+
+        private Utf8String TrimHelper(TrimType trimType)
+        {
+            ReadOnlySpan<byte> span = AsSpanFast();
+
+            if (trimType.HasFlag(TrimType.Head))
+            {
+                span = span.DangerousSliceWithoutBoundsCheck(Utf8Utility.GetIndexOfFirstNonWhiteSpaceChar(span));
+            }
+
+            if (trimType.HasFlag(TrimType.Tail))
+            {
+                span = new ReadOnlySpan<byte>(ref MemoryMarshal.GetReference(span), Utf8Utility.GetIndexOfTrailingWhiteSpaceSequence(span));
+            }
+            
+            if (span.Length > 0)
+            {
+                if (span.Length < Length)
+                {
+                    // Create a substring
+                    UnbakedUtf8String unbakedString = new UnbakedUtf8String(span);
+                    unbakedString.CopyCharacteristicsFrom(this); // any validity properties from this string propagate to the new one
+                    return unbakedString.BakeWithoutValidation();
+                }
+                else
+                {
+                    // There's no whitespace to trim - return this
+                    return this;
+                }
+            }
+            else
+            {
+                // String is only whitespace - return Empty singleton
+                return Empty;
+            }
+        }
+
+        /// <summary>
+        /// Returns a new <see cref="Utf8String"/> that represents the current instance with all leading
+        /// whitespace characters removed.
+        /// </summary>
+        public Utf8String TrimStart() => TrimHelper(TrimType.Head);
+
+        /// <summary>
         /// Characteristics of a <see cref="Utf8String"/> instance that can be determined by examining
         /// the two storage bits of the object header.
         /// </summary>
@@ -599,6 +668,14 @@ namespace System
             /// This instance has been validated and is known to contain only well-formed UTF-8 sequences.
             /// </summary>
             IsWellFormed
+        }
+
+        [Flags]
+        private enum TrimType
+        {
+            Head = 0,
+            Tail = 1,
+            Both = 2
         }
 
         // TODO! Decide if string interning should be a public feature

@@ -239,6 +239,15 @@ namespace System
             if ((uint)start > (uint)_length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
+            return DangerousSliceWithoutBoundsCheck(start);
+        }
+
+        /// <summary>
+        /// Equivalent to <see cref="Slice(int)"/>, but skips bounds checking.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal ReadOnlySpan<T> DangerousSliceWithoutBoundsCheck(int start)
+        {
             return new ReadOnlySpan<T>(ref Unsafe.Add(ref _pointer.Value, start), _length - start);
         }
 

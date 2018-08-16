@@ -288,9 +288,16 @@ namespace System
 
             public int Length => _value.Length;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void ApplyCharacteristics(Characteristics flags)
             {
                 // TODO: Set flags on the Utf8String before returning it
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void CopyCharacteristicsFrom(Utf8String @string)
+            {
+                ApplyCharacteristics(@string.GetCharacteristics());
             }
 
             public Utf8String Bake(InvalidSequenceBehavior behavior)
