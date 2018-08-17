@@ -177,9 +177,15 @@ private:
     template <typename T>
     static T EvalOp(VNFunc vnf, T v0);
 
+    // returns vnf(v0)  for int/INT32
+    int EvalOpInt(VNFunc vnf, int v0);
+
     // returns vnf(v0, v1).
     template <typename T>
     T EvalOp(VNFunc vnf, T v0, T v1);
+
+    // returns vnf(v0, v1)  for int/INT32
+    int EvalOpInt(VNFunc vnf, int v0, int v1);
 
     // return vnf(v0) or vnf(v0, v1), respectively (must, of course be unary/binary ops, respectively.)
     template <typename T>

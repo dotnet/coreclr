@@ -117,6 +117,9 @@ VNFunc GetVNFuncForOper(genTreeOps oper, bool isUnsigned, bool overflowChecking)
             assert(isUnsigned);
             result = VNFunc(oper);
             break;
+
+        default:
+            break;
     }
 
     noway_assert(result != VNF_COUNT);
@@ -194,6 +197,22 @@ T ValueNumStore::EvalOp(VNFunc vnf, T v0)
     }
 }
 
+int ValueNumStore::EvalOpInt(VNFunc vnf, int v0)
+{
+    // Due to the automatic conversion rules, we need to specialize this method for int/INT32
+    genTreeOps oper = genTreeOps(vnf);
+
+    // Here we handle the same unary ops as above
+    switch (oper)
+    {
+        case GT_NEG:
+            return -v0;
+        default:
+            // Will be handled by the type specific method
+            return EvalOpSpecialized(vnf, v0);
+    }
+}
+
 template <>
 float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0)
 {
@@ -223,11 +242,42 @@ T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0)
     }
 }
 
+//  Binary EvalOp
+
 template <typename T>
 T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1)
 {
     // Here we handle the binary ops that are the same for all types.
 
+    if (vnf < VNF_Boundary)
+    {
+        genTreeOps oper = genTreeOps(vnf);
+
+        switch (oper)
+        {
+            case GT_ADD:
+                return v0 + v1;
+            case GT_SUB:
+                return v0 - v1;
+            case GT_MUL:
+                return v0 * v1;
+
+            default:
+                // Will be handled by the type specific method
+                return EvalOpSpecialized(vnf, v0, v1);
+        }
+    }
+    else // must be a VNF_ function
+    {
+        return EvalOpSpecialized(vnf, v0, v1);
+    }
+}
+
+int ValueNumStore::EvalOpInt(VNFunc vnf, int v0, int v1)
+{
+    // Due to the automatic conversion rules, we need to specialize this method for int/INT32
+
+    // Here we handle the same unary ops as above
     if (vnf < VNF_Boundary)
     {
         genTreeOps oper = genTreeOps(vnf);
@@ -2051,7 +2101,7 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
     {
         case TYP_INT:
         {
-            int resVal = EvalOp(func, ConstantValue<int>(arg0VN));
+            int resVal = EvalOpInt(func, ConstantValue<int>(arg0VN));
             // Unary op on a handle results in a handle.
             return IsVNHandle(arg0VN) ? VNForHandle(ssize_t(resVal), GetHandleFlags(arg0VN)) : VNForIntCon(resVal);
         }
@@ -2229,7 +2279,7 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             else
             {
                 assert(typ == TYP_INT);
-                int resultVal = EvalOp(func, arg0Val, arg1Val);
+                int resultVal = EvalOpInt(func, arg0Val, arg1Val);
                 // Bin op on a handle results in a handle.
                 ValueNum handleVN = IsVNHandle(arg0VN) ? arg0VN : IsVNHandle(arg1VN) ? arg1VN : NoVN;
                 if (handleVN != NoVN)
@@ -2269,8 +2319,13 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
         }
         else // both args are TYP_REF or both args are TYP_BYREF
         {
-            INT64 arg0Val = ConstantValue<size_t>(arg0VN); // We represent ref/byref constants as size_t's.
-            INT64 arg1Val = ConstantValue<size_t>(arg1VN); // Also we consider null to be zero.
+#ifdef _TARGET_64BIT_
+            INT64 arg0Val = CoercedConstantValue<size_t>(arg0VN);
+            INT64 arg1Val = CoercedConstantValue<size_t>(arg1VN);
+#else
+            INT32 arg0Val      = CoercedConstantValue<size_t>(arg0VN);
+            INT32 arg1Val      = CoercedConstantValue<size_t>(arg1VN);
+#endif // _TARGET_64BIT_
 
             // Note: We can see GT_OR of a constant ByRef with Null here
             //
@@ -2279,54 +2334,78 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
                 assert(typ == TYP_INT);
                 result = VNForIntCon(EvalComparison(func, arg0Val, arg1Val));
             }
+#ifdef _TARGET_64BIT_
             else if (typ == TYP_INT)
             {
-                assert(!"Unreachable Check");
+                assert(!"unreachable check");
                 INT64 val = EvalOp(func, arg0Val, arg1Val);
-                assert(FitsIn<INT32>(val));
+                assert(FitsIn<int>(val));
                 result = VNForIntCon((int)val);
             }
+#endif // _TARGET_64BIT_
             else
             {
-                assert((typ == TYP_BYREF) || (typ == TYP_LONG));
-                result = VNForLongCon(EvalOp(func, arg0Val, arg1Val));
+                assert((typ == TYP_BYREF) || (typ == TYP_I_IMPL));
+                size_t resultVal = EvalOp(func, arg0Val, arg1Val);
+
+                switch (typ)
+                {
+                    case TYP_BYREF:
+                        result = VNForByrefCon(resultVal);
+                        break;
+
+                    case TYP_I_IMPL:
+#ifdef _TARGET_64BIT_
+                        result = VNForLongCon(resultVal);
+#else
+                        result = VNForIntCon(resultVal);
+#endif // _TARGET_64BIT_
+                        break;
+
+                    default:
+                        unreached();
+                }
             }
         }
     }
     else // We have args of different types
     {
-        // We represent ref/byref constants as size_t's.
-        // Also we consider null to be zero.
-        //
-        INT64 arg0Val = GetConstantInt64(arg0VN);
-        INT64 arg1Val = GetConstantInt64(arg1VN);
+        INT64 arg0Val = CoercedConstantValue<INT64>(arg0VN);
+        INT64 arg1Val = CoercedConstantValue<INT64>(arg1VN);
 
         if (VNFuncIsComparison(func))
         {
             assert(typ == TYP_INT);
             result = VNForIntCon(EvalComparison(func, arg0Val, arg1Val));
         }
+#ifdef _TARGET_64BIT_
         else if (typ == TYP_INT) // We could see GT_OR of an int and constant ByRef or Null
         {
-            result = (int)EvalOp(func, arg0Val, arg1Val);
+            assert(!"unreachable check");
+            assert(FitsIn<int>(arg0Val));
+            assert(FitsIn<int>(arg1Val));
+            result = VNForIntCon(EvalOpInt(func, (int)arg0Val, (int)arg1Val));
         }
+#endif // _TARGET_64BIT_
         else
         {
-            assert(typ != TYP_INT);
-            INT64 resultVal = EvalOp(func, arg0Val, arg1Val);
+            size_t resultVal = EvalOp(func, arg0Val, arg1Val);
 
             switch (typ)
             {
-                case TYP_BYREF:
-                    result = VNForByrefCon(resultVal);
-                    break;
                 case TYP_LONG:
                     result = VNForLongCon(resultVal);
                     break;
+
+                case TYP_BYREF:
+                    result = VNForByrefCon(resultVal);
+                    break;
+
                 case TYP_REF:
                     assert(resultVal == 0); // Only valid REF constant
                     result = VNForNull();
                     break;
+
                 default:
                     unreached();
             }
