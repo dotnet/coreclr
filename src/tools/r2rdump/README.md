@@ -35,6 +35,8 @@ dotnet R2RDump.dll --in &lt;path to ReadyToRun image&gt;
 
 ## ReadyToRun Format
 
+![R2RFormat](R2RFormat.png)
+
 ### READYTORUN_SECTION_COMPILER_IDENTIFIER
 
 A string describing the compiler. 
