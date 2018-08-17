@@ -36,6 +36,9 @@ namespace SVR
 // This symbol populates GcDacVars with handle table dacvars.
 extern void PopulateHandleTableDacVars(GcDacVars* dacVars);
 
+bool g_fIsNumaAwareEnabledByConfig;
+bool g_fIsCPUGroupEnabledByConfig;
+
 GC_EXPORT
 void
 GC_VersionInfo(/* Out */ VersionInfo* info)
@@ -72,6 +75,11 @@ GC_Initialize(
     // Initialize GCConfig before anything else - initialization of our
     // various components may want to query the current configuration.
     GCConfig::Initialize();
+
+    // Config items for GCToOsInterface
+    g_fIsNumaAwareEnabledByConfig = GCConfig::GetGCNumaAware();
+    g_fIsCPUGroupEnabledByConfig = GCConfig::GetGCCpuGroup();
+
     if (!GCToOSInterface::Initialize())
     {
         return E_FAIL;

@@ -41,8 +41,15 @@
 //
 
 typedef int BOOL;
+typedef uint8_t BYTE;
+typedef uint16_t WORD;
 typedef uint32_t DWORD;
 typedef uint64_t DWORD64;
+#ifdef BIT64
+typedef uint64_t DWORD_PTR;
+#else // BIT64
+typedef uint32_t DWORD_PTR;
+#endif // BIT64
 typedef uint32_t ULONG;
 
 // -----------------------------------------------------------------------------------------------------------

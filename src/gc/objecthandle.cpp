@@ -544,8 +544,8 @@ int getNumberOfSlots()
 #ifdef FEATURE_REDHAWK
     return GCToOSInterface::GetCurrentProcessCpuCount();
 #else
-    return (GCToEEInterface::CanEnableGCCPUGroups() ? GCToEEInterface::GetNumActiveProcessors() :
-                                                   GCToOSInterface::GetCurrentProcessCpuCount());
+    return (GCToOSInterface::CanEnableGCCPUGroups() ? GCToOSInterface::GetNumActiveProcessors() :
+                                                      GCToOSInterface::GetCurrentProcessCpuCount());
 #endif
 }
 

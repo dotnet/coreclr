@@ -18,6 +18,9 @@
 #undef Sleep
 #endif // Sleep
 
+extern bool g_fIsNumaAwareEnabledByConfig;
+extern bool g_fIsCPUGroupEnabledByConfig;
+
 // Critical section used by the GC
 class CLRCriticalSection
 {
@@ -391,6 +394,15 @@ public:
     // Return:
     //  Number of processors on the machine
     static uint32_t GetTotalProcessorCount();
+
+    static bool CanEnableGCNumaAware();
+    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
+    static void* VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node);
+
+    static bool CanEnableGCCPUGroups();
+    static uint16_t GetNumActiveProcessors();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
+
 };
 
 #endif // __GCENV_OS_H__

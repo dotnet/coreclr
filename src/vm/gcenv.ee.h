@@ -64,20 +64,12 @@ public:
     void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
     IGCToCLREventSink* EventSink();
 
-    bool CanEnableGCNumaAware();
-    bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
-    void* VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node);
-
-    bool CanEnableGCCPUGroups();
-    uint16_t GetNumActiveProcessors();
-    void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
-    
     uint32_t GetDefaultDomainIndex();
     void *GetAppDomainAtIndex(uint32_t appDomainIndex);
     bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
     uint32_t GetIndexOfAppDomainBeingUnloaded();
     uint32_t GetTotalNumSizedRefHandles();
-    bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain);
+    bool AppDomainIsRudeUnload(void *appDomain);
 };
 
 } // namespace standalone

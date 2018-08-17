@@ -711,6 +711,48 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
     return g_SystemInfo.dwNumberOfProcessors;
 }
 
+bool GCToOSInterface::CanEnableGCNumaAware()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::CanEnableGCNumaAware();
+}
+
+bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no);
+}
+
+void* GCToOSInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return NumaNodeInfo::VirtualAllocExNuma(GetCurrentProcess(), lpAddr, dwSize, allocType, prot, node);
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::CanEnableGCCPUGroups();
+}
+
+uint16_t GCToOSInterface::GetNumActiveProcessors()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::GetNumActiveProcessors();
+}
+
+void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return CPUGroupInfo::GetGroupForProcessor(processor_number, group_number, group_processor_number);
+}
+
 // Initialize the critical section
 void CLRCriticalSection::Initialize()
 {

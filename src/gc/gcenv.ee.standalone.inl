@@ -275,42 +275,6 @@ inline IGCToCLREventSink* GCToEEInterface::EventSink()
     return g_theGCToCLR->EventSink();
 }
 
-inline bool GCToEEInterface::CanEnableGCNumaAware()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CanEnableGCNumaAware();
-}
-
-inline bool GCToEEInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetNumaProcessorNodeEx(proc_no, node_no);
-}
-
-inline void* GCToEEInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->VirtualAllocExNuma(lpAddr, dwSize, allocType, prot, node);
-}
-
-inline bool GCToEEInterface::CanEnableGCCPUGroups()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->CanEnableGCCPUGroups();
-}
-
-inline uint16_t GCToEEInterface::GetNumActiveProcessors()
-{
-    assert(g_theGCToCLR != nullptr);
-    return g_theGCToCLR->GetNumActiveProcessors();
-}
-
-inline void GCToEEInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
-{
-    assert(g_theGCToCLR != nullptr);
-    g_theGCToCLR->GetGroupForProcessor(processor_number, group_number, group_processor_number);
-}
-
 inline uint32_t GCToEEInterface::GetDefaultDomainIndex()
 {
     assert(g_theGCToCLR != nullptr);

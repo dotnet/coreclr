@@ -14,6 +14,9 @@
 #include "env/gcenv.windows.inl"
 #include "env/volatile.h"
 
+void InitCPUGroupInfo();
+void InitNumaNodeInfo();
+
 GCSystemInfo g_SystemInfo;
 
 typedef BOOL (WINAPI *PGET_PROCESS_MEMORY_INFO)(HANDLE handle, PROCESS_MEMORY_COUNTERS* memCounters, uint32_t cb);
@@ -176,6 +179,9 @@ bool GCToOSInterface::Initialize()
     g_SystemInfo.dwAllocationGranularity = systemInfo.dwAllocationGranularity;
 
     assert(systemInfo.dwPageSize == 0x1000);
+
+    InitNumaNodeInfo();
+    InitCPUGroupInfo();
 
     return true;
 }
