@@ -163,6 +163,7 @@ Function:
 static void InternalEndCurrentThreadWrapper(void *arg)
 {
     CPalThread *pThread = (CPalThread *) arg;
+    void *altstack = pThread->FreeAlternateStack();
 
     // When pthread_exit calls us, it has already removed the PAL thread
     // from TLS.  Since InternalEndCurrentThread calls functions that assert
@@ -183,7 +184,7 @@ static void InternalEndCurrentThreadWrapper(void *arg)
     pthread_setspecific(thObjKey, NULL);
 
 #if !HAVE_MACH_EXCEPTIONS
-    FreeSignalAlternateStack();
+    FreeSignalAlternateStack(altstack);
 #endif // !HAVE_MACH_EXCEPTIONS
 }
 
@@ -1623,7 +1624,7 @@ CPalThread::ThreadEntry(
     }
 
 #if !HAVE_MACH_EXCEPTIONS
-    if (!EnsureSignalAlternateStack())
+    if (!EnsureSignalAlternateStack(pThread))
     {
         ASSERT("Cannot allocate alternate stack for SIGSEGV!\n");
         goto fail;

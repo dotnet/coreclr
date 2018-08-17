@@ -95,7 +95,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL EnsureSignalAlternateStack();
+BOOL EnsureSignalAlternateStack(CPalThread *pthrCurrent);
 
 /*++
 Function :
@@ -109,7 +109,7 @@ Parameters :
 Return :
     None
 --*/
-void FreeSignalAlternateStack();
+void FreeSignalAlternateStack(void *altstack);
 
 #endif // !HAVE_MACH_EXCEPTIONS
 
@@ -125,7 +125,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL SEHInitializeSignals(DWORD flags);
+BOOL SEHInitializeSignals(CPalThread *pthrCurrent, DWORD flags);
 
 /*++
 Function :

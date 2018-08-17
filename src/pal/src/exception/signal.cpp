@@ -104,9 +104,9 @@ static void restore_signal(int signal_id, struct sigaction *previousAction);
 /* internal data declarations *********************************************/
 
 #if !HAVE_MACH_EXCEPTIONS
-static bool registered_signal_handlers = false;
+static bool g_registered_signal_handlers = false;
 #endif // !HAVE_MACH_EXCEPTIONS
-static bool registered_sigterm_handler = false;
+static bool g_registered_sigterm_handler = false;
 
 struct sigaction g_previous_sigterm;
 #if !HAVE_MACH_EXCEPTIONS
@@ -142,17 +142,16 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL EnsureSignalAlternateStack()
+BOOL EnsureSignalAlternateStack(CPalThread *pthrCurrent)
 {
     int st = 0;
 
-    if (registered_signal_handlers)
+    if (g_registered_signal_handlers)
     {
         stack_t oss;
 
         // Query the current alternate signal stack
         st = sigaltstack(NULL, &oss);
-
         if ((st == 0) && (oss.ss_flags == SS_DISABLE))
         {
             // There is no alternate stack for SIGSEGV handling installed yet so allocate one
@@ -180,7 +179,11 @@ BOOL EnsureSignalAlternateStack()
                     st = sigaltstack(&ss, NULL);
                 }
 
-                if (st != 0)
+                if (st == 0)
+                {
+                    pthrCurrent->SetAlternateStack(altStack);
+                }
+                else 
                 {
                     int st2 = munmap(altStack, altStackSize);
                     _ASSERTE(st2 == 0);
@@ -204,9 +207,9 @@ Parameters :
 Return :
     None
 --*/
-void FreeSignalAlternateStack()
+void FreeSignalAlternateStack(void *altstack)
 {
-    if (registered_signal_handlers)
+    if (altstack != nullptr)
     {
         stack_t ss, oss;
         // The man page for sigaltstack says that when the ss.ss_flags is set to SS_DISABLE,
@@ -217,8 +220,12 @@ void FreeSignalAlternateStack()
         int st = sigaltstack(&ss, &oss);
         if ((st == 0) && (oss.ss_flags != SS_DISABLE))
         {
-            int st = munmap(oss.ss_sp, oss.ss_size);
-            _ASSERTE(st == 0);
+            // Make sure this altstack is this PAL's before freeing.
+            if (oss.ss_sp == altstack)
+            {
+                int st = munmap(oss.ss_sp, oss.ss_size);
+                _ASSERTE(st == 0);
+            }
         }
     }
 }
@@ -236,14 +243,14 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL SEHInitializeSignals(DWORD flags)
+BOOL SEHInitializeSignals(CPalThread *pthrCurrent, DWORD flags)
 {
     TRACE("Initializing signal handlers\n");
 
 #if !HAVE_MACH_EXCEPTIONS
     if (flags & PAL_INITIALIZE_REGISTER_SIGNALS)
     {
-        registered_signal_handlers = true;
+        g_registered_signal_handlers = true;
 
         /* we call handle_signal for every possible signal, even
            if we don't provide a signal handler.
@@ -273,7 +280,7 @@ BOOL SEHInitializeSignals(DWORD flags)
 #ifdef INJECT_ACTIVATION_SIGNAL
         handle_signal(INJECT_ACTIVATION_SIGNAL, inject_activation_handler, &g_previous_activation);
 #endif
-        if (!EnsureSignalAlternateStack())
+        if (!EnsureSignalAlternateStack(pthrCurrent))
         {
             return FALSE;
         }
@@ -292,7 +299,7 @@ BOOL SEHInitializeSignals(DWORD flags)
 
     if (flags & PAL_INITIALIZE_REGISTER_SIGTERM_HANDLER)
     {
-        registered_sigterm_handler = true;
+        g_registered_sigterm_handler = true;
         handle_signal(SIGTERM, sigterm_handler, &g_previous_sigterm);
     }
 
@@ -320,7 +327,7 @@ void SEHCleanupSignals()
     TRACE("Restoring default signal handlers\n");
 
 #if !HAVE_MACH_EXCEPTIONS
-    if (registered_signal_handlers)
+    if (g_registered_signal_handlers)
     {
         restore_signal(SIGILL, &g_previous_sigill);
         restore_signal(SIGTRAP, &g_previous_sigtrap);
@@ -335,7 +342,7 @@ void SEHCleanupSignals()
     }
 #endif // !HAVE_MACH_EXCEPTIONS
 
-    if (registered_sigterm_handler)
+    if (g_registered_sigterm_handler)
     {
         restore_signal(SIGTERM, &g_previous_sigterm);
     }
