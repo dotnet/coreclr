@@ -228,7 +228,6 @@ g_Framework_Assemblies = [
     'System.Runtime.InteropServices.dll',
     'System.Runtime.InteropServices.RuntimeInformation.dll',
     'System.Runtime.InteropServices.WindowsRuntime.dll',
-    'System.Runtime.Intrinsics.Experimental.dll',
     'System.Runtime.Loader.dll',
     'System.Runtime.Numerics.dll',
     'System.Runtime.Serialization.dll',
