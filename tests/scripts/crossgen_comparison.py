@@ -113,7 +113,7 @@ g_Framework_Assemblies = [
     'Microsoft.Win32.Registry.dll',
     'netstandard.dll',
     'Newtonsoft.Json.dll',
-    'NuGet.Common.dll'
+    'NuGet.Common.dll',
     'NuGet.Configuration.dll',
     'NuGet.DependencyResolver.Core.dll',
     'NuGet.Frameworks.dll',
