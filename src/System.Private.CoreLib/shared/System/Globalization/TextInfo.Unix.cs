@@ -28,13 +28,13 @@ namespace System.Globalization
 
         private bool IsInvariant { get { return _cultureName.Length == 0; } }
 
-        internal unsafe void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool bToUpper)
+        internal unsafe void ChangeCase(char* src, int srcLen, char* dstBuffer, int dstBufferCapacity, bool toUpper)
         {
             Debug.Assert(!_invariantMode);
 
             if (IsInvariant)
             {
-                Interop.Globalization.ChangeCaseInvariant(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                Interop.Globalization.ChangeCaseInvariant(src, srcLen, dstBuffer, dstBufferCapacity, toUpper);
             }
             else
             {
@@ -44,11 +44,11 @@ namespace System.Globalization
                 }
                 if (_needsTurkishCasing == Tristate.True)
                 {
-                    Interop.Globalization.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                    Interop.Globalization.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, toUpper);
                 }
                 else
                 {
-                    Interop.Globalization.ChangeCase(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
+                    Interop.Globalization.ChangeCase(src, srcLen, dstBuffer, dstBufferCapacity, toUpper);
                 }
             }
         }
