@@ -177,21 +177,18 @@ private:
     template <typename T>
     static T EvalOp(VNFunc vnf, T v0);
 
-    // If vnf(v0, v1) would raise an exception, sets *pExcSet to the singleton set containing the exception, and
-    // returns (T)0. Otherwise, returns vnf(v0, v1).
+    // returns vnf(v0, v1).
     template <typename T>
-    T EvalOp(VNFunc vnf, T v0, T v1, ValueNum* pExcSet);
+    T EvalOp(VNFunc vnf, T v0, T v1);
 
-    template <typename T>
-    static int EvalComparison(VNFunc vnf, T v0, T v1);
-    template <typename T>
-    static int EvalOrderedComparisonFloat(VNFunc vnf, T v0, T v1);
     // return vnf(v0) or vnf(v0, v1), respectively (must, of course be unary/binary ops, respectively.)
-    // Should only be instantiated for integral types.
     template <typename T>
     static T EvalOpSpecialized(VNFunc vnf, T v0);
     template <typename T>
-    T EvalOpSpecialized(VNFunc vnf, T v0, T v1, ValueNum* pExcSet);
+    T EvalOpSpecialized(VNFunc vnf, T v0, T v1);
+
+    template <typename T>
+    static int EvalComparison(VNFunc vnf, T v0, T v1);
 
     // Should only instantiate (in a non-trivial way) for "int" and "INT64".  Returns true iff dividing "v0" by "v1"
     // would produce integer overflow (an ArithmeticException -- *not* division by zero, which is separate.)

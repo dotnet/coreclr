@@ -224,7 +224,7 @@ T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0)
 }
 
 template <typename T>
-T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
+T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1)
 {
     // Here we handle the binary ops that are the same for all types.
 
@@ -243,12 +243,12 @@ T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
 
             default:
                 // Will be handled by the type specific method
-                return EvalOpSpecialized(vnf, v0, v1, pExcSet);
+                return EvalOpSpecialized(vnf, v0, v1);
         }
     }
     else // must be a VNF_ function
     {
-        return EvalOpSpecialized(vnf, v0, v1, pExcSet);
+        return EvalOpSpecialized(vnf, v0, v1);
     }
 }
 
@@ -299,7 +299,7 @@ TFp FpRem(TFp dividend, TFp divisor)
 }
 
 template <>
-double ValueNumStore::EvalOpSpecialized<double>(VNFunc vnf, double v0, double v1, ValueNum* pExcSet)
+double ValueNumStore::EvalOpSpecialized<double>(VNFunc vnf, double v0, double v1)
 {
     // Here we handle specialized double binary ops.
     if (vnf < VNF_Boundary)
@@ -320,12 +320,12 @@ double ValueNumStore::EvalOpSpecialized<double>(VNFunc vnf, double v0, double v1
         }
     }
 
-    assert(!"EvalOpSpecialized<double> with pExcSet");
+    assert(!"EvalOpSpecialized<double>");
     return 0.0;
 }
 
 template <>
-float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0, float v1, ValueNum* pExcSet)
+float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0, float v1)
 {
     // Here we handle specialized float binary ops.
     if (vnf < VNF_Boundary)
@@ -345,12 +345,12 @@ float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0, float v1, Va
                 break;
         }
     }
-    assert(!"EvalOpSpecialized<float> with pExcSet");
+    assert(!"EvalOpSpecialized<float>");
     return 0.0f;
 }
 
 template <typename T>
-T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
+T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0, T v1)
 {
     typedef typename jitstd::make_unsigned<T>::type UT;
 
@@ -2212,7 +2212,6 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
     }
 
     ValueNum result; // left uninitialized, we are required to initialize it on all paths below.
-    ValueNum excSet = VNForEmptyExcSet();
 
     // Are both args of the same type?
     if (arg0VNtyp == arg1VNtyp)
@@ -2222,14 +2221,26 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             int arg0Val = ConstantValue<int>(arg0VN);
             int arg1Val = ConstantValue<int>(arg1VN);
 
-            assert(typ == TYP_INT);
-            int resultVal = EvalOp(func, arg0Val, arg1Val, &excSet);
-            // Bin op on a handle results in a handle.
-            ValueNum handleVN = IsVNHandle(arg0VN) ? arg0VN : IsVNHandle(arg1VN) ? arg1VN : NoVN;
-            ValueNum resultVN = (handleVN != NoVN)
-                                    ? VNForHandle(ssize_t(resultVal), GetHandleFlags(handleVN)) // Use VN for Handle
-                                    : VNForIntCon(resultVal);
-            result = VNWithExc(resultVN, excSet);
+            if (VNFuncIsComparison(func))
+            {
+                assert(typ == TYP_INT);
+                result = VNForIntCon(EvalComparison(func, arg0Val, arg1Val));
+            }
+            else
+            {
+                assert(typ == TYP_INT);
+                int resultVal = EvalOp(func, arg0Val, arg1Val);
+                // Bin op on a handle results in a handle.
+                ValueNum handleVN = IsVNHandle(arg0VN) ? arg0VN : IsVNHandle(arg1VN) ? arg1VN : NoVN;
+                if (handleVN != NoVN)
+                {
+                    result = VNForHandle(ssize_t(resultVal), GetHandleFlags(handleVN)); // Use VN for Handle
+                }
+                else
+                {
+                    result = VNForIntCon(resultVal);
+                }
+            }
         }
         else if (arg0VNtyp == TYP_LONG)
         {
@@ -2244,12 +2255,16 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             else
             {
                 assert(typ == TYP_LONG);
-                INT64    resultVal = EvalOp(func, arg0Val, arg1Val, &excSet);
+                INT64    resultVal = EvalOp(func, arg0Val, arg1Val);
                 ValueNum handleVN  = IsVNHandle(arg0VN) ? arg0VN : IsVNHandle(arg1VN) ? arg1VN : NoVN;
-                ValueNum resultVN  = (handleVN != NoVN)
-                                        ? VNForHandle(ssize_t(resultVal), GetHandleFlags(handleVN)) // Use VN for Handle
-                                        : VNForLongCon(resultVal);
-                result = VNWithExc(resultVN, excSet);
+                if (handleVN != NoVN)
+                {
+                    result = VNForHandle(ssize_t(resultVal), GetHandleFlags(handleVN)); // Use VN for Handle
+                }
+                else
+                {
+                    result = VNForLongCon(resultVal);
+                }
             }
         }
         else // both args are TYP_REF or both args are TYP_BYREF
@@ -2257,21 +2272,24 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             INT64 arg0Val = ConstantValue<size_t>(arg0VN); // We represent ref/byref constants as size_t's.
             INT64 arg1Val = ConstantValue<size_t>(arg1VN); // Also we consider null to be zero.
 
+            // Note: We can see GT_OR of a constant ByRef with Null here
+            //
             if (VNFuncIsComparison(func))
             {
                 assert(typ == TYP_INT);
                 result = VNForIntCon(EvalComparison(func, arg0Val, arg1Val));
             }
-            else if (typ == TYP_INT) // We could see GT_OR of a constant ByRef and Null
+            else if (typ == TYP_INT)
             {
-                int resultVal = (int)EvalOp(func, arg0Val, arg1Val, &excSet);
-                result        = VNWithExc(VNForIntCon(resultVal), excSet);
+                assert(!"Unreachable Check");
+                INT64 val = EvalOp(func, arg0Val, arg1Val);
+                assert(FitsIn<INT32>(val));
+                result = VNForIntCon((int)val);
             }
-            else // We could see GT_OR of a constant ByRef and Null
+            else
             {
                 assert((typ == TYP_BYREF) || (typ == TYP_LONG));
-                INT64 resultVal = EvalOp(func, arg0Val, arg1Val, &excSet);
-                result          = VNWithExc(VNForByrefCon(resultVal), excSet);
+                result = VNForLongCon(EvalOp(func, arg0Val, arg1Val));
             }
         }
     }
@@ -2290,37 +2308,27 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
         }
         else if (typ == TYP_INT) // We could see GT_OR of an int and constant ByRef or Null
         {
-            int resultVal = (int)EvalOp(func, arg0Val, arg1Val, &excSet);
-            result        = VNWithExc(VNForIntCon(resultVal), excSet);
+            result = (int)EvalOp(func, arg0Val, arg1Val);
         }
         else
         {
             assert(typ != TYP_INT);
-            ValueNum resultValx = VNForEmptyExcSet();
-            INT64    resultVal  = EvalOp(func, arg0Val, arg1Val, &resultValx);
+            INT64 resultVal = EvalOp(func, arg0Val, arg1Val);
 
-            // check for the Exception case
-            if (resultValx != VNForEmptyExcSet())
+            switch (typ)
             {
-                result = VNWithExc(VNForVoid(), resultValx);
-            }
-            else
-            {
-                switch (typ)
-                {
-                    case TYP_BYREF:
-                        result = VNForByrefCon(resultVal);
-                        break;
-                    case TYP_LONG:
-                        result = VNForLongCon(resultVal);
-                        break;
-                    case TYP_REF:
-                        assert(resultVal == 0); // Only valid REF constant
-                        result = VNForNull();
-                        break;
-                    default:
-                        unreached();
-                }
+                case TYP_BYREF:
+                    result = VNForByrefCon(resultVal);
+                    break;
+                case TYP_LONG:
+                    result = VNForLongCon(resultVal);
+                    break;
+                case TYP_REF:
+                    assert(resultVal == 0); // Only valid REF constant
+                    result = VNForNull();
+                    break;
+                default:
+                    unreached();
             }
         }
     }
@@ -2368,21 +2376,17 @@ ValueNum ValueNumStore::EvalFuncForConstantFPArgs(var_types typ, VNFunc func, Va
         assert(varTypeIsFloating(typ));
         assert(arg0VNtyp == typ);
 
-        ValueNum exception = VNForEmptyExcSet();
-
         if (typ == TYP_FLOAT)
         {
-            float floatResultVal = EvalOp(func, GetConstantSingle(arg0VN), GetConstantSingle(arg1VN), &exception);
-            assert(exception == VNForEmptyExcSet()); // Floating point ops don't throw.
-            result = VNForFloatCon(floatResultVal);
+            float floatResultVal = EvalOp(func, GetConstantSingle(arg0VN), GetConstantSingle(arg1VN));
+            result               = VNForFloatCon(floatResultVal);
         }
         else
         {
             assert(typ == TYP_DOUBLE);
 
-            double doubleResultVal = EvalOp(func, GetConstantDouble(arg0VN), GetConstantDouble(arg1VN), &exception);
-            assert(exception == VNForEmptyExcSet()); // Floating point ops don't throw.
-            result = VNForDoubleCon(doubleResultVal);
+            double doubleResultVal = EvalOp(func, GetConstantDouble(arg0VN), GetConstantDouble(arg1VN));
+            result                 = VNForDoubleCon(doubleResultVal);
         }
     }
 
