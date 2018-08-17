@@ -142,7 +142,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL EnsureSignalAlternateStack(CPalThread *pthrCurrent)
+BOOL EnsureSignalAlternateStack(CorUnix::CPalThread *pthrCurrent)
 {
     int st = 0;
 
@@ -243,7 +243,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL SEHInitializeSignals(CPalThread *pthrCurrent, DWORD flags)
+BOOL SEHInitializeSignals(CorUnix::CPalThread *pthrCurrent, DWORD flags)
 {
     TRACE("Initializing signal handlers\n");
 

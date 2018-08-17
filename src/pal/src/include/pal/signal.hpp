@@ -95,7 +95,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL EnsureSignalAlternateStack(CPalThread *pthrCurrent);
+BOOL EnsureSignalAlternateStack(CorUnix::CPalThread *pthrCurrent);
 
 /*++
 Function :
@@ -125,7 +125,7 @@ Parameters :
 Return :
     TRUE in case of a success, FALSE otherwise
 --*/
-BOOL SEHInitializeSignals(CPalThread *pthrCurrent, DWORD flags);
+BOOL SEHInitializeSignals(CorUnix::CPalThread *pthrCurrent, DWORD flags);
 
 /*++
 Function :
