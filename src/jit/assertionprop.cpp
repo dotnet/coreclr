@@ -1440,13 +1440,8 @@ bool Compiler::optIsTreeKnownIntValue(bool vnBased, GenTree* tree, ssize_t* pCon
     {
         return false;
     }
-    // ValueNumber indicates that this node evaluates to a constant
 
-    // But we could have an integer division by zero
-    if (tree->OperMayThrow(this))
-    {
-        return false;
-    }
+    // ValueNumber indicates that this node evaluates to a constant
 
     var_types vnType = vnStore->TypeOfVN(vn);
     if (vnType == TYP_INT)

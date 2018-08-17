@@ -1087,7 +1087,7 @@ GenTree* DecomposeLongs::DecomposeShift(LIR::Use& use)
     if (shiftByOper == GT_CNS_INT)
     {
         // Reduce count modulo 64 to match behavior found in the shift helpers,
-        // Compiler::gtFoldExpr and ValueNumStore::EvalOpIntegral.
+        // Compiler::gtFoldExpr and ValueNumStore::EvalOpSpecialized.
         unsigned int count = shiftByOp->gtIntCon.gtIconVal & 0x3F;
         Range().Remove(shiftByOp);
 

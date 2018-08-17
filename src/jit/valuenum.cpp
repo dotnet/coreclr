@@ -19,35 +19,109 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "valuenum.h"
 #include "ssaconfig.h"
 
-VNFunc GetVNFuncForOper(genTreeOps oper, bool isUnsigned)
+// Windows x86 and Windows ARM/ARM64 may not define _isnanf() but they do define _isnan().
+// We will redirect the macros to these other functions if the macro is not defined for the
+// platform. This has the side effect of a possible implicit upcasting for arguments passed.
+#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) && !defined(FEATURE_PAL)
+
+#if !defined(_isnanf)
+#define _isnanf _isnan
+#endif
+
+#endif
+
+VNFunc GetVNFuncForOper(genTreeOps oper, bool isUnsigned, bool overflowChecking)
 {
-    if (!isUnsigned || (oper == GT_EQ) || (oper == GT_NE))
+    // For most genTreeOpers we just use the enum value of the oper
+    //
+    if ((!isUnsigned && !overflowChecking) || (oper == GT_EQ) || (oper == GT_NE))
     {
         return VNFunc(oper);
     }
+
+    VNFunc result = VNF_COUNT; // illegal value
+
     switch (oper)
     {
         case GT_LT:
-            return VNF_LT_UN;
+            assert(isUnsigned);
+            result = VNF_LT_UN;
+            break;
         case GT_LE:
-            return VNF_LE_UN;
+            assert(isUnsigned);
+            result = VNF_LE_UN;
+            break;
         case GT_GE:
-            return VNF_GE_UN;
+            assert(isUnsigned);
+            result = VNF_GE_UN;
+            break;
         case GT_GT:
-            return VNF_GT_UN;
+            assert(isUnsigned);
+            result = VNF_GT_UN;
+            break;
         case GT_ADD:
-            return VNF_ADD_UN;
+            if (overflowChecking)
+            {
+                if (isUnsigned)
+                {
+                    result = VNF_ADD_UN_OVF;
+                }
+                else
+                {
+                    result = VNF_ADD_OVF;
+                }
+            }
+            else if (isUnsigned)
+            {
+                result = VNF_ADD_UN;
+            }
+            break;
         case GT_SUB:
-            return VNF_SUB_UN;
+            if (overflowChecking)
+            {
+                if (isUnsigned)
+                {
+                    result = VNF_SUB_UN_OVF;
+                }
+                else
+                {
+                    result = VNF_SUB_OVF;
+                }
+            }
+            else if (isUnsigned)
+            {
+                result = VNF_SUB_UN;
+            }
+            break;
         case GT_MUL:
-            return VNF_MUL_UN;
+            if (overflowChecking)
+            {
+                if (isUnsigned)
+                {
+                    result = VNF_MUL_UN_OVF;
+                }
+                else
+                {
+                    result = VNF_MUL_OVF;
+                }
+            }
+            else if (isUnsigned)
+            {
+                result = VNF_MUL_UN;
+            }
+            break;
 
         case GT_NOP:
         case GT_COMMA:
-            return VNFunc(oper);
-        default:
-            unreached();
+            // Not sure why we have these two cases?
+            assert(isUnsigned);
+            result = VNFunc(oper);
+            break;
     }
+
+    noway_assert(result != VNF_COUNT);
+
+    return result;
 }
 
 ValueNumStore::ValueNumStore(Compiler* comp, CompAllocator alloc)
@@ -104,46 +178,60 @@ ValueNumStore::ValueNumStore(Compiler* comp, CompAllocator alloc)
     }
 }
 
-// static.
 template <typename T>
 T ValueNumStore::EvalOp(VNFunc vnf, T v0)
 {
     genTreeOps oper = genTreeOps(vnf);
 
-    // Here we handle those unary ops that are the same for integral and floating-point types.
+    // Here we handle those unary ops that are the same for all types.
     switch (oper)
     {
         case GT_NEG:
             return -v0;
         default:
-            // Must be int-specific
-            return EvalOpIntegral(vnf, v0);
+            // Will be handled by the type specific method
+            return EvalOpSpecialized(vnf, v0);
     }
 }
 
+template <>
+float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0)
+{
+    assert(!"EvalOpSpecialized<float>");
+    return 0.0f;
+}
+
+template <>
+double ValueNumStore::EvalOpSpecialized<double>(VNFunc vnf, double v0)
+{
+    assert(!"EvalOpSpecialized<double>");
+    return 0.0;
+}
 template <typename T>
-T ValueNumStore::EvalOpIntegral(VNFunc vnf, T v0)
+T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0)
 {
     genTreeOps oper = genTreeOps(vnf);
 
-    // Here we handle unary ops that are the same for all integral types.
+    // Here we handle unary ops that are the same for all integer types.
     switch (oper)
     {
         case GT_NOT:
             return ~v0;
         default:
+            assert(!"Unhandled operation in unary EvalOpSpecialized");
             unreached();
     }
 }
 
-// static
 template <typename T>
 T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
 {
+    // Here we handle the binary ops that are the same for all types.
+
     if (vnf < VNF_Boundary)
     {
         genTreeOps oper = genTreeOps(vnf);
-        // Here we handle those that are the same for integral and floating-point types.
+
         switch (oper)
         {
             case GT_ADD:
@@ -152,50 +240,15 @@ T ValueNumStore::EvalOp(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
                 return v0 - v1;
             case GT_MUL:
                 return v0 * v1;
-            case GT_DIV:
-                if (IsIntZero(v1))
-                {
-                    *pExcSet = VNExcSetSingleton(VNForFunc(TYP_REF, VNF_DivideByZeroExc, VNForVoid()));
-                    return (T)0;
-                }
-                if (IsOverflowIntDiv(v0, v1))
-                {
-                    *pExcSet = VNExcSetSingleton(VNForFunc(TYP_REF, VNF_ArithmeticExc));
-                    return (T)0;
-                }
-                else
-                {
-                    return v0 / v1;
-                }
 
             default:
-                // Must be int-specific
-                return EvalOpIntegral(vnf, v0, v1, pExcSet);
+                // Will be handled by the type specific method
+                return EvalOpSpecialized(vnf, v0, v1, pExcSet);
         }
     }
     else // must be a VNF_ function
     {
-        typedef typename jitstd::make_unsigned<T>::type UT;
-        switch (vnf)
-        {
-            case VNF_GT_UN:
-                return T(UT(v0) > UT(v1));
-            case VNF_GE_UN:
-                return T(UT(v0) >= UT(v1));
-            case VNF_LT_UN:
-                return T(UT(v0) < UT(v1));
-            case VNF_LE_UN:
-                return T(UT(v0) <= UT(v1));
-            case VNF_ADD_UN:
-                return T(UT(v0) + UT(v1));
-            case VNF_SUB_UN:
-                return T(UT(v0) - UT(v1));
-            case VNF_MUL_UN:
-                return T(UT(v0) * UT(v1));
-            default:
-                // Must be int-specific
-                return EvalOpIntegral(vnf, v0, v1, pExcSet);
-        }
+        return EvalOpSpecialized(vnf, v0, v1, pExcSet);
     }
 }
 
@@ -245,61 +298,297 @@ TFp FpRem(TFp dividend, TFp divisor)
     return (TFp)fmod((double)dividend, (double)divisor);
 }
 
-// Specialize for double for floating operations, that doesn't involve unsigned.
 template <>
-double ValueNumStore::EvalOp<double>(VNFunc vnf, double v0, double v1, ValueNum* pExcSet)
+double ValueNumStore::EvalOpSpecialized<double>(VNFunc vnf, double v0, double v1, ValueNum* pExcSet)
 {
-    genTreeOps oper = genTreeOps(vnf);
-    // Here we handle those that are the same for floating-point types.
-    switch (oper)
+    // Here we handle specialized double binary ops.
+    if (vnf < VNF_Boundary)
     {
-        case GT_ADD:
-            return v0 + v1;
-        case GT_SUB:
-            return v0 - v1;
-        case GT_MUL:
-            return v0 * v1;
-        case GT_DIV:
-            return v0 / v1;
-        case GT_MOD:
-            return FpRem<double, DoubleTraits>(v0, v1);
+        genTreeOps oper = genTreeOps(vnf);
 
-        default:
-            unreached();
+        // Here we handle
+        switch (oper)
+        {
+            case GT_DIV:
+                return v0 / v1;
+            case GT_MOD:
+                return FpRem<double, DoubleTraits>(v0, v1);
+
+            default:
+                // For any other value of 'oper', we will assert and return 0.0
+                break;
+        }
+    }
+
+    assert(!"EvalOpSpecialized<double> with pExcSet");
+    return 0.0;
+}
+
+template <>
+float ValueNumStore::EvalOpSpecialized<float>(VNFunc vnf, float v0, float v1, ValueNum* pExcSet)
+{
+    // Here we handle specialized float binary ops.
+    if (vnf < VNF_Boundary)
+    {
+        genTreeOps oper = genTreeOps(vnf);
+
+        // Here we handle
+        switch (oper)
+        {
+            case GT_DIV:
+                return v0 / v1;
+            case GT_MOD:
+                return FpRem<float, FloatTraits>(v0, v1);
+
+            default:
+                // For any other value of 'oper', we will assert and return 0.0
+                break;
+        }
+    }
+    assert(!"EvalOpSpecialized<float> with pExcSet");
+    return 0.0f;
+}
+
+template <typename T>
+T ValueNumStore::EvalOpSpecialized(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
+{
+    typedef typename jitstd::make_unsigned<T>::type UT;
+
+    // Here we handle binary ops that are the same for all integer types
+    if (vnf < VNF_Boundary)
+    {
+        genTreeOps oper = genTreeOps(vnf);
+
+        switch (oper)
+        {
+            case GT_AND:
+                return v0 & v1;
+            case GT_OR:
+                return v0 | v1;
+            case GT_XOR:
+                return v0 ^ v1;
+
+            case GT_LSH:
+                if (sizeof(T) == 8)
+                {
+                    return v0 << (v1 & 0x3F);
+                }
+                else
+                {
+                    return v0 << v1;
+                }
+            case GT_RSH:
+                if (sizeof(T) == 8)
+                {
+                    return v0 >> (v1 & 0x3F);
+                }
+                else
+                {
+                    return v0 >> v1;
+                }
+            case GT_RSZ:
+                if (sizeof(T) == 8)
+                {
+                    return UINT64(v0) >> (v1 & 0x3F);
+                }
+                else
+                {
+                    return UINT32(v0) >> v1;
+                }
+            case GT_ROL:
+                if (sizeof(T) == 8)
+                {
+                    return (v0 << v1) | (UINT64(v0) >> (64 - v1));
+                }
+                else
+                {
+                    return (v0 << v1) | (UINT32(v0) >> (32 - v1));
+                }
+
+            case GT_ROR:
+                if (sizeof(T) == 8)
+                {
+                    return (v0 << (64 - v1)) | (UINT64(v0) >> v1);
+                }
+                else
+                {
+                    return (v0 << (32 - v1)) | (UINT32(v0) >> v1);
+                }
+
+            case GT_DIV:
+                assert(IsIntZero(v1) == false);
+                assert(IsOverflowIntDiv(v0, v1) == false);
+                return v0 / v1;
+
+            case GT_UDIV:
+                assert(IsIntZero(v1) == false);
+                return T(UT(v0) / UT(v1));
+
+            case GT_MOD:
+                assert(IsIntZero(v1) == false);
+                assert(IsOverflowIntDiv(v0, v1) == false);
+                return v0 % v1;
+
+            case GT_UMOD:
+                assert(IsIntZero(v1) == false);
+                return T(UT(v0) % UT(v1));
+
+            default:
+                // For any other value of 'oper', we will assert and return 0
+                break;
+        }
+    }
+    else // must be a VNF_ function
+    {
+        switch (vnf)
+        {
+            // Here we handle those that are the same for all integer types.
+
+            case VNF_ADD_UN:
+                return T(UT(v0) + UT(v1));
+            case VNF_SUB_UN:
+                return T(UT(v0) - UT(v1));
+            case VNF_MUL_UN:
+                return T(UT(v0) * UT(v1));
+
+            default:
+                // For any other value of 'vnf', we will assert and return 0
+                break;
+        }
+    }
+
+    assert(!"Unhandled operation in binary EvalOpSpecialized");
+    return 0;
+}
+
+template <>
+int ValueNumStore::EvalComparison<double>(VNFunc vnf, double v0, double v1)
+{
+    // Here we handle specialized double comparisons.
+
+    // We must check for a NaN argument as they they need special handling
+    bool hasNanArg = (_isnan(v0) || _isnan(v1));
+
+    if (vnf < VNF_Boundary)
+    {
+        genTreeOps oper = genTreeOps(vnf);
+
+        if (hasNanArg)
+        {
+            // return false in all cases except for GT_NE;
+            return (oper == GT_NE);
+        }
+
+        switch (oper)
+        {
+            case GT_EQ:
+                return v0 == v1;
+            case GT_NE:
+                return v0 != v1;
+            case GT_GT:
+                return v0 > v1;
+            case GT_GE:
+                return v0 >= v1;
+            case GT_LT:
+                return v0 < v1;
+            case GT_LE:
+                return v0 <= v1;
+            default:
+                unreached();
+        }
+    }
+    else // must be a VNF_ function
+    {
+        if (hasNanArg)
+        {
+            // always returns true
+            return false;
+        }
+        switch (vnf)
+        {
+            case VNF_GT_UN:
+                return v0 > v1;
+            case VNF_GE_UN:
+                return v0 >= v1;
+            case VNF_LT_UN:
+                return v0 < v1;
+            case VNF_LE_UN:
+                return v0 <= v1;
+            default:
+                unreached();
+        }
     }
 }
 
-// Specialize for float for floating operations, that doesn't involve unsigned.
 template <>
-float ValueNumStore::EvalOp<float>(VNFunc vnf, float v0, float v1, ValueNum* pExcSet)
+int ValueNumStore::EvalComparison<float>(VNFunc vnf, float v0, float v1)
 {
-    genTreeOps oper = genTreeOps(vnf);
-    // Here we handle those that are the same for floating-point types.
-    switch (oper)
-    {
-        case GT_ADD:
-            return v0 + v1;
-        case GT_SUB:
-            return v0 - v1;
-        case GT_MUL:
-            return v0 * v1;
-        case GT_DIV:
-            return v0 / v1;
-        case GT_MOD:
-            return FpRem<float, FloatTraits>(v0, v1);
+    // Here we handle specialized float comparisons.
 
-        default:
-            unreached();
+    // We must check for a NaN argument as they they need special handling
+    bool hasNanArg = (_isnanf(v0) || _isnanf(v1));
+
+    if (vnf < VNF_Boundary)
+    {
+        genTreeOps oper = genTreeOps(vnf);
+
+        if (hasNanArg)
+        {
+            // return false in all cases except for GT_NE;
+            return (oper == GT_NE);
+        }
+
+        switch (oper)
+        {
+            case GT_EQ:
+                return v0 == v1;
+            case GT_NE:
+                return v0 != v1;
+            case GT_GT:
+                return v0 > v1;
+            case GT_GE:
+                return v0 >= v1;
+            case GT_LT:
+                return v0 < v1;
+            case GT_LE:
+                return v0 <= v1;
+            default:
+                unreached();
+        }
+    }
+    else // must be a VNF_ function
+    {
+        if (hasNanArg)
+        {
+            // always returns true
+            return false;
+        }
+
+        switch (vnf)
+        {
+            case VNF_GT_UN:
+                return v0 > v1;
+            case VNF_GE_UN:
+                return v0 >= v1;
+            case VNF_LT_UN:
+                return v0 < v1;
+            case VNF_LE_UN:
+                return v0 <= v1;
+            default:
+                unreached();
+        }
     }
 }
 
 template <typename T>
 int ValueNumStore::EvalComparison(VNFunc vnf, T v0, T v1)
 {
+    typedef typename jitstd::make_unsigned<T>::type UT;
+
+    // Here we handle the compare ops that are the same for all integer types.
     if (vnf < VNF_Boundary)
     {
         genTreeOps oper = genTreeOps(vnf);
-        // Here we handle those that are the same for floating-point types.
         switch (oper)
         {
             case GT_EQ:
@@ -323,188 +612,59 @@ int ValueNumStore::EvalComparison(VNFunc vnf, T v0, T v1)
         switch (vnf)
         {
             case VNF_GT_UN:
-                return unsigned(v0) > unsigned(v1);
+                return T(UT(v0) > UT(v1));
             case VNF_GE_UN:
-                return unsigned(v0) >= unsigned(v1);
+                return T(UT(v0) >= UT(v1));
             case VNF_LT_UN:
-                return unsigned(v0) < unsigned(v1);
+                return T(UT(v0) < UT(v1));
             case VNF_LE_UN:
-                return unsigned(v0) <= unsigned(v1);
+                return T(UT(v0) <= UT(v1));
             default:
                 unreached();
         }
     }
 }
 
-/* static */
-template <typename T>
-int ValueNumStore::EvalOrderedComparisonFloat(VNFunc vnf, T v0, T v1)
+template <>
+bool ValueNumStore::IsOverflowIntDiv(int v0, int v1)
 {
-    // !! NOTE !!
-    //
-    // All comparisons below are ordered comparisons.
-    //
-    // We should guard this function from unordered comparisons
-    // identified by the GTF_RELOP_NAN_UN flag. Either the flag
-    // should be bubbled (similar to GTF_UNSIGNED for ints)
-    // to this point or we should bail much earlier if any of
-    // the operands are NaN.
-    //
-    genTreeOps oper = genTreeOps(vnf);
-    // Here we handle those that are the same for floating-point types.
-    switch (oper)
-    {
-        case GT_EQ:
-            return v0 == v1;
-        case GT_NE:
-            return v0 != v1;
-        case GT_GT:
-            return v0 > v1;
-        case GT_GE:
-            return v0 >= v1;
-        case GT_LT:
-            return v0 < v1;
-        case GT_LE:
-            return v0 <= v1;
-        default:
-            unreached();
-    }
+    return (v1 == -1) && (v0 == INT32_MIN);
+}
+template <>
+bool ValueNumStore::IsOverflowIntDiv(INT64 v0, INT64 v1)
+{
+    return (v1 == -1) && (v0 == INT64_MIN);
+}
+template <typename T>
+bool ValueNumStore::IsOverflowIntDiv(T v0, T v1)
+{
+    return false;
 }
 
 template <>
-int ValueNumStore::EvalComparison<double>(VNFunc vnf, double v0, double v1)
+bool ValueNumStore::IsIntZero(int v)
 {
-    return EvalOrderedComparisonFloat(vnf, v0, v1);
+    return v == 0;
 }
-
 template <>
-int ValueNumStore::EvalComparison<float>(VNFunc vnf, float v0, float v1)
+bool ValueNumStore::IsIntZero(unsigned v)
 {
-    return EvalOrderedComparisonFloat(vnf, v0, v1);
+    return v == 0;
 }
-
-template <typename T>
-T ValueNumStore::EvalOpIntegral(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
+template <>
+bool ValueNumStore::IsIntZero(INT64 v)
 {
-    genTreeOps oper = genTreeOps(vnf);
-    switch (oper)
-    {
-        case GT_EQ:
-            return v0 == v1;
-        case GT_NE:
-            return v0 != v1;
-        case GT_GT:
-            return v0 > v1;
-        case GT_GE:
-            return v0 >= v1;
-        case GT_LT:
-            return v0 < v1;
-        case GT_LE:
-            return v0 <= v1;
-        case GT_OR:
-            return v0 | v1;
-        case GT_XOR:
-            return v0 ^ v1;
-        case GT_AND:
-            return v0 & v1;
-        case GT_LSH:
-            if (sizeof(T) == 8)
-            {
-                return v0 << (v1 & 0x3F);
-            }
-            else
-            {
-                return v0 << v1;
-            }
-        case GT_RSH:
-            if (sizeof(T) == 8)
-            {
-                return v0 >> (v1 & 0x3F);
-            }
-            else
-            {
-                return v0 >> v1;
-            }
-        case GT_RSZ:
-            if (sizeof(T) == 8)
-            {
-                return UINT64(v0) >> (v1 & 0x3F);
-            }
-            else
-            {
-                return UINT32(v0) >> v1;
-            }
-        case GT_ROL:
-            if (sizeof(T) == 8)
-            {
-                return (v0 << v1) | (UINT64(v0) >> (64 - v1));
-            }
-            else
-            {
-                return (v0 << v1) | (UINT32(v0) >> (32 - v1));
-            }
-
-        case GT_ROR:
-            if (sizeof(T) == 8)
-            {
-                return (v0 << (64 - v1)) | (UINT64(v0) >> v1);
-            }
-            else
-            {
-                return (v0 << (32 - v1)) | (UINT32(v0) >> v1);
-            }
-
-        case GT_DIV:
-        case GT_MOD:
-            if (v1 == 0)
-            {
-                *pExcSet = VNExcSetSingleton(VNForFunc(TYP_REF, VNF_DivideByZeroExc, VNForVoid()));
-            }
-            else if (IsOverflowIntDiv(v0, v1))
-            {
-                *pExcSet = VNExcSetSingleton(VNForFunc(TYP_REF, VNF_ArithmeticExc));
-                return 0;
-            }
-            else // We are not dividing by Zero, so we can calculate the exact result.
-            {
-                // Perform the appropriate operation.
-                if (oper == GT_DIV)
-                {
-                    return v0 / v1;
-                }
-                else // Must be GT_MOD
-                {
-                    return v0 % v1;
-                }
-            }
-
-        case GT_UDIV:
-        case GT_UMOD:
-            if (v1 == 0)
-            {
-                *pExcSet = VNExcSetSingleton(VNForFunc(TYP_REF, VNF_DivideByZeroExc, VNForVoid()));
-                return 0;
-            }
-            else // We are not dividing by Zero, so we can calculate the exact result.
-            {
-                typedef typename jitstd::make_unsigned<T>::type UT;
-                // We need for force the source operands for the divide or mod operation
-                // to be considered unsigned.
-                //
-                if (oper == GT_UDIV)
-                {
-                    // This is return unsigned(v0) / unsigned(v1) for both sizes of integers
-                    return T(UT(v0) / UT(v1));
-                }
-                else // Must be GT_UMOD
-                {
-                    // This is return unsigned(v0) % unsigned(v1) for both sizes of integers
-                    return T(UT(v0) % UT(v1));
-                }
-            }
-        default:
-            unreached(); // NYI?
-    }
+    return v == 0;
+}
+template <>
+bool ValueNumStore::IsIntZero(UINT64 v)
+{
+    return v == 0;
+}
+template <typename T>
+bool ValueNumStore::IsIntZero(T v)
+{
+    return false;
 }
 
 ValueNum ValueNumStore::VNExcSetSingleton(ValueNum x)
@@ -1232,17 +1392,6 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN)
     }
 }
 
-// Windows x86 and Windows ARM/ARM64 may not define _isnanf() but they do define _isnan().
-// We will redirect the macros to these other functions if the macro is not defined for the
-// platform. This has the side effect of a possible implicit upcasting for arguments passed.
-#if (defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)) && !defined(FEATURE_PAL)
-
-#if !defined(_isnanf)
-#define _isnanf _isnan
-#endif
-
-#endif
-
 ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, ValueNum arg1VN)
 {
     assert(arg0VN != NoVN && arg1VN != NoVN);
@@ -1267,6 +1416,9 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
             canFold = false;
         }
 
+        // Currently CanEvalForConstantArgs() returns false for VNF_CastOvf
+        assert(func != VNF_CastOvf);
+
         // Some arithmetic operations can throw exceptions
         // We will avoid performing constant folding on them
         // since they won't actually produce a result
@@ -1279,29 +1431,55 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
             //
             if (!varTypeIsFloating(typ))
             {
-                // Is this an integer divide by zero operation?
-                if ((oper == GT_DIV) || (oper == GT_UDIV))
+                // Is this an integer divide/modulo that will throw an exception?
+                //
+                if ((oper == GT_DIV) || (oper == GT_UDIV) || (oper == GT_MOD) || (oper == GT_UMOD))
                 {
-                    if (VNIsEqual(arg1VN, VNZeroForType(typ)))
+                    if ((TypeOfVN(arg0VN) != typ) || (TypeOfVN(arg1VN) != typ))
                     {
+                        // Just in case we have mismatched types
                         canFold = false;
                     }
-                }
-
-                // Is this an integer mod by 0 or mod -1 operation?
-                if ((oper == GT_MOD) || (oper == GT_UMOD))
-                {
-                    // Is this an integer mod by zero operation?
-                    if (VNIsEqual(arg1VN, VNZeroForType(typ)))
+                    else
                     {
-                        canFold = false;
-                    }
+                        bool isUnsigned = (oper == GT_UDIV) || (oper == GT_UMOD);
+                        if (typ == TYP_LONG)
+                        {
+                            INT64 kArg0 = ConstantValue<INT64>(arg0VN);
+                            INT64 kArg1 = ConstantValue<INT64>(arg1VN);
 
-                    // Is this an integer mod by negative 1 operation?
-                    ValueNum NegOneVN = VNNegOneForType(typ);
-                    if ((NegOneVN != NoVN) && (VNIsEqual(arg1VN, NegOneVN)))
-                    {
-                        canFold = false;
+                            if (IsIntZero(kArg1))
+                            {
+                                // Don't fold we have a divide by zero
+                                canFold = false;
+                            }
+                            else if (!isUnsigned || IsOverflowIntDiv(kArg0, kArg1))
+                            {
+                                // Don't fold we have a divide of INT64_MIN/-1
+                                canFold = false;
+                            }
+                        }
+                        else if (typ == TYP_INT)
+                        {
+                            int kArg0 = ConstantValue<int>(arg0VN);
+                            int kArg1 = ConstantValue<int>(arg1VN);
+
+                            if (IsIntZero(kArg1))
+                            {
+                                // Don't fold We have a divide by zero
+                                canFold = false;
+                            }
+                            else if (!isUnsigned || IsOverflowIntDiv(kArg0, kArg1))
+                            {
+                                // Don't fold we have a divide of INT32_MIN/-1
+                                canFold = false;
+                            }
+                        }
+                        else // strange value for 'typ'
+                        {
+                            assert(!"unexpected 'typ' in VNForFunc constant folding");
+                            canFold = false;
+                        }
                     }
                 }
             }
@@ -1322,17 +1500,6 @@ ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, V
             canFold = false;
         }
 
-        // NaNs are unordered wrt to other floats. While an ordered
-        // comparison would return false, an unordered comparison
-        // will return true if any operands are a NaN. We only perform
-        // ordered NaN comparison in EvalComparison.
-        if ((arg0IsFloating && (((arg0VNtyp == TYP_FLOAT) && _isnanf(GetConstantSingle(arg0VN))) ||
-                                ((arg0VNtyp == TYP_DOUBLE) && _isnan(GetConstantDouble(arg0VN))))) ||
-            (arg1IsFloating && (((arg1VNtyp == TYP_FLOAT) && _isnanf(GetConstantSingle(arg1VN))) ||
-                                ((arg1VNtyp == TYP_DOUBLE) && _isnan(GetConstantDouble(arg1VN))))))
-        {
-            canFold = false;
-        }
         if (typ == TYP_BYREF)
         {
             // We don't want to fold expressions that produce TYP_BYREF
@@ -2525,6 +2692,18 @@ bool ValueNumStore::CanEvalForConstantArgs(VNFunc vnf)
         {
             case VNF_Cast: // We can evaluate these.
                 return true;
+
+            case VNF_GT_UN:
+            case VNF_GE_UN:
+            case VNF_LT_UN:
+            case VNF_LE_UN:
+                return true;
+
+            case VNF_ADD_UN:
+            case VNF_SUB_UN:
+            case VNF_MUL_UN:
+                return true;
+
             case VNF_ObjGetType:
                 return false;
             default:
@@ -2537,94 +2716,6 @@ unsigned ValueNumStore::VNFuncArity(VNFunc vnf)
 {
     // Read the bit field out of the table...
     return (s_vnfOpAttribs[vnf] & VNFOA_ArityMask) >> VNFOA_ArityShift;
-}
-
-template <>
-bool ValueNumStore::IsOverflowIntDiv(int v0, int v1)
-{
-    return (v1 == -1) && (v0 == INT32_MIN);
-}
-template <>
-bool ValueNumStore::IsOverflowIntDiv(INT64 v0, INT64 v1)
-{
-    return (v1 == -1) && (v0 == INT64_MIN);
-}
-template <typename T>
-bool ValueNumStore::IsOverflowIntDiv(T v0, T v1)
-{
-    return false;
-}
-
-template <>
-bool ValueNumStore::IsIntZero(int v)
-{
-    return v == 0;
-}
-template <>
-bool ValueNumStore::IsIntZero(unsigned v)
-{
-    return v == 0;
-}
-template <>
-bool ValueNumStore::IsIntZero(INT64 v)
-{
-    return v == 0;
-}
-template <>
-bool ValueNumStore::IsIntZero(UINT64 v)
-{
-    return v == 0;
-}
-template <typename T>
-bool ValueNumStore::IsIntZero(T v)
-{
-    return false;
-}
-
-template <>
-float ValueNumStore::EvalOpIntegral<float>(VNFunc vnf, float v0)
-{
-    assert(!"EvalOpIntegral<float>");
-    return 0.0f;
-}
-
-template <>
-double ValueNumStore::EvalOpIntegral<double>(VNFunc vnf, double v0)
-{
-    assert(!"EvalOpIntegral<double>");
-    return 0.0;
-}
-
-template <>
-float ValueNumStore::EvalOpIntegral<float>(VNFunc vnf, float v0, float v1, ValueNum* pExcSet)
-{
-    genTreeOps oper = genTreeOps(vnf);
-    switch (oper)
-    {
-        case GT_MOD:
-            return fmodf(v0, v1);
-        default:
-            // For any other values of 'oper', we will assert and return 0.0f
-            break;
-    }
-    assert(!"EvalOpIntegral<float> with pExcSet");
-    return 0.0f;
-}
-
-template <>
-double ValueNumStore::EvalOpIntegral<double>(VNFunc vnf, double v0, double v1, ValueNum* pExcSet)
-{
-    genTreeOps oper = genTreeOps(vnf);
-    switch (oper)
-    {
-        case GT_MOD:
-            return fmod(v0, v1);
-        default:
-            // For any other value of 'oper', we will assert and return 0.0
-            break;
-    }
-    assert(!"EvalOpIntegral<double> with pExcSet");
-    return 0.0;
 }
 
 ValueNum ValueNumStore::VNForFunc(var_types typ, VNFunc func, ValueNum arg0VN, ValueNum arg1VN, ValueNum arg2VN)
@@ -7191,7 +7282,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
         {
             fgValueNumberIntrinsic(tree);
         }
-        else if (ValueNumStore::VNFuncIsLegal(GetVNFuncForOper(oper, (tree->gtFlags & GTF_UNSIGNED) != 0)))
+        else if (ValueNumStore::VNFuncIsLegal(GetVNFuncForOper(oper, ((tree->gtFlags & GTF_UNSIGNED) != 0), false)))
         {
             if (GenTree::OperIsUnary(oper))
             {
@@ -7217,12 +7308,11 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                             op1VNP.SetBoth(op1VNP.GetConservative());
                         }
 
-                        tree->gtVNPair =
-                            vnStore->VNPWithExc(vnStore->VNPairForFunc(tree->TypeGet(),
-                                                                       GetVNFuncForOper(oper, (tree->gtFlags &
-                                                                                               GTF_UNSIGNED) != 0),
-                                                                       op1VNP),
-                                                op1VNPx);
+                        bool   isUnsigned = ((tree->gtFlags & GTF_UNSIGNED) != 0);
+                        VNFunc vnFunc     = GetVNFuncForOper(oper, isUnsigned, false);
+
+                        tree->gtVNPair = vnStore->VNPairForFunc(tree->TypeGet(), vnFunc, op1VNP);
+                        tree->gtVNPair = vnStore->VNPWithExc(tree->gtVNPair, op1VNPx);
                     }
                 }
                 else // Is actually nullary.
@@ -7283,11 +7373,14 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                 }
                 else
                 {
-                    VNFunc       vnf       = GetVNFuncForOper(oper, (tree->gtFlags & GTF_UNSIGNED) != 0);
+                    bool isUnsigned    = ((tree->gtFlags & GTF_UNSIGNED) != 0);
+                    bool overflowCheck = tree->gtOverflowEx();
+
+                    VNFunc       vnf       = GetVNFuncForOper(oper, isUnsigned, overflowCheck);
                     ValueNumPair normalRes = vnStore->VNPairForFunc(tree->TypeGet(), vnf, op1vnp, op2vnp);
 
-                    // Overflow-checking operations add an overflow exception
-                    if (tree->gtOverflowEx())
+                    // Overflow-checking operations also add an overflow exception
+                    if (overflowCheck)
                     {
                         // The normalRes is used to create the OverflowExc
                         ValueNumPair overflowExcSet =
@@ -7521,25 +7614,175 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                 case GT_MOD:
                 case GT_UMOD:
                 {
-                    // A Divide By Zero exception is possible.
+                    // A Divide By Zero exception may be possible.
                     // The divisor is held in tree->gtOp.gtOp2
                     //
+                    bool isUnsignedOper         = (oper == GT_UDIV) || (oper == GT_UMOD);
+                    bool needDivideByZeroExcLib = true;
+                    bool needDivideByZeroExcCon = true;
+                    bool needArithmeticExcLib   = !isUnsignedOper; // Overflow isn't possible for unsigned divide
+                    bool needArithmeticExcCon   = !isUnsignedOper;
+
+                    // Determine if we have a 32-bit or 64-bit divide operation
+                    var_types typ = genActualType(tree->TypeGet());
+                    assert((typ == TYP_INT) || (typ == TYP_LONG));
+
+                    // Retrieve the Norm VN for op2 to use it for the DivideByZeroExc
+                    ValueNumPair vnpOp2Norm   = vnStore->VNPNormVal(tree->gtOp.gtOp2->gtVNPair);
+                    ValueNum     vnOp2NormLib = vnpOp2Norm.GetLiberal();
+                    ValueNum     vnOp2NormCon = vnpOp2Norm.GetConservative();
+
+                    if (typ == TYP_INT)
+                    {
+                        INT32 kVal;
+
+                        if (vnStore->IsVNConstant(vnOp2NormLib))
+                        {
+                            kVal = vnStore->ConstantValue<INT32>(vnOp2NormLib);
+                            if (kVal != 0)
+                            {
+                                needDivideByZeroExcLib = false;
+                            }
+                            if (!isUnsignedOper && (kVal != -1))
+                            {
+                                needArithmeticExcLib = false;
+                            }
+                        }
+                        if (vnStore->IsVNConstant(vnOp2NormCon))
+                        {
+                            kVal = vnStore->ConstantValue<INT32>(vnOp2NormCon);
+                            if (kVal != 0)
+                            {
+                                needDivideByZeroExcCon = false;
+                            }
+                            if (!isUnsignedOper && (kVal != -1))
+                            {
+                                needArithmeticExcCon = false;
+                            }
+                        }
+                    }
+                    else // (typ == TYP_LONG)
+                    {
+                        INT64 kVal;
+
+                        if (vnStore->IsVNConstant(vnOp2NormLib))
+                        {
+                            kVal = vnStore->ConstantValue<INT64>(vnOp2NormLib);
+                            if (kVal != 0)
+                            {
+                                needDivideByZeroExcLib = false;
+                            }
+                            if (!isUnsignedOper && (kVal != -1))
+                            {
+                                needArithmeticExcLib = false;
+                            }
+                        }
+                        if (vnStore->IsVNConstant(vnOp2NormCon))
+                        {
+                            kVal = vnStore->ConstantValue<INT64>(vnOp2NormCon);
+                            if (kVal != 0)
+                            {
+                                needDivideByZeroExcCon = false;
+                            }
+                            if (!isUnsignedOper && (kVal != -1))
+                            {
+                                needArithmeticExcCon = false;
+                            }
+                        }
+                    }
+
+                    // Retrieve the Norm VN for op1 to use it for the ArithmeticExc
+                    ValueNumPair vnpOp1Norm   = vnStore->VNPNormVal(tree->gtOp.gtOp1->gtVNPair);
+                    ValueNum     vnOp1NormLib = vnpOp1Norm.GetLiberal();
+                    ValueNum     vnOp1NormCon = vnpOp1Norm.GetConservative();
+
+                    if (needArithmeticExcLib || needArithmeticExcCon)
+                    {
+                        if (typ == TYP_INT)
+                        {
+                            INT32 kVal;
+
+                            if (vnStore->IsVNConstant(vnOp1NormLib))
+                            {
+                                kVal = vnStore->ConstantValue<INT32>(vnOp1NormLib);
+
+                                if (!isUnsignedOper && (kVal != INT32_MIN))
+                                {
+                                    needArithmeticExcLib = false;
+                                }
+                            }
+                            if (vnStore->IsVNConstant(vnOp1NormCon))
+                            {
+                                kVal = vnStore->ConstantValue<INT32>(vnOp1NormCon);
+
+                                if (!isUnsignedOper && (kVal != INT32_MIN))
+                                {
+                                    needArithmeticExcCon = false;
+                                }
+                            }
+                        }
+                        else // (typ == TYP_LONG)
+                        {
+                            INT64 kVal;
+
+                            if (vnStore->IsVNConstant(vnOp1NormLib))
+                            {
+                                kVal = vnStore->ConstantValue<INT64>(vnOp1NormLib);
+
+                                if (!isUnsignedOper && (kVal != INT64_MIN))
+                                {
+                                    needArithmeticExcLib = false;
+                                }
+                            }
+                            if (vnStore->IsVNConstant(vnOp1NormCon))
+                            {
+                                kVal = vnStore->ConstantValue<INT64>(vnOp1NormCon);
+
+                                if (!isUnsignedOper && (kVal != INT64_MIN))
+                                {
+                                    needArithmeticExcCon = false;
+                                }
+                            }
+                        }
+                    }
 
                     // Unpack, Norm,Exc for the tree's VN
                     ValueNumPair vnpTreeNorm;
-                    ValueNumPair vnpTreeExc = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair vnpTreeExc    = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair vnpDivZeroExc = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair vnpArithmExc  = ValueNumStore::VNPForEmptyExcSet();
+                    ValueNumPair newExcSet;
+
                     vnStore->VNPUnpackExc(tree->gtVNPair, &vnpTreeNorm, &vnpTreeExc);
 
-                    // Retrieve the Norm VN for op2 and use it to create the DivideByZeroExc
-                    ValueNumPair vnpOp2Norm = vnStore->VNPNormVal(tree->gtOp.gtOp2->gtVNPair);
-                    ValueNumPair excDivZero =
-                        vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_DivideByZeroExc, vnpOp2Norm));
+                    if (needDivideByZeroExcLib)
+                    {
+                        vnpDivZeroExc.SetLiberal(
+                            vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc, vnOp2NormLib)));
+                    }
+                    if (needDivideByZeroExcCon)
+                    {
+                        vnpDivZeroExc.SetConservative(
+                            vnStore->VNExcSetSingleton(vnStore->VNForFunc(TYP_REF, VNF_DivideByZeroExc, vnOp2NormCon)));
+                    }
+                    if (needArithmeticExcLib)
+                    {
+                        vnpArithmExc.SetLiberal(vnStore->VNExcSetSingleton(
+                            vnStore->VNForFunc(TYP_REF, VNF_ArithmeticExc, vnOp1NormLib, vnOp2NormLib)));
+                    }
+                    if (needArithmeticExcCon)
+                    {
+                        vnpArithmExc.SetConservative(vnStore->VNExcSetSingleton(
+                            vnStore->VNForFunc(TYP_REF, VNF_ArithmeticExc, vnOp1NormLib, vnOp2NormCon)));
+                    }
 
-                    // Combine excDivZero with exception set of tree
-                    ValueNumPair excSetBoth = vnStore->VNPExcSetUnion(excDivZero, vnpTreeExc);
+                    // Combine vnpDivZeroExc with the exception set of tree
+                    newExcSet = vnStore->VNPExcSetUnion(vnpTreeExc, vnpDivZeroExc);
+                    // Combine vnpArithmExc with the newExcSet
+                    newExcSet = vnStore->VNPExcSetUnion(newExcSet, vnpArithmExc);
 
-                    // Updated VN for tree, it now includes excDivZero
-                    tree->gtVNPair = vnStore->VNPWithExc(vnpTreeNorm, excSetBoth);
+                    // Updated VN for tree, it now includes DivideByZeroExc and/or ArithmeticExc
+                    tree->gtVNPair = vnStore->VNPWithExc(vnpTreeNorm, newExcSet);
                 }
                 break;
 
@@ -7751,10 +7994,10 @@ ValueNumPair ValueNumStore::VNPairForCast(ValueNumPair srcVNPair,
     {
         srcIsUnsignedNorm = false;
     }
-
+    VNFunc       vnFunc     = hasOverflowCheck ? VNF_CastOvf : VNF_Cast;
     ValueNum     castTypeVN = VNForCastOper(castToType, srcIsUnsignedNorm);
     ValueNumPair castTypeVNPair(castTypeVN, castTypeVN);
-    ValueNumPair castNormRes = VNPairForFunc(resultType, VNF_Cast, castArgVNP, castTypeVNPair);
+    ValueNumPair castNormRes = VNPairForFunc(resultType, vnFunc, castArgVNP, castTypeVNPair);
 
     ValueNumPair resultVNP = VNPWithExc(castNormRes, castArgxVNP);
 

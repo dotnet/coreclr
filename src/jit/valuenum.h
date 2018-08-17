@@ -48,9 +48,10 @@ enum VNFunc
 };
 
 // Given an "oper" and associated flags with it, transform the oper into a
-// more accurate oper that can be used in evaluation. For example, (GT_ADD, unsigned)
-// transforms to GT_ADD_UN.
-VNFunc GetVNFuncForOper(genTreeOps oper, bool isUnsigned);
+// more accurate oper that can be used in evaluation. For example, (GT_ADD, true, false)
+// transforms to GT_ADD_UN and (GT_ADD, false, true) transforms to GT_ADD_OVF
+//
+VNFunc GetVNFuncForOper(genTreeOps oper, bool isUnsigned, bool overflowChecking);
 
 // An instance of this struct represents an application of the function symbol
 // "m_func" to the first "m_arity" (<= 4) argument values in "m_args."
@@ -188,9 +189,9 @@ private:
     // return vnf(v0) or vnf(v0, v1), respectively (must, of course be unary/binary ops, respectively.)
     // Should only be instantiated for integral types.
     template <typename T>
-    static T EvalOpIntegral(VNFunc vnf, T v0);
+    static T EvalOpSpecialized(VNFunc vnf, T v0);
     template <typename T>
-    T EvalOpIntegral(VNFunc vnf, T v0, T v1, ValueNum* pExcSet);
+    T EvalOpSpecialized(VNFunc vnf, T v0, T v1, ValueNum* pExcSet);
 
     // Should only instantiate (in a non-trivial way) for "int" and "INT64".  Returns true iff dividing "v0" by "v1"
     // would produce integer overflow (an ArithmeticException -- *not* division by zero, which is separate.)
@@ -1422,10 +1423,16 @@ inline bool ValueNumStore::VNFuncIsComparison(VNFunc vnf)
 {
     if (vnf >= VNF_Boundary)
     {
+        if ((vnf == VNF_LT_UN) || (vnf == VNF_LE_UN) || (vnf == VNF_GE_UN) || (vnf == VNF_GT_UN))
+        {
+            return true;
+        }
+
         return false;
     }
     genTreeOps gtOp = genTreeOps(vnf);
-    return GenTree::OperIsCompare(gtOp) != 0;
+
+    return GenTree::OperIsCompare(gtOp);
 }
 
 template <>

@@ -3,9 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 // Defines the functions understood by the value-numbering system.
-// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>, <non-null (for gc functions)>,
-// <is-shared-static>)
-
+//
+// #define ValueNumFuncDef(vnf, arity, commute, knownNonNull, sharedStatic)
+//
+// ValueNumFuncDef(<name of function>, <arity (1-4)>, <is-commutative (for arity = 2)>,
+//                                <non-null (for gc functions)>, <is-shared-static>)
 // clang-format off
 ValueNumFuncDef(MapStore, 3, false, false, false)
 ValueNumFuncDef(MapSelect, 2, false, false, false)
@@ -25,10 +27,12 @@ ValueNumFuncDef(PhiMemoryDef, 2, false, false, false) // Args: 0: VN for basic b
 ValueNumFuncDef(InitVal, 1, false, false, false)    // An input arg, or init val of a local Args: 0: a constant VN.
 
 
-ValueNumFuncDef(Cast, 2, false, false, false)               // VNF_Cast: Cast Operation changes the representations size and unsigned-ness.
-                                                     //           Args: 0: Source for the cast operation.
-                                                     //                 1: Constant integer representing the operation .
-                                                     //                    Use VNForCastOper() to construct.
+ValueNumFuncDef(Cast, 2, false, false, false)           // VNF_Cast: Cast Operation changes the representations size and unsigned-ness.
+                                                        //           Args: 0: Source for the cast operation.
+                                                        //                 1: Constant integer representing the operation .
+                                                        //                    Use VNForCastOper() to construct.
+ValueNumFuncDef(CastOvf, 2, false, false, false)        // Same as a VNF_Cast but also can throw an overflow exception, currently we won't constant fold this
+
 
 ValueNumFuncDef(CastClass, 2, false, false, false)          // Args: 0: Handle of class being cast to, 1: object being cast.
 ValueNumFuncDef(IsInstanceOf, 2, false, false, false)       // Args: 0: Handle of class being queried, 1: object being queried.
@@ -54,7 +58,7 @@ ValueNumFuncDef(ExcSetCons, 2, false, false, false)         // Args: 0: exceptio
 // Various exception values.   
 // Note that when the execution is always thrown, the value VNForVoid() is used as Arg0 for OverflowExc and DivideByZeroExc,
 ValueNumFuncDef(NullPtrExc, 1, false, false, false)         // Null pointer exception check.  Args: 0: address value,  throws when it is null
-ValueNumFuncDef(ArithmeticExc, 0, false, false, false)      // E.g., for signed its, MinInt / -1.
+ValueNumFuncDef(ArithmeticExc, 2, false, false, false)      // E.g., for signed its, MinInt / -1.
 ValueNumFuncDef(OverflowExc, 1, false, false, false)        // Integer overflow check. Args: 0: expression value,  throws when it overflows
 ValueNumFuncDef(ConvOverflowExc, 2, false, false, false)    // Integer overflow produced by converion.  Args: 0: input value; 1: var_types of target type
                                                             // (shifted left one bit; low bit encode whether source is unsigned.) 
@@ -138,13 +142,24 @@ ValueNumFuncDef(LT_UN, 2, false, false, false)
 ValueNumFuncDef(LE_UN, 2, false, false, false)
 ValueNumFuncDef(GE_UN, 2, false, false, false)
 ValueNumFuncDef(GT_UN, 2, false, false, false)
-ValueNumFuncDef(ADD_UN, 2, true, false, false)
-ValueNumFuncDef(SUB_UN, 2, false, false, false)
-ValueNumFuncDef(MUL_UN, 2, true, false, false)
 
 ValueNumFuncDef(StrCns, 2, false, true, false)
 
 ValueNumFuncDef(Unbox, 2, false, true, false)
+
+ValueNumFuncDef(ADD_UN, 2, true, false, false)      // unsigned oper  
+ValueNumFuncDef(SUB_UN, 2, false, false, false)
+ValueNumFuncDef(MUL_UN, 2, true, false, false)
+
+// currently we won't constant fold the next six
+
+ValueNumFuncDef(ADD_OVF, 2, true, false, false)     // overflow checking oper     
+ValueNumFuncDef(SUB_OVF, 2, false, false, false)
+ValueNumFuncDef(MUL_OVF, 2, true, false, false)
+ValueNumFuncDef(ADD_UN_OVF, 2, true, false, false)  // unsigned overflow checking oper
+ValueNumFuncDef(SUB_UN_OVF, 2, false, false, false)
+ValueNumFuncDef(MUL_UN_OVF, 2, true, false, false)
+
 // clang-format on
 
 #undef ValueNumFuncDef
