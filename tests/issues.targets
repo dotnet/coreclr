@@ -199,9 +199,6 @@
         <ExcludeList Include="$(XunitTestBinBase)\Interop\COM\NETClients\Primitives\NETClientPrimitives\NETClientPrimitives.cmd">
             <Issue>19164</Issue>
         </ExcludeList>
-		<ExcludeList Include="$(XunitTestBinBase)\readytorun\r2rdump\R2RDumpTest\R2RDumpTest.cmd">
-            <Issue>19441</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- The following are x86 failures -->
