@@ -489,7 +489,7 @@ void CodeGen::inst_set_SV_var(GenTree* tree)
  */
 
 void CodeGen::inst_RV_IV(
-    instruction ins, regNumber reg, ssize_t val, emitAttr size, insFlags flags /* = INS_FLAGS_DONT_CARE */)
+    instruction ins, regNumber reg, target_ssize_t val, emitAttr size, insFlags flags /* = INS_FLAGS_DONT_CARE */)
 {
 #if !defined(_TARGET_64BIT_)
     assert(size != EA_8BYTE);
@@ -1165,7 +1165,7 @@ void CodeGen::inst_FS_ST(instruction ins, emitAttr size, TempDsc* tmp, unsigned 
 #endif
 
 #ifdef _TARGET_ARM_
-bool CodeGenInterface::validImmForInstr(instruction ins, ssize_t imm, insFlags flags)
+bool CodeGenInterface::validImmForInstr(instruction ins, target_ssize_t imm, insFlags flags)
 {
     if (getEmitter()->emitInsIsLoadOrStore(ins) && !instIsFP(ins))
     {
@@ -1236,12 +1236,12 @@ bool CodeGenInterface::validImmForInstr(instruction ins, ssize_t imm, insFlags f
     }
     return result;
 }
-bool CodeGen::arm_Valid_Imm_For_Instr(instruction ins, ssize_t imm, insFlags flags)
+bool CodeGen::arm_Valid_Imm_For_Instr(instruction ins, target_ssize_t imm, insFlags flags)
 {
     return validImmForInstr(ins, imm, flags);
 }
 
-bool CodeGenInterface::validDispForLdSt(ssize_t disp, var_types type)
+bool CodeGenInterface::validDispForLdSt(target_ssize_t disp, var_types type)
 {
     if (varTypeIsFloating(type))
     {
@@ -1258,45 +1258,45 @@ bool CodeGenInterface::validDispForLdSt(ssize_t disp, var_types type)
             return false;
     }
 }
-bool CodeGen::arm_Valid_Disp_For_LdSt(ssize_t disp, var_types type)
+bool CodeGen::arm_Valid_Disp_For_LdSt(target_ssize_t disp, var_types type)
 {
     return validDispForLdSt(disp, type);
 }
 
-bool CodeGenInterface::validImmForAlu(ssize_t imm)
+bool CodeGenInterface::validImmForAlu(target_ssize_t imm)
 {
     return emitter::emitIns_valid_imm_for_alu(imm);
 }
-bool CodeGen::arm_Valid_Imm_For_Alu(ssize_t imm)
+bool CodeGen::arm_Valid_Imm_For_Alu(target_ssize_t imm)
 {
     return validImmForAlu(imm);
 }
 
-bool CodeGenInterface::validImmForMov(ssize_t imm)
+bool CodeGenInterface::validImmForMov(target_ssize_t imm)
 {
     return emitter::emitIns_valid_imm_for_mov(imm);
 }
-bool CodeGen::arm_Valid_Imm_For_Mov(ssize_t imm)
+bool CodeGen::arm_Valid_Imm_For_Mov(target_ssize_t imm)
 {
     return validImmForMov(imm);
 }
 
-bool CodeGen::arm_Valid_Imm_For_Small_Mov(regNumber reg, ssize_t imm, insFlags flags)
+bool CodeGen::arm_Valid_Imm_For_Small_Mov(regNumber reg, target_ssize_t imm, insFlags flags)
 {
     return emitter::emitIns_valid_imm_for_small_mov(reg, imm, flags);
 }
 
-bool CodeGenInterface::validImmForAdd(ssize_t imm, insFlags flags)
+bool CodeGenInterface::validImmForAdd(target_ssize_t imm, insFlags flags)
 {
     return emitter::emitIns_valid_imm_for_add(imm, flags);
 }
-bool CodeGen::arm_Valid_Imm_For_Add(ssize_t imm, insFlags flags)
+bool CodeGen::arm_Valid_Imm_For_Add(target_ssize_t imm, insFlags flags)
 {
     return emitter::emitIns_valid_imm_for_add(imm, flags);
 }
 
 // Check "add Rd,SP,i10"
-bool CodeGen::arm_Valid_Imm_For_Add_SP(ssize_t imm)
+bool CodeGen::arm_Valid_Imm_For_Add_SP(target_ssize_t imm)
 {
     return emitter::emitIns_valid_imm_for_add_sp(imm);
 }
@@ -2182,7 +2182,7 @@ void CodeGen::instGen_Compare_Reg_To_Reg(emitAttr size, regNumber reg1, regNumbe
  *  Machine independent way to set the flags based upon
  *   comparing a register with an immediate
  */
-void CodeGen::instGen_Compare_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm)
+void CodeGen::instGen_Compare_Reg_To_Imm(emitAttr size, regNumber reg, target_ssize_t imm)
 {
     if (imm == 0)
     {
