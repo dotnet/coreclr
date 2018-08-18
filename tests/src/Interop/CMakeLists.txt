@@ -30,6 +30,7 @@ add_subdirectory(SizeConst)
 add_subdirectory(DllImportAttribute/ExeFile)
 add_subdirectory(DllImportAttribute/FileNameContainDot)
 add_subdirectory(DllImportAttribute/Simple)
+add_subdirectory(IJW/FakeMscoree)
 
 if(WIN32)
     add_subdirectory(COM/NativeServer)

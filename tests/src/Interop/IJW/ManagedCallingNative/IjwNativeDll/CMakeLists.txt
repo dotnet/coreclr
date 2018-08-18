@@ -6,6 +6,8 @@ set(SOURCES IjwNativeDll.cpp)
 if (WIN32)
     # 4365 - signed/unsigned mismatch
     add_compile_options(-wd4365)
+
+    # IJW
     add_compile_options(-clr)
 
     # CMake enables /RTC1 and /EHsc by default, but they're not compatible with /clr, so remove them

@@ -5961,6 +5961,12 @@ MethodTableBuilder::InitMethodDesc(
             pNewNMD->ndirect.m_cbStackArgumentSize = 0xFFFF;
 #endif // defined(_TARGET_X86_)
 
+            if (RVA != 0 && IsMiUnmanaged(dwImplFlags) && IsMiNative(dwImplFlags))
+            {
+                // Note that we cannot initialize the stub directly now in the general case,
+                // as LoadLibrary may not have been performed yet.
+                pNewNMD->SetIsEarlyBound();
+            }
 
             pNewNMD->GetWriteableData()->m_pNDirectTarget = pNewNMD->GetNDirectImportThunkGlue()->GetEntrypoint();
         }

@@ -4,6 +4,7 @@
 
 using System;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace ManagedCallingNative
 {
@@ -11,6 +12,9 @@ namespace ManagedCallingNative
     {
         static int Main(string[] args)
         {
+            // Load a fake mscoree.dll to avoid starting desktop
+            LoadLibraryEx("mscoree.dll", IntPtr.Zero, 0);
+
             // Building with a reference to the IJW dll is difficult, so load via reflection instead
             Assembly ijwNativeDll = Assembly.Load("IjwNativeDll");
             Type testType = ijwNativeDll.GetType("TestClass");
@@ -20,5 +24,8 @@ namespace ManagedCallingNative
 
             return result;
         }
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hReservedNull, int dwFlags);
     }
 }

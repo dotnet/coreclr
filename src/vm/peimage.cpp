@@ -947,7 +947,7 @@ PTR_PEImageLayout PEImage::CreateLayoutMapped()
     {
         // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
         // regular mapping - but not for native images.
-        pLoadLayout = PEImageLayout::Load(this, TRUE /* bNTSafeLoad */, m_bIsTrustedNativeImage /* bThrowOnError */);
+        pLoadLayout = PEImageLayout::Load(this, FALSE /* bNTSafeLoad */, m_bIsTrustedNativeImage /* bThrowOnError */);
     }
 
     if (pLoadLayout != NULL)
