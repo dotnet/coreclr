@@ -9896,7 +9896,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block,
     {
         printf("\nRemoving statement ");
         printTreeID(stmt);
-        printf(" in BB%02u as useless:\n", block->bbNum);
+        printf(" in BB%02u:\n", block->bbNum);
         gtDispTree(stmt);
     }
 #endif // DEBUG

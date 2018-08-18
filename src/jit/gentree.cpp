@@ -5649,10 +5649,13 @@ bool GenTree::OperMayThrow(Compiler* comp)
             return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(this->AsIndir()->Addr()));
 
         case GT_ARR_LENGTH:
-            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(gtOp.gtOp1));
+            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) &&
+                    comp->fgAddrCouldBeNull(this->AsArrLen()->ArrRef()));
+
+        case GT_ARR_ELEM:
+            return comp->fgAddrCouldBeNull(this->gtArrElem.gtArrObj);
 
         case GT_ARR_BOUNDS_CHECK:
-        case GT_ARR_ELEM:
         case GT_ARR_INDEX:
         case GT_ARR_OFFSET:
         case GT_LCLHEAP:
@@ -9714,7 +9717,13 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     }
                     if (tree->gtFlags & GTF_IND_NONFAULTING)
                     {
-                        printf("x");
+                        printf("n"); // print a n for non-faulting
+                        --msgLength;
+                        break;
+                    }
+                    if (tree->gtFlags & GTF_IND_ASG_LHS)
+                    {
+                        printf("D"); // print a D for definition
                         --msgLength;
                         break;
                     }
@@ -14161,11 +14170,14 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             op1 = gtNewHelperCallNode(CORINFO_HELP_OVERFLOW, TYP_VOID,
                                       gtNewArgList(gtNewIconNode(compCurBB->bbTryIndex)));
 
+            // op1 is a call to the JIT helper that throws an Overflow exception
+            // attach the ExcSet for VNF_OverflowExc(Void) to this call
             if (vnStore != nullptr)
             {
                 op1->gtVNPair =
                     vnStore->VNPWithExc(ValueNumPair(ValueNumStore::VNForVoid(), ValueNumStore::VNForVoid()),
-                                        vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_OverflowExc)));
+                                        vnStore->VNPExcSetSingleton(
+                                            vnStore->VNPairForFunc(TYP_REF, VNF_OverflowExc, vnStore->VNPForVoid())));
             }
 
             tree = gtNewOperNode(GT_COMMA, tree->gtType, op1, op2);
@@ -16902,15 +16914,15 @@ void GenTree::ParseArrayAddress(
             {
                 ValueNum vnForElemSize = vnStore->VNForPtrSizeIntCon(elemSize);
                 ValueNum vnForScaledInx =
-                    vnStore->VNForFunc(TYP_I_IMPL, GetVNFuncForOper(GT_DIV, false), inxVN, vnForElemSize);
+                    vnStore->VNForFunc(TYP_I_IMPL, GetVNFuncForOper(GT_DIV, false, false), inxVN, vnForElemSize);
                 *pInxVN = vnForScaledInx;
             }
 
             if (constInd != 0)
             {
                 ValueNum vnForConstInd = comp->GetValueNumStore()->VNForPtrSizeIntCon(constInd);
-                *pInxVN                = comp->GetValueNumStore()->VNForFunc(TYP_I_IMPL,
-                                                              GetVNFuncForOper(GT_ADD, (gtFlags & GTF_UNSIGNED) != 0),
+                bool     isUnsigned    = ((gtFlags & GTF_UNSIGNED) != 0);
+                *pInxVN = comp->GetValueNumStore()->VNForFunc(TYP_I_IMPL, GetVNFuncForOper(GT_ADD, isUnsigned, false),
                                                               *pInxVN, vnForConstInd);
             }
         }
@@ -17004,12 +17016,12 @@ void GenTree::ParseArrayAddressWork(
                 break;
         }
         // If we didn't return above, must be a constribution to the non-constant part of the index VN.
-        ValueNum vn = comp->GetValueNumStore()->VNNormVal(gtVNPair.GetLiberal()); // We don't care about exceptions for
-                                                                                  // this purpose.
+        // We don't care about exceptions for this purpose.
+        ValueNum vn = comp->GetValueNumStore()->VNLiberalNormVal(gtVNPair);
         if (inputMul != 1)
         {
             ValueNum mulVN = comp->GetValueNumStore()->VNForLongCon(inputMul);
-            vn             = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_MUL, false), mulVN, vn);
+            vn = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_MUL, false, false), mulVN, vn);
         }
         if (*pInxVN == ValueNumStore::NoVN)
         {
@@ -17017,7 +17029,8 @@ void GenTree::ParseArrayAddressWork(
         }
         else
         {
-            *pInxVN = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_ADD, false), *pInxVN, vn);
+            *pInxVN =
+                comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_ADD, false, false), *pInxVN, vn);
         }
     }
 }

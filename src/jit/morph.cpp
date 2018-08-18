@@ -13189,7 +13189,8 @@ DONE_MORPHING_CHILDREN:
                     changeToShift = true;
                 }
 #if LEA_AVAILABLE
-                else if ((lowestBit > 1) && jitIsScaleIndexMul(lowestBit) && optAvoidIntMult())
+                else if ((lowestBit > 1) && jitIsScaleIndexMul(lowestBit) && optAvoidIntMult() &&
+                         (op1->gtType == op2->gtType))
                 {
                     int     shift  = genLog2(lowestBit);
                     ssize_t factor = abs_mult >> shift;
@@ -13203,7 +13204,7 @@ DONE_MORPHING_CHILDREN:
                             fgMorphTreeDone(op1);
                         }
 
-                        GenTree* factorIcon = gtNewIconNode(factor, TYP_I_IMPL);
+                        GenTree* factorIcon = gtNewIconNode(factor, op1->gtType);
                         if (op2IsConstIndex)
                         {
                             factorIcon->AsIntCon()->gtFieldSeq =
@@ -16914,6 +16915,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
 
     if (hasTrueExpr)
     {
+        // ToDo: Clear the GTF_COLON_COND flags
         if (dst != nullptr)
         {
             trueExpr = gtNewTempAssign(lclNum, trueExpr);
@@ -16925,6 +16927,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
     // Assign the falseExpr into the dst or tmp, insert in elseBlock
     if (hasFalseExpr)
     {
+        // ToDo: Clear the GTF_COLON_COND flags
         if (dst != nullptr)
         {
             falseExpr = gtNewTempAssign(lclNum, falseExpr);

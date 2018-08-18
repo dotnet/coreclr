@@ -4326,6 +4326,7 @@ struct GenTreeBoundsChk : public GenTree
     {
         // Effects flags propagate upwards.
         gtFlags |= (arrLen->gtFlags & GTF_ALL_EFFECT);
+        // Can raise a NullPtr exeception or an IndexOutOfRange execption
         gtFlags |= GTF_EXCEPT;
     }
 #if DEBUGGABLE_GENTREE
@@ -4375,6 +4376,7 @@ struct GenTreeArrElem : public GenTree
         {
             gtArrInds[i] = inds[i];
         }
+        // Can raise a NullPtr exeception
         gtFlags |= GTF_EXCEPT;
     }
 #if DEBUGGABLE_GENTREE
