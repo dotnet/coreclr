@@ -9,6 +9,57 @@
 #pragma once
 #include <stdlib.h>
 
+class HashCodeBuilder
+{
+    int _hash1;
+    int _hash2;
+    int _numCharactersHashed;
+    
+public:
+    HashCodeBuilder(LPCUTF8 seed)
+    {
+        _hash1 = 0x6DA3B944;
+        _hash2 = 0;
+        _numCharactersHashed = 0;
+
+        Append(seed);
+    }
+
+    void Append(LPCUTF8 src)
+    {
+        if (src == NULL || *src == '\0')
+            return;
+
+        int startIndex = 0;
+        if ((_numCharactersHashed & 1) == 1)
+        {
+            _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ src[0];
+            startIndex = 1;
+        }
+
+        int len = 0;
+        for (COUNT_T i = 0; src[i] != '\0'; i++)
+            len++;
+
+        for (COUNT_T i = 0; src[i] != '\0'; i += 2)
+        {
+            _hash1 = (_hash1 + _rotl(_hash1, 5)) ^ src[i];
+            if (src[i + 1] != '\0')
+                _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ src[i + 1];
+        }
+
+        _numCharactersHashed += len;
+    }
+
+    int ToHashCode()
+    {
+        int hash1 = _hash1 + _rotl(_hash1, 8);
+        int hash2 = _hash2 + _rotl(_hash2, 8);
+
+        return hash1 ^ hash2;
+    }
+};
+
 //
 // Returns the hashcode value of the 'src' string
 //
