@@ -2389,7 +2389,7 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
 #endif // _TARGET_64BIT_
         else
         {
-            size_t resultVal = EvalOp(func, arg0Val, arg1Val);
+            size_t resultVal = (size_t)EvalOp(func, arg0Val, arg1Val);
 
             switch (typ)
             {
