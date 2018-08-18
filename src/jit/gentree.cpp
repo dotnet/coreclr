@@ -3153,7 +3153,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 //
                 GenTreeIntConCommon* con = tree->AsIntConCommon();
 
-                if (con->ImmedValNeedsReloc(this) || !codeGen->validImmForInstr(INS_mov, tree->gtIntCon.gtIconVal))
+                if (con->ImmedValNeedsReloc(this) ||
+                    !codeGen->validImmForInstr(INS_mov, (target_ssize_t)tree->gtIntCon.gtIconVal))
                 {
                     // Uses movw/movt
                     costSz = 7;
