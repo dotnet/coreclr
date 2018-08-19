@@ -29,7 +29,7 @@ struct SignalHandlerWorkerReturnPoint
     CONTEXT context;
 };
 
-extern bool g_registered_signal_handlers = false;
+extern bool g_registered_signal_handlers;
 
 /*++
 Function :
