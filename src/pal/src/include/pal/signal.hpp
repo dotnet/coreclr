@@ -22,7 +22,14 @@ Abstract:
 
 #if !HAVE_MACH_EXCEPTIONS
 
-struct SignalHandlerWorkerReturnPoint;
+// Return context and status for the signal_handler_worker.
+struct SignalHandlerWorkerReturnPoint
+{
+    bool returnFromHandler;
+    CONTEXT context;
+};
+
+extern bool g_registered_signal_handlers = false;
 
 /*++
 Function :
@@ -82,34 +89,6 @@ Parameters :
     (no return value)
 --*/
 void ExecuteHandlerOnOriginalStack(int code, siginfo_t *siginfo, void *context, SignalHandlerWorkerReturnPoint* returnPoint);
-
-/*++
-Function :
-    EnsureSignalAlternateStack
-
-    Ensure that alternate stack for signal handling is allocated for the current thread
-
-Parameters :
-    None
-
-Return :
-    TRUE in case of a success, FALSE otherwise
---*/
-BOOL EnsureSignalAlternateStack(CorUnix::CPalThread *pthrCurrent);
-
-/*++
-Function :
-    FreeSignalAlternateStack
-
-    Free alternate stack for signal handling
-
-Parameters :
-    None
-
-Return :
-    None
---*/
-void FreeSignalAlternateStack(void *altstack);
 
 #endif // !HAVE_MACH_EXCEPTIONS
 

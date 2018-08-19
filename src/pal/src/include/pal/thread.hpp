@@ -637,23 +637,17 @@ namespace CorUnix
             m_pNext = pNext;
         };
 
-        void *
-        FreeAlternateStack(
+#if !HAVE_MACH_EXCEPTIONS
+        BOOL
+        EnsureSignalAlternateStack(
             void
-            )
-        {
-            void *altstack = m_alternateStack;
-            m_alternateStack = nullptr;
-            return altstack;
-        };
+            );
 
-        void
-        SetAlternateStack(
-            void *altstack
-            )
-        {
-            m_alternateStack = altstack;
-        };
+        void 
+        FreeSignalAlternateStack(
+            void
+            );
+#endif // !HAVE_MACH_EXCEPTIONS
 
         void
         AddThreadReference(
