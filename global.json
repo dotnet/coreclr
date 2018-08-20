@@ -1,3 +1,6 @@
 {
-  "projects": [ "./tests/src", "./tests/src/Common" ]
+  "projects": [ "./tests/src", "./tests/src/Common" ],
+  "native-tools": {
+      "cmake": "3.11.1"
+  }
 }
