@@ -10,8 +10,14 @@ using System.Xml.Serialization;
 
 namespace R2RDump
 {
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/readytorun.h">src/inc/readytorun.h</a> READYTORUN_IMPORT_SECTION
+    /// </summary>
     public struct R2RImportSection
     {
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportType
+        /// </summary>
         public enum CorCompileImportType
         {
             CORCOMPILE_IMPORT_TYPE_UNKNOWN = 0,
@@ -23,6 +29,9 @@ namespace R2RDump
             CORCOMPILE_IMPORT_TYPE_VIRTUAL_METHOD = 6,
         };
 
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/corcompile.h">src/inc/corcompile.h</a> CorCompileImportFlags
+        /// </summary>
         public enum CorCompileImportFlags
         {
             CORCOMPILE_IMPORT_FLAGS_UNKNOWN = 0x0000,
@@ -95,7 +104,8 @@ namespace R2RDump
         /// RVA of optional auxiliary data (typically GC info)
         /// </summary>
         public int AuxiliaryDataRVA { get; set; }
-        public GcInfo AuxiliaryData { get; set; }
+        [XmlIgnore]
+        public BaseGcInfo AuxiliaryData { get; set; }
 
         public R2RImportSection(int index, byte[] image, int rva, int size, CorCompileImportFlags flags, byte type, byte entrySize, int signatureRVA, List<ImportSectionEntry> entries, int auxDataRVA, int auxDataOffset, Machine machine, ushort majorVersion)
         {
@@ -113,7 +123,14 @@ namespace R2RDump
             AuxiliaryData = null;
             if (AuxiliaryDataRVA != 0)
             {
-                AuxiliaryData = new GcInfo(image, auxDataOffset, machine, majorVersion);
+                if (machine == Machine.Amd64)
+                {
+                    AuxiliaryData = new Amd64.GcInfo(image, auxDataOffset, machine, majorVersion);
+                }
+                else if (machine == Machine.I386)
+                {
+                    AuxiliaryData = new x86.GcInfo(image, auxDataOffset, machine, majorVersion);
+                }
             }
         }
 

@@ -23,20 +23,20 @@
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
   <PropertyGroup>
-    <CoreFxCurrentRef>fa4c7881c7d4fa163ce331e96971f57ebf0e883e</CoreFxCurrentRef>
-    <CoreClrCurrentRef>fa4c7881c7d4fa163ce331e96971f57ebf0e883e</CoreClrCurrentRef>
-    <BuildToolsCurrentRef>da6c94a2f8cc422fa2b62c9c41c913ced07fb7aa</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>fa4c7881c7d4fa163ce331e96971f57ebf0e883e</PgoDataCurrentRef>
-    <CoreSetupCurrentRef>da6c94a2f8cc422fa2b62c9c41c913ced07fb7aa</CoreSetupCurrentRef>
+    <CoreFxCurrentRef>e0c1d36d8a19fed21cadfff4890e027bd4c2c214</CoreFxCurrentRef>
+    <CoreClrCurrentRef>e0c1d36d8a19fed21cadfff4890e027bd4c2c214</CoreClrCurrentRef>
+    <BuildToolsCurrentRef>e0c1d36d8a19fed21cadfff4890e027bd4c2c214</BuildToolsCurrentRef>
+    <PgoDataCurrentRef>e0c1d36d8a19fed21cadfff4890e027bd4c2c214</PgoDataCurrentRef>
+    <CoreSetupCurrentRef>e0c1d36d8a19fed21cadfff4890e027bd4c2c214</CoreSetupCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
   <PropertyGroup>
-    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview1-26807-04</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
-    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview1-26807-04</MicrosoftNETCorePlatformsPackageVersion>
-    <PgoDataPackageVersion>99.99.99-master-20180808-0056</PgoDataPackageVersion>
-    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview1-26808-04</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
-    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview1-26808-05</MicrosoftNETCoreAppPackageVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppPackageVersion>4.6.0-preview1-26817-04</MicrosoftPrivateCoreFxNETCoreAppPackageVersion>
+    <MicrosoftNETCorePlatformsPackageVersion>3.0.0-preview1-26817-04</MicrosoftNETCorePlatformsPackageVersion>
+    <PgoDataPackageVersion>99.99.99-master-20180817-0151</PgoDataPackageVersion>
+    <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview1-26817-05</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
+    <MicrosoftNETCoreAppPackageVersion>3.0.0-preview1-26817-01</MicrosoftNETCoreAppPackageVersion>
     <XunitPackageVersion>2.4.0-beta.2.build4010</XunitPackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
@@ -52,7 +52,7 @@
   <!-- Package versions used as toolsets -->
   <PropertyGroup>
     <FeedTasksPackage>Microsoft.DotNet.Build.Tasks.Feed</FeedTasksPackage>
-    <FeedTasksPackageVersion>2.2.0-preview1-03108-01</FeedTasksPackageVersion>
+    <FeedTasksPackageVersion>2.2.0-preview1-03116-01</FeedTasksPackageVersion>
   </PropertyGroup>
 
   <!-- Publish symbol build task package -->

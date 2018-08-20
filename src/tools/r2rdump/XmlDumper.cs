@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
@@ -14,7 +15,7 @@ namespace R2RDump
         private bool _ignoreSensitive;
         private XmlAttributeOverrides _ignoredProperties;
 
-        public XmlDumper(bool ignoreSensitive, R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
+        public XmlDumper(bool ignoreSensitive, R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, Disassembler disassembler, bool unwind, bool gc, bool sectionContents)
         {
             _ignoreSensitive = ignoreSensitive;
             _r2r = r2r;
@@ -156,9 +157,12 @@ namespace R2RDump
                 methodNode.AppendChild(gcNode);
                 Serialize(method.GcInfo, gcNode);
 
-                foreach (GcInfo.GcTransition transition in method.GcInfo.Transitions.Values)
+                foreach (List<BaseGcTransition> transitionList in method.GcInfo.Transitions.Values)
                 {
-                    Serialize(transition, gcNode);
+                    foreach (BaseGcTransition transition in transitionList)
+                    {
+                        Serialize(transition, gcNode);
+                    }
                 }
 
                 if (_raw)
@@ -190,7 +194,7 @@ namespace R2RDump
 
             if (_disasm)
             {
-                DumpDisasm(_disassembler, rtf, _r2r.GetOffset(rtf.StartAddress), _r2r.Image, rtfNode);
+                DumpDisasm(rtf, _r2r.GetOffset(rtf.StartAddress), rtfNode);
             }
 
             if (_raw)
@@ -211,21 +215,27 @@ namespace R2RDump
             }
         }
 
-        internal unsafe override void DumpDisasm(IntPtr Disasm, RuntimeFunction rtf, int imageOffset, byte[] image, XmlNode parentNode)
+        /// <summary>
+        /// Dumps disassembly and register liveness
+        /// </summary>
+        internal override void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode)
         {
             int rtfOffset = 0;
             int codeOffset = rtf.CodeOffset;
-            Dictionary<int, GcInfo.GcTransition> transitions = rtf.Method.GcInfo.Transitions;
-            GcSlotTable slotTable = rtf.Method.GcInfo.SlotTable;
+
             while (rtfOffset < rtf.Size)
             {
                 string instr;
-                int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
+                int instrSize = _disassembler.GetInstruction(rtf, imageOffset, rtfOffset, out instr);
 
-                AddXMLNode("offset"+codeOffset, instr, parentNode, $"{codeOffset}");
-                if (transitions.ContainsKey(codeOffset))
+                AddXMLNode("offset" + codeOffset, instr, parentNode, $"{codeOffset}");
+
+                if (rtf.Method.GcInfo != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
                 {
-                    AddXMLNode("Transition", transitions[codeOffset].GetSlotState(slotTable), parentNode, $"{codeOffset}");
+                    foreach (BaseGcTransition transition in rtf.Method.GcInfo.Transitions[codeOffset])
+                    {
+                        AddXMLNode("Transition", transition.ToString(), parentNode, $"{codeOffset}");
+                    }
                 }
 
                 CoreDisTools.ClearOutputBuffer();

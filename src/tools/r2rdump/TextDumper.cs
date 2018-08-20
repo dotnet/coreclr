@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Xml;
 
@@ -8,7 +9,7 @@ namespace R2RDump
 {
     class TextDumper : Dumper
     {
-        public TextDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, IntPtr disassembler, bool unwind, bool gc, bool sectionContents)
+        public TextDumper(R2RReader r2r, TextWriter writer, bool raw, bool header, bool disasm, Disassembler disassembler, bool unwind, bool gc, bool sectionContents)
         {
             _r2r = r2r;
             _writer = writer;
@@ -147,7 +148,7 @@ namespace R2RDump
 
             if (_disasm)
             {
-                DumpDisasm(_disassembler, rtf, _r2r.GetOffset(rtf.StartAddress), _r2r.Image);
+                DumpDisasm(rtf, _r2r.GetOffset(rtf.StartAddress));
             }
 
             if (_raw)
@@ -161,25 +162,31 @@ namespace R2RDump
                 _writer.Write(rtf.UnwindInfo);
                 if (_raw)
                 {
-                    DumpBytes(rtf.UnwindRVA, (uint)((Amd64.UnwindInfo)rtf.UnwindInfo).Size);
+                    DumpBytes(rtf.UnwindRVA, (uint)rtf.UnwindInfo.Size);
                 }
             }
             SkipLine();
         }
 
-        internal unsafe override void DumpDisasm(IntPtr Disasm, RuntimeFunction rtf, int imageOffset, byte[] image, XmlNode parentNode = null)
+        /// <summary>
+        /// Dumps disassembly and register liveness
+        /// </summary>
+        internal override void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode = null)
         {
             int rtfOffset = 0;
             int codeOffset = rtf.CodeOffset;
             while (rtfOffset < rtf.Size)
             {
                 string instr;
-                int instrSize = CoreDisTools.GetInstruction(Disasm, rtf, imageOffset, rtfOffset, image, out instr);
+                int instrSize = _disassembler.GetInstruction(rtf, imageOffset, rtfOffset, out instr);
 
                 _writer.Write(instr);
                 if (rtf.Method.GcInfo != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
                 {
-                    _writer.WriteLine($"\t\t\t\t{rtf.Method.GcInfo.Transitions[codeOffset].GetSlotState(rtf.Method.GcInfo.SlotTable)}");
+                    foreach (BaseGcTransition transition in rtf.Method.GcInfo.Transitions[codeOffset])
+                    {
+                        _writer.WriteLine($"\t\t\t\t{transition.ToString()}");
+                    }
                 }
 
                 CoreDisTools.ClearOutputBuffer();
@@ -240,7 +247,7 @@ namespace R2RDump
                     }
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_METHODDEF_ENTRYPOINTS:
-                        NativeArray methodEntryPoints = new NativeArray(_r2r.Image, (uint)_r2r.GetOffset(section.RelativeVirtualAddress));
+                    NativeArray methodEntryPoints = new NativeArray(_r2r.Image, (uint)_r2r.GetOffset(section.RelativeVirtualAddress));
                     _writer.Write(methodEntryPoints.ToString());
                     break;
                 case R2RSection.SectionType.READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS:
@@ -255,8 +262,18 @@ namespace R2RDump
                     int rtfIndex = 0;
                     while (rtfOffset < rtfEndOffset)
                     {
-                        uint rva = NativeReader.ReadUInt32(_r2r.Image, ref rtfOffset);
-                        _writer.WriteLine($"{rtfIndex}: 0x{rva:X8}");
+                        int startRva = NativeReader.ReadInt32(_r2r.Image, ref rtfOffset);
+                        int endRva = -1;
+                        if (_r2r.Machine == Machine.Amd64)
+                        {
+                            endRva = NativeReader.ReadInt32(_r2r.Image, ref rtfOffset);
+                        }
+                        int unwindRva = NativeReader.ReadInt32(_r2r.Image, ref rtfOffset);
+                        _writer.WriteLine($"Index: {rtfIndex}");
+                        _writer.WriteLine($"\tStartRva: 0x{startRva:X8}");
+                        if (endRva != -1)
+                            _writer.WriteLine($"\tEndRva: 0x{endRva:X8}");
+                        _writer.WriteLine($"\tUnwindRva: 0x{unwindRva:X8}");
                         rtfIndex++;
                     }
                     break;
