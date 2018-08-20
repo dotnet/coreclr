@@ -23,15 +23,8 @@ class Object;
 class Assembly;
 class LoaderAllocator;
 
-class DECLSPEC_UUID("68220E65-3D3F-42E2-BAD6-2D07419DAB5E") ICollectibleAssemblyLoadContext : public IUnknown
-{
-public:
-    STDMETHOD(GetLoaderAllocator)(
-        /* [retval][out] */ LoaderAllocator** pLoaderAllocator) = 0;
-};
-
 class CLRPrivBinderAssemblyLoadContext :
-    public IUnknownCommon<ICLRPrivBinder, ICollectibleAssemblyLoadContext>
+    public IUnknownCommon<ICLRPrivBinder>
 {
 public:
 
@@ -59,9 +52,6 @@ public:
             /* [out] */ HRESULT *pResult,
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
-    //=========================================================================
-    // IAssemblyLoadContext functions
-    //-------------------------------------------------------------------------
     STDMETHOD(GetLoaderAllocator)(
         /* [retval][out] */ LoaderAllocator** pLoaderAllocator);
 

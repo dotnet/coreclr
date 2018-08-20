@@ -42,6 +42,9 @@ public:
             /* [out] */ HRESULT *pResult,
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
+    STDMETHOD(GetLoaderAllocator)(
+        /* [retval][out] */ LoaderAllocator** pLoaderAllocator);
+
 public:
 
     HRESULT SetupBindingPaths(SString  &sTrustedPlatformAssemblies,

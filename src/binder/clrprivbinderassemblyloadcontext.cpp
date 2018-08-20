@@ -206,6 +206,11 @@ HRESULT CLRPrivBinderAssemblyLoadContext::FindAssemblyBySpec(
 HRESULT CLRPrivBinderAssemblyLoadContext::GetLoaderAllocator(LoaderAllocator **pLoaderAllocator)
 {
     _ASSERTE(pLoaderAllocator != NULL);
+    if (m_pAssemblyLoaderAllocator == NULL)
+    {
+        return E_FAIL;
+    }
+
     *pLoaderAllocator = m_pAssemblyLoaderAllocator;
     return S_OK;
 }

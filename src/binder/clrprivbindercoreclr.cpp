@@ -292,6 +292,12 @@ Exit:
     return hr;
 }
 
+HRESULT CLRPrivBinderCoreCLR::GetLoaderAllocator(LoaderAllocator **pLoaderAllocator)
+{
+    // Not supported by this binder
+    return E_FAIL;
+}
+
 #ifndef CROSSGEN_COMPILE
 HRESULT CLRPrivBinderCoreCLR::PreBindByteArray(PEImage  *pPEImage, BOOL fInspectionOnly)
 {

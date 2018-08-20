@@ -5566,16 +5566,9 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
         ICLRPrivBinder *pFileBinder = pFile->GetBindingContext();
         if (pFileBinder != NULL)
         {
-            ICLRPrivBinder *pBinder = reinterpret_cast<BINDER_SPACE::Assembly *>(pFileBinder)->GetBinder();
-
             // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
             // marked as collectible
-            SafeComHolder<ICollectibleAssemblyLoadContext> pAssemblyLoadContext = NULL;
-            if (SUCCEEDED(pBinder->QueryInterface<ICollectibleAssemblyLoadContext>(&pAssemblyLoadContext)))
-            {
-                // If the assembly is not collectible, the following function sets pLoaderAllocator to NULL
-                pAssemblyLoadContext->GetLoaderAllocator(&pLoaderAllocator);
-            }
+            pFileBinder->GetLoaderAllocator(&pLoaderAllocator);
         }
 #endif // !CROSSGEN_COMPILE
 

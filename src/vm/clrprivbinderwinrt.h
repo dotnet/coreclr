@@ -382,6 +382,13 @@ public:
         return m_pBinder->FindAssemblyBySpec(pvAppDomain, pvAssemblySpec, pResult, ppAssembly);
     }
 
+    STDMETHOD(GetLoaderAllocator)(
+        LoaderAllocator** pLoaderAllocator)
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_pBinder->GetLoaderAllocator(pLoaderAllocator);
+    }
+
     //=============================================================================================
     // ICLRPrivAssembly interface methods
     
