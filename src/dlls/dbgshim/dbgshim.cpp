@@ -1064,14 +1064,14 @@ EnumProcessModulesInternal(
     // Start with 1024 modules
     DWORD cbNeeded = sizeof(HMODULE) * 1024;
 
-    ArrayHolder<BYTE> modules = new (nothrow) BYTE[cbNeeded];
+    ArrayHolder<HMODULE> modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
     if (modules == nullptr)
     {
         SetLastError(ERROR_OUTOFMEMORY);
         return nullptr;
     }
 
-    if(!EnumProcessModules(hProcess, (HMODULE*)modules.GetPtr(), cbNeeded, &cbNeeded))
+    if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded))
     {
         return nullptr;
     }
@@ -1079,7 +1079,7 @@ EnumProcessModulesInternal(
     // If 1024 isn't enough, try the modules array size returned (cbNeeded)
     if (cbNeeded > (sizeof(HMODULE) * 1024)) 
     {
-        modules = new (nothrow) BYTE[cbNeeded];
+        modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
         if (modules == nullptr)
         {
             SetLastError(ERROR_OUTOFMEMORY);
@@ -1087,20 +1087,21 @@ EnumProcessModulesInternal(
         }
 
         DWORD cbNeeded2;
-        if(!EnumProcessModules(hProcess, (HMODULE*)modules.GetPtr(), cbNeeded, &cbNeeded2))
+        if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded2))
         {
             return nullptr;
         }
 
-        // The only way cbNeeded2 could change on the second call is if more
-        // modules were loaded by the process in the small window between the
+        // The only way cbNeeded2 could change on the second call is if number of
+        // modules loaded by the process changed in the small window between the
         // above EnumProcessModules calls. If this actually happens, then give
         // up on trying to get the whole module list and risk missing the coreclr
         // module.
+        cbNeeded = min(cbNeeded, cbNeeded2);
     }
 
     *pCountModules = cbNeeded / sizeof(HMODULE);
-    return (HMODULE*)modules.Detach();
+    return modules.Detach();
 }
 
 //-----------------------------------------------------------------------------
