@@ -31,10 +31,10 @@ phases:
       steps:
       - template: /eng/common/templates/steps/run-on-windows.yml
         parameters:
-          agentOs: ${{ parameters.agentOs }} 
+          agentOs: ${{ parameters.agentOs }}
           steps:
           - script: eng\common\cibuild.cmd
-              -configuration $(_BuildConfig) 
+              -configuration $(_BuildConfig)
               -prepareMachine
               /p:SignType=$(_SignType)
               $(_PublishArgs)
@@ -48,7 +48,7 @@ phases:
           agentOs: ${{ parameters.agentOs }}
           steps:
           - script: eng/common/cibuild.sh
-              --configuration $(_BuildConfig) 
+              --configuration $(_BuildConfig)
               --prepareMachine
               /p:SignType=$(_SignType)
               $(_PublishArgs)
@@ -70,8 +70,8 @@ phases:
         inputs:
           PathtoPublish: '$(Build.StagingDirectory)/BuildLogs'
           PublishLocation: Container
-          # Should be able to use a single definition of ArtifactName here instead of conditioned on 
-          # agentOs once variables are available in the template evaluation context.  
+          # Should be able to use a single definition of ArtifactName here instead of conditioned on
+          # agentOs once variables are available in the template evaluation context.
           ${{ if eq(parameters.agentOs, 'Windows_NT') }}:
             ArtifactName: Windows_NT_$(Agent.JobName)
           ${{ if ne(parameters.agentOs, 'Windows_NT') }}:

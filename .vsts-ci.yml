@@ -27,6 +27,8 @@ phases:
     agentOs: Windows_NT
     phaseName: Windows_NT
     steps:
+    - script: eng\common\init-tools-native.cmd
+      displayName: Install CMake
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %buildConfig% -priority=0
     - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
     - script: build.cmd %buildconfig% %archType% linuxmscorlib
