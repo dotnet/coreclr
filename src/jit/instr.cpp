@@ -915,16 +915,16 @@ AGAIN:
             assert(offs == 0);
 #endif // _TARGET_AMD64_
 
-            ssize_t  constVal;
-            emitAttr size;
+            target_ssize_t constVal;
+            emitAttr       size;
             if (offs == 0)
             {
-                constVal = (ssize_t)(tree->gtLngCon.gtLconVal);
+                constVal = (target_ssize_t)(tree->gtLngCon.gtLconVal);
                 size     = EA_PTRSIZE;
             }
             else
             {
-                constVal = (ssize_t)(tree->gtLngCon.gtLconVal >> 32);
+                constVal = (target_ssize_t)(tree->gtLngCon.gtLconVal >> 32);
                 size     = EA_4BYTE;
             }
 
