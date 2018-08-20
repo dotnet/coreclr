@@ -2320,6 +2320,11 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
         else // both args are TYP_REF or both args are TYP_BYREF
         {
 #ifdef _TARGET_64BIT_
+            // We have to use INT64/INT32 here for arg0Val and arg1Val
+            // because the template expansion of
+            // "typedef typename jitstd::make_unsigned<T>::type UT;"
+            // fails when given a size_t. This is used by EvalOpSpecialized
+            //
             INT64 arg0Val = CoercedConstantValue<size_t>(arg0VN);
             INT64 arg1Val = CoercedConstantValue<size_t>(arg1VN);
 #else
@@ -2393,6 +2398,11 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
 
             switch (typ)
             {
+#ifndef _TARGET_64BIT_
+                case TYP_INT:
+                    result = VNForIntCon(resultVal);
+                    break;
+#endif
                 case TYP_LONG:
                     result = VNForLongCon(resultVal);
                     break;
