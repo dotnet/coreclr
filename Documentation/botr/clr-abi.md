@@ -583,9 +583,46 @@ The CLR unwinder assumes any non-leaf frame was unwound as a result of a call. T
 
 # Profiler Hooks
 
-If the JIT gets passed `CORJIT_FLG_PROF_ENTERLEAVE`, then the JIT might need to insert native entry/exit/tail call probes. To determine for sure, the JIT must call GetProfilingHandle. This API returns as out parameters, the true dynamic boolean indicating if the JIT should actually insert the probes and a parameter to pass to the callbacks (typed as void*), with an optional indirection (used for NGEN). This parameter is always the first argument to all of the call-outs (thus placed in the usual first argument register `RCX` (AMD64) or `R0` (ARM, ARM64)).
+If the JIT gets passed `CORJIT_FLG_PROF_ENTERLEAVE`, then the JIT might need to insert native entry/exit/tail call probes. To determine for sure, the JIT must call GetProfilingHandle. This API returns as out parameters, the true dynamic boolean indicating if the JIT should actually insert the probes and a parameter to pass to the callbacks (typed as void*), with an optional indirection (used for NGEN).
 
 Outside of the prolog (in a GC interruptible location), the JIT injects a call to `CORINFO_HELP_PROF_FCN_ENTER`. For AMD64,  on Windows all argument registers will be homed into their caller-allocated stack locations (similar to varargs), on Unix all argument registers will be stored in the inner structure. For ARM and ARM64, all arguments are prespilled (again similar to varargs).
+
+To minimize the overhead of calling the Enter callback, some platforms use non-standard conventions:
+
+**Linux AMD64**
+
+- R14 - ProfilerMethodHnd (aka FunctionIDOrClientID)
+- R15 - caller SP (this argument is NOT part of the public contract with profilers documented on MSDN, but it is relied upon by the runtime)
+- All argument and callee-saved registers must be preserved: RDI, RSI, RDX, RCX, R8, R9,  RBX, RBP, R12–R15, XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7
+- For XMM registers, only the lower 64 bits need to be preserved
+
+**Windows AMD64**
+
+- RCX - ProfilerMethodHnd (aka FunctionIDOrClientID)
+- RDX - caller SP (this argument is NOT part of the public contract with profilers documented on MSDN, but it is relied upon by the runtime)
+- All volatiles can be trashed, callee-saved (RBX, RBP, RDI, RSI, RSP, R12, R13, R14, and R15) must be preserved
+
+**Windows x86**
+
+- ProfilerMethodHnd (aka FunctionIDOrClientID) passed on the stack immediately above the return address. Callee-popped.
+- TODO - The true register preservation requirements have yet to be accurately defined. MSDN documents a conservative definition that ALL registers must be preserved
+
+**Linux x86**
+
+- Stack is 16 byte aligned
+- ProfilerMethodHnd (aka FunctionIDOrClientID) passed on the stack immediately above the return address. Caller-popped.
+- TODO - The true register preservation requirements have yet to be accurately defined. MSDN documents a conservative definition that ALL registers must be preserved
+
+**ARM**
+
+- R0 - ProfilerMethodHnd (aka FunctionIDOrClientID)
+- TODO - The true register preservation requirements have yet to be accurately defined. MSDN documents a conservative definition that ALL registers must be preserved
+
+**ARM64**
+
+- R0 - ProfilerMethodHnd (aka FunctionIDOrClientID)
+- TODO - The true register preservation requirements have yet to be accurately defined. MSDN documents a conservative definition that ALL registers must be preserved
+
 
 After computing the return value and storing it in the correct register, but before any epilog code (including before a possible GS cookie check), the JIT injects a call to `CORINFO_HELP_PROF_FCN_LEAVE`. For AMD64 this call must preserve the return register: `RAX` or `XMM0` on Windows and `RAX` and `RDX` or `XMM0` and `XMM1` on Unix. For ARM, the return value will be moved from `R0` to `R2` (if it was in `R0`), `R1`, `R2`, and `S0/D0` must be preserved by the callee (longs will be `R2`, `R1` - note the unusual ordering of the registers, floats in `S0`, doubles in `D0`, smaller integrals in `R2`).
 

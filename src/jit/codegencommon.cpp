@@ -6709,7 +6709,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 //     None
 //
 // Notes:
-// The x86 profile enter helper has the following requirements (see ProfileEnterNaked in
+// The Windows x86 profile enter helper has the following requirements (see ProfileEnterNaked in
 // VM\i386\asmhelpers.asm for details):
 // 1. The calling sequence for calling the helper is:
 //          push FunctionIDOrClientID
@@ -6722,6 +6722,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 // 4. All registers are preserved.
 // 5. The helper pops the FunctionIDOrClientID argument from the stack.
 //
+// See the clr-abi doc (section 'Profiler Hooks') for more info
 void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 {
     assert(compiler->compGeneratingProlog);

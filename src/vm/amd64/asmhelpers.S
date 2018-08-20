@@ -52,16 +52,9 @@
 //   Register preservation scheme:
 //
 //       Preserved:
-//           - all non-volatile registers
-//           - rax, rdx
-//           - xmm0, xmm1
-//
-//       Not Preserved:
-//           - integer argument registers (rcx, rdx, r8, r9)
-//           - floating point argument registers (xmm1-3)
-//           - volatile integer registers (r10, r11)
-//           - volatile floating point registers (xmm4-5)
-//           - upper halves of ymm registers on AVX (which are volatile)
+//           - All argument and callee-saved registers must be preserved:
+//             RDI, RSI, RDX, RCX, R8, R9,  RBX, RBP, R12–R15, XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7
+//           - Only the lower 64 bits of XMM registers need to be preserved
 //
 // ***********************************************************
 
@@ -80,7 +73,8 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   mov                     r10, [rax - 0x8]     // return address
 
   push_argument_register  rdx
-  alloc_stack             SIZEOF_STACK_FRAME
+
+  alloc_stack             SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA
 
   // correctness of return value in structure doesn't matter for enter probe
 
@@ -110,15 +104,6 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   mov                     r10, 0x1 // PROFILE_ENTER
   mov                     [rsp + 0xa8], r10d   //                -- struct flags field
 
-  // get aligned stack ptr (rsp + FRAME_SIZE) & (-16)
-  lea                     rax, [rsp + 0xb8]
-  and                     rax, -16
-
-  // we need to be able to restore the fp return register
-  // save fp return registers
-  movdqa                  [rax + 0x00], xmm0
-  movdqa                  [rax + 0x10], xmm1
-
   END_PROLOGUE
 
   // rdi already contains the clientInfo
@@ -126,11 +111,16 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   lea                     rsi, [rsp + 0x0]
   call                    C_FUNC(ProfileEnter)
 
-  // restore fp return registers
-  lea                     rax, [rsp + 0xb8]
-  and                     rax, -16
-  movdqa                  xmm0, [rax + 0x00]
-  movdqa                  xmm1, [rax + 0x10]
+  
+  // restore floating point arg registers
+  movsd                   xmm0, real8 ptr [rsp + 0x38]
+  movsd                   xmm1, real8 ptr [rsp + 0x40]
+  movsd                   xmm2, real8 ptr [rsp + 0x48]
+  movsd                   xmm3, real8 ptr [rsp + 0x50]
+  movsd                   xmm4, real8 ptr [rsp + 0x58]
+  movsd                   xmm5, real8 ptr [rsp + 0x60]
+  movsd                   xmm6, real8 ptr [rsp + 0x68]
+  movsd                   xmm7, real8 ptr [rsp + 0x70]
 
   // restore arg registers
   mov                     rdi, [rsp + 0x78]
@@ -141,7 +131,7 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
   mov                     r9, [rsp + 0xa0]
 
   // begin epilogue
-  free_stack              SIZEOF_STACK_FRAME
+  free_stack              SIZEOF_PROFILE_PLATFORM_SPECIFIC_DATA
   pop_argument_register   rdx
 
   pop_nonvol_reg          rax

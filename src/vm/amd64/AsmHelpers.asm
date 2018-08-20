@@ -550,16 +550,11 @@ NESTED_ENTRY ProfileEnterNaked, _TEXT
         mov                     r10, PROFILE_ENTER
         mov                     [rsp + OFFSETOF_PLATFORM_SPECIFIC_DATA + 58h], r10d   ; flags    ;      -- struct flags field
 
-        ; we need to be able to restore the fp return register
-        save_xmm128_postrsp     xmm0, OFFSETOF_FP_ARG_SPILL +  0h
     END_PROLOGUE
 
         ; rcx already contains the clientInfo
         lea                     rdx, [rsp + OFFSETOF_PLATFORM_SPECIFIC_DATA]
         call                    ProfileEnter
-    
-        ; restore fp return register
-        movdqa                  xmm0, [rsp + OFFSETOF_FP_ARG_SPILL +  0h]
         
         ; begin epilogue
         add                     rsp, SIZEOF_STACK_FRAME
