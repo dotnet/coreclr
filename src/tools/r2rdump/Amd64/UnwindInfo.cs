@@ -7,6 +7,9 @@ using System.Xml.Serialization;
 
 namespace R2RDump.Amd64
 {
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindOpCodes
     {
         UWOP_PUSH_NONVOL = 0,
@@ -23,6 +26,9 @@ namespace R2RDump.Amd64
         UWOP_SET_FPREG_LARGE,
     }
 
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_OP_CODES
+    /// </summary>
     public enum UnwindFlags
     {
         UNW_FLAG_NHANDLER = 0x0,
@@ -31,6 +37,9 @@ namespace R2RDump.Amd64
         UNW_FLAG_CHAININFO = 0x4,
     }
 
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_CODE
+    /// </summary>
     public struct UnwindCode
     {
         [XmlAttribute("Index")]
@@ -62,6 +71,9 @@ namespace R2RDump.Amd64
         }
     }
 
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/win64unwind.h">src\inc\win64unwind.h</a> _UNWIND_INFO
+    /// </summary>
     public class UnwindInfo : BaseUnwindInfo
     {
         private const int _sizeofUnwindCode = 2;
@@ -71,13 +83,16 @@ namespace R2RDump.Amd64
         public byte Flags { get; set; } //5 bits
         public byte SizeOfProlog { get; set; }
         public byte CountOfUnwindCodes { get; set; }
-        public Amd64Registers FrameRegister { get; set; } //4 bits
+        public Registers FrameRegister { get; set; } //4 bits
         public byte FrameOffset { get; set; } //4 bits
         public UnwindCode[] UnwindCode { get; set; }
         public uint PersonalityRoutineRVA { get; set; }
 
         public UnwindInfo() { }
 
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/zap/zapcode.cpp">ZapUnwindData::Save</a>
+        /// </summary>
         public UnwindInfo(byte[] image, int offset)
         {
             byte versionAndFlags = NativeReader.ReadByte(image, ref offset);
@@ -86,7 +101,7 @@ namespace R2RDump.Amd64
             SizeOfProlog = NativeReader.ReadByte(image, ref offset);
             CountOfUnwindCodes = NativeReader.ReadByte(image, ref offset);
             byte frameRegisterAndOffset = NativeReader.ReadByte(image, ref offset);
-            FrameRegister = (Amd64Registers)(frameRegisterAndOffset & 15);
+            FrameRegister = (Registers)(frameRegisterAndOffset & 15);
             FrameOffset = (byte)(frameRegisterAndOffset >> 4);
 
             UnwindCode = new UnwindCode[CountOfUnwindCodes];
@@ -140,6 +155,9 @@ namespace R2RDump.Amd64
             return sb.ToString();
         }
 
+        /// <summary>
+        /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/jit/unwindamd64.cpp">src\jit\unwindamd64.cpp</a> DumpUnwindInfo
+        /// </summary>
         private string GetUnwindCode(ref int i)
         {
             StringBuilder sb = new StringBuilder();
@@ -150,7 +168,7 @@ namespace R2RDump.Amd64
             switch (UnwindCode[i].UnwindOp)
             {
                 case UnwindOpCodes.UWOP_PUSH_NONVOL:
-                    sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                    sb.AppendLine($"\t\tOpInfo: {(Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
                     break;
                 case UnwindOpCodes.UWOP_ALLOC_LARGE:
                     sb.Append($"\t\tOpInfo: {UnwindCode[i].OpInfo} - ");
@@ -198,7 +216,7 @@ namespace R2RDump.Amd64
                     break;
                 case UnwindOpCodes.UWOP_SAVE_NONVOL:
                     {
-                        sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        sb.AppendLine($"\t\tOpInfo: {(Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
                         i++;
                         uint offset = UnwindCode[i].FrameOffset * 8;
                         sb.AppendLine($"\t\tScaled Offset: {UnwindCode[i].FrameOffset} * 8 = {offset} = 0x{offset:X5}");
@@ -206,7 +224,7 @@ namespace R2RDump.Amd64
                     break;
                 case UnwindOpCodes.UWOP_SAVE_NONVOL_FAR:
                     {
-                        sb.AppendLine($"\t\tOpInfo: {(Amd64Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
+                        sb.AppendLine($"\t\tOpInfo: {(Registers)UnwindCode[i].OpInfo}({UnwindCode[i].OpInfo})");
                         i++;
                         uint offset = UnwindCode[i].FrameOffset;
                         i++;

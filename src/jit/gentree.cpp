@@ -11544,7 +11544,8 @@ void Compiler::gtGetArgMsg(
                     else
                     {
                         unsigned stackSlot = listCount - curArgTabEntry->numRegs;
-                        sprintf_s(bufp, bufLength, "arg%d m%d out+%s%c", argNum, listCount, stackSlot, 0);
+                        sprintf_s(bufp, bufLength, "arg%d m%d out+%02x%c", argNum, listCount,
+                                  stackSlot * TARGET_POINTER_SIZE, 0);
                     }
                 }
                 return;
@@ -11673,7 +11674,8 @@ void Compiler::gtGetLateArgMsg(
                 else
                 {
                     unsigned stackSlot = listCount - curArgTabEntry->numRegs;
-                    sprintf_s(bufp, bufLength, "arg%d m%d out+%s%c", argNum, listCount, stackSlot, 0);
+                    sprintf_s(bufp, bufLength, "arg%d m%d out+%02x%c", argNum, listCount,
+                              stackSlot * TARGET_POINTER_SIZE, 0);
                 }
             }
             return;
