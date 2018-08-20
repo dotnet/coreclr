@@ -5977,6 +5977,235 @@ namespace System.Threading.Tasks
         }
         #endregion
 
+        #region WhenAllMixed
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed Task in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// Task<T1> t1 = ...;
+        /// Task<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <returns></returns>
+        public static async Task<(T1 a, T2 b)> WhenAllMixed<T1, T2>(
+            Task<T1> a,
+            Task<T2> b)
+        {
+            await Task.WhenAll(a, b).ConfigureAwait(false);
+            return (a.Result, b.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed Task in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// Task<T1> t1 = ...;
+        /// Task<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <returns></returns>
+        public static async Task<(T1 a, T2 b, T3 c)> WhenAllMixed<T1, T2, T3>(
+            Task<T1> a,
+            Task<T2> b,
+            Task<T3> c)
+        {
+            await Task.WhenAll(a, b, c).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed Task in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// Task<T1> t1 = ...;
+        /// Task<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <param name="d">The b.</param>
+        /// <returns></returns>
+        public static async Task<(T1 a, T2 b, T3 c, T4 d)> WhenAllMixed<T1, T2, T3, T4>(
+            Task<T1> a,
+            Task<T2> b,
+            Task<T3> c,
+            Task<T4> d)
+        {
+            await Task.WhenAll(a, b, c, d).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result, d.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed Task in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// Task<T1> t1 = ...;
+        /// Task<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <typeparam name="T5"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <param name="d">The b.</param>
+        /// <param name="e">The b.</param>
+        /// <returns></returns>
+        public static async Task<(T1 a, T2 b, T3 c, T4 d, T5 e)> WhenAllMixed<T1, T2, T3, T4, T5>(
+            Task<T1> a,
+            Task<T2> b,
+            Task<T3> c,
+            Task<T4> d,
+            Task<T5> e)
+        {
+            await Task.WhenAll(a, b, c, d, e).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result, d.Result, e.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed ValueTask in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// ValueTask<T1> t1 = ...;
+        /// ValueTask<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <returns></returns>
+        public static async ValueTask<(T1 a, T2 b)> WhenAllMixed<T1, T2>(
+            ValueTask<T1> a,
+            ValueTask<T2> b)
+        {
+            await Task.WhenAll(AsTask(a), AsTask(b)).ConfigureAwait(false);
+            return (a.Result, b.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed ValueTask in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// ValueTask<T1> t1 = ...;
+        /// ValueTask<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <returns></returns>
+        public static async ValueTask<(T1 a, T2 b, T3 c)> WhenAllMixed<T1, T2, T3>(
+            ValueTask<T1> a,
+            ValueTask<T2> b,
+            ValueTask<T3> c)
+        {
+            await Task.WhenAll(AsTask(a), AsTask(b), AsTask(c)).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed ValueTask in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// ValueTask<T1> t1 = ...;
+        /// ValueTask<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <param name="d">The b.</param>
+        /// <returns></returns>
+        public static async ValueTask<(T1 a, T2 b, T3 c, T4 d)> WhenAllMixed<T1, T2, T3, T4>(
+            ValueTask<T1> a,
+            ValueTask<T2> b,
+            ValueTask<T3> c,
+            ValueTask<T4> d)
+        {
+            await Task.WhenAll(AsTask(a), AsTask(b), AsTask(c), AsTask(d)).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result, d.Result);
+        }
+
+        /// <summary>
+        /// Whens all mixed is similar to Task.WhenAll 
+        /// except from getting mixed ValueTask in (of different T)
+        /// and return ValueTuple out (which can be expend)
+        /// example: 
+        /// ValueTask<T1> t1 = ...;
+        /// ValueTask<T2> t2 = ...;
+        /// (T1 a, T2 b) = await TaskPlus.WhenAllMixed(t1, t2);
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <typeparam name="T3"></typeparam>
+        /// <typeparam name="T4"></typeparam>
+        /// <typeparam name="T5"></typeparam>
+        /// <param name="a">a.</param>
+        /// <param name="b">The b.</param>
+        /// <param name="c">The b.</param>
+        /// <param name="d">The b.</param>
+        /// <param name="e">The b.</param>
+        /// <returns></returns>
+        public static async ValueTask<(T1 a, T2 b, T3 c, T4 d, T5 e)> WhenAllMixed<T1, T2, T3, T4, T5>(
+            ValueTask<T1> a,
+            ValueTask<T2> b,
+            ValueTask<T3> c,
+            ValueTask<T4> d,
+            ValueTask<T5> e)
+        {
+            await Task.WhenAll(AsTask(a), AsTask(b), AsTask(c), AsTask(d), AsTask(e)).ConfigureAwait(false);
+            return (a.Result, b.Result, c.Result, d.Result, e.Result);
+        }
+
+        /// <summary>
+        /// Gets the task (optimization).
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="valTask">The value task.</param>
+        /// <returns></returns>
+        private static Task AsTask<T>(ValueTask<T> valTask)
+        {
+            if (!valTask.IsFaulted && valTask.IsCompleted)
+                return Task.CompletedTask;
+            return valTask.AsTask();
+        }
+
+        #endregion // WhenAllMixed
+
         #region WhenAny
         /// <summary>
         /// Creates a task that will complete when any of the supplied tasks have completed.
