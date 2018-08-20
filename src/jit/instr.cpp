@@ -903,7 +903,8 @@ AGAIN:
 
             assert(offs == 0);
 
-            inst_RV_IV(ins, reg, tree->gtIntCon.gtIconVal, emitActualTypeSize(tree->TypeGet()), flags);
+            // TODO-CrossBitness: we wouldn't need the cast below if GenTreeIntCon::gtIconVal had target_ssize_t type.
+            inst_RV_IV(ins, reg, (target_ssize_t)tree->gtIntCon.gtIconVal, emitActualTypeSize(tree->TypeGet()), flags);
             break;
 
         case GT_CNS_LNG:
