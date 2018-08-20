@@ -405,6 +405,7 @@ namespace R2RDump
                     {
                         // TODO: Fix R2RDump issue where an x64 R2R image cannot be dissassembled with the x86 CoreDisTools
                         // For the short term, we want to error out with a decent message explaining the unexpected error
+                        // Issue #19564: https://github.com/dotnet/coreclr/issues/19564
                         if (r2r.InputArchitectureMatchesDisassemblerArchitecture())
                         {
                             disassembler = new Disassembler(r2r.Image, r2r.Machine);
