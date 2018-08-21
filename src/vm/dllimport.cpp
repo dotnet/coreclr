@@ -3011,6 +3011,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
     }
     CONTRACTL_END;
 
+#if !defined(FEATURE_PAL)
     static LPBYTE pGetLastError = NULL;
     if (!pGetLastError)
     {
@@ -3045,6 +3046,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
         // jmp [xxxx] - could be an import thunk
         return pTarget2 == pGetLastError;
     }
+#endif // FEATURE_PAL
 
     return FALSE;
 }

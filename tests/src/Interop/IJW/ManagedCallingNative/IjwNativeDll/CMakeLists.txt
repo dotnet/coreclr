@@ -10,7 +10,7 @@ if (WIN32)
     # IJW
     add_compile_options(-clr)
 
-    # CMake enables /RTC1 and /EHsc by default, but they're not compatible with /clr, so remove them
+ # CMake enables /RTC1 and /EHsc by default, but they're not compatible with /clr, so remove them
  if(CMAKE_CXX_FLAGS_DEBUG MATCHES "/RTC1")
     string(REPLACE "/RTC1" " " CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG}")
  endif()
@@ -18,6 +18,16 @@ if (WIN32)
  if(CMAKE_CXX_FLAGS MATCHES "/EHsc")
     string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
  endif()
+
+ # IJW requires the CRT as a dll, not linked in
+ if(CMAKE_CXX_FLAGS MATCHES "/MT")
+    string(REPLACE "/MT" "MD" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ endif()
+
+ if(CMAKE_CXX_FLAGS MATCHES "/MTd")
+    string(REPLACE "/MTd" "MDd" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+ endif()
+
 endif()
 
 # add the shared library
