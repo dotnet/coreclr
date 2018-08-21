@@ -29,12 +29,14 @@ phases:
     steps:
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools
       displayName: Install CMake
-    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %buildConfig% -priority=0
+    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
+      displayName: Build
     - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
-    - script: build.cmd %buildconfig% %archType% linuxmscorlib
-    - script: build.cmd %buildconfig% %archType% osxmscorlib
-    - ${{ if eq(parameters.archType, 'x64') }}:
-      - script: build.cmd %buildconfig% arm64 linuxmscorlib
+      displayName: Run Tests
+    # - script: build.cmd %buildconfig% %archType% linuxmscorlib
+    # - script: build.cmd %buildconfig% %archType% osxmscorlib
+    # - ${{ if eq(parameters.archType, 'x64') }}:
+    #   - script: build.cmd %buildconfig% arm64 linuxmscorlib
     - script: powershell -NoProfile -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\bin\tests\Windows_NT.x64.Checked', '.\bin\tests\tests.zip')
 #
 #- phase: Windows_NT_x64 Formatting
