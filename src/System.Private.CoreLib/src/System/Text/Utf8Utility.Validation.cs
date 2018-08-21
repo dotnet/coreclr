@@ -732,6 +732,7 @@ namespace System.Text
                         {
                             inputBuffer = ref Unsafe.Add(ref inputBuffer, 2);
                             tempUtf16CodeUnitCountAdjustment--; // 2 UTF-8 bytes -> 1 UTF-16 code unit (and 1 scalar)
+                            inputBufferRemainingBytes -= 2;
                             continue;
                         }
                     }
@@ -757,6 +758,7 @@ namespace System.Text
                             {
                                 inputBuffer = ref Unsafe.Add(ref inputBuffer, 3);
                                 tempUtf16CodeUnitCountAdjustment -= 2; // 3 UTF-8 bytes -> 2 UTF-16 code units (and 2 scalars)
+                                inputBufferRemainingBytes -= 3;
                                 continue;
                             }
                         }

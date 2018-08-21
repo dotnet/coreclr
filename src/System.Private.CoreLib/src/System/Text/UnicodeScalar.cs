@@ -230,7 +230,7 @@ namespace System.Text
                 // TODO: This logic can be optimized into a single unaligned write, endianness-dependent.
 
                 output[0] = (char)((value + ((0xD800U - 0x40U) << 10)) >> 10); // high surrogate
-                output[1] = (char)((value & 0x3FFFU) + 0xDC00U); // low surrogate
+                output[1] = (char)((value & 0x3FFU) + 0xDC00U); // low surrogate
                 return 2;
             }
             else
