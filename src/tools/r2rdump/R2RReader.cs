@@ -375,6 +375,25 @@ namespace R2RDump
                 R2RImportSection.CorCompileImportFlags flags = (R2RImportSection.CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
                 byte type = NativeReader.ReadByte(Image, ref offset);
                 byte entrySize = NativeReader.ReadByte(Image, ref offset);
+                if (entrySize == 0)
+                {
+                    switch (Machine)
+                    {
+                        case Machine.I386:
+                        case Machine.ArmThumb2:
+                            entrySize = 4;
+                            break;
+
+                        case Machine.Amd64:
+                        case Machine.IA64:
+                        case Machine.Arm64:
+                            entrySize = 8;
+                            break;
+
+                        default:
+                            throw new NotImplementedException(Machine.ToString());
+                    }
+                }
                 int entryCount = 0;
                 if (entrySize != 0)
                 {
@@ -408,8 +427,7 @@ namespace R2RDump
                             }
                         }
                         break;
-                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_CODE:
-                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_PCODE:
+                    default:
                         for (int i = 0; i < entryCount; i++)
                         {
                             int entryOffset = sectionOffset - startOffset;
