@@ -15,6 +15,7 @@ namespace System
 {
     internal class StartupHookProvider
     {
+        private static string startupHookTypeName = "StartupHook";
         private static string initializeMethodName = "Initialize";
 
         // Parse a string specifying a list of assemblies and types
@@ -25,41 +26,35 @@ namespace System
             string[] startupHooks = Marshal.PtrToStringUTF8(startupHooksVariable).Split(Path.PathSeparator);
 
             // Parse startup hook variable
-            var startupHooksParsed = new List<(string AssemblyPath, string TypeName)>();
             foreach (string startupHook in startupHooks)
             {
-                int separatorIndex = startupHook.LastIndexOf('!');
-                if (separatorIndex <= 0 || separatorIndex == startupHook.Length - 1)
+                if (String.IsNullOrEmpty(startupHook))
                 {
                     throw new ArgumentException(SR.Argument_InvalidStartupHookSyntax);
                 }
-                string assemblyPath = startupHook.Substring(0, separatorIndex);
-                string typeName = startupHook.Substring(separatorIndex + 1);
-                if (PathInternal.IsPartiallyQualified(assemblyPath))
+                if (PathInternal.IsPartiallyQualified(startupHook))
                 {
                     throw new ArgumentException(SR.Argument_AbsolutePathRequired);
                 }
-                startupHooksParsed.Add((AssemblyPath: assemblyPath, TypeName: typeName));
             }
 
             // Call each hook in turn
-            foreach (var startupHook in startupHooksParsed)
+            foreach (string startupHook in startupHooks)
             {
-                CallStartupHook(startupHook.AssemblyPath, startupHook.TypeName);
+                CallStartupHook(startupHook);
             }
         }
 
         // Load the specified assembly, and call the specified type's
         // "public static void Initialize()" method.
-        private static void CallStartupHook(string assemblyPath, string typeName)
+        private static void CallStartupHook(string assemblyPath)
         {
             Debug.Assert(!String.IsNullOrEmpty(assemblyPath));
-            Debug.Assert(!String.IsNullOrEmpty(typeName));
             Debug.Assert(!PathInternal.IsPartiallyQualified(assemblyPath));
 
             Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             Debug.Assert(assembly != null);
-            Type type = assembly.GetType(typeName, throwOnError: true);
+            Type type = assembly.GetType(startupHookTypeName, throwOnError: true);
 
             // Look for a public static method without any parameters
             MethodInfo initializeMethod = type.GetMethod(initializeMethodName,
@@ -96,7 +91,7 @@ namespace System
                 else
                 {
                     // Didn't find any
-                    throw new MissingMethodException(typeName, initializeMethodName);
+                    throw new MissingMethodException(startupHookTypeName, initializeMethodName);
                 }
             }
             else if (initializeMethod.ReturnType != typeof(void))
