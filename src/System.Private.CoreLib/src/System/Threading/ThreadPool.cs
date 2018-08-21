@@ -19,7 +19,6 @@ using System.Diagnostics.Tracing;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
-using System.Security;
 using Microsoft.Win32;
 
 namespace System.Threading
@@ -29,8 +28,6 @@ namespace System.Threading
         //Per-appDomain quantum (in ms) for which the thread keeps processing
         //requests in the current domain.
         public const uint TP_QUANTUM = 30U;
-
-        public static readonly int processorCount = Environment.ProcessorCount;
 
         public static volatile bool vmTpInitialized;
         public static bool enableWorkerTracking;
@@ -380,7 +377,7 @@ namespace System.Threading
 
         private Internal.PaddingFor32 pad1;
 
-        private volatile int numOutstandingThreadRequests = 0;
+        private int threadRequestOutstanding = 0;
 
         private Internal.PaddingFor32 pad2;
 
@@ -393,26 +390,26 @@ namespace System.Threading
             ThreadPoolWorkQueueThreadLocals.threadLocals ??
             (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
 
-        internal void EnsureThreadRequested()
+        internal void RequestThread()
         {
-            //
-            // If we have not yet requested #procs threads from the VM, then request a new thread
-            // as needed
+            // If we have not yet a thread request outstanding from the VM, then request a new thread
             //
             // Note that there is a separate count in the VM which will also be incremented in this case, 
             // which is handled by RequestWorkerThread.
-            //
-            int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            if (Interlocked.Exchange(ref threadRequestOutstanding, 1) == 0)
             {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
-                if (prev == count)
-                {
-                    ThreadPool.RequestWorkerThread();
-                    break;
-                }
-                count = prev;
+                ThreadPool.RequestWorkerThread();
             }
+        }
+
+        internal void EnsureThreadRequested()
+        {
+            // Thread is exiting while there are items in the queue, make an unconditional ThreadRequest
+            //
+            // Note that there is a separate count in the VM which will also be incremented in this case, 
+            // which is handled by RequestWorkerThread.
+            Volatile.Write(ref threadRequestOutstanding, 1);
+            ThreadPool.RequestWorkerThread();
         }
 
         internal void MarkThreadRequestSatisfied()
@@ -423,16 +420,7 @@ namespace System.Threading
             // Note that there is a separate count in the VM which has already been decremented by the VM
             // by the time we reach this point.
             //
-            int count = numOutstandingThreadRequests;
-            while (count > 0)
-            {
-                int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count - 1, count);
-                if (prev == count)
-                {
-                    break;
-                }
-                count = prev;
-            }
+            Volatile.Write(ref threadRequestOutstanding, 0);
         }
 
         public void Enqueue(IThreadPoolWorkItem callback, bool forceGlobal)
@@ -453,7 +441,7 @@ namespace System.Threading
                 workItems.Enqueue(callback);
             }
 
-            EnsureThreadRequested();
+            RequestThread();
         }
 
         internal bool LocalFindAndPop(IThreadPoolWorkItem callback)
@@ -559,9 +547,10 @@ namespace System.Threading
 
                     //
                     // If we found work, there may be more work.  Ask for another thread so that the other work can be processed
-                    // in parallel.  Note that this will only ask for a max of #procs threads, so it's safe to call it for every dequeue.
+                    // in parallel. Make sure there is a thread request for the other work.
+                    // It's capped at 1 outstanding thread request so is safe to call it for every dequeue.
                     //
-                    workQueue.EnsureThreadRequested();
+                    workQueue.RequestThread();
 
                     //
                     // Execute the workitem outside of any finally blocks, so that it can be aborted if needed.
