@@ -102,7 +102,8 @@ namespace System
             if (wrongSignature)
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature,
-                                                      typeName + Type.Delimiter + initializeMethodName));
+                                                      startupHookTypeName + Type.Delimiter + initializeMethodName,
+                                                      assemblyPath));
             }
 
             Debug.Assert(initializeMethod != null &&
