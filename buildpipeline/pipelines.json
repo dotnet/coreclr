@@ -80,7 +80,8 @@
             "Type": "build/product/",
             "SubType" : "PortableBuild",
             "Architecture": "x64",
-            "PB_BuildType": null
+            "PB_BuildType": null,
+            "PB_IBCOptimize": "-ibcoptimize"
           }
         },
         {
@@ -119,7 +120,8 @@
             "Type": "build/product/",
             "SubType" : "PortableBuild",
             "Architecture": "x86",
-            "PB_BuildType": null
+            "PB_BuildType": null,
+            "PB_IBCOptimize": "-ibcoptimize"
           }
         }
       ]
