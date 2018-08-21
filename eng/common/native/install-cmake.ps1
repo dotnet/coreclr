@@ -50,7 +50,7 @@ Import-Module -Name (Join-Path $CommonLibraryDirectory "CommonLibrary.psm1")
 try {
   # Define verbose switch if undefined
   $Verbose = $VerbosePreference -Eq "Continue"
-  
+
   $ToolName = "cmake"
 
   $Arch = CommonLibrary\Get-MachineArchitecture
@@ -109,11 +109,11 @@ try {
     Write-Error "Generate shim failed"
     return 1
   }
-  
+
   exit 0
 }
 catch {
   Write-Host $_
   Write-Host $_.Exception
-  exit 1    
+  exit 1
 }
