@@ -21,11 +21,11 @@ if (WIN32)
 
  # IJW requires the CRT as a dll, not linked in
  if(CMAKE_CXX_FLAGS MATCHES "/MT")
-    string(REPLACE "/MT" "MD" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "/MT" "/MD" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
  endif()
 
  if(CMAKE_CXX_FLAGS MATCHES "/MTd")
-    string(REPLACE "/MTd" "MDd" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REPLACE "/MTd" "/MDd" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
  endif()
 
 endif()

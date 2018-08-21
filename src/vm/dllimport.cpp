@@ -2962,6 +2962,10 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
 
 #if !defined(CROSSGEN_COMPILE) // IJW
 
+#if defined (FEATURE_PAL)
+#pragma clang diagnostic push
+#pragma clang diangostic ignored "-Wunused-function"
+#endif // FEATURE_PAL
 static LPBYTE FollowIndirect(LPBYTE pTarget)
 {
     CONTRACT(LPBYTE)
@@ -3000,6 +3004,9 @@ static LPBYTE FollowIndirect(LPBYTE pTarget)
 
     RETURN pRet;
 }
+#if defined (FEATURE_PAL)
+#pragma clang diagnostic pop
+#endif // FEATURE_PAL
 
 BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
 {
@@ -3046,7 +3053,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
         // jmp [xxxx] - could be an import thunk
         return pTarget2 == pGetLastError;
     }
-#endif // FEATURE_PAL
+#endif // !FEATURE_PAL
 
     return FALSE;
 }

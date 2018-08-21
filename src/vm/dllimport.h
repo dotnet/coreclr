@@ -568,7 +568,7 @@ protected:
 // This attempts to guess whether a target is an API call that uses SetLastError to communicate errors.
 BOOL HeuristicDoesThisLooksLikeAnApiCall(LPBYTE pTarget);
 BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget);
-DWORD __stdcall FalseGetLastError();
+DWORD STDMETHODCALLTYPE FalseGetLastError();
 
 class NDirectStubParameters
 {
