@@ -49,7 +49,7 @@ extern "C" BOOL DLL_EXPORT __stdcall MarshalRefCharArray_Stdcall(char ** pstr)
 typedef BOOL(_cdecl *CdeclCallBack)(char ** pstr);
 extern "C" BOOL DLL_EXPORT _cdecl DoCallBack_MarshalRefCharArray_Cdecl(CdeclCallBack caller)
 {
-    char * str = (char*)CoTaskMemAlloc(LEN);
+    char * str = (char*)CoreClrAlloc(LEN);
     for(int i = 0;i<LEN;i++)
     {
         str[i] = 'z';
@@ -61,7 +61,7 @@ extern "C" BOOL DLL_EXPORT _cdecl DoCallBack_MarshalRefCharArray_Cdecl(CdeclCall
     }
     if(str[0]!='a')
     {
-        CoTaskMemFree(str);
+        CoreClrFree(str);
         return FALSE;
     }
     return TRUE;
@@ -70,7 +70,7 @@ extern "C" BOOL DLL_EXPORT _cdecl DoCallBack_MarshalRefCharArray_Cdecl(CdeclCall
 typedef BOOL(__stdcall *StdCallBack)(char ** pstr);
 extern "C" BOOL DLL_EXPORT __stdcall DoCallBack_MarshalRefCharArray_Stdcall(StdCallBack caller)
 {
-    char * str = (char*)CoTaskMemAlloc(LEN);
+    char * str = (char*)CoreClrAlloc(LEN);
     for(int i = 0;i<LEN;i++)
     {
         str[i] = 'z';
@@ -83,7 +83,7 @@ extern "C" BOOL DLL_EXPORT __stdcall DoCallBack_MarshalRefCharArray_Stdcall(StdC
     if(str[0]!='a')
     {
 
-        CoTaskMemFree(str);
+        CoreClrFree(str);
         return FALSE;
     }
     return TRUE;

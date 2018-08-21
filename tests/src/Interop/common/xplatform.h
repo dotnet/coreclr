@@ -28,10 +28,15 @@
 
 //  include 
 #ifdef _WIN32
-	#include <windows.h>
-	#include <tchar.h>
+    #include <windows.h>
+
+    #ifndef snprintf
+    #define snprintf _snprintf
+    #endif //snprintf
+
 #else
-	#include "types.h"
+    #include "types.h"
+
 #endif
 #include <wchar.h>
 
@@ -40,12 +45,9 @@
 #if defined _WIN32
 #define DLL_EXPORT __declspec(dllexport)
 
-#ifndef snprintf
-#define snprintf _snprintf
-#endif //snprintf
-
 #else //!_Win32
-#if __GNUC__ >= 4    
+
+#if __GNUC__ >= 4
 #define DLL_EXPORT __attribute__ ((visibility ("default")))
 #else
 #define DLL_EXPORT
@@ -82,6 +84,24 @@
     #define UNICODE
 #endif
 
+inline void *CoreClrAlloc(size_t cb)
+{
+#ifdef _WIN32
+    return ::CoTaskMemAlloc(cb);
+#else
+    return ::malloc(cb);
+#endif
+}
+
+inline void CoreClrFree(void *p)
+{
+#ifdef _WIN32
+    return ::CoTaskMemFree(p);
+#else
+    return ::free(p);
+#endif
+}
+
 // redirected types not-windows only
 #ifndef  _WIN32
 
@@ -101,9 +121,6 @@ public:
     virtual unsigned long  AddRef();
     virtual unsigned long  Release();
 };
-
-#define CoTaskMemAlloc(p) malloc(p)
-#define CoTaskMemFree(p) free(p)
 
 // function implementation
 size_t strncpy_s(char* strDest, size_t numberOfElements, const char *strSource, size_t count)

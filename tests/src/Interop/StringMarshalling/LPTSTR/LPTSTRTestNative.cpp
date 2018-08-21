@@ -17,7 +17,7 @@ size_t lenstrNative = 7; //the len of strNative
 extern "C" LPWSTR ReturnString()
 {
 	size_t length = wcslen(strReturn)+1;
-    LPWSTR ret = (LPWSTR)CoTaskMemAlloc(sizeof(WCHAR)*length);
+    LPWSTR ret = (LPWSTR)CoreClrAlloc(sizeof(WCHAR)*length);
     memset(ret,'\0', sizeof(WCHAR)*length);
     wcsncpy_s(ret,length,strReturn,length-1);
     return ret;
@@ -26,7 +26,7 @@ extern "C" LPWSTR ReturnString()
 extern "C" LPWSTR ReturnErrString()
 {
 	size_t length = wcslen(strErrReturn)+1;
-    LPWSTR ret = (LPWSTR)CoTaskMemAlloc(sizeof(WCHAR)*length);
+    LPWSTR ret = (LPWSTR)CoreClrAlloc(sizeof(WCHAR)*length);
     memset(ret,'\0', sizeof(WCHAR)*length);
     wcsncpy_s(ret,length,strErrReturn,length-1);
     return ret;
@@ -56,7 +56,7 @@ extern "C" DLL_EXPORT LPWSTR Marshal_InOut(/*[In,Out]*/LPWSTR s)
 
 extern "C" DLL_EXPORT LPWSTR Marshal_Out(/*[Out]*/LPWSTR s)
 {
-    s = (LPWSTR)CoTaskMemAlloc(sizeof(WCHAR)*(lenstrNative+1));;
+    s = (LPWSTR)CoreClrAlloc(sizeof(WCHAR)*(lenstrNative+1));;
     memset(s,0, sizeof(WCHAR)*(lenstrNative + 1));
 
     //In-Place Change
@@ -78,11 +78,11 @@ extern "C" DLL_EXPORT LPWSTR MarshalPointer_InOut(/*[in,out]*/LPWSTR *s)
     }
 
     //Allocate New
-    CoTaskMemFree(*s);
+    CoreClrFree(*s);
 
     //Alloc New
 	size_t length = lenstrNative + 1;
-    *s = (LPWSTR)CoTaskMemAlloc(length * sizeof(WCHAR));
+    *s = (LPWSTR)CoreClrAlloc(length * sizeof(WCHAR));
     memset(*s,'\0',length  * sizeof(WCHAR));
     wcsncpy_s(*s,length,strNative,lenstrNative);
 
@@ -93,7 +93,7 @@ extern "C" DLL_EXPORT LPWSTR MarshalPointer_InOut(/*[in,out]*/LPWSTR *s)
 extern "C" DLL_EXPORT LPWSTR MarshalPointer_Out(/*[out]*/ LPWSTR *s)
 {
 	size_t length = lenstrNative+1;
-    *s = (LPWSTR)CoTaskMemAlloc(sizeof(WCHAR)*length);
+    *s = (LPWSTR)CoreClrAlloc(sizeof(WCHAR)*length);
 	memset(*s, '\0', length  * sizeof(WCHAR));
     wcsncpy_s(*s,length,strNative,lenstrNative);
 

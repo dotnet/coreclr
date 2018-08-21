@@ -56,7 +56,7 @@ DLL_EXPORT Sstr_simple* _cdecl CdeclSimpleStruct(Sstr_simple p,BOOL *result)
 		*(result)= FALSE;
 		return NULL;
 	}
-	pSimpleStruct = (Sstr_simple*) TP_CoTaskMemAlloc(sizeof(Sstr_simple) * 1);
+	pSimpleStruct = (Sstr_simple*) CoreClrAlloc(sizeof(Sstr_simple) * 1);
 	pSimpleStruct->a = 101;
 	pSimpleStruct->b = TRUE;
 	pSimpleStruct->c = 10.11;
@@ -73,7 +73,7 @@ DLL_EXPORT ExplStruct* _cdecl CdeclSimpleExplStruct(ExplStruct p,BOOL *result)
 		*(result)= FALSE;
 		return NULL;
 	}
-	pExplStruct = (ExplStruct*) TP_CoTaskMemAlloc(sizeof(ExplStruct) * 1);
+	pExplStruct = (ExplStruct*) CoreClrAlloc(sizeof(ExplStruct) * 1);
 	pExplStruct->a = 2;
 	pExplStruct->udata.d = 3.142;
 	*(result)= TRUE;

@@ -23,7 +23,7 @@ typedef BOOL (CALLBACK *CallBackIn)(int size,bool arr[]);
 extern "C" DLL_EXPORT BOOL DoCallBackIn(CallBackIn callback)
 {
 	//Init
-	bool * arr = (bool*)CoTaskMemAlloc(ArraySIZE);
+	bool * arr = (bool*)CoreClrAlloc(ArraySIZE);
 	for(int i = 0;i < ArraySIZE; i++ )
 	{
 		if( 0 == i%2) 
@@ -48,24 +48,24 @@ extern "C" DLL_EXPORT BOOL DoCallBackIn(CallBackIn callback)
 		if((0 == (i%2)) && !arr[i]) //expect true
 		{
 			printf("Native Side:Error in DoCallBackIn.The Item is %d\n",i+1);
-			CoTaskMemFree(arr);
+			CoreClrFree(arr);
 			return false;
 		}
 		else if((1 == (i%2))&&arr[i]) //expect false
 		{
 			printf("Native Side:Error in DoCallBackIn.The Item is %d\n",i+1);
-			CoTaskMemFree(arr);
+			CoreClrFree(arr);
 			return false;
 		}	
 	}
-	CoTaskMemFree(arr);
+	CoreClrFree(arr);
 	return true;
 }
 
 typedef BOOL (CALLBACK *CallBackOut)(int size,bool arr[]);
 extern "C" DLL_EXPORT BOOL DoCallBackOut(CallBackOut callback)
 {
-	bool * arr =(bool *)CoTaskMemAlloc(ArraySIZE);
+	bool * arr =(bool *)CoreClrAlloc(ArraySIZE);
 
 	if(!callback(ArraySIZE,arr))
     {
@@ -79,11 +79,11 @@ extern "C" DLL_EXPORT BOOL DoCallBackOut(CallBackOut callback)
 		if(!arr[i]) //expect true
 		{
 			printf("Native Side:Error in DoCallBackOut.The Item is %d\n",i+1);
-			CoTaskMemFree(arr);
+			CoreClrFree(arr);
 			return false;
 		}	
 	}
-	CoTaskMemFree(arr);
+	CoreClrFree(arr);
 	return true;
 }
 
@@ -91,7 +91,7 @@ typedef BOOL (CALLBACK *CallBackInOut)(int size,bool arr[]);
 extern "C" DLL_EXPORT BOOL DoCallBackInOut(CallBackInOut callback)
 {
 	//Init
-	bool * arr =(bool *)CoTaskMemAlloc(ArraySIZE);
+	bool * arr =(bool *)CoreClrAlloc(ArraySIZE);
 	for(int i = 0;i < ArraySIZE; i++ )
 	{
 		if( 0 == i%2)
@@ -117,11 +117,11 @@ extern "C" DLL_EXPORT BOOL DoCallBackInOut(CallBackInOut callback)
 		if(!arr[i]) //expect true
 		{
 			printf("Native Side:Error in DoCallBackInOut.The Item is %d\n",i+1);
-			CoTaskMemFree(arr);
+			CoreClrFree(arr);
 			return false;
 		}	
 	}
-	CoTaskMemFree(arr);
+	CoreClrFree(arr);
 	return true;
 }
 
@@ -132,7 +132,7 @@ typedef BOOL (CALLBACK *CallBackRefIn)(int size,bool ** arr);
 extern "C" DLL_EXPORT BOOL DoCallBackRefIn(CallBackRefIn callback)
 {
 	//Init:true,false,true,false,true
-	bool *parr = (bool *)CoTaskMemAlloc(ArraySIZE);
+	bool *parr = (bool *)CoreClrAlloc(ArraySIZE);
 
 	for(int i = 0;i < ArraySIZE;++i)
 	{
@@ -158,17 +158,17 @@ extern "C" DLL_EXPORT BOOL DoCallBackRefIn(CallBackRefIn callback)
 		if((0==(i%2)) && !parr[i]) //expect true
 		{
 			printf("Native Side:Error in DoCallBackInOut.The Item is %d\n",i+1);
-			CoTaskMemFree(parr);
+			CoreClrFree(parr);
 			return false;
 		}
 		else if((1==(i%2))&&parr[i]) //expect false
 		{
 			printf("Native Side:Error in DoCallBackInOut.The Item is %d\n",i+1);
-			CoTaskMemFree(parr);
+			CoreClrFree(parr);
 			return false;
 		}
 	}
-	CoTaskMemFree(parr);
+	CoreClrFree(parr);
 	return true;
 }
 
@@ -190,11 +190,11 @@ extern "C" DLL_EXPORT BOOL DoCallBackRefOut(CallBackRefOut callback)
 		if(!(*(parr + i))) //expect true
 		{
 			printf("Native Side:Error in DoCallBackRefOut.The Item is %d\n",i+1);
-			CoTaskMemFree(parr);
+			CoreClrFree(parr);
 			return false;
 		}
 	}
-	CoTaskMemFree(parr);
+	CoreClrFree(parr);
 	return true;
 }
 
@@ -202,7 +202,7 @@ typedef BOOL (CALLBACK *CallBackRefInOut)(int size,bool ** arr);
 extern "C" DLL_EXPORT BOOL DoCallBackRefInOut(CallBackRefInOut callback)
 {
 	//Init,true,false,true,false
-	bool* parr = (bool*)CoTaskMemAlloc(ArraySIZE);
+	bool* parr = (bool*)CoreClrAlloc(ArraySIZE);
 	for(int i = 0;i<ArraySIZE;++i)
 	{
 		if( 0 == i%2)
@@ -227,10 +227,10 @@ extern "C" DLL_EXPORT BOOL DoCallBackRefInOut(CallBackRefInOut callback)
 		if(!(parr[i])) //expect true
 		{
 			printf("Native Side:Error in DoCallBackRefOut.The Item is %d\n",i+1);
-			CoTaskMemFree(parr);
+			CoreClrFree(parr);
 			return false;
 		}
 	}
-	CoTaskMemFree(parr);
+	CoreClrFree(parr);
 	return true;
 }
