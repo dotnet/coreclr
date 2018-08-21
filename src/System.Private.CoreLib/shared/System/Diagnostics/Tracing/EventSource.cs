@@ -4130,9 +4130,24 @@ namespace System.Diagnostics.Tracing
                 }
                 newEventSource.m_id = newIndex;
 
-                // Add every existing dispatcher to the new EventSource
-                for (EventListener listener = s_Listeners; listener != null; listener = listener.m_Next)
-                    newEventSource.AddListener(listener);
+#if DEBUG
+                // Disable validation of EventSource/EventListener connections in case a call to EventSource.AddListener
+                // causes a recursive call into this method.
+                bool previousValue = s_ConnectingEventSourcesAndListener;
+                s_ConnectingEventSourcesAndListener = true;
+                try
+                {
+#endif
+                    // Add every existing dispatcher to the new EventSource
+                    for (EventListener listener = s_Listeners; listener != null; listener = listener.m_Next)
+                        newEventSource.AddListener(listener);
+#if DEBUG
+                }
+                finally
+                {
+                    s_ConnectingEventSourcesAndListener = previousValue;
+                }
+#endif
 
                 Validate();
             }
@@ -4213,6 +4228,14 @@ namespace System.Diagnostics.Tracing
         [Conditional("DEBUG")]
         internal static void Validate()
         {
+#if DEBUG
+            // Don't run validation code if we're in the middle of modifying the connections between EventSources and EventListeners.
+            if (s_ConnectingEventSourcesAndListener)
+            {
+                return;
+            }
+#endif
+
             lock (EventListenersLock)
             {
                 // Get all listeners 
@@ -4302,18 +4325,30 @@ namespace System.Diagnostics.Tracing
                     // is created.
                     WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
 
-                    for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+#if DEBUG
+                    bool previousValue = s_ConnectingEventSourcesAndListener;
+                    s_ConnectingEventSourcesAndListener = true;
+                    try
                     {
-                        WeakReference eventSourceRef = eventSourcesSnapshot[i];
-                        EventSource eventSource = eventSourceRef.Target as EventSource;
-                        if (eventSource != null)
+#endif
+                        for (int i = 0; i < eventSourcesSnapshot.Length; i++)
                         {
-                            EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
-                            args.EventSource = eventSource;
-                            callback(this, args);
+                            WeakReference eventSourceRef = eventSourcesSnapshot[i];
+                            EventSource eventSource = eventSourceRef.Target as EventSource;
+                            if (eventSource != null)
+                            {
+                                EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
+                                args.EventSource = eventSource;
+                                callback(this, args);
+                            }
                         }
+#if DEBUG
                     }
-
+                    finally
+                    {
+                        s_ConnectingEventSourcesAndListener = previousValue;
+                    }
+#endif
                     Validate();
                 }
                 finally
@@ -4346,6 +4381,16 @@ namespace System.Diagnostics.Tracing
         /// Used to disallow reentrancy.  
         /// </summary>
         private static bool s_CreatingListener = false;
+
+#if DEBUG
+        /// <summary>
+        /// Used to disable validation of EventSource and EventListener connectivity.
+        /// This is needed when an EventListener is in the middle of being published to all EventSources
+        /// and another EventSource is created as part of the process.
+        /// </summary>
+        [ThreadStatic]
+        private static bool s_ConnectingEventSourcesAndListener = false;
+#endif
 
         /// <summary>
         /// Used to register AD/Process shutdown callbacks.
