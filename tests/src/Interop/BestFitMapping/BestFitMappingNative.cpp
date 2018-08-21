@@ -68,7 +68,7 @@ bool CheckInput(LPSTR str)
     p[2] = (char)0xbc;
     p[3] = (char)0;
 #endif
-    if (0 != _tcsncmp(str, p, 4))
+    if (0 != strncmp(str, p, 4))
     {
         printf("CheckInput:Expected:%s,Actual:%d\n", p, str[0]);
         delete[]p;

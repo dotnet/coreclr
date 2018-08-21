@@ -74,51 +74,32 @@
 #endif
 #endif
 
-
-
-
-
 // Ensure that both UNICODE and _UNICODE are set.
-#ifdef UNICODE
 #ifndef _UNICODE
-#define _UNICODE
+    #define _UNICODE
 #endif
-#else
-#ifdef _UNICODE
-#define UNICODE
+#ifndef UNICODE
+    #define UNICODE
 #endif
-#endif
-
-
-// redirected functions
-#ifdef UNICODE
-#define _tcslen	wcslen
-#define _tcsncmp wcsncmp
-#else
-#define _tcslen strlen
-#define _tcsncmp strncmp
-#endif // UNICODE
-
-
 
 // redirected types not-windows only
 #ifndef  _WIN32
 
 typedef union tagCY {
-	struct {
-		unsigned long Lo;
-		long          Hi;
-	};
-	long int64;
+    struct {
+        unsigned long Lo;
+        long          Hi;
+    };
+    long int64;
 } CY, CURRENCY;
 
 
 class IUnknown
 {
 public:
-  virtual int  QueryInterface(void* riid,void** ppvObject);
-  virtual unsigned long  AddRef();
-  virtual unsigned long  Release();
+    virtual int  QueryInterface(void* riid,void** ppvObject);
+    virtual unsigned long  AddRef();
+    virtual unsigned long  Release();
 };
 
 #define CoTaskMemAlloc(p) malloc(p)
