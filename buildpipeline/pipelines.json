@@ -80,14 +80,14 @@
             "Type": "build/product/",
             "SubType" : "PortableBuild",
             "Architecture": "x64",
-            "PB_BuildType": null,
-            "PB_IBCOptimize": "-ibcoptimize"
+            "PB_BuildType": null
           }
         },
         {
           "Name": "DotNet-CoreClr-Trusted-Windows",
           "Parameters": {
-            "Architecture": "arm64"
+            "Architecture": "arm64",
+            "PB_IBCOptimize": ""
           },
           "ReportingParameters": {
             "OperatingSystem": "Windows",
@@ -100,7 +100,8 @@
         {
           "Name": "DotNet-CoreClr-Trusted-Windows",
           "Parameters": {
-            "Architecture": "arm"
+            "Architecture": "arm",
+            "PB_IBCOptimize": ""
           },
           "ReportingParameters": {
             "OperatingSystem": "Windows",
@@ -120,8 +121,7 @@
             "Type": "build/product/",
             "SubType" : "PortableBuild",
             "Architecture": "x86",
-            "PB_BuildType": null,
-            "PB_IBCOptimize": "-ibcoptimize"
+            "PB_BuildType": null
           }
         }
       ]
@@ -177,7 +177,8 @@
       "BuildParameters": {
         "PB_BuildType": "Release",
         "PublishFlat": "false",
-        "PB_EnforcePGO": "enforcepgo"
+        "PB_EnforcePGO": "enforcepgo",
+        "PB_IBCOptimize": "-ibcoptimize"
       },
       "ReportingParameters": {
         "PB_BuildType": "Release"
@@ -193,8 +194,7 @@
       },
       "BuildParameters": {
         "PB_BuildType": "Debug",
-        "PublishFlat": "true",
-        "PB_IBCOptimize": ""
+        "PublishFlat": "true"
       },
       "ReportingParameters": {
         "PB_BuildType": "Debug"
@@ -210,8 +210,7 @@
       },
       "BuildParameters": {
         "PB_BuildType": "Checked",
-        "PublishFlat": "true",
-        "PB_IBCOptimize": ""
+        "PublishFlat": "true"
       },
       "ReportingParameters": {
         "PB_BuildType": "Checked"
