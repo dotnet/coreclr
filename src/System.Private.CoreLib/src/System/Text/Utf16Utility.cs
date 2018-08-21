@@ -87,7 +87,7 @@ namespace System.Text
             ulong lowerIndicator = value + 0x0080008000800080UL - 0x0041004100410041UL;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value <= 'Z'
-            ulong upperIndicator = value + 0x0080008008000800UL - 0x005B005B005B005BUL;
+            ulong upperIndicator = value + 0x0080008000800080UL - 0x005B005B005B005BUL;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'A' and <= 'Z'
             ulong combinedIndicator = (lowerIndicator ^ upperIndicator);
@@ -147,7 +147,7 @@ namespace System.Text
             ulong lowerIndicator = value + 0x0080008000800080UL - 0x0061006100610061UL;
 
             // the 0x80 bit of each word of 'upperIndicator' will be set iff the word has value <= 'z'
-            ulong upperIndicator = value + 0x0080008008000800UL - 0x007B007B007B007BUL;
+            ulong upperIndicator = value + 0x0080008000800080UL - 0x007B007B007B007BUL;
 
             // the 0x80 bit of each word of 'combinedIndicator' will be set iff the word has value >= 'a' and <= 'z'
             ulong combinedIndicator = (lowerIndicator ^ upperIndicator);

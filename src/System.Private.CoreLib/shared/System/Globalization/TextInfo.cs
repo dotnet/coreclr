@@ -400,7 +400,7 @@ namespace System.Globalization
 
                 // Read 8 bytes (4 chars) at a time
 
-                if (source.Length >= 8)
+                if (source.Length >= 4)
                 {
                     nuint lastIndexWhereCanReadFourChars = (uint)(2 * source.Length - 8);
                     do
@@ -415,7 +415,7 @@ namespace System.Globalization
                         // Keep the logic in ChangeCaseToUpper, ChangeCaseToLower, and Marvin.ComputeHash32OrdinalIgnoreCase in sync.
 
 #if BIT64
-                        ulong tempValue = Unsafe.ReadUnaligned<ulong>(ref Unsafe.AddByteOffset(ref destBytes, currIdx));
+                        ulong tempValue = Unsafe.ReadUnaligned<ulong>(ref Unsafe.AddByteOffset(ref sourceBytes, currIdx));
                         if (!Utf16Utility.QWordAllCharsAreAscii(tempValue))
                         {
                             goto NonAscii;
@@ -516,7 +516,7 @@ namespace System.Globalization
 
                 // Read 8 bytes (4 chars) at a time
 
-                if (source.Length >= 8)
+                if (source.Length >= 4)
                 {
                     nuint lastIndexWhereCanReadFourChars = (uint)(2 * source.Length - 8);
                     do
@@ -531,7 +531,7 @@ namespace System.Globalization
                         // Keep the logic in ChangeCaseToUpper, ChangeCaseToLower, and Marvin.ComputeHash32OrdinalIgnoreCase in sync.
 
 #if BIT64
-                        ulong tempValue = Unsafe.ReadUnaligned<ulong>(ref Unsafe.AddByteOffset(ref destBytes, currIdx));
+                        ulong tempValue = Unsafe.ReadUnaligned<ulong>(ref Unsafe.AddByteOffset(ref sourceBytes, currIdx));
                         if (!Utf16Utility.QWordAllCharsAreAscii(tempValue))
                         {
                             goto NonAscii;

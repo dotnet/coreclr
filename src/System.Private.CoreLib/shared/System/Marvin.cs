@@ -188,7 +188,7 @@ namespace System
                     p0 += Utf16Utility.ToUpperInvariantAsciiDWord(tempValue);
                     Block(ref p0, ref p1);
 #endif
-                } while ((byteOffset += 8) <= count);
+                } while ((byteOffset += 8) <= lastOffsetWhereCanReadQWord);
             }
 
             switch ((uint)count & 7)
@@ -271,7 +271,7 @@ namespace System
 
             char[] borrowedArr = null;
             Span<char> buffer = (source.Length <= 64)
-                ? stackalloc char[64]
+                ? stackalloc char[source.Length]
                 : (borrowedArr = ArrayPool<char>.Shared.Rent(source.Length));
 
             int utf16CodeUnitCount = source.ToUpperInvariant(buffer);
