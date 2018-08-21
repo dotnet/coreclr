@@ -6882,7 +6882,6 @@ void emitter::emitDispInsHelp(
     switch (fmt)
     {
         int         imm;
-        int         offs;
         const char* methodName;
 
         case IF_T1_A: // None
@@ -7382,29 +7381,31 @@ void emitter::emitDispInsHelp(
         break;
 
         case IF_T2_J3:
+        {
+            BYTE* addr;
             if (id->idIsCallAddr())
             {
-                offs       = (ssize_t)id->idAddr()->iiaAddr;
+                addr       = id->idAddr()->iiaAddr;
                 methodName = "";
             }
             else
             {
-                offs       = 0;
+                addr       = nullptr;
                 methodName = emitComp->eeGetMethodFullName((CORINFO_METHOD_HANDLE)id->idDebugOnlyInfo()->idMemCookie);
             }
 
-            if (offs)
+            if (addr)
             {
                 if (id->idIsDspReloc())
                     printf("reloc ");
-                printf("%08X", offs);
+                printf("%p", addr);
             }
             else
             {
                 printf("%s", methodName);
             }
-
-            break;
+        }
+        break;
 
         default:
             printf("unexpected format %s", emitIfName(id->idInsFmt()));
