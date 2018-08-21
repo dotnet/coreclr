@@ -1,3 +1,6 @@
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -173,7 +176,7 @@ typedef struct
 
 /* Tests */
 
-DLLEXPORT int test_passing_ints(int count, ...)
+DLLEXPORT int _cdecl test_passing_ints(int count, ...)
 {
     va_list ap;
     int index, sum;
@@ -190,7 +193,7 @@ DLLEXPORT int test_passing_ints(int count, ...)
     return sum;
 }
 
-DLLEXPORT __int64 test_passing_longs(int count, ...)
+DLLEXPORT __int64 _cdecl test_passing_longs(int count, ...)
 {
     va_list ap;
     int index;
@@ -208,7 +211,7 @@ DLLEXPORT __int64 test_passing_longs(int count, ...)
     return sum;
 }
 
-DLLEXPORT float test_passing_floats(int count, ...)
+DLLEXPORT float _cdecl test_passing_floats(int count, ...)
 {
     va_list ap;
     int index;
@@ -226,7 +229,7 @@ DLLEXPORT float test_passing_floats(int count, ...)
     return (float)sum;
 }
 
-DLLEXPORT double test_passing_doubles(int count, ...)
+DLLEXPORT double _cdecl test_passing_doubles(int count, ...)
 {
     va_list ap;
     int index;
@@ -244,7 +247,7 @@ DLLEXPORT double test_passing_doubles(int count, ...)
     return sum;
 }
 
-DLLEXPORT __int64 test_passing_int_and_longs(int int_count, int long_count, ...)
+DLLEXPORT __int64 _cdecl test_passing_int_and_longs(int int_count, int long_count, ...)
 {
     va_list ap;
     int index, count;
@@ -268,7 +271,7 @@ DLLEXPORT __int64 test_passing_int_and_longs(int int_count, int long_count, ...)
     return sum;
 }
 
-DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_count, ...)
+DLLEXPORT double _cdecl test_passing_floats_and_doubles(int float_count, int double_count, ...)
 {
     va_list ap;
     int index, count;
@@ -281,6 +284,9 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     sum = 0;
     for (index = 0; index < float_count; ++index)
     {
+        // Read a double, C ABI defines reading a float as undefined, or
+        // an error on unix. However, the managed side will correctly pass a
+        // float.
         sum += va_arg(ap, double);
     }
 
@@ -293,7 +299,17 @@ DLLEXPORT double test_passing_floats_and_doubles(int float_count, int double_cou
     return sum;
 }
 
-DLLEXPORT double test_passing_int_and_double(double expected_value, ...)
+/*
+    Args:
+        expected_value (double) : expected sum
+        int                     : first value
+        double                  : second value
+        int                     : third value
+        double                  : fourth value
+        int                     : fifth value
+        double                  : sixth value
+*/
+DLLEXPORT double _cdecl test_passing_int_and_double(double expected_value, ...)
 {
     va_list ap;
     int index, count;
@@ -318,7 +334,17 @@ DLLEXPORT double test_passing_int_and_double(double expected_value, ...)
     return sum;
 }
 
-DLLEXPORT double test_passing_long_and_double(double expected_value, ...)
+/*
+    Args:
+        expected_value (double) : expected sum
+        __int64                 : first value
+        double                  : second value
+        __int64                 : third value
+        double                  : fourth value
+        __int64                 : fifth value
+        double                  : sixth value
+*/
+DLLEXPORT double _cdecl test_passing_long_and_double(double expected_value, ...)
 {
     va_list ap;
     int index, count;
@@ -326,7 +352,6 @@ DLLEXPORT double test_passing_long_and_double(double expected_value, ...)
 
     count = 6;
     va_start(ap, expected_value);
-
 
     sum = 0;
     for (index = 0; index < 6; ++index)
@@ -345,9 +370,15 @@ DLLEXPORT double test_passing_long_and_double(double expected_value, ...)
 }
 
 /*
-    Returns: 0 if passed, 1 if not
+    Args:
+        count (int)         : count of args
+        is_int_structs(int) : first value
+        is_float_value(int) : second value
+        is_mixed (int)      : third value
+        byte_count (int)    : fourth value
+        struct_count (int)  : fifth value
 */
-DLLEXPORT int check_passing_struct(int count, ...)
+DLLEXPORT int _cdecl check_passing_struct(int count, ...)
 {
     va_list ap;
     int is_b, is_floating, is_mixed, byte_count, struct_count;
@@ -556,7 +587,7 @@ DLLEXPORT int check_passing_struct(int count, ...)
     return passed;
 }
 
-DLLEXPORT double check_passing_four_three_double_struct(three_double_struct one, three_double_struct two, three_double_struct three, three_double_struct four, ...)
+DLLEXPORT double _cdecl check_passing_four_three_double_struct(three_double_struct one, three_double_struct two, three_double_struct three, three_double_struct four, ...)
 {
     double sum;
 
@@ -571,9 +602,14 @@ DLLEXPORT double check_passing_four_three_double_struct(three_double_struct one,
 }
 
 /*
-    Returns: 0 if passed, 1 if not
+    Args:
+        count (int)             : count of args
+        two_long_long_struct    : first value
+        two_long_long_struct    : second value
+        two_long_long_struct    : third value
+        two_long_long_struct    : fourth value
 */
-DLLEXPORT int check_passing_four_sixteen_byte_structs(int count, ...)
+DLLEXPORT int _cdecl check_passing_four_sixteen_byte_structs(int count, ...)
 {
     va_list ap;
     int passed, index;
@@ -599,117 +635,117 @@ DLLEXPORT int check_passing_four_sixteen_byte_structs(int count, ...)
     return passed;
 }
 
-DLLEXPORT char echo_byte(char arg, ...)
+DLLEXPORT char _cdecl echo_byte(char arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT char echo_char(char arg, ...)
+DLLEXPORT char _cdecl echo_char(char arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT __int8 echo_short(__int8 arg, ...)
+DLLEXPORT __int8 _cdecl echo_short(__int8 arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT __int32 echo_int(__int32 arg, ...)
+DLLEXPORT __int32 _cdecl echo_int(__int32 arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT __int64 echo_int64(__int64 arg, ...)
+DLLEXPORT __int64 _cdecl echo_int64(__int64 arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT float echo_float(float arg, ...)
+DLLEXPORT float _cdecl echo_float(float arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT double echo_double(double arg, ...)
+DLLEXPORT double _cdecl echo_double(double arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT one_int_struct echo_one_int_struct(one_int_struct arg, ...)
+DLLEXPORT one_int_struct _cdecl echo_one_int_struct(one_int_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT two_int_struct echo_two_int_struct(two_int_struct arg, ...)
+DLLEXPORT two_int_struct _cdecl echo_two_int_struct(two_int_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT one_long_long_struct echo_one_long_struct(one_long_long_struct arg, ...)
+DLLEXPORT one_long_long_struct _cdecl echo_one_long_struct(one_long_long_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT two_long_long_struct echo_two_long_struct(two_long_long_struct arg, ...)
+DLLEXPORT two_long_long_struct _cdecl echo_two_long_struct(two_long_long_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT four_long_long_struct echo_four_long_struct(four_long_long_struct arg)
+DLLEXPORT four_long_long_struct _cdecl echo_four_long_struct(four_long_long_struct arg)
 {
     return arg;
 }
 
-DLLEXPORT four_long_long_struct echo_four_long_struct_with_vararg(four_long_long_struct arg, ...)
+DLLEXPORT four_long_long_struct _cdecl echo_four_long_struct_with_vararg(four_long_long_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT eight_byte_struct echo_eight_byte_struct(eight_byte_struct arg, ...)
+DLLEXPORT eight_byte_struct _cdecl echo_eight_byte_struct(eight_byte_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT four_int_struct echo_four_int_struct(four_int_struct arg, ...)
+DLLEXPORT four_int_struct _cdecl echo_four_int_struct(four_int_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT sixteen_byte_struct echo_sixteen_byte_struct(sixteen_byte_struct arg, ...)
+DLLEXPORT sixteen_byte_struct _cdecl echo_sixteen_byte_struct(sixteen_byte_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT one_float_struct echo_one_float_struct(one_float_struct arg, ...)
+DLLEXPORT one_float_struct _cdecl echo_one_float_struct(one_float_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT two_float_struct echo_two_float_struct(two_float_struct arg, ...)
+DLLEXPORT two_float_struct _cdecl echo_two_float_struct(two_float_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT one_double_struct echo_one_double_struct(one_double_struct arg, ...)
+DLLEXPORT one_double_struct _cdecl echo_one_double_struct(one_double_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT two_double_struct echo_two_double_struct(two_double_struct arg, ...)
+DLLEXPORT two_double_struct _cdecl echo_two_double_struct(two_double_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT three_double_struct echo_three_double_struct(three_double_struct arg, ...)
+DLLEXPORT three_double_struct _cdecl echo_three_double_struct(three_double_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT four_float_struct echo_four_float_struct(four_float_struct arg, ...)
+DLLEXPORT four_float_struct _cdecl echo_four_float_struct(four_float_struct arg, ...)
 {
     return arg;
 }
 
-DLLEXPORT four_double_struct echo_four_double_struct(four_double_struct arg, ...)
+DLLEXPORT four_double_struct _cdecl echo_four_double_struct(four_double_struct arg, ...)
 {
     return arg;
 }
