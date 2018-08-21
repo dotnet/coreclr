@@ -948,6 +948,19 @@ PTR_PEImageLayout PEImage::CreateLayoutMapped()
         // For CoreCLR, try to load all files via LoadLibrary first. If LoadLibrary did not work, retry using 
         // regular mapping - but not for native images.
         pLoadLayout = PEImageLayout::Load(this, FALSE /* bNTSafeLoad */, m_bIsTrustedNativeImage /* bThrowOnError */);
+
+        if (pLoadLayout == NULL)
+        {
+            pLoadLayout = PEImageLayout::Load(this, TRUE /* bNTSafeLoad */, m_bIsTrustedNativeImage /* bThrowOnError */);
+            if (pLoadLayout != NULL)
+            {
+                // If an IJW image got here, throw because its native portions didn't load correctly
+                if (pLoadLayout->HasCorHeader() && !pLoadLayout->IsILOnly())
+                {
+                    ThrowHR(COR_E_BADIMAGEFORMAT);
+                }
+            }
+        }
     }
 
     if (pLoadLayout != NULL)

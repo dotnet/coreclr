@@ -5058,9 +5058,9 @@ void NDirectMethodDesc::InitEarlyBoundNDirectTarget()
         GC_TRIGGERS;
         INJECT_FAULT(COMPlusThrowOM(););
     }
-        CONTRACTL_END
+    CONTRACTL_END
 
-        _ASSERTE(IsEarlyBound());
+    _ASSERTE(IsEarlyBound());
 
     if (IsClassConstructorTriggeredAtLinkTime())
     {

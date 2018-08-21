@@ -5961,6 +5961,7 @@ MethodTableBuilder::InitMethodDesc(
             pNewNMD->ndirect.m_cbStackArgumentSize = 0xFFFF;
 #endif // defined(_TARGET_X86_)
 
+            // If the RVA of a native method is set, this is an early-bound IJW call
             if (RVA != 0 && IsMiUnmanaged(dwImplFlags) && IsMiNative(dwImplFlags))
             {
                 // Note that we cannot initialize the stub directly now in the general case,

@@ -2962,72 +2962,7 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
 
 #if !defined(CROSSGEN_COMPILE) // IJW
 
-// This attempts to guess whether a target is an API call that uses SetLastError to communicate errors.
-static BOOL HeuristicDoesThisLooksLikeAnApiCallHelper(LPBYTE pTarget)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // This code is not that useful anymore since this functionality is already embedded in the VC linker.
-    // The linker will emit the lasterror flag by default for functions residing in modules that are
-    // a superset of the list below.
-    // Look for bug VSWhidbey 241895.
-
-    static struct SysDllInfo
-    {
-        LPCWSTR pName;
-        LPBYTE pImageBase;
-        DWORD  dwImageSize;
-    } gSysDllInfo[] = { {WINDOWS_KERNEL32_DLLNAME_W, 0, 0},
-                        {W("GDI32"),           0, 0},
-                        {W("USER32"),          0, 0},
-                        {W("ADVAPI32"),        0, 0}
-    };
-
-
-    for (int i = 0; i < sizeof(gSysDllInfo) / sizeof(*gSysDllInfo); i++)
-    {
-        if (gSysDllInfo[i].pImageBase == 0)
-        {
-            IMAGE_DOS_HEADER *pDos = (IMAGE_DOS_HEADER*)CLRGetModuleHandle(gSysDllInfo[i].pName);
-            if (pDos)
-            {
-                if (pDos->e_magic == VAL16(IMAGE_DOS_SIGNATURE))
-                {
-                    IMAGE_NT_HEADERS *pNT = (IMAGE_NT_HEADERS*)(((LPBYTE)pDos) + VAL32(pDos->e_lfanew));
-                    if (pNT->Signature == VAL32(IMAGE_NT_SIGNATURE) &&
-                        pNT->FileHeader.SizeOfOptionalHeader ==
-#ifdef _WIN64
-                        VAL16(sizeof(IMAGE_OPTIONAL_HEADER64))
-#else
-                        VAL16(sizeof(IMAGE_OPTIONAL_HEADER32))
-#endif
-                        && pNT->OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR_MAGIC))
-                    {
-                        gSysDllInfo[i].dwImageSize = VAL32(pNT->OptionalHeader.SizeOfImage);
-                    }
-                }
-
-                gSysDllInfo[i].pImageBase = (LPBYTE)pDos;
-            }
-        }
-        if (gSysDllInfo[i].pImageBase != 0 &&
-            pTarget >= gSysDllInfo[i].pImageBase &&
-            pTarget < gSysDllInfo[i].pImageBase + gSysDllInfo[i].dwImageSize)
-        {
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-}
-
-LPBYTE FollowIndirect(LPBYTE pTarget)
+static LPBYTE FollowIndirect(LPBYTE pTarget)
 {
     CONTRACT(LPBYTE)
     {
@@ -3057,40 +2992,13 @@ LPBYTE FollowIndirect(LPBYTE pTarget)
         }
 #endif
     }
-        EX_CATCH
+    EX_CATCH
     {
         // Catch AVs here.
     }
     EX_END_CATCH(SwallowAllExceptions);
 
     RETURN pRet;
-    }
-
-// This attempts to guess whether a target is an API call that uses SetLastError to communicate errors.
-BOOL HeuristicDoesThisLooksLikeAnApiCall(LPBYTE pTarget)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (pTarget == NULL)
-        return FALSE;
-
-    if (HeuristicDoesThisLooksLikeAnApiCallHelper(pTarget))
-        return TRUE;
-
-    LPBYTE pTarget2 = FollowIndirect(pTarget);
-    if (pTarget2)
-    {
-        // jmp [xxxx] - could be an import thunk
-        return HeuristicDoesThisLooksLikeAnApiCallHelper(pTarget2);
-    }
-
-    return FALSE;
 }
 
 BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
@@ -3141,7 +3049,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
     return FALSE;
 }
 
-DWORD __stdcall FalseGetLastError()
+DWORD STDMETHODCALLTYPE FalseGetLastError()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -3183,9 +3091,6 @@ void PInvokeStaticSigInfo::BestGuessNDirectDefaults(MethodDesc* pMD)
     {
         pTarget = pMDD->GetNativeNDirectTarget();
     }
-
-    if (HeuristicDoesThisLooksLikeAnApiCall((LPBYTE)pTarget))
-        SetLinkFlags((CorNativeLinkFlags)(GetLinkFlags() | nlfLastError));
 }
 
 #endif // !CROSSGEN_COMPILE
