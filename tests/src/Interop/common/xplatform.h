@@ -84,7 +84,7 @@
     #define UNICODE
 #endif
 
-inline void *CoreClrAlloc(size_t cb)
+void *CoreClrAlloc(size_t cb)
 {
 #ifdef _WIN32
     return ::CoTaskMemAlloc(cb);
@@ -93,7 +93,7 @@ inline void *CoreClrAlloc(size_t cb)
 #endif
 }
 
-inline void CoreClrFree(void *p)
+void CoreClrFree(void *p)
 {
 #ifdef _WIN32
     return ::CoTaskMemFree(p);
@@ -105,21 +105,12 @@ inline void CoreClrFree(void *p)
 // redirected types not-windows only
 #ifndef  _WIN32
 
-typedef union tagCY {
-    struct {
-        unsigned long Lo;
-        long          Hi;
-    };
-    long int64;
-} CY, CURRENCY;
-
-
 class IUnknown
 {
 public:
-    virtual int  QueryInterface(void* riid,void** ppvObject);
-    virtual unsigned long  AddRef();
-    virtual unsigned long  Release();
+    virtual int QueryInterface(void* riid,void** ppvObject) = 0;
+    virtual unsigned long AddRef() = 0;
+    virtual unsigned long Release() = 0;
 };
 
 // function implementation
@@ -127,97 +118,68 @@ size_t strncpy_s(char* strDest, size_t numberOfElements, const char *strSource, 
 {
     // NOTE: Need to pass count + 1 since strncpy_s does not count null,
     // while snprintf does. 
-	return snprintf(strDest, count + 1, "%s", strSource);
+    return snprintf(strDest, count + 1, "%s", strSource);
 }
 
 size_t strcpy_s(char *dest, size_t n, char const *src)
 {
-	return snprintf(dest, n, "%s", src);
+    return snprintf(dest, n, "%s", src);
 }
-
-void SysFreeString(char* str)
-{
-	free(str);
-}
-
-
-char* SysAllocString( const char* str)
-{
-	size_t nz = strlen(str);
-	char *cArr = (char*) malloc(nz);
-	memcpy(cArr, str, nz);
-	return cArr;
-}
-
 
 size_t wcslen(const WCHAR *str)
 {
-	int len;
-	if (!str) return 0;
-	len = 0;
-	while ('\0' != *(str + len)) len++;
-	return len;
+    size_t len = 0;
+    while ('\0' != *(str + len)) len++;
+    return len;
 }
-
-WCHAR* SysAllocString(const WCHAR* str)
-{
-	size_t nz = wcslen(str);
-	nz *= 2;
-	WCHAR *cArr = (WCHAR*)malloc(nz);
-	memcpy(cArr, str, nz);
-	return cArr;
-}
-
-
 
 int wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource, size_t size2)
 {
-	int cnt;
-	// copy sizeInBytes bytes of strSource into strDestination
-	if (NULL == strDestination || NULL == strSource) return 1;
+    // copy sizeInBytes bytes of strSource into strDestination
+    if (NULL == strDestination || NULL == strSource) return 1;
 
-	cnt = 0;
-	while (cnt < size1 && '\0' != strSource[cnt])
-	{
-		strDestination[cnt] = strSource[cnt];
-		cnt++;
-	}
-	strDestination[cnt] = '\0';
-	return 0;
+    int cnt = 0;
+    while (cnt < size1 && '\0' != strSource[cnt])
+    {
+        strDestination[cnt] = strSource[cnt];
+        cnt++;
+    }
+
+    strDestination[cnt] = '\0';
+    return 0;
 }
 
 int wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource)
 {
-	return wcsncpy_s(strDestination, size1, strSource, 0);
-
+    return wcsncpy_s(strDestination, size1, strSource, 0);
 }
 
-#define wcsncmp wmemcmp
+int wcsncmp(LPCWSTR str1, LPCWSTR str2,size_t len)
+{
+    // < 0 str1 less than str2
+    // 0  str1 identical to str2
+    // > 0 str1 greater than str2
+    if (NULL == str1 && NULL != str2) return -1;
+    if (NULL != str1 && NULL == str2) return 1;
+    if (NULL == str1 && NULL == str2) return 0;
+
+    while (*str1 == *str2 && '\0' != *str1 && '\0' != *str2 && len--!= 0)
+    {
+        str1++;
+        str2++;
+    }
+
+    if ('\0' == *str1 && '\0' == *str2) return 0;
+    if ('\0' != *str1) return -1;
+    if ('\0' != *str2) return 1;
+
+    return (*str1 > *str2) ? 1 : -1;
+}
 
 int wmemcmp(LPCWSTR str1, LPCWSTR str2,size_t len)
 {
-	// < 0 str1 less than str2
-	// 0  str1 identical to str2
-	// > 0 str1 greater than str2
-
-	if (NULL == str1 && NULL != str2) return -1;
-	if (NULL != str1 && NULL == str2) return 1;
-	if (NULL == str1 && NULL == str2) return 0;
-
-	while (*str1 == *str2 && '\0' != *str1 && '\0' != *str2 && len--!= 0)
-	{
-		str1++;
-		str2++;
-	}
-
-	if ('\0' == *str1 && '\0' == *str2) return 0;
-
-	if ('\0' != *str1) return -1;
-	if ('\0' != *str2) return 1;
-
-	return (*str1 > *str2) ? 1 : -1;
+    return wcsncmp(str1, str2, len);
 }
-
 
 #endif //!_Win32
 
