@@ -242,8 +242,29 @@ namespace System.Diagnostics.Tracing
     {
 
 #if FEATURE_EVENTSOURCE_XPLAT
-        private static readonly EventListener persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
+        private static readonly EventListener persistent_Xplat_Listener;
 #endif //FEATURE_EVENTSOURCE_XPLAT
+
+        /// <summary>
+        /// We explicitly initialize static state in a class constructor prior to creating any EventSources or EventListeners
+        /// as part of the static state.  This is necessary because it's possible to end up in a situation where in the middle of
+        /// creating an EventSource, we have to initialize the static state using a generated .cctor.  When this happens, it's possible
+        /// for an EventSource or EventListener to be created which depends on static state that has yet to be initialized.  This can cause
+        /// failures of varying types that ultimately lead to a TypeInitializationException.
+        /// 
+        /// </summary>
+        static EventSource()
+        {
+            // Initialize static state that EventSources depend upon prior to creating any EventSources or EventListeners.
+            // EventListeners can cause creation of EventSources (such as RuntimeEventSource).
+            namespaceBytes = new byte[] {
+                0x48, 0x2C, 0x2D, 0xB2, 0xC3, 0x90, 0x47, 0xC8,
+                0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB,
+            };
+#if FEATURE_EVENTSOURCE_XPLAT
+            persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
+#endif // FEATURE_EVENTSOURCE_XPLAT
+        }
 
         /// <summary>
         /// The human-friendly name of the eventSource.  It defaults to the simple name of the class
@@ -3749,10 +3770,7 @@ namespace System.Diagnostics.Tracing
         internal const string s_ActivityStopSuffix = "Stop";
 
         // used for generating GUID from eventsource name
-        private static readonly byte[] namespaceBytes = new byte[] {
-            0x48, 0x2C, 0x2D, 0xB2, 0xC3, 0x90, 0x47, 0xC8,
-            0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB,
-        };
+        private static readonly byte[] namespaceBytes;
 
 #endregion
     }
@@ -3861,6 +3879,16 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public event EventHandler<EventWrittenEventArgs> EventWritten;
 
+        static EventListener()
+        {
+#if FEATURE_PERFTRACING
+            // Ensure that RuntimeEventSource is initialized so that EventListeners get an opportunity to subscribe to its events.
+            // This is required because RuntimeEventSource never emit events on its own, and thus will never be initialized
+            // in the normal way that EventSources are initialized.
+            GC.KeepAlive(RuntimeEventSource.Log);
+#endif // FEATURE_PERFTRACING
+        }
+
         /// <summary>
         /// Create a new EventListener in which all events start off turned off (use EnableEvents to turn
         /// them on).  
@@ -3869,13 +3897,6 @@ namespace System.Diagnostics.Tracing
         {
             // This will cause the OnEventSourceCreated callback to fire. 
             CallBackForExistingEventSources(true, (obj, args) => args.EventSource.AddListener((EventListener)obj));
-
-#if FEATURE_PERFTRACING
-            // Ensure that RuntimeEventSource is initialized so that EventListeners get an opportunity to subscribe to its events.
-            // This is required because RuntimeEventSource never emit events on its own, and thus will never be initialized
-            // in the normal way that EventSources are initialized.
-            GC.KeepAlive(RuntimeEventSource.Log);
-#endif // FEATURE_PERFTRACING
         }
 
         /// <summary>
@@ -4664,7 +4685,7 @@ namespace System.Diagnostics.Tracing
             internal set;
         }
 
-        #region private
+#region private
         internal EventWrittenEventArgs(EventSource eventSource)
         {
             m_eventSource = eventSource;
