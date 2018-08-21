@@ -65,6 +65,9 @@
 #endif // !_WIN32
 
 #ifndef _MSC_VER
+
+#define STDMETHODCALLTYPE
+
 #if __i386__
 #define __stdcall __attribute__((stdcall))
 #define __cdecl __attribute__((cdecl))

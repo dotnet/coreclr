@@ -176,7 +176,7 @@ extern "C" DLL_EXPORT delegate_cdecl __cdecl CLPStr_DelegatePInvoke()
 
 //stdcall
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_In(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_In(LPSTR pStr)
 {
     //Check the Input
     if (!CheckInput(pStr))
@@ -191,7 +191,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_In(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_Out(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_Out(LPSTR pStr)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1; //+1, Include the NULL Character.
@@ -202,7 +202,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_Out(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InOut(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_InOut(LPSTR pStr)
 {
     //Check the Input
     if (!CheckInput(pStr))
@@ -217,7 +217,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InOut(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_InByRef(LPSTR* ppStr)
 {
     //Check the Input
     if (!CheckInput(*ppStr))
@@ -231,7 +231,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InByRef(LPSTR* ppStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_OutByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_OutByRef(LPSTR* ppStr)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1; //+1, Include the NULL Character.
@@ -244,7 +244,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_OutByRef(LPSTR* ppStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InOutByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE SLPStr_InOutByRef(LPSTR* ppStr)
 {
     //Check the Input
     if (!CheckInput(*ppStr))
@@ -259,7 +259,7 @@ extern "C" DLL_EXPORT LPSTR __stdcall SLPStr_InOutByRef(LPSTR* ppStr)
     return pBack;
 }
 
-typedef LPSTR (__stdcall *delegate_stdcall)(LPSTR* ppstr);
+typedef LPSTR (STDMETHODCALLTYPE *delegate_stdcall)(LPSTR* ppstr);
 extern "C" DLL_EXPORT delegate_stdcall SLPStr_DelegatePInvoke()
 {
     return SLPStr_InOutByRef;
@@ -371,7 +371,7 @@ extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_InOutByRef(CCallBackInOutBy
 }
 
 ///STDCALL Reverse PInvoke
-typedef LPSTR (__stdcall *SCallBackIn)(LPSTR pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackIn)(LPSTR pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_In(SCallBackIn callback)
 {
     const char* pTemp = "AAAA";
@@ -386,7 +386,7 @@ extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_In(SCallBackIn callback)
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (__stdcall *SCallBackOut)(LPSTR pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackOut)(LPSTR pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_Out(SCallBackOut callback)
 {
 
@@ -404,7 +404,7 @@ extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_Out(SCallBackOut callback)
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (__stdcall *SCallBackInOut)(LPSTR pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackInOut)(LPSTR pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InOut(SCallBackInOut callback)
 {
     const char* pTemp = "AAAA";
@@ -423,7 +423,7 @@ extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InOut(SCallBackInOut callba
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (__stdcall *SCallBackInByRef)(LPSTR* pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackInByRef)(LPSTR* pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InByRef(SCallBackInByRef callback)
 {
     const char* pTemp = "AAAA";
@@ -438,7 +438,7 @@ extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InByRef(SCallBackInByRef ca
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (__stdcall *SCallBackOutByRef)(LPSTR* pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackOutByRef)(LPSTR* pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_OutByRef(SCallBackOutByRef callback)
 {
     size_t len = 10;
@@ -455,7 +455,7 @@ extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_OutByRef(SCallBackOutByRef 
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (__stdcall *SCallBackInOutByRef)(LPSTR* pstr);
+typedef LPSTR (STDMETHODCALLTYPE *SCallBackInOutByRef)(LPSTR* pstr);
 extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InOutByRef(SCallBackInOutByRef callback)
 {
     const char* pTemp = "AAAA";
