@@ -6268,10 +6268,10 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
                 addr = (BYTE*)((size_t)addr & ~1); // Clear the lowest bit from target address
 
                 /* Calculate PC relative displacement */
-                int  disp = addr - (dst + 4);
-                bool S    = (disp < 0);
-                bool I1   = ((disp & 0x00800000) == 0);
-                bool I2   = ((disp & 0x00400000) == 0);
+                ptrdiff_t disp = addr - (dst + 4);
+                bool      S    = (disp < 0);
+                bool      I1   = ((disp & 0x00800000) == 0);
+                bool      I2   = ((disp & 0x00400000) == 0);
 
                 if (S)
                     code |= (1 << 26); // S bit
