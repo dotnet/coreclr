@@ -209,7 +209,7 @@ typedef struct FieldWithUtf8
 }FieldWithUtf8;
 
 //utf8 struct field
-extern "C" DLL_EXPORT void _cdecl TestStructWithUtf8Field(struct FieldWithUtf8 fieldStruct)
+extern "C" DLL_EXPORT void __cdecl TestStructWithUtf8Field(struct FieldWithUtf8 fieldStruct)
 {
     char *pszManagedutf8 = fieldStruct.pFirst;
     int stringIndex = fieldStruct.index;
@@ -273,7 +273,7 @@ extern "C" DLL_EXPORT void __cdecl StringParameterRef(/*ref*/ char **s, int inde
 
 // delegate test
 typedef void (__cdecl * Callback)(char *text, int index);
-extern "C" DLL_EXPORT void _cdecl Utf8DelegateAsParameter(Callback managedCallback)
+extern "C" DLL_EXPORT void __cdecl Utf8DelegateAsParameter(Callback managedCallback)
 {
     for (int i = 0; i < NSTRINGS; ++i) 
     {        

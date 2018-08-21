@@ -19,13 +19,13 @@ static int ReportFailure(const char* s)
     return (++fails);
 }
 
-extern  "C" DLL_EXPORT int _cdecl GetResult()
+extern  "C" DLL_EXPORT int __cdecl GetResult()
 {
     return fails;
 }
 
 //This method is used on Windows Only
-extern "C" DLL_EXPORT char _cdecl GetByteForWideChar()
+extern "C" DLL_EXPORT char __cdecl GetByteForWideChar()
 {
 #ifdef WINDOWS
     char * p = new char[3];
@@ -80,7 +80,7 @@ bool CheckInput(LPSTR str)
 }
 
 //C Call,In attribute,LPstr
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_In(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_In(LPSTR pStr)
 {
     //Check the Input
     if (!CheckInput(pStr))
@@ -96,7 +96,7 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_In(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_Out(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_Out(LPSTR pStr)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1; //+1, Include the NULL Character.
@@ -108,7 +108,7 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_Out(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InOut(LPSTR pStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_InOut(LPSTR pStr)
 {
     //Check the Input
     if (!CheckInput(pStr))
@@ -124,7 +124,7 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InOut(LPSTR pStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_InByRef(LPSTR* ppStr)
 {
     //Check the Input
     if (!CheckInput(*ppStr))
@@ -140,7 +140,7 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InByRef(LPSTR* ppStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_OutByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_OutByRef(LPSTR* ppStr)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1; //+1, Include the NULL Character.
@@ -152,7 +152,7 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_OutByRef(LPSTR* ppStr)
     return pBack;
 }
 
-extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InOutByRef(LPSTR* ppStr)
+extern "C" DLL_EXPORT LPSTR __cdecl CLPStr_InOutByRef(LPSTR* ppStr)
 {
     //Check the Input
     if (!CheckInput(*ppStr))
@@ -168,8 +168,8 @@ extern "C" DLL_EXPORT LPSTR _cdecl CLPStr_InOutByRef(LPSTR* ppStr)
 }
 
 
-typedef LPSTR (_cdecl* delegate_cdecl)(LPSTR* ppstr);
-extern "C" DLL_EXPORT delegate_cdecl _cdecl CLPStr_DelegatePInvoke()
+typedef LPSTR (__cdecl* delegate_cdecl)(LPSTR* ppstr);
+extern "C" DLL_EXPORT delegate_cdecl __cdecl CLPStr_DelegatePInvoke()
 {
     return CLPStr_InOutByRef;
 }
@@ -267,8 +267,8 @@ extern "C" DLL_EXPORT delegate_stdcall SLPStr_DelegatePInvoke()
 
 ///Cdecl, Reverse PInvoke
 
-typedef LPSTR (_cdecl *CCallBackIn)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_In(CCallBackIn callback)
+typedef LPSTR (__cdecl *CCallBackIn)(LPSTR pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_In(CCallBackIn callback)
 {
   const char* pTemp = "AAAA";
   size_t len = strlen(pTemp)+1;
@@ -282,8 +282,8 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_In(CCallBackIn callback)
   CoreClrFree(pStr);
 }
 
-typedef LPSTR (_cdecl *CCallBackOut)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_Out(CCallBackOut callback)
+typedef LPSTR (__cdecl *CCallBackOut)(LPSTR pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_Out(CCallBackOut callback)
 {
     size_t len = 10;
     LPSTR pStr = (LPSTR)CoreClrAlloc(len);
@@ -300,8 +300,8 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_Out(CCallBackOut callback)
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (_cdecl *CCallBackInOut)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InOut(CCallBackInOut callback)
+typedef LPSTR (__cdecl *CCallBackInOut)(LPSTR pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_InOut(CCallBackInOut callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -319,8 +319,8 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InOut(CCallBackInOut callbac
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (_cdecl *CallBackInByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InByRef(CallBackInByRef callback)
+typedef LPSTR (__cdecl *CallBackInByRef)(LPSTR* pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_InByRef(CallBackInByRef callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -334,8 +334,8 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InByRef(CallBackInByRef call
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (_cdecl *CCallBackOutByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_OutByRef(CCallBackOutByRef callback)
+typedef LPSTR (__cdecl *CCallBackOutByRef)(LPSTR* pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_OutByRef(CCallBackOutByRef callback)
 {
     size_t len = 10;
     LPSTR pStr = (LPSTR)CoreClrAlloc(len);
@@ -351,8 +351,8 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_OutByRef(CCallBackOutByRef c
     CoreClrFree(pStr);
 }
 
-typedef LPSTR (_cdecl *CCallBackInOutByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InOutByRef(CCallBackInOutByRef callback)
+typedef LPSTR (__cdecl *CCallBackInOutByRef)(LPSTR* pstr);
+extern "C" DLL_EXPORT void __cdecl DoCCallBack_LPSTR_InOutByRef(CCallBackInOutByRef callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -372,7 +372,7 @@ extern "C" DLL_EXPORT void _cdecl DoCCallBack_LPSTR_InOutByRef(CCallBackInOutByR
 
 ///STDCALL Reverse PInvoke
 typedef LPSTR (__stdcall *SCallBackIn)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_In(SCallBackIn callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_In(SCallBackIn callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -387,7 +387,7 @@ extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_In(SCallBackIn callback)
 }
 
 typedef LPSTR (__stdcall *SCallBackOut)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_Out(SCallBackOut callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_Out(SCallBackOut callback)
 {
 
     size_t len = 10;
@@ -405,7 +405,7 @@ extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_Out(SCallBackOut callback)
 }
 
 typedef LPSTR (__stdcall *SCallBackInOut)(LPSTR pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_InOut(SCallBackInOut callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InOut(SCallBackInOut callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -424,7 +424,7 @@ extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_InOut(SCallBackInOut callbac
 }
 
 typedef LPSTR (__stdcall *SCallBackInByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_InByRef(SCallBackInByRef callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InByRef(SCallBackInByRef callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
@@ -439,7 +439,7 @@ extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_InByRef(SCallBackInByRef cal
 }
 
 typedef LPSTR (__stdcall *SCallBackOutByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_OutByRef(SCallBackOutByRef callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_OutByRef(SCallBackOutByRef callback)
 {
     size_t len = 10;
     LPSTR pStr = (LPSTR)CoreClrAlloc(len);
@@ -456,7 +456,7 @@ extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_OutByRef(SCallBackOutByRef c
 }
 
 typedef LPSTR (__stdcall *SCallBackInOutByRef)(LPSTR* pstr);
-extern "C" DLL_EXPORT void _cdecl DoSCallBack_LPSTR_InOutByRef(SCallBackInOutByRef callback)
+extern "C" DLL_EXPORT void __cdecl DoSCallBack_LPSTR_InOutByRef(SCallBackInOutByRef callback)
 {
     const char* pTemp = "AAAA";
     size_t len = strlen(pTemp) + 1;
