@@ -40,7 +40,6 @@
 #endif
 #include <wchar.h>
 
-
 // dllexport
 #if defined _WIN32
 #define DLL_EXPORT __declspec(dllexport)
@@ -55,16 +54,8 @@
 
 #endif //_WIN32
 
-// The default P/Invoke calling convetion is STDCALL on Window, but CDECL on Unix.
-#ifdef _WIN32
-#define CALLBACK    __stdcall
-#define NATIVEAPI   __stdcall
-#else // _WIN32
-#define CALLBACK
-#define NATIVEAPI
-#endif // !_WIN32
-
-#ifndef _MSC_VER
+// Calling conventions
+#ifndef _WIN32
 
 #define STDMETHODCALLTYPE
 
@@ -75,7 +66,7 @@
 #define __stdcall
 #define __cdecl
 #endif
-#endif
+#endif //!_WIN32
 
 // Ensure that both UNICODE and _UNICODE are set.
 #ifndef _UNICODE
