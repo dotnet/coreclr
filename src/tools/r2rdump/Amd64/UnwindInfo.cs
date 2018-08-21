@@ -60,6 +60,8 @@ namespace R2RDump.Amd64
 
         public bool IsOpInfo { get; set; }
 
+        public UnwindCode() { }
+
         public UnwindCode(byte[] image, int index, ref int offset)
         {
             Index = index;
@@ -95,6 +97,7 @@ namespace R2RDump.Amd64
         public Registers FrameRegister { get; set; } //4 bits
         public byte FrameOffset { get; set; } //4 bits
         public UnwindCode[] UnwindCodeArray { get; set; }
+        [XmlIgnore]
         public Dictionary<int, List<UnwindCode>> UnwindCodes { get; set; }
         public uint PersonalityRoutineRVA { get; set; }
 
