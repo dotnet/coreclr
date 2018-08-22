@@ -712,15 +712,19 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_flow_job'] == true
     // Arm32 hardware (Build) -> Ubuntu 16.04 latest-or-auto
     //       |-> os == "Ubuntu" && (architecture == "arm") && options['is_build_job'] == true
-    // Arm32 hardware (Test) -> ubuntu.1404.arm32.open
+    // Arm32 hardware (Test) -> Helix ubuntu.1404.arm32.open queue
     //       |-> os == "Ubuntu" && (architecture == "arm")
     //
     // Arm64 (Build) -> arm64-cross-latest
-    //       |-> os != "Windows_NT" && architecture == "arm64" && options['is_build_only'] == true
-    // Arm64 Small Page Size (Test) -> arm64-small-page-size
-    //       |-> os != "Windows_NT" && architecture == "arm64" && options['large_pages'] == false
-    // Arm64 Large Page Size (Test) -> arm64-huge-page-size
-    //       |-> os != "Windows_NT" && architecture == "arm64" && options['large_pages'] == true
+    //       |-> os != "Windows_NT" && architecture == "arm64" && options['is_build_job'] == true
+    // Arm64 (Test) -> Helix Ubuntu.1604.Arm64.Open queue
+    //       |-> os != "Windows_NT" && architecture == "arm64"
+    //
+    // Note: we are no longer using Jenkins tags "arm64-huge-page-size", "arm64-small-page-size".
+    // Support for Linux arm64 large page size has been removed for now, as it wasn't being used.
+    //
+    // Note: we are no longer using Jenkins tag 'latest-arm64' for arm/arm64 Windows build machines. Instead,
+    // we are using public VS2017 arm/arm64 tools in a VM from Helix.
 
     // This has to be a arm arch
     assert architecture in armArches
@@ -729,10 +733,6 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         def isBuild = options['use_arm64_build_machine'] == true
 
         if (isBuild == true) {
-            // Current set of machines with private Windows arm64 toolset:
-            // Utilities.setMachineAffinity(job, os, 'latest-arm64')
-            //
-            // New set of machines with public Windows arm64 toolset, coming from Helix:
             job.with {
                 label('Windows.10.Amd64.ClientRS4.DevEx.Open')
             }
@@ -742,48 +742,33 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
     } else {
         assert os != 'Windows_NT'
 
-        if (architecture == 'arm64') {
-            assert os == 'Ubuntu'
-            def isFlow  = (options != null) && (options['is_flow_job'] == true)
-            def isBuild = (options != null) && (options['is_build_job'] == true)
-            if (isFlow || isBuild) {
-                // Arm64 Ubuntu build machine. Build uses docker, so the actual host OS is not
-                // very important. Therefore, use latest or auto. Flow jobs don't need to use
-                // Arm64 hardware.
-                Utilities.setMachineAffinity(job, 'Ubuntu16.04', 'latest-or-auto')
-            } else {
-                // Arm64 Linux test machines
-                if ((options != null) && (options['large_pages'] == true)) {
-                    Utilities.setMachineAffinity(job, os, 'arm64-huge-page-size')
-                } else {
-                    Utilities.setMachineAffinity(job, os, 'arm64-small-page-size')
-                }
-            }
-        }
-        else if (architecture == 'armem') {
+        if (architecture == 'armem') {
             // arm emulator (Tizen). Build and test on same machine,
             // using Docker.
             assert os == 'Tizen'
             Utilities.setMachineAffinity(job, 'Ubuntu', 'arm-cross-latest')
         }
         else {
-            // arm Ubuntu on hardware.
-            assert architecture == 'arm'
+            // arm/arm64 Ubuntu on hardware.
+            assert architecture == 'arm' || architecture == 'arm64'
             assert os == 'Ubuntu'
             def isFlow  = (options != null) && (options['is_flow_job'] == true)
             def isBuild = (options != null) && (options['is_build_job'] == true)
             if (isFlow || isBuild) {
-                // arm Ubuntu build machine. Build uses docker, so the actual host OS is not
-                // very important. Therefore, use latest or auto. Flow jobs don't need to use
-                // arm hardware.
+                // arm/arm64 Ubuntu build machine. Build uses docker, so the actual host OS is not
+                // very important. Therefore, use latest or auto. Flow jobs don't need to use arm hardware.
                 Utilities.setMachineAffinity(job, 'Ubuntu16.04', 'latest-or-auto')
             } else {
-                // arm Ubuntu test machine
-                // There is no tag (like, e.g., "arm-latest") for this, so don't call
-                // Utilities.setMachineAffinity. Just add the machine affinity
-                // manually. We specify the Helix queue name here.
-                job.with {
-                    label('ubuntu.1404.arm32.open')
+                // arm/arm64 Ubuntu test machine. Specify the Helix queue name here.
+                if (architecture == 'arm64') {
+                    job.with {
+                        label('Ubuntu.1604.Arm64.Open')
+                    }
+                }
+                else {
+                    job.with {
+                        label('ubuntu.1404.arm32.open')
+                    }
                 }
             }
         }
@@ -814,16 +799,7 @@ def static setJobMachineAffinity(def architecture, def os, def isBuildJob, def i
         }
     }
     else {
-        if (architecture == 'arm64') {
-            if (isBuildJob) {
-                affinityOptions = ['is_build_job': true]
-            } else if (isFlowJob) {
-                affinityOptions = ['is_flow_job': true]
-            } else if (isTestJob) {
-                affinityOptions = [ "large_pages" : false ]
-            }
-        }
-        else if (architecture == 'arm') {
+        if ((architecture == 'arm64') || (architecture == 'arm')) {
             if (isBuildJob) {
                 affinityOptions = ['is_build_job': true]
             } else if (isFlowJob) {
@@ -1276,22 +1252,14 @@ def static getJobName(def configuration, def architecture, def os, def scenario,
                 baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             }
             break
-        case 'arm64':
-            if (os.toLowerCase() == "windows_nt") {
-                // These are cross builds
-                baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
-            }
-            else {
-                // Defaults to a small page size set of machines.
-                baseName = architecture.toLowerCase() + '_' + configuration.toLowerCase() + '_' + "small_page_size"
-            }
-            break
         case 'armem':
             // These are cross builds
             assert os == 'Tizen'
             baseName = 'armel_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         case 'arm':
+        case 'arm64':
+            // These are cross builds
             baseName = architecture.toLowerCase() + '_cross_' + configuration.toLowerCase() + '_' + os.toLowerCase()
             break
         case 'x86':
