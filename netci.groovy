@@ -17,16 +17,16 @@ folder('illink')
 Utilities.addStandardFolderView(this, 'illink', project)
 
 def static getOSGroup(def os) {
-    def osGroupMap = ['Ubuntu':'Linux',
-        'RHEL7.2': 'Linux',
-        'Ubuntu16.04': 'Linux',
-        'Ubuntu16.10': 'Linux',
-        'Debian8.4':'Linux',
-        'Fedora24':'Linux',
-        'OSX10.12':'OSX',
-        'Windows_NT':'Windows_NT',
-        'CentOS7.1': 'Linux',
-        'Tizen': 'Linux']
+    def osGroupMap = ['Ubuntu'      : 'Linux',
+                      'Ubuntu16.04' : 'Linux',
+                      'Ubuntu16.10' : 'Linux',
+                      'RHEL7.2'     : 'Linux',
+                      'Debian8.4'   : 'Linux',
+                      'Fedora24'    : 'Linux',
+                      'CentOS7.1'   : 'Linux',
+                      'Tizen'       : 'Linux',
+                      'OSX10.12'    : 'OSX',
+                      'Windows_NT'  : 'Windows_NT']
     def osGroup = osGroupMap.get(os, null)
     assert osGroup != null : "Could not find os group for ${os}"
     return osGroupMap[os]
@@ -70,6 +70,7 @@ class Constants {
 
     def static crossList = [
                'Ubuntu',
+               'Ubuntu16.04',
                'Debian8.4',
                'OSX10.12',
                'Windows_NT',
@@ -212,10 +213,12 @@ class Constants {
             'x64': [
                 'Checked'
             ],
-            'arm64': [
-                'Debug'
-            ],
             'arm': [
+                'Checked'
+            ]
+        ],
+        'Ubuntu16.04': [
+            'arm64': [
                 'Checked'
             ]
         ],
@@ -751,7 +754,6 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         else {
             // arm/arm64 Ubuntu on hardware.
             assert architecture == 'arm' || architecture == 'arm64'
-            assert os == 'Ubuntu'
             def isFlow  = (options != null) && (options['is_flow_job'] == true)
             def isBuild = (options != null) && (options['is_build_job'] == true)
             if (isFlow || isBuild) {
@@ -761,11 +763,13 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
             } else {
                 // arm/arm64 Ubuntu test machine. Specify the Helix queue name here.
                 if (architecture == 'arm64') {
+                    assert os == 'Ubuntu16.04'
                     job.with {
                         label('Ubuntu.1604.Arm64.Open')
                     }
                 }
                 else {
+                    assert os == 'Ubuntu'
                     job.with {
                         label('ubuntu.1404.arm32.open')
                     }
@@ -1161,7 +1165,7 @@ def static isNeedDocker(def architecture, def os, def isBuild) {
             }
         }
         else if (architecture == 'arm64') {
-            if (os == 'Ubuntu') {
+            if (os == 'Ubuntu16.04') {
                 return true
             }
         }
@@ -1191,7 +1195,7 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
             }
         }
         else if (architecture == 'arm64') {
-            if (os == 'Ubuntu') {
+            if (os == 'Ubuntu16.04') {
                 return "microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921"
             }
         }
@@ -1209,16 +1213,8 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
 // We have a limited amount of some hardware. For these, scale back the periodic testing we do,
 // and only allowing using this hardware in some specific branches.
 def static jobRequiresLimitedHardware(def architecture, def os) {
-    if (((architecture == 'arm64') || (architecture == 'arm')) && (os == 'Windows_NT')) {
-        // These test jobs require ARM64 hardware
-        return true
-    }
-    else if ((architecture == 'arm') && (os == 'Ubuntu')) {
-        // These test jobs require Linux/arm32 hardware
-        return true
-    }
-    else if ((architecture == 'arm64') && (os == 'Ubuntu')) {
-        // These test jobs require Linux/arm64 hardware
+    if ((architecture == 'arm') || (architecture == 'arm64')) {
+        // arm and arm64 Windows and Linux hardware is limited.
         return true
     }
     else {
@@ -1284,7 +1280,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         return
     }
 
-    // No arm64 Ubuntu cron jobs for now: we don't have enough hardware.
+    // No arm64 Linux cron jobs for now: we don't have enough hardware.
     if ((architecture == 'arm64') && (os != 'Windows_NT')) {
          return
     }
@@ -1383,17 +1379,14 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                         addGithubPushTriggerHelper(job)
                     }
                 }
-                // arm64 r2r jobs should only run weekly.
-                // arm64 r2r jobs are only run on Windows (Q: should they run on non-Windows?)
-                else if (architecture == 'arm64') {
-                    if (os == 'Windows_NT') {
-                        if (isFlowJob) {
-                            addPeriodicTriggerHelper(job, '@weekly')
-                        }
-                    }
-                }
                 // arm r2r jobs should only run weekly.
                 else if (architecture == 'arm') {
+                    if (isFlowJob) {
+                        addPeriodicTriggerHelper(job, '@weekly')
+                    }
+                }
+                // arm64 r2r jobs should only run weekly.
+                else if (architecture == 'arm64') {
                     if (isFlowJob) {
                         addPeriodicTriggerHelper(job, '@weekly')
                     }
@@ -1439,15 +1432,12 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                         addPeriodicTriggerHelper(job, 'H H * * 3,6') // some time every Wednesday and Saturday
                     }
                 }
-                // arm64 r2r jobs are only run on Windows (Q: should they run on non-Windows?)
-                else if (architecture == 'arm64') {
-                    if (os == 'Windows_NT') {
-                        if (isFlowJob) {
-                            addPeriodicTriggerHelper(job, '@weekly')
-                        }
+                else if (architecture == 'arm') {
+                    if (isFlowJob) {
+                        addPeriodicTriggerHelper(job, '@weekly')
                     }
                 }
-                else if (architecture == 'arm') {
+                else if (architecture == 'arm64') {
                     if (isFlowJob) {
                         addPeriodicTriggerHelper(job, '@weekly')
                     }
@@ -1922,34 +1912,21 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
 
             switch (os) {
                 case 'Ubuntu':
-                    // TODO: make arm and arm64 Ubuntu more alike
+                case 'Ubuntu16.04':
 
-                    if (architecture == 'arm') {
-                        // Triggers on the non-flow jobs aren't necessary
-                        if (!isFlowJob) {
-                            needsTrigger = false
-                            break
-                        }
-
-                        switch (scenario) {
-                            case 'innerloop':
-                            case 'no_tiered_compilation_innerloop':
-                                if (configuration == 'Checked') {
-                                    isDefaultTrigger = true
-                                }
-                                break
-                        }
+                    // Triggers on the non-flow jobs aren't necessary
+                    if (!isFlowJob) {
+                        needsTrigger = false
+                        break
                     }
-                    else {
-                        assert architecture == 'arm64'
 
-                        switch (scenario) {
-                            case 'innerloop':
-                                if (configuration == 'Debug' && !isFlowJob) {
-                                    isDefaultTrigger = true
-                                }
-                                break
-                        }
+                    switch (scenario) {
+                        case 'innerloop':
+                        case 'no_tiered_compilation_innerloop':
+                            if (configuration == 'Checked') {
+                                isDefaultTrigger = true
+                            }
+                            break
                     }
                     break
 
@@ -2437,7 +2414,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                 case 'arm64':
                 case 'arm':
                     // Non-Windows ARM cross builds on hardware run on Ubuntu only
-                    assert (os == 'Ubuntu')
+                    assert (os == 'Ubuntu') || (os == 'Ubuntu16.04')
 
                     // Add some useful information to the log file. Ignore return codes.
                     buildCommands += "uname -a || true"
@@ -2572,9 +2549,13 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     // Filter based on architecture.
 
     switch (architecture) {
-        case 'arm64':
         case 'arm':
             if ((os != 'Windows_NT') && (os != 'Ubuntu')) {
+                return false
+            }
+            break
+        case 'arm64':
+            if ((os != 'Windows_NT') && (os != 'Ubuntu16.04')) {
                 return false
             }
             break
@@ -2634,7 +2615,9 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
             return false
         }
 
-        def isEnabledOS = (os == 'Windows_NT') || (os == 'Ubuntu' && (isCoreFxScenario(scenario) || architecture == 'arm' || architecture == 'arm64'))
+        def isEnabledOS = (os == 'Windows_NT') ||
+                          (os == 'Ubuntu' && (isCoreFxScenario(scenario) || architecture == 'arm')) ||
+                          (os == 'Ubuntu16.04' && (isCoreFxScenario(scenario) || architecture == 'arm64'))
         if (!isEnabledOS) {
             return false
         }
@@ -2653,6 +2636,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 break
 
             case 'arm':
+            case 'arm64':
                 // We use build only jobs for Windows arm/arm64 cross-compilation corefx testing, so we need to generate builds for that.
                 // No "regular" Windows arm corefx jobs, e.g.
                 // For Ubuntu arm corefx testing, we use regular jobs (not "build only" since only Windows has "build only", and
@@ -2669,21 +2653,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 }
                 break
 
-            case 'arm64':
-                if (os == 'Windows_NT') {
-                    if (! (isBuildOnly && isCoreFxScenario(scenario)) ) {
-                        return false
-                    }
-                }
-                else {
-                    if (!isCoreFxScenario(scenario)) {
-                        return false
-                    }
-                }
-                break
-
             default:
-                // arm64: stress is handled through flow jobs.
                 // armem: no stress jobs for ARM emulator.
                 return false
         }
@@ -3118,7 +3088,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Returns the newly created job.
 def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
-    def isUbuntuArmJob = (os == "Ubuntu") && ((architecture == 'arm') || (architecture == 'arm64')) // ARM Ubuntu running on hardware (not emulator)
+    def isUbuntuArmJob = ((os == "Ubuntu") && (architecture == 'arm')) || ((os == "Ubuntu16.04") && (architecture == 'arm64'))
     def doCoreFxTesting = isCoreFxScenario(scenario)
 
     def workspaceRelativeFxRootLinux = "_/fx" // only used for CoreFX testing
@@ -3564,9 +3534,13 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     // Filter based on OS and architecture.
 
     switch (architecture) {
-        case 'arm64':
         case 'arm':
             if (os != "Ubuntu" && os != "Windows_NT") {
+                return false
+            }
+            break
+        case 'arm64':
+            if (os != "Ubuntu16.04" && os != "Windows_NT") {
                 return false
             }
             break
@@ -3611,19 +3585,13 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     }
     else {
         // Non-Windows
-        if (architecture == 'arm64') {
-            if (!(scenario in Constants.validLinuxArm64Scenarios)) {
-                return false
-            }
-
-            if (isNormalOrInnerloop && (configuration == 'Debug')) {
-                // The arm32/arm64 Debug configuration for innerloop/normal scenario is a special case: it does a build only, and no test run.
-                // To do that, it doesn't require a flow job.
+        if (architecture == 'arm') {
+            if (!(scenario in Constants.validLinuxArmScenarios)) {
                 return false
             }
         }
-        else if (architecture == 'arm') {
-            if (!(scenario in Constants.validLinuxArmScenarios)) {
+        else if (architecture == 'arm64') {
+            if (!(scenario in Constants.validLinuxArm64Scenarios)) {
                 return false
             }
         }
