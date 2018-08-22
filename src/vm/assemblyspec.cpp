@@ -1541,11 +1541,7 @@ BOOL AssemblySpecBindingCache::StoreAssembly(AssemblySpec *pSpec, DomainAssembly
     UPTR key = (UPTR)pSpec->Hash();
 
     // On CoreCLR, we will use the BinderID as the key 
-    ICLRPrivBinder* pBinderContextForLookup = pSpec->GetBindingContext();
-    if (!pBinderContextForLookup)
-    {
-        pBinderContextForLookup = pAssembly->GetFile()->GetBindingContext();
-    }
+    ICLRPrivBinder* pBinderContextForLookup = pAssembly->GetFile()->GetBindingContext();
 
     _ASSERTE(pBinderContextForLookup || pAssembly->GetFile()->IsSystem());
     if (pBinderContextForLookup)
@@ -1632,11 +1628,7 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
     UPTR key = (UPTR)pSpec->Hash();
 
     // On CoreCLR, we will use the BinderID as the key 
-    ICLRPrivBinder* pBinderContextForLookup = pSpec->GetBindingContext();
-    if (!pBinderContextForLookup)
-    {
-        pBinderContextForLookup = pFile->GetBindingContext();
-    }
+    ICLRPrivBinder* pBinderContextForLookup = pFile->GetBindingContext();
 
     _ASSERTE(pBinderContextForLookup || pFile->IsSystem());
     if (pBinderContextForLookup)
