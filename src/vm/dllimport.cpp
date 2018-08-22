@@ -2962,10 +2962,8 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
 
 #if !defined(CROSSGEN_COMPILE) // IJW
 
-#if defined (FEATURE_PAL)
-#pragma clang diagnostic push
-#pragma clang diangostic ignored "-Wunused-function"
-#endif // FEATURE_PAL
+// This function would work, but be unused on Unix. Ifdefing out to avoid build errors due to the unused function.
+#if !defined (FEATURE_PAL)
 static LPBYTE FollowIndirect(LPBYTE pTarget)
 {
     CONTRACT(LPBYTE)
@@ -3004,9 +3002,7 @@ static LPBYTE FollowIndirect(LPBYTE pTarget)
 
     RETURN pRet;
 }
-#if defined (FEATURE_PAL)
-#pragma clang diagnostic pop
-#endif // FEATURE_PAL
+#endif // !FEATURE_PAL
 
 BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
 {

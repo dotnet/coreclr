@@ -9986,9 +9986,12 @@ void* CEEInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method,
     // to call managed cctors
     _ASSERTE(FALSE);
 
-    void* result = NULL;
+    if (ppIndirection != NULL)
+    {
+        *ppIndirection = NULL;
+    }
 
-    return result;
+    return NULL;
 }
 
 /*********************************************************************/
