@@ -53,7 +53,7 @@ public:
             /* [out] */ ICLRPrivAssembly **ppAssembly);
 
     STDMETHOD(GetLoaderAllocator)(
-        /* [retval][out] */ LoaderAllocator** pLoaderAllocator);
+        /* [retval][out] */ LPVOID *pLoaderAllocator);
 
 public:
     //=========================================================================

@@ -599,7 +599,7 @@ Stub* COMDelegate::SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMe
 
     ShuffleThunkCache* pShuffleThunkCache = m_pShuffleThunkCache;
 
-    LoaderAllocator* pLoaderAllocator = pTargetMeth->GetLoaderAllocator();
+    LoaderAllocator* pLoaderAllocator = pDelMT->GetLoaderAllocator();
     if (pLoaderAllocator->IsCollectible())
     {
         pShuffleThunkCache = ((AssemblyLoaderAllocator*)pLoaderAllocator)->GetShuffleThunkCache();

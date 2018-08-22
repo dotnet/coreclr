@@ -100,6 +100,8 @@ namespace BINDER_SPACE
 
         STDMETHOD(GetBinderFlags)(DWORD *pBinderFlags);
 
+        STDMETHOD(GetLoaderAllocator)(LPVOID* pLoaderAllocator);
+
         // --------------------------------------------------------------------
         // Assembly methods
         // --------------------------------------------------------------------

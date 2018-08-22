@@ -1667,7 +1667,7 @@ BOOL AssemblySpecBindingCache::StoreFile(AssemblySpec *pSpec, PEAssembly *pFile)
 
             // Assemblies loaded with AssemblyLoadContext need to use a different heap if
             // marked as collectible
-            if (SUCCEEDED(pBinderContextForLookup->GetLoaderAllocator(&pLoaderAllocator)))
+            if (SUCCEEDED(pBinderContextForLookup->GetLoaderAllocator((LPVOID*)&pLoaderAllocator)))
             {
                 _ASSERTE(pLoaderAllocator != NULL);
                 pHeap = pLoaderAllocator->GetHighFrequencyHeap();

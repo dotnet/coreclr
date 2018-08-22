@@ -156,7 +156,7 @@ namespace CLRPrivBinderUtil
         //-----------------------------------------------------------------------------------------------------------------
         // Forwards to wrapped binder.
         STDMETHOD(GetLoaderAllocator)(
-            LoaderAllocator** pLoaderAllocator)
+            LPVOID * pLoaderAllocator)
         {
             WRAPPER_NO_CONTRACT;
             return _pWrapped->GetLoaderAllocator(pLoaderAllocator);

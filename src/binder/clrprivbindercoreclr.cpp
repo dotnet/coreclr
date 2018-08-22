@@ -292,7 +292,7 @@ Exit:
     return hr;
 }
 
-HRESULT CLRPrivBinderCoreCLR::GetLoaderAllocator(LoaderAllocator **pLoaderAllocator)
+HRESULT CLRPrivBinderCoreCLR::GetLoaderAllocator(LPVOID* pLoaderAllocator)
 {
     // Not supported by this binder
     return E_FAIL;

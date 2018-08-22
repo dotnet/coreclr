@@ -5568,7 +5568,7 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
         {
             // Assemblies loaded with AssemblyLoadContext need to use a different LoaderAllocator if
             // marked as collectible
-            pFileBinder->GetLoaderAllocator(&pLoaderAllocator);
+            pFileBinder->GetLoaderAllocator((LPVOID*)&pLoaderAllocator);
         }
 #endif // !CROSSGEN_COMPILE
 
