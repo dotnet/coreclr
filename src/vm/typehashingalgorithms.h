@@ -30,25 +30,27 @@ public:
         if (src == NULL || *src == '\0')
             return;
 
+        LPWSTR srcWide;
+        COUNT_T lsrcWide = WszMultiByteToWideChar(CP_UTF8, 0, src, -1, 0, 0);
+        srcWide = (LPWSTR)alloca(lsrcWide * sizeof(WCHAR));
+        WszMultiByteToWideChar(CP_UTF8, 0, src, -1, srcWide, lsrcWide);
+        lsrcWide--;
+
         int startIndex = 0;
         if ((_numCharactersHashed & 1) == 1)
         {
-            _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ src[0];
+            _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ srcWide[0];
             startIndex = 1;
         }
 
-        int len = 0;
-        for (COUNT_T i = 0; src[i] != '\0'; i++)
-            len++;
-
-        for (COUNT_T i = 0; src[i] != '\0'; i += 2)
+        for (COUNT_T i = startIndex; i < lsrcWide; i += 2)
         {
-            _hash1 = (_hash1 + _rotl(_hash1, 5)) ^ src[i];
-            if (src[i + 1] != '\0')
-                _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ src[i + 1];
+            _hash1 = (_hash1 + _rotl(_hash1, 5)) ^ srcWide[i];
+            if (srcWide[i + 1] != '\0')
+                _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ srcWide[i + 1];
         }
 
-        _numCharactersHashed += len;
+        _numCharactersHashed += lsrcWide;
     }
 
     int ToHashCode()
