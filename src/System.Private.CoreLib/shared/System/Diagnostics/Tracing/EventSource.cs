@@ -242,29 +242,8 @@ namespace System.Diagnostics.Tracing
     {
 
 #if FEATURE_EVENTSOURCE_XPLAT
-        private static readonly EventListener persistent_Xplat_Listener;
+        private static readonly EventListener persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
 #endif //FEATURE_EVENTSOURCE_XPLAT
-
-        /// <summary>
-        /// We explicitly initialize static state in a class constructor prior to creating any EventSources or EventListeners
-        /// as part of the static state.  This is necessary because it's possible to end up in a situation where in the middle of
-        /// creating an EventSource, we have to initialize the static state using a generated .cctor.  When this happens, it's possible
-        /// for an EventSource or EventListener to be created which depends on static state that has yet to be initialized.  This can cause
-        /// failures of varying types that ultimately lead to a TypeInitializationException.
-        /// 
-        /// </summary>
-        static EventSource()
-        {
-            // Initialize static state that EventSources depend upon prior to creating any EventSources or EventListeners.
-            // EventListeners can cause creation of EventSources (such as RuntimeEventSource).
-            namespaceBytes = new byte[] {
-                0x48, 0x2C, 0x2D, 0xB2, 0xC3, 0x90, 0x47, 0xC8,
-                0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB,
-            };
-#if FEATURE_EVENTSOURCE_XPLAT
-            persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
-#endif // FEATURE_EVENTSOURCE_XPLAT
-        }
 
         /// <summary>
         /// The human-friendly name of the eventSource.  It defaults to the simple name of the class
@@ -1671,6 +1650,14 @@ namespace System.Diagnostics.Tracing
 
         private static Guid GenerateGuidFromName(string name)
         {
+            if (namespaceBytes == null)
+            {
+                namespaceBytes = new byte[] {
+                    0x48, 0x2C, 0x2D, 0xB2, 0xC3, 0x90, 0x47, 0xC8,
+                    0x87, 0xF8, 0x1A, 0x15, 0xBF, 0xC1, 0x30, 0xFB,
+                };
+            }
+
             byte[] bytes = Encoding.BigEndianUnicode.GetBytes(name);
             var hash = new Sha1ForNonSecretPurposes();
             hash.Start();
@@ -3769,8 +3756,12 @@ namespace System.Diagnostics.Tracing
         internal const string s_ActivityStartSuffix = "Start";
         internal const string s_ActivityStopSuffix = "Stop";
 
+        // WARNING: Do not depend upon initialized statics during creation of EventSources, as it is possible for creation of an EventSource to trigger
+        // creation of yet another EventSource.  When this happens, these statics may not yet be initialized.
+        // Rather than depending on initialized statics, use lazy initialization to ensure that the statics are initialized exactly when they are needed.
+
         // used for generating GUID from eventsource name
-        private static readonly byte[] namespaceBytes;
+        private static byte[] namespaceBytes;
 
 #endregion
     }
