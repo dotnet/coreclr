@@ -5608,7 +5608,11 @@ public:
     // "ambientWeight".
     void optEnsureUniqueHead(unsigned loopInd, unsigned ambientWeight);
 
+    unsigned optComputeLoopIter(unsigned loopId);
+    unsigned optComputeLoopCost(unsigned loopId);
+    bool optCheckSimpleLoop(unsigned loopId);
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
+    bool optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost);
 
 protected:
     // This enumeration describes what is killed by a call.
