@@ -37,7 +37,7 @@ public class Test
     {
         if (!exp)
         {
-            //This would never be reset, since we start with true and only set it to false if the Eval fails
+            // This would never be reset, since we start with true and only set it to false if the Eval fails
             result = exp;
             String err = errorMsg;
             if (err == null)
