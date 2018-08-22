@@ -673,9 +673,9 @@ namespace System
         [Flags]
         private enum TrimType
         {
-            Head = 0,
-            Tail = 1,
-            Both = 2
+            Head = 1 << 0,
+            Tail = 1 << 1,
+            Both = Head | Tail
         }
 
         // TODO! Decide if string interning should be a public feature
