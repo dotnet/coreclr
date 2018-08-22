@@ -21,6 +21,7 @@ namespace System.Text
     // off this type. This gives improved performance over APIs which require the consumer to call an
     // IsValid method before operating on instances of this type, and it means that we can get away without
     // potentially expensive branching logic in many of our property getters.
+    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public readonly struct UnicodeScalar : IComparable<UnicodeScalar>, IEquatable<UnicodeScalar>
     {
         private readonly uint _value;
@@ -91,6 +92,8 @@ namespace System.Text
         public static bool operator >(UnicodeScalar a, UnicodeScalar b) => (a.Value > b.Value);
 
         public static bool operator >=(UnicodeScalar a, UnicodeScalar b) => (a.Value >= b.Value);
+
+        private string DebuggerDisplay => FormattableString.Invariant($"'{(IsValid((int)Value) ? ToString() : "\uFFFD")}' (U+{Value:X4})");
 
         /// <summary>
         /// Returns true iff this scalar value is ASCII ([ U+0000..U+007F ])
