@@ -289,7 +289,7 @@ inline LPVOID GetRegdisplayReturnValue(REGDISPLAY *display)
 #elif defined(_TARGET_ARM64_)
     return (LPVOID)display->pCurrentContext->X0;
 #elif defined(_TARGET_ARM_)
-    return (LPVOID)display->pCurrentContext->R0;
+    return (LPVOID)((SIZE_T)display->pCurrentContext->R0);
 #elif defined(_TARGET_X86_)
     return (LPVOID)display->pCurrentContext->Eax;
 #else
