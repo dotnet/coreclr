@@ -50,7 +50,7 @@ inline CORDB_ADDRESS GetPatchEndAddr(CORDB_ADDRESS patchAddr)
 template <class T>
 inline T _ClearThumbBit(T addr)
 {
-    return (T)(((size_t)addr) & ~THUMB_CODE);
+    return (T)(((DWORD)addr) & ~THUMB_CODE);
 }
 
 
@@ -148,7 +148,7 @@ inline PRD_TYPE CORDbgGetInstruction(UNALIGNED CORDB_ADDRESS_TYPE* address)
 {
     LIMITED_METHOD_CONTRACT;
 
-    size_t ptraddr = dac_cast<size_t>(address);
+    ULONG ptraddr = dac_cast<ULONG>(address);
     _ASSERTE(ptraddr & THUMB_CODE);
     ptraddr &= ~THUMB_CODE;
     return *(PRD_TYPE *)ptraddr;
@@ -160,7 +160,7 @@ inline void CORDbgSetInstruction(CORDB_ADDRESS_TYPE* address,
     // In a DAC build, this function assumes the input is an host address.
     LIMITED_METHOD_DAC_CONTRACT;
 
-    size_t ptraddr = dac_cast<size_t>(address);
+    ULONG ptraddr = dac_cast<ULONG>(address);
     _ASSERTE(ptraddr & THUMB_CODE);
     ptraddr &= ~THUMB_CODE;
 
