@@ -329,6 +329,10 @@ namespace R2RDump
                             gcInfo = new x86.GcInfo(Image, unwindOffset, Machine, R2RHeader.MajorVersion);
                         }
                     }
+                    else if (Machine == Machine.Arm)
+                    {
+                        unwindInfo = new Arm.UnwindInfo(Image, unwindOffset);
+                    }
 
                     RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
                     method.RuntimeFunctions.Add(rtf);
