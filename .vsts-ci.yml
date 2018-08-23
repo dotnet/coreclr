@@ -30,8 +30,13 @@ phases:
       displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
-    - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
-      displayName: Run Tests
+    - task: MSBuild@1
+      inputs:
+        solution: 'tests\helixpublishwitharcade.proj'
+        msbuildArguments: '/t:test'
+      displayName: Send job to Helix
+    # - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
+    #  displayName: Run Tests
     # - script: build.cmd %buildconfig% %archType% linuxmscorlib
     # - script: build.cmd %buildconfig% %archType% osxmscorlib
     # - ${{ if eq(parameters.archType, 'x64') }}:

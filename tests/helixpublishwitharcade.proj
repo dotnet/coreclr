@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.DotNet.Helix.Sdk">
+  <PropertyGroup>
+    <HelixSource>pr/coreclr/master</HelixSource>
+    <HelixType>test/stuff</HelixType>
+    <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
+    <HelixTargetQueue>Windows.10.Amd64</HelixTargetQueue>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <HelixWorkItem Include="Haha">
+      <Command>runtest.cmd</Command>
+      <PayloadDirectory>$(MSBuildProjectDirectory)</PayloadDirectory>
+      <Timeout>00:30:00</Timeout>
+    </HelixWorkItem>
+  </ItemGroup>
+</Project>
