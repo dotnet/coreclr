@@ -56,7 +56,6 @@ namespace R2RDump.Arm
         public UnwindCode(int index)
         {
             Index = index;
-
         }
     }
 
@@ -122,8 +121,6 @@ namespace R2RDump.Arm
                 Epilogs = new Epilog[0];
                 epilogStartAt[EpilogCount] = true; // the one and only epilog starts its unwind codes at this offset
             }
-
-            
 
             Size = offset - (int)startOffset + (int)CodeWords * 4;
             int alignmentPad = ((Size + sizeof(int) - 1) & ~(sizeof(int) - 1)) - Size;
