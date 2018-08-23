@@ -20,6 +20,7 @@ namespace JitBench
                 using (var setupSection = new IndentedTestOutputHelper("Setup " + Name, output))
                 {
                     await SetupSourceToCompile(outputDir, dotNetInstall.FrameworkDir, useExistingSetup, setupSection);
+                    RetargetProjects(dotNetInstall, GetRootDir(outputDir), new string[] { "console.csproj" });
                     await Publish(dotNetInstall, outputDir, setupSection);
                 }
             }
