@@ -75,13 +75,17 @@ inline static int ComputeNameHashCode(LPCUTF8 src)
     int hash1 = 0x6DA3B944;
     int hash2 = 0;
 
-    // DIFFERENT FROM CORERT: We hash UTF-8 bytes here, while CoreRT hashes UTF-16 characters.
+    LPWSTR srcWide;
+    COUNT_T lsrcWide = WszMultiByteToWideChar(CP_UTF8, 0, src, -1, 0, 0);
+    srcWide = (LPWSTR)alloca(lsrcWide * sizeof(WCHAR));
+    WszMultiByteToWideChar(CP_UTF8, 0, src, -1, srcWide, lsrcWide);
+    lsrcWide--;
 
-    for (COUNT_T i = 0; src[i] != '\0'; i += 2)
+    for (COUNT_T i = 0; i < lsrcWide; i += 2)
     {
-        hash1 = (hash1 + _rotl(hash1, 5)) ^ src[i];
-        if (src[i + 1] != '\0')
-            hash2 = (hash2 + _rotl(hash2, 5)) ^ src[i + 1];
+        hash1 = (hash1 + _rotl(hash1, 5)) ^ srcWide[i];
+        if (srcWide[i + 1] != '\0')
+            hash2 = (hash2 + _rotl(hash2, 5)) ^ srcWide[i + 1];
         else
             break;
     }
@@ -96,10 +100,11 @@ inline static int ComputeNameHashCode(LPCUTF8 pszNamespace, LPCUTF8 pszName)
 {
     LIMITED_METHOD_CONTRACT;
 
-    // DIFFERENT FROM CORERT: CoreRT hashes the full name as one string ("namespace.name"),
-    // as the full name is already available. In CoreCLR we normally only have separate
-    // strings for namespace and name, thus we hash them separately.
-    return ComputeNameHashCode(pszNamespace) ^ ComputeNameHashCode(pszName);
+    HashCodeBuilder hashCodeBuilder(pszNamespace);
+    if (pszNamespace != NULL && *pszNamespace != '\0')
+        hashCodeBuilder.Append(".");
+    hashCodeBuilder.Append(pszName);
+    return hashCodeBuilder.ToHashCode();
 }
 
 inline static int ComputeArrayTypeHashCode(int elementTypeHashcode, int rank)
