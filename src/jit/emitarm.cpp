@@ -4411,7 +4411,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
                            regNumber        ireg /* = REG_NA */,
                            regNumber        xreg /* = REG_NA */,
                            unsigned         xmul /* = 0     */,
-                           int              disp /* = 0     */,
+                           ssize_t          disp /* = 0     */,
                            bool             isJump /* = false */,
                            bool             isNoGC /* = false */,
                            bool             isProfLeaveCB /* = false */)
