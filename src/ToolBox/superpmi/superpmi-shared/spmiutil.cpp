@@ -11,7 +11,17 @@
 #include "logging.h"
 #include "spmiutil.h"
 
-bool breakOnDebugBreakorAV = false;
+static bool breakOnDebugBreakorAV = false;
+
+bool BreakOnDebugBreakorAV()
+{
+    return breakOnDebugBreakorAV;
+}
+
+void SetBreakOnDebugBreakOrAV(bool value)
+{
+    breakOnDebugBreakorAV = value;
+}
 
 void DebugBreakorAV(int val)
 {
@@ -19,7 +29,7 @@ void DebugBreakorAV(int val)
     {
         if (val == 0)
             __debugbreak();
-        if (breakOnDebugBreakorAV)
+        if (BreakOnDebugBreakorAV())
             __debugbreak();
     }
 

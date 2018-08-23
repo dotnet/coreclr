@@ -10,16 +10,17 @@
 
 #include "methodcontext.h"
 
-extern bool breakOnDebugBreakorAV;
+bool BreakOnDebugBreakorAV();
+void SetBreakOnDebugBreakOrAV(bool value);
 
-extern void DebugBreakorAV(int val); // Global(ish) error handler
+void DebugBreakorAV(int val); // Global(ish) error handler
 
-extern char* GetEnvironmentVariableWithDefaultA(const char* envVarName, const char* defaultValue = nullptr);
+char* GetEnvironmentVariableWithDefaultA(const char* envVarName, const char* defaultValue = nullptr);
 
-extern WCHAR* GetEnvironmentVariableWithDefaultW(const WCHAR* envVarName, const WCHAR* defaultValue = nullptr);
+WCHAR* GetEnvironmentVariableWithDefaultW(const WCHAR* envVarName, const WCHAR* defaultValue = nullptr);
 
 #ifdef FEATURE_PAL
-extern LPSTR GetCommandLineA();
+LPSTR GetCommandLineA();
 #endif // FEATURE_PAL
 
 #endif // !_SPMIUtil
