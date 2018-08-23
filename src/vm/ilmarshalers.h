@@ -599,25 +599,37 @@ public:
                 // the unmanaged type size is fixed
                 nativeSize = wNativeSize;
             }
-
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             // JIT32 and JIT64 (which is only used on the Windows Desktop CLR) has a problem generating
             // code for the pinvoke ILStubs which do a return using a struct type.  Therefore, we
             // change the signature of calli to return void and make the return buffer as first argument. 
 
+            // X64 C++ Calling Convention Return Values: https://docs.microsoft.com/en-us/cpp/build/return-values-cpp
+            // User-defined types can be returned by value from global functions and static member functions.
             // for X86 and AMD64-Windows we bash the return type from struct to U1, U2, U4 or U8
             // and use byrefNativeReturn for all other structs.
             // for UNIX_X86_ABI, we always need a return buffer argument for any size of structs.
-            switch (nativeSize)
+#if defined(_TARGET_AMD64_)
+            if (m_pslNDirect->HasThis())
             {
-#ifndef UNIX_X86_ABI
-                case 1: typ = ELEMENT_TYPE_U1; break;
-                case 2: typ = ELEMENT_TYPE_U2; break;
-                case 4: typ = ELEMENT_TYPE_U4; break;
-                case 8: typ = ELEMENT_TYPE_U8; break;
-#endif
-                default: byrefNativeReturn = true; break;
+                byrefNativeReturn = true;
             }
+            else
+            {
+#endif // defined(_TARGET_AMD64_)
+                switch (nativeSize)
+                {
+#ifndef UNIX_X86_ABI
+                    case 1: typ = ELEMENT_TYPE_U1; break;
+                    case 2: typ = ELEMENT_TYPE_U2; break;
+                    case 4: typ = ELEMENT_TYPE_U4; break;
+                    case 8: typ = ELEMENT_TYPE_U8; break;
+#endif // UNIX_X86_ABI
+                    default: byrefNativeReturn = true; break;
+                }
+#if defined(_TARGET_AMD64_)
+            }
+#endif // defined(_TARGET_AMD64_)
 #endif
         }
 
