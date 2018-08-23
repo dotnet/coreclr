@@ -6135,7 +6135,7 @@ inline regNumber GenTree::GetRegByIndex(int regIndex)
 //     The register type assigned to this index for this node.
 //
 // Notes:
-//     This must be a multireg node that is *not* a copy ore reload (which must retrieve the
+//     This must be a multireg node that is *not* a copy or reload (which must retrieve the
 //     type from its source), and 'regIndex' must be a valid index for this node.
 //
 inline var_types GenTree::GetRegTypeByIndex(int regIndex)
