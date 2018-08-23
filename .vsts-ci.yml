@@ -21,14 +21,13 @@ phases:
         x86_checked_Innerloop:
           buildConfig: checked
           archType: x86
-        x86_release_Innerloop:
-          buildConfig: release
-          archType: x86
     agentOs: Windows_NT
     phaseName: Windows_NT
     steps:
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools
       displayName: Install CMake
+    - powershell: Remove-Item -Recurse -Force bin
+      displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
     - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
