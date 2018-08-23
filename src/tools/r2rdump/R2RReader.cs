@@ -332,6 +332,10 @@ namespace R2RDump
                     else if (Machine == Machine.ArmThumb2)
                     {
                         unwindInfo = new Arm.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion); // Arm and Arm64 use the same GcInfo format as x64
+                        }
                     }
                     else if (Machine == Machine.Arm64)
                     {

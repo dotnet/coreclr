@@ -126,6 +126,8 @@ namespace R2RDump.Arm
             
 
             Size = offset - (int)startOffset + (int)CodeWords * 4;
+            int alignmentPad = ((Size + sizeof(int) - 1) & ~(sizeof(int) - 1)) - Size;
+            Size += (alignmentPad + sizeof(uint));
         }
 
         public override string ToString()
