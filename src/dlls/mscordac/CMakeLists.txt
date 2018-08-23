@@ -40,7 +40,7 @@ else(WIN32)
         generate_exports_file(${DEF_SOURCES} ${EXPORTS_FILE})
     endif(CLR_CMAKE_PLATFORM_DARWIN OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
 
-    if(CLR_CMAKE_PLATFORM_LINUX)
+    if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD)
 
         # Generate DAC export file with the DAC_ prefix
         generate_exports_file_prefix(${DEF_SOURCES} ${EXPORTS_FILE} DAC_)
@@ -107,7 +107,7 @@ _add_library(mscordacobj OBJECT mscordac.cpp)
 
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
-if(CLR_CMAKE_PLATFORM_LINUX)
+if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD)
     add_dependencies(mscordaccore lib_redefines_inc)
 endif(CLR_CMAKE_PLATFORM_LINUX)
 
