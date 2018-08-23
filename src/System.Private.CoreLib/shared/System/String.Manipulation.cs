@@ -1585,10 +1585,67 @@ namespace System
 
         // Returns a substring of this string.
         //
-        public string Substring(int startIndex) => Substring(startIndex, Length - startIndex);
+        public string Substring(int startIndex)
+        {
+            if ((uint)startIndex < (uint)Length)
+            {
+                // Common case: arguments are in bounds and caller isn't trying to substring away the entire contents
+
+                if (startIndex != 0)
+                {
+                    return InternalSubString(startIndex, Length - startIndex);
+                }
+                else
+                {
+                    return this;
+                }
+            }
+            else if (startIndex == Length)
+            {
+                // Less common case: caller is trying to substring away the entire contents
+                return Empty;
+            }
+            else
+            {
+                // Rarest case: arguments are out of bounds
+                Debug.Assert(startIndex < 0 || startIndex > Length);
+
+                // Determine the actual failure cause so that we can throw the proper exception.
+
+                if (startIndex < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndexLargerThanLength);
+                }
+            }
+        }
 
         public string Substring(int startIndex, int length)
         {
+            if ((uint)startIndex > (uint)Length || (uint)length > (uint)(Length - startIndex))
+            {
+                goto Error;
+            }
+            
+            if (length == 0)
+            {
+                return string.Empty;
+            }
+
+            if (length == this.Length)
+            {
+                return this;
+            }
+
+            return InternalSubString(startIndex, length);
+
+        Error:
+
+            // Determine the actual failure cause so that we can throw the proper exception.
+
             if (startIndex < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
@@ -1604,22 +1661,8 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
             }
 
-            if (startIndex > Length - length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
-            }
-
-            if (length == 0)
-            {
-                return string.Empty;
-            }
-
-            if (startIndex == 0 && length == this.Length)
-            {
-                return this;
-            }
-
-            return InternalSubString(startIndex, length);
+            Debug.Assert(startIndex > Length - length);
+            throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
         }
 
         private unsafe string InternalSubString(int startIndex, int length)

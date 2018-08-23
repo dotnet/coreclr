@@ -495,48 +495,61 @@ namespace System
 
         public Utf8String Substring(int startIndex)
         {
-            if ((uint)startIndex >= (uint)Length)
+            if ((uint)startIndex < (uint)Length)
             {
-                if (startIndex == Length)
+                // Common case: arguments are in bounds and caller isn't trying to substring away the entire contents
+
+                if (startIndex != 0)
                 {
-                    // We allow the start index to point just past the end of the string; this creates an empty substring
-                    return Empty;
+                    // TODO: Validate that the bounds check below is elided
+                    var slice = AsSpanFast().Slice(startIndex);
+                    var unbaked = new UnbakedUtf8String(slice);
+
+                    // Any flags (well-formed, ASCII, etc.) will transfer to the new substring as long as the new substring wasn't
+                    // split in the middle of a multi-byte sequence. We can check this cheaply by seeing if the first byte of the
+                    // substring is a continuation byte; if so then we know we've performed an invalid split. In that case we'll
+                    // return the new substring as-is without applying any characteristics.
+
+                    if (!UnicodeHelpers.IsUtf8ContinuationByte(in MemoryMarshal.GetReference(slice)))
+                    {
+                        unbaked.CopyCharacteristicsFrom(this);
+                    }
+
+                    return unbaked.BakeWithoutValidation();
                 }
                 else
                 {
-                    // TODO: Throw the correct exception type with the correct resource
-                    throw new ArgumentOutOfRangeException(paramName: nameof(startIndex));
+                    return this;
                 }
             }
-
-            if (startIndex == 0)
+            else if (startIndex == Length)
             {
-                return this;
+                // Less common case: caller is trying to substring away the entire contents
+                return Empty;
             }
-
-            // TODO: Validate that the bounds check below is elided
-            var slice = AsSpanFast().Slice(startIndex);
-            var unbaked = new UnbakedUtf8String(slice);
-
-            // Any flags (well-formed, ASCII, etc.) will transfer to the new substring as long as the new substring wasn't
-            // split in the middle of a multi-byte sequence. We can check this cheaply by seeing if the first byte of the
-            // substring is a continuation byte; if so then we know we've performed an invalid split. In that case we'll
-            // return the new substring as-is without applying any characteristics.
-
-            if (!UnicodeHelpers.IsUtf8ContinuationByte(in MemoryMarshal.GetReference(slice)))
+            else
             {
-                unbaked.CopyCharacteristicsFrom(this);
-            }
+                // Rarest case: arguments are out of bounds
+                Debug.Assert(startIndex < 0 || startIndex > Length);
 
-            return unbaked.BakeWithoutValidation();
+                // Determine the actual failure cause so that we can throw the proper exception.
+
+                if (startIndex < 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndexLargerThanLength);
+                }
+            }
         }
 
         public Utf8String Substring(int startIndex, int length)
         {
-            if (((uint)startIndex > (uint)Length) || ((uint)length > (uint)(Length - startIndex)))
+            if ((uint)startIndex > (uint)Length || (uint)length > (uint)(Length - startIndex))
             {
-                // TODO: Throw the correct exception type with the correct resource
-                throw new ArgumentOutOfRangeException();
+                goto Error;
             }
 
             if (length == 0)
@@ -564,6 +577,28 @@ namespace System
             }
 
             return unbaked.BakeWithoutValidation();
+
+        Error:
+
+            // Determine the actual failure cause so that we can throw the proper exception.
+
+            if (startIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndex);
+            }
+
+            if (startIndex > Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_StartIndexLargerThanLength);
+            }
+
+            if (length < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_NegativeLength);
+            }
+
+            Debug.Assert(startIndex > Length - length);
+            throw new ArgumentOutOfRangeException(nameof(length), SR.ArgumentOutOfRange_IndexLength);
         }
 
         public override string ToString()
