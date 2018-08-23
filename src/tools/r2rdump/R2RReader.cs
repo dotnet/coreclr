@@ -329,9 +329,17 @@ namespace R2RDump
                             gcInfo = new x86.GcInfo(Image, unwindOffset, Machine, R2RHeader.MajorVersion);
                         }
                     }
-                    else if (Machine == Machine.Arm)
+                    else if (Machine == Machine.ArmThumb2)
                     {
                         unwindInfo = new Arm.UnwindInfo(Image, unwindOffset);
+                    }
+                    else if (Machine == Machine.Arm64)
+                    {
+                        unwindInfo = new Arm64.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                        }
                     }
 
                     RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);

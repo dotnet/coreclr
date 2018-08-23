@@ -120,7 +120,7 @@ namespace R2RDump
             WriteSubDivider();
             _writer.WriteLine(method.ToString());
 
-            if (_gc)
+            if (_gc && method.GcInfo != null)
             {
                 _writer.WriteLine("GcInfo:");
                 _writer.Write(method.GcInfo);
@@ -311,7 +311,7 @@ namespace R2RDump
                                 _writer.WriteLine("Signature Bytes:");
                                 DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int));
                             }
-                            if (importSection.AuxiliaryDataRVA != 0)
+                            if (importSection.AuxiliaryDataRVA != 0 && importSection.AuxiliaryData != null)
                             {
                                 _writer.WriteLine("AuxiliaryData Bytes:");
                                 DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size);

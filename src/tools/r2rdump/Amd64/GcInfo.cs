@@ -235,7 +235,7 @@ namespace R2RDump.Amd64
             {
                 sb.AppendLine($"\tWants Report Only Leaf: {_wantsReportOnlyLeaf}");
             }
-            else if (_machine == Machine.Arm || _machine == Machine.Arm64)
+            else if (_machine == Machine.ArmThumb2 || _machine == Machine.Arm64)
             {
                 sb.AppendLine($"\tHas Tailcalls: {_wantsReportOnlyLeaf}");
             }

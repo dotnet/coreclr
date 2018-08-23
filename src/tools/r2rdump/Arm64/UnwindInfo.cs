@@ -5,7 +5,7 @@
 using System.Text;
 using System.Xml.Serialization;
 
-namespace R2RDump.Arm
+namespace R2RDump.Arm64
 {
     public class Epilog
     {
@@ -25,21 +25,21 @@ namespace R2RDump.Arm
             Index = index;
 
             EpilogStartOffset = UnwindInfo.ExtractBits(dw, 0, 18);
-            Res = UnwindInfo.ExtractBits(dw, 18, 2);
+            Res = UnwindInfo.ExtractBits(dw, 18, 4);
             Condition = UnwindInfo.ExtractBits(dw, 20, 4);
-            EpilogStartIndex = UnwindInfo.ExtractBits(dw, 24, 8);
+            EpilogStartIndex = UnwindInfo.ExtractBits(dw, 22, 10);
 
             // Note that epilogStartOffset for a funclet is the offset from the beginning
             // of the current funclet, not the offset from the beginning of the main function.
             // To help find it when looking through JitDump output, also show the offset from
             // the beginning of the main function.
-            EpilogStartOffsetFromMainFunctionBegin = EpilogStartOffset * 2 + startOffset;
+            EpilogStartOffsetFromMainFunctionBegin = EpilogStartOffset * 4 + startOffset;
         }
 
         public override string ToString()
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"\t\tEpilog Start Offset: 0x{EpilogStartOffset:X5} Actual offset = 0x{EpilogStartOffset * 2:X5} Offset from main function begin = 0x{EpilogStartOffsetFromMainFunctionBegin:X6}");
+            sb.AppendLine($"\t\tEpilog Start Offset: 0x{EpilogStartOffset:X5} Actual offset = 0x{EpilogStartOffset * 4:X5} Offset from main function begin = 0x{EpilogStartOffsetFromMainFunctionBegin:X6}");
             sb.AppendLine($"\t\tCondition: {Condition} (0x{Condition:X})" + ((Condition == 0xE) ? " (always)" : ""));
             sb.Append($"\t\tEpilog Start Index: {EpilogStartIndex} (0x{EpilogStartIndex:X})");
             return sb.ToString();
@@ -67,7 +67,6 @@ namespace R2RDump.Arm
     {
         public uint CodeWords { get; set; }
         public uint EpilogCount { get; set; }
-        public uint FBit { get; set; }
         public uint EBit { get; set; }
         public uint XBit { get; set; }
         public uint Vers { get; set; }
@@ -85,13 +84,12 @@ namespace R2RDump.Arm
             uint startOffset = (uint)offset;
 
             int dw = NativeReader.ReadInt32(image, ref offset);
-            CodeWords = ExtractBits(dw, 28, 4);
-            EpilogCount = ExtractBits(dw, 23, 5);
-            FBit = ExtractBits(dw, 22, 1);
+            CodeWords = ExtractBits(dw, 27, 5);
+            EpilogCount = ExtractBits(dw, 22, 5);
             EBit = ExtractBits(dw, 21, 1);
             XBit = ExtractBits(dw, 20, 1);
             Vers = ExtractBits(dw, 18, 2);
-            FunctionLength = ExtractBits(dw, 0, 18) * 2;
+            FunctionLength = ExtractBits(dw, 0, 18) * 4;
 
             if (CodeWords == 0 && EpilogCount == 0)
             {
@@ -102,7 +100,7 @@ namespace R2RDump.Arm
                 ExtendedEpilogCount = ExtractBits(dw, 0, 16);
             }
 
-            bool[] epilogStartAt = new bool[256]; // One byte per possible epilog start index; initialized to false
+            bool[] epilogStartAt = new bool[1024]; // One byte per possible epilog start index; initialized to false
             
             if (EBit == 0)
             {
@@ -133,7 +131,6 @@ namespace R2RDump.Arm
             StringBuilder sb = new StringBuilder();
             sb.AppendLine($"\tCodeWords: {CodeWords}");
             sb.AppendLine($"\tEpilogCount: {EpilogCount}");
-            sb.AppendLine($"\tFBit: {FBit}");
             sb.AppendLine($"\tEBit: {EBit}");
             sb.AppendLine($"\tXBit: {XBit}");
             sb.AppendLine($"\tVers: {Vers}");

@@ -6,11 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace R2RDump.Arm
+namespace R2RDump.Arm64
 {
-    /// <summary>
-    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/jit/unwindarm.cpp">src/jit/unwindarm.cpp</a> mapRegNumToDwarfReg
-    /// </summary>
     public enum Registers
     {
         R0,
