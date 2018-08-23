@@ -107,8 +107,6 @@ In x64/Arm/Arm64, GcTransitions are grouped into chunks where each chunk covers 
 
 * Support R2RDump on ARM and ARM64 (https://github.com/dotnet/coreclr/issues/19089)
 
-* Fix issue with invalid machine type in COFF header (https://github.com/dotnet/coreclr/issues/19592)
-
 * Parse R2RSections: READYTORUN_SECTION_EXCEPTION_INFO, READYTORUN_SECTION_DEBUG_INFO, READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS, READYTORUN_SECTION_INLINING_INFO, READYTORUN_SECTION_PROFILEDATA_INFO (https://github.com/dotnet/coreclr/issues/19616)
 
 * Reenable R2RDumpTests after making it less fragile
