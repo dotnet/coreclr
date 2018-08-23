@@ -2609,8 +2609,9 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
         }
 
         def isEnabledOS = (os == 'Windows_NT') ||
-                          (os == 'Ubuntu' && (isCoreFxScenario(scenario) || architecture == 'arm')) ||
-                          (os == 'Ubuntu16.04' && (isCoreFxScenario(scenario) || architecture == 'arm64'))
+                          (os == 'Ubuntu' && (architecture == 'x64') && isCoreFxScenario(scenario)) ||
+                          (os == 'Ubuntu' && architecture == 'arm') ||
+                          (os == 'Ubuntu16.04' && architecture == 'arm64')
         if (!isEnabledOS) {
             return false
         }
