@@ -59,7 +59,7 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
         // Make sure we have an actual immediate
         if (!childNode->IsCnsIntOrI())
             return false;
-        if (childNode->IsIconHandle() && comp->opts.compReloc)
+        if (childNode->gtIntCon.ImmedValNeedsReloc(comp))
             return false;
 
         ssize_t  immVal = childNode->gtIntCon.gtIconVal;
