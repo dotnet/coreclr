@@ -94,11 +94,7 @@ else (WIN32)
     enable_language(ASM)
 
     # Ensure that awk is present
-    if (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-        find_program(AWK gawk)
-    else (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
-        find_program(AWK awk)
-    endif (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    find_program(AWK awk)
     if (AWK STREQUAL "AWK-NOTFOUND")
         message(FATAL_ERROR "AWK not found")
     endif()
