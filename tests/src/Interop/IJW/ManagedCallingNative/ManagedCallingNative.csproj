@@ -1,9 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="15.0">
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../../../../../dependencies.props" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <Platforms>x86;x64</Platforms>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ManagedCallingNative.cs" />
