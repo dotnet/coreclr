@@ -511,6 +511,27 @@ namespace System
             return new ReadOnlySpan<byte>(ref Unsafe.Add(ref text.DangerousGetMutableReference(), start), length);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text)
+        {
+            // Call to Utf8String.AsSpan below will perform parameter validation
+            return (!text.IsEmpty) ? text.GetBuffer(out var offset, out var length).AsSpan(offset, length) : ReadOnlySpan<byte>.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text, int start)
+        {
+            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start) : ReadOnlySpan<byte>.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text, int start, int length)
+        {
+            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start, length) : ReadOnlySpan<byte>.Empty;
+        }
+
         /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
         /// <param name="text">The target string.</param>
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>

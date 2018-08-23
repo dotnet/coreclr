@@ -230,13 +230,18 @@ namespace System
                 return false;
             }
 
+            return Equals(a.AsSpanFast(), b.AsSpan(), comparisonType);
+        }
+
+        internal static bool Equals(ReadOnlySpan<byte> a,ReadOnlySpan<byte> b, StringComparison comparisonType)
+        {
             if (comparisonType == StringComparison.Ordinal)
             {
-                return a.AsSpanFast().SequenceEqual(b.AsSpanFast());
+                return a.SequenceEqual(b);
             }
             else if (comparisonType == StringComparison.OrdinalIgnoreCase)
             {
-                return EqualsOrdinalIgnoreCase(a.AsSpanFast(), b.AsSpanFast());
+                return EqualsOrdinalIgnoreCase(a, b);
             }
             else
             {
@@ -244,23 +249,23 @@ namespace System
                 // code unit count, even in the face of invalid input.
 
                 char[] borrowedArrA = null;
-                Span<char> spanA = a.Length <= 255 ?
+                Span<char> scratchUtf16BufferA = a.Length <= 255 ?
                     stackalloc char[255] :
                     (borrowedArrA = ArrayPool<char>.Shared.Rent(a.Length));
 
                 char[] borrowedArrB = null;
-                Span<char> spanB = b.Length <= 255 ?
+                Span<char> scratchUtf16BufferB = b.Length <= 255 ?
                     stackalloc char[255] :
                     (borrowedArrB = ArrayPool<char>.Shared.Rent(b.Length));
 
-                int utf16CodeUnitCountA = ConvertToUtf16PreservingCorruption(a.AsSpanFast(), spanA);
-                int utf16CodeUnitCountB = ConvertToUtf16PreservingCorruption(b.AsSpanFast(), spanB);
+                int utf16CodeUnitCountA = ConvertToUtf16PreservingCorruption(a, scratchUtf16BufferA);
+                int utf16CodeUnitCountB = ConvertToUtf16PreservingCorruption(b, scratchUtf16BufferB);
 
                 // Now that we're in the UTF-16 world, we can call into the localization routines.
 
                 bool retVal = MemoryExtensions.Equals(
-                    spanA.Slice(0, utf16CodeUnitCountA),
-                    spanB.Slice(0, utf16CodeUnitCountB),
+                    scratchUtf16BufferA.Slice(0, utf16CodeUnitCountA),
+                    scratchUtf16BufferB.Slice(0, utf16CodeUnitCountB),
                     comparisonType);
 
                 // Return the borrowed arrays if necessary.
@@ -563,19 +568,26 @@ namespace System
 
         public override string ToString()
         {
-            if (Length == 0)
+            if (Length != 0)
+            {
+                return ToString(AsSpanFast());
+            }
+            else
             {
                 return string.Empty;
             }
+        }
 
+        internal static string ToString(ReadOnlySpan<byte> span)
+        {
             // UTF8 -> UTF16 transcoding will never shrink the total number of code units,
             // so we should never end up in a situation where the destination buffer is too
             // small.
 
-            if ((uint)Length <= 64)
+            if ((uint)span.Length <= 64)
             {
-                Span<char> chars = stackalloc char[Length];
-                int charCount = Encoding.UTF8.GetChars(AsSpanFast(), chars);
+                Span<char> chars = stackalloc char[span.Length];
+                int charCount = Encoding.UTF8.GetChars(span, chars);
                 Debug.Assert(charCount > 0);
 
                 return new string(chars.Slice(0, charCount));
@@ -583,8 +595,8 @@ namespace System
             else
             {
                 ArrayPool<char> pool = ArrayPool<char>.Shared;
-                var chars = pool.Rent(Length);
-                int charcount = Encoding.UTF8.GetChars(AsSpanFast(), chars);
+                var chars = pool.Rent(span.Length);
+                int charcount = Encoding.UTF8.GetChars(span, chars);
                 Debug.Assert(charcount > 0);
 
                 var retVal = new string(chars, 0, charcount);
@@ -618,7 +630,7 @@ namespace System
             {
                 span = new ReadOnlySpan<byte>(ref MemoryMarshal.GetReference(span), Utf8Utility.GetIndexOfTrailingWhiteSpaceSequence(span));
             }
-            
+
             if (span.Length > 0)
             {
                 if (span.Length < Length)
@@ -671,7 +683,7 @@ namespace System
         }
 
         [Flags]
-        private enum TrimType
+        internal enum TrimType
         {
             Head = 1 << 0,
             Tail = 1 << 1,

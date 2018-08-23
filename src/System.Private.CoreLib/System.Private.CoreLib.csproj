@@ -297,6 +297,7 @@
     <Compile Include="$(BclSourcesRoot)\System\TypeLoadException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8StringComparer.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Utf8StringSegment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Creation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
