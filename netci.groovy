@@ -70,7 +70,6 @@ class Constants {
 
     def static crossList = [
                'Ubuntu',
-               'Ubuntu16.04',
                'Debian8.4',
                'OSX10.12',
                'Windows_NT',
@@ -1304,7 +1303,7 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                     if (isFlowJob && architecture == 'x86' && os == 'Ubuntu') {
                         addPeriodicTriggerHelper(job, '@daily')
                     }
-                    else if (isFlowJob || os == 'Windows_NT' || !(os in Constants.crossList)) {
+                    else if (isFlowJob || os == 'Windows_NT' || (architecture == 'x64' && !(os in Constants.crossList))) {
                         addGithubPushTriggerHelper(job)
                     }
                     break
@@ -1361,7 +1360,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert !(os in bidailyCrossList)
             // r2r gets a push trigger for checked/release
             if (configuration == 'Checked' || configuration == 'Release') {
-                assert (os == 'Windows_NT') || (os in Constants.crossList)
                 if (architecture == 'x64' && os != 'OSX10.12') {
                     //Flow jobs should be Windows, Ubuntu, OSX0.12, or CentOS
                     if (isFlowJob || os == 'Windows_NT') {
@@ -1418,7 +1416,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
 
             // GC Stress 15 r2r gets a push trigger for checked/release
             if (configuration == 'Checked' || configuration == 'Release') {
-                assert (os == 'Windows_NT') || (os in Constants.crossList)
                 if (architecture == 'x64') {
                     //Flow jobs should be Windows, Ubuntu, OSX10.12, or CentOS
                     if (isFlowJob || os == 'Windows_NT') {
@@ -1476,8 +1473,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             assert !(os in bidailyCrossList)
             // ILASM/ILDASM roundtrip one gets a daily build, and only for release
             if (architecture == 'x64' && configuration == 'Release') {
-                // We don't expect to see a job generated except in these scenarios
-                assert (os == 'Windows_NT') || (os in Constants.crossList)
                 if (isFlowJob || os == 'Windows_NT') {
                     addPeriodicTriggerHelper(job, '@daily')
                 }
@@ -1556,7 +1551,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if ((architecture == 'arm64') && isCoreFxScenario(scenario) && !isFlowJob) {
                 break
             }
-            assert (os == 'Windows_NT') || (os in Constants.crossList)
             if (jobRequiresLimitedHardware(architecture, os)) {
                 addPeriodicTriggerHelper(job, '@weekly')
             }
@@ -1576,7 +1570,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 // TODO: should we have cron jobs for arm64 Linux GCStress?
                 break
             }
-            assert (os == 'Windows_NT') || (os in Constants.crossList)
             addPeriodicTriggerHelper(job, '@weekly')
             break
         case 'gcstress0xc':
@@ -1600,7 +1593,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 // TODO: should we have cron jobs for arm64 Linux GCStress?
                 break
             }
-            assert (os == 'Windows_NT') || (os in Constants.crossList)
             addPeriodicTriggerHelper(job, '@weekly')
             break
 
