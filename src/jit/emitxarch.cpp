@@ -498,6 +498,95 @@ bool emitter::TakesVexPrefix(instruction ins)
     return IsAVXInstruction(ins);
 }
 
+
+//------------------------------------------------------------------------------------------
+// HasReservedVvvvBits: Checks if VEX or EVEX encoding of instruction has reserved VEX.vvvv
+//                      bits which must be set to 1111 otherwise instruction will #UD.
+//
+// Arguments:
+//    instruction -- processor instruction to check
+//
+// Return Value:
+//    true if instruction has a (E)VEX encoding with (E)VEX.vvvv bits reserved
+//
+bool emitter::HasReservedVvvvBits(instruction ins, code_t code)
+{
+    switch (ins)
+    {
+         case INS_comisd:
+         case INS_comiss:
+         case INS_cvtdq2pd:
+         case INS_cvtdq2ps:
+         case INS_cvtpd2dq:
+         case INS_cvtpd2ps:
+         case INS_cvtps2dq:
+         case INS_cvtps2pd:
+         case INS_cvtsd2si:
+         case INS_cvtss2si:
+         case INS_cvttpd2dq:
+         case INS_cvttps2dq:
+         case INS_cvttsd2si:
+         case INS_cvttss2si:
+         case INS_movapd:
+         case INS_movaps:
+         case INS_movd:
+         case INS_movq:
+         case INS_movddup:
+         case INS_movdqa:
+         case INS_movdqu:
+         case INS_movntdq:
+         case INS_movntpd:
+         case INS_movntps:
+         case INS_movsd:
+         case INS_movshdup:
+         case INS_movsldup:
+         case INS_pabsb:
+         case INS_pmovsxbw:
+         case INS_pmovsxbd:
+         case INS_pmovsxbq:
+         case INS_pmovsxwd:
+         case INS_pmovsxwq:
+         case INS_pmovsxdq:
+         case INS_pmovzxbw:
+         case INS_pmovzxbd:
+         case INS_pmovzxbq:
+         case INS_pmovzxwd:
+         case INS_pmovzxwq:
+         case INS_pmovzxdq:
+         case INS_sqrtpd:
+         case INS_sqrtps:
+         case INS_ucomisd:
+         case INS_ucomiss:
+         case INS_vbroadcastss:
+         case INS_vbroadcastsd:
+         case INS_vbroadcastf128:
+         case INS_vextractf128:
+         case INS_vextracti128:
+         case INS_vpbroadcastb:
+         case INS_vpbroadcastw:
+         case INS_vpbroadcastd:
+         case INS_vpbroadcastq:
+         case INS_vbroadcasti128:
+         case INS_vpermilpd:
+         case INS_vpermilps:
+         case INS_vpermpd:
+         case INS_vpermq:
+             return true;
+
+         case INS_movhpd:
+         case INS_movhps:
+             return (code & 0x17) == 0x17;
+
+         case INS_movlpd:
+         case INS_movlps:
+             return (code & 0x13) == 0x13;
+
+         default:
+             return false;
+
+    }
+}
+
 // Add base VEX prefix without setting W, R, X, or B bits
 // L bit will be set based on emitter attr.
 //
@@ -507,9 +596,9 @@ bool emitter::TakesVexPrefix(instruction ins)
 //    0-00001 - implied leading 0F opcode byte
 //    0-00010 - implied leading 0F 38 opcode bytes
 //    0-00011 - implied leading 0F 3A opcode bytes
-//    Rest    - reserved for future use and usage of them will uresult in Undefined instruction exception
+//    Rest    - reserved for future use and usage of them will result in Undefined instruction exception (#UD)
 //
-// - vvvv (4-bits) - register specifier in 1's complement form; must be 1111 if unused
+// - vvvv (4-bits) - register specifier in 1's complement form; must be 1111 if unused or reserved
 // - L - scalar or AVX-128 bit operations (L=0),  256-bit operations (L=1)
 // - pp (2-bits) - opcode extension providing equivalent functionality of a SIMD size prefix
 //                 these prefixes are treated mandatory when used with escape opcode 0Fh for
@@ -1076,15 +1165,15 @@ unsigned emitter::emitGetVexPrefixSize(instruction ins, emitAttr attr)
 }
 
 // VEX prefix encodes some bytes of the opcode and as a result, overall size of the instruction reduces.
-// Therefore, to estimate the size adding VEX prefix size and size of instruction opcode bytes will always overstimate.
+// Therefore, to estimate the size adding VEX prefix size and size of instruction opcode bytes will always overestimate.
 // Instead this routine will adjust the size of VEX prefix based on the number of bytes of opcode it encodes so that
 // instruction size estimate will be accurate.
 // Basically this function will decrease the vexPrefixSize,
 // so that opcodeSize + vexPrefixAdjustedSize will be the right size.
 // rightOpcodeSize + vexPrefixSize
-//=(opcodeSize - ExtrabytesSize) + vexPrefixSize
-//=opcodeSize + (vexPrefixSize - ExtrabytesSize)
-//=opcodeSize + vexPrefixAdjustedSize
+// =(opcodeSize - ExtrabytesSize) + vexPrefixSize
+// =opcodeSize + (vexPrefixSize - ExtrabytesSize)
+// =opcodeSize + vexPrefixAdjustedSize
 unsigned emitter::emitGetVexPrefixAdjustedSize(instruction ins, emitAttr attr, code_t code)
 {
     if (IsAVXInstruction(ins))
@@ -1617,7 +1706,7 @@ inline unsigned emitter::insEncodeReg345(instruction ins, regNumber reg, emitAtt
 /***********************************************************************************
  *
  *  Returns modified AVX opcode with the specified register encoded in bits 3-6 of
- *  byte 2 of VEX prefix.
+ *  byte 2 of VEX prefix (vvvv bits) or sets them to 1111 if Vex.vvvv bits are reserved
  */
 inline emitter::code_t emitter::insEncodeReg3456(instruction ins, regNumber reg, emitAttr size, code_t code)
 {
@@ -1625,13 +1714,18 @@ inline emitter::code_t emitter::insEncodeReg3456(instruction ins, regNumber reg,
     assert(IsAVXInstruction(ins));
     assert(hasVexPrefix(code));
 
-    // Get 4-bit register encoding
-    // RegEncoding() gives lower 3 bits
-    // IsExtendedReg() gives MSB.
-    code_t regBits = RegEncoding(reg);
-    if (IsExtendedReg(reg))
+    code_t regBits = 0x00;
+
+    if (!HasReservedVvvvBits(ins, code))
     {
-        regBits |= 0x08;
+        // Get 4-bit register encoding
+        // RegEncoding() gives lower 3 bits
+        // IsExtendedReg() gives MSB.
+        regBits = RegEncoding(reg);
+        if (IsExtendedReg(reg))
+        {
+            regBits |= 0x08;
+        }
     }
 
     // VEX prefix encodes register operand in 1's complement form
