@@ -4402,7 +4402,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
                            CORINFO_METHOD_HANDLE methHnd,                   // used for pretty printing
                            INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) // used to report call sites to the EE
                            void*            addr,
-                           ssize_t          argSize,
+                           int              argSize,
                            emitAttr         retSize,
                            VARSET_VALARG_TP ptrVars,
                            regMaskTP        gcrefRegs,
@@ -4487,8 +4487,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % (int)REGSIZE_BYTES == 0);
-    argCnt = argSize / (int)REGSIZE_BYTES;
+    assert(argSize % REGSIZE_BYTES == 0);
+    argCnt = argSize / REGSIZE_BYTES;
 
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)

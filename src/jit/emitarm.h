@@ -329,7 +329,7 @@ void emitIns_Call(EmitCallType          callType,
                   CORINFO_METHOD_HANDLE methHnd,                   // used for pretty printing
                   INDEBUG_LDISASM_COMMA(CORINFO_SIG_INFO* sigInfo) // used to report call sites to the EE
                   void*            addr,
-                  ssize_t          argSize,
+                  int              argSize,
                   emitAttr         retSize,
                   VARSET_VALARG_TP ptrVars,
                   regMaskTP        gcrefRegs,
