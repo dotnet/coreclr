@@ -23,4 +23,6 @@ WCHAR* GetEnvironmentVariableWithDefaultW(const WCHAR* envVarName, const WCHAR* 
 LPSTR GetCommandLineA();
 #endif // FEATURE_PAL
 
+bool LoadRealJitLib(HMODULE& realJit, WCHAR* realJitPath);
+
 #endif // !_SPMIUtil

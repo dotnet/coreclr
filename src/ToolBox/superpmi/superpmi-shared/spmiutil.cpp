@@ -117,3 +117,23 @@ LPSTR GetCommandLineA()
     return pCmdLine;
 }
 #endif // FEATURE_PAL
+
+bool LoadRealJitLib(HMODULE& jitLib, WCHAR* jitLibPath)
+{
+    // Load Library
+    if (jitLib == NULL)
+    {
+        if (jitLibPath == nullptr)
+        {
+            LogError("LoadRealJitLib - No real jit path");
+            return false;
+        }
+        jitLib = ::LoadLibraryW(jitLibPath);
+        if (jitLib == NULL)
+        {
+            LogError("LoadRealJitLib - LoadLibrary failed to load '%ws' (0x%08x)", jitLibPath, ::GetLastError());
+            return false;
+        }
+    }
+    return true;
+}
