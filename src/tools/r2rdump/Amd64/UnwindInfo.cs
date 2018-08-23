@@ -126,11 +126,11 @@ namespace R2RDump.Amd64
             for (int i = 0; i < CountOfUnwindCodes; i++)
             {
                 ParseUnwindCode(ref i);
-                if (!UnwindCodes.ContainsKey(UnwindCodeArray[i].CodeOffset - 1))
+                if (!UnwindCodes.ContainsKey(UnwindCodeArray[i].CodeOffset))
                 {
-                    UnwindCodes[UnwindCodeArray[i].CodeOffset - 1] = new List<UnwindCode>();
+                    UnwindCodes[UnwindCodeArray[i].CodeOffset] = new List<UnwindCode>();
                 }
-                UnwindCodes[UnwindCodeArray[i].CodeOffset - 1].Add(UnwindCodeArray[i]);
+                UnwindCodes[UnwindCodeArray[i].CodeOffset].Add(UnwindCodeArray[i]);
             }
 
             PersonalityRoutineRVA = NativeReader.ReadUInt32(image, ref offset);

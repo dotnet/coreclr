@@ -180,8 +180,6 @@ namespace R2RDump
                 string instr;
                 int instrSize = _disassembler.GetInstruction(rtf, imageOffset, rtfOffset, out instr);
 
-                _writer.Write(instr);
-
                 if (_r2r.Machine == Machine.Amd64 && ((Amd64.UnwindInfo)rtf.UnwindInfo).UnwindCodes.ContainsKey(codeOffset))
                 {
                     List<Amd64.UnwindCode> codes = ((Amd64.UnwindInfo)rtf.UnwindInfo).UnwindCodes[codeOffset];
@@ -203,6 +201,11 @@ namespace R2RDump
                         _writer.WriteLine($"\t\t\t\t{transition.ToString()}");
                     }
                 }
+
+                /* According to https://msdn.microsoft.com/en-us/library/ck9asaa9.aspx and src/vm/gcinfodecoder.cpp
+                 * UnwindCode and GcTransition CodeOffsets are encoded with a -1 adjustment (that is, it's the offset of the start of the next instruction)
+                 */
+                _writer.Write(instr);
 
                 CoreDisTools.ClearOutputBuffer();
                 rtfOffset += instrSize;
