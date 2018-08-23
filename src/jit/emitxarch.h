@@ -120,6 +120,8 @@ bool hasRexPrefix(code_t code)
 
 bool TakesVexPrefix(instruction ins);
 
+bool HasReservedVvvvBits(instruction ins, code_t code);
+
 // Returns true if the instruction encoding already contains VEX prefix
 bool hasVexPrefix(code_t code)
 {

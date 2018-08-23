@@ -496,6 +496,7 @@ INST3( vpermilpd,    "permilpd"    , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SS
 INST3( vpermilpsvar, "permilpsvar" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x0C))   // Permute In-Lane of Quadruples of Single-Precision Floating-Point Values
 INST3( vpermilpdvar, "permilpdvar" , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x0D))   // Permute In-Lane of Quadruples of Double-Precision Floating-Point Values
 INST3( vperm2f128,   "perm2f128"   , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x06))   // Permute Floating-Point Values
+INST3( vpermpd,      "permpd"      , 0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE3A(0x01))   // Permute Double-Precision Floating-Point Values
 INST3(vbroadcastf128,"broadcastf128",0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x1A))   // Broadcast packed float values read from memory to entire ymm register
 INST3(vbroadcasti128,"broadcasti128",0, IUM_WR, 0, 0, BAD_CODE,     BAD_CODE, SSE38(0x5A))   // Broadcast packed integer values read from memory to entire ymm register
 INST3(vmaskmovps,    "maskmovps"    ,0, IUM_WR, 0, 0, SSE38(0x2E),  BAD_CODE, SSE38(0x2C))   // Conditional SIMD Packed Single-Precision Floating-Point Loads and Stores
