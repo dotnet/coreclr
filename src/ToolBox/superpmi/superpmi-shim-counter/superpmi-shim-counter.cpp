@@ -96,6 +96,11 @@ extern "C" BOOL
             delete[] g_logFilePath;
             g_logFilePath = nullptr;
 
+            if (g_globalContext != nullptr)
+            {
+                g_globalContext->SaveTextFile();
+            }
+
             break;
 
         case DLL_THREAD_ATTACH:
