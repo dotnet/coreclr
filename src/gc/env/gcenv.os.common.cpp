@@ -19,7 +19,7 @@
 
 #ifdef PLATFORM_UNIX
 #include "config.h"
-#include "../unix/numa.h"
+#include "../unix/numa_gc.h"
 #endif // PLATFORM_UNIX
 
 static bool g_fEnableGCNumaAware;

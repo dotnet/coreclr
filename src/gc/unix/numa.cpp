@@ -54,7 +54,12 @@ typedef struct _PROCESSOR_NUMBER {
     uint8_t Reserved;
 } PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
 
-#include "numa.h"
+#include "numa_gc.h"
+
+#if HAVE_NUMA_H
+#include <numa.h>
+#include <numaif.h>
+#endif // HAVE_NUMA_H
 
 #if HAVE_CPUSET_T
 typedef cpuset_t cpu_set_t;
@@ -84,6 +89,7 @@ bool g_numaAvailable = false;
 
 void* numaHandle = nullptr;
 
+#if HAVE_NUMA_H
 #define numa_free_cpumask numa_bitmask_free
 
 // List of all functions from the numa library that are used
@@ -98,6 +104,24 @@ void* numaHandle = nullptr;
     PER_FUNCTION_BLOCK(numa_bitmask_isbitset) \
     PER_FUNCTION_BLOCK(numa_bitmask_free)
 
+// Declare pointers to all the used numa functions
+#define PER_FUNCTION_BLOCK(fn) extern decltype(fn)* fn##_ptr;
+FOR_ALL_NUMA_FUNCTIONS
+#undef PER_FUNCTION_BLOCK
+
+// Redefine all calls to numa functions as calls through pointers that are set
+// to the functions of libnuma in the initialization.
+#define numa_available() numa_available_ptr()
+#define mbind(...) mbind_ptr(__VA_ARGS__)
+#define numa_num_possible_cpus() numa_num_possible_cpus_ptr()
+#define numa_max_node() numa_max_node_ptr()
+#define numa_allocate_cpumask() numa_allocate_cpumask_ptr()
+#define numa_node_to_cpus(...) numa_node_to_cpus_ptr(__VA_ARGS__)
+#define numa_bitmask_weight(...) numa_bitmask_weight_ptr(__VA_ARGS__)
+#define numa_bitmask_isbitset(...) numa_bitmask_isbitset_ptr(__VA_ARGS__)
+#define numa_bitmask_free(...) numa_bitmask_free_ptr(__VA_ARGS__)
+
+#endif // HAVE_NUMA_H
 
 static const int MaxCpusPerGroup = 8 * sizeof(KAFFINITY);
 static const uint16_t NO_GROUP = 0xffff;
@@ -271,7 +295,7 @@ FOR_ALL_NUMA_FUNCTIONS
                 int st = numa_node_to_cpus(i, mask);
                 // The only failure that can happen is that the mask is not large enough
                 // but that cannot happen since the mask was allocated by numa_allocate_cpumask
-                _ASSERTE(st == 0);
+                assert(st == 0);
                 unsigned int nodeCpuCount = numa_bitmask_weight(mask);
                 g_cpuCount += nodeCpuCount;
                 unsigned int nodeGroupCount = (nodeCpuCount + MaxCpusPerGroup - 1) / MaxCpusPerGroup;
@@ -292,7 +316,7 @@ FOR_ALL_NUMA_FUNCTIONS
                 int st = numa_node_to_cpus(i, mask);
                 // The only failure that can happen is that the mask is not large enough
                 // but that cannot happen since the mask was allocated by numa_allocate_cpumask
-                _ASSERTE(st == 0);
+                assert(st == 0);
                 unsigned int nodeCpuCount = numa_bitmask_weight(mask);
                 unsigned int nodeGroupCount = (nodeCpuCount + MaxCpusPerGroup - 1) / MaxCpusPerGroup;
                 for (int j = 0; j < g_possibleCpuCount; j++)
@@ -601,7 +625,7 @@ void *VirtualAllocExNuma(
 
                 int st = mbind(result, dwSize, MPOL_PREFERRED, nodeMask, g_highestNumaNode, 0);
 
-                _ASSERTE(st == 0);
+                assert(st == 0);
                 // If the mbind fails, we still return the allocated memory since the nndPreferred is just a hint
             }
 #endif // HAVE_NUMA_H
