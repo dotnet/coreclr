@@ -8,7 +8,6 @@ set(GC_PAL_SOURCES
     gcenv.unix.cpp
     events.cpp
     cgroup.cpp
-    cpuinfo.cpp
-    numa.cpp)
+    cpuinfo.cpp)
 
 add_library(gc_unix STATIC ${GC_PAL_SOURCES} ${VERSION_FILE_PATH})

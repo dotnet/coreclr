@@ -35,8 +35,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     ${GC_SOURCES}
     unix/gcenv.unix.cpp
     unix/events.cpp
-    unix/cgroup.cpp
-    unix/numa.cpp)
+    unix/cgroup.cpp)
 else()
   set ( GC_SOURCES
     ${GC_SOURCES}
