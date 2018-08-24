@@ -365,7 +365,7 @@ namespace R2RDump
                 return;
             }
 
-            Dictionary<uint, bool> added = new Dictionary<uint, bool>();
+            HashSet<uint> added = new HashSet<uint>();
 
             R2RSection availableTypesSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
             int availableTypesOffset = GetOffset(availableTypesSection.RelativeVirtualAddress);
@@ -377,7 +377,7 @@ namespace R2RDump
             {
                 uint rid = curParser.GetUnsigned();
                 rid = rid >> 1;
-                if (added.ContainsKey(rid))
+                if (added.Contains(rid))
                     continue;
 
                 TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
@@ -391,12 +391,12 @@ namespace R2RDump
                 if (typeDefName != null)
                 {
                     AvailableTypes.Add(typeDefName);
-                    added[rid] = true;
+                    added.Add(rid);
                 }
                 if (exportedTypeName != null)
                 {
                     AvailableTypes.Add("exported " + exportedTypeName);
-                    added[rid] = true;
+                    added.Add(rid);
                 }
 
                 curParser = allEntriesEnum.GetNext();
