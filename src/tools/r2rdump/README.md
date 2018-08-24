@@ -113,4 +113,4 @@ In x64/Arm/Arm64, GcTransitions are grouped into chunks where each chunk covers 
 
 * Reenable R2RDumpTests after making it less fragile
 
-* Fix issue with disasm on Arm (https://github.com/dotnet/coreclr/issues/19637)
+* Fix issues with disasm on Arm (https://github.com/dotnet/coreclr/issues/19637) and disasm using x86 coredistools (https://github.com/dotnet/coreclr/issues/19564)
