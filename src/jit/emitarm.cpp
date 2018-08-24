@@ -7398,7 +7398,7 @@ void emitter::emitDispInsHelp(
             {
                 if (id->idIsDspReloc())
                     printf("reloc ");
-                printf("%p", addr);
+                printf("%p", dspPtr(addr));
             }
             else
             {
