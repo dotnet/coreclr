@@ -48,9 +48,9 @@ namespace R2RDump
     /// </summary>
     public enum OperatingSystem
     {
-        APPLE = 0x4644,
+        Apple = 0x4644,
         FreeBSD = 0xADC4,
-        linux = 0x7B79,
+        Linux = 0x7B79,
         NetBSD = 0x1993,
         Windows = 0,
         Unknown = -1
