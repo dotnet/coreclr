@@ -30,10 +30,12 @@ phases:
       displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
-    - task: MSBuild@1
+    - task: DotNetCoreCLI@2
       inputs:
-        solution: 'tests\helixpublishwitharcade.proj'
-        msbuildArguments: '/t:test'
+        command: custom
+        projects: tests\helixpublishwitharcade.proj
+        custom: msbuild
+        arguments: '/t:test'
       displayName: Send job to Helix
     # - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
     #  displayName: Run Tests
