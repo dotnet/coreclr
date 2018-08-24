@@ -211,11 +211,18 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
 //  size    - size of the virtual memory range
 // Return:
 //  true if it has succeeded, false if it has failed
-bool GCToOSInterface::VirtualCommit(void* address, size_t size)
+bool GCToOSInterface::VirtualCommit(void* address, size_t size, uint32_t node)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return ::ClrVirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != NULL;
+    if (node == NUMA_NODE_UNDEFINED)
+    {
+        return ::ClrVirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != NULL;
+    }
+    else
+    {
+        return NumaNodeInfo::VirtualAllocExNuma(::GetCurrentProcess(), address, size, MEM_COMMIT, PAGE_READWRITE, node) != NULL;
+    }
 }
 
 // Decomit virtual memory range.
@@ -723,13 +730,6 @@ bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t
     LIMITED_METHOD_CONTRACT;
 
     return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
-}
-
-void* GCToOSInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return NumaNodeInfo::VirtualAllocExNuma(GetCurrentProcess(), lpAddr, dwSize, allocType, prot, node);
 }
 
 bool GCToOSInterface::CanEnableGCCPUGroups()

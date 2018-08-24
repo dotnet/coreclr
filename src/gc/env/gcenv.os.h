@@ -21,6 +21,8 @@
 extern bool g_fIsNumaAwareEnabledByConfig;
 extern bool g_fIsCPUGroupEnabledByConfig;
 
+#define NUMA_NODE_UNDEFINED UINT32_MAX
+
 // Critical section used by the GC
 class CLRCriticalSection
 {
@@ -197,7 +199,7 @@ public:
     //  size    - size of the virtual memory range
     // Return:
     //  true if it has succeeded, false if it has failed
-    static bool VirtualCommit(void *address, size_t size);
+    static bool VirtualCommit(void *address, size_t size, uint32_t node = NUMA_NODE_UNDEFINED);
 
     // Decomit virtual memory range.
     // Parameters:
@@ -397,7 +399,6 @@ public:
 
     static bool CanEnableGCNumaAware();
     static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
-    static void* VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node);
 
     static bool CanEnableGCCPUGroups();
     static uint16_t GetNumActiveProcessors();

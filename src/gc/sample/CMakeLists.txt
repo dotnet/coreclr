@@ -24,7 +24,6 @@ set(SOURCES
     ../handletablescan.cpp
     ../objecthandle.cpp
     ../softwarewritewatch.cpp
-    ../env/gcenv.os.common.cpp
 )
 
 if(WIN32)

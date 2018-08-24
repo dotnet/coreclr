@@ -663,6 +663,10 @@ void EEStartupHelper(COINITIEE fFlags)
         }
 
 #ifndef CROSSGEN_COMPILE
+        // Initialize Numa and CPU group information
+        // Need to do this as early as possible. Used by creating object handle
+        // table inside Ref_Initialization() before GC is initialized.
+        NumaNodeInfo::InitNumaNodeInfo();
         CPUGroupInfo::EnsureInitialized();
 
 

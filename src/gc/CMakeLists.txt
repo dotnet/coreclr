@@ -27,8 +27,7 @@ set( GC_SOURCES
   gceesvr.cpp
   gceewks.cpp
   gcload.cpp
-  handletablecache.cpp
-  env/gcenv.os.common.cpp)
+  handletablecache.cpp)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
   include(unix/configure.cmake)

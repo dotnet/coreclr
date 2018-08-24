@@ -5467,9 +5467,7 @@ bool virtual_alloc_commit_for_heap(void* addr, size_t size, int h_number)
         if (GCToOSInterface::CanEnableGCNumaAware())
         {
             uint32_t numa_node = heap_select::find_numa_node_from_heap_no(h_number);
-            void * ret = GCToOSInterface::VirtualAllocExNuma(addr, size, 
-                                                          MEM_COMMIT, PAGE_READWRITE, numa_node);
-            if (ret != NULL)
+            if (GCToOSInterface::VirtualCommit(addr, size, numa_node))
                 return true;
         }
     }
