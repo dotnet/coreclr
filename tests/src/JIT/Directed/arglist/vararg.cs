@@ -4733,7 +4733,7 @@ namespace NativeVarargTest
             success = ReportFailure(TestPassingEmptyFloatsManaged(new float[] { }), "TestPassingEmptyFloatsManaged(new float[] { })", success, 44);
             success = ReportFailure(TestPassingEmptyDoubleManaged(new double[] { }), "TestPassingEmptyDoubleManaged(new double[] { })", success, 45);
 
-            int returnValue = ReportFailure(TestPassingStructsManaged(), "TestPassingStructsManaged()", success, TestPassingStructsManaged());
+            success = ReportFailure(TestPassingStructsManaged(), "TestPassingStructsManaged()", success, TestPassingStructsManaged());
 
             ////////////////////////////////////////////////////////////////////
             // PInvoke Tests
@@ -4937,7 +4937,7 @@ namespace NativeVarargTest
             success = ReportFailure(TestPassingEmptyFloats(new float[] { }), "TestPassingEmptyFloats(new float[] { })", success, 13);
             success = ReportFailure(TestPassingEmptyDouble(new double[] { }), "TestPassingEmptyDouble(new double[] { })", success, 14);
 
-            returnValue = ReportFailure(TestPassingStructs(), "TestPassingStructs()", success, TestPassingStructs());
+            success = ReportFailure(TestPassingStructs(), "TestPassingStructs()", success, TestPassingStructs());
 
             success = ReportFailure(TestPassingTwentyFourByteStructs(), "TestPassingTwentyFourByteStructs()", success, 108);
 
