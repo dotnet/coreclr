@@ -25,4 +25,6 @@ LPSTR GetCommandLineA();
 
 bool LoadRealJitLib(HMODULE& realJit, WCHAR* realJitPath);
 
+WCHAR* getResultFileName(const WCHAR* folderPath, WCHAR* executableName, const WCHAR* extension);
+
 #endif // !_SPMIUtil
