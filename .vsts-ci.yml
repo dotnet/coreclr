@@ -7,6 +7,9 @@ resources:
     name: dotnet/arcade
     ref: refs/heads/master
 
+variables:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
 phases:
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
