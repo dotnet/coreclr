@@ -4266,10 +4266,12 @@ VOID EtwCallbackCommon(
     CallbackProviderIndex ProviderIndex,
     ULONG ControlCode,
     UCHAR Level,
-    ULONGLONG MatchAnyKeyword)
+    ULONGLONG MatchAnyKeyword,
+    PVOID pFilterData)
 {
     LIMITED_METHOD_CONTRACT;
 
+    PEVENT_FILTER_DESCRIPTOR FilterData = (PEVENT_FILTER_DESCRIPTOR)pFilterData;
     bool bIsPublicTraceHandle = ProviderIndex == DotNETRuntime;
 #if !defined(FEATURE_PAL)
     static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
@@ -4282,6 +4284,23 @@ VOID EtwCallbackCommon(
     GCEventKeyword keywords = static_cast<GCEventKeyword>(MatchAnyKeyword);
     GCEventLevel level = static_cast<GCEventLevel>(Level);
     GCHeapUtilities::RecordEventStateChange(bIsPublicTraceHandle, keywords, level);
+
+    // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
+    // flick this to force a full GC.
+    if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle &&
+        ((MatchAnyKeyword & CLR_GCHEAPCOLLECT_KEYWORD) != 0))
+    {
+        // Profilers may (optionally) specify extra data in the filter parameter
+        // to log with the GCStart event.
+        LONGLONG l64ClientSequenceNumber = 0;
+        if ((FilterData != NULL) &&
+           (FilterData->Type == 1) &&
+           (FilterData->Size == sizeof(l64ClientSequenceNumber)))
+        {
+            l64ClientSequenceNumber = *(LONGLONG *) (FilterData->Ptr);
+        }
+        ETW::GCLog::ForceGC(l64ClientSequenceNumber);
+    }
 }
 
 // Individual callbacks for each EventPipe provider.
@@ -4297,7 +4316,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeStress(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntime(
@@ -4311,7 +4330,7 @@ VOID EventPipeEtwCallbackDotNETRuntime(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimeRundown(
@@ -4325,7 +4344,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeRundown(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimePrivate(
@@ -4339,7 +4358,7 @@ VOID EventPipeEtwCallbackDotNETRuntimePrivate(
 {
     WRAPPER_NO_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword);
+    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword, FilterData);
 }
 
 
@@ -4491,7 +4510,7 @@ extern "C"
             return;
         }
 
-        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword);
+        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData);
 
         // TypeSystemLog needs a notification when certain keywords are modified, so
         // give it a hook here.
@@ -4550,23 +4569,6 @@ extern "C"
             if (g_fEEStarted && !g_fEEShutDown && (ControlCode == EVENT_CONTROL_CODE_CAPTURE_STATE))
             {
                 ETW::EnumerationLog::EnumerateForCaptureState();
-            }
-
-            // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
-            // flick this to force a full GC.
-            if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle &&
-                ((MatchAnyKeyword & CLR_GCHEAPCOLLECT_KEYWORD) != 0))
-            {
-                // Profilers may (optionally) specify extra data in the filter parameter
-                // to log with the GCStart event.
-                LONGLONG l64ClientSequenceNumber = 0;
-                if ((FilterData != NULL) &&
-                    (FilterData->Type == 1) &&
-                    (FilterData->Size == sizeof(l64ClientSequenceNumber)))
-                {
-                    l64ClientSequenceNumber = *(LONGLONG *) (FilterData->Ptr);
-                }
-                ETW::GCLog::ForceGC(l64ClientSequenceNumber);
             }
         }
 #ifdef FEATURE_COMINTEROP
