@@ -514,17 +514,31 @@ namespace R2RDump
         /// </summary>
         public static string GetTypeDefFullName(MetadataReader mdReader, TypeDefinitionHandle handle)
         {
-            TypeDefinition typeDef;
+            string typeNamespace = "";
             string typeStr = "";
             do
             {
-                typeDef = mdReader.GetTypeDefinition(handle);
-                typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
-                handle = typeDef.GetDeclaringType();
+                try
+                {
+                    TypeDefinition typeDef = mdReader.GetTypeDefinition(handle);
+                    typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
+                    handle = typeDef.GetDeclaringType();
+                    if (handle.IsNil)
+                        typeNamespace = mdReader.GetString(typeDef.Namespace);
+                }
+                catch
+                {
+                    int rid = MetadataTokens.GetRowNumber(mdReader, handle);
+                    ExportedTypeHandle exportedTypeHandle = MetadataTokens.ExportedTypeHandle(rid);
+                    ExportedType exportedType = mdReader.GetExportedType(exportedTypeHandle);
+                    typeStr = "." + mdReader.GetString(exportedType.Name) + typeStr;
+                    typeNamespace = mdReader.GetString(exportedType.Namespace);
+                    break;
+                }
             }
             while (!handle.IsNil);
 
-            return mdReader.GetString(typeDef.Namespace) + typeStr;
+            return typeNamespace + typeStr;
         }
 
         /// <summary>
