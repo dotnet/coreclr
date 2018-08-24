@@ -6435,9 +6435,9 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
         getEmitter()->emitIns_R_AR(INS_lea, EA_PTRSIZE, REG_EDI, genFramePointerReg(), untrLclLo);
         regSet.verifyRegUsed(REG_EDI);
 
-        inst_RV_IV(INS_mov, REG_ECX, (untrLclHi - untrLclLo) / sizeof(int), EA_4BYTE);
+        inst_RV_IV(INS_mov, REG_ECX, untrLclHi - untrLclLo, EA_4BYTE);
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, REG_EAX);
-        instGen(INS_r_stosd);
+        instGen(INS_r_stosb);
 
 #ifdef UNIX_AMD64_ABI
         // Move back the argument registers
