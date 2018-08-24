@@ -26,6 +26,8 @@ private:
     void AddStackLevel(unsigned value);
     void SubStackLevel(unsigned value);
 
+    void CheckArgCnt();
+
 private:
     unsigned currentStackLevel; // current number of stack slots used by arguments.
     unsigned maxStackLevel;     // max number of stack slots for arguments.

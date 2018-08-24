@@ -4001,7 +4001,6 @@ public:
 
     bool fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg));
 
-    void fgCheckArgCnt();
     void fgSetOptions();
 
 #ifdef DEBUG
@@ -4916,11 +4915,11 @@ public:
         fgPtrArgCntMax = argCntMax;
     }
 
+    bool compCanEncodePtrArgCntMax();
+
 private:
     hashBv* fgOutgoingArgTemps;
     hashBv* fgCurrentlyInUseArgTemps;
-
-    bool compCanEncodePtrArgCntMax();
 
     void fgSetRngChkTarget(GenTree* tree, bool delay = true);
 

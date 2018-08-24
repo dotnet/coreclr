@@ -56,6 +56,7 @@ void StackLevelSetter::DoPhase()
                 comp->fgGetPtrArgCntMax(), maxStackLevel);
         comp->fgSetPtrArgCntMax(maxStackLevel);
     }
+    CheckArgCnt();
 }
 
 //------------------------------------------------------------------------
@@ -267,4 +268,44 @@ void StackLevelSetter::SubStackLevel(unsigned value)
 {
     assert(currentStackLevel >= value);
     currentStackLevel -= value;
+}
+
+//------------------------------------------------------------------------
+// fgCheckArgCnt: Check whether the maximum arg size will change codegen requirements
+//
+// Notes:
+//    fpPtrArgCntMax records the maximum number of pushed arguments.
+//    Depending upon this value of the maximum number of pushed arguments
+//    we may need to use an EBP frame or be partially interuptible.
+//    This functionality has been factored out of fgSetOptions() because
+//    the Rationalizer can create new calls.
+//
+// Assumptions:
+//    This must be called before isFramePointerRequired() is called, because it is a
+//    phased variable (can only be written before it has been read).
+//
+void StackLevelSetter::CheckArgCnt()
+{
+    if (!comp->compCanEncodePtrArgCntMax())
+    {
+#ifdef DEBUG
+        if (comp->verbose)
+        {
+            printf("Too many pushed arguments for fully interruptible encoding, marking method as partially "
+                   "interruptible\n");
+        }
+#endif
+        comp->genInterruptible = false;
+    }
+    if (maxStackLevel >= sizeof(unsigned))
+    {
+#ifdef DEBUG
+        if (comp->verbose)
+        {
+            printf("Too many pushed arguments for an ESP based encoding, forcing an EBP frame\n");
+        }
+#endif
+        comp->codeGen->resetWritePhaseForFramePointerRequired();
+        comp->codeGen->setFramePointerRequired(true);
+    }
 }
