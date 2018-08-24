@@ -16,7 +16,7 @@ namespace ManagedCallingNative
         {
             bool success = true;
             // Load a fake mscoree.dll to avoid starting desktop
-            LoadLibraryEx("mscoree.dll", IntPtr.Zero, 0);
+            LoadLibraryEx(Path.Combine(Environment.CurrentDirectory, "mscoree.dll"), IntPtr.Zero, 0);
 
             TestFramework.BeginScenario("Calling from managed to native IJW code");
 
@@ -30,7 +30,7 @@ namespace ManagedCallingNative
             object testInstance = Activator.CreateInstance(testType);
             MethodInfo testMethod = testType.GetMethod("ManagedEntryPoint");
             int result = (int)testMethod.Invoke(testInstance, null);
-            if(result != 100)
+            if (result != 100)
             {
                 TestFramework.LogError("IJW", "Incorrect result returned: " + result);
                 success = false;
@@ -48,10 +48,22 @@ namespace ManagedCallingNative
             catch { }
             TestFramework.EndTestCase();
 
+            TestFramework.BeginTestCase("Ensure .NET Framework was not loaded");
+            IntPtr clrHandle = GetModuleHandle("mscoreei.dll");
+            if (clrHandle != IntPtr.Zero)
+            {
+                TestFramework.LogError("IJW", ".NET Framework loaded by IJw module load");
+                success = false;
+            }
+            TestFramework.EndTestCase();
+
             return success ? 100 : 99;
         }
 
         [DllImport("kernel32.dll")]
         static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hReservedNull, int dwFlags);
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetModuleHandle(string lpModuleName);
     }
 }
