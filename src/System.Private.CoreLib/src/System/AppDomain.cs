@@ -656,6 +656,9 @@ namespace System
                     SetupFusionStore(new AppDomainSetup(), null);
                 }
             }
+
+            // TODO: Find a better place to put this?
+            System.Diagnostics.Tracing.EventPipeController.Initialize();
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
