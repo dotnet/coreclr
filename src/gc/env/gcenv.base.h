@@ -74,6 +74,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
 #define COR_E_EXECUTIONENGINE   0x80131506
+#define MEM_COMMIT              0x1000
+#define PAGE_READWRITE          0x04
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460

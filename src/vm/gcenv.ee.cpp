@@ -1474,6 +1474,6 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
     LIMITED_METHOD_CONTRACT;
 
     AppDomain *realPtr = static_cast<AppDomain *>(appDomain);
-    return realPtr->IsRudeUnload();
+    return realPtr->IsRudeUnload() != FALSE;
 }
 

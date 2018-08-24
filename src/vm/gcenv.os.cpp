@@ -715,14 +715,14 @@ bool GCToOSInterface::CanEnableGCNumaAware()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return NumaNodeInfo::CanEnableGCNumaAware();
+    return NumaNodeInfo::CanEnableGCNumaAware() != FALSE;
 }
 
 bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no);
+    return NumaNodeInfo::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
 }
 
 void* GCToOSInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
@@ -736,7 +736,7 @@ bool GCToOSInterface::CanEnableGCCPUGroups()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return CPUGroupInfo::CanEnableGCCPUGroups();
+    return CPUGroupInfo::CanEnableGCCPUGroups() != FALSE;
 }
 
 uint16_t GCToOSInterface::GetNumActiveProcessors()

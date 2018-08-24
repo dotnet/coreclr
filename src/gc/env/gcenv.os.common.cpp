@@ -215,7 +215,7 @@ bool GCToOSInterface::CanEnableGCNumaAware()
 bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
 {
     assert(g_fEnableGCNumaAware);
-    return ::GetNumaProcessorNodeEx(proc_no, node_no);
+    return ::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
 }
 
 void* GCToOSInterface::VirtualAllocExNuma(void *lpAddr, size_t dwSize, uint32_t allocType, uint32_t prot, uint32_t node)
