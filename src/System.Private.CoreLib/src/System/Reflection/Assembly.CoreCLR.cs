@@ -158,7 +158,7 @@ namespace System.Reflection
         }
 
         // Loads the assembly with a COFF based IMAGE containing
-        // an emitted assembly. The assembly is loaded into a fully isolated ALC with resolution fully deffer to the Default ALC.
+        // an emitted assembly. The assembly is loaded into a fully isolated ALC with resolution fully deferred to the AssemblyLoadContext.Default.
         // The second parameter is the raw bytes representing the symbol store that matches the assembly.
         [System.Security.DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod
         public static Assembly Load(byte[] rawAssembly,
