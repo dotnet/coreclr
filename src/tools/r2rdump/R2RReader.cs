@@ -155,8 +155,7 @@ namespace R2RDump
                 }
                 if (OS == OperatingSystem.Unknown)
                 {
-                    R2RDump.WriteWarning($"Invalid Machine: {Machine}");
-                    Machine = Machine.Amd64;
+                    throw new BadImageFormatException($"Invalid Machine: {machine}");
                 }
                 ImageBase = PEReader.PEHeaders.PEHeader.ImageBase;
 
