@@ -50,12 +50,10 @@ void StackLevelSetter::DoPhase()
         comp->codeGen->setFramePointerRequired(true);
     }
 #endif // !FEATURE_FIXED_OUT_ARGS
-    if (maxStackLevel != comp->fgGetPtrArgCntMax())
-    {
-        JITDUMP("fgPtrArgCntMax was calculated wrong during the morph, the old value: %u, the right value: %u.\n",
-                comp->fgGetPtrArgCntMax(), maxStackLevel);
-        comp->fgSetPtrArgCntMax(maxStackLevel);
-    }
+
+    CheckAdditionalArgs();
+
+    comp->fgSetPtrArgCntMax(maxStackLevel);
     CheckArgCnt();
 }
 
@@ -308,4 +306,18 @@ void StackLevelSetter::CheckArgCnt()
         comp->codeGen->resetWritePhaseForFramePointerRequired();
         comp->codeGen->setFramePointerRequired(true);
     }
+}
+
+void StackLevelSetter::CheckAdditionalArgs()
+{
+#if defined(_TARGET_X86_)
+    if (comp->compIsProfilerHookNeeded())
+    {
+        if (maxStackLevel == 0)
+        {
+            JITDUMP("Upping fgPtrArgCntMax from %d to 1\n", maxStackLevel);
+            maxStackLevel = 1;
+        }
+    }
+#endif // _TARGET_X86_
 }

@@ -27,6 +27,7 @@ private:
     void SubStackLevel(unsigned value);
 
     void CheckArgCnt();
+    void CheckAdditionalArgs();
 
 private:
     unsigned currentStackLevel; // current number of stack slots used by arguments.
