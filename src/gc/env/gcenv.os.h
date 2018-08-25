@@ -18,9 +18,6 @@
 #undef Sleep
 #endif // Sleep
 
-extern bool g_fIsNumaAwareEnabledByConfig;
-extern bool g_fIsCPUGroupEnabledByConfig;
-
 #define NUMA_NODE_UNDEFINED UINT32_MAX
 
 // Critical section used by the GC

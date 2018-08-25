@@ -11,8 +11,10 @@
 #include "env/gcenv.structs.h"
 #include "env/gcenv.base.h"
 #include "env/gcenv.os.h"
+#include "env/gcenv.ee.h"
 #include "env/gcenv.windows.inl"
 #include "env/volatile.h"
+#include "gcconfig.h"
 
 GCSystemInfo g_SystemInfo;
 
@@ -55,7 +57,7 @@ void InitNumaNodeInfo()
     
     g_fEnableGCNumaAware = false;
 
-    if (!g_fIsNumaAwareEnabledByConfig)
+    if (!GCConfig::GetGCNumaAware())
         return;
 
     // fail to get the highest numa node number
@@ -185,7 +187,7 @@ void InitCPUGroupInfo()
     g_fEnableGCCPUGroups = false;
 
 #if (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
-    if (!g_fIsCPUGroupEnabledByConfig)
+    if (!GCConfig::GetGCCpuGroup())
         return;
 
     if (!InitCPUGroupInfoArray())
@@ -200,11 +202,7 @@ void InitCPUGroupInfo()
 
     // Determine if the process is affinitized to a single processor (or if the system has a single processor)
     DWORD_PTR processAffinityMask, systemAffinityMask;
-    if (GetProcessAffinityMask(
-#ifdef _WIN32
-                                GetCurrentProcess(), 
-#endif
-                                &processAffinityMask, &systemAffinityMask))
+    if (::GetProcessAffinityMask(::GetCurrentProcess(), &processAffinityMask, &systemAffinityMask))
     {
         processAffinityMask &= systemAffinityMask;
         if (processAffinityMask != 0 && // only one CPU group is involved
