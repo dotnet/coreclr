@@ -52,7 +52,10 @@
       <CorerunExecutable Condition="'$(RunningOnUnix)' != 'true'">$(CORE_ROOT)\corerun.exe</CorerunExecutable>
       <XunitCommandLine>$(CorerunExecutable) $(XunitConsoleRunner) @(TestAssemblies->'%(Identity)', ' ') $(XunitArgs)</XunitCommandLine>
     </PropertyGroup>
-    <Exec Command="$(XunitCommandLine)" />
+
+    <Error Condition="$(XunitCommandLine.Length) > 8191 and '$(RunningOnUnix)' != 'true'" Text="Xunit command line is too long." />
+    <Exec Command="$(XunitCommandLine)"
+          WorkingDirectory="$(BaseOutputPathWithConfig)"/>
 
   </Target>
 
