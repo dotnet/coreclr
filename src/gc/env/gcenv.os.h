@@ -394,11 +394,16 @@ public:
     //  Number of processors on the machine
     static uint32_t GetTotalProcessorCount();
 
+    // Is NUMA support available
     static bool CanEnableGCNumaAware();
-    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
 
+    // Gets the NUMA node for the processor
+    static bool GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no);
+
+    // Are CPU groups enabled
     static bool CanEnableGCCPUGroups();
-    static uint16_t GetNumActiveProcessors();
+
+    // Get the CPU group for the specified processor
     static void GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number);
 
 };

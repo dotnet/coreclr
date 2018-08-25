@@ -5282,7 +5282,7 @@ void set_thread_group_affinity_for_heap(int heap_number, GCThreadAffinity* affin
                 proc_no.Reserved = 0;
 
                 uint16_t node_no = 0;
-                if (GCToOSInterface::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
                     heap_select::set_numa_node_for_heap(heap_number, node_no);
             }
             else
@@ -5322,7 +5322,7 @@ void set_thread_affinity_mask_for_heap(int heap_number, GCThreadAffinity* affini
                         proc_no.Group = 0;
                         proc_no.Number = (uint8_t)proc_number;
                         proc_no.Reserved = 0;
-                        if (GCToOSInterface::GetNumaProcessorNodeEx(&proc_no, &node_no))
+                        if (GCToOSInterface::GetNumaProcessorNode(&proc_no, &node_no))
                         {
                             heap_select::set_numa_node_for_heap(heap_number, node_no);
                         }
@@ -33496,10 +33496,8 @@ HRESULT GCHeap::Initialize ()
         gc_heap::gc_thread_no_affinitize_p = true;
 
     uint32_t nhp_from_config = static_cast<uint32_t>(GCConfig::GetHeapCount());
-    // GetGCProcessCpuCount only returns up to 64 procs.
-    uint32_t nhp_from_process = GCToOSInterface::CanEnableGCCPUGroups() ?
-                                GCToOSInterface::GetNumActiveProcessors():
-                                GCToOSInterface::GetCurrentProcessCpuCount();
+    
+    uint32_t nhp_from_process = GCToOSInterface::GetCurrentProcessCpuCount();
 
     uint32_t nhp = ((nhp_from_config == 0) ? nhp_from_process :
                                              (min (nhp_from_config, nhp_from_process)));

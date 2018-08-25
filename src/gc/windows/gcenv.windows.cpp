@@ -817,6 +817,63 @@ uint32_t GCToOSInterface::GetLowPrecisionTimeStamp()
     return ::GetTickCount();
 }
 
+// Gets the total number of processors on the machine, not taking
+// into account current process affinity.
+// Return:
+//  Number of processors on the machine
+uint32_t GCToOSInterface::GetTotalProcessorCount()
+{
+    if (CanEnableGCCPUGroups())
+    {
+        return g_nProcessors;
+    }
+    else
+    {
+        return g_SystemInfo.dwNumberOfProcessors;
+    }
+}
+ 
+bool GCToOSInterface::CanEnableGCNumaAware()
+{
+    return g_fEnableGCNumaAware;
+}
+
+bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+{
+    assert(g_fEnableGCNumaAware);
+    return ::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
+}
+
+bool GCToOSInterface::CanEnableGCCPUGroups()
+{
+    return g_fEnableGCCPUGroups;
+}
+
+void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
+{
+    assert(g_fEnableGCCPUGroups);
+
+#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
+    WORD bTemp = 0;
+    WORD bDiff = processor_number - bTemp;
+
+    for (WORD i=0; i < g_nGroups; i++)
+    {
+        bTemp += g_CPUGroupInfoArray[i].nr_active;
+        if (bTemp > processor_number)
+        {
+            *group_number = i;
+            *group_processor_number = bDiff;
+            break;
+        }
+        bDiff = processor_number - bTemp;
+    }
+#else
+    *group_number = 0;
+    *group_processor_number = 0;
+#endif
+}
+
 // Parameters of the GC thread stub
 struct GCThreadStubParam
 {
@@ -836,15 +893,6 @@ static DWORD GCThreadStub(void* param)
     function(threadParam);
 
     return 0;
-}
-
-// Gets the total number of processors on the machine, not taking
-// into account current process affinity.
-// Return:
-//  Number of processors on the machine
-uint32_t GCToOSInterface::GetTotalProcessorCount()
-{
-    return g_SystemInfo.dwNumberOfProcessors;
 }
 
 // Initialize the critical section
@@ -1010,51 +1058,4 @@ bool GCEvent::CreateOSManualEventNoThrow(bool initialState)
 
     m_impl = event.release();
     return true;
-}
-
-bool GCToOSInterface::CanEnableGCNumaAware()
-{
-    return g_fEnableGCNumaAware;
-}
-
-bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
-{
-    assert(g_fEnableGCNumaAware);
-    return ::GetNumaProcessorNodeEx(proc_no, node_no) != FALSE;
-}
-
-bool GCToOSInterface::CanEnableGCCPUGroups()
-{
-    return g_fEnableGCCPUGroups;
-}
-
-uint16_t GCToOSInterface::GetNumActiveProcessors()
-{
-    assert(g_fEnableGCCPUGroups);
-    return (uint16_t)g_nProcessors;
-}
-
-void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)
-{
-    assert(g_fEnableGCCPUGroups);
-
-#if !defined(FEATURE_REDHAWK) && (defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_))
-    WORD bTemp = 0;
-    WORD bDiff = processor_number - bTemp;
-
-    for (WORD i=0; i < g_nGroups; i++)
-    {
-        bTemp += g_CPUGroupInfoArray[i].nr_active;
-        if (bTemp > processor_number)
-        {
-            *group_number = i;
-            *group_processor_number = bDiff;
-            break;
-        }
-        bDiff = processor_number - bTemp;
-    }
-#else
-    *group_number = 0;
-    *group_processor_number = 0;
-#endif
 }

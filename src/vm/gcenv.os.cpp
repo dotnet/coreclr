@@ -715,7 +715,14 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return g_SystemInfo.dwNumberOfProcessors;
+    if (CPUGroupInfo::CanEnableGCCPUGroups())
+    {
+        return CPUGroupInfo::GetNumActiveProcessors();
+    }
+    else
+    {
+        return g_SystemInfo.dwNumberOfProcessors;
+    }
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
@@ -725,7 +732,7 @@ bool GCToOSInterface::CanEnableGCNumaAware()
     return NumaNodeInfo::CanEnableGCNumaAware() != FALSE;
 }
 
-bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -737,13 +744,6 @@ bool GCToOSInterface::CanEnableGCCPUGroups()
     LIMITED_METHOD_CONTRACT;
 
     return CPUGroupInfo::CanEnableGCCPUGroups() != FALSE;
-}
-
-uint16_t GCToOSInterface::GetNumActiveProcessors()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return CPUGroupInfo::GetNumActiveProcessors();
 }
 
 void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)

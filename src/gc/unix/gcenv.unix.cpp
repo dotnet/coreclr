@@ -703,7 +703,7 @@ bool GCToOSInterface::CanEnableGCNumaAware()
     return false;
 }
 
-bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
+bool GCToOSInterface::GetNumaProcessorNode(PPROCESSOR_NUMBER proc_no, uint16_t *node_no)
 {
     assert(!"Numa has not been ported to local GC for unix");
     return false;
@@ -712,12 +712,6 @@ bool GCToOSInterface::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t
 bool GCToOSInterface::CanEnableGCCPUGroups()
 {
     return false;
-}
-
-uint16_t GCToOSInterface::GetNumActiveProcessors()
-{
-    assert(!"CpuGroup has not been ported to local GC for unix");
-    return 0;
 }
 
 void GCToOSInterface::GetGroupForProcessor(uint16_t processor_number, uint16_t* group_number, uint16_t* group_processor_number)

@@ -541,12 +541,7 @@ int getNumberOfSlots()
     if (!IsServerHeap())
         return 1;
 
-#ifdef FEATURE_REDHAWK
     return GCToOSInterface::GetCurrentProcessCpuCount();
-#else
-    return (GCToOSInterface::CanEnableGCCPUGroups() ? GCToOSInterface::GetNumActiveProcessors() :
-                                                      GCToOSInterface::GetCurrentProcessCpuCount());
-#endif
 }
 
 class HandleTableBucketHolder
