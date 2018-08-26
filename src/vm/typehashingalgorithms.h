@@ -9,6 +9,59 @@
 #pragma once
 #include <stdlib.h>
 
+class HashCodeBuilder
+{
+    int _hash1;
+    int _hash2;
+    int _numCharactersHashed;
+    
+public:
+    HashCodeBuilder(LPCUTF8 seed)
+    {
+        _hash1 = 0x6DA3B944;
+        _hash2 = 0;
+        _numCharactersHashed = 0;
+
+        Append(seed);
+    }
+
+    void Append(LPCUTF8 src)
+    {
+        if (src == NULL || *src == '\0')
+            return;
+
+        LPWSTR srcWide;
+        COUNT_T lsrcWide = WszMultiByteToWideChar(CP_UTF8, 0, src, -1, 0, 0);
+        srcWide = (LPWSTR)alloca(lsrcWide * sizeof(WCHAR));
+        WszMultiByteToWideChar(CP_UTF8, 0, src, -1, srcWide, lsrcWide);
+        lsrcWide--;
+
+        int startIndex = 0;
+        if ((_numCharactersHashed & 1) == 1)
+        {
+            _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ srcWide[0];
+            startIndex = 1;
+        }
+
+        for (COUNT_T i = startIndex; i < lsrcWide; i += 2)
+        {
+            _hash1 = (_hash1 + _rotl(_hash1, 5)) ^ srcWide[i];
+            if (srcWide[i + 1] != '\0')
+                _hash2 = (_hash2 + _rotl(_hash2, 5)) ^ srcWide[i + 1];
+        }
+
+        _numCharactersHashed += lsrcWide;
+    }
+
+    int ToHashCode()
+    {
+        int hash1 = _hash1 + _rotl(_hash1, 8);
+        int hash2 = _hash2 + _rotl(_hash2, 8);
+
+        return hash1 ^ hash2;
+    }
+};
+
 //
 // Returns the hashcode value of the 'src' string
 //
@@ -22,13 +75,17 @@ inline static int ComputeNameHashCode(LPCUTF8 src)
     int hash1 = 0x6DA3B944;
     int hash2 = 0;
 
-    // DIFFERENT FROM CORERT: We hash UTF-8 bytes here, while CoreRT hashes UTF-16 characters.
+    LPWSTR srcWide;
+    COUNT_T lsrcWide = WszMultiByteToWideChar(CP_UTF8, 0, src, -1, 0, 0);
+    srcWide = (LPWSTR)alloca(lsrcWide * sizeof(WCHAR));
+    WszMultiByteToWideChar(CP_UTF8, 0, src, -1, srcWide, lsrcWide);
+    lsrcWide--;
 
-    for (COUNT_T i = 0; src[i] != '\0'; i += 2)
+    for (COUNT_T i = 0; i < lsrcWide; i += 2)
     {
-        hash1 = (hash1 + _rotl(hash1, 5)) ^ src[i];
-        if (src[i + 1] != '\0')
-            hash2 = (hash2 + _rotl(hash2, 5)) ^ src[i + 1];
+        hash1 = (hash1 + _rotl(hash1, 5)) ^ srcWide[i];
+        if (srcWide[i + 1] != '\0')
+            hash2 = (hash2 + _rotl(hash2, 5)) ^ srcWide[i + 1];
         else
             break;
     }
@@ -43,10 +100,11 @@ inline static int ComputeNameHashCode(LPCUTF8 pszNamespace, LPCUTF8 pszName)
 {
     LIMITED_METHOD_CONTRACT;
 
-    // DIFFERENT FROM CORERT: CoreRT hashes the full name as one string ("namespace.name"),
-    // as the full name is already available. In CoreCLR we normally only have separate
-    // strings for namespace and name, thus we hash them separately.
-    return ComputeNameHashCode(pszNamespace) ^ ComputeNameHashCode(pszName);
+    HashCodeBuilder hashCodeBuilder(pszNamespace);
+    if (pszNamespace != NULL && *pszNamespace != '\0')
+        hashCodeBuilder.Append(".");
+    hashCodeBuilder.Append(pszName);
+    return hashCodeBuilder.ToHashCode();
 }
 
 inline static int ComputeArrayTypeHashCode(int elementTypeHashcode, int rank)

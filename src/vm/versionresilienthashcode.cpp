@@ -29,42 +29,53 @@ bool GetVersionResilientTypeHashCode(IMDInternalImport *pMDImport, mdExportedTyp
     bool hasTypeToken = true;
     int hashcode = 0;
 
-    while (hasTypeToken)
+
+    if (IsNilToken(token))
+        return false;
+
+    switch (TypeFromToken(token))
     {
-        if (IsNilToken(token))
+    case mdtTypeDef:
+        if (FAILED(pMDImport->GetNameOfTypeDef(token, &szName, &szNamespace)))
             return false;
-
-        switch (TypeFromToken(token))
-        {
-        case mdtTypeDef:
-            if (FAILED(pMDImport->GetNameOfTypeDef(token, &szName, &szNamespace)))
-                return false;
-            hr = pMDImport->GetNestedClassProps(token, &token);
-            if (hr == CLDB_E_RECORD_NOTFOUND)
-                hasTypeToken = false;
-            else if (FAILED(hr))
-                return false;
-            break;
-
-        case mdtTypeRef:
-            if (FAILED(pMDImport->GetNameOfTypeRef(token, &szNamespace, &szName)))
-                return false;
-            if (FAILED(pMDImport->GetResolutionScopeOfTypeRef(token, &token)))
-                return false;
-            hasTypeToken = (TypeFromToken(token) == mdtTypeRef);
-            break;
-
-        case mdtExportedType:
-            if (FAILED(pMDImport->GetExportedTypeProps(token, &szNamespace, &szName, &token, NULL, NULL)))
-                return false;
-            hasTypeToken = (TypeFromToken(token) == mdtExportedType);
-            break;
-
-        default:
+        hr = pMDImport->GetNestedClassProps(token, &token);
+        if (hr == CLDB_E_RECORD_NOTFOUND)
+            hasTypeToken = false;
+        else if (FAILED(hr))
             return false;
-        }
+        break;
 
-        hashcode ^= ComputeNameHashCode(szNamespace, szName);
+    case mdtTypeRef:
+        if (FAILED(pMDImport->GetNameOfTypeRef(token, &szNamespace, &szName)))
+            return false;
+        if (FAILED(pMDImport->GetResolutionScopeOfTypeRef(token, &token)))
+            return false;
+        hasTypeToken = (TypeFromToken(token) == mdtTypeRef);
+        break;
+
+    case mdtExportedType:
+        if (FAILED(pMDImport->GetExportedTypeProps(token, &szNamespace, &szName, &token, NULL, NULL)))
+            return false;
+        hasTypeToken = (TypeFromToken(token) == mdtExportedType);
+        break;
+
+    default:
+        return false;
+    }
+
+    if (!hasTypeToken)
+    {
+        HashCodeBuilder hashCodeBuilder(szNamespace);
+        if (szNamespace != NULL && *szNamespace != '\0')
+            hashCodeBuilder.Append(".");
+        hashCodeBuilder.Append(szName);
+        hashcode = hashCodeBuilder.ToHashCode();
+    }
+    else
+    {
+        int containingTypeHashcode;
+        GetVersionResilientTypeHashCode(pMDImport, token, &containingTypeHashcode);
+        hashcode = ComputeNestedTypeHashCode(containingTypeHashcode, ComputeNameHashCode(szName));
     }
 
     *pdwHashCode = hashcode;
@@ -87,12 +98,20 @@ int GetVersionResilientTypeHashCode(TypeHandle type)
         LPCUTF8 szNamespace;
         LPCUTF8 szName;
         IfFailThrow(pMT->GetMDImport()->GetNameOfTypeDef(pMT->GetCl(), &szName, &szNamespace));
-        int hashcode = ComputeNameHashCode(szNamespace, szName);
+        int hashcode = 0;
 
         MethodTable *pMTEnclosing = pMT->LoadEnclosingMethodTable(CLASS_LOAD_UNRESTOREDTYPEKEY);
-        if (pMTEnclosing != NULL)
+        if (pMTEnclosing == NULL)
         {
-            hashcode = ComputeNestedTypeHashCode(GetVersionResilientTypeHashCode(TypeHandle(pMTEnclosing)), hashcode);
+            HashCodeBuilder hashCodeBuilder(szNamespace);
+            if (szNamespace != NULL && *szNamespace != '\0')
+                hashCodeBuilder.Append(".");
+            hashCodeBuilder.Append(szName);
+            hashcode = hashCodeBuilder.ToHashCode();
+        }
+        else
+        {
+            hashcode = ComputeNestedTypeHashCode(GetVersionResilientTypeHashCode(TypeHandle(pMTEnclosing)), ComputeNameHashCode(szName));
         }
 
         if (!pMT->IsGenericTypeDefinition() && pMT->HasInstantiation())
