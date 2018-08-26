@@ -1477,3 +1477,14 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
     return realPtr->IsRudeUnload() != FALSE;
 }
 
+bool GCToEEInterface::IsComWrapperForObjectActive(Object *object)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_COMINTEROP
+    ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)object);
+    return (pWrap != NULL) && (pWrap->IsWrapperActive() == TRUE);
+#else // FEATURE_COMINTEROP
+    return false;
+#endif // FEATURE_COMINTEROP
+}

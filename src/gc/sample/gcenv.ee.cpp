@@ -371,3 +371,8 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
 {
     return false;
 }
+
+bool GCToEEInterface::IsComWrapperForObjectActive(Object *object)
+{
+    return false;
+}

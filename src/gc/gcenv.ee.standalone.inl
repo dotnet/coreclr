@@ -311,4 +311,10 @@ inline bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
     return g_theGCToCLR->AppDomainIsRudeUnload(appDomain);
 }
 
+inline bool GCToEEInterface::IsComWrapperForObjectActive(Object *object)
+{
+    assert(g_theGCToCLR != nullptr);
+    return g_theGCToCLR->IsComWrapperForObjectActive(object);
+}
+
 #endif // __GCTOENV_EE_STANDALONE_INL__
