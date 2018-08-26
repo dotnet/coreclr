@@ -7184,13 +7184,11 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
     genSinglePush();
 
 #if defined(UNIX_X86_ABI)
-    int argSize = - REGSIZE_BYTES; // negative means caller-pop (cdecl)
+    int argSize = -REGSIZE_BYTES; // negative means caller-pop (cdecl)
 #else
     int argSize = REGSIZE_BYTES;
 #endif
-    genEmitHelperCall(helper,
-                      argSize,
-                      EA_UNKNOWN);     // retSize
+    genEmitHelperCall(helper, argSize, EA_UNKNOWN /* retSize */);
 
     //
     // Adjust the number of stack slots used by this managed method if necessary.
