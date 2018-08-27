@@ -872,8 +872,6 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
 
     ShutdownLogging();
 
-    // Failing here implies an error in the runtime - hence we use
-    // COR_E_EXECUTIONENGINE
     RaiseFailFastException(NULL, NULL, 0);
 
     UNREACHABLE();
