@@ -29,7 +29,7 @@ phases:
         version: 2.1.400
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools
       displayName: Install CMake
-    - powershell: Remove-Item -Recurse -Force bin
+    - powershell: if (Test-Path bin) { Remove-Item -Recurse -Force bin }
       displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
