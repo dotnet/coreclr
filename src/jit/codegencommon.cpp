@@ -2432,16 +2432,19 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #endif
 
 #if EMIT_TRACK_STACK_DEPTH
-    /* Check our max stack level. Needed for fgAddCodeRef().
-       We need to relax the assert as our estimation won't include code-gen
-       stack changes (which we know don't affect fgAddCodeRef()) */
+    // Check our max stack level. Needed for fgAddCodeRef().
+    // We need to relax the assert as our estimation won't include code-gen
+    // stack changes (which we know don't affect fgAddCodeRef()).
+    // NOTE: after emitEndCodeGen (including here), emitMaxStackDepth is a count of DWORD-sized arguments, NOT argument size in bytes.
     {
         unsigned maxAllowedStackDepth = compiler->fgPtrArgCntMax +    // Max number of pointer-sized stack arguments.
                                         compiler->compHndBBtabCount + // Return address for locally-called finallys
                                         genTypeStSz(TYP_LONG) +       // longs/doubles may be transferred via stack, etc
                                         (compiler->compTailCallUsed ? 4 : 0); // CORINFO_HELP_TAILCALL args
 #if defined(UNIX_X86_ABI)
-        maxAllowedStackDepth += maxNestedAlignment;
+        // Convert maxNestedAlignment to DWORD count before adding to maxAllowedStackDepth.
+        assert(maxNestedAlignment % sizeof(int) == 0);
+        maxAllowedStackDepth += maxNestedAlignment / sizeof(int);
 #endif
         noway_assert(getEmitter()->emitMaxStackDepth <= maxAllowedStackDepth);
     }
@@ -6928,7 +6931,6 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 #if defined(UNIX_X86_ABI)
     // Manually align the stack to be 16-byte aligned. This is similar to CodeGen::genAlignStackBeforeCall()
     getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_SPBASE, 0xC);
-    AddNestedAlignment(1);
 #endif // UNIX_X86_ABI
 
     // Push the profilerHandle
@@ -7166,7 +7168,8 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 #if defined(UNIX_X86_ABI)
     // Manually align the stack to be 16-byte aligned. This is similar to CodeGen::genAlignStackBeforeCall()
     getEmitter()->emitIns_R_I(INS_sub, EA_4BYTE, REG_SPBASE, 0xC);
-    AddNestedAlignment(1);
+    AddStackLevel(0xC);
+    AddNestedAlignment(0xC);
 #endif // UNIX_X86_ABI
 
     //
@@ -7202,6 +7205,8 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
 #if defined(UNIX_X86_ABI)
     // Restoring alignment manually. This is similar to CodeGen::genRemoveAlignmentAfterCall
     getEmitter()->emitIns_R_I(INS_add, EA_4BYTE, REG_SPBASE, 0x10);
+    SubtractStackLevel(0x10);
+    SubtractNestedAlignment(0xC);
 #endif // UNIX_X86_ABI
 
 #elif defined(_TARGET_ARM_)
