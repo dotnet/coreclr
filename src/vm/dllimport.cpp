@@ -5913,37 +5913,47 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
 
     HMODULE hmod = NULL;
 
-#ifndef FEATURE_PAL
+    AppDomain* pDomain = GetAppDomain();
 
-    if ((flags & 0xFFFFFF00) != 0
-#ifndef FEATURE_CORESYSTEM
-        && NDirect::SecureLoadLibrarySupported()
-#endif // !FEATURE_CORESYSTEM
-        )
-    {
-        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
-        if(hmod != NULL)
-        {
-            return hmod;
-        }
+    hmod = pDomain->FindUnmanagedImageInCache(name);
 
-        DWORD dwLastError = GetLastError();
-        if (dwLastError != ERROR_INVALID_PARAMETER)
-        {
-            pErrorTracker->TrackErrorCode();
-            return hmod;
-        }
-    }
-
-    hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
-    
-#else // !FEATURE_PAL
-    hmod = CLRLoadLibrary(name);
-#endif // !FEATURE_PAL
-        
     if (hmod == NULL)
     {
-        pErrorTracker->TrackErrorCode();
+#ifndef FEATURE_PAL
+
+        if ((flags & 0xFFFFFF00) != 0
+#ifndef FEATURE_CORESYSTEM
+            && NDirect::SecureLoadLibrarySupported()
+#endif // !FEATURE_CORESYSTEM
+            )
+        {
+            hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
+            if (hmod != NULL)
+            {
+                pDomain->AddUnmanagedImageToCache(name, hmod);
+                return hmod;
+            }
+
+            DWORD dwLastError = GetLastError();
+            if (dwLastError != ERROR_INVALID_PARAMETER)
+            {
+                pErrorTracker->TrackErrorCode();
+                return hmod;
+            }
+        }
+
+        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
+
+#else // !FEATURE_PAL
+        hmod = CLRLoadLibrary(name);
+#endif // !FEATURE_PAL
+
+        pDomain->AddUnmanagedImageToCache(name, hmod);
+
+        if (hmod == NULL)
+        {
+            pErrorTracker->TrackErrorCode();
+        }
     }
     
     return hmod;
@@ -6001,8 +6011,68 @@ HMODULE NDirect::LoadLibraryFromPath(LPCWSTR libraryPath)
     return systemModuleHandle;
 }
 
+HMODULE NDirect::LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
+{
+    LPVOID hmod = NULL;
+    CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
+
+    PEFile *pManifestFile = pAssembly->GetManifestFile();
+    PTR_ICLRPrivBinder pBindingContext = pManifestFile->GetBindingContext();
+
+    //Step 0: Check if  the assembly was bound using TPA.
+    //        The Binding Context can be null or an overridden TPA context
+    if (pBindingContext == NULL)
+    {
+        // If we do not have any binder associated, then return to the default resolution mechanism.
+        return NULL;
+    }
+
+    UINT_PTR assemblyBinderID = 0;
+    IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
+
+    ICLRPrivBinder *pCurrentBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
+    INT_PTR ptrManagedAssemblyLoadContext = NULL;
+
+    // For assemblies bound via TPA binder, we should use the standard mechanism to make the pinvoke call.
+    if (!AreSameBinderInstance(pCurrentBinder, pTPABinder))
+    {
+        // Get the pointer to the managed assembly load context
+        ptrManagedAssemblyLoadContext = ((CLRPrivBinderAssemblyLoadContext *)pCurrentBinder)->GetManagedAssemblyLoadContext();
+    }
+
+    GCX_COOP();
+
+    STRINGREF pUnmanagedDllName = StringObject::NewString(wszLibName);
+
+    GCPROTECT_BEGIN(pUnmanagedDllName);
+
+    // Prepare to invoke  System.Runtime.Loader.AssemblyLoadContext.ResolveDllUsingDllmap method.
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ASSEMBLYLOADCONTEXT__RESOLVEDLLUSINGDLLMAP);
+    DECLARE_ARGHOLDER_ARRAY(args, 5);
+    args[ARGNUM_0] = STRINGREF_TO_ARGHOLDER(pUnmanagedDllName);
+    args[ARGNUM_1] = PTR_TO_ARGHOLDER(ptrManagedAssemblyLoadContext);
+    args[ARGNUM_2] = PTR_TO_ARGHOLDER(pAssembly);
+    args[ARGNUM_3] = PTR_TO_ARGHOLDER(searchAssemblyDirectory); // how to pass BOOL?
+    args[ARGNUM_4] = DWORD_TO_ARGHOLDER(dllImportSearchPathFlag);
+
+    // Make the call
+    CALL_MANAGED_METHOD(hmod, LPVOID, args);
+
+    GCPROTECT_END();
+
+#ifdef FEATURE_PAL
+    if (hmod != nullptr)
+    {
+        // Register the system library handle with PAL and get a PAL library handle
+        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
+    }
+#endif // FEATURE_PAL
+
+    return (HMODULE)hmod;
+}
+
 /* static */
-HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName)
+HMODULE NDirect::LoadLibraryModuleViaHost(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName)
 {
     STANDARD_VM_CONTRACT;
     //Dynamic Pinvoke Support:
@@ -6019,7 +6089,6 @@ HMODULE NDirect::LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pD
 
     LPVOID hmod = NULL;
     CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
-    Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
    
     PEFile *pManifestFile = pAssembly->GetManifestFile();
     PTR_ICLRPrivBinder pBindingContext = pManifestFile->GetBindingContext();
@@ -6237,25 +6306,21 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 }
 #endif // FEATURE_PAL
 
-HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
+HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
 {
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-        PRECONDITION( CheckPointer( pMD ) );
+        PRECONDITION(CheckPointer( pAssembly ) );
     }
     CONTRACTL_END;
-    
-    LPCUTF8 name = pMD->GetLibName();
-    if ( !name || !*name )
-        return NULL;
-    
+
+    LoadLibErrorTracker pErrorTracker;
     ModuleHandleHolder hmod;
 
     DWORD loadWithAlteredPathFlags = GetLoadWithAlteredSearchPathFlag();
 
-    PREFIX_ASSUME( name != NULL );
-    MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
+    PREFIX_ASSUME( wszLibName != NULL );
 
     AppDomain* pDomain = GetAppDomain();
 
@@ -6264,13 +6329,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     // AppX mode.
     if (!AppX::IsAppXProcess())
     {
-        hmod = LoadLibraryModuleViaHost(pMD, pDomain, wszLibName);
-    }
-    
-    
-    if(hmod == NULL)
-    {
-       hmod = pDomain->FindUnmanagedImageInCache(wszLibName);
+        hmod = LoadLibraryModuleViaHost(pAssembly, pDomain, wszLibName);
     }
 
     if(hmod != NULL)
@@ -6295,13 +6354,12 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         // the OS implementation of api sets.
         if (SString::_wcsnicmp(wszLibName, W("api-"), 4) == 0 || SString::_wcsnicmp(wszLibName, W("ext-"), 4) == 0)
         {
-            hmod = LocalLoadLibraryHelper(wszLibName, LOAD_LIBRARY_SEARCH_SYSTEM32, pErrorTracker);
+            hmod = LocalLoadLibraryHelper(wszLibName, LOAD_LIBRARY_SEARCH_SYSTEM32, &pErrorTracker);
         }
     }
 #endif // FEATURE_CORESYSTEM && !FEATURE_PAL
 
     bool libNameIsRelativePath = Path::IsRelative(wszLibName);
-    DWORD dllImportSearchPathFlag = 0;
     // P/Invokes are often declared with variations on the actual library name.
     // For example, it's common to leave off the extension/suffix of the library
     // even if it has one, or to leave off a prefix like "lib" even if it has one
@@ -6316,34 +6374,11 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         currLibNameVariation.Printf(prefixSuffixCombinations[i], PLATFORM_SHARED_LIB_PREFIX_W, wszLibName, PLATFORM_SHARED_LIB_SUFFIX_W);
 
         // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path
-        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, pErrorTracker);
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, &pErrorTracker);
 
-        BOOL searchAssemblyDirectory = TRUE;
         if (hmod == NULL)
         {
-            // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
-            // then dllImportSearchPathFlag is set to its value.
-            // Otherwise checks if the assembly has the attribute. 
-            // If assembly has the attribute then flag ise set to its value.
-            BOOL attributeIsFound = FALSE;
-
-            if (pMD->HasDefaultDllImportSearchPathsAttribute())
-            {
-                dllImportSearchPathFlag = pMD->DefaultDllImportSearchPathsAttributeCachedValue();
-                searchAssemblyDirectory = pMD->DllImportSearchAssemblyDirectory();
-                attributeIsFound = TRUE;
-            }
-            else 
-            {
-                Module * pModule = pMD->GetModule();
-
-                if(pModule->HasDefaultDllImportSearchPathsAttribute())
-                {
-                    dllImportSearchPathFlag = pModule->DefaultDllImportSearchPathsAttributeCachedValue();
-                    searchAssemblyDirectory = pModule->DllImportSearchAssemblyDirectory();
-                    attributeIsFound = TRUE;
-                }
-            }
+            MAKE_UTF8PTR_FROMWIDE(szLibName, wszLibName);
 
             if (!libNameIsRelativePath)
             {
@@ -6355,20 +6390,87 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
                     flags |= dllImportSearchPathFlag;
                 }
 
-                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, pErrorTracker);
+                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, &pErrorTracker);
             }
             else if (searchAssemblyDirectory)
             {
-                Assembly* pAssembly = pMD->GetMethodTable()->GetAssembly();
-                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
+                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, &pErrorTracker);
             }
         }
 
         // This call searches the application directory instead of the location for the library.
         if (hmod == NULL)
         {
-            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, pErrorTracker);
+            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, &pErrorTracker);
         }
+    }
+
+    return hmod.Extract();
+}
+
+HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
+{
+    LoadLibErrorTracker pErrorTracker;
+
+    CONTRACTL
+    {
+        STANDARD_VM_CHECK;
+        PRECONDITION( CheckPointer( pMD ) );
+    }
+    CONTRACTL_END;
+
+    LPCUTF8 name = pMD->GetLibName();
+    if ( !name || !*name )
+        return NULL;
+
+    ModuleHandleHolder hmod;
+
+    DWORD loadWithAlteredPathFlags = GetLoadWithAlteredSearchPathFlag();
+
+    PREFIX_ASSUME( name != NULL );
+    MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
+
+    AppDomain* pDomain = GetAppDomain();
+
+    BOOL searchAssemblyDirectory = TRUE;
+    DWORD dllImportSearchPathFlag = 0;
+
+    // First checks if the method has DefaultDllImportSearchPathsAttribute. If method has the attribute
+    // then dllImportSearchPathFlag is set to its value.
+    // Otherwise checks if the assembly has the attribute. 
+    // If assembly has the attribute then flag ise set to its value.
+
+    BOOL attributeIsFound = FALSE;
+
+    if (pMD->HasDefaultDllImportSearchPathsAttribute())
+    {
+        dllImportSearchPathFlag = pMD->DefaultDllImportSearchPathsAttributeCachedValue();
+        searchAssemblyDirectory = pMD->DllImportSearchAssemblyDirectory();
+        attributeIsFound = TRUE;
+    }
+    else
+    {
+        Module * pModule = pMD->GetModule();
+
+        if (pModule->HasDefaultDllImportSearchPathsAttribute())
+        {
+            dllImportSearchPathFlag = pModule->DefaultDllImportSearchPathsAttributeCachedValue();
+            searchAssemblyDirectory = pModule->DllImportSearchAssemblyDirectory();
+            attributeIsFound = TRUE;
+        }
+    }
+
+    // AssemblyLoadContext is not supported in AppX mode and thus,
+    // we should not perform PInvoke resolution via it when operating in
+    // AppX mode.
+    if (!AppX::IsAppXProcess())
+    {
+        hmod = LoadLibraryViaCallback(pMD->GetAssembly(), pDomain, wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag);
+    }
+    
+    if (!hmod)
+    {
+        hmod = LoadLibraryModuleHierarchy(pMD->GetAssembly(), wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag);
     }
 
     // This may be an assembly name
@@ -6389,21 +6491,15 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
                 CQuickBytes qbLC;
                 {
                     UTF8_TO_LOWER_CASE(szLibName, qbLC);
-                    szLibName = (LPUTF8) qbLC.Ptr();
+                    szLibName = (LPUTF8)qbLC.Ptr();
                 }
 
                 Assembly *pAssembly = spec.LoadAssembly(FILE_LOADED);
                 Module *pModule = pAssembly->FindModuleByName(szLibName);
 
-                hmod = LocalLoadLibraryHelper(pModule->GetPath(), loadWithAlteredPathFlags | dllImportSearchPathFlag, pErrorTracker);
+                hmod = LocalLoadLibraryHelper(pModule->GetPath(), loadWithAlteredPathFlags | dllImportSearchPathFlag, &pErrorTracker);
             }
         }
-    }
-
-    // After all this, if we have a handle add it to the cache.
-    if (hmod)
-    {
-        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
     }
 
     return hmod.Extract();
@@ -6456,7 +6552,8 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     LoadLibErrorTracker errorTracker;
 
     BOOL fSuccess = FALSE;
-    HINSTANCE hmod = LoadLibraryModule( pMD, &errorTracker );
+    HINSTANCE hmod = LoadLibraryModule(pMD);
+
     if ( hmod )
     {
         LPVOID pvTarget = NDirectGetEntryPoint(pMD, hmod);

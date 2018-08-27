@@ -60,6 +60,7 @@ public:
 class NDirect
 {
     friend class NDirectMethodDesc;
+    friend class LoadNative;
 
 public:
     //---------------------------------------------------------
@@ -78,8 +79,9 @@ public:
 
     static LPVOID NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod);
     static HMODULE LoadLibraryFromPath(LPCWSTR libraryPath);
-    static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
 
+    static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD);
+    static HINSTANCE LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
 
     static VOID NDirectLink(NDirectMethodDesc *pMD);
 
@@ -124,7 +126,8 @@ private:
     static HMODULE LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
     static HMODULE LoadFromPInvokeAssemblyDirectory(Assembly *pAssembly, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
 
-    static HMODULE LoadLibraryModuleViaHost(NDirectMethodDesc * pMD, AppDomain* pDomain, const wchar_t* wszLibName);
+    static HMODULE LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
+    static HMODULE LoadLibraryModuleViaHost(Assembly * pAssembly, AppDomain* pDomain, const wchar_t* wszLibName);
 
 #if !defined(FEATURE_PAL)
     // Indicates if the OS supports the new secure LoadLibraryEx flags introduced in KB2533623

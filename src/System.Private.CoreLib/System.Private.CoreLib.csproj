@@ -457,6 +457,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\ExceptionServices\ExceptionDispatchInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\LoadNative.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Loader\AssemblyLoadContext.cs" />
   </ItemGroup>
   <ItemGroup>

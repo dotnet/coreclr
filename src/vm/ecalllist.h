@@ -560,6 +560,10 @@ FCFuncStart(gAssemblyLoadContextFuncs)
 #endif // defined(FEATURE_MULTICOREJIT)
 FCFuncEnd()
 
+FCFuncStart(gLoadNativeFuncs)
+    QCFuncElement("LoadLibrary", LoadNative::LoadLibrary)
+FCFuncEnd()
+
 FCFuncStart(gAssemblyNameFuncs)
     FCFuncElement("nInit", AssemblyNameNative::Init)
     FCFuncElement("nGetPublicKeyToken", AssemblyNameNative::GetPublicKeyToken)
@@ -1281,6 +1285,7 @@ FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFu
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
 FCClassElement("JitHelpers", "System.Runtime.CompilerServices", gJitHelpers)
+FCClassElement("LoadNative", "System.Runtime.Loader", gLoadNativeFuncs)
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("ManifestBasedResourceGroveler", "System.Resources",  gManifestBasedResourceGrovelerFuncs)
 FCClassElement("Marshal", "System.Runtime.InteropServices", gInteropMarshalFuncs)

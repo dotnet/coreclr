@@ -416,6 +416,38 @@ namespace System.Runtime.Loader
             return context.LoadUnmanagedDll(unmanagedDllName);
         }
 
+        public delegate IntPtr LoadLibraryDelegate(IntPtr pAssembly, string libraryName, bool searchAssemblyDirectory, ulong dllImportSearchPathFlag);
+
+        public event LoadLibraryDelegate LoadNativeLibrary;
+
+        /*
+         * This is just a mock.
+         * This is handler will manage XML parsing and Mono-compatible mappings.
+         * Implementation will be placed in corefx.labs.
+         */
+        public static IntPtr LoadLibraryCustomHandler(IntPtr pAssembly, string libraryName, bool searchAssemblyDirectory, ulong dllImportSearchPathFlag)
+        {
+            if (libraryName == "WrongLibraryName")
+            {
+                libraryName = "Library";
+                return LoadNative.LoadLibrary(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag);
+            }
+            return IntPtr.Zero;
+        }
+
+        public static IntPtr ResolveDllUsingDllmap(string unmanagedDllName, IntPtr gchManagedAssemblyLoadContext, IntPtr pAssembly, bool searchAssemblyDirectory, ulong dllImportSearchPathFlag)
+        {
+            AssemblyLoadContext context = AssemblyLoadContext.Default;
+
+            if (gchManagedAssemblyLoadContext != IntPtr.Zero)
+            {
+                context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target);
+            }
+
+            context.LoadNativeLibrary += LoadLibraryCustomHandler;
+            return context.LoadNativeLibrary(pAssembly, unmanagedDllName, searchAssemblyDirectory, dllImportSearchPathFlag);
+        }
+
         public static AssemblyLoadContext Default
         {
             get

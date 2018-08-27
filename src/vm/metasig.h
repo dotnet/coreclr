@@ -348,6 +348,7 @@ DEFINE_METASIG(SM(Str_RetInt, s, i))
 DEFINE_METASIG_T(SM(Str_RetICustomMarshaler, s, C(ICUSTOM_MARSHALER)))
 DEFINE_METASIG(SM(Int_Str_RetIntPtr, i s, I))
 DEFINE_METASIG(SM(Int_Str_IntPtr_RetIntPtr, i s I, I))
+DEFINE_METASIG(SM(Str_IntPtr_IntPtr_Bool_Ulong_RetIntPtr, s I I F L, I)) // RESOLVEUSINGDLLMAP
 DEFINE_METASIG(SM(Str_IntPtr_RetIntPtr, s I, I))
 DEFINE_METASIG(SM(Str_Bool_Int_RetV, s F i, v))
 
