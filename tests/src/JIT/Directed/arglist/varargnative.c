@@ -10,6 +10,13 @@
 #define DLLEXPORT __declspec(dllexport)
 #else
 #define DLLEXPORT __attribute__((visibility("default")))
+
+#if __i386__
+#define _cdecl __attribute__((cdecl))
+#else
+#define _cdecl
+#endif
+
 #endif // _MSC_VER
 
 /* Structures */
