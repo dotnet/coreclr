@@ -252,6 +252,7 @@
     <Compile Include="$(BclSourcesRoot)\System\ThrowHelper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\String.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Text\StringBuilder.CoreCLR.cs" />
+    <Compile Include="src\System\Text\TrimType.cs" />
     <Compile Include="src\System\Text\InvalidSequenceBehavior.cs" />
     <Compile Include="src\System\Text\UnicodeDebug.cs" />
     <Compile Include="src\System\Text\UnicodeHelpers.cs" />
@@ -299,6 +300,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Utf8StringComparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8StringSegment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Creation.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\StringSegment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />

@@ -716,15 +716,7 @@ namespace System
             /// </summary>
             IsWellFormed
         }
-
-        [Flags]
-        internal enum TrimType
-        {
-            Head = 1 << 0,
-            Tail = 1 << 1,
-            Both = Head | Tail
-        }
-
+        
         // TODO! Decide if string interning should be a public feature
         internal static Utf8String Intern(Utf8String str)
         {

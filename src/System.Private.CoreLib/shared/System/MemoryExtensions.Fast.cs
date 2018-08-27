@@ -471,6 +471,27 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsSpan(this StringSegment text)
+        {
+            // Call to Utf8String.AsSpan below will perform parameter validation
+            return (!text.IsEmpty) ? text.GetBuffer(out var offset, out var length).AsSpan(offset, length) : ReadOnlySpan<char>.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsSpan(this StringSegment text, int start)
+        {
+            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start) : ReadOnlySpan<char>.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<char> AsSpan(this StringSegment text, int start, int length)
+        {
+            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start, length) : ReadOnlySpan<char>.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsSpan(this Utf8String text)
         {
             if (text == null)
@@ -586,6 +607,50 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
             return new ReadOnlyMemory<char>(text, start, length);
+        }
+
+        public static ReadOnlyMemory<char> AsMemory(this StringSegment text)
+        {
+            // No validation performed here; a torn StringSegment results in a torn ROM instance.
+            // ROM will perform its own internal consistency checks when the caller tries to use it.
+
+            return new ReadOnlyMemory<char>(text.GetBuffer(out int offset, out int length), offset, length);
+        }
+
+        public static ReadOnlyMemory<char> AsMemory(this StringSegment text, int start)
+        {
+            // Minimal validation performed here; a torn StringSegment may result in a torn ROM instance.
+            // ROM will perform its own internal consistency checks when the caller tries to use it.
+
+            if ((uint)start > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            if (start != text.Length)
+            {
+                return new ReadOnlyMemory<char>(text.GetBuffer(out int originalOffset, out int originalLength), originalOffset + start, originalLength - start);
+            }
+            else
+            {
+                return ReadOnlyMemory<char>.Empty; // substringed away the entire contents
+            }
+        }
+
+        public static ReadOnlyMemory<char> AsMemory(this StringSegment text, int start, int length)
+        {
+            // Minimal validation performed here; a torn StringSegment may result in a torn ROM instance.
+            // ROM will perform its own internal consistency checks when the caller tries to use it.
+
+            if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            if (length != 0)
+            {
+                return new ReadOnlyMemory<char>(text.GetBuffer(out int originalOffset, out int originalLength), originalOffset + start, length);
+            }
+            else
+            {
+                return ReadOnlyMemory<char>.Empty; // substringed away the entire contents
+            }
         }
     }
 }

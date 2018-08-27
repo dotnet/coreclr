@@ -8,19 +8,19 @@ using System.Text;
 
 namespace System
 {
-    // The Utf8StringSegment type guarantees internal consistency *only in single-threaded environments*.
-    // In multithreaded environments, multiple threads may be updating a single Utf8StringSegment struct
+    // The StringSegment type guarantees internal consistency *only in single-threaded environments*.
+    // In multithreaded environments, multiple threads may be updating a single StringSegment struct
     // simultaneously, which could lead to a torn (internally inconsistent) struct. In this case, methods
-    // which operate on Utf8StringSegment instances may have undefined behavior, such as having exceptions
+    // which operate on StringSegment instances may have undefined behavior, such as having exceptions
     // thrown unexpectedly or reading the wrong data, but the golden rule is that *we shouldn't AV*. This
     // implies that we need to avoid unsafe code whenever possible in this type.
 
     // n.b. There is no GetPinnableReference method since we can't guarantee null termination.
     // Instead, the caller must pull out the span, then pin the span.
 
-    public readonly struct Utf8StringSegment : IEquatable<Utf8StringSegment>
+    public readonly struct StringSegment : IEquatable<StringSegment>
     {
-        private readonly Utf8String _value;
+        private readonly string _value;
         private readonly int _offset;
         private readonly int _count;
 
@@ -28,9 +28,9 @@ namespace System
          * CTORS
          */
 
-        public Utf8StringSegment(Utf8String value)
+        public StringSegment(string value)
         {
-            if (!Utf8String.IsNullOrEmpty(value))
+            if (!string.IsNullOrEmpty(value))
             {
                 _value = value;
                 _offset = 0;
@@ -44,7 +44,7 @@ namespace System
             }
         }
 
-        public Utf8StringSegment(Utf8String value, int offset, int count)
+        public StringSegment(string value, int offset, int count)
         {
             if (value != null)
             {
@@ -78,7 +78,7 @@ namespace System
         }
 
         // non-validating ctor
-        private Utf8StringSegment(Utf8String value, int offset, int count, bool unused)
+        private StringSegment(string value, int offset, int count, bool unused)
         {
             // Caller should've checked already that empty segments are normalized to (null, 0, 0)
 
@@ -97,13 +97,15 @@ namespace System
          * OPERATORS
          */
 
-        public static implicit operator Utf8StringSegment(Utf8String value) => new Utf8StringSegment(value);
+        public static implicit operator ReadOnlySpan<char>(StringSegment value) => value.AsSpan();
+
+        public static implicit operator StringSegment(string value) => new StringSegment(value);
 
         // ordinal case-sensitive comparison
-        public static bool operator ==(Utf8StringSegment a, Utf8StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
+        public static bool operator ==(StringSegment a, StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
 
         // ordinal case-sensitive comparison
-        public static bool operator !=(Utf8StringSegment a, Utf8StringSegment b) => !(a == b);
+        public static bool operator !=(StringSegment a, StringSegment b) => !(a == b);
 
         /*
          * PROPERTIES
@@ -119,13 +121,13 @@ namespace System
 
         public override bool Equals(object obj)
         {
-            return (obj is Utf8StringSegment value) ? Equals(value) : (obj == null && IsEmpty);
+            return (obj is StringSegment value) ? Equals(value) : (obj == null && IsEmpty);
         }
 
         // ordinal case-sensitive comparison
-        public bool Equals(Utf8StringSegment value) => (this == value);
+        public bool Equals(StringSegment value) => (this == value);
 
-        public static bool Equals(Utf8StringSegment a, Utf8StringSegment b, StringComparison comparisonType)
+        public static bool Equals(StringSegment a, StringSegment b, StringComparison comparisonType)
         {
             // This is based on the logic in String.Equals(String, String, StringComparison)
 
@@ -134,10 +136,10 @@ namespace System
             // A substring will always compare equal with itself, so special-case that before
             // trying to call into any deep equality check routine.
 
-            return IsSameSegment(a, b) || Utf8String.Equals(a.AsSpan(), b.AsSpan(), comparisonType);
+            return IsSameSegment(a, b) || a.AsSpan().Equals(b.AsSpan(), comparisonType);
         }
 
-        public Utf8String GetBuffer(out int offset, out int length)
+        public string GetBuffer(out int offset, out int length)
         {
             offset = _offset;
             length = _count;
@@ -145,14 +147,14 @@ namespace System
         }
 
         // ordinal case-sensitive hash code
-        public override int GetHashCode() => Utf8String.GetHashCode(this.AsSpan());
+        public override int GetHashCode() => string.GetHashCode(this.AsSpan());
 
-        public int GetHashCode(StringComparison comparisonType) => Utf8String.GetHashCode(this.AsSpan(), comparisonType);
+        public int GetHashCode(StringComparison comparisonType) => string.GetHashCode(this.AsSpan(), comparisonType);
 
-        public bool IsEmptyOrWhiteSpace() => Utf8String.IsEmptyOrWhiteSpace(this.AsSpan());
+        public bool IsEmptyOrWhiteSpace() => this.AsSpan().IsWhiteSpace(); // also performs "is empty?" check
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static bool IsSameSegment(Utf8StringSegment a, Utf8StringSegment b)
+        private static bool IsSameSegment(StringSegment a, StringSegment b)
         {
             // TODO: Can this be optimized by reading offset + count as a single int64?
 
@@ -161,7 +163,7 @@ namespace System
                 && a._count == b._count;
         }
 
-        public Utf8StringSegment Substring(int startIndex)
+        public StringSegment Substring(int startIndex)
         {
             if ((uint)startIndex > (uint)_count)
             {
@@ -170,7 +172,7 @@ namespace System
             }
             else if (startIndex != _count)
             {
-                return new Utf8StringSegment(_value, _offset + startIndex, _count - startIndex, unused: false);
+                return new StringSegment(_value, _offset + startIndex, _count - startIndex, unused: false);
             }
             else
             {
@@ -179,7 +181,7 @@ namespace System
             }
         }
 
-        public Utf8StringSegment Substring(int startIndex, int length)
+        public StringSegment Substring(int startIndex, int length)
         {
             if (((uint)startIndex > (uint)_count) || ((uint)length > (uint)(_count - startIndex)))
             {
@@ -188,7 +190,7 @@ namespace System
             }
             else if (length != 0)
             {
-                return new Utf8StringSegment(_value, _offset + startIndex, length, unused: false);
+                return new StringSegment(_value, _offset + startIndex, length, unused: false);
             }
             else
             {
@@ -198,18 +200,6 @@ namespace System
         }
 
         public override string ToString()
-        {
-            if (!IsEmpty)
-            {
-                return Utf8String.ToString(this.AsSpan());
-            }
-            else
-            {
-                return string.Empty;
-            }
-        }
-
-        public Utf8String ToUtf8String()
         {
             if (_count != 0)
             {
@@ -224,26 +214,42 @@ namespace System
             }
             else
             {
-                return Utf8String.Empty;
+                return string.Empty;
             }
         }
+        
+        public StringSegment Trim() => TrimHelper(TrimType.Both);
 
-        public Utf8StringSegment Trim() => TrimHelper(TrimType.Both);
+        public StringSegment TrimEnd() => TrimHelper(TrimType.Tail);
 
-        public Utf8StringSegment TrimEnd() => TrimHelper(TrimType.Tail);
-
-        private Utf8StringSegment TrimHelper(TrimType trimType)
+        private StringSegment TrimHelper(TrimType trimType)
         {
-            Utf8StringSegment retVal = this;
+            StringSegment retVal = this;
 
             if (trimType.HasFlag(TrimType.Head))
             {
-                retVal = retVal.Substring(Utf8Utility.GetIndexOfFirstNonWhiteSpaceChar(retVal.AsSpan()));
+                var span = retVal.AsSpan();
+                for (int i = 0; i < span.Length; i++)
+                {
+                    if (!char.IsWhiteSpace(span[i]))
+                    {
+                        retVal = retVal.Substring(i);
+                        break;
+                    }
+                }
             }
 
             if (trimType.HasFlag(TrimType.Tail))
             {
-                retVal = retVal.Substring(0, Utf8Utility.GetIndexOfTrailingWhiteSpaceSequence(retVal.AsSpan()));
+                var span = retVal.AsSpan();
+                for (int i = span.Length - 1; i >= 0; i++)
+                {
+                    if (!char.IsWhiteSpace(span[i]))
+                    {
+                        retVal = retVal.Substring(0, i + 1);
+                        break;
+                    }
+                }
             }
 
             // The Substring method will clear out the 'value' field if this is an empty segment.
@@ -251,6 +257,6 @@ namespace System
             return retVal;
         }
 
-        public Utf8StringSegment TrimStart() => TrimHelper(TrimType.Head);
+        public StringSegment TrimStart() => TrimHelper(TrimType.Head);
     }
 }
