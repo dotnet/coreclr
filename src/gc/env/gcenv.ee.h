@@ -92,8 +92,6 @@ public:
     static uint32_t GetIndexOfAppDomainBeingUnloaded();
     static uint32_t GetTotalNumSizedRefHandles();
     static bool AppDomainIsRudeUnload(void *appDomain);
-
-    static bool IsComWrapperForObjectActive(Object *object);
 };
 
 #endif // __GCENV_EE_H__

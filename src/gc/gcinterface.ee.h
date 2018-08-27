@@ -427,9 +427,6 @@ public:
 
     virtual
     bool AppDomainIsRudeUnload(void *appDomain) = 0;
-
-    virtual
-    bool IsComWrapperForObjectActive(Object *object) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_

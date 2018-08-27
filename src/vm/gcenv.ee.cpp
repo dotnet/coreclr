@@ -256,9 +256,8 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
 #ifdef FEATURE_COMINTEROP
     //<REVISIT_TODO>@todo optimize the access to the ref-count
     ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)pObject);
-    _ASSERTE(pWrap != NULL);
 
-    return !!pWrap->IsWrapperActive();
+    return pWrap != NULL && !!pWrap->IsWrapperActive();
 #else
     return false;
 #endif
@@ -1475,16 +1474,4 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
 
     AppDomain *realPtr = static_cast<AppDomain *>(appDomain);
     return realPtr->IsRudeUnload() != FALSE;
-}
-
-bool GCToEEInterface::IsComWrapperForObjectActive(Object *object)
-{
-    LIMITED_METHOD_CONTRACT;
-
-#ifdef FEATURE_COMINTEROP
-    ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)object);
-    return (pWrap != NULL) && (pWrap->IsWrapperActive() == TRUE);
-#else // FEATURE_COMINTEROP
-    return false;
-#endif // FEATURE_COMINTEROP
 }

@@ -468,7 +468,7 @@ void CALLBACK ScanPointerForProfilerAndETW(_UNCHECKED_OBJECTREF *pObjRef, uintpt
         rootFlags |= kEtwGCRootFlagsRefCounted;
         if (*pRef != NULL)
         {
-            if (!GCToEEInterface::IsComWrapperForObjectActive(*pRef))
+            if (!GCToEEInterface::RefCountedHandleCallbacks(*pRef))
                 rootFlags |= kEtwGCRootFlagsWeakRef;
         }
         break;

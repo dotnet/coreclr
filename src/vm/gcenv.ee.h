@@ -70,8 +70,6 @@ public:
     uint32_t GetIndexOfAppDomainBeingUnloaded();
     uint32_t GetTotalNumSizedRefHandles();
     bool AppDomainIsRudeUnload(void *appDomain);
-
-    bool IsComWrapperForObjectActive(Object *object);
 };
 
 } // namespace standalone
