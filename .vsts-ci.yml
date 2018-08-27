@@ -21,9 +21,6 @@ phases:
         x64_checked_Innerloop:
           buildConfig: checked
           archType: x64
-        x86_checked_Innerloop:
-          buildConfig: checked
-          archType: x86
     agentOs: Windows_NT
     phaseName: Windows_NT
     steps:
