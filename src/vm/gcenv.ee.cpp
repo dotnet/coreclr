@@ -257,7 +257,7 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
     //<REVISIT_TODO>@todo optimize the access to the ref-count
     ComCallWrapper* pWrap = ComCallWrapper::GetWrapperForObject((OBJECTREF)pObject);
 
-    return pWrap != NULL && !!pWrap->IsWrapperActive();
+    return pWrap != NULL && pWrap->IsWrapperActive();
 #else
     return false;
 #endif
