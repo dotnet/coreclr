@@ -127,6 +127,11 @@ namespace System.Diagnostics.Tracing
                 loggingLevel));
         }
 
+        internal void EnableProvider(EventPipeProviderConfiguration providerConfig)
+        {
+            m_providers.Add(providerConfig);
+        }
+
         internal void SetProfilerSamplingRate(TimeSpan minTimeBetweenSamples)
         {
             if(minTimeBetweenSamples.Ticks <= 0)

@@ -657,7 +657,6 @@ namespace System
                 }
             }
 
-            // TODO: Find a better place to put this?
             System.Diagnostics.Tracing.EventPipeController.Initialize();
         }
 
