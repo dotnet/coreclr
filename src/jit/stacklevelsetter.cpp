@@ -20,6 +20,8 @@ StackLevelSetter::StackLevelSetter(Compiler* compiler)
     , throwHelperBlocksUsed(comp->fgUseThrowHelperBlocks() && comp->compUsesThrowHelper)
 #endif // !FEATURE_FIXED_OUT_ARGS
 {
+    // The constructor reads this value to skip iterations that could set it if it is already set.
+    compiler->codeGen->resetWritePhaseForFramePointerRequired();
 }
 
 //------------------------------------------------------------------------
@@ -43,10 +45,8 @@ void StackLevelSetter::DoPhase()
     }
 #if !FEATURE_FIXED_OUT_ARGS
 
-    if (framePointerRequired && !comp->codeGen->isFramePointerRequired())
+    if (framePointerRequired)
     {
-        JITDUMP("framePointerRequired is not set when it is required\n");
-        comp->codeGen->resetWritePhaseForFramePointerRequired();
         comp->codeGen->setFramePointerRequired(true);
     }
 #endif // !FEATURE_FIXED_OUT_ARGS
@@ -96,8 +96,8 @@ void StackLevelSetter::ProcessBlock(BasicBlock* block)
 
         if (node->IsCall())
         {
-            GenTreeCall* call = node->AsCall();
-            unsigned usedStackSlotsCount = PopArgumentsFromCall(call);
+            GenTreeCall* call                = node->AsCall();
+            unsigned     usedStackSlotsCount = PopArgumentsFromCall(call);
 #if defined(UNIX_X86_ABI)
             call->fgArgInfo->SetStkSizeBytes(usedStackSlotsCount * TARGET_POINTER_SIZE);
 #endif // UNIX_X86_ABI
@@ -328,7 +328,6 @@ void StackLevelSetter::CheckArgCnt()
             printf("Too many pushed arguments for an ESP based encoding, forcing an EBP frame\n");
         }
 #endif
-        comp->codeGen->resetWritePhaseForFramePointerRequired();
         comp->codeGen->setFramePointerRequired(true);
     }
 }
