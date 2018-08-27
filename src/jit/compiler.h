@@ -1580,9 +1580,6 @@ public:
 
     void EvalArgsToTemps();
 
-    void RecordStkLevel(unsigned stkLvl);
-    unsigned RetrieveStkLevel();
-
     unsigned ArgCount()
     {
         return argCount;
@@ -4890,7 +4887,6 @@ private:
 
     //------------------------- Morphing --------------------------------------
 
-    unsigned fgPtrArgCntCur;
     unsigned fgPtrArgCntMax;
 
 public:
@@ -4923,7 +4919,7 @@ private:
 
     void fgSetRngChkTarget(GenTree* tree, bool delay = true);
 
-    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, unsigned* stkDepth);
+    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay);
 
 #if REARRANGE_ADDS
     void fgMoveOpsLeft(GenTree* tree);
@@ -5115,9 +5111,9 @@ private:
     bool        fgRngChkThrowAdded;
     AddCodeDsc* fgExcptnTargetCache[SCK_COUNT];
 
-    BasicBlock* fgRngChkTarget(BasicBlock* block, unsigned stkDepth, SpecialCodeKind kind);
+    BasicBlock* fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind);
 
-    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind, unsigned stkDepth = 0);
+    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind);
 
 public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);

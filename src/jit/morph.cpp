@@ -751,7 +751,7 @@ OPTIMIZECAST:
 
     if (tree->gtOverflow())
     {
-        fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW, fgPtrArgCntCur);
+        fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW);
     }
 
     return tree;
@@ -2563,18 +2563,6 @@ GenTree* fgArgInfo::GetLateArg(unsigned argIndex)
     unreached();
 }
 
-void fgArgInfo::RecordStkLevel(unsigned stkLvl)
-{
-    assert(!IsUninitialized(stkLvl));
-    this->stkLevel = stkLvl;
-}
-
-unsigned fgArgInfo::RetrieveStkLevel()
-{
-    assert(!IsUninitialized(stkLevel));
-    return stkLevel;
-}
-
 // Return a conservative estimate of the stack size in bytes.
 // It will be used only on the intercepted-for-host code path to copy the arguments.
 int Compiler::fgEstimateCallStackSize(GenTreeCall* call)
@@ -2711,8 +2699,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     GenTree* args;
     GenTree* argx;
 
-    unsigned flagsSummary    = 0;
-    unsigned genPtrArgCntSav = fgPtrArgCntCur;
+    unsigned flagsSummary = 0;
 
     unsigned argIndex = 0;
 
@@ -2859,11 +2846,13 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     // On remorph, we grab it from the arg table.
     unsigned numArgs = 0;
 
+    // TODO: this comment is no longer correct, do an approptiate fix.
     // Process the late arguments (which were determined by a previous caller).
     // Do this before resetting fgPtrArgCntCur as fgMorphTree(call->gtCallLateArgs)
     // may need to refer to it.
     if (reMorphing)
     {
+        // TODO: this comment is no longer correct, do an approptiate fix.
         // We need to reMorph the gtCallLateArgs early since that is what triggers
         // the expression folding and we need to have the final folded gtCallLateArgs
         // available when we call RemorphRegArg so that we correctly update the fgArgInfo
@@ -2881,11 +2870,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         //
         if (call->gtCallLateArgs != nullptr)
         {
-            unsigned callStkLevel = call->fgArgInfo->RetrieveStkLevel();
-            fgPtrArgCntCur += callStkLevel;
             call->gtCallLateArgs = fgMorphTree(call->gtCallLateArgs)->AsArgList();
             flagsSummary |= call->gtCallLateArgs->gtFlags;
-            fgPtrArgCntCur -= callStkLevel;
         }
         assert(call->fgArgInfo != nullptr);
         call->fgArgInfo->RemorphReset();
@@ -4191,7 +4177,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         unsigned numRegsPartial = MAX_REG_ARG - intArgRegNum;
                         assert((unsigned char)numRegsPartial == numRegsPartial);
                         call->fgArgInfo->SplitArg(argIndex, numRegsPartial, size - numRegsPartial);
-                        fgPtrArgCntCur += size - numRegsPartial;
                     }
 #endif // FEATURE_ARG_SPLIT
 
@@ -4222,8 +4207,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         }
         else // We have an argument that is not passed in a register
         {
-            fgPtrArgCntCur += size;
-
             // If the register arguments have not been determined then we must fill in the argInfo
 
             if (reMorphing)
@@ -4355,22 +4338,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     {
         call->gtCallAddr = fgMorphTree(call->gtCallAddr);
     }
-
-    call->fgArgInfo->RecordStkLevel(fgPtrArgCntCur);
-
-    if ((call->gtCallType == CT_INDIRECT) && (call->gtCallCookie != nullptr))
-    {
-        fgPtrArgCntCur++;
-    }
-
-    assert(fgPtrArgCntCur >= genPtrArgCntSav);
-#if defined(UNIX_X86_ABI)
-    call->fgArgInfo->SetStkSizeBytes((fgPtrArgCntCur - genPtrArgCntSav) * TARGET_POINTER_SIZE);
-#endif // UNIX_X86_ABI
-
-    /* The call will pop all the arguments we pushed */
-
-    fgPtrArgCntCur = genPtrArgCntSav;
 
 #if FEATURE_FIXED_OUT_ARGS
 
@@ -5604,7 +5571,7 @@ void Compiler::fgSetRngChkTarget(GenTree* tree, bool delay)
     if (tree->OperIsBoundsCheck())
     {
         GenTreeBoundsChk* const boundsChk = tree->AsBoundsChk();
-        BasicBlock* const failBlock = fgSetRngChkTargetInner(boundsChk->gtThrowKind, delay, &boundsChk->gtStkDepth);
+        BasicBlock* const       failBlock = fgSetRngChkTargetInner(boundsChk->gtThrowKind, delay);
         if (failBlock != nullptr)
         {
             boundsChk->gtIndRngFailBB = gtNewCodeRef(failBlock);
@@ -5613,7 +5580,7 @@ void Compiler::fgSetRngChkTarget(GenTree* tree, bool delay)
     else if (tree->OperIs(GT_INDEX_ADDR))
     {
         GenTreeIndexAddr* const indexAddr = tree->AsIndexAddr();
-        BasicBlock* const       failBlock = fgSetRngChkTargetInner(SCK_RNGCHK_FAIL, delay, &indexAddr->gtStkDepth);
+        BasicBlock* const       failBlock = fgSetRngChkTargetInner(SCK_RNGCHK_FAIL, delay);
         if (failBlock != nullptr)
         {
             indexAddr->gtIndRngFailBB = gtNewCodeRef(failBlock);
@@ -5622,51 +5589,23 @@ void Compiler::fgSetRngChkTarget(GenTree* tree, bool delay)
     else
     {
         noway_assert(tree->OperIs(GT_ARR_ELEM, GT_ARR_INDEX));
-        fgSetRngChkTargetInner(SCK_RNGCHK_FAIL, delay, nullptr);
+        fgSetRngChkTargetInner(SCK_RNGCHK_FAIL, delay);
     }
 }
 
-BasicBlock* Compiler::fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, unsigned* stkDepth)
+BasicBlock* Compiler::fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay)
 {
     if (opts.MinOpts())
     {
         delay = false;
-
-#if !FEATURE_FIXED_OUT_ARGS
-        // we need to initialize this field
-        if (fgGlobalMorph && (stkDepth != nullptr))
-        {
-            *stkDepth = fgPtrArgCntCur;
-        }
-#endif // !FEATURE_FIXED_OUT_ARGS
     }
 
     if (!opts.compDbgCode)
     {
-        if (delay || compIsForInlining())
+        if (!delay && !compIsForInlining())
         {
-#if !FEATURE_FIXED_OUT_ARGS
-            // We delay this until after loop-oriented range check analysis. For now we merely store the current stack
-            // level in the tree node.
-            if (stkDepth != nullptr)
-            {
-                *stkDepth = fgPtrArgCntCur;
-            }
-#endif // !FEATURE_FIXED_OUT_ARGS
-        }
-        else
-        {
-#if !FEATURE_FIXED_OUT_ARGS
-            // fgPtrArgCntCur is only valid for global morph or if we walk full stmt.
-            noway_assert(fgGlobalMorph || (stkDepth != nullptr));
-            const unsigned theStkDepth = fgGlobalMorph ? fgPtrArgCntCur : *stkDepth;
-#else
-            // only x86 pushes args
-            const unsigned theStkDepth = 0;
-#endif
-
             // Create/find the appropriate "range-fail" label
-            return fgRngChkTarget(compCurBB, theStkDepth, kind);
+            return fgRngChkTarget(compCurBB, kind);
         }
     }
 
@@ -11749,6 +11688,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
         USE_HELPER_FOR_ARITH:
         {
+            // TODO: this comment is wrong now, do an appropriate fix.
             /* We have to morph these arithmetic operations into helper calls
                before morphing the arguments (preorder), else the arguments
                won't get correct values of fgPtrArgCntCur.
@@ -12888,13 +12828,13 @@ DONE_MORPHING_CHILDREN:
             if (!varTypeIsFloating(tree->gtType))
             {
                 // Codegen for this instruction needs to be able to throw two exceptions:
-                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW, fgPtrArgCntCur);
-                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_DIV_BY_ZERO, fgPtrArgCntCur);
+                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW);
+                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_DIV_BY_ZERO);
             }
             break;
         case GT_UDIV:
             // Codegen for this instruction needs to be able to throw one exception:
-            fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_DIV_BY_ZERO, fgPtrArgCntCur);
+            fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_DIV_BY_ZERO);
             break;
 #endif
 
@@ -12907,7 +12847,7 @@ DONE_MORPHING_CHILDREN:
 
                 // Add the excptn-throwing basic block to jump to on overflow
 
-                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW, fgPtrArgCntCur);
+                fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_OVERFLOW);
 
                 // We can't do any commutative morphing for overflow instructions
 
@@ -13203,7 +13143,7 @@ DONE_MORPHING_CHILDREN:
 
             noway_assert(varTypeIsFloating(op1->TypeGet()));
 
-            fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_ARITH_EXCPN, fgPtrArgCntCur);
+            fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_ARITH_EXCPN);
             break;
 
         case GT_OBJ:
@@ -14566,7 +14506,6 @@ GenTree* Compiler::fgMorphToEmulatedFP(GenTree* tree)
     {
         int      helper;
         GenTree* args;
-        size_t   argc = genTypeStSz(typ);
 
         /* Not all FP operations need helper calls */
 
@@ -14592,17 +14531,10 @@ GenTree* Compiler::fgMorphToEmulatedFP(GenTree* tree)
 
         /* Keep track of how many arguments we're passing */
 
-        fgPtrArgCntCur += argc;
-
         /* Is this a binary operator? */
 
         if (op2)
         {
-            /* Add the second operand to the argument count */
-
-            fgPtrArgCntCur += argc;
-            argc *= 2;
-
             /* What kind of an operator do we have? */
 
             switch (oper)
@@ -14701,7 +14633,6 @@ GenTree* Compiler::fgMorphToEmulatedFP(GenTree* tree)
 
         tree = fgMorphIntoHelperCall(tree, helper, args);
 
-        fgPtrArgCntCur -= argc;
         return tree;
 
         case GT_RETURN:
@@ -15850,8 +15781,6 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
         }
 
         stmt->gtStmtExpr = tree = morph;
-
-        noway_assert(fgPtrArgCntCur == 0);
 
         if (fgRemoveRestOfBlock)
         {
