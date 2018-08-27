@@ -20,12 +20,16 @@ namespace System
 
         // Parse a string specifying a list of assemblies and types
         // containing a startup hook, and call each hook in turn.
-        private static void ProcessStartupHooks(IntPtr startupHooksVariable)
+        private static void ProcessStartupHooks()
         {
-            Debug.Assert(startupHooksVariable != IntPtr.Zero);
-            string[] startupHooks = Marshal.PtrToStringUTF8(startupHooksVariable).Split(Path.PathSeparator);
+            string startupHooksVariable = (string)AppContext.GetData("STARTUP_HOOKS");
+            if (startupHooksVariable == null)
+            {
+                return;
+            }
 
-            // Parse startup hook variable
+            // Parse startup hooks variable
+            string[] startupHooks = startupHooksVariable.Split(Path.PathSeparator);
             foreach (string startupHook in startupHooks)
             {
                 if (String.IsNullOrEmpty(startupHook))

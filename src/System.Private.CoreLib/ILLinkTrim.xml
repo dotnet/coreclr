@@ -39,7 +39,5 @@
     <type fullname="System.Diagnostics.Tracing.RuntimeEventSource" />
     <!-- Accessed via reflection in TraceLogging-style EventSource events. -->
     <type fullname="*f__AnonymousType*" />
-    <!-- Accessed through CreateDelegate in host. -->
-    <type fullname="System.StartupHookProvider" />
   </assembly>
 </linker>

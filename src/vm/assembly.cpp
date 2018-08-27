@@ -1753,6 +1753,22 @@ static void RunMainPost()
     }
 }
 
+static void RunStartupHooks()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+    MethodDescCallSite processStartupHooks(METHOD__STARTUP_HOOK_PROVIDER__PROCESS_STARTUP_HOOKS);
+    printf("calling startup hook\n");
+    ARG_SLOT args[] = {};
+    processStartupHooks.Call(args);
+}
+
 INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThreads)
 {
     CONTRACTL
@@ -1794,6 +1810,8 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
                 SystemDomain::SetThreadAptState(state);
 #endif // FEATURE_COMINTEROP
             }
+
+            RunStartupHooks();
 
             RunMainPre();
 
