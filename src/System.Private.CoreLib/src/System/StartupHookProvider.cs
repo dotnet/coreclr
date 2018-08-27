@@ -15,8 +15,8 @@ namespace System
 {
     internal class StartupHookProvider
     {
-        private static string startupHookTypeName = "StartupHook";
-        private static string initializeMethodName = "Initialize";
+        private const string startupHookTypeName = "StartupHook";
+        private const string initializeMethodName = "Initialize";
 
         // Parse a string specifying a list of assemblies and types
         // containing a startup hook, and call each hook in turn.
