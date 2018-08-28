@@ -3479,9 +3479,9 @@ unsigned Compiler::optComputeLoopIter(unsigned loopId)
 
     unsigned int iterCount = 0;
     if (!optComputeLoopRep(loopDesc->lpConstInit, loopDesc->lpConstLimit(), loopDesc->lpIterConst(),
-        loopDesc->lpIterOper(), loopDesc->lpIterOperType(), loopDesc->lpTestOper(),
-        (loopDesc->lpTestTree->gtFlags & GTF_UNSIGNED) != 0,
-        (loopDesc->lpHead->lastStmt()->gtFlags & GTF_STMT_CMPADD) != 0, &iterCount))
+                           loopDesc->lpIterOper(), loopDesc->lpIterOperType(), loopDesc->lpTestOper(),
+                           (loopDesc->lpTestTree->gtFlags & GTF_UNSIGNED) != 0,
+                           (loopDesc->lpHead->lastStmt()->gtFlags & GTF_STMT_CMPADD) != 0, &iterCount))
     {
         return 0;
     }
@@ -3520,7 +3520,7 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
 {
     LoopDsc* loopDesc = &optLoopTable[loopId];
 
-    BasicBlock* bbHead = loopDesc->lpHead;
+    BasicBlock* bbHead   = loopDesc->lpHead;
     BasicBlock* bbBottom = loopDesc->lpBottom;
 
     GenTree* gtInit = bbHead->lastStmt();
@@ -3534,7 +3534,7 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
     } WalkData;
 
     jitstd::vector<GenTree*> LvParentList(this->getAllocator());
-    WalkData.cbrLv = loopDesc->lpIterVar();
+    WalkData.cbrLv       = loopDesc->lpIterVar();
     WalkData.cbrLvParent = &LvParentList;
 
     auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
@@ -3573,12 +3573,12 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
     // We only unrolls when loop has simplest body form
     switch (loopBodyStmtCnt)
     {
-    case 1:
-    case 2:
-        break;
+        case 1:
+        case 2:
+            break;
 
-    default:
-        return false;
+        default:
+            return false;
     }
 
     return true;
@@ -3657,9 +3657,9 @@ void Compiler::optUnrollLoops()
         //
         unsigned int loopUnrollInnerThres = 0;
         unsigned int loopUnrollOuterThres = 0;
-        unsigned int loopUnrollNewIter = 0;
-        unsigned int loopIter = optComputeLoopIter(loopId); /* total loop iterations */
-        unsigned int loopCost = optComputeLoopCost(loopId); /* single iteration cost */
+        unsigned int loopUnrollNewIter    = 0;
+        unsigned int loopIter             = optComputeLoopIter(loopId); /* total loop iterations */
+        unsigned int loopCost             = optComputeLoopCost(loopId); /* single iteration cost */
 
         // check that loopIter and loopCost are valid.
         if (loopIter == 0 || loopCost == 0)
@@ -3730,13 +3730,13 @@ void Compiler::optUnrollLoops()
                 ClrSafeInt<unsigned> costParticleUnroll =
                     ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(newParticleIter)) -
                     ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) +
-                        ClrSafeInt<unsigned>(8 /* fixed loop cost */));
+                                         ClrSafeInt<unsigned>(8 /* fixed loop cost */));
 
                 if (newParticleIter > IterLimit || costParticleUnroll.IsOverflow() ||
                     costParticleUnroll.Value() > CostLimit)
                 {
                     // seems it cost too lot. increase iteration of partially unrolled loop to decrease cost.
-                    loopUnrollNewIter = (newParticleIter / loopUnrollInnerThres) + loopUnrollNewIter;
+                    loopUnrollNewIter    = (newParticleIter / loopUnrollInnerThres) + loopUnrollNewIter;
                     loopUnrollOuterThres = (newParticleIter % loopUnrollInnerThres);
                 }
                 else
@@ -3754,7 +3754,7 @@ void Compiler::optUnrollLoops()
             // full unrolling seems reasonable. compute full unrolling.
             loopUnrollInnerThres = loopIter;
             loopUnrollOuterThres = 0;
-            loopUnrollNewIter = 1;
+            loopUnrollNewIter    = 1;
         }
 
         // Finally, we check does target loop is complicate to resolve or nothing changes after unrolling.
@@ -3767,7 +3767,7 @@ void Compiler::optUnrollLoops()
         CLANG_FORMAT_COMMENT_ANCHOR;
 
         isChanged |= optUnrollLoopImpl(loopId, loopUnrollInnerThres, loopUnrollOuterThres, loopUnrollNewIter,
-            costLoopUnroll.Value());
+                                       costLoopUnroll.Value());
     }
 
     if (isChanged)
@@ -3780,16 +3780,15 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 {
     bool     lpIsFullUrl = (outer == 0) && (iter == 1); /* is full unrolling?       */
     bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
-    LoopDsc* lpDesc = &optLoopTable[loopId];
+    LoopDsc* lpDesc      = &optLoopTable[loopId];
 
-    BasicBlock*  bbHead = lpDesc->lpHead;
-    BasicBlock*  bbBody = bbHead->bbNext;
-    BasicBlock*  bbBottom = lpDesc->lpBottom;
-    GenTreeStmt* gtTest = bbBottom->lastStmt();
+    BasicBlock*  bbHead     = lpDesc->lpHead;
+    BasicBlock*  bbBody     = bbHead->bbNext;
+    BasicBlock*  bbBottom   = lpDesc->lpBottom;
+    GenTreeStmt* gtTest     = bbBottom->lastStmt();
     GenTree*     gtTestExpr = gtTest->gtStmtExpr;
-    GenTreeStmt* gtIncr = gtTest->gtPrevStmt;
+    GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
     GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
-
 
     /* Almost done!! we are going to clone expressions to unroll right now! */
 
@@ -3815,7 +3814,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             }
             else
             {
-                bbNew->bbJumpSwt = bbIter->bbJumpSwt;
+                bbNew->bbJumpSwt  = bbIter->bbJumpSwt;
                 bbNew->bbJumpDest = bbIter->bbJumpDest;
                 bbNew->bbJumpOffs = bbIter->bbJumpOffs;
             }
@@ -3841,7 +3840,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             }
             else
             {
-                bbNew->bbJumpSwt = bbIter->bbJumpSwt;
+                bbNew->bbJumpSwt  = bbIter->bbJumpSwt;
                 bbNew->bbJumpDest = bbIter->bbJumpDest;
                 bbNew->bbJumpOffs = bbIter->bbJumpOffs;
             }
@@ -3878,7 +3877,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         } WalkData;
 
         jitstd::vector<GenTree*> LvParentList(this->getAllocator());
-        WalkData.cbrLv = lpDesc->lpIterVar();
+        WalkData.cbrLv       = lpDesc->lpIterVar();
         WalkData.cbrLvParent = &LvParentList;
 
         auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
@@ -3918,8 +3917,8 @@ FAILED:
     // Failed to unroll loops. restoring all modifies.
 
     lpDesc->lpFlags |= LPFLG_DONT_UNROLL;
-    bbHead->bbNext = bbBody;
-    bbBody->bbPrev = bbHead;
+    bbHead->bbNext   = bbBody;
+    bbBody->bbPrev   = bbHead;
     bbBottom->bbNext = nullptr;
 
     return false;
