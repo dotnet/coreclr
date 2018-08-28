@@ -3479,9 +3479,9 @@ unsigned Compiler::optComputeLoopIter(unsigned loopId)
 
     unsigned int iterCount = 0;
     if (!optComputeLoopRep(loopDesc->lpConstInit, loopDesc->lpConstLimit(), loopDesc->lpIterConst(),
-                           loopDesc->lpIterOper(), loopDesc->lpIterOperType(), loopDesc->lpTestOper(),
-                           (loopDesc->lpTestTree->gtFlags & GTF_UNSIGNED) != 0,
-                           (loopDesc->lpHead->lastStmt()->gtFlags & GTF_STMT_CMPADD) != 0, &iterCount))
+        loopDesc->lpIterOper(), loopDesc->lpIterOperType(), loopDesc->lpTestOper(),
+        (loopDesc->lpTestTree->gtFlags & GTF_UNSIGNED) != 0,
+        (loopDesc->lpHead->lastStmt()->gtFlags & GTF_STMT_CMPADD) != 0, &iterCount))
     {
         return 0;
     }
@@ -3520,7 +3520,7 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
 {
     LoopDsc* loopDesc = &optLoopTable[loopId];
 
-    BasicBlock* bbHead   = loopDesc->lpHead;
+    BasicBlock* bbHead = loopDesc->lpHead;
     BasicBlock* bbBottom = loopDesc->lpBottom;
 
     GenTree* gtInit = bbHead->lastStmt();
@@ -3534,12 +3534,12 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
     } WalkData;
 
     jitstd::vector<GenTree*> LvParentList(this->getAllocator());
-    WalkData.cbrLv       = loopDesc->lpIterVar();
+    WalkData.cbrLv = loopDesc->lpIterVar();
     WalkData.cbrLvParent = &LvParentList;
 
     auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
         CallBackData* data = (CallBackData*)wkData->pCallbackData;
-        if ((*wkTree)->OperGet() == GT_LCL_VAR && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
+        if ((*wkTree)->OperIs(GT_LCL_VAR) && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
         {
             data->cbrLvParent->push_back(wkData->parent);
         }
@@ -3570,27 +3570,15 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         }
     }
 
-    for (GenTree* gtLvParent : LvParentList)
-    {
-        if (!gtLvParent->OperIsSimple())
-        {
-            // This loop is not marked as simple. we are not unrolling it.
-            return false;
-        }
-    }
-
-    // We only unrolls when loop has simplest body form. which is ((1 << n) <= 8)
-    // for future SIMD auto-vectorization implements.
+    // We only unrolls when loop has simplest body form
     switch (loopBodyStmtCnt)
     {
-        case 1:
-        case 2:
-        case 4:
-        case 8:
-            break;
+    case 1:
+    case 2:
+        break;
 
-        default:
-            return false;
+    default:
+        return false;
     }
 
     return true;
@@ -3637,7 +3625,7 @@ void Compiler::optUnrollLoops()
 
     // Visit loops from highest to lowest number to vist them in innermost to outermost order
     bool isChanged = false;
-    for (unsigned int loopId = optLoopCount; --loopId;)
+    for (unsigned loopId = optLoopCount - 1; loopId != ~0U; --loopId)
     {
         LoopDsc* loopDesc = &optLoopTable[loopId];
 
@@ -3653,24 +3641,25 @@ void Compiler::optUnrollLoops()
         // (not always, for example)
         //
         // here is example
-        // for(unsigned int i = 0; i < 66; ++i) {
+        // unsigned int i = 0;
+        // for(; i < 66; ++i) {
         //     sum += arr[i];
         // }
         //
         // will be transformed into
-        //
-        // for(unsigned int i = 0; i < 64; i *= 4) {
-        //     sum += arr[i];     sum += arr[i + 1];
-        //     sum += arr[i + 2]; sum += arr[i + 3];
+        // unsigned int i = 0;
+        // for(; i < 64;) {
+        //     sum += arr[i++]; sum += arr[i++];
+        //     sum += arr[i++]; sum += arr[i++];
         // }
-        // sum += arr[64];
-        // sum += arr[65];
+        // sum += arr[++i];
+        // sum += arr[++i];
         //
         unsigned int loopUnrollInnerThres = 0;
         unsigned int loopUnrollOuterThres = 0;
-        unsigned int loopUnrollNewIter    = 0;
-        unsigned int loopIter             = optComputeLoopIter(loopId); /* total loop iterations */
-        unsigned int loopCost             = optComputeLoopCost(loopId); /* single iteration cost */
+        unsigned int loopUnrollNewIter = 0;
+        unsigned int loopIter = optComputeLoopIter(loopId); /* total loop iterations */
+        unsigned int loopCost = optComputeLoopCost(loopId); /* single iteration cost */
 
         // check that loopIter and loopCost are valid.
         if (loopIter == 0 || loopCost == 0)
@@ -3695,8 +3684,8 @@ void Compiler::optUnrollLoops()
                to hit cache line or instruction prediction. but if it cause too much code duplications,
                performance issues, etcs. unrolled particles will be rerolled. */
 
-            unsigned int loopPartialIter = IterLimit / loopIter;
-            unsigned int loopPartialCost = CostLimit / loopCost;
+            unsigned int loopPartialIter = loopIter / IterLimit;
+            unsigned int loopPartialCost = costLoopUnroll.Value() / CostLimit;
 
             // caclulate how many duplicates to compute.
             {
@@ -3741,13 +3730,13 @@ void Compiler::optUnrollLoops()
                 ClrSafeInt<unsigned> costParticleUnroll =
                     ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(newParticleIter)) -
                     ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) +
-                                         ClrSafeInt<unsigned>(8 /* fixed loop cost */));
+                        ClrSafeInt<unsigned>(8 /* fixed loop cost */));
 
                 if (newParticleIter > IterLimit || costParticleUnroll.IsOverflow() ||
                     costParticleUnroll.Value() > CostLimit)
                 {
                     // seems it cost too lot. increase iteration of partially unrolled loop to decrease cost.
-                    loopUnrollNewIter    = (newParticleIter / loopUnrollInnerThres) + loopUnrollNewIter;
+                    loopUnrollNewIter = (newParticleIter / loopUnrollInnerThres) + loopUnrollNewIter;
                     loopUnrollOuterThres = (newParticleIter % loopUnrollInnerThres);
                 }
                 else
@@ -3765,7 +3754,7 @@ void Compiler::optUnrollLoops()
             // full unrolling seems reasonable. compute full unrolling.
             loopUnrollInnerThres = loopIter;
             loopUnrollOuterThres = 0;
-            loopUnrollNewIter    = 1;
+            loopUnrollNewIter = 1;
         }
 
         // Finally, we check does target loop is complicate to resolve or nothing changes after unrolling.
@@ -3778,7 +3767,7 @@ void Compiler::optUnrollLoops()
         CLANG_FORMAT_COMMENT_ANCHOR;
 
         isChanged |= optUnrollLoopImpl(loopId, loopUnrollInnerThres, loopUnrollOuterThres, loopUnrollNewIter,
-                                       costLoopUnroll.Value());
+            costLoopUnroll.Value());
     }
 
     if (isChanged)
@@ -3789,174 +3778,151 @@ void Compiler::optUnrollLoops()
 
 bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost)
 {
-    LoopDsc* loopDesc = &optLoopTable[loopId];
+    bool     lpIsFullUrl = (outer == 0) && (iter == 1); /* is full unrolling?       */
+    bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
+    LoopDsc* lpDesc = &optLoopTable[loopId];
 
-    BasicBlock* bbHead   = loopDesc->lpHead;
-    BasicBlock* bbBottom = loopDesc->lpBottom;
-
-    GenTreeStmt* gtInit     = bbHead->lastStmt();
-    GenTree*     gtInitExpr = gtInit->gtStmtExpr;
-    GenTreeStmt* gtTest     = bbBottom->lastStmt();
+    BasicBlock*  bbHead = lpDesc->lpHead;
+    BasicBlock*  bbBody = bbHead->bbNext;
+    BasicBlock*  bbBottom = lpDesc->lpBottom;
+    GenTreeStmt* gtTest = bbBottom->lastStmt();
     GenTree*     gtTestExpr = gtTest->gtStmtExpr;
-    GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
+    GenTreeStmt* gtIncr = gtTest->gtPrevStmt;
     GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
 
-    struct CallBackData
+
+    /* Almost done!! we are going to clone expressions to unroll right now! */
+
+    // removing test for cloning.
+    // after cloning it. we will insert test on bbBottom if its not doing full unrolling.
+    fgRemoveStmt(bbBottom, gtTest);
+
+    // Unroll as inner loop expressions
+    for (unsigned int i = 1; i < inner; ++i)
     {
-        unsigned                  cbrLv;
-        jitstd::vector<GenTree*>* cbrLvParent;
-    } WalkData;
-
-    jitstd::vector<GenTree*> LvParentList(this->getAllocator());
-    WalkData.cbrLv       = loopDesc->lpIterVar();
-    WalkData.cbrLvParent = &LvParentList;
-
-    auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
-        CallBackData* data = (CallBackData*)wkData->pCallbackData;
-        if ((*wkTree)->OperGet() == GT_LCL_VAR && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
+        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
         {
-            data->cbrLvParent->push_back(wkData->parent);
-        }
-
-        return fgWalkResult::WALK_CONTINUE;
-    };
-
-    BasicBlock* bbInsertAfter = bbBottom;
-    for (BasicBlock* bbIter = bbHead->bbNext;; bbIter = bbIter->bbNext)
-    {
-        for (unsigned int i = 1; i < inner; ++i)
-        {
-            GenTree* gtOldLastStmt = bbIter->lastStmt();
-            GenTree* gtInsertAfter = bbIter->lastStmt();
-            for (GenTreeStmt* gtStmt = bbIter->firstStmt(); gtStmt; gtStmt = gtStmt->getNextStmt())
+            BasicBlock* bbNew = fgNewBBbefore(bbIter->bbJumpKind, bbBody, true);
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
             {
-                if (gtStmt == gtInit || gtStmt == gtTest || gtStmt == gtIncr)
-                {
-                    // We are skipping those things... we are looking loop's body.
-                    continue;
-                }
-                gtOldLastStmt = gtStmt;
-                gtInsertAfter = gtStmt;
+                goto FAILED;
             }
 
-            for (GenTreeStmt* gtStmt = bbIter->firstStmt();; gtStmt = gtStmt->getNextStmt())
+            if (bbIter == bbBottom)
             {
-                if (gtStmt == gtInit || gtStmt == gtTest || gtStmt == gtIncr)
-                {
-                    // We are skipping those things... we are looking loop's body.
-                    continue;
-                }
-
-                GenTree* gtClonedExpr = gtCloneExpr(gtStmt->gtStmtExpr);
-                GenTree* gtClonedStmt = gtNewStmt(gtClonedExpr);
-                fgWalkTreePre(&gtClonedExpr, FnFindlvStmt, &WalkData, true);
-
-                for (GenTree* gtLvParent : LvParentList)
-                {
-                    GenTree* gtOP1 = gtLvParent->gtGetOp1();
-                    GenTree* gtOP2 = gtLvParent->gtGetOp2IfPresent();
-
-                    if (gtLvParent->IsReverseOp())
-                    {
-                        std::swap(gtOP1, gtOP2);
-                    }
-
-                    GenTree* gtCns = gtNewIconNode(loopDesc->lpIterConst() * i, gtOP1->TypeGet());
-                    GenTree* gtInc = gtNewOperNode(genTreeOps::GT_ADD, gtOP1->TypeGet(), gtOP1, gtCns);
-                    gtLvParent->ReplaceOperand(&gtOP1, gtInc);
-                }
-
-                fgInsertStmtAfter(bbIter, gtInsertAfter, gtClonedStmt);
-                LvParentList.clear();
-
-                if (gtOldLastStmt == gtStmt)
-                {
-                    break;
-                }
+                bbNew->bbJumpKind = BBJ_NONE;
+                break;
             }
-        }
-
-        if (outer)
-        {
-            BasicBlock* bbOuter = bbInsertAfter = fgNewBBafter(BBJ_NONE, bbInsertAfter, true);
-            for (unsigned int i = 0; i < outer; ++i)
+            else
             {
-                for (GenTreeStmt* gtStmt = bbIter->firstStmt(); gtStmt; gtStmt = gtStmt->getNextStmt())
-                {
-                    if (gtStmt == gtInit || gtStmt == gtTest || gtStmt == gtIncr)
-                    {
-                        // We are skipping those things... we are looking loop's body.
-                        continue;
-                    }
-
-                    GenTree* gtClonedExpr = gtCloneExpr(gtStmt->gtStmtExpr);
-                    GenTree* gtClonedStmt = gtNewStmt(gtClonedExpr);
-                    fgWalkTreePre(&gtClonedExpr, FnFindlvStmt, &WalkData, true);
-
-                    for (GenTree* gtLvParent : LvParentList)
-                    {
-                        GenTree* gtOP1 = gtLvParent->gtGetOp1();
-                        GenTree* gtOP2 = gtLvParent->gtGetOp2IfPresent();
-
-                        if (gtLvParent->IsReverseOp())
-                        {
-                            std::swap(gtOP1, gtOP2);
-                        }
-
-                        GenTree* gtCns = gtNewIconNode((inner * iter) + i, gtOP1->TypeGet());
-                        GenTree* gtInc = gtNewOperNode(genTreeOps::GT_ADD, gtOP1->TypeGet(), gtOP1, gtCns);
-                        gtLvParent->ReplaceOperand(&gtOP1, gtInc);
-                    }
-
-                    fgInsertStmtAtEnd(bbOuter, gtClonedStmt);
-                    LvParentList.clear();
-                }
-            }
-        }
-
-        if (bbIter == bbBottom)
-        {
-            break;
-        }
-    }
-
-    noway_assert(iter > 0);
-    if (iter > 1)
-    {
-        fgWalkTreePre(&gtIncrExpr, FnFindlvStmt, &WalkData, true);
-        for (GenTree* gtLvParent : LvParentList)
-        {
-            if (GenTree* gtIncrOffset = gtLvParent->gtGetOp2IfPresent())
-            {
-                if (gtLvParent->IsReverseOp())
-                {
-                    gtIncrOffset = gtLvParent->gtGetOp1();
-                }
-
-                if (gtIncrOffset->OperGet() == GT_CNS_INT)
-                {
-                    GenTreeIntCon* gtIntCon = gtIncrOffset->AsIntCon();
-                    gtIntCon->SetIconValue(iter);
-                }
+                bbNew->bbJumpSwt = bbIter->bbJumpSwt;
+                bbNew->bbJumpDest = bbIter->bbJumpDest;
+                bbNew->bbJumpOffs = bbIter->bbJumpOffs;
             }
         }
     }
-    else
+
+    // Unroll as outer loop expressions
+    for (unsigned int i = 0; i < outer; ++i)
     {
-        GenTree* sideEffList = nullptr;
-        gtExtractSideEffList(gtTestExpr, &sideEffList, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
-        if (sideEffList == nullptr)
+        BasicBlock* bbInsertAfter = bbBottom;
+        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
         {
-            fgRemoveStmt(bbBottom, gtTestExpr);
+            BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbIter->bbJumpKind, bbInsertAfter, true);
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
+            {
+                goto FAILED;
+            }
+
+            if (bbIter == bbBottom)
+            {
+                bbNew->bbJumpKind = BBJ_NONE;
+                break;
+            }
+            else
+            {
+                bbNew->bbJumpSwt = bbIter->bbJumpSwt;
+                bbNew->bbJumpDest = bbIter->bbJumpDest;
+                bbNew->bbJumpOffs = bbIter->bbJumpOffs;
+            }
         }
-        else
+    }
+
+    if (lpIsFullUrl)
+    {
+        // We are doing full unrolling. we don't need any tests because loop is removed.
+        // check that they has any side-effects. if not, remove it.
+        GenTree* sideEffListTest = nullptr;
+        gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+
+        if (sideEffListTest)
         {
-            gtTest->gtStmtExpr = sideEffList;
+            gtTest->gtStmtExpr = sideEffListTest;
+            fgInsertStmtAtEnd(bbBottom, gtTest);
         }
         bbBottom->bbJumpKind = BBJ_NONE;
     }
+    else
+    {
+        // We've removed gtTest from bbBottom for cloning. inserting it again.
+        fgInsertStmtAtEnd(bbBottom, gtTest);
+    }
+
+    if (lpIsPtclUrl)
+    {
+        // If there is particle exists, we need to modify test expression.
+        struct CallBackData
+        {
+            unsigned                  cbrLv;
+            jitstd::vector<GenTree*>* cbrLvParent;
+        } WalkData;
+
+        jitstd::vector<GenTree*> LvParentList(this->getAllocator());
+        WalkData.cbrLv = lpDesc->lpIterVar();
+        WalkData.cbrLvParent = &LvParentList;
+
+        auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
+            CallBackData* data = (CallBackData*)wkData->pCallbackData;
+            if ((*wkTree)->OperIs(GT_LCL_VAR) && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
+            {
+                data->cbrLvParent->push_back(wkData->parent);
+            }
+
+            return fgWalkResult::WALK_CONTINUE;
+        };
+
+        fgWalkTreePre(&gtTestExpr, FnFindlvStmt, &WalkData, true);
+        for (GenTree* gtLvParent : LvParentList)
+        {
+            GenTree* gtOP = gtLvParent->gtGetOp2();
+
+            if (gtLvParent->IsReverseOp())
+            {
+                gtOP = gtLvParent->gtGetOp1();
+            }
+
+            if (gtOP->OperIs(GT_CNS_INT))
+            {
+                GenTreeIntCon* gtCnsInt = gtOP->AsIntCon();
+                gtCnsInt->SetIconValue(gtCnsInt->IconValue() - outer);
+            }
+        }
+    }
+
+    lpDesc->lpFlags |= LPFLG_REMOVED;
+    lpDesc->lpHead = lpDesc->lpBottom = nullptr;
 
     return true;
+
+FAILED:
+    // Failed to unroll loops. restoring all modifies.
+
+    lpDesc->lpFlags |= LPFLG_DONT_UNROLL;
+    bbHead->bbNext = bbBody;
+    bbBody->bbPrev = bbHead;
+    bbBottom->bbNext = nullptr;
+
+    return false;
 }
 
 #ifdef _PREFAST_
