@@ -78,8 +78,7 @@ namespace System.Diagnostics.Tracing
             {
                 // If the output file path is not specified then use
                 // path/to/current/working/directory/Process-<pid>.netperf.ctl
-                long processID = 0; // TODO: Need to plumb the process ID from native code.
-                m_traceFilePath = "Process-" + processID + ".netperf";
+                m_traceFilePath = EventPipeInternal.GetDefaultTraceFileName();
                 m_markerFilePath = m_traceFilePath + MarkerFileExtension;
             }
 
