@@ -27,6 +27,7 @@ namespace System.Diagnostics.Tracing
     {
         private const string MarkerFileExtension = ".ctl";
         private const int PollingIntervalMilliseconds = 10000; // 10 seconds
+        private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private readonly char[] ConfigComponentDelimiter = new char[] { ':' };
 
@@ -129,6 +130,10 @@ namespace System.Diagnostics.Tracing
             // Get the circular buffer size.
             string strCircularMB = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
             uint circularMB = Convert.ToUInt32(strCircularMB);
+            if (circularMB == 0)
+            {
+                circularMB = DefaultCircularBufferMB;
+            }
 
             // Create a new configuration object.
             EventPipeConfiguration config = new EventPipeConfiguration(m_traceFilePath, circularMB);
