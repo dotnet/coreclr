@@ -4173,6 +4173,13 @@ void InitializeEventTracing()
 // a suitable token, this implementation has a different callback for every EventPipe provider
 // that ultimately funnels them all into a common handler.
 
+#if defined(FEATURE_PAL)
+// CLR_GCHEAPCOLLECT_KEYWORD is defined by the generated ETW manifest on Windows.
+// On non-Windows, we need to make sure that this is defined.  Given that we can't change
+// the value due to compatibility, we specify it here rather than generating defines based on the manifest.
+#define CLR_GCHEAPCOLLECT_KEYWORD 0x800000
+#endif // defined(FEATURE_PAL)
+
 // CallbackProviderIndex provides a quick identification of which provider triggered the
 // ETW callback.
 enum CallbackProviderIndex
@@ -4195,7 +4202,6 @@ VOID EtwCallbackCommon(
 {
     LIMITED_METHOD_CONTRACT;
 
-    PEVENT_FILTER_DESCRIPTOR FilterData = (PEVENT_FILTER_DESCRIPTOR)pFilterData;
     bool bIsPublicTraceHandle = ProviderIndex == DotNETRuntime;
 #if !defined(FEATURE_PAL)
     static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
@@ -4217,12 +4223,15 @@ VOID EtwCallbackCommon(
         // Profilers may (optionally) specify extra data in the filter parameter
         // to log with the GCStart event.
         LONGLONG l64ClientSequenceNumber = 0;
+#if !defined(FEATURE_PAL)
+        PEVENT_FILTER_DESCRIPTOR FilterData = (PEVENT_FILTER_DESCRIPTOR)pFilterData;
         if ((FilterData != NULL) &&
            (FilterData->Type == 1) &&
            (FilterData->Size == sizeof(l64ClientSequenceNumber)))
         {
             l64ClientSequenceNumber = *(LONGLONG *) (FilterData->Ptr);
         }
+#endif // !defined(FEATURE_PAL)
         ETW::GCLog::ForceGC(l64ClientSequenceNumber);
     }
 }
