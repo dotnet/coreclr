@@ -962,6 +962,7 @@ RtlVirtualUnwind (
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
 #endif // FEATURE_PAL || _X86_
+
 #define UNW_FLAG_NHANDLER 0x0
 
 #endif // _TARGET_ARM_

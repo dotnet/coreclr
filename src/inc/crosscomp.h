@@ -12,7 +12,7 @@
 #define CROSSBITNESS_COMPILE
 #endif
 
-#if (defined(_X86_) || defined(_AMD64_)) && defined(_TARGET_ARM_) // Host X86 or AMD64 managing ARM related code
+#if !defined(_ARM_) && defined(_TARGET_ARM_) // Non-ARM Host managing ARM related code
 
 #ifndef CROSS_COMPILE
 #define CROSS_COMPILE
@@ -356,7 +356,7 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 } T_KNONVOLATILE_CONTEXT_POINTERS, *PT_KNONVOLATILE_CONTEXT_POINTERS;
 
-#else  // !((defined(_X86_) || (defined(_AMD64_)) && defined(_TARGET_ARM_)) && !(defined(_AMD64_) && defined(_TARGET_ARM64_))
+#else
 
 #define T_CONTEXT CONTEXT
 #define PT_CONTEXT PCONTEXT
