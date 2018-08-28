@@ -127,7 +127,7 @@ namespace System.Diagnostics.Tracing
                 loggingLevel));
         }
 
-        internal void EnableProvider(EventPipeProviderConfiguration providerConfig)
+        internal void EnableProviderConfiguration(EventPipeProviderConfiguration providerConfig)
         {
             m_providers.Add(providerConfig);
         }

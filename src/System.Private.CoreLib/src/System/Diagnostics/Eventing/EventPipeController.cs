@@ -161,7 +161,7 @@ namespace System.Diagnostics.Tracing
                 // Specify the default configuration.
                 foreach (EventPipeProviderConfiguration providerConfig in DefaultProviderConfiguration)
                 {
-                    config.EnableProvider(providerConfig);
+                    config.EnableProviderConfiguration(providerConfig);
                 }
             }
 
