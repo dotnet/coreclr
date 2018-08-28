@@ -24,6 +24,27 @@ namespace System.Text
     [DebuggerDisplay("{DebuggerDisplay,nq}")]
     public readonly struct UnicodeScalar : IComparable<UnicodeScalar>, IEquatable<UnicodeScalar>
     {
+        private const byte IS_WHITESPACE_FLAG = 0x80;
+        private const byte IS_LETTER_OR_DIGIT_FLAG = 0x40;
+        private const byte UNICODECATEGORY_MASK = 0x1F;
+
+        // Contains information about the ASCII character range [ U+0000..U+007F ], with:
+        // - 0x80 bit if set means 'is whitespace'
+        // - 0x40 bit if set means 'is letter or digit'
+        // - 0x20 bit is reserved for future use
+        // - bottom 5 bits are the UnicodeCategory of the character
+        private static ReadOnlySpan<byte> AsciiCharInfo => new byte[]
+        {
+            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x0E, 0x0E,
+            0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E,
+            0x8B, 0x18, 0x18, 0x18, 0x1A, 0x18, 0x18, 0x18, 0x14, 0x15, 0x18, 0x19, 0x18, 0x13, 0x18, 0x18,
+            0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x18, 0x18, 0x19, 0x19, 0x19, 0x18,
+            0x18, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
+            0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x14, 0x18, 0x15, 0x1B, 0x12,
+            0x1B, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E
+        };
+
         private readonly uint _value;
 
         /// <summary>
@@ -334,13 +355,28 @@ namespace System.Text
 
         public static double GetNumericValue(UnicodeScalar s)
         {
-            // TODO: Make this allocation-free
-            return CharUnicodeInfo.GetNumericValue(s.ToString(), 0);
+            if (s.IsAscii)
+            {
+                uint baseNum = s.Value - '0';
+                return (baseNum <= (uint)9) ? (double)baseNum : -1;
+            }
+            else
+            {
+                // not an ASCII char; fall back to globalization table
+                return CharUnicodeInfo.InternalGetNumericValue((int)s.Value);
+            }
         }
 
         public static UnicodeCategory GetUnicodeCategory(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
+            return (s.Value < (uint)AsciiCharInfo.Length)
+                ? (UnicodeCategory)(AsciiCharInfo[(int)s.Value] & UNICODECATEGORY_MASK)
+                : GetUnicodeCategoryNonAscii(s);
+        }
+
+        private static UnicodeCategory GetUnicodeCategoryNonAscii(UnicodeScalar s)
+        {
+            Debug.Assert(s.Value >= (uint)AsciiCharInfo.Length, "Shouldn't use this non-optimized code path for ASCII characters.");
             return CharUnicodeInfo.GetUnicodeCategory(codePoint: (int)s.Value);
         }
 
@@ -397,62 +433,68 @@ namespace System.Text
 
         public static bool IsDigit(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return (GetUnicodeCategory(s) == UnicodeCategory.DecimalDigitNumber);
+            return (s.Value < (uint)AsciiCharInfo.Length)
+                ? UnicodeHelpers.IsInRangeInclusive(s.Value, '0', '9')
+                : (GetUnicodeCategoryNonAscii(s) == UnicodeCategory.DecimalDigitNumber);
         }
 
         public static bool IsLetter(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return IsCategoryLetter(GetUnicodeCategory(s));
+            return (s.Value < (uint)AsciiCharInfo.Length)
+                ? (((s.Value - 'A') & ~0x20U) <= (uint)('Z' - 'A')) // [A-Za-z]
+                : (IsCategoryLetter(GetUnicodeCategoryNonAscii(s)));
         }
 
         public static bool IsLetterOrDigit(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return IsCategoryLetterOrDecimalDigit(GetUnicodeCategory(s));
+            return (s.Value < (uint)AsciiCharInfo.Length)
+                ? ((AsciiCharInfo[(int)s.Value] & IS_LETTER_OR_DIGIT_FLAG) != 0)
+                : (IsCategoryLetterOrDecimalDigit(GetUnicodeCategoryNonAscii(s)));
         }
 
         public static bool IsLower(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return (GetUnicodeCategory(s) == UnicodeCategory.LowercaseLetter);
+            return (s.IsAscii)
+                ? UnicodeHelpers.IsInRangeInclusive(s.Value, 'a', 'z')
+                : (GetUnicodeCategoryNonAscii(s) == UnicodeCategory.LowercaseLetter);
         }
 
         public static bool IsNumber(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return IsCategoryNumber(GetUnicodeCategory(s));
+            return (s.IsAscii)
+                ? UnicodeHelpers.IsInRangeInclusive(s.Value, '0', '9')
+                : IsCategoryNumber(GetUnicodeCategoryNonAscii(s));
         }
 
         public static bool IsPunctuation(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
             return IsCategoryPunctuation(GetUnicodeCategory(s));
         }
 
         public static bool IsSeparator(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
             return IsCategorySeparator(GetUnicodeCategory(s));
         }
 
         public static bool IsSymbol(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
             return IsCategorySymbol(GetUnicodeCategory(s));
         }
 
         public static bool IsUpper(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return (GetUnicodeCategory(s) == UnicodeCategory.UppercaseLetter);
+            return (s.IsAscii)
+                ? UnicodeHelpers.IsInRangeInclusive(s.Value, 'A', 'Z')
+                : (GetUnicodeCategoryNonAscii(s) == UnicodeCategory.UppercaseLetter);
         }
 
         public static bool IsWhiteSpace(UnicodeScalar s)
         {
-            // TODO: Optimize me when s is Latin1
-            return (s.IsBmp) ? char.IsWhiteSpace((char)s.Value) : IsCategorySeparator(GetUnicodeCategory(s));
+            return (s.IsAscii)
+                ? ((AsciiCharInfo[(int)s.Value] & IS_WHITESPACE_FLAG) != 0)
+                : (s.IsBmp)
+                    ? char.IsWhiteSpace((char)s.Value)
+                    : IsCategorySeparator(GetUnicodeCategoryNonAscii(s));
         }
 
         public static UnicodeScalar ToLower(UnicodeScalar s, CultureInfo culture) => ChangeCase(s, culture, toUpper: false);
