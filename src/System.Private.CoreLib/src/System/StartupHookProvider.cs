@@ -13,7 +13,7 @@ using Internal.IO;
 
 namespace System
 {
-    internal class StartupHookProvider
+    internal static class StartupHookProvider
     {
         private const string startupHookTypeName = "StartupHook";
         private const string initializeMethodName = "Initialize";
