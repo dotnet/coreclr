@@ -219,10 +219,13 @@ void EventPipe::EnableOnStartup()
         SString outputPath;
         outputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
 
+        // Get the circular buffer size in megabytes.
+        unsigned int circularMB = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeCircularMB);
+
         // Create a new session.
         EventPipeSession *pSession = new EventPipeSession(
             EventPipeSessionType::File,
-            1024 /* 1 GB circular buffer */,
+            circularMB,
             NULL, /* pProviders */
             0 /* numProviders */);
 
