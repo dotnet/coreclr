@@ -294,17 +294,16 @@ void StackLevelSetter::SubStackLevel(unsigned value)
 }
 
 //------------------------------------------------------------------------
-// fgCheckArgCnt: Check whether the maximum arg size will change codegen requirements
+// CheckArgCnt: Check whether the maximum arg size will change codegen requirements.
 //
 // Notes:
-//    fpPtrArgCntMax records the maximum number of pushed arguments.
+//    CheckArgCnt records the maximum number of pushed arguments.
 //    Depending upon this value of the maximum number of pushed arguments
 //    we may need to use an EBP frame or be partially interuptible.
-//    This functionality has been factored out of fgSetOptions() because
-//    the Rationalizer can create new calls.
+//    This functionality has to be called after maxStackLevel is set.
 //
 // Assumptions:
-//    This must be called before isFramePointerRequired() is called, because it is a
+//    This must be called when isFramePointerRequired() is in a write phase, because it is a
 //    phased variable (can only be written before it has been read).
 //
 void StackLevelSetter::CheckArgCnt()
@@ -332,6 +331,12 @@ void StackLevelSetter::CheckArgCnt()
     }
 }
 
+//------------------------------------------------------------------------
+// CheckAdditionalArgs: Check if there are additional args that need stack slots.
+//
+// Notes:
+//    Currently only x86 profiler hook needs it.
+//
 void StackLevelSetter::CheckAdditionalArgs()
 {
 #if defined(_TARGET_X86_)
