@@ -29,7 +29,8 @@ namespace System.Diagnostics.Tracing
     {
         // Miscellaneous constants.
         private const string MarkerFileExtension = ".ctl";
-        private const int PollingIntervalMilliseconds = 10000; // 10 seconds
+        private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
+        private const int DisabledPollingIntervalMilliseconds = 10000; // 10 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
@@ -124,7 +125,7 @@ namespace System.Diagnostics.Tracing
                     }
 
                     // Wait for the polling interval.
-                    Thread.Sleep(PollingIntervalMilliseconds);
+                    Thread.Sleep(m_markerFileExists ? EnabledPollingIntervalMilliseconds : DisabledPollingIntervalMilliseconds);
                 }
                 catch { }
             }
