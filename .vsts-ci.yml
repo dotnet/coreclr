@@ -27,6 +27,12 @@ phases:
     - task: DotNetCoreInstaller@0
       inputs:
         version: 2.1.400
+    - task: AzureKeyVault@1
+      inputs:
+        azureSubscription: 'Dotnet Engineering services (a4fc5514-21a9-4296-bfaf-5c7ee7fa35d1)'
+        KeyVaultName: EngKeyVault
+        SecretsFilter: 'BotAccount-dotnet-github-anon-kaonashi-bot-helix-token'
+      displayName: 'Azure Key Vault: EngKeyVault'
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools
       displayName: Install CMake
     - powershell: if (Test-Path bin) { Remove-Item -Recurse -Force bin }
@@ -41,7 +47,7 @@ phases:
         arguments: '/t:test'
       displayName: Send job to Helix
       env:
-        HelixAccessToken: $(HelixAccessToken)
+        HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
     # - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
     #  displayName: Run Tests
     # - script: build.cmd %buildconfig% %archType% linuxmscorlib

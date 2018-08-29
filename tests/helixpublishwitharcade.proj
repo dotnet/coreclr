@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixWorkItem Include="Haha">
+    <HelixWorkItem Include="CoreCLR-Tests">
       <Command>runtest.cmd</Command>
       <PayloadDirectory>$(MSBuildProjectDirectory)</PayloadDirectory>
       <Timeout>00:30:00</Timeout>
