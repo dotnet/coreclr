@@ -125,11 +125,7 @@ import "wtypes.idl";
 import "unknwn.idl";
 #endif
 
-#ifdef PLATFORM_UNIX
-#define STDMETHODCALLTYPE __cdecl
-#else
-#define STDMETHODCALLTYPE __stdcall
-#endif // PLATFORM_UNIX
+#define STDMETHODCALLTYPE
 
 typedef UINT_PTR ProcessID;
 typedef UINT_PTR AssemblyID;
