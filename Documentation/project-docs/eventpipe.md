@@ -11,7 +11,22 @@ EventPipe provides the ability to collect traces using an in-process event logge
 
 # Collection Examples #
 
+## Collect From Process Start to Process End with Default Collection Parameters ##
+
+This is the minimal set of steps required to collect a trace from process start to process end.  This will collect CPU/blocked time sample events and a mixture of runtime events (GC, JIT, Exceptions, etc.)
+
+1. Tell the runtime to start tracing at process start.
+
+    > ```cmd
+    > export COMPlus_EnableEventPipe=1
+    > ```
+2. Start the process.
+
+3. On process shutdown, the trace file will be written to CurrentWorkingDirectory/Process-$pid.netperf.
+
 ## Start/Stop Collection at Any Time with Default Collection Parameters ##
+
+This will collect CPU/blocked time sample events and a mixture of runtime events (GC, JIT, Exceptions, etc.)  The configuration must be specified before the process starts, but has no performance impact until the control file is created.
 
 1. Tell the runtime to listen for enable/disable commands:
 
@@ -20,6 +35,8 @@ EventPipe provides the ability to collect traces using an in-process event logge
     > ```
 
 2. Specify the output file path:
+
+    This is optional.  If not specified it will be CurrentWorkingDirectory/Process-$pid.netperf.
 
     > ```cmd
     > export COMPlus_EventPipeOutputFile=/path/to/trace.netperf
@@ -32,6 +49,8 @@ EventPipe provides the ability to collect traces using an in-process event logge
     > ```cmd
     > touch /path/to/trace.netperf.ctl.
     > ```
+
+    If the output file path wasn't specified in step 2 then the control file is CurrentWorkingDirectory/Process-$pid.netperf.ctl.
 
     NOTE: The runtime polls every 10 seconds, so it can take up to 10 seconds for tracing to start.  You'll see the netperf file get created when tracing has started.
 
