@@ -1144,13 +1144,12 @@ EnumerateCLRs(
 
     // The modules in the array returned don't need to be closed
     DWORD countModules;
-    HMODULE* pModules;
-    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &pModules);
+    ArrayHolder<HMODULE> modules = nullptr;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &modules);
     if (FAILED(hr))
     {
         return hr;
     }
-    ArrayHolder<HMODULE> modules(pModules);
 
     //
     // count the number of coreclr.dll entries
@@ -1324,13 +1323,12 @@ GetRemoteModuleBaseAddress(
 
     // The modules in the array returned don't need to be closed
     DWORD countModules;
-    HMODULE* pModules;
-    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &pModules);    
+    ArrayHolder<HMODULE> modules = nullptr;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &modules);    
     if (FAILED(hr))
     {
         ThrowHR(hr);
     }
-    ArrayHolder<HMODULE> modules(pModules);
 
     for(DWORD i = 0; i < countModules; i++)
     {
