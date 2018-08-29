@@ -59,11 +59,6 @@ namespace System
                 return false;
             }
 
-            if (a.Length != b.Length)
-            {
-                return false;
-            }
-
             return a.AsSpanFast().SequenceEqual(b.AsSpanFast());
         }
 
@@ -172,15 +167,8 @@ namespace System
             }
 
             // It's possible 'this' could be null if somebody was futzing about with the IL,
-            // but we won't worry too much about this. The Length property getter below will
-            // throw a null ref in that case.
-
-            if (this.Length != value.Length)
-            {
-                return false;
-            }
-
-            // Same length, now check byte-for-byte equality.
+            // but we won't worry too much about this. The call to AsSpanFast() below will
+            // throw in that case.
 
             // TODO: There's potential for optimization here, such as including the _length field
             // or the null terminator in the "to-be-compared" span if it would better allow the
