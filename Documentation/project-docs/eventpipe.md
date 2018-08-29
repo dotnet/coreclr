@@ -78,10 +78,10 @@ This produces /path/to/trace.netperf which can be consumed using [TraceEvent and
     > export COMPlus_EventPipeOutputFile=/path/to/trace.netperf
     > ```
 
-3. Specify the following collection configuration, which contains the default configuration + heap dump collection:
+3. Specify the following collection configuration:
 
     > ```cmd
-    > export COMPlus_EventPipeConfig=Microsoft-Windows-DotNETRuntime:0x4C1DFCCBD:5,Microsoft-Windows-DotNETRuntimePrivate:0x4002000B:5,Microsoft-DotNETCore-SampleProfiler:0x0:5
+    > export COMPlus_EventPipeConfig=Microsoft-Windows-DotNETRuntime:0x1D80001:4
     > ```
 
 4. Run the application.
