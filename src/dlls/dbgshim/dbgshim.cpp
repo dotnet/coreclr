@@ -1054,12 +1054,14 @@ IsCoreClrWithGoodHeader(
 }
 
 static
-HMODULE*
+HRESULT
 EnumProcessModulesInternal(
     HANDLE hProcess, 
-    DWORD *pCountModules)
-{
+    DWORD *pCountModules,
+    HMODULE** ppModules)
+{    
     *pCountModules = 0;
+    *ppModules = nullptr;
 
     // Start with 1024 modules
     DWORD cbNeeded = sizeof(HMODULE) * 1024;
@@ -1067,13 +1069,12 @@ EnumProcessModulesInternal(
     ArrayHolder<HMODULE> modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
     if (modules == nullptr)
     {
-        SetLastError(ERROR_OUTOFMEMORY);
-        return nullptr;
+        return HRESULT_FROM_WIN32(ERROR_OUTOFMEMORY);
     }
 
     if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded))
     {
-        return nullptr;
+        return HRESULT_FROM_WIN32(GetLastError());
     }
 
     // If 1024 isn't enough, try the modules array size returned (cbNeeded)
@@ -1082,14 +1083,13 @@ EnumProcessModulesInternal(
         modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
         if (modules == nullptr)
         {
-            SetLastError(ERROR_OUTOFMEMORY);
-            return nullptr;
+            return HRESULT_FROM_WIN32(ERROR_OUTOFMEMORY);
         }
 
         DWORD cbNeeded2;
         if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded2))
         {
-            return nullptr;
+            return HRESULT_FROM_WIN32(GetLastError());
         }
 
         // The only way cbNeeded2 could change on the second call is if number of
@@ -1101,7 +1101,8 @@ EnumProcessModulesInternal(
     }
 
     *pCountModules = cbNeeded / sizeof(HMODULE);
-    return modules.Detach();
+    *ppModules = modules.Detach();
+    return S_OK;
 }
 
 //-----------------------------------------------------------------------------
@@ -1143,11 +1144,13 @@ EnumerateCLRs(
 
     // The modules in the array returned don't need to be closed
     DWORD countModules;
-    ArrayHolder<HMODULE> modules = EnumProcessModulesInternal(hProcess, &countModules);
-    if (modules == nullptr)
+    HMODULE* pModules;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &pModules);
+    if (FAILED(hr))
     {
-        return HRESULT_FROM_WIN32(GetLastError());
+        return hr;
     }
+    ArrayHolder<HMODULE> modules(pModules);
 
     //
     // count the number of coreclr.dll entries
@@ -1321,11 +1324,13 @@ GetRemoteModuleBaseAddress(
 
     // The modules in the array returned don't need to be closed
     DWORD countModules;
-    ArrayHolder<HMODULE> modules = EnumProcessModulesInternal(hProcess, &countModules);
-    if (modules == nullptr)
+    HMODULE* pModules;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &pModules);    
+    if (FAILED(hr))
     {
-        ThrowHR(HRESULT_FROM_WIN32(GetLastError()));
+        ThrowHR(hr);
     }
+    ArrayHolder<HMODULE> modules(pModules);
 
     for(DWORD i = 0; i < countModules; i++)
     {
