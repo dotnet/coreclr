@@ -416,8 +416,6 @@ public:
 
     static bool QCALLTYPE GetSessionInfo(UINT64 sessionID, EventPipeSessionInfo *pSessionInfo);
 
-    static FCDECL0(StringObject*, GetDefaultTraceFileName);
-
     static INT_PTR QCALLTYPE CreateProvider(
         __in_z LPCWSTR providerName,
         EventPipeCallback pCallbackFunc);

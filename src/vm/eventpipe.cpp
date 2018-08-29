@@ -1068,26 +1068,6 @@ bool QCALLTYPE EventPipeInternal::GetSessionInfo(UINT64 sessionID, EventPipeSess
     return retVal;
 }
 
-FCIMPL0(StringObject*, EventPipeInternal::GetDefaultTraceFileName)
-{
-    CONTRACTL {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-
-    STRINGREF refPath = NULL;
-
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-    SString strPath;
-    strPath.Printf("Process-%d.netperf", GetCurrentProcessId());
-
-    refPath = StringObject::NewString(strPath.GetUnicode());
-    HELPER_METHOD_FRAME_END();
-
-    return (StringObject*)OBJECTREFToObject(refPath);
-}
-FCIMPLEND
-
 INT_PTR QCALLTYPE EventPipeInternal::CreateProvider(
     __in_z LPCWSTR providerName,
     EventPipeCallback pCallbackFunc)

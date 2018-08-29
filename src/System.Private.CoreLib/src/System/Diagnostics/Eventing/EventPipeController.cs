@@ -28,6 +28,7 @@ namespace System.Diagnostics.Tracing
     internal sealed class EventPipeController
     {
         // Miscellaneous constants.
+        private const string NetPerfFileExtension = ".netperf";
         private const string MarkerFileExtension = ".ctl";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
         private const int DisabledPollingIntervalMilliseconds = 10000; // 10 seconds
@@ -229,7 +230,7 @@ namespace System.Diagnostics.Tracing
                     s_Config_EventPipeOutputFile = CompatibilitySwitch.GetValueInternal("EventPipeOutputFile");
                     if (s_Config_EventPipeOutputFile == null)
                     {
-                        s_Config_EventPipeOutputFile = EventPipeInternal.GetDefaultTraceFileName();
+                        s_Config_EventPipeOutputFile = "Process-" + Environment.ProcessId + NetPerfFileExtension;
                     }
                 }
 

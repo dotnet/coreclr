@@ -186,9 +186,6 @@ namespace System.Diagnostics.Tracing
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Disable(UInt64 sessionID);
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern string GetDefaultTraceFileName();
-
         //
         // These PInvokes are used by EventSource to interact with the EventPipe.
         //

@@ -156,6 +156,17 @@ namespace System
 #endif // FEATURE_WIN32_REGISTRY
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern int GetProcessId();
+
+        internal static int ProcessId
+        {
+            get
+            {
+                return GetProcessId();
+            }
+        }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern int GetProcessorCount();
 
         public static int ProcessorCount
