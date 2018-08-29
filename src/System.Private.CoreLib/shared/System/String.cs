@@ -11,6 +11,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -42,11 +43,7 @@ namespace System
                 return Empty;
 
             string result = FastAllocateString(value.Length);
-            unsafe
-            {
-                fixed (char* dest = &result._firstChar, source = value)
-                    wstrcpy(dest, source, value.Length);
-            }
+            wstrcpy(ref result.GetRawStringData(), ref value.GetRawSzArrayData(), value.Length);
             return result;
         }
 
@@ -77,11 +74,7 @@ namespace System
                 return Empty;
 
             string result = FastAllocateString(length);
-            unsafe
-            {
-                fixed (char* dest = &result._firstChar, source = value)
-                    wstrcpy(dest, source + startIndex, length);
-            }
+            wstrcpy(ref result.GetRawStringData(), ref Unsafe.Add(ref value.GetRawSzArrayData(), startIndex), length);
             return result;
         }
 
@@ -105,8 +98,7 @@ namespace System
                 return Empty;
 
             string result = FastAllocateString(count);
-            fixed (char* dest = &result._firstChar)
-                wstrcpy(dest, ptr, count);
+            wstrcpy(ref result.GetRawStringData(), ref *ptr, count);
             return result;
         }
 
@@ -141,8 +133,7 @@ namespace System
                 throw new ArgumentOutOfRangeException(nameof(ptr), SR.ArgumentOutOfRange_PartialWCHAR);
 
             string result = FastAllocateString(length);
-            fixed (char* dest = &result._firstChar)
-                wstrcpy(dest, pStart, length);
+            wstrcpy(ref result.GetRawStringData(), ref *pStart, length);
             return result;
         }
 
@@ -332,14 +323,13 @@ namespace System
 #if !CORECLR
         static
 #endif
-        private unsafe string Ctor(ReadOnlySpan<char> value)
+        private string Ctor(ReadOnlySpan<char> value)
         {
             if (value.Length == 0)
                 return Empty;
 
             string result = FastAllocateString(value.Length);
-            fixed (char* dest = &result._firstChar, src = &MemoryMarshal.GetReference(value))
-                wstrcpy(dest, src, value.Length);
+            wstrcpy(ref result.GetRawStringData(), ref MemoryMarshal.GetReference(value), value.Length);
             return result;
         }
 
@@ -375,14 +365,13 @@ namespace System
             return this;
         }
 
-        public static unsafe string Copy(string str)
+        public static string Copy(string str)
         {
             if (str == null)
                 throw new ArgumentNullException(nameof(str));
 
             string result = FastAllocateString(str.Length);
-            fixed (char* dest = &result._firstChar, src = &str._firstChar)
-                wstrcpy(dest, src, str.Length);
+            wstrcpy(ref result.GetRawStringData(), ref str.GetRawStringData(), str.Length);
             return result;
         }
 
@@ -391,7 +380,7 @@ namespace System
         // sourceIndex + count - 1 to the character array buffer, beginning
         // at destinationIndex.
         //
-        public unsafe void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
+        public void CopyTo(int sourceIndex, char[] destination, int destinationIndex, int count)
         {
             if (destination == null)
                 throw new ArgumentNullException(nameof(destination));
@@ -404,8 +393,10 @@ namespace System
             if (destinationIndex > destination.Length - count || destinationIndex < 0)
                 throw new ArgumentOutOfRangeException(nameof(destinationIndex), SR.ArgumentOutOfRange_IndexCount);
 
-            fixed (char* src = &_firstChar, dest = destination)
-                wstrcpy(dest + destinationIndex, src + sourceIndex, count);
+            if (count > 0)
+            {
+                wstrcpy(ref destination[destinationIndex], ref Unsafe.Add(ref this.GetRawStringData(), sourceIndex), count);
+            }
         }
 
         // Returns the entire string as an array of characters.
@@ -415,8 +406,7 @@ namespace System
                 return Array.Empty<char>();
 
             char[] chars = new char[Length];
-            fixed (char* src = &_firstChar, dest = &chars[0])
-                wstrcpy(dest, src, Length);
+            wstrcpy(ref chars.GetRawSzArrayData(), ref this.GetRawStringData(), Length);
             return chars;
         }
 
@@ -436,8 +426,7 @@ namespace System
             }
 
             char[] chars = new char[length];
-            fixed (char* src = &_firstChar, dest = &chars[0])
-                wstrcpy(dest, src + startIndex, length);
+            wstrcpy(ref chars.GetRawSzArrayData(), ref Unsafe.Add(ref this.GetRawStringData(), startIndex), length);
             return chars;
         }
 
@@ -505,11 +494,12 @@ namespace System
             return result;
         }
 
-        internal static unsafe void wstrcpy(char* dmem, char* smem, int charCount)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static void wstrcpy(ref char dmem, ref char smem, int charCount)
         {
-            Buffer.Memmove((byte*)dmem, (byte*)smem, ((uint)charCount) * 2);
+            Debug.Assert(charCount >= 0);
+            Buffer.Memmove(ref dmem, ref smem, (uint)charCount /* char count, not byte count */);
         }
-
 
         // Returns this string.
         public override string ToString()

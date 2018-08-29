@@ -232,8 +232,7 @@ namespace System
                 int len = (int)(p - pStrings + 1);
                 block = new char[len];
 
-                fixed (char* pBlock = block)
-                    string.wstrcpy(pBlock, pStrings, len);
+                string.wstrcpy(ref block.GetRawSzArrayData(), ref *pStrings, len);
             }
             finally
             {

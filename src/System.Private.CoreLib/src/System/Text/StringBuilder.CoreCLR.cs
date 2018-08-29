@@ -2,6 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Internal.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
+
 namespace System.Text
 {
     public partial class StringBuilder
@@ -119,18 +122,16 @@ namespace System.Text
             {
                 int chunkOffsetInBytes = currentSrc.m_ChunkOffset * sizeof(char);
                 int chunkLengthInBytes = currentSrc.m_ChunkLength * sizeof(char);
-                fixed (char* charPtr = &currentSrc.m_ChunkChars[0])
+
+                ref byte srcRef = ref Unsafe.As<char, byte>(ref currentSrc.m_ChunkChars.GetRawSzArrayData());
+                if (isLastChunk)
                 {
-                    byte* srcPtr = (byte*)charPtr;
-                    if (isLastChunk)
-                    {
-                        isLastChunk = false;
-                        Buffer.Memcpy(dstPtr + chunkOffsetInBytes, srcPtr, len - chunkOffsetInBytes);
-                    }
-                    else
-                    {
-                        Buffer.Memcpy(dstPtr + chunkOffsetInBytes, srcPtr, chunkLengthInBytes);
-                    }
+                    isLastChunk = false;
+                    Buffer.Memmove(ref *(dstPtr + chunkOffsetInBytes), ref srcRef, (uint)(len - chunkOffsetInBytes));
+                }
+                else
+                {
+                    Buffer.Memmove(ref *(dstPtr + chunkOffsetInBytes), ref srcRef, (uint)chunkLengthInBytes);
                 }
                 currentSrc = currentSrc.m_ChunkPrevious;
             }

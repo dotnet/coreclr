@@ -11,13 +11,19 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System
 {
     public partial class String
     {
         private const int StackallocIntBufferSizeLimit = 128;
 
-        private static unsafe void FillStringChecked(string dest, int destPos, string src)
+        private static void FillStringChecked(string dest, int destPos, string src)
         {
             Debug.Assert(dest != null);
             Debug.Assert(src != null);
@@ -26,11 +32,7 @@ namespace System
                 throw new IndexOutOfRangeException();
             }
 
-            fixed (char* pDest = &dest._firstChar)
-            fixed (char* pSrc = &src._firstChar)
-            {
-                wstrcpy(pDest + destPos, pSrc, src.Length);
-            }
+            wstrcpy(ref Unsafe.Add(ref dest.GetRawStringData(), destPos), ref src.GetRawStringData(), src.Length);
         }
 
         public static string Concat(object arg0)
@@ -492,21 +494,10 @@ namespace System
             // In case this computation overflows, newLength will be negative and FastAllocateString throws OutOfMemoryException
             int newLength = oldLength + insertLength;
             string result = FastAllocateString(newLength);
-            unsafe
-            {
-                fixed (char* srcThis = &_firstChar)
-                {
-                    fixed (char* srcInsert = &value._firstChar)
-                    {
-                        fixed (char* dst = &result._firstChar)
-                        {
-                            wstrcpy(dst, srcThis, startIndex);
-                            wstrcpy(dst + startIndex, srcInsert, insertLength);
-                            wstrcpy(dst + startIndex + insertLength, srcThis + startIndex, oldLength - startIndex);
-                        }
-                    }
-                }
-            }
+
+            wstrcpy(ref result.GetRawStringData(), ref this.GetRawStringData(), startIndex);
+            wstrcpy(ref Unsafe.Add(ref result.GetRawStringData(), startIndex), ref value.GetRawStringData(), insertLength);
+            wstrcpy(ref Unsafe.Add(ref result.GetRawStringData(), startIndex + insertLength), ref Unsafe.Add(ref this.GetRawStringData(), startIndex), oldLength - startIndex);
             return result;
         }
 
@@ -535,7 +526,7 @@ namespace System
         public static unsafe string Join(char separator, string[] value, int startIndex, int count)
         {
             // Defer argument validation to the internal function
-            return JoinCore(&separator, 1, value, startIndex, count);
+            return JoinCore(ref separator, 1, value, startIndex, count);
         }
 
         // Joins an array of strings together as one string with a separator between each original string.
@@ -608,14 +599,11 @@ namespace System
 
         // Joins an array of strings together as one string with a separator between each original string.
         //
-        public static unsafe string Join(string separator, string[] value, int startIndex, int count)
+        public static string Join(string separator, string[] value, int startIndex, int count)
         {
             separator = separator ?? string.Empty;
-            fixed (char* pSeparator = &separator._firstChar)
-            {
-                // Defer argument validation to the internal function
-                return JoinCore(pSeparator, separator.Length, value, startIndex, count);
-            }
+            // Defer argument validation to the internal function
+            return JoinCore(ref separator.GetRawStringData(), separator.Length, value, startIndex, count);
         }
 
         private static unsafe string JoinCore(char* separator, int separatorLength, object[] values)
@@ -705,11 +693,11 @@ namespace System
             }
         }
 
-        private static unsafe string JoinCore(char* separator, int separatorLength, string[] value, int startIndex, int count)
+        private static unsafe string JoinCore(ref char separator, int separatorLength, string[] value, int startIndex, int count)
         {
             // If the separator is null, it is converted to an empty string before entering this function.
             // Even for empty strings, fixed should never return null (it should return a pointer to a null char).
-            Debug.Assert(separator != null);
+            Debug.Assert(Unsafe.AsPointer(ref separator) != null);
             Debug.Assert(separatorLength >= 0);
 
             if (value == null)
@@ -787,19 +775,19 @@ namespace System
                 if (i < end - 1)
                 {
                     // Fill in the separator.
-                    fixed (char* pResult = &result._firstChar)
+
+                    ref char dest = ref Unsafe.Add(ref result.GetRawStringData(), copiedLength);
+
+                    // If we are called from the char-based overload, we will not
+                    // want to call MemoryCopy each time we fill in the separator. So
+                    // specialize for 1-length separators.
+                    if (separatorLength == 1)
                     {
-                        // If we are called from the char-based overload, we will not
-                        // want to call MemoryCopy each time we fill in the separator. So
-                        // specialize for 1-length separators.
-                        if (separatorLength == 1)
-                        {
-                            pResult[copiedLength] = *separator;
-                        }
-                        else
-                        {
-                            wstrcpy(pResult + copiedLength, separator, separatorLength);
-                        }
+                        dest = separator;
+                    }
+                    else
+                    {
+                        wstrcpy(ref dest, ref separator, separatorLength);
                     }
                     copiedLength += separatorLength;
                 }
@@ -811,7 +799,7 @@ namespace System
             // fall back should be extremely rare.
             return copiedLength == totalLength ?
                 result :
-                JoinCore(separator, separatorLength, (string[])value.Clone(), startIndex, count);
+                JoinCore(ref separator, separatorLength, (string[])value.Clone(), startIndex, count);
         }
 
         public string PadLeft(int totalWidth) => PadLeft(totalWidth, ' ');
@@ -824,19 +812,10 @@ namespace System
             int count = totalWidth - oldLength;
             if (count <= 0)
                 return this;
+
             string result = FastAllocateString(totalWidth);
-            unsafe
-            {
-                fixed (char* dst = &result._firstChar)
-                {
-                    for (int i = 0; i < count; i++)
-                        dst[i] = paddingChar;
-                    fixed (char* src = &_firstChar)
-                    {
-                        wstrcpy(dst + count, src, oldLength);
-                    }
-                }
-            }
+            new Span<char>(ref result.GetRawStringData(), count).Fill(paddingChar);
+            wstrcpy(ref Unsafe.Add(ref result.GetRawStringData(), count), ref this.GetRawStringData(), oldLength);
             return result;
         }
 
@@ -851,18 +830,8 @@ namespace System
             if (count <= 0)
                 return this;
             string result = FastAllocateString(totalWidth);
-            unsafe
-            {
-                fixed (char* dst = &result._firstChar)
-                {
-                    fixed (char* src = &_firstChar)
-                    {
-                        wstrcpy(dst, src, oldLength);
-                    }
-                    for (int i = 0; i < count; i++)
-                        dst[oldLength + i] = paddingChar;
-                }
-            }
+            wstrcpy(ref result.GetRawStringData(), ref this.GetRawStringData(), oldLength);
+            new Span<char>(ref Unsafe.Add(ref result.GetRawStringData(), oldLength), count).Fill(paddingChar);
             return result;
         }
 
@@ -883,17 +852,8 @@ namespace System
                 return string.Empty;
 
             string result = FastAllocateString(newLength);
-            unsafe
-            {
-                fixed (char* src = &_firstChar)
-                {
-                    fixed (char* dst = &result._firstChar)
-                    {
-                        wstrcpy(dst, src, startIndex);
-                        wstrcpy(dst + startIndex, src + startIndex + count, newLength - startIndex);
-                    }
-                }
-            }
+            wstrcpy(ref result.GetRawStringData(), ref this.GetRawStringData(), startIndex);
+            wstrcpy(ref Unsafe.Add(ref result.GetRawStringData(), startIndex), ref Unsafe.Add(ref this.GetRawStringData(), startIndex + count), newLength - startIndex);
             return result;
         }
 
@@ -998,63 +958,44 @@ namespace System
             if (oldChar == newChar)
                 return this;
 
-            unsafe
+            int indexOfFirstCharToReplace = IndexOf(oldChar);
+            if (indexOfFirstCharToReplace < 0)
             {
-                int remainingLength = Length;
-
-                fixed (char* pChars = &_firstChar)
-                {
-                    char* pSrc = pChars;
-
-                    while (remainingLength > 0)
-                    {
-                        if (*pSrc == oldChar)
-                        {
-                            break;
-                        }
-
-                        remainingLength--;
-                        pSrc++;
-                    }
-                }
-
-                if (remainingLength == 0)
-                    return this;
-
-                string result = FastAllocateString(Length);
-
-                fixed (char* pChars = &_firstChar)
-                {
-                    fixed (char* pResult = &result._firstChar)
-                    {
-                        int copyLength = Length - remainingLength;
-
-                        //Copy the characters already proven not to match.
-                        if (copyLength > 0)
-                        {
-                            wstrcpy(pResult, pChars, copyLength);
-                        }
-
-                        //Copy the remaining characters, doing the replacement as we go.
-                        char* pSrc = pChars + copyLength;
-                        char* pDst = pResult + copyLength;
-
-                        do
-                        {
-                            char currentChar = *pSrc;
-                            if (currentChar == oldChar)
-                                currentChar = newChar;
-                            *pDst = currentChar;
-
-                            remainingLength--;
-                            pSrc++;
-                            pDst++;
-                        } while (remainingLength > 0);
-                    }
-                }
-
-                return result;
+                return this; // the old character wasn't found in the original string; no replacement
             }
+
+            // At this point, we know we need to replace at least one character, so we'll incur the allocation.
+
+            string result = FastAllocateString(Length);
+
+            //Copy the characters already proven not to match.
+            if (indexOfFirstCharToReplace > 0)
+            {
+                wstrcpy(ref result.GetRawStringData(), ref this.GetRawStringData(), indexOfFirstCharToReplace);
+            }
+
+            //Copy the remaining characters, doing the replacement as we go.
+
+            ref char src = ref Unsafe.Add(ref this.GetRawStringData(), indexOfFirstCharToReplace);
+            ref char dst = ref Unsafe.Add(ref result.GetRawStringData(), indexOfFirstCharToReplace);
+
+            dst = newChar; // We know this character needs to be replaced
+
+            nuint charsRemaining = (uint)(Length - indexOfFirstCharToReplace);
+            Debug.Assert(charsRemaining > 0);
+
+            for (nuint i = 1; i < charsRemaining; i++)
+            {
+                unsafe
+                {
+                    char currentChar = Unsafe.Add(ref src, (IntPtr)(void*)i);
+                    if (currentChar == oldChar)
+                        currentChar = newChar;
+                    Unsafe.Add(ref dst, (IntPtr)(void*)i) = currentChar;
+                }
+            }
+
+            return result;
         }
 
         public string Replace(string oldValue, string newValue)
@@ -1671,13 +1612,7 @@ namespace System
             Debug.Assert(length >= 0 && startIndex <= this.Length - length, "length is out of range!");
 
             string result = FastAllocateString(length);
-
-            fixed (char* dest = &result._firstChar)
-            fixed (char* src = &_firstChar)
-            {
-                wstrcpy(dest, src + startIndex, length);
-            }
-
+            wstrcpy(ref result.GetRawStringData(), ref Unsafe.Add(ref this.GetRawStringData(), startIndex), length);
             return result;
         }
 

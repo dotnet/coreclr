@@ -1014,10 +1014,7 @@ namespace System.Runtime.InteropServices
                 throw new OutOfMemoryException();
             }
 
-            fixed (char* firstChar = s)
-            {
-                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
-            }
+            string.wstrcpy(ref *(char*)hglobal, ref s.GetRawStringData(), s.Length + 1);
             return hglobal;
         }
 
@@ -1183,10 +1180,7 @@ namespace System.Runtime.InteropServices
                 throw new OutOfMemoryException();
             }
 
-            fixed (char* firstChar = s)
-            {
-                string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
-            }
+            string.wstrcpy(ref *(char*)hglobal, ref s.GetRawStringData(), s.Length + 1);
             return hglobal;
         }
 
