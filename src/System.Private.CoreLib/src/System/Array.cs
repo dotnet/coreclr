@@ -1606,7 +1606,7 @@ namespace System
             if (length <= 1)
                 return;
 
-            ref T first = ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), index);
+            ref T first = ref Unsafe.Add(ref array.GetRawSzArrayData(), index);
             ref T last = ref Unsafe.Add(ref Unsafe.Add(ref first, length), -1);
             do
             {

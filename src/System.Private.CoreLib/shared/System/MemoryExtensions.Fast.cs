@@ -402,7 +402,7 @@ namespace System
             if ((uint)start > (uint)array.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 
-            return new Span<T>(ref Unsafe.Add(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()), start), array.Length - start);
+            return new Span<T>(ref Unsafe.Add(ref array.GetRawSzArrayData(), start), array.Length - start);
         }
 
         /// <summary>

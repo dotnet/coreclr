@@ -184,7 +184,8 @@ namespace System.Runtime.CompilerServices
         private static extern bool IsAddressInStack(IntPtr ptr);
 #endif
 
-        internal static ref byte GetRawSzArrayData(this Array array)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static ref T GetRawSzArrayData<T>(this T[] array)
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementation for how this happens.
