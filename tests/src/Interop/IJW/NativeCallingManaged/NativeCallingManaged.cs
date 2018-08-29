@@ -37,10 +37,22 @@ namespace NativeCallingManaged
             }
             TestFramework.EndTestCase();
 
+            TestFramework.BeginTestCase("Ensure .NET Framework was not loaded");
+            IntPtr clrHandle = GetModuleHandle("mscoreei.dll");
+            if (clrHandle != IntPtr.Zero)
+            {
+                TestFramework.LogError("IJW", ".NET Framework loaded by IJw module load");
+                success = false;
+            }
+            TestFramework.EndTestCase();
+
             return success ? 100 : 99;
         }
 
         [DllImport("kernel32.dll")]
         static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hReservedNull, int dwFlags);
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetModuleHandle(string lpModuleName);
     }
 }

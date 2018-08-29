@@ -7056,20 +7056,8 @@ void Module::FixupVTables()
             return;
         }
 
-        // This is the app domain which all of our U->M thunks for this module will have
-        // affinity with.  Note that if the module is shared between multiple domains, all thunks will marshal back
-        // to the original domain, so some of the thunks may cause a surprising domain switch to occur.
-        // (And furthermore note that if the original domain is unloaded, all the thunks will simply throw an
-        // exception.)
-        //
-        // (The essential problem is that these thunks are shared via the global process address space
-        // rather than per domain, thus there is no context to figure out our domain from.  We could
-        // use the current thread's domain, but that is effectively undefined in unmanaged space.)
-        //
-        // The bottom line is that the IJW model just doesn't fit with multiple app domain design very well, so
-        // better to have well defined limitations than flaky behavior.
-        //
-        //  
+        // This phase assumes there is only one AppDomain and that thunks
+        // can all safely point directly to the method in the current AppDomain
 
         AppDomain *pAppDomain = GetAppDomain();
 
