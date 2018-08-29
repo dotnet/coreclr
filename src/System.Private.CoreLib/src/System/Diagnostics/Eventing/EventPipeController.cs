@@ -12,10 +12,12 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// Simple out-of-process listener for controlling EventPipe.
     /// The following environment variables are used to configure EventPipe:
+    ///  - COMPlus_EnableEventPipe=1 : Enable EventPipe immediately for the life of the process.
     ///  - COMPlus_EnableEventPipe=4 : Enables this controller and creates a thread to listen for enable/disable events.
     ///  - COMPlus_EventPipeConfig : Provides the configuration in xperf string form for which providers/keywords/levels to be enabled.
     ///                              If not specified, the default configuration is used.
     ///  - COMPlus_EventPipeOutputFile : The full path to the netperf file to be written.
+    ///  - COMPlus_EventPipeCircularMB : The size in megabytes of the circular buffer.
     /// Once the configuration is set and this controller is enabled, tracing is enabled by creating a marker file that this controller listens for.
     /// Tracing is disabled by deleting the marker file.  The marker file is the target trace file path with ".ctl" appended to it.  For example,
     /// if the trace file is /path/to/trace.netperf then the marker file is /path/to/trace.netperf.ctl.
@@ -25,21 +27,31 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     internal sealed class EventPipeController
     {
+        // Miscellaneous constants.
         private const string MarkerFileExtension = ".ctl";
         private const int PollingIntervalMilliseconds = 10000; // 10 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
-        private readonly char[] ProviderConfigDelimiter = new char[] { ',' };
-        private readonly char[] ConfigComponentDelimiter = new char[] { ':' };
+        private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
+        private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
 
-        private readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
+        // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
+        private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
         {
             new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntime", 0x4c14fccbd, 5),
             new EventPipeProviderConfiguration("Microsoft-Windows-DotNETRuntimePrivate", 0x4002000b, 5),
             new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5)
         };
 
-        private static EventPipeController s_controllerInstance;
+        // Cache for COMPlus configuration variables.
+        private static int s_Config_EnableEventPipe = -1;
+        private static string s_Config_EventPipeConfig = null;
+        private static uint s_Config_EventPipeCircularMB = 0;
+        private static string s_Config_EventPipeOutputFile = null;
 
+        // Singleton controller instance.
+        private static EventPipeController s_controllerInstance = null;
+
+        // Controller object state.
         private string m_traceFilePath;
         private string m_markerFilePath;
         private bool m_markerFileExists;
@@ -52,14 +64,16 @@ namespace System.Diagnostics.Tracing
             {
                 if (s_controllerInstance == null)
                 {
-                    string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-                    if (strEnabledValue != null)
+                    if(Config_EnableEventPipe == 4)
                     {
-                        int enabledValue = Convert.ToInt32(strEnabledValue);
-                        if (enabledValue == 4)
-                        {
-                            s_controllerInstance = new EventPipeController();
-                        }
+                        // Create a new controller to listen for commands.
+                        s_controllerInstance = new EventPipeController();
+                    }
+                    else if (Config_EnableEventPipe > 0)
+                    {
+                        // Enable tracing immediately.
+                        // It will be disabled automatically on shutdown.
+                        EventPipe.Enable(GetConfiguration());
                     }
                 }
             }
@@ -68,21 +82,12 @@ namespace System.Diagnostics.Tracing
 
         private EventPipeController()
         {
-            // Determine the marker file path.
-            string traceFilePath = CompatibilitySwitch.GetValueInternal("EventPipeOutputFile");
-            if (!string.IsNullOrEmpty(traceFilePath))
-            {
-                m_traceFilePath = traceFilePath;
-                m_markerFilePath = traceFilePath + MarkerFileExtension;
-            }
-            else
-            {
-                // If the output file path is not specified then use
-                // path/to/current/working/directory/Process-<pid>.netperf.ctl
-                m_traceFilePath = EventPipeInternal.GetDefaultTraceFileName();
-                m_markerFilePath = m_traceFilePath + MarkerFileExtension;
-            }
+            // Set file paths.
+            m_traceFilePath = Config_EventPipeOutputFile;
+            m_markerFilePath = MarkerFilePath;
 
+            // Marker file is assumed to not exist.
+            // This will be updated when the monitoring thread starts.
             m_markerFileExists = false;
 
             // Start a new thread to listen for tracing commands.
@@ -125,21 +130,13 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private EventPipeConfiguration GetConfiguration()
+        private static EventPipeConfiguration GetConfiguration()
         {
-            // Get the circular buffer size.
-            string strCircularMB = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
-            uint circularMB = Convert.ToUInt32(strCircularMB);
-            if (circularMB == 0)
-            {
-                circularMB = DefaultCircularBufferMB;
-            }
-
             // Create a new configuration object.
-            EventPipeConfiguration config = new EventPipeConfiguration(m_traceFilePath, circularMB);
+            EventPipeConfiguration config = new EventPipeConfiguration(Config_EventPipeOutputFile, Config_EventPipeCircularMB);
 
             // Get the configuration.
-            string strConfig = CompatibilitySwitch.GetValueInternal("EventPipeConfig");
+            string strConfig = Config_EventPipeConfig;
             if (!string.IsNullOrEmpty(strConfig))
             {
                 // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
@@ -167,6 +164,87 @@ namespace System.Diagnostics.Tracing
 
             return config;
         }
+
+        #region Configuration
+
+        private static int Config_EnableEventPipe
+        {
+            get
+            {
+                if (s_Config_EnableEventPipe == -1)
+                {
+                    string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
+                    if (strEnabledValue != null)
+                    {
+                        s_Config_EnableEventPipe = Convert.ToInt32(strEnabledValue);
+                    }
+                    else
+                    {
+                        s_Config_EnableEventPipe = 0;
+                    }
+                }
+
+                return s_Config_EnableEventPipe;
+            }
+        }
+
+        private static string Config_EventPipeConfig
+        {
+            get
+            {
+                if (s_Config_EventPipeConfig == null)
+                {
+                    s_Config_EventPipeConfig = CompatibilitySwitch.GetValueInternal("EventPipeConfig");
+                }
+
+                return s_Config_EventPipeConfig;
+            }
+        }
+
+        private static uint Config_EventPipeCircularMB
+        {
+            get
+            {
+                if (s_Config_EventPipeCircularMB == 0)
+                {
+                    string strCircularMB = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
+                    s_Config_EventPipeCircularMB = Convert.ToUInt32(strCircularMB);
+                    if (s_Config_EventPipeCircularMB == 0)
+                    {
+                        s_Config_EventPipeCircularMB = DefaultCircularBufferMB;
+                    }
+                }
+
+                return s_Config_EventPipeCircularMB;
+            }
+        }
+
+        private static string Config_EventPipeOutputFile
+        {
+            get
+            {
+                if (s_Config_EventPipeOutputFile == null)
+                {
+                    s_Config_EventPipeOutputFile = CompatibilitySwitch.GetValueInternal("EventPipeOutputFile");
+                    if (s_Config_EventPipeOutputFile == null)
+                    {
+                        s_Config_EventPipeOutputFile = EventPipeInternal.GetDefaultTraceFileName();
+                    }
+                }
+
+                return s_Config_EventPipeOutputFile;
+            }
+        }
+
+        private static string MarkerFilePath
+        {
+            get
+            {
+                return Config_EventPipeOutputFile + MarkerFileExtension;
+            }
+        }
+
+        #endregion Configuration
     }
 }
 

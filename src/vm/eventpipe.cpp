@@ -203,40 +203,6 @@ void EventPipe::Initialize()
     InitProvidersAndEvents();
 }
 
-void EventPipe::EnableOnStartup()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // Test COMPLUS variable to enable tracing at start-up.
-    if((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EnableEventPipe) & 1) == 1)
-    {
-        SString outputPath;
-        outputPath.Printf("Process-%d.netperf", GetCurrentProcessId());
-
-        // Get the circular buffer size in megabytes.
-        unsigned int circularMB = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeCircularMB);
-
-        // Create a new session.
-        EventPipeSession *pSession = new EventPipeSession(
-            EventPipeSessionType::File,
-            circularMB,
-            NULL, /* pProviders */
-            0 /* numProviders */);
-
-        // Get the configuration from the environment.
-        GetConfigurationFromEnvironment(outputPath, pSession);
-
-        // Enable the session.
-        Enable(outputPath, pSession);
-    }
-}
-
 void EventPipe::Shutdown()
 {
     CONTRACTL
