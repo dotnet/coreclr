@@ -3790,6 +3790,8 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
     GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
 
+    unsigned int lvaInc = lpDesc->lpIterConst();
+
     /* Almost done!! we are going to clone expressions to unroll right now! */
 
     // removing test for cloning.
@@ -3903,7 +3905,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             if (gtOP->OperIs(GT_CNS_INT))
             {
                 GenTreeIntCon* gtCnsInt = gtOP->AsIntCon();
-                gtCnsInt->SetIconValue(gtCnsInt->IconValue() - outer);
+                gtCnsInt->SetIconValue(gtCnsInt->IconValue() - (outer * lvaInc));
             }
         }
     }
