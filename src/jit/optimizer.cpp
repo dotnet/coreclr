@@ -3521,6 +3521,7 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
     LoopDsc* loopDesc = &optLoopTable[loopId];
 
     BasicBlock* bbHead   = loopDesc->lpHead;
+    BasicBlock* bbBody   = bbHead->bbNext;
     BasicBlock* bbBottom = loopDesc->lpBottom;
 
     GenTree* gtInit = bbHead->lastStmt();
@@ -3548,7 +3549,7 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
     };
 
     unsigned int loopBodyStmtCnt = 0;
-    for (BasicBlock* bbIter = bbHead->bbNext;; bbIter = bbIter->bbNext)
+    for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
     {
         for (GenTreeStmt* gtStmt = bbIter->firstStmt(); gtStmt; gtStmt = gtStmt->getNextStmt())
         {
@@ -3567,6 +3568,16 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         if (bbIter == bbBottom)
         {
             break;
+        }
+    }
+
+    auto tryIndex = bbBody->bbTryIndex;
+    for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+    {
+        if (bbIter->bbTryIndex != tryIndex)
+        {
+            // Unrolling would require cloning EH regions
+            return false;
         }
     }
 
