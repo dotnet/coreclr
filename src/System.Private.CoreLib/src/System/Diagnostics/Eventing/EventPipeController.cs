@@ -153,16 +153,23 @@ namespace System.Diagnostics.Tracing
                     if (components.Length == 3)
                     {
                         string providerName = components[0];
-                        ulong keywords;
-                        if(!ulong.TryParse(components[1], NumberStyles.HexNumber, CultureInfo.CurrentCulture, out keywords))
+
+                        // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
+                        // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
+                        // Given that this is not a perf-critical path, catching the exception is the simpler code.
+                        ulong keywords = 0;
+                        try
                         {
-                            keywords = 0;
+                            keywords = Convert.ToUInt64(components[1], 16);
                         }
+                        catch { }
+
                         uint level;
                         if (!uint.TryParse(components[2], out level))
                         {
                             level = 0;
                         }
+
                         config.EnableProvider(providerName, keywords, level);
                     }
                 }
@@ -198,7 +205,7 @@ namespace System.Diagnostics.Tracing
                 string fileWithoutExtension = Path.GetFileName(filePath);
                 string extension = Path.GetExtension(filePath);
 
-                string newFileWithExtension = fileWithoutExtension + "." + Environment.ProcessId + "." + extension;
+                string newFileWithExtension = fileWithoutExtension + "." + Environment.ProcessId + extension;
                 filePath = Path.Combine(directoryName, newFileWithExtension);
             }
 
