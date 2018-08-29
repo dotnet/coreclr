@@ -2846,13 +2846,13 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
     // On remorph, we grab it from the arg table.
     unsigned numArgs = 0;
 
-    // TODO: this comment is no longer correct, do an approptiate fix.
+    // TODO: this comment is no longer correct, do an appropriate fix.
     // Process the late arguments (which were determined by a previous caller).
     // Do this before resetting fgPtrArgCntCur as fgMorphTree(call->gtCallLateArgs)
     // may need to refer to it.
     if (reMorphing)
     {
-        // TODO: this comment is no longer correct, do an approptiate fix.
+        // TODO: this comment is no longer correct, do an appropriate fix.
         // We need to reMorph the gtCallLateArgs early since that is what triggers
         // the expression folding and we need to have the final folded gtCallLateArgs
         // available when we call RemorphRegArg so that we correctly update the fgArgInfo

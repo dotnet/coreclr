@@ -18117,12 +18117,17 @@ unsigned Compiler::acdHelper(SpecialCodeKind codeKind)
     }
 }
 
-/*****************************************************************************
- *
- *  Find/create an added code entry associated with the given block and with
- *  the given kind.
- */
-
+//------------------------------------------------------------------------
+// fgAddCodeRef: Find/create an added code entry associated with the given block and with the given kind.
+//
+// Arguments:
+//   srcBlk  - the block that needs an entry;
+//   refData - the index to use as the cache key for sharing throw blocks;
+//   kind    - the kind of exception;
+//
+// Return Value:
+//   The target throw helper block or nullptr if throw helper blocks are disabled.
+//
 BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind)
 {
     // Record that the code will call a THROW_HELPER
@@ -18340,6 +18345,16 @@ Compiler::AddCodeDsc* Compiler::fgFindExcptnTarget(SpecialCodeKind kind, unsigne
  *  range check is to jump to upon failure.
  */
 
+//------------------------------------------------------------------------
+// fgRngChkTarget: Create/find the appropriate "range-fail" label for the block.
+//
+// Arguments:
+//   srcBlk  - the block that needs an entry;
+//   kind    - the kind of exception;
+//
+// Return Value:
+//   The target throw helper block this check jumps to upon failure.
+//
 BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind)
 {
 #ifdef DEBUG
