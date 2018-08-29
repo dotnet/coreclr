@@ -33,6 +33,18 @@ This file contains the logic for providing Execution Script generation.
       <HasParam>false</HasParam>
     </CLRTestExecutionScriptArgument>
   </ItemDefinitionGroup>
+
+  <!-- Target used to compute the input assembly name property. This property is used during
+       script generation. See Batch and Bash script generation targets. -->
+  <Target Name="GenerateInputAssemblyName">
+    <PropertyGroup Condition="'$(CLRTestKind)' == 'RunOnly'">
+      <InputAssemblyName>$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
+      <InputAssemblyName Condition="'$(BuildOS)' != 'Windows_NT'">$(InputAssemblyName).Replace("\","/")</InputAssemblyName>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(CLRTestKind)' == 'BuildAndRun'">
+      <InputAssemblyName >$(MSBuildProjectName).exe</InputAssemblyName>
+    </PropertyGroup>
+  </Target>
     
     <!--
   *******************************************************************************************
