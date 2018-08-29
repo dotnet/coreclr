@@ -9,14 +9,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
-using Internal.IO;
 
 namespace System
 {
     internal static class StartupHookProvider
     {
-        private const string startupHookTypeName = "StartupHook";
-        private const string initializeMethodName = "Initialize";
+        private const string StartupHookTypeName = "StartupHook";
+        private const string InitializeMethodName = "Initialize";
 
         // Parse a string specifying a list of assemblies and types
         // containing a startup hook, and call each hook in turn.
@@ -50,7 +49,7 @@ namespace System
         }
 
         // Load the specified assembly, and call the specified type's
-        // "public static void Initialize()" method.
+        // "static void Initialize()" method.
         private static void CallStartupHook(string assemblyPath)
         {
             Debug.Assert(!String.IsNullOrEmpty(assemblyPath));
@@ -58,11 +57,11 @@ namespace System
 
             Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyPath);
             Debug.Assert(assembly != null);
-            Type type = assembly.GetType(startupHookTypeName, throwOnError: true);
+            Type type = assembly.GetType(StartupHookTypeName, throwOnError: true);
 
-            // Look for a public static method without any parameters
-            MethodInfo initializeMethod = type.GetMethod(initializeMethodName,
-                                                         BindingFlags.Public | BindingFlags.Static,
+            // Look for a static method without any parameters
+            MethodInfo initializeMethod = type.GetMethod(InitializeMethodName,
+                                                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
                                                          null, // use default binder
                                                          Type.EmptyTypes, // parameters
                                                          null); // no parameter modifiers
@@ -70,14 +69,14 @@ namespace System
             bool wrongSignature = false;
             if (initializeMethod == null)
             {
-                // There weren't any public static methods without
+                // There weren't any static methods without
                 // parameters. Look for any methods with the correct
                 // name, to provide precise error handling.
                 try
                 {
                     // This could find zero, one, or multiple methods
                     // with the correct name.
-                    initializeMethod = type.GetMethod(initializeMethodName,
+                    initializeMethod = type.GetMethod(InitializeMethodName,
                                                       BindingFlags.Public | BindingFlags.NonPublic |
                                                       BindingFlags.Static | BindingFlags.Instance);
                 }
@@ -95,7 +94,7 @@ namespace System
                 else
                 {
                     // Didn't find any
-                    throw new MissingMethodException(startupHookTypeName, initializeMethodName);
+                    throw new MissingMethodException(StartupHookTypeName, InitializeMethodName);
                 }
             }
             else if (initializeMethod.ReturnType != typeof(void))
@@ -106,12 +105,12 @@ namespace System
             if (wrongSignature)
             {
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidStartupHookSignature,
-                                                      startupHookTypeName + Type.Delimiter + initializeMethodName,
+                                                      StartupHookTypeName + Type.Delimiter + InitializeMethodName,
                                                       assemblyPath));
             }
 
             Debug.Assert(initializeMethod != null &&
-                         initializeMethod.IsPublic &&
+                         (initializeMethod.IsPublic || initializeMethod.IsPrivate) &&
                          initializeMethod.IsStatic &&
                          initializeMethod.ReturnType == typeof(void) &&
                          initializeMethod.GetParameters().Length == 0);

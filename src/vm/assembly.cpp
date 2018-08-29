@@ -1763,6 +1763,7 @@ static void RunStartupHooks()
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
+
     MethodDescCallSite processStartupHooks(METHOD__STARTUP_HOOK_PROVIDER__PROCESS_STARTUP_HOOKS);
     processStartupHooks.Call(NULL);
 }
