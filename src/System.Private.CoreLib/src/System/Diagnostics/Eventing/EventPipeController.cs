@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 #if FEATURE_PERFTRACING
 using Internal.IO;
+using System.IO;
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
@@ -85,7 +87,7 @@ namespace System.Diagnostics.Tracing
         private EventPipeController()
         {
             // Set file paths.
-            m_traceFilePath = Config_EventPipeOutputFile;
+            m_traceFilePath = GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile);
             m_markerFilePath = MarkerFilePath;
 
             // Marker file is assumed to not exist.
@@ -135,7 +137,9 @@ namespace System.Diagnostics.Tracing
         private static EventPipeConfiguration GetConfiguration()
         {
             // Create a new configuration object.
-            EventPipeConfiguration config = new EventPipeConfiguration(Config_EventPipeOutputFile, Config_EventPipeCircularMB);
+            EventPipeConfiguration config = new EventPipeConfiguration(
+                GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile),
+                Config_EventPipeCircularMB);
 
             // Get the configuration.
             string strConfig = Config_EventPipeConfig;
@@ -149,8 +153,16 @@ namespace System.Diagnostics.Tracing
                     if (components.Length == 3)
                     {
                         string providerName = components[0];
-                        ulong keywords = Convert.ToUInt64(components[1], 16);
-                        uint level = Convert.ToUInt16(components[2]);
+                        ulong keywords;
+                        if(!ulong.TryParse(components[1], NumberStyles.HexNumber, CultureInfo.CurrentCulture, out keywords))
+                        {
+                            keywords = 0;
+                        }
+                        uint level;
+                        if (!uint.TryParse(components[2], out level))
+                        {
+                            level = 0;
+                        }
                         config.EnableProvider(providerName, keywords, level);
                     }
                 }
@@ -167,6 +179,32 @@ namespace System.Diagnostics.Tracing
             return config;
         }
 
+        /// <summary>
+        /// Responsible for disambiguating the trace file path if the specified file already exists.
+        /// This can happen if there are multiple applications with tracing enabled concurrently and COMPlus_EventPipeOutputFile
+        /// is set to the same value for more than one concurrently running application.
+        /// </summary>
+        private static string GetDisambiguatedTraceFilePath(string inputPath)
+        {
+            if (string.IsNullOrEmpty(inputPath))
+            {
+                throw new ArgumentNullException("inputPath");
+            }
+
+            string filePath = inputPath;
+            if (File.Exists(filePath))
+            {
+                string directoryName = Path.GetDirectoryName(filePath);
+                string fileWithoutExtension = Path.GetFileName(filePath);
+                string extension = Path.GetExtension(filePath);
+
+                string newFileWithExtension = fileWithoutExtension + "." + Environment.ProcessId + "." + extension;
+                filePath = Path.Combine(directoryName, newFileWithExtension);
+            }
+
+            return filePath;
+        }
+
         #region Configuration
 
         private static int Config_EnableEventPipe
@@ -176,11 +214,7 @@ namespace System.Diagnostics.Tracing
                 if (s_Config_EnableEventPipe == -1)
                 {
                     string strEnabledValue = CompatibilitySwitch.GetValueInternal("EnableEventPipe");
-                    if (strEnabledValue != null)
-                    {
-                        s_Config_EnableEventPipe = Convert.ToInt32(strEnabledValue);
-                    }
-                    else
+                    if ((strEnabledValue == null) || (!int.TryParse(strEnabledValue, out s_Config_EnableEventPipe)))
                     {
                         s_Config_EnableEventPipe = 0;
                     }
@@ -210,8 +244,7 @@ namespace System.Diagnostics.Tracing
                 if (s_Config_EventPipeCircularMB == 0)
                 {
                     string strCircularMB = CompatibilitySwitch.GetValueInternal("EventPipeCircularMB");
-                    s_Config_EventPipeCircularMB = Convert.ToUInt32(strCircularMB);
-                    if (s_Config_EventPipeCircularMB == 0)
+                    if ((strCircularMB == null) || (!uint.TryParse(strCircularMB, out s_Config_EventPipeCircularMB)))
                     {
                         s_Config_EventPipeCircularMB = DefaultCircularBufferMB;
                     }
