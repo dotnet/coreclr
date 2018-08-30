@@ -3586,6 +3586,16 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         }
     }
 
+    switch (loopDesc->lpIterOper())
+    {
+        case GT_ADD:
+        case GT_SUB:
+            break;
+
+        default:
+            return false;
+    }
+
     return true;
 }
 
@@ -3910,6 +3920,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             return fgWalkResult::WALK_CONTINUE;
         };
 
+        bool isModified = false;
         fgWalkTreePre(&gtTestExpr, FnFindlvStmt, &WalkData, true);
         for (GenTree* gtLvParent : LvParentList)
         {
@@ -3922,9 +3933,28 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
             if (gtOP->OperIs(GT_CNS_INT))
             {
+                isModified = true;
+
                 GenTreeIntCon* gtCnsInt = gtOP->AsIntCon();
-                gtCnsInt->SetIconValue(gtCnsInt->IconValue() - (outer * lvaInc));
+                switch (lpDesc->lpIterOper())
+                {
+                    case GT_ADD:
+                        gtCnsInt->SetIconValue(gtCnsInt->IconValue() - (outer * lvaInc));
+                        break;
+                    case GT_SUB:
+                        gtCnsInt->SetIconValue(gtCnsInt->IconValue() + (outer * lvaInc));
+                        break;
+
+                    default:
+                        noway_assert(!"Iteration operator is only can be GT_ADD or GT_SUB!");
+                        ;
+                }
             }
+        }
+
+        if (!isModified)
+        {
+            goto FAILED;
         }
     }
 
