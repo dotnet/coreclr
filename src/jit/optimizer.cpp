@@ -3581,17 +3581,6 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         }
     }
 
-    // We only unrolls when loop has simplest body form
-    switch (loopBodyStmtCnt)
-    {
-        case 1:
-        case 2:
-            break;
-
-        default:
-            return false;
-    }
-
     return true;
 }
 
@@ -3759,6 +3748,12 @@ void Compiler::optUnrollLoops()
             // Commit newly calculated cost
             costLoopUnroll = ClrSafeInt<unsigned>((loopUnrollInnerThres + loopUnrollOuterThres) * loopCost);
             noway_assert(!costLoopUnroll.IsOverflow());
+
+            if (loopUnrollNewIter > IterLimit || costLoopUnroll.Value() > CostLimit)
+            {
+                // its still huge to partial unroll, we are not going to unroll it.
+                continue;
+            }
         }
         else
         {
