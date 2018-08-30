@@ -3749,7 +3749,7 @@ void Compiler::optUnrollLoops()
             costLoopUnroll = ClrSafeInt<unsigned>((loopUnrollInnerThres + loopUnrollOuterThres) * loopCost);
             noway_assert(!costLoopUnroll.IsOverflow());
 
-            if (loopUnrollNewIter > IterLimit || costLoopUnroll.Value() > CostLimit)
+            if (costLoopUnroll.Value() > CostLimit)
             {
                 // its still huge to partial unroll, we are not going to unroll it.
                 continue;
