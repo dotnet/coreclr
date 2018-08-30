@@ -3579,6 +3579,11 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
             // Unrolling would require cloning EH regions
             return false;
         }
+
+        if (bbIter == bbBottom)
+        {
+            break;
+        }
     }
 
     return true;
