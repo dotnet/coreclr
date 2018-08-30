@@ -228,8 +228,9 @@ LEAF_END JIT_PatchedCodeLast, _TEXT
 //   RSI - address of the data  (source)
 //
 //   Note: RyuJIT assumes that all volatile registers can be trashed by
-//   the CORINFO_HELP_ASSIGN_BYREF helper (i.e. JIT_ByRefWriteBarrier).
-//   The precise set is defined by RBM_CALLEE_TRASH.
+//   the CORINFO_HELP_ASSIGN_BYREF helper (i.e. JIT_ByRefWriteBarrier)
+//   except RDI and RCI that are incoming and outgoing registers.
+//
 //
 //   RCX is trashed
 //   RAX is trashed
