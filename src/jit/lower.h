@@ -39,10 +39,10 @@ public:
 
         // All other fields are only meaningful if requiresOverflowCheck is set.
 
-        ssize_t typeMin;       // Lowest storable value of the dest type
-        ssize_t typeMax;       // Highest storable value of the dest type
-        ssize_t typeMask;      // For converting from/to unsigned
-        bool    signCheckOnly; // For converting between unsigned/signed int
+        target_ssize_t typeMin;       // Lowest storable value of the dest type
+        target_ssize_t typeMax;       // Highest storable value of the dest type
+        target_ssize_t typeMask;      // For converting from/to unsigned
+        bool           signCheckOnly; // For converting between unsigned/signed int
     };
 
     static void getCastDescription(GenTree* treeNode, CastInfo* castInfo);
