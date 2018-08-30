@@ -110,7 +110,6 @@ namespace System
             }
 
             Debug.Assert(initializeMethod != null &&
-                         (initializeMethod.IsPublic || initializeMethod.IsPrivate) &&
                          initializeMethod.IsStatic &&
                          initializeMethod.ReturnType == typeof(void) &&
                          initializeMethod.GetParameters().Length == 0);
