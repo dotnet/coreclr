@@ -72,7 +72,7 @@ public:
     bool AppDomainIsRudeUnload(void *appDomain);
 
     bool AnalyzeSurvivorsRequested(int condemnedGeneration);
-    void DACNotifyGcMarkEnd(int condemnedGeneration);
+    void AnalyzeSurvivorsFinished(int condemnedGeneration);
 };
 
 } // namespace standalone

@@ -377,7 +377,7 @@ inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
     return false;
 }
 
-inline void GCToEEInterface::DACNotifyGcMarkEnd(int condemnedGeneration)
+inline void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
 {
     
 }

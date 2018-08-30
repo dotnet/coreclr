@@ -1494,7 +1494,7 @@ bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
     return false;
 }
 
-void GCToEEInterface::DACNotifyGcMarkEnd(int condemnedGeneration)
+void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
 {
     LIMITED_METHOD_CONTRACT;
 

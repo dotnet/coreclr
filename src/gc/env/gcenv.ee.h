@@ -94,7 +94,7 @@ public:
     static bool AppDomainIsRudeUnload(void *appDomain);
 
     static bool AnalyzeSurvivorsRequested(int condemnedGeneration);
-    static void DACNotifyGcMarkEnd(int condemnedGeneration);
+    static void AnalyzeSurvivorsFinished(int condemnedGeneration);
 };
 
 #endif // __GCENV_EE_H__

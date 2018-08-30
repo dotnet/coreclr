@@ -19693,7 +19693,7 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
 #ifdef HEAP_ANALYZE
         heap_analyze_enabled = FALSE;
-        GCToEEInterface::DACNotifyGcMarkEnd(condemned_gen_number);
+        GCToEEInterface::AnalyzeSurvivorsFinished(condemned_gen_number);
 #endif // HEAP_ANALYZE
         GCToEEInterface::AfterGcScanRoots (condemned_gen_number, max_generation, &sc);
 

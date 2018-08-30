@@ -432,7 +432,7 @@ public:
     bool AnalyzeSurvivorsRequested(int condemnedGeneration) = 0;
 
     virtual
-    void DACNotifyGcMarkEnd(int condemnedGeneration) = 0;
+    void AnalyzeSurvivorsFinished(int condemnedGeneration) = 0;
 };
 
 #endif // _GCINTERFACE_EE_H_
