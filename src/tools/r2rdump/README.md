@@ -33,9 +33,31 @@ dotnet R2RDump.dll --in &lt;path to ReadyToRun image&gt;
 * -v, --verbose
 	- Dump disassembly, unwindInfo, gcInfo and section contents
 
+## Architectures Supported
+
+### R2RDump Architectures
+
+|             | x64 | x86       | ARM | ARM64 |
+| ----------- | --- | --------- | --- | ----- |
+| **Windows** | yes | no disasm |     |       |
+| **Linux**   | yes |           |     |       |
+| **OSX**     | yes | -         | -   | -     |
+
+### Input Image Architectures
+
+|             | x64 | x86 | ARM       | ARM64 |
+| ----------- | --- | --- | --------- | ----- |
+| **Windows** | yes | yes | no disasm | yes   |
+| **Linux**   | yes | yes | no disasm |       |
+| **OSX**     | yes | -   | -         | -     |    
+
 ## ReadyToRun Format
 
 ![R2RFormat](R2RFormat.png)
+
+### System.Reflection.Metadata
+
+Used for getting method and type signatures from tokens (see: http://jilc.sourceforge.net/ecma_p2_cil.shtml)
 
 ### READYTORUN_SECTION_COMPILER_IDENTIFIER
 
@@ -102,15 +124,14 @@ In x64/Arm/Arm64, GcTransitions are grouped into chunks where each chunk covers 
 >> For each slot that changed state in the chunk:
 >>> Array of elements consisting of a bit set to 1 and the normCodeOffsetDelta indicating all the code offsets where the slot changed state in the chunk. CodeOffset = normCodeOffsetDelta + normChunkBaseCodeOffset + currentRangeStartOffset - cumInterruptibleLength, where normChunkBaseCodeOffset is the sum of the sizes of all preceeding chunks, currentRangeStartOffset is the start offset of the interruptible range that the transition falls under and cumInterruptibleLength is the sum of the lengths of interruptible ranges that came before it
 
-
-# Todo
+## Todo
 
 * Support R2RDump on ARM and ARM64 (https://github.com/dotnet/coreclr/issues/19089)
-
-* Fix issue with invalid machine type in COFF header (https://github.com/dotnet/coreclr/issues/19592)
 
 * Parse R2RSections: READYTORUN_SECTION_EXCEPTION_INFO, READYTORUN_SECTION_DEBUG_INFO, READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS, READYTORUN_SECTION_INLINING_INFO, READYTORUN_SECTION_PROFILEDATA_INFO (https://github.com/dotnet/coreclr/issues/19616)
 
 * Reenable R2RDumpTests after making it less fragile
 
-* Fix issue with disasm on Arm (https://github.com/dotnet/coreclr/issues/19637)
+* Fix issues with disasm on Arm (https://github.com/dotnet/coreclr/issues/19637) and disasm using x86 coredistools (https://github.com/dotnet/coreclr/issues/19564)
+
+* Test R2RDump on more test cases to make sure it runs reliably and verify that the output is accurate (list of failing inputs: https://github.com/dotnet/coreclr/issues/19642)

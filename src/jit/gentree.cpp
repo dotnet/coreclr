@@ -747,18 +747,22 @@ int GenTree::GetRegisterDstCount() const
     {
         return (const_cast<GenTree*>(this))->AsPutArgSplit()->gtNumRegs;
     }
-    // A PUTARG_REG could be a MultiRegOp on ARM since we could move a double register to two int registers,
-    // either for all double parameters w/SoftFP or for varargs).
-    else
+#endif
+#if !defined(_TARGET_64BIT_)
+    else if (OperIsMultiRegOp())
     {
+        // A MultiRegOp is a GT_MUL_LONG, GT_PUTARG_REG, or GT_BITCAST.
+        // For the latter two (ARM-only), they only have multiple registers if they produce a long value
+        // (GT_MUL_LONG always produces a long value).
+        CLANG_FORMAT_COMMENT_ANCHOR;
 #ifdef _TARGET_ARM_
-        assert(OperIsMultiRegOp());
         return (TypeGet() == TYP_LONG) ? 2 : 1;
 #else
-        unreached();
-#endif // _TARGET_ARM_
+        assert(OperIs(GT_MUL_LONG));
+        return 2;
+#endif
     }
-#endif // FEATURE_ARG_SPLIT
+#endif
     assert(!"Unexpected multi-reg node");
     return 0;
 }
@@ -1899,17 +1903,17 @@ AGAIN:
                 break;
             case GT_CNS_LNG:
                 bits = (UINT64)tree->gtLngCon.gtLconVal;
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
                 add = bits;
-#else // 32-bit target
+#else // 32-bit host
                 add = genTreeHashAdd(uhi32(bits), ulo32(bits));
 #endif
                 break;
             case GT_CNS_DBL:
                 bits = *(UINT64*)(&tree->gtDblCon.gtDconVal);
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
                 add = bits;
-#else // 32-bit target
+#else // 32-bit host
                 add = genTreeHashAdd(uhi32(bits), ulo32(bits));
 #endif
                 break;
@@ -1929,9 +1933,9 @@ AGAIN:
         // clang-format off
         // narrow 'add' into a 32-bit 'val'
         unsigned val;
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
         val = genTreeHashAdd(uhi32(add), ulo32(add));
-#else // 32-bit target
+#else // 32-bit host
         val = add;
 #endif
         // clang-format on
@@ -3153,7 +3157,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 //
                 GenTreeIntConCommon* con = tree->AsIntConCommon();
 
-                if (con->ImmedValNeedsReloc(this) || !codeGen->validImmForInstr(INS_mov, tree->gtIntCon.gtIconVal))
+                if (con->ImmedValNeedsReloc(this) ||
+                    !codeGen->validImmForInstr(INS_mov, (target_ssize_t)tree->gtIntCon.gtIconVal))
                 {
                     // Uses movw/movt
                     costSz = 7;
@@ -7438,7 +7443,6 @@ GenTree* Compiler::gtCloneExpr(
                                      asIndAddr->gtStructElemClass, asIndAddr->gtElemSize, asIndAddr->gtLenOffset,
                                      asIndAddr->gtElemOffset);
                 copy->AsIndexAddr()->gtIndRngFailBB = asIndAddr->gtIndRngFailBB;
-                copy->AsIndexAddr()->gtStkDepth     = asIndAddr->gtStkDepth;
             }
             break;
 
@@ -7777,7 +7781,6 @@ GenTree* Compiler::gtCloneExpr(
                                  gtCloneExpr(tree->gtBoundsChk.gtArrLen, addFlags, deepVarNum, deepVarVal),
                                  tree->gtBoundsChk.gtThrowKind);
             copy->gtBoundsChk.gtIndRngFailBB = tree->gtBoundsChk.gtIndRngFailBB;
-            copy->gtBoundsChk.gtStkDepth     = tree->gtBoundsChk.gtStkDepth;
             break;
 
         case GT_STORE_DYN_BLK:

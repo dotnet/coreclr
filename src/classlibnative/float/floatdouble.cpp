@@ -39,6 +39,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef _MSC_VER
+#pragma float_control(push)
 #pragma float_control(precise, off)
 #endif
 
@@ -123,6 +124,13 @@ FCIMPL1_V(double, COMDouble::Cbrt, double x)
     return (double)cbrt(x);
 FCIMPLEND
 
+#if defined(_MSC_VER) && defined(_TARGET_AMD64_)
+// The /fp:fast form of `ceil` for AMD64 does not correctly handle: `-1.0 < value <= -0.0`
+// https://github.com/dotnet/coreclr/issues/19739
+#pragma float_control(push)
+#pragma float_control(precise, on)
+#endif
+
 /*====================================Ceil======================================
 **
 ==============================================================================*/
@@ -131,6 +139,10 @@ FCIMPL1_V(double, COMDouble::Ceil, double x)
 
     return (double)ceil(x);
 FCIMPLEND
+
+#if defined(_MSC_VER) && defined(_TARGET_AMD64_)
+#pragma float_control(pop)
+#endif
 
 /*=====================================Cos======================================
 **
@@ -159,6 +171,13 @@ FCIMPL1_V(double, COMDouble::Exp, double x)
     return (double)exp(x);
 FCIMPLEND
 
+#if defined(_MSC_VER) && defined(_TARGET_X86_)
+// The /fp:fast form of `floor` for x86 does not correctly handle: `-0.0`
+// https://github.com/dotnet/coreclr/issues/19739
+#pragma float_control(push)
+#pragma float_control(precise, on)
+#endif
+
 /*====================================Floor=====================================
 **
 ==============================================================================*/
@@ -167,6 +186,10 @@ FCIMPL1_V(double, COMDouble::Floor, double x)
 
     return (double)floor(x);
 FCIMPLEND
+
+#if defined(_MSC_VER) && defined(_TARGET_X86_)
+#pragma float_control(pop)
+#endif
 
 /*=====================================FMod=====================================
 **
@@ -259,7 +282,7 @@ FCIMPL1_V(double, COMDouble::Tanh, double x)
 FCIMPLEND
 
 #ifdef _MSC_VER
-#pragma float_control(precise, on )
+#pragma float_control(pop)
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////////

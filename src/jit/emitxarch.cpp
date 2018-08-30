@@ -137,251 +137,7 @@ bool emitter::IsAVXInstruction(instruction ins)
 // to indicate whether a 3-operand instruction.
 bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
 {
-    switch (ins)
-    {
-        case INS_addpd:
-        case INS_addps:
-        case INS_addsd:
-        case INS_addss:
-        case INS_addsubpd:
-        case INS_addsubps:
-        case INS_aesdec:
-        case INS_aesdeclast:
-        case INS_aesenc:
-        case INS_aesenclast:
-        case INS_andn:
-        case INS_andnpd:
-        case INS_andnps:
-        case INS_andpd:
-        case INS_andps:
-        case INS_blendpd:
-        case INS_blendps:
-        case INS_blsi:
-        case INS_blsmsk:
-        case INS_blsr:
-        case INS_cmppd:
-        case INS_cmpps:
-        case INS_cmpsd:
-        case INS_cmpss:
-        case INS_cvtsi2sd:
-        case INS_cvtsi2ss:
-        case INS_cvtsd2ss:
-        case INS_cvtss2sd:
-        case INS_divpd:
-        case INS_divps:
-        case INS_divsd:
-        case INS_divss:
-        case INS_dppd:
-        case INS_dpps:
-        case INS_haddpd:
-        case INS_haddps:
-        case INS_hsubpd:
-        case INS_hsubps:
-        case INS_insertps:
-        case INS_maxpd:
-        case INS_maxps:
-        case INS_maxsd:
-        case INS_maxss:
-        case INS_minpd:
-        case INS_minps:
-        case INS_minsd:
-        case INS_minss:
-        case INS_movhlps:
-        case INS_movlhps:
-        case INS_mpsadbw:
-        case INS_mulpd:
-        case INS_mulps:
-        case INS_mulsd:
-        case INS_mulss:
-        case INS_orpd:
-        case INS_orps:
-        case INS_packssdw:
-        case INS_packsswb:
-        case INS_packusdw:
-        case INS_packuswb:
-        case INS_paddb:
-        case INS_paddd:
-        case INS_paddq:
-        case INS_paddsb:
-        case INS_paddsw:
-        case INS_paddusb:
-        case INS_paddusw:
-        case INS_paddw:
-        case INS_palignr:
-        case INS_pand:
-        case INS_pandn:
-        case INS_pavgb:
-        case INS_pavgw:
-        case INS_pblendw:
-        case INS_pcmpeqb:
-        case INS_pcmpeqd:
-        case INS_pcmpeqq:
-        case INS_pcmpeqw:
-        case INS_pcmpgtb:
-        case INS_pcmpgtd:
-        case INS_pcmpgtq:
-        case INS_pcmpgtw:
-        case INS_pdep:
-        case INS_pext:
-        case INS_phaddd:
-        case INS_phaddsw:
-        case INS_phaddw:
-        case INS_phsubd:
-        case INS_phsubsw:
-        case INS_phsubw:
-        case INS_pinsrb:
-        case INS_pinsrw:
-        case INS_pinsrd:
-        case INS_pinsrq:
-        case INS_pmaddubsw:
-        case INS_pmaddwd:
-        case INS_pmaxsb:
-        case INS_pmaxsd:
-        case INS_pmaxsw:
-        case INS_pmaxub:
-        case INS_pmaxud:
-        case INS_pmaxuw:
-        case INS_pminsb:
-        case INS_pminsd:
-        case INS_pminsw:
-        case INS_pminub:
-        case INS_pminud:
-        case INS_pminuw:
-        case INS_pmuldq:
-        case INS_pmulhrsw:
-        case INS_pmulhuw:
-        case INS_pmulhw:
-        case INS_pmulld:
-        case INS_pmullw:
-        case INS_pmuludq:
-        case INS_por:
-        case INS_psadbw:
-        case INS_pshufb:
-        case INS_psignb:
-        case INS_psignd:
-        case INS_psignw:
-        case INS_psubb:
-        case INS_psubd:
-        case INS_psubq:
-        case INS_psubsb:
-        case INS_psubsw:
-        case INS_psubusb:
-        case INS_psubusw:
-        case INS_psubw:
-        case INS_pslld:
-        case INS_pslldq:
-        case INS_psllq:
-        case INS_psllw:
-        case INS_psrld:
-        case INS_psrldq:
-        case INS_psrlq:
-        case INS_psrlw:
-        case INS_psrad:
-        case INS_psraw:
-        case INS_punpckhbw:
-        case INS_punpckhdq:
-        case INS_punpckhqdq:
-        case INS_punpckhwd:
-        case INS_punpcklbw:
-        case INS_punpckldq:
-        case INS_punpcklqdq:
-        case INS_punpcklwd:
-        case INS_pxor:
-        case INS_shufpd:
-        case INS_shufps:
-        case INS_subpd:
-        case INS_subps:
-        case INS_subsd:
-        case INS_subss:
-        case INS_unpckhps:
-        case INS_unpcklps:
-        case INS_unpckhpd:
-        case INS_unpcklpd:
-        case INS_vblendvps:
-        case INS_vblendvpd:
-        case INS_vpblendvb:
-        case INS_vfmadd132pd:
-        case INS_vfmadd213pd:
-        case INS_vfmadd231pd:
-        case INS_vfmadd132ps:
-        case INS_vfmadd213ps:
-        case INS_vfmadd231ps:
-        case INS_vfmadd132sd:
-        case INS_vfmadd213sd:
-        case INS_vfmadd231sd:
-        case INS_vfmadd132ss:
-        case INS_vfmadd213ss:
-        case INS_vfmadd231ss:
-        case INS_vfmaddsub132pd:
-        case INS_vfmaddsub213pd:
-        case INS_vfmaddsub231pd:
-        case INS_vfmaddsub132ps:
-        case INS_vfmaddsub213ps:
-        case INS_vfmaddsub231ps:
-        case INS_vfmsubadd132pd:
-        case INS_vfmsubadd213pd:
-        case INS_vfmsubadd231pd:
-        case INS_vfmsubadd132ps:
-        case INS_vfmsubadd213ps:
-        case INS_vfmsubadd231ps:
-        case INS_vfmsub132pd:
-        case INS_vfmsub213pd:
-        case INS_vfmsub231pd:
-        case INS_vfmsub132ps:
-        case INS_vfmsub213ps:
-        case INS_vfmsub231ps:
-        case INS_vfmsub132sd:
-        case INS_vfmsub213sd:
-        case INS_vfmsub231sd:
-        case INS_vfmsub132ss:
-        case INS_vfmsub213ss:
-        case INS_vfmsub231ss:
-        case INS_vfnmadd132pd:
-        case INS_vfnmadd213pd:
-        case INS_vfnmadd231pd:
-        case INS_vfnmadd132ps:
-        case INS_vfnmadd213ps:
-        case INS_vfnmadd231ps:
-        case INS_vfnmadd132sd:
-        case INS_vfnmadd213sd:
-        case INS_vfnmadd231sd:
-        case INS_vfnmadd132ss:
-        case INS_vfnmadd213ss:
-        case INS_vfnmadd231ss:
-        case INS_vfnmsub132pd:
-        case INS_vfnmsub213pd:
-        case INS_vfnmsub231pd:
-        case INS_vfnmsub132ps:
-        case INS_vfnmsub213ps:
-        case INS_vfnmsub231ps:
-        case INS_vfnmsub132sd:
-        case INS_vfnmsub213sd:
-        case INS_vfnmsub231sd:
-        case INS_vfnmsub132ss:
-        case INS_vfnmsub213ss:
-        case INS_vfnmsub231ss:
-        case INS_vinsertf128:
-        case INS_vinserti128:
-        case INS_vmaskmovps:
-        case INS_vmaskmovpd:
-        case INS_vpmaskmovd:
-        case INS_vpmaskmovq:
-        case INS_vpblendd:
-        case INS_vperm2i128:
-        case INS_vperm2f128:
-        case INS_vpermilpsvar:
-        case INS_vpermilpdvar:
-        case INS_vpsrlvd:
-        case INS_vpsrlvq:
-        case INS_vpsravd:
-        case INS_vpsllvd:
-        case INS_vpsllvq:
-        case INS_xorpd:
-        case INS_xorps:
-            return IsAVXInstruction(ins);
-        default:
-            return false;
-    }
+    return ((CodeGenInterface::instInfo[ins] & INS_Flags_IsDstDstSrcAVXInstruction) != 0) && IsAVXInstruction(ins);
 }
 
 // Returns true if the AVX instruction requires 3 operands that duplicate the source
@@ -391,24 +147,7 @@ bool emitter::IsDstDstSrcAVXInstruction(instruction ins)
 // to indicate whether a 3-operand instruction.
 bool emitter::IsDstSrcSrcAVXInstruction(instruction ins)
 {
-    switch (ins)
-    {
-        case INS_movhpd:
-        case INS_movhps:
-        case INS_movlpd:
-        case INS_movlps:
-        case INS_movsdsse2:
-        case INS_movss:
-        case INS_rcpss:
-        case INS_roundsd:
-        case INS_roundss:
-        case INS_rsqrtss:
-        case INS_sqrtsd:
-        case INS_sqrtss:
-            return IsAVXInstruction(ins);
-        default:
-            return false;
-    }
+    return ((CodeGenInterface::instInfo[ins] & INS_Flags_IsDstSrcSrcAVXInstruction) != 0) && IsAVXInstruction(ins);
 }
 
 #ifdef FEATURE_HW_INTRINSICS
@@ -1196,18 +935,15 @@ inline ssize_t emitter::emitGetInsCIdisp(instrDesc* id)
  *  The following table is used by the instIsFP()/instUse/DefFlags() helpers.
  */
 
-#define INST_DEF_FL 0x20 // does the instruction set flags?
-#define INST_USE_FL 0x40 // does the instruction use flags?
-
 // clang-format off
-const BYTE          CodeGenInterface::instInfo[] =
+const insFlags      CodeGenInterface::instInfo[] =
 {
-    #define INST0(id, nm, fp, um, rf, wf, mr                 ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST1(id, nm, fp, um, rf, wf, mr                 ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi             ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm         ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4     ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr ) (INST_USE_FL*rf|INST_DEF_FL*wf|INST_FP*fp),
+    #define INST0(id, nm, um, mr,                 flags) static_cast<insFlags>(flags),
+    #define INST1(id, nm, um, mr,                 flags) static_cast<insFlags>(flags),
+    #define INST2(id, nm, um, mr, mi,             flags) static_cast<insFlags>(flags),
+    #define INST3(id, nm, um, mr, mi, rm,         flags) static_cast<insFlags>(flags),
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) static_cast<insFlags>(flags),
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) static_cast<insFlags>(flags),
     #include "instrs.h"
     #undef  INST0
     #undef  INST1
@@ -1226,12 +962,12 @@ const BYTE          CodeGenInterface::instInfo[] =
 // clang-format off
 const BYTE          emitter::emitInsModeFmtTab[] =
 {
-    #define INST0(id, nm, fp, um, rf, wf, mr                ) um,
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) um,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) um,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) um,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) um,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) um,
+    #define INST0(id, nm, um, mr,                 flags) um,
+    #define INST1(id, nm, um, mr,                 flags) um,
+    #define INST2(id, nm, um, mr, mi,             flags) um,
+    #define INST3(id, nm, um, mr, mi, rm,         flags) um,
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) um,
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) um,
     #include "instrs.h"
     #undef  INST0
     #undef  INST1
@@ -1317,12 +1053,12 @@ inline size_t insCode(instruction ins)
     const static
     size_t          insCodes[] =
     {
-        #define INST0(id, nm, fp, um, rf, wf, mr                ) mr,
-        #define INST1(id, nm, fp, um, rf, wf, mr                ) mr,
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mr,
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mr,
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mr,
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mr,
+        #define INST0(id, nm, um, mr,                 flags) mr,
+        #define INST1(id, nm, um, mr,                 flags) mr,
+        #define INST2(id, nm, um, mr, mi,             flags) mr,
+        #define INST3(id, nm, um, mr, mi, rm,         flags) mr,
+        #define INST4(id, nm, um, mr, mi, rm, a4,     flags) mr,
+        #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) mr,
         #include "instrs.h"
         #undef  INST0
         #undef  INST1
@@ -1350,12 +1086,12 @@ inline size_t insCodeACC(instruction ins)
     const static
     size_t          insCodesACC[] =
     {
-        #define INST0(id, nm, fp, um, rf, wf, mr                )
-        #define INST1(id, nm, fp, um, rf, wf, mr                )
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        )
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) a4,
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) a4,
+        #define INST0(id, nm, um, mr,                 flags)
+        #define INST1(id, nm, um, mr,                 flags)
+        #define INST2(id, nm, um, mr, mi,             flags)
+        #define INST3(id, nm, um, mr, mi, rm,         flags)
+        #define INST4(id, nm, um, mr, mi, rm, a4,     flags) a4,
+        #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) a4,
         #include "instrs.h"
         #undef  INST0
         #undef  INST1
@@ -1383,12 +1119,12 @@ inline size_t insCodeRR(instruction ins)
     const static
     size_t          insCodesRR[] =
     {
-        #define INST0(id, nm, fp, um, rf, wf, mr                )
-        #define INST1(id, nm, fp, um, rf, wf, mr                )
-        #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-        #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        )
-        #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    )
-        #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) rr,
+        #define INST0(id, nm, um, mr,                 flags)
+        #define INST1(id, nm, um, mr,                 flags)
+        #define INST2(id, nm, um, mr, mi,             flags)
+        #define INST3(id, nm, um, mr, mi, rm,         flags)
+        #define INST4(id, nm, um, mr, mi, rm, a4,     flags)
+        #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) rr,
         #include "instrs.h"
         #undef  INST0
         #undef  INST1
@@ -1409,12 +1145,12 @@ inline size_t insCodeRR(instruction ins)
 const static
 size_t          insCodesRM[] =
 {
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                )
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            )
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) rm,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) rm,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) rm,
+    #define INST0(id, nm, um, mr,                 flags)
+    #define INST1(id, nm, um, mr,                 flags)
+    #define INST2(id, nm, um, mr, mi,             flags)
+    #define INST3(id, nm, um, mr, mi, rm,         flags) rm,
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) rm,
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) rm,
     #include "instrs.h"
     #undef  INST0
     #undef  INST1
@@ -1449,12 +1185,12 @@ inline size_t insCodeRM(instruction ins)
 const static
 size_t          insCodesMI[] =
 {
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                )
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mi,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mi,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mi,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mi,
+    #define INST0(id, nm, um, mr,                 flags)
+    #define INST1(id, nm, um, mr,                 flags)
+    #define INST2(id, nm, um, mr, mi,             flags) mi,
+    #define INST3(id, nm, um, mr, mi, rm,         flags) mi,
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) mi,
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) mi,
     #include "instrs.h"
     #undef  INST0
     #undef  INST1
@@ -1489,12 +1225,12 @@ inline size_t insCodeMI(instruction ins)
 const static
 size_t          insCodesMR[] =
 {
-    #define INST0(id, nm, fp, um, rf, wf, mr                )
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) mr,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) mr,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) mr,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) mr,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) mr,
+    #define INST0(id, nm, um, mr,                 flags)
+    #define INST1(id, nm, um, mr,                 flags) mr,
+    #define INST2(id, nm, um, mr, mi,             flags) mr,
+    #define INST3(id, nm, um, mr, mi, rm,         flags) mr,
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) mr,
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) mr,
     #include "instrs.h"
     #undef  INST0
     #undef  INST1

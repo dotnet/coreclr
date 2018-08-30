@@ -116,8 +116,6 @@ void Compiler::fgInit()
     }
 
     /* Keep track of the max count of pointer arguments */
-
-    fgPtrArgCntCur = 0;
     fgPtrArgCntMax = 0;
 
     /* This global flag is set whenever we remove a statement */
@@ -12996,26 +12994,19 @@ bool Compiler::fgMightHaveLoop()
     return false;
 }
 
-void Compiler::fgComputeEdgeWeights()
+//-------------------------------------------------------------
+// fgComputeBlockAndEdgeWeights: determine weights for blocks
+//   and optionally for edges
+//
+void Compiler::fgComputeBlockAndEdgeWeights()
 {
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("*************** In fgComputeEdgeWeights()\n");
-    }
-#endif // DEBUG
+    JITDUMP("*************** In fgComputeBlockAndEdgeWeights()\n");
 
-    if (fgIsUsingProfileWeights() == false)
-    {
-#ifdef DEBUG
-        if (verbose)
-        {
-            printf("fgComputeEdgeWeights() we do not have any profile data so we are not using the edge weights\n");
-        }
-#endif // DEBUG
-        fgHaveValidEdgeWeights = false;
-        fgCalledCount          = BB_UNITY_WEIGHT;
-    }
+    const bool usingProfileWeights = fgIsUsingProfileWeights();
+    const bool isOptimizing        = !opts.MinOpts() && !opts.compDbgCode;
+
+    fgHaveValidEdgeWeights = false;
+    fgCalledCount          = BB_UNITY_WEIGHT;
 
 #if DEBUG
     if (verbose)
@@ -13025,21 +13016,42 @@ void Compiler::fgComputeEdgeWeights()
     }
 #endif // DEBUG
 
-    BasicBlock* bSrc;
-    BasicBlock* bDst;
-    flowList*   edge;
-    unsigned    iterations               = 0;
-    unsigned    goodEdgeCountCurrent     = 0;
-    unsigned    goodEdgeCountPrevious    = 0;
-    bool        inconsistentProfileData  = false;
-    bool        hasIncompleteEdgeWeights = false;
-    unsigned    numEdges                 = 0;
-    bool        usedSlop                 = false;
-    bool        changed;
-    bool        modified;
+    const BasicBlock::weight_t returnWeight = fgComputeMissingBlockWeights();
 
+    if (usingProfileWeights)
+    {
+        fgComputeCalledCount(returnWeight);
+    }
+    else
+    {
+        JITDUMP(" -- no profile data, so using default called count\n");
+    }
+
+    if (isOptimizing)
+    {
+        fgComputeEdgeWeights();
+    }
+    else
+    {
+        JITDUMP(" -- not optimizing, so not computing edge weights\n");
+    }
+}
+
+//-------------------------------------------------------------
+// fgComputeMissingBlockWeights: determine weights for blocks
+//   that were not profiled and do not yet have weights.
+//
+// Returns:
+//   sum of weights for all return and throw blocks in the method
+
+BasicBlock::weight_t Compiler::fgComputeMissingBlockWeights()
+{
+    BasicBlock*          bSrc;
+    BasicBlock*          bDst;
+    unsigned             iterations = 0;
+    bool                 changed;
+    bool                 modified = false;
     BasicBlock::weight_t returnWeight;
-    BasicBlock::weight_t slop;
 
     // If we have any blocks that did not have profile derived weight
     // we will try to fix their weight up here
@@ -13146,68 +13158,96 @@ void Compiler::fgComputeEdgeWeights()
 #if DEBUG
     if (verbose && modified)
     {
-        printf("fgComputeEdgeWeights() adjusted the weight of some blocks\n");
+        printf("fgComputeMissingBlockWeights() adjusted the weight of some blocks\n");
         fgDispBasicBlocks();
         printf("\n");
     }
 #endif
 
+    return returnWeight;
+}
+
+//-------------------------------------------------------------
+// fgComputeCalledCount: when profile information is in use,
+//   compute fgCalledCount
+//
+// Argument:
+//   returnWeight - sum of weights for all return and throw blocks
+
+void Compiler::fgComputeCalledCount(BasicBlock::weight_t returnWeight)
+{
     // When we are not using profile data we have already setup fgCalledCount
     // only set it here if we are using profile data
-    //
-    if (fgIsUsingProfileWeights())
+    assert(fgIsUsingProfileWeights());
+
+    BasicBlock* firstILBlock = fgFirstBB; // The first block for IL code (i.e. for the IL code at offset 0)
+
+    // Do we have an internal block as our first Block?
+    if (firstILBlock->bbFlags & BBF_INTERNAL)
     {
-        BasicBlock* firstILBlock = fgFirstBB; // The first block for IL code (i.e. for the IL code at offset 0)
-
-        // Do we have an internal block as our first Block?
-        if (firstILBlock->bbFlags & BBF_INTERNAL)
-        {
-            // Skip past any/all BBF_INTERNAL blocks that may have been added before the first real IL block.
-            //
-            while (firstILBlock->bbFlags & BBF_INTERNAL)
-            {
-                firstILBlock = firstILBlock->bbNext;
-            }
-            // The 'firstILBlock' is now expected to have a profile-derived weight
-            assert(firstILBlock->hasProfileWeight());
-        }
-
-        // If the first block only has one ref then we use it's weight for fgCalledCount.
-        // Otherwise we have backedge's into the first block, so instead we use the sum
-        // of the return block weights for fgCalledCount.
+        // Skip past any/all BBF_INTERNAL blocks that may have been added before the first real IL block.
         //
-        // If the profile data has a 0 for the returnWeight
-        // (i.e. the function never returns because it always throws)
-        // then just use the first block weight rather than 0.
-        //
-        if ((firstILBlock->countOfInEdges() == 1) || (returnWeight == 0))
+        while (firstILBlock->bbFlags & BBF_INTERNAL)
         {
-            assert(firstILBlock->hasProfileWeight()); // This should always be a profile-derived weight
-            fgCalledCount = firstILBlock->bbWeight;
+            firstILBlock = firstILBlock->bbNext;
         }
-        else
-        {
-            fgCalledCount = returnWeight;
-        }
+        // The 'firstILBlock' is now expected to have a profile-derived weight
+        assert(firstILBlock->hasProfileWeight());
+    }
 
-        // If we allocated a scratch block as the first BB then we need
-        // to set its profile-derived weight to be fgCalledCount
-        if (fgFirstBBisScratch())
+    // If the first block only has one ref then we use it's weight for fgCalledCount.
+    // Otherwise we have backedge's into the first block, so instead we use the sum
+    // of the return block weights for fgCalledCount.
+    //
+    // If the profile data has a 0 for the returnWeight
+    // (i.e. the function never returns because it always throws)
+    // then just use the first block weight rather than 0.
+    //
+    if ((firstILBlock->countOfInEdges() == 1) || (returnWeight == 0))
+    {
+        assert(firstILBlock->hasProfileWeight()); // This should always be a profile-derived weight
+        fgCalledCount = firstILBlock->bbWeight;
+    }
+    else
+    {
+        fgCalledCount = returnWeight;
+    }
+
+    // If we allocated a scratch block as the first BB then we need
+    // to set its profile-derived weight to be fgCalledCount
+    if (fgFirstBBisScratch())
+    {
+        fgFirstBB->setBBProfileWeight(fgCalledCount);
+        if (fgFirstBB->bbWeight == 0)
         {
-            fgFirstBB->setBBProfileWeight(fgCalledCount);
-            if (fgFirstBB->bbWeight == 0)
-            {
-                fgFirstBB->bbFlags |= BBF_RUN_RARELY;
-            }
+            fgFirstBB->bbFlags |= BBF_RUN_RARELY;
         }
+    }
 
 #if DEBUG
-        if (verbose)
-        {
-            printf("We are using the Profile Weights and fgCalledCount is %d.\n", fgCalledCount);
-        }
-#endif
+    if (verbose)
+    {
+        printf("We are using the Profile Weights and fgCalledCount is %d.\n", fgCalledCount);
     }
+#endif
+}
+
+//-------------------------------------------------------------
+// fgComputeEdgeWeights: compute edge weights from block weights
+
+void Compiler::fgComputeEdgeWeights()
+{
+    BasicBlock*          bSrc;
+    BasicBlock*          bDst;
+    flowList*            edge;
+    BasicBlock::weight_t slop;
+    unsigned             goodEdgeCountCurrent     = 0;
+    unsigned             goodEdgeCountPrevious    = 0;
+    bool                 inconsistentProfileData  = false;
+    bool                 hasIncompleteEdgeWeights = false;
+    bool                 usedSlop                 = false;
+    unsigned             numEdges                 = 0;
+    unsigned             iterations               = 0;
 
     // Now we will compute the initial flEdgeWeightMin and flEdgeWeightMax values
     for (bDst = fgFirstBB; bDst != nullptr; bDst = bDst->bbNext)
@@ -18119,13 +18159,18 @@ unsigned Compiler::acdHelper(SpecialCodeKind codeKind)
     }
 }
 
-/*****************************************************************************
- *
- *  Find/create an added code entry associated with the given block and with
- *  the given kind.
- */
-
-BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind, unsigned stkDepth)
+//------------------------------------------------------------------------
+// fgAddCodeRef: Find/create an added code entry associated with the given block and with the given kind.
+//
+// Arguments:
+//   srcBlk  - the block that needs an entry;
+//   refData - the index to use as the cache key for sharing throw blocks;
+//   kind    - the kind of exception;
+//
+// Return Value:
+//   The target throw helper block or nullptr if throw helper blocks are disabled.
+//
+BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind)
 {
     // Record that the code will call a THROW_HELPER
     // so on Windows Amd64 we can allocate the 4 outgoing
@@ -18155,43 +18200,6 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
 
     if (add) // found it
     {
-#if !FEATURE_FIXED_OUT_ARGS
-        // If different range checks happen at different stack levels,
-        // they can't all jump to the same "call @rngChkFailed" AND have
-        // frameless methods, as the rngChkFailed may need to unwind the
-        // stack, and we have to be able to report the stack level.
-        //
-        // The following check forces most methods that reference an
-        // array element in a parameter list to have an EBP frame,
-        // this restriction could be removed with more careful code
-        // generation for BBJ_THROW (i.e. range check failed).
-        //
-        // For Linux/x86, we possibly need to insert stack alignment adjustment
-        // before the first stack argument pushed for every call. But we
-        // don't know what the stack alignment adjustment will be when
-        // we morph a tree that calls fgAddCodeRef(), so the stack depth
-        // number will be incorrect. For now, simply force all functions with
-        // these helpers to have EBP frames. It might be possible to make
-        // this less conservative. E.g., for top-level (not nested) calls
-        // without stack args, the stack pointer hasn't changed and stack
-        // depth will be known to be zero. Or, figure out a way to update
-        // or generate all required helpers after all stack alignment
-        // has been added, and the stack level at each call to fgAddCodeRef()
-        // is known, or can be recalculated.
-        CLANG_FORMAT_COMMENT_ANCHOR;
-
-#if defined(UNIX_X86_ABI)
-        codeGen->setFrameRequired(true);
-        codeGen->setFramePointerRequiredGCInfo(true);
-#else  // !defined(UNIX_X86_ABI)
-        if (add->acdStkLvl != stkDepth)
-        {
-            codeGen->setFrameRequired(true);
-            codeGen->setFramePointerRequiredGCInfo(true);
-        }
-#endif // !defined(UNIX_X86_ABI)
-#endif // !FEATURE_FIXED_OUT_ARGS
-
         return add->acdDstBlk;
     }
 
@@ -18202,7 +18210,7 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
     add->acdKind = kind;
     add->acdNext = fgAddCodeList;
 #if !FEATURE_FIXED_OUT_ARGS
-    add->acdStkLvl     = stkDepth;
+    add->acdStkLvl     = 0;
     add->acdStkLvlInit = false;
 #endif // !FEATURE_FIXED_OUT_ARGS
 
@@ -18267,13 +18275,8 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
                 break;
         }
 
-        printf("\nfgAddCodeRef - Add BB in %s%s, new block %s, stkDepth is %d\n", msgWhere, msg,
-               add->acdDstBlk->dspToString(), stkDepth);
+        printf("\nfgAddCodeRef - Add BB in %s%s, new block %s\n", msgWhere, msg, add->acdDstBlk->dspToString());
     }
-#endif // DEBUG
-
-#ifdef DEBUG
-    newBlk->bbTgtStkDepth = stkDepth;
 #endif // DEBUG
 
     /* Mark the block as added by the compiler and not removable by future flow
@@ -18384,12 +18387,22 @@ Compiler::AddCodeDsc* Compiler::fgFindExcptnTarget(SpecialCodeKind kind, unsigne
  *  range check is to jump to upon failure.
  */
 
-BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, unsigned stkDepth, SpecialCodeKind kind)
+//------------------------------------------------------------------------
+// fgRngChkTarget: Create/find the appropriate "range-fail" label for the block.
+//
+// Arguments:
+//   srcBlk  - the block that needs an entry;
+//   kind    - the kind of exception;
+//
+// Return Value:
+//   The target throw helper block this check jumps to upon failure.
+//
+BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind)
 {
 #ifdef DEBUG
     if (verbose)
     {
-        printf("*** Computing fgRngChkTarget for block " FMT_BB " to stkDepth %d\n", block->bbNum, stkDepth);
+        printf("*** Computing fgRngChkTarget for block " FMT_BB "\n", block->bbNum);
         if (!block->IsLIR())
         {
             gtDispTree(compCurStmt);
@@ -18399,7 +18412,7 @@ BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, unsigned stkDepth, Speci
 
     /* We attach the target label to the containing try block (if any) */
     noway_assert(!compIsForInlining());
-    return fgAddCodeRef(block, bbThrowIndex(block), kind, stkDepth);
+    return fgAddCodeRef(block, bbThrowIndex(block), kind);
 }
 
 // Sequences the tree.

@@ -1580,9 +1580,6 @@ public:
 
     void EvalArgsToTemps();
 
-    void RecordStkLevel(unsigned stkLvl);
-    unsigned RetrieveStkLevel();
-
     unsigned ArgCount()
     {
         return argCount;
@@ -4001,7 +3998,6 @@ public:
 
     bool fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg));
 
-    void fgCheckArgCnt();
     void fgSetOptions();
 
 #ifdef DEBUG
@@ -4234,12 +4230,10 @@ public:
     // Assumes that all inputs to "tree" have had value numbers assigned; assigns a VN to tree.
     // (With some exceptions: the VN of the lhs of an assignment is assigned as part of the
     // assignment.)
-    // If "evalAsgLhsInd" is true, evaluate a GT_IND node, even if it's labeled as the LHS of
-    // an assignment.
-    void fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd = false);
+    void fgValueNumberTree(GenTree* tree);
 
     // Does value-numbering for a block assignment.
-    void fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd);
+    void fgValueNumberBlockAssignment(GenTree* tree);
 
     // Does value-numbering for a cast tree.
     void fgValueNumberCastTree(GenTree* tree);
@@ -4644,6 +4638,9 @@ public:
 #ifdef DEBUG
     void fgPrintEdgeWeights();
 #endif
+    void                 fgComputeBlockAndEdgeWeights();
+    BasicBlock::weight_t fgComputeMissingBlockWeights();
+    void fgComputeCalledCount(BasicBlock::weight_t returnWeight);
     void fgComputeEdgeWeights();
 
     void fgReorderBlocks();
@@ -4891,7 +4888,6 @@ private:
 
     //------------------------- Morphing --------------------------------------
 
-    unsigned fgPtrArgCntCur;
     unsigned fgPtrArgCntMax;
 
 public:
@@ -4916,15 +4912,15 @@ public:
         fgPtrArgCntMax = argCntMax;
     }
 
+    bool compCanEncodePtrArgCntMax();
+
 private:
     hashBv* fgOutgoingArgTemps;
     hashBv* fgCurrentlyInUseArgTemps;
 
-    bool compCanEncodePtrArgCntMax();
-
     void fgSetRngChkTarget(GenTree* tree, bool delay = true);
 
-    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, unsigned* stkDepth);
+    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay);
 
 #if REARRANGE_ADDS
     void fgMoveOpsLeft(GenTree* tree);
@@ -5116,9 +5112,9 @@ private:
     bool        fgRngChkThrowAdded;
     AddCodeDsc* fgExcptnTargetCache[SCK_COUNT];
 
-    BasicBlock* fgRngChkTarget(BasicBlock* block, unsigned stkDepth, SpecialCodeKind kind);
+    BasicBlock* fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind);
 
-    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind, unsigned stkDepth = 0);
+    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind);
 
 public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);
@@ -6718,13 +6714,13 @@ public:
     GenTree* eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig);
 
     // Returns the page size for the target machine as reported by the EE.
-    inline size_t eeGetPageSize()
+    inline target_size_t eeGetPageSize()
     {
-        return eeGetEEInfo()->osPageSize;
+        return (target_size_t)eeGetEEInfo()->osPageSize;
     }
 
     // Returns the frame size at which we will generate a loop to probe the stack.
-    inline size_t getVeryLargeFrameSize()
+    inline target_size_t getVeryLargeFrameSize()
     {
 #ifdef _TARGET_ARM_
         // The looping probe code is 40 bytes, whereas the straight-line probing for

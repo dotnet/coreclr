@@ -360,14 +360,14 @@ void CodeGen::genLclHeap(GenTree* tree)
     if (size->IsCnsIntOrI())
     {
         // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
-        size_t amount = size->gtIntCon.gtIconVal;
-        amount        = AlignUp(amount, STACK_ALIGN);
+        target_size_t amount = (target_size_t)size->gtIntCon.gtIconVal;
+        amount               = AlignUp(amount, STACK_ALIGN);
 
         // For small allocations we will generate up to four push instructions (either 2 or 4, exactly,
         // since STACK_ALIGN is 8, and REGSIZE_BYTES is 4).
         static_assert_no_msg(STACK_ALIGN == (REGSIZE_BYTES * 2));
         assert(amount % REGSIZE_BYTES == 0);
-        size_t pushCount = amount / REGSIZE_BYTES;
+        target_size_t pushCount = amount / REGSIZE_BYTES;
         if (pushCount <= 4)
         {
             instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
@@ -902,7 +902,7 @@ void CodeGen::genCodeForShiftLong(GenTree* tree)
 
     assert(shiftBy->isContainedIntOrIImmed());
 
-    unsigned int count = shiftBy->AsIntConCommon()->IconValue();
+    unsigned count = (unsigned)shiftBy->AsIntConCommon()->IconValue();
 
     regNumber regResult = (oper == GT_LSH_HI) ? regHi : regLo;
 
@@ -1631,58 +1631,6 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
     }
 
     regSet.verifyRegistersUsed(RBM_CALLEE_TRASH);
-}
-
-//------------------------------------------------------------------------
-// genStoreLongLclVar: Generate code to store a non-enregistered long lclVar
-//
-// Arguments:
-//    treeNode - A TYP_LONG lclVar node.
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'treeNode' must be a TYP_LONG lclVar node for a lclVar that has NOT been promoted.
-//    Its operand must be a GT_LONG node.
-//
-void CodeGen::genStoreLongLclVar(GenTree* treeNode)
-{
-    emitter* emit = getEmitter();
-
-    GenTreeLclVarCommon* lclNode = treeNode->AsLclVarCommon();
-    unsigned             lclNum  = lclNode->gtLclNum;
-    LclVarDsc*           varDsc  = &(compiler->lvaTable[lclNum]);
-    assert(varDsc->TypeGet() == TYP_LONG);
-    assert(!varDsc->lvPromoted);
-    GenTree* op1 = treeNode->gtOp.gtOp1;
-    noway_assert(op1->OperGet() == GT_LONG || op1->OperGet() == GT_MUL_LONG);
-    genConsumeRegs(op1);
-
-    if (op1->OperGet() == GT_LONG)
-    {
-        // Definitions of register candidates will have been lowered to 2 int lclVars.
-        assert(!treeNode->gtHasReg());
-
-        GenTree* loVal = op1->gtGetOp1();
-        GenTree* hiVal = op1->gtGetOp2();
-
-        noway_assert((loVal->gtRegNum != REG_NA) && (hiVal->gtRegNum != REG_NA));
-
-        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, loVal->gtRegNum, lclNum, 0);
-        emit->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, hiVal->gtRegNum, lclNum, genTypeSize(TYP_INT));
-    }
-    else if (op1->OperGet() == GT_MUL_LONG)
-    {
-        assert((op1->gtFlags & GTF_MUL_64RSLT) != 0);
-
-        GenTreeMultiRegOp* mul = op1->AsMultiRegOp();
-
-        // Stack store
-        getEmitter()->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), mul->gtRegNum, lclNum, 0);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_INT), emitTypeSize(TYP_INT), mul->gtOtherReg, lclNum,
-                                  genTypeSize(TYP_INT));
-    }
 }
 
 //------------------------------------------------------------------------
