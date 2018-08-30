@@ -7109,12 +7109,16 @@ public:
     // node, else NULL.
     static GenTree* fgIsIndirOfAddrOfLocal(GenTree* tree);
 
-    // This is indexed by GT_OBJ nodes that are address of promoted struct variables, which
+    // This map is indexed by GT_OBJ nodes that are address of promoted struct variables, which
     // have been annotated with the GTF_VAR_DEATH flag.  If such a node is *not* mapped in this
-    // table, one may assume that all the (tracked) field vars die at this point.  Otherwise,
+    // table, one may assume that all the (tracked) field vars die at this GT_OBJ.  Otherwise,
     // the node maps to a pointer to a VARSET_TP, containing set bits for each of the tracked field
     // vars of the promoted struct local that go dead at the given node (the set bits are the bits
     // for the tracked var indices of the field vars, as in a live var set).
+    //
+    // The map is allocated on demand so all map operations should use one of the following three
+    // wrapper methods.
+
     NodeToVarsetPtrMap* m_promotedStructDeathVars;
 
     NodeToVarsetPtrMap* GetPromotedStructDeathVars()
