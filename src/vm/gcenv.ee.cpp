@@ -1477,3 +1477,35 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
     return realPtr->IsRudeUnload() != FALSE;
 }
 
+bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
+{
+#ifdef HEAP_ANALYZE
+    // Is the list active?
+    GcNotifications gn(g_pGcNotificationTable);
+    if (gn.IsActive())
+    {
+        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
+        if (gn.GetNotification(gea) != 0)
+        {
+            return true;
+        }
+    }
+#endif // HEAP_ANALYZE
+    return false;
+}
+
+void GCToEEInterface::DACNotifyGcMarkEnd(int condemnedGeneration)
+{
+#ifdef HEAP_ANALYZE
+    // Is the list active?
+    GcNotifications gn(g_pGcNotificationTable);
+    if (gn.IsActive())
+    {
+        GcEvtArgs gea = { GC_MARK_END, { (1<<condemnedGeneration) } };
+        if (gn.GetNotification(gea) != 0)
+        {
+            DACNotify::DoGCNotification(gea);
+        }
+    }
+#endif // HEAP_ANALYZE
+}
