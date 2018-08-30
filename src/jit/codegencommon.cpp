@@ -1023,7 +1023,7 @@ void CodeGen::genDefineTempLabel(BasicBlock* label)
 #ifdef DEBUG
     if (compiler->opts.dspCode)
     {
-        printf("\n      L_M%03u_BB%02u:\n", Compiler::s_compMethodsCount, label->bbNum);
+        printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, label->bbNum);
     }
 #endif
 
@@ -1038,7 +1038,7 @@ void CodeGen::genDefineTempLabel(BasicBlock* label)
  *  return value) are used at this point.
  */
 
-void CodeGen::genAdjustSP(ssize_t delta)
+void CodeGen::genAdjustSP(target_ssize_t delta)
 {
 #if defined(_TARGET_X86_) && !defined(UNIX_X86_ABI)
     if (delta == sizeof(int))
@@ -1138,8 +1138,7 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
     {
         CORINFO_CLASS_HANDLE clsHnd = op->AsObj()->gtClass;
         opSize                      = compiler->info.compCompHnd->getClassSize(clsHnd);
-        alignment =
-            (unsigned)roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
+        alignment = roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
     }
     else if (op->gtOper == GT_LCL_VAR)
     {
@@ -1167,9 +1166,9 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
             if (op2->IsIconHandle(GTF_ICON_CLASS_HDL))
             {
                 CORINFO_CLASS_HANDLE clsHnd = (CORINFO_CLASS_HANDLE)op2->gtIntCon.gtIconVal;
-                opSize    = (unsigned)roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
-                alignment = (unsigned)roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd),
-                                              TARGET_POINTER_SIZE);
+                opSize = roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
+                alignment =
+                    roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
             }
             else
             {
@@ -1204,9 +1203,8 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
     {
         CORINFO_CLASS_HANDLE clsHnd = op->gtArgPlace.gtArgPlaceClsHnd;
         assert(clsHnd != 0);
-        opSize = (unsigned)roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
-        alignment =
-            (unsigned)roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
+        opSize    = roundUp(compiler->info.compCompHnd->getClassSize(clsHnd), TARGET_POINTER_SIZE);
+        alignment = roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
     }
     else
     {
@@ -2146,7 +2144,7 @@ void CodeGen::genInsertNopForUnwinder(BasicBlock* block)
 #ifdef DEBUG
         if (compiler->verbose)
         {
-            printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
+            printf("\nEmitting finally target NOP predecessor for " FMT_BB "\n", block->bbNum);
         }
 #endif
         // Create a label that we'll use for computing the start of an EH region, if this block is
@@ -3668,7 +3666,12 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             {
                 if (varDsc->lvTrackedNonStruct())
                 {
-                    noway_assert(!VarSetOps::IsMember(compiler, compiler->fgFirstBB->bbLiveIn, varDsc->lvVarIndex));
+                    // We may now see some tracked locals with zero refs.
+                    // See Lowering::DoPhase. Tolerate these.
+                    if (varDsc->lvRefCnt() > 0)
+                    {
+                        noway_assert(!VarSetOps::IsMember(compiler, compiler->fgFirstBB->bbLiveIn, varDsc->lvVarIndex));
+                    }
                 }
                 else
                 {
@@ -4701,7 +4704,7 @@ void CodeGen::genCheckUseBlockInit()
                             {
                                 // Var is on the stack at entry.
                                 initStkLclCnt +=
-                                    (unsigned)roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                                    roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
                             }
                         }
                         else
@@ -4732,7 +4735,7 @@ void CodeGen::genCheckUseBlockInit()
             {
                 varDsc->lvMustInit = true;
 
-                initStkLclCnt += (unsigned)roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
+                initStkLclCnt += roundUp(compiler->lvaLclSize(varNum), TARGET_POINTER_SIZE) / sizeof(int);
             }
 
             continue;
@@ -5181,7 +5184,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
             // If compiler->lvaOutgoingArgSpaceSize is not aligned, we need to align the SP adjustment.
             assert(remainingFrameSz > (int)compiler->lvaOutgoingArgSpaceSize);
             int spAdjustment2Unaligned = remainingFrameSz - compiler->lvaOutgoingArgSpaceSize;
-            int spAdjustment2          = (int)roundUp((size_t)spAdjustment2Unaligned, STACK_ALIGN);
+            int spAdjustment2          = (int)roundUp((unsigned)spAdjustment2Unaligned, STACK_ALIGN);
             int alignmentAdjustment2   = spAdjustment2 - spAdjustment2Unaligned;
             assert((alignmentAdjustment2 == 0) || (alignmentAdjustment2 == 8));
 
@@ -5255,7 +5258,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         return;
     }
 
-    const size_t pageSize = compiler->eeGetPageSize();
+    const target_size_t pageSize = compiler->eeGetPageSize();
 
 #ifdef _TARGET_ARM_
     assert(!compiler->info.compPublishStubParam || (REG_SECRET_STUB_PARAM != initReg));
@@ -5975,7 +5978,7 @@ void CodeGen::genPopCalleeSavedRegistersAndFreeLclFrame(bool jmpEpilog)
                 // If compiler->lvaOutgoingArgSpaceSize is not aligned, we need to align the SP adjustment.
                 assert(remainingFrameSz > (int)compiler->lvaOutgoingArgSpaceSize);
                 int spAdjustment2Unaligned = remainingFrameSz - compiler->lvaOutgoingArgSpaceSize;
-                int spAdjustment2          = (int)roundUp((size_t)spAdjustment2Unaligned, STACK_ALIGN);
+                int spAdjustment2          = (int)roundUp((unsigned)spAdjustment2Unaligned, STACK_ALIGN);
                 int alignmentAdjustment2   = spAdjustment2 - spAdjustment2Unaligned;
                 assert((alignmentAdjustment2 == 0) || (alignmentAdjustment2 == REGSIZE_BYTES));
 
@@ -6337,7 +6340,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 #if defined(_TARGET_ARM_)
         rZero1 = genGetZeroReg(initReg, pInitRegZeroed);
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, rZero2);
-        ssize_t stmImm = (ssize_t)(genRegMask(rZero1) | genRegMask(rZero2));
+        target_ssize_t stmImm = (target_ssize_t)(genRegMask(rZero1) | genRegMask(rZero2));
 #endif // _TARGET_ARM_
 
         if (!useLoop)
@@ -6516,7 +6519,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
                 regNumber zeroReg = genGetZeroReg(initReg, pInitRegZeroed);
 
                 // zero out the whole thing rounded up to a single stack slot size
-                unsigned lclSize = (unsigned)roundUp(compiler->lvaLclSize(varNum), sizeof(int));
+                unsigned lclSize = roundUp(compiler->lvaLclSize(varNum), (unsigned)sizeof(int));
                 unsigned i;
                 for (i = 0; i + REGSIZE_BYTES <= lclSize; i += REGSIZE_BYTES)
                 {
@@ -7391,7 +7394,7 @@ void CodeGen::genReserveProlog(BasicBlock* block)
 {
     assert(block != nullptr);
 
-    JITDUMP("Reserving prolog IG for block BB%02u\n", block->bbNum);
+    JITDUMP("Reserving prolog IG for block " FMT_BB "\n", block->bbNum);
 
     /* Nothing is live on entry to the prolog */
 
@@ -7434,7 +7437,7 @@ void CodeGen::genReserveEpilog(BasicBlock* block)
         }
     }
 
-    JITDUMP("Reserving epilog IG for block BB%02u\n", block->bbNum);
+    JITDUMP("Reserving epilog IG for block " FMT_BB "\n", block->bbNum);
 
     assert(block != nullptr);
     const VARSET_TP& gcrefVarsArg(getEmitter()->emitThisGCrefVars);
@@ -7468,7 +7471,7 @@ void CodeGen::genReserveFuncletProlog(BasicBlock* block)
     noway_assert((gcInfo.gcRegGCrefSetCur & RBM_EXCEPTION_OBJECT) == gcInfo.gcRegGCrefSetCur);
     noway_assert(gcInfo.gcRegByrefSetCur == 0);
 
-    JITDUMP("Reserving funclet prolog IG for block BB%02u\n", block->bbNum);
+    JITDUMP("Reserving funclet prolog IG for block " FMT_BB "\n", block->bbNum);
 
     getEmitter()->emitCreatePlaceholderIG(IGPT_FUNCLET_PROLOG, block, gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
                                           gcInfo.gcRegByrefSetCur, false);
@@ -7483,7 +7486,7 @@ void CodeGen::genReserveFuncletEpilog(BasicBlock* block)
 {
     assert(block != nullptr);
 
-    JITDUMP("Reserving funclet epilog IG for block BB%02u\n", block->bbNum);
+    JITDUMP("Reserving funclet epilog IG for block " FMT_BB "\n", block->bbNum);
 
     bool last = (block->bbNext == nullptr);
     getEmitter()->emitCreatePlaceholderIG(IGPT_FUNCLET_EPILOG, block, gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,

@@ -1964,9 +1964,7 @@ void Compiler::compInit(ArenaAllocator* pAlloc, InlineInfo* inlineInfo)
         impSpillCliquePredMembers = JitExpandArray<BYTE>(getAllocator());
         impSpillCliqueSuccMembers = JitExpandArray<BYTE>(getAllocator());
 
-        memset(&lvMemoryPerSsaData, 0, sizeof(PerSsaArray));
-        lvMemoryPerSsaData.Init(getAllocator());
-        lvMemoryNumSsaNames = 0;
+        lvMemoryPerSsaData = SsaDefArray<SsaMemDef>();
 
         //
         // Initialize all the per-method statistics gathering data structures.
@@ -4912,8 +4910,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     StackLevelSetter stackLevelSetter(this); // PHASE_STACK_LEVEL_SETTER
     stackLevelSetter.Run();
 
-    assert(lvaSortAgain == false); // We should have re-run fgLocalVarLiveness() in lower.Run()
-    lvaTrackedFixed = true;        // We can not add any new tracked variables after this point.
+    lvaTrackedFixed = true; // We can not add any new tracked variables after this point.
 
     /* Now that lowering is completed we can proceed to perform register allocation */
     m_pLinearScan->doLinearScan();
@@ -8590,7 +8587,7 @@ void dBlockList(BasicBlockList* list)
     printf("WorkList: ");
     while (list != nullptr)
     {
-        printf("BB%02u ", list->block->bbNum);
+        printf(FMT_BB " ", list->block->bbNum);
         list = list->next;
     }
     printf("\n");
@@ -8767,19 +8764,19 @@ void cLoopIR(Compiler* comp, Compiler::LoopDsc* loop)
 
     printf("LOOP\n");
     printf("\n");
-    printf("HEAD   BB%02u\n", blockHead->bbNum);
-    printf("FIRST  BB%02u\n", blockFirst->bbNum);
-    printf("TOP    BB%02u\n", blockTop->bbNum);
-    printf("ENTRY  BB%02u\n", blockEntry->bbNum);
+    printf("HEAD   " FMT_BB "\n", blockHead->bbNum);
+    printf("FIRST  " FMT_BB "\n", blockFirst->bbNum);
+    printf("TOP    " FMT_BB "\n", blockTop->bbNum);
+    printf("ENTRY  " FMT_BB "\n", blockEntry->bbNum);
     if (loop->lpExitCnt == 1)
     {
-        printf("EXIT   BB%02u\n", blockExit->bbNum);
+        printf("EXIT   " FMT_BB "\n", blockExit->bbNum);
     }
     else
     {
         printf("EXITS  %u", loop->lpExitCnt);
     }
-    printf("BOTTOM BB%02u\n", blockBottom->bbNum);
+    printf("BOTTOM " FMT_BB "\n", blockBottom->bbNum);
     printf("\n");
 
     cBlockIR(comp, blockHead);
@@ -8858,7 +8855,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        printf("BB%02u:\n", block->bbNum);
+        printf(FMT_BB ":\n", block->bbNum);
     }
 
     printf("\n");
@@ -8922,7 +8919,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_EHCATCHRET:
             chars += printf("BRANCH(EHCATCHRETURN)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_THROW:
@@ -8941,7 +8938,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_ALWAYS:
             chars += printf("BRANCH(ALWAYS)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             if (block->bbFlags & BBF_KEEP_BBJ_ALWAYS)
             {
                 chars += dTabStopIR(chars, COLUMN_KINDS);
@@ -8952,19 +8949,19 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
         case BBJ_LEAVE:
             chars += printf("BRANCH(LEAVE)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_CALLFINALLY:
             chars += printf("BRANCH(CALLFINALLY)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_COND:
             chars += printf("BRANCH(COND)");
             chars += dTabStopIR(chars, COLUMN_OPERANDS);
-            chars += printf(" BB%02u", block->bbJumpDest->bbNum);
+            chars += printf(" " FMT_BB, block->bbJumpDest->bbNum);
             break;
 
         case BBJ_SWITCH:
@@ -8977,7 +8974,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             jumpTab = block->bbJumpSwt->bbsDstTab;
             do
             {
-                chars += printf("%c BB%02u", (jumpTab == block->bbJumpSwt->bbsDstTab) ? ' ' : ',', (*jumpTab)->bbNum);
+                chars += printf("%c " FMT_BB, (jumpTab == block->bbJumpSwt->bbsDstTab) ? ' ' : ',', (*jumpTab)->bbNum);
             } while (++jumpTab, --jumpCnt);
             break;
 
@@ -9776,7 +9773,7 @@ int cValNumIR(Compiler* comp, GenTree* tree)
         {
             chars += printf("<v:");
             vn = vnp.GetLiberal();
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
@@ -9787,14 +9784,14 @@ int cValNumIR(Compiler* comp, GenTree* tree)
         {
             vn = vnp.GetLiberal();
             chars += printf("<v:");
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
             }
             chars += printf(",");
             vn = vnp.GetConservative();
-            chars += printf(STR_VN "%x", vn);
+            chars += printf(FMT_VN, vn);
             if (ValueNumStore::isReservedVN(vn))
             {
                 chars += printf("R");
@@ -10176,7 +10173,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
             if (tree->gtLabel.gtLabBB)
             {
-                chars += printf("BB%02u", tree->gtLabel.gtLabBB->bbNum);
+                chars += printf(FMT_BB, tree->gtLabel.gtLabBB->bbNum);
             }
             else
             {
@@ -10303,7 +10300,7 @@ int cOperandIR(Compiler* comp, GenTree* operand)
         }
         chars += cLeafIR(comp, operand);
     }
-    else if (dumpDataflow && (operand->OperIsAssignment() || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD)))
+    else if (dumpDataflow && (operand->OperIs(GT_ASG) || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD)))
     {
         operand = operand->GetChild(0);
         chars += cOperandIR(comp, operand);
@@ -10575,7 +10572,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     // }
 
     chars += printf("    ");
-    if (dataflowView && tree->OperIsAssignment())
+    if (dataflowView && tree->OperIs(GT_ASG))
     {
         child = tree->GetChild(0);
         chars += cOperandIR(comp, child);
@@ -10628,7 +10625,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
     if (dataflowView)
     {
-        if (tree->OperIsAssignment() || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD) || (op == GT_STOREIND))
+        if (tree->OperIs(GT_ASG) || (op == GT_STORE_LCL_VAR) || (op == GT_STORE_LCL_FLD) || (op == GT_STOREIND))
         {
             chars += printf("(t%d)", tree->gtTreeID);
         }

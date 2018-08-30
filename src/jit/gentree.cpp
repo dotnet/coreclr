@@ -747,18 +747,22 @@ int GenTree::GetRegisterDstCount() const
     {
         return (const_cast<GenTree*>(this))->AsPutArgSplit()->gtNumRegs;
     }
-    // A PUTARG_REG could be a MultiRegOp on ARM since we could move a double register to two int registers,
-    // either for all double parameters w/SoftFP or for varargs).
-    else
+#endif
+#if !defined(_TARGET_64BIT_)
+    else if (OperIsMultiRegOp())
     {
+        // A MultiRegOp is a GT_MUL_LONG, GT_PUTARG_REG, or GT_BITCAST.
+        // For the latter two (ARM-only), they only have multiple registers if they produce a long value
+        // (GT_MUL_LONG always produces a long value).
+        CLANG_FORMAT_COMMENT_ANCHOR;
 #ifdef _TARGET_ARM_
-        assert(OperIsMultiRegOp());
         return (TypeGet() == TYP_LONG) ? 2 : 1;
 #else
-        unreached();
-#endif // _TARGET_ARM_
+        assert(OperIs(GT_MUL_LONG));
+        return 2;
+#endif
     }
-#endif // FEATURE_ARG_SPLIT
+#endif
     assert(!"Unexpected multi-reg node");
     return 0;
 }
@@ -1610,7 +1614,7 @@ AGAIN:
                 return false;
             }
 
-            if (GenTree::OperIsAssignment(oper))
+            if (oper == GT_ASG)
             {
                 // 'tree' is the gtOp1 of an assignment node. So we can handle
                 // the case where defOnly is either true or false.
@@ -1899,17 +1903,17 @@ AGAIN:
                 break;
             case GT_CNS_LNG:
                 bits = (UINT64)tree->gtLngCon.gtLconVal;
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
                 add = bits;
-#else // 32-bit target
+#else // 32-bit host
                 add = genTreeHashAdd(uhi32(bits), ulo32(bits));
 #endif
                 break;
             case GT_CNS_DBL:
                 bits = *(UINT64*)(&tree->gtDblCon.gtDconVal);
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
                 add = bits;
-#else // 32-bit target
+#else // 32-bit host
                 add = genTreeHashAdd(uhi32(bits), ulo32(bits));
 #endif
                 break;
@@ -1933,9 +1937,9 @@ AGAIN:
         // clang-format off
         // narrow 'add' into a 32-bit 'val'
         unsigned val;
-#ifdef _TARGET_64BIT_
+#ifdef _HOST_64BIT_
         val = genTreeHashAdd(uhi32(add), ulo32(add));
-#else // 32-bit target
+#else // 32-bit host
         val = add;
 #endif
         // clang-format on
@@ -3158,7 +3162,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 //
                 GenTreeIntConCommon* con = tree->AsIntConCommon();
 
-                if (con->ImmedValNeedsReloc(this) || !codeGen->validImmForInstr(INS_mov, tree->gtIntCon.gtIconVal))
+                if (con->ImmedValNeedsReloc(this) ||
+                    !codeGen->validImmForInstr(INS_mov, (target_ssize_t)tree->gtIntCon.gtIconVal))
                 {
                     // Uses movw/movt
                     costSz = 7;
@@ -4129,43 +4134,25 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 return gtSetListOrder(tree, isListCallArgs, callArgsInRegs);
             }
 
+            case GT_ASG:
+                /* Assignments need a bit of special handling */
+                /* Process the target */
+                level = gtSetEvalOrder(op1);
+
+                if (gtIsLikelyRegVar(op1))
+                {
+                    assert(lvlb == 0);
+                    lvl2 = gtSetEvalOrder(op2);
+
+                    /* Assignment to an enregistered LCL_VAR */
+                    costEx = op2->gtCostEx;
+                    costSz = max(3, op2->gtCostSz); // 3 is an estimate for a reg-reg assignment
+                    goto DONE_OP1_AFTER_COST;
+                }
+                goto DONE_OP1;
+
             default:
                 break;
-        }
-
-        /* Assignments need a bit of special handling */
-
-        if (GenTree::OperIsAssignment(oper))
-        {
-            /* Process the target */
-
-            level = gtSetEvalOrder(op1);
-
-            if (gtIsLikelyRegVar(op1))
-            {
-                assert(lvlb == 0);
-                lvl2 = gtSetEvalOrder(op2);
-                if (oper != GT_ASG)
-                {
-                    ftreg |= op2->gtRsvdRegs;
-                }
-
-                /* Assignment to an enregistered LCL_VAR */
-                costEx = op2->gtCostEx;
-                costSz = max(3, op2->gtCostSz); // 3 is an estimate for a reg-reg assignment
-                goto DONE_OP1_AFTER_COST;
-            }
-            else if (oper != GT_ASG)
-            {
-                // Assign-Op instructions read and write op1
-                //
-                costEx += op1->gtCostEx;
-#ifdef _TARGET_ARM_
-                costSz += op1->gtCostSz;
-#endif
-            }
-
-            goto DONE_OP1;
         }
 
         /* Process the sub-operands */
@@ -4194,34 +4181,47 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
     DONE_OP1_AFTER_COST:
 
         bool bReverseInAssignment = false;
-        if (GenTree::OperIsAssignment(oper))
+        if (oper == GT_ASG)
         {
             GenTree* op1Val = op1;
 
-            if (tree->gtOper == GT_ASG)
+            // Skip over the GT_IND/GT_ADDR tree (if one exists)
+            //
+            if ((op1->gtOper == GT_IND) && (op1->gtOp.gtOp1->gtOper == GT_ADDR))
             {
-                // Skip over the GT_IND/GT_ADDR tree (if one exists)
-                //
-                if ((op1->gtOper == GT_IND) && (op1->gtOp.gtOp1->gtOper == GT_ADDR))
-                {
-                    op1Val = op1->gtOp.gtOp1->gtOp.gtOp1;
-                }
+                op1Val = op1->gtOp.gtOp1->gtOp.gtOp1;
             }
 
             switch (op1Val->gtOper)
             {
                 case GT_IND:
+                case GT_BLK:
+                case GT_OBJ:
+                case GT_DYN_BLK:
 
-                    // Struct assignments are different from scalar assignments in that semantically
-                    // the address of op1 is evaluated prior to op2.
-                    if (!varTypeIsStruct(op1))
+                    // In an indirection, the destination address is evaluated prior to the source.
+                    // If we have any side effects on the target indirection,
+                    // we have to evaluate op1 first.
+                    // However, if the LHS is a lclVar address, SSA relies on using evaluation order for its
+                    // renaming, and therefore the RHS must be evaluated first.
+                    // If we have an assignment involving a lclVar address, the LHS may be marked as having
+                    // side-effects.
+                    // However the side-effects won't require that we evaluate the LHS address first:
+                    // - The GTF_GLOB_REF might have been conservatively set on a FIELD of a local.
+                    // - The local might be address-exposed, but that side-effect happens at the actual assignment (not
+                    //   when its address is "evaluated") so it doesn't change the side effect to "evaluate" the address
+                    //   after the RHS (note that in this case it won't be renamed by SSA anyway, but the reordering is
+                    //   safe).
+                    //
+                    if (op1Val->AsIndir()->Addr()->IsLocalAddrExpr())
                     {
-                        // If we have any side effects on the GT_IND child node
-                        // we have to evaluate op1 first.
-                        if (op1Val->gtOp.gtOp1->gtFlags & GTF_ALL_EFFECT)
-                        {
-                            break;
-                        }
+                        bReverseInAssignment = true;
+                        tree->gtFlags |= GTF_REVERSE_OPS;
+                        break;
+                    }
+                    if (op1Val->AsIndir()->Addr()->gtFlags & GTF_ALL_EFFECT)
+                    {
+                        break;
                     }
 
                     // In case op2 assigns to a local var that is used in op1Val, we have to evaluate op1Val first.
@@ -4241,9 +4241,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
                 case GT_LCL_VAR:
                 case GT_LCL_FLD:
-                case GT_BLK:
-                case GT_OBJ:
-                case GT_DYN_BLK:
 
                     // We evaluate op2 before op1
                     bReverseInAssignment = true;
@@ -5495,7 +5492,7 @@ GenTree* GenTree::gtGetParent(GenTree*** parentChildPtrPtr) const
 
 bool GenTree::OperRequiresAsgFlag()
 {
-    if (OperIsAssignment() || OperIs(GT_XADD, GT_XCHG, GT_LOCKADD, GT_CMPXCHG, GT_MEMORYBARRIER))
+    if (OperIs(GT_ASG) || OperIs(GT_XADD, GT_XCHG, GT_LOCKADD, GT_CMPXCHG, GT_MEMORYBARRIER))
     {
         return true;
     }
@@ -6676,7 +6673,7 @@ void Compiler::gtSetObjGcInfo(GenTreeObj* objNode)
         {
             // Get the GC fields info
             var_types simdBaseType; // Dummy argument
-            slots    = (unsigned)(roundUp(size, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE);
+            slots    = roundUp(size, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
             gcPtrs   = new (this, CMK_ASTNode) BYTE[slots];
             nodeType = impNormStructType(structHnd, gcPtrs, &gcPtrCount, &simdBaseType);
         }
@@ -6940,9 +6937,6 @@ void Compiler::gtBlockOpInit(GenTree* result, GenTree* dst, GenTree* srcOrFillVa
     // Propagate all effect flags from children
     result->gtFlags |= dst->gtFlags & GTF_ALL_EFFECT;
     result->gtFlags |= result->gtOp.gtOp2->gtFlags & GTF_ALL_EFFECT;
-
-    // REVERSE_OPS is necessary because the use must occur before the def
-    result->gtFlags |= GTF_REVERSE_OPS;
 
     result->gtFlags |= (dst->gtFlags & GTF_EXCEPT) | (srcOrFillVal->gtFlags & GTF_EXCEPT);
 
@@ -8453,15 +8447,6 @@ unsigned GenTree::NumChildren()
             }
         }
 #endif
-        // Special case for assignment of dynamic block.
-        // This is here to duplicate the former case where the size may be evaluated prior to the
-        // source and destination addresses. In order to do this, we treat the size as a child of the
-        // assignment.
-        // TODO-1stClassStructs-Cleanup: Remove all this special casing, and ensure that the diffs are reasonable.
-        if ((OperGet() == GT_ASG) && (gtOp.gtOp1->OperGet() == GT_DYN_BLK) && (gtOp.gtOp1->AsDynBlk()->gtEvalSizeFirst))
-        {
-            return 3;
-        }
         assert(gtOp.gtOp1 != nullptr);
         if (gtOp.gtOp2 == nullptr)
         {
@@ -8496,17 +8481,8 @@ unsigned GenTree::NumChildren()
             case GT_ARR_ELEM:
                 return 1 + AsArrElem()->gtArrRank;
 
-            // This really has two children, but if the size is evaluated first, we treat it as a child of the
-            // parent assignment.
             case GT_DYN_BLK:
-                if (AsDynBlk()->gtEvalSizeFirst)
-                {
-                    return 1;
-                }
-                else
-                {
-                    return 2;
-                }
+                return 2;
 
             case GT_ARR_OFFSET:
             case GT_STORE_DYN_BLK:
@@ -8646,10 +8622,9 @@ GenTree* GenTree::GetChild(unsigned childNum)
                 switch (childNum)
                 {
                     case 0:
-                        return AsDynBlk()->Addr();
+                        return AsDynBlk()->gtEvalSizeFirst ? AsDynBlk()->gtDynamicSize : AsDynBlk()->Addr();
                     case 1:
-                        assert(!AsDynBlk()->gtEvalSizeFirst);
-                        return AsDynBlk()->gtDynamicSize;
+                        return AsDynBlk()->gtEvalSizeFirst ? AsDynBlk()->Addr() : AsDynBlk()->gtDynamicSize;
                     default:
                         unreached();
                 }
@@ -10762,7 +10737,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         case GT_LABEL:
             if (tree->gtLabel.gtLabBB)
             {
-                printf(" dst=BB%02u", tree->gtLabel.gtLabBB->bbNum);
+                printf(" dst=" FMT_BB, tree->gtLabel.gtLabBB->bbNum);
             }
             else
             {
@@ -11941,7 +11916,7 @@ void Compiler::gtDispLIRNode(GenTree* node, const char* prefixMsg /* = nullptr *
                 displayOperand(operand, "size", operandArc, indentStack, prefixIndent);
             }
         }
-        else if (node->OperIsAssignment())
+        else if (node->OperIs(GT_ASG))
         {
             if (operand == node->gtGetOp1())
             {
@@ -12064,9 +12039,6 @@ GenTree* Compiler::gtFoldExpr(GenTree* tree)
 
                 GenTree* sideEffList = nullptr;
                 gtExtractSideEffList(op1, &sideEffList);
-
-                fgUpdateRefCntForExtract(op1, sideEffList);   // Decrement refcounts for op1, Keeping any side-effects
-                fgUpdateRefCntForExtract(colon_op1, nullptr); // Decrement refcounts for colon_op1
 
                 // Clear colon flags only if the qmark itself is not conditionaly executed
                 if ((tree->gtFlags & GTF_COLON_COND) == 0)
@@ -12278,10 +12250,7 @@ GenTree* Compiler::gtFoldExprCompare(GenTree* tree)
         cons->gtNext = tree->gtNext;
         cons->gtPrev = tree->gtPrev;
     }
-    if (lvaLocalVarRefCounted())
-    {
-        lvaRecursiveDecRefCounts(tree);
-    }
+
     return cons;
 }
 
@@ -12719,10 +12688,6 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                 /* Multiply by zero - return the 'zero' node, but not if side effects */
                 if (!(op->gtFlags & GTF_SIDE_EFFECT))
                 {
-                    if (lvaLocalVarRefCounted())
-                    {
-                        lvaRecursiveDecRefCounts(op);
-                    }
                     op = cons;
                     goto DONE_FOLD;
                 }
@@ -12751,10 +12716,6 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
                 if (!(op->gtFlags & GTF_SIDE_EFFECT))
                 {
-                    if (lvaLocalVarRefCounted())
-                    {
-                        lvaRecursiveDecRefCounts(op);
-                    }
                     op = cons;
                     goto DONE_FOLD;
                 }
@@ -12791,10 +12752,6 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
                 if (!(op->gtFlags & GTF_SIDE_EFFECT))
                 {
-                    if (lvaLocalVarRefCounted())
-                    {
-                        lvaRecursiveDecRefCounts(op);
-                    }
                     op = cons;
                     goto DONE_FOLD;
                 }
@@ -12814,10 +12771,6 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                 }
                 else if (!(op->gtFlags & GTF_SIDE_EFFECT))
                 {
-                    if (lvaLocalVarRefCounted())
-                    {
-                        lvaRecursiveDecRefCounts(op);
-                    }
                     op = cons;
                     goto DONE_FOLD;
                 }
@@ -12841,10 +12794,6 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
             {
                 op         = op2->AsColon()->ElseNode();
                 opToDelete = op2->AsColon()->ThenNode();
-            }
-            if (lvaLocalVarRefCounted())
-            {
-                lvaRecursiveDecRefCounts(opToDelete);
             }
 
             // Clear colon flags only if the qmark itself is not conditionaly executed
@@ -12872,7 +12821,7 @@ DONE_FOLD:
     // a use, update the flags appropriately
     if (op->gtOper == GT_LCL_VAR)
     {
-        assert(tree->OperIsAssignment() || (op->gtFlags & (GTF_VAR_USEASG | GTF_VAR_DEF)) == 0);
+        assert(tree->OperIs(GT_ASG) || (op->gtFlags & (GTF_VAR_USEASG | GTF_VAR_DEF)) == 0);
 
         op->gtFlags &= ~(GTF_VAR_USEASG | GTF_VAR_DEF);
     }
@@ -15021,7 +14970,7 @@ bool Compiler::gtNodeHasSideEffects(GenTree* tree, unsigned flags)
         // will simply be dropped is they are ever subject to an "extract side effects" operation.
         // It is possible that the reason no bugs have yet been observed in this area is that the
         // other nodes are likely to always be tree roots.
-        if (tree->OperIsAssignment())
+        if (tree->OperIs(GT_ASG))
         {
             return true;
         }
@@ -15720,7 +15669,7 @@ bool GenTree::IsPartialLclFld(Compiler* comp)
 bool GenTree::DefinesLocal(Compiler* comp, GenTreeLclVarCommon** pLclVarTree, bool* pIsEntire)
 {
     GenTreeBlk* blkNode = nullptr;
-    if (OperIsAssignment())
+    if (OperIs(GT_ASG))
     {
         if (gtOp.gtOp1->IsLocal())
         {
@@ -16034,22 +15983,19 @@ bool GenTree::IsLocalAddrExpr(Compiler* comp, GenTreeLclVarCommon** pLclVarTree,
 unsigned GenTree::IsLclVarUpdateTree(GenTree** pOtherTree, genTreeOps* pOper)
 {
     unsigned lclNum = BAD_VAR_NUM;
-    if (OperIsAssignment())
+    if (OperIs(GT_ASG))
     {
         GenTree* lhs = gtOp.gtOp1;
         if (lhs->OperGet() == GT_LCL_VAR)
         {
             unsigned lhsLclNum = lhs->AsLclVarCommon()->gtLclNum;
-            if (gtOper == GT_ASG)
+            GenTree* rhs       = gtOp.gtOp2;
+            if (rhs->OperIsBinary() && (rhs->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
+                (rhs->gtOp.gtOp1->AsLclVarCommon()->gtLclNum == lhsLclNum))
             {
-                GenTree* rhs = gtOp.gtOp2;
-                if (rhs->OperIsBinary() && (rhs->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
-                    (rhs->gtOp.gtOp1->AsLclVarCommon()->gtLclNum == lhsLclNum))
-                {
-                    lclNum      = lhsLclNum;
-                    *pOtherTree = rhs->gtOp.gtOp2;
-                    *pOper      = rhs->gtOper;
-                }
+                lclNum      = lhsLclNum;
+                *pOtherTree = rhs->gtOp.gtOp2;
+                *pOper      = rhs->gtOper;
             }
         }
     }

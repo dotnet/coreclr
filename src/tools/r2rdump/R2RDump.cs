@@ -101,7 +101,7 @@ namespace R2RDump
                 syntax.DefineOption("unwind", ref _unwind, "Dump unwindInfo");
                 syntax.DefineOption("gc", ref _gc, "Dump gcInfo and slot table");
                 syntax.DefineOption("sc", ref _sectionContents, "Dump section contents");
-                syntax.DefineOption("v|verbose", ref verbose, "Dump raw bytes, disassembly, unwindInfo, gcInfo and section contents");
+                syntax.DefineOption("v|verbose", ref verbose, "Dump disassembly, unwindInfo, gcInfo and section contents");
                 syntax.DefineOption("diff", ref _diff, "Compare two R2R images");
                 syntax.DefineOption("ignoreSensitive", ref _ignoreSensitive, "Ignores sensitive properties in xml dump to avoid failing tests");
             });
@@ -113,8 +113,6 @@ namespace R2RDump
                 _gc = true;
                 _sectionContents = true;
             }
-
-            _disasm = false; // TODO: this requires the coredistools nuget package with the most recent changes
 
             return argSyntax;
         }
@@ -405,7 +403,14 @@ namespace R2RDump
 
                     if (_disasm)
                     {
-                        disassembler = new Disassembler(r2r.Image, r2r.Machine);
+                        if (r2r.InputArchitectureSupported() && r2r.DisassemblerArchitectureSupported())
+                        {
+                            disassembler = new Disassembler(r2r.Image, r2r.Machine);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"The architecture of input file {filename} ({r2r.Machine.ToString()}) or the architecture of the disassembler tools ({System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString()}) is not supported.");
+                        }
                     }
 
                     if (_xml)

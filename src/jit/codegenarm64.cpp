@@ -1148,10 +1148,10 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
         // so that they are contiguous with the incoming stack arguments.
         saveRegsPlusPSPSize += MAX_REG_ARG * REGSIZE_BYTES;
     }
-    unsigned saveRegsPlusPSPSizeAligned = (unsigned)roundUp(saveRegsPlusPSPSize, STACK_ALIGN);
+    unsigned saveRegsPlusPSPSizeAligned = roundUp(saveRegsPlusPSPSize, STACK_ALIGN);
 
     assert(compiler->lvaOutgoingArgSpaceSize % REGSIZE_BYTES == 0);
-    unsigned outgoingArgSpaceAligned = (unsigned)roundUp(compiler->lvaOutgoingArgSpaceSize, STACK_ALIGN);
+    unsigned outgoingArgSpaceAligned = roundUp(compiler->lvaOutgoingArgSpaceSize, STACK_ALIGN);
 
     unsigned maxFuncletFrameSizeAligned = saveRegsPlusPSPSizeAligned + outgoingArgSpaceAligned;
     assert((maxFuncletFrameSizeAligned % STACK_ALIGN) == 0);
@@ -1163,7 +1163,7 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
     if (maxFuncletFrameSizeAligned <= 512)
     {
         unsigned funcletFrameSize        = saveRegsPlusPSPSize + compiler->lvaOutgoingArgSpaceSize;
-        unsigned funcletFrameSizeAligned = (unsigned)roundUp(funcletFrameSize, STACK_ALIGN);
+        unsigned funcletFrameSizeAligned = roundUp(funcletFrameSize, STACK_ALIGN);
         assert(funcletFrameSizeAligned <= maxFuncletFrameSizeAligned);
 
         unsigned funcletFrameAlignmentPad = funcletFrameSizeAligned - funcletFrameSize;
@@ -2469,7 +2469,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
         sourceIsLocal = true;
     }
 
-    bool dstOnStack = dstAddr->OperIsLocalAddr();
+    bool dstOnStack = dstAddr->gtSkipReloadOrCopy()->OperIsLocalAddr();
 
 #ifdef DEBUG
     assert(!dstAddr->isContained());
@@ -2637,7 +2637,7 @@ void CodeGen::genJumpTable(GenTree* treeNode)
         BasicBlock* target = *jumpTable++;
         noway_assert(target->bbFlags & BBF_JMP_TARGET);
 
-        JITDUMP("            DD      L_M%03u_BB%02u\n", Compiler::s_compMethodsCount, target->bbNum);
+        JITDUMP("            DD      L_M%03u_" FMT_BB "\n", Compiler::s_compMethodsCount, target->bbNum);
 
         getEmitter()->emitDataGenData(i, target);
     };

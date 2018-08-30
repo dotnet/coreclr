@@ -152,12 +152,7 @@ struct VarScopeDsc
                        // compEnterScopeList and compExitScopeList sorted arrays.
 };
 
-/*****************************************************************************
- *
- *  The following holds the local variable counts and the descriptor table.
- */
-
-// This is the location of a definition.
+// This is the location of a SSA definition.
 struct DefLoc
 {
     BasicBlock* m_blk;
@@ -166,22 +161,134 @@ struct DefLoc
     DefLoc() : m_blk(nullptr), m_tree(nullptr)
     {
     }
-};
 
-// This class encapsulates all info about a local variable that may vary for different SSA names
-// in the family.
-class LclSsaVarDsc
-{
-public:
-    ValueNumPair m_vnPair;
-    DefLoc       m_defLoc;
-
-    LclSsaVarDsc()
+    DefLoc(BasicBlock* block, GenTree* tree) : m_blk(block), m_tree(tree)
     {
     }
 };
 
-typedef JitExpandArray<LclSsaVarDsc> PerSsaArray;
+// This class stores information associated with a LclVar SSA definition.
+class LclSsaVarDsc
+{
+public:
+    LclSsaVarDsc()
+    {
+    }
+
+    LclSsaVarDsc(BasicBlock* block, GenTree* tree) : m_defLoc(block, tree)
+    {
+    }
+
+    ValueNumPair m_vnPair;
+    DefLoc       m_defLoc;
+};
+
+// This class stores information associated with a memory SSA definition.
+class SsaMemDef
+{
+public:
+    ValueNumPair m_vnPair;
+};
+
+//------------------------------------------------------------------------
+// SsaDefArray: A resizable array of SSA definitions.
+//
+// Unlike an ordinary resizable array implementation, this allows only element
+// addition (by calling AllocSsaNum) and has special handling for RESERVED_SSA_NUM
+// (basically it's a 1-based array). The array doesn't impose any particular
+// requirements on the elements it stores and AllocSsaNum forwards its arguments
+// to the array element constructor, this way the array supports both LclSsaVarDsc
+// and SsaMemDef elements.
+//
+template <typename T>
+class SsaDefArray
+{
+    T*       m_array;
+    unsigned m_arraySize;
+    unsigned m_count;
+
+    static_assert_no_msg(SsaConfig::RESERVED_SSA_NUM == 0);
+    static_assert_no_msg(SsaConfig::FIRST_SSA_NUM == 1);
+
+    // Get the minimum valid SSA number.
+    unsigned GetMinSsaNum() const
+    {
+        return SsaConfig::FIRST_SSA_NUM;
+    }
+
+    // Increase (double) the size of the array.
+    void GrowArray(CompAllocator alloc)
+    {
+        unsigned oldSize = m_arraySize;
+        unsigned newSize = max(2, oldSize * 2);
+
+        T* newArray = alloc.allocate<T>(newSize);
+
+        for (unsigned i = 0; i < oldSize; i++)
+        {
+            newArray[i] = m_array[i];
+        }
+
+        m_array     = newArray;
+        m_arraySize = newSize;
+    }
+
+public:
+    // Construct an empty SsaDefArray.
+    SsaDefArray() : m_array(nullptr), m_arraySize(0), m_count(0)
+    {
+    }
+
+    // Reset the array (used only if the SSA form is reconstructed).
+    void Reset()
+    {
+        m_count = 0;
+    }
+
+    // Allocate a new SSA number (starting with SsaConfig::FIRST_SSA_NUM).
+    template <class... Args>
+    unsigned AllocSsaNum(CompAllocator alloc, Args&&... args)
+    {
+        if (m_count == m_arraySize)
+        {
+            GrowArray(alloc);
+        }
+
+        unsigned ssaNum    = GetMinSsaNum() + m_count;
+        m_array[m_count++] = T(jitstd::forward<Args>(args)...);
+
+        // Ensure that the first SSA number we allocate is SsaConfig::FIRST_SSA_NUM
+        assert((ssaNum == SsaConfig::FIRST_SSA_NUM) || (m_count > 1));
+
+        return ssaNum;
+    }
+
+    // Get the number of SSA definitions in the array.
+    unsigned GetCount() const
+    {
+        return m_count;
+    }
+
+    // Get a pointer to the SSA definition at the specified index.
+    T* GetSsaDefByIndex(unsigned index)
+    {
+        assert(index < m_count);
+        return &m_array[index];
+    }
+
+    // Check if the specified SSA number is valid.
+    bool IsValidSsaNum(unsigned ssaNum) const
+    {
+        return (GetMinSsaNum() <= ssaNum) && (ssaNum < (GetMinSsaNum() + m_count));
+    }
+
+    // Get a pointer to the SSA definition associated with the specified SSA number.
+    T* GetSsaDef(unsigned ssaNum)
+    {
+        assert(ssaNum != SsaConfig::RESERVED_SSA_NUM);
+        return GetSsaDefByIndex(ssaNum - GetMinSsaNum());
+    }
+};
 
 enum RefCountState
 {
@@ -194,7 +301,7 @@ class LclVarDsc
 {
 public:
     // The constructor. Most things can just be zero'ed.
-    LclVarDsc(Compiler* comp);
+    LclVarDsc();
 
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
@@ -222,6 +329,8 @@ public:
     unsigned char lvDoNotEnregister : 1; // Do not enregister this variable.
     unsigned char lvFieldAccessed : 1;   // The var is a struct local, and a field of the variable is accessed.  Affects
                                          // struct promotion.
+
+    unsigned char lvInSsa : 1; // The variable is in SSA form (set by SsaBuilder)
 
 #ifdef DEBUG
     // These further document the reasons for setting "lvDoNotEnregister".  (Note that "lvAddrExposed" is one of the
@@ -613,12 +722,10 @@ private:
 public:
     unsigned short lvRefCnt(RefCountState state = RCS_NORMAL) const;
     void incLvRefCnt(unsigned short delta, RefCountState state = RCS_NORMAL);
-    void decLvRefCnt(unsigned short delta, RefCountState state = RCS_NORMAL);
     void setLvRefCnt(unsigned short newValue, RefCountState state = RCS_NORMAL);
 
     BasicBlock::weight_t lvRefCntWtd(RefCountState state = RCS_NORMAL) const;
     void incLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state = RCS_NORMAL);
-    void decLvRefCntWtd(BasicBlock::weight_t delta, RefCountState state = RCS_NORMAL);
     void setLvRefCntWtd(BasicBlock::weight_t newValue, RefCountState state = RCS_NORMAL);
 
     int      lvStkOffs;   // stack offset of home
@@ -668,7 +775,7 @@ public:
         }
 #endif // defined(FEATURE_SIMD) && !defined(_TARGET_64BIT_)
 
-        return (unsigned)(roundUp(lvExactSize, TARGET_POINTER_SIZE));
+        return roundUp(lvExactSize, TARGET_POINTER_SIZE);
     }
 
     const size_t lvArgStackSize() const;
@@ -711,11 +818,6 @@ public:
                !(lvIsParam || lvAddrExposed || lvIsStructField);
     }
 
-    void lvaResetSortAgainFlag(Compiler* pComp, RefCountState = RCS_NORMAL);
-    void decRefCnts(BasicBlock::weight_t weight,
-                    Compiler*            pComp,
-                    RefCountState        state     = RCS_NORMAL,
-                    bool                 propagate = true);
     void incRefCnts(BasicBlock::weight_t weight,
                     Compiler*            pComp,
                     RefCountState        state     = RCS_NORMAL,
@@ -738,23 +840,14 @@ public:
 
     var_types lvaArgType();
 
-    PerSsaArray lvPerSsaData;
-
-#ifdef DEBUG
-    // Keep track of the # of SsaNames, for a bounds check.
-    unsigned lvNumSsaNames;
-#endif
+    SsaDefArray<LclSsaVarDsc> lvPerSsaData;
 
     // Returns the address of the per-Ssa data for the given ssaNum (which is required
     // not to be the SsaConfig::RESERVED_SSA_NUM, which indicates that the variable is
     // not an SSA variable).
     LclSsaVarDsc* GetPerSsaData(unsigned ssaNum)
     {
-        assert(ssaNum != SsaConfig::RESERVED_SSA_NUM);
-        assert(SsaConfig::RESERVED_SSA_NUM == 0);
-        unsigned zeroBased = ssaNum - SsaConfig::UNINIT_SSA_NUM;
-        assert(zeroBased < lvNumSsaNames);
-        return &lvPerSsaData.GetRef(zeroBased);
+        return lvPerSsaData.GetSsaDef(ssaNum);
     }
 
 #ifdef DEBUG
@@ -2543,7 +2636,6 @@ public:
         return lvaRefCountState == RCS_NORMAL;
     }
 
-    bool     lvaSortAgain;    // true: We need to sort the lvaTable
     bool     lvaTrackedFixed; // true: We cannot add new 'tracked' variable
     unsigned lvaCount;        // total number of locals
 
@@ -2800,13 +2892,6 @@ public:
 
     VARSET_VALRET_TP lvaStmtLclMask(GenTree* stmt);
 
-    void lvaIncRefCnts(GenTree* tree);
-    void lvaDecRefCnts(GenTree* tree);
-
-    void lvaDecRefCnts(BasicBlock* basicBlock, GenTree* tree);
-    void lvaRecursiveDecRefCounts(GenTree* tree);
-    void lvaRecursiveIncRefCounts(GenTree* tree);
-
 #ifdef DEBUG
     struct lvaStressLclFldArgs
     {
@@ -2944,6 +3029,13 @@ public:
     unsigned lvaGSSecurityCookie; // LclVar number
     bool     lvaTempsHaveLargerOffsetThanVars();
 
+    // Returns "true" iff local variable "lclNum" is in SSA form.
+    bool lvaInSsa(unsigned lclNum)
+    {
+        assert(lclNum < lvaCount);
+        return lvaTable[lclNum].lvInSsa;
+    }
+
     unsigned lvaSecurityObject;  // variable representing the security object on the stack
     unsigned lvaStubArgumentVar; // variable representing the secret stub argument coming in EAX
 
@@ -2979,20 +3071,15 @@ protected:
     void SetVolatileHint(LclVarDsc* varDsc);
 
     // Keeps the mapping from SSA #'s to VN's for the implicit memory variables.
-    PerSsaArray lvMemoryPerSsaData;
-    unsigned    lvMemoryNumSsaNames;
+    SsaDefArray<SsaMemDef> lvMemoryPerSsaData;
 
 public:
     // Returns the address of the per-Ssa data for memory at the given ssaNum (which is required
     // not to be the SsaConfig::RESERVED_SSA_NUM, which indicates that the variable is
     // not an SSA variable).
-    LclSsaVarDsc* GetMemoryPerSsaData(unsigned ssaNum)
+    SsaMemDef* GetMemoryPerSsaData(unsigned ssaNum)
     {
-        assert(ssaNum != SsaConfig::RESERVED_SSA_NUM);
-        assert(SsaConfig::RESERVED_SSA_NUM == 0);
-        ssaNum--;
-        assert(ssaNum < lvMemoryNumSsaNames);
-        return &lvMemoryPerSsaData.GetRef(ssaNum);
+        return lvMemoryPerSsaData.GetSsaDef(ssaNum);
     }
 
     /*
@@ -3718,7 +3805,7 @@ public:
         fgCurBBEpoch++;
         fgCurBBEpochSize = fgBBNumMax + 1;
         fgBBSetCountInSizeTUnits =
-            unsigned(roundUp(fgCurBBEpochSize, sizeof(size_t) * 8)) / unsigned(sizeof(size_t) * 8);
+            roundUp(fgCurBBEpochSize, (unsigned)(sizeof(size_t) * 8)) / unsigned(sizeof(size_t) * 8);
 
 #ifdef DEBUG
         // All BlockSet objects are now invalid!
@@ -3972,10 +4059,6 @@ public:
 
     void fgLiveVarAnalysis(bool updateInternalOnly = false);
 
-    void fgUpdateRefCntForClone(BasicBlock* addedToBlock, GenTree* clonedTree);
-
-    void fgUpdateRefCntForExtract(GenTree* wholeTree, GenTree* keptTree);
-
     void fgComputeLifeCall(VARSET_TP& life, GenTreeCall* call);
 
     void fgComputeLifeTrackedLocalUse(VARSET_TP& life, LclVarDsc& varDsc, GenTreeLclVarCommon* node);
@@ -4026,8 +4109,8 @@ public:
 
     void fgInterBlockLocalVarLiveness();
 
-    // The presence of "x op= y" operations presents some difficulties for SSA: this is both a use of some SSA name of
-    // "x", and a def of a new SSA name for "x".  The tree only has one local variable for "x", so it has to choose
+    // The presence of a partial definition presents some difficulties for SSA: this is both a use of some SSA name
+    // of "x", and a def of a new SSA name for "x".  The tree only has one local variable for "x", so it has to choose
     // whether to treat that as the use or def.  It chooses the "use", and thus the old SSA name.  This map allows us
     // to record/recover the "def" SSA number, given the lcl var node for "x" in such a tree.
     typedef JitHashTable<GenTree*, JitPtrKeyFuncs<GenTree>, unsigned> NodeToUnsignedMap;
@@ -4049,7 +4132,7 @@ public:
 
     // Requires that "lcl" has the GTF_VAR_DEF flag set.  Returns the SSA number of "lcl".
     // Except: assumes that lcl is a def, and if it is
-    // a def appearing in "lcl op= rhs" (GTF_VAR_USEASG), looks up and returns the SSA number for the "def",
+    // a partial def (GTF_VAR_USEASG), looks up and returns the SSA number for the "def",
     // rather than the "use" SSA number recorded in the tree "lcl".
     inline unsigned GetSsaNumForLocalVarDef(GenTree* lcl);
 
@@ -4060,9 +4143,6 @@ public:
     void fgResetForSsa();
 
     unsigned fgSsaPassesCompleted; // Number of times fgSsaBuild has been run.
-
-    // Returns "true" iff lcl "lclNum" should be excluded from SSA.
-    inline bool fgExcludeFromSsa(unsigned lclNum);
 
     // Returns "true" if a struct temp of the given type requires needs zero init in this block
     inline bool fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* block);
@@ -4156,12 +4236,10 @@ public:
     // Assumes that all inputs to "tree" have had value numbers assigned; assigns a VN to tree.
     // (With some exceptions: the VN of the lhs of an assignment is assigned as part of the
     // assignment.)
-    // If "evalAsgLhsInd" is true, evaluate a GT_IND node, even if it's labeled as the LHS of
-    // an assignment.
-    void fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd = false);
+    void fgValueNumberTree(GenTree* tree);
 
     // Does value-numbering for a block assignment.
-    void fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd);
+    void fgValueNumberBlockAssignment(GenTree* tree);
 
     // Does value-numbering for a cast tree.
     void fgValueNumberCastTree(GenTree* tree);
@@ -4490,7 +4568,7 @@ public:
 
     void fgRemoveEmptyBlocks();
 
-    void fgRemoveStmt(BasicBlock* block, GenTree* stmt, bool updateRefCnt = true);
+    void fgRemoveStmt(BasicBlock* block, GenTree* stmt);
 
     bool fgCheckRemoveStmt(BasicBlock* block, GenTree* stmt);
 
@@ -5425,7 +5503,7 @@ public:
 
         /* The following values are set only for iterator loops, i.e. has the flag LPFLG_ITER set */
 
-        GenTree*   lpIterTree;    // The "i <op>= const" tree
+        GenTree*   lpIterTree;    // The "i = i <op> const" tree
         unsigned   lpIterVar();   // iterator variable #
         int        lpIterConst(); // the constant with which the iterator is incremented
         genTreeOps lpIterOper();  // the type of the operation on the iterator (ASG_ADD, ASG_SUB, etc.)
@@ -6640,13 +6718,13 @@ public:
     GenTree* eeGetPInvokeCookie(CORINFO_SIG_INFO* szMetaSig);
 
     // Returns the page size for the target machine as reported by the EE.
-    inline size_t eeGetPageSize()
+    inline target_size_t eeGetPageSize()
     {
-        return eeGetEEInfo()->osPageSize;
+        return (target_size_t)eeGetEEInfo()->osPageSize;
     }
 
     // Returns the frame size at which we will generate a loop to probe the stack.
-    inline size_t getVeryLargeFrameSize()
+    inline target_size_t getVeryLargeFrameSize()
     {
 #ifdef _TARGET_ARM_
         // The looping probe code is 40 bytes, whereas the straight-line probing for
@@ -9293,7 +9371,7 @@ public:
 }; // end of class Compiler
 
 // LclVarDsc constructor. Uses Compiler, so must come after Compiler definition.
-inline LclVarDsc::LclVarDsc(Compiler* comp)
+inline LclVarDsc::LclVarDsc()
     : // Initialize the ArgRegs to REG_STK.
     // The morph will do the right thing to change
     // to the right register if passed in register.
@@ -9307,7 +9385,7 @@ inline LclVarDsc::LclVarDsc(Compiler* comp)
     lvRefBlks(BlockSetOps::UninitVal())
     ,
 #endif // ASSERTION_PROP
-    lvPerSsaData(comp->getAllocator())
+    lvPerSsaData()
 {
 }
 

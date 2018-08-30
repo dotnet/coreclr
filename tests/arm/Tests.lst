@@ -53204,14 +53204,6 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;Pri1
 HostStyle=0
 
-[b12011.cmd_6691]
-RelativePath=JIT\Regression\VS-ia64-JIT\V1.2-M02\b12011\b12011\b12011.cmd
-WorkingDir=JIT\Regression\VS-ia64-JIT\V1.2-M02\b12011\b12011
-Expected=0
-MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS
-HostStyle=0
-
 [FlowControlNext.cmd_6692]
 RelativePath=CoreMangLib\cti\system\reflection\emit\flowcontrol\FlowControlNext\FlowControlNext.cmd
 WorkingDir=CoreMangLib\cti\system\reflection\emit\flowcontrol\FlowControlNext
@@ -94161,7 +94153,7 @@ RelativePath=JIT\SIMD\Matrix4x4_ro\Matrix4x4_ro.cmd
 WorkingDir=JIT\SIMD\Matrix4x4_ro
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_FAIL;EXCLUDED;19537;NEW
 HostStyle=0
 
 [BroadcastVector128ToVector256_ro.cmd_11857]
@@ -94305,7 +94297,7 @@ RelativePath=JIT\SIMD\Matrix4x4_r\Matrix4x4_r.cmd
 WorkingDir=JIT\SIMD\Matrix4x4_r
 Expected=0
 MaxAllowedDurationSeconds=600
-Categories=EXPECTED_PASS;NEW
+Categories=EXPECTED_FAIL;EXCLUDED;19537;NEW
 HostStyle=0
 
 [MoveMask_ro.cmd_11875]
@@ -94623,6 +94615,14 @@ HostStyle=0
 [GitHub_19288.cmd_11915]
 RelativePath=JIT\Regression\JitBlue\GitHub_19288\GitHub_19288\GitHub_19288.cmd
 WorkingDir=JIT\Regression\JitBlue\GitHub_19288\GitHub_19288
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0
+
+[GitHub_19397.cmd_11916]
+RelativePath=JIT\Regression\JitBlue\GitHub_19397\GitHub_19397\GitHub_19397.cmd
+WorkingDir=JIT\Regression\JitBlue\GitHub_19397\GitHub_19397
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS

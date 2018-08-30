@@ -43,6 +43,19 @@ namespace R2RDump
         }
     }
 
+    /// <summary>
+    /// based on <a href="https://github.com/dotnet/coreclr/blob/master/src/inc/pedecoder.h">src/inc/pedecoder.h</a> IMAGE_FILE_MACHINE_NATIVE_OS_OVERRIDE
+    /// </summary>
+    public enum OperatingSystem
+    {
+        Apple = 0x4644,
+        FreeBSD = 0xADC4,
+        Linux = 0x7B79,
+        NetBSD = 0x1993,
+        Windows = 0,
+        Unknown = -1
+    }
+
     public class R2RReader
     {
         /// <summary>
@@ -75,6 +88,8 @@ namespace R2RDump
         /// The type of target machine
         /// </summary>
         public Machine Machine { get; set; }
+
+        public OperatingSystem OS { get; set; }
 
         /// <summary>
         /// The preferred address of the first byte of image when loaded into memory; 
@@ -127,11 +142,20 @@ namespace R2RDump
                     throw new BadImageFormatException("The file is not a ReadyToRun image");
                 }
 
-                Machine = PEReader.PEHeaders.CoffHeader.Machine;
-				if (!Machine.IsDefined(typeof(Machine), Machine))
+                uint machine = (uint)PEReader.PEHeaders.CoffHeader.Machine;
+                OS = OperatingSystem.Unknown;
+                foreach(OperatingSystem os in Enum.GetValues(typeof(OperatingSystem)))
                 {
-                    Machine = Machine.Amd64;
-                    R2RDump.WriteWarning($"Invalid Machine: {Machine}");
+                    Machine = (Machine)(machine ^ (uint)os);
+                    if (Enum.IsDefined(typeof(Machine), Machine))
+                    {
+                        OS = os;
+                        break;
+                    }
+                }
+                if (OS == OperatingSystem.Unknown)
+                {
+                    throw new BadImageFormatException($"Invalid Machine: {machine}");
                 }
                 ImageBase = PEReader.PEHeaders.PEHeader.ImageBase;
 
@@ -172,6 +196,20 @@ namespace R2RDump
                     ParseImportSections();
                 }
             }
+        }
+
+        public bool InputArchitectureSupported()
+        {
+            return Machine != Machine.ArmThumb2; // CoreDisTools often fails to decode when disassembling ARM images (see https://github.com/dotnet/coreclr/issues/19637)
+        }
+
+        // TODO: Fix R2RDump issue where an R2R image cannot be dissassembled with the x86 CoreDisTools
+        // For the short term, we want to error out with a decent message explaining the unexpected error
+        // Issue #19564: https://github.com/dotnet/coreclr/issues/19564
+        public bool DisassemblerArchitectureSupported()
+        {
+            System.Runtime.InteropServices.Architecture val = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture;
+            return val != System.Runtime.InteropServices.Architecture.X86;
         }
 
         /// <summary>
@@ -311,6 +349,22 @@ namespace R2RDump
                             gcInfo = new x86.GcInfo(Image, unwindOffset, Machine, R2RHeader.MajorVersion);
                         }
                     }
+                    else if (Machine == Machine.ArmThumb2)
+                    {
+                        unwindInfo = new Arm.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion); // Arm and Arm64 use the same GcInfo format as x64
+                        }
+                    }
+                    else if (Machine == Machine.Arm64)
+                    {
+                        unwindInfo = new Arm64.UnwindInfo(Image, unwindOffset);
+                        if (isEntryPoint[runtimeFunctionId])
+                        {
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
+                        }
+                    }
 
                     RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
                     method.RuntimeFunctions.Add(rtf);
@@ -330,6 +384,9 @@ namespace R2RDump
             {
                 return;
             }
+
+            HashSet<uint> added = new HashSet<uint>();
+
             R2RSection availableTypesSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
             int availableTypesOffset = GetOffset(availableTypesSection.RelativeVirtualAddress);
             NativeParser parser = new NativeParser(Image, (uint)availableTypesOffset);
@@ -340,8 +397,28 @@ namespace R2RDump
             {
                 uint rid = curParser.GetUnsigned();
                 rid = rid >> 1;
+                if (added.Contains(rid))
+                    continue;
+
                 TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
-                AvailableTypes.Add(GetTypeDefFullName(MetadataReader, typeDefHandle));
+                string typeDefName = GetTypeDefFullName(MetadataReader, typeDefHandle);
+                ExportedTypeHandle exportedTypeHandle = MetadataTokens.ExportedTypeHandle((int)rid);
+                string exportedTypeName = GetExportedTypeFullName(MetadataReader, exportedTypeHandle);
+                if (typeDefName == null && exportedTypeName == null)
+                {
+                    R2RDump.WriteWarning($"AvailableType with rid {rid} is not a TypeDef or ExportedType");
+                }
+                if (typeDefName != null)
+                {
+                    AvailableTypes.Add(typeDefName);
+                    added.Add(rid);
+                }
+                if (exportedTypeName != null)
+                {
+                    AvailableTypes.Add("exported " + exportedTypeName);
+                    added.Add(rid);
+                }
+
                 curParser = allEntriesEnum.GetNext();
             }
         }
@@ -383,6 +460,25 @@ namespace R2RDump
                 R2RImportSection.CorCompileImportFlags flags = (R2RImportSection.CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
                 byte type = NativeReader.ReadByte(Image, ref offset);
                 byte entrySize = NativeReader.ReadByte(Image, ref offset);
+                if (entrySize == 0)
+                {
+                    switch (Machine)
+                    {
+                        case Machine.I386:
+                        case Machine.ArmThumb2:
+                            entrySize = 4;
+                            break;
+
+                        case Machine.Amd64:
+                        case Machine.IA64:
+                        case Machine.Arm64:
+                            entrySize = 8;
+                            break;
+
+                        default:
+                            throw new NotImplementedException(Machine.ToString());
+                    }
+                }
                 int entryCount = 0;
                 if (entrySize != 0)
                 {
@@ -416,8 +512,7 @@ namespace R2RDump
                             }
                         }
                         break;
-                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_CODE:
-                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_PCODE:
+                    default:
                         for (int i = 0; i < entryCount; i++)
                         {
                             int entryOffset = sectionOffset - startOffset;
@@ -462,17 +557,46 @@ namespace R2RDump
         /// </summary>
         public static string GetTypeDefFullName(MetadataReader mdReader, TypeDefinitionHandle handle)
         {
-            TypeDefinition typeDef;
+            string typeNamespace = "";
             string typeStr = "";
             do
             {
-                typeDef = mdReader.GetTypeDefinition(handle);
-                typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
-                handle = typeDef.GetDeclaringType();
+                try
+                {
+                    TypeDefinition typeDef = mdReader.GetTypeDefinition(handle);
+                    typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
+                    handle = typeDef.GetDeclaringType();
+                    if (handle.IsNil)
+                        typeNamespace = mdReader.GetString(typeDef.Namespace);
+                }
+                catch (BadImageFormatException)
+                {
+                    return null;
+                }
             }
             while (!handle.IsNil);
 
-            return mdReader.GetString(typeDef.Namespace) + typeStr;
+            return typeNamespace + typeStr;
+        }
+
+        /// <summary>
+        /// Get the full name of an ExportedType, including namespace
+        /// </summary>
+        public static string GetExportedTypeFullName(MetadataReader mdReader, ExportedTypeHandle handle)
+        {
+            string typeNamespace = "";
+            string typeStr = "";
+            try
+            {
+                ExportedType exportedType = mdReader.GetExportedType(handle);
+                typeStr = "." + mdReader.GetString(exportedType.Name) + typeStr;
+                typeNamespace = mdReader.GetString(exportedType.Namespace);
+            }
+            catch (BadImageFormatException)
+            {
+                return null;
+            }
+            return typeNamespace + typeStr;
         }
 
         /// <summary>

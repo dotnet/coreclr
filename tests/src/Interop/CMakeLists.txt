@@ -33,4 +33,10 @@ add_subdirectory(DllImportAttribute/Simple)
 
 if(WIN32)
     add_subdirectory(COM/NativeServer)
+    add_subdirectory(IJW/FakeMscoree)
+
+    # IJW isn't supported on ARM64
+    if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+        add_subdirectory(IJW/ManagedCallingNative/IjwNativeDll)
+    endif()
 endif(WIN32)

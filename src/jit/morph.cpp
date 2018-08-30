@@ -1212,7 +1212,7 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned argNum,
 {
     fgArgTabEntry* curArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
 
-    nextSlotNum = (unsigned)roundUp(nextSlotNum, alignment);
+    nextSlotNum = roundUp(nextSlotNum, alignment);
 
     curArgTabEntry->setRegNum(0, REG_STK);
     curArgTabEntry->argNum     = argNum;
@@ -1355,7 +1355,7 @@ void fgArgInfo::RemorphStkArg(unsigned argNum, GenTree* node, GenTree* parent, u
         }
     }
 
-    nextSlotNum = (unsigned)roundUp(nextSlotNum, alignment);
+    nextSlotNum = roundUp(nextSlotNum, alignment);
 
     assert(curArgTabEntry->argNum == argNum);
     assert(curArgTabEntry->slotNum == nextSlotNum);
@@ -2334,18 +2334,9 @@ void fgArgInfo::EvalArgsToTemps()
                 {
                     setupArg = compiler->gtNewTempAssign(tmpVarNum, argx);
 
-                    LclVarDsc* varDsc = compiler->lvaTable + tmpVarNum;
-
-                    if (compiler->fgOrder == Compiler::FGOrderLinear)
-                    {
-                        // We'll reference this temporary variable just once
-                        // when we perform the function call after
-                        // setting up this argument.
-                        varDsc->setLvRefCnt(1);
-                    }
-
-                    var_types lclVarType = genActualType(argx->gtType);
-                    var_types scalarType = TYP_UNKNOWN;
+                    LclVarDsc* varDsc     = compiler->lvaTable + tmpVarNum;
+                    var_types  lclVarType = genActualType(argx->gtType);
+                    var_types  scalarType = TYP_UNKNOWN;
 
                     if (setupArg->OperIsCopyBlkOp())
                     {
@@ -2629,28 +2620,11 @@ GenTree* Compiler::fgMakeMultiUse(GenTree** pOp)
     GenTree* tree = *pOp;
     if (tree->IsLocal())
     {
-        auto result = gtClone(tree);
-        if (lvaLocalVarRefCounted())
-        {
-            lvaTable[tree->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
-        }
-        return result;
+        return gtClone(tree);
     }
     else
     {
-        GenTree* result = fgInsertCommaFormTemp(pOp);
-
-        // At this point, *pOp is GT_COMMA(GT_ASG(V01, *pOp), V01) and result = V01
-        // Therefore, the ref count has to be incremented 3 times for *pOp and result, if result will
-        // be added by the caller.
-        if (lvaLocalVarRefCounted())
-        {
-            lvaTable[result->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
-            lvaTable[result->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
-            lvaTable[result->gtLclVarCommon.gtLclNum].incRefCnts(compCurBB->getBBWeight(this), this);
-        }
-
-        return result;
+        return fgInsertCommaFormTemp(pOp);
     }
 }
 
@@ -3505,8 +3479,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                 }
                 else
                 {
-                    size = (unsigned)(roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
-                                              TARGET_POINTER_SIZE)) /
+                    size = roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
+                                   TARGET_POINTER_SIZE) /
                            TARGET_POINTER_SIZE;
                     eeGetSystemVAmd64PassStructInRegisterDescriptor(argx->gtArgPlace.gtArgPlaceClsHnd, &structDesc);
                     if (size > 1)
@@ -3529,8 +3503,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     else
                     {
                         // Structs are either passed in 1 or 2 (64-bit) slots
-                        size = (unsigned)(roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
-                                                  TARGET_POINTER_SIZE)) /
+                        size = roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
+                                       TARGET_POINTER_SIZE) /
                                TARGET_POINTER_SIZE;
 
                         if (size == 2)
@@ -3555,8 +3529,8 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 #elif defined(_TARGET_ARM_)
                 if (isStructArg)
                 {
-                    size = (unsigned)(roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
-                                              TARGET_POINTER_SIZE)) /
+                    size = roundUp(info.compCompHnd->getClassSize(argx->gtArgPlace.gtArgPlaceClsHnd),
+                                   TARGET_POINTER_SIZE) /
                            TARGET_POINTER_SIZE;
                     if (isHfaArg || size > 1)
                     {
@@ -3589,7 +3563,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                     if (varTypeIsStruct(argx))
                     {
                         size                 = info.compCompHnd->getClassSize(impGetRefAnyClass());
-                        unsigned roundupSize = (unsigned)roundUp(size, TARGET_POINTER_SIZE);
+                        unsigned roundupSize = roundUp(size, TARGET_POINTER_SIZE);
                         size                 = roundupSize / TARGET_POINTER_SIZE;
                         eeGetSystemVAmd64PassStructInRegisterDescriptor(impGetRefAnyClass(), &structDesc);
                     }
@@ -3630,7 +3604,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
                     unsigned originalSize = info.compCompHnd->getClassSize(objClass);
                     originalSize          = (originalSize == 0 ? TARGET_POINTER_SIZE : originalSize);
-                    unsigned roundupSize  = (unsigned)roundUp(originalSize, TARGET_POINTER_SIZE);
+                    unsigned roundupSize  = roundUp(originalSize, TARGET_POINTER_SIZE);
 
                     structSize = originalSize;
 
@@ -3970,7 +3944,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
                         // recompute the 'size' so that it represent the number of stack slots rather than the number of
                         // registers
                         //
-                        unsigned roundupSize = (unsigned)roundUp(structSize, TARGET_POINTER_SIZE);
+                        unsigned roundupSize = roundUp(structSize, TARGET_POINTER_SIZE);
                         size                 = roundupSize / TARGET_POINTER_SIZE;
 
                         // We also must update fltArgRegNum so that we no longer try to
@@ -4732,7 +4706,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     {
         assert(structSize <= MAX_ARG_REG_COUNT * TARGET_POINTER_SIZE);
         BYTE gcPtrs[MAX_ARG_REG_COUNT];
-        elemCount = (unsigned)roundUp(structSize, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
+        elemCount = roundUp(structSize, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
         info.compCompHnd->getClassGClayout(objClass, &gcPtrs[0]);
 
         for (unsigned inx = 0; inx < elemCount; inx++)
@@ -5914,13 +5888,6 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
 
         bndsChk = arrBndsChk;
 
-        // Make sure to increment ref-counts if already ref-counted.
-        if (lvaLocalVarRefCounted())
-        {
-            lvaRecursiveIncRefCounts(index);
-            lvaRecursiveIncRefCounts(arrRef);
-        }
-
         // Now we'll switch to using the second copies for arrRef and index
         // to compute the address expression
 
@@ -6986,7 +6953,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
     {
         printf("Expanding INLINE_CANDIDATE in statement ");
         printTreeID(fgMorphStmt);
-        printf(" in BB%02u:\n", compCurBB->bbNum);
+        printf(" in " FMT_BB ":\n", compCurBB->bbNum);
         gtDispTree(fgMorphStmt);
         if (call->IsImplicitTailCall())
         {
@@ -7011,7 +6978,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
         memset(lvaTable + startVars, 0, (lvaCount - startVars) * sizeof(*lvaTable));
         for (unsigned i = startVars; i < lvaCount; i++)
         {
-            new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
+            new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(); // call the constructor.
         }
 
         lvaCount = startVars;
@@ -12589,21 +12556,6 @@ DONE_MORPHING_CHILDREN:
 
                     DEBUG_DESTROY_NODE(asg->gtOp.gtOp1);
                     DEBUG_DESTROY_NODE(lcl);
-
-                    /* This local variable should never be used again */
-                    // <BUGNUM>
-                    // VSW 184221: Make RefCnt to zero to indicate that this local var
-                    // is not used any more. (Keey the lvType as is.)
-                    // Otherwise lvOnFrame will be set to true in Compiler::raMarkStkVars
-                    // And then emitter::emitEndCodeGen will assert in the following line:
-                    //        noway_assert( dsc->lvTracked);
-                    // </BUGNUM>
-                    noway_assert(varDsc->lvRefCnt() == 0 || // lvRefCnt may not have been set yet.
-                                 varDsc->lvRefCnt() == 2    // Or, we assume this tmp should only be used here,
-                                                            // and it only shows up twice.
-                                 );
-                    lvaTable[lclNum].setLvRefCnt(0);
-                    lvaTable[lclNum].lvaResetSortAgainFlag(this);
                 }
 
                 if (op1->OperIsCompare())
@@ -12612,9 +12564,9 @@ DONE_MORPHING_CHILDREN:
                     //
                     //                        EQ/NE           ->      RELOP/!RELOP
                     //                        /  \                       /    \
-                        //                     RELOP  CNS 0/1
+                    //                     RELOP  CNS 0/1
                     //                     /   \
-                        //
+                    //
                     // Note that we will remove/destroy the EQ/NE node and move
                     // the RELOP up into it's location.
 
@@ -13169,7 +13121,7 @@ DONE_MORPHING_CHILDREN:
                         // The type of the new GT_NEG node cannot just be op1->TypeGet().
                         // Otherwise we may sign-extend incorrectly in cases where the GT_NEG
                         // node ends up feeding directly a cast, for example in
-                        // GT_CAST<ubyte>(GT_MUL(-1, s_1.ubyte)
+                        // GT_CAST<ubyte>(GT_MUL(-1, s_1.ubyte))
                         tree->gtOp.gtOp1 = op1 = gtNewOperNode(GT_NEG, genActualType(op1->TypeGet()), op1);
                         fgMorphTreeDone(op1);
                     }
@@ -13743,7 +13695,7 @@ DONE_MORPHING_CHILDREN:
         case GT_COMMA:
 
             /* Special case: trees that don't produce a value */
-            if (op2->OperIsAssignment() || (op2->OperGet() == GT_COMMA && op2->TypeGet() == TYP_VOID) || fgIsThrow(op2))
+            if (op2->OperIs(GT_ASG) || (op2->OperGet() == GT_COMMA && op2->TypeGet() == TYP_VOID) || fgIsThrow(op2))
             {
                 typ = tree->gtType = TYP_VOID;
             }
@@ -13768,11 +13720,6 @@ DONE_MORPHING_CHILDREN:
                 }
                 else
                 {
-                    /* The left operand is worthless, throw it away */
-                    if (lvaLocalVarRefCounted())
-                    {
-                        lvaRecursiveDecRefCounts(op1);
-                    }
                     op2->gtFlags |= (tree->gtFlags & (GTF_DONT_CSE | GTF_LATE_ARG));
                     DEBUG_DESTROY_NODE(tree);
                     DEBUG_DESTROY_NODE(op1);
@@ -13921,7 +13868,7 @@ DONE_MORPHING_CHILDREN:
             if ((op1->gtFlags & GTF_ALL_EFFECT) == 0)
             {
                 // If tree is an asg node
-                if (tree->OperIsAssignment())
+                if (tree->OperIs(GT_ASG))
                 {
                     /* Return the throw node as the new tree */
                     return op2->gtOp.gtOp1;
@@ -14341,20 +14288,10 @@ GenTree* Compiler::fgMorphModToSubMulDiv(GenTreeOp* tree)
     {
         numerator = fgMakeMultiUse(&tree->gtOp1);
     }
-    else if (lvaLocalVarRefCounted() && numerator->OperIsLocal())
-    {
-        // Morphing introduces new lclVar references. Increase ref counts
-        lvaIncRefCnts(numerator);
-    }
 
     if (!denominator->OperIsLeaf())
     {
         denominator = fgMakeMultiUse(&tree->gtOp2);
-    }
-    else if (lvaLocalVarRefCounted() && denominator->OperIsLocal())
-    {
-        // Morphing introduces new lclVar references. Increase ref counts
-        lvaIncRefCnts(denominator);
     }
 
     // The numerator and denominator may have been assigned to temps, in which case
@@ -15341,8 +15278,8 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nConditional folded at BB%02u\n", block->bbNum);
-                printf("BB%02u becomes a BBJ_THROW\n", block->bbNum);
+                printf("\nConditional folded at " FMT_BB "\n", block->bbNum);
+                printf(FMT_BB " becomes a BBJ_THROW\n", block->bbNum);
             }
 #endif
             goto DONE_COND;
@@ -15477,12 +15414,12 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nConditional folded at BB%02u\n", block->bbNum);
-                printf("BB%02u becomes a %s", block->bbNum,
+                printf("\nConditional folded at " FMT_BB "\n", block->bbNum);
+                printf(FMT_BB " becomes a %s", block->bbNum,
                        block->bbJumpKind == BBJ_ALWAYS ? "BBJ_ALWAYS" : "BBJ_NONE");
                 if (block->bbJumpKind == BBJ_ALWAYS)
                 {
-                    printf(" to BB%02u", block->bbJumpDest->bbNum);
+                    printf(" to " FMT_BB, block->bbJumpDest->bbNum);
                 }
                 printf("\n");
             }
@@ -15514,7 +15451,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 #ifdef DEBUG
                         if (verbose)
                         {
-                            printf("Removing loop L%02u (from BB%02u to BB%02u)\n\n", loopNum,
+                            printf("Removing loop L%02u (from " FMT_BB " to " FMT_BB ")\n\n", loopNum,
                                    optLoopTable[loopNum].lpFirst->bbNum, optLoopTable[loopNum].lpBottom->bbNum);
                         }
 #endif
@@ -15556,8 +15493,8 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nConditional folded at BB%02u\n", block->bbNum);
-                printf("BB%02u becomes a BBJ_THROW\n", block->bbNum);
+                printf("\nConditional folded at " FMT_BB "\n", block->bbNum);
+                printf(FMT_BB " becomes a BBJ_THROW\n", block->bbNum);
             }
 #endif
             goto DONE_SWITCH;
@@ -15634,12 +15571,12 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 #ifdef DEBUG
             if (verbose)
             {
-                printf("\nConditional folded at BB%02u\n", block->bbNum);
-                printf("BB%02u becomes a %s", block->bbNum,
+                printf("\nConditional folded at " FMT_BB "\n", block->bbNum);
+                printf(FMT_BB " becomes a %s", block->bbNum,
                        block->bbJumpKind == BBJ_ALWAYS ? "BBJ_ALWAYS" : "BBJ_NONE");
                 if (block->bbJumpKind == BBJ_ALWAYS)
                 {
-                    printf(" to BB%02u", block->bbJumpDest->bbNum);
+                    printf(" to " FMT_BB, block->bbJumpDest->bbNum);
                 }
                 printf("\n");
             }
@@ -15711,12 +15648,6 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
 
     stmt->gtStmtExpr = morph;
 
-    if (lvaLocalVarRefCounted())
-    {
-        // fgMorphTree may have introduced new lclVar references. Bump the ref counts if requested.
-        lvaRecursiveIncRefCounts(stmt->gtStmtExpr);
-    }
-
     // Can the entire tree be removed?
     bool removedStmt = false;
 
@@ -15780,7 +15711,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\n%s Block BB%02u becomes a throw block.\n", msg, block->bbNum);
+            printf("\n%s Block " FMT_BB " becomes a throw block.\n", msg, block->bbNum);
         }
 #endif
         fgRemoveRestOfBlock = false;
@@ -15841,7 +15772,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
         if (verbose)
         {
-            printf("\nfgMorphTree BB%02u, stmt %d (before)\n", block->bbNum, compCurStmtNum);
+            printf("\nfgMorphTree " FMT_BB ", stmt %d (before)\n", block->bbNum, compCurStmtNum);
             gtDispTree(tree);
         }
 #endif
@@ -15928,7 +15859,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             unsigned newHash = gtHashValue(morph);
             if (newHash != oldHash)
             {
-                printf("\nfgMorphTree BB%02u, stmt %d (after)\n", block->bbNum, compCurStmtNum);
+                printf("\nfgMorphTree " FMT_BB ", stmt %d (after)\n", block->bbNum, compCurStmtNum);
                 gtDispTree(morph);
             }
         }
@@ -16086,7 +16017,7 @@ void Compiler::fgMorphBlocks()
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\nMorphing BB%02u of '%s'\n", block->bbNum, info.compFullName);
+            printf("\nMorphing " FMT_BB " of '%s'\n", block->bbNum, info.compFullName);
         }
 #endif
 
@@ -16190,7 +16121,7 @@ void Compiler::fgMorphBlocks()
 #ifdef DEBUG
                     if (verbose)
                     {
-                        printf("morph BB%02u to point at onereturn.  New block is\n", block->bbNum);
+                        printf("morph " FMT_BB " to point at onereturn.  New block is\n", block->bbNum);
                         fgTableDispBasicBlock(block);
                     }
 #endif
@@ -16584,7 +16515,7 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nExpanding CastInstOf qmark in BB%02u (before)\n", block->bbNum);
+        printf("\nExpanding CastInstOf qmark in " FMT_BB " (before)\n", block->bbNum);
         fgDispBasicBlocks(block, block, true);
     }
 #endif // DEBUG
@@ -16715,7 +16646,7 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTree* stmt)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nExpanding CastInstOf qmark in BB%02u (after)\n", block->bbNum);
+        printf("\nExpanding CastInstOf qmark in " FMT_BB " (after)\n", block->bbNum);
         fgDispBasicBlocks(block, remainderBlock, true);
     }
 #endif // DEBUG
@@ -16792,7 +16723,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nExpanding top-level qmark in BB%02u (before)\n", block->bbNum);
+        printf("\nExpanding top-level qmark in " FMT_BB " (before)\n", block->bbNum);
         fgDispBasicBlocks(block, block, true);
     }
 #endif // DEBUG
@@ -16949,7 +16880,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTree* stmt)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nExpanding top-level qmark in BB%02u (after)\n", block->bbNum);
+        printf("\nExpanding top-level qmark in " FMT_BB " (after)\n", block->bbNum);
         fgDispBasicBlocks(block, remainderBlock, true);
     }
 #endif // DEBUG
@@ -17794,7 +17725,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
 
             // Since this previously was a TYP_STRUCT and we have changed it to a TYP_BYREF
             // make sure that the following flag is not set as these will force SSA to
-            // exclude tracking/enregistering these LclVars. (see fgExcludeFromSsa)
+            // exclude tracking/enregistering these LclVars. (see SsaBuilder::IncludeInSsa)
             //
             varDsc->lvOverlappingFields = 0; // This flag could have been set, clear it.
 
@@ -18712,7 +18643,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
     if (verbose)
     {
         printf("\nFound contiguous assignments from a SIMD vector to memory.\n");
-        printf("From BB%02u, stmt", block->bbNum);
+        printf("From " FMT_BB ", stmt", block->bbNum);
         printTreeID(stmt);
         printf(" to stmt");
         printTreeID(lastStmt);
@@ -18755,7 +18686,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nBB%02u stmt", block->bbNum);
+        printf("\n" FMT_BB " stmt", block->bbNum);
         printTreeID(stmt);
         printf("(before)\n");
         gtDispTree(stmt);
@@ -18780,7 +18711,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTree* st
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nReplaced BB%02u stmt", block->bbNum);
+        printf("\nReplaced " FMT_BB " stmt", block->bbNum);
         printTreeID(stmt);
         printf("(after)\n");
         gtDispTree(stmt);

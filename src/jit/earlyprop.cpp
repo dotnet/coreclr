@@ -273,7 +273,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         return nullptr;
     }
 
-    if (!objectRefPtr->OperIsScalarLocal() || fgExcludeFromSsa(objectRefPtr->AsLclVarCommon()->GetLclNum()))
+    if (!objectRefPtr->OperIsScalarLocal() || !lvaInSsa(objectRefPtr->AsLclVarCommon()->GetLclNum()))
 
     {
         return nullptr;
@@ -335,7 +335,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("optEarlyProp Rewriting BB%02u\n", compCurBB->bbNum);
+            printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
             gtDispTree(compCurStmt);
             printf("\n");
         }
@@ -361,10 +361,8 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             actualValClone->LabelIndex(this);
         }
 
-        DecLclVarRefCountsVisitor::WalkTree(this, tree);
         // actualValClone has small tree node size, it is safe to use CopyFrom here.
         tree->ReplaceWith(actualValClone, this);
-        IncLclVarRefCountsVisitor::WalkTree(this, tree);
 
 #ifdef DEBUG
         if (verbose)
@@ -444,7 +442,7 @@ GenTree* Compiler::optPropGetValueRec(unsigned lclNum, unsigned ssaNum, optPropK
             assert(treelhs == treeDefParent->gtGetOp1());
             GenTree* treeRhs = treeDefParent->gtGetOp2();
 
-            if (treeRhs->OperIsScalarLocal() && !fgExcludeFromSsa(treeRhs->AsLclVarCommon()->GetLclNum()))
+            if (treeRhs->OperIsScalarLocal() && lvaInSsa(treeRhs->AsLclVarCommon()->GetLclNum()))
             {
                 // Recursively track the Rhs
                 unsigned rhsLclNum = treeRhs->AsLclVarCommon()->GetLclNum();

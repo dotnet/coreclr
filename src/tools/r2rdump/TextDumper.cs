@@ -26,6 +26,7 @@ namespace R2RDump
         internal override void Begin()
         {
             _writer.WriteLine($"Filename: {_r2r.Filename}");
+            _writer.WriteLine($"OS: {_r2r.OS}");
             _writer.WriteLine($"Machine: {_r2r.Machine}");
             _writer.WriteLine($"ImageBase: 0x{_r2r.ImageBase:X8}");
             SkipLine();
@@ -120,7 +121,7 @@ namespace R2RDump
             WriteSubDivider();
             _writer.WriteLine(method.ToString());
 
-            if (_gc)
+            if (_gc && method.GcInfo != null)
             {
                 _writer.WriteLine("GcInfo:");
                 _writer.Write(method.GcInfo);
@@ -180,7 +181,20 @@ namespace R2RDump
                 string instr;
                 int instrSize = _disassembler.GetInstruction(rtf, imageOffset, rtfOffset, out instr);
 
-                _writer.Write(instr);
+                if (_r2r.Machine == Machine.Amd64 && ((Amd64.UnwindInfo)rtf.UnwindInfo).UnwindCodes.ContainsKey(codeOffset))
+                {
+                    List<Amd64.UnwindCode> codes = ((Amd64.UnwindInfo)rtf.UnwindInfo).UnwindCodes[codeOffset];
+                    foreach (Amd64.UnwindCode code in codes)
+                    {
+                        _writer.Write($"\t\t\t\t{code.UnwindOp} {code.OpInfoStr}");
+                        if (code.NextFrameOffset != -1)
+                        {
+                            _writer.WriteLine($" - {code.NextFrameOffset}");
+                        }
+                        _writer.WriteLine();
+                    }
+                }
+
                 if (rtf.Method.GcInfo != null && rtf.Method.GcInfo.Transitions.ContainsKey(codeOffset))
                 {
                     foreach (BaseGcTransition transition in rtf.Method.GcInfo.Transitions[codeOffset])
@@ -188,6 +202,11 @@ namespace R2RDump
                         _writer.WriteLine($"\t\t\t\t{transition.ToString()}");
                     }
                 }
+
+                /* According to https://msdn.microsoft.com/en-us/library/ck9asaa9.aspx and src/vm/gcinfodecoder.cpp
+                 * UnwindCode and GcTransition CodeOffsets are encoded with a -1 adjustment (that is, it's the offset of the start of the next instruction)
+                 */
+                _writer.Write(instr);
 
                 CoreDisTools.ClearOutputBuffer();
                 rtfOffset += instrSize;
@@ -296,7 +315,7 @@ namespace R2RDump
                                 _writer.WriteLine("Signature Bytes:");
                                 DumpBytes(importSection.SignatureRVA, (uint)importSection.Entries.Count * sizeof(int));
                             }
-                            if (importSection.AuxiliaryDataRVA != 0)
+                            if (importSection.AuxiliaryDataRVA != 0 && importSection.AuxiliaryData != null)
                             {
                                 _writer.WriteLine("AuxiliaryData Bytes:");
                                 DumpBytes(importSection.AuxiliaryDataRVA, (uint)importSection.AuxiliaryData.Size);

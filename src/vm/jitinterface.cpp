@@ -9982,30 +9982,16 @@ void* CEEInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method,
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-    void* result = NULL;
+    // Not expected to work due to multicore and tiered JIT potentially needing
+    // to call managed cctors
+    _ASSERTE(FALSE);
 
     if (ppIndirection != NULL)
+    {
         *ppIndirection = NULL;
-
-#ifndef CROSSGEN_COMPILE
-    JIT_TO_EE_TRANSITION();
-
-    MethodDesc* ftn = GetMethod(method);
-    _ASSERTE(ftn->IsNDirect());
-    NDirectMethodDesc *pMD = (NDirectMethodDesc*)ftn;
-
-    if (pMD->NDirectTargetIsImportThunk())
-    {
-    }
-    else
-    {
-        result = pMD->GetNDirectTarget();
     }
 
-    EE_TO_JIT_TRANSITION();
-#endif // CROSSGEN_COMPILE
-
-    return result;
+    return NULL;
 }
 
 /*********************************************************************/
@@ -11731,14 +11717,13 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
 
     _ASSERTE(!pMT->ContainsGenericVariables());
 
-    // We must not call here for statics of collectible types.
-    _ASSERTE(!pMT->Collectible());
-
     void *base = NULL;
 
     if (!field->IsRVA())
     {
         // <REVISIT_TODO>@todo: assert that the current method being compiled is unshared</REVISIT_TODO>
+        // We must not call here for statics of collectible types.
+        _ASSERTE(!pMT->Collectible());
 
         // Allocate space for the local class if necessary, but don't trigger
         // class construction.
@@ -13760,7 +13745,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     JIT_TO_EE_TRANSITION();
 
-    Stub* pStub = CPUSTUBLINKER::CreateTailCallCopyArgsThunk(pSig, flags);
+    Stub* pStub = CPUSTUBLINKER::CreateTailCallCopyArgsThunk(pSig, m_pMethodBeingCompiled, flags);
         
     ftn = (void*)pStub->GetEntryPoint();
 

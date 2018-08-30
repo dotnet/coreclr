@@ -687,20 +687,14 @@ T ValueNumStore::EvalOpIntegral(VNFunc vnf, T v0, T v1, ValueNum* pExcSet)
     }
 }
 
+// Create a ValueNum for an exception set singleton for 'x'
+//
 ValueNum ValueNumStore::VNExcSetSingleton(ValueNum x)
 {
-    ValueNum res = VNForFunc(TYP_REF, VNF_ExcSetCons, x, VNForEmptyExcSet());
-#ifdef DEBUG
-    if (m_pComp->verbose)
-    {
-        printf("    " STR_VN "%x = singleton exc set", res);
-        vnDump(m_pComp, x);
-        printf("\n");
-    }
-#endif
-    return res;
+    return VNForFunc(TYP_REF, VNF_ExcSetCons, x, VNForEmptyExcSet());
 }
-
+// Create a ValueNumPair for an exception set singleton for 'xp'
+//
 ValueNumPair ValueNumStore::VNPExcSetSingleton(ValueNumPair xp)
 {
     return ValueNumPair(VNExcSetSingleton(xp.GetLiberal()), VNExcSetSingleton(xp.GetConservative()));
@@ -773,6 +767,23 @@ void ValueNumStore::VNPUnpackExc(ValueNumPair vnWx, ValueNumPair* pvn, ValueNumP
     VNUnpackExc(vnWx.GetConservative(), pvn->GetConservativeAddr(), pvnx->GetConservativeAddr());
 }
 
+//--------------------------------------------------------------------------------
+// VNNormVal:    - Returns a Value Number that represents the result for the
+//                 normal (non-exceptional) evaluation for the expression.
+//
+// Arguments:
+//    vn         - The Value Number for the expression, including any  excSet.
+//                 This excSet is an optional item and represents the set of
+//                 possible exceptions for the expression.
+//
+// Return Value:
+//               - The Value Number for the expression without the exception set.
+//                 This can be the orginal 'vn', when there are no exceptions.
+//
+// Notes:        - Whenever we have an exception set the Value Number will be
+//                 a VN func with VNF_ValWithExc.
+//                 This VN func has the normal value as m_args[0]
+//
 ValueNum ValueNumStore::VNNormVal(ValueNum vn)
 {
     VNFuncApp funcApp;
@@ -786,11 +797,37 @@ ValueNum ValueNumStore::VNNormVal(ValueNum vn)
     }
 }
 
+//--------------------------------------------------------------------------------
+// VNPNormVal:   - Returns a Value Number Pair that represents the result for the
+//                 normal (non-exceptional) evaluation for the expression.
+//                 (see VNNormVal for more details)
+//
+// Notes:        = This method is used to form a Value Number Pair when we
+//                 want both the Liberal and Conservative Value NUmbers
+//
 ValueNumPair ValueNumStore::VNPNormVal(ValueNumPair vnp)
 {
     return ValueNumPair(VNNormVal(vnp.GetLiberal()), VNNormVal(vnp.GetConservative()));
 }
 
+//---------------------------------------------------------------------------
+// VNExcVal:     - Returns a Value Number that represents the set of possible
+//                 exceptions that could be encountered for the expression.
+//
+// Arguments:
+//    vn         - The Value Number for the expression, including any excSet.
+//                 This excSet is an optional item and represents the set of
+//                 possible exceptions for the expression.
+//
+// Return Value:
+//               - The Value Number for the set of exceptions of the expression.
+//                 If the 'vn' has no exception set then a special Value Number
+//                 representing the empty exception set is returned.
+//
+// Notes:        - Whenever we have an exception set the Value Number will be
+//                 a VN func with VNF_ValWithExc.
+//                 This VN func has the exception set as m_args[1]
+//
 ValueNum ValueNumStore::VNExcVal(ValueNum vn)
 {
     VNFuncApp funcApp;
@@ -804,13 +841,37 @@ ValueNum ValueNumStore::VNExcVal(ValueNum vn)
     }
 }
 
+//--------------------------------------------------------------------------------
+// VNPExcVal:    - Returns a Value Number Pair that represents the set of possible
+//                 exceptions that could be encountered for the expression.
+//                 (see VNExcVal for more details)
+//
+// Notes:        = This method is used to form a Value Number Pair when we
+//                 want both the Liberal and Conservative Value NUmbers
+//
 ValueNumPair ValueNumStore::VNPExcVal(ValueNumPair vnp)
 {
     return ValueNumPair(VNExcVal(vnp.GetLiberal()), VNExcVal(vnp.GetConservative()));
 }
 
-// If vn "excSet" is not "VNForEmptyExcSet()", return "VNF_ValWithExc(vn, excSet)".  Otherwise,
-// just return "vn".
+//---------------------------------------------------------------------------
+// VNWithExc:    - Returns a Value Number that also can have both a normal value
+//                 as well as am exception set.
+//
+// Arguments:
+//    vn         - The current Value Number for the expression, it may include
+//                 an exception set.
+//    excSet     - The Value Number representing the new exception set that
+//                 is to be added to any exceptions already present in 'vn'
+//
+// Return Value:
+//               - The new Value Number for the combination the two inputs.
+//                 If the 'excSet' is the special Value Number representing
+//                 the empty exception set then 'vn' is returned.
+//
+// Notes:        - We use a Set Union operation, 'VNExcSetUnion', to add any
+//                 new exception items from  'excSet' to the existing set.
+//
 ValueNum ValueNumStore::VNWithExc(ValueNum vn, ValueNum excSet)
 {
     if (excSet == VNForEmptyExcSet())
@@ -826,6 +887,14 @@ ValueNum ValueNumStore::VNWithExc(ValueNum vn, ValueNum excSet)
     }
 }
 
+//--------------------------------------------------------------------------------
+// VNPWithExc:   - Returns a Value Number Pair that also can have both a normal value
+//                 as well as am exception set.
+//                 (see VNWithExc for more details)
+//
+// Notes:        = This method is used to form a Value Number Pair when we
+//                 want both the Liberal and Conservative Value NUmbers
+//
 ValueNumPair ValueNumStore::VNPWithExc(ValueNumPair vnp, ValueNumPair excSetVNP)
 {
     return ValueNumPair(VNWithExc(vnp.GetLiberal(), excSetVNP.GetLiberal()),
@@ -1062,8 +1131,8 @@ ValueNum ValueNumStore::VNForCastOper(var_types castToType, bool srcIsUnsigned /
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("    VNForCastOper(%s%s) is " STR_VN "%x\n", varTypeName(castToType),
-               srcIsUnsigned ? ", unsignedSrc" : "", result);
+        printf("    VNForCastOper(%s%s) is " FMT_VN "\n", varTypeName(castToType), srcIsUnsigned ? ", unsignedSrc" : "",
+               result);
     }
 #endif
 
@@ -1527,7 +1596,7 @@ ValueNum ValueNumStore::VNForMapStore(var_types typ, ValueNum arg0VN, ValueNum a
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("    VNForMapStore(" STR_VN "%x, " STR_VN "%x, " STR_VN "%x):%s returns ", arg0VN, arg1VN, arg2VN,
+        printf("    VNForMapStore(" FMT_VN ", " FMT_VN ", " FMT_VN "):%s returns ", arg0VN, arg1VN, arg2VN,
                varTypeName(typ));
         m_pComp->vnPrint(result, 1);
         printf("\n");
@@ -1566,7 +1635,7 @@ ValueNum ValueNumStore::VNForMapSelect(ValueNumKind vnk, var_types typ, ValueNum
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("    VNForMapSelect(" STR_VN "%x, " STR_VN "%x):%s returns ", arg0VN, arg1VN, varTypeName(typ));
+        printf("    VNForMapSelect(" FMT_VN ", " FMT_VN "):%s returns ", arg0VN, arg1VN, varTypeName(typ));
         m_pComp->vnPrint(result, 1);
         printf("\n");
     }
@@ -1659,8 +1728,8 @@ TailCall:
                 if (funcApp.m_args[1] == arg1VN)
                 {
 #if FEATURE_VN_TRACE_APPLY_SELECTORS
-                    JITDUMP("      AX1: select([" STR_VN "%x]store(" STR_VN "%x, " STR_VN "%x, " STR_VN "%x), " STR_VN
-                            "%x) ==> " STR_VN "%x.\n",
+                    JITDUMP("      AX1: select([" FMT_VN "]store(" FMT_VN ", " FMT_VN ", " FMT_VN "), " FMT_VN
+                            ") ==> " FMT_VN ".\n",
                             funcApp.m_args[0], arg0VN, funcApp.m_args[1], funcApp.m_args[2], arg1VN, funcApp.m_args[2]);
 #endif
                     return funcApp.m_args[2];
@@ -1671,8 +1740,8 @@ TailCall:
                 {
                     assert(funcApp.m_args[1] != arg1VN); // we already checked this above.
 #if FEATURE_VN_TRACE_APPLY_SELECTORS
-                    JITDUMP("      AX2: " STR_VN "%x != " STR_VN "%x ==> select([" STR_VN "%x]store(" STR_VN
-                            "%x, " STR_VN "%x, " STR_VN "%x), " STR_VN "%x) ==> select(" STR_VN "%x, " STR_VN "%x).\n",
+                    JITDUMP("      AX2: " FMT_VN " != " FMT_VN " ==> select([" FMT_VN "]store(" FMT_VN ", " FMT_VN
+                            ", " FMT_VN "), " FMT_VN ") ==> select(" FMT_VN ", " FMT_VN ").\n",
                             arg1VN, funcApp.m_args[1], arg0VN, funcApp.m_args[0], funcApp.m_args[1], funcApp.m_args[2],
                             arg1VN, funcApp.m_args[0], arg1VN);
 #endif
@@ -2718,7 +2787,7 @@ ValueNum ValueNumStore::VNApplySelectors(ValueNumKind  vnk,
             printf("  VNApplySelectors:\n");
             const char* modName;
             const char* fldName = m_pComp->eeGetFieldName(fldHnd, &modName);
-            printf("    VNForHandle(Fseq[%s]) is " STR_VN "%x, fieldType is %s", fldName, fldHndVN,
+            printf("    VNForHandle(Fseq[%s]) is " FMT_VN ", fieldType is %s", fldName, fldHndVN,
                    varTypeName(fieldType));
             if (varTypeIsStruct(fieldType))
             {
@@ -2867,23 +2936,6 @@ ValueNum ValueNumStore::VNApplySelectorsAssign(
         var_types   fieldType = JITtype2varType(fieldCit);
 
         ValueNum fieldHndVN = VNForHandle(ssize_t(fldHnd), GTF_ICON_FIELD_HDL);
-
-#ifdef DEBUG
-        if (m_pComp->verbose)
-        {
-            printf("  fieldHnd " STR_VN "%x is ", fieldHndVN);
-            vnDump(m_pComp, fieldHndVN);
-            printf("\n");
-
-            ValueNum seqNextVN  = VNForFieldSeq(fieldSeq->m_next);
-            ValueNum fieldSeqVN = VNForFunc(TYP_REF, VNF_FieldSeq, fieldHndVN, seqNextVN);
-
-            printf("  fieldSeq " STR_VN "%x is ", fieldSeqVN);
-            vnDump(m_pComp, fieldSeqVN);
-            printf("\n");
-        }
-#endif
-
         ValueNum elemAfter;
         if (fieldSeq->m_next)
         {
@@ -2942,11 +2994,11 @@ ValueNum ValueNumStore::VNForFieldSeq(FieldSeqNode* fieldSeq)
 #ifdef DEBUG
         if (m_pComp->verbose)
         {
-            printf("  fieldHnd " STR_VN "%x is ", fieldHndVN);
+            printf("  fieldHnd " FMT_VN " is ", fieldHndVN);
             vnDump(m_pComp, fieldHndVN);
             printf("\n");
 
-            printf("  fieldSeq " STR_VN "%x is ", fieldSeqVN);
+            printf("  fieldSeq " FMT_VN " is ", fieldSeqVN);
             vnDump(m_pComp, fieldSeqVN);
             printf("\n");
         }
@@ -3004,7 +3056,7 @@ ValueNum ValueNumStore::FieldSeqVNAppend(ValueNum fsVN1, ValueNum fsVN2)
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("  fieldSeq " STR_VN "%x is ", fieldSeqVN);
+        printf("  fieldSeq " FMT_VN " is ", fieldSeqVN);
         vnDump(m_pComp, fieldSeqVN);
         printf("\n");
     }
@@ -3140,7 +3192,7 @@ ValueNum Compiler::fgValueNumberArrIndexAssign(CORINFO_CLASS_HANDLE elemTypeEq,
 #ifdef DEBUG
     if (verbose)
     {
-        printf("  hAtArrType " STR_VN "%x is MapSelect(curGcHeap(" STR_VN "%x), ", hAtArrType, fgCurMemoryVN[GcHeap]);
+        printf("  hAtArrType " FMT_VN " is MapSelect(curGcHeap(" FMT_VN "), ", hAtArrType, fgCurMemoryVN[GcHeap]);
 
         if (arrElemType == TYP_STRUCT)
         {
@@ -3150,27 +3202,25 @@ ValueNum Compiler::fgValueNumberArrIndexAssign(CORINFO_CLASS_HANDLE elemTypeEq,
         {
             printf("%s[]).\n", varTypeName(arrElemType));
         }
-        printf("  hAtArrTypeAtArr " STR_VN "%x is MapSelect(hAtArrType(" STR_VN "%x), arr=" STR_VN "%x)\n",
-               hAtArrTypeAtArr, hAtArrType, arrVN);
-        printf("  hAtArrTypeAtArrAtInx " STR_VN "%x is MapSelect(hAtArrTypeAtArr(" STR_VN "%x), inx=" STR_VN "%x):%s\n",
+        printf("  hAtArrTypeAtArr " FMT_VN " is MapSelect(hAtArrType(" FMT_VN "), arr=" FMT_VN ")\n", hAtArrTypeAtArr,
+               hAtArrType, arrVN);
+        printf("  hAtArrTypeAtArrAtInx " FMT_VN " is MapSelect(hAtArrTypeAtArr(" FMT_VN "), inx=" FMT_VN "):%s\n",
                hAtArrTypeAtArrAtInx, hAtArrTypeAtArr, inxVN, varTypeName(arrElemType));
 
         if (!invalidateArray)
         {
-            printf("  newValAtInd " STR_VN "%x is ", newValAtInx);
+            printf("  newValAtInd " FMT_VN " is ", newValAtInx);
             vnStore->vnDump(this, newValAtInx);
             printf("\n");
 
-            printf("  newValAtArr " STR_VN "%x is ", newValAtArr);
+            printf("  newValAtArr " FMT_VN " is ", newValAtArr);
             vnStore->vnDump(this, newValAtArr);
             printf("\n");
         }
 
-        printf("  newValAtArrType " STR_VN "%x is ", newValAtArrType);
+        printf("  newValAtArrType " FMT_VN " is ", newValAtArrType);
         vnStore->vnDump(this, newValAtArrType);
         printf("\n");
-
-        printf("  fgCurMemoryVN assigned:\n");
     }
 #endif // DEBUG
 
@@ -3215,7 +3265,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTree*             tree,
 #ifdef DEBUG
         if (verbose)
         {
-            printf("  IND of PtrToArrElem is unique VN " STR_VN "%x.\n", selectedElem);
+            printf("  IND of PtrToArrElem is unique VN " FMT_VN ".\n", selectedElem);
         }
 #endif // DEBUG
 
@@ -3234,8 +3284,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTree*             tree,
 #ifdef DEBUG
         if (verbose)
         {
-            printf("  hAtArrType " STR_VN "%x is MapSelect(curGcHeap(" STR_VN "%x), ", hAtArrType,
-                   fgCurMemoryVN[GcHeap]);
+            printf("  hAtArrType " FMT_VN " is MapSelect(curGcHeap(" FMT_VN "), ", hAtArrType, fgCurMemoryVN[GcHeap]);
             if (elemTyp == TYP_STRUCT)
             {
                 printf("%s[]).\n", eeGetClassName(elemTypeEq));
@@ -3245,11 +3294,11 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTree*             tree,
                 printf("%s[]).\n", varTypeName(elemTyp));
             }
 
-            printf("  hAtArrTypeAtArr " STR_VN "%x is MapSelect(hAtArrType(" STR_VN "%x), arr=" STR_VN "%x).\n",
+            printf("  hAtArrTypeAtArr " FMT_VN " is MapSelect(hAtArrType(" FMT_VN "), arr=" FMT_VN ").\n",
                    hAtArrTypeAtArr, hAtArrType, arrVN);
 
-            printf("  wholeElem " STR_VN "%x is MapSelect(hAtArrTypeAtArr(" STR_VN "%x), ind=" STR_VN "%x).\n",
-                   wholeElem, hAtArrTypeAtArr, inxVN);
+            printf("  wholeElem " FMT_VN " is MapSelect(hAtArrTypeAtArr(" FMT_VN "), ind=" FMT_VN ").\n", wholeElem,
+                   hAtArrTypeAtArr, inxVN);
         }
 #endif // DEBUG
 
@@ -3266,7 +3315,7 @@ ValueNum Compiler::fgValueNumberArrIndexVal(GenTree*             tree,
 #ifdef DEBUG
         if (verbose && (selectedElem != wholeElem))
         {
-            printf("  selectedElem is " STR_VN "%x after applying selectors.\n", selectedElem);
+            printf("  selectedElem is " FMT_VN " after applying selectors.\n", selectedElem);
         }
 #endif // DEBUG
 
@@ -4198,6 +4247,9 @@ void ValueNumStore::vnDump(Compiler* comp, ValueNum vn, bool isPtr)
             case VNF_MapStore:
                 vnDumpMapStore(comp, &funcApp);
                 break;
+            case VNF_ValWithExc:
+                vnDumpValWithExc(comp, &funcApp);
+                break;
             default:
                 printf("%s(", VNFuncName(funcApp.m_func));
                 for (unsigned i = 0; i < funcApp.m_arity; i++)
@@ -4207,7 +4259,7 @@ void ValueNumStore::vnDump(Compiler* comp, ValueNum vn, bool isPtr)
                         printf(", ");
                     }
 
-                    printf(STR_VN "%x", funcApp.m_args[i]);
+                    printf(FMT_VN, funcApp.m_args[i]);
 
 #if FEATURE_VN_DUMP_FUNC_ARGS
                     printf("=");
@@ -4223,6 +4275,58 @@ void ValueNumStore::vnDump(Compiler* comp, ValueNum vn, bool isPtr)
         printf("%x", vn);
     }
     printf("}");
+}
+
+// Requires "valWithExc" to be a value with an exeception set VNFuncApp.
+// Prints a representation of the exeception set on standard out.
+void ValueNumStore::vnDumpValWithExc(Compiler* comp, VNFuncApp* valWithExc)
+{
+    assert(valWithExc->m_func == VNF_ValWithExc); // Precondition.
+
+    ValueNum normVN = valWithExc->m_args[0]; // First arg is the VN from normal execution
+    ValueNum excVN  = valWithExc->m_args[1]; // Second arg is the set of possible exceptions
+
+    assert(IsVNFunc(excVN));
+    VNFuncApp excSeq;
+    GetVNFunc(excVN, &excSeq);
+
+    printf("norm=");
+    printf(FMT_VN, normVN);
+    vnDump(comp, normVN);
+    printf(", exc=");
+    printf(FMT_VN, excVN);
+    vnDumpExcSeq(comp, &excSeq, true);
+}
+
+// Requires "excSeq" to be a ExcSetCons sequence.
+// Prints a representation of the set of exceptions on standard out.
+void ValueNumStore::vnDumpExcSeq(Compiler* comp, VNFuncApp* excSeq, bool isHead)
+{
+    assert(excSeq->m_func == VNF_ExcSetCons); // Precondition.
+
+    ValueNum curExc  = excSeq->m_args[0];
+    bool     hasTail = (excSeq->m_args[1] != VNForEmptyExcSet());
+
+    if (isHead && hasTail)
+    {
+        printf("(");
+    }
+
+    vnDump(comp, curExc);
+
+    if (hasTail)
+    {
+        printf(", ");
+        assert(IsVNFunc(excSeq->m_args[1]));
+        VNFuncApp tail;
+        GetVNFunc(excSeq->m_args[1], &tail);
+        vnDumpExcSeq(comp, &tail, false);
+    }
+
+    if (isHead && hasTail)
+    {
+        printf(")");
+    }
 }
 
 void ValueNumStore::vnDumpFieldSeq(Compiler* comp, VNFuncApp* fieldSeq, bool isHead)
@@ -4633,7 +4737,7 @@ struct ValueNumberState
     void FinishVisit(BasicBlock* blk)
     {
 #ifdef DEBUG_VN_VISIT
-        JITDUMP("finish(BB%02u).\n", blk->bbNum);
+        JITDUMP("finish(" FMT_BB ").\n", blk->bbNum);
 #endif // DEBUG_VN_VISIT
 
         SetVisitBit(blk->bbNum, BVB_complete);
@@ -4641,7 +4745,7 @@ struct ValueNumberState
         for (BasicBlock* succ : blk->GetAllSuccs(m_comp))
         {
 #ifdef DEBUG_VN_VISIT
-            JITDUMP("   Succ(BB%02u).\n", succ->bbNum);
+            JITDUMP("   Succ(" FMT_BB ").\n", succ->bbNum);
 #endif // DEBUG_VN_VISIT
 
             if (GetVisitBit(succ->bbNum, BVB_complete))
@@ -4725,9 +4829,9 @@ void Compiler::fgValueNumber()
     {
         ValueNumPair noVnp;
         // Make sure the memory SSA names have no value numbers.
-        for (unsigned i = 0; i < lvMemoryNumSsaNames; i++)
+        for (unsigned i = 0; i < lvMemoryPerSsaData.GetCount(); i++)
         {
-            lvMemoryPerSsaData.GetRef(i).m_vnPair = noVnp;
+            lvMemoryPerSsaData.GetSsaDefByIndex(i)->m_vnPair = noVnp;
         }
         for (BasicBlock* blk = fgFirstBB; blk != nullptr; blk = blk->bbNext)
         {
@@ -4757,9 +4861,16 @@ void Compiler::fgValueNumber()
 
     // Start by giving incoming arguments value numbers.
     // Also give must-init vars a zero of their type.
-    for (unsigned i = 0; i < lvaCount; i++)
+    for (unsigned lclNum = 0; lclNum < lvaCount; lclNum++)
     {
-        LclVarDsc* varDsc = &lvaTable[i];
+        if (!lvaInSsa(lclNum))
+        {
+            continue;
+        }
+
+        LclVarDsc* varDsc = &lvaTable[lclNum];
+        assert(varDsc->lvTracked);
+
         if (varDsc->lvIsParam)
         {
             // We assume that code equivalent to this variable initialization loop
@@ -4768,13 +4879,13 @@ void Compiler::fgValueNumber()
             // SSA numbers always start from FIRST_SSA_NUM, and we give the value number to SSA name FIRST_SSA_NUM.
             // We use the VNF_InitVal(i) from here so we know that this value is loop-invariant
             // in all loops.
-            ValueNum      initVal = vnStore->VNForFunc(varDsc->TypeGet(), VNF_InitVal, vnStore->VNForIntCon(i));
+            ValueNum      initVal = vnStore->VNForFunc(varDsc->TypeGet(), VNF_InitVal, vnStore->VNForIntCon(lclNum));
             LclSsaVarDsc* ssaDef  = varDsc->GetPerSsaData(SsaConfig::FIRST_SSA_NUM);
             ssaDef->m_vnPair.SetBoth(initVal);
             ssaDef->m_defLoc.m_blk = fgFirstBB;
         }
         else if (info.compInitMem || varDsc->lvMustInit ||
-                 (varDsc->lvTracked && VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex)))
+                 VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex))
         {
             // The last clause covers the use-before-def variables (the ones that are live-in to the the first block),
             // these are variables that are read before being initialized (at least on some control flow paths)
@@ -4805,7 +4916,7 @@ void Compiler::fgValueNumber()
                     else
                     {
                         // Here we have uninitialized TYP_BYREF
-                        initVal = vnStore->VNForFunc(typ, VNF_InitVal, vnStore->VNForIntCon(i));
+                        initVal = vnStore->VNForFunc(typ, VNF_InitVal, vnStore->VNForIntCon(lclNum));
                     }
                     break;
 
@@ -4817,12 +4928,12 @@ void Compiler::fgValueNumber()
                     }
                     else
                     {
-                        initVal = vnStore->VNForFunc(typ, VNF_InitVal, vnStore->VNForIntCon(i));
+                        initVal = vnStore->VNForFunc(typ, VNF_InitVal, vnStore->VNForIntCon(lclNum));
                     }
                     break;
             }
 #ifdef _TARGET_X86_
-            bool isVarargParam = (i == lvaVarargsBaseOfStkArgs || i == lvaVarargsHandleArg);
+            bool isVarargParam = (lclNum == lvaVarargsBaseOfStkArgs || lclNum == lvaVarargsHandleArg);
             if (isVarargParam)
                 initVal = vnStore->VNForExpr(fgFirstBB); // a new, unique VN.
 #endif
@@ -4839,7 +4950,7 @@ void Compiler::fgValueNumber()
 #ifdef DEBUG
     if (verbose)
     {
-        printf("Memory Initial Value in BB01 is: " STR_VN "%x\n", memoryInitVal);
+        printf("Memory Initial Value in BB01 is: " FMT_VN "\n", memoryInitVal);
     }
 #endif // DEBUG
 
@@ -5092,7 +5203,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("The SSA definition for %s (#%d) at start of BB%02u is ", memoryKindNames[memoryKind],
+            printf("The SSA definition for %s (#%d) at start of " FMT_BB " is ", memoryKindNames[memoryKind],
                    blk->bbMemorySsaNumIn[memoryKind], blk->bbNum);
             vnPrint(fgCurMemoryVN[memoryKind], 1);
             printf("\n");
@@ -5109,7 +5220,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         compCurStmtNum++;
         if (verbose)
         {
-            printf("\n***** BB%02u, stmt %d (before)\n", blk->bbNum, compCurStmtNum);
+            printf("\n***** " FMT_BB ", stmt %d (before)\n", blk->bbNum, compCurStmtNum);
             gtDispTree(stmt->gtStmt.gtStmtExpr);
             printf("\n");
         }
@@ -5123,7 +5234,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\n***** BB%02u, stmt %d (after)\n", blk->bbNum, compCurStmtNum);
+            printf("\n***** " FMT_BB ", stmt %d (after)\n", blk->bbNum, compCurStmtNum);
             gtDispTree(stmt->gtStmt.gtStmtExpr);
             printf("\n");
             if (stmt->gtNext)
@@ -5176,8 +5287,8 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
 #ifdef DEBUG
     if (verbose)
     {
-        printf("Computing %s state for block BB%02u, entry block for loops %d to %d:\n", memoryKindNames[memoryKind],
-               entryBlock->bbNum, innermostLoopNum, loopNum);
+        printf("Computing %s state for block " FMT_BB ", entry block for loops %d to %d:\n",
+               memoryKindNames[memoryKind], entryBlock->bbNum, innermostLoopNum, loopNum);
     }
 #endif // DEBUG
 
@@ -5213,8 +5324,8 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("  Entry block has >1 non-loop preds: (at least) BB%02u and BB%02u.\n", nonLoopPred->bbNum,
-                           predBlock->bbNum);
+                    printf("  Entry block has >1 non-loop preds: (at least) " FMT_BB " and " FMT_BB ".\n",
+                           nonLoopPred->bbNum, predBlock->bbNum);
                 }
 #endif // DEBUG
                 multipleNonLoopPreds = true;
@@ -5265,9 +5376,7 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
                 {
                     const char* modName;
                     const char* fldName = eeGetFieldName(fldHnd, &modName);
-                    printf("     VNForHandle(Fseq[%s]) is " STR_VN "%x\n", fldName, fldHndVN);
-
-                    printf("  fgCurMemoryVN assigned:\n");
+                    printf("     VNForHandle(Fseq[%s]) is " FMT_VN "\n", fldName, fldHndVN);
                 }
 #endif // DEBUG
 
@@ -5296,7 +5405,6 @@ ValueNum Compiler::fgMemoryVNForLoopSideEffects(MemoryKind  memoryKind,
                     {
                         printf("     Array map %s[]\n", varTypeName(elemTyp));
                     }
-                    printf("  fgCurMemoryVN assigned:\n");
                 }
 #endif // DEBUG
 
@@ -5363,9 +5471,9 @@ void Compiler::recordGcHeapStore(GenTree* curTree, ValueNum gcHeapVN DEBUGARG(co
 #ifdef DEBUG
     if (verbose)
     {
-        printf("  fgCurMemoryVN[GcHeap] assigned by %s at ", msg);
+        printf("  fgCurMemoryVN[GcHeap] assigned for %s at ", msg);
         Compiler::printTreeID(curTree);
-        printf(" to VN: " STR_VN "%x.\n", gcHeapVN);
+        printf(" to VN: " FMT_VN ".\n", gcHeapVN);
     }
 #endif // DEBUG
 
@@ -5387,9 +5495,9 @@ void Compiler::recordAddressExposedLocalStore(GenTree* curTree, ValueNum memoryV
 #ifdef DEBUG
     if (verbose)
     {
-        printf("  fgCurMemoryVN[ByrefExposed] assigned by %s at ", msg);
+        printf("  fgCurMemoryVN[ByrefExposed] assigned for %s at ", msg);
         Compiler::printTreeID(curTree);
-        printf(" to VN: " STR_VN "%x.\n", memoryVN);
+        printf(" to VN: " FMT_VN ".\n", memoryVN);
     }
 #endif // DEBUG
 
@@ -5499,7 +5607,6 @@ void Compiler::fgValueNumberTreeConst(GenTree* tree)
 //
 // Arguments:
 //    tree          - the block assignment to be value numbered.
-//    evalAsgLhsInd - true iff we should value number the LHS of the assignment.
 //
 // Return Value:
 //    None.
@@ -5507,7 +5614,7 @@ void Compiler::fgValueNumberTreeConst(GenTree* tree)
 // Assumptions:
 //    'tree' must be a block assignment (GT_INITBLK, GT_COPYBLK, GT_COPYOBJ).
 
-void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
+void Compiler::fgValueNumberBlockAssignment(GenTree* tree)
 {
     GenTree* lhs = tree->gtGetOp1();
     GenTree* rhs = tree->gtGetOp2();
@@ -5531,7 +5638,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
 
             // Ignore vars that we excluded from SSA (for example, because they're address-exposed). They don't have
             // SSA names in which to store VN's on defs.  We'll yield unique VN's when we read from them.
-            if (!fgExcludeFromSsa(lclNum))
+            if (lvaInSsa(lclNum))
             {
                 // Should not have been recorded as updating ByrefExposed.
                 assert(!GetMemorySsaMap(ByrefExposed)->Lookup(tree, &memorySsaNum));
@@ -5599,7 +5706,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
             unsigned      lhsLclNum = lclVarTree->GetLclNum();
             FieldSeqNode* lhsFldSeq = nullptr;
             // If it's excluded from SSA, don't need to do anything.
-            if (!fgExcludeFromSsa(lhsLclNum))
+            if (lvaInSsa(lhsLclNum))
             {
                 // Should not have been recorded as updating ByrefExposed.
                 assert(!GetMemorySsaMap(ByrefExposed)->Lookup(tree, &memorySsaNum));
@@ -5653,7 +5760,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
                     {
                         unsigned rhsLclNum = rhsLclVarTree->GetLclNum();
                         rhsVarDsc          = &lvaTable[rhsLclNum];
-                        if (fgExcludeFromSsa(rhsLclNum) || rhsFldSeq == FieldSeqStore::NotAField())
+                        if (!lvaInSsa(rhsLclNum) || rhsFldSeq == FieldSeqStore::NotAField())
                         {
                             rhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, rhsLclVarTree->TypeGet()));
                             isNewUniq = true;
@@ -5682,7 +5789,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
                     {
                         unsigned rhsLclNum = rhsLclVarTree->GetLclNum();
                         rhsVarDsc          = &lvaTable[rhsLclNum];
-                        if (fgExcludeFromSsa(rhsLclNum) || rhsFldSeq == FieldSeqStore::NotAField())
+                        if (!lvaInSsa(rhsLclNum) || rhsFldSeq == FieldSeqStore::NotAField())
                         {
                             isNewUniq = true;
                         }
@@ -5811,7 +5918,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree, bool evalAsgLhsInd)
     }
 }
 
-void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
+void Compiler::fgValueNumberTree(GenTree* tree)
 {
     genTreeOps oper = tree->OperGet();
 
@@ -5984,7 +6091,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
             case GT_LCL_FLD:
             {
                 GenTreeLclFld* lclFld = tree->AsLclFld();
-                assert(fgExcludeFromSsa(lclFld->GetLclNum()) || lclFld->gtFieldSeq != nullptr);
+                assert(!lvaInSsa(lclFld->GetLclNum()) || lclFld->gtFieldSeq != nullptr);
                 // If this is a (full) def, then the variable will be labeled with the new SSA number,
                 // which will not have a value.  We skip; it will be handled by one of the assignment-like
                 // forms (assignment, or initBlk or copyBlk).
@@ -5994,17 +6101,8 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                     unsigned   ssaNum = lclFld->GetSsaNum();
                     LclVarDsc* varDsc = &lvaTable[lclNum];
 
-                    if (ssaNum == SsaConfig::UNINIT_SSA_NUM)
-                    {
-                        if (varDsc->GetPerSsaData(ssaNum)->m_vnPair.GetLiberal() == ValueNumStore::NoVN)
-                        {
-                            ValueNum vnForLcl                       = vnStore->VNForExpr(compCurBB, lclFld->TypeGet());
-                            varDsc->GetPerSsaData(ssaNum)->m_vnPair = ValueNumPair(vnForLcl, vnForLcl);
-                        }
-                    }
-
                     var_types indType = tree->TypeGet();
-                    if (lclFld->gtFieldSeq == FieldSeqStore::NotAField() || fgExcludeFromSsa(lclFld->GetLclNum()))
+                    if (lclFld->gtFieldSeq == FieldSeqStore::NotAField() || !lvaInSsa(lclFld->GetLclNum()))
                     {
                         // This doesn't represent a proper field access or it's a struct
                         // with overlapping fields that is hard to reason about; return a new unique VN.
@@ -6027,10 +6125,9 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 
             case GT_CLS_VAR:
                 // Skip GT_CLS_VAR nodes that are the LHS of an assignment.  (We labeled these earlier.)
-                // We will "evaluate" this as part of the assignment.  (Unless we're explicitly told by
-                // the caller to evaluate anyway -- perhaps the assignment is an "op=" assignment.)
+                // We will "evaluate" this as part of the assignment.
                 //
-                if (((tree->gtFlags & GTF_CLS_VAR_ASG_LHS) == 0) || evalAsgLhsInd)
+                if ((tree->gtFlags & GTF_CLS_VAR_ASG_LHS) == 0)
                 {
                     bool isVolatile = (tree->gtFlags & GTF_FLD_VOLATILE) != 0;
 
@@ -6136,21 +6233,12 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
         unsigned memorySsaNum;
 #endif
 
-        if (GenTree::OperIsAssignment(oper) && !varTypeIsStruct(tree))
+        if ((oper == GT_ASG) && !varTypeIsStruct(tree))
         {
-
             GenTree* lhs = tree->gtOp.gtOp1;
             GenTree* rhs = tree->gtOp.gtOp2;
 
-            ValueNumPair rhsVNPair;
-            if (oper == GT_ASG)
-            {
-                rhsVNPair = rhs->gtVNPair;
-            }
-            else // Must be an "op="
-            {
-                unreached();
-            }
+            ValueNumPair rhsVNPair = rhs->gtVNPair;
 
             // Is the type being stored different from the type computed by the rhs?
             if (rhs->TypeGet() != lhs->TypeGet())
@@ -6334,10 +6422,14 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                 break;
 
                 case GT_PHI_ARG:
-                    assert(false); // Phi arg cannot be LHS.
+                    noway_assert(!"Phi arg cannot be LHS.");
+                    break;
 
                 case GT_BLK:
                 case GT_OBJ:
+                    noway_assert(!"GT_BLK/GT_OBJ can not be LHS when !varTypeIsStruct(tree) is true!");
+                    break;
+
                 case GT_IND:
                 {
                     bool isVolatile = (lhs->gtFlags & GTF_IND_VOLATILE) != 0;
@@ -6373,7 +6465,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 
                             wasLocal = true;
 
-                            if (!fgExcludeFromSsa(lclNum))
+                            if (lvaInSsa(lclNum))
                             {
                                 FieldSeqNode* fieldSeq = vnStore->FieldSeqVNToFieldSeq(funcApp.m_args[1]);
 
@@ -6480,7 +6572,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 
                             ValueNum heapVN = fgValueNumberArrIndexAssign(elemTypeEq, arrVN, inxVN, fldSeq,
                                                                           rhsVNPair.GetLiberal(), lhs->TypeGet());
-                            recordGcHeapStore(tree, heapVN DEBUGARG("Array element assignment"));
+                            recordGcHeapStore(tree, heapVN DEBUGARG("ArrIndexAssign (case 1)"));
                         }
                         // It may be that we haven't parsed it yet.  Try.
                         else if (lhs->gtFlags & GTF_IND_ARR_INDEX)
@@ -6517,7 +6609,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 
                             ValueNum heapVN = fgValueNumberArrIndexAssign(elemTypeEq, arrVN, inxVN, fldSeq,
                                                                           rhsVNPair.GetLiberal(), lhs->TypeGet());
-                            recordGcHeapStore(tree, heapVN DEBUGARG("assignment to unparseable array expression"));
+                            recordGcHeapStore(tree, heapVN DEBUGARG("ArrIndexAssign (case 2)"));
                         }
                         else if (arg->IsFieldAddr(this, &obj, &staticOffset, &fldSeq))
                         {
@@ -6617,15 +6709,6 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                                 // but the dumps read better with it set to the 'storeVal' that we just computed
                                 lhs->gtVNPair.SetBoth(storeVal);
 
-#ifdef DEBUG
-                                if (verbose)
-                                {
-                                    printf("  fgCurMemoryVN assigned:\n");
-                                }
-#endif // DEBUG
-                                // bbMemoryDef must include GcHeap for any block that mutates the GC heap
-                                assert((compCurBB->bbMemoryDef & memoryKindSet(GcHeap)) != 0);
-
                                 // Update the field map for firstField in GcHeap to this new value.
                                 ValueNum heapVN =
                                     vnStore->VNApplySelectorsAssign(VNK_Liberal, fgCurMemoryVN[GcHeap], firstFieldOnly,
@@ -6691,12 +6774,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                     // It is not strictly necessary to set the lhs value number,
                     // but the dumps read better with it set to the 'storeVal' that we just computed
                     lhs->gtVNPair.SetBoth(storeVal);
-#ifdef DEBUG
-                    if (verbose)
-                    {
-                        printf("  fgCurMemoryVN assigned:\n");
-                    }
-#endif // DEBUG
+
                     // bbMemoryDef must include GcHeap for any block that mutates the GC heap
                     assert((compCurBB->bbMemoryDef & memoryKindSet(GcHeap)) != 0);
 
@@ -6716,7 +6794,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
         // Other kinds of assignment: initblk and copyblk.
         else if (oper == GT_ASG && varTypeIsStruct(tree))
         {
-            fgValueNumberBlockAssignment(tree, evalAsgLhsInd);
+            fgValueNumberBlockAssignment(tree);
         }
         else if (oper == GT_ADDR)
         {
@@ -6726,7 +6804,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
             {
                 FieldSeqNode* fieldSeq = nullptr;
                 ValueNum      newVN    = ValueNumStore::NoVN;
-                if (fgExcludeFromSsa(arg->gtLclVarCommon.GetLclNum()))
+                if (!lvaInSsa(arg->gtLclVarCommon.GetLclNum()))
                 {
                     newVN = vnStore->VNForExpr(compCurBB, TYP_BYREF);
                 }
@@ -6874,12 +6952,12 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
                 {
                     printf("  Relabeled IND_ARR_INDEX address node ");
                     Compiler::printTreeID(addr);
-                    printf(" with l:" STR_VN "%x: ", elemAddr);
+                    printf(" with l:" FMT_VN ": ", elemAddr);
                     vnStore->vnDump(this, elemAddr);
                     printf("\n");
                     if (vnStore->VNNormVal(elemAddr) != elemAddr)
                     {
-                        printf("      [" STR_VN "%x is: ", vnStore->VNNormVal(elemAddr));
+                        printf("      [" FMT_VN " is: ", vnStore->VNNormVal(elemAddr));
                         vnStore->vnDump(this, vnStore->VNNormVal(elemAddr));
                         printf("]\n");
                     }
@@ -6887,10 +6965,10 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
 #endif // DEBUG
                 // We now need to retrieve the value number for the array element value
                 // and give this value number to the GT_IND node 'tree'
-                // We do this whenever we have an rvalue, or for the LHS when we have an "op=",
-                // but we don't do it for a normal LHS assignment into an array element.
+                // We do this whenever we have an rvalue, but we don't do it for a
+                // normal LHS assignment into an array element.
                 //
-                if (evalAsgLhsInd || ((tree->gtFlags & GTF_IND_ASG_LHS) == 0))
+                if ((tree->gtFlags & GTF_IND_ASG_LHS) == 0)
                 {
                     fgValueNumberArrIndexVal(tree, elemTypeEq, arrVN, inxVN, addrXvnp.GetLiberal(), fldSeq);
                 }
@@ -6930,16 +7008,14 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
             }
 
             // In general we skip GT_IND nodes on that are the LHS of an assignment.  (We labeled these earlier.)
-            // We will "evaluate" this as part of the assignment.  (Unless we're explicitly told by
-            // the caller to evaluate anyway -- perhaps the assignment is an "op=" assignment.)
-            else if (((tree->gtFlags & GTF_IND_ASG_LHS) == 0) || evalAsgLhsInd)
+            // We will "evaluate" this as part of the assignment.
+            else if ((tree->gtFlags & GTF_IND_ASG_LHS) == 0)
             {
                 FieldSeqNode* localFldSeq = nullptr;
                 VNFuncApp     funcApp;
 
                 // Is it a local or a heap address?
-                if (addr->IsLocalAddrExpr(this, &lclVarTree, &localFldSeq) &&
-                    !fgExcludeFromSsa(lclVarTree->GetLclNum()))
+                if (addr->IsLocalAddrExpr(this, &lclVarTree, &localFldSeq) && lvaInSsa(lclVarTree->GetLclNum()))
                 {
                     unsigned   lclNum = lclVarTree->GetLclNum();
                     unsigned   ssaNum = lclVarTree->GetSsaNum();
@@ -7124,7 +7200,7 @@ void Compiler::fgValueNumberTree(GenTree* tree, bool evalAsgLhsInd)
             }
             else
             {
-                assert(!GenTree::OperIsAssignment(oper)); // We handled assignments earlier.
+                assert(oper != GT_ASG); // We handled assignments earlier.
                 assert(GenTree::OperIsBinary(oper));
                 // Standard binary operator.
                 ValueNumPair op2VNPair;
@@ -7417,7 +7493,7 @@ ValueNum ValueNumStore::VNForCast(ValueNum  srcVN,
 #ifdef DEBUG
     if (m_pComp->verbose)
     {
-        printf("    VNForCast(" STR_VN "%x, " STR_VN "%x) returns ", srcVN, castTypeVN);
+        printf("    VNForCast(" FMT_VN ", " FMT_VN ") returns ", srcVN, castTypeVN);
         m_pComp->vnPrint(resultVN, 1);
         printf("\n");
     }
@@ -8189,9 +8265,9 @@ void Compiler::JitTestCheckVN()
                 {
                     printf("Node: ");
                     Compiler::printTreeID(node);
-                    printf(", with value number " STR_VN "%x, was declared in VN class %d,\n", nodeVN, tlAndN.m_num);
-                    printf("but this value number " STR_VN
-                           "%x has already been associated with a different SSA name class: %d.\n",
+                    printf(", with value number " FMT_VN ", was declared in VN class %d,\n", nodeVN, tlAndN.m_num);
+                    printf("but this value number " FMT_VN
+                           " has already been associated with a different SSA name class: %d.\n",
                            vn, num2);
                     assert(false);
                 }
@@ -8200,8 +8276,8 @@ void Compiler::JitTestCheckVN()
                 {
                     printf("Node: ");
                     Compiler::printTreeID(node);
-                    printf(", " STR_VN "%x was declared in SSA name class %d,\n", nodeVN, tlAndN.m_num);
-                    printf("but that name class was previously bound to a different value number: " STR_VN "%x.\n", vn);
+                    printf(", " FMT_VN " was declared in SSA name class %d,\n", nodeVN, tlAndN.m_num);
+                    printf("but that name class was previously bound to a different value number: " FMT_VN ".\n", vn);
                     assert(false);
                 }
             }
@@ -8213,7 +8289,7 @@ void Compiler::JitTestCheckVN()
                 {
                     printf("Node: ");
                     Compiler::printTreeID(node);
-                    printf(", " STR_VN "%x was declared in value number class %d,\n", nodeVN, tlAndN.m_num);
+                    printf(", " FMT_VN " was declared in value number class %d,\n", nodeVN, tlAndN.m_num);
                     printf(
                         "but this value number has already been associated with a different value number class: %d.\n",
                         num);
@@ -8256,7 +8332,7 @@ void Compiler::vnPrint(ValueNum vn, unsigned level)
     }
     else
     {
-        printf(STR_VN "%x", vn);
+        printf(FMT_VN, vn);
         if (level > 0)
         {
             vnStore->vnDump(this, vn);

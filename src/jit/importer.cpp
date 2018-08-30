@@ -7284,7 +7284,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef DEBUG
             if (verbose)
             {
-                JITDUMP("\nFound recursive call in the method. Mark BB%02u to BB%02u as having a backward branch.\n",
+                JITDUMP("\nFound recursive call in the method. Mark " FMT_BB " to " FMT_BB
+                        " as having a backward branch.\n",
                         fgFirstBB->bbNum, compCurBB->bbNum);
             }
 #endif
@@ -8949,7 +8950,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
             if (verbose)
             {
-                printf("impImportLeave - BB%02u jumping out of catch handler EH#%u, adding call to "
+                printf("impImportLeave - " FMT_BB " jumping out of catch handler EH#%u, adding call to "
                        "CORINFO_HELP_ENDCATCH\n",
                        block->bbNum, XTnum);
             }
@@ -9151,7 +9152,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nBefore import CEE_LEAVE in BB%02u (targetting BB%02u):\n", block->bbNum, block->bbJumpDest->bbNum);
+        printf("\nBefore import CEE_LEAVE in " FMT_BB " (targetting " FMT_BB "):\n", block->bbNum,
+               block->bbJumpDest->bbNum);
         fgDispBasicBlocks();
         fgDispHandlerTab();
     }
@@ -9223,7 +9225,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("impImportLeave - jumping out of a catch (EH#%u), convert block BB%02u to BBJ_EHCATCHRET "
+                    printf("impImportLeave - jumping out of a catch (EH#%u), convert block " FMT_BB
+                           " to BBJ_EHCATCHRET "
                            "block\n",
                            XTnum, step->bbNum);
                 }
@@ -9264,8 +9267,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("impImportLeave - jumping out of a catch (EH#%u), new BBJ_EHCATCHRET block BB%02u\n", XTnum,
-                           exitBlock->bbNum);
+                    printf("impImportLeave - jumping out of a catch (EH#%u), new BBJ_EHCATCHRET block " FMT_BB "\n",
+                           XTnum, exitBlock->bbNum);
                 }
 #endif
             }
@@ -9303,8 +9306,9 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), convert block BB%02u to "
-                           "BBJ_ALWAYS, add BBJ_CALLFINALLY block BB%02u\n",
+                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), convert block " FMT_BB
+                           " to "
+                           "BBJ_ALWAYS, add BBJ_CALLFINALLY block " FMT_BB "\n",
                            XTnum, block->bbNum, callBlock->bbNum);
                 }
 #endif
@@ -9317,7 +9321,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), convert block BB%02u to "
+                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), convert block " FMT_BB
+                           " to "
                            "BBJ_CALLFINALLY block\n",
                            XTnum, callBlock->bbNum);
                 }
@@ -9360,7 +9365,7 @@ void Compiler::impImportLeave(BasicBlock* block)
                     if (verbose)
                     {
                         printf("impImportLeave - jumping out of a finally-protected try (EH#%u), step block is "
-                               "BBJ_EHCATCHRET (BB%02u), new BBJ_ALWAYS step-step block BB%02u\n",
+                               "BBJ_EHCATCHRET (" FMT_BB "), new BBJ_ALWAYS step-step block " FMT_BB "\n",
                                XTnum, step->bbNum, step2->bbNum);
                     }
 #endif
@@ -9401,8 +9406,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), new BBJ_CALLFINALLY block "
-                           "BB%02u\n",
+                    printf("impImportLeave - jumping out of a finally-protected try (EH#%u), new BBJ_CALLFINALLY "
+                           "block " FMT_BB "\n",
                            XTnum, callBlock->bbNum);
                 }
 #endif
@@ -9419,7 +9424,7 @@ void Compiler::impImportLeave(BasicBlock* block)
             if (verbose)
             {
                 printf("impImportLeave - jumping out of a finally-protected try (EH#%u), created step (BBJ_ALWAYS) "
-                       "block BB%02u\n",
+                       "block " FMT_BB "\n",
                        XTnum, step->bbNum);
             }
 #endif
@@ -9508,14 +9513,14 @@ void Compiler::impImportLeave(BasicBlock* block)
                     if (stepType == ST_FinallyReturn)
                     {
                         printf("impImportLeave - return from finally jumping out of a catch-protected try (EH#%u), new "
-                               "BBJ_ALWAYS block BB%02u\n",
+                               "BBJ_ALWAYS block " FMT_BB "\n",
                                XTnum, catchStep->bbNum);
                     }
                     else
                     {
                         assert(stepType == ST_Catch);
                         printf("impImportLeave - return from catch jumping out of a catch-protected try (EH#%u), new "
-                               "BBJ_ALWAYS block BB%02u\n",
+                               "BBJ_ALWAYS block " FMT_BB "\n",
                                XTnum, catchStep->bbNum);
                     }
                 }
@@ -9538,7 +9543,7 @@ void Compiler::impImportLeave(BasicBlock* block)
         if (verbose)
         {
             printf("impImportLeave - no enclosing finally-protected try blocks or catch handlers; convert CEE_LEAVE "
-                   "block BB%02u to BBJ_ALWAYS\n",
+                   "block " FMT_BB " to BBJ_ALWAYS\n",
                    block->bbNum);
         }
 #endif
@@ -9559,7 +9564,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("impImportLeave - final destination of step blocks set to BB%02u\n", leaveTarget->bbNum);
+            printf("impImportLeave - final destination of step blocks set to " FMT_BB "\n", leaveTarget->bbNum);
         }
 #endif
 
@@ -9642,7 +9647,7 @@ void Compiler::impResetLeaveBlock(BasicBlock* block, unsigned jmpAddr)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("New Basic Block BB%02u duplicate of BB%02u created.\n", dupBlock->bbNum, block->bbNum);
+            printf("New Basic Block " FMT_BB " duplicate of " FMT_BB " created.\n", dupBlock->bbNum, block->bbNum);
         }
 #endif
     }
@@ -10213,7 +10218,7 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 
     if (verbose)
     {
-        printf("\nImporting BB%02u (PC=%03u) of '%s'", block->bbNum, block->bbCodeOffs, info.compFullName);
+        printf("\nImporting " FMT_BB " (PC=%03u) of '%s'", block->bbNum, block->bbCodeOffs, info.compFullName);
     }
 #endif
 
@@ -12055,12 +12060,12 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                     {
                         if (op1->gtIntCon.gtIconVal)
                         {
-                            printf("\nThe conditional jump becomes an unconditional jump to BB%02u\n",
+                            printf("\nThe conditional jump becomes an unconditional jump to " FMT_BB "\n",
                                    block->bbJumpDest->bbNum);
                         }
                         else
                         {
-                            printf("\nThe block falls through into the next BB%02u\n", block->bbNext->bbNum);
+                            printf("\nThe block falls through into the next " FMT_BB "\n", block->bbNext->bbNum);
                         }
                     }
 #endif
@@ -14359,6 +14364,23 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 op2 = impPopStack().val;
                 assertImp(genActualTypeIsIntOrI(op2->gtType));
 
+#ifdef _TARGET_64BIT_
+                // The array helper takes a native int for array length.
+                // So if we have an int, explicitly extend it to be a native int.
+                if (genActualType(op2->TypeGet()) != TYP_I_IMPL)
+                {
+                    if (op2->IsIntegralConst())
+                    {
+                        op2->gtType = TYP_I_IMPL;
+                    }
+                    else
+                    {
+                        bool isUnsigned = false;
+                        op2             = gtNewCastNode(TYP_I_IMPL, op2, isUnsigned, TYP_I_IMPL);
+                    }
+                }
+#endif // _TARGET_64BIT_
+
 #ifdef FEATURE_READYTORUN_COMPILER
                 if (opts.IsReadyToRun())
                 {
@@ -16303,7 +16325,7 @@ inline void Compiler::impReimportMarkBlock(BasicBlock* block)
 #ifdef DEBUG
     if (verbose && (block->bbFlags & BBF_IMPORTED))
     {
-        printf("\nBB%02u will be reimported\n", block->bbNum);
+        printf("\n" FMT_BB " will be reimported\n", block->bbNum);
     }
 #endif
 
@@ -16492,7 +16514,7 @@ void Compiler::impImportBlock(BasicBlock* block)
     // to mark them as imported and put their successors on the pending import list.
     if (block->bbFlags & BBF_INTERNAL)
     {
-        JITDUMP("Marking BBF_INTERNAL block BB%02u as BBF_IMPORTED\n", block->bbNum);
+        JITDUMP("Marking BBF_INTERNAL block " FMT_BB " as BBF_IMPORTED\n", block->bbNum);
         block->bbFlags |= BBF_IMPORTED;
 
         const unsigned numSuccs = block->NumSucc();
@@ -16946,7 +16968,7 @@ void Compiler::impImportBlockPending(BasicBlock* block)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\nimpImportBlockPending for BB%02u\n", block->bbNum);
+        printf("\nimpImportBlockPending for " FMT_BB "\n", block->bbNum);
     }
 #endif
 
@@ -17003,7 +17025,7 @@ void Compiler::impImportBlockPending(BasicBlock* block)
             {
                 addToPending = true;
 
-                JITDUMP("Adding BB%02u to pending set due to new merge result\n", block->bbNum);
+                JITDUMP("Adding " FMT_BB " to pending set due to new merge result\n", block->bbNum);
             }
         }
 
@@ -17066,7 +17088,7 @@ void Compiler::impImportBlockPending(BasicBlock* block)
 #ifdef DEBUG
     if (verbose && 0)
     {
-        printf("Added PendingDsc - %08p for BB%02u\n", dspPtr(dsc), block->bbNum);
+        printf("Added PendingDsc - %08p for " FMT_BB "\n", dspPtr(dsc), block->bbNum);
     }
 #endif
 }
@@ -17079,7 +17101,7 @@ void Compiler::impImportBlockPending(BasicBlock* block)
 
 void Compiler::impReimportBlockPending(BasicBlock* block)
 {
-    JITDUMP("\nimpReimportBlockPending for BB%02u", block->bbNum);
+    JITDUMP("\nimpReimportBlockPending for " FMT_BB, block->bbNum);
 
     assert(block->bbFlags & BBF_IMPORTED);
 
@@ -17133,7 +17155,7 @@ void Compiler::impReimportBlockPending(BasicBlock* block)
 #ifdef DEBUG
     if (verbose && 0)
     {
-        printf("Added PendingDsc - %08p for BB%02u\n", dspPtr(dsc), block->bbNum);
+        printf("Added PendingDsc - %08p for " FMT_BB "\n", dspPtr(dsc), block->bbNum);
     }
 #endif
 }
@@ -17321,7 +17343,7 @@ unsigned Compiler::impGetSpillTmpBase(BasicBlock* block)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\n*************** In impGetSpillTmpBase(BB%02u)\n", block->bbNum);
+        printf("\n*************** In impGetSpillTmpBase(" FMT_BB ")\n", block->bbNum);
     }
 #endif // DEBUG
 
@@ -17342,7 +17364,7 @@ void Compiler::impReimportSpillClique(BasicBlock* block)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("\n*************** In impReimportSpillClique(BB%02u)\n", block->bbNum);
+        printf("\n*************** In impReimportSpillClique(" FMT_BB ")\n", block->bbNum);
     }
 #endif // DEBUG
 
@@ -17598,7 +17620,7 @@ void Compiler::impImport(BasicBlock* method)
     {
         // Treat these as imported.
         assert(method->bbJumpKind == BBJ_NONE); // We assume all the leading ones are fallthrough.
-        JITDUMP("Marking leading BBF_INTERNAL block BB%02u as BBF_IMPORTED\n", method->bbNum);
+        JITDUMP("Marking leading BBF_INTERNAL block " FMT_BB " as BBF_IMPORTED\n", method->bbNum);
         method->bbFlags |= BBF_IMPORTED;
     }
 

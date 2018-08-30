@@ -14,14 +14,15 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
+using System.Reflection;
 
 namespace JIT.HardwareIntrinsics.X86
 {
     public static partial class Program
     {
-        private static void PermuteVarDouble()
+        private static void MaskLoadInt64()
         {
-            var test = new SimpleBinaryOpTest__PermuteVarDouble();
+            var test = new SimpleBinaryOpTest__MaskLoadInt64();
 
             if (test.IsSupported)
             {
@@ -89,74 +90,70 @@ namespace JIT.HardwareIntrinsics.X86
         }
     }
 
-    public sealed unsafe class SimpleBinaryOpTest__PermuteVarDouble
+    public sealed unsafe class SimpleBinaryOpTest__MaskLoadInt64
     {
         private struct TestStruct
         {
-            public Vector256<Double> _fld1;
-            public Vector256<Double> _fld2;
+            public Vector256<Int64> _fld2;
 
             public static TestStruct Create()
             {
                 var testStruct = new TestStruct();
 
-                for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref testStruct._fld1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
-                for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = BitConverter.Int64BitsToDouble(1); }
-                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref testStruct._fld2), ref Unsafe.As<Double, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
+                for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetInt64(); }
+
+                for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetInt64(); }
+                Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Int64>, byte>(ref testStruct._fld2), ref Unsafe.As<Int64, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Int64>>());
 
                 return testStruct;
             }
 
-            public void RunStructFldScenario(SimpleBinaryOpTest__PermuteVarDouble testClass)
+            public void RunStructFldScenario(SimpleBinaryOpTest__MaskLoadInt64 testClass)
             {
-                var result = Avx.PermuteVar(_fld1, _fld2);
+                var result = Avx2.MaskLoad((Int64*)testClass._dataTable.inArray1Ptr, _fld2);
 
                 Unsafe.Write(testClass._dataTable.outArrayPtr, result);
-                testClass.ValidateResult(_fld1, _fld2, testClass._dataTable.outArrayPtr);
+                testClass.ValidateResult(testClass._dataTable.inArray1Ptr, _fld2, testClass._dataTable.outArrayPtr);
             }
         }
 
         private static readonly int LargestVectorSize = 32;
 
-        private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector256<Double>>() / sizeof(Double);
-        private static readonly int Op2ElementCount = Unsafe.SizeOf<Vector256<Double>>() / sizeof(Double);
-        private static readonly int RetElementCount = Unsafe.SizeOf<Vector256<Double>>() / sizeof(Double);
+        private static readonly int Op1ElementCount = Unsafe.SizeOf<Vector256<Int64>>() / sizeof(Int64);
+        private static readonly int Op2ElementCount = Unsafe.SizeOf<Vector256<Int64>>() / sizeof(Int64);
+        private static readonly int RetElementCount = Unsafe.SizeOf<Vector256<Int64>>() / sizeof(Int64);
 
-        private static Double[] _data1 = new Double[Op1ElementCount];
-        private static Double[] _data2 = new Double[Op2ElementCount];
+        private static Int64[] _data1 = new Int64[Op1ElementCount];
+        private static Int64[] _data2 = new Int64[Op2ElementCount];
 
-        private static Vector256<Double> _clsVar1;
-        private static Vector256<Double> _clsVar2;
+        private static Vector256<Int64> _clsVar2;
 
-        private Vector256<Double> _fld1;
-        private Vector256<Double> _fld2;
+        private Vector256<Int64> _fld2;
 
-        private SimpleBinaryOpTest__DataTable<Double, Double, Double> _dataTable;
+        private SimpleBinaryOpTest__DataTable<Int64, Int64, Int64> _dataTable;
 
-        static SimpleBinaryOpTest__PermuteVarDouble()
+        static SimpleBinaryOpTest__MaskLoadInt64()
         {
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref _clsVar1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
-            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = BitConverter.Int64BitsToDouble(1); }
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref _clsVar2), ref Unsafe.As<Double, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetInt64(); }
+
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetInt64(); }
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Int64>, byte>(ref _clsVar2), ref Unsafe.As<Int64, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Int64>>());
         }
 
-        public SimpleBinaryOpTest__PermuteVarDouble()
+        public SimpleBinaryOpTest__MaskLoadInt64()
         {
             Succeeded = true;
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref _fld1), ref Unsafe.As<Double, byte>(ref _data1[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
-            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = BitConverter.Int64BitsToDouble(1); }
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Double>, byte>(ref _fld2), ref Unsafe.As<Double, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Double>>());
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetInt64(); }
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetInt64(); }
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Vector256<Int64>, byte>(ref _fld2), ref Unsafe.As<Int64, byte>(ref _data2[0]), (uint)Unsafe.SizeOf<Vector256<Int64>>());
 
-            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetDouble(); }
-            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = BitConverter.Int64BitsToDouble(1); }
-            _dataTable = new SimpleBinaryOpTest__DataTable<Double, Double, Double>(_data1, _data2, new Double[RetElementCount], LargestVectorSize);
+            for (var i = 0; i < Op1ElementCount; i++) { _data1[i] = TestLibrary.Generator.GetInt64(); }
+            for (var i = 0; i < Op2ElementCount; i++) { _data2[i] = TestLibrary.Generator.GetInt64(); }
+            _dataTable = new SimpleBinaryOpTest__DataTable<Int64, Int64, Int64>(_data1, _data2, new Int64[RetElementCount], LargestVectorSize);
         }
 
-        public bool IsSupported => Avx.IsSupported;
+        public bool IsSupported => Avx2.IsSupported;
 
         public bool Succeeded { get; set; }
 
@@ -164,9 +161,9 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_UnsafeRead));
 
-            var result = Avx.PermuteVar(
-                Unsafe.Read<Vector256<Double>>(_dataTable.inArray1Ptr),
-                Unsafe.Read<Vector256<Double>>(_dataTable.inArray2Ptr)
+            var result = Avx2.MaskLoad(
+                (Int64*)_dataTable.inArray1Ptr,
+                Unsafe.Read<Vector256<Int64>>(_dataTable.inArray2Ptr)
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -177,9 +174,9 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_Load));
 
-            var result = Avx.PermuteVar(
-                Avx.LoadVector256((Double*)(_dataTable.inArray1Ptr)),
-                Avx.LoadVector256((Double*)(_dataTable.inArray2Ptr))
+            var result = Avx2.MaskLoad(
+                (Int64*)_dataTable.inArray1Ptr,
+                Avx.LoadVector256((Int64*)(_dataTable.inArray2Ptr))
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -190,9 +187,9 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunBasicScenario_LoadAligned));
 
-            var result = Avx.PermuteVar(
-                Avx.LoadAlignedVector256((Double*)(_dataTable.inArray1Ptr)),
-                Avx.LoadAlignedVector256((Double*)(_dataTable.inArray2Ptr))
+            var result = Avx2.MaskLoad(
+                (Int64*)_dataTable.inArray1Ptr,
+                Avx.LoadAlignedVector256((Int64*)(_dataTable.inArray2Ptr))
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
@@ -203,13 +200,13 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_UnsafeRead));
 
-            var result = typeof(Avx).GetMethod(nameof(Avx.PermuteVar), new Type[] { typeof(Vector256<Double>), typeof(Vector256<Double>) })
+            var result = typeof(Avx2).GetMethod(nameof(Avx2.MaskLoad), new Type[] { typeof(Int64*), typeof(Vector256<Int64>) })
                                      .Invoke(null, new object[] {
-                                        Unsafe.Read<Vector256<Double>>(_dataTable.inArray1Ptr),
-                                        Unsafe.Read<Vector256<Double>>(_dataTable.inArray2Ptr)
+                                        Pointer.Box(_dataTable.inArray1Ptr, typeof(Int64*)),
+                                        Unsafe.Read<Vector256<Int64>>(_dataTable.inArray2Ptr)
                                      });
 
-            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Double>)(result));
+            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Int64>)(result));
             ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
         }
 
@@ -217,13 +214,13 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_Load));
 
-            var result = typeof(Avx).GetMethod(nameof(Avx.PermuteVar), new Type[] { typeof(Vector256<Double>), typeof(Vector256<Double>) })
+            var result = typeof(Avx2).GetMethod(nameof(Avx2.MaskLoad), new Type[] { typeof(Int64*), typeof(Vector256<Int64>) })
                                      .Invoke(null, new object[] {
-                                        Avx.LoadVector256((Double*)(_dataTable.inArray1Ptr)),
-                                        Avx.LoadVector256((Double*)(_dataTable.inArray2Ptr))
+                                        Pointer.Box(_dataTable.inArray1Ptr, typeof(Int64*)),
+                                        Avx.LoadVector256((Int64*)(_dataTable.inArray2Ptr))
                                      });
 
-            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Double>)(result));
+            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Int64>)(result));
             ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
         }
 
@@ -231,13 +228,13 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunReflectionScenario_LoadAligned));
 
-            var result = typeof(Avx).GetMethod(nameof(Avx.PermuteVar), new Type[] { typeof(Vector256<Double>), typeof(Vector256<Double>) })
+            var result = typeof(Avx2).GetMethod(nameof(Avx2.MaskLoad), new Type[] { typeof(Int64*), typeof(Vector256<Int64>) })
                                      .Invoke(null, new object[] {
-                                        Avx.LoadAlignedVector256((Double*)(_dataTable.inArray1Ptr)),
-                                        Avx.LoadAlignedVector256((Double*)(_dataTable.inArray2Ptr))
+                                        Pointer.Box(_dataTable.inArray1Ptr, typeof(Int64*)),
+                                        Avx.LoadAlignedVector256((Int64*)(_dataTable.inArray2Ptr))
                                      });
 
-            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Double>)(result));
+            Unsafe.Write(_dataTable.outArrayPtr, (Vector256<Int64>)(result));
             ValidateResult(_dataTable.inArray1Ptr, _dataTable.inArray2Ptr, _dataTable.outArrayPtr);
         }
 
@@ -245,22 +242,22 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClsVarScenario));
 
-            var result = Avx.PermuteVar(
-                _clsVar1,
+            var result = Avx2.MaskLoad(
+                (Int64*)_dataTable.inArray1Ptr,
                 _clsVar2
             );
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_clsVar1, _clsVar2, _dataTable.outArrayPtr);
+            ValidateResult(_dataTable.inArray1Ptr, _clsVar2, _dataTable.outArrayPtr);
         }
 
         public void RunLclVarScenario_UnsafeRead()
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_UnsafeRead));
 
-            var left = Unsafe.Read<Vector256<Double>>(_dataTable.inArray1Ptr);
-            var right = Unsafe.Read<Vector256<Double>>(_dataTable.inArray2Ptr);
-            var result = Avx.PermuteVar(left, right);
+            var left = (Int64*)_dataTable.inArray1Ptr;
+            var right = Unsafe.Read<Vector256<Int64>>(_dataTable.inArray2Ptr);
+            var result = Avx2.MaskLoad(left, right);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(left, right, _dataTable.outArrayPtr);
@@ -270,9 +267,9 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_Load));
 
-            var left = Avx.LoadVector256((Double*)(_dataTable.inArray1Ptr));
-            var right = Avx.LoadVector256((Double*)(_dataTable.inArray2Ptr));
-            var result = Avx.PermuteVar(left, right);
+            var left = (Int64*)_dataTable.inArray1Ptr;
+            var right = Avx.LoadVector256((Int64*)(_dataTable.inArray2Ptr));
+            var result = Avx2.MaskLoad(left, right);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(left, right, _dataTable.outArrayPtr);
@@ -282,9 +279,9 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunLclVarScenario_LoadAligned));
 
-            var left = Avx.LoadAlignedVector256((Double*)(_dataTable.inArray1Ptr));
-            var right = Avx.LoadAlignedVector256((Double*)(_dataTable.inArray2Ptr));
-            var result = Avx.PermuteVar(left, right);
+            var left = (Int64*)_dataTable.inArray1Ptr;
+            var right = Avx.LoadAlignedVector256((Int64*)(_dataTable.inArray2Ptr));
+            var result = Avx2.MaskLoad(left, right);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
             ValidateResult(left, right, _dataTable.outArrayPtr);
@@ -294,21 +291,21 @@ namespace JIT.HardwareIntrinsics.X86
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassLclFldScenario));
 
-            var test = new SimpleBinaryOpTest__PermuteVarDouble();
-            var result = Avx.PermuteVar(test._fld1, test._fld2);
+            var test = new SimpleBinaryOpTest__MaskLoadInt64();
+            var result = Avx2.MaskLoad((Int64*)_dataTable.inArray1Ptr, test._fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(test._fld1, test._fld2, _dataTable.outArrayPtr);
+            ValidateResult(_dataTable.inArray1Ptr, test._fld2, _dataTable.outArrayPtr);
         }
 
         public void RunClassFldScenario()
         {
             TestLibrary.TestFramework.BeginScenario(nameof(RunClassFldScenario));
 
-            var result = Avx.PermuteVar(_fld1, _fld2);
+            var result = Avx2.MaskLoad((Int64*)_dataTable.inArray1Ptr, _fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(_fld1, _fld2, _dataTable.outArrayPtr);
+            ValidateResult(_dataTable.inArray1Ptr, _fld2, _dataTable.outArrayPtr);
         }
 
         public void RunStructLclFldScenario()
@@ -316,10 +313,10 @@ namespace JIT.HardwareIntrinsics.X86
             TestLibrary.TestFramework.BeginScenario(nameof(RunStructLclFldScenario));
 
             var test = TestStruct.Create();
-            var result = Avx.PermuteVar(test._fld1, test._fld2);
+            var result = Avx2.MaskLoad((Int64*)_dataTable.inArray1Ptr, test._fld2);
 
             Unsafe.Write(_dataTable.outArrayPtr, result);
-            ValidateResult(test._fld1, test._fld2, _dataTable.outArrayPtr);
+            ValidateResult(_dataTable.inArray1Ptr, test._fld2, _dataTable.outArrayPtr);
         }
 
         public void RunStructFldScenario()
@@ -346,35 +343,35 @@ namespace JIT.HardwareIntrinsics.X86
             }
         }
 
-        private void ValidateResult(Vector256<Double> left, Vector256<Double> right, void* result, [CallerMemberName] string method = "")
+        private void ValidateResult(void* left, Vector256<Int64> right, void* result, [CallerMemberName] string method = "")
         {
-            Double[] inArray1 = new Double[Op1ElementCount];
-            Double[] inArray2 = new Double[Op2ElementCount];
-            Double[] outArray = new Double[RetElementCount];
+            Int64[] inArray1 = new Int64[Op1ElementCount];
+            Int64[] inArray2 = new Int64[Op2ElementCount];
+            Int64[] outArray = new Int64[RetElementCount];
 
-            Unsafe.WriteUnaligned(ref Unsafe.As<Double, byte>(ref inArray1[0]), left);
-            Unsafe.WriteUnaligned(ref Unsafe.As<Double, byte>(ref inArray2[0]), right);
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Double, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), (uint)Unsafe.SizeOf<Vector256<Double>>());
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Int64, byte>(ref inArray1[0]), ref Unsafe.AsRef<byte>(left), (uint)Unsafe.SizeOf<Vector256<Int64>>());
+            Unsafe.WriteUnaligned(ref Unsafe.As<Int64, byte>(ref inArray2[0]), right);
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Int64, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), (uint)Unsafe.SizeOf<Vector256<Int64>>());
 
             ValidateResult(inArray1, inArray2, outArray, method);
         }
 
         private void ValidateResult(void* left, void* right, void* result, [CallerMemberName] string method = "")
         {
-            Double[] inArray1 = new Double[Op1ElementCount];
-            Double[] inArray2 = new Double[Op2ElementCount];
-            Double[] outArray = new Double[RetElementCount];
+            Int64[] inArray1 = new Int64[Op1ElementCount];
+            Int64[] inArray2 = new Int64[Op2ElementCount];
+            Int64[] outArray = new Int64[RetElementCount];
 
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Double, byte>(ref inArray1[0]), ref Unsafe.AsRef<byte>(left), (uint)Unsafe.SizeOf<Vector256<Double>>());
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Double, byte>(ref inArray2[0]), ref Unsafe.AsRef<byte>(right), (uint)Unsafe.SizeOf<Vector256<Double>>());
-            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Double, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), (uint)Unsafe.SizeOf<Vector256<Double>>());
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Int64, byte>(ref inArray1[0]), ref Unsafe.AsRef<byte>(left), (uint)Unsafe.SizeOf<Vector256<Int64>>());
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Int64, byte>(ref inArray2[0]), ref Unsafe.AsRef<byte>(right), (uint)Unsafe.SizeOf<Vector256<Int64>>());
+            Unsafe.CopyBlockUnaligned(ref Unsafe.As<Int64, byte>(ref outArray[0]), ref Unsafe.AsRef<byte>(result), (uint)Unsafe.SizeOf<Vector256<Int64>>());
 
             ValidateResult(inArray1, inArray2, outArray, method);
         }
 
-        private void ValidateResult(Double[] left, Double[] right, Double[] result, [CallerMemberName] string method = "")
+        private void ValidateResult(Int64[] left, Int64[] right, Int64[] result, [CallerMemberName] string method = "")
         {
-            if (BitConverter.DoubleToInt64Bits(left[0]) != BitConverter.DoubleToInt64Bits(result[0]))
+            if (result[0] != ((right[0] < 0) ? left[0] : 0))
             {
                 Succeeded = false;
             }
@@ -382,7 +379,7 @@ namespace JIT.HardwareIntrinsics.X86
             {
                 for (var i = 1; i < RetElementCount; i++)
                 {
-                    if (i > 1 ? (BitConverter.DoubleToInt64Bits(left[2]) != BitConverter.DoubleToInt64Bits(result[i])) : (BitConverter.DoubleToInt64Bits(left[0]) != BitConverter.DoubleToInt64Bits(result[i])))
+                    if (result[i] != ((right[i] < 0) ? left[i] : 0))
                     {
                         Succeeded = false;
                         break;
@@ -392,7 +389,7 @@ namespace JIT.HardwareIntrinsics.X86
 
             if (!Succeeded)
             {
-                TestLibrary.TestFramework.LogInformation($"{nameof(Avx)}.{nameof(Avx.PermuteVar)}<Double>(Vector256<Double>, Vector256<Double>): {method} failed:");
+                TestLibrary.TestFramework.LogInformation($"{nameof(Avx2)}.{nameof(Avx2.MaskLoad)}<Int64>(Int64*, Vector256<Int64>): {method} failed:");
                 TestLibrary.TestFramework.LogInformation($"    left: ({string.Join(", ", left)})");
                 TestLibrary.TestFramework.LogInformation($"   right: ({string.Join(", ", right)})");
                 TestLibrary.TestFramework.LogInformation($"  result: ({string.Join(", ", result)})");

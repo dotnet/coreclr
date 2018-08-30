@@ -81,10 +81,9 @@ struct VNFuncApp
     }
 };
 
-// A unique prefix character to use when dumping a tree's gtVN in the tree dumps
-// We use this together with string concatenation to put this in printf format strings
-// static const char* const VN_DumpPrefix = "$";
-#define STR_VN "$"
+// We use a unique prefix character when printing value numbers in dumps:  i.e.  $1c0
+// This define is used with string concatenation to put this in printf format strings
+#define FMT_VN "$%x"
 
 class ValueNumStore
 {
@@ -829,6 +828,14 @@ public:
     // Requires "mapStore" to be a map store VNFuncApp.
     // Prints a representation of a MapStore operation on standard out.
     void vnDumpMapStore(Compiler* comp, VNFuncApp* mapStore);
+
+    // Requires "valWithExc" to be a value with an exeception set VNFuncApp.
+    // Prints a representation of the exeception set on standard out.
+    void vnDumpValWithExc(Compiler* comp, VNFuncApp* valWithExc);
+
+    // Requires "excSeq" to be a ExcSetCons sequence.
+    // Prints a representation of the set of exceptions on standard out.
+    void vnDumpExcSeq(Compiler* comp, VNFuncApp* excSeq, bool isHead);
 
     // Returns the string name of "vnf".
     static const char* VNFuncName(VNFunc vnf);

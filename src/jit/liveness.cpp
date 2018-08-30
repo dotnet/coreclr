@@ -134,7 +134,6 @@ void Compiler::fgLocalVarLiveness()
 
     // Init liveness data structures.
     fgLocalVarLivenessInit();
-    assert(lvaSortAgain == false); // Set to false by lvaSortOnly()
 
     EndPhase(PHASE_LCLVARLIVENESS_INIT);
 
@@ -157,25 +156,18 @@ void Compiler::fgLocalVarLiveness()
         fgInterBlockLocalVarLiveness();
     } while (fgStmtRemoved && fgLocalVarLivenessChanged);
 
-    // If we removed any dead code we will have set 'lvaSortAgain' via decRefCnts
-    if (lvaSortAgain)
-    {
-        JITDUMP("In fgLocalVarLiveness, setting lvaSortAgain back to false (set during dead-code removal)\n");
-        lvaSortAgain = false; // We don't re-Sort because we just performed LclVar liveness.
-    }
-
     EndPhase(PHASE_LCLVARLIVENESS_INTERBLOCK);
 }
 
 /*****************************************************************************/
 void Compiler::fgLocalVarLivenessInit()
 {
-    // If necessary, re-sort the variable table by ref-count...before creating any varsets using this sorting.
-    if (lvaSortAgain)
+    JITDUMP("In fgLocalVarLivenessInit\n");
+
+    // Sort locals first, if we're optimizing
+    if (!opts.MinOpts() && !opts.compDbgCode)
     {
-        JITDUMP("In fgLocalVarLivenessInit, sorting locals\n");
         lvaSortByRefCount();
-        assert(lvaSortAgain == false); // Set to false by lvaSortOnly()
     }
 
     // We mark a lcl as must-init in a first pass of local variable
@@ -378,7 +370,7 @@ void Compiler::fgPerNodeLocalVarLiveness(GenTree* tree)
         default:
 
             // Determine what memory locations it defines.
-            if (tree->OperIsAssignment() || tree->OperIsBlkOp())
+            if (tree->OperIs(GT_ASG) || tree->OperIsBlkOp())
             {
                 GenTreeLclVarCommon* dummyLclVarTree = nullptr;
                 if (tree->DefinesLocal(this, &dummyLclVarTree))
@@ -530,7 +522,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         if (verbose)
         {
             VARSET_TP allVars(VarSetOps::Union(this, fgCurUseSet, fgCurDefSet));
-            printf("BB%02u", block->bbNum);
+            printf(FMT_BB, block->bbNum);
             printf(" USE(%d)=", VarSetOps::Count(this, fgCurUseSet));
             lvaDispVarSet(fgCurUseSet, allVars);
             for (MemoryKind memoryKind : allMemoryKinds())
@@ -612,7 +604,7 @@ void Compiler::fgMarkInScope(BasicBlock* block, VARSET_VALARG_TP inScope)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("Scope info: block BB%02u marking in scope: ", block->bbNum);
+        printf("Scope info: block " FMT_BB " marking in scope: ", block->bbNum);
         dumpConvertedVarSet(this, inScope);
         printf("\n");
     }
@@ -638,7 +630,7 @@ void Compiler::fgUnmarkInScope(BasicBlock* block, VARSET_VALARG_TP unmarkScope)
 #ifdef DEBUG
     if (verbose)
     {
-        printf("Scope info: block BB%02u UNmarking in scope: ", block->bbNum);
+        printf("Scope info: block " FMT_BB " UNmarking in scope: ", block->bbNum);
         dumpConvertedVarSet(this, unmarkScope);
         printf("\n");
     }
@@ -661,7 +653,7 @@ void Compiler::fgDispDebugScopes()
     BasicBlock* block;
     for (block = fgFirstBB; block; block = block->bbNext)
     {
-        printf("BB%02u: ", block->bbNum);
+        printf(FMT_BB ": ", block->bbNum);
         dumpConvertedVarSet(this, block->bbScope);
         printf("\n");
     }
@@ -1023,12 +1015,9 @@ void Compiler::fgExtendDbgLifetimes()
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("Created zero-init of V%02u in BB%02u\n", varNum, block->bbNum);
+                    printf("Created zero-init of V%02u in " FMT_BB "\n", varNum, block->bbNum);
                 }
-#endif // DEBUG
-
-                varDsc->incRefCnts(block->getBBWeight(this), this);
-
+#endif                                         // DEBUG
                 block->bbFlags |= BBF_CHANGED; // indicates that the contents of the block have changed.
             }
 
@@ -1210,7 +1199,7 @@ class LiveVarAnalysis
 #ifdef DEBUG
                     if (m_compiler->verbose)
                     {
-                        printf("Scope info: block BB%02u LiveIn+ ", block->bbNum);
+                        printf("Scope info: block " FMT_BB " LiveIn+ ", block->bbNum);
                         dumpConvertedVarSet(m_compiler, VarSetOps::Diff(m_compiler, m_liveIn, block->bbLiveIn));
                         printf(", LiveOut+ ");
                         dumpConvertedVarSet(m_compiler, VarSetOps::Diff(m_compiler, m_liveOut, block->bbLiveOut));
@@ -1888,8 +1877,6 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
                         // Remove the store. DCE will iteratively clean up any ununsed operands.
                         lclVarNode->gtOp1->SetUnusedValue();
 
-                        lvaDecRefCnts(block, node);
-
                         // If the store is marked as a late argument, it is referenced by a call. Instead of removing
                         // it, bash it to a NOP.
                         if ((node->gtFlags & GTF_LATE_ARG) != 0)
@@ -2114,7 +2101,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         return false;
     }
 
-    if (asgNode->OperIsAssignment())
+    if (asgNode->OperIs(GT_ASG))
     {
         rhsNode = asgNode->gtGetOp2();
     }
@@ -2164,7 +2151,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("BB%02u - Dead assignment has side effects...\n", compCurBB->bbNum);
+                    printf(FMT_BB " - Dead assignment has side effects...\n", compCurBB->bbNum);
                     gtDispTree(asgNode);
                     printf("\n");
                 }
@@ -2193,7 +2180,6 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                         printf("\n");
                     }
 #endif // DEBUG
-                    fgUpdateRefCntForExtract(asgNode, sideEffList);
 
                     /* Replace the assignment statement with the list of side effects */
                     noway_assert(sideEffList->gtOper != GT_STMT);
@@ -2263,7 +2249,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 #ifdef DEBUG
                 if (verbose)
                 {
-                    printf("BB%02u - INTERIOR dead assignment has side effects...\n", compCurBB->bbNum);
+                    printf(FMT_BB " - INTERIOR dead assignment has side effects...\n", compCurBB->bbNum);
                     gtDispTree(asgNode);
                     printf("\n");
                 }
@@ -2286,7 +2272,6 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 #endif // DEBUG
                 if (sideEffList->gtOper == asgNode->gtOper)
                 {
-                    fgUpdateRefCntForExtract(asgNode, sideEffList);
 #ifdef DEBUG
                     *treeModf = true;
 #endif // DEBUG
@@ -2296,7 +2281,6 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                 }
                 else
                 {
-                    fgUpdateRefCntForExtract(asgNode, sideEffList);
 #ifdef DEBUG
                     *treeModf = true;
 #endif // DEBUG
@@ -2326,16 +2310,12 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
                 {
                     printf("\nRemoving tree ");
                     printTreeID(asgNode);
-                    printf(" in BB%02u as useless\n", compCurBB->bbNum);
+                    printf(" in " FMT_BB " as useless\n", compCurBB->bbNum);
                     gtDispTree(asgNode);
                     printf("\n");
                 }
 #endif // DEBUG
-                /* No side effects - Remove the interior statement */
-                fgUpdateRefCntForExtract(asgNode, nullptr);
-
-                /* Change the assignment to a GT_NOP node */
-
+                /* No side effects - Change the assignment to a GT_NOP node */
                 asgNode->gtBashToNOP();
 
 #ifdef DEBUG
@@ -2634,7 +2614,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 void Compiler::fgDispBBLiveness(BasicBlock* block)
 {
     VARSET_TP allVars(VarSetOps::Union(this, block->bbLiveIn, block->bbLiveOut));
-    printf("BB%02u", block->bbNum);
+    printf(FMT_BB, block->bbNum);
     printf(" IN (%d)=", VarSetOps::Count(this, block->bbLiveIn));
     lvaDispVarSet(block->bbLiveIn, allVars);
     for (MemoryKind memoryKind : allMemoryKinds())

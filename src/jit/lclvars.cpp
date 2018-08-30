@@ -41,7 +41,6 @@ void Compiler::lvaInit()
 
     lvaTrackedToVarNum = nullptr;
 
-    lvaSortAgain    = false; // false: We don't need to call lvaSortOnly()
     lvaTrackedFixed = false; // false: We can still add new tracked variables
 
     lvaDoneFrameLayout = NO_FRAME_LAYOUT;
@@ -220,7 +219,7 @@ void Compiler::lvaInitTypeRef()
     memset(lvaTable, 0, tableSize);
     for (unsigned i = 0; i < lvaTableCnt; i++)
     {
-        new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(this); // call the constructor.
+        new (&lvaTable[i], jitstd::placement_t()) LclVarDsc(); // call the constructor.
     }
 
     //-------------------------------------------------------------------------
@@ -978,7 +977,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // _TARGET_XXX_
 
 #if FEATURE_FASTTAILCALL
-            varDscInfo->stackArgSize += (unsigned)roundUp(argSize, TARGET_POINTER_SIZE);
+            varDscInfo->stackArgSize += roundUp(argSize, TARGET_POINTER_SIZE);
 #endif // FEATURE_FASTTAILCALL
         }
 
@@ -986,7 +985,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         // The arg size is returning the number of bytes of the argument. For a struct it could return a size not a
         // multiple of TARGET_POINTER_SIZE. The stack allocated space should always be multiple of TARGET_POINTER_SIZE,
         // so round it up.
-        compArgSize += (unsigned)roundUp(argSize, TARGET_POINTER_SIZE);
+        compArgSize += roundUp(argSize, TARGET_POINTER_SIZE);
 #else  // !UNIX_AMD64_ABI
         compArgSize += argSize;
 #endif // !UNIX_AMD64_ABI
@@ -1497,8 +1496,9 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
         CLANG_FORMAT_COMMENT_ANCHOR;
 #if defined(FEATURE_SIMD)
 #if defined(_TARGET_XARCH_)
-        // This will allow promotion of 2 Vector<T> fields on AVX2, or 4 Vector<T> fields on SSE2.
-        const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * XMM_REGSIZE_BYTES;
+        // This will allow promotion of 4 Vector<T> fields on AVX2 or Vector256<T> on AVX,
+        // or 8 Vector<T>/Vector128<T> fields on SSE2.
+        const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * YMM_REGSIZE_BYTES;
 #elif defined(_TARGET_ARM64_)
         const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * FP_REGSIZE_BYTES;
 #endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
@@ -2798,188 +2798,6 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
     }
 }
 
-// Decrement the ref counts for all locals contained in the tree and its children.
-void Compiler::lvaRecursiveDecRefCounts(GenTree* tree)
-{
-    assert(lvaLocalVarRefCounted());
-
-    // We could just use the recursive walker for all cases but that is a
-    // fairly heavyweight thing to spin up when we're usually just handling a leaf.
-    if (tree->OperIsLeaf())
-    {
-        if (tree->OperIsLocal())
-        {
-            lvaDecRefCnts(tree);
-        }
-    }
-    else
-    {
-        DecLclVarRefCountsVisitor::WalkTree(this, tree);
-    }
-}
-
-DecLclVarRefCountsVisitor::DecLclVarRefCountsVisitor(Compiler* compiler)
-    : GenTreeVisitor<DecLclVarRefCountsVisitor>(compiler)
-{
-}
-
-Compiler::fgWalkResult DecLclVarRefCountsVisitor::PreOrderVisit(GenTree** use, GenTree* user)
-{
-    m_compiler->lvaDecRefCnts(*use);
-    return fgWalkResult::WALK_CONTINUE;
-}
-
-Compiler::fgWalkResult DecLclVarRefCountsVisitor::WalkTree(Compiler* compiler, GenTree* tree)
-{
-    DecLclVarRefCountsVisitor visitor(compiler);
-    return static_cast<GenTreeVisitor<DecLclVarRefCountsVisitor>*>(&visitor)->WalkTree(&tree, nullptr);
-}
-
-/*****************************************************************************
- *
- *  Helper passed to the tree walker to decrement the refCnts for
- *  all local variables in an expression
- */
-void Compiler::lvaDecRefCnts(GenTree* tree)
-{
-    assert(compCurBB != nullptr);
-    lvaDecRefCnts(compCurBB, tree);
-}
-
-void Compiler::lvaDecRefCnts(BasicBlock* block, GenTree* tree)
-{
-    assert(block != nullptr);
-    assert(tree != nullptr);
-
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    noway_assert(lvaLocalVarRefCounted());
-
-    if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
-    {
-        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
-        if (!opts.ShouldUsePInvokeHelpers())
-        {
-            /* Get the special variable descriptor */
-
-            lclNum = info.compLvFrameListRoot;
-
-            assert(lclNum <= lvaCount);
-            varDsc = lvaTable + lclNum;
-
-            /* Decrement the reference counts twice */
-
-            varDsc->decRefCnts(block->getBBWeight(this), this);
-            varDsc->decRefCnts(block->getBBWeight(this), this);
-        }
-    }
-    else
-    {
-        /* This must be a local variable */
-
-        noway_assert(tree->OperIsLocal());
-
-        /* Get the variable descriptor */
-
-        lclNum = tree->gtLclVarCommon.gtLclNum;
-
-        assert(lclNum < lvaCount);
-        varDsc = lvaTable + lclNum;
-
-        /* Decrement its lvRefCnt and lvRefCntWtd */
-
-        varDsc->decRefCnts(block->getBBWeight(this), this);
-    }
-}
-
-// Increment the ref counts for all locals contained in the tree and its children.
-void Compiler::lvaRecursiveIncRefCounts(GenTree* tree)
-{
-    assert(lvaLocalVarRefCounted());
-
-    // We could just use the recursive walker for all cases but that is a
-    // fairly heavyweight thing to spin up when we're usually just handling a leaf.
-    if (tree->OperIsLeaf())
-    {
-        if (tree->OperIsLocal())
-        {
-            lvaIncRefCnts(tree);
-        }
-    }
-    else
-    {
-        IncLclVarRefCountsVisitor::WalkTree(this, tree);
-    }
-}
-
-IncLclVarRefCountsVisitor::IncLclVarRefCountsVisitor(Compiler* compiler)
-    : GenTreeVisitor<IncLclVarRefCountsVisitor>(compiler)
-{
-}
-
-Compiler::fgWalkResult IncLclVarRefCountsVisitor::PreOrderVisit(GenTree** use, GenTree* user)
-{
-    m_compiler->lvaIncRefCnts(*use);
-    return fgWalkResult::WALK_CONTINUE;
-}
-
-Compiler::fgWalkResult IncLclVarRefCountsVisitor::WalkTree(Compiler* compiler, GenTree* tree)
-{
-    IncLclVarRefCountsVisitor visitor(compiler);
-    return static_cast<GenTreeVisitor<IncLclVarRefCountsVisitor>*>(&visitor)->WalkTree(&tree, nullptr);
-}
-
-/*****************************************************************************
- *
- *  Helper passed to the tree walker to increment the refCnts for
- *  all local variables in an expression
- */
-void Compiler::lvaIncRefCnts(GenTree* tree)
-{
-    unsigned   lclNum;
-    LclVarDsc* varDsc;
-
-    noway_assert(lvaLocalVarRefCounted());
-
-    if ((tree->gtOper == GT_CALL) && (tree->gtFlags & GTF_CALL_UNMANAGED))
-    {
-        assert((!opts.ShouldUsePInvokeHelpers()) || (info.compLvFrameListRoot == BAD_VAR_NUM));
-        if (!opts.ShouldUsePInvokeHelpers())
-        {
-            /* Get the special variable descriptor */
-
-            lclNum = info.compLvFrameListRoot;
-
-            assert(lclNum <= lvaCount);
-            varDsc = lvaTable + lclNum;
-
-            /* Increment the reference counts twice */
-
-            varDsc->incRefCnts(compCurBB->getBBWeight(this), this);
-            varDsc->incRefCnts(compCurBB->getBBWeight(this), this);
-        }
-    }
-    else
-    {
-        /* This must be a local variable */
-
-        noway_assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD || tree->gtOper == GT_STORE_LCL_VAR ||
-                     tree->gtOper == GT_STORE_LCL_FLD);
-
-        /* Get the variable descriptor */
-
-        lclNum = tree->gtLclVarCommon.gtLclNum;
-
-        assert(lclNum < lvaCount);
-        varDsc = lvaTable + lclNum;
-
-        /* Increment its lvRefCnt and lvRefCntWtd */
-
-        varDsc->incRefCnts(compCurBB->getBBWeight(this), this);
-    }
-}
-
 /*****************************************************************************
  *
  *  Compare function passed to qsort() by Compiler::lclVars.lvaSortByRefCount().
@@ -3239,9 +3057,6 @@ void Compiler::lvaSortOnly()
     /* Now sort the variable table by ref-count */
 
     qsort(lvaRefSorted, lvaCount, sizeof(*lvaRefSorted), (compCodeOpt() == SMALL_CODE) ? RefCntCmp : WtdRefCntCmp);
-
-    lvaSortAgain = false;
-
     lvaDumpRefCounts();
 }
 
@@ -3310,24 +3125,6 @@ void Compiler::lvaSortByRefCount()
         /* Append this variable to the table for sorting */
 
         *refTab++ = varDsc;
-
-        /* If we have JMP, all arguments must have a location
-         * even if we don't use them inside the method */
-
-        if (compJmpOpUsed && varDsc->lvIsParam)
-        {
-            /* ...except when we have varargs and the argument is
-              passed on the stack.  In that case, it's important
-              for the ref count to be zero, so that we don't attempt
-              to track them for GC info (which is not possible since we
-              don't know their offset in the stack).  See the assert at the
-              end of raMarkStkVars and bug #28949 for more info. */
-
-            if (!raIsVarargsStackArg(lclNum))
-            {
-                varDsc->incRefCnts(1, this);
-            }
-        }
 
         /* For now assume we'll be able to track all locals */
 
@@ -3500,7 +3297,8 @@ void Compiler::lvaSortByRefCount()
 
     // We have a new epoch, and also cache the tracked var count in terms of size_t's sufficient to hold that many bits.
     lvaCurEpoch++;
-    lvaTrackedCountInSizeTUnits = unsigned(roundUp(lvaTrackedCount, sizeof(size_t) * 8)) / unsigned(sizeof(size_t) * 8);
+    lvaTrackedCountInSizeTUnits =
+        roundUp((unsigned)lvaTrackedCount, (unsigned)(sizeof(size_t) * 8)) / unsigned(sizeof(size_t) * 8);
 
 #ifdef DEBUG
     VarSetOps::AssignNoCopy(this, lvaTrackedVars, VarSetOps::MakeFull(this));
@@ -3689,7 +3487,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stm
     {
         /* Is this an assigment? */
 
-        if (tree->OperIsAssignment())
+        if (tree->OperIs(GT_ASG))
         {
             GenTree* op1 = tree->gtOp.gtOp1;
             GenTree* op2 = tree->gtOp.gtOp2;
@@ -3931,7 +3729,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
         }
     };
 
-    JITDUMP("\n*** %s local variables in block BB%02u (weight=%s)\n", isRecompute ? "recomputing" : "marking",
+    JITDUMP("\n*** %s local variables in block " FMT_BB " (weight=%s)\n", isRecompute ? "recomputing" : "marking",
             block->bbNum, refCntWtd2str(block->getBBWeight(this)));
 
     for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
@@ -4080,6 +3878,7 @@ void Compiler::lvaMarkLocalVars()
 
 void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
 {
+    JITDUMP("\n*** lvaComputeRefCounts ***\n");
     unsigned   lclNum = 0;
     LclVarDsc* varDsc = nullptr;
 
@@ -4093,11 +3892,8 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
         {
 
 #if defined(DEBUG)
-            // All local vars should be marked as implicitly referenced.
-            //
-            // This happens today for temps introduced after lvMarkRefs via
-            // incremental ref count updates. If/when we remove that we'll need
-            // to do something else to ensure late temps are considered.
+            // All local vars should be marked as implicitly referenced
+            // and not tracked.
             for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
             {
                 const bool isSpecialVarargsParam = varDsc->lvIsParam && raIsVarargsStackArg(lclNum);
@@ -4110,6 +3906,8 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
                 {
                     assert(varDsc->lvImplicitlyReferenced);
                 }
+
+                assert(!varDsc->lvTracked);
             }
 #endif // defined (DEBUG)
 
@@ -4168,6 +3966,8 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
         }
     }
 
+    JITDUMP("\n*** lvaComputeRefCounts -- explicit counts ***\n");
+
     // Second, account for all explicit local variable references
     for (BasicBlock* block = fgFirstBB; block; block = block->bbNext)
     {
@@ -4203,6 +4003,8 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
         }
     }
 
+    JITDUMP("\n*** lvaComputeRefCounts -- implicit counts ***\n");
+
     // Third, bump ref counts for some implicit prolog references
     for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
     {
@@ -4223,6 +4025,22 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
             if (varDsc->lvIsStructField)
             {
                 varDsc->incRefCnts(BB_UNITY_WEIGHT, this);
+            }
+        }
+
+        // If we have JMP, all arguments must have a location
+        // even if we don't use them inside the method
+        if (compJmpOpUsed && varDsc->lvIsParam && (varDsc->lvRefCnt() == 0))
+        {
+            // except when we have varargs and the argument is
+            // passed on the stack.  In that case, it's important
+            // for the ref count to be zero, so that we don't attempt
+            // to track them for GC info (which is not possible since we
+            // don't know their offset in the stack).  See the assert at the
+            // end of raMarkStkVars and bug #28949 for more info.
+            if (!raIsVarargsStackArg(lclNum))
+            {
+                varDsc->lvImplicitlyReferenced = 1;
             }
         }
     }
@@ -5083,7 +4901,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToArgs()
 #ifdef UNIX_AMD64_ABI
         // On the stack frame the homed arg always takes a full number of slots
         // for proper stack alignment. Make sure the real struct size is properly rounded up.
-        argumentSize = (unsigned)roundUp(argumentSize, TARGET_POINTER_SIZE);
+        argumentSize = roundUp(argumentSize, TARGET_POINTER_SIZE);
 #endif // UNIX_AMD64_ABI
 
         argOffs =
@@ -5374,7 +5192,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
                     if (argOffs < prevRegsSize)
                     {
                         // We must align up the argOffset to a multiple of 8 to account for skipped registers.
-                        argOffs = roundUp(argOffs, 2 * TARGET_POINTER_SIZE);
+                        argOffs = roundUp((unsigned)argOffs, 2 * TARGET_POINTER_SIZE);
                     }
                     // We should've skipped only a single register.
                     assert(argOffs == prevRegsSize);
@@ -5494,7 +5312,8 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
             case TYP_DOUBLE:
             case TYP_LONG:
                 // We must align up the argOffset to a multiple of 8
-                argOffs = roundUp(argOffsWithoutPreSpillRegArgs, 2 * TARGET_POINTER_SIZE) + sizeofPreSpillRegArgs;
+                argOffs =
+                    roundUp((unsigned)argOffsWithoutPreSpillRegArgs, 2 * TARGET_POINTER_SIZE) + sizeofPreSpillRegArgs;
                 break;
 
             default:
@@ -7394,14 +7213,14 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
         // We need to support alignment requirements to access memory on ARM ARCH
         unsigned alignment = 1;
         pComp->codeGen->InferOpSizeAlign(lcl, &alignment);
-        alignment = (unsigned)roundUp(alignment, TARGET_POINTER_SIZE);
-        padding   = (unsigned)roundUp(padding, alignment);
+        alignment = roundUp(alignment, TARGET_POINTER_SIZE);
+        padding   = roundUp(padding, alignment);
 #endif // _TARGET_ARMARCH_
 
         // Change the variable to a TYP_BLK
         if (varType != TYP_BLK)
         {
-            varDsc->lvExactSize = (unsigned)(roundUp(padding + pComp->lvaLclSize(lclNum), TARGET_POINTER_SIZE));
+            varDsc->lvExactSize = roundUp(padding + pComp->lvaLclSize(lclNum), TARGET_POINTER_SIZE);
             varDsc->lvType      = TYP_BLK;
             pComp->lvaSetVarAddrExposed(lclNum);
         }

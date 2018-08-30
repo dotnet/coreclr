@@ -99,9 +99,21 @@ namespace R2RDump
             {
                 Size = (int)((x86.UnwindInfo)unwindInfo).FunctionLength;
             }
+            else if (unwindInfo is Arm.UnwindInfo)
+            {
+                Size = (int)((Arm.UnwindInfo)unwindInfo).FunctionLength;
+            }
+            else if (unwindInfo is Arm64.UnwindInfo)
+            {
+                Size = (int)((Arm64.UnwindInfo)unwindInfo).FunctionLength;
+            }
             else if (gcInfo != null)
             {
                 Size = gcInfo.CodeLength;
+            }
+            else
+            {
+                Size = -1;
             }
             CodeOffset = codeOffset;
             method.GcInfo = gcInfo;

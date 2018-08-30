@@ -762,7 +762,9 @@ public:
 // GT_LCL_VAR nodes may be changed to GT_REG_VAR nodes without resetting
 // the flags. These are also used by GT_LCL_FLD.
 #define GTF_VAR_DEF         0x80000000 // GT_LCL_VAR -- this is a definition
-#define GTF_VAR_USEASG      0x40000000 // GT_LCL_VAR -- this is a use/def for a x<op>=y
+#define GTF_VAR_USEASG      0x40000000 // GT_LCL_VAR -- this is a partial definition, a use of the previous definition is implied
+                                       // A partial definition usually occurs when a struct field is assigned to (s.f = ...) or
+                                       // when a scalar typed variable is assigned to via a narrow store (*((byte*)&i) = ...).
 #define GTF_VAR_CAST        0x10000000 // GT_LCL_VAR -- has been explictly cast (variable node may not be type of local)
 #define GTF_VAR_ITERATOR    0x08000000 // GT_LCL_VAR -- this is a iterator reference in the loop condition
 #define GTF_VAR_CLONED      0x01000000 // GT_LCL_VAR -- this node has been cloned or is a clone
@@ -1211,13 +1213,18 @@ public:
 
     bool OperIsMultiRegOp() const
     {
-#if defined(_TARGET_ARM_)
-        if ((gtOper == GT_MUL_LONG) || (gtOper == GT_PUTARG_REG) || (gtOper == GT_BITCAST))
+#if !defined(_TARGET_64BIT_)
+        if (OperIs(GT_MUL_LONG))
         {
             return true;
         }
-#endif
-
+#if defined(_TARGET_ARM_)
+        if (OperIs(GT_PUTARG_REG, GT_BITCAST))
+        {
+            return true;
+        }
+#endif // _TARGET_ARM_
+#endif // _TARGET_64BIT_
         return false;
     }
 
@@ -1429,16 +1436,6 @@ public:
     {
         return OperIsCommutative(gtOper) || (OperIsSIMD(gtOper) && isCommutativeSIMDIntrinsic()) ||
                (OperIsHWIntrinsic(gtOper) && isCommutativeHWIntrinsic());
-    }
-
-    static bool OperIsAssignment(genTreeOps gtOper)
-    {
-        return gtOper == GT_ASG;
-    }
-
-    bool OperIsAssignment() const
-    {
-        return OperIsAssignment(gtOper);
     }
 
     static bool OperMayOverflow(genTreeOps gtOper)
@@ -1735,8 +1732,14 @@ public:
     // Returns true if it is a node returning its value in more than one register
     inline bool IsMultiRegNode() const;
 
+    // Returns the number of registers defined by a multireg node.
+    unsigned GetMultiRegCount();
+
     // Returns the regIndex'th register defined by a possibly-multireg node.
     regNumber GetRegByIndex(int regIndex);
+
+    // Returns the type of the regIndex'th register defined by a multi-reg node.
+    var_types GetRegTypeByIndex(int regIndex);
 
     // Returns true if it is a GT_COPY or GT_RELOAD node
     inline bool IsCopyOrReload() const;
@@ -3866,7 +3869,7 @@ struct GenTreeCmpXchg : public GenTree
 #endif
 };
 
-#if defined(_TARGET_ARM_)
+#if !defined(_TARGET_64BIT_)
 struct GenTreeMultiRegOp : public GenTreeOp
 {
     regNumber gtOtherReg;
@@ -4021,7 +4024,7 @@ struct GenTreeMultiRegOp : public GenTreeOp
     }
 #endif
 };
-#endif // defined(_TARGET_ARM_)
+#endif // !defined(_TARGET_64BIT_)
 
 struct GenTreeFptrVal : public GenTree
 {
@@ -5452,11 +5455,16 @@ struct GenTreePutArgSplit : public GenTreePutArgStk
 #endif // FEATURE_ARG_SPLIT
 
 // Represents GT_COPY or GT_RELOAD node
+//
+// As it turns out, these are only needed on targets that happen to have multi-reg returns.
+// However, they are actually needed on any target that has any multi-reg ops. It is just
+// coincidence that those are the same (and there isn't a FEATURE_MULTIREG_OPS).
+//
 struct GenTreeCopyOrReload : public GenTreeUnOp
 {
 #if FEATURE_MULTIREG_RET
     // State required to support copy/reload of a multi-reg call node.
-    // First register is is always given by gtRegNum.
+    // The first register is always given by gtRegNum.
     //
     regNumberSmall gtOtherRegs[MAX_RET_REG_COUNT - 1];
 #endif
@@ -5558,6 +5566,26 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
         {
             gtOtherRegs[i] = from->gtOtherRegs[i];
         }
+#endif
+    }
+
+    unsigned GetRegCount()
+    {
+        if (gtRegNum == REG_NA)
+        {
+            return 0;
+        }
+#if FEATURE_MULTIREG_RET
+        for (unsigned i = 0; i < MAX_RET_REG_COUNT - 1; ++i)
+        {
+            if (gtOtherRegs[i] == REG_NA)
+            {
+                return i + 1;
+            }
+        }
+        return MAX_RET_REG_COUNT;
+#else
+        return 1;
 #endif
     }
 
@@ -6038,7 +6066,7 @@ inline bool GenTree::IsMultiRegNode() const
         return true;
     }
 
-#if defined(_TARGET_ARM_)
+#if !defined(_TARGET_64BIT_)
     if (OperIsMultiRegOp() || OperIsPutArgSplit() || (gtOper == GT_COPY))
     {
         return true;
@@ -6046,6 +6074,40 @@ inline bool GenTree::IsMultiRegNode() const
 #endif
 
     return false;
+}
+//-----------------------------------------------------------------------------------
+// GetMultiRegCount: Return the register count for a multi-reg node.
+//
+// Arguments:
+//     None
+//
+// Return Value:
+//     Returns the number of registers defined by this node.
+inline unsigned GenTree::GetMultiRegCount()
+{
+    if (IsMultiRegCall())
+    {
+        return AsCall()->GetReturnTypeDesc()->GetReturnRegCount();
+    }
+
+#if FEATURE_ARG_SPLIT
+    if (OperIsPutArgSplit())
+    {
+        return AsPutArgSplit()->gtNumRegs;
+    }
+#endif
+#if !defined(_TARGET_64BIT_)
+    if (OperIsMultiRegOp())
+    {
+        return AsMultiRegOp()->GetRegCount();
+    }
+    if (OperIs(GT_COPY, GT_RELOAD))
+    {
+        return AsCopyOrReload()->GetRegCount();
+    }
+#endif
+    assert(!"GetMultiRegCount called with non-multireg node");
+    return 1;
 }
 
 //-----------------------------------------------------------------------------------
@@ -6075,7 +6137,7 @@ inline regNumber GenTree::GetRegByIndex(int regIndex)
         return AsPutArgSplit()->GetRegNumByIdx(regIndex);
     }
 #endif
-#if defined(_TARGET_ARM_)
+#if !defined(_TARGET_64BIT_)
     if (OperIsMultiRegOp())
     {
         return AsMultiRegOp()->GetRegNumByIdx(regIndex);
@@ -6087,6 +6149,43 @@ inline regNumber GenTree::GetRegByIndex(int regIndex)
 #endif
     assert(!"Invalid regIndex for GetRegFromMultiRegNode");
     return REG_NA;
+}
+
+//-----------------------------------------------------------------------------------
+// GetRegTypeByIndex: Get a specific register's type, based on regIndex, that is produced
+//                    by this multi-reg node.
+//
+// Arguments:
+//     regIndex - which register type to return
+//
+// Return Value:
+//     The register type assigned to this index for this node.
+//
+// Notes:
+//     This must be a multireg node that is *not* a copy or reload (which must retrieve the
+//     type from its source), and 'regIndex' must be a valid index for this node.
+//
+inline var_types GenTree::GetRegTypeByIndex(int regIndex)
+{
+    if (IsMultiRegCall())
+    {
+        return AsCall()->AsCall()->GetReturnTypeDesc()->GetReturnRegType(regIndex);
+    }
+
+#if FEATURE_ARG_SPLIT
+    if (OperIsPutArgSplit())
+    {
+        return AsPutArgSplit()->GetRegType(regIndex);
+    }
+#endif
+#if !defined(_TARGET_64BIT_)
+    if (OperIsMultiRegOp())
+    {
+        return AsMultiRegOp()->GetRegType(regIndex);
+    }
+#endif
+    assert(!"Invalid node type for GetRegTypeByIndex");
+    return TYP_UNDEF;
 }
 
 //-------------------------------------------------------------------------
