@@ -94,6 +94,7 @@ CONFIG_INTEGER(JitNoMemoryBarriers, W("JitNoMemoryBarriers"), 0) // If 1, don't 
 CONFIG_INTEGER(JitNoRegLoc, W("JitNoRegLoc"), 0)
 CONFIG_INTEGER(JitNoStructPromotion, W("JitNoStructPromotion"), 0) // Disables struct promotion in Jit32
 CONFIG_INTEGER(JitNoUnroll, W("JitNoUnroll"), 0)
+CONFIG_INTEGER(JitNoPartialUnroll, W("JitNoPartialUnroll"), 0) // Disables partial unrolling, only do unrolls when full unrolling is available.
 CONFIG_INTEGER(JitOrder, W("JitOrder"), 0)
 CONFIG_INTEGER(JitQueryCurrentStaticFieldClass, W("JitQueryCurrentStaticFieldClass"), 1)
 CONFIG_INTEGER(JitReportFastTailCallDecisions, W("JitReportFastTailCallDecisions"), 0)

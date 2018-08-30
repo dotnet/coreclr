@@ -3801,6 +3801,13 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
     GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
 
+#ifdef DEBUG
+    if (JitConfig.JitNoPartialUnroll() && !lpIsFullUrl)
+    {
+        return false;
+    }
+#endif // !DEBUG
+
     unsigned int lvaInc = lpDesc->lpIterConst();
 
     /* Almost done!! we are going to clone expressions to unroll right now! */
