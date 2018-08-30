@@ -3548,9 +3548,15 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         return fgWalkResult::WALK_CONTINUE;
     };
 
-    unsigned int loopBodyStmtCnt = 0;
+    auto tryIndex = bbBody->bbTryIndex;
     for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
     {
+        if (bbIter->bbTryIndex != tryIndex)
+        {
+            // Unrolling would require cloning EH regions
+            return false;
+        }
+
         for (GenTreeStmt* gtStmt = bbIter->firstStmt(); gtStmt; gtStmt = gtStmt->getNextStmt())
         {
             if (gtStmt == gtInit || gtStmt == gtTest || gtStmt == gtIncr)
@@ -3561,28 +3567,18 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
 
             GenTree* gtStmtExpr = gtStmt->gtStmtExpr;
             fgWalkTreePre(&gtStmtExpr, FnFindlvStmt, &WalkData, true);
-
-            loopBodyStmtCnt++;
         }
 
         if (bbIter == bbBottom)
         {
             break;
         }
-    }
 
-    auto tryIndex = bbBody->bbTryIndex;
-    for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
-    {
-        if (bbIter->bbTryIndex != tryIndex)
+        if (bbIter->bbJumpKind != BBJ_NONE)
         {
-            // Unrolling would require cloning EH regions
+            // Loop body has condition. this will be really hard to resolve
+            // skipping this loop.
             return false;
-        }
-
-        if (bbIter == bbBottom)
-        {
-            break;
         }
     }
 
@@ -3787,8 +3783,9 @@ void Compiler::optUnrollLoops()
         /* Looks like a good idea to unroll this loop, let's do it! */
         CLANG_FORMAT_COMMENT_ANCHOR;
 
-        isChanged |= optUnrollLoopImpl(loopId, loopUnrollInnerThres, loopUnrollOuterThres, loopUnrollNewIter,
-                                       costLoopUnroll.Value());
+        isChanged = true;
+        optUnrollLoopImpl(loopId, loopUnrollInnerThres, loopUnrollOuterThres, loopUnrollNewIter,
+                          costLoopUnroll.Value());
     }
 
     if (isChanged)
@@ -3804,12 +3801,19 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     LoopDsc* lpDesc      = &optLoopTable[loopId];
 
     BasicBlock*  bbHead     = lpDesc->lpHead;
-    BasicBlock*  bbBody     = bbHead->bbNext;
     BasicBlock*  bbBottom   = lpDesc->lpBottom;
+    BasicBlock*  bbBody     = bbHead->bbNext;
     GenTreeStmt* gtTest     = bbBottom->lastStmt();
     GenTree*     gtTestExpr = gtTest->gtStmtExpr;
     GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
     GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
+
+    // Backup for restoring.
+    BasicBlock* bbOldHeadNext = bbHead->bbNext;
+
+    BBjumpKinds bbOldBottomJumpKind = bbBottom->bbJumpKind;
+    BasicBlock* bbOldBottomNext     = bbBottom->bbNext;
+    BasicBlock* bbOldBottomPrev     = bbBottom->bbPrev;
 
 #ifdef DEBUG
     if (JitConfig.JitNoPartialUnroll() && !lpIsFullUrl)
@@ -3842,12 +3846,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                 bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
-            else
-            {
-                bbNew->bbJumpSwt  = bbIter->bbJumpSwt;
-                bbNew->bbJumpDest = bbIter->bbJumpDest;
-                bbNew->bbJumpOffs = bbIter->bbJumpOffs;
-            }
         }
     }
 
@@ -3868,33 +3866,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                 bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
-            else
-            {
-                bbNew->bbJumpSwt  = bbIter->bbJumpSwt;
-                bbNew->bbJumpDest = bbIter->bbJumpDest;
-                bbNew->bbJumpOffs = bbIter->bbJumpOffs;
-            }
         }
-    }
-
-    if (lpIsFullUrl)
-    {
-        // We are doing full unrolling. we don't need any tests because loop is removed.
-        // check that they has any side-effects. if not, remove it.
-        GenTree* sideEffListTest = nullptr;
-        gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
-
-        if (sideEffListTest)
-        {
-            gtTest->gtStmtExpr = sideEffListTest;
-            fgInsertStmtAtEnd(bbBottom, gtTest);
-        }
-        bbBottom->bbJumpKind = BBJ_NONE;
-    }
-    else
-    {
-        // We've removed gtTest from bbBottom for cloning. inserting it again.
-        fgInsertStmtAtEnd(bbBottom, gtTest);
     }
 
     if (lpIsPtclUrl)
@@ -3947,7 +3919,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
                     default:
                         noway_assert(!"Iteration operator is only can be GT_ADD or GT_SUB!");
-                        ;
                 }
             }
         }
@@ -3956,6 +3927,26 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         {
             goto FAILED;
         }
+    }
+
+    if (lpIsFullUrl)
+    {
+        // We are doing full unrolling. we don't need any tests because loop is removed.
+        // check that they has any side-effects. if not, remove it.
+        GenTree* sideEffListTest = nullptr;
+        gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+
+        if (sideEffListTest)
+        {
+            gtTest->gtStmtExpr = sideEffListTest;
+            fgInsertStmtAtEnd(bbBottom, gtTest);
+        }
+        bbBottom->bbJumpKind = BBJ_NONE;
+    }
+    else
+    {
+        // We've removed gtTest from bbBottom for cloning. inserting it again.
+        fgInsertStmtAtEnd(bbBottom, gtTest);
     }
 
     lpDesc->lpFlags |= LPFLG_REMOVED;
@@ -3967,9 +3958,16 @@ FAILED:
     // Failed to unroll loops. restoring all modifies.
 
     lpDesc->lpFlags |= LPFLG_DONT_UNROLL;
-    bbHead->bbNext   = bbBody;
-    bbBody->bbPrev   = bbHead;
-    bbBottom->bbNext = nullptr;
+
+    bbHead->bbNext        = bbOldHeadNext;
+    bbOldHeadNext->bbPrev = bbHead;
+
+    fgInsertStmtAtEnd(bbBottom, gtTest);
+    bbBottom->bbJumpKind    = bbOldBottomJumpKind;
+    bbOldBottomPrev->bbNext = bbBottom;
+    bbBottom->bbPrev        = bbOldBottomPrev;
+    bbOldBottomNext->bbPrev = bbBottom;
+    bbBottom->bbNext        = bbOldBottomNext;
 
     return false;
 }
