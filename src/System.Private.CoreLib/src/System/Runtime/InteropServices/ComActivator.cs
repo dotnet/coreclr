@@ -89,15 +89,32 @@ namespace System.Runtime.InteropServices
             return new BasicClassFactory(cxt.ClassId, classAssembly, classType);
         }
 
+        private static bool IsLoggingEnabled()
+        {
+#if DEBUG
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        private static void Log(string fmt, params object[] args)
+        {
+            // [TODO] Consider using FrameworkEventSource in release builds
+
+            Debug.WriteLine(fmt, args);
+         }
+
         private static (Assembly assembly, Type type) FindClassAssemblyAndType(Guid clsid, string[] potentialAssembies)
         {
             // Determine what assembly the class is in
             foreach (string assemPath in potentialAssembies)
             {
                 Assembly assem;
+                string assemPathLocal = assemPath;
+
                 try
                 {
-                    string assemPathLocal = assemPath;
                     string extMaybe = Path.GetExtension(assemPath);
                     if (".manifest".Equals(extMaybe, StringComparison.OrdinalIgnoreCase))
                     {
@@ -108,6 +125,11 @@ namespace System.Runtime.InteropServices
                 }
                 catch (Exception e)
                 {
+                    if (IsLoggingEnabled())
+                    {
+                        Log($"COM Activation of {clsid} failed to load assembly {assemPathLocal}: {e}");
+                    }
+
                     continue;
                 }
 

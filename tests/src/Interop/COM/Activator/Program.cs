@@ -61,7 +61,6 @@ namespace Activator
                 return 101;
             }
 
-
             return 100;
         }
     }
