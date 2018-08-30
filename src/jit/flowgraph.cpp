@@ -13170,11 +13170,11 @@ BasicBlock::weight_t Compiler::fgComputeMissingBlockWeights()
 }
 
 //-------------------------------------------------------------
-// fgComputeCalledCount: if profile information is in use,
+// fgComputeCalledCount: when profile information is in use,
 //   compute fgCalledCount
 //
-// Returns:
-//   sum of weights for all return and throw blocks
+// Argument:
+//   returnWeight - sum of weights for all return and throw blocks
 
 void Compiler::fgComputeCalledCount(BasicBlock::weight_t returnWeight)
 {
