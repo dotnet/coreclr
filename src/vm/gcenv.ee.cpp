@@ -1478,7 +1478,8 @@ bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
 
 bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
-#ifdef HEAP_ANALYZE
+    LIMITED_METHOD_CONTRACT;
+
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -1489,13 +1490,14 @@ bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
             return true;
         }
     }
-#endif // HEAP_ANALYZE
+
     return false;
 }
 
 void GCToEEInterface::DACNotifyGcMarkEnd(int condemnedGeneration)
 {
-#ifdef HEAP_ANALYZE
+    LIMITED_METHOD_CONTRACT;
+
     // Is the list active?
     GcNotifications gn(g_pGcNotificationTable);
     if (gn.IsActive())
@@ -1506,5 +1508,4 @@ void GCToEEInterface::DACNotifyGcMarkEnd(int condemnedGeneration)
             DACNotify::DoGCNotification(gea);
         }
     }
-#endif // HEAP_ANALYZE
 }
