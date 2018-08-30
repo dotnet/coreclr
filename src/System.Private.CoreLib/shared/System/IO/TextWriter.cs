@@ -263,6 +263,36 @@ namespace System.IO
             }
         }
 
+        // Writes a string segment to the text stream. If the given segment is empty.
+        //
+        public virtual void Write(StringSegment value)
+        {
+            if (!value.IsEmpty)
+            {
+                string buffer = value.GetBuffer(out int offset, out int length);
+                if (length == buffer.Length)
+                {
+                    Write(buffer); // write in its entirety
+                }
+                else
+                {
+                    Write(value.AsSpan(offset, length)); // write only a segment
+                }
+            }
+        }
+
+        // Writes a UTF-8 string to the text stream. If the given string is null, nothing
+        // is written to the text stream.
+        //
+        public virtual void Write(Utf8String value)
+        {
+            if (value != null)
+            {
+                // TODO: Rent a buffer and call Write(char[], int, int) instead.
+                Write(value.ToString());
+            }
+        }
+
         // Writes the text representation of an object to the text stream. If the
         // given object is null, nothing is written to the text stream.
         // Otherwise, the object's ToString method is called to produce the
@@ -462,6 +492,14 @@ namespace System.IO
             Write(CoreNewLineStr);
         }
 
+        // Writes a string segment followed by a line terminator to the text stream.
+        //
+        public virtual void WriteLine(StringSegment value)
+        {
+            Write(value);
+            Write(CoreNewLineStr);
+        }
+
         /// <summary>
         /// Equivalent to WriteLine(stringBuilder.ToString()) however it uses the
         /// StringBuilder.GetChunks() method to avoid creating the intermediate string
@@ -470,6 +508,17 @@ namespace System.IO
         {
             Write(value);
             WriteLine();
+        }
+
+        // Writes a UTF-8 string followed by a line terminator to the text stream.
+        //
+        public virtual void WriteLine(Utf8String value)
+        {
+            if (value != null)
+            {
+                Write(value);
+            }
+            Write(CoreNewLineStr);
         }
 
         // Writes the text representation of an object followed by a line
@@ -552,6 +601,28 @@ namespace System.IO
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
         }
 
+        public virtual Task WriteAsync(StringSegment value)
+        {
+            var tuple = new Tuple<TextWriter, StringSegment>(this, value);
+            return Task.Factory.StartNew(state =>
+            {
+                var t = (Tuple<TextWriter, StringSegment>)state;
+                t.Item1.Write(t.Item2);
+            },
+            tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
+        public virtual Task WriteAsync(Utf8String value)
+        {
+            var tuple = new Tuple<TextWriter, Utf8String>(this, value);
+            return Task.Factory.StartNew(state =>
+            {
+                var t = (Tuple<TextWriter, Utf8String>)state;
+                t.Item1.Write(t.Item2);
+            },
+            tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
         /// <summary>
         /// Equivalent to WriteAsync(stringBuilder.ToString()) however it uses the
         /// StringBuilder.GetChunks() method to avoid creating the intermediate string
@@ -621,6 +692,19 @@ namespace System.IO
             return Task.Factory.StartNew(state =>
             {
                 var t = (Tuple<TextWriter, string>)state;
+                t.Item1.WriteLine(t.Item2);
+            },
+            tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
+        public virtual Task WriteLineAsync(StringSegment value) => WriteLineAsync(value.AsMemory());
+
+        public virtual Task WriteLineAsync(Utf8String value)
+        {
+            var tuple = new Tuple<TextWriter, Utf8String>(this, value);
+            return Task.Factory.StartNew(state =>
+            {
+                var t = (Tuple<TextWriter, Utf8String>)state;
                 t.Item1.WriteLine(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -717,12 +801,22 @@ namespace System.IO
             }
 
             // Not strictly necessary, but for perf reasons
+            public override void Write(Utf8String value)
+            {
+            }
+
+            // Not strictly necessary, but for perf reasons
             public override void WriteLine()
             {
             }
 
             // Not strictly necessary, but for perf reasons
             public override void WriteLine(string value)
+            {
+            }
+
+            // Not strictly necessary, but for perf reasons
+            public override void WriteLine(Utf8String value)
             {
             }
 
@@ -815,7 +909,13 @@ namespace System.IO
             public override void Write(string value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void Write(StringSegment value) => _out.Write(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(StringBuilder value) => _out.Write(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void Write(Utf8String value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(object value) => _out.Write(value);
@@ -872,7 +972,13 @@ namespace System.IO
             public override void WriteLine(string value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void WriteLine(StringSegment value) => _out.WriteLine(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(StringBuilder value) => _out.WriteLine(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void WriteLine(Utf8String value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(object value) => _out.WriteLine(value);
@@ -908,7 +1014,21 @@ namespace System.IO
             }
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteAsync(StringSegment value)
+            {
+                Write(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default)
+            {
+                Write(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteAsync(Utf8String value)
             {
                 Write(value);
                 return Task.CompletedTask;
@@ -936,7 +1056,21 @@ namespace System.IO
             }
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteLineAsync(StringSegment value)
+            {
+                WriteLine(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default)
+            {
+                WriteLine(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteLineAsync(Utf8String value)
             {
                 WriteLine(value);
                 return Task.CompletedTask;

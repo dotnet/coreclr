@@ -104,6 +104,9 @@ namespace System
         // ordinal case-sensitive comparison
         public static bool operator ==(StringSegment a, StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
 
+        // TODO: How do we make "<StringSegment> != null" result in a compilation error rather
+        // than coercing 'null' to string?
+        //
         // ordinal case-sensitive comparison
         public static bool operator !=(StringSegment a, StringSegment b) => !(a == b);
 

@@ -42,6 +42,7 @@ namespace System.IO
         private bool _autoFlush;
         private bool _haveWrittenPreamble;
         private bool _closable;
+        private bool _isWellKnownUtf8Encoding;
 
         // We don't guarantee thread safety on StreamWriter, but we should at 
         // least prevent users from trying to write anything while an Async
@@ -150,6 +151,11 @@ namespace System.IO
         {
             _stream = streamArg;
             _encoding = encodingArg;
+
+            // Special-case only these two specific types, otherwise a developer could've overridden
+            // the type and provided an implementation that behaves differently than our expectations.
+            _isWellKnownUtf8Encoding = encodingArg.GetType() == typeof(UTF8Encoding.UTF8EncodingSealed) || encodingArg.GetType() == typeof(UTF8Encoding);
+
             _encoder = _encoding.GetEncoder();
             if (bufferSize < MinBufferSize)
             {
@@ -445,6 +451,12 @@ namespace System.IO
 
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void Write(string value)
+        {
+            WriteSpan(value, appendNewLine: false);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
+        public override void Write(StringSegment value)
         {
             WriteSpan(value, appendNewLine: false);
         }
