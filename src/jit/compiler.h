@@ -7126,6 +7126,27 @@ public:
         return m_promotedStructDeathVars;
     }
 
+    void ClearPromotedStructDeathVars()
+    {
+        if (m_promotedStructDeathVars != nullptr)
+        {
+            m_promotedStructDeathVars->RemoveAll();
+        }
+    }
+
+    bool LookupPromotedStructDeathVars(GenTree* tree, VARSET_TP** bits)
+    {
+        bits        = nullptr;
+        bool result = false;
+
+        if (m_promotedStructDeathVars != nullptr)
+        {
+            result = m_promotedStructDeathVars->Lookup(tree, bits);
+        }
+
+        return result;
+    }
+
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX

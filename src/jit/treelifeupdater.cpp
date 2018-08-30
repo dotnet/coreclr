@@ -115,7 +115,7 @@ void TreeLifeUpdater<ForCodeGen>::UpdateLifeVar(GenTree* tree)
             {
                 assert(!isBorn); // GTF_VAR_DEATH only set for LDOBJ last use.
                 hasDeadTrackedFieldVars =
-                    compiler->GetPromotedStructDeathVars()->Lookup(indirAddrLocal, &deadTrackedFieldVars);
+                    compiler->LookupPromotedStructDeathVars(indirAddrLocal, &deadTrackedFieldVars);
                 if (hasDeadTrackedFieldVars)
                 {
                     VarSetOps::Assign(compiler, varDeltaSet, *deadTrackedFieldVars);
