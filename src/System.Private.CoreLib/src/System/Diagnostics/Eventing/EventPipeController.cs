@@ -177,10 +177,7 @@ namespace System.Diagnostics.Tracing
             else
             {
                 // Specify the default configuration.
-                foreach (EventPipeProviderConfiguration providerConfig in DefaultProviderConfiguration)
-                {
-                    config.EnableProviderConfiguration(providerConfig);
-                }
+                config.EnableProviderRange(DefaultProviderConfiguration);
             }
 
             return config;

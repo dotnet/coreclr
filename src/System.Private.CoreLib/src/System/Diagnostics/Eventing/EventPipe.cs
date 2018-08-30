@@ -127,9 +127,17 @@ namespace System.Diagnostics.Tracing
                 loggingLevel));
         }
 
-        internal void EnableProviderConfiguration(EventPipeProviderConfiguration providerConfig)
+        private void EnableProviderConfiguration(EventPipeProviderConfiguration providerConfig)
         {
             m_providers.Add(providerConfig);
+        }
+
+        internal void EnableProviderRange(EventPipeProviderConfiguration[] providerConfigs)
+        {
+            foreach(EventPipeProviderConfiguration config in providerConfigs)
+            {
+                EnableProviderConfiguration(config);
+            }
         }
 
         internal void SetProfilerSamplingRate(TimeSpan minTimeBetweenSamples)
