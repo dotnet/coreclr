@@ -10,6 +10,14 @@
 #define _CRT_SECURE_NO_WARNINGS 1
 #endif
 
+// Ensure that both UNICODE and _UNICODE are set.
+#ifndef _UNICODE
+#define _UNICODE
+#endif
+#ifndef UNICODE
+#define UNICODE
+#endif
+
 // common headers
 #include <stdio.h>
 #include <memory.h>
@@ -68,14 +76,6 @@
 #define __cdecl
 #endif
 #endif //!_WIN32
-
-// Ensure that both UNICODE and _UNICODE are set.
-#ifndef _UNICODE
-#define _UNICODE
-#endif
-#ifndef UNICODE
-#define UNICODE
-#endif
 
 inline void *CoreClrAlloc(size_t cb)
 {
