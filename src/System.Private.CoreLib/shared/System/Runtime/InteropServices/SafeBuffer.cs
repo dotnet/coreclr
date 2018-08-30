@@ -71,6 +71,12 @@ using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 using Microsoft.Win32.SafeHandles;
 
+#if BIT64
+using nuint = System.UInt64;
+#else
+using nuint = System.UInt32;
+#endif
+
 namespace System.Runtime.InteropServices
 {
     public abstract unsafe class SafeBuffer : SafeHandleZeroOrMinusOneIsInvalid
@@ -198,21 +204,17 @@ namespace System.Runtime.InteropServices
             SpaceCheck(ptr, sizeofT);
 
             // return *(T*) (_ptr + byteOffset);
-            T value = default;
             bool mustCallRelease = false;
             try
             {
                 DangerousAddRef(ref mustCallRelease);
-
-                fixed (byte* pStructure = &Unsafe.As<T, byte>(ref value))
-                    Buffer.Memmove(pStructure, ptr, sizeofT);
+                return Unsafe.ReadUnaligned<T>(ptr);
             }
             finally
             {
                 if (mustCallRelease)
                     DangerousRelease();
             }
-            return value;
         }
 
         [CLSCompliant(false)]
@@ -243,14 +245,9 @@ namespace System.Runtime.InteropServices
 
                 if (count > 0)
                 {
-                    unsafe
-                    {
-                        fixed (byte* pStructure = &Unsafe.As<T, byte>(ref array[index]))
-                        {
-                            for (int i = 0; i < count; i++)
-                                Buffer.Memmove(pStructure + sizeofT * i, ptr + alignedSizeofT * i, sizeofT);
-                        }
-                    }
+                    ref T pStructure = ref array[index];
+                    for (nuint i = 0; (uint)i < (uint)count; i++)
+                        Unsafe.Add(ref pStructure, (IntPtr)(void*)i) = Unsafe.ReadUnaligned<T>(ptr + alignedSizeofT * i);
                 }
             }
             finally
@@ -283,9 +280,7 @@ namespace System.Runtime.InteropServices
             try
             {
                 DangerousAddRef(ref mustCallRelease);
-
-                fixed (byte* pStructure = &Unsafe.As<T, byte>(ref value))
-                    Buffer.Memmove(ptr, pStructure, sizeofT);
+                Unsafe.WriteUnaligned<T>(ptr, value);
             }
             finally
             {
@@ -322,14 +317,9 @@ namespace System.Runtime.InteropServices
 
                 if (count > 0)
                 {
-                    unsafe
-                    {
-                        fixed (byte* pStructure = &Unsafe.As<T, byte>(ref array[index]))
-                        {
-                            for (int i = 0; i < count; i++)
-                                Buffer.Memmove(ptr + alignedSizeofT * i, pStructure + sizeofT * i, sizeofT);
-                        }
-                    }
+                    ref T pStructure = ref array[index];
+                    for (nuint i = 0; (uint)i < (uint)count; i++)
+                        Unsafe.WriteUnaligned<T>(ptr + alignedSizeofT * i, Unsafe.Add(ref pStructure, (IntPtr)(void*)i));
                 }
             }
             finally

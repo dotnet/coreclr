@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using Internal.Runtime.CompilerServices;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -98,12 +99,9 @@ namespace System
         {
             if (len == 0)
                 return;
-            fixed (char* charPtr = &src._firstChar)
-            {
-                byte* srcPtr = (byte*)charPtr;
-                byte* dstPtr = (byte*)dest;
-                Buffer.Memcpy(dstPtr, srcPtr, len);
-            }
+
+            // Note: 'len' below is in byte count, not char count
+            Buffer.Memmove(ref Unsafe.AsRef<byte>((void*)dest), ref Unsafe.As<char, byte>(ref src.GetRawStringData()), (uint)len);
         }
 
         internal unsafe int GetBytesFromEncoding(byte* pbNativeBuffer, int cbNativeBuffer, Encoding encoding)

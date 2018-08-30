@@ -3,7 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Globalization
 {
@@ -208,7 +210,7 @@ namespace System.Globalization
             return (uint)(c - 'a') <= (uint)('z' - 'a') ? (char)(c - 0x20) : c;
         }
 
-        private unsafe SortKey InvariantCreateSortKey(string source, CompareOptions options)
+        private SortKey InvariantCreateSortKey(string source, CompareOptions options)
         {
             if (source == null) { throw new ArgumentNullException(nameof(source)); }
 
@@ -227,20 +229,19 @@ namespace System.Globalization
                 // In the invariant mode, all string comparisons are done as ordinal so when generating the sort keys we generate it according to this fact
                 keyData = new byte[source.Length * sizeof(char)];
 
-                fixed (char* pChar = source) fixed (byte* pByte = keyData)
+                ref char sourceRef = ref source.GetRawStringData();
+                ref char keyDataRef = ref Unsafe.As<byte, char>(ref keyData.GetRawSzArrayData());
+
+                if ((options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0)
                 {
-                    if ((options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0)
+                    for (int i = 0; i < source.Length; i++)
                     {
-                        short *pShort = (short *) pByte;
-                        for (int i=0; i<source.Length; i++)
-                        {
-                            pShort[i] = (short) InvariantToUpper(source[i]);
-                        }
-                    } 
-                    else
-                    {
-                        Buffer.MemoryCopy(pChar, pByte, keyData.Length, keyData.Length);
+                        Unsafe.Add(ref keyDataRef, i) = InvariantToUpper(source[i]);
                     }
+                } 
+                else
+                {
+                    Buffer.Memmove(ref keyDataRef, ref sourceRef, (uint)keyData.Length);
                 }
             }
             return new SortKey(Name, source, options, keyData);

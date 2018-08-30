@@ -17,6 +17,7 @@ namespace System.StubHelpers
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Diagnostics;
+    using Internal.Runtime.CompilerServices;
 
     internal static class AnsiCharMarshaler
     {
@@ -262,13 +263,7 @@ namespace System.StubHelpers
                 }
 
                 // copy characters from the managed string
-                fixed (char* ch = strManaged)
-                {
-                    Buffer.Memcpy(
-                        ptrToFirstChar,
-                        (byte*)ch,
-                        (strManaged.Length + 1) * 2);
-                }
+                Buffer.Memmove(ref Unsafe.AsRef<char>(ptrToFirstChar), ref strManaged.GetRawStringData(), (uint)(strManaged.Length + 1));
 
                 // copy the trail byte if present
                 if (hasTrailByte)
