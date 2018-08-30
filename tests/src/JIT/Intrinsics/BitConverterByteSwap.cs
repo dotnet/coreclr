@@ -4,6 +4,7 @@
 //
 
 using System;
+using Internal;
 
 namespace BitConverterByteSwap
 {
@@ -37,7 +38,7 @@ namespace BitConverterByteSwap
                 Console.WriteLine($"Expected: 0x{ConstantUInt16Expected:X4}");
             }
 
-            ushort swappedUInt32 = BitConverter.ByteSwap(ConstantUInt32Input);
+            uint swappedUInt32 = BitConverter.ByteSwap(ConstantUInt32Input);
             if (swappedUInt32 != ConstantUInt32Expected)
             {
                 Console.WriteLine($"BitConverter.ByteSwap(const UInt32) failed.");
