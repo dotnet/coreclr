@@ -39,6 +39,7 @@ public class Program
             RedirectStandardError = true
         };
 
+        Console.WriteLine($"Launching '{startExe}'...");
         using (Process p = Process.Start(startInfo))
         {
             p.OutputDataReceived += (_, args) => Console.WriteLine(args.Data);
