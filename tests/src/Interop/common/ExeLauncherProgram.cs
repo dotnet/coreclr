@@ -5,6 +5,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 
 /// <summary>
 /// This class is used for creating a test that has an entry point
@@ -18,9 +19,16 @@ public class Program
         string workingDir = Environment.CurrentDirectory;
         Console.WriteLine($"Searching for exe to launch in {workingDir}...");
 
+        Assembly thisAssem = Assembly.GetEntryAssembly();
         string startExe = string.Empty;
         foreach (string exeMaybe in Directory.EnumerateFiles(workingDir, "*.exe"))
         {
+            // This entry point is _not_ an option
+            if (exeMaybe.Equals(thisAssem.Location, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             startExe = exeMaybe;
             break;
         }
