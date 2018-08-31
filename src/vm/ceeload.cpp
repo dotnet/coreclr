@@ -7077,6 +7077,10 @@ void Module::FixupVTables()
         // Now to fill in the thunk table.
         for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
         {
+            // Tables may contain zero fixups, in which case the RVA is null, which triggers an assert
+            if (pFixupTable[iFixup].Count == 0)
+                continue;
+
             const BYTE** pPointers = (const BYTE **)
                 m_file->GetVTable(pFixupTable[iFixup].RVA);
 

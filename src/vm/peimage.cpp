@@ -835,8 +835,8 @@ void PEImage::UnloadIJWModule(void *pBase)
         MODE_ANY;
     } CONTRACTL_END
 
-        // Take the IJW hash lock
-        CrstHolder hashLockHolder(&s_ijwHashLock);
+    // Take the IJW hash lock
+    CrstHolder hashLockHolder(&s_ijwHashLock);
 
     // Try to delete the hash entry
     IJWFixupData *pData = (IJWFixupData *)s_ijwFixupDataHash->DeleteValue((UPTR)pBase, pBase);
@@ -844,7 +844,6 @@ void PEImage::UnloadIJWModule(void *pBase)
     // Now delete the data
     if ((UPTR)pData != (UPTR)INVALIDENTRY)
         delete pData;
-
 }
 
 #endif // !CROSSGEN_COMPILE
