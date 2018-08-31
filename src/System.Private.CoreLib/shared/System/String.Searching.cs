@@ -102,11 +102,13 @@ namespace System
             if (anyOf.Length == 2)
             {
                 // Very common optimization for directory separators (/, \), quotes (", '), brackets, etc
-                return IndexOfAny(anyOf[0], anyOf[1], startIndex, count);
+                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], count);
+                return result == -1 ? result : result + startIndex;
             }
             else if (anyOf.Length == 3)
             {
-                return IndexOfAny(anyOf[0], anyOf[1], anyOf[2], startIndex, count);
+                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], count);
+                return result == -1 ? result : result + startIndex;
             }
             else if (anyOf.Length > 3)
             {
@@ -118,55 +120,6 @@ namespace System
             }
             else // anyOf.Length == 0
             {
-                return -1;
-            }
-        }
-
-        private unsafe int IndexOfAny(char value1, char value2, int startIndex, int count)
-        {
-            fixed (char* pChars = &_firstChar)
-            {
-                char* pCh = pChars + startIndex;
-
-                while (count > 0)
-                {
-                    char c = *pCh;
-
-                    if (c == value1 || c == value2)
-                        return (int)(pCh - pChars);
-
-                    // Possibly reads outside of count and can include null terminator
-                    // Handled in the return logic
-                    c = *(pCh + 1);
-
-                    if (c == value1 || c == value2)
-                        return (count == 1 ? -1 : (int)(pCh - pChars) + 1);
-
-                    pCh += 2;
-                    count -= 2;
-                }
-
-                return -1;
-            }
-        }
-
-        private unsafe int IndexOfAny(char value1, char value2, char value3, int startIndex, int count)
-        {
-            fixed (char* pChars = &_firstChar)
-            {
-                char* pCh = pChars + startIndex;
-
-                while (count > 0)
-                {
-                    char c = *pCh;
-
-                    if (c == value1 || c == value2 || c == value3)
-                        return (int)(pCh - pChars);
-
-                    pCh++;
-                    count--;
-                }
-
                 return -1;
             }
         }
