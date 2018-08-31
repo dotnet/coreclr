@@ -644,7 +644,7 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
             // This helper only trashes ECX.
             return RBM_ECX;
 #elif defined(_TARGET_AMD64_)
-            // This uses and defs rdi and rci.
+            // This uses and defs RDI and RSI.
             return RBM_CALLEE_TRASH_NOGC & ~(RBM_RDI | RBM_RSI);
 #elif defined(_TARGET_ARMARCH_)
             return RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF;
