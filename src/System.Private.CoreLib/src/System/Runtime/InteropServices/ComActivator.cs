@@ -70,6 +70,16 @@ namespace System.Runtime.InteropServices
         public string[] ActivationAssemblyList;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ComActivationContextInternal
+    {
+        public Guid ClassId;
+        public Guid InterfaceId;
+        public int AssemblyCount;
+        public IntPtr AssemblyList;
+        public IntPtr ClassFactoryDest;
+    }
+
     public static class ComActivator
     {
         /// <summary>
@@ -87,6 +97,46 @@ namespace System.Runtime.InteropServices
             string[] potentialAssemblies = cxt.ActivationAssemblyList ?? new string[0];
             (Assembly classAssembly, Type classType) = FindClassAssemblyAndType(cxt.ClassId, potentialAssemblies);
             return new BasicClassFactory(cxt.ClassId, classAssembly, classType);
+        }
+
+        /// <summary>
+        /// Internal entry point for unmanaged COM activation API from native code
+        /// </summary>
+        /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
+        public static int GetClassFactoryForTypeInternal(ref ComActivationContextInternal cxtInt)
+        {
+            if (IsLoggingEnabled())
+            {
+                Log(
+$@"{nameof(GetClassFactoryForTypeInternal)} arguments:
+    {cxtInt.ClassId}
+    {cxtInt.InterfaceId}
+    {cxtInt.AssemblyCount}
+    0x{cxtInt.AssemblyList.ToInt64():x}
+    0x{cxtInt.ClassFactoryDest.ToInt64():x}");
+            }
+
+            try
+            {
+                string[] potentialAssembies = CreateAssemblyArray(cxtInt.AssemblyCount, cxtInt.AssemblyList);
+
+                var cxt = new ComActivationContext()
+                {
+                    ClassId = cxtInt.ClassId,
+                    InterfaceId = cxtInt.InterfaceId,
+                    ActivationAssemblyList = potentialAssembies
+                };
+
+                object cf = GetClassFactoryForType(cxt);
+                IntPtr nativeIUnknown = Marshal.GetIUnknownForObject(cf);
+                Marshal.WriteIntPtr(cxtInt.ClassFactoryDest, nativeIUnknown);
+            }
+            catch (Exception e)
+            {
+                return e.HResult;
+            }
+
+            return 0;
         }
 
         private static bool IsLoggingEnabled()
@@ -147,6 +197,22 @@ namespace System.Runtime.InteropServices
 
             const int CLASS_E_CLASSNOTAVAILABLE = unchecked((int)0x80040111);
             throw new COMException(string.Empty, CLASS_E_CLASSNOTAVAILABLE);
+        }
+
+        private static string[] CreateAssemblyArray(int assemblyCount, IntPtr assemblyList)
+        {
+            var assemblies = new string[assemblyCount];
+
+            unsafe
+            {
+                var spanOfPtrs = new Span<IntPtr>(assemblyList.ToPointer(), assemblyCount);
+                for (int i = 0; i < assemblyCount; ++i)
+                {
+                    assemblies[i] = Marshal.PtrToStringUni(spanOfPtrs[i]);
+                }
+            }
+
+            return assemblies;
         }
 
         [ComVisible(true)]
