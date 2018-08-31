@@ -3845,7 +3845,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             }
         }
 
-        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+        for (BasicBlock* bbIter = bbBody; bbIter != bbBottom; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = bbMapRedirect[bbIter];
             optCopyBlkDest(bbIter, bbNew);
@@ -3874,7 +3874,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
             }
         }
 
-        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+        for (BasicBlock* bbIter = bbBody; bbIter != bbBottom; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = bbMapRedirect[bbIter];
             optCopyBlkDest(bbIter, bbNew);
