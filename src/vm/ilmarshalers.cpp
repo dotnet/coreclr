@@ -1801,8 +1801,7 @@ void ILVBByValStrMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
     // static void ClearNative(IntPtr pNative);
     pslILEmit->EmitCALL(METHOD__VBBYVALSTRMARSHALER__CLEAR_NATIVE, 1, 0);
 }
-
-#endif
+#endif // FEATURE_COMINTEROP
 
 LocalDesc ILBSTRMarshaler::GetManagedType()
 {

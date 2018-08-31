@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cstdint>
 
 #ifndef _PLATFORMDEFINES__H
 #define _PLATFORMDEFINES__H
@@ -109,6 +110,12 @@ DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID
 void TP_JoinThread(THREAD_ID tThread);
 void TP_DebugBreak();
 DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
+
+BSTR TP_SysAllocStringByteLen(LPWSTR psz, size_t len);
+void TP_SysFreeString(BSTR bstr);
+size_t TP_SysStringByteLen(BSTR bstr);
+BSTR TP_SysAllocStringLen(LPCSTR psz, size_t len);
+BSTR TP_SysAllocString(LPWSTR psz);
 
 //
 // Method redirects
