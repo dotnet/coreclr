@@ -989,6 +989,11 @@ inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
     return (sizeofvaluetype > 4);
 }
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4359) // Prevent "warning C4359: 'UMEntryThunkCode': Alignment specifier is less than actual alignment (8), and will be ignored." in crossbitness scenario
+#endif // _MSC_VER
+
 struct DECLSPEC_ALIGN(4) UMEntryThunkCode
 {
     WORD        m_code[4];
@@ -1013,6 +1018,10 @@ struct DECLSPEC_ALIGN(4) UMEntryThunkCode
         return 0;
     }
 };
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 struct HijackArgs
 {
