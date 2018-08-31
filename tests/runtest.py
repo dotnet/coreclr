@@ -1916,7 +1916,7 @@ def do_setup(host_os,
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
     else:
         # We will write out build information into the test directory. This is used
-        # by runtest.py to determine whether we need to rebuild to test wrappers.
+        # by runtest.py to determine whether we need to rebuild the test wrappers.
         if os.path.isfile(os.path.join(test_location, "build_info.json")):
             build_info = None
             with open(os.path.join(test_location, "build_info.json")) as file_handle:
