@@ -3573,13 +3573,6 @@ bool Compiler::optCheckSimpleLoop(unsigned loopId)
         {
             break;
         }
-
-        if (bbIter->bbJumpKind != BBJ_NONE)
-        {
-            // Loop body has condition. this will be really hard to resolve
-            // skipping this loop.
-            return false;
-        }
     }
 
     switch (loopDesc->lpIterOper())
@@ -3800,6 +3793,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
     LoopDsc* lpDesc      = &optLoopTable[loopId];
 
+    unsigned int lvaInc     = lpDesc->lpIterConst();
     BasicBlock*  bbHead     = lpDesc->lpHead;
     BasicBlock*  bbBottom   = lpDesc->lpBottom;
     BasicBlock*  bbBody     = bbHead->bbNext;
@@ -3822,7 +3816,8 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     }
 #endif // !DEBUG
 
-    unsigned int lvaInc = lpDesc->lpIterConst();
+    // Block map for redirecting branches.
+    BlockToBlockMap bbMapRedirect(this->getAllocator());
 
     /* Almost done!! we are going to clone expressions to unroll right now! */
 
@@ -3836,6 +3831,8 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = fgNewBBbefore(bbIter->bbJumpKind, bbBody, true);
+            bbMapRedirect.Set(bbIter, bbNew);
+
             if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
             {
                 goto FAILED;
@@ -3847,6 +3844,13 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                 break;
             }
         }
+
+        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+        {
+            BasicBlock* bbNew = bbMapRedirect[bbIter];
+            optCopyBlkDest(bbIter, bbNew);
+            optRedirectBlock(bbNew, &bbMapRedirect);
+        }
     }
 
     // Unroll as outer loop expressions
@@ -3856,6 +3860,8 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbIter->bbJumpKind, bbInsertAfter, true);
+            bbMapRedirect.Set(bbIter, bbNew);
+
             if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
             {
                 goto FAILED;
@@ -3866,6 +3872,13 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                 bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
+        }
+
+        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+        {
+            BasicBlock* bbNew = bbMapRedirect[bbIter];
+            optCopyBlkDest(bbIter, bbNew);
+            optRedirectBlock(bbNew, &bbMapRedirect);
         }
     }
 
