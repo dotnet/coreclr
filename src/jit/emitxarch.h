@@ -512,8 +512,7 @@ void emitIns_Call(EmitCallType          callType,
                   regMaskTP             gcrefRegs,
                   regMaskTP             byrefRegs,
                   GenTreeIndir*         indir,
-                  bool                  isJump = false,
-                  bool                  isNoGC = false);
+                  bool                  isJump = false);
 // clang-format on
 
 // clang-format off
@@ -532,8 +531,7 @@ void emitIns_Call(EmitCallType          callType,
                   regNumber             xreg     = REG_NA,
                   unsigned              xmul     = 0,
                   ssize_t               disp     = 0,
-                  bool                  isJump   = false,
-                  bool                  isNoGC   = false);
+                  bool                  isJump   = false);
 // clang-format on
 
 #ifdef _TARGET_AMD64_

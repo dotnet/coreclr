@@ -1865,8 +1865,7 @@ void CodeGen::genEmitCall(int                   callType,
                                gcInfo.gcVarPtrSetCur,
                                gcInfo.gcRegGCrefSetCur,
                                gcInfo.gcRegByrefSetCur,
-                               ilOffset, base, REG_NA, 0, 0, isJump,
-                               emitter::emitNoGChelper(compiler->eeGetHelperNum(methHnd)));
+                               ilOffset, base, REG_NA, 0, 0, isJump);
 }
 // clang-format on
 

@@ -9109,7 +9109,8 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,
                                        BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
-                                       true); /* isJump */
+                                       true /* isJump */
+            );
             // clang-format on
         }
 #if FEATURE_FASTTAILCALL

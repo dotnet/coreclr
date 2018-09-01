@@ -7392,8 +7392,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
                            regNumber        xreg /* = REG_NA */,
                            unsigned         xmul /* = 0     */,
                            ssize_t          disp /* = 0     */,
-                           bool             isJump /* = false */,
-                           bool             isNoGC /* = false */)
+                           bool             isJump /* = false */)
 {
     /* Sanity check the arguments depending on callType */
 
