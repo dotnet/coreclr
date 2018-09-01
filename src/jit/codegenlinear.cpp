@@ -1849,8 +1849,7 @@ void CodeGen::genEmitCall(int                   callType,
                           MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(emitAttr secondRetSize),
                           IL_OFFSETX            ilOffset,
                           regNumber             base,
-                          bool                  isJump,
-                          bool                  isNoGC)
+                          bool                  isJump)
 {
 #if !defined(_TARGET_X86_)
     int argSize = 0;
