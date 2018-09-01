@@ -1580,9 +1580,6 @@ public:
 
     void EvalArgsToTemps();
 
-    void RecordStkLevel(unsigned stkLvl);
-    unsigned RetrieveStkLevel();
-
     unsigned ArgCount()
     {
         return argCount;
@@ -4003,7 +4000,6 @@ public:
 
     bool fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg));
 
-    void fgCheckArgCnt();
     void fgSetOptions();
 
 #ifdef DEBUG
@@ -4644,6 +4640,9 @@ public:
 #ifdef DEBUG
     void fgPrintEdgeWeights();
 #endif
+    void                 fgComputeBlockAndEdgeWeights();
+    BasicBlock::weight_t fgComputeMissingBlockWeights();
+    void fgComputeCalledCount(BasicBlock::weight_t returnWeight);
     void fgComputeEdgeWeights();
 
     void fgReorderBlocks();
@@ -4891,7 +4890,6 @@ private:
 
     //------------------------- Morphing --------------------------------------
 
-    unsigned fgPtrArgCntCur;
     unsigned fgPtrArgCntMax;
 
 public:
@@ -4916,15 +4914,15 @@ public:
         fgPtrArgCntMax = argCntMax;
     }
 
+    bool compCanEncodePtrArgCntMax();
+
 private:
     hashBv* fgOutgoingArgTemps;
     hashBv* fgCurrentlyInUseArgTemps;
 
-    bool compCanEncodePtrArgCntMax();
-
     void fgSetRngChkTarget(GenTree* tree, bool delay = true);
 
-    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay, unsigned* stkDepth);
+    BasicBlock* fgSetRngChkTargetInner(SpecialCodeKind kind, bool delay);
 
 #if REARRANGE_ADDS
     void fgMoveOpsLeft(GenTree* tree);
@@ -5116,9 +5114,9 @@ private:
     bool        fgRngChkThrowAdded;
     AddCodeDsc* fgExcptnTargetCache[SCK_COUNT];
 
-    BasicBlock* fgRngChkTarget(BasicBlock* block, unsigned stkDepth, SpecialCodeKind kind);
+    BasicBlock* fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind);
 
-    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind, unsigned stkDepth = 0);
+    BasicBlock* fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, SpecialCodeKind kind);
 
 public:
     AddCodeDsc* fgFindExcptnTarget(SpecialCodeKind kind, unsigned refData);
@@ -7109,12 +7107,16 @@ public:
     // node, else NULL.
     static GenTree* fgIsIndirOfAddrOfLocal(GenTree* tree);
 
-    // This is indexed by GT_OBJ nodes that are address of promoted struct variables, which
+    // This map is indexed by GT_OBJ nodes that are address of promoted struct variables, which
     // have been annotated with the GTF_VAR_DEATH flag.  If such a node is *not* mapped in this
-    // table, one may assume that all the (tracked) field vars die at this point.  Otherwise,
+    // table, one may assume that all the (tracked) field vars die at this GT_OBJ.  Otherwise,
     // the node maps to a pointer to a VARSET_TP, containing set bits for each of the tracked field
     // vars of the promoted struct local that go dead at the given node (the set bits are the bits
     // for the tracked var indices of the field vars, as in a live var set).
+    //
+    // The map is allocated on demand so all map operations should use one of the following three
+    // wrapper methods.
+
     NodeToVarsetPtrMap* m_promotedStructDeathVars;
 
     NodeToVarsetPtrMap* GetPromotedStructDeathVars()
@@ -7124,6 +7126,27 @@ public:
             m_promotedStructDeathVars = new (getAllocator()) NodeToVarsetPtrMap(getAllocator());
         }
         return m_promotedStructDeathVars;
+    }
+
+    void ClearPromotedStructDeathVars()
+    {
+        if (m_promotedStructDeathVars != nullptr)
+        {
+            m_promotedStructDeathVars->RemoveAll();
+        }
+    }
+
+    bool LookupPromotedStructDeathVars(GenTree* tree, VARSET_TP** bits)
+    {
+        bits        = nullptr;
+        bool result = false;
+
+        if (m_promotedStructDeathVars != nullptr)
+        {
+            result = m_promotedStructDeathVars->Lookup(tree, bits);
+        }
+
+        return result;
     }
 
 /*
