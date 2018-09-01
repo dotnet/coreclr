@@ -2122,6 +2122,8 @@ public:
         VarSetOps::AssignNoCopy(emitComp, emitInitGCrefVars, VarSetOps::MakeEmpty(emitComp));
         VarSetOps::AssignNoCopy(emitComp, emitThisGCrefVars, VarSetOps::MakeEmpty(emitComp));
     }
+
+    regMaskTP GetSavedSet(CORINFO_METHOD_HANDLE methHnd);
 };
 
 /*****************************************************************************

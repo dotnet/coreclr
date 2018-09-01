@@ -7413,35 +7413,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     int        argCnt;
     instrDesc* id;
 
-    /* This is the saved set of registers after a normal call */
-    regMaskTP savedSet = RBM_CALLEE_SAVED;
-
-    /* some special helper calls have a different saved set registers */
-
-    if (isNoGC)
-    {
-        assert(emitNoGChelper(Compiler::eeGetHelperNum(methHnd)));
-
-        // Get the set of registers that this call kills and remove it from the saved set.
-        savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(Compiler::eeGetHelperNum(methHnd));
-
-#ifdef DEBUG
-        if (emitComp->verbose)
-        {
-            printf("NOGC Call: savedSet=");
-            printRegMaskInt(savedSet);
-            emitDispRegSet(savedSet);
-            printf("\n");
-        }
-#endif
-    }
-    else
-    {
-        assert(!emitNoGChelper(Compiler::eeGetHelperNum(methHnd)));
-    }
-
-    /* Trim out any callee-trashed registers from the live set */
-
+    // Trim out any callee-trashed registers from the live set.
+    regMaskTP savedSet = GetSavedSet(methHnd);
     gcrefRegs &= savedSet;
     byrefRegs &= savedSet;
 

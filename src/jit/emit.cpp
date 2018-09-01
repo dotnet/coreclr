@@ -7277,3 +7277,31 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 }
 
 #endif // DEBUG
+
+regMaskTP emitter::GetSavedSet(CORINFO_METHOD_HANDLE methHnd)
+{
+    CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
+    // Is it a helper with a special saved set?
+    bool isNoGCHelper = ((helpFunc != CORINFO_HELP_UNDEF) && emitNoGChelper(helpFunc));
+    if (isNoGCHelper)
+    {
+        // Get the set of registers that this call kills and remove it from the saved set.
+        regMaskTP savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(helpFunc);
+
+#ifdef DEBUG
+        if (emitComp->verbose)
+        {
+            printf("NoGC Call: savedSet=");
+            printRegMaskInt(savedSet);
+            emitDispRegSet(savedSet);
+            printf("\n");
+        }
+#endif
+        return savedSet;
+    }
+    else
+    {
+        // This is the saved set of registers after a normal call.
+        return RBM_CALLEE_SAVED;
+    }
+}
