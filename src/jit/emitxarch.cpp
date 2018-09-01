@@ -6857,11 +6857,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif // STACK_PROBES
 
-    int argCnt;
-
-    UNATIVE_OFFSET sz;
-    instrDesc*     id;
-
     // Trim out any callee-trashed registers from the live set.
     regMaskTP savedSet = GetSavedSet(methHnd);
     gcrefRegs &= savedSet;
@@ -6882,9 +6877,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % REGSIZE_BYTES == 0);
-    argCnt = (int)(argSize / (int)REGSIZE_BYTES); // we need a signed-divide
-
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
     {
@@ -6904,6 +6896,11 @@ void emitter::emitIns_Call(EmitCallType          callType,
             Direct call with GC vars          9,440
             Indir. call with GC vars          5,768
      */
+
+    instrDesc* id;
+
+    assert(argSize % REGSIZE_BYTES == 0);
+    int argCnt = (int)(argSize / (int)REGSIZE_BYTES); // we need a signed-divide
 
     if (callType >= EC_FUNC_VIRTUAL)
     {
@@ -6951,6 +6948,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
     bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
     id->idSetIsNoGC(isNoGCHelper);
+
+    UNATIVE_OFFSET sz;
 
     // Record the address: method, indirection, or funcptr
     if (callType >= EC_FUNC_VIRTUAL)

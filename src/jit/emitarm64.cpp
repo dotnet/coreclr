@@ -7409,9 +7409,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     // a sanity test.
     assert((unsigned)abs(argSize) <= codeGen->genStackLevel);
 
-    int        argCnt;
-    instrDesc* id;
-
     // Trim out any callee-trashed registers from the live set.
     regMaskTP savedSet = GetSavedSet(methHnd);
     gcrefRegs &= savedSet;
@@ -7432,9 +7429,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % REGSIZE_BYTES == 0);
-    argCnt = (int)(argSize / (int)REGSIZE_BYTES);
-
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
     {
@@ -7446,6 +7440,10 @@ void emitter::emitIns_Call(EmitCallType          callType,
         on whether this is a direct/indirect call, and whether we need to
         record an updated set of live GC variables.
      */
+    instrDesc* id;
+
+    assert(argSize % REGSIZE_BYTES == 0);
+    int argCnt = (int)(argSize / (int)REGSIZE_BYTES);
 
     if (callType >= EC_INDIR_R)
     {
@@ -7471,12 +7469,12 @@ void emitter::emitIns_Call(EmitCallType          callType,
     emitThisGCrefRegs = gcrefRegs;
     emitThisByrefRegs = byrefRegs;
 
+    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
+    id->idSetIsNoGC(isNoGCHelper);
+
     /* Set the instruction - special case jumping a function */
     instruction ins;
     insFormat   fmt = IF_NONE;
-
-    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
-    id->idSetIsNoGC(isNoGCHelper);
 
     /* Record the address: method, indirection, or funcptr */
 

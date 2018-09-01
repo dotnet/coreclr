@@ -4432,9 +4432,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     // a sanity test.
     assert((unsigned)abs(argSize) <= codeGen->genStackLevel);
 
-    int        argCnt;
-    instrDesc* id;
-
     // Trim out any callee-trashed registers from the live set.
     regMaskTP savedSet = GetSavedSet(methHnd);
     gcrefRegs &= savedSet;
@@ -4455,9 +4452,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
 #endif
 
-    assert(argSize % REGSIZE_BYTES == 0);
-    argCnt = argSize / REGSIZE_BYTES;
-
     /* Managed RetVal: emit sequence point for the call */
     if (emitComp->opts.compDbgInfo && ilOffset != BAD_IL_OFFSET)
     {
@@ -4477,6 +4471,10 @@ void emitter::emitIns_Call(EmitCallType          callType,
             Direct call with GC vars          9,440
             Indir. call with GC vars          5,768
      */
+    instrDesc* id;
+
+    assert(argSize % REGSIZE_BYTES == 0);
+    int argCnt = argSize / REGSIZE_BYTES;
 
     if (callType >= EC_INDIR_R)
     {
