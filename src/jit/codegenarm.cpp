@@ -1616,8 +1616,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                    callTargetReg, // ireg
                                    REG_NA, 0, 0,  // xreg, xmul, disp
                                    false,         // isJump
-                                   emitter::emitNoGChelper(helper),
-                                   (CorInfoHelpFunc)helper == CORINFO_HELP_PROF_FCN_LEAVE);
+                                   emitter::emitNoGChelper(helper));
     }
     else
     {
@@ -1626,8 +1625,7 @@ void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, 
                                    gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, BAD_IL_OFFSET, REG_NA, REG_NA, 0,
                                    0,     /* ilOffset, ireg, xreg, xmul, disp */
                                    false, /* isJump */
-                                   emitter::emitNoGChelper(helper),
-                                   (CorInfoHelpFunc)helper == CORINFO_HELP_PROF_FCN_LEAVE);
+                                   emitter::emitNoGChelper(helper));
     }
 
     regSet.verifyRegistersUsed(RBM_CALLEE_TRASH);

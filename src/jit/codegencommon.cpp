@@ -667,6 +667,9 @@ regMaskTP Compiler::compNoGCHelperCallKillSet(CorInfoHelpFunc helper)
         case CORINFO_HELP_ASSIGN_REF:
         case CORINFO_HELP_CHECKED_ASSIGN_REF:
             return RBM_CALLEE_GCTRASH_WRITEBARRIER;
+        case CORINFO_HELP_PROF_FCN_LEAVE:
+            // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH on ARMARCH.
+            return RBM_CALLEE_TRASH_NOGC & ~RBM_PROFILER_RET_SCRATCH;
 #endif
 
 #if defined(_TARGET_X86_)

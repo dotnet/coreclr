@@ -7393,8 +7393,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
                            unsigned         xmul /* = 0     */,
                            ssize_t          disp /* = 0     */,
                            bool             isJump /* = false */,
-                           bool             isNoGC /* = false */,
-                           bool             isProfLeaveCB /* = false */)
+                           bool             isNoGC /* = false */)
 {
     /* Sanity check the arguments depending on callType */
 
@@ -7425,12 +7424,6 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
         // Get the set of registers that this call kills and remove it from the saved set.
         savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(Compiler::eeGetHelperNum(methHnd));
-
-        // In case of Leave profiler callback, we need to preserve liveness of REG_PROFILER_RET_SCRATCH
-        if (isProfLeaveCB)
-        {
-            savedSet |= RBM_PROFILER_RET_SCRATCH;
-        }
 
 #ifdef DEBUG
         if (emitComp->verbose)
