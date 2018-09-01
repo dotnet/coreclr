@@ -6950,7 +6950,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
     id->idIns(ins);
 
-    id->idSetIsNoGC(isNoGC);
+    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
+    id->idSetIsNoGC(isNoGCHelper);
 
     // Record the address: method, indirection, or funcptr
     if (callType >= EC_FUNC_VIRTUAL)

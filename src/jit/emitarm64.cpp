@@ -7476,7 +7476,8 @@ void emitter::emitIns_Call(EmitCallType          callType,
     instruction ins;
     insFormat   fmt = IF_NONE;
 
-    id->idSetIsNoGC(isNoGC);
+    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
+    id->idSetIsNoGC(isNoGCHelper);
 
     /* Record the address: method, indirection, or funcptr */
 
