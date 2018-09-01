@@ -955,9 +955,10 @@ DEFINE_CLASS(ASSEMBLYLOADCONTEXT,  Loader,                AssemblyLoadContext)
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVE,          Resolve,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUNMANAGEDDLL,          ResolveUnmanagedDll,                      SM_Str_IntPtr_RetIntPtr)
 
-DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEDLLUSINGDLLMAP,        ResolveDllUsingDllmap,                        SM_Str_IntPtr_IntPtr_Bool_Ulong_RetIntPtr)
-
 DEFINE_METHOD(ASSEMBLYLOADCONTEXT,  RESOLVEUSINGEVENT,          ResolveUsingResolvingEvent,                      SM_IntPtr_AssemblyName_RetAssemblyBase)
+
+DEFINE_CLASS(NATIVELIBRARY,     InteropServices,            NativeLibrary)
+DEFINE_METHOD(NATIVELIBRARY,    LOADLIBRARYCALLBACK,            LoadLibraryCallback,            SM_Str_UInt_AssemblyBase_RetIntPtr)
 
 DEFINE_CLASS(LAZY,              System,     Lazy`1)
 

@@ -342,7 +342,7 @@ set(VM_SOURCES_WKS
     interpreter.cpp
     invokeutil.cpp
     jithelpers.cpp
-    loadnative.cpp
+    nativelibrary.cpp
     managedmdimport.cpp
     marshalnative.cpp
     mdaassistants.cpp

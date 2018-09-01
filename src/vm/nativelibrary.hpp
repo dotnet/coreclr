@@ -2,15 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#ifndef _LOADNATIVE_H
-#define _LOADNATIVE_H
+#ifndef _NATIVELIBRARY_H
+#define _NATIVELIBRARY_H
 
-class LoadNative
+class NativeLibrary
 {
 
 public:
 	static
-		INT_PTR QCALLTYPE LoadLibrary(Assembly* pAssembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
+		INT_PTR QCALLTYPE LoadLibrary(QCall::AssemblyHandle assembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
 };
 
 #endif

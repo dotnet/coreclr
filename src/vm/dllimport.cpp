@@ -6027,37 +6027,28 @@ HMODULE NDirect::LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain,
         return NULL;
     }
 
-    UINT_PTR assemblyBinderID = 0;
-    IfFailThrow(pBindingContext->GetBinderID(&assemblyBinderID));
-
-    ICLRPrivBinder *pCurrentBinder = reinterpret_cast<ICLRPrivBinder *>(assemblyBinderID);
-    INT_PTR ptrManagedAssemblyLoadContext = NULL;
-
-    // For assemblies bound via TPA binder, we should use the standard mechanism to make the pinvoke call.
-    if (!AreSameBinderInstance(pCurrentBinder, pTPABinder))
-    {
-        // Get the pointer to the managed assembly load context
-        ptrManagedAssemblyLoadContext = ((CLRPrivBinderAssemblyLoadContext *)pCurrentBinder)->GetManagedAssemblyLoadContext();
-    }
-
     GCX_COOP();
 
     STRINGREF pUnmanagedDllName = StringObject::NewString(wszLibName);
 
     GCPROTECT_BEGIN(pUnmanagedDllName);
 
-    // Prepare to invoke  System.Runtime.Loader.AssemblyLoadContext.ResolveDllUsingDllmap method.
-    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ASSEMBLYLOADCONTEXT__RESOLVEDLLUSINGDLLMAP);
-    DECLARE_ARGHOLDER_ARRAY(args, 5);
+    DomainAssembly *pDomainAssembly = pAssembly->GetDomainAssembly();
+    OBJECTREF assemblyObjectRef = pDomainAssembly->GetExposedAssemblyObject();
+
+    GCPROTECT_BEGIN(assemblyObjectRef);
+
+    // Prepare to invoke  System.Runtime.InteropServices.NativeLibrary.LoadLibraryCallback method.
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__NATIVELIBRARY__LOADLIBRARYCALLBACK);
+    DECLARE_ARGHOLDER_ARRAY(args, 3);
     args[ARGNUM_0] = STRINGREF_TO_ARGHOLDER(pUnmanagedDllName);
-    args[ARGNUM_1] = PTR_TO_ARGHOLDER(ptrManagedAssemblyLoadContext);
-    args[ARGNUM_2] = PTR_TO_ARGHOLDER(pAssembly);
-    args[ARGNUM_3] = PTR_TO_ARGHOLDER(searchAssemblyDirectory); // how to pass BOOL?
-    args[ARGNUM_4] = DWORD_TO_ARGHOLDER(dllImportSearchPathFlag);
+    args[ARGNUM_1] = DWORD_TO_ARGHOLDER(dllImportSearchPathFlag);
+    args[ARGNUM_2] = OBJECTREF_TO_ARGHOLDER(assemblyObjectRef);
 
     // Make the call
     CALL_MANAGED_METHOD(hmod, LPVOID, args);
 
+    GCPROTECT_END();
     GCPROTECT_END();
 
 #ifdef FEATURE_PAL

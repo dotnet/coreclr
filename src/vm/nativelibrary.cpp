@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
-#include "loadnative.hpp"
+#include "nativelibrary.hpp"
 #include "dllimport.h"
 
 #include <shlwapi.h>
@@ -20,13 +20,19 @@
 
 
 //// static
-INT_PTR QCALLTYPE LoadNative::LoadLibrary(Assembly* pAssembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
+INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
 {
     QCALL_CONTRACT;
 
     HMODULE moduleHandle = nullptr;
 
     BEGIN_QCALL;
+
+    Assembly* pAssembly = nullptr;
+    if (static_cast<DomainAssembly*>(callingAssembly) != nullptr)
+    {
+        pAssembly = callingAssembly->GetAssembly();
+    }
 
     moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag);
 

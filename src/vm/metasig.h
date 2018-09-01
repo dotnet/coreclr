@@ -416,6 +416,7 @@ DEFINE_METASIG(IM(PtrSByt_RetStr, P(B), s))
 DEFINE_METASIG(IM(PtrSByt_Int_Int_RetStr, P(B) i i, s))
 DEFINE_METASIG_T(IM(PtrSByt_Int_Int_Encoding_RetStr, P(B) i i C(ENCODING), s))
 DEFINE_METASIG(IM(Obj_Int_RetIntPtr, j i, I))
+DEFINE_METASIG(SM(Str_Int_Obj_RetIntPtr, s i j, I))
 
 DEFINE_METASIG(IM(Char_Char_RetStr, u u, s))
 DEFINE_METASIG(IM(Char_Int_RetVoid, u i, v))
@@ -432,6 +433,8 @@ DEFINE_METASIG(IM(Int_Int_Int_RetVoid, i i i, v))
 DEFINE_METASIG(IM(Int_Int_Int_Int_RetVoid, i i i i, v))
 DEFINE_METASIG_T(IM(Obj_EventArgs_RetVoid, j C(EVENT_ARGS), v))
 DEFINE_METASIG_T(IM(Obj_UnhandledExceptionEventArgs_RetVoid, j C(UNHANDLED_EVENTARGS), v))
+
+DEFINE_METASIG_T(SM(Str_UInt_AssemblyBase_RetIntPtr, s K C(ASSEMBLYBASE), I))
 
 DEFINE_METASIG_T(IM(Assembly_RetVoid, C(ASSEMBLY), v))
 DEFINE_METASIG_T(IM(Assembly_RetBool, C(ASSEMBLY), F))

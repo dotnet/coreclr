@@ -47,7 +47,7 @@
 #include "debugdebugger.h"
 #include "assemblyname.hpp"
 #include "assemblynative.hpp"
-#include "loadnative.hpp"
+#include "nativelibrary.hpp"
 #include "comthreadpool.h"
 #include "comwaithandle.h"
 #include "nativeoverlapped.h"

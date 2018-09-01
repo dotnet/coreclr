@@ -560,8 +560,9 @@ FCFuncStart(gAssemblyLoadContextFuncs)
 #endif // defined(FEATURE_MULTICOREJIT)
 FCFuncEnd()
 
-FCFuncStart(gLoadNativeFuncs)
-    QCFuncElement("LoadLibrary", LoadNative::LoadLibrary)
+// managed -> runtime, defines runtime methods
+FCFuncStart(gNativeLibraryFuncs)
+    QCFuncElement("LoadLibrary", NativeLibrary::LoadLibrary)
 FCFuncEnd()
 
 FCFuncStart(gAssemblyNameFuncs)
@@ -1285,7 +1286,6 @@ FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFu
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
 FCClassElement("JitHelpers", "System.Runtime.CompilerServices", gJitHelpers)
-FCClassElement("LoadNative", "System.Runtime.Loader", gLoadNativeFuncs)
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("ManifestBasedResourceGroveler", "System.Resources",  gManifestBasedResourceGrovelerFuncs)
 FCClassElement("Marshal", "System.Runtime.InteropServices", gInteropMarshalFuncs)
@@ -1309,6 +1309,7 @@ FCClassElement("MngdSafeArrayMarshaler", "System.StubHelpers", gMngdSafeArrayMar
 FCClassElement("ModuleBuilder", "System.Reflection.Emit", gCOMModuleBuilderFuncs)
 FCClassElement("ModuleHandle", "System", gCOMModuleHandleFuncs)
 FCClassElement("Monitor", "System.Threading", gMonitorFuncs)
+FCClassElement("NativeLibrary", "System.Runtime.InteropServices", gNativeLibraryFuncs)
 FCClassElement("Number", "System", gNumberFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("OAVariantLib", "Microsoft.Win32", gOAVariantFuncs)

@@ -60,7 +60,7 @@ public:
 class NDirect
 {
     friend class NDirectMethodDesc;
-    friend class LoadNative;
+    friend class NativeLibrary;
 
 public:
     //---------------------------------------------------------
