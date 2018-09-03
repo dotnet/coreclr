@@ -201,47 +201,12 @@ namespace R2RDump
         /// </summary>
         private Dictionary<string, string> _genericParamInstanceMap;
 
-        [Flags]
-        public enum EncodeMethodSigFlags
-        {
-            NONE = 0x00,
-            ENCODE_METHOD_SIG_UnboxingStub = 0x01,
-            ENCODE_METHOD_SIG_InstantiatingStub = 0x02,
-            ENCODE_METHOD_SIG_MethodInstantiation = 0x04,
-            ENCODE_METHOD_SIG_SlotInsteadOfToken = 0x08,
-            ENCODE_METHOD_SIG_MemberRefToken = 0x10,
-            ENCODE_METHOD_SIG_Constrained = 0x20,
-            ENCODE_METHOD_SIG_OwnerType = 0x40,
-        };
-
-        public enum GenericElementTypes
-        {
-            __Canon = 0x3e,
-            Void = 0x01,
-            Boolean = 0x02,
-            Char = 0x03,
-            Int8 = 0x04,
-            UInt8 = 0x05,
-            Int16 = 0x06,
-            UInt16 = 0x07,
-            Int32 = 0x08,
-            UInt32 = 0x09,
-            Int64 = 0x0a,
-            UInt64 = 0x0b,
-            Float = 0x0c,
-            Double = 0x0d,
-            String = 0x0e,
-            ValueType = 0x11,
-            Object = 0x1c,
-            Array = 0x1d,
-        };
-
         public R2RMethod() { }
 
         /// <summary>
         /// Extracts the method signature from the metadata by rid
         /// </summary>
-        public R2RMethod(int index, MetadataReader mdReader, uint rid, int entryPointId, GenericElementTypes[] instanceArgs, uint[] tok, FixupCell[] fixups)
+        public R2RMethod(int index, MetadataReader mdReader, uint rid, int entryPointId, CorElementType[] instanceArgs, uint[] tok, FixupCell[] fixups)
         {
             Index = index;
             Token = _mdtMethodDef | rid;
@@ -258,7 +223,7 @@ namespace R2RDump
             BlobReader signatureReader = mdReader.GetBlobReader(_methodDef.Signature);
 
             TypeDefinitionHandle declaringTypeHandle = _methodDef.GetDeclaringType();
-            DeclaringType = R2RReader.GetTypeDefFullName(mdReader, declaringTypeHandle);
+            DeclaringType = MetadataNameFormatter.FormatHandle(mdReader, declaringTypeHandle);
 
             SignatureHeader signatureHeader = signatureReader.ReadSignatureHeader();
             IsGeneric = signatureHeader.IsGeneric;
@@ -288,7 +253,7 @@ namespace R2RDump
         /// <summary>
         /// Initialize map of generic parameters names to the type in the instance
         /// </summary>
-        private void InitGenericInstances(GenericParameterHandleCollection genericParams, GenericElementTypes[] instanceArgs, uint[] tok)
+        private void InitGenericInstances(GenericParameterHandleCollection genericParams, CorElementType[] instanceArgs, uint[] tok)
         {
             if (instanceArgs.Length != genericParams.Count || tok.Length != genericParams.Count)
             {
@@ -299,7 +264,7 @@ namespace R2RDump
             {
                 string key = _mdReader.GetString(_mdReader.GetGenericParameter(genericParams.ElementAt(i)).Name); // name of the generic param, eg. "T"
                 string type = instanceArgs[i].ToString(); // type of the generic param instance
-                if (instanceArgs[i] == GenericElementTypes.ValueType)
+                if (instanceArgs[i] == CorElementType.ELEMENT_TYPE_VALUETYPE)
                 {
                     var t = _mdReader.GetTypeDefinition(MetadataTokens.TypeDefinitionHandle((int)tok[i]));
                     type = _mdReader.GetString(t.Name); // name of the struct

@@ -80,21 +80,34 @@ namespace R2RDump
         }
     }
 
+    /// <summary>
+    /// Helper class for converting machine instructions to textual representation.
+    /// </summary>
     public class Disassembler : IDisposable
     {
+        /// <summary>
+        /// R2R reader is used to access architecture info, the PE image data and symbol table.
+        /// </summary>
+        private readonly R2RReader _reader;
+
+        /// <summary>
+        /// COM interface to the native disassembler in the CoreDisTools.dll library.
+        /// </summary>
         private readonly IntPtr _disasm;
 
-        private readonly byte[] _image;
-
-        private readonly Machine _machine;
-
-        public Disassembler(byte[] image, Machine machine)
+        /// <summary>
+        /// Store the R2R reader and construct the disassembler for the appropriate architecture.
+        /// </summary>
+        /// <param name="reader"></param>
+        public Disassembler(R2RReader reader)
         {
-            _disasm = CoreDisTools.GetDisasm(machine);
-            _image = image;
-            _machine = machine;
+            _reader = reader;
+            _disasm = CoreDisTools.GetDisasm(_reader.Machine);
         }
 
+        /// <summary>
+        /// Shut down the native disassembler interface.
+        /// </summary>
         public void Dispose()
         {
             if (_disasm != IntPtr.Zero)
@@ -103,6 +116,14 @@ namespace R2RDump
             }
         }
 
+        /// <summary>
+        /// Parse a single instruction and return the RVA of the next instruction.
+        /// </summary>
+        /// <param name="rtf">Runtime function to parse</param>
+        /// <param name="imageOffset">Offset within the PE image byte array</param>
+        /// <param name="rtfOffset">Instruction offset within the runtime function</param>
+        /// <param name="instruction">Output text representation of the instruction</param>
+        /// <returns></returns>
         public int GetInstruction(RuntimeFunction rtf, int imageOffset, int rtfOffset, out string instruction)
         {
             if (_disasm == IntPtr.Zero)
@@ -111,9 +132,10 @@ namespace R2RDump
                 return rtf.Size;
             }
 
-            int instrSize = CoreDisTools.GetInstruction(_disasm, rtf, imageOffset, rtfOffset, _image, out instruction);
+            int instrSize = CoreDisTools.GetInstruction(_disasm, rtf, imageOffset, rtfOffset, _reader.Image, out instruction);
+            instruction = instruction.Replace('\t', ' ');
 
-            switch (_machine)
+            switch (_reader.Machine)
             {
                 case Machine.Amd64:
                 case Machine.IA64:
@@ -139,6 +161,14 @@ namespace R2RDump
 
         const string RelIPTag = "[rip ";
 
+        /// <summary>
+        /// Translate RIP-relative offsets to RVA's and convert cell addresses to symbol names
+        /// </summary>
+        /// <param name="rtf">Runtime function</param>
+        /// <param name="imageOffset">Offset within the image byte array</param>
+        /// <param name="rtfOffset">Offset within the runtime function</param>
+        /// <param name="instrSize">Instruction size</param>
+        /// <param name="instruction">Textual representation of the instruction</param>
         private void ProbeX64Quirks(RuntimeFunction rtf, int imageOffset, int rtfOffset, int instrSize, ref string instruction)
         {
             int relip = instruction.IndexOf(RelIPTag);
@@ -166,10 +196,63 @@ namespace R2RDump
                             offset = -offset;
                         }
                         int target = rtf.StartAddress + rtfOffset + instrSize + offset;
-                        instruction = instruction.Substring(0, start) + $@"[0x{target:x4}]" + instruction.Substring(relip);
+                        int newline = instruction.LastIndexOf('\n');
+                        StringBuilder translated = new StringBuilder();
+                        translated.Append(instruction, 0, start);
+                        translated.AppendFormat("[0x{0:x4}]", target);
+                        translated.Append(instruction, relip, newline - relip);
+                        String targetName;
+                        if (_reader.ImportCellNames.TryGetValue(target, out targetName))
+                        {
+                            int fill = 61 - translated.Length;
+                            if (fill > 0)
+                            {
+                                translated.Append(' ', fill);
+                            }
+                            translated.Append(" // ");
+                            translated.Append(targetName);
+                        }
+                        translated.Append(instruction, newline, instruction.Length - newline);
+                        instruction = translated.ToString();
                     }
                 }
             }
+            else if (instrSize == 2 && IsIntelJumpInstructionWithByteOffset(_reader.Image[imageOffset + rtfOffset]))
+            {
+                sbyte offset = (sbyte)_reader.Image[imageOffset + rtfOffset + 1];
+                int target = rtf.StartAddress + rtfOffset + instrSize + offset;
+                int numberEnd = instruction.IndexOf('\n');
+                int number = numberEnd;
+                while (number > 0)
+                {
+                    char c = instruction[number - 1];
+                    if (c >= ' ' && !Char.IsDigit(c) && c != '-')
+                    {
+                        break;
+                    }
+                    number--;
+                }
+
+                StringBuilder translated = new StringBuilder();
+                translated.Append(instruction, 0, number);
+                translated.AppendFormat("0x{0:x4}", target);
+                translated.Append(instruction, numberEnd, instruction.Length - numberEnd);
+                instruction = translated.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Returns true when this is one of the x86 / amd64 opcodes used for branch instructions
+        /// with single-byte offset.
+        /// </summary>
+        /// <param name="opCode">Instruction code to analyze</param>
+        private static bool IsIntelJumpInstructionWithByteOffset(byte opCode)
+        {
+            return
+                (opCode >= 0x70 && opCode <= 0x7F) // short conditional jumps
+                || opCode == 0xE3 // JCXZ
+                || opCode == 0xEB // JMP
+                ;
         }
     }
 }
