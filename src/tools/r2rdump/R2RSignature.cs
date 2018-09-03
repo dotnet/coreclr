@@ -424,8 +424,8 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_TypeHandle:
-                    builder.Append("TYPE_HANDLE: ");
                     ParseType(builder);
+                    builder.Append(" (TYPE_HANDLE)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodHandle:
@@ -440,34 +440,34 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry:
-                    builder.Append("METHOD_ENTRY: ");
                     ParseMethod(builder);
+                    builder.Append(" (METHOD_ENTRY)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry_DefToken:
-                    builder.Append("METHOD_ENTRY_DEF_TOKEN: ");
                     ParseMethodDefToken(builder);
+                    builder.Append(" (METHOD_ENTRY_DEF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodEntry_RefToken:
-                    builder.Append("METHOD_ENTRY_REF_TOKEN: ");
                     ParseMethodRefToken(builder);
+                    builder.Append(" (METHOD_ENTRY_REF_TOKEN)");
                     break;
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry:
-                    builder.Append("VIRTUAL_ENTRY: ");
                     ParseMethod(builder);
+                    builder.Append(" (VIRTUAL_ENTRY)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_DefToken:
-                    builder.Append("VIRTUAL_ENTRY_DEF_TOKEN: ");
                     ParseMethodDefToken(builder);
+                    builder.Append(" (VIRTUAL_ENTRY_DEF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_RefToken:
-                    builder.Append("VIRTUAL_ENTRY_REF_TOKEN: ");
                     ParseMethodRefToken(builder);
+                    builder.Append(" (VIRTUAL_ENTRY_REF_TOKEN)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_VirtualEntry_Slot:
@@ -477,35 +477,35 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_Helper:
-                    builder.Append("HELPER: ");
                     ParseHelper(builder);
+                    builder.Append(" (HELPER)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_StringHandle:
-                    builder.Append("STRING_HANDLE: ");
                     ParseStringHandle(builder);
+                    builder.Append(" (STRING_HANDLE)");
                     break;
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_NewObject:
-                    builder.Append("NEW_OBJECT: ");
                     ParseType(builder);
+                    builder.Append(" (NEW_OBJECT)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_NewArray:
-                    builder.Append("NEW_ARRAY: ");
                     ParseType(builder);
+                    builder.Append(" (NEW_ARRAY)");
                     break;
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_IsInstanceOf:
-                    builder.Append("IS_INSTANCE_OF: ");
                     ParseType(builder);
+                    builder.Append(" (IS_INSTANCE_OF)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ChkCast:
-                    builder.Append("CHK_CAST: ");
                     ParseType(builder);
+                    builder.Append(" (CHK_CAST)");
                     break;
 
 
@@ -521,23 +521,23 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_StaticBaseNonGC:
-                    builder.Append("STATIC_BASE_NON_GC: ");
                     ParseType(builder);
+                    builder.Append(" (STATIC_BASE_NON_GC)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_StaticBaseGC:
-                    builder.Append("STATIC_BASE_GC: ");
                     ParseType(builder);
+                    builder.Append(" (STATIC_BASE_GC)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ThreadStaticBaseNonGC:
-                    builder.Append("THREAD_STATIC_BASE_NON_GC: ");
                     ParseType(builder);
+                    builder.Append(" (THREAD_STATIC_BASE_NON_GC)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_ThreadStaticBaseGC:
-                    builder.Append("THREAD_STATIC_BASE_GC");
-                    // TODO
+                    ParseType(builder);
+                    builder.Append(" (THREAD_STATIC_BASE_GC)");
                     break;
 
 
@@ -553,19 +553,19 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_TypeDictionary:
-                    builder.Append("TYPE_DICTIONARY: ");
                     ParseType(builder);
+                    builder.Append(" (TYPE_DICTIONARY)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_MethodDictionary:
-                    builder.Append("METHOD_DICTIONARY: ");
                     ParseMethod(builder);
+                    builder.Append(" (METHOD_DICTIONARY)");
                     break;
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_Check_TypeLayout:
-                    builder.Append("CHECK_TYPE_LAYOUT: ");
                     ParseType(builder);
+                    builder.Append(" (CHECK_TYPE_LAYOUT)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_Check_FieldOffset:
@@ -575,15 +575,15 @@ namespace R2RDump
 
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_DelegateCtor:
-                    builder.Append("DELEGATE_CTOR: ");
                     ParseMethod(builder);
                     builder.Append(" => ");
                     ParseType(builder);
+                    builder.Append(" (DELEGATE_CTOR)");
                     break;
 
                 case ReadyToRunFixupKind.READYTORUN_FIXUP_DeclaringTypeHandle:
-                    builder.Append("DECLARING_TYPE_HANDLE: ");
                     ParseType(builder);
+                    builder.Append(" (DECLARING_TYPE_HANDLE)");
                     break;
 
 
