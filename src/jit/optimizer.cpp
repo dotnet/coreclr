@@ -3610,13 +3610,6 @@ void Compiler::optUnrollLoops()
     }
 #endif
 
-    static const unsigned int ITER_LIMIT[COUNT_OPT_CODE + 1] = {
-        10, // BLENDED_CODE
-        0,  // SMALL_CODE
-        20, // FAST_CODE
-        0   // COUNT_OPT_CODE
-    };
-
     static const unsigned int COST_LIMIT[COUNT_OPT_CODE + 1] = {
         300, // BLENDED_CODE
         0,   // SMALL_CODE
@@ -3624,8 +3617,7 @@ void Compiler::optUnrollLoops()
         0    // COUNT_OPT_CODE
     };
 
-    const unsigned int IterLimit = ITER_LIMIT[compCodeOpt()];
-    const unsigned int CostLimit = COST_LIMIT[compCodeOpt()];
+    unsigned int CostLimit = COST_LIMIT[compCodeOpt()];
 
     // Visit loops from highest to lowest number to vist them in innermost to outermost order
     bool isChanged = false;
@@ -3682,89 +3674,55 @@ void Compiler::optUnrollLoops()
         }
 
         // Check that is this loop fully unrollable. if not, try partical unrolling.
-        if (loopIter > IterLimit || costLoopUnroll.Value() > CostLimit)
+        //
+        // Intel Optimization Manual 3.4.1.7 Loop Unrolling
+        // If loop body has more than one condtional branch. then unroll so that number of
+        // iteration is 16 / (# of conditional branches)
+        if (loopIter > 16 && costLoopUnroll.Value() > CostLimit)
         {
-            /* the theory of partial unrolling is, make partially unrolled loop count as multiple of 2
-               to hit cache line or instruction prediction. but if it cause too much code duplications,
-               performance issues, etcs. unrolled particles will be rerolled. */
+            BasicBlock* bbHead   = loopDesc->lpHead;
+            BasicBlock* bbBottom = loopDesc->lpBottom;
 
-            unsigned int loopPartialIter = loopIter / IterLimit;
-            unsigned int loopPartialCost = costLoopUnroll.Value() / CostLimit;
-
-            // caclulate how many duplicates to compute.
+            unsigned int bbCondCnt = 0;
+            for (BasicBlock* bbIter = bbHead->bbNext;; bbIter = bbIter->bbNext)
             {
-                /* maxumum duplication count */
-                unsigned int newInnerCnt = loopPartialIter < loopPartialCost ? loopPartialIter : loopPartialCost;
-                for (unsigned int i = 1;; i *= 2)
+                if (bbIter->bbJumpKind != BBJ_NONE)
                 {
-                    if (newInnerCnt / (i * 2))
-                    {
-                        continue;
-                    }
+                    bbCondCnt++;
+                }
 
-                    // round as multiply of 2.
-                    loopUnrollInnerThres = i;
+                if (bbIter == bbBottom)
+                {
                     break;
                 }
             }
 
-            // calculate new iteration of partially unrolled loop.
+            if (bbCondCnt >= 16)
             {
-                /* maximum iteration count */
-                unsigned int newOuterCnt = loopIter / loopUnrollInnerThres;
-                for (unsigned int i = 1;; i *= 2)
-                {
-                    if (newOuterCnt / (i * 2))
-                    {
-                        continue;
-                    }
-
-                    // round as multiply of 2.
-                    loopUnrollNewIter = i;
-                    break;
-                }
+                // there is too much branch exists. do not unroll it.
+                continue;
             }
 
-            // make it normally loopUnrolInnerThres and loopUnrollOuterThres to multiple of 2 to fits
-            // on cache line or loop, instruction predicates. but if it costs too much. do not full unroll it
-            // and just merge into loopUnrollOuterThres(which is partially unrolled loop).
+            loopUnrollNewIter    = 16 / bbCondCnt;
+            loopUnrollInnerThres = loopIter / loopUnrollNewIter;
+            loopUnrollOuterThres = loopIter % loopUnrollNewIter;
+
+            costLoopUnroll =
+                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(loopUnrollInnerThres)) +
+                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(loopUnrollOuterThres));
+
+            if (costLoopUnroll.IsOverflow() || costLoopUnroll.Value() > CostLimit)
             {
-                unsigned int newParticleIter = loopIter - (loopUnrollInnerThres * loopUnrollNewIter);
-
-                ClrSafeInt<unsigned> costParticleUnroll =
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(newParticleIter)) -
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) +
-                                         ClrSafeInt<unsigned>(8 /* fixed loop cost */));
-
-                if (newParticleIter > IterLimit || costParticleUnroll.IsOverflow() ||
-                    costParticleUnroll.Value() > CostLimit)
-                {
-                    // seems it cost too lot. increase iteration of partially unrolled loop to decrease cost.
-                    loopUnrollNewIter    = (newParticleIter / loopUnrollInnerThres) + loopUnrollNewIter;
-                    loopUnrollOuterThres = (newParticleIter % loopUnrollInnerThres);
-                }
-                else
-                {
-                    loopUnrollOuterThres = newParticleIter;
-                }
-            }
-
-            // Commit newly calculated cost
-            costLoopUnroll = ClrSafeInt<unsigned>((loopUnrollInnerThres + loopUnrollOuterThres) * loopCost);
-            noway_assert(!costLoopUnroll.IsOverflow());
-
-            if (costLoopUnroll.Value() > CostLimit)
-            {
-                // its still huge to partial unroll, we are not going to unroll it.
+                // Still huge to unroll. skipping it.
                 continue;
             }
         }
         else
         {
             // full unrolling seems reasonable. compute full unrolling.
+            loopUnrollNewIter    = 1;
             loopUnrollInnerThres = loopIter;
             loopUnrollOuterThres = 0;
-            loopUnrollNewIter    = 1;
         }
 
         // Finally, we check does target loop is complicate to resolve or nothing changes after unrolling.
@@ -3816,6 +3774,26 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     }
 #endif // !DEBUG
 
+    struct CallBackData
+    {
+        unsigned                  cbrLv;
+        jitstd::vector<GenTree*>* cbrLvParent;
+    } WalkData;
+
+    jitstd::vector<GenTree*> LvParentList(this->getAllocator());
+    WalkData.cbrLv       = lpDesc->lpIterVar();
+    WalkData.cbrLvParent = &LvParentList;
+
+    auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
+        CallBackData* data = (CallBackData*)wkData->pCallbackData;
+        if ((*wkTree)->OperIs(GT_LCL_VAR) && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
+        {
+            data->cbrLvParent->push_back(wkData->parent);
+        }
+
+        return fgWalkResult::WALK_CONTINUE;
+    };
+
     // Block map for redirecting branches.
     BlockToBlockMap bbMapRedirect(this->getAllocator());
 
@@ -3840,7 +3818,21 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
             if (bbIter == bbBottom)
             {
-                bbNew->bbJumpKind = BBJ_NONE;
+                GenTree* sideEffListTest = nullptr;
+                gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+
+                if (sideEffListTest)
+                {
+                    GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
+
+                    gtNewTest->gtStmtExpr = sideEffListTest;
+                    fgInsertStmtAtEnd(bbBottom, gtNewTest);
+                }
+                else
+                {
+                    bbBottom->bbJumpKind = BBJ_NONE;
+                }
+
                 break;
             }
         }
@@ -3869,7 +3861,21 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
             if (bbIter == bbBottom)
             {
-                bbNew->bbJumpKind = BBJ_NONE;
+                GenTree* sideEffListTest = nullptr;
+                gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+
+                if (sideEffListTest)
+                {
+                    GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
+
+                    gtNewTest->gtStmtExpr = sideEffListTest;
+                    fgInsertStmtAtEnd(bbBottom, gtNewTest);
+                }
+                else
+                {
+                    bbBottom->bbJumpKind = BBJ_NONE;
+                }
+
                 break;
             }
         }
@@ -3885,25 +3891,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
     if (lpIsPtclUrl)
     {
         // If there is particle exists, we need to modify test expression.
-        struct CallBackData
-        {
-            unsigned                  cbrLv;
-            jitstd::vector<GenTree*>* cbrLvParent;
-        } WalkData;
-
-        jitstd::vector<GenTree*> LvParentList(this->getAllocator());
-        WalkData.cbrLv       = lpDesc->lpIterVar();
-        WalkData.cbrLvParent = &LvParentList;
-
-        auto FnFindlvStmt = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
-            CallBackData* data = (CallBackData*)wkData->pCallbackData;
-            if ((*wkTree)->OperIs(GT_LCL_VAR) && (*wkTree)->AsLclVar()->GetLclNum() == data->cbrLv)
-            {
-                data->cbrLvParent->push_back(wkData->parent);
-            }
-
-            return fgWalkResult::WALK_CONTINUE;
-        };
 
         bool isModified = false;
         fgWalkTreePre(&gtTestExpr, FnFindlvStmt, &WalkData, true);
@@ -3942,21 +3929,7 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         }
     }
 
-    if (lpIsFullUrl)
-    {
-        // We are doing full unrolling. we don't need any tests because loop is removed.
-        // check that they has any side-effects. if not, remove it.
-        GenTree* sideEffListTest = nullptr;
-        gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
-
-        if (sideEffListTest)
-        {
-            gtTest->gtStmtExpr = sideEffListTest;
-            fgInsertStmtAtEnd(bbBottom, gtTest);
-        }
-        bbBottom->bbJumpKind = BBJ_NONE;
-    }
-    else
+    if (!lpIsFullUrl)
     {
         // We've removed gtTest from bbBottom for cloning. inserting it again.
         fgInsertStmtAtEnd(bbBottom, gtTest);
