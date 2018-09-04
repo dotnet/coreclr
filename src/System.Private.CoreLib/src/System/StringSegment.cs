@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -153,6 +154,10 @@ namespace System
         public override int GetHashCode() => string.GetHashCode(this.AsSpan());
 
         public int GetHashCode(StringComparison comparisonType) => string.GetHashCode(this.AsSpan(), comparisonType);
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [Obsolete("This type cannot be pinned because it may result in a char* without a null terminator.", error: true)]
+        public ref readonly char GetPinnableReference() => throw new NotSupportedException();
 
         public bool IsEmptyOrWhiteSpace() => this.AsSpan().IsWhiteSpace(); // also performs "is empty?" check
 
