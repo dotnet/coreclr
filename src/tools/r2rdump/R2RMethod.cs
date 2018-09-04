@@ -134,6 +134,45 @@ namespace R2RDump
                 sb.AppendLine($"Size: {Size} bytes");
             }
             sb.AppendLine($"UnwindRVA: 0x{UnwindRVA:X8}");
+            if (UnwindInfo is Amd64.UnwindInfo amd64UnwindInfo)
+            {
+                string parsedFlags = "";
+                if ((amd64UnwindInfo.Flags & (int)Amd64.UnwindFlags.UNW_FLAG_EHANDLER) != 0)
+                {
+                    parsedFlags += " EHANDLER";
+                }
+                if ((amd64UnwindInfo.Flags & (int)Amd64.UnwindFlags.UNW_FLAG_UHANDLER) != 0)
+                {
+                    parsedFlags += " UHANDLER";
+                }
+                if ((amd64UnwindInfo.Flags & (int)Amd64.UnwindFlags.UNW_FLAG_CHAININFO) != 0)
+                {
+                    parsedFlags += " CHAININFO";
+                }
+                if (parsedFlags.Length == 0)
+                {
+                    parsedFlags = " NHANDLER";
+                }
+                sb.AppendLine($"Version:            {amd64UnwindInfo.Version}");
+                sb.AppendLine($"Flags:              0x{amd64UnwindInfo.Flags:X2}{parsedFlags}");
+                sb.AppendLine($"SizeOfProlog:       0x{amd64UnwindInfo.SizeOfProlog:X4}");
+                sb.AppendLine($"CountOfUnwindCodes: {amd64UnwindInfo.CountOfUnwindCodes}");
+                sb.AppendLine($"FrameRegister:      {amd64UnwindInfo.FrameRegister}");
+                sb.AppendLine($"FrameOffset:        0x{amd64UnwindInfo.FrameOffset}");
+                sb.AppendLine($"PersonalityRVA:     0x{amd64UnwindInfo.PersonalityRoutineRVA:X4}");
+
+                for (int unwindCodeIndex = 0; unwindCodeIndex < amd64UnwindInfo.CountOfUnwindCodes; unwindCodeIndex++)
+                {
+                    Amd64.UnwindCode unwindCode = amd64UnwindInfo.UnwindCodeArray[unwindCodeIndex];
+                    sb.Append($"UnwindCode[{unwindCode.Index}]: ");
+                    sb.Append($"CodeOffset 0x{unwindCode.CodeOffset:X4} ");
+                    sb.Append($"FrameOffset 0x{unwindCode.FrameOffset:X4} ");
+                    sb.Append($"NextOffset 0x{unwindCode.NextFrameOffset} ");
+                    sb.Append($"Op {unwindCode.OpInfoStr}");
+                    sb.AppendLine();
+                }
+            }
+            sb.AppendLine();
 
             return sb.ToString();
         }

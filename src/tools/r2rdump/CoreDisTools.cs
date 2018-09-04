@@ -217,42 +217,91 @@ namespace R2RDump
                     }
                 }
             }
-            else if (instrSize == 2 && IsIntelJumpInstructionWithByteOffset(_reader.Image[imageOffset + rtfOffset]))
+            else if (instrSize == 2 && IsIntelJumpInstructionWithByteOffset(imageOffset + rtfOffset))
             {
                 sbyte offset = (sbyte)_reader.Image[imageOffset + rtfOffset + 1];
                 int target = rtf.StartAddress + rtfOffset + instrSize + offset;
-                int numberEnd = instruction.IndexOf('\n');
-                int number = numberEnd;
-                while (number > 0)
-                {
-                    char c = instruction[number - 1];
-                    if (c >= ' ' && !Char.IsDigit(c) && c != '-')
-                    {
-                        break;
-                    }
-                    number--;
-                }
-
-                StringBuilder translated = new StringBuilder();
-                translated.Append(instruction, 0, number);
-                translated.AppendFormat("0x{0:x4}", target);
-                translated.Append(instruction, numberEnd, instruction.Length - numberEnd);
-                instruction = translated.ToString();
+                ReplaceRelativeOffset(ref instruction, target);
             }
+            else if (instrSize == 5 && IsIntel1ByteJumpInstructionWithIntOffset(imageOffset + rtfOffset))
+            {
+                int offset = BitConverter.ToInt32(_reader.Image, imageOffset + rtfOffset + 1);
+                int target = rtf.StartAddress + rtfOffset + instrSize + offset;
+                ReplaceRelativeOffset(ref instruction, target);
+            }
+            else if (instrSize == 6 && IsIntel2ByteJumpInstructionWithIntOffset(imageOffset + rtfOffset))
+            {
+                int offset = BitConverter.ToInt32(_reader.Image, imageOffset + rtfOffset + 2);
+                int target = rtf.StartAddress + rtfOffset + instrSize + offset;
+                ReplaceRelativeOffset(ref instruction, target);
+            }
+        }
+
+        /// <summary>
+        /// Replace relative offset in the disassembled instruction with the true target RVA.
+        /// </summary>
+        /// <param name="instruction"></param>
+        /// <param name="target"></param>
+        private void ReplaceRelativeOffset(ref string instruction, int target)
+        {
+            int numberEnd = instruction.IndexOf('\n');
+            int number = numberEnd;
+            while (number > 0)
+            {
+                char c = instruction[number - 1];
+                if (c >= ' ' && !Char.IsDigit(c) && c != '-')
+                {
+                    break;
+                }
+                number--;
+            }
+
+            StringBuilder translated = new StringBuilder();
+            translated.Append(instruction, 0, number);
+            translated.AppendFormat("0x{0:x4}", target);
+            translated.Append(instruction, numberEnd, instruction.Length - numberEnd);
+            instruction = translated.ToString();
         }
 
         /// <summary>
         /// Returns true when this is one of the x86 / amd64 opcodes used for branch instructions
         /// with single-byte offset.
         /// </summary>
-        /// <param name="opCode">Instruction code to analyze</param>
-        private static bool IsIntelJumpInstructionWithByteOffset(byte opCode)
+        /// <param name="imageOffset">Offset within the PE image byte array</param>
+        private bool IsIntelJumpInstructionWithByteOffset(int imageOffset)
         {
+            byte opCode = _reader.Image[imageOffset];
             return
                 (opCode >= 0x70 && opCode <= 0x7F) // short conditional jumps
                 || opCode == 0xE3 // JCXZ
                 || opCode == 0xEB // JMP
                 ;
+        }
+
+        /// <summary>
+        /// Returns true when this is one of the x86 / amd64 near jump / call opcodes
+        /// with signed 4-byte offset.
+        /// </summary>
+        /// <param name="imageOffset">Offset within the PE image byte array</param>
+        private bool IsIntel1ByteJumpInstructionWithIntOffset(int imageOffset)
+        {
+            byte opCode = _reader.Image[imageOffset];
+            return opCode == 0xE8 // call near
+                || opCode == 0xE9 // jmp near
+                ;
+        }
+
+        /// <summary>
+        /// Returns true when this is one of the x86 / amd64 conditional near jump
+        /// opcodes with signed 4-byte offset.
+        /// </summary>
+        /// <param name="imageOffset">Offset within the PE image byte array</param>
+        private bool IsIntel2ByteJumpInstructionWithIntOffset(int imageOffset)
+        {
+            byte opCode1 = _reader.Image[imageOffset];
+            byte opCode2 = _reader.Image[imageOffset + 1];
+            return opCode1 == 0x0F &&
+                (opCode2 >= 0x80 && opCode2 <= 0x8F); // near conditional jumps
         }
     }
 }
