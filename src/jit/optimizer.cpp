@@ -3799,10 +3799,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
     /* Almost done!! we are going to clone expressions to unroll right now! */
 
-    // removing test for cloning.
-    // after cloning it. we will insert test on bbBottom if its not doing full unrolling.
-    fgRemoveStmt(bbBottom, gtTest);
-
     // Unroll as inner loop expressions
     for (unsigned int i = 1; i < inner; ++i)
     {
@@ -3818,19 +3814,27 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
             if (bbIter == bbBottom)
             {
-                GenTree* sideEffListTest = nullptr;
-                gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+                GenTreeStmt* gtTestNew = bbNew->lastStmt();
 
-                if (sideEffListTest)
+                if (lpIsFullUrl)
                 {
-                    GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
+                    GenTree* gtTestNewExpr   = gtTestNew->gtStmtExpr;
+                    GenTree* sideEffListTest = nullptr;
 
-                    gtNewTest->gtStmtExpr = sideEffListTest;
-                    fgInsertStmtAtEnd(bbIter, gtNewTest);
+                    gtExtractSideEffList(gtTestNewExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+                    if (!sideEffListTest)
+                    {
+                        fgRemoveStmt(bbNew, gtTestNew);
+                    }
+                    else
+                    {
+                        gtTestNew->gtStmtExpr = sideEffListTest;
+                    }
+                    bbNew->bbJumpKind = BBJ_NONE;
                 }
                 else
                 {
-                    bbIter->bbJumpKind = BBJ_NONE;
+                    fgRemoveStmt(bbNew, gtTestNew);
                 }
 
                 break;
@@ -3861,19 +3865,27 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
 
             if (bbIter == bbBottom)
             {
-                GenTree* sideEffListTest = nullptr;
-                gtExtractSideEffList(gtTestExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+                GenTreeStmt* gtTestNew = bbNew->lastStmt();
 
-                if (sideEffListTest)
+                if (lpIsFullUrl)
                 {
-                    GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
+                    GenTree* gtTestNewExpr   = gtTestNew->gtStmtExpr;
+                    GenTree* sideEffListTest = nullptr;
 
-                    gtNewTest->gtStmtExpr = sideEffListTest;
-                    fgInsertStmtAtEnd(bbIter, gtNewTest);
+                    gtExtractSideEffList(gtTestNewExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+                    if (!sideEffListTest)
+                    {
+                        fgRemoveStmt(bbNew, gtTestNew);
+                    }
+                    else
+                    {
+                        gtTestNew->gtStmtExpr = sideEffListTest;
+                    }
+                    bbNew->bbJumpKind = BBJ_NONE;
                 }
                 else
                 {
-                    bbIter->bbJumpKind = BBJ_NONE;
+                    fgRemoveStmt(bbNew, gtTestNew);
                 }
 
                 break;
@@ -3927,12 +3939,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         {
             goto FAILED;
         }
-    }
-
-    if (!lpIsFullUrl)
-    {
-        // We've removed gtTest from bbBottom for cloning. inserting it again.
-        fgInsertStmtAtEnd(bbBottom, gtTest);
     }
 
     lpDesc->lpFlags |= LPFLG_REMOVED;
