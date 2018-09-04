@@ -58,10 +58,10 @@ LOCAL_LABEL(NoFloatingPoint):
     // into x0, ..., x7
 
     ldr     x9, [x19,#CallDescrData__pArgumentRegisters]
-    ldp     x0, x1, [x9]
-    ldp     x2, x3, [x9, #16]
-    ldp     x4, x5, [x9, #32]
-    ldp     x6, x7, [x9, #48]
+    ldp     x0, x1, [x9, #8]
+    ldp     x2, x3, [x9, #24]
+    ldp     x4, x5, [x9, #40]
+    ldp     x6, x7, [x9, #56]
 
     // Copy pRetBuffArg into x8
     ldr     x9, [x19,#CallDescrData__pRetBuffArg]

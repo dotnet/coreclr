@@ -193,7 +193,7 @@ C_FUNC(\Name\()_End):
 .macro SAVE_ARGUMENT_REGISTERS reg, ofs
 
         str                    x8, [\reg, #(\ofs)]
-        stp                    x0, x1, [\reg, #(\ofs+8)]
+        stp                    x0, x1, [\reg, #(\ofs + 8)]
         stp                    x2, x3, [\reg, #(\ofs + 24)]
         stp                    x4, x5, [\reg, #(\ofs + 40)]
         stp                    x6, x7, [\reg, #(\ofs + 56)]
