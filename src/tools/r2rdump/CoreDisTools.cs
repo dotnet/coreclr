@@ -123,7 +123,7 @@ namespace R2RDump
         /// <param name="imageOffset">Offset within the PE image byte array</param>
         /// <param name="rtfOffset">Instruction offset within the runtime function</param>
         /// <param name="instruction">Output text representation of the instruction</param>
-        /// <returns></returns>
+        /// <returns>Instruction size in bytes - i.o.w. the next instruction starts at rtfOffset + (the return value)</returns>
         public int GetInstruction(RuntimeFunction rtf, int imageOffset, int rtfOffset, out string instruction)
         {
             if (_disasm == IntPtr.Zero)
