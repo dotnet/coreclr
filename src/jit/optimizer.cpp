@@ -3722,6 +3722,12 @@ void Compiler::optUnrollLoops()
             loopUnrollInnerThres = loopIter / loopUnrollNewIter;
             loopUnrollOuterThres = loopIter % loopUnrollNewIter;
 
+            if (loopUnrollNewIter == 1)
+            {
+                // Its not partial unrolling. skipping it.
+                continue;
+            }
+
             costLoopUnroll =
                 ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(loopUnrollInnerThres)) +
                 ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(loopCost) * ClrSafeInt<unsigned>(loopUnrollOuterThres));
@@ -3915,25 +3921,6 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         }
     }
 
-    if (lpIsFullUrl)
-    {
-        GenTree* gtTestNewExpr = gtTest->gtStmtExpr;
-        GenTree* sideEffListTest = nullptr;
-
-        gtExtractSideEffList(gtTestNewExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
-        if (!sideEffListTest)
-        {
-            fgRemoveStmt(bbBottom, gtTest);
-        }
-        else
-        {
-            gtTest->gtStmtExpr = sideEffListTest;
-        }
-
-        bbBottom->bbJumpKind = BBJ_NONE;
-    }
-    
-
     if (lpIsPtclUrl)
     {
         // If there is particle exists, we need to modify test expression.
@@ -3973,6 +3960,23 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         {
             goto FAILED;
         }
+    }
+    else if (lpIsFullUrl)
+    {
+        GenTree* gtTestNewExpr   = gtTest->gtStmtExpr;
+        GenTree* sideEffListTest = nullptr;
+
+        gtExtractSideEffList(gtTestNewExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+        if (!sideEffListTest)
+        {
+            fgRemoveStmt(bbBottom, gtTest);
+        }
+        else
+        {
+            gtTest->gtStmtExpr = sideEffListTest;
+        }
+
+        bbBottom->bbJumpKind = BBJ_NONE;
     }
 
     lpDesc->lpFlags |= LPFLG_REMOVED;
