@@ -3830,13 +3830,13 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                     {
                         gtTestNew->gtStmtExpr = sideEffListTest;
                     }
-                    bbNew->bbJumpKind = BBJ_NONE;
                 }
                 else
                 {
                     fgRemoveStmt(bbNew, gtTestNew);
                 }
 
+                bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
         }
@@ -3881,13 +3881,13 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                     {
                         gtTestNew->gtStmtExpr = sideEffListTest;
                     }
-                    bbNew->bbJumpKind = BBJ_NONE;
                 }
                 else
                 {
                     fgRemoveStmt(bbNew, gtTestNew);
                 }
 
+                bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
         }
