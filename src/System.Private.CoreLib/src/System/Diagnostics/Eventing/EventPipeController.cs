@@ -57,9 +57,10 @@ namespace System.Diagnostics.Tracing
         private static EventPipeController s_controllerInstance = null;
 
         // Controller object state.
-        private string m_traceFilePath;
-        private string m_markerFilePath;
-        private bool m_markerFileExists;
+        private Timer m_timer;
+        private string m_traceFilePath = null;
+        private string m_markerFilePath = null;
+        private bool m_markerFileExists = false;
 
         internal static void Initialize()
         {
@@ -87,52 +88,60 @@ namespace System.Diagnostics.Tracing
 
         private EventPipeController()
         {
-            // Set file paths.
-            m_traceFilePath = GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile);
-            m_markerFilePath = MarkerFilePath;
-
-            // Marker file is assumed to not exist.
-            // This will be updated when the monitoring thread starts.
-            m_markerFileExists = false;
-
-            // Start a new thread to listen for tracing commands.
-            Task.Factory.StartNew(WaitForTracingCommand, TaskCreationOptions.LongRunning);
+            // Initialize the timer to run once.  The timer will re-schedule itself after each poll operation.
+            // This is done to ensure that there aren't multiple concurrent polling operations when an operation
+            // takes longer than the polling interval (e.g. on disable/rundown).
+            m_timer = new Timer(
+                callback: new TimerCallback(PollForTracingCommand),
+                state: null,
+                dueTime: DisabledPollingIntervalMilliseconds,
+                period: Timeout.Infinite,
+                flowExecutionContext: false);
         }
 
-        private void WaitForTracingCommand()
+        private void PollForTracingCommand(object state)
         {
-            while (true)
+            // Make sure that any transient errors don't cause the listener thread to exit.
+            try
             {
-                // Make sure that any transient errors don't cause the listener thread to exit.
-                try
+                // Perform initialization when the timer fires for the first time.
+                if (m_traceFilePath == null)
                 {
-                    // Check for existence of the file.
-                    // If the existence of the file has changed since the last time we checked
-                    // this means that we need to act on that change.
-                    bool fileExists = File.Exists(m_markerFilePath);
-                    if (m_markerFileExists != fileExists)
-                    {
-                        // Save the result.
-                        m_markerFileExists = fileExists;
+                    // Set file paths.
+                    m_traceFilePath = GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile);
+                    m_markerFilePath = MarkerFilePath;
 
-                        // Take the appropriate action.
-                        if (fileExists)
-                        {
-                            // Enable tracing.
-                            EventPipe.Enable(GetConfiguration());
-                        }
-                        else
-                        {
-                            // Disable tracing.
-                            EventPipe.Disable();
-                        }
-                    }
-
-                    // Wait for the polling interval.
-                    Thread.Sleep(m_markerFileExists ? EnabledPollingIntervalMilliseconds : DisabledPollingIntervalMilliseconds);
+                    // Marker file is assumed to not exist.
+                    // This will be updated when the monitoring thread starts.
+                    m_markerFileExists = false;
                 }
-                catch { }
+
+                // Check for existence of the file.
+                // If the existence of the file has changed since the last time we checked
+                // this means that we need to act on that change.
+                bool fileExists = File.Exists(m_markerFilePath);
+                if (m_markerFileExists != fileExists)
+                {
+                    // Save the result.
+                    m_markerFileExists = fileExists;
+
+                    // Take the appropriate action.
+                    if (fileExists)
+                    {
+                        // Enable tracing.
+                        EventPipe.Enable(GetConfiguration());
+                    }
+                    else
+                    {
+                        // Disable tracing.
+                        EventPipe.Disable();
+                    }
+                }
+
+                // Schedule the timer to run again.
+                m_timer.Change(fileExists ? EnabledPollingIntervalMilliseconds : DisabledPollingIntervalMilliseconds, Timeout.Infinite);
             }
+            catch { }
         }
 
         private static EventPipeConfiguration GetConfiguration()
