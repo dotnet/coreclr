@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 #if FEATURE_PERFTRACING
 using Internal.IO;
+using Microsoft.Win32;
 using System.IO;
 using System.Globalization;
 using System.Runtime.Versioning;
@@ -202,7 +203,7 @@ namespace System.Diagnostics.Tracing
                 string fileWithoutExtension = Path.GetFileName(filePath);
                 string extension = Path.GetExtension(filePath);
 
-                string newFileWithExtension = fileWithoutExtension + "." + Environment.ProcessId + extension;
+                string newFileWithExtension = fileWithoutExtension + "." + Win32Native.GetCurrentProcessId() + extension;
                 filePath = Path.Combine(directoryName, newFileWithExtension);
             }
 
@@ -267,7 +268,7 @@ namespace System.Diagnostics.Tracing
                     s_Config_EventPipeOutputFile = CompatibilitySwitch.GetValueInternal("EventPipeOutputFile");
                     if (s_Config_EventPipeOutputFile == null)
                     {
-                        s_Config_EventPipeOutputFile = "Process-" + Environment.ProcessId + NetPerfFileExtension;
+                        s_Config_EventPipeOutputFile = "Process-" + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
                     }
                 }
 

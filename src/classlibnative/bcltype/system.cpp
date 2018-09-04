@@ -308,21 +308,6 @@ FCIMPL0(StringObject*, SystemNative::GetRuntimeDirectory)
 }
 FCIMPLEND
 
-INT32 QCALLTYPE SystemNative::GetProcessId()
-{
-    QCALL_CONTRACT;
-
-    INT32 processId = -1;
-
-    BEGIN_QCALL;
-
-    processId = GetCurrentProcessId();
-
-    END_QCALL;
-
-    return processId;
-}
-
 INT32 QCALLTYPE SystemNative::GetProcessorCount()
 {
     QCALL_CONTRACT;

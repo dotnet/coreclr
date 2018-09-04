@@ -59,8 +59,6 @@ public:
     static FCDECL0(StringObject*, _GetModuleFileName);
     static FCDECL0(StringObject*, GetRuntimeDirectory);
 
-    static INT32 QCALLTYPE GetProcessId();
-
     // Returns the number of logical processors that can be used by managed code
 	static INT32 QCALLTYPE GetProcessorCount();
 

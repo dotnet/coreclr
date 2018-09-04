@@ -146,7 +146,6 @@ FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("set_ExitCode", SystemNative::SetExitCode)
     FCFuncElement("get_ExitCode", SystemNative::GetExitCode)
     FCFuncElement("get_HasShutdownStarted", SystemNative::HasShutdownStarted)
-    QCFuncElement("GetProcessId", SystemNative::GetProcessId)
     QCFuncElement("GetProcessorCount", SystemNative::GetProcessorCount)
     FCFuncElement("GetCommandLineArgsNative", SystemNative::GetCommandLineArgs)
 
