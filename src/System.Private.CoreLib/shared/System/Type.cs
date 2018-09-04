@@ -346,6 +346,21 @@ namespace System
         public virtual Type MakeGenericType(params Type[] typeArguments) { throw new NotSupportedException(SR.NotSupported_SubclassOverride); }
         public virtual Type MakePointerType() { throw new NotSupportedException(); }
 
+        public static Type MakeGenericSignatureType(Type genericTypeDefinition, params Type[] typeArguments)
+        {
+            if (genericTypeDefinition == null)
+                throw new ArgumentNullException(nameof(genericTypeDefinition));
+            if (typeArguments == null)
+                throw new ArgumentNullException(nameof(typeArguments));
+            for (int i = 0; i < typeArguments.Length; i++)
+            {
+                if (typeArguments[i] == null)
+                    throw new ArgumentNullException();
+            }
+
+            return new SignatureConstructedGenericType(genericTypeDefinition, typeArguments);
+        }
+
         public static Type MakeGenericMethodParameter(int position)
         {
             if (position < 0)
