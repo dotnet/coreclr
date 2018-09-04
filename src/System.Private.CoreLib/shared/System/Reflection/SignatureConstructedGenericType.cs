@@ -12,9 +12,21 @@ namespace System.Reflection
     {
         internal SignatureConstructedGenericType(Type genericTypeDefinition, Type[] genericTypeArguments)
         {
-            Debug.Assert(genericTypeDefinition != null && genericTypeArguments != null);
+            if (genericTypeDefinition == null)
+                throw new ArgumentNullException(nameof(genericTypeDefinition));
+
+            if (genericTypeArguments == null)
+                throw new ArgumentNullException(nameof(genericTypeArguments));
+
+            genericTypeArguments = (Type[])(genericTypeArguments.Clone());
+            for (int i = 0; i < genericTypeArguments.Length; i++)
+            {
+                if (genericTypeArguments[i] == null)
+                    throw new ArgumentNullException(nameof(genericTypeArguments));
+            }
+
             _genericTypeDefinition = genericTypeDefinition;
-            _genericTypeArguments = (Type[])(genericTypeArguments.Clone());
+            _genericTypeArguments = genericTypeArguments;
         }
     
         public sealed override bool IsTypeDefinition => false;
