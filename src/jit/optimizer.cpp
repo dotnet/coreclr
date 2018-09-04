@@ -3915,6 +3915,25 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
         }
     }
 
+    if (lpIsFullUrl)
+    {
+        GenTree* gtTestNewExpr = gtTest->gtStmtExpr;
+        GenTree* sideEffListTest = nullptr;
+
+        gtExtractSideEffList(gtTestNewExpr, &sideEffListTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF);
+        if (!sideEffListTest)
+        {
+            fgRemoveStmt(bbBottom, gtTest);
+        }
+        else
+        {
+            gtTest->gtStmtExpr = sideEffListTest;
+        }
+
+        bbBottom->bbJumpKind = BBJ_NONE;
+    }
+    
+
     if (lpIsPtclUrl)
     {
         // If there is particle exists, we need to modify test expression.
