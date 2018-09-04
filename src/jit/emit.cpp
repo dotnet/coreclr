@@ -2222,12 +2222,17 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
     }
 }
 
-/*****************************************************************************
- *
- *  Returns true if garbage-collection won't happen within the helper call.
- *  Don't need to record live pointers for such call sites.
- */
-
+//------------------------------------------------------------------------
+// emitNoGChelper: Returns true if garbage-collection won't happen within the helper call.
+//
+// Notes:
+//  There is no need to record live pointers for such call sites.
+//
+// Arguments:
+//   helpFunc - a helper signature for the call, can be CORINFO_HELP_UNDEF, that means that the call is not a helper;
+//
+// Return value:
+//   true if GC can't happen within this call, false otherwise.
 bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 {
     // TODO-Throughput: Make this faster (maybe via a simple table of bools?)
@@ -2283,6 +2288,17 @@ bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
     }
 }
 
+//------------------------------------------------------------------------
+// emitNoGChelper: Returns true if garbage-collection won't happen within the helper call.
+//
+// Notes:
+//  There is no need to record live pointers for such call sites.
+//
+// Arguments:
+//   methHnd - a method handle for the call;
+//
+// Return value:
+//   true if GC can't happen within this call, false otherwise.
 bool emitter::emitNoGChelper(CORINFO_METHOD_HANDLE methHnd)
 {
     CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
@@ -7288,6 +7304,15 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 
 #endif // DEBUG
 
+//------------------------------------------------------------------------
+// GetSavedSet: Returns the set of registers that live across the call.
+//
+// Arguments:
+//   methHnd - the method handler of the call.
+//
+// Return value:
+//   the saved set of registers.
+//
 regMaskTP emitter::GetSavedSet(CORINFO_METHOD_HANDLE methHnd)
 {
     // Is it a helper with a special saved set?

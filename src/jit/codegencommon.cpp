@@ -506,9 +506,7 @@ void CodeGenInterface::genUpdateRegLife(const LclVarDsc* varDsc, bool isBorn, bo
 }
 
 //----------------------------------------------------------------------
-// compNoGCHelperCallKillSet:
-//
-// Gets a register mask that represents the kill set for a helper call.
+// compHelperCallKillSet: Gets a register mask that represents the kill set for a helper call.
 // Not all JIT Helper calls follow the standard ABI on the target architecture.
 //
 // TODO-CQ: Currently this list is incomplete (not all helpers calls are
