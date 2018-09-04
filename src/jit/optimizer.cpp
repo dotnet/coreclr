@@ -3826,11 +3826,11 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                     GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
 
                     gtNewTest->gtStmtExpr = sideEffListTest;
-                    fgInsertStmtAtEnd(bbBottom, gtNewTest);
+                    fgInsertStmtAtEnd(bbIter, gtNewTest);
                 }
                 else
                 {
-                    bbBottom->bbJumpKind = BBJ_NONE;
+                    bbIter->bbJumpKind = BBJ_NONE;
                 }
 
                 break;
@@ -3869,11 +3869,11 @@ bool Compiler::optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer
                     GenTreeStmt* gtNewTest = gtCloneExpr(gtTest)->AsStmt();
 
                     gtNewTest->gtStmtExpr = sideEffListTest;
-                    fgInsertStmtAtEnd(bbBottom, gtNewTest);
+                    fgInsertStmtAtEnd(bbIter, gtNewTest);
                 }
                 else
                 {
-                    bbBottom->bbJumpKind = BBJ_NONE;
+                    bbIter->bbJumpKind = BBJ_NONE;
                 }
 
                 break;
