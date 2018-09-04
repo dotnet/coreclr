@@ -4500,12 +4500,11 @@ void emitter::emitIns_Call(EmitCallType          callType,
     emitThisGCrefRegs = gcrefRegs;
     emitThisByrefRegs = byrefRegs;
 
+    id->idSetIsNoGC(emitNoGChelper(methHnd));
+
     /* Set the instruction - special case jumping a function */
     instruction ins;
     insFormat   fmt = IF_NONE;
-
-    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
-    id->idSetIsNoGC(isNoGCHelper);
 
     /* Record the address: method, indirection, or funcptr */
 

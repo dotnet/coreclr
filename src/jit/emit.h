@@ -1909,7 +1909,8 @@ public:
     /*    The following is used to distinguish helper vs non-helper calls   */
     /************************************************************************/
 
-    static bool emitNoGChelper(unsigned IHX);
+    static bool emitNoGChelper(CorInfoHelpFunc helpFunc);
+    static bool emitNoGChelper(CORINFO_METHOD_HANDLE methHnd);
 
     /************************************************************************/
     /*         The following logic keeps track of live GC ref values        */

@@ -2228,11 +2228,11 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
  *  Don't need to record live pointers for such call sites.
  */
 
-bool emitter::emitNoGChelper(unsigned IHX)
+bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 {
     // TODO-Throughput: Make this faster (maybe via a simple table of bools?)
 
-    switch (IHX)
+    switch (helpFunc)
     {
         case CORINFO_HELP_UNDEF:
             return false;
@@ -2281,6 +2281,16 @@ bool emitter::emitNoGChelper(unsigned IHX)
     }
 
     return false;
+}
+
+bool emitter::emitNoGChelper(CORINFO_METHOD_HANDLE methHnd)
+{
+    CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
+    if (helpFunc == CORINFO_HELP_UNDEF)
+    {
+        return false;
+    }
+    return emitNoGChelper(helpFunc);
 }
 
 /*****************************************************************************
@@ -7280,11 +7290,12 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 
 regMaskTP emitter::GetSavedSet(CORINFO_METHOD_HANDLE methHnd)
 {
-    CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
     // Is it a helper with a special saved set?
-    bool isNoGCHelper = ((helpFunc != CORINFO_HELP_UNDEF) && emitNoGChelper(helpFunc));
+    bool isNoGCHelper = emitNoGChelper(methHnd);
     if (isNoGCHelper)
     {
+        CorInfoHelpFunc helpFunc = Compiler::eeGetHelperNum(methHnd);
+
         // Get the set of registers that this call kills and remove it from the saved set.
         regMaskTP savedSet = RBM_ALLINT & ~emitComp->compNoGCHelperCallKillSet(helpFunc);
 

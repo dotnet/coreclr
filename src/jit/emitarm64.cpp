@@ -7469,8 +7469,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
     emitThisGCrefRegs = gcrefRegs;
     emitThisByrefRegs = byrefRegs;
 
-    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
-    id->idSetIsNoGC(isNoGCHelper);
+    id->idSetIsNoGC(emitNoGChelper(methHnd));
 
     /* Set the instruction - special case jumping a function */
     instruction ins;

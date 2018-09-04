@@ -6946,8 +6946,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
     }
     id->idIns(ins);
 
-    bool isNoGCHelper = emitNoGChelper(Compiler::eeGetHelperNum(methHnd));
-    id->idSetIsNoGC(isNoGCHelper);
+    id->idSetIsNoGC(emitNoGChelper(methHnd));
 
     UNATIVE_OFFSET sz;
 
