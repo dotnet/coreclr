@@ -3683,12 +3683,27 @@ void Compiler::optUnrollLoops()
             BasicBlock* bbHead   = loopDesc->lpHead;
             BasicBlock* bbBottom = loopDesc->lpBottom;
 
+            auto FnCntBoundCheck = [](GenTree** wkTree, fgWalkData* wkData) -> fgWalkResult {
+                GenTree* tree = *wkTree;
+                if (tree->OperIsBoundsCheck())
+                {
+                    (*(unsigned int*)(wkData->pCallbackData))++;
+                }
+
+                return fgWalkResult::WALK_CONTINUE;
+            };
+
             unsigned int bbCondCnt = 0;
             for (BasicBlock* bbIter = bbHead->bbNext;; bbIter = bbIter->bbNext)
             {
                 if (bbIter->bbJumpKind != BBJ_NONE)
                 {
                     bbCondCnt++;
+                }
+
+                for (GenTreeStmt* gtIter = bbIter->firstStmt(); gtIter; gtIter = gtIter->gtNextStmt)
+                {
+                    fgWalkTreePre(&(gtIter->gtStmtExpr), FnCntBoundCheck, &bbCondCnt);
                 }
 
                 if (bbIter == bbBottom)
