@@ -2276,11 +2276,11 @@ bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
         case CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR:
 
         case CORINFO_HELP_INIT_PINVOKE_FRAME:
-
             return true;
-    }
 
-    return false;
+        default:
+            return false;
+    }
 }
 
 bool emitter::emitNoGChelper(CORINFO_METHOD_HANDLE methHnd)
