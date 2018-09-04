@@ -658,14 +658,28 @@ namespace System.Threading
 
         public void Close()
         {
-            m_timer.Close();
-            GC.SuppressFinalize(this);
+            TimerQueueTimer timer = m_timer;
+            if (timer != null)
+            {
+                timer.Close();
+                // Don't hold on to Timer while waiting in Finalization queue
+                m_timer = null;
+                GC.SuppressFinalize(this);
+            }
         }
 
         public bool Close(WaitHandle notifyObject)
         {
-            bool result = m_timer.Close(notifyObject);
-            GC.SuppressFinalize(this);
+            bool result = false;
+            TimerQueueTimer timer = m_timer;
+            if (timer != null)
+            {
+                result = timer.Close(notifyObject);
+                // Don't hold on to Timer while waiting in Finalization queue
+                m_timer = null;
+                GC.SuppressFinalize(this);
+            }
+
             return result;
         }
     }
