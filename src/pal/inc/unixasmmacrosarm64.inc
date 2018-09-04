@@ -212,11 +212,11 @@ C_FUNC(\Name\()_End):
 
 .macro RESTORE_ARGUMENT_REGISTERS reg, ofs
 
-        ldp                    x0, x1, [\reg, #(\ofs)]
-        ldp                    x2, x3, [\reg, #(\ofs + 16)]
-        ldp                    x4, x5, [\reg, #(\ofs + 32)]
-        ldp                    x6, x7, [\reg, #(\ofs + 48)]
-        ldr                    x8, [\reg, #(\ofs + 64)]
+        ldr                    x8, [\reg, #(\ofs)]
+        ldp                    x0, x1, [\reg, #(\ofs + 8)]
+        ldp                    x2, x3, [\reg, #(\ofs + 24)]
+        ldp                    x4, x5, [\reg, #(\ofs + 40)]
+        ldp                    x6, x7, [\reg, #(\ofs + 56)]
 
 .endm
 
