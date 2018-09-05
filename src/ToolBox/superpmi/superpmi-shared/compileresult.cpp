@@ -672,6 +672,14 @@ void CompileResult::repRecordRelocation(void* location, void* target, WORD fRelo
     value.slotNum    = (DWORD)slotNum;
     value.addlDelta  = (DWORD)addlDelta;
 
+#ifdef _TARGET_X86_
+    if (value.fRelocType == IMAGE_REL_BASED_HIGHLOW)
+    {
+        Assert(value.addlDelta == 0);
+        Assert(value.slotNum == 0);
+    }
+#endif // _TARGET_X86_
+
     RecordRelocation->Append(value);
 }
 

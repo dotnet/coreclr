@@ -9450,19 +9450,15 @@ GOT_DSP:
 
                     if (addc)
                     {
-                        // It is of the form "ins [disp], immed"
-                        // For emitting relocation, we also need to take into account of the
-                        // additional bytes of code emitted for immed val.
-
                         ssize_t cval = addc->cnsVal;
 
 #ifdef _TARGET_AMD64_
                         // all these opcodes only take a sign-extended 4-byte immediate
                         noway_assert(opsz < 8 || ((int)cval == cval && !addc->cnsReloc));
-#else
-                        noway_assert(opsz <= 4);
-#endif
 
+                        // It is of the form "ins [disp], immed"
+                        // For emitting relocation, we also need to take into account of the
+                        // additional bytes of code emitted for immed val on amd64.
                         switch (opsz)
                         {
                             case 0:
@@ -9481,14 +9477,19 @@ GOT_DSP:
                                 assert(!"unexpected operand size");
                                 unreached();
                         }
+#else // _TARGET_X86_
+                        noway_assert(opsz <= 4);
+#endif // _TARGET_X86_
                     }
 
 #ifdef _TARGET_AMD64_
                     // We emit zero on Amd64, to avoid the assert in emitOutputLong()
                     dst += emitOutputLong(dst, 0);
-#else
+#else  // _TARGET_X86_
                     dst += emitOutputLong(dst, dsp);
-#endif
+                    // x86 uses an absiolute 32-bit address, it doesn't need addlDelta.
+                    assert(addlDelta == 0);
+#endif // _TARGET_X86_
                     emitRecordRelocation((void*)(dst - sizeof(INT32)), (void*)dsp, IMAGE_REL_BASED_DISP32, 0,
                                          addlDelta);
                 }
