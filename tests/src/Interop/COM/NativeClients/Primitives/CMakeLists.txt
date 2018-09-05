@@ -6,6 +6,9 @@ include_directories( "../../ServerContracts" )
 include_directories( "../../NativeServer" )
 set(SOURCES
     Client.cpp
+    NumericTests.cpp
+    ArrayTests.cpp
+    StringTests.cpp
     ErrorTests.cpp
     App.manifest)
 

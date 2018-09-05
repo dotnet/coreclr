@@ -30,6 +30,9 @@ int main()
 
     try
     {
+        Run_NumericTests();
+        Run_ArrayTests();
+        Run_StringTests();
         Run_ErrorTests();
     }
     catch (HRESULT hr)

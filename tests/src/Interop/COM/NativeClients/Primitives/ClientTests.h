@@ -64,4 +64,7 @@ struct ComSmartPtr
     T *p;
 };
 
+void Run_NumericTests();
+void Run_ArrayTests();
+void Run_StringTests();
 void Run_ErrorTests();

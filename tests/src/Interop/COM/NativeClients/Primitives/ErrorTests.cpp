@@ -8,6 +8,8 @@ namespace
 {
     void VerifyExpectedException(_In_ IErrorMarshalTesting *et)
     {
+       ::printf("Verify expected exception from HRESULT\n");
+
         HRESULT hrs[] =
         {
             E_NOTIMPL,
@@ -29,6 +31,8 @@ namespace
 
     void VerifyReturnHResult(_In_ IErrorMarshalTesting *et)
     {
+        ::printf("Verify preserved function signature\n");
+
         HRESULT hrs[] =
         {
             E_NOTIMPL,
