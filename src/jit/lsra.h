@@ -1615,6 +1615,7 @@ private:
 
 #ifdef FEATURE_HW_INTRINSICS
     int BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree);
+    int BuildHWIntrinsicMemoryLoadUses(GenTreeHWIntrinsic* intrinsicTree, regMaskTP candidates = 0U);
 #endif // FEATURE_HW_INTRINSICS
 
     int BuildPutArgStk(GenTreePutArgStk* argNode);

@@ -2312,9 +2312,10 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
 {
     NamedIntrinsic      containingIntrinsicId = containingNode->gtHWIntrinsicId;
     HWIntrinsicCategory category              = HWIntrinsicInfo::lookupCategory(containingIntrinsicId);
-
+    bool                supportsContainment   = HWIntrinsicInfo::SupportsContainment(containingIntrinsicId);
+    genTreeOps          nodeOper              = node->OperGet();
     // We shouldn't have called in here if containingNode doesn't support containment
-    assert(HWIntrinsicInfo::SupportsContainment(containingIntrinsicId));
+    assert(supportsContainment);
 
     // containingNode supports nodes that read from an aligned memory address
     //
@@ -2508,6 +2509,17 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
             break;
         }
 
+        case HW_Category_MemoryLoad:
+        {
+            assert(supportsGeneralLoads == false);
+
+            supportsAlignedSIMDLoads   = true;
+            supportsGeneralLoads       = true;
+            supportsSIMDScalarLoads    = true;
+            supportsUnalignedSIMDLoads = true;
+            break;
+        }
+
         default:
         {
             assert(supportsAlignedSIMDLoads == false);
@@ -2521,42 +2533,84 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
     noway_assert(supportsRegOptional != nullptr);
     *supportsRegOptional = supportsGeneralLoads;
 
-    if (!node->OperIsHWIntrinsic())
+    if (!node->OperIsHWIntrinsic() &&
+        !(category == HW_Category_MemoryLoad && nodeOper == GT_LEA && supportsContainment))
     {
         return supportsGeneralLoads && IsContainableMemoryOp(node);
     }
 
-    // TODO-XArch: Update this to be table driven, if possible.
-
-    NamedIntrinsic intrinsicId = node->AsHWIntrinsic()->gtHWIntrinsicId;
-
-    switch (intrinsicId)
+    if (node->OperIsHWIntrinsic())
     {
-        case NI_SSE_LoadAlignedVector128:
-        case NI_SSE2_LoadAlignedVector128:
-        case NI_AVX_LoadAlignedVector256:
-        {
-            return supportsAlignedSIMDLoads;
-        }
+        // TODO-XArch: Update this to be table driven, if possible.
 
-        case NI_SSE_LoadScalarVector128:
-        case NI_SSE2_LoadScalarVector128:
-        {
-            return supportsSIMDScalarLoads;
-        }
+        NamedIntrinsic intrinsicId = node->AsHWIntrinsic()->gtHWIntrinsicId;
 
-        // VEX encoding supports unaligned memory ops, so we can fold them
-        case NI_SSE_LoadVector128:
-        case NI_SSE2_LoadVector128:
-        case NI_AVX_LoadVector256:
+        switch (intrinsicId)
         {
-            return supportsUnalignedSIMDLoads;
-        }
+            case NI_SSE_LoadAlignedVector128:
+            case NI_SSE2_LoadAlignedVector128:
+            case NI_AVX_LoadAlignedVector256:
+            {
+                return supportsAlignedSIMDLoads;
+            }
 
-        default:
+            case NI_SSE_LoadScalarVector128:
+            case NI_SSE2_LoadScalarVector128:
+            {
+                return supportsSIMDScalarLoads;
+            }
+
+            // VEX encoding supports unaligned memory ops, so we can fold them
+            case NI_SSE_LoadVector128:
+            case NI_SSE2_LoadVector128:
+            case NI_AVX_LoadVector256:
+            {
+                return supportsUnalignedSIMDLoads;
+            }
+
+            default:
+            {
+                assert(!node->isContainableHWIntrinsic());
+                return false;
+            }
+        }
+    }
+    else
+    {
+        switch (containingIntrinsicId)
         {
-            assert(!node->isContainableHWIntrinsic());
-            return false;
+            case NI_SSE_LoadAlignedVector128:
+            case NI_SSE2_LoadAlignedVector128:
+            case NI_AVX_LoadAlignedVector256:
+            case NI_SSE41_LoadAlignedVector128NonTemporal:
+            case NI_AVX2_LoadAlignedVector256NonTemporal:
+            {
+                return supportsAlignedSIMDLoads;
+            }
+
+            case NI_SSE_LoadScalarVector128:
+            case NI_SSE2_LoadScalarVector128:
+            {
+                return supportsSIMDScalarLoads;
+            }
+
+            case NI_SSE_LoadVector128:
+            case NI_SSE2_LoadVector128:
+            case NI_AVX_LoadVector256:
+            case NI_SSE3_LoadAndDuplicateToVector128:
+            case NI_SSE3_LoadDquVector128:
+            case NI_AVX_LoadDquVector256:
+            case NI_AVX_BroadcastScalarToVector128:
+            case NI_AVX_BroadcastScalarToVector256:
+            case NI_AVX_BroadcastVector128ToVector256:
+            {
+                return supportsUnalignedSIMDLoads;
+            }
+
+            default:
+            {
+                return false;
+            }
         }
     }
 }
@@ -2658,6 +2712,32 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                 {
                     op1->SetRegOptional();
                 }
+                break;
+            }
+
+            case HW_Category_MemoryLoad:
+            {
+                GenTree* addr = TryCreateAddrMode(LIR::Use(BlockRange(), &node->gtOp.gtOp1, node), true);
+
+                bool       supportsRegOptional = false;
+                genTreeOps addrOper            = addr->OperGet();
+
+                if (IsContainableHWIntrinsicOp(node, addr, &supportsRegOptional) && addrOper == GT_LEA)
+                {
+                    // Contained node is of GT_LEA type which we want folded into HW intrinsic
+                    // memory load instruction operand holding memory address. This will happen when:
+                    //
+                    // GT_LEA: (i) is contained, (ii) RegOptional is not set
+
+                    GenTreeAddrMode* addrMode = addr->AsAddrMode();
+                    assert(addrMode != nullptr);
+
+                    GenTree* leaOp1 = addrMode->gtGetOp1();
+                    assert(leaOp1 != nullptr);
+
+                    MakeSrcContained(node, addrMode);
+                }
+
                 break;
             }
 
