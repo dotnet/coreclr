@@ -5,13 +5,12 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-
 namespace System.Runtime.InteropServices
 {
     // ToString() must return debugging string that includes source-name, target name that was loaded, and location details.
     public class NativeLibrary
     {
-        public IntPtr Handle { get; set; }
+        public IntPtr Handle { get; private set; }
         public string Name { get; set; } // Will Return the name referenced by the importing assembly
 
         // Stores a map of assemblies and on-library-load-callbacks assigned to them.
