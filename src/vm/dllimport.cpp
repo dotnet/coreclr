@@ -5921,9 +5921,9 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     {
 #ifndef FEATURE_PAL
 
-        if ((flags & 0xFFFFFF00) != 0
+    if ((flags & 0xFFFFFF00) != 0
 #ifndef FEATURE_CORESYSTEM
-            && NDirect::SecureLoadLibrarySupported()
+        && NDirect::SecureLoadLibrarySupported()
 #endif // !FEATURE_CORESYSTEM
             )
         {
@@ -5942,10 +5942,10 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
             }
         }
 
-        hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
+    hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFF);
 
 #else // !FEATURE_PAL
-        hmod = CLRLoadLibrary(name);
+    hmod = CLRLoadLibrary(name);
 #endif // !FEATURE_PAL
 
         pDomain->AddUnmanagedImageToCache(name, hmod);
@@ -6299,13 +6299,6 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 
 HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
 {
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(CheckPointer( pAssembly ) );
-    }
-    CONTRACTL_END;
-
     LoadLibErrorTracker pErrorTracker;
     ModuleHandleHolder hmod;
 
@@ -6318,7 +6311,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
     // AssemblyLoadContext is not supported in AppX mode and thus,
     // we should not perform PInvoke resolution via it when operating in
     // AppX mode.
-    if (!AppX::IsAppXProcess())
+    if (!AppX::IsAppXProcess() && pAssembly != NULL)
     {
         hmod = LoadLibraryModuleViaHost(pAssembly, pDomain, wszLibName);
     }
@@ -6383,7 +6376,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
 
                 hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, &pErrorTracker);
             }
-            else if (searchAssemblyDirectory)
+            else if (searchAssemblyDirectory && pAssembly != NULL)
             {
                 hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, &pErrorTracker);
             }

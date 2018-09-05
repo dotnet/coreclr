@@ -68,10 +68,8 @@ namespace System.Runtime.InteropServices
                 assemblyAsRuntimeAssembly = assembly as RuntimeAssembly;
             }
 
-            // Todo: how to determine searchAssemblyDirectory? Should it be removed from here?
-            bool searchAssemblyDirectory;
-            if (dllImportSearchPath != null) searchAssemblyDirectory = true;
-            else searchAssemblyDirectory = false;
+            // Todo: Determine when it shouldn't be true
+            bool searchAssemblyDirectory = true;
 
             IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, searchAssemblyDirectory, (int)dllImportSearchPath);
 
