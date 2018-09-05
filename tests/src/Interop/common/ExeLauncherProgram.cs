@@ -16,6 +16,12 @@ public class Program
 {
     static int Main(string[] noArgs)
     {
+        if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+        {
+            Console.WriteLine($"Exe launcher only supported on Windows environments...");
+            return 100;
+        }
+
         string workingDir = Environment.CurrentDirectory;
         Console.WriteLine($"Searching for exe to launch in {workingDir}...");
 
