@@ -288,8 +288,20 @@ namespace System.IO
         {
             if (value != null)
             {
-                // TODO: Rent a buffer and call Write(char[], int, int) instead.
-                Write(value.ToString());
+                // Optimistically assume value is all-ASCII, so rent a buffer of the same length.
+                char[] rental = ArrayPool<char>.Shared.Rent(value.Length);
+
+                try
+                {
+                    foreach (var chunkLength in value.ChunkToUtf16(rental))
+                    {
+                        Write(rental, 0, chunkLength);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(rental);
+                }
             }
         }
 
