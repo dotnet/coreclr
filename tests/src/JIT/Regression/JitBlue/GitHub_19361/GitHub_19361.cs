@@ -89,7 +89,7 @@ namespace Repro
         {
             Console.WriteLine("Starting stress loop");
             var compositeSources = GetCompositeSources();
-            var res = Parallel.For(0, 20, i =>
+            var res = Parallel.For(0, 10, i =>
             {
                 int seed;
                 lock (Rng)
