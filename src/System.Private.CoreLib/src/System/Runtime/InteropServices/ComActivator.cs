@@ -95,8 +95,8 @@ namespace System.Runtime.InteropServices
             }
 
             string[] potentialAssemblies = cxt.ActivationAssemblyList ?? new string[0];
-            (Assembly classAssembly, Type classType) = FindClassAssemblyAndType(cxt.ClassId, potentialAssemblies);
-            return new BasicClassFactory(cxt.ClassId, classAssembly, classType);
+            Type classType = FindClassType(cxt.ClassId, potentialAssemblies);
+            return new BasicClassFactory(cxt.ClassId, classType);
         }
 
         /// <summary>
@@ -155,7 +155,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             Debug.WriteLine(fmt, args);
          }
 
-        private static (Assembly assembly, Type type) FindClassAssemblyAndType(Guid clsid, string[] potentialAssembies)
+        private static Type FindClassType(Guid clsid, string[] potentialAssembies)
         {
             // Determine what assembly the class is in
             foreach (string assemPath in potentialAssembies)
@@ -188,7 +188,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 {
                     if (t.GUID == clsid)
                     {
-                        return (assem, t);
+                        return t;
                     }
                 }
             }
@@ -220,13 +220,11 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         {
             private readonly Guid classId;
             private readonly Type classType;
-            private readonly Assembly classAssembly;
 
-            public BasicClassFactory(Guid clsid, Assembly assembly, Type classType)
+            public BasicClassFactory(Guid clsid, Type classType)
             {
                 this.classId = clsid;
                 this.classType = classType;
-                this.classAssembly = assembly;
             }
 
             public void CreateInstance(
