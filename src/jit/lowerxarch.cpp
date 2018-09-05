@@ -2387,6 +2387,7 @@ bool Lowering::IsContainableHWIntrinsicOp(GenTreeHWIntrinsic* containingNode, Ge
                 case NI_AVX2_Blend:
                 case NI_AVX2_InsertVector128:
                 case NI_AVX2_Permute2x128:
+                case NI_AVX2_Permute4x64:
                 case NI_AVX2_ShiftLeftLogical:
                 case NI_AVX2_ShiftRightArithmetic:
                 case NI_AVX2_ShiftRightLogical:
@@ -2579,6 +2580,13 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 
     if (!HWIntrinsicInfo::SupportsContainment(intrinsicId))
     {
+        // AVX2 gather are not contaibable and always have constant IMM argument
+        if (HWIntrinsicInfo::isAVX2GatherIntrinsic(intrinsicId))
+        {
+            GenTree* lastOp = HWIntrinsicInfo::lookupLastOp(node);
+            assert(lastOp != nullptr);
+            MakeSrcContained(node, lastOp);
+        }
         // Exit early if containment isn't supported
         return;
     }
@@ -2768,6 +2776,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                         case NI_SSE2_Shuffle:
                         case NI_SSE2_ShuffleHigh:
                         case NI_SSE2_ShuffleLow:
+                        case NI_AVX2_Permute4x64:
                         {
                             // These intrinsics have op2 as an imm and op1 as a reg/mem
 
