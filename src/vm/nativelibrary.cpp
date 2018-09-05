@@ -6,7 +6,6 @@
 #include "nativelibrary.hpp"
 #include "dllimport.h"
 
-#include <shlwapi.h>
 #include <stdlib.h>
 #include "dllimport.h"
 #include "field.h"
@@ -29,7 +28,7 @@ INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssemb
     BEGIN_QCALL;
 
     Assembly* pAssembly = nullptr;
-    if (static_cast<DomainAssembly*>(callingAssembly) != nullptr)
+    if (callingAssembly != nullptr)
     {
         pAssembly = callingAssembly->GetAssembly();
     }

@@ -5948,11 +5948,13 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
     hmod = CLRLoadLibrary(name);
 #endif // !FEATURE_PAL
 
-        pDomain->AddUnmanagedImageToCache(name, hmod);
-
         if (hmod == NULL)
         {
             pErrorTracker->TrackErrorCode();
+        }
+        else
+        {
+            pDomain->AddUnmanagedImageToCache(name, hmod);
         }
     }
     
@@ -6299,7 +6301,7 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 
 HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
 {
-    LoadLibErrorTracker pErrorTracker;
+    LoadLibErrorTracker errorTracker;
     ModuleHandleHolder hmod;
 
     DWORD loadWithAlteredPathFlags = GetLoadWithAlteredSearchPathFlag();
@@ -6338,7 +6340,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
         // the OS implementation of api sets.
         if (SString::_wcsnicmp(wszLibName, W("api-"), 4) == 0 || SString::_wcsnicmp(wszLibName, W("ext-"), 4) == 0)
         {
-            hmod = LocalLoadLibraryHelper(wszLibName, LOAD_LIBRARY_SEARCH_SYSTEM32, &pErrorTracker);
+            hmod = LocalLoadLibraryHelper(wszLibName, LOAD_LIBRARY_SEARCH_SYSTEM32, &errorTracker);
         }
     }
 #endif // FEATURE_CORESYSTEM && !FEATURE_PAL
@@ -6358,7 +6360,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
         currLibNameVariation.Printf(prefixSuffixCombinations[i], PLATFORM_SHARED_LIB_PREFIX_W, wszLibName, PLATFORM_SHARED_LIB_SUFFIX_W);
 
         // NATIVE_DLL_SEARCH_DIRECTORIES set by host is considered well known path
-        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, &pErrorTracker);
+        hmod = LoadFromNativeDllSearchDirectories(pDomain, currLibNameVariation, loadWithAlteredPathFlags, &errorTracker);
 
         if (hmod == NULL)
         {
@@ -6374,18 +6376,18 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
                     flags |= dllImportSearchPathFlag;
                 }
 
-                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, &pErrorTracker);
+                hmod = LocalLoadLibraryHelper(currLibNameVariation, flags, &errorTracker);
             }
             else if (searchAssemblyDirectory && pAssembly != NULL)
             {
-                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, &pErrorTracker);
+                hmod = LoadFromPInvokeAssemblyDirectory(pAssembly, currLibNameVariation, loadWithAlteredPathFlags | dllImportSearchPathFlag, &errorTracker);
             }
         }
 
         // This call searches the application directory instead of the location for the library.
         if (hmod == NULL)
         {
-            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, &pErrorTracker);
+            hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, &errorTracker);
         }
     }
 
@@ -6394,7 +6396,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
 
 HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
 {
-    LoadLibErrorTracker pErrorTracker;
+    LoadLibErrorTracker errorTracker;
 
     CONTRACTL
     {
@@ -6481,7 +6483,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
                 Assembly *pAssembly = spec.LoadAssembly(FILE_LOADED);
                 Module *pModule = pAssembly->FindModuleByName(szLibName);
 
-                hmod = LocalLoadLibraryHelper(pModule->GetPath(), loadWithAlteredPathFlags | dllImportSearchPathFlag, &pErrorTracker);
+                hmod = LocalLoadLibraryHelper(pModule->GetPath(), loadWithAlteredPathFlags | dllImportSearchPathFlag, &errorTracker);
             }
         }
     }
