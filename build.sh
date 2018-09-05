@@ -356,7 +356,6 @@ build_cross_arch_component()
     fi
 
     export __CMakeBinDir="$__CrossComponentBinDir"
-    export CROSSCOMPONENT=1
 
     if [ $CROSSCOMPILE == 1 ]; then
         TARGET_ROOTFS="$ROOTFS_DIR"
@@ -367,14 +366,13 @@ build_cross_arch_component()
         fi
     fi
 
-    __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+    __ExtraCmakeArgs="-DCLR_CROSS_COMPONENTS_BUILD=1 -DCLR_CMAKE_TARGET_ARCH=$__BuildArch -DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
     build_native $__SkipCrossArchBuild "$__CrossArch" "$__CrossCompIntermediatesDir" "$__ExtraCmakeArgs" "cross-architecture component"
 
-    # restore ROOTFS_DIR, CROSSCOMPONENT, and CROSSCOMPILE
+    # restore ROOTFS_DIR and CROSSCOMPILE
     if [ -n "$TARGET_ROOTFS" ]; then
         export ROOTFS_DIR="$TARGET_ROOTFS"
     fi
-    export CROSSCOMPONENT=
     export CROSSCOMPILE=1
 }
 
