@@ -305,6 +305,30 @@ namespace System.IO
             }
         }
 
+        // Writes a UTF-8 string segment to the text stream. If the given string is null, nothing
+        // is written to the text stream.
+        //
+        public virtual void Write(Utf8StringSegment value)
+        {
+            if (!value.IsEmpty)
+            {
+                // Optimistically assume value is all-ASCII, so rent a buffer of the same length.
+                char[] rental = ArrayPool<char>.Shared.Rent(value.Length);
+
+                try
+                {
+                    foreach (var chunkLength in value.ChunkToUtf16(rental))
+                    {
+                        Write(rental, 0, chunkLength);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<char>.Shared.Return(rental);
+                }
+            }
+        }
+
         // Writes the text representation of an object to the text stream. If the
         // given object is null, nothing is written to the text stream.
         // Otherwise, the object's ToString method is called to produce the
@@ -533,6 +557,17 @@ namespace System.IO
             Write(CoreNewLineStr);
         }
 
+        // Writes a UTF-8 string segment followed by a line terminator to the text stream.
+        //
+        public virtual void WriteLine(Utf8StringSegment value)
+        {
+            if (!value.IsEmpty)
+            {
+                Write(value);
+            }
+            Write(CoreNewLineStr);
+        }
+
         // Writes the text representation of an object followed by a line
         // terminator to the text stream.
         //
@@ -635,6 +670,17 @@ namespace System.IO
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
         }
 
+        public virtual Task WriteAsync(Utf8StringSegment value)
+        {
+            var tuple = new Tuple<TextWriter, Utf8StringSegment>(this, value);
+            return Task.Factory.StartNew(state =>
+            {
+                var t = (Tuple<TextWriter, Utf8StringSegment>)state;
+                t.Item1.Write(t.Item2);
+            },
+            tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
         /// <summary>
         /// Equivalent to WriteAsync(stringBuilder.ToString()) however it uses the
         /// StringBuilder.GetChunks() method to avoid creating the intermediate string
@@ -717,6 +763,17 @@ namespace System.IO
             return Task.Factory.StartNew(state =>
             {
                 var t = (Tuple<TextWriter, Utf8String>)state;
+                t.Item1.WriteLine(t.Item2);
+            },
+            tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
+        }
+
+        public virtual Task WriteLineAsync(Utf8StringSegment value)
+        {
+            var tuple = new Tuple<TextWriter, Utf8StringSegment>(this, value);
+            return Task.Factory.StartNew(state =>
+            {
+                var t = (Tuple<TextWriter, Utf8StringSegment>)state;
                 t.Item1.WriteLine(t.Item2);
             },
             tuple, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
@@ -811,7 +868,7 @@ namespace System.IO
             public override void Write(string value)
             {
             }
-
+            
             // Not strictly necessary, but for perf reasons
             public override void Write(Utf8String value)
             {
@@ -930,6 +987,9 @@ namespace System.IO
             public override void Write(Utf8String value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void Write(Utf8StringSegment value) => _out.Write(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(object value) => _out.Write(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
@@ -993,6 +1053,9 @@ namespace System.IO
             public override void WriteLine(Utf8String value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override void WriteLine(Utf8StringSegment value) => _out.WriteLine(value);
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(object value) => _out.WriteLine(value);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
@@ -1047,6 +1110,13 @@ namespace System.IO
             }
 
             [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteAsync(Utf8StringSegment value)
+            {
+                Write(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteAsync(char[] buffer, int index, int count)
             {
                 Write(buffer, index, count);
@@ -1083,6 +1153,13 @@ namespace System.IO
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override Task WriteLineAsync(Utf8String value)
+            {
+                WriteLine(value);
+                return Task.CompletedTask;
+            }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override Task WriteLineAsync(Utf8StringSegment value)
             {
                 WriteLine(value);
                 return Task.CompletedTask;

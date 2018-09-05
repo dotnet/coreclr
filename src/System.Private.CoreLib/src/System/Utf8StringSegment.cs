@@ -257,5 +257,10 @@ namespace System
         }
 
         public Utf8StringSegment TrimStart() => TrimHelper(TrimType.Head);
+
+        internal Utf8String.ChunkToUtf16Enumerator ChunkToUtf16(Span<char> chunkBuffer)
+        {
+            return new Utf8String.ChunkToUtf16Enumerator(this.AsSpan(), chunkBuffer);
+        }
     }
 }
