@@ -22,7 +22,7 @@ struct ComInit
 
 using ComMTA = ComInit<COINIT_MULTITHREADED>;
 
-int main()
+int __cdecl main()
 {
     ComMTA init;
     if (FAILED(init.Result))
