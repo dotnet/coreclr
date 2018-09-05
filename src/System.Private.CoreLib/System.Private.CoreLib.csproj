@@ -258,6 +258,7 @@
     <Compile Include="src\System\Text\UnicodeHelpers.cs" />
     <Compile Include="src\System\Text\SequenceValidity.cs" />
     <Compile Include="src\System\Text\UnicodeReader.cs" />
+    <Compile Include="src\System\Text\Utf8Transcoder.cs" />
     <Compile Include="src\System\Text\UnicodeScalar.cs" />
     <Compile Include="src\System\Text\Utf16Utility.cs" />
     <Compile Include="src\System\Text\Utf8Utility.WhiteSpace.cs" />
