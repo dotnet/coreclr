@@ -1920,6 +1920,8 @@ public:
     bool emitFullGCinfo;  // full GC pointer maps?
     bool emitFullyInt;    // fully interruptible code?
 
+    regMaskTP emitGetSavedGCRegsSet(CORINFO_METHOD_HANDLE methHnd);
+
 #if EMIT_TRACK_STACK_DEPTH
     unsigned emitCntStackDepth; // 0 in prolog/epilog, One DWORD elsewhere
     unsigned emitMaxStackDepth; // actual computed max. stack depth
@@ -2123,8 +2125,6 @@ public:
         VarSetOps::AssignNoCopy(emitComp, emitInitGCrefVars, VarSetOps::MakeEmpty(emitComp));
         VarSetOps::AssignNoCopy(emitComp, emitThisGCrefVars, VarSetOps::MakeEmpty(emitComp));
     }
-
-    regMaskTP GetSavedSet(CORINFO_METHOD_HANDLE methHnd);
 };
 
 /*****************************************************************************

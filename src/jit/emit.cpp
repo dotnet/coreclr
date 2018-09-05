@@ -2223,13 +2223,13 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
 }
 
 //------------------------------------------------------------------------
-// emitNoGChelper: Returns true if garbage-collection won't happen within the helper call.
+// emitNoGChelper: Returns true if garbage collection won't happen within the helper call.
 //
 // Notes:
 //  There is no need to record live pointers for such call sites.
 //
 // Arguments:
-//   helpFunc - a helper signature for the call, can be CORINFO_HELP_UNDEF, that means that the call is not a helper;
+//   helpFunc - a helper signature for the call, can be CORINFO_HELP_UNDEF, that means that the call is not a helper.
 //
 // Return value:
 //   true if GC can't happen within this call, false otherwise.
@@ -2289,13 +2289,13 @@ bool emitter::emitNoGChelper(CorInfoHelpFunc helpFunc)
 }
 
 //------------------------------------------------------------------------
-// emitNoGChelper: Returns true if garbage-collection won't happen within the helper call.
+// emitNoGChelper: Returns true if garbage collection won't happen within the helper call.
 //
 // Notes:
 //  There is no need to record live pointers for such call sites.
 //
 // Arguments:
-//   methHnd - a method handle for the call;
+//   methHnd - a method handle for the call.
 //
 // Return value:
 //   true if GC can't happen within this call, false otherwise.
@@ -7305,7 +7305,7 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 #endif // DEBUG
 
 //------------------------------------------------------------------------
-// GetSavedSet: Returns the set of registers that live across the call.
+// emitGetSavedGCRegsSet: Returns the set of registers that keeps gcrefs and byrefs across the call.
 //
 // Arguments:
 //   methHnd - the method handler of the call.
@@ -7313,7 +7313,7 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 // Return value:
 //   the saved set of registers.
 //
-regMaskTP emitter::GetSavedSet(CORINFO_METHOD_HANDLE methHnd)
+regMaskTP emitter::emitGetSavedGCRegsSet(CORINFO_METHOD_HANDLE methHnd)
 {
     // Is it a helper with a special saved set?
     bool isNoGCHelper = emitNoGChelper(methHnd);

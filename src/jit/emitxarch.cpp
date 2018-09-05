@@ -6858,7 +6858,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
 #endif // STACK_PROBES
 
     // Trim out any callee-trashed registers from the live set.
-    regMaskTP savedSet = GetSavedSet(methHnd);
+    regMaskTP savedSet = emitGetSavedGCRegsSet(methHnd);
     gcrefRegs &= savedSet;
     byrefRegs &= savedSet;
 
