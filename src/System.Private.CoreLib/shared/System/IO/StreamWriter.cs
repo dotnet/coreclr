@@ -461,8 +461,41 @@ namespace System.IO
             WriteSpan(value, appendNewLine: false);
         }
 
+        public override void Write(Utf8String value)
+        {
+            if (_isWellKnownUtf8Encoding)
+            {
+                Flush(flushStream: false, flushEncoder: true);
+                _stream.Write(value.AsSpan());
+            }
+            else
+            {
+                base.Write(value);
+            }
+        }
+
+        public override void Write(Utf8StringSegment value)
+        {
+            if (_isWellKnownUtf8Encoding)
+            {
+                Flush(flushStream: false, flushEncoder: true);
+                _stream.Write(value.AsSpan());
+            }
+            else
+            {
+                base.Write(value);
+            }
+        }
+
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void WriteLine(string value)
+        {
+            CheckAsyncTaskInProgress();
+            WriteSpan(value, appendNewLine: true);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
+        public override void WriteLine(StringSegment value)
         {
             CheckAsyncTaskInProgress();
             WriteSpan(value, appendNewLine: true);
