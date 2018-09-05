@@ -731,8 +731,6 @@ void CompileResult::applyRelocs(unsigned char* block1, ULONG blocksize1, void* o
                              (DWORD)tmp.target);
                     *(DWORD*)address = (DWORD)tmp.target;
                 }
-                if (tmp.addlDelta != 0)
-                    __debugbreak();
                 if (tmp.slotNum != 0)
                     __debugbreak();
             }
