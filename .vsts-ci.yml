@@ -45,16 +45,11 @@ phases:
         projects: tests\helixpublishwitharcade.proj
         custom: msbuild
         arguments: '/t:test'
-      displayName: Send job to Helix
+      displayName: Send tests job to Helix
       env:
         HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
-    # - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
-    #  displayName: Run Tests
-    # - script: build.cmd %buildconfig% %archType% linuxmscorlib
-    # - script: build.cmd %buildconfig% %archType% osxmscorlib
-    # - ${{ if eq(parameters.archType, 'x64') }}:
-    #   - script: build.cmd %buildconfig% arm64 linuxmscorlib
-    - script: powershell -NoProfile -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\bin\tests\Windows_NT.x64.Checked', '.\bin\tests\tests.zip')
+    - script: powershell helix-wait.ps1
+      displayName: Wait for test completion
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
