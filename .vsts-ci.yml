@@ -47,7 +47,7 @@ phases:
         arguments: '/t:test'
       displayName: Send tests job to Helix
       env:
-        HelixAccessToken: $(BotAccount-dotnet-github-anon-kaonashi-bot-helix-token)
+        HelixAccessToken: $(HelixTestAccessToken)
     - script: powershell helix-wait.ps1
       displayName: Wait for test completion
 #
