@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Internal.Runtime.CompilerServices;
 
 namespace System.IO
 {
@@ -41,6 +42,7 @@ namespace System.IO
         private bool _autoFlush;
         private bool _haveWrittenPreamble;
         private bool _closable;
+        private bool _isWellKnownUtf8Encoding;
 
         // We don't guarantee thread safety on StreamWriter, but we should at 
         // least prevent users from trying to write anything while an Async
@@ -149,6 +151,11 @@ namespace System.IO
         {
             _stream = streamArg;
             _encoding = encodingArg;
+
+            // Special-case only these two specific types, otherwise a developer could've overridden
+            // the type and provided an implementation that behaves differently than our expectations.
+            _isWellKnownUtf8Encoding = encodingArg.GetType() == typeof(UTF8Encoding.UTF8EncodingSealed) || encodingArg.GetType() == typeof(UTF8Encoding);
+
             _encoder = _encoding.GetEncoder();
             if (bufferSize < MinBufferSize)
             {
@@ -371,7 +378,7 @@ namespace System.IO
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private unsafe void WriteSpan(ReadOnlySpan<char> buffer, bool appendNewLine)
+        private void WriteSpan(ReadOnlySpan<char> buffer, bool appendNewLine)
         {
             CheckAsyncTaskInProgress();
 
@@ -399,30 +406,25 @@ namespace System.IO
                     throw new ObjectDisposedException(null, SR.ObjectDisposed_WriterClosed);
                 }
 
-                fixed (char* bufferPtr = &MemoryMarshal.GetReference(buffer))
-                fixed (char* dstPtr = &charBuffer[0])
+                ref char srcPtr = ref MemoryMarshal.GetReference(buffer);
+                ref char dstPtr = ref charBuffer.GetRawSzArrayData();
+                int count = buffer.Length;
+                int dstPos = _charPos; // use a local copy of _charPos for safety
+                while (count > 0)
                 {
-                    char* srcPtr = bufferPtr;
-                    int count = buffer.Length;
-                    int dstPos = _charPos; // use a local copy of _charPos for safety
-                    while (count > 0)
+                    if (dstPos == charBuffer.Length)
                     {
-                        if (dstPos == charBuffer.Length)
-                        {
-                            Flush(false, false);
-                            dstPos = 0;
-                        }
-
-                        int n = Math.Min(charBuffer.Length - dstPos, count);
-                        int bytesToCopy = n * sizeof(char);
-
-                        Buffer.MemoryCopy(srcPtr, dstPtr + dstPos, bytesToCopy, bytesToCopy);
-
-                        _charPos += n;
-                        dstPos += n;
-                        srcPtr += n;
-                        count -= n;
+                        Flush(false, false);
+                        dstPos = 0;
                     }
+
+                    int n = Math.Min(charBuffer.Length - dstPos, count);
+                    Buffer.Memmove(ref Unsafe.Add(ref dstPtr, dstPos), ref srcPtr, (uint)n);
+
+                    _charPos += n;
+                    dstPos += n;
+                    srcPtr = ref Unsafe.Add(ref srcPtr, n);
+                    count -= n;
                 }
             }
 
@@ -454,7 +456,46 @@ namespace System.IO
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
+        public override void Write(StringSegment value)
+        {
+            WriteSpan(value, appendNewLine: false);
+        }
+
+        public override void Write(Utf8String value)
+        {
+            if (_isWellKnownUtf8Encoding)
+            {
+                Flush(flushStream: false, flushEncoder: true);
+                _stream.Write(value.AsSpan());
+            }
+            else
+            {
+                base.Write(value);
+            }
+        }
+
+        public override void Write(Utf8StringSegment value)
+        {
+            if (_isWellKnownUtf8Encoding)
+            {
+                Flush(flushStream: false, flushEncoder: true);
+                _stream.Write(value.AsSpan());
+            }
+            else
+            {
+                base.Write(value);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
         public override void WriteLine(string value)
+        {
+            CheckAsyncTaskInProgress();
+            WriteSpan(value, appendNewLine: true);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
+        public override void WriteLine(StringSegment value)
         {
             CheckAsyncTaskInProgress();
             WriteSpan(value, appendNewLine: true);

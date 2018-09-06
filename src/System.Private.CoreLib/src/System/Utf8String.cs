@@ -221,7 +221,7 @@ namespace System
             return Equals(a.AsSpanFast(), b.AsSpan(), comparisonType);
         }
 
-        internal static bool Equals(ReadOnlySpan<byte> a,ReadOnlySpan<byte> b, StringComparison comparisonType)
+        internal static bool Equals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b, StringComparison comparisonType)
         {
             if (comparisonType == StringComparison.Ordinal)
             {
@@ -704,7 +704,7 @@ namespace System
             /// </summary>
             IsWellFormed
         }
-        
+
         // TODO! Decide if string interning should be a public feature
         internal static Utf8String Intern(Utf8String str)
         {
@@ -714,6 +714,44 @@ namespace System
             }
 
             return Thread.GetDomain().GetOrInternUtf8String(str);
+        }
+
+        internal ChunkToUtf16Enumerator ChunkToUtf16(Span<char> chunkBuffer)
+        {
+            return new ChunkToUtf16Enumerator(this.AsSpanFast(), chunkBuffer);
+        }
+
+        internal ref struct ChunkToUtf16Enumerator
+        {
+            ReadOnlySpan<byte> _source;
+            Span<char> _chunkBuffer;
+            int _numCharsConvertedInChunkBuffer;
+
+            public ChunkToUtf16Enumerator(ReadOnlySpan<byte> source, Span<char> chunkBuffer)
+            {
+                _source = source;
+                _chunkBuffer = chunkBuffer;
+                _numCharsConvertedInChunkBuffer = 0;
+            }
+
+            public int Current => _numCharsConvertedInChunkBuffer;
+
+            public ChunkToUtf16Enumerator GetEnumerator() => this;
+
+            public bool MoveNext()
+            {
+                if (!_source.IsEmpty)
+                {
+                    UnicodeTranscodings.TranscodeUtf8ToUtf16(_source, _chunkBuffer, isFinalChunk: true, fixupInvalidSequences: true, out int bytesConsumed, out int _numCharsConvertedInChunkBuffer);
+                    Debug.Assert(bytesConsumed != 0, "Should've consumed a non-zero amount of data.");
+                    _source = _source.Slice(bytesConsumed);
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
     }
 }
