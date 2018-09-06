@@ -7305,7 +7305,12 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 #endif // DEBUG
 
 //------------------------------------------------------------------------
-// emitGetSavedGCRegsSet: Returns the set of registers that keeps gcrefs and byrefs across the call.
+// emitGetGCRegsSavedOrModified: Returns the set of registers that keeps gcrefs and byrefs across the call.
+//
+// Notes: it returns union of two sets:
+//        1) registers that could contain GC/byRefs before the call and call doesn't touch them;
+//        2) registers that contain GC/byRefs before the call and call modifies them, but they still
+//           contain GC/byRefs.
 //
 // Arguments:
 //   methHnd - the method handler of the call.
@@ -7313,7 +7318,7 @@ const char* emitter::emitOffsetToLabel(unsigned offs)
 // Return value:
 //   the saved set of registers.
 //
-regMaskTP emitter::emitGetSavedGCRegsSet(CORINFO_METHOD_HANDLE methHnd)
+regMaskTP emitter::emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd)
 {
     // Is it a helper with a special saved set?
     bool isNoGCHelper = emitNoGChelper(methHnd);

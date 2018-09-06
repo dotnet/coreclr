@@ -1920,7 +1920,7 @@ public:
     bool emitFullGCinfo;  // full GC pointer maps?
     bool emitFullyInt;    // fully interruptible code?
 
-    regMaskTP emitGetSavedGCRegsSet(CORINFO_METHOD_HANDLE methHnd);
+    regMaskTP emitGetGCRegsSavedOrModified(CORINFO_METHOD_HANDLE methHnd);
 
 #if EMIT_TRACK_STACK_DEPTH
     unsigned emitCntStackDepth; // 0 in prolog/epilog, One DWORD elsewhere
