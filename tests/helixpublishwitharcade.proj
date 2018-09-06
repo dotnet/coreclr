@@ -13,4 +13,8 @@
       <Timeout>00:30:00</Timeout>
     </HelixWorkItem>
   </ItemGroup>
+
+  <Target Name="CorrelationId" AfterTargets="Test">
+    <Message Importance="High" Text="##vso[task.setvariable variable=HelixJobId;]$(HelixJobId)" />
+  </Target>
 </Project>

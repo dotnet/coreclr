@@ -37,8 +37,6 @@ phases:
       displayName: Install CMake
     - powershell: if (Test-Path bin) { Remove-Item -Recurse -Force bin }
       displayName: Clean
-    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
-      displayName: Build
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
@@ -48,8 +46,10 @@ phases:
       displayName: Send tests job to Helix
       env:
         HelixAccessToken: $(HelixTestAccessToken)
-    - script: powershell helix-wait.ps1
+    - script: powershell .\eng\helix-wait.ps1
       displayName: Wait for test completion
+    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
+      displayName: Build
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
