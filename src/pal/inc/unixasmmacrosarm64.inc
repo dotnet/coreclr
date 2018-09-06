@@ -161,7 +161,7 @@ C_FUNC(\Name\()_End):
         .endif
 
         __PWTB_StackAlloc = __PWTB_TransitionBlock
-        __PWTB_ArgumentRegisters = __PWTB_StackAlloc + 96
+        __PWTB_ArgumentRegisters = __PWTB_StackAlloc + 104
         __PWTB_ArgumentRegister_FirstArg = __PWTB_ArgumentRegisters + 8
 
         PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -176
