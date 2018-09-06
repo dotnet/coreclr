@@ -1134,19 +1134,19 @@ GCRootImpl::MTInfo *GCRootImpl::GetMTInfo(TADDR mt)
         return NULL;
     }
 
-    DacpMethodTableCollectibleData dmtcd;
-    if (dmtcd.Request(g_sos, mt) != S_OK)
-    {
-        delete curr;
-        return NULL;
-    }
-
     // Fill out size info.
     curr->BaseSize = (size_t)dmtd.BaseSize;
     curr->ComponentSize = (size_t)dmtd.ComponentSize;
     curr->ContainsPointers = dmtd.bContainsPointers ? true : false;
-    curr->Collectible = dmtcd.bCollectible ? true : false;
-    curr->LoaderAllocatorObjectHandle = TO_TADDR(dmtcd.LoaderAllocatorObjectHandle);
+
+    // The following request doesn't work on older runtimes. For those, the
+    // objects would just look like non-collectible, which is acceptable.
+    DacpMethodTableCollectibleData dmtcd;
+    if (SUCCEEDED(dmtcd.Request(g_sos, mt)))
+    {
+        curr->Collectible = dmtcd.bCollectible ? true : false;
+        curr->LoaderAllocatorObjectHandle = TO_TADDR(dmtcd.LoaderAllocatorObjectHandle);
+    }
 
     // If this method table contains pointers, fill out and cache the GCDesc.
     if (curr->ContainsPointers)

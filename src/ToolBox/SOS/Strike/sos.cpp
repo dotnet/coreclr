@@ -177,17 +177,18 @@ namespace sos
             // from the target
             FillMTData();
 
-            DacpMethodTableCollectibleData mtcd;
-            if (FAILED(mtcd.Request(g_sos, GetMT())))
-            {
-                sos::Throw<DataRead>("Could not request method table collectible data for object %p (MethodTable: %p).", mAddress, mMT);
-            }
-
             info->BaseSize = mMTData->BaseSize;
             info->ComponentSize = mMTData->ComponentSize;
             info->bContainsPointers = mMTData->bContainsPointers;
-            info->bCollectible = mtcd.bCollectible;
-            info->LoaderAllocatorObjectHandle = TO_TADDR(mtcd.LoaderAllocatorObjectHandle);
+
+            // The following request doesn't work on older runtimes. For those, the
+            // objects would just look like non-collectible, which is acceptable.
+            DacpMethodTableCollectibleData mtcd;
+            if (SUCCEEDED(mtcd.Request(g_sos, GetMT())))
+            {
+                info->bCollectible = mtcd.bCollectible;
+                info->LoaderAllocatorObjectHandle = TO_TADDR(mtcd.LoaderAllocatorObjectHandle);
+            }
         }
         
         if (mSize == (size_t)~0)

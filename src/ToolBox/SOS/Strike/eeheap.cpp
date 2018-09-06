@@ -882,15 +882,19 @@ static MethodTableInfo* GetMethodTableInfo(DWORD_PTR dwAddrMethTable)
         if (dmtd.Request(g_sos, dwAddrMethTable) != S_OK)
             return NULL;
 
-        DacpMethodTableCollectibleData dmtcd;
-        if (dmtcd.Request(g_sos, dwAddrMethTable) != S_OK)
-            return NULL;
 
         info->BaseSize = dmtd.BaseSize;
         info->ComponentSize = dmtd.ComponentSize;
         info->bContainsPointers = dmtd.bContainsPointers;
-        info->bCollectible = dmtcd.bCollectible;
-        info->LoaderAllocatorObjectHandle = TO_TADDR(dmtcd.LoaderAllocatorObjectHandle);
+
+        // The following request doesn't work on older runtimes. For those, the
+        // objects would just look like non-collectible, which is acceptable.
+        DacpMethodTableCollectibleData dmtcd;
+        if (SUCCEEDED(dmtcd.Request(g_sos, dwAddrMethTable)))
+        {
+            info->bCollectible = dmtcd.bCollectible;
+            info->LoaderAllocatorObjectHandle = TO_TADDR(dmtcd.LoaderAllocatorObjectHandle);
+        }
     }
 
     return info;
