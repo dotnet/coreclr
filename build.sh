@@ -34,8 +34,6 @@ usage()
     echo "-clangx.y - optional argument to build using clang version x.y."
     echo "-cross - optional argument to signify cross compilation,"
     echo "       - will use ROOTFS_DIR environment variable if set."
-    echo "-crosscomponent - optional argument to build cross-architecture component,"
-    echo "                - will use CAC_ROOTFS_DIR environment variable if set."
     echo "-nopgooptimize - do not use profile guided optimizations."
     echo "-pgoinstrument - generate instrumented code for profile guided optimization enabled binaries."
     echo "-ibcinstrument - generate IBC-tuning-enabled native images when invoking crossgen."
@@ -813,7 +811,8 @@ while :; do
             ;;
 
         crosscomponent|-crosscomponent)
-            __DoCrossArchBuild=1
+            # Accept "crosscomponent" for backwards-compatibility but ignore it.
+            echo "WARNING: 'crosscomponent' is deprecated and should not be used"
             ;;
 
         skipmanaged|-skipmanaged)
