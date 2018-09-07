@@ -434,11 +434,110 @@ namespace System
 
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
+        public int IndexOf(char value)
+        {
+            return IndexOf_Char_NoBoundsChecks(value, 0, Length);
+        }
+
+        public int IndexOf(char value, int startIndex)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            return IndexOf_Char_NoBoundsChecks(value, startIndex, Length - startIndex);
+        }
+
+        public int IndexOf(char value, int startIndex, int count)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            if ((uint)count > (uint)(Length - startIndex))
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
+            }
+
+            return IndexOf_Char_NoBoundsChecks(value, startIndex, count);
+        }
+
+        public int IndexOf(UnicodeScalar value)
+        {
+            return IndexOf_Scalar_NoBoundsChecks(value, 0, Length);
+        }
+
+        public int IndexOf(UnicodeScalar value, int startIndex)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            return IndexOf_Scalar_NoBoundsChecks(value, startIndex, Length - startIndex);
+        }
+
+        public int IndexOf(UnicodeScalar value, int startIndex, int count)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            if ((uint)count > (uint)(Length - startIndex))
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
+            }
+
+            return IndexOf_Scalar_NoBoundsChecks(value, startIndex, count);
+        }
+
+        private int IndexOf_Ascii_NoBoundsChecks(byte value, int startIndex, int count)
+        {
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), value, count);
+        }
+
+        private int IndexOf_Char_NoBoundsChecks(char value, int startIndex, int count)
+        {
+            if (value <= 0x7FU)
+            {
+                // ASCII
+                return IndexOf_Ascii_NoBoundsChecks((byte)value, startIndex, count);
+            }
+            else if (!IsKnownAscii() && UnicodeScalar.TryCreate(value, out var scalar))
+            {
+                // Search character is not ASCII (but is still a valid scalar),
+                // and the search space may contain non-ASCII data.
+                return IndexOf_Scalar_NoBoundsChecks(scalar, startIndex, count);
+            }
+
+            // If we reached this point, we're being asked to look for a non-ASCII
+            // character in a string we know to be all-ASCII, or we're being asked
+            // to look for a character that can't be represented in UTF-8 (such as
+            // a UTF-16 surrogate code unit). In both cases, return "not found".
+
+            return -1;
+        }
+
+        private int IndexOf_Scalar_NoBoundsChecks(UnicodeScalar value, int startIndex, int count)
+        {
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // worst possible output case
+            int utf8CodeUnitCount = value.ToUtf8(valueAsUtf8);
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), count, ref MemoryMarshal.GetReference(valueAsUtf8), utf8CodeUnitCount);
+        }
+
         public static bool IsEmptyOrWhiteSpace(ReadOnlySpan<byte> value)
         {
             return value.IsEmpty || IsWhiteSpaceCore(value);
         }
 
+        /// <summary>
+        /// Returns true iff this instance is known to contain all-ASCII data. Returns
+        /// false if the string contains non-ASCII data or if the instance was never
+        /// scanned to confirm that all the data is ASCII.
+        /// </summary>
         internal bool IsKnownAscii() => GetCharacteristics().HasFlag(Characteristics.IsAscii);
 
         public static bool IsNullOrEmpty(Utf8String value)
