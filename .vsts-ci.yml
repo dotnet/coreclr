@@ -39,7 +39,7 @@ phases:
       displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
-    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% ziptests -Priority=0
+    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
       displayName: Build tests
     - task: DotNetCoreCLI@2
       inputs:

@@ -7,9 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixWorkItem Include="CoreCLR-Tests">
-      <Command>runtest.cmd</Command>
-      <PayloadDirectory>$(TestArchivesRoot)</PayloadDirectory>
+    <HelixCorrelationPayload>
+        <FullPath>$(ArchivesRoot)Core_Root</FullPath>
+    </HelixCorrelationPayload>
+  </ItemGroup>
+
+  <ItemGroup>
+    <HelixWorkItem Include="$(TestArchivesRoot)/*">
+      <Command>$(HelixPythonPath) $(RunnerScript) --script %HELIX_WORKITEM_PAYLOAD%\runtests.cmd</Command>
+      <PayloadDirectory>$(TestArchivesRoot)/*</Payload>
       <Timeout>00:30:00</Timeout>
     </HelixWorkItem>
   </ItemGroup>
