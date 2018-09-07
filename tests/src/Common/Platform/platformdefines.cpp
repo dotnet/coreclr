@@ -324,12 +324,26 @@ void TP_JoinThread(THREAD_ID tThread)
 #endif
 }
 
+typedef long HRESULT;
+#define LONGLONG long long
+#define ULONGLONG unsigned LONGLONG
+#define ULONG_MAX     0xffffffffUL
+typedef unsigned long ULONG, *PULONG;
+#define S_OK                    0x0
+#define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
+#define FAILED(_hr)             ((HRESULT)(_hr) < 0)
 
 #define INTSAFE_E_ARITHMETIC_OVERFLOW       ((HRESULT)0x80070216L)  // 0x216 = 534 = ERROR_ARITHMETIC_OVERFLOW
 #define ULONG_ERROR     (0xffffffffUL)
 #define CCH_BSTRMAX 0x7FFFFFFF  // 4 + (0x7ffffffb + 1 ) * 2 ==> 0xFFFFFFFC
 #define CB_BSTRMAX 0xFFFFFFFa   // 4 + (0xfffffff6 + 2) ==> 0xFFFFFFFC
 
+#ifdef RC_INVOKED
+#define _HRESULT_TYPEDEF_(_sc) _sc
+#else // RC_INVOKED
+#define _HRESULT_TYPEDEF_(_sc) ((HRESULT)_sc)
+#endif // RC_INVOKED
+#define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define WIN32_ALLOC_ALIGN (16 - 1)
 
 #if defined(MIDL_PASS) || defined(RC_INVOKED) || defined(_M_CEE_PURE) \
@@ -354,7 +368,7 @@ void TP_JoinThread(THREAD_ID tThread)
 //
 // ULONGLONG -> ULONG conversion
 //
-HRESULT ULongLongToULong(IN ULONGLONG ullOperand, OUT ULONG* pulResult)
+HRESULT ULongLongToULong(ULONGLONG ullOperand, ULONG* pulResult)
 {
     HRESULT hr = INTSAFE_E_ARITHMETIC_OVERFLOW;
     *pulResult = ULONG_ERROR;
@@ -368,7 +382,7 @@ HRESULT ULongLongToULong(IN ULONGLONG ullOperand, OUT ULONG* pulResult)
     return hr;
 }
 
-HRESULT ULongAdd(IN ULONG ulAugend, IN ULONG ulAddend, OUT ULONG* pulResult)
+HRESULT ULongAdd(ULONG ulAugend, ULONG ulAddend,ULONG* pulResult)
 {
     HRESULT hr = INTSAFE_E_ARITHMETIC_OVERFLOW;
     *pulResult = ULONG_ERROR;
@@ -382,14 +396,14 @@ HRESULT ULongAdd(IN ULONG ulAugend, IN ULONG ulAddend, OUT ULONG* pulResult)
     return hr;
 }
 
-HRESULT ULongMult(IN ULONG ulMultiplicand, IN ULONG ulMultiplier, OUT ULONG* pulResult)
+HRESULT ULongMult(ULONG ulMultiplicand, ULONG ulMultiplier, ULONG* pulResult)
 {
     ULONGLONG ull64Result = UInt32x32To64(ulMultiplicand, ulMultiplier);
     
     return ULongLongToULong(ull64Result, pulResult);
 }     
 
-inline HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
+HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
 {
     if (result == NULL)
         return E_INVALIDARG;
@@ -403,7 +417,7 @@ inline HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
         if (SUCCEEDED(ULongAdd(constant, cchSize, result)))
         {
             *result = *result & ~WIN32_ALLOC_ALIGN;
-            return NOERROR;
+            return S_OK;
         }
     }
     else
@@ -413,7 +427,7 @@ inline HRESULT CbSysStringSize(ULONG cchSize, BOOL isByteLen, ULONG *result)
             SUCCEEDED(ULongAdd(temp, constant, result)))
         {
             *result = *result & ~WIN32_ALLOC_ALIGN;
-            return NOERROR;
+            return S_OK;
         }
     }
     return INTSAFE_E_ARITHMETIC_OVERFLOW;
@@ -423,7 +437,7 @@ BSTR TP_SysAllocString(LPWSTR psz)
 {
 #ifdef WINDOWS    
     return SysAllocString(psz);
-#elif
+#else
     if(psz == NULL)
         return NULL;
     return TP_SysAllocStringLen(psz, (DWORD)wcslen(psz));
@@ -432,13 +446,12 @@ BSTR TP_SysAllocString(LPWSTR psz)
 
 BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len)
 {
-    BSTR bstr;
     DWORD cbTotal = 0;
 
     if (FAILED(CbSysStringSize((ULONG)len, FALSE, &cbTotal)))
         return NULL;
 
-    bstr = (OLECHAR *)HeapAlloc(GetProcessHeap(), 0, cbTotal);
+    BSTR bstr = (BSTR)TP_CoTaskMemAlloc(cbTotal);
 
     if(bstr != NULL){
 
@@ -448,7 +461,7 @@ BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len)
       *(DWORD_PTR *)bstr = (DWORD_PTR) 0;
       bstr = (BSTR) ((char *) bstr + sizeof (DWORD));
 #endif
-      *(DWORD FAR*)bstr = (DWORD)len * sizeof(OLECHAR);
+      *(DWORD *)bstr = (DWORD)len * sizeof(OLECHAR);
 
       bstr = (BSTR) ((char*) bstr + sizeof(DWORD));
 
@@ -466,20 +479,20 @@ BSTR TP_SysAllocStringByteLen(LPCSTR psz, size_t len)
 {
 #ifdef WINDOWS    
     return SysAllocStringByteLen(psz, (UINT)len);
-#elif
+#else
     BSTR bstr;
     DWORD cbTotal = 0;
 
     if (FAILED(CbSysStringSize(len, TRUE, &cbTotal)))
-        return FALSE;
+        return NULL;
 
-    bstr = (OLECHAR *)TP_CoTaskMemAlloc(cbTotal);
+    bstr = (BSTR)TP_CoTaskMemAlloc(cbTotal);
 
     if (bstr != NULL) {
 #if defined(_WIN64)
-      *(DWORD FAR*)((char *)bstr + sizeof (DWORD)) = (DWORD)len;
+      *(DWORD *)((char *)bstr + sizeof (DWORD)) = (DWORD)len;
 #else
-      *(DWORD FAR*)bstr = (DWORD)len;
+      *(DWORD *)bstr = (DWORD)len;
 #endif
 
       bstr = (WCHAR*) ((char*) bstr + sizeof(DWORD_PTR));
@@ -501,7 +514,7 @@ void TP_SysFreeString(BSTR bstr)
 {
 #ifdef WINDOWS    
     return SysFreeString(bstr);
-#elif
+#else
     if (bstr == NULL)
       return;
     TP_CoTaskMemFree((BYTE *)bstr - sizeof(DWORD_PTR));  
@@ -512,9 +525,9 @@ size_t TP_SysStringByteLen(BSTR bstr)
 {
 #ifdef WINDOWS    
     return SysStringByteLen(bstr);
-#elif   
+#else   
     if(bstr == NULL)
       return 0;
-    return (unsigned int)(((DWORD FAR*)bstr)[-1]);
+    return (unsigned int)(((DWORD *)bstr)[-1]);
 #endif    
 }

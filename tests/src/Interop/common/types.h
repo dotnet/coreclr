@@ -18,7 +18,6 @@ typedef char* LPSTR;
 typedef const char* LPCSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
-typedef void* ULONG_PTR;
 typedef unsigned error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
@@ -36,8 +35,6 @@ typedef char CHAR, *PCHAR;
 typedef unsigned short USHORT;
 typedef signed short SHORT;
 typedef unsigned short WORD, *PWORD, *LPWORD;
-
-typedef int*  DWORD_PTR;
 
 #ifndef TRUE
 #define TRUE 1

@@ -92,6 +92,7 @@ typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
 #endif
 
+typedef ULONG_PTR DWORD_PTR;
 //
 // Method declarations
 //
@@ -111,10 +112,11 @@ void TP_JoinThread(THREAD_ID tThread);
 void TP_DebugBreak();
 DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
 
-BSTR TP_SysAllocStringByteLen(LPWSTR psz, size_t len);
+typedef WCHAR* BSTR;
+BSTR TP_SysAllocStringByteLen(LPSTR psz, size_t len);
 void TP_SysFreeString(BSTR bstr);
 size_t TP_SysStringByteLen(BSTR bstr);
-BSTR TP_SysAllocStringLen(LPCSTR psz, size_t len);
+BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len);
 BSTR TP_SysAllocString(LPWSTR psz);
 
 //
