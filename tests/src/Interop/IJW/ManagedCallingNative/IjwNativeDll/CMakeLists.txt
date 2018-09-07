@@ -5,17 +5,13 @@ set(SOURCES IjwNativeDll.cpp)
 
 if (WIN32)
   # 4365 - signed/unsigned mismatch
-  add_compile_options(-wd4365)
+  add_compile_options(/wd4365)
 
   # IJW
-  add_compile_options(-clr)
+  add_compile_options(/clr)
   
   # IJW requires the CRT as a dll, not linked in
-  if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_compile_options(-MDd)
-  else()
-    add_compile_options(-MD)
-  endif()
+  add_compile_options(/MD$<$<OR:$<CONFIG:Debug>,$<CONFIG:Checked>>:d>)
 
   # CMake enables /RTC1 and /EHsc by default, but they're not compatible with /clr, so remove them
   if(CMAKE_CXX_FLAGS_DEBUG MATCHES "/RTC1")
