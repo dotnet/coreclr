@@ -9,7 +9,7 @@
   <ItemGroup>
     <HelixWorkItem Include="CoreCLR-Tests">
       <Command>runtest.cmd</Command>
-      <PayloadDirectory>$(MSBuildProjectDirectory)</PayloadDirectory>
+      <PayloadDirectory>$(TestArchivesRoot)</PayloadDirectory>
       <Timeout>00:30:00</Timeout>
     </HelixWorkItem>
   </ItemGroup>

@@ -42,6 +42,12 @@ phases:
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
+        projects: tests\helixprep.proj
+        custom: msbuild
+        arguments: '/t:test'
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: custom
         projects: tests\helixpublishwitharcade.proj
         custom: msbuild
         arguments: '/t:test'
