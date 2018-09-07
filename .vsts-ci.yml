@@ -39,12 +39,8 @@ phases:
       displayName: Clean
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
-    - task: DotNetCoreCLI@2
-      inputs:
-        command: custom
-        projects: tests\helixprep.proj
-        custom: msbuild
-        arguments: '/t:test'
+    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% ziptests -Priority=0
+      displayName: Build
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
