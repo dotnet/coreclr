@@ -113,7 +113,7 @@ namespace System
                 nLength = (IntPtr)((Vector<byte>.Count - unaligned) & (Vector<byte>.Count - 1));
             }
 
-            SequentialScan:
+        SequentialScan:
             while ((byte*)nLength >= (byte*)8)
             {
                 nLength -= 8;
@@ -186,7 +186,7 @@ namespace System
 
             return false;
 
-            Found:
+        Found:
             return true;
         }
 

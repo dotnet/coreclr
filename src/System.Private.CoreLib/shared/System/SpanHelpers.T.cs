@@ -4,13 +4,10 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices; // Do not remove. This is necessary for netstandard, since this file is mirrored into corefx
+using System.Numerics;
 
 #if !netstandard
 using Internal.Runtime.CompilerServices;
-#endif
-
-#if !netstandard11
-using System.Numerics;
 #endif
 
 namespace System
@@ -108,7 +105,7 @@ namespace System
 
             return false;
 
-            Found:
+        Found:
             return true;
         }
 
