@@ -15,7 +15,7 @@ phases:
   parameters:
     queue:
       name: Helix
-      cancelTimeoutInMinutes: 120
+      timeoutInMinutes: 180
       parallel: 3
       matrix:
         x64_checked_Innerloop:
@@ -40,7 +40,7 @@ phases:
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
     - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% ziptests -Priority=0
-      displayName: Build
+      displayName: Build tests
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
@@ -52,6 +52,7 @@ phases:
         HelixAccessToken: $(HelixTestAccessToken)
     - script: powershell .\eng\helix-wait.ps1
       displayName: Wait for test completion
+      timeoutInMinutes: 30
       env:
         HelixAccessToken: $(HelixTestAccessToken)
 #
