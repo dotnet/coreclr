@@ -6013,7 +6013,7 @@ HMODULE NDirect::LoadLibraryFromPath(LPCWSTR libraryPath)
     return systemModuleHandle;
 }
 
-HMODULE NDirect::LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
+HMODULE NDirect::LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, DWORD dllImportSearchPathFlag)
 {
     LPVOID hmod = NULL;
     CLRPrivBinderCoreCLR *pTPABinder = pDomain->GetTPABinderContext();
@@ -6451,7 +6451,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
     // AppX mode.
     if (!AppX::IsAppXProcess())
     {
-        hmod = LoadLibraryViaCallback(pMD->GetAssembly(), pDomain, wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag);
+        hmod = LoadLibraryViaCallback(pMD->GetAssembly(), pDomain, wszLibName, dllImportSearchPathFlag);
     }
     
     if (!hmod)

@@ -19,7 +19,7 @@
 
 
 //// static
-INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
+INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssembly, LPCWSTR libraryName, DWORD dllImportSearchPathFlag)
 {
     QCALL_CONTRACT;
 
@@ -31,6 +31,13 @@ INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssemb
     if (callingAssembly != nullptr)
     {
         pAssembly = callingAssembly->GetAssembly();
+    }
+
+    BOOL searchAssemblyDirectory = TRUE;
+
+    if (pAssembly->GetManifestModule()->HasDefaultDllImportSearchPathsAttribute())
+    {
+        searchAssemblyDirectory = pAssembly->GetManifestModule()->DllImportSearchAssemblyDirectory();
     }
 
     moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag);

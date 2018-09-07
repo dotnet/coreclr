@@ -10,7 +10,7 @@ class NativeLibrary
 
 public:
 	static
-		INT_PTR QCALLTYPE LoadLibrary(QCall::AssemblyHandle assembly, LPCWSTR libraryName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
+		INT_PTR QCALLTYPE LoadLibrary(QCall::AssemblyHandle assembly, LPCWSTR libraryName, DWORD dllImportSearchPathFlag);
 };
 
 #endif

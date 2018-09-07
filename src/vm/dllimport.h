@@ -126,7 +126,7 @@ private:
     static HMODULE LoadFromNativeDllSearchDirectories(AppDomain* pDomain, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
     static HMODULE LoadFromPInvokeAssemblyDirectory(Assembly *pAssembly, LPCWSTR libName, DWORD flags, LoadLibErrorTracker *pErrorTracker);
 
-    static HMODULE LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
+    static HMODULE LoadLibraryViaCallback(Assembly* pAssembly, AppDomain* pDomain, const wchar_t* wszLibName, DWORD dllImportSearchPathFlag);
     static HMODULE LoadLibraryModuleViaHost(Assembly * pAssembly, AppDomain* pDomain, const wchar_t* wszLibName);
 
 #if !defined(FEATURE_PAL)

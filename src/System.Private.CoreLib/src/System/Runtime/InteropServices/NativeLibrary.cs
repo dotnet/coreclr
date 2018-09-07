@@ -8,33 +8,40 @@ using System.Runtime.CompilerServices;
 namespace System.Runtime.InteropServices
 {
     // ToString() must return debugging string that includes source-name, target name that was loaded, and location details.
-    public class NativeLibrary
+    public sealed class NativeLibrary
     {
         public IntPtr Handle { get; private set; }
-        public string Name { get; set; } // Will Return the name referenced by the importing assembly
+        public string Name { get; private set; } // Will Return the name referenced by the importing assembly
 
         // Stores a map of assemblies and on-library-load-callbacks assigned to them.
         // Simulates an additional field of Assembly (which may be added in the future).
-        private static ConditionalWeakTable<Assembly, Func<LoadNativeLibraryArgs, NativeLibrary>> AssemblyToCallbackMap { get; set; }
+        private static ConditionalWeakTable<Assembly, Func<LoadNativeLibraryArgs, NativeLibrary>> _assemblyToCallbackMap;
 
         public NativeLibrary(string libraryName, IntPtr handle)
         {
-            Name = libraryName ?? throw new ArgumentException("Name of a NativeLibrary can't be null.");
+            Name = libraryName ?? throw new ArgumentException("Name of a NativeLibrary can't be set to null.");
             if(handle == IntPtr.Zero)
-                throw new ArgumentException("Handle of a NativeLibrary can't be IntPtr.Zero.");
+                throw new ArgumentException("Handle of a NativeLibrary can't be set to IntPtr.Zero.");
             Handle = handle;
         }
 
         static NativeLibrary()
         {
-            AssemblyToCallbackMap = new ConditionalWeakTable<Assembly, Func<LoadNativeLibraryArgs, NativeLibrary>>();
+            _assemblyToCallbackMap = new ConditionalWeakTable<Assembly, Func<LoadNativeLibraryArgs, NativeLibrary>>();
         }
 
-        // It is called by a user per assembly: RegisterNativeLibraryLoadCallback(assembly, customMappingCallback)
-        // triggered by an event on AppDomain
+        /// <exception cref="System.Runtime.InteropServices.CallbackAlreadyRegistered">Thrown when there is already a callback registered for the specified assembly.</exception>
         public static void RegisterNativeLibraryLoadCallback(Assembly assembly, Func<LoadNativeLibraryArgs, NativeLibrary> callback)
         {
-            AssemblyToCallbackMap.AddOrUpdate(assembly, callback);
+
+            if (_assemblyToCallbackMap.TryGetValue(assembly, out Func<LoadNativeLibraryArgs, NativeLibrary> previousCallback))
+            {
+                throw new CallbackAlreadyRegisteredException("Callback for " + assembly.GetName().Name + " has already been registered.");
+            }
+            else
+            {
+                _assemblyToCallbackMap.Add(assembly, callback);
+            }
         }
 
         // A wrapper function for Load(string libraryName, DllImportSearchPath dllImportSearchPath, Assembly assembly)
@@ -51,10 +58,7 @@ namespace System.Runtime.InteropServices
                 assemblyAsRuntimeAssembly = (RuntimeAssembly)assembly;
             }
 
-            // Todo: Determine when it shouldn't be true
-            bool searchAssemblyDirectory = true;
-
-            IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, searchAssemblyDirectory, (int)dllImportSearchPath);
+            IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, (int)dllImportSearchPath);
 
             NativeLibrary loadedLibrary = new NativeLibrary(libraryName, hmodule);
 
@@ -63,14 +67,14 @@ namespace System.Runtime.InteropServices
 
         // Calls NativeLibrary::LoadLibrary unmanaged methode
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr LoadLibrary(RuntimeAssembly assembly, string libraryName, bool searchAssemblyDirectory, int dllImportSearchPathFlag);
+        internal static extern IntPtr LoadLibrary(RuntimeAssembly assembly, string libraryName, int dllImportSearchPathFlag);
 
         // Todo: optimize for methods that do not have callbacks
         internal static IntPtr LoadLibraryCallback(string libraryName, uint dllImportSearchPathUint, Assembly assembly)
         {
             DllImportSearchPath dllImportSearchPath = (DllImportSearchPath)dllImportSearchPathUint;
 
-            bool callbackFound = AssemblyToCallbackMap.TryGetValue(assembly, out Func<LoadNativeLibraryArgs, NativeLibrary> callback);
+            bool callbackFound = _assemblyToCallbackMap.TryGetValue(assembly, out Func<LoadNativeLibraryArgs, NativeLibrary> callback);
 
             if (callbackFound)
             {
