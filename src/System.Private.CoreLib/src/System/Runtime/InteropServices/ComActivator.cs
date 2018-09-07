@@ -141,7 +141,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
         private static bool IsLoggingEnabled()
         {
-#if DEBUG
+#if COM_ACTIVATOR_DEBUG
             return true;
 #else
             return false;
@@ -150,7 +150,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
         private static void Log(string fmt, params object[] args)
         {
-            // [TODO] Consider using FrameworkEventSource in release builds
+            // [TODO] Use FrameworkEventSource in release builds
 
             Debug.WriteLine(fmt, args);
          }
@@ -171,6 +171,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                         assemPathLocal = Path.ChangeExtension(assemPath, ".dll");
                     }
 
+                    // [TODO] This should use a metadata reader prior to actual
+                    // loading when in production.
                     assem = Assembly.LoadFrom(assemPathLocal);
                 }
                 catch (Exception e)

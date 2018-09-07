@@ -101,7 +101,7 @@ HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ cons
 
         pathLocal.append(W("\\coreclr.dll"));
 
-        AutoModule hmod = ::LoadLibraryExW(pathLocal.c_str() , nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        AutoModule hmod = ::LoadLibraryExW(pathLocal.c_str() , nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
         if (hmod == nullptr)
             return HRESULT_FROM_WIN32(::GetLastError());
 
