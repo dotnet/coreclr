@@ -100,12 +100,6 @@ namespace System
         public static unsafe bool Contains(ref byte searchSpace, byte value, int length)
         {
             Debug.Assert(length >= 0);
-
-            switch (length)
-            {
-                case 0: return false;
-                case 1: return value == searchSpace;
-            }
             
             uint uValue = value; // Use uint for comparisons to avoid unnecessary 8->32 extensions
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations

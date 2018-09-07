@@ -81,12 +81,6 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            switch (length)
-            {
-                case 0: return false;
-                case 1: return value == searchSpace;
-            }
-
             fixed (char* pChars = &searchSpace)
             {
                 char* pCh = pChars;

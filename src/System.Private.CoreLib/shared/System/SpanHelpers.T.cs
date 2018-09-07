@@ -56,12 +56,6 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            switch (length)
-            {
-                case 0: return false;
-                case 1: return value.Equals(searchSpace);
-            }
-
             IntPtr index = (IntPtr)0; // Use IntPtr for arithmetic to avoid unnecessary 64->32->64 truncations
             while (length >= 8)
             {
