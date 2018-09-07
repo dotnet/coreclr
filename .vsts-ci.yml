@@ -48,6 +48,8 @@ phases:
         HelixAccessToken: $(HelixTestAccessToken)
     - script: powershell .\eng\helix-wait.ps1
       displayName: Wait for test completion
+      env:
+        HelixAccessToken: $(HelixTestAccessToken)
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
 #
