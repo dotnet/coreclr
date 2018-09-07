@@ -75,7 +75,7 @@ namespace System
                     value.Equals(Unsafe.Add(ref searchSpace, index + 6)) ||
                     value.Equals(Unsafe.Add(ref searchSpace, index + 7)))
                 {
-                    return true;
+                    goto Found;
                 }
 
                 index += 8;
@@ -90,7 +90,7 @@ namespace System
                     value.Equals(Unsafe.Add(ref searchSpace, index + 2)) ||
                     value.Equals(Unsafe.Add(ref searchSpace, index + 3)))
                 {
-                    return true;
+                    goto Found;
                 }
 
                 index += 4;
@@ -101,12 +101,15 @@ namespace System
                 length -= 1;
 
                 if (value.Equals(Unsafe.Add(ref searchSpace, index)))
-                    return true;
+                    goto Found;
 
                 index += 1;
             }
 
             return false;
+
+            Found:
+            return true;
         }
 
         public static unsafe int IndexOf<T>(ref T searchSpace, T value, int length)

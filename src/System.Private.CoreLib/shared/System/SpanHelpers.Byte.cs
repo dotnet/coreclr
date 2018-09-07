@@ -127,7 +127,7 @@ namespace System
                     uValue == Unsafe.AddByteOffset(ref searchSpace, index + 6) ||
                     uValue == Unsafe.AddByteOffset(ref searchSpace, index + 7))
                 {
-                    return true;
+                    goto Found;
                 }
 
                 index += 8;
@@ -142,7 +142,7 @@ namespace System
                     uValue == Unsafe.AddByteOffset(ref searchSpace, index + 2) ||
                     uValue == Unsafe.AddByteOffset(ref searchSpace, index + 3))
                 {
-                    return true;
+                    goto Found;
                 }
 
                 index += 4;
@@ -153,7 +153,7 @@ namespace System
                 nLength -= 1;
 
                 if (uValue == Unsafe.AddByteOffset(ref searchSpace, index))
-                    return true;
+                    goto Found;
 
                 index += 1;
             }
@@ -174,7 +174,7 @@ namespace System
                         continue;
                     }
 
-                    return true;
+                    goto Found;
                 }
 
                 if ((int)(byte*)index < length)
@@ -185,6 +185,9 @@ namespace System
             }
 
             return false;
+
+            Found:
+            return true;
         }
 
         public static unsafe int IndexOf(ref byte searchSpace, byte value, int length)

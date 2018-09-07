@@ -116,7 +116,7 @@ namespace System
                         value == *(pCh + 2) ||
                         value == *(pCh + 3))
                     {
-                        return true;
+                        goto Found;
                     }
 
                     pCh += 4;
@@ -127,7 +127,7 @@ namespace System
                     length -= 1;
 
                     if (value == *pCh)
-                        return true;
+                        goto Found;
 
                     pCh += 1;
                 }
@@ -157,7 +157,7 @@ namespace System
                             continue;
                         }
 
-                        return true;
+                        goto Found;
                     }
 
                     if (pCh < pEndCh)
@@ -168,6 +168,9 @@ namespace System
                 }
 #endif
                 return false;
+
+                Found:
+                return true;
             }
         }
 
