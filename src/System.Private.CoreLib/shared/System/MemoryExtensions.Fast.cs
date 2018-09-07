@@ -83,13 +83,6 @@ namespace System
             return CompareInfo.EqualsOrdinalIgnoreCase(ref MemoryMarshal.GetReference(span), ref MemoryMarshal.GetReference(value), span.Length);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool Contains(this ReadOnlySpan<char> source, char value)
-            => SpanHelpers.Contains(
-                ref MemoryMarshal.GetReference(source),
-                value,
-                source.Length);
-
         /// <summary>
         /// Compares the specified <paramref name="span"/> and <paramref name="other"/> using the specified <paramref name="comparisonType"/>,
         /// and returns an integer that indicates their relative position in the sort order.
