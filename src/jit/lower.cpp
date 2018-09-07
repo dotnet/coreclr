@@ -4874,7 +4874,6 @@ GenTree* Lowering::LowerConstIntDivOrMod(GenTree* node)
 
         newDivMod = comp->gtNewOperNode(GT_SUB, type, comp->gtNewLclvNode(dividendLclNum, type),
                                         comp->gtNewOperNode(GT_AND, type, adjustedDividend, divisor));
-        ContainCheckBinary(newDivMod->AsOp());
     }
 
     // Remove the divisor and dividend nodes from the linear order,
@@ -5516,121 +5515,6 @@ bool Lowering::NodesAreEquivalentLeaves(GenTree* tree1, GenTree* tree2)
             return tree1->gtClsVar.gtClsVarHnd == tree2->gtClsVar.gtClsVarHnd;
         default:
             return false;
-    }
-}
-
-/**
- * Get common information required to handle a cast instruction
- */
-void Lowering::getCastDescription(GenTree* treeNode, CastInfo* castInfo)
-{
-    // Intialize castInfo
-    memset(castInfo, 0, sizeof(*castInfo));
-
-    GenTree* castOp = treeNode->gtCast.CastOp();
-
-    var_types dstType = treeNode->CastToType();
-    var_types srcType = genActualType(castOp->TypeGet());
-
-    castInfo->unsignedDest   = varTypeIsUnsigned(dstType);
-    castInfo->unsignedSource = varTypeIsUnsigned(srcType);
-
-    // If necessary, force the srcType to unsigned when the GT_UNSIGNED flag is set.
-    if (!castInfo->unsignedSource && (treeNode->gtFlags & GTF_UNSIGNED) != 0)
-    {
-        srcType                  = genUnsignedType(srcType);
-        castInfo->unsignedSource = true;
-    }
-
-    if (treeNode->gtOverflow() &&
-        (genTypeSize(srcType) >= genTypeSize(dstType) || (srcType == TYP_INT && dstType == TYP_ULONG)))
-    {
-        castInfo->requiresOverflowCheck = true;
-    }
-
-    if (castInfo->requiresOverflowCheck)
-    {
-        ssize_t typeMin       = 0;
-        ssize_t typeMax       = 0;
-        ssize_t typeMask      = 0;
-        bool    signCheckOnly = false;
-
-        // Do we need to compare the value, or just check masks
-        switch (dstType)
-        {
-            default:
-                assert(!"unreachable: getCastDescription");
-                break;
-
-            case TYP_BYTE:
-                typeMask = ssize_t((int)0xFFFFFF80);
-                typeMin  = SCHAR_MIN;
-                typeMax  = SCHAR_MAX;
-                break;
-
-            case TYP_UBYTE:
-                typeMask = ssize_t((int)0xFFFFFF00L);
-                break;
-
-            case TYP_SHORT:
-                typeMask = ssize_t((int)0xFFFF8000);
-                typeMin  = SHRT_MIN;
-                typeMax  = SHRT_MAX;
-                break;
-
-            case TYP_USHORT:
-                typeMask = ssize_t((int)0xFFFF0000L);
-                break;
-
-            case TYP_INT:
-                if (srcType == TYP_UINT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-#ifdef _TARGET_64BIT_
-                    typeMask = 0xFFFFFFFF80000000LL;
-#else
-                    typeMask = 0x80000000;
-#endif
-                    typeMin = INT_MIN;
-                    typeMax = INT_MAX;
-                }
-                break;
-
-            case TYP_UINT:
-                if (srcType == TYP_INT)
-                {
-                    signCheckOnly = true;
-                }
-                else
-                {
-#ifdef _TARGET_64BIT_
-                    typeMask = 0xFFFFFFFF00000000LL;
-#else
-                    typeMask = 0x00000000;
-#endif
-                }
-                break;
-
-            case TYP_LONG:
-                signCheckOnly = true;
-                break;
-
-            case TYP_ULONG:
-                signCheckOnly = true;
-                break;
-        }
-
-        if (signCheckOnly)
-        {
-            castInfo->signCheckOnly = true;
-        }
-
-        castInfo->typeMax  = typeMax;
-        castInfo->typeMin  = typeMin;
-        castInfo->typeMask = typeMask;
     }
 }
 
