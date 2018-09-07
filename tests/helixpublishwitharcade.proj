@@ -7,15 +7,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixCorrelationPayload>
-        <FullPath>$(ArchivesRoot)Core_Root</FullPath>
-    </HelixCorrelationPayload>
+    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\Core_Root" />
   </ItemGroup>
 
   <ItemGroup>
-    <HelixWorkItem Include="$(TestArchivesRoot)/*">
+    <HelixWorkItem Include="$(TestArchivesRoot)/**">
       <Command>$(HelixPythonPath) $(RunnerScript) --script %HELIX_WORKITEM_PAYLOAD%\runtests.cmd</Command>
-      <PayloadDirectory>$(TestArchivesRoot)/*</Payload>
+      <PayloadDirectory>$(TestArchivesRoot)/*</PayloadDirectory>
       <Timeout>00:30:00</Timeout>
     </HelixWorkItem>
   </ItemGroup>
