@@ -81,7 +81,11 @@ namespace System
         {
             Debug.Assert(length >= 0);
 
-            if (length == 0) return false;
+            switch (length)
+            {
+                case 0: return false;
+                case 1: return value == searchSpace;
+            }
 
             fixed (char* pChars = &searchSpace)
             {
