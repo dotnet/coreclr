@@ -55,6 +55,7 @@ phases:
       timeoutInMinutes: 30
       env:
         HelixAccessToken: $(HelixTestAccessToken)
+
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
