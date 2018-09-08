@@ -17973,17 +17973,22 @@ GenTree* Compiler::fgMorphImplicitByRefArgs(GenTree* tree, bool isAddr)
 
 class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
 {
-    // During tree traversal every GenTree node produces a "value" that represents
+    // During tree traversal every GenTree node produces a "value" that represents:
     //   - the memory location associated with a local variable, including an offset
-    //     accumulated from GT_LCL_FLD and GT_FIELD nodes
-    //   - the address of local variable memory location, including an offset as well
-    //   - an unknown value
+    //     accumulated from GT_LCL_FLD and GT_FIELD nodes.
+    //   - the address of local variable memory location, including an offset as well.
+    //   - an unknown value - the result of a node we don't know how to process. This
+    //     also includes the result of TYP_VOID nodes (or any other nodes that don't
+    //     actually produce values in IR) in order to support the invariant that every
+    //     node produces a value.
     //
     // The existence of GT_ADDR nodes and their use together with GT_FIELD to form
-    // FIELD/ADDR/FIELD/ADDR/LCL_VAR sequences complicates things a bit. A GT_FIELD node
-    // would normally produce an unknown (with respect to local address analysis) value,
-    // but when the GT_FIELD node is used by a GT_ADDR when the GT_FIELD node needs to
-    // be treated as a location so that GT_ADDR produces an address value.
+    // FIELD/ADDR/FIELD/ADDR/LCL_VAR sequences complicate things a bit. A typical
+    // GT_FIELD node acts like an indirection and should produce an unknown value,
+    // local address analysis doesn't know or care what value the field stores.
+    // But a GT_FIELD can also be used as an operand for a GT_ADDR node and then
+    // the GT_FIELD node does not perform an indirection, it's just represents a
+    // location, similar to GT_LCL_VAR and GT_LCL_FLD.
     //
     // To avoid this issue, the semantics of GT_FIELD (and for simplicity's sake any other
     // indirection) nodes slightly deviates from the IR semantics - an indirection does not
@@ -18001,9 +18006,7 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
         unsigned m_lclNum;
         unsigned m_offset;
         bool     m_address;
-#ifdef DEBUG
-        bool m_consumed;
-#endif
+        INDEBUG(bool m_consumed;)
 
     public:
         // TODO-Cleanup: This is only needed because ArrayStack initializes its storage incorrectly.
@@ -18014,11 +18017,11 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             , m_address(false)
 #ifdef DEBUG
             , m_consumed(false)
-#endif
+#endif // DEBUG
         {
         }
 
-        // Produce an unknown value
+        // Produce an unknown value associated with the specified node.
         Value(GenTree* node)
             : m_node(node)
             , m_lclNum(BAD_VAR_NUM)
@@ -18026,11 +18029,11 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             , m_address(false)
 #ifdef DEBUG
             , m_consumed(false)
-#endif
+#endif // DEBUG
         {
         }
 
-        // The node that produced this value
+        // Get the node that produced this value.
         GenTree* Node() const
         {
             return m_node;
@@ -18050,7 +18053,7 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             return m_address;
         }
 
-        // The location's variable number
+        // Get the location's variable number.
         unsigned LclNum() const
         {
             assert(IsLocation() || IsAddress());
@@ -18058,7 +18061,7 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             return m_lclNum;
         }
 
-        // The location's byte offset
+        // Get the location's byte offset.
         unsigned Offset() const
         {
             assert(IsLocation() || IsAddress());
@@ -18066,8 +18069,16 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             return m_offset;
         }
 
-        // Produce a location value:
+        //------------------------------------------------------------------------
+        // Location: Produce a location value.
+        //
+        // Arguments:
+        //    lclNum - the local variable number
+        //    offset - the byte offset of the location (used for GT_LCL_FLD nodes)
+        //
+        // Notes:
         //   - (lclnum, offset) => LOCATION(lclNum, offset)
+        //
         void Location(unsigned lclNum, unsigned offset = 0)
         {
             assert(!IsLocation() && !IsAddress());
@@ -18076,10 +18087,17 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
             m_offset = offset;
         }
 
-        // Produce an address value from a location value
+        //------------------------------------------------------------------------
+        // Address: Produce an address value from a location value.
+        //
+        // Arguments:
+        //    val - the input value
+        //
+        // Notes:
         //   - LOCATION(lclNum, offset) => ADDRESS(lclNum, offset)
-        //   - ADDRESS(...) => invalid
+        //   - ADDRESS(lclNum, offset) => invalid, we should never encounter something like ADDR(ADDR(...))
         //   - UNKNOWN => UNKNOWN
+        //
         void Address(Value& val)
         {
             assert(!IsLocation() && !IsAddress());
@@ -18092,14 +18110,28 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
                 m_offset  = val.m_offset;
             }
 
-            val.Consume();
+            INDEBUG(val.Consume();)
         }
 
-        // Produce a location value from an address value
-        //   - LOCATION(...) => not representable, must escape
+        //------------------------------------------------------------------------
+        // Field: Produce a location value from an address value.
+        //
+        // Arguments:
+        //    val    - the input value
+        //    offset - the offset to add to the existing location offset
+        //
+        // Return Value:
+        //    `true` if the value was consumed. `false` if the input value
+        //    cannot be consumed because it is itsef a location or because
+        //    the offset overflowed. In this case the caller is expected
+        //    to escape the input value.
+        //
+        // Notes:
+        //   - LOCATION(lclNum, offset) => not representable, must escape
         //   - ADDRESS(lclNum, offset) => LOCATION(lclNum, offset + field.Offset)
-        //     if the offset overflows then location not representable, must escape
+        //     if the offset overflows then location is not representable, must escape
         //   - UNKNOWN => UNKNOWN
+        //
         bool Field(Value& val, unsigned offset)
         {
             assert(!IsLocation() && !IsAddress());
@@ -18122,14 +18154,26 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
                 m_offset = newOffset.Value();
             }
 
-            val.Consume();
+            INDEBUG(val.Consume();)
             return true;
         }
 
-        // Produce a location value from an address value
-        //   - LOCATION(...) => not representable, must escape
+        //------------------------------------------------------------------------
+        // Indir: Produce a location value from an address value.
+        //
+        // Arguments:
+        //    val - the input value
+        //
+        // Return Value:
+        //    `true` if the value was consumed. `false` if the input value
+        //    cannot be consumed because it is itsef a location. In this
+        //    case the caller is expected to escape the input value.
+        //
+        // Notes:
+        //   - LOCATION(lclNum, offset) => not representable, must escape
         //   - ADDRESS(lclNum, offset) => LOCATION(lclNum, offset)
         //   - UNKNOWN => UNKNOWN
+        //
         bool Indir(Value& val)
         {
             assert(!IsLocation() && !IsAddress());
@@ -18145,32 +18189,28 @@ class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
                 m_offset = val.m_offset;
             }
 
-            val.Consume();
+            INDEBUG(val.Consume();)
             return true;
         }
 
+#ifdef DEBUG
         void Consume()
         {
-#ifdef DEBUG
             assert(!m_consumed);
             // Mark the value as consumed so that PopValue can ensure that values
             // aren't popped from the stack without being processed appropriately.
             m_consumed = true;
-#endif
         }
 
-#ifdef DEBUG
         bool IsConsumed()
         {
             return m_consumed;
         }
-#endif
+#endif // DEBUG
     };
 
     ArrayStack<Value> m_valueStack;
-#ifdef DEBUG
-    bool m_stmtModified;
-#endif
+    INDEBUG(bool m_stmtModified;)
 
 public:
     enum
@@ -18196,7 +18236,7 @@ public:
             m_compiler->gtDispTree(stmt);
             m_stmtModified = false;
         }
-#endif
+#endif // DEBUG
 
         WalkTree(&stmt->gtStmtExpr, nullptr);
 
@@ -18207,11 +18247,12 @@ public:
         {
             EscapeLocation(TopValue(0), stmt);
         }
-        // If we have an address on the stack we don't need to do anything. The address tree
-        // isn't actually used and it will be discarded during morphing.
-        else // if (TopValue(0).IsAddress())
+        else
         {
-            TopValue(0).Consume();
+            // If we have an address on the stack then we don't need to do anything.
+            // The address tree isn't actually used and it will be discarded during
+            // morphing. So just mark any value as consumed to keep PopValue happy.
+            INDEBUG(TopValue(0).Consume();)
         }
 
         PopValue();
@@ -18228,9 +18269,14 @@ public:
 
             printf("\n");
         }
-#endif
+#endif // DEBUG
     }
 
+    // Morph promoted struct fields and count promoted implict byref argument occurrences.
+    // Also create and push the value produced by the visited node. This is done here
+    // rather than in PostOrderVisit because it makes it easy to handle nodes with an
+    // arbitrary number of operands - just pop values until the value corresponding
+    // to the visited node is encountered.
     fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
     {
         GenTree* node = *use;
@@ -18261,14 +18307,14 @@ public:
             }
         }
 
-        // Push the value here instead of doing it in PostOrderVisit, where the node is actually evaluated.
-        // This makes it easy to handle nodes with an arbitrary number of operands - just pop values until
-        // we find the value coresponding to this node.
         PushValue(node);
 
         return Compiler::WALK_CONTINUE;
     }
 
+    // Evaluate a node. Since this is done in postorder, the node's operands have already been
+    // evaluated and are available on the value stack. The value produced by the visited node
+    // is left on the top of the evaluation stack.
     fgWalkResult PostOrderVisit(GenTree** use, GenTree* user)
     {
         GenTree* node = *use;
@@ -18401,7 +18447,7 @@ private:
         }
         else
         {
-            val.Consume();
+            INDEBUG(val.Consume();)
         }
     }
 
@@ -18438,9 +18484,9 @@ private:
                 varDsc->lvQuirkToLong = true;
             }
         }
-#endif
+#endif // _TARGET_64BIT_
 
-        val.Consume();
+        INDEBUG(val.Consume();)
     }
 
     //------------------------------------------------------------------------
@@ -18527,7 +18573,7 @@ private:
             }
         }
 
-        val.Consume();
+        INDEBUG(val.Consume();)
     }
 
     //------------------------------------------------------------------------
@@ -18614,9 +18660,7 @@ private:
         assert(node->OperIs(GT_FIELD));
         // TODO-Cleanup: Move fgMorphStructField implementation here, it's not used anywhere else.
         m_compiler->fgMorphStructField(node, user);
-#ifdef DEBUG
-        m_stmtModified |= node->OperIs(GT_LCL_VAR);
-#endif
+        INDEBUG(m_stmtModified |= node->OperIs(GT_LCL_VAR);)
     }
 
     //------------------------------------------------------------------------
@@ -18639,9 +18683,7 @@ private:
         assert(node->OperIs(GT_LCL_FLD));
         // TODO-Cleanup: Move fgMorphLocalField implementation here, it's not used anywhere else.
         m_compiler->fgMorphLocalField(node, user);
-#ifdef DEBUG
-        m_stmtModified |= node->OperIs(GT_LCL_VAR);
-#endif
+        INDEBUG(m_stmtModified |= node->OperIs(GT_LCL_VAR);)
     }
 };
 
