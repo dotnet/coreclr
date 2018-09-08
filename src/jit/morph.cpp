@@ -17971,59 +17971,6 @@ GenTree* Compiler::fgMorphImplicitByRefArgs(GenTree* tree, bool isAddr)
     return tree;
 }
 
-void Compiler::fgAddFieldSeqForZeroOffset(GenTree* op1, FieldSeqNode* fieldSeq)
-{
-    assert(op1->TypeGet() == TYP_BYREF || op1->TypeGet() == TYP_I_IMPL || op1->TypeGet() == TYP_REF);
-
-    switch (op1->OperGet())
-    {
-        case GT_ADDR:
-            if (op1->gtOp.gtOp1->OperGet() == GT_LCL_FLD)
-            {
-                GenTreeLclFld* lclFld = op1->gtOp.gtOp1->AsLclFld();
-                lclFld->gtFieldSeq    = GetFieldSeqStore()->Append(lclFld->gtFieldSeq, fieldSeq);
-            }
-            break;
-
-        case GT_ADD:
-            if (op1->gtOp.gtOp1->OperGet() == GT_CNS_INT)
-            {
-                FieldSeqNode* op1Fs = op1->gtOp.gtOp1->gtIntCon.gtFieldSeq;
-                if (op1Fs != nullptr)
-                {
-                    op1Fs                                = GetFieldSeqStore()->Append(op1Fs, fieldSeq);
-                    op1->gtOp.gtOp1->gtIntCon.gtFieldSeq = op1Fs;
-                }
-            }
-            else if (op1->gtOp.gtOp2->OperGet() == GT_CNS_INT)
-            {
-                FieldSeqNode* op2Fs = op1->gtOp.gtOp2->gtIntCon.gtFieldSeq;
-                if (op2Fs != nullptr)
-                {
-                    op2Fs                                = GetFieldSeqStore()->Append(op2Fs, fieldSeq);
-                    op1->gtOp.gtOp2->gtIntCon.gtFieldSeq = op2Fs;
-                }
-            }
-            break;
-
-        case GT_CNS_INT:
-        {
-            FieldSeqNode* op1Fs = op1->gtIntCon.gtFieldSeq;
-            if (op1Fs != nullptr)
-            {
-                op1Fs                    = GetFieldSeqStore()->Append(op1Fs, fieldSeq);
-                op1->gtIntCon.gtFieldSeq = op1Fs;
-            }
-        }
-        break;
-
-        default:
-            // Record in the general zero-offset map.
-            GetZeroOffsetFieldMap()->Set(op1, fieldSeq);
-            break;
-    }
-}
-
 class LocalAddressVisitor final : public GenTreeVisitor<LocalAddressVisitor>
 {
     // During tree traversal every GenTree node produces a "value" that represents
@@ -18697,6 +18644,59 @@ private:
 #endif
     }
 };
+
+void Compiler::fgAddFieldSeqForZeroOffset(GenTree* op1, FieldSeqNode* fieldSeq)
+{
+    assert(op1->TypeGet() == TYP_BYREF || op1->TypeGet() == TYP_I_IMPL || op1->TypeGet() == TYP_REF);
+
+    switch (op1->OperGet())
+    {
+        case GT_ADDR:
+            if (op1->gtOp.gtOp1->OperGet() == GT_LCL_FLD)
+            {
+                GenTreeLclFld* lclFld = op1->gtOp.gtOp1->AsLclFld();
+                lclFld->gtFieldSeq    = GetFieldSeqStore()->Append(lclFld->gtFieldSeq, fieldSeq);
+            }
+            break;
+
+        case GT_ADD:
+            if (op1->gtOp.gtOp1->OperGet() == GT_CNS_INT)
+            {
+                FieldSeqNode* op1Fs = op1->gtOp.gtOp1->gtIntCon.gtFieldSeq;
+                if (op1Fs != nullptr)
+                {
+                    op1Fs                                = GetFieldSeqStore()->Append(op1Fs, fieldSeq);
+                    op1->gtOp.gtOp1->gtIntCon.gtFieldSeq = op1Fs;
+                }
+            }
+            else if (op1->gtOp.gtOp2->OperGet() == GT_CNS_INT)
+            {
+                FieldSeqNode* op2Fs = op1->gtOp.gtOp2->gtIntCon.gtFieldSeq;
+                if (op2Fs != nullptr)
+                {
+                    op2Fs                                = GetFieldSeqStore()->Append(op2Fs, fieldSeq);
+                    op1->gtOp.gtOp2->gtIntCon.gtFieldSeq = op2Fs;
+                }
+            }
+            break;
+
+        case GT_CNS_INT:
+        {
+            FieldSeqNode* op1Fs = op1->gtIntCon.gtFieldSeq;
+            if (op1Fs != nullptr)
+            {
+                op1Fs                    = GetFieldSeqStore()->Append(op1Fs, fieldSeq);
+                op1->gtIntCon.gtFieldSeq = op1Fs;
+            }
+        }
+        break;
+
+        default:
+            // Record in the general zero-offset map.
+            GetZeroOffsetFieldMap()->Set(op1, fieldSeq);
+            break;
+    }
+}
 
 //------------------------------------------------------------------------
 // fgMarkAddressExposedLocals: Traverses the entire method and marks address
