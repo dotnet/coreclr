@@ -2570,7 +2570,6 @@ public:
     typedef ArrayStack<GenTree*> GenTreeStack;
 
     static bool gtHasCallOnStack(GenTreeStack* parentStack);
-    void gtCheckQuirkAddrExposedLclVar(GenTree* argTree, GenTreeStack* parentStack);
 
 //=========================================================================
 // BasicBlock functions

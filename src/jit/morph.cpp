@@ -18476,12 +18476,19 @@ private:
         m_compiler->lvaSetVarAddrExposed(exposeParentLcl ? varDsc->lvParentLcl : val.LclNum());
 
 #ifdef _TARGET_64BIT_
+        // If the address of a variable is passed in a call and the allocation size of the variable
+        // is 32 bits we will quirk the size to 64 bits. Some PInvoke signatures incorrectly specify
+        // a ByRef to an INT32 when they actually write a SIZE_T or INT64. There are cases where
+        // overwriting these extra 4 bytes corrupts some data (such as a saved register) that leads
+        // to A/V. Wheras previously the JIT64 codegen did not lead to an A/V.
         if (!varDsc->lvIsParam && !varDsc->lvIsStructField && (genActualType(varDsc->TypeGet()) == TYP_INT))
         {
             // TODO-Cleanup: This should simply check if the user is a call node, not if a call ancestor exists.
             if (Compiler::gtHasCallOnStack(&m_ancestors))
             {
                 varDsc->lvQuirkToLong = true;
+                JITDUMP("Adding a quirk for the storage size of V%02u of type %s", val.LclNum(),
+                        varTypeName(varDsc->TypeGet()));
             }
         }
 #endif // _TARGET_64BIT_
