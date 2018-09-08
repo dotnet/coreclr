@@ -342,7 +342,6 @@ set(VM_SOURCES_WKS
     interpreter.cpp
     invokeutil.cpp
     jithelpers.cpp
-    nativelibrary.cpp
     managedmdimport.cpp
     marshalnative.cpp
     mdaassistants.cpp
@@ -352,6 +351,7 @@ set(VM_SOURCES_WKS
     multicorejit.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     multicorejitplayer.cpp # Condition="'$(FeatureMulticoreJIT)' == 'true'
     nativeeventsource.cpp
+    nativelibrary.cpp
     nativeoverlapped.cpp
     objectlist.cpp
     olevariant.cpp

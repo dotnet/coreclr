@@ -60,6 +60,9 @@ namespace System.Runtime.InteropServices
 
             IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, (int)dllImportSearchPath);
 
+            if (hmodule == IntPtr.Zero)
+                throw new DllNotFoundException("Native library " + libraryName + " not found.");
+
             NativeLibrary loadedLibrary = new NativeLibrary(libraryName, hmodule);
 
             return loadedLibrary;

@@ -14,3 +14,8 @@ extern "C" DLL_EXPORT int Sum(int a, int b)
 {
     return a + b;
 }
+
+extern "C" DLL_EXPORT int Multiply(int a, int b)
+{
+    return a * b;
+}

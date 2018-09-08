@@ -15,8 +15,8 @@ namespace System.Runtime.InteropServices
             CallingAssembly = callingAssembly;
         }
 
-        public string LibraryName { get; set; }
-        public DllImportSearchPath DllImportSearchPath { get; set; }
-        public Assembly CallingAssembly { get; set; }
+        public string LibraryName { get; private set; }
+        public DllImportSearchPath DllImportSearchPath { get; private set; }
+        public Assembly CallingAssembly { get; private set; }
     }
 }

@@ -2,11 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-
 namespace System.Runtime.InteropServices
 {
-    public class CallbackAlreadyRegisteredException : System.ArgumentException
+    public class CallbackAlreadyRegisteredException : Exception
     {
         public CallbackAlreadyRegisteredException() : base() { }
         public CallbackAlreadyRegisteredException(string message) : base(message) { }
