@@ -42,14 +42,6 @@ else()
     windows/gcenv.windows.cpp)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-if(CLR_CMAKE_TARGET_ARCH_AMD64 AND WIN32)
-  enable_language(ASM_MASM)
-  set(ASM_SOURCES windows/gchelpers_amd64.asm)
-  set_property(SOURCE gchelpers_amd64.asm PROPERTY LANGUAGE ASM_MASM)
-else()
-  set(ASM_SOURCES )  
-endif(CLR_CMAKE_TARGET_ARCH_AMD64 AND WIN32)
-
 if(WIN32)
   set (GC_LINK_LIBRARIES
     ${STATIC_MT_CRT_LIB}
@@ -59,7 +51,7 @@ else()
   set (GC_LINK_LIBRARIES)
 endif(WIN32)
 
-convert_to_absolute_path(GC_SOURCES ${GC_SOURCES} ${ASM_SOURCES})
+convert_to_absolute_path(GC_SOURCES ${GC_SOURCES})
 
 add_library_clr(clrgc SHARED ${GC_SOURCES})
 target_link_libraries(clrgc ${GC_LINK_LIBRARIES})

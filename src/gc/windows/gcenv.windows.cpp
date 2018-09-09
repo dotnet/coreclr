@@ -219,6 +219,7 @@ void GetProcessMemoryLoad(LPMEMORYSTATUSEX pMSEX)
     BOOL fRet = ::GlobalMemoryStatusEx(pMSEX);
     assert(fRet);
 }
+
 static size_t GetRestrictedPhysicalMemoryLimit()
 {
     LIMITED_METHOD_CONTRACT;
@@ -347,12 +348,9 @@ exit:
 // On success, this function allocates a SLPI array, sets nEntries to number 
 // of elements in the SLPI array and returns a pointer to the SLPI array after filling it with information. 
 //
-// Note: If successful, IsGLPISupported allocates memory for the SLPI array and expects the caller to
+// Note: If successful, GetLPI allocates memory for the SLPI array and expects the caller to
 // free the memory once the caller is done using the information in the SLPI array.
-//
-// If the API is not supported or any failure, returns NULL
-//
-SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries ) 
+SYSTEM_LOGICAL_PROCESSOR_INFORMATION *GetLPI( PDWORD nEntries ) 
 {
     DWORD cbslpi = 0;
     DWORD dwNumElements = 0;
@@ -398,7 +396,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *IsGLPISupported( PDWORD nEntries )
 
     return pslpi;    // return pointer to SLPI array
 
-}//IsGLPISupported
+}//GetLPI
 
 // This function returns the size of highest level cache on the physical chip.   If it cannot
 // determine the cachesize this function returns 0.
@@ -410,7 +408,7 @@ size_t GetLogicalProcessorCacheSizeFromOS()
     // Try to use GetLogicalProcessorInformation API and get a valid pointer to the SLPI array if successful.  Returns NULL
     // if API not present or on failure.
 
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = IsGLPISupported(&nEntries) ;   
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = GetLPI(&nEntries) ;   
 
     if (pslpi == NULL)
     {
@@ -446,15 +444,9 @@ Exit:
 
 DWORD GetLogicalCpuCountFromOS()
 {
-    // No CONTRACT possible because GetLogicalCpuCount uses SEH
-
     static DWORD val = 0;
     DWORD retVal = 0;
 
-#ifdef FEATURE_PAL
-    retVal = PAL_GetLogicalCpuCountFromOS();
-#else // FEATURE_PAL    
-    
     DWORD nEntries = 0;
 
     DWORD prevcount = 0;
@@ -462,7 +454,7 @@ DWORD GetLogicalCpuCountFromOS()
 
     // Try to use GetLogicalProcessorInformation API and get a valid pointer to the SLPI array if successful.  Returns NULL
     // if API not present or on failure.
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = IsGLPISupported(&nEntries) ;
+    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = GetLPI(&nEntries) ;
 
     if (pslpi == NULL)
     {
@@ -524,320 +516,9 @@ lDone:
     {
         delete[] pslpi;                        // release the memory allocated for the SLPI array    
     }
-#endif // FEATURE_PAL
 
     return retVal;
 }   
-
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-
-#define CACHE_WAY_BITS          0xFFC00000      // number of cache WAYS-Associativity is returned in EBX[31:22] (10 bits) using cpuid function 4
-#define CACHE_PARTITION_BITS    0x003FF000      // number of cache Physical Partitions is returned in EBX[21:12] (10 bits) using cpuid function 4
-#define CACHE_LINESIZE_BITS     0x00000FFF      // Linesize returned in EBX[11:0] (12 bits) using cpuid function 4
-
-#ifdef _TARGET_AMD64_
-// these are defined in gcenvhelpers_amd64.asm
-extern "C" DWORD __stdcall getcpuid(DWORD arg1, unsigned char result[16]);
-extern "C" DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16]);
-#endif // _TARGET_AMD64_
-
-#ifdef _TARGET_X86_
-DWORD __stdcall getcpuid(DWORD arg, unsigned char result[16])
-{
-    LIMITED_METHOD_CONTRACT
-
-    __asm
-    {
-        push    ebx
-        push    esi
-        mov     eax, arg
-        cpuid
-        mov     esi, result
-        mov     [esi+ 0], eax
-        mov     [esi+ 4], ebx
-        mov     [esi+ 8], ecx
-        mov     [esi+12], edx
-        pop     esi
-        pop     ebx
-    }
-}
-
-// The following function uses Deterministic Cache Parameter leafs to determine the cache hierarchy information on Prescott & Above platforms. 
-//  This function takes 3 arguments:
-//     Arg1 is an input to ECX. Used as index to specify which cache level to return infoformation on by CPUID.
-//     Arg2 is an input to EAX. For deterministic code enumeration, we pass in 4H in arg2.
-//     Arg3 is a pointer to the return buffer
-//   No need to check whether or not CPUID is supported because we have already called CPUID with success to come here.
-
-DWORD __stdcall getextcpuid(DWORD arg1, DWORD arg2, unsigned char result[16])
-{
-    LIMITED_METHOD_CONTRACT
-
-    __asm
-    {
-        push    ebx
-        push    esi
-        mov     ecx, arg1
-        mov     eax, arg2
-        cpuid
-        mov     esi, result
-        mov     [esi+ 0], eax
-        mov     [esi+ 4], ebx
-        mov     [esi+ 8], ecx
-        mov     [esi+12], edx
-        pop     esi
-        pop     ebx
-    }
-}
-#endif // _TARGET_X86_
-
-// The following function uses a deterministic mechanism for enumerating/calculating the details of the cache hierarychy at runtime
-// by using deterministic cache parameter leafs on Prescott and higher processors. 
-// If successful, this function returns the cache size in bytes of the highest level on-die cache. Returns 0 on failure.
-
-size_t GetIntelDeterministicCacheEnum()
-{
-    LIMITED_METHOD_CONTRACT;
-    size_t retVal = 0;
-    unsigned char buffer[16];
-    size_t buflen = ARRAYSIZE(buffer);
-
-    DWORD maxCpuid = getextcpuid(0,0,buffer);
-    DWORD dwBuffer[4];
-    memcpy(dwBuffer, buffer, buflen);
-
-    if( (maxCpuid > 3) && (maxCpuid < 0x80000000) ) // Deterministic Cache Enum is Supported
-    {
-        DWORD dwCacheWays, dwCachePartitions, dwLineSize, dwSets;
-        DWORD retEAX = 0;
-        DWORD loopECX = 0;
-        size_t maxSize = 0;
-        size_t curSize = 0;
-
-        // Make First call  to getextcpuid with loopECX=0. loopECX provides an index indicating which level to return information about.
-        // The second parameter is input EAX=4, to specify we want deterministic cache parameter leaf information. 
-        // getextcpuid with EAX=4 should be executed with loopECX = 0,1, ... until retEAX [4:0] contains 00000b, indicating no more
-        // cache levels are supported.
-
-        getextcpuid(loopECX, 4, buffer);       
-        memcpy(dwBuffer, buffer, buflen);
-        retEAX = dwBuffer[0];       // get EAX
-
-        int i = 0;
-        while(retEAX & 0x1f)       // Crack cache enums and loop while EAX > 0
-        {
-
-            dwCacheWays = (dwBuffer[1] & CACHE_WAY_BITS) >> 22;
-            dwCachePartitions = (dwBuffer[1] & CACHE_PARTITION_BITS) >> 12;
-            dwLineSize = dwBuffer[1] & CACHE_LINESIZE_BITS;
-            dwSets = dwBuffer[2];    // ECX
-
-            curSize = (dwCacheWays+1)*(dwCachePartitions+1)*(dwLineSize+1)*(dwSets+1);
-
-            if (maxSize < curSize)
-                maxSize = curSize;
-
-            loopECX++;
-            getextcpuid(loopECX, 4, buffer);  
-            memcpy(dwBuffer, buffer, buflen);
-            retEAX = dwBuffer[0] ;      // get EAX[4:0];        
-            i++;
-            if (i > 16) {               // prevent infinite looping
-              return 0;
-            }
-        }
-        retVal = maxSize;
-    }
-    return retVal ;
-}
-
-// The following function uses CPUID function 2 with descriptor values to determine the cache size.  This requires a-priori 
-// knowledge of the descriptor values. This works on gallatin and prior processors (already released processors).
-// If successful, this function returns the cache size in bytes of the highest level on-die cache. Returns 0 on failure.
-
-size_t GetIntelDescriptorValuesCache()
-{
-    LIMITED_METHOD_CONTRACT;
-    size_t size = 0;
-    size_t maxSize = 0;    
-    unsigned char buffer[16];
-
-    getextcpuid(0,2, buffer);         // call CPUID with EAX function 2H to obtain cache descriptor values 
-
-    for (int i = buffer[0]; --i >= 0; )
-    {
-        int j;
-        for (j = 3; j < 16; j += 4)
-        {
-            // if the information in a register is marked invalid, set to null descriptors
-            if  (buffer[j] & 0x80)
-            {
-                buffer[j-3] = 0;
-                buffer[j-2] = 0;
-                buffer[j-1] = 0;
-                buffer[j-0] = 0;
-            }
-        }
-
-        for (j = 1; j < 16; j++)
-        {
-            switch  (buffer[j])    // need to add descriptor values for 8M and 12M when they become known
-            {
-                case    0x41:
-                case    0x79:
-                    size = 128*1024;
-                    break;
-
-                case    0x42:
-                case    0x7A:
-                case    0x82:
-                    size = 256*1024;
-                    break;
-
-                case    0x22:
-                case    0x43:
-                case    0x7B:
-                case    0x83:
-                case    0x86:                    
-                    size = 512*1024;
-                    break;
-
-                case    0x23:
-                case    0x44:
-                case    0x7C:
-                case    0x84:
-                case    0x87:                    
-                    size = 1024*1024;
-                    break;
-
-                case    0x25:
-                case    0x45:
-                case    0x85:
-                    size = 2*1024*1024;
-                    break;
-
-                case    0x29:
-                    size = 4*1024*1024;
-                    break;
-            }
-            if (maxSize < size)
-                maxSize = size;
-        }
-
-        if  (i > 0)
-            getextcpuid(0,2, buffer);
-    }
-    return     maxSize;
-}
-
-#define NUM_LOGICAL_BITS 0x00FF0000         // EBX[23:16] Bit 16-23 in ebx contains the number of logical
-                                                                        // processors per physical processor (using cpuid function 1)
-#define INITIAL_APIC_ID_BITS  0xFF000000                 // EBX[31:24] Bits 24-31 (8 bits) return the 8-bit unique
-                                                                                      // initial APIC ID for the processor this code is running on.
-                                                                                      // Default value = 0xff if HT is not supported
-
-// This function uses CPUID function 1 to return the number of logical processors on a given physical chip.  
-// It returns the number of logicals processors on a physical chip. 
-
-DWORD GetLogicalCpuCountFallback()
-{   
-    BYTE LogicalNum   = 0;
-    BYTE PhysicalNum  = 0;
-    DWORD lProcCounter = 0;
-    unsigned char buffer[16];
-
-    DWORD* dwBuffer = (DWORD*)buffer;
-    DWORD retVal = 1;
-
-    getextcpuid(0,1, buffer);  //call CPUID with EAX=1
-
-    if (dwBuffer[3] & (1<<28))  // edx:bit 28 is HT bit
-    {
-        PhysicalNum = (BYTE) g_SystemInfo.dwNumberOfProcessors ; // total # of processors
-        LogicalNum  = (BYTE) ((dwBuffer[1] & NUM_LOGICAL_BITS) >> 16); // # of logical per physical
-
-        if(LogicalNum > 1) 
-        {
-#ifdef FEATURE_CORESYSTEM
-            // CoreSystem doesn't expose GetProcessAffinityMask or SetProcessAffinityMask or anything
-            // functionally equivalent. Just assume 1:1 mapping if we get here (in reality we shouldn't since
-            // all CoreSystems support GetLogicalProcessorInformation so GetLogicalCpuCountFromOS should have
-            // taken care of everything.
-            goto fDone;
-#else // FEATURE_CORESYSTEM
-            HANDLE hCurrentProcessHandle;
-            DWORD_PTR  dwProcessAffinity;
-            DWORD_PTR  dwSystemAffinity;
-            DWORD_PTR  dwAffinityMask;
-
-            // Calculate the appropriate  shifts and mask based on the
-            // number of logical processors.
-
-            BYTE i = 1, PHY_ID_MASK  = 0xFF, PHY_ID_SHIFT = 0;
-            while (i < LogicalNum)
-            {
-                i *= 2;
-                PHY_ID_MASK  <<= 1;
-                PHY_ID_SHIFT++;
-            }
-            hCurrentProcessHandle = GetCurrentProcess();  
-
-            GetProcessAffinityMask(hCurrentProcessHandle, &dwProcessAffinity, &dwSystemAffinity);
-
-            // Check if available process affinity mask is equal to the available system affinity mask
-            // If the masks are equal, then all the processors the OS utilizes are available to the 
-            // application.
-
-            if (dwProcessAffinity != dwSystemAffinity)
-            {
-                retVal = 0;          
-                goto fDone;
-            }
-
-            dwAffinityMask = 1;
-
-            // loop over all processors, running APIC ID retrieval code starting
-            // with the first one by setting process affinity.
-            while (dwAffinityMask != 0 && dwAffinityMask <= dwProcessAffinity)
-            {
-                // Check if this CPU is available
-                if (dwAffinityMask & dwProcessAffinity)
-                {
-                    if (SetProcessAffinityMask(hCurrentProcessHandle, dwAffinityMask))  
-                    {
-                        BYTE APIC_ID, LOG_ID, PHY_ID;
-                        __SwitchToThread(0, CALLER_LIMITS_SPINNING); // Give OS time to switch CPU
-
-                        getextcpuid(0,1, buffer);  //call cpuid with EAX=1
-
-                        APIC_ID = (dwBuffer[1] & INITIAL_APIC_ID_BITS) >> 24;
-                        LOG_ID  = APIC_ID & ~PHY_ID_MASK;
-                        PHY_ID  = APIC_ID >> PHY_ID_SHIFT;
-                        if (LOG_ID != 0)   
-                        lProcCounter++;
-                    }
-                }
-                dwAffinityMask = dwAffinityMask << 1;
-            }
-            // Reset the processor affinity
-
-            SetProcessAffinityMask(hCurrentProcessHandle, dwProcessAffinity);
-
-            // Check if HT is enabled on all the processors
-            if(lProcCounter > 0 && (lProcCounter == (DWORD)(PhysicalNum / LogicalNum)))
-            {
-                retVal = lProcCounter;
-                goto fDone;
-            }
-#endif // FEATURE_CORESYSTEM
-        }
-    }   
-fDone:
-
-    return retVal;
-}
-
-#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 } // anonymous namespace
 
 // Initialize the interface implementation
@@ -1098,8 +779,6 @@ bool GCToOSInterface::GetWriteWatch(bool resetState, void* address, size_t size,
 //  Size of the cache
 size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 {
-    // No CONTRACT possible because GetCacheSizePerLogicalCpu uses SEH
-
     static size_t maxSize;
     static size_t maxTrueSize;
 
@@ -1117,149 +796,99 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
     }
 
 #if defined(_TARGET_AMD64_) || defined (_TARGET_X86_)
-    __try
+    int dwBuffer[4];
+
+    __cpuid(dwBuffer, 0);
+
+    int maxCpuId = dwBuffer[0];
+
+    if (dwBuffer[1] == 'uneG') 
     {
-        unsigned char buffer[16];
-        DWORD* dwBuffer = (DWORD*)buffer;
-
-        DWORD maxCpuId = getcpuid(0, buffer);
-
-        if (dwBuffer[1] == 'uneG') 
+        if (dwBuffer[3] == 'Ieni') 
         {
-            if (dwBuffer[3] == 'Ieni') 
+            if (dwBuffer[2] == 'letn') 
             {
-                if (dwBuffer[2] == 'letn') 
-                {
-                    /*
-                    //The following lines are commented because the OS API  on Windows 2003 SP1 is not returning the Cache Relation information on x86. 
-                    //Once the OS API (LH and above) is updated with this information, we should start using the OS API to get the cache enumeration by
-                    //uncommenting the lines below.
-
-                    tempSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
-                    */
-                    size_t tempSize = 0;
-                    if (maxCpuId >= 2)         // cpuid support for cache size determination is available
-                    {
-                        tempSize = GetIntelDeterministicCacheEnum();          // try to use use deterministic cache size enumeration
-                        if (!tempSize)
-                        {                    // deterministic enumeration failed, fallback to legacy enumeration using descriptor values            
-                            tempSize = GetIntelDescriptorValuesCache();   
-                        }   
-                    }
-
-                    // TODO: Currently GetLogicalCpuCountFromOS() and GetLogicalCpuCountFallback() are broken on 
-                    // multi-core processor, but we never call into those two functions since we don't halve the
-                    // gen0size when it's prescott and above processor. We keep the old version here for earlier
-                    // generation system(Northwood based), perf data suggests on those systems, halve gen0 size 
-                    // still boost the performance(ex:Biztalk boosts about 17%). So on earlier systems(Northwood) 
-                    // based, we still go ahead and halve gen0 size.  The logic in GetLogicalCpuCountFromOS() 
-                    // and GetLogicalCpuCountFallback() works fine for those earlier generation systems. 
-                    // If it's a Prescott and above processor or Multi-core, perf data suggests not to halve gen0 
-                    // size at all gives us overall better performance. 
-                    // This is going to be fixed with a new version in orcas time frame.
-                    if (maxCpuId >= 2 && !((maxCpuId > 3) && (maxCpuId < 0x80000000)))
-                    {
-                        DWORD logicalProcessorCount = GetLogicalCpuCountFromOS(); //try to obtain HT enumeration from OS API
-
-                        if (!logicalProcessorCount)
-                        {
-                            logicalProcessorCount = GetLogicalCpuCountFallback();    // OS API failed, Fallback to HT enumeration using CPUID
-                        }
-
-                        if (logicalProcessorCount)
-                        {
-                            tempSize = tempSize / logicalProcessorCount;
-                        }
-                    }
-
-                    // update maxSize once with final value
-                    maxTrueSize = tempSize;
-
+                maxTrueSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
 #ifdef _WIN64
-                    if (maxCpuId >= 2)
-                    {
-                        // If we're running on a Prescott or greater core, EM64T tests
-                        // show that starting with a gen0 larger than LLC improves performance.
-                        // Thus, start with a gen0 size that is larger than the cache.  The value of
-                        // 3 is a reasonable tradeoff between workingset and performance.
-                        maxSize = maxTrueSize * 3;
-                    }
-                    else
+                if (maxCpuId >= 2)
+                {
+                    // If we're running on a Prescott or greater core, EM64T tests
+                    // show that starting with a gen0 larger than LLC improves performance.
+                    // Thus, start with a gen0 size that is larger than the cache.  The value of
+                    // 3 is a reasonable tradeoff between workingset and performance.
+                    maxSize = maxTrueSize * 3;
+                }
+                else
 #endif
-                    {
-                        maxSize = maxTrueSize;
-                    }
+                {
+                    maxSize = maxTrueSize;
                 }
             }
         }
+    }
 
-        if (dwBuffer[1] == 'htuA') {
-            if (dwBuffer[3] == 'itne') {
-                if (dwBuffer[2] == 'DMAc') {
+    if (dwBuffer[1] == 'htuA') {
+        if (dwBuffer[3] == 'itne') {
+            if (dwBuffer[2] == 'DMAc') {
+                __cpuid(dwBuffer, 0x80000000);
+                if (dwBuffer[0] >= 0x80000006)
+                {
+                    __cpuid(dwBuffer, 0x80000006);
 
-                    if (getcpuid(0x80000000, buffer) >= 0x80000006)
+                    DWORD dwL2CacheBits = dwBuffer[2];
+                    DWORD dwL3CacheBits = dwBuffer[3];
+
+                    maxTrueSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
+                            
+                    __cpuid(dwBuffer, 0x1);
+                    DWORD dwBaseFamily = (dwBuffer[0] & (0xF << 8)) >> 8;
+                    DWORD dwExtFamily  = (dwBuffer[0] & (0xFF << 20)) >> 20;
+                    DWORD dwFamily = dwBaseFamily >= 0xF ? dwBaseFamily + dwExtFamily : dwBaseFamily;
+
+                    if (dwFamily >= 0x10)
                     {
-                        getcpuid(0x80000006, buffer);
+                        BOOL bSkipAMDL3 = FALSE;
 
-                        DWORD dwL2CacheBits = dwBuffer[2];
-                        DWORD dwL3CacheBits = dwBuffer[3];
-
-                        maxTrueSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
-                                
-                        getcpuid(0x1, buffer);
-                        DWORD dwBaseFamily = (dwBuffer[0] & (0xF << 8)) >> 8;
-                        DWORD dwExtFamily  = (dwBuffer[0] & (0xFF << 20)) >> 20;
-                        DWORD dwFamily = dwBaseFamily >= 0xF ? dwBaseFamily + dwExtFamily : dwBaseFamily;
-
-                        if (dwFamily >= 0x10)
+                        if (dwFamily == 0x10)   // are we running on a Barcelona (Family 10h) processor?
                         {
-                            BOOL bSkipAMDL3 = FALSE;
+                            // check model
+                            DWORD dwBaseModel = (dwBuffer[0] & (0xF << 4)) >> 4 ;
+                            DWORD dwExtModel  = (dwBuffer[0] & (0xF << 16)) >> 16;
+                            DWORD dwModel = dwBaseFamily >= 0xF ? (dwExtModel << 4) | dwBaseModel : dwBaseModel;
 
-                            if (dwFamily == 0x10)   // are we running on a Barcelona (Family 10h) processor?
+                            switch (dwModel)
                             {
-                                // check model
-                                DWORD dwBaseModel = (dwBuffer[0] & (0xF << 4)) >> 4 ;
-                                DWORD dwExtModel  = (dwBuffer[0] & (0xF << 16)) >> 16;
-                                DWORD dwModel = dwBaseFamily >= 0xF ? (dwExtModel << 4) | dwBaseModel : dwBaseModel;
+                                case 0x2:
+                                    // 65nm parts do not benefit from larger Gen0
+                                    bSkipAMDL3 = TRUE;
+                                    break;
 
-                                switch (dwModel)
-                                {
-                                    case 0x2:
-                                        // 65nm parts do not benefit from larger Gen0
-                                        bSkipAMDL3 = TRUE;
-                                        break;
-
-                                    case 0x4:
-                                    default:
-                                        bSkipAMDL3 = FALSE;
-                                }
-                            }
-
-                            if (!bSkipAMDL3)
-                            {
-                                // 45nm Greyhound parts (and future parts based on newer northbridge) benefit
-                                // from increased gen0 size, taking L3 into account
-                                getcpuid(0x80000008, buffer);
-                                DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;     // NC is in ECX bits 7-0
-
-                                DWORD dwL3CacheSize = (size_t)((dwL3CacheBits >> 18) * 512 * 1024);  // L3 size in EDX bits 31-18 * 512KB
-                                // L3 is shared between cores
-                                dwL3CacheSize = dwL3CacheSize / dwNumberOfCores;
-                                maxTrueSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
-                                                                    // L1 is too small to worry about, so ignore it
+                                case 0x4:
+                                default:
+                                    bSkipAMDL3 = FALSE;
                             }
                         }
 
+                        if (!bSkipAMDL3)
+                        {
+                            // 45nm Greyhound parts (and future parts based on newer northbridge) benefit
+                            // from increased gen0 size, taking L3 into account
+                            __cpuid(dwBuffer, 0x80000008);
+                            DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;     // NC is in ECX bits 7-0
 
-                        maxSize = maxTrueSize;
+                            DWORD dwL3CacheSize = (size_t)((dwL3CacheBits >> 18) * 512 * 1024);  // L3 size in EDX bits 31-18 * 512KB
+                            // L3 is shared between cores
+                            dwL3CacheSize = dwL3CacheSize / dwNumberOfCores;
+                            maxTrueSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
+                                                                // L1 is too small to worry about, so ignore it
+                        }
                     }
+
+
+                    maxSize = maxTrueSize;
                 }
             }
         }
-    } 
-    __except(EXCEPTION_EXECUTE_HANDLER)
-    {
-        
     }
 
 #else
