@@ -109,24 +109,42 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
         {
             case 1:
             {
-                genConsumeOperands(node);
                 op1Reg = op1->gtRegNum;
 
                 if (category == HW_Category_MemoryLoad)
                 {
-                    emit->emitIns_R_AR(ins, simdSize, targetReg, op1Reg, 0);
+                    genTreeOps oper = op1->OperGet();
+
+                    if (oper == genTreeOps::GT_LEA)
+                    {
+                        GenTreeAddrMode* addrMode = op1->AsAddrMode();
+                        uint32_t         offset   = addrMode->Offset();
+
+                        genConsumeAddress(op1);
+                        op1 = op1->gtOp.gtOp1;
+
+                        genCodeForLoadOffset(ins, simdSize, targetReg, op1, offset);
+                    }
+                    else
+                    {
+                        genConsumeOperands(node);
+                        emit->emitIns_R_AR(ins, simdSize, targetReg, op1Reg, 0);
+                    }
                 }
                 else if ((category == HW_Category_SIMDScalar) && HWIntrinsicInfo::CopiesUpperBits(intrinsicId))
                 {
+                    genConsumeOperands(node);
                     emit->emitIns_SIMD_R_R_R(ins, simdSize, targetReg, op1Reg, op1Reg);
                 }
                 else if ((ival != -1) && varTypeIsFloating(baseType))
                 {
                     assert((ival >= 0) && (ival <= 127));
+                    genConsumeOperands(node);
                     genHWIntrinsic_R_RM_I(node, ins, (int8_t)ival);
                 }
                 else
                 {
+                    genConsumeOperands(node);
                     genHWIntrinsic_R_RM(node, ins, simdSize);
                 }
                 break;

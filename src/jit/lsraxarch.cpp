@@ -2648,6 +2648,19 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
             }
         }
 
+        if (category == HW_Category_MemoryLoad)
+        {
+            if (numArgs == 1)
+            {
+                srcCount = BuildHWIntrinsicMemoryLoadUses(intrinsicTree, dstCandidates);
+
+                buildInternalRegisterUses();
+                BuildDef(intrinsicTree);
+
+                return srcCount;
+            }
+        }
+
         if (buildUses)
         {
             assert((numArgs > 0) && (numArgs < 4));
@@ -2679,7 +2692,36 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
     return srcCount;
 }
-#endif
+
+int LinearScan::BuildHWIntrinsicMemoryLoadUses(GenTreeHWIntrinsic* intrinsicTree, regMaskTP candidates)
+{
+    GenTree* const addr = intrinsicTree->gtOp1;
+    if (!addr->isContained())
+    {
+        BuildUse(addr, candidates);
+        return 1;
+    }
+    if (!addr->OperIs(GT_LEA))
+    {
+        return 0;
+    }
+
+    GenTreeAddrMode* const addrMode = addr->AsAddrMode();
+
+    int srcCount = 0;
+    if ((addrMode->Base() != nullptr) && !addrMode->Base()->isContained())
+    {
+        BuildUse(addrMode->Base(), candidates);
+        srcCount++;
+    }
+    if ((addrMode->Index() != nullptr) && !addrMode->Index()->isContained())
+    {
+        BuildUse(addrMode->Index(), candidates);
+        srcCount++;
+    }
+    return srcCount;
+}
+#endif // FEATURE_HW_INTRINSICS
 
 //------------------------------------------------------------------------
 // BuildCast: Set the NodeInfo for a GT_CAST.
