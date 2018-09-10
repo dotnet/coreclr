@@ -5913,12 +5913,6 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
 
     HMODULE hmod = NULL;
 
-    AppDomain* pDomain = GetAppDomain();
-
-    hmod = pDomain->FindUnmanagedImageInCache(name);
-
-    if (hmod == NULL)
-    {
 #ifndef FEATURE_PAL
 
     if ((flags & 0xFFFFFF00) != 0
@@ -5930,7 +5924,6 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
             hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
             if (hmod != NULL)
             {
-                pDomain->AddUnmanagedImageToCache(name, hmod);
                 return hmod;
             }
 
@@ -5952,11 +5945,6 @@ static HMODULE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTr
         {
             pErrorTracker->TrackErrorCode();
         }
-        else
-        {
-            pDomain->AddUnmanagedImageToCache(name, hmod);
-        }
-    }
     
     return hmod;
 }
@@ -6299,7 +6287,7 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 }
 #endif // FEATURE_PAL
 
-HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag)
+HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag, BOOL throwExceptionFlag)
 {
     LoadLibErrorTracker errorTracker;
     ModuleHandleHolder hmod;
@@ -6385,9 +6373,15 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLi
         }
 
         // This call searches the application directory instead of the location for the library.
-        if (hmod == NULL)
+        if ( hmod == NULL )
         {
             hmod = LocalLoadLibraryHelper(currLibNameVariation, dllImportSearchPathFlag, &errorTracker);
+        }
+
+        if ( hmod == NULL && throwExceptionFlag )
+        {
+            StackSString ssLibName(SString::Utf8, wszLibName);
+            errorTracker.Throw(ssLibName);
         }
     }
 
@@ -6417,6 +6411,13 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
     MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
 
     AppDomain* pDomain = GetAppDomain();
+
+    hmod = pDomain->FindUnmanagedImageInCache(wszLibName);
+
+    if (hmod != NULL)
+    {
+        return hmod.Extract();
+    }
 
     BOOL searchAssemblyDirectory = TRUE;
     DWORD dllImportSearchPathFlag = 0;
@@ -6456,7 +6457,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
     
     if (!hmod)
     {
-        hmod = LoadLibraryModuleHierarchy(pMD->GetAssembly(), wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag);
+        hmod = LoadLibraryModuleHierarchy(pMD->GetAssembly(), wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag, false);
     }
 
     // This may be an assembly name
@@ -6486,6 +6487,13 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD)
                 hmod = LocalLoadLibraryHelper(pModule->GetPath(), loadWithAlteredPathFlags | dllImportSearchPathFlag, &errorTracker);
             }
         }
+    }
+
+    // After all this, if we have a handle add it to the cache.
+    // If dll mapping was involved, we associate the source library name with an hmod of a corresponding mapped library.
+    if (hmod)
+    {
+        pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
     }
 
     return hmod.Extract();

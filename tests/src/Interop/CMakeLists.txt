@@ -31,6 +31,7 @@ add_subdirectory(DllImportAttribute/ExeFile)
 add_subdirectory(DllImportAttribute/FileNameContainDot)
 add_subdirectory(DllImportAttribute/Simple)
 add_subdirectory(Dllmap/Simple)
+add_subdirectory(Dllmap/SimpleNoMapping)
 
 if(WIN32)
     add_subdirectory(COM/NativeServer)

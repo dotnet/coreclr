@@ -36,6 +36,7 @@
       <Name>CoreCLRTestLibrary</Name>
     </ProjectReference>
     <ProjectReference Include="Simple\CMakeLists.txt"></ProjectReference>
+    <ProjectReference Include="SimpleNoMapping\CMakeLists.txt"></ProjectReference>
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

@@ -40,7 +40,7 @@ INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssemb
         searchAssemblyDirectory = pAssembly->GetManifestModule()->DllImportSearchAssemblyDirectory();
     }
 
-    moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag);
+    moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag, true);
 
     END_QCALL;
 

@@ -132,7 +132,6 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ArrayWithOffset.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Attributes.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CallbackAlreadyRegisteredException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\COMException.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\CriticalHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\GcHandle.cs" />

@@ -81,7 +81,7 @@ public:
     static HMODULE LoadLibraryFromPath(LPCWSTR libraryPath);
 
     static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD);
-    static HINSTANCE LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag);
+    static HINSTANCE LoadLibraryModuleHierarchy(Assembly *pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag, BOOL throwExceptionFlag);
 
     static VOID NDirectLink(NDirectMethodDesc *pMD);
 

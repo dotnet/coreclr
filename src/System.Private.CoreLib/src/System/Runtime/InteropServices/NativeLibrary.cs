@@ -11,7 +11,7 @@ namespace System.Runtime.InteropServices
     public sealed class NativeLibrary
     {
         public IntPtr Handle { get; private set; }
-        public string Name { get; private set; } // Will Return the name referenced by the importing assembly
+        public string Name { get; private set; } // Holds the name referenced by the importing assembly
 
         // Stores a map of assemblies and on-library-load-callbacks assigned to them.
         // Simulates an additional field of Assembly (which may be added in the future).
@@ -19,9 +19,9 @@ namespace System.Runtime.InteropServices
 
         public NativeLibrary(string libraryName, IntPtr handle)
         {
-            Name = libraryName ?? throw new ArgumentException("Name of a NativeLibrary can't be set to null.");
+            Name = libraryName ?? throw new ArgumentException("Name of a NativeLibrary can't be null.");
             if(handle == IntPtr.Zero)
-                throw new ArgumentException("Handle of a NativeLibrary can't be set to IntPtr.Zero.");
+                throw new ArgumentException("Handle of NativeLibrary " + Name + " can't be IntPtr.Zero.");
             Handle = handle;
         }
 
@@ -30,13 +30,13 @@ namespace System.Runtime.InteropServices
             _assemblyToCallbackMap = new ConditionalWeakTable<Assembly, Func<LoadNativeLibraryArgs, NativeLibrary>>();
         }
 
-        /// <exception cref="System.Runtime.InteropServices.CallbackAlreadyRegistered">Thrown when there is already a callback registered for the specified assembly.</exception>
+        /// <exception cref="System.InvalidOperationException">Thrown when there is already a callback registered for the specified assembly.</exception>
         public static void RegisterNativeLibraryLoadCallback(Assembly assembly, Func<LoadNativeLibraryArgs, NativeLibrary> callback)
         {
 
             if (_assemblyToCallbackMap.TryGetValue(assembly, out Func<LoadNativeLibraryArgs, NativeLibrary> previousCallback))
             {
-                throw new CallbackAlreadyRegisteredException("Callback for " + assembly.GetName().Name + " has already been registered.");
+                throw new InvalidOperationException("Callback for " + assembly.GetName().Name + " has been already registered.");
             }
             else
             {
@@ -61,7 +61,7 @@ namespace System.Runtime.InteropServices
             IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, (int)dllImportSearchPath);
 
             if (hmodule == IntPtr.Zero)
-                throw new DllNotFoundException("Native library " + libraryName + " not found.");
+                throw new DllNotFoundException("Failed to load native library " + libraryName);
 
             NativeLibrary loadedLibrary = new NativeLibrary(libraryName, hmodule);
 
