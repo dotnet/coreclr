@@ -440,6 +440,12 @@ void ZapInfo::CompileMethod()
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
+        if (m_jitFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_AGGRESSIVE_OPT))
+        {
+            // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead
+            return;
+        }
+
         // READYTORUN: FUTURE: Producedure spliting
         m_jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
 

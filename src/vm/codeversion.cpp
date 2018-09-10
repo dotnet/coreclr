@@ -56,7 +56,12 @@ NativeCodeVersionNode::NativeCodeVersionNode(NativeCodeVersionId id, MethodDesc*
     m_parentId(parentId),
     m_pNextMethodDescSibling(NULL),
     m_id(id),
-    m_optTier(NativeCodeVersion::OptimizationTier0),
+#ifdef FEATURE_TIERED_COMPILATION
+    m_optTier(
+        pMethodDesc->RequestedAggressiveOptimization()
+            ? NativeCodeVersion::OptimizationTier1
+            : NativeCodeVersion::OptimizationTier0),
+#endif
     m_flags(0)
 {}
 #endif
@@ -336,7 +341,10 @@ NativeCodeVersion::OptimizationTier NativeCodeVersion::GetOptimizationTier() con
     }
     else
     {
-        return NativeCodeVersion::OptimizationTier0;
+        return
+            GetMethodDesc()->RequestedAggressiveOptimization()
+                ? NativeCodeVersion::OptimizationTier1
+                : NativeCodeVersion::OptimizationTier0;
     }
 }
 

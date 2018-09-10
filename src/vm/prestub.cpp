@@ -334,7 +334,7 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
 #endif
 
 #ifdef FEATURE_READYTORUN
-    if (pCode == NULL)
+    if (pCode == NULL && !RequestedAggressiveOptimization())
     {
         pCode = GetPrecompiledR2RCode(pConfig);
         if (pCode != NULL)
@@ -1752,9 +1752,15 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     BOOL fWasPromotedToTier1 = FALSE;
     if (fEligibleForTieredCompilation)
     {
-        fEligibleForCallCounting = g_pConfig->TieredCompilation_CallCounting();
-        if (fEligibleForCallCounting)
+        if (RequestedAggressiveOptimization())
         {
+            fEligibleForCallCounting = FALSE;
+            fWasPromotedToTier1 = TRUE;
+        }
+        else if (g_pConfig->TieredCompilation_CallCounting())
+        {
+            fEligibleForCallCounting = TRUE;
+
             pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
             CallCounter * pCallCounter = GetCallCounter();
             pCallCounter->OnMethodCalled(this, pTieredCompilationManager, &fCanBackpatchPrestub, &fWasPromotedToTier1);

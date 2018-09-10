@@ -1267,12 +1267,15 @@ public:
     }
 #endif
 
-    // Returns a code version that represents the first (default)
-    // code body that this method would have.
-    NativeCodeVersion GetInitialCodeVersion()
+    bool RequestedAggressiveOptimization()
     {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return NativeCodeVersion(dac_cast<PTR_MethodDesc>(this));
+        WRAPPER_NO_CONTRACT;
+
+        DWORD dwImplFlags = 0;
+        return
+            !IsNoMetadata() &&
+            SUCCEEDED(GetMDImport()->GetMethodImplProps(GetMemberDef(), NULL, &dwImplFlags)) &&
+            IsMiAggressiveOptimization(dwImplFlags);
     }
 
     // Does this method force the NativeCodeSlot to stay fixed after it

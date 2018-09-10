@@ -12440,6 +12440,10 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
          {
              flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MIN_OPT);
          }
+         else if (IsMiAggressiveOptimization(dwImplFlags))
+         {
+             flags.Set(CORJIT_FLAGS::CORJIT_FLAG_AGGRESSIVE_OPT);
+         }
 
          // Always emit frames for methods marked no-inline (see #define ETW_EBP_FRAMED in the JIT)
          if (IsMiNoInlining(dwImplFlags))
