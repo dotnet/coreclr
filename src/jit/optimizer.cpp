@@ -3701,34 +3701,34 @@ void Compiler::optUnrollLoops()
                     switch (gtParent->OperGet())
                     {
                         // those tree generates just simple ALUs.
-                    case GT_ADD:
-                    case GT_SUB:
-                    case GT_MUL:
-                    case GT_DIV:
-                    case GT_UDIV:
-                    case GT_LSH:
-                    case GT_RSH:
+                        case GT_ADD:
+                        case GT_SUB:
+                        case GT_MUL:
+                        case GT_DIV:
+                        case GT_UDIV:
+                        case GT_LSH:
+                        case GT_RSH:
 
-                    case GT_ASG:
-                    case GT_IND:
-                    case GT_CAST:
-                    case GT_ARR_BOUNDS_CHECK:
-                    case GT_COMMA:
+                        case GT_ASG:
+                        case GT_IND:
+                        case GT_CAST:
+                        case GT_ARR_BOUNDS_CHECK:
+                        case GT_COMMA:
 
 #ifdef FEATURE_SIMD
-                    case GT_SIMD_CHK:
-                    case GT_SIMD:
+                        case GT_SIMD_CHK:
+                        case GT_SIMD:
 #endif // FEATURE_SIMD
 
 #ifdef FEATURE_HW_INTRINSICS
-                    case GT_HW_INTRINSIC_CHK:
+                        case GT_HW_INTRINSIC_CHK:
 #endif // FEATURE_HW_INTRINSICS
-                        break;
+                            break;
 
                         // otherwise. this is not a simple loop that only has ALUs.
-                    default:
-                        lpIsSimpleALU = false;
-                        break;
+                        default:
+                            lpIsSimpleALU = false;
+                            break;
                     }
 
                     if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
@@ -3955,8 +3955,14 @@ bool Compiler::optUnrollLoopImpl(
                         GenTree* gtParent = lvaParent[CntVars];
                         GenTree* gtLclVar = lvaLclvar[CntVars];
 
-                        if (gtParent->OperIs(GT_ASG) || gtLclVar->AsLclVar()->GetLclNum() != lvaVar)
+                        if (gtLclVar->AsLclVar()->GetLclNum() != lvaVar)
                         {
+                            continue;
+                        }
+
+                        if (gtParent->OperIs(GT_ASG) && gtParent->gtGetOp2() != gtLclVar)
+                        {
+                            // don't replace constant if GT_LCL_VAR is on gtGetOp2.
                             continue;
                         }
 
@@ -3966,16 +3972,16 @@ bool Compiler::optUnrollLoopImpl(
                             int newVal = lvaBeg;
                             switch (lvaOpr)
                             {
-                            case GT_ADD:
-                                newVal += (i * lvaInc);
-                                break;
+                                case GT_ADD:
+                                    newVal += (i * lvaInc);
+                                    break;
 
-                            case GT_SUB:
-                                newVal -= (i * lvaInc);
-                                break;
+                                case GT_SUB:
+                                    newVal -= (i * lvaInc);
+                                    break;
 
-                            default:
-                                noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
+                                default:
+                                    noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
                             }
 
                             // if its full unrolling. we can replace with constant.
@@ -3990,9 +3996,8 @@ bool Compiler::optUnrollLoopImpl(
                         gtLclVar->ReplaceWith(gtNewExpr, this);
                     }
                 }
-
             }
-            
+
             if (bbIter == bbOldBottom)
             {
                 bbNew->bbJumpKind = BBJ_NONE;
@@ -4019,19 +4024,20 @@ bool Compiler::optUnrollLoopImpl(
             int newVal = lvaBeg;
             switch (lvaOpr)
             {
-            case GT_ADD:
-                newVal += (iter * inner * lvaInc) + (i * lvaInc);
-                break;
+                case GT_ADD:
+                    newVal += (iter * inner * lvaInc) + (i * lvaInc);
+                    break;
 
-            case GT_SUB:
-                newVal -= (iter * inner * lvaInc) + (i * lvaInc);
-                break;
+                case GT_SUB:
+                    newVal -= (iter * inner * lvaInc) + (i * lvaInc);
+                    break;
 
-            default:
-                noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
+                default:
+                    noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
             }
 
-            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, (iter * inner * lvaInc) + (i * lvaInc) + lvaBeg))
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar,
+                                             (iter * inner * lvaInc) + (i * lvaInc) + lvaBeg))
             {
                 goto FAILED;
             }
@@ -4061,8 +4067,8 @@ bool Compiler::optUnrollLoopImpl(
         for (auto CntVars = optExtractVaraibles(gtIncr, &lvaLclvar, &lvaParent); CntVars--;)
         {
             GenTree* gtParent = lvaParent[CntVars];
-            GenTree* gtOp1 = lvaLclvar[CntVars];
-            GenTree* gtOp2 = gtParent->gtGetOp2IfPresent();
+            GenTree* gtOp1    = lvaLclvar[CntVars];
+            GenTree* gtOp2    = gtParent->gtGetOp2IfPresent();
 
             if (gtParent->OperIs(GT_ASG) || gtOp1->AsLclVar()->GetLclNum() != lvaVar)
             {
@@ -4084,7 +4090,7 @@ bool Compiler::optUnrollLoopImpl(
             gtOp2->ReplaceWith(gtNewExpr, this);
         }
     }
-    
+
     if (lpIsFullUrl)
     {
         // Remove test becuase its full unrolling.
