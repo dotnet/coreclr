@@ -5,6 +5,7 @@
 #pragma once
 
 #include <xplatform.h>
+#include <cassert>
 
 //#import "Server.Contract.tlb" no_namespace
 #include <Server.Contracts.tlh>
