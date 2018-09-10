@@ -3715,18 +3715,18 @@ void Compiler::optUnrollLoops()
                         case GT_RSH:
 
                         case GT_ASG:
-                        case GT_IND: 
+                        case GT_IND:
                         case GT_CAST:
                         case GT_ARR_BOUNDS_CHECK:
 
 #ifdef FEATURE_SIMD
                         case GT_SIMD_CHK:
                         case GT_SIMD:
-#endif // !FEATURE_SIMD
-                        
+#endif // FEATURE_SIMD
+
 #ifdef FEATURE_HW_INTRINSICS
                         case GT_HW_INTRINSIC_CHK:
-#endif // !FEATURE_HW_INTRINSICS
+#endif // FEATURE_HW_INTRINSICS
                             break;
 
                         // otherwise. this is not a simple loop that only has ALUs.
