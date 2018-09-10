@@ -105,6 +105,19 @@ inline void ReleaseModule(_In_ HMODULE m)
 
 using AutoModule = AutoClass<HMODULE, nullptr, &ReleaseModule>;
 
+namespace Utility
+{
+    /// <summary>
+    /// Get the supplied environment variable.
+    /// </summary>
+    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::string &envVar);
+}
+
+// CoreShim environment variables used to indicate what assembly/type tuple
+// to load during COM activation.
+#define COMACT_ASSEMBLYNAME_ENVVAR W("CORESHIM_COMACT_ASSEMBLYNAME")
+#define COMACT_TYPENAME_ENVVAR W("CORESHIM_COMACT_TYPENAME")
+
 // CoreCLR class to handle lifetime and provide a simpler API surface
 class coreclr
 {

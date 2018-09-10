@@ -202,6 +202,8 @@ void Run_NumericTests()
 {
     HRESULT hr;
 
+    CoreShimComActivation csact{ W("NETServer.dll"), W("NumericTesting") };
+
     ComSmartPtr<INumericTesting> numericTesting;
     THROW_IF_FAILED(::CoCreateInstance(CLSID_NumericTesting, nullptr, CLSCTX_INPROC, IID_INumericTesting, (void**)&numericTesting));
 

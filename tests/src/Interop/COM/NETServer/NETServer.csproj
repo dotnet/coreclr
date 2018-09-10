@@ -25,10 +25,5 @@
     <Compile Include="../ServerContracts/Primitives.cs" />
     <Compile Include="../ServerContracts/ServerGuids.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="NETServer.manifest">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

@@ -79,6 +79,24 @@ namespace
     coreclr *s_CoreClrInstance;
 }
 
+namespace Utility
+{
+    HRESULT TryGetEnvVar(_In_z_ const WCHAR *env, _Inout_ std::string &envVar)
+    {
+        try
+        {
+            std::wstring envVarLocal = GetEnvVar(env);
+            envVar = { std::begin(envVarLocal), std::end(envVarLocal) };
+        }
+        catch (HRESULT hr)
+        {
+            return hr;
+        }
+
+        return S_OK;
+    }
+}
+
 HRESULT coreclr::GetCoreClrInstance(_Outptr_ coreclr **instance, _In_opt_z_ const WCHAR *path)
 {
     if (s_CoreClrInstance != nullptr)

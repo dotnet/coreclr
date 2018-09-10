@@ -67,7 +67,8 @@ namespace System.Runtime.InteropServices
     {
         public Guid ClassId;
         public Guid InterfaceId;
-        public string[] ActivationAssemblyList;
+        public string AssemblyName;
+        public string TypeName;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -75,8 +76,8 @@ namespace System.Runtime.InteropServices
     {
         public Guid ClassId;
         public Guid InterfaceId;
-        public int AssemblyCount;
-        public IntPtr AssemblyList;
+        public IntPtr AssemblyNameBuffer;
+        public IntPtr TypeNameBuffer;
         public IntPtr ClassFactoryDest;
     }
 
@@ -94,8 +95,7 @@ namespace System.Runtime.InteropServices
                 throw new NotSupportedException();
             }
 
-            string[] potentialAssemblies = cxt.ActivationAssemblyList ?? new string[0];
-            Type classType = FindClassType(cxt.ClassId, potentialAssemblies);
+            Type classType = FindClassType(cxt.ClassId, cxt.AssemblyName, cxt.TypeName);
             return new BasicClassFactory(cxt.ClassId, classType);
         }
 
@@ -111,20 +111,19 @@ namespace System.Runtime.InteropServices
 $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
     {cxtInt.ClassId}
     {cxtInt.InterfaceId}
-    {cxtInt.AssemblyCount}
-    0x{cxtInt.AssemblyList.ToInt64():x}
+    0x{cxtInt.AssemblyNameBuffer.ToInt64():x}
+    0x{cxtInt.TypeNameBuffer.ToInt64():x}
     0x{cxtInt.ClassFactoryDest.ToInt64():x}");
             }
 
             try
             {
-                string[] potentialAssembies = CreateAssemblyArray(cxtInt.AssemblyCount, cxtInt.AssemblyList);
-
                 var cxt = new ComActivationContext()
                 {
                     ClassId = cxtInt.ClassId,
                     InterfaceId = cxtInt.InterfaceId,
-                    ActivationAssemblyList = potentialAssembies
+                    AssemblyName = Marshal.PtrToStringUTF8(cxtInt.AssemblyNameBuffer),
+                    TypeName = Marshal.PtrToStringUTF8(cxtInt.TypeNameBuffer)
                 };
 
                 object cf = GetClassFactoryForType(cxt);
@@ -155,66 +154,27 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             Debug.WriteLine(fmt, args);
          }
 
-        private static Type FindClassType(Guid clsid, string[] potentialAssembies)
+        private static Type FindClassType(Guid clsid, string assemblyName, string typeName)
         {
-            // Determine what assembly the class is in
-            foreach (string assemPath in potentialAssembies)
+            try
             {
-                Assembly assem;
-                string assemPathLocal = assemPath;
-
-                try
+                Assembly assem = Assembly.LoadFrom(assemblyName);
+                Type t = assem.GetType(typeName);
+                if (t != null)
                 {
-                    string extMaybe = Path.GetExtension(assemPath);
-                    if (".manifest".Equals(extMaybe, StringComparison.OrdinalIgnoreCase))
-                    {
-                        assemPathLocal = Path.ChangeExtension(assemPath, ".dll");
-                    }
-
-                    // [TODO] This should use a metadata reader prior to actual
-                    // loading when in production.
-                    assem = Assembly.LoadFrom(assemPathLocal);
-                }
-                catch (Exception e)
-                {
-                    if (IsLoggingEnabled())
-                    {
-                        Log($"COM Activation of {clsid} failed to load assembly {assemPathLocal}: {e}");
-                    }
-
-                    continue;
-                }
-
-                // Check the loaded assembly for a class with the desired ID
-                foreach (Type t in assem.GetTypes())
-                {
-                    if (t.GUID == clsid)
-                    {
-                        return t;
-                    }
+                    return t;
                 }
             }
-
-            // [TODO] Check Registry for registration
+            catch (Exception e)
+            {
+                if (IsLoggingEnabled())
+                {
+                    Log($"COM Activation of {clsid} failed. {e}");
+                }
+            }
 
             const int CLASS_E_CLASSNOTAVAILABLE = unchecked((int)0x80040111);
             throw new COMException(string.Empty, CLASS_E_CLASSNOTAVAILABLE);
-        }
-
-        private static string[] CreateAssemblyArray(int assemblyCount, IntPtr assemblyList)
-        {
-            var assemblies = new string[assemblyCount];
-
-            unsafe
-            {
-                var spanOfPtrs = new Span<IntPtr>(assemblyList.ToPointer(), assemblyCount);
-                for (int i = 0; i < assemblyCount; ++i)
-                {
-                    assemblies[i] = Marshal.PtrToStringUni(spanOfPtrs[i]);
-                }
-            }
-
-            return assemblies;
         }
 
         [ComVisible(true)]
