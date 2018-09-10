@@ -3698,44 +3698,44 @@ void Compiler::optUnrollLoops()
                         continue;
                     }
 
+                    switch (gtParent->OperGet())
+                    {
+                        // those tree generates just simple ALUs.
+                    case GT_ADD:
+                    case GT_SUB:
+                    case GT_MUL:
+                    case GT_DIV:
+                    case GT_UDIV:
+                    case GT_LSH:
+                    case GT_RSH:
+
+                    case GT_ASG:
+                    case GT_IND:
+                    case GT_CAST:
+                    case GT_ARR_BOUNDS_CHECK:
+                    case GT_COMMA:
+
+#ifdef FEATURE_SIMD
+                    case GT_SIMD_CHK:
+                    case GT_SIMD:
+#endif // FEATURE_SIMD
+
+#ifdef FEATURE_HW_INTRINSICS
+                    case GT_HW_INTRINSIC_CHK:
+#endif // FEATURE_HW_INTRINSICS
+                        break;
+
+                        // otherwise. this is not a simple loop that only has ALUs.
+                    default:
+                        lpIsSimpleALU = false;
+                        break;
+                    }
+
                     if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
                     {
                         continue;
                     }
-
-                    switch (gtParent->OperGet())
-                    {
-                        // those tree generates just simple ALUs.
-                        case GT_ADD:
-                        case GT_SUB:
-                        case GT_MUL:
-                        case GT_DIV:
-                        case GT_UDIV:
-                        case GT_LSH:
-                        case GT_RSH:
-
-                        case GT_ASG:
-                        case GT_IND:
-                        case GT_CAST:
-                        case GT_ARR_BOUNDS_CHECK:
-
-#ifdef FEATURE_SIMD
-                        case GT_SIMD_CHK:
-                        case GT_SIMD:
-#endif // FEATURE_SIMD
-
-#ifdef FEATURE_HW_INTRINSICS
-                        case GT_HW_INTRINSIC_CHK:
-#endif // FEATURE_HW_INTRINSICS
-                            break;
-
-                        // otherwise. this is not a simple loop that only has ALUs.
-                        default:
-                            lpIsSimpleALU = false;
-                            break;
-                    }
                 }
-
                 lpCntStmts++;
             }
 
@@ -3872,14 +3872,16 @@ void Compiler::optUnrollLoops()
 }
 
 bool Compiler::optUnrollLoopImpl(
-    unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost, bool isSimpleALU)
+    unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost, bool lpIsSimpleALU)
 {
     bool     lpIsFullUrl = (outer == 0) && (iter == 1); /* is full unrolling?       */
     bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
     LoopDsc* lpDesc      = &optLoopTable[loopId];
 
+    genTreeOps   lvaOpr     = lpDesc->lpIterOper();
     unsigned int lvaVar     = lpDesc->lpIterVar();
-    unsigned int lvaInc     = lpDesc->lpIterConst();
+    int          lvaInc     = lpDesc->lpIterConst();
+    int          lvaBeg     = lpDesc->lpConstInit;
     BasicBlock*  bbHead     = lpDesc->lpHead;
     BasicBlock*  bbBottom   = lpDesc->lpBottom;
     BasicBlock*  bbBody     = bbHead->bbNext;
@@ -3917,7 +3919,7 @@ bool Compiler::optUnrollLoopImpl(
 
     // Remove test and incr stmt if needed. not to remove after cloning BasicBlocks
     fgRemoveStmt(bbOldBottom, gtTest);
-    if (isSimpleALU)
+    if (lpIsSimpleALU)
     {
         fgRemoveStmt(bbOldBottom, gtIncr);
     }
@@ -3942,7 +3944,7 @@ bool Compiler::optUnrollLoopImpl(
             }
 
             mapRedirect.Set(bbIter, bbNew);
-            if (isSimpleALU)
+            if (lpIsSimpleALU)
             {
                 for (GenTreeStmt* gtStmt = bbNew->firstStmt(); gtStmt; gtStmt = gtStmt->gtNextStmt)
                 {
@@ -3958,15 +3960,36 @@ bool Compiler::optUnrollLoopImpl(
                             continue;
                         }
 
-                        GenTree* gtNewIcon = gtNewIconNode(i * lvaInc, gtLclVar->TypeGet());
-                        GenTree* gtNewExpr =
-                            gtNewOperNode(GT_ADD, gtLclVar->TypeGet(), gtCloneExpr(gtLclVar), gtNewIcon);
+                        GenTree* gtNewExpr;
+                        if (lpIsFullUrl)
+                        {
+                            int newVal = lvaBeg;
+                            switch (lvaOpr)
+                            {
+                            case GT_ADD:
+                                newVal += (i * lvaInc);
+                                break;
+
+                            case GT_SUB:
+                                newVal -= (i * lvaInc);
+                                break;
+                            }
+
+                            // if its full unrolling. we can replace with constant.
+                            gtNewExpr = gtNewIconNode(newVal, gtLclVar->TypeGet());
+                        }
+                        else
+                        {
+                            GenTree* gtNewIcon = gtNewIconNode(i * lvaInc, gtLclVar->TypeGet());
+                            gtNewExpr = gtNewOperNode(lvaOpr, gtLclVar->TypeGet(), gtCloneExpr(gtLclVar), gtNewIcon);
+                        }
 
                         gtLclVar->ReplaceWith(gtNewExpr, this);
                     }
                 }
-            }
 
+            }
+            
             if (bbIter == bbOldBottom)
             {
                 bbNew->bbJumpKind = BBJ_NONE;
@@ -3990,34 +4013,21 @@ bool Compiler::optUnrollLoopImpl(
             BasicBlock* bbNew = bbBottom = fgNewBBafter(bbIter->bbJumpKind, bbBottom, true);
             mapRedirect.Set(bbIter, bbNew);
 
-            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
+            int newVal = lvaBeg;
+            switch (lvaOpr)
             {
-                goto FAILED;
+            case GT_ADD:
+                newVal += (iter * inner * lvaInc) + (i * lvaInc);
+                break;
+
+            case GT_SUB:
+                newVal -= (iter * inner * lvaInc) + (i * lvaInc);
+                break;
             }
 
-            if (isSimpleALU)
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, (iter * inner * lvaInc) + (i * lvaInc) + lvaBeg))
             {
-                for (GenTreeStmt* gtStmt = bbNew->firstStmt(); gtStmt; gtStmt = gtStmt->gtNextStmt)
-                {
-                    lvaParent.clear();
-                    lvaLclvar.clear();
-                    for (auto CntVars = optExtractVaraibles(gtStmt, &lvaLclvar, &lvaParent); CntVars--;)
-                    {
-                        GenTree* gtParent = lvaParent[CntVars];
-                        GenTree* gtLclVar = lvaLclvar[CntVars];
-
-                        if (gtParent->OperIs(GT_ASG) || gtLclVar->AsLclVar()->GetLclNum() != lvaVar)
-                        {
-                            continue;
-                        }
-
-                        GenTree* gtNewIcon = gtNewIconNode(i * lvaInc, gtLclVar->TypeGet());
-                        GenTree* gtNewExpr =
-                            gtNewOperNode(GT_ADD, gtLclVar->TypeGet(), gtCloneExpr(gtLclVar), gtNewIcon);
-
-                        gtLclVar->ReplaceWith(gtNewExpr, this);
-                    }
-                }
+                goto FAILED;
             }
 
             if (bbIter == bbOldBottom)
@@ -4035,7 +4045,7 @@ bool Compiler::optUnrollLoopImpl(
         }
     }
 
-    if (isSimpleALU)
+    if (lpIsSimpleALU)
     {
         // Insert incr at the bottom. we've removed incr to clone BasicBlocks.
         fgInsertStmtAtEnd(bbOldBottom, gtIncr);
@@ -4045,8 +4055,8 @@ bool Compiler::optUnrollLoopImpl(
         for (auto CntVars = optExtractVaraibles(gtIncr, &lvaLclvar, &lvaParent); CntVars--;)
         {
             GenTree* gtParent = lvaParent[CntVars];
-            GenTree* gtOp1    = lvaLclvar[CntVars];
-            GenTree* gtOp2    = gtParent->gtGetOp2IfPresent();
+            GenTree* gtOp1 = lvaLclvar[CntVars];
+            GenTree* gtOp2 = gtParent->gtGetOp2IfPresent();
 
             if (gtParent->OperIs(GT_ASG) || gtOp1->AsLclVar()->GetLclNum() != lvaVar)
             {
@@ -4068,7 +4078,7 @@ bool Compiler::optUnrollLoopImpl(
             gtOp2->ReplaceWith(gtNewExpr, this);
         }
     }
-
+    
     if (lpIsFullUrl)
     {
         // Remove test becuase its full unrolling.
@@ -4119,7 +4129,7 @@ FAILED:
     bbHead->bbNext        = bbOldHeadNext;
     bbOldHeadNext->bbPrev = bbHead;
 
-    if (isSimpleALU)
+    if (lpIsSimpleALU)
     {
         fgInsertStmtAtEnd(bbOldBottom, gtIncr);
     }
