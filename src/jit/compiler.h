@@ -5610,9 +5610,12 @@ public:
 
     unsigned optComputeLoopIter(unsigned loopId);
     unsigned optComputeLoopCost(unsigned loopId);
-    bool optCheckSimpleLoop(unsigned loopId);
+    unsigned optExtractVaraibles(GenTreeStmt*              gtStmt,
+                                 jitstd::vector<GenTree*>* gtLclVar,
+                                 jitstd::vector<GenTree*>* gtParent = nullptr);
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
-    bool optUnrollLoopImpl(unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost);
+    bool optUnrollLoopImpl(
+        unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost, bool isSimpleALU);
 
 protected:
     // This enumeration describes what is killed by a call.
