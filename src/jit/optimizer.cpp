@@ -3909,16 +3909,14 @@ bool Compiler::optUnrollLoopImpl(
     jitstd::vector<GenTree*> lvaParent(this->getAllocator());
 
     /* Almost done!! we are going to clone expressions to unroll right now! */
-
-    if (gtNodeHasSideEffects(gtTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF))
+    if (gtTreeHasSideEffects(gtTest, GTF_SIDE_EFFECT | GTF_ORDER_SIDEEFF))
     {
         // the test should not have side effects.
         return false;
     }
 
+    // Remove test and incr stmt if needed. not to remove after cloning BasicBlocks
     fgRemoveStmt(bbOldBottom, gtTest);
-    bbOldBottom->bbJumpKind = BBJ_NONE;
-
     if (isSimpleALU)
     {
         fgRemoveStmt(bbOldBottom, gtIncr);
@@ -3971,6 +3969,7 @@ bool Compiler::optUnrollLoopImpl(
 
             if (bbIter == bbOldBottom)
             {
+                bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
         }
@@ -4023,6 +4022,7 @@ bool Compiler::optUnrollLoopImpl(
 
             if (bbIter == bbOldBottom)
             {
+                bbNew->bbJumpKind = BBJ_NONE;
                 break;
             }
         }
@@ -4037,6 +4037,7 @@ bool Compiler::optUnrollLoopImpl(
 
     if (isSimpleALU)
     {
+        // Insert incr at the bottom. we've removed incr to clone BasicBlocks.
         fgInsertStmtAtEnd(bbOldBottom, gtIncr);
 
         lvaParent.clear();
@@ -4068,9 +4069,19 @@ bool Compiler::optUnrollLoopImpl(
         }
     }
 
-    if (!lpIsFullUrl)
+    if (lpIsFullUrl)
     {
+        // Remove test becuase its full unrolling.
+        bbOldBottom->bbJumpDest = nullptr;
+        bbOldBottom->bbJumpKind = BBJ_NONE;
+    }
+    else
+    {
+        // Redirect old body to newly cloned head.
+        bbOldBottom->bbJumpDest = bbHead->bbNext;
         bbOldBottom->bbJumpKind = bbOldBottomJumpKind;
+
+        // We are not doing full unrolling. test is needed. inserting it.
         fgInsertStmtAtEnd(bbOldBottom, gtTest);
     }
 
@@ -4108,8 +4119,12 @@ FAILED:
     bbHead->bbNext        = bbOldHeadNext;
     bbOldHeadNext->bbPrev = bbHead;
 
-    fgInsertStmtAtEnd(bbOldBottom, gtIncr);
+    if (isSimpleALU)
+    {
+        fgInsertStmtAtEnd(bbOldBottom, gtIncr);
+    }
     fgInsertStmtAtEnd(bbOldBottom, gtTest);
+    bbOldBottom->bbJumpDest = bbBody;
     bbOldBottom->bbJumpKind = bbOldBottomJumpKind;
     bbOldBottomPrev->bbNext = bbOldBottom;
     bbOldBottom->bbPrev     = bbOldBottomPrev;
