@@ -52,7 +52,7 @@ phases:
         HelixAccessToken: $(HelixTestAccessToken)
     - script: powershell .\eng\helix-wait.ps1
       displayName: Wait for test completion
-      timeoutInMinutes: 30
+      timeoutInMinutes: 60
       env:
         HelixAccessToken: $(HelixTestAccessToken)
 

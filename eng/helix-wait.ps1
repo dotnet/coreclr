@@ -7,6 +7,7 @@ while ($finished -ne $env:NumberOfWorkItems) {
     ConvertFrom-Json
 
     $finished = $workItems.Data.WorkItemStatus.pass + $workItems.Data.WorkItemStatus.fail
+    Write-Output "$finished work items finished out of $env:NumberOfWorkItems total work items."
 
     Start-Sleep -s 10
 }
