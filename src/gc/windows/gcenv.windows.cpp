@@ -350,7 +350,7 @@ exit:
 //
 // Note: If successful, GetLPI allocates memory for the SLPI array and expects the caller to
 // free the memory once the caller is done using the information in the SLPI array.
-SYSTEM_LOGICAL_PROCESSOR_INFORMATION *GetLPI( PDWORD nEntries ) 
+SYSTEM_LOGICAL_PROCESSOR_INFORMATION *GetLPI(PDWORD nEntries) 
 {
     DWORD cbslpi = 0;
     DWORD dwNumElements = 0;
@@ -360,7 +360,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *GetLPI( PDWORD nEntries )
     // the size of the buffer required to allocate for the SLPI array that is returned
 
     if (!GetLogicalProcessorInformation(pslpi, &cbslpi) &&
-    GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+            GetLastError() != ERROR_INSUFFICIENT_BUFFER)
     {
         // If we fail with anything other than an ERROR_INSUFFICIENT_BUFFER here, we punt with failure.
         return NULL;
@@ -376,7 +376,7 @@ SYSTEM_LOGICAL_PROCESSOR_INFORMATION *GetLPI( PDWORD nEntries )
 
     pslpi = new (std::nothrow) SYSTEM_LOGICAL_PROCESSOR_INFORMATION[ dwNumElements ];
 
-    if(pslpi == NULL)
+    if (pslpi == NULL)
     {
         // the memory allocation failed
         return NULL;
@@ -438,87 +438,6 @@ Exit:
     return cache_size;
 }
 
-// This function returns the number of logical processors on a given physical chip.  If it cannot
-// determine the number of logical cpus, or the machine is not populated uniformly with the same
-// type of processors, this function returns 0. 
-
-DWORD GetLogicalCpuCountFromOS()
-{
-    static DWORD val = 0;
-    DWORD retVal = 0;
-
-    DWORD nEntries = 0;
-
-    DWORD prevcount = 0;
-    DWORD count = 1;
-
-    // Try to use GetLogicalProcessorInformation API and get a valid pointer to the SLPI array if successful.  Returns NULL
-    // if API not present or on failure.
-    SYSTEM_LOGICAL_PROCESSOR_INFORMATION *pslpi = GetLPI(&nEntries) ;
-
-    if (pslpi == NULL)
-    {
-        // GetLogicalProcessorInformation no supported
-        goto lDone;
-    }
-
-    for (DWORD j = 0; j < nEntries; j++)
-    {
-        if (pslpi[j].Relationship == RelationProcessorCore)
-        {
-            // LTP_PC_SMT indicates HT or SMT
-            if (pslpi[j].ProcessorCore.Flags == LTP_PC_SMT)
-            {
-                SIZE_T pmask = pslpi[j].ProcessorMask;
-
-                // Count the processors in the mask
-                //
-                // These are not the fastest bit counters. There may be processor intrinsics
-                // (which would be best), but there are variants faster than these:
-                // See http://en.wikipedia.org/wiki/Hamming_weight.
-                // This is the naive implementation.
-#if !_WIN64
-                count = (pmask & 0x55555555) + ((pmask >> 1) &  0x55555555);
-                count = (count & 0x33333333) + ((count >> 2) &  0x33333333);
-                count = (count & 0x0F0F0F0F) + ((count >> 4) &  0x0F0F0F0F);
-                count = (count & 0x00FF00FF) + ((count >> 8) &  0x00FF00FF);
-                count = (count & 0x0000FFFF) + ((count >> 16)&  0x0000FFFF);
-#else
-                pmask = (pmask & 0x5555555555555555ull) + ((pmask >> 1) & 0x5555555555555555ull);
-                pmask = (pmask & 0x3333333333333333ull) + ((pmask >> 2) & 0x3333333333333333ull);
-                pmask = (pmask & 0x0f0f0f0f0f0f0f0full) + ((pmask >> 4) & 0x0f0f0f0f0f0f0f0full);
-                pmask = (pmask & 0x00ff00ff00ff00ffull) + ((pmask >> 8) & 0x00ff00ff00ff00ffull);
-                pmask = (pmask & 0x0000ffff0000ffffull) + ((pmask >> 16) & 0x0000ffff0000ffffull);
-                pmask = (pmask & 0x00000000ffffffffull) + ((pmask >> 32) & 0x00000000ffffffffull);
-                count = static_cast<DWORD>(pmask);
-#endif // !_WIN64 else
-                assert (count > 0);
-
-                if (prevcount)
-                {
-                    if (count != prevcount)
-                    {
-                        retVal = 1;       // masks are not symmetric
-                        goto lDone;
-                    }
-                }
-
-                prevcount = count;
-            }
-        }
-    }
-
-    retVal = count;
-
-lDone: 
-
-    if(pslpi)
-    {
-        delete[] pslpi;                        // release the memory allocated for the SLPI array    
-    }
-
-    return retVal;
-}   
 } // anonymous namespace
 
 // Initialize the interface implementation
@@ -795,7 +714,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
         }
     }
 
-#if defined(_TARGET_AMD64_) || defined (_TARGET_X86_)
+#if defined(_AMD64_) || defined (_X86_)
     int dwBuffer[4];
 
     __cpuid(dwBuffer, 0);
@@ -809,7 +728,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
             if (dwBuffer[2] == 'letn') 
             {
                 maxTrueSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
-#ifdef _WIN64
+#ifdef BIT64
                 if (maxCpuId >= 2)
                 {
                     // If we're running on a Prescott or greater core, EM64T tests
@@ -895,7 +814,7 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
     maxSize = maxTrueSize = GetLogicalProcessorCacheSizeFromOS() ; // Returns the size of the highest level processor cache
 #endif
 
-#if defined(_TARGET_ARM64_)
+#if defined(_ARM64_)
     // Bigger gen0 size helps arm64 targets
     maxSize = maxTrueSize * 3;
 #endif
