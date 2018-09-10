@@ -3973,6 +3973,9 @@ bool Compiler::optUnrollLoopImpl(
                             case GT_SUB:
                                 newVal -= (i * lvaInc);
                                 break;
+
+                            default:
+                                noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
                             }
 
                             // if its full unrolling. we can replace with constant.
@@ -4023,6 +4026,9 @@ bool Compiler::optUnrollLoopImpl(
             case GT_SUB:
                 newVal -= (iter * inner * lvaInc) + (i * lvaInc);
                 break;
+
+            default:
+                noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
             }
 
             if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, (iter * inner * lvaInc) + (i * lvaInc) + lvaBeg))
