@@ -3911,12 +3911,12 @@ bool Compiler::optUnrollLoopImpl(
         return false;
     }
 
-    fgRemoveStmt(bbBottom, gtTest);
-    bbBottom->bbJumpKind = BBJ_NONE;
+    fgRemoveStmt(bbOldBottom, gtTest);
+    bbOldBottom->bbJumpKind = BBJ_NONE;
 
     if (isSimpleALU)
     {
-        fgRemoveStmt(bbBottom, gtIncr);
+        fgRemoveStmt(bbOldBottom, gtIncr);
     }
 
     // Unroll as inner loop expressions
@@ -3970,7 +3970,7 @@ bool Compiler::optUnrollLoopImpl(
             }
         }
 
-        for (BasicBlock* bbIter = bbBody; bbIter != bbBottom; bbIter = bbIter->bbNext)
+        for (BasicBlock* bbIter = bbBody; bbIter != bbOldBottom; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = mapRedirect[bbIter];
             optCopyBlkDest(bbIter, bbNew);
@@ -3979,12 +3979,11 @@ bool Compiler::optUnrollLoopImpl(
     }
 
     // Unroll as outer loop expressions
-    BasicBlock* bbInsertAfter = bbBottom;
     for (unsigned int i = 0; i < outer; ++i)
     {
         for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
         {
-            BasicBlock* bbNew = bbInsertAfter = fgNewBBafter(bbIter->bbJumpKind, bbInsertAfter, true);
+            BasicBlock* bbNew = bbBottom = fgNewBBafter(bbIter->bbJumpKind, bbBottom, true);
             mapRedirect.Set(bbIter, bbNew);
 
             if (!BasicBlock::CloneBlockState(this, bbNew, bbIter))
@@ -4017,13 +4016,13 @@ bool Compiler::optUnrollLoopImpl(
                 }
             }
 
-            if (bbIter == bbBottom)
+            if (bbIter == bbOldBottom)
             {
                 break;
             }
         }
 
-        for (BasicBlock* bbIter = bbBody; bbIter != bbBottom; bbIter = bbIter->bbNext)
+        for (BasicBlock* bbIter = bbBody; bbIter != bbOldBottom; bbIter = bbIter->bbNext)
         {
             BasicBlock* bbNew = mapRedirect[bbIter];
             optCopyBlkDest(bbIter, bbNew);
@@ -4033,7 +4032,7 @@ bool Compiler::optUnrollLoopImpl(
 
     if (isSimpleALU)
     {
-        fgInsertStmtAtEnd(bbBottom, gtIncr);
+        fgInsertStmtAtEnd(bbOldBottom, gtIncr);
 
         lvaParent.clear();
         lvaLclvar.clear();
@@ -4066,8 +4065,8 @@ bool Compiler::optUnrollLoopImpl(
 
     if (!lpIsFullUrl)
     {
-        bbBottom->bbJumpKind = bbOldBottomJumpKind;
-        fgInsertStmtAtEnd(bbBottom, gtTest);
+        bbOldBottom->bbJumpKind = bbOldBottomJumpKind;
+        fgInsertStmtAtEnd(bbOldBottom, gtTest);
     }
 
     if (lpIsPtclUrl)
