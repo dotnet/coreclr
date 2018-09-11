@@ -2471,7 +2471,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeResultsDir}"
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
-                    else {
+                    else if (architecture == 'arm') {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
                         // download the appropriate CoreFX packages.
                         // Note that docker should not be necessary here, for the "generatelayoutonly" case, but we use it
@@ -2490,6 +2490,24 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
 
                         Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
+                    }
+                    else {
+                        assert architecture == 'arm64'
+
+                        // Then, using the same docker image, build the tests and generate the CORE_ROOT layout.
+                        // Linux/arm64 does not use Windows-built tests.
+
+                        def testBuildOpts = ""
+                        if (priority == '1') {
+                            testBuildOpts = "priority1"
+                        }
+
+                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross ${testBuildOpts}"
+
+                        // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
+                        buildCommands += "zip -r tests.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}"
+
+                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip", "")
                     }
 
                     // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
@@ -3270,8 +3288,14 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
                     def lowerConfiguration = configuration.toLowerCase()
-                    shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
-                    shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                    if (architecture == 'arm') {
+                        shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
+                        shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                    }
+                    else {
+                        assert architecture == 'arm64'
+                        shell("unzip -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
+                    }
                 }
                 else {
                     shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
@@ -3743,15 +3767,14 @@ Constants.allScenarios.each { scenario ->
 
                     def inputTestsBuildName = null
 
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison) {
+                    // Ubuntu Arm64 jobs do the test build on the build machine, and thus don't depend on a Windows build.
+                    def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
+
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job) {
                         def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
-                        if (architecture == "arm64") {
-                            // Use the x64 test build for arm64 unix
-                            inputTestsBuildArch = "x64"
-                        }
-                        else if (architecture == "arm") {
+                        if (architecture == "arm") {
                             // Use the x86 test build for arm unix
                             inputTestsBuildArch = "x86"
                         }
