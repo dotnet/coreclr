@@ -48,7 +48,9 @@ import glob
 import json
 import hashlib
 import os
+import tarfile
 import tempfile
+import re
 import sys
 import subprocess
 
@@ -81,6 +83,14 @@ def build_argument_parser():
     frameworks_parser.add_argument('--core_root', dest='core_root', required=True)
     frameworks_parser.add_argument('--result_dir', dest='result_dirname', required=True)
     frameworks_parser.set_defaults(func=crossgen_framework)
+
+    dotnet_sdk_parser_description = """Unpack .NET Core SDK archive file and runs crossgen on each assembly."""
+    dotnet_sdk_parser = subparsers.add_parser('crossgen_dotnet_sdk', description=dotnet_sdk_parser_description)
+    dotnet_sdk_parser.add_argument('--crossgen', dest='crossgen_executable_filename', required=True)
+    dotnet_sdk_parser.add_argument('--il_corelib', dest='il_corelib_filename', required=True)
+    dotnet_sdk_parser.add_argument('--dotnet_sdk', dest='dotnet_sdk_filename', required=True)
+    dotnet_sdk_parser.add_argument('--result_dir', dest='result_dirname', required=True)
+    dotnet_sdk_parser.set_defaults(func=crossgen_dotnet_sdk)
 
     compare_parser_description = """Compares collected information from two crossgen scenarios - base vs diff"""
 
@@ -416,6 +426,43 @@ def load_crossgen_results_from_dir(dirname):
         result = load_crossgen_result_from_json_file(filename)
         results_by_assembly_name[result.assembly_name] = result
     return results_by_assembly_name
+
+def dotnet_sdk_enumerate_assemblies(dotnet_sdk_dirname):
+    for dirpath, _, filenames in os.walk(dotnet_sdk_dirname):
+        dirname = os.path.dirname(dirpath)
+        if dirname.endswith('Microsoft.NETCore.App') or dirname.endswith('Microsoft.AspNetCore.App') or dirname.endswith('Microsoft.AspNetCore.All'):
+            filenames = filter(lambda filename: not re.match(r'^(Microsoft|System)\..*dll$', filename) is None, filenames)
+            filenames = filter(lambda filename: filename != 'System.Private.CoreLib.dll', filenames)
+            yield (dirpath, filenames)
+
+def crossgen_dotnet_sdk(args):
+    dotnet_sdk_dirname = tempfile.mkdtemp()
+    with tarfile.open(args.dotnet_sdk_filename) as dotnet_sdk_tarfile:
+        dotnet_sdk_tarfile.extractall(dotnet_sdk_dirname)
+
+    ni_files_dirname = tempfile.mkdtemp()
+    crossgen_results = []
+
+    il_corelib_filename = args.il_corelib_filename
+    ni_corelib_filename = os.path.join(ni_files_dirname, os.path.basename(il_corelib_filename))
+    corelib_result = crossgen_assembly(args.crossgen_executable_filename, il_corelib_filename, ni_corelib_filename, [os.path.dirname(il_corelib_filename)])
+    crossgen_results.append(corelib_result)
+
+    platform_assemblies_paths = [ni_files_dirname]
+
+    for il_files_dirname, _ in dotnet_sdk_enumerate_assemblies(dotnet_sdk_dirname):
+        platform_assemblies_paths.append(il_files_dirname)
+
+    for il_files_dirname, assembly_names in dotnet_sdk_enumerate_assemblies(dotnet_sdk_dirname):
+        for assembly_name in assembly_names:
+            il_filename = os.path.join(il_files_dirname, assembly_name)
+            ni_filename = os.path.join(ni_files_dirname, add_ni_extension(assembly_name))
+            result = crossgen_assembly(args.crossgen_executable_filename, il_filename, ni_filename, platform_assemblies_paths)
+            crossgen_results.append(result)
+
+    for result in crossgen_results:
+        result_filename = os.path.join(args.result_dirname, result.assembly_name + '.json')
+        save_crossgen_result_to_json_file(result, result_filename)
 
 def compare(args):
     base_results = load_crossgen_results_from_dir(args.base_dirname)
