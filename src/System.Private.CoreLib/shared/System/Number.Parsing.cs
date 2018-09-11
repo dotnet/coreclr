@@ -534,7 +534,7 @@ namespace System
                         {
                             number.scale = 0;
                         }
-                        if ((state & StateDecimal) == 0)
+                        if ((number.kind == NumberBufferKind.Integer) && ((state & StateDecimal) == 0))
                         {
                             number.sign = false;
                         }

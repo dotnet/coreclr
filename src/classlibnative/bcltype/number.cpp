@@ -304,13 +304,20 @@ void DoubleToNumber(double value, int precision, NUMBER* number)
     WRAPPER_NO_CONTRACT
     _ASSERTE(number != NULL);
 
+    if (precision > NUMBER_MAXDIGITS)
+    {
+        precision = NUMBER_MAXDIGITS;
+    }
     number->precision = precision;
-    if (((FPDOUBLE*)&value)->exp == 0x7FF) {
+
+    if (((FPDOUBLE*)&value)->exp == 0x7FF)
+    {
         number->scale = (((FPDOUBLE*)&value)->mantLo || ((FPDOUBLE*)&value)->mantHi) ? SCALE_NAN: SCALE_INF;
         number->sign = ((FPDOUBLE*)&value)->sign;
         number->digits[0] = 0;
     }
-    else {
+    else
+    {
         DoubleToNumberWorker(value, precision, &number->scale, &number->sign, number->digits);
     }
 }
