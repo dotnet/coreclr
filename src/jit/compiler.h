@@ -3279,6 +3279,7 @@ protected:
     GenTree* getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass);
     GenTree* impNonConstFallback(NamedIntrinsic intrinsic, var_types simdType, var_types baseType);
     GenTree* addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand);
+    bool isImmExprConst(GenTree* tree, bool isRoot = false);
     bool hwIntrinsicSignatureTypeSupported(var_types retType, CORINFO_SIG_INFO* sig, NamedIntrinsic intrinsic);
 #endif // _TARGET_XARCH_
 #ifdef _TARGET_ARM64_
