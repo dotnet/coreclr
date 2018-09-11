@@ -3275,7 +3275,9 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("unzip -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
-            else {
+            else if (architecture != 'arm64') {
+                // ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
+                //
                 // Unzip the tests first.  Exit with 0
                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
                 shell("rm -r ./bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root || exit 0")
