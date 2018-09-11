@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)">
+      <IncludeAssets>All</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
   </ItemGroup>
 

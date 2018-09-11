@@ -72,6 +72,5 @@
     <Compile Include="Single\TanhSingle.cs" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
-  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' ">
-  </PropertyGroup>
+  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
 </Project>
