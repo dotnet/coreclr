@@ -125,7 +125,8 @@ const wchar_t* JitHost::getStringConfigValue(const wchar_t* key)
 {
     jitInstance.mc->cr->AddCall("getStringConfigValue");
 
-    const wchar_t* result = nullptr;
+    bool           needToDup = true;
+    const wchar_t* result    = nullptr;
 
     // First check the force options, then mc value. If value is not presented there, probe the JIT options and then the
     // environment.
@@ -140,18 +141,28 @@ const wchar_t* JitHost::getStringConfigValue(const wchar_t* key)
     if (result == nullptr)
     {
         result = jitInstance.getOption(key);
-        if (result == nullptr)
-        {
-            return GetCOMPlusVariable(key, jitInstance);
-        }
     }
 
-    // Now we need to dup it, so you can call freeStringConfigValue() on what we return.
-    size_t   resultLenInChars = wcslen(result) + 1;
-    wchar_t* dupResult = (wchar_t*)jitInstance.allocateLongLivedArray((ULONG)(sizeof(wchar_t) * resultLenInChars));
-    wcscpy_s(dupResult, resultLenInChars, result);
+    if (result == nullptr)
+    {
+        result    = GetCOMPlusVariable(key, jitInstance);
+        needToDup = false;
+    }
 
-    return dupResult;
+    if (result != nullptr && needToDup)
+    {
+        // Now we need to dup it, so you can call freeStringConfigValue() on what we return.
+        size_t   resultLenInChars = wcslen(result) + 1;
+        wchar_t* dupResult = (wchar_t*)jitInstance.allocateLongLivedArray((ULONG)(sizeof(wchar_t) * resultLenInChars));
+        wcscpy_s(dupResult, resultLenInChars, result);
+        result = dupResult;
+    }
+
+    if (result != nullptr)
+    {
+        LogDebug("Environment variable %ws: %ws\n", key, result);
+    }
+    return result;
 }
 
 void JitHost::freeStringConfigValue(const wchar_t* value)
