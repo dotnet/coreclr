@@ -222,8 +222,9 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             int result = 0;
-            StringToNumber(value, styles, ref number, info, false);
+            StringToNumber(value, styles, ref number, info);
             if (!NumberToInt32(ref number, ref result))
             {
                 ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Int32));
@@ -255,8 +256,9 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             long result = 0;
-            StringToNumber(value, styles, ref number, info, false);
+            StringToNumber(value, styles, ref number, info);
             if (!NumberToInt64(ref number, ref result))
             {
                 ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_Int64));
@@ -290,7 +292,8 @@ namespace System
             }
 
             NumberBuffer number = default;
-            StringToNumber(value, styles, ref number, info, false);
+            number.kind = NumberBufferKind.Integer;
+            StringToNumber(value, styles, ref number, info);
             if (!NumberToUInt32(ref number, ref result))
             {
                 ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_UInt32));
@@ -324,7 +327,8 @@ namespace System
             }
 
             NumberBuffer number = default;
-            StringToNumber(value, styles, ref number, info, false);
+            number.kind = NumberBufferKind.Integer;
+            StringToNumber(value, styles, ref number, info);
             if (!NumberToUInt64(ref number, ref result))
             {
                 ThrowOverflowOrFormatException(overflow: true, nameof(SR.Overflow_UInt64));
@@ -332,12 +336,13 @@ namespace System
             return result;
         }
 
-        private static unsafe bool ParseNumber(ref char* str, char* strEnd, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
+        private static unsafe bool ParseNumber(ref char* str, char* strEnd, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
         {
             Debug.Assert(str != null);
             Debug.Assert(strEnd != null);
             Debug.Assert(str <= strEnd);
             Debug.Assert((styles & NumberStyles.AllowHexSpecifier) == 0);
+            Debug.Assert(number.kind != NumberBufferKind.Unknown);
 
             const int StateSign = 0x0001;
             const int StateParens = 0x0002;
@@ -418,7 +423,7 @@ namespace System
                         if (digCount < NumberMaxDigits)
                         {
                             number.digits[digCount++] = ch;
-                            if (ch != '0' || parseDecimal)
+                            if (ch != '0' || (number.kind == NumberBufferKind.Decimal))
                             {
                                 digEnd = digCount;
                             }
@@ -525,7 +530,7 @@ namespace System
                 {
                     if ((state & StateNonZero) == 0)
                     {
-                        if (!parseDecimal)
+                        if (number.kind != NumberBufferKind.Decimal)
                         {
                             number.scale = 0;
                         }
@@ -560,8 +565,9 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             return
-                TryStringToNumber(value, styles, ref number, info, false) &&
+                TryStringToNumber(value, styles, ref number, info) &&
                 NumberToInt32(ref number, ref result);
         }
 
@@ -891,8 +897,9 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             return
-                TryStringToNumber(value, styles, ref number, info, false) &&
+                TryStringToNumber(value, styles, ref number, info) &&
                 NumberToInt64(ref number, ref result);
         }
 
@@ -912,9 +919,10 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             result = 0;
             return
-                TryStringToNumber(value, styles, ref number, info, false) &&
+                TryStringToNumber(value, styles, ref number, info) &&
                 NumberToUInt32(ref number, ref result);
         }
 
@@ -1190,9 +1198,10 @@ namespace System
             }
 
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Integer;
             result = 0;
             return
-                TryStringToNumber(value, styles, ref number, info, false) &&
+                TryStringToNumber(value, styles, ref number, info) &&
                 NumberToUInt64(ref number, ref result);
         }
 
@@ -1455,9 +1464,10 @@ namespace System
         internal static decimal ParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Decimal;
             decimal result = 0;
 
-            StringToNumber(value, styles, ref number, info, true);
+            StringToNumber(value, styles, ref number, info);
 
             if (!NumberBufferToDecimal(ref number, ref result))
             {
@@ -1570,9 +1580,10 @@ namespace System
         internal static double ParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Double;
             double d = 0;
 
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
@@ -1604,9 +1615,10 @@ namespace System
         internal static float ParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Double;
             double d = 0;
 
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
                 //If we failed TryStringToNumber, it may be from one of our special strings.
                 //Check the three with which we're concerned and rethrow if it's not one of
@@ -1642,9 +1654,10 @@ namespace System
         internal static bool TryParseDecimal(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out decimal result)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Decimal;
             result = 0;
 
-            if (!TryStringToNumber(value, styles, ref number, info, true))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
                 return false;
             }
@@ -1659,9 +1672,10 @@ namespace System
         internal static bool TryParseDouble(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out double result)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Double;
             result = 0;
 
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
                 return false;
             }
@@ -1675,10 +1689,11 @@ namespace System
         internal static bool TryParseSingle(ReadOnlySpan<char> value, NumberStyles styles, NumberFormatInfo info, out float result)
         {
             NumberBuffer number = default;
+            number.kind = NumberBufferKind.Double;
             result = 0;
             double d = 0;
 
-            if (!TryStringToNumber(value, styles, ref number, info, false))
+            if (!TryStringToNumber(value, styles, ref number, info))
             {
                 return false;
             }
@@ -1696,13 +1711,13 @@ namespace System
             return true;
         }
 
-        private static unsafe void StringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
+        private static unsafe void StringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
         {
             Debug.Assert(info != null);
             fixed (char* stringPointer = &MemoryMarshal.GetReference(value))
             {
                 char* p = stringPointer;
-                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info, parseDecimal)
+                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info)
                     || (p - stringPointer < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
                 {
                     ThrowOverflowOrFormatException(overflow: false, null);
@@ -1710,13 +1725,13 @@ namespace System
             }
         }
 
-        internal static unsafe bool TryStringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, bool parseDecimal)
+        internal static unsafe bool TryStringToNumber(ReadOnlySpan<char> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
         {
             Debug.Assert(info != null);
             fixed (char* stringPointer = &MemoryMarshal.GetReference(value))
             {
                 char* p = stringPointer;
-                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info, parseDecimal)
+                if (!ParseNumber(ref p, p + value.Length, styles, ref number, info)
                     || (p - stringPointer < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
                 {
                     return false;
@@ -1786,12 +1801,6 @@ namespace System
             {
                 value = default;
                 return false;
-            }
-
-            if (d == 0.0)
-            {
-                // normalize -0.0 to 0.0
-                d = 0.0;
             }
 
             value = d;
