@@ -10,7 +10,7 @@ namespace System.Text
     /// This enum defines the various potential status that can be returned from Span-based operations
     /// that support processing of input contained in multiple discontiguous buffers.
     /// </summary>
-    internal enum OperationStatus
+    public enum OperationStatus
     {
         /// <summary>
         /// The entire input buffer has been processed and the operation is complete.
