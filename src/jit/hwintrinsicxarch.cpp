@@ -685,6 +685,171 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
            HWIntrinsicInfo::RequiresCodegen(intrinsicId) && !HWIntrinsicInfo::HasSpecialImport(intrinsicId);
 }
 
+//----------------------------------------------------------------------------
+// isImmExprConstCandidate   Method tries to check passed expression if result
+//                           of evaluation could be an integral const. It limits
+//                           supported node types to explicit list of arithmetic,
+//                           logical, comparison and cast nodes and accepts only
+//                           integral types.
+//
+// Arguments:
+//     tree   -- expression tree node to analyze
+//     isRoot -- true if passed tree is a root of analyzed expression
+//
+// Return value:
+//     returns true if expression is good constant folding candidate otherwise false
+//
+bool Compiler::isImmExprConstCandidate(GenTree* tree, bool isRoot /* = false */)
+{
+    if (!opts.OptEnabled(CLFLG_CONSTANTFOLD))
+    {
+        return false;
+    }
+
+    if (optValnumCSE_phase)
+    {
+        return false;
+    }
+
+    assert(tree != nullptr);
+
+    if (!varTypeIsIntegral(tree->gtType))
+    {
+        return false;
+    }
+
+    genTreeOps oper = tree->OperGet();
+    unsigned   kind = tree->OperKind();
+
+    if (!(kind & GTK_SMPOP))
+    {
+        return false;
+    }
+
+    assert(kind & (GTK_UNOP | GTK_BINOP));
+
+    switch (oper)
+    {
+        case GT_RETFILT:
+        case GT_RETURN:
+        case GT_IND:
+            return false;
+        default:
+            break;
+    }
+
+    GenTree* op1 = tree->gtOp.gtOp1;
+
+    if ((kind & GTK_UNOP) && op1)
+    {
+
+        unsigned op1Kind = op1->OperKind();
+
+        switch (oper)
+        {
+            case GT_NOT:
+            case GT_NEG:
+                break;
+
+            case GT_CAST:
+            {
+                if (!varTypeIsIntegralOrI(tree->CastToType()))
+                {
+                    return false;
+                }
+
+                if (!varTypeIsIntegralOrI(tree->CastFromType()))
+                {
+                    return false;
+                }
+
+                break;
+            }
+
+            default:
+                return false;
+        }
+
+        if (op1Kind & GTK_CONST)
+        {
+            return true;
+        }
+        else if (isImmExprConstCandidate(op1))
+        {
+            return true;
+        }
+    }
+    else if ((kind & GTK_BINOP) && op1 && tree->gtOp.gtOp2)
+    {
+        GenTree* op2     = tree->gtOp.gtOp2;
+        unsigned op1Kind = op1->OperKind();
+        unsigned op2Kind = op2->OperKind();
+
+        switch (oper)
+        {
+            case GT_ADD:
+            case GT_SUB:
+            case GT_MUL:
+            case GT_DIV:
+            case GT_MOD:
+            case GT_UDIV:
+            case GT_UMOD:
+            case GT_OR:
+            case GT_XOR:
+            case GT_AND:
+            case GT_LSH:
+            case GT_RSH:
+            case GT_RSZ:
+            case GT_ROL:
+            case GT_ROR:
+            case GT_EQ:
+            case GT_NE:
+            case GT_LT:
+            case GT_LE:
+            case GT_GE:
+            case GT_GT:
+            case GT_CMP:
+                break;
+
+            default:
+                return false;
+        }
+
+        if ((op1Kind & GTK_CONST) && (op2Kind & GTK_CONST))
+        {
+            return true;
+        }
+        else
+        {
+            bool isOp1Const = false;
+            if (!(op1Kind & GTK_CONST))
+            {
+                isOp1Const = isImmExprConstCandidate(op1);
+            }
+            else
+            {
+                isOp1Const = true;
+            }
+
+            bool isOp2Const = false;
+            if (!(op2Kind & GTK_CONST))
+            {
+                isOp2Const = isImmExprConstCandidate(op2);
+            }
+            else
+            {
+                isOp2Const = true;
+            }
+
+            if (isOp1Const && isOp2Const)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 //------------------------------------------------------------------------
 // impHWIntrinsic: dispatch hardware intrinsics to their own implementation
 //
@@ -732,22 +897,39 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     {
         return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
     }
-    // Avoid checking stacktop for 0-op intrinsics
+
+    GenTree* lastOp     = nullptr;
+    bool     isConstImm = false;
+
+    // Avoid checking top of the stack for 0-op intrinsics
     if (sig->numArgs > 0 && HWIntrinsicInfo::isImmOp(intrinsic, impStackTop().val))
     {
-        GenTree* lastOp = impStackTop().val;
+        lastOp     = impStackTop().val;
+        isConstImm = lastOp->IsCnsIntOrI();
+
+        if (!isConstImm && isImmExprConstCandidate(lastOp, true))
+        {
+            GenTree* oldOp = lastOp;
+            lastOp         = fgMorphTree(lastOp);
+            isConstImm     = lastOp->IsCnsIntOrI();
+
+            if (!isConstImm && (lastOp != oldOp))
+            {
+                DEBUG_DESTROY_NODE(lastOp);
+            }
+        }
         // The imm-HWintrinsics that do not accept all imm8 values may throw
         // ArgumentOutOfRangeException when the imm argument is not in the valid range
         if (!HWIntrinsicInfo::HasFullRangeImm(intrinsic))
         {
-            if (!mustExpand && lastOp->IsCnsIntOrI() &&
+            if (!mustExpand && isConstImm &&
                 !HWIntrinsicInfo::isInImmRange(intrinsic, (int)lastOp->AsIntCon()->IconValue()))
             {
                 return nullptr;
             }
         }
 
-        if (!lastOp->IsCnsIntOrI())
+        if (!isConstImm)
         {
             if (HWIntrinsicInfo::NoJmpTableImm(intrinsic))
             {
@@ -842,9 +1024,20 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                 retNode = gtNewSimdHWIntrinsicNode(retType, op1, intrinsic, baseType, simdSize);
                 break;
             case 2:
+            {
                 argType = JITtype2varType(
                     strip(info.compCompHnd->getArgType(sig, info.compCompHnd->getArgNext(argList), &argClass)));
-                op2 = getArgForHWIntrinsic(argType, argClass);
+
+                if (isConstImm && lastOp)
+                {
+                    impPopStack();
+                    op2 = lastOp;
+                    assert(varTypeIsIntegral(op2->TypeGet()));
+                }
+                else
+                {
+                    op2 = getArgForHWIntrinsic(argType, argClass);
+                }
 
                 op2 = addRangeCheckIfNeeded(intrinsic, op2, mustExpand);
 
@@ -853,6 +1046,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
                 retNode = gtNewSimdHWIntrinsicNode(retType, op1, op2, intrinsic, baseType, simdSize);
                 break;
+            }
 
             case 3:
             {
@@ -860,7 +1054,18 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                 CORINFO_ARG_LIST_HANDLE arg3 = info.compCompHnd->getArgNext(arg2);
 
                 argType      = JITtype2varType(strip(info.compCompHnd->getArgType(sig, arg3, &argClass)));
-                GenTree* op3 = getArgForHWIntrinsic(argType, argClass);
+                GenTree* op3 = nullptr;
+
+                if (isConstImm && lastOp)
+                {
+                    impPopStack();
+                    op3 = lastOp;
+                    assert(varTypeIsIntegral(op3->TypeGet()));
+                }
+                else
+                {
+                    op3 = getArgForHWIntrinsic(argType, argClass);
+                }
 
                 op3 = addRangeCheckIfNeeded(intrinsic, op3, mustExpand);
 
