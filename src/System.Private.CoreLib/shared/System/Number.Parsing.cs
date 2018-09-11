@@ -1589,15 +1589,15 @@ namespace System
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
                 ReadOnlySpan<char> sTrim = value.Trim();
-                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.PositiveInfinitySymbol))
                 {
                     return double.PositiveInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.NegativeInfinitySymbol))
                 {
                     return double.NegativeInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NaNSymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.NaNSymbol))
                 {
                     return double.NaN;
                 }
@@ -1624,15 +1624,15 @@ namespace System
                 //Check the three with which we're concerned and rethrow if it's not one of
                 //those strings.
                 ReadOnlySpan<char> sTrim = value.Trim();
-                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.PositiveInfinitySymbol))
                 {
                     return float.PositiveInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.NegativeInfinitySymbol))
                 {
                     return float.NegativeInfinity;
                 }
-                if (sTrim.EqualsOrdinal(info.NaNSymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.NaNSymbol))
                 {
                     return float.NaN;
                 }
