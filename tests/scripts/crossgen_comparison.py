@@ -287,7 +287,7 @@ class CrossGenRunner:
     def __init__(self, crossgen_executable_filename, no_logo=True):
         self.crossgen_executable_filename = crossgen_executable_filename
         self.no_logo = no_logo
-        self.platform_assemblies_paths_sep = ";"
+        self.platform_assemblies_paths_sep = ';' if sys.platform == 'win32' else ':'
 
     """
         Creates a subprocess running crossgen with specified set of arguments, 
