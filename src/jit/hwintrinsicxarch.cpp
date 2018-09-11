@@ -685,6 +685,167 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
            HWIntrinsicInfo::RequiresCodegen(intrinsicId) && !HWIntrinsicInfo::HasSpecialImport(intrinsicId);
 }
 
+//----------------------------------------------------------------------------
+// isExprConst   Method tries to check passed expression if result of evaluation
+//               would be an integral const
+//
+// Arguments:
+//     tree - tree expression to check if evaluation result is constant
+//
+// Return value:
+//     returns true if expression is const otherwise false
+//
+bool Compiler::isImmExprConst(GenTree* tree, bool isRoot /* = 0 */)
+{
+    if (!opts.OptEnabled(CLFLG_CONSTANTFOLD))
+    {
+        return false;
+    }
+
+    if (optValnumCSE_phase)
+    {
+        return false;
+    }
+
+    assert(tree != nullptr);
+
+    if (isRoot && !varTypeIsIntegral(tree->gtType))
+    {
+        return false;
+    }
+
+    genTreeOps oper = tree->OperGet();
+    unsigned   kind = tree->OperKind();
+
+    if (!(kind & GTK_SMPOP))
+    {
+        return false;
+    }
+
+    assert(kind & (GTK_UNOP | GTK_BINOP));
+
+    switch (tree->gtOper)
+    {
+        case GT_RETFILT:
+        case GT_RETURN:
+        case GT_IND:
+            return false;
+        default:
+            break;
+    }
+
+    GenTree* op1     = tree->gtOp.gtOp1;
+    GenTree* oldTree = tree;
+    GenTree* oldOp1  = op1;
+
+    if ((kind & GTK_UNOP) && op1)
+    {
+
+        unsigned   op1Kind = op1->OperKind();
+        genTreeOps op1Oper = op1->OperGet();
+
+        switch (oper)
+        {
+            case GT_NOT:
+            case GT_NEG:
+                break;
+
+            case GT_CAST:
+            {
+                if (!(varTypeIsArithmetic(tree->CastToType()) || varTypeIsI(tree->CastToType())))
+                {
+                    return false;
+                }
+                break;
+            }
+
+            default:
+                return false;
+        }
+
+        if (op1Kind & GTK_CONST)
+        {
+            return true;
+        }
+        else if (isImmExprConst(op1))
+        {
+            return true;
+        }
+    }
+    else if ((kind & GTK_BINOP) && op1 && tree->gtOp.gtOp2)
+    {
+        GenTree*   op2     = tree->gtOp.gtOp2;
+        GenTree*   op2Old  = op2;
+        unsigned   op1Kind = op1->OperKind();
+        unsigned   op2Kind = op2->OperKind();
+        genTreeOps op1Oper = op1->OperGet();
+        genTreeOps op2Oper = op2->OperGet();
+
+        switch (oper)
+        {
+            case GT_ADD:
+            case GT_SUB:
+            case GT_MUL:
+            case GT_DIV:
+            case GT_MOD:
+            case GT_UDIV:
+            case GT_UMOD:
+            case GT_CMP:
+            case GT_EQ:
+            case GT_NE:
+            case GT_LT:
+            case GT_LE:
+            case GT_GE:
+            case GT_GT:
+            case GT_OR:
+            case GT_XOR:
+            case GT_AND:
+            case GT_LSH:
+            case GT_RSH:
+            case GT_RSZ:
+            case GT_ROL:
+            case GT_ROR:
+                break;
+
+            default:
+                return false;
+        }
+
+        if ((op1Kind & GTK_CONST) && (op2Kind & GTK_CONST))
+        {
+            return true;
+        }
+        else
+        {
+            bool isOp1Const = false;
+            if (!(op1Kind & GTK_CONST))
+            {
+                isOp1Const = isImmExprConst(op1);
+            }
+            else
+            {
+                isOp1Const = true;
+            }
+
+            bool isOp2Const = false;
+            if (!(op2Kind & GTK_CONST))
+            {
+                isOp2Const = isImmExprConst(op2);
+            }
+            else
+            {
+                isOp2Const = true;
+            }
+
+            if (isOp1Const && isOp2Const)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 //------------------------------------------------------------------------
 // impHWIntrinsic: dispatch hardware intrinsics to their own implementation
 //
@@ -735,19 +896,26 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     // Avoid checking stacktop for 0-op intrinsics
     if (sig->numArgs > 0 && HWIntrinsicInfo::isImmOp(intrinsic, impStackTop().val))
     {
-        GenTree* lastOp = impStackTop().val;
+        GenTree* lastOp        = impStackTop().val;
+        bool     lastOpIsConst = lastOp->IsCnsIntOrI();
+
+        if (!lastOpIsConst)
+        {
+            lastOpIsConst = isImmExprConst(lastOp);
+        }
+
         // The imm-HWintrinsics that do not accept all imm8 values may throw
         // ArgumentOutOfRangeException when the imm argument is not in the valid range
         if (!HWIntrinsicInfo::HasFullRangeImm(intrinsic))
         {
-            if (!mustExpand && lastOp->IsCnsIntOrI() &&
+            if (!mustExpand && lastOpIsConst &&
                 !HWIntrinsicInfo::isInImmRange(intrinsic, (int)lastOp->AsIntCon()->IconValue()))
             {
                 return nullptr;
             }
         }
 
-        if (!lastOp->IsCnsIntOrI())
+        if (!lastOpIsConst)
         {
             if (HWIntrinsicInfo::NoJmpTableImm(intrinsic))
             {
