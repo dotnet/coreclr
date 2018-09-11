@@ -17,7 +17,6 @@
 #include "typeparse.h"
 #include "stackprobe.h"
 
-
 //// static
 INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssembly, LPCWSTR libraryName, DWORD dllImportSearchPathFlag)
 {
@@ -40,7 +39,7 @@ INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssemb
         searchAssemblyDirectory = pAssembly->GetManifestModule()->DllImportSearchAssemblyDirectory();
     }
 
-    moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag, true);
+    moduleHandle = NDirect::LoadLibraryModuleHierarchy(pAssembly, libraryName, searchAssemblyDirectory, dllImportSearchPathFlag, nullptr, true);
 
     END_QCALL;
 

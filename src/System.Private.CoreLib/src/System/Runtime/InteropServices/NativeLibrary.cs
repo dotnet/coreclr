@@ -45,23 +45,25 @@ namespace System.Runtime.InteropServices
         }
 
         // A wrapper function for Load(string libraryName, DllImportSearchPath dllImportSearchPath, Assembly assembly)
+        /// <exception cref="System.DllNotFoundException ">Thrown when the library can't be found.</exception>
+        /// <exception cref="System.BadImageFormatException">Thrown when the image file of a DLL is invalid.</exception>
         public static NativeLibrary Load(string libraryName)
         {
             return Load(libraryName, DllImportSearchPath.LegacyBehavior, null);
         }
 
+        /// <exception cref="System.DllNotFoundException ">Thrown when the library can't be found.</exception>
+        /// <exception cref="System.BadImageFormatException">Thrown when the image file of a DLL is invalid.</exception>
         public static NativeLibrary Load(string libraryName, DllImportSearchPath dllImportSearchPath, Assembly assembly)
         {
             RuntimeAssembly assemblyAsRuntimeAssembly = null;
+
             if (assembly != null)
             {
                 assemblyAsRuntimeAssembly = (RuntimeAssembly)assembly;
             }
 
             IntPtr hmodule = LoadLibrary(assemblyAsRuntimeAssembly, libraryName, (int)dllImportSearchPath);
-
-            if (hmodule == IntPtr.Zero)
-                throw new DllNotFoundException("Failed to load native library " + libraryName);
 
             NativeLibrary loadedLibrary = new NativeLibrary(libraryName, hmodule);
 
