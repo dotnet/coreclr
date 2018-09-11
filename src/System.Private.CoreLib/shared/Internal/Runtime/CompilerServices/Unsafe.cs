@@ -94,6 +94,16 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
+        /// Reinterprets the given object reference as a reference to <see cref="IntPtr"/>.
+        /// </summary>
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ref IntPtr AsIntPtrRef(object value)
+        {
+            return ref Unsafe.Add(ref Unsafe.As<ObjRefHelper>(value).DummyField, -1);
+        }
+
+        /// <summary>
         /// Adds an element offset to the given reference.
         /// </summary>
         [Intrinsic]
@@ -377,6 +387,14 @@ namespace Internal.Runtime.CompilerServices
         public static IntPtr ByteOffset<T>(ref T origin, ref T target)
         {
             throw new PlatformNotSupportedException();
+        }
+
+        // Helper class for converting an object reference into an IntPtr reference.
+        private sealed class ObjRefHelper
+        {
+            // The in-memory representation of the object's data always places this
+            // field immediately after the MethodTable* pointer field.
+            internal IntPtr DummyField;
         }
     }
 }

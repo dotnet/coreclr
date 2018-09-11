@@ -21,6 +21,7 @@ namespace System.Runtime.CompilerServices
     using System.Runtime.Serialization;
     using System.Threading;
     using System.Runtime.Versioning;
+    using Internal.Runtime.CompilerServices;
 
     public static class RuntimeHelpers
     {
@@ -213,6 +214,31 @@ namespace System.Runtime.CompilerServices
             
             return Utf8String.Intern(newUtf8String);
         }
+
+        // Returns true iff the object has a component size;
+        // i.e., is variable length like string, array, Utf8String.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe bool ObjectHasComponentSize(object obj)
+        {
+            // CLR objects are laid out in memory as follows.
+            // [ pMethodTable || .. object data .. ]
+            //   ^-- the object reference points here
+            //
+            // The first DWORD of the method table class will have its high bit set if the
+            // method table has component size info stored somewhere. See member
+            // MethodTable:IsStringOrArray in src\vm\methodtable.h for full details.
+            //
+            // So in effect this method is the equivalent of
+            // return ((MethodTable*)(*obj))->IsStringOrArray();
+
+            // TODO: There's a weird JIT behavior we need to investigate.
+            // Current codegen:
+            //   lea tmp, [obj + 8h]
+            //   mov tmp, qword ptr [tmp - 8h]
+            //   cmp qword [tmp], 0
+            // The first two instructions should be collapsed into a single "mov tmp, qword ptr [obj]".
+
+            return *(int*)Unsafe.AsIntPtrRef(obj) < 0;
+        }
     }
 }
-
