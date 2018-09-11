@@ -13,6 +13,7 @@
 namespace System.Runtime.CompilerServices
 {
     using System;
+    using System.Diagnostics;
     using System.Security;
     using System.Runtime;
     using System.Runtime.CompilerServices;
@@ -21,6 +22,7 @@ namespace System.Runtime.CompilerServices
     using System.Runtime.Serialization;
     using System.Threading;
     using System.Runtime.Versioning;
+    using Internal.Runtime.CompilerServices;
 
     public static class RuntimeHelpers
     {
@@ -194,6 +196,45 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementation for how this happens.
             throw new InvalidOperationException();
         }
+
+        // Returns true iff the object has a component size;
+        // i.e., is variable length like string, array, Utf8String.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe bool ObjectHasComponentSize(object obj)
+        {
+            // CLR objects are laid out in memory as follows.
+            // [ pMethodTable || .. object data .. ]
+            //   ^-- the object reference points here
+            //
+            // The first DWORD of the method table class will have its high bit set if the
+            // method table has component size info stored somewhere. See member
+            // MethodTable:IsStringOrArray in src\vm\methodtable.h for full details.
+            //
+            // So in effect this method is the equivalent of
+            // return ((MethodTable*)(*obj))->IsStringOrArray();
+
+            Debug.Assert(obj != null);
+            return *(int*)GetObjectMethodTablePointer(obj) < 0;
+        }
+
+        // Given an object reference, returns its MethodTable* as an IntPtr.
+        //[Intrinsic]
+        //[NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static IntPtr GetObjectMethodTablePointer(object obj)
+        {
+            Debug.Assert(obj != null);
+
+            // We know that the first data field in any managed object is immediately after the
+            // method table pointer, so just back up one pointer and immediately deref.
+            // This is not ideal in terms of minimizing instruction count but is the best we can do at the moment.
+
+            return Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref JitHelpers.GetPinningHelper(obj).m_data), -1);
+
+            // Ideally this method would be replaced by the VM with:
+            // ldarg.0
+            // ldind.i
+            // ret
+        }
     }
 }
-
