@@ -3673,8 +3673,10 @@ void Compiler::optUnrollLoops()
                     GenTree* gtParent = lvaParent[CntVars];
                     GenTree* gtLclVar = lvaLclvar[CntVars];
 
-                    if (gtParent->OperIs(GT_ASG))
+                    if (gtParent->OperIs(GT_ASG) || gtParent->OperIs(GT_IND) || gtParent->OperIs(GT_STOREIND))
                     {
+                        // Assign, Load Ind, Store Ind includes uop fetchs.
+
                         if (gtParent->TypeGet() == TYP_STRUCT)
                         {
                             // size of struct is user defined size, we have to extract from LclVarDsc.
