@@ -3677,7 +3677,7 @@ void Compiler::optUnrollLoops()
                     {
                         // Assign, Load Ind, Store Ind includes uop fetchs.
 
-                        if (gtParent->TypeGet() == TYP_STRUCT)
+                        if (varTypeIsStruct(gtLclVar->TypeGet()))
                         {
                             // size of struct is user defined size, we have to extract from LclVarDsc.
                             LclVarDsc* varDesc = &lvaTable[gtLclVar->AsLclVar()->GetLclNum()];
@@ -3685,7 +3685,7 @@ void Compiler::optUnrollLoops()
                         }
                         else
                         {
-                            lpCntFetch.push_back(emitActualTypeSize(gtParent->TypeGet()));
+                            lpCntFetch.push_back(emitActualTypeSize(gtLclVar->TypeGet()));
                         }
 
                         continue;
