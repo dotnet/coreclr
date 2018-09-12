@@ -257,10 +257,6 @@ build_Tests()
         build_MSBuild_projects "Restore_Product" "${__ProjectDir}/tests/build.proj" "Restore product binaries (build tests)" "-BatchRestorePackages"
     fi
 
-    if [ -n "$__BuildAgainstPackagesArg" ]; then
-        build_MSBuild_projects "Tests_GenerateRuntimeLayout" "${__ProjectDir}/tests/runtest.proj" "Restore product binaries (run tests)" "-BinPlaceRef" "-BinPlaceProduct" "-CopyCrossgenToProduct"
-    fi
-
     if [ $__SkipNative != 1 ]; then
         build_native_projects "$__BuildArch" "${__NativeTestIntermediatesDir}"
 
@@ -270,24 +266,26 @@ build_Tests()
         fi
     fi
 
-    echo "Starting the Managed Tests Build..."
+    if [ $__SkipManaged != 1 ]; then
+        echo "Starting the Managed Tests Build..."
 
-    build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
-
-    if [ $? -ne 0 ]; then
-        echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
-        exit 1
-    else
-        echo "Checking the Managed Tests Build..."
-
-        build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "-ExtraParameters:/t:CheckTestBuild"
+        build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
 
         if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: Check Test Build failed."
+            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
             exit 1
-        fi
+        else
+            echo "Checking the Managed Tests Build..."
 
-        echo "Managed tests build success!"
+            build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "-ExtraParameters:/t:CheckTestBuild"
+
+            if [ $? -ne 0 ]; then
+                echo "${__MsgPrefix}Error: Check Test Build failed."
+                exit 1
+            fi
+
+            echo "Managed tests build success!"
+        fi
     fi
 
     if [ $__BuildTestWrappers -ne -0 ]; then
@@ -525,6 +523,7 @@ usage()
     echo "verbose - optional argument to enable verbose build output."
     echo "rebuild - if tests have already been built - rebuild them"
     echo "skipnative: skip the native tests build"
+    echo "skipmanaged: skip the managed section of the test build"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "buildagainstpackages - pull down and build using packages."
@@ -636,7 +635,8 @@ __MSBCleanBuildArgs=
 __UseNinja=0
 __VerboseBuild=0
 __SkipRestore=""
-__SkipNative=1 # [REMOVE] Temporarily default to skip native
+__SkipNative=0
+__SkipManaged=0
 __SkipConfigure=0
 __SkipGenerateVersion=0
 __ConfigureOnly=0
@@ -786,9 +786,8 @@ while :; do
             __SkipNative=1
             ;;
 
-        # [REMOVE] Enable native build - the temporary default is to skip native
-        --skipnative)
-            __SkipNative=0
+        skipmanaged|-skipmanaged)
+            __SkipManaged=1
             ;;
 
         ziptests)
