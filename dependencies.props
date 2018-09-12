@@ -12,13 +12,13 @@
 
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
-    <PackageVersion Condition="'$(PackageVersion)' == ''">2.1.5</PackageVersion>
+    <PackageVersion Condition="'$(PackageVersion)' == ''">2.2.0</PackageVersion>
 
     <!-- Set the boolean below to true to generate packages with stabilized versions -->
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>servicing</PreReleaseLabel>
+    <PreReleaseLabel>preview2</PreReleaseLabel>
   </PropertyGroup>
 
   <!-- Source of truth for dependency tooling: the commit hash of the dotnet/versions master branch as of the last auto-upgrade. -->
@@ -26,7 +26,7 @@
     <CoreFxCurrentRef>1a678cb3c6ca08cf0e6687a086a3c75f531bb647</CoreFxCurrentRef>
     <CoreClrCurrentRef>1a678cb3c6ca08cf0e6687a086a3c75f531bb647</CoreClrCurrentRef>
     <BuildToolsCurrentRef>75ad475df08f27b5a88cb9b66723f6bcd65be6e2</BuildToolsCurrentRef>
-    <PgoDataCurrentRef>063b696be2cbb3065d1289d3be0f2df11aae4cad</PgoDataCurrentRef>
+    <PgoDataCurrentRef>c6a5c3bb29f4a933366b0fffddd87bea81dcd9c6</PgoDataCurrentRef>
   </PropertyGroup>
 
   <!-- Tests/infrastructure dependency versions. -->
@@ -63,7 +63,7 @@
   <!-- Package dependency verification/auto-upgrade configuration. -->
   <PropertyGroup>
     <BaseDotNetBuildInfo>build-info/dotnet/</BaseDotNetBuildInfo>
-    <DependencyBranch>release/2.1</DependencyBranch>
+    <DependencyBranch>release/2.2</DependencyBranch>
     <CurrentRefXmlPath>$(MSBuildThisFileFullPath)</CurrentRefXmlPath>
   </PropertyGroup>
 
