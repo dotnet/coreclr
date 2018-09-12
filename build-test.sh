@@ -119,20 +119,25 @@ build_test_wrappers()
         export __Exclude="${__ProjectDir}/tests/issues.targets"
         export __BuildLogRootName="Tests_XunitWrapper"
 
-        # Set up directories and file names
-        __BuildLogRootName=$subDirectoryName
-        __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
-        __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
-        __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
-
         buildVerbosity="Summary"
 
         if [ $__VerboseBuild == 1 ]; then
             buildVerbosity="Diag"
         fi
 
-        echo "${__DotNetCli}" msbuild "${__ProjectDir}/tests/runtest.proj" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false /fileloggerparameters:"\"Verbosity=normal;LogFile=${__BuildLog}\"" /fileloggerparameters1:"\"WarningsOnly;LogFile=${__BuildWrn}\"" /fileloggerparameters2:"\"ErrorsOnly;LogFile=${__BuildErr}\"" /consoleloggerparameters:$buildVerbosity /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch
-        "${__DotNetCli}" msbuild "${__ProjectDir}/tests/runtest.proj" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false /fileloggerparameters:"\"Verbosity=normal;LogFile=${__BuildLog}\"" /fileloggerparameters1:"\"WarningsOnly;LogFile=${__BuildWrn}\"" /fileloggerparameters2:"\"ErrorsOnly;LogFile=${__BuildErr}\"" /consoleloggerparameters:$buildVerbosity /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch
+        # Set up directories and file names
+        __BuildLogRootName=$subDirectoryName
+        __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
+        __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
+        __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
+        __MsbuildLog="/fileloggerparameters:\"Verbosity=normal;LogFile=${__BuildLog}\""
+        __MsbuildWrn="/fileloggerparameters1:\"WarningsOnly;LogFile=${__BuildWrn}\""
+        __MsbuildErr="/fileloggerparameters2:\"ErrorsOnly;LogFile=${__BuildErr}\""
+        __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
+
+        nextCommand="${__DotNetCli} msbuild ${__ProjectDir}/tests/runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
+        echo "$nextCommand"
+        eval $nextCommand
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -392,10 +397,9 @@ build_MSBuild_projects()
             buildArgs+=("${__RunArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            echo "Building step '$stepName' slice=$slice via $buildCommand"
-
-            # Invoke MSBuild
-            "$__ProjectRoot/run.sh" build "${buildArgs[@]}"
+            nextCommand="$__ProjectRoot/run.sh build ${buildArgs[@]}"
+            echo "Building step '$stepName' slice=$slice via $nextCommand"
+            eval $nextCommand
 
             # Make sure everything is OK
             if [ $? -ne 0 ]; then
@@ -421,10 +425,9 @@ build_MSBuild_projects()
         buildArgs+=("${__RunArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        echo "Building step '$stepName' via $buildCommand"
-
-        # Invoke MSBuild
-        "$__ProjectRoot/run.sh" build "${buildArgs[@]}"
+        nextCommand="$__ProjectRoot/run.sh build ${buildArgs[@]}"
+        echo "Building step '$stepName' via $nextCommand"
+        eval $nextCommand
 
         # Make sure everything is OK
         if [ $? -ne 0 ]; then
@@ -481,9 +484,9 @@ build_native_projects()
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        # Force cross dir to point to project root cross dir, in case there is a cross build.
-        echo "Invoking CONFIG_DIR=\"$__ProjectRoot/cross\" \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__TestDir\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-        CONFIG_DIR="$__ProjectRoot/cross" "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__TestDir" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__TestDir\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator \"$extraCmakeArguments\" \"$__cmakeargs\""
+        echo "Invoking $nextCommand"
+        eval $nextCommand
         popd
     fi
 
@@ -961,9 +964,9 @@ if [ $__RunTests -ne 0 ]; then
 
     echo "Run Tests..."
 
-    echo "${__TestDir}/runtest.sh --testRootDir=$__TestBinDir --coreClrBinDir=$__BinDir --coreFxBinDir=$__sharedFxDir --testNativeBinDir=$__testNativeBinDir"
-
-    $__TestDir/runtest.sh --testRootDir=$__TestBinDir --coreClrBinDir=$__BinDir --coreFxBinDir=$CORE_ROOT --testNativeBinDir=$__testNativeBinDir
+    nextCommand="$__TestDir/runtest.sh --testRootDir=$__TestBinDir --coreClrBinDir=$__BinDir --coreFxBinDir=$CORE_ROOT --testNativeBinDir=$__testNativeBinDir"
+    echo "$nextCommand"
+    eval $nextCommand
 
     echo "Tests run successful."
 else
