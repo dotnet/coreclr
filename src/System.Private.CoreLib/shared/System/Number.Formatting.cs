@@ -243,8 +243,19 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
-        private const int SinglePrecision = 9;
-        private const int DoublePrecision = 17;
+
+        // IEEE Requires at least 9 digits for roundtripping. However, using a lower number
+        // of default digits for the other specifiers results in "prettier" numbers and more
+        // backwards compatible behavior.
+        private const int DefaultSingleDigits = 7;
+        private const int DefaultSinglePrecision = 9;
+
+        // IEEE Requires at least 17 digits for roundtripping. However, using a lower number
+        // of default digits for the other specifiers results in "prettier" numbers and more
+        // backwards compatible behavior.
+        private const int DefaultDoubleDigits = 15;
+        private const int DefaultDoublePrecision = 17;
+
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
@@ -387,19 +398,25 @@ namespace System
         private static string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = DoublePrecision;
+
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
             if ((fmt == 'R') || (fmt == 'r'))
             {
+                // IEEE Roundtripping requires us to include at least `17` digits
                 fmt = 'G';
-                digits = DoublePrecision;
+                digits = DefaultDoublePrecision;
             }
-            else if (digits > 0)
+            else if (digits <= 0)
             {
-                precision = digits;
+                // This ensures that, for the default case, we return a string containing the old
+                // number of digits (15), which results in "prettier" numbers for most cases.
+                digits = DefaultDoubleDigits;
             }
+
+            // IEEE requires we correctly round to the requested number of digits
+            int precision = digits;
 
             DoubleToNumber(value, precision, ref number);
 
@@ -449,19 +466,25 @@ namespace System
         private static string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = SinglePrecision;
+
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
             if ((fmt == 'R') || (fmt == 'r'))
             {
+                // IEEE Roundtripping requires us to include at least `9` digits
                 fmt = 'G';
-                digits = SinglePrecision;
+                digits = DefaultSinglePrecision;
             }
-            else if (digits > 0)
+            else if (digits <= 0)
             {
-                precision = digits;
+                // This ensures that, for the default case, we return a string containing the old
+                // number of digits (7), which results in "prettier" numbers for most cases.
+                digits = DefaultSingleDigits;
             }
+
+            // IEEE requires we correctly round to the requested number of digits
+            int precision = digits;
 
             DoubleToNumber(value, precision, ref number);
 
