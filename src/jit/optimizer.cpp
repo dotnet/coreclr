@@ -3759,7 +3759,7 @@ void Compiler::optUnrollLoops()
 
         if (lpCntFetch.size() == 0)
         {
-            // Do not unroll if there is no fetches. it is something like only with function call 
+            // Do not unroll if there is no fetches. it is something like only with function call
             // with no arguments and returns which does not affects on performance with unrolling.
             continue;
         }
@@ -3775,7 +3775,7 @@ void Compiler::optUnrollLoops()
                 }
             }
 
-            if(isSzFetchCorrect)
+            if (isSzFetchCorrect)
             {
                 // here checks that this loop can trigger is L.S.D.(Loop Stream Detection)
                 //   - Fetches should be less or equal to 4
@@ -3794,7 +3794,7 @@ void Compiler::optUnrollLoops()
                     break;
                 }
 
-                lpNewIter = lpIter / LSDThreshold;
+                lpNewIter    = lpIter / LSDThreshold;
                 lpOuterThres = lpIter % LSDThreshold;
                 lpInnerThres = LSDThreshold;
 
