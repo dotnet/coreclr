@@ -27,7 +27,7 @@
 #  --il_corelib bin/Product/Linux.arm.Checked/IL/System.Private.CoreLib.dll
 #  --result_dir Linux.arm_arm.Checked
 #
-# runs arm_arm crossgen on System.Private.CoreLib.dll and puts all the
+# runs Hostarm/arm crossgen on System.Private.CoreLib.dll and puts all the
 # information in file Linux.arm_arm.Checked/System.Private.CoreLib.dll.json
 #
 #  ~/git/coreclr$ cat Linux.arm_arm.Checked/System.Private.CoreLib.dll.json
@@ -40,6 +40,31 @@
 #       "Native image /tmp/System.Private.CoreLib.dll generated successfully."
 #     ]
 #   }
+#
+# The following command
+#
+#  ~/git/coreclr$ python tests/scripts/crossgen_comparison.py crossgen_dotnet_sdk
+#  --crossgen bin/Product/Linux.arm.Checked/x64/crossgen
+#  --il_corelib bin/Product/Linux.arm.Checked/IL/System.Private.CoreLib.dll
+#  --dotnet_sdk dotnet-sdk-latest-linux-arm.tar.gz
+#  --result_dir Linux.x64_arm.Checked
+#
+#  runs Hostx64/arm crossgen on System.Private.CoreLib.dll in bin/Product and on
+#  all the assemblies inside dotnet-sdk-latest-linux-arm.tar.gz and stores the
+#  collected information in directory Linux.x64_arm.Checked
+#
+#  ~/git/coreclr$ ls Linux.x64_arm.Checked | head
+#   Microsoft.AI.DependencyCollector.dll.json
+#   Microsoft.ApplicationInsights.AspNetCore.dll.json
+#   Microsoft.ApplicationInsights.dll.json
+#   Microsoft.AspNetCore.Antiforgery.dll.json
+#   Microsoft.AspNetCore.ApplicationInsights.HostingStartup.dll.json
+#   Microsoft.AspNetCore.Authentication.Abstractions.dll.json
+#   Microsoft.AspNetCore.Authentication.Cookies.dll.json
+#   Microsoft.AspNetCore.Authentication.Core.dll.json
+#   Microsoft.AspNetCore.Authentication.dll.json
+#   Microsoft.AspNetCore.Authentication.Facebook.dll.json
+#
 ################################################################################
 ################################################################################
 
