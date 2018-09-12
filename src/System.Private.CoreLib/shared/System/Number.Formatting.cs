@@ -402,21 +402,27 @@ namespace System
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
+            int precision;
+
             if ((fmt == 'R') || (fmt == 'r'))
             {
-                // IEEE Roundtripping requires us to include at least `17` digits
                 fmt = 'G';
-                digits = DefaultDoublePrecision;
+                precision = DefaultDoublePrecision;
+
+                // IEEE Roundtripping requires us to include at least `17` digits
+                digits = precision;
             }
             else if (digits <= 0)
             {
                 // This ensures that, for the default case, we return a string containing the old
                 // number of digits (15), which results in "prettier" numbers for most cases.
-                digits = DefaultDoubleDigits;
+                precision = DefaultDoubleDigits;
             }
-
-            // IEEE requires we correctly round to the requested number of digits
-            int precision = digits;
+            else
+            {
+                // IEEE requires we correctly round to the requested number of digits
+                precision = digits;
+            }
 
             DoubleToNumber(value, precision, ref number);
 
@@ -470,21 +476,27 @@ namespace System
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
+            int precision;
+
             if ((fmt == 'R') || (fmt == 'r'))
             {
-                // IEEE Roundtripping requires us to include at least `9` digits
                 fmt = 'G';
-                digits = DefaultSinglePrecision;
+                precision = DefaultSinglePrecision;
+
+                // IEEE Roundtripping requires us to include at least `9` digits
+                digits = digits;
             }
             else if (digits <= 0)
             {
                 // This ensures that, for the default case, we return a string containing the old
                 // number of digits (7), which results in "prettier" numbers for most cases.
-                digits = DefaultSingleDigits;
+                precision = DefaultSingleDigits;
             }
-
-            // IEEE requires we correctly round to the requested number of digits
-            int precision = digits;
+            else
+            {
+                // IEEE requires we correctly round to the requested number of digits
+                precision = digits;
+            }
 
             DoubleToNumber(value, precision, ref number);
 
