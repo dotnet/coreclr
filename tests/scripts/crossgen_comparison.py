@@ -65,6 +65,13 @@
 #   Microsoft.AspNetCore.Authentication.dll.json
 #   Microsoft.AspNetCore.Authentication.Facebook.dll.json
 #
+# The following command
+#
+#  ~/git/coreclr$ python -u tests/scripts/crossgen_comparison.py compare
+#  --base_dir Linux.x64_arm.Checked
+#  --diff_dir Linux.x86_arm.Checked
+#
+# compares the results of Hostx64/arm crossgen and Hostx86/arm crossgen.
 ################################################################################
 ################################################################################
 
@@ -408,6 +415,7 @@ class CrossGenResultDecoder(json.JSONDecoder):
         except KeyError:
             return dict
 
+
 ################################################################################
 # Helper Functions
 ################################################################################
@@ -450,11 +458,11 @@ def load_crossgen_result_from_json_file(json_filename):
         return json.load(json_file, cls=CrossGenResultDecoder)
 
 def load_crossgen_results_from_dir(dirname):
-    results_by_assembly_name = dict()
+    crossgen_results = []
     for filename in glob.glob(os.path.join(dirname, '*.json')):
-        result = load_crossgen_result_from_json_file(filename)
-        results_by_assembly_name[result.assembly_name] = result
-    return results_by_assembly_name
+        loaded_result = load_crossgen_result_from_json_file(filename)
+        crossgen_results.append(loaded_result)
+    return crossgen_results
 
 def dotnet_sdk_enumerate_assemblies(dotnet_sdk_dirname):
     for dirpath, _, filenames in os.walk(dotnet_sdk_dirname):
@@ -493,35 +501,82 @@ def crossgen_dotnet_sdk(args):
         result_filename = os.path.join(args.result_dirname, result.assembly_name + '.json')
         save_crossgen_result_to_json_file(result, result_filename)
 
+def print_omitted_assemblies_message(omitted_assemblies, dirname):
+    print('The information for the following assemblies was omitted from "{0}" directory:'.format(dirname))
+    for assembly_name in sorted(omitted_assemblies):
+        print(' - ' + assembly_name)
+
+def print_compare_result_message_helper(message_header, base_value, diff_value, base_dirname, diff_dirname):
+    assert base_value != diff_value
+    print(message_header)
+    print(' - "{0}" has "{1}"'.format(base_dirname, base_value))
+    print(' - "{0}" has "{1}"'.format(diff_dirname, diff_value))
+
+def compare_and_print_message(base_result, diff_result, base_dirname, diff_dirname):
+    base_diff_are_equal = True
+
+    assert base_result.assembly_name == diff_result.assembly_name
+    if base_result.returncode != diff_result.returncode:
+        base_diff_are_equal = False
+        print_compare_result_message_helper('Return code mismatch for "{0}" assembly:'.format(base_result.assembly_name), base_result.returncode, diff_result.returncode, base_dirname, diff_dirname)
+    elif base_result.returncode == 0 and diff_result.returncode == 0:
+        assert not base_result.out_file_hashsum is None
+        assert not base_result.out_file_size_in_bytes is None
+
+        assert not diff_result.out_file_hashsum is None
+        assert not diff_result.out_file_size_in_bytes is None
+
+        if base_result.out_file_hashsum != diff_result.out_file_hashsum:
+            base_diff_are_equal = False
+            print_compare_result_message_helper('Native image hash sum mismatch for "{0}" assembly:'.format(base_result.assembly_name), base_result.out_file_hashsum, diff_result.out_file_hashsum, base_dirname, diff_dirname)
+
+        if base_result.out_file_size_in_bytes != diff_result.out_file_size_in_bytes:
+            base_diff_are_equal = False
+            print_compare_result_message_helper('Native image size mismatch for "{0}" assembly:'.format(base_result.assembly_name), base_result.out_file_size_in_bytes, diff_result.out_file_size_in_bytes, base_dirname, diff_dirname)
+
+    return base_diff_are_equal
+
 def compare(args):
+    print('Comparing crossgen results in "{0}" and "{1}" directories'.format(args.base_dirname, args.diff_dirname))
+
     base_results = load_crossgen_results_from_dir(args.base_dirname)
     diff_results = load_crossgen_results_from_dir(args.diff_dirname)
 
-    base_assemblies = set(base_results.keys())
-    diff_assemblies = set(diff_results.keys())
+    base_assemblies = { r.assembly_name for r in base_results }
+    diff_assemblies = { r.assembly_name for r in diff_results }
+    both_assemblies = base_assemblies & diff_assemblies
 
-    column_width = max(len(assembly_name) for assembly_name in base_assemblies | diff_assemblies)
-    has_mismatch_error = False
+    # We want to see whether {base} and {diff} crossgens are "equal":
+    #  1. their return codes are the same;
+    #  2. their binary outputs (native images) are the same.
+    num_omitted_results = 0
 
-    for assembly_name in sorted(base_assemblies & diff_assemblies):
-        base_result = base_results[assembly_name]
-        diff_result = diff_results[assembly_name]
+    omitted_from_base_dir = diff_assemblies - base_assemblies
+    omitted_from_diff_dir = base_assemblies - diff_assemblies
 
-        if base_result.out_file_hashsum == diff_result.out_file_hashsum:
-            print('{0}  [OK]'.format(assembly_name.ljust(column_width)))
-        else:
-            print('{0}  [MISMATCH]'.format(assembly_name.ljust(column_width)))
-            has_mismatch_error = True
+    if len(omitted_from_base_dir) != 0:
+        num_omitted_results += len(omitted_from_base_dir)
+        print_omitted_assemblies_message(omitted_from_base_dir, args.base_dirname)
 
-    for assembly_name in sorted(base_assemblies - diff_assemblies):
-        print('{0}  [BASE ONLY]'.format(assembly_name.ljust(column_width)))
-        has_mismatch_error = True
+    if len(omitted_from_diff_dir) != 0:
+        num_omitted_results += len(omitted_from_diff_dir)
+        print_omitted_assemblies_message(omitted_from_diff_dir, args.diff_dirname)
 
-    for assembly_name in sorted(diff_assemblies - base_assemblies):
-        print('{0}  [DIFF ONLY]'.format(assembly_name.ljust(column_width)))
-        has_mismatch_error = True
+    base_results_by_name = dict((r.assembly_name, r) for r in base_results)
+    diff_results_by_name = dict((r.assembly_name, r) for r in diff_results)
 
-    sys.exit(1 if has_mismatch_error else 0)
+    num_mismatched_results = 0
+
+    for assembly_name in sorted(both_assemblies):
+        base_result = base_results_by_name[assembly_name]
+        diff_result = diff_results_by_name[assembly_name]
+        if not compare_and_print_message(base_result, diff_result, args.base_dirname, args.diff_dirname):
+            num_mismatched_results += 1
+
+    print("Number of omitted results: {0}".format(num_omitted_results))
+    print("Number of mismatched results: {0}".format(num_mismatched_results))
+    print("Total number of assemblies: {0}".format(len(both_assemblies)))
+    sys.exit(0 if (num_mismatched_results + num_omitted_results) == 0 else 1)
 
 ################################################################################
 # __main__
