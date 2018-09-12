@@ -366,12 +366,13 @@ def compute_file_hashsum(filename):
 # This describes collected during crossgen information.
 ################################################################################
 class CrossGenResult:
-    def __init__(self, assembly_name, returncode, stdout, stderr, out_file_hashsum):
+    def __init__(self, assembly_name, returncode, stdout, stderr, out_file_hashsum, out_file_size_in_bytes):
         self.assembly_name = assembly_name
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
         self.out_file_hashsum = out_file_hashsum
+        self.out_file_size_in_bytes = out_file_size_in_bytes
 
 ################################################################################
 # JSON Encoder for CrossGenResult objects.
@@ -384,7 +385,8 @@ class CrossGenResultEncoder(json.JSONEncoder):
                 'ReturnCode': obj.returncode,
                 'StdOut': obj.stdout.splitlines(),
                 'StdErr': obj.stderr.splitlines(),
-                'OutputFileHash': obj.out_file_hashsum }
+                'OutputFileHash': obj.out_file_hashsum,
+                'OutputFileSizeInBytes': obj.out_file_size_in_bytes }
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
@@ -401,7 +403,8 @@ class CrossGenResultDecoder(json.JSONDecoder):
             stdout = dict['StdOut']
             stderr = dict['StdErr']
             out_file_hashsum = dict['OutputFileHash']
-            return CrossGenResult(assembly_name, returncode, stdout, stderr, out_file_hashsum)
+            out_file_size_in_bytes = dict['OutputFileSizeInBytes']
+            return CrossGenResult(assembly_name, returncode, stdout, stderr, out_file_hashsum, out_file_size_in_bytes)
         except KeyError:
             return dict
 
@@ -414,7 +417,8 @@ def crossgen_assembly(crossgen_executable_filename, in_filename, out_filename, p
     returncode, stdout, stderr = runner.run(in_filename, out_filename, platform_assemblies_paths)
     assembly_name = os.path.basename(in_filename)
     out_file_hashsum = compute_file_hashsum(out_filename) if returncode == 0 else None
-    return CrossGenResult(assembly_name, returncode, stdout, stderr, out_file_hashsum)
+    ouf_file_size_in_bytes = os.path.getsize(out_filename) if returncode == 0 else None
+    return CrossGenResult(assembly_name, returncode, stdout, stderr, out_file_hashsum, ouf_file_size_in_bytes)
 
 def save_crossgen_result_to_json_file(crossgen_result, json_filename):
     with open(json_filename, 'wt') as json_file:
