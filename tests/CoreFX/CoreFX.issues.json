@@ -117,6 +117,14 @@
                 {
                     "name": "System.ComponentModel.Tests.EnumConverterTests.ConvertTo_ULongFlagsEnum_EnumArray",
                     "reason": "System.OverflowException : Value was either too large or too small for an Int64."
+                },
+                {
+                    "name": "System.ComponentModel.Tests.DoubleConverterTests.ConvertTo_WithContext",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19905"
+                },
+                {
+                    "name": "System.ComponentModel.Tests.SingleConverterTests.ConvertTo_WithContext",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19905"
                 }
             ]
         }
@@ -285,6 +293,18 @@
                { 
                 "name": "System.Buffers.Text.Tests.FormatterTests.TestFormatterDecimal",
                 "reason": "https://github.com/dotnet/coreclr/pull/19775"
+               },
+               {
+                "name": "System.Buffers.Text.Tests.ParserTests.TestParserSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               {
+                "name": "System.Buffers.Text.Tests.ParserTests.TestParserDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               {
+                "name": "System.Buffers.Text.Tests.ParserTests.TestParserDecimal",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
                }
             ]
         }
@@ -299,6 +319,344 @@
                { 
                 "name": "System.Tests.ConvertToStringTests.FromBoxedObject",
                 "reason": "https://github.com/dotnet/coreclr/pull/19775"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Serialization.Xml.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "DataContractSerializerTests.DCS_ArrayOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_ArrayOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_BasicRoundTripResolvePrimitiveTypes",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_BasicPerSerializerRoundTripAndCompare_EnumStruct",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericICollectionOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericICollectionOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericTypeWithNestedGenerics",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_TypeWithAllPrimitiveProperties",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_TypeWithPrimitiveKnownTypes",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Serialization.Xml.ReflectionOnly.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "DataContractSerializerTests.DCS_ArrayOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_ArrayOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_BasicRoundTripResolvePrimitiveTypes",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_BasicPerSerializerRoundTripAndCompare_EnumStruct",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericICollectionOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericICollectionOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_GenericTypeWithNestedGenerics",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_TypeWithAllPrimitiveProperties",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractSerializerTests.DCS_TypeWithPrimitiveKnownTypes",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Serialization.Json.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_ArrayOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_ArrayOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericICollectionOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericICollectionOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericTypeWithNestedGenerics",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_TypeWithAllPrimitiveProperties",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_VerifyIndentation",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Runtime.Serialization.Json.ReflectionOnly.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_ArrayOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_ArrayOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericICollectionOfDouble",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericICollectionOfSingle",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_GenericTypeWithNestedGenerics",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_TypeWithAllPrimitiveProperties",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "DataContractJsonSerializerTests.DCJS_VerifyIndentation",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Drawing.Primitives.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Drawing.Primitives.Tests.DataContractSerializerTests.DCS_RectangleF",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Json.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Json.Tests.JsonPrimitiveTests.ToString_Double",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Json.Tests.JsonPrimitiveTests.ToString_Float",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Json.Tests.JsonValueTests.JsonValue_Parse_MinMax_Integers_ViaJsonPrimitive",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.Xsl.XslTransformApi.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Xml.Tests.CArgAddExtObj.AddExtObject22",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.RW.XmlWriterApi.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_1",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_2",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_3",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_4",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_5",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_6",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "System.Xml.Tests.TCFullEndElement+TCWriteValue.writeValue_27",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.RW.XmlConvert.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "System.Xml.Tests.XmlConvertTests.RunTests",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.XmlSerializer.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "XmlSerializerTests.Xml_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "XmlSerializerTests.Xml_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               }
+            ]
+        }
+    },
+    {
+        "name": "System.Xml.XmlSerializer.ReflectionOnly.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+               { 
+                "name": "XmlSerializerTests.Xml_FloatAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
+               },
+               { 
+                "name": "XmlSerializerTests.Xml_DoubleAsRoot",
+                "reason": "https://github.com/dotnet/coreclr/pull/19905"
                }
             ]
         }
