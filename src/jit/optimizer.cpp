@@ -3759,12 +3759,12 @@ void Compiler::optUnrollLoops()
 
         if (lpCntFetch.size() == 0)
         {
-            // Do not unroll if there is no fetches. it is something like only with function call which
-            // does not affects on performance with unrolling.
+            // Do not unroll if there is no fetches. it is something like only with function call 
+            // with no arguments and returns which does not affects on performance with unrolling.
             continue;
         }
 
-        if (lpCntFetch.size() <= 4 && lpCntConds <= 8)
+        if (lpIter >= 64 && lpCntFetch.size() <= 4 && lpCntConds <= 8)
         {
             // here checks that this loop can trigger is L.S.D.(Loop Stream Detection)
             //   - Fetches should be less or equal to 4
@@ -3773,9 +3773,15 @@ void Compiler::optUnrollLoops()
             //   - The loop iterations should more than 64.
 
             noway_assert(lpCntFetch.size() != 0); /* DIVIDE BY ZERO */
-            lpNewIter    = lpIter / (4 / (unsigned int)lpCntFetch.size());
-            lpInnerThres = 4 / (unsigned int)lpCntFetch.size();
-            lpOuterThres = lpIter - (lpNewIter * lpInnerThres);
+            unsigned int LSDThreshold = 0;
+            for (unsigned int i = 1;; ++i)
+            {
+                if (lpCntFetch.size() * i < 4 && lpIter / i >= 64)
+                {
+                    LSDThreshold = i;
+                }
+                break;
+            }
 
             bool isSzFetchCorrect = true;
             for (unsigned int szFetch : lpCntFetch)
@@ -3786,17 +3792,16 @@ void Compiler::optUnrollLoops()
                 }
             }
 
-            if (isSzFetchCorrect && lpNewIter >= 64)
-            {
-                // this loop can trigger L.S.D. lets do it!!
-                lpUnrolledCost =
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
+            lpNewIter    = lpIter / LSDThreshold;
+            lpOuterThres = lpIter % LSDThreshold;
+            lpInnerThres = LSDThreshold;
 
-                goto DO_UNROLL;
-            }
+            // this loop can trigger L.S.D. lets do it!!
+            lpUnrolledCost =
+                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
+                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
 
-            // Keep continue analysing. this cannot trigger L.S.D.
+            goto DO_UNROLL;
         }
 
         // calculate as full unrolled cost.
