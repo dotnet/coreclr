@@ -2513,6 +2513,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     }
 
+                    // Archive the build logs from both product and test builds.
+                    Utilities.addArchival(newJob, "bin/Logs/*.log,bin/Logs/*.wrn,bin/Logs/*.err", "")
+
                     // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
                     // the cleanup task in Jenkins can't remove.
                     newJob.with {
