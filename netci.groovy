@@ -2508,7 +2508,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
                         buildCommands += "zip -r tests.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}"
 
-                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip", "")
+                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
+                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
+
+                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
                     }
 
                     // We need to clean up the build machines; the docker build leaves newly built files with root permission, which
@@ -3298,6 +3301,9 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     else {
                         assert architecture == 'arm64'
                         shell("unzip -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
+
+                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
+                        shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
                     }
                 }
                 else {
@@ -3342,6 +3348,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             }
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"
+
+                // TODO: the testNativeBinDir shouldn't be necessary if the native test binaries are placed properly with their corresponding managed test code.
 
                 shell("""\
 ${runScript} \\
