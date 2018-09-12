@@ -788,6 +788,7 @@ while :; do
 
         skipmanaged|-skipmanaged)
             __SkipManaged=1
+            __BuildTestWrappers=0
             ;;
 
         ziptests)

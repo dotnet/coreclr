@@ -119,7 +119,9 @@
 
   <Target Name="CopyNativeProjectBinaries">
      <ItemGroup>
-        <NativeProjectBinaries Include="$(NativeProjectOutputFolder)\**\*.*" />
+        <NativeProjectBinaries Condition="'$(RunningOnUnix)' != 'true'" Include="$(NativeProjectOutputFolder)\**\*.*" />
+        <NativeProjectBinaries Condition="'$(__BuildOS)'=='OSX'" Include="$(NativeProjectOutputFolder)\**\*.dylib" />
+        <NativeProjectBinaries Condition="'$(__BuildOS)' == 'Linux'" Include="$(NativeProjectOutputFolder)\**\*.so" />
      </ItemGroup>
 
      <Error  Text="The native project files are missing in $(NativeProjectOutputFolder) please run build from the root of the repo at least once"
@@ -157,7 +159,7 @@
 
     <Message Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
     <Message Text= "Native binaries will be copied from :%(NativeProjectOutputFoldersToCopy.Identity)" />
-   <MSBuild Projects="$(MSBuildProjectFile)" Targets="CopyNativeProjectBinaries" Properties="NativeProjectOutputFolder=%(NativeProjectOutputFoldersToCopy.Identity)" Condition="'@(NativeProjectReference)' != '' And '$(RunningOnUnix)' != 'true'" />
+   <MSBuild Projects="$(MSBuildProjectFile)" Targets="CopyNativeProjectBinaries" Properties="NativeProjectOutputFolder=%(NativeProjectOutputFoldersToCopy.Identity)" Condition="'@(NativeProjectReference)' != ''" />
 
   </Target>
 
