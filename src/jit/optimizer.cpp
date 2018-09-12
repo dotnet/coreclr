@@ -3766,23 +3766,6 @@ void Compiler::optUnrollLoops()
 
         if (lpIter >= 64 && lpCntFetch.size() <= 4 && lpCntConds <= 8)
         {
-            // here checks that this loop can trigger is L.S.D.(Loop Stream Detection)
-            //   - Fetches should be less or equal to 4
-            //   - Each fetch of bytes should less or equal to 16 bytes.
-            //   - Condition of body (This mean except condition of loop) should less or equal to 8
-            //   - The loop iterations should more than 64.
-
-            noway_assert(lpCntFetch.size() != 0); /* DIVIDE BY ZERO */
-            unsigned int LSDThreshold = 0;
-            for (unsigned int i = 1;; ++i)
-            {
-                if (lpCntFetch.size() * i < 4 && lpIter / i >= 64)
-                {
-                    LSDThreshold = i;
-                }
-                break;
-            }
-
             bool isSzFetchCorrect = true;
             for (unsigned int szFetch : lpCntFetch)
             {
@@ -3792,16 +3775,38 @@ void Compiler::optUnrollLoops()
                 }
             }
 
-            lpNewIter    = lpIter / LSDThreshold;
-            lpOuterThres = lpIter % LSDThreshold;
-            lpInnerThres = LSDThreshold;
+            if(isSzFetchCorrect)
+            {
+                // here checks that this loop can trigger is L.S.D.(Loop Stream Detection)
+                //   - Fetches should be less or equal to 4
+                //   - Each fetch of bytes should less or equal to 16 bytes.
+                //   - Condition of body (This mean except condition of loop) should less or equal to 8
+                //   - The loop iterations should more than 64.
 
-            // this loop can trigger L.S.D. lets do it!!
-            lpUnrolledCost =
-                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
-                ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
+                noway_assert(lpCntFetch.size() != 0); /* DIVIDE BY ZERO */
+                unsigned int LSDThreshold = 0;
+                for (unsigned int i = 1;; ++i)
+                {
+                    if (lpCntFetch.size() * i < 4 && lpIter / i >= 64)
+                    {
+                        LSDThreshold = i;
+                    }
+                    break;
+                }
 
-            goto DO_UNROLL;
+                lpNewIter = lpIter / LSDThreshold;
+                lpOuterThres = lpIter % LSDThreshold;
+                lpInnerThres = LSDThreshold;
+
+                // this loop can trigger L.S.D. lets do it!!
+                lpUnrolledCost =
+                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
+                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
+
+                goto DO_UNROLL;
+            }
+
+            // We can't handle this as L.S.D. skipping it.
         }
 
         // calculate as full unrolled cost.
@@ -3881,6 +3886,12 @@ void Compiler::optUnrollLoops()
 bool Compiler::optUnrollLoopImpl(
     unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost, bool lpIsSimpleALU)
 {
+    if (inner == 1 && outer == 0)
+    {
+        // nothing changes after unrolling. skipping it.
+        return false;
+    }
+
     bool     lpIsFullUrl = (outer == 0) && (iter == 1); /* is full unrolling?       */
     bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
     LoopDsc* lpDesc      = &optLoopTable[loopId];
