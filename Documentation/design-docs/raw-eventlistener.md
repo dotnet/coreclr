@@ -16,14 +16,14 @@ The proposed extension of this pattern is the following:
 
 1. Add a new EventListener constructor that takes an EventListenerSettings enum parameter:
 
-	> ```
-	> [Flags]
-	> public enum EventListenerSettings
-	> {
-    >   None,
-    >   RawEventDispatch
-	> }
-	> ``` 
+```
+[Flags]
+public enum EventListenerSettings
+{
+   None,
+   RawEventDispatch
+}
+``` 
 
 This parameter is used to specify the desired dispatch behavior (in this case, do not deserialize event payloads).
 
@@ -31,33 +31,33 @@ This parameter is used to specify the desired dispatch behavior (in this case, d
 
 The new raw dispatch API will be:
 
-	> ```
-	> public void OnEventWrittenRaw(RawEventWrittenEventArgs args);
-	> 
-	> public sealed class RawEventWrittenEventArgs
-	> {
-	> 
-	>     // Event metadata copied from EventWrittenEventArgs (for consistency).
-	>     public string EventName { get; }
-	>     public int EventId { get; }
-	>     public Guid ActivityId { get; }
-	>     public Guid RelatedActivityId { get; }
-	>     public EventSource EventSource { get; }
-	>     public EventKeywords Keywords { get; }
-	>     public EventOpcode Opcode { get; }
-	>     public EventTask Task { get; }
-	>     public EventTags Tags { get; }
-	>     public string Message { get; }
-	>     public byte Version { get; }
-	>     public EventLevel Level { get; }
-	>     public long OSThreadId { get; }
-	>     public DateTime TimeStamp { get; }
-	>     
-	>     // Replacement properties for Payload and PayloadNames.
-	>     public ReadOnlySpan<byte> Metadata { get; }     
-	>     public ReadOnlySpan<byte> Payload { get; }
-	> }
-	> ```
+```
+public void OnEventWrittenRaw(RawEventWrittenEventArgs args);
+ 
+public sealed class RawEventWrittenEventArgs
+{
+
+    // Event metadata copied from EventWrittenEventArgs (for consistency).
+    public string EventName { get; }
+    public int EventId { get; }
+    public Guid ActivityId { get; }
+    public Guid RelatedActivityId { get; }
+    public EventSource EventSource { get; }
+    public EventKeywords Keywords { get; }
+    public EventOpcode Opcode { get; }
+    public EventTask Task { get; }
+    public EventTags Tags { get; }
+    public string Message { get; }
+    public byte Version { get; }
+    public EventLevel Level { get; }
+    public long OSThreadId { get; }
+    public DateTime TimeStamp { get; }
+    
+    // Replacement properties for Payload and PayloadNames.
+    public ReadOnlySpan<byte> Metadata { get; }     
+    public ReadOnlySpan<byte> Payload { get; }
+}
+```
 
 The lifetime of the RawEventWrittenEventArgs object will be the lifetime of the callback.  Thus, we can recycle the object and reduce the overhead of this API.  This is similar to how TraceEvent works today, but is different than the existing EventListener.OnEventWritten callback.
 
