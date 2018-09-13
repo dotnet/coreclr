@@ -42,7 +42,61 @@ struct ThreadLocalModule
     friend class CheckAsmOffsets; 
     friend struct ThreadLocalBlock;
 
+    // After these macros complete, they may have returned an interior pointer into a gc object. This pointer will have been cast to a byte pointer
+    // It is critically important that no GC is allowed to occur before this pointer is used.
+#define GET_DYNAMICENTRY_GCTHREADSTATICS_BASEPOINTER(pLoaderAllocator, dynamicClassInfoParam, pGCStatics) \
+    {\
+        ThreadLocalModule::PTR_DynamicClassInfo dynamicClassInfo = dac_cast<ThreadLocalModule::PTR_DynamicClassInfo>(dynamicClassInfoParam);\
+        ThreadLocalModule::PTR_DynamicEntry pDynamicEntry = dac_cast<ThreadLocalModule::PTR_DynamicEntry>((ThreadLocalModule::DynamicEntry*)dynamicClassInfo->m_pDynamicEntry); \
+        if ((dynamicClassInfo->m_dwFlags) & ClassInitFlags::COLLECTIBLE_FLAG) \
+        {\
+            PTRARRAYREF objArray;\
+            objArray = (PTRARRAYREF)pLoaderAllocator->GetHandleValueFastCannotFailType2( \
+                                        (dac_cast<ThreadLocalModule::PTR_CollectibleDynamicEntry>(pDynamicEntry))->m_hGCStatics);\
+            *(pGCStatics) = dac_cast<PTR_BYTE>(PTR_READ(PTR_TO_TADDR(OBJECTREFToObject( objArray )) + offsetof(PtrArray, m_Array), objArray->GetNumComponents() * sizeof(void*))) ;\
+        }\
+        else\
+        {\
+            *(pGCStatics) = (dac_cast<ThreadLocalModule::PTR_NormalDynamicEntry>(pDynamicEntry))->GetGCStaticsBasePointer();\
+        }\
+    }\
+
+#define GET_DYNAMICENTRY_NONGCTHREADSTATICS_BASEPOINTER(pLoaderAllocator, dynamicClassInfoParam, pNonGCStatics) \
+    {\
+        ThreadLocalModule::PTR_DynamicClassInfo dynamicClassInfo = dac_cast<ThreadLocalModule::PTR_DynamicClassInfo>(dynamicClassInfoParam);\
+        ThreadLocalModule::PTR_DynamicEntry pDynamicEntry = dac_cast<ThreadLocalModule::PTR_DynamicEntry>((ThreadLocalModule::DynamicEntry*)(dynamicClassInfo)->m_pDynamicEntry); \
+        if (((dynamicClassInfo)->m_dwFlags) & ClassInitFlags::COLLECTIBLE_FLAG) \
+        {\
+            if ((dac_cast<ThreadLocalModule::PTR_CollectibleDynamicEntry>(pDynamicEntry))->m_hNonGCStatics != 0) \
+            { \
+                U1ARRAYREF objArray;\
+                objArray = (U1ARRAYREF)pLoaderAllocator->GetHandleValueFastCannotFailType2( \
+                                            (dac_cast<ThreadLocalModule::PTR_CollectibleDynamicEntry>(pDynamicEntry))->m_hNonGCStatics);\
+                *(pNonGCStatics) = dac_cast<PTR_BYTE>(PTR_READ( \
+                        PTR_TO_TADDR(OBJECTREFToObject( objArray )) + sizeof(ArrayBase) - ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob(), \
+                            objArray->GetNumComponents() * (DWORD)objArray->GetComponentSize() + ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob())); \
+            } else (*pNonGCStatics) = NULL; \
+        }\
+        else\
+        {\
+            *(pNonGCStatics) = dac_cast<ThreadLocalModule::PTR_NormalDynamicEntry>(pDynamicEntry)->GetNonGCStaticsBasePointer();\
+        }\
+    }\
+
     struct DynamicEntry
+    {
+        static DWORD GetOffsetOfDataBlob();
+    };
+    typedef DPTR(DynamicEntry) PTR_DynamicEntry;
+
+    struct CollectibleDynamicEntry : public DynamicEntry
+    {
+        LOADERHANDLE    m_hGCStatics;
+        LOADERHANDLE    m_hNonGCStatics;
+    };
+    typedef DPTR(CollectibleDynamicEntry) PTR_CollectibleDynamicEntry;
+
+    struct NormalDynamicEntry : public DynamicEntry
     {
         OBJECTHANDLE    m_pGCStatics;
 #ifdef FEATURE_64BIT_ALIGNMENT
@@ -80,13 +134,8 @@ struct ThreadLocalModule
             SUPPORTS_DAC;
             return dac_cast<PTR_BYTE>(this);
         }
-        static DWORD GetOffsetOfDataBlob()
-        {
-            LIMITED_METHOD_CONTRACT;
-            return offsetof(DynamicEntry, m_pDataBlob);
-        }
     };
-    typedef DPTR(DynamicEntry) PTR_DynamicEntry;
+    typedef DPTR(NormalDynamicEntry) PTR_NormalDynamicEntry;
 
     struct DynamicClassInfo
     {
@@ -168,7 +217,7 @@ struct ThreadLocalModule
 
         if (pMT->IsDynamicStatics())
         {
-            return GetDynamicEntryGCStaticsBasePointer(pMT->GetModuleDynamicEntryID());
+            return GetDynamicEntryGCStaticsBasePointer(pMT->GetModuleDynamicEntryID(), pMT->GetLoaderAllocator());
         }
         else
         {
@@ -189,7 +238,7 @@ struct ThreadLocalModule
 
         if (pMT->IsDynamicStatics())
         {
-            return GetDynamicEntryNonGCStaticsBasePointer(pMT->GetModuleDynamicEntryID());
+            return GetDynamicEntryNonGCStaticsBasePointer(pMT->GetModuleDynamicEntryID(), pMT->GetLoaderAllocator());
         }
         else
         {
@@ -207,34 +256,48 @@ struct ThreadLocalModule
         return pEntry;
     }
 
-    // These helpers can now return null, as the debugger may do queries on a type
-    // before the calls to PopulateClass happen
-    inline PTR_BYTE GetDynamicEntryGCStaticsBasePointer(DWORD n)
+    inline DynamicClassInfo* GetDynamicClassInfo(DWORD n)
     {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-            SUPPORTS_DAC;
-        }
-        CONTRACTL_END;
+        LIMITED_METHOD_CONTRACT
+        SUPPORTS_DAC;
+        _ASSERTE(m_pDynamicClassTable && m_aDynamicEntries > n);
+        dac_cast<PTR_DynamicEntry>(m_pDynamicClassTable[n].m_pDynamicEntry);
 
-        if (n >= m_aDynamicEntries)
-        {
-            return NULL;
-        }
-        
-        DynamicEntry* pEntry = GetDynamicEntry(n);
-        if (!pEntry)
-        {
-            return NULL;
-        }
-
-        return pEntry->GetGCStaticsBasePointer();
+        return &m_pDynamicClassTable[n];
     }
 
-    inline PTR_BYTE GetDynamicEntryNonGCStaticsBasePointer(DWORD n)
+    // These helpers can now return null, as the debugger may do queries on a type
+    // before the calls to PopulateClass happen
+    inline PTR_BYTE GetDynamicEntryGCStaticsBasePointer(DWORD n, PTR_LoaderAllocator pLoaderAllocator)
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+            SUPPORTS_DAC;
+        }
+        CONTRACTL_END;
+
+        if (n >= m_aDynamicEntries)
+        {
+            return NULL;
+        }
+        
+        DynamicClassInfo* pClassInfo = GetDynamicClassInfo(n);
+        if (!pClassInfo->m_pDynamicEntry)
+        {
+            return NULL;
+        }
+
+        PTR_BYTE retval = NULL;
+
+        GET_DYNAMICENTRY_GCTHREADSTATICS_BASEPOINTER(pLoaderAllocator, pClassInfo, &retval);
+
+        return retval;
+    }
+
+    inline PTR_BYTE GetDynamicEntryNonGCStaticsBasePointer(DWORD n, PTR_LoaderAllocator pLoaderAllocator)
     {
         CONTRACTL
         {
@@ -250,13 +313,17 @@ struct ThreadLocalModule
             return NULL;
         }
 
-        DynamicEntry* pEntry = GetDynamicEntry(n);
-        if (!pEntry)
+        DynamicClassInfo* pClassInfo = GetDynamicClassInfo(n);
+        if (!pClassInfo->m_pDynamicEntry)
         {
             return NULL;
         }
 
-        return pEntry->GetNonGCStaticsBasePointer();
+        PTR_BYTE retval = NULL;
+
+        GET_DYNAMICENTRY_NONGCTHREADSTATICS_BASEPOINTER(pLoaderAllocator, pClassInfo, &retval);
+
+        return retval;
     }
 
     FORCEINLINE PTR_DynamicClassInfo GetDynamicClassInfoIfInitialized(DWORD n)
@@ -318,16 +385,6 @@ struct ThreadLocalModule
         _ASSERTE(!IsClassInitError(pMT));
         
         SetClassFlags(pMT, ClassInitFlags::INITIALIZED_FLAG);
-    }
-
-    void SetClassAllocatedAndInitialized(MethodTable* pMT)
-    {
-        WRAPPER_NO_CONTRACT;
-    
-        _ASSERTE(!IsClassInitialized(pMT));
-        _ASSERTE(!IsClassInitError(pMT));
-    
-        SetClassFlags(pMT, ClassInitFlags::ALLOCATECLASS_FLAG | ClassInitFlags::INITIALIZED_FLAG);
     }
 
     void SetClassAllocated(MethodTable* pMT)
@@ -676,5 +733,12 @@ class ThreadStatics
 
 };
 
+/* static */
+inline DWORD ThreadLocalModule::DynamicEntry::GetOffsetOfDataBlob()
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(DWORD(offsetof(NormalDynamicEntry, m_pDataBlob)) == offsetof(NormalDynamicEntry, m_pDataBlob));
+    return (DWORD)offsetof(NormalDynamicEntry, m_pDataBlob);
+}
 
 #endif

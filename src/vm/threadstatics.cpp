@@ -500,14 +500,20 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
     // We need this check because maybe a class had a cctor but no statics
     if (dwStaticBytes > 0 || dwNumHandleStatics > 0)
     {
-        // Collectible types do not support static fields yet
-        if (pMT->Collectible())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleNotYet"));
-
         if (pDynamicStatics == NULL)
         {            
+            SIZE_T dynamicEntrySize;
+            if (pMT->Collectible())
+            {
+                dynamicEntrySize = sizeof(CollectibleDynamicEntry);
+            }
+            else
+            {
+                dynamicEntrySize = DynamicEntry::GetOffsetOfDataBlob() + dwStaticBytes;
+            }
+
             // If this allocation fails, we will throw
-            pDynamicStatics = (DynamicEntry*)new BYTE[sizeof(DynamicEntry) + dwStaticBytes];
+            pDynamicStatics = (DynamicEntry*)new BYTE[dynamicEntrySize];
 
 #ifdef FEATURE_64BIT_ALIGNMENT
             // The memory block has be aligned at MAX_PRIMITIVE_FIELD_SIZE to guarantee alignment of statics
@@ -516,18 +522,47 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
 #endif
 
             // Zero out the new DynamicEntry
-            memset((BYTE*)pDynamicStatics, 0, sizeof(DynamicEntry) + dwStaticBytes);
+            memset((BYTE*)pDynamicStatics, 0, dynamicEntrySize);
 
             // Save the DynamicEntry in the DynamicClassTable
             m_pDynamicClassTable[dwID].m_pDynamicEntry = pDynamicStatics;
         }
 
+        if (pMT->Collectible() && (dwStaticBytes != 0))
+        {
+            GCX_COOP();
+            OBJECTREF nongcStaticsArray = NULL;
+            GCPROTECT_BEGIN(nongcStaticsArray);
+#ifdef FEATURE_64BIT_ALIGNMENT
+            // Allocate memory with extra alignment only if it is really necessary
+            if (dwStaticBytes >= MAX_PRIMITIVE_FIELD_SIZE)
+                nongcStaticsArray = AllocatePrimitiveArray(ELEMENT_TYPE_I8, (dwStaticBytes + (sizeof(CLR_I8) - 1)) / (sizeof(CLR_I8)));
+            else
+#endif
+                nongcStaticsArray = AllocatePrimitiveArray(ELEMENT_TYPE_U1, dwStaticBytes);
+
+            ((CollectibleDynamicEntry *)pDynamicStatics)->m_hNonGCStatics = pMT->GetLoaderAllocator()->AllocateHandle(nongcStaticsArray);
+            GCPROTECT_END();
+        }
+
         if (dwNumHandleStatics > 0)
         {
-            PTR_ThreadLocalBlock pThreadLocalBlock = GetThread()->m_pThreadLocalBlock;
-            _ASSERTE(pThreadLocalBlock != NULL);
-            pThreadLocalBlock->AllocateStaticFieldObjRefPtrs(dwNumHandleStatics,
-                                                             &pDynamicStatics->m_pGCStatics);
+            if (!pMT->Collectible())
+            {
+                PTR_ThreadLocalBlock pThreadLocalBlock = GetThread()->m_pThreadLocalBlock;
+                _ASSERTE(pThreadLocalBlock != NULL);
+                pThreadLocalBlock->AllocateStaticFieldObjRefPtrs(dwNumHandleStatics,
+                        &((NormalDynamicEntry *)pDynamicStatics)->m_pGCStatics);
+            }
+            else
+            {
+                GCX_COOP();
+                OBJECTREF gcStaticsArray = NULL;
+                GCPROTECT_BEGIN(gcStaticsArray);
+                gcStaticsArray = AllocateObjectArray(dwNumHandleStatics, g_pObjectClass);
+                ((CollectibleDynamicEntry *)pDynamicStatics)->m_hGCStatics = pMT->GetLoaderAllocator()->AllocateHandle(gcStaticsArray);
+                GCPROTECT_END();
+            }
         }
     }
 }
@@ -551,6 +586,11 @@ void ThreadLocalModule::PopulateClass(MethodTable *pMT)
     // an entry in our dynamic class table
     if (pMT->IsDynamicStatics())
         AllocateDynamicClass(pMT);
+
+    if (pMT->Collectible())
+    {
+        SetClassFlags(pMT, ClassInitFlags::COLLECTIBLE_FLAG);
+    }
 
     // We need to allocate boxes any value-type statics that are not
     // primitives or enums, because these statics may contain references
