@@ -345,25 +345,8 @@ typedef unsigned long ULONG, *PULONG;
 #endif // RC_INVOKED
 #define E_INVALIDARG                     _HRESULT_TYPEDEF_(0x80070057L)
 #define WIN32_ALLOC_ALIGN (16 - 1)
-
-#if defined(MIDL_PASS) || defined(RC_INVOKED) || defined(_M_CEE_PURE) \
-    || defined(_M_AMD64) || defined(__ARM_ARCH)
-    
-#ifndef UInt32x32To64
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
-#endif
 
-#elif defined(_M_IX86)
-
-#ifndef UInt32x32To64
-#define UInt32x32To64(a, b) (unsigned __int64)((unsigned __int64)(ULONG)(a) * (ULONG)(b))
-#endif
-
-#else
-
-#error Must define a target architecture.
-
-#endif
 
 //
 // ULONGLONG -> ULONG conversion

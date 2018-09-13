@@ -3,15 +3,15 @@
 // See the LICENSE file in the project root for more information.
 
 #include "platformdefines.cpp"
-#include <Windows.h>
+//#include <Windows.h>
 
-WCHAR* strManaged = L"Managed\0String\0";
+WCHAR* strManaged = W("Managed\0String\0");
 size_t   lenstrManaged = 14; // the byte length of strManaged
 
-WCHAR* strReturn = L"a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-WCHAR* strerrReturn = L"error";
+WCHAR* strReturn = W("a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
+WCHAR* strerrReturn = W("error");
 
-WCHAR* strNative = L" Native\0String\0";
+WCHAR* strNative = W(" Native\0String\0");
 size_t lenstrNative = 14; //the byte len of strNative
 
 //Test Method1
@@ -115,7 +115,7 @@ typedef BSTR (__stdcall * Test_DelMarshal_InOut)(/*[in]*/ BSTR s);
 extern "C" DLL_EXPORT BOOL __cdecl RPinvoke_DelMarshal_InOut(Test_DelMarshal_InOut d, /*[in]*/ BSTR s)
 {
     BSTR str = d(s);
-    LPWSTR ret = L"Return\0Return\0";    
+    LPWSTR ret = (LPWSTR)W("Return\0Return\0");    
 
     size_t lenstr = TP_SysStringByteLen(str);
     size_t lenret = 28;
@@ -141,7 +141,7 @@ extern "C" DLL_EXPORT BOOL __stdcall RPinvoke_DelMarshalPointer_Out(Test_DelMars
     BSTR str;
     BSTR ret = d(&str);
 
-    LPWSTR changedstr = L"Native\0String\0";
+    LPWSTR changedstr = (LPWSTR)W("Native\0String\0");
 
     size_t lenstr = TP_SysStringByteLen(str);
     size_t lenchangedstr = 28; // byte length
@@ -153,7 +153,7 @@ extern "C" DLL_EXPORT BOOL __stdcall RPinvoke_DelMarshalPointer_Out(Test_DelMars
         return FALSE;
     }
 
-    LPWSTR expected = L"Return\0Return\0";
+    LPWSTR expected = (LPWSTR)W("Return\0Return\0");
     size_t lenret = TP_SysStringByteLen(ret);
     size_t lenexpected = 28;
 
@@ -173,7 +173,7 @@ typedef BSTR (__stdcall * Test_Del_MarshalStrB_InOut)(/*[in,out]*/ BSTR s);
 extern "C" DLL_EXPORT  BOOL __stdcall ReverseP_MarshalStrB_InOut(Test_Del_MarshalStrB_InOut d, /*[in]*/ BSTR s)
 {
     BSTR ret = d((BSTR)s);
-    LPWSTR expected = L"Return";
+    LPWSTR expected = (LPWSTR)W("Return");
     size_t lenret = TP_SysStringByteLen(ret);
     size_t lenexpected = TP_slen(expected) * 2;
 
@@ -183,7 +183,7 @@ extern "C" DLL_EXPORT  BOOL __stdcall ReverseP_MarshalStrB_InOut(Test_Del_Marsha
         return FALSE;
     }
 
-    LPWSTR expectedchange = L"m";
+    LPWSTR expectedchange = (LPWSTR)W("m");
     size_t lenstr = TP_SysStringByteLen(s);
     size_t lenexpectedchange = TP_slen(expectedchange) * 2;
     
