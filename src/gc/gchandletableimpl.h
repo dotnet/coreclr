@@ -29,7 +29,7 @@ public:
 
     virtual ~GCHandleStore();
 
-    PTR_HandleTableBucket _underlyingBucket;
+    HandleTableBucket _underlyingBucket;
 };
 
 extern GCHandleStore* g_gcGlobalHandleStore;

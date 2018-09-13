@@ -606,17 +606,8 @@ bool Ref_Initialize()
         return false;
     }
 
-    g_gcGlobalHandleStore->_underlyingBucket = new (nothrow) HandleTableBucket();
-    if (g_gcGlobalHandleStore->_underlyingBucket == NULL)
-    {
-        delete[] pBuckets;
-        delete g_gcGlobalHandleStore;
-        g_gcGlobalHandleStore = NULL;
-        return false;
-    }
-
     // Initialize the bucket in the global handle store
-    HandleTableBucket* pBucket = g_gcGlobalHandleStore->_underlyingBucket;
+    HandleTableBucket* pBucket = &g_gcGlobalHandleStore->_underlyingBucket;
 
     pBucket->HandleTableIndex = 0;
 
@@ -698,21 +689,6 @@ void Ref_Shutdown()
 }
 
 #ifndef FEATURE_REDHAWK
-HandleTableBucket* Ref_CreateHandleTableBucket(void* context)
-{
-    HandleTableBucket* result = new (nothrow) HandleTableBucket();
-    if (result == nullptr)
-        return nullptr;
-
-    if (!Ref_InitializeHandleTableBucket(result, context))
-    {
-        delete result;
-        return nullptr;
-    }
-
-    return result;
-}
-
 bool Ref_InitializeHandleTableBucket(HandleTableBucket* bucket, void* context)
 {
     CONTRACTL
@@ -845,7 +821,6 @@ void Ref_DestroyHandleTableBucket(HandleTableBucket *pBucket)
         HndDestroyHandleTable(pBucket->pTable[uCPUindex]);
     }
     delete [] pBucket->pTable;
-    delete pBucket;
 }
 
 int getSlotNumber(ScanContext* sc)
