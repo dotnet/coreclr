@@ -119,6 +119,25 @@ namespace System
 
         public int Length => _count;
 
+        public ref readonly char this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if ((uint)index >= (uint)Length)
+                {
+                    ThrowHelper.ThrowIndexOutOfRangeException();
+                }
+
+                // We use AsSpanFast() because we expect the string to be non-null at this point,
+                // as the check above should throw for any zero-length segment. If this is a torn
+                // struct, the accessor below will null ref, which is fine. The span indexer will
+                // also make sure we're not going out of bounds when reading the string instance.
+
+                return ref _value.AsSpanFast()[_offset + index];
+            }
+        }
+
         /*
          * METHODS
          */
