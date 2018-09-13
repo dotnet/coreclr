@@ -327,7 +327,7 @@ namespace System
         {
             int length = span.Length;
 
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return length == other.Length &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)),
@@ -698,7 +698,7 @@ namespace System
             where T : IEquatable<T>
         {
             int length = span.Length;
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return length == other.Length &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)),
@@ -740,7 +740,7 @@ namespace System
             where T : IEquatable<T>
         {
             int valueLength = value.Length;
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return valueLength <= span.Length &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)),
@@ -758,7 +758,7 @@ namespace System
             where T : IEquatable<T>
         {
             int valueLength = value.Length;
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return valueLength <= span.Length &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)),
@@ -777,7 +777,7 @@ namespace System
         {
             int spanLength = span.Length;
             int valueLength = value.Length;
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return valueLength <= spanLength &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref Unsafe.Add(ref MemoryMarshal.GetReference(span), spanLength - valueLength)),
@@ -800,7 +800,7 @@ namespace System
         {
             int spanLength = span.Length;
             int valueLength = value.Length;
-            if (default(T) != null && IsTypeComparableAsBytes<T>(out nuint size))
+            if (IsTypeComparableAsBytes<T>(out nuint size))
                 return valueLength <= spanLength &&
                 SpanHelpers.SequenceEqual(
                     ref Unsafe.As<T, byte>(ref Unsafe.Add(ref MemoryMarshal.GetReference(span), spanLength - valueLength)),
