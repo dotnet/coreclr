@@ -122,15 +122,15 @@
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' != 'true'" Include="$(NativeProjectOutputFolder)\**\*.*" />
 
         <!-- ############################################################### -->
-        <!-- The following is unix only. It is required because unix builds  -->
-        <!-- unlike the windows test builds do not place the binaries built  -->
-        <!-- into a seperate Debug/Checked/Release directory. Therefore we   -->
-        <!-- will filter the folder to only include dynamic libraries,       -->
+        <!-- The following is unix only. It is required because the unix test-->
+        <!-- build, unlike the windows test build, do not place the binaries -->
+        <!-- built into a seperate Debug/Checked/Release directory. Therefore-->
+        <!-- we must filter the folder to only include dynamic libraries,    -->
         <!-- static libraries and executables.                               -->
         <!--                                                                 -->
         <!-- Please take care when modifying the following lines of code.    -->
-        <!-- At a minimum to test any changes to the below, would be a pri1  -->
-        <!-- test build.                                                     -->
+        <!-- At a minimum to test any changes to the below, please run a     -->
+        <!-- pri1 test build.                                                -->
         <!-- ############################################################### -->
 
         <!-- Include everything and then filter. -->
@@ -155,8 +155,6 @@
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' == 'true'" Include="@(NativeProjectBinariesDyLibFilter)" />
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' == 'true'" Include="@(NativeProjectBinariesStaticLibFilter)" />
 
-        <!-- Last filter out the *Make* files -->
-        
      </ItemGroup>
 
      <Error  Text="The native project files are missing in $(NativeProjectOutputFolder) please run build from the root of the repo at least once"
