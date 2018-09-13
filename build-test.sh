@@ -526,7 +526,6 @@ usage()
     echo "skipmanaged: skip the managed section of the test build"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
-    echo "buildagainstpackages - pull down and build using packages."
     echo "skiprestorepackages - skip package restore"
     echo "runtests - run tests after building them"
     echo "ziptests - zips CoreCLR tests & Core_Root for a Helix run"
@@ -645,7 +644,6 @@ __ClangMajorVersion=0
 __ClangMinorVersion=0
 __NuGetPath="$__PackagesDir/NuGet.exe"
 __HostDistroRid=""
-__BuildAgainstPackagesArg=
 __SkipRestorePackages=0
 __DistroRid=""
 __cmakeargs=""
@@ -800,9 +798,6 @@ while :; do
             ;;
         generatetesthostonly)
             __GenerateTestHostOnly=1
-            ;;
-        buildagainstpackages)
-            __BuildAgainstPackagesArg=1
             ;;
         skiprestorepackages)
             __SkipRestorePackages=1
