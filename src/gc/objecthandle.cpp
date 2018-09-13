@@ -606,8 +606,17 @@ bool Ref_Initialize()
         return false;
     }
 
+    g_gcGlobalHandleStore->_underlyingBucket = new (nothrow) HandleTableBucket();
+    if (g_gcGlobalHandleStore->_underlyingBucket == NULL)
+    {
+        delete[] pBuckets;
+        delete g_gcGlobalHandleStore;
+        g_gcGlobalHandleStore = NULL;
+        return false;
+    }
+
     // Initialize the bucket in the global handle store
-    HandleTableBucket* pBucket = &g_gcGlobalHandleStore->_underlyingBucket;
+    HandleTableBucket* pBucket = g_gcGlobalHandleStore->_underlyingBucket;
 
     pBucket->HandleTableIndex = 0;
 

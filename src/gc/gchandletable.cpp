@@ -18,35 +18,35 @@ IGCHandleManager* CreateGCHandleManager()
 
 void GCHandleStore::Uproot()
 {
-    Ref_RemoveHandleTableBucket(&_underlyingBucket);
+    Ref_RemoveHandleTableBucket(_underlyingBucket);
 }
 
 bool GCHandleStore::ContainsHandle(OBJECTHANDLE handle)
 {
-    return _underlyingBucket.Contains(handle);
+    return _underlyingBucket->Contains(handle);
 }
 
 OBJECTHANDLE GCHandleStore::CreateHandleOfType(Object* object, HandleType type)
 {
-    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    HHANDLETABLE handletable = _underlyingBucket->pTable[GetCurrentThreadHomeHeapNumber()];
     return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object));
 }
 
 OBJECTHANDLE GCHandleStore::CreateHandleOfType(Object* object, HandleType type, int heapToAffinitizeTo)
 {
-    HHANDLETABLE handletable = _underlyingBucket.pTable[heapToAffinitizeTo];
+    HHANDLETABLE handletable = _underlyingBucket->pTable[heapToAffinitizeTo];
     return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object));
 }
 
 OBJECTHANDLE GCHandleStore::CreateHandleWithExtraInfo(Object* object, HandleType type, void* pExtraInfo)
 {
-    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    HHANDLETABLE handletable = _underlyingBucket->pTable[GetCurrentThreadHomeHeapNumber()];
     return ::HndCreateHandle(handletable, type, ObjectToOBJECTREF(object), reinterpret_cast<uintptr_t>(pExtraInfo));
 }
 
 OBJECTHANDLE GCHandleStore::CreateDependentHandle(Object* primary, Object* secondary)
 {
-    HHANDLETABLE handletable = _underlyingBucket.pTable[GetCurrentThreadHomeHeapNumber()];
+    HHANDLETABLE handletable = _underlyingBucket->pTable[GetCurrentThreadHomeHeapNumber()];
     OBJECTHANDLE handle = ::HndCreateHandle(handletable, HNDTYPE_DEPENDENT, ObjectToOBJECTREF(primary));
     if (!handle)
     {
@@ -61,7 +61,7 @@ void GCHandleStore::RelocateAsyncPinnedHandles(IGCHandleStore* pTarget, void (*c
 {
     // assumption - the IGCHandleStore is an instance of GCHandleStore
     GCHandleStore* other = static_cast<GCHandleStore*>(pTarget);
-    ::Ref_RelocateAsyncPinHandles(&_underlyingBucket, &other->_underlyingBucket, clearIfComplete, setHandle);
+    ::Ref_RelocateAsyncPinHandles(_underlyingBucket, other->_underlyingBucket, clearIfComplete, setHandle);
 }
 
 bool GCHandleStore::EnumerateAsyncPinnedHandles(async_pin_enum_fn callback, void* context)
@@ -71,7 +71,7 @@ bool GCHandleStore::EnumerateAsyncPinnedHandles(async_pin_enum_fn callback, void
 
 GCHandleStore::~GCHandleStore()
 {
-    ::Ref_DestroyHandleTableBucket(&_underlyingBucket);
+    ::Ref_DestroyHandleTableBucket(_underlyingBucket);
 }
 
 bool GCHandleManager::Initialize()
@@ -99,9 +99,18 @@ IGCHandleStore* GCHandleManager::CreateHandleStore(void* context)
 #ifndef FEATURE_REDHAWK
     GCHandleStore* store = new (nothrow) GCHandleStore();
     if (store == nullptr)
+    {
         return nullptr;
+    }
 
-    bool success = ::Ref_InitializeHandleTableBucket(&store->_underlyingBucket, context);
+    store->_underlyingBucket = new (nothrow) HandleTableBucket();
+    if (store->_underlyingBucket == nullptr)
+    {
+        delete store;
+        return nullptr;
+    }
+
+    bool success = ::Ref_InitializeHandleTableBucket(store->_underlyingBucket, context);
     if (!success)
     {
         delete store;
