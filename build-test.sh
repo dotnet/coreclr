@@ -862,7 +862,7 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
         __ClangMinorVersion=0
     else
         __ClangMajorVersion=3
-    __ClangMinorVersion=9
+        __ClangMinorVersion=9
     fi
 fi
 
