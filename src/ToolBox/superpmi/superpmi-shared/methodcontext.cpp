@@ -17,26 +17,6 @@
 #include "spmirecordhelper.h"
 #include "spmidumphelper.h"
 
-struct
-{
-    int         packetID;
-    const char* message;
-} retiredPackets[] = {
-    {6, "CanEmbedModuleHandleForHelper id 6 superseded by GetLazyStringLiteralHelper id 147 on 12/20/2013"},
-    {13, "CheckMethodModifier id 13 superseded by id 142 on 2013/07/04. Re-record input with newer shim."},
-    {14, "CompileMethod id 14 superseded by id 141 on 2013/07/03. Re-record input with newer shim."},
-    {24, "FindNameOfToken id 24 superseded by id 145 on 2013/07/19. Re-record input with newer shim. Adjusted members "
-         "to be proper."},
-    {28, "GetArgClass id 28 superseded by id 139 on 2013/07/03. Re-record input with newer shim."},
-    {30, "GetArgType id 30 superseded by id 140 on 2013/07/03. Re-record input with newer shim."},
-    {93, "GetUnBoxHelper2 id 93 unused. 2016/02/19. Re-record input with newer shim."},
-    {104, "IsValidToken id 104 superseded by id 144 on 2013/07/19. Re-record input with newer shim. Adjusted members "
-          "to be proper."},
-    {141, "CompileMethod id 141 superseded by id 142 on 2013/07/09. Re-record input with newer shim. We basically "
-          "reset lots of other stuff too. :-)"},
-};
-int retiredPacketCount = 7;
-
 #define sparseMC // Support filling in details where guesses are okay and will still generate good code. (i.e. helper
                  // function addresses)
 
@@ -306,7 +286,7 @@ void MethodContext::MethodInitHelper(unsigned char* buff2, unsigned int totalLen
 
     while (buffIndex < totalLen)
     {
-        unsigned char packetType = buff2[buffIndex++];
+        mcPackets packetType = (mcPackets)buff2[buffIndex++];
         memcpy(&localsize, &buff2[buffIndex], sizeof(unsigned int));
         buffIndex += 4;
 
@@ -321,11 +301,6 @@ void MethodContext::MethodInitHelper(unsigned char* buff2, unsigned int totalLen
 #include "crlwmlist.h"
 
             default:
-                for (int i = 0; i < retiredPacketCount; i++)
-                {
-                    AssertCodeMsg(retiredPackets[i].packetID != packetType, EXCEPTIONCODE_MC,
-                                  "Ran into retired packet %u '%s'", packetType, retiredPackets[i].message);
-                }
                 LogException(EXCEPTIONCODE_MC, "Read ran into unknown packet type %u. Are you using a newer recorder?",
                              packetType);
                 // break;

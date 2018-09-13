@@ -1342,7 +1342,7 @@ enum mcPackets
     Packet_EmbedMethodHandle                             = 19,
     Packet_EmbedModuleHandle                             = 20,
     Packet_EmptyStringLiteral                            = 21,
-    Packet_Environment                                   = 136, // Deprecated 7/29/2017
+    Retired9                                             = 136,
     Packet_ErrorList                                     = 22,
     Packet_FilterException                               = 134,
     Packet_FindCallSiteSig                               = 23,
