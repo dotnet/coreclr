@@ -363,6 +363,15 @@ CONFIG_INTEGER(JitEnableRemoveEmptyTry, W("JitEnableRemoveEmptyTry"), 0)
 #endif // defined(FEATURE_CORECLR)
 #endif // DEBUG
 
+#if defined(DEBUG)
+// Overall master enable for Guarded Devirt
+CONFIG_INTEGER(JitEnableGuardedDevirtualization, W("JitEnableGuardedDevirtualization"), 1)
+// Various policies
+CONFIG_INTEGER(JitGuardedDevirtualizationEvenIfNoInline, W("JitGuardedDevirtualizationEvenIfNoInline"), 0)
+CONFIG_INTEGER(JitGuardedDevirtualizationGuessUniqueInterface, W("JitGuardedDevirtualizationGuessUniqueInterface"), 1)
+CONFIG_INTEGER(JitGuardedDevirtualizationGuessBestClass, W("JitGuardedDevirtualizationGuessBestClass"), 1)
+#endif // DEBUG
+
 #undef CONFIG_INTEGER
 #undef CONFIG_STRING
 #undef CONFIG_METHODSET

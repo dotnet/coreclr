@@ -494,22 +494,35 @@ private:
     bool                  m_Reported;
 };
 
+// GuardedDevirtualizationCandidateInfo provides information about
+// a potential target of a virtual call.
+
+struct GuardedDevirtualizationCandidateInfo
+{
+    CORINFO_CLASS_HANDLE  guardedClassHandle;
+    CORINFO_METHOD_HANDLE guardedMethodHandle;
+    void*                 stubAddr; // hack
+};
+
 // InlineCandidateInfo provides basic information about a particular
 // inline candidate.
+//
+// It is a supserset of GuardedDevirtualizationCandidateInfo
 
-struct InlineCandidateInfo
+struct InlineCandidateInfo : public GuardedDevirtualizationCandidateInfo
 {
-    DWORD                  dwRestrictions;
     CORINFO_METHOD_INFO    methInfo;
-    unsigned               methAttr;
-    CORINFO_CLASS_HANDLE   clsHandle;
-    unsigned               clsAttr;
-    var_types              fncRetType;
     CORINFO_METHOD_HANDLE  ilCallerHandle; // the logical IL caller of this inlinee.
+    CORINFO_CLASS_HANDLE   clsHandle;
     CORINFO_CONTEXT_HANDLE exactContextHnd;
-    bool                   exactContextNeedsRuntimeLookup;
-    CorInfoInitClassResult initClassResult;
+    GenTree*               retExpr;
+    DWORD                  dwRestrictions;
     unsigned               preexistingSpillTemp;
+    unsigned               clsAttr;
+    unsigned               methAttr;
+    CorInfoInitClassResult initClassResult;
+    var_types              fncRetType;
+    bool                   exactContextNeedsRuntimeLookup;
 };
 
 // InlArgInfo describes inline candidate argument properties.
