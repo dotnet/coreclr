@@ -323,3 +323,8 @@ void TP_JoinThread(THREAD_ID tThread)
 	pthread_join(tThread, NULL);
 #endif
 }
+
+extern "C" DLLEXPORT BOOL DummyExport()
+{
+  return TRUE;
+}
