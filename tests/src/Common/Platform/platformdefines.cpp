@@ -324,7 +324,3 @@ void TP_JoinThread(THREAD_ID tThread)
 #endif
 }
 
-extern "C" DLLEXPORT BOOL DummyExport()
-{
-  return TRUE;
-}

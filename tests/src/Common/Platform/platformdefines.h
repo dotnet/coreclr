@@ -94,21 +94,21 @@ typedef WCHAR OLECHAR;
 //
 // Method declarations
 //
-error_t TP_scpy_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
-error_t TP_scat_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
-int TP_slen(LPWSTR str);
-int TP_scmp_s(LPCSTR str1, LPCSTR str2);
-int TP_wcmp_s(LPWSTR str1, LPWSTR str2);
-error_t TP_getenv_s(size_t* pReturnValue, LPWSTR buffer, size_t sizeInWords, LPCWSTR varname);
-error_t TP_putenv_s(LPTSTR name, LPTSTR value);
-void TP_ZeroMemory(LPVOID buffer, size_t sizeInBytes);
-error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix);
-LPWSTR TP_sstr(LPWSTR str, LPWSTR searchStr);
-LPSTR  HackyConvertToSTR(LPWSTR pwszInput);
-DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID lpParameter);
-void TP_JoinThread(THREAD_ID tThread);
-void TP_DebugBreak();
-DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
+DLL_EXPORT error_t TP_scpy_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
+DLL_EXPORT error_t TP_scat_s(LPWSTR strDestination, size_t sizeInWords, LPCWSTR strSource);
+DLL_EXPORT int TP_slen(LPWSTR str);
+DLL_EXPORT int TP_scmp_s(LPCSTR str1, LPCSTR str2);
+DLL_EXPORT int TP_wcmp_s(LPWSTR str1, LPWSTR str2);
+DLL_EXPORT error_t TP_getenv_s(size_t* pReturnValue, LPWSTR buffer, size_t sizeInWords, LPCWSTR varname);
+DLL_EXPORT error_t TP_putenv_s(LPTSTR name, LPTSTR value);
+DLL_EXPORT void TP_ZeroMemory(LPVOID buffer, size_t sizeInBytes);
+DLL_EXPORT error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix);
+DLL_EXPORT LPWSTR TP_sstr(LPWSTR str, LPWSTR searchStr);
+DLL_EXPORT LPSTR  HackyConvertToSTR(LPWSTR pwszInput);
+DLL_EXPORT DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID lpParameter);
+DLL_EXPORT void TP_JoinThread(THREAD_ID tThread);
+DLL_EXPORT void TP_DebugBreak();
+DLL_EXPORT DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
 
 //
 // Method redirects
