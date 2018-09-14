@@ -1220,7 +1220,7 @@ def setup_core_root(host_os,
         sys.exit(1)
 
     if proc.returncode == 1:
-        "Error test dependency resultion failed."
+        print("Error: package restore failed.")
         return False
 
     os.environ["__BuildLogRootName"] = ""
@@ -1286,7 +1286,7 @@ def setup_core_root(host_os,
         sys.exit(1)
 
     if proc.returncode == 1:
-        "Error test dependency resultion failed."
+        print("Error: creating Core_Root failed.")
         return False
 
     os.environ["__BuildLogRootName"] = ""
@@ -1344,7 +1344,7 @@ def setup_core_root(host_os,
         proc.communicate()
 
         if not proc.returncode == 0:
-            "Error test dependency resultion failed."
+            print("Error: generating test host failed.")
             return False
 
         os.environ["__BuildLogRootName"] = ""
@@ -1359,7 +1359,7 @@ def setup_core_root(host_os,
         proc.communicate()
 
         if proc.returncode == 1:
-            "Error test dependency resultion failed."
+            print("Error: msbuild failed.")
             return False
 
         corefx_logpath = os.path.join(coreclr_repo_location, 
@@ -1382,7 +1382,7 @@ def setup_core_root(host_os,
         proc.communicate()
 
         if proc.returncode == 1:
-            "Error test dependency resultion failed."
+            print("Error: msbuild failed.")
             return False
 
     print("Core_Root setup.")
@@ -1511,7 +1511,7 @@ def build_test_wrappers(host_os,
         sys.exit(1)
 
     if proc.returncode == 1:
-        "Error test dependency resultion failed."
+        print("Error: creating test wrappers failed.")
         return False
 
 def find_test_from_name(host_os, test_location, test_name):
@@ -1889,7 +1889,7 @@ def do_setup(host_os,
                                   core_root)
 
         if not success:
-            print("Error GenerateLayout has failed.")
+            print("Error: GenerateLayout failed.")
             sys.exit(1)
 
         if unprocessed_args.generate_layout_only:
