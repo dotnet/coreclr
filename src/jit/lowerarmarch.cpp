@@ -764,7 +764,7 @@ void Lowering::ContainCheckCast(GenTreeCast* node)
 
     if (varTypeIsIntegral(castToType) && varTypeIsIntegral(srcType))
     {
-        if (IsContainableMemoryOp(castOp))
+        if (IsContainableMemoryOp(castOp) && (!castOp->OperIsIndir() || !castOp->AsIndir()->Addr()->OperIsAddrMode()))
         {
             MakeSrcContained(node, castOp);
         }
