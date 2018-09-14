@@ -19904,12 +19904,18 @@ public:
         GenTree* args = call->gtCallArgs;
         if (args != nullptr)
         {
+            // The arglist head node won't change as we spill, so no
+            // explicit update required
             comp->fgWalkTreePre(&args, SpillRetExprVisitor, this);
         }
+
         GenTree* thisArg = call->gtCallObjp;
         if (thisArg != nullptr)
         {
             comp->fgWalkTreePre(&thisArg, SpillRetExprVisitor, this);
+
+            // However we must explicitly update objp...
+            call->gtCallObjp = thisArg;
         }
     }
 
