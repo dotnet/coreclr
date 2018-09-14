@@ -6287,15 +6287,11 @@ static void DetermineLibNameVariations(const WCHAR** libNameVariations, int* num
 }
 #endif // FEATURE_PAL
 
-HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly * pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag, LoadLibErrorTracker * pErrorTracker, BOOL throwExceptionFlag)
+HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly * pAssembly, LPCWSTR wszLibName, BOOL searchAssemblyDirectory, DWORD dllImportSearchPathFlag, LoadLibErrorTracker * pErrorTrackerMaybe, BOOL throwExceptionFlag)
 {
     ModuleHandleHolder hmod;
-
-    if (pErrorTracker == nullptr)
-    {
-        LoadLibErrorTracker newErrorTracker;
-        pErrorTracker = &newErrorTracker;
-    }
+    LoadLibErrorTracker hierarchyErrorTracker;
+    LoadLibErrorTracker *pErrorTracker = pErrorTrackerMaybe != nullptr ? pErrorTrackerMaybe : &hierarchyErrorTracker;
 
     DWORD loadWithAlteredPathFlags = GetLoadWithAlteredSearchPathFlag();
 
@@ -6387,8 +6383,7 @@ HINSTANCE NDirect::LoadLibraryModuleHierarchy(Assembly * pAssembly, LPCWSTR wszL
     if (hmod == NULL && throwExceptionFlag)
     {
         StackSString ssLibName(SString::Utf8, wszLibName);
-        LoadLibErrorTracker trackerToThrow = *pErrorTracker;
-        trackerToThrow.Throw(ssLibName);
+        pErrorTracker->Throw(ssLibName);
     }
 
     return hmod.Extract();
