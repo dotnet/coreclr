@@ -32,6 +32,7 @@ namespace System
         /// <summary>
         /// Removes all leading white-space characters from the span.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span)
         {
             int start = 0;
@@ -46,6 +47,7 @@ namespace System
         /// <summary>
         /// Removes all trailing white-space characters from the span.
         /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span)
         {
             int end = span.Length - 1;
@@ -72,6 +74,7 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the character is removed.</param>
         /// <param name="trimChar">The specified character to look for and remove.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span, char trimChar)
         {
             int start = 0;
@@ -88,6 +91,7 @@ namespace System
         /// </summary>
         /// <param name="span">The source span from which the character is removed.</param>
         /// <param name="trimChar">The specified character to look for and remove.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span, char trimChar)
         {
             int end = span.Length - 1;
