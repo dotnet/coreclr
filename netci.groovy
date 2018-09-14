@@ -3285,7 +3285,14 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 def mungedProjectName = Utilities.getFolderName(project)
                 def mungedBranchName = Utilities.getFolderName(branch)
-                def sourceJobName = getJobName(configuration, architecture, os, scenario, false) // the build job is the same as the test 'jobName' but without the trailing '_tst'.
+
+                def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
+                def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
+                if (doCoreFxTesting || doCrossGenComparison) {
+                    // These depend on unique builds for each scenario
+                    inputCoreCLRBuildScenario = scenario
+                }
+                def sourceJobName = getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, false)
                 def inputJobName = Utilities.getFullJobName(sourceJobName, isPR)
 
                 if (doCoreFxTesting) {
