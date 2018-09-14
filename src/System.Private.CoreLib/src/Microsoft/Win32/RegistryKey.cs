@@ -1041,7 +1041,7 @@ namespace Microsoft.Win32
         internal static string FixupName(string name)
         {
             Debug.Assert(name != null, "[FixupName]name!=null");
-            if (name.IndexOf('\\') == -1)
+            if (!name.Contains('\\'))
                 return name;
 
             StringBuilder sb = new StringBuilder(name);
@@ -1135,18 +1135,6 @@ namespace Microsoft.Win32
         private const int FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
         private const int FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
         private const int FORMAT_MESSAGE_ARGUMENT_ARRAY = 0x00002000;
-    }
-
-    [Flags]
-#if REGISTRY_ASSEMBLY
-    public
-#else
-    internal
-#endif
-    enum RegistryValueOptions
-    {
-        None = 0,
-        DoNotExpandEnvironmentNames = 1
     }
 
     // the name for this API is meant to mimic FileMode, which has similar values
