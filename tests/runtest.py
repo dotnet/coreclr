@@ -985,44 +985,29 @@ def setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root):
         core_root(str)              : core_root
     """
 
-    test_location = os.path.join(coreclr_repo_location, "tests")
-
-    def is_coredis_tools_supported(host_os, arch):
-        """ Is coredis tools supported on this os/arch
-
-        Args:
-            host_os(str): os
-            arch(str)   : arch
-
-        """
-        unsupported_unix_arches = ["arm", "arm64"]
-
-        if host_os.lower() == "osx":
-            return False
-        
-        return True
-
-        if host_os != "Windows_NT" and arch in unsupported_unix_arches:
-            return False
-
-        return True
-
-    if is_coredis_tools_supported(host_os, arch):
-        command = None
-        if host_os == "Windows_NT":
-            command = [os.path.join(test_location, "setup-stress-dependencies.cmd"), "/arch", arch, "/outputdir", core_root]
-        else:
-            command = [os.path.join(test_location, "setup-stress-dependencies.sh"), "--outputDir=%s" % core_root]
-
-        sys.stdout.flush() # flush output before creating sub-process
-        proc = subprocess.Popen(command)
-        proc.communicate()
-
-        if proc.returncode != 0:
-            print("setup_stress_dependencies.sh failed.")
-            sys.exit(1)
-    else:
+    if host_os.lower() == "osx":
         print("GCStress C is not supported on your platform.")
+        sys.exit(1)
+
+    unsupported_arches = ["arm", "arm64"]
+
+    if arch in unsupported_arches:
+        # Nothing to do; CoreDisTools unneeded.
+        return
+
+    command = None
+    test_location = os.path.join(coreclr_repo_location, "tests")
+    if host_os == "Windows_NT":
+        command = [os.path.join(test_location, "setup-stress-dependencies.cmd"), "/arch", arch, "/outputdir", core_root]
+    else:
+        command = [os.path.join(test_location, "setup-stress-dependencies.sh"), "--outputDir=%s" % core_root]
+
+    sys.stdout.flush() # flush output before creating sub-process
+    proc = subprocess.Popen(command)
+    proc.communicate()
+
+    if proc.returncode != 0:
+        print("Failed to set up stress dependencies.")
         sys.exit(1)
 
 def precompile_core_root(test_location,
