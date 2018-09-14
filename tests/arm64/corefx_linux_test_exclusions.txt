@@ -1,0 +1,4 @@
+System.Buffers.Tests                 # timeout. baseline and jit stress.
+System.Drawing.Common.Tests          # bad result data. baseline and jit stress.
+System.Linq.Expressions.Tests        # JitStress=1
+System.Security.Cryptography.Algorithms.Tests # bad result. baseline and jit stress.
