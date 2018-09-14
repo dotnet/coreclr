@@ -3285,8 +3285,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 def sourceJobName = getJobName(configuration, architecture, os, scenario, false) // the build job is the same as the test 'jobName' but without the trailing '_tst'.
                 def inputJobName = Utilities.getFullJobName(sourceJobName, isPR)
 
-                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
-                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/tests.checked.zip")
+                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
+                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/tests.checked.zip")
             }
 
             if (architecture == 'x86') {
