@@ -124,7 +124,7 @@
         <!-- ############################################################### -->
         <!-- The following is unix only. It is required because the unix test-->
         <!-- build, unlike the windows test build, do not place the binaries -->
-        <!-- built into a seperate Debug/Checked/Release directory. Therefore-->
+        <!-- built into a separate Debug/Checked/Release directory. Therefore-->
         <!-- we must filter the folder to only include dynamic libraries,    -->
         <!-- static libraries and executables.                               -->
         <!--                                                                 -->
