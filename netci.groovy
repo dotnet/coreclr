@@ -3106,6 +3106,8 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Returns the newly created job.
 def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
+    def lowerConfiguration = configuration.toLowerCase()
+
     def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
     def isUbuntuArm32Job = ((os == "Ubuntu") && (architecture == 'arm'))
     def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
@@ -3318,8 +3320,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/run-test.sh")
                 }
                 else {
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.checked.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/tests.checked.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.${lowerConfiguration}.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/tests.${lowerConfiguration}.zip")
                 }
             }
 
@@ -3361,7 +3363,6 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // copied correctly.
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
-                    def lowerConfiguration = configuration.toLowerCase()
                     if (architecture == 'arm') {
                         shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
                         shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
