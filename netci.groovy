@@ -3317,6 +3317,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxtests.zip")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/run-test.sh")
+                    shell("chmod +x ${workspaceRelativeFxRootLinux}/run-test.sh")
                 }
                 else {
                     shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.${lowerConfiguration}.zip")
@@ -3344,8 +3345,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
             // CoreFX testing downloads the CoreFX tests, not the coreclr tests. Also, unzip the built CoreFX layout/runtime directories.
             if (doCoreFxTesting) {
-                shell("unzip -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
-                shell("unzip -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
+                shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
+                shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
             else if (architecture != 'arm64') {
                 // ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
@@ -3363,15 +3364,15 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
                     if (architecture == 'arm') {
-                        shell("unzip -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
-                        shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                        shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
+                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
                     }
                     else {
                         assert architecture == 'arm64'
-                        shell("unzip -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
+                        shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
 
                         // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        shell("unzip -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
                     }
                 }
                 else {
