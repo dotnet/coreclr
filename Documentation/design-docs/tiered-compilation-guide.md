@@ -15,10 +15,7 @@ Tiered Compilation allows the .NET runtime to substitute different assembly code
 
 ## References
 
-- [2.2 issue](https://github.com/dotnet/coreclr/issues/18973)
-- [Design doc](https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/tiered-compilation.md)
-- [Some design discussion](https://github.com/dotnet/coreclr/issues/4331)
-- [@noahfalk](https://github.com/noahfalk)'s [ 2.1 blog post](https://blogs.msdn.microsoft.com/dotnet/2018/08/02/tiered-compilation-preview-in-net-core-2-1/)
+- [@noahfalk](https://github.com/noahfalk)'s [2.1 blog post](https://blogs.msdn.microsoft.com/dotnet/2018/08/02/tiered-compilation-preview-in-net-core-2-1/)
 - [Demo of trying it out in 2.1](https://github.com/aspnet/JitBench/blob/tiered_compilation_demo/README.md)
 
 # Using Tiered Compilation
@@ -33,9 +30,10 @@ Tiered Compilation allows the .NET runtime to substitute different assembly code
     - With an environment variable before running the app (in a console, or at user or system level)
 - Run the app, and see [the demo](https://github.com/aspnet/JitBench/blob/tiered_compilation_demo/README.md#part-2---exploring-the-application-behavior) about how to see tiered compilation in action
 
-## Benchmarking
+# Known issues
 
-There is a known issue with benchmarks written in a simple way (single method with loop), which may run slower with tiered compilation. See the [cold method with hot loops issue](https://github.com/dotnet/coreclr/issues/19751) for information on how to indentify the issue and some options for working around it.
+- There is a known issue with benchmarks written in a simple way (single method with loop), which may run slower with tiered compilation. See the [cold method with hot loops issue](https://github.com/dotnet/coreclr/issues/19751) for information on how to identify the issue and some options for working around it.
+- See other known issues in this [known issues query](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-CodeVersioning)
 
 # Providing feedback
 
@@ -44,3 +42,8 @@ There is a known issue with benchmarks written in a simple way (single method wi
 - For issues:
   - Check existing [area-CodeVersioning issues in the CoreCLR repo](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-CodeVersioning+), some may have guidance on how to identify and work around the issue
   - File a new issue in the [CoreCLR repo](https://github.com/dotnet/coreclr) with the `area-CodeVersioning` label
+
+# Other links
+
+- [Design doc](https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/tiered-compilation.md)
+- [Some design discussion](https://github.com/dotnet/coreclr/issues/4331)
