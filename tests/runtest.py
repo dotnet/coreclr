@@ -743,7 +743,7 @@ def run_tests(host_os,
         os.environ["__TestTimeout"] = str(120*60*1000) # 1,800,000 ms
 
     # Set Core_Root
-    printf("Setting CORE_ROOT=%s" % core_root)
+    print("Setting CORE_ROOT=%s" % core_root)
     os.environ["CORE_ROOT"] = core_root
 
     # Set test env if exists
