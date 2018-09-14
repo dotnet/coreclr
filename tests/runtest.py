@@ -601,6 +601,8 @@ def call_msbuild(coreclr_repo_location,
                 "/p:__LogsDir=%s" % logs_dir]
 
     print(" ".join(command))
+
+    sys.stdout.flush() # flush output before creating sub-process
     proc = subprocess.Popen(command)
 
     try:
@@ -1012,6 +1014,7 @@ def setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root):
         else:
             command = [os.path.join(test_location, "setup-stress-dependencies.sh"), "--outputDir=%s" % core_root]
 
+        sys.stdout.flush() # flush output before creating sub-process
         proc = subprocess.Popen(command)
         proc.communicate()
 
@@ -1219,6 +1222,7 @@ def setup_core_root(host_os,
     print("Restoring packages...")
     print(" ".join(command))
 
+    sys.stdout.flush() # flush output before creating sub-process
     if not g_verbose:
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
@@ -1284,6 +1288,7 @@ def setup_core_root(host_os,
     print("Creating Core_Root...")
     print(" ".join(command))
 
+    sys.stdout.flush() # flush output before creating sub-process
     if not g_verbose:
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     else:
@@ -1348,6 +1353,8 @@ def setup_core_root(host_os,
                            "msbuild",
                            os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
                            "/p:GenerateRuntimeLayout=true"]
+
+        sys.stdout.flush() # flush output before creating sub-process
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
@@ -1362,6 +1369,7 @@ def setup_core_root(host_os,
                            "/t:Restore",
                            corefx_utility_setup]
 
+        sys.stdout.flush() # flush output before creating sub-process
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
@@ -1384,6 +1392,7 @@ def setup_core_root(host_os,
                            "/p:OutputPath=%s" % corefx_logpath,
                            corefx_utility_setup]
 
+        sys.stdout.flush() # flush output before creating sub-process
         proc = subprocess.Popen(msbuild_command)
         proc.communicate()
 
@@ -1477,6 +1486,7 @@ def build_test_wrappers(host_os,
     print("Creating test wrappers...")
     print(" ".join(command))
 
+    sys.stdout.flush() # flush output before creating sub-process
     if not g_verbose:
         proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
