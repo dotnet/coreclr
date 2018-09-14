@@ -29,6 +29,11 @@ void ThreadLocalBlock::FreeTLM(SIZE_T i)
     CONTRACTL_END;
     _ASSERTE(m_pTLMTable != NULL);
 
+    if (i >= m_TLMTableSize)
+    {
+        return;
+    }
+
     PTR_ThreadLocalModule pThreadLocalModule = m_pTLMTable[i].pTLM;
     m_pTLMTable[i].pTLM = NULL;
 
