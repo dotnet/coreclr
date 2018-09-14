@@ -20,11 +20,11 @@ Tiered Compilation allows the .NET runtime to substitute different assembly code
 
 # Using Tiered Compilation
 
+Tiered compilation is enabled by default from .NET Core 2.2 preview 2 and in 3.0 daily builds.
+
 - Download the .NET Core SDK from the [download archives](https://www.microsoft.com/net/download/archives)
   - For the latest pre-release installers, download a [daily build](https://github.com/dotnet/core/blob/master/daily-builds.md)
-- Enable tiered compilation
-  - Tiered compilation is now enabled by default in the .NET Core daily builds
-  - There are plans to enable tiered compilation by default in .NET Core 2.2. For the time being, for .NET Core 2.1 and 2.2, tiered compilation may be enabled in any of the following ways ([instructions](https://github.com/aspnet/JitBench/blob/tiered_compilation_demo/README.md#16-run-the-app-with-tiered-compilation-enabled)):
+- For .NET Core 2.1 and 2.2 preview 1, tiered compilation may be enabled in any of the following ways ([instructions](https://github.com/aspnet/JitBench/blob/tiered_compilation_demo/README.md#16-run-the-app-with-tiered-compilation-enabled)):
     - In `<app>.csproj` before the build
     - In `<app>.runtimeconfig.json` after the build alongside the app assembly, before running the app
     - With an environment variable before running the app (in a console, or at user or system level)
@@ -42,6 +42,7 @@ Tiered Compilation allows the .NET runtime to substitute different assembly code
 - For issues:
   - Check existing [area-CodeVersioning issues in the CoreCLR repo](https://github.com/dotnet/coreclr/issues?utf8=%E2%9C%93&q=is%3Aissue+is%3Aopen+label%3Aarea-CodeVersioning+), some may have guidance on how to identify and work around the issue
   - File a new issue in the [CoreCLR repo](https://github.com/dotnet/coreclr) with the `area-CodeVersioning` label
+  - Tiered compilation may be disabled using the instructions in the "Using Tiered Compilation" section above, just flip the value from 1 to 0 or true to false as appropriate
 
 # Other links
 
