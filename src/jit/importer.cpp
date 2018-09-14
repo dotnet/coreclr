@@ -19890,7 +19890,7 @@ CORINFO_RESOLVED_TOKEN* Compiler::impAllocateToken(CORINFO_RESOLVED_TOKEN token)
 }
 
 //------------------------------------------------------------------------
-// SpillRetExprHelper: iterate through arguments tree and spill ret_expr to local varibales.
+// SpillRetExprHelper: iterate through arguments tree and spill ret_expr to local variables.
 //
 class SpillRetExprHelper
 {
@@ -19901,21 +19901,16 @@ public:
 
     void StoreRetExprResultsInArgs(GenTreeCall* call)
     {
-        GenTree* args = call->gtCallArgs;
-        if (args != nullptr)
+        GenTreeArgList** pArgs = &call->gtCallArgs;
+        if (*pArgs != nullptr)
         {
-            // The arglist head node won't change as we spill, so no
-            // explicit update required
-            comp->fgWalkTreePre(&args, SpillRetExprVisitor, this);
+            comp->fgWalkTreePre((GenTree**)pArgs, SpillRetExprVisitor, this);
         }
 
-        GenTree* thisArg = call->gtCallObjp;
-        if (thisArg != nullptr)
+        GenTree** pThisArg = &call->gtCallObjp;
+        if (*pThisArg != nullptr)
         {
-            comp->fgWalkTreePre(&thisArg, SpillRetExprVisitor, this);
-
-            // However we must explicitly update objp...
-            call->gtCallObjp = thisArg;
+            comp->fgWalkTreePre(pThisArg, SpillRetExprVisitor, this);
         }
     }
 
