@@ -3276,6 +3276,13 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/testnativebin.checked.zip
                 //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/tests.checked.zip
                 //
+                // CoreFX example artifact URLs:
+                //
+                //  https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxruntime.zip
+                //  https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxtests.zip
+                //
+                // Note that the source might be in a "jitstress" folder.
+                //
                 // Use `--progress=dot:giga` to display some progress output, but limit it in the log file.
                 //
                 // Use `--directory-prefix=_/fx` to specify where to put the corefx files (to match what other platforms do). Use this instead of `-O`.
@@ -3294,18 +3301,24 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 def sourceJobName = getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, false)
                 def inputJobName = Utilities.getFullJobName(sourceJobName, isPR)
 
-                if (doCoreFxTesting) {
-                    // CoreFX example artifact URLs:
-                    // https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxruntime.zip
-                    // https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxtests.zip
+                // Need to add the sub-folder if necessary.
+                def inputJobPath = "job/${inputJobName}"
+                def folderName = getJobFolder(inputCoreCLRBuildScenario)
+                if (folderName != '') {
+                    inputJobPath = "job/${folderName}/job/${inputJobName}"
+                }
 
+                def inputUrlRoot = "https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/${inputJobPath}/\${CORECLR_BUILD}/artifact"
+
+                if (doCoreFxTesting) {
                     shell("mkdir -p ${workspaceRelativeFxRootLinux}")
-                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/${workspaceRelativeFxRootLinux}/fxtests.zip")
-                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/${workspaceRelativeFxRootLinux}/fxruntime.zip")
+                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxtests.zip")
+                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
+                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/run-test.sh")
                 }
                 else {
-                    shell("wget --progress=dot:giga https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
-                    shell("wget --progress=dot:giga https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/tests.checked.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.checked.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/tests.checked.zip")
                 }
             }
 
