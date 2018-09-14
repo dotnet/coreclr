@@ -3106,7 +3106,10 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Returns the newly created job.
 def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
 {
-    def isUbuntuArmJob = ((os == "Ubuntu") && (architecture == 'arm')) || ((os == "Ubuntu16.04") && (architecture == 'arm64'))
+    def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
+    def isUbuntuArm32Job = ((os == "Ubuntu") && (architecture == 'arm'))
+    def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
+
     def doCoreFxTesting = isCoreFxScenario(scenario)
 
     def workspaceRelativeFxRootLinux = "_/fx" // only used for CoreFX testing
@@ -3245,17 +3248,46 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // Coreclr build we are trying to test
             //
             //  ** NOTE ** This will, correctly, overwrite the CORE_ROOT from the Windows test archive
+            //
+            // HACK: the Ubuntu arm64 copyArtifacts Jenkins plug-in is ridiculously slow (45 minutes to
+            // 1.5 hours for this step). Instead, directly use wget, which is fast (1 minute).
+            //
+            // NOTE: Arm64 Ubuntu hack not yet implemented for CoreFX testing, so still copy artifacts for that.
 
-            copyArtifacts(inputCoreCLRBuildName) {
-                excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                buildSelector {
-                    buildNumber('${CORECLR_BUILD}')
+            if (!isUbuntuArm64Job || doCoreFxTesting) {
+                copyArtifacts(inputCoreCLRBuildName) {
+                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
+                    buildSelector {
+                        buildNumber('${CORECLR_BUILD}')
+                    }
                 }
             }
 
             if (isUbuntuArmJob) {
                 // Add some useful information to the log file. Ignore return codes.
                 shell("uname -a || true")
+            }
+
+            if (isUbuntuArm64Job && !doCoreFxTesting) {
+                // Copy the required artifacts directly, using wget, e.g.:
+                // 
+                //  https://ci.dot.net/job/dotnet_coreclr/job/master/job/arm64_cross_checked_ubuntu16.04_innerloop_prtest/16/artifact/testnativebin.checked.zip
+                //  https://ci.dot.net/job/dotnet_coreclr/job/master/job/arm64_cross_checked_ubuntu16.04_innerloop_prtest/16/artifact/tests.checked.zip
+                // 
+                // or:
+                //
+                //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/testnativebin.checked.zip
+                //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/tests.checked.zip
+
+                shell("echo \"Using wget instead of the Jenkins copy artifacts plug-in to copy artifacts from ${inputCoreCLRBuildName}\"")
+
+                def mungedProjectName = Utilities.getFolderName(project)
+                def mungedBranchName = Utilities.getFolderName(branch)
+                def sourceJobName = getJobName(configuration, architecture, os, scenario, false) // the build job is the same as the test 'jobName' but without the trailing '_tst'.
+                def inputJobName = Utilities.getFullJobName(sourceJobName, isPR)
+
+                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
+                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/tests.checked.zip")
             }
 
             if (architecture == 'x86') {
