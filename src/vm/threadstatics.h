@@ -29,6 +29,7 @@
 #include "field.h"
 #include "methodtable.h"
 #include "threads.h"
+#include "spinlock.h"
 
 // Defines ObjectHandeList type
 #include "specialstatics.h"
@@ -522,6 +523,7 @@ struct ThreadLocalBlock
 private:
     PTR_TLMTableEntry   m_pTLMTable;     // Table of ThreadLocalModules
     SIZE_T              m_TLMTableSize;  // Current size of table
+    SpinLock            m_TLMTableLock;  // Spinlock used to synchronize growing the table and freeing TLM by other threads
 
     // Each ThreadLocalBlock has its own ThreadStaticHandleTable. The ThreadStaticHandleTable works
     // by allocating Object arrays on the GC heap and keeping them alive with pinning handles.
@@ -555,7 +557,10 @@ public:
 
 #ifndef DACCESS_COMPILE
     ThreadLocalBlock()
-      : m_pTLMTable(NULL), m_TLMTableSize(0), m_pThreadStaticHandleTable(NULL) {}
+      : m_pTLMTable(NULL), m_TLMTableSize(0), m_pThreadStaticHandleTable(NULL) 
+    {
+        m_TLMTableLock.Init(LOCK_TYPE_DEFAULT);
+    }
 
     void    FreeTLM(SIZE_T i);
 

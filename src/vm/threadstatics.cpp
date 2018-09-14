@@ -27,15 +27,20 @@ void ThreadLocalBlock::FreeTLM(SIZE_T i)
         MODE_ANY;
     }
     CONTRACTL_END;
-    _ASSERTE(m_pTLMTable != NULL);
 
-    if (i >= m_TLMTableSize)
+    PTR_ThreadLocalModule pThreadLocalModule;
+
     {
-        return;
-    }
+        SpinLock::Holder lock(&m_TLMTableLock);
 
-    PTR_ThreadLocalModule pThreadLocalModule = m_pTLMTable[i].pTLM;
-    m_pTLMTable[i].pTLM = NULL;
+        _ASSERTE(m_pTLMTable != NULL);
+        if (i >= m_TLMTableSize)
+        {
+            return;
+        }
+        pThreadLocalModule = m_pTLMTable[i].pTLM;
+        m_pTLMTable[i].pTLM = NULL;
+    }
 
     if (pThreadLocalModule != NULL)
     {
@@ -124,19 +129,23 @@ void ThreadLocalBlock::EnsureModuleIndex(ModuleIndex index)
     // Zero out the new TLM table
     memset(pNewModuleSlots, 0 , sizeof(TLMTableEntry) * aModuleIndices);
 
-    if (m_pTLMTable != NULL)
-    {
-        memcpy(pNewModuleSlots, m_pTLMTable, sizeof(TLMTableEntry) * m_TLMTableSize);
-    }
-    else
-    {
-        _ASSERTE(m_TLMTableSize == 0);
-    }
-
     PTR_TLMTableEntry pOldModuleSlots = m_pTLMTable;
-    
-    m_pTLMTable = pNewModuleSlots;
-    m_TLMTableSize = aModuleIndices;
+
+    {
+        SpinLock::Holder lock(&m_TLMTableLock);
+
+        if (m_pTLMTable != NULL)
+        {
+            memcpy(pNewModuleSlots, m_pTLMTable, sizeof(TLMTableEntry) * m_TLMTableSize);
+        }
+        else
+        {
+            _ASSERTE(m_TLMTableSize == 0);
+        }
+
+        m_pTLMTable = pNewModuleSlots;
+        m_TLMTableSize = aModuleIndices;
+    }
 
     if (pOldModuleSlots != NULL)
         delete pOldModuleSlots;
