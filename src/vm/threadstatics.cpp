@@ -522,7 +522,7 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
 
 #ifdef FEATURE_64BIT_ALIGNMENT
             // The memory block has be aligned at MAX_PRIMITIVE_FIELD_SIZE to guarantee alignment of statics
-            static_assert_no_msg(sizeof(DynamicEntry) % MAX_PRIMITIVE_FIELD_SIZE == 0);
+            static_assert_no_msg(sizeof(NormalDynamicEntry) % MAX_PRIMITIVE_FIELD_SIZE == 0);
             _ASSERTE(IS_ALIGNED(pDynamicStatics, MAX_PRIMITIVE_FIELD_SIZE));
 #endif
 
