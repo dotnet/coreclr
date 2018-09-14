@@ -3250,10 +3250,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             //
             // HACK: the Ubuntu arm64 copyArtifacts Jenkins plug-in is ridiculously slow (45 minutes to
             // 1.5 hours for this step). Instead, directly use wget, which is fast (1 minute).
-            //
-            // NOTE: Arm64 Ubuntu hack not yet implemented for CoreFX testing, so still copy artifacts for that.
 
-            if (!isUbuntuArm64Job || doCoreFxTesting) {
+            if (!isUbuntuArm64Job) {
                 copyArtifacts(inputCoreCLRBuildName) {
                     excludePatterns('**/testResults.xml', '**/*.ni.dll')
                     buildSelector {
@@ -3267,16 +3265,20 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("uname -a || true")
             }
 
-            if (isUbuntuArm64Job && !doCoreFxTesting) {
+            if (isUbuntuArm64Job) {
                 // Copy the required artifacts directly, using wget, e.g.:
                 // 
                 //  https://ci.dot.net/job/dotnet_coreclr/job/master/job/arm64_cross_checked_ubuntu16.04_innerloop_prtest/16/artifact/testnativebin.checked.zip
                 //  https://ci.dot.net/job/dotnet_coreclr/job/master/job/arm64_cross_checked_ubuntu16.04_innerloop_prtest/16/artifact/tests.checked.zip
                 // 
-                // or:
+                // parameterized as:
                 //
                 //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/testnativebin.checked.zip
                 //  https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/${CORECLR_BUILD}/artifact/tests.checked.zip
+                //
+                // Use `--progress=dot:giga` to display some progress output, but limit it in the log file.
+                //
+                // Use `--directory-prefix=_/fx` to specify where to put the corefx files (to match what other platforms do). Use this instead of `-O`.
 
                 shell("echo \"Using wget instead of the Jenkins copy artifacts plug-in to copy artifacts from ${inputCoreCLRBuildName}\"")
 
@@ -3285,8 +3287,19 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 def sourceJobName = getJobName(configuration, architecture, os, scenario, false) // the build job is the same as the test 'jobName' but without the trailing '_tst'.
                 def inputJobName = Utilities.getFullJobName(sourceJobName, isPR)
 
-                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
-                shell("wget https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/tests.checked.zip")
+                if (doCoreFxTesting) {
+                    // CoreFX example artifact URLs:
+                    // https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxruntime.zip
+                    // https://ci.dot.net/job/dotnet_coreclr/job/dev_unix_test_workflow/job/jitstress/job/arm64_cross_checked_ubuntu16.04_corefx_baseline_prtest/1/artifact/_/fx/fxtests.zip
+
+                    shell("mkdir -p ${workspaceRelativeFxRootLinux}")
+                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/${workspaceRelativeFxRootLinux}/fxtests.zip")
+                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/${workspaceRelativeFxRootLinux}/fxruntime.zip")
+                }
+                else {
+                    shell("wget --progress=dot:giga https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/testnativebin.checked.zip")
+                    shell("wget --progress=dot:giga https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/job/${inputJobName}/\${CORECLR_BUILD}/artifact/tests.checked.zip")
+                }
             }
 
             if (architecture == 'x86') {
