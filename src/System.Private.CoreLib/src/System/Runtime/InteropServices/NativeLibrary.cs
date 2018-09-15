@@ -85,7 +85,10 @@ namespace System.Runtime.InteropServices
             {
                 LoadNativeLibraryArgs loadNativeLibraryArgs = new LoadNativeLibraryArgs(libraryName, dllImportSearchPath, assembly);
                 NativeLibrary nativeLibrary = callback(loadNativeLibraryArgs);
-                if(nativeLibrary != null) return nativeLibrary.Handle;
+                if(nativeLibrary != null)
+                {
+                    return nativeLibrary.Handle;
+                }
             }
 
             return IntPtr.Zero;

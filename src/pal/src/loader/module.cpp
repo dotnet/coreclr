@@ -660,6 +660,18 @@ done:
     return hModule;
 }
 
+// 
+VOID *
+PALAPI
+PAL_GetDirect(
+    IN HMODULE hmodule)
+{
+    MODSTRUCT *module = (MODSTRUCT*) hmodule;
+
+    return module->dl_handle;
+}
+
+
 /*++
 Function:
   PAL_RegisterModule
@@ -1512,7 +1524,7 @@ static MODSTRUCT *LOADAddModule(void *dl_handle, LPCSTR libraryNameOrPath)
             {
                 module->refcount++;
             }
-            dlclose(dl_handle);
+            // dlclose(dl_handle);
             return module;
         }
         module = module->next;

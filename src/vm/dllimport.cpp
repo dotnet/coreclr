@@ -6453,7 +6453,7 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     {
         hmod = LoadLibraryViaCallback(pMD->GetAssembly(), pDomain, wszLibName, dllImportSearchPathFlag);
     }
-    
+
     if (!hmod)
     {
         hmod = LoadLibraryModuleHierarchy(pMD->GetAssembly(), wszLibName, searchAssemblyDirectory, dllImportSearchPathFlag, pErrorTracker, false);

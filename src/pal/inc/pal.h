@@ -2595,6 +2595,12 @@ PAL_RegisterLibraryDirect(
         IN void *dl_handle,
         IN LPCWSTR lpLibFileName);
 
+PALIMPORT
+VOID *
+PALAPI
+PAL_GetDirect(
+    IN HMODULE hmodule);
+
 /*++
 Function:
   PAL_LOADLoadPEFile
