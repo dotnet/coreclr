@@ -476,8 +476,11 @@ class Constants {
                'r2r_jitminopts',
                'r2r_jitforcerelocs',
                'r2r_gcstress15',
+               'r2r_no_tiered_compilation',
                'minopts',
                'tieredcompilation',
+               'no_tiered_compilation',
+               'no_tiered_compilation_innerloop',
                'forcerelocs',
                'jitstress1',
                'jitstress2',
@@ -1212,9 +1215,19 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
 // We have a limited amount of some hardware. For these, scale back the periodic testing we do,
 // and only allowing using this hardware in some specific branches.
 def static jobRequiresLimitedHardware(def architecture, def os) {
-    if ((architecture == 'arm') || (architecture == 'arm64')) {
-        // arm and arm64 Windows and Linux hardware is limited.
+    if (architecture == 'arm') {
+        // arm Windows and Linux hardware is limited.
         return true
+    }
+    else if (architecture == 'arm64') {
+        if (os == 'Windows_NT') {
+            // arm64 Windows hardware is limited.
+            return true
+        }
+        else {
+            // arm64 Linux hardware is fast enough to allow more frequent jobs
+            return false
+        }
     }
     else {
         return false
@@ -1277,11 +1290,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     // Limited hardware is restricted for non-PR triggers to certain branches.
     if (jobRequiresLimitedHardware(architecture, os) && (!(branch in Constants.LimitedHardwareBranches))) {
         return
-    }
-
-    // No arm64 Linux cron jobs for now: we don't have enough hardware.
-    if ((architecture == 'arm64') && (os != 'Windows_NT')) {
-         return
     }
 
     // Ubuntu x86 CI jobs are failing. Disable non-PR triggered jobs to avoid these constant failures
@@ -1414,12 +1422,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 break
             }
 
-            // GC Stress 15 r2r gets a push trigger for checked/release
             if (configuration == 'Checked' || configuration == 'Release') {
                 if (architecture == 'x64') {
                     //Flow jobs should be Windows, Ubuntu, OSX10.12, or CentOS
                     if (isFlowJob || os == 'Windows_NT') {
-                        // Add a weekly periodic trigger
                         addPeriodicTriggerHelper(job, 'H H * * 3,6') // some time every Wednesday and Saturday
                     }
                 }
@@ -1566,10 +1572,6 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             if (os in bidailyCrossList) {
                 break
             }
-            if ((architecture == 'arm64') && (os != 'Windows_NT')) {
-                // TODO: should we have cron jobs for arm64 Linux GCStress?
-                break
-            }
             addPeriodicTriggerHelper(job, '@weekly')
             break
         case 'gcstress0xc':
@@ -1579,18 +1581,14 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'gcstress0xc_jitstress1':
         case 'gcstress0xc_jitstress2':
         case 'gcstress0xc_minopts_heapverify1':
-            if (os == 'CentOS7.1') {
-                break
-            }
             if (os == 'OSX10.12') {
                 // GCStress=C is currently not supported on OS X
                 break
             }
-            if (os in bidailyCrossList) {
+            if (os == 'CentOS7.1') {
                 break
             }
-            if ((architecture == 'arm64') && (os != 'Windows_NT')) {
-                // TODO: should we have cron jobs for arm64 Linux GCStress?
+            if (os in bidailyCrossList) {
                 break
             }
             addPeriodicTriggerHelper(job, '@weekly')
