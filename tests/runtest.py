@@ -1083,19 +1083,16 @@ def precompile_core_root(test_location,
 
         return_code = proc.returncode
 
-        passed = False
         if return_code == -2146230517:
             print("%s is not a managed assembly." % file)
-            return passed
+            return False
 
         if return_code != 0:
-            print("Unable to precompile %s" % file)
-            return passed
+            print("Unable to precompile %s (%d)" % (file, return_code))
+            return False
 
         print("Successfully precompiled %s" % file)
-        passed = True
-
-        return passed
+        return True
 
     print("Precompiling all assemblies in %s" % core_root)
     print("")
@@ -1736,14 +1733,6 @@ def print_summary(tests):
         else:
             skipped_tests.append(test)
 
-    print("")
-    print("Total tests run: %d" % len(tests))
-    print("")
-    print("Total passing tests: %d" % len(passed_tests))
-    print("Total failed tests: %d" % len(failed_tests))
-    print("Total skipped tests: %d" % len(skipped_tests))
-    print("")
-
     failed_tests.sort(key=lambda item: item["time"], reverse=True)
     passed_tests.sort(key=lambda item: item["time"], reverse=True)
     skipped_tests.sort(key=lambda item: item["time"], reverse=True)
@@ -1784,16 +1773,19 @@ def print_summary(tests):
                     break
 
     if len(failed_tests) > 0:
-        print("Failed tests:")
+        print("%d failed tests:" % len(failed_tests))
         print("")
         print_tests_helper(failed_tests, None)
         
-
-    if len(passed_tests) > 50:
-        print("")
-        print("50 slowest passing tests:")
-        print("")
-        print_tests_helper(passed_tests, 50)
+    # The following code is currently disabled, as it produces too much verbosity in a normal
+    # test run. It could be put under a switch, or else just enabled as needed when investigating
+    # test slowness.
+    #
+    # if len(passed_tests) > 50:
+    #     print("")
+    #     print("50 slowest passing tests:")
+    #     print("")
+    #     print_tests_helper(passed_tests, 50)
 
     if len(failed_tests) > 0:
         print("")
@@ -1807,7 +1799,7 @@ def print_summary(tests):
             
             test_output = item["test_output"]
 
-            # XUnit results are captured as escaped, escaped characters.
+            # XUnit results are captured as escaped characters.
             test_output = test_output.replace("\\r", "\r")
             test_output = test_output.replace("\\n", "\n")
 
@@ -1819,6 +1811,13 @@ def print_summary(tests):
         print("End of output of failing tests")
         print("#################################################################")
         print("")
+
+    print("")
+    print("Total tests run    : %d" % len(tests))
+    print("Total passing tests: %d" % len(passed_tests))
+    print("Total failed tests : %d" % len(failed_tests))
+    print("Total skipped tests: %d" % len(skipped_tests))
+    print("")
 
 def create_repro(host_os, arch, build_type, env, core_root, coreclr_repo_location, tests):
     """ Go through the failing tests and create repros for them
@@ -1845,13 +1844,11 @@ def create_repro(host_os, arch, build_type, env, core_root, coreclr_repo_locatio
     repro_location = os.path.join(bin_location, "repro", "%s.%s.%s" % (host_os, arch, build_type))
     if os.path.isdir(repro_location):
         shutil.rmtree(repro_location)
-    
-    print("mkdir %s" % repro_location)
-    os.makedirs(repro_location)
 
     print("")
-    print("Creating repo files, they can be found at: %s" % repro_location)
+    print("Creating repro files at: %s" % repro_location)
 
+    os.makedirs(repro_location)
     assert os.path.isdir(repro_location)
 
     # Now that the repro_location exists under <coreclr_location>/bin/repro
@@ -1861,7 +1858,6 @@ def create_repro(host_os, arch, build_type, env, core_root, coreclr_repo_locatio
         debug_env.write_repro()
 
     print("Repro files written.")
-    print("They can be found at %s" % repro_location)
 
 def do_setup(host_os, 
              arch, 
