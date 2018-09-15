@@ -1083,19 +1083,16 @@ def precompile_core_root(test_location,
 
         return_code = proc.returncode
 
-        passed = False
         if return_code == -2146230517:
             print("%s is not a managed assembly." % file)
-            return passed
+            return False
 
         if return_code != 0:
-            print("Unable to precompile %s" % file)
-            return passed
+            print("Unable to precompile %s (%d)" % (file, return_code))
+            return False
 
         print("Successfully precompiled %s" % file)
-        passed = True
-
-        return passed
+        return True
 
     print("Precompiling all assemblies in %s" % core_root)
     print("")
