@@ -185,6 +185,12 @@ namespace System.IO
                 flags |= Interop.Sys.OpenFlags.O_SYNC;
             }
 
+            // NoBuffering
+            if ((options & (FileOptions)0x20000000) != 0)
+            {
+                flags |= Interop.Sys.OpenFlags.O_DIRECT;
+            }
+
             return flags;
         }
 
