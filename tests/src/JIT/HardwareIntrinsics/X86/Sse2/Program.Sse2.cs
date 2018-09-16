@@ -94,6 +94,8 @@ namespace JIT.HardwareIntrinsics.X86
                 ["CompareOrderedScalar.Double"] = CompareOrderedScalarDouble,
                 ["CompareUnordered.Double"] = CompareUnorderedDouble,
                 ["CompareUnorderedScalar.Double"] = CompareUnorderedScalarDouble,
+                ["ConvertScalarToVector128Int32.Int32"] = ConvertScalarToVector128Int32Int32,
+                ["ConvertScalarToVector128UInt32.UInt32"] = ConvertScalarToVector128UInt32UInt32,
                 ["ConvertToDouble.Vector128Double"] = ConvertToDoubleVector128Double,
                 ["ConvertToInt32.Vector128Double"] = ConvertToInt32Vector128Double,
                 ["ConvertToInt32.Vector128Int32"] = ConvertToInt32Vector128Int32,

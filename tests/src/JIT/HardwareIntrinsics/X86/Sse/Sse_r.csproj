@@ -67,6 +67,11 @@
     <Compile Include="CompareOrderedScalar.Single.cs" />
     <Compile Include="CompareUnordered.Single.cs" />
     <Compile Include="CompareUnorderedScalar.Single.cs" />
+    <Compile Include="ConvertToInt32.Vector128Single.cs" />
+    <Compile Include="ConvertToInt32WithTruncation.Vector128Single.cs" />
+    <Compile Include="ConvertToInt64.Vector128Single.cs" />
+    <Compile Include="ConvertToInt64WithTruncation.Vector128Single.cs" />
+    <Compile Include="ConvertToSingle.Vector128Single.cs" />
     <Compile Include="Divide.Single.cs" />
     <Compile Include="DivideScalar.Single.cs" />
     <Compile Include="Max.Single.cs" />
@@ -82,6 +87,7 @@
     <Compile Include="Program.Sse.cs" />
     <Compile Include="..\Shared\BooleanCmpOpTest_DataTable.cs" />
     <Compile Include="..\Shared\Program.cs" />
+    <Compile Include="..\Shared\SimdScalarUnOpTest_DataTable.cs" />
     <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />

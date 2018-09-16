@@ -109,6 +109,8 @@
     <Compile Include="CompareOrderedScalar.Double.cs" />
     <Compile Include="CompareUnordered.Double.cs" />
     <Compile Include="CompareUnorderedScalar.Double.cs" />
+    <Compile Include="ConvertScalarToVector128Int32.Int32.cs" />
+    <Compile Include="ConvertScalarToVector128UInt32.UInt32.cs" />
     <Compile Include="ConvertToDouble.Vector128Double.cs" />
     <Compile Include="ConvertToInt32.Vector128Double.cs" />
     <Compile Include="ConvertToInt32.Vector128Int32.cs" />
