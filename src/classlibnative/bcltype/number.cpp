@@ -354,21 +354,39 @@ static unsigned DigitsToInt(__in_ecount(count) wchar* p, int count)
 //
 // multiply two numbers in the internal integer representation
 //
-static UINT64 Mul64Lossy(UINT64 a, UINT64 b, INT* pexp)
+static UINT64 Mul64x64To128Upper(UINT64 a, UINT64 b, INT* pexp)
 {
     LIMITED_METHOD_CONTRACT
 
-    // it's ok to losse some precision here - Mul64 will be called
-    // at most twice during the conversion, so the error won't propagate
-    // to any of the 53 significant bits of the result
-    UINT64 val = Mul32x32To64(a >> 32, b >> 32) +
-        (Mul32x32To64(a >> 32, b) >> 32) +
-        (Mul32x32To64(a, b >> 32) >> 32);
+#if defined(_MSC_VER) && defined(_TARGET_AMD64_)
+    uint64_t upper = __umulh(a, b);
+#else
+    uint32_t au = (UINT32)(a >> 32);
+    uint32_t al = (UINT32)(a);
 
-    // normalize
-    if ((val & I64(0x8000000000000000)) == 0) { val <<= 1; *pexp -= 1; }
+    uint32_t bu = (UINT32)(b >> 32);
+    uint32_t bl = (UINT32)(b);
 
-    return val;
+    uint64_t c  = Mul32x32To64(al, bl);
+    uint32_t cu = (UINT32)(c >> 32);
+
+    uint64_t d  = Mul32x32To64(au, bl) + cu;
+    uint32_t dl = (UINT32)(d);
+    uint32_t du = (UINT32)(d >> 32);
+
+    uint64_t e = Mul32x32To64(al, bu) + dl;
+    uint32_t eu = (UINT32)(e >> 32);
+
+    uint64_t upper = Mul32x32To64(au, bu) + du + eu;
+#endif
+
+    if ((upper & 0x8000000000000000ll) == 0)
+    {
+        upper <<= 1;
+        *pexp -= 1;
+    }
+
+    return upper;
 }
 
 //
@@ -397,20 +415,20 @@ static const UINT64 rgval64Power10[] = {
 
 // powers of 0.1
 /*1*/ I64(0xcccccccccccccccd),
-/*2*/ I64(0xa3d70a3d70a3d70b),
-/*3*/ I64(0x83126e978d4fdf3c),
-/*4*/ I64(0xd1b71758e219652e),
-/*5*/ I64(0xa7c5ac471b478425),
-/*6*/ I64(0x8637bd05af6c69b7),
-/*7*/ I64(0xd6bf94d5e57a42be),
-/*8*/ I64(0xabcc77118461ceff),
-/*9*/ I64(0x89705f4136b4a599),
-/*10*/ I64(0xdbe6fecebdedd5c2),
-/*11*/ I64(0xafebff0bcb24ab02),
-/*12*/ I64(0x8cbccc096f5088cf),
-/*13*/ I64(0xe12e13424bb40e18),
-/*14*/ I64(0xb424dc35095cd813),
-/*15*/ I64(0x901d7cf73ab0acdc),
+/*2*/ I64(0xa3d70a3d70a3d70a),
+/*3*/ I64(0x83126e978d4fdf3b),
+/*4*/ I64(0xd1b71758e219652a),
+/*5*/ I64(0xa7c5ac471b478421),
+/*6*/ I64(0x8637bd05af6c69b4),
+/*7*/ I64(0xd6bf94d5e57a42b8),
+/*8*/ I64(0xabcc77118461cef9),
+/*9*/ I64(0x89705f4136b4a594),
+/*10*/ I64(0xdbe6fecebdedd5b8),
+/*11*/ I64(0xafebff0bcb24aaf9),
+/*12*/ I64(0x8cbccc096f5088c7),
+/*13*/ I64(0xe12e13424bb40e0a),
+/*14*/ I64(0xb424dc35095cd808),
+/*15*/ I64(0x901d7cf73ab0acd3),
 };
 
 static const INT8 rgexp64Power10[] = {
@@ -435,49 +453,49 @@ static const INT8 rgexp64Power10[] = {
 static const UINT64 rgval64Power10By16[] = {
 // powers of 10^16
 /*1*/ I64(0x8e1bc9bf04000000),
-/*2*/ I64(0x9dc5ada82b70b59e),
-/*3*/ I64(0xaf298d050e4395d6),
-/*4*/ I64(0xc2781f49ffcfa6d4),
-/*5*/ I64(0xd7e77a8f87daf7fa),
-/*6*/ I64(0xefb3ab16c59b14a0),
-/*7*/ I64(0x850fadc09923329c),
-/*8*/ I64(0x93ba47c980e98cde),
-/*9*/ I64(0xa402b9c5a8d3a6e6),
-/*10*/ I64(0xb616a12b7fe617a8),
-/*11*/ I64(0xca28a291859bbf90),
-/*12*/ I64(0xe070f78d39275566),
-/*13*/ I64(0xf92e0c3537826140),
-/*14*/ I64(0x8a5296ffe33cc92c),
-/*15*/ I64(0x9991a6f3d6bf1762),
-/*16*/ I64(0xaa7eebfb9df9de8a),
-/*17*/ I64(0xbd49d14aa79dbc7e),
-/*18*/ I64(0xd226fc195c6a2f88),
-/*19*/ I64(0xe950df20247c83f8),
-/*20*/ I64(0x81842f29f2cce373),
-/*21*/ I64(0x8fcac257558ee4e2),
+/*2*/ I64(0x9dc5ada82b70b59c),
+/*3*/ I64(0xaf298d050e4395d4),
+/*4*/ I64(0xc2781f49ffcfa6d2),
+/*5*/ I64(0xd7e77a8f87daf7f8),
+/*6*/ I64(0xefb3ab16c59b149e),
+/*7*/ I64(0x850fadc09923329b),
+/*8*/ I64(0x93ba47c980e98cdc),
+/*9*/ I64(0xa402b9c5a8d3a6e2),
+/*10*/ I64(0xb616a12b7fe617a4),
+/*11*/ I64(0xca28a291859bbf8c),
+/*12*/ I64(0xe070f78d39275562),
+/*13*/ I64(0xf92e0c353782613c),
+/*14*/ I64(0x8a5296ffe33cc92a),
+/*15*/ I64(0x9991a6f3d6bf175e),
+/*16*/ I64(0xaa7eebfb9df9de84),
+/*17*/ I64(0xbd49d14aa79dbc76),
+/*18*/ I64(0xd226fc195c6a2f7e),
+/*19*/ I64(0xe950df20247c83ec),
+/*20*/ I64(0x81842f29f2cce36c),
+/*21*/ I64(0x8fcac257558ee4da),
 
 // powers of 0.1^16
 /*1*/ I64(0xe69594bec44de160),
-/*2*/ I64(0xcfb11ead453994c3),
-/*3*/ I64(0xbb127c53b17ec165),
-/*4*/ I64(0xa87fea27a539e9b3),
-/*5*/ I64(0x97c560ba6b0919b5),
-/*6*/ I64(0x88b402f7fd7553ab),
-/*7*/ I64(0xf64335bcf065d3a0),
-/*8*/ I64(0xddd0467c64bce4c4),
-/*9*/ I64(0xc7caba6e7c5382ed),
-/*10*/ I64(0xb3f4e093db73a0b7),
-/*11*/ I64(0xa21727db38cb0053),
-/*12*/ I64(0x91ff83775423cc29),
-/*13*/ I64(0x8380dea93da4bc82),
-/*14*/ I64(0xece53cec4a314f00),
-/*15*/ I64(0xd5605fcdcf32e217),
-/*16*/ I64(0xc0314325637a1978),
-/*17*/ I64(0xad1c8eab5ee43ba2),
-/*18*/ I64(0x9becce62836ac5b0),
-/*19*/ I64(0x8c71dcd9ba0b495c),
-/*20*/ I64(0xfd00b89747823938),
-/*21*/ I64(0xe3e27a444d8d991a),
+/*2*/ I64(0xcfb11ead453994c2),
+/*3*/ I64(0xbb127c53b17ec163),
+/*4*/ I64(0xa87fea27a539e9b1),
+/*5*/ I64(0x97c560ba6b0919b3),
+/*6*/ I64(0x88b402f7fd7553a9),
+/*7*/ I64(0xf64335bcf065d39a),
+/*8*/ I64(0xddd0467c64bce4bf),
+/*9*/ I64(0xc7caba6e7c5382e8),
+/*10*/ I64(0xb3f4e093db73a0b2),
+/*11*/ I64(0xa21727db38cb004e),
+/*12*/ I64(0x91ff83775423cc24),
+/*13*/ I64(0x8380dea93da4bc7d),
+/*14*/ I64(0xece53cec4a314ef6),
+/*15*/ I64(0xd5605fcdcf32e20e),
+/*16*/ I64(0xc0314325637a196f),
+/*17*/ I64(0xad1c8eab5ee43b9a),
+/*18*/ I64(0x9becce62836ac5a8),
+/*19*/ I64(0x8c71dcd9ba0b4954),
+/*20*/ I64(0xfd00b89747823928),
+/*21*/ I64(0xe3e27a444d8d990b),
 };
 
 static const INT16 rgexp64Power10By16[] = {
@@ -506,27 +524,6 @@ static const INT16 rgexp64Power10By16[] = {
 };
 
 #ifdef _DEBUG
-//
-// slower high precision version of Mul64 for computation of the tables
-//
-static UINT64 Mul64Precise(UINT64 a, UINT64 b, INT* pexp)
-{
-    LIMITED_METHOD_CONTRACT
-
-    UINT64 hilo =
-        ((Mul32x32To64(a >> 32, b) >> 1) +
-        (Mul32x32To64(a, b >> 32) >> 1) +
-        (Mul32x32To64(a, b) >> 33)) >> 30;
-
-    UINT64 val = Mul32x32To64(a >> 32, b >> 32) + (hilo >> 1) + (hilo & 1);
-
-    // normalize
-    if ((val & I64(0x8000000000000000)) == 0) { val <<= 1; *pexp -= 1; }
-
-    return val;
-}
-
-
 //
 // debug-only verification of the precomputed tables
 //
@@ -572,7 +569,7 @@ static void CheckTable(UINT64 val, INT exp, LPCVOID table, int size, LPCSTR name
         }
 
         exp += mulexp;
-        val = Mul64Precise(val, multval, &exp);
+        val = Mul64x64To128Upper(val, multval, &exp);
     }
     _ASSERTE(!fBad || !"NumberToDouble table not correct. Correct version dumped to stderr.");
 }
@@ -673,7 +670,7 @@ void NumberToDouble(NUMBER* number, double* value)
         exp += (scale < 0) ? (-multexp + 1) : multexp;
 
         UINT64 multval = rgval64Power10[index + ((scale < 0) ? 15 : 0) - 1];
-        val = Mul64Lossy(val, multval, &exp);
+        val = Mul64x64To128Upper(val, multval, &exp);
     }
 
     index = absscale >> 4;
@@ -683,7 +680,7 @@ void NumberToDouble(NUMBER* number, double* value)
         exp += (scale < 0) ? (-multexp + 1) : multexp;
 
         UINT64 multval = rgval64Power10By16[index + ((scale < 0) ? 21 : 0) - 1];
-        val = Mul64Lossy(val, multval, &exp);
+        val = Mul64x64To128Upper(val, multval, &exp);
     }
 
 
