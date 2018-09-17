@@ -1105,6 +1105,8 @@ static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain)
     }
 
     module->refcount--;
+    dlclose(module->dl_handle);
+
     TRACE("Reference count for module %p (named %S) decreases to %d\n",
             module, MODNAME(module), module->refcount);
 
@@ -1524,7 +1526,6 @@ static MODSTRUCT *LOADAddModule(void *dl_handle, LPCSTR libraryNameOrPath)
             {
                 module->refcount++;
             }
-            // dlclose(dl_handle);
             return module;
         }
         module = module->next;
