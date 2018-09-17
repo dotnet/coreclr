@@ -36,7 +36,7 @@ namespace R2RDump
         /// <summary>
         /// Length of the serialized EH clause in the PE image.
         /// </summary>
-        public const int Length = 6 * sizeof(int);
+        public const int Length = 6 * sizeof(uint);
 
         /// <summary>
         /// Flags describing the exception handler.
@@ -228,6 +228,9 @@ namespace R2RDump
                 int eh2 = BitConverter.ToInt32(image, offset + sizeof(uint));
 
                 RuntimeFunctionToEHInfoMap.Add(rva1, new EHInfoLocation(eh1, (eh2 - eh1) / EHClause.Length));
+
+                rva1 = rva2;
+                eh1 = eh2;
             }
         }
     }
