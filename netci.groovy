@@ -1304,9 +1304,9 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
         case 'no_tiered_compilation_innerloop':
             // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
             //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
-            if ((architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked')) {
-                addGithubPushTriggerHelper(job)
-            }
+            // We should never get here (in the "innerloop cases) for non-PR jobs, except for this TEMPORARY exception.
+            assert (isInnerloopTestScenario(scenario) && (architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked'))
+            addGithubPushTriggerHelper(job)
             break
 
         case 'crossgen_comparison':
@@ -2556,15 +2556,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 // Returns true if the job should be generated.
 def static shouldGenerateJob(def scenario, def isPR, def architecture, def configuration, def os, def isBuildOnly)
 {
-    // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
-    if (scenario == 'innerloop' && !isPR) {
-        return false
-    }
+    // The various "innerloop" jobs are only available as PR triggered.
 
-    // Run basic corefx tests only on PR-triggered jobs
-    // Runs under Release and Checked 
-    if (scenario == 'corefx_innerloop' && !isPR) {
-        return false
+    if (!isPR) {
+        if (isInnerloopTestScenario(scenario) && (architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked')) {
+            // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
+            //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
+            return true
+        }
+
+        if (isInnerloopTestScenario(scenario)) {
+            return false
+        }
+
+        if (scenario == 'corefx_innerloop') {
+            return false
+        }
     }
 
     // Tizen is only supported for armem architecture
@@ -3629,13 +3636,16 @@ build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
 // Returns true if the job should be generated.
 def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def configuration, def os)
 {
-    // The "innerloop" (Pri-0 testing) scenario is only available as PR triggered.
-    if (scenario == 'innerloop' && !isPR) {
-        return false
-    }
-    
-    if (scenario == 'corefx_innerloop') {
-        return false
+    // The various "innerloop" jobs are only available as PR triggered.
+
+    if (!isPR) {
+        if (isInnerloopTestScenario(scenario)) {
+            return false
+        }
+
+        if (scenario == 'corefx_innerloop') {
+            return false
+        }
     }
 
     // Filter based on OS and architecture.
@@ -3802,6 +3812,10 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
                     return false
                 }
                 break
+
+            case 'corefx_innerloop':
+                // No flow job needed
+                return false
 
             default:
                 println("Unknown scenario: ${scenario}")
