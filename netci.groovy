@@ -1302,6 +1302,13 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
     switch (scenario) {
         case 'innerloop':
         case 'no_tiered_compilation_innerloop':
+            // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
+            //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
+            if ((architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked')) {
+                addGithubPushTriggerHelper(job)
+            }
+            break
+
         case 'crossgen_comparison':
             break
         case 'normal':
@@ -1914,6 +1921,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'innerloop':
                         case 'no_tiered_compilation_innerloop':
                             if (configuration == 'Checked') {
+                                // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
+                                //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
+                                if (architecture == 'arm64') {
+                                    break
+                                }
                                 isDefaultTrigger = true
                             }
                             break
