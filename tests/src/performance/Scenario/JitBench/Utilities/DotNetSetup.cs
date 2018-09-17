@@ -271,7 +271,7 @@ namespace JitBench
             }
             else if (targetFrameworkMoniker == "netcoreapp2.2")
             {
-                return "2.2.100-preview1-009395";
+                return "2.2.100-preview2-009404";
             }
             else if (targetFrameworkMoniker == "netcoreapp2.1")
             {
