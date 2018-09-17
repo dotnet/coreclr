@@ -663,7 +663,7 @@ done:
 // 
 VOID *
 PALAPI
-PAL_GetDirect(
+PAL_GetLibraryNativeHandle(
     IN HMODULE hmodule)
 {
     MODSTRUCT *module = (MODSTRUCT*) hmodule;

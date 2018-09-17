@@ -44,7 +44,7 @@ INT_PTR QCALLTYPE NativeLibrary::LoadLibrary(QCall::AssemblyHandle callingAssemb
     END_QCALL;
 
 #ifdef FEATURE_PAL
-    moduleHandle = PAL_GetDirect(hmod);
+    moduleHandle = PAL_GetLibraryNativeHandle(moduleHandle);
 #endif // FEATURE_PAL
 
     return reinterpret_cast<INT_PTR>(moduleHandle);

@@ -2598,7 +2598,7 @@ PAL_RegisterLibraryDirect(
 PALIMPORT
 VOID *
 PALAPI
-PAL_GetDirect(
+PAL_GetLibraryNativeHandle(
     IN HMODULE hmodule);
 
 /*++
