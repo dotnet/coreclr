@@ -124,11 +124,11 @@ namespace R2RDump
                     break;
 
                 case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FINALLY:
-                    stringBuilder.AppendFormat(" FINALLY (RVA {0:X4})", ClassTokenOrFilterOffset + methodRva);
+                    stringBuilder.AppendFormat(" FINALLY");
                     break;
 
                 case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FAULT:
-                    stringBuilder.AppendFormat(" FAULT (RVA {0:X4})", ClassTokenOrFilterOffset + methodRva);
+                    stringBuilder.AppendFormat(" FAULT");
                     break;
 
                 default:
