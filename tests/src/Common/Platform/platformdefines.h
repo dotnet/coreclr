@@ -20,7 +20,7 @@
 #define FS_SEPERATOR L"\\"
 #define PATH_DELIMITER L";"
 #define L(t) L##t
-
+#define W(str)  L##str
 
 typedef unsigned error_t;
 typedef HANDLE THREAD_ID;
@@ -69,6 +69,7 @@ LPWSTR HackyConvertToWSTR(char* pszInput);
 #define FS_SEPERATOR L("/")
 #define PATH_DELIMITER L(":")
 #define L(t) HackyConvertToWSTR(t)
+#define W(str)  u##str
 #define MAX_PATH 260
 
 typedef pthread_t THREAD_ID;

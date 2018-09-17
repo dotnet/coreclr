@@ -5,7 +5,7 @@
 
 #include "platformdefines.h"
 
-LPWSTR HackyConvertToWSTR(char* pszInput)
+LPWSTR HackyConvertToWSTR(const char* pszInput)
 {
     size_t cchInput;
     LPWSTR pwszOutput;
@@ -14,7 +14,7 @@ LPWSTR HackyConvertToWSTR(char* pszInput)
     if (NULL == pszInput) return NULL;
 
     // poor mans strlen
-    pStr     = pszInput;
+    pStr     = (char*)pszInput;
     cchInput = 0;
     while('\0' != *pStr) {cchInput++; pStr++;}
     pwszOutput = new WCHAR[ cchInput + 1];
