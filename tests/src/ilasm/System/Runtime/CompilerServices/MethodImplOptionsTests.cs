@@ -140,13 +140,13 @@ public static class MethodImplOptionsTests
         ilasmPsi.FileName = ilasmFile;
         string asmDllFileName = $"{Path.GetFileNameWithoutExtension(ilFileName)}.dll";
         ilasmPsi.Arguments =
-            $"/nologo /dll /optimize /output={asmDllFileName} {ilFileName}";
+            $"-nologo -dll -optimize -output={asmDllFileName} {ilFileName}";
 
         ildasmPsi = new ProcessStartInfo();
         ildasmPsi.UseShellExecute = false;
         ildasmPsi.WorkingDirectory = currentDirectory;
         ildasmPsi.FileName = ildasmFile;
         disasmIlFileName = $"{Path.GetFileNameWithoutExtension(ilFileName)}_dis{Path.GetExtension(ilFileName)}";
-        ildasmPsi.Arguments = $"/out={disasmIlFileName} {asmDllFileName}";
+        ildasmPsi.Arguments = $"-out={disasmIlFileName} {asmDllFileName}";
     }
 }
