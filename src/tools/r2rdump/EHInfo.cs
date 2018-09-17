@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
@@ -15,6 +17,7 @@ namespace R2RDump
     /// If COR_ILMETHOD_SECT_HEADER::Kind() = CorILMethod_Sect_EHTable then the attribute
     /// is a list of exception handling clauses.  There are two formats, fat or small
     /// </summary>
+    [Flags]
     public enum CorExceptionFlag
     {
         COR_ILEXCEPTION_CLAUSE_NONE,                    // This is a typed handler
@@ -24,6 +27,8 @@ namespace R2RDump
         COR_ILEXCEPTION_CLAUSE_FINALLY = 0x0002,        // This clause is a finally clause
         COR_ILEXCEPTION_CLAUSE_FAULT = 0x0004,          // Fault clause (finally that is called on exception only)
         COR_ILEXCEPTION_CLAUSE_DUPLICATED = 0x0008,     // duplicated clause. This clause was duplicated to a funclet which was pulled out of line
+
+        COR_ILEXCEPTION_CLAUSE_KIND_MASK = COR_ILEXCEPTION_CLAUSE_FILTER | COR_ILEXCEPTION_CLAUSE_FINALLY | COR_ILEXCEPTION_CLAUSE_FAULT,
     }
 
     /// <summary>
@@ -70,18 +75,28 @@ namespace R2RDump
         public uint ClassTokenOrFilterOffset;
 
         /// <summary>
+        /// Textual representation of the class represented by the class token.
+        /// </summary>
+        public string ClassName;
+
+        /// <summary>
         /// Read the EH clause from a given file offset in the PE image.
         /// </summary>
-        /// <param name="image">R2R PE executable image</param>
+        /// <param name="reader">R2R image reader<param>
         /// <param name="offset">Offset of the EH clause in the image</param>
-        public EHClause(byte[] image, int offset)
+        public EHClause(R2RReader reader, int offset)
         {
-            Flags = (CorExceptionFlag)BitConverter.ToUInt32(image, offset + 0 * sizeof(uint));
-            TryOffset = BitConverter.ToUInt32(image, offset + 1 * sizeof(uint));
-            TryEnd = BitConverter.ToUInt32(image, offset + 2 * sizeof(uint));
-            HandlerOffset = BitConverter.ToUInt32(image, offset + 3 * sizeof(uint));
-            HandlerEnd = BitConverter.ToUInt32(image, offset + 4 * sizeof(uint));
-            ClassTokenOrFilterOffset = BitConverter.ToUInt32(image, offset + 5 * sizeof(uint));
+            Flags = (CorExceptionFlag)BitConverter.ToUInt32(reader.Image, offset + 0 * sizeof(uint));
+            TryOffset = BitConverter.ToUInt32(reader.Image, offset + 1 * sizeof(uint));
+            TryEnd = BitConverter.ToUInt32(reader.Image, offset + 2 * sizeof(uint));
+            HandlerOffset = BitConverter.ToUInt32(reader.Image, offset + 3 * sizeof(uint));
+            HandlerEnd = BitConverter.ToUInt32(reader.Image, offset + 4 * sizeof(uint));
+            ClassTokenOrFilterOffset = BitConverter.ToUInt32(reader.Image, offset + 5 * sizeof(uint));
+
+            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_KIND_MASK) == CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE)
+            {
+                ClassName = MetadataNameFormatter.FormatHandle(reader.MetadataReader, MetadataTokens.Handle((int)ClassTokenOrFilterOffset));
+            }
         }
 
         /// <summary>
@@ -98,21 +113,29 @@ namespace R2RDump
             stringBuilder.Append($@"HndEnd {HandlerEnd:X4} (RVA {(HandlerEnd + methodRva):X4}) ");
             stringBuilder.Append($@"ClsFlt {ClassTokenOrFilterOffset:X4}");
 
-            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FILTER) != CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE)
+            switch (Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_KIND_MASK)
             {
-                stringBuilder.Append($@" (RVA {(ClassTokenOrFilterOffset + methodRva):X4})");
+                case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE:
+                    stringBuilder.AppendFormat(" CATCH: {0}", ClassName ?? "null");
+                    break;
 
-                stringBuilder.Append(" FILTER");
+                case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FILTER:
+                    stringBuilder.AppendFormat(" FILTER (RVA {0:X4})", ClassTokenOrFilterOffset + methodRva);
+                    break;
+
+                case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FINALLY:
+                    stringBuilder.AppendFormat(" FINALLY (RVA {0:X4})", ClassTokenOrFilterOffset + methodRva);
+                    break;
+
+                case CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FAULT:
+                    stringBuilder.AppendFormat(" FAULT (RVA {0:X4})", ClassTokenOrFilterOffset + methodRva);
+                    break;
+
+                default:
+                    throw new NotImplementedException(Flags.ToString());
             }
-            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FINALLY) != CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE)
-            {
-                stringBuilder.Append(" FINALLY");
-            }
-            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_FAULT) != CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE)
-            {
-                stringBuilder.Append(" FAULT");
-            }
-            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_DUPLICATED) != CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_NONE)
+
+            if ((Flags & CorExceptionFlag.COR_ILEXCEPTION_CLAUSE_DUPLICATED) != (CorExceptionFlag)0)
             {
                 stringBuilder.Append(" DUPLICATED");
             }
@@ -147,19 +170,19 @@ namespace R2RDump
         /// IP address of the runtime function in the READYTORUN_SECTION_EXCEPTION_INFO table.
         /// The length of the 
         /// </summary>
-        /// <param name="image">R2R PE image</param>
+        /// <param name="reader">R2R PE image reader</param>
         /// <param name="ehInfoRva">RVA of the EH info</param>
         /// <param name="methodRva">Starting RVA of the runtime function</param>
         /// <param name="offset">File offset of the EH info</param>
         /// <param name="clauseCount">Number of EH info clauses</param>
-        public EHInfo(byte[] image, int ehInfoRva, int methodRva, int offset, int clauseCount)
+        public EHInfo(R2RReader reader, int ehInfoRva, int methodRva, int offset, int clauseCount)
         {
             EHInfoRVA = ehInfoRva;
             MethodRVA = methodRva;
             EHClauses = new EHClause[clauseCount];
             for (int clauseIndex = 0; clauseIndex < clauseCount; clauseIndex++)
             {
-                EHClauses[clauseIndex] = new EHClause(image, offset + clauseIndex * EHClause.Length);
+                EHClauses[clauseIndex] = new EHClause(reader, offset + clauseIndex * EHClause.Length);
             }
         }
 

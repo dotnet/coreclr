@@ -393,7 +393,7 @@ namespace R2RDump
                     EHInfoLocation ehInfoLocation;
                     if (EHLookupTable.RuntimeFunctionToEHInfoMap.TryGetValue(startRva, out ehInfoLocation))
                     {
-                        ehInfo = new EHInfo(Image, ehInfoLocation.EHInfoRVA, startRva, GetOffset(ehInfoLocation.EHInfoRVA), ehInfoLocation.ClauseCount);
+                        ehInfo = new EHInfo(this, ehInfoLocation.EHInfoRVA, startRva, GetOffset(ehInfoLocation.EHInfoRVA), ehInfoLocation.ClauseCount);
                     }
 
                     RuntimeFunction rtf = new RuntimeFunction(
