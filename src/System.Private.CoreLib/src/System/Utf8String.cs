@@ -260,6 +260,35 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ref byte DangerousGetMutableReference() => ref Unsafe.AsRef(in _firstByte);
 
+        public bool EndsWith(UnicodeScalar value)
+        {
+            if (Length == 0)
+            {
+                // Empty string doesn't end with anything
+                return false;
+            }
+
+            // Common case is looking for an ASCII value (one UTF-8 code unit), so try that now
+            // optimistically.
+
+            if (Unsafe.Add(ref DangerousGetMutableReference(), Length) == value.Value)
+            {
+                return true; // match!
+            }
+
+            if (value.IsAscii || Length < 2)
+            {
+                return false; // no need to search future bytes
+            }
+
+            // Slow path: searching for a multi-byte sequence
+            // TODO: This can be optimized if the input UnicodeScalar is a compile-time constant.
+
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
+            int actualSequenceLength = value.ToUtf8(valueAsUtf8);
+            return AsSpanFast().EndsWith(valueAsUtf8.Slice(0, actualSequenceLength));
+        }
+
         public override bool Equals(object obj) => (obj is Utf8String other) && this.Equals(other);
 
         public bool Equals(Utf8String value)
@@ -674,6 +703,35 @@ namespace System
         public static Utf8String Literal(string value)
         {
             return RuntimeHelpers.GetUtf8StringLiteral(value);
+        }
+
+        public bool StartsWith(UnicodeScalar value)
+        {
+            if (Length == 0)
+            {
+                // Empty string doesn't start with anything
+                return false;
+            }
+
+            // Common case is looking for an ASCII value (one UTF-8 code unit), so try that now
+            // optimistically.
+
+            if (_firstByte == value.Value)
+            {
+                return true; // match!
+            }
+
+            if (value.IsAscii || Length < 2)
+            {
+                return false; // no need to search future bytes
+            }
+
+            // Slow path: searching for a multi-byte sequence
+            // TODO: This can be optimized if the input UnicodeScalar is a compile-time constant.
+
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
+            int actualSequenceLength = value.ToUtf8(valueAsUtf8);
+            return AsSpanFast().StartsWith(valueAsUtf8.Slice(0, actualSequenceLength));
         }
 
         private static unsafe nuint strlen(byte* value)

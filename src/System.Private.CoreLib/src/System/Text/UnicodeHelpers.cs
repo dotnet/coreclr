@@ -188,8 +188,8 @@ namespace System.Text
         public static bool IsSurrogateCodePoint(uint value) => IsInRangeInclusive(value, 0xD800U, 0xDFFFU);
 
         /// <summary>
-        /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-8 continuation byte
-        /// point, i.e., has binary representation 10xxxxxx, where x is any bit.
+        /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-8 continuation byte;
+        /// i.e., has binary representation 10xxxxxx, where x is any bit.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsUtf8ContinuationByte(in byte value)
@@ -207,8 +207,8 @@ namespace System.Text
         }
 
         /// <summary>
-        /// Returns <see langword="true"/> iff <paramref name="value"/> is a UTF-8 continuation byte
-        /// point, i.e., has binary representation 10xxxxxx, where x is any bit.
+        /// Returns <see langword="true"/> iff <paramref name="value"/> is the 32-bit expansion of a UTF-8
+        /// continuation byte; i.e., is in the range 0x80 to 0xBF, inclusive.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsUtf8ContinuationByte(uint value)
