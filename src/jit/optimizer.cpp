@@ -3643,6 +3643,7 @@ void Compiler::optUnrollLoops()
         BasicBlock*  bbHead        = loopDesc->lpHead;
         BasicBlock*  bbBotm        = loopDesc->lpBottom;
         BasicBlock*  bbBody        = bbHead->bbNext;
+        BasicBlock*  bbExit        = loopDesc->lpExit;
         GenTree*     gtTest        = bbBotm->lastStmt();
         GenTree*     gtIncr        = gtTest->gtPrev;
         unsigned int lpIter        = optComputeLoopIter(loopId); /* Loop constant iteration               */
@@ -3700,43 +3701,31 @@ void Compiler::optUnrollLoops()
                         continue;
                     }
 
-                    switch (gtParent->OperGet())
-                    {
-                        // those tree generates just simple ALUs.
-                        case GT_ADD:
-                        case GT_SUB:
-                        case GT_MUL:
-                        case GT_DIV:
-                        case GT_UDIV:
-                        case GT_LSH:
-                        case GT_RSH:
-
-                        case GT_ASG:
-                        case GT_IND:
-                        case GT_CAST:
-                        case GT_ARR_BOUNDS_CHECK:
-                        case GT_COMMA:
-
-#ifdef FEATURE_SIMD
-                        case GT_SIMD_CHK:
-                        case GT_SIMD:
-#endif // FEATURE_SIMD
-
-#ifdef FEATURE_HW_INTRINSICS
-                        case GT_HW_INTRINSIC_CHK:
-#endif // FEATURE_HW_INTRINSICS
-                            break;
-
-                        // otherwise. this is not a simple loop that only has ALUs.
-                        default:
-                            lpIsSimpleALU = false;
-                            break;
-                    }
-
                     if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
                     {
                         continue;
                     }
+
+#ifdef _TARGET_AMD64_
+                    // When its AMD64, this can have extra type extends for if iteration variant is not same size as
+                    // pointer. It will generate extra "mov" instruction for signeded extends or zero extends.
+                    if (gtParent->OperIs(GT_CAST))
+                    {
+                        GenTreeCast* gtCast    = gtParent->AsCast();
+                        var_types    typCastTo = gtCast->CastToType();
+                        var_types    typCastFm = gtCast->CastFromType();
+
+                        if ((typCastTo == TYP_LONG && typCastFm == TYP_INT) ||
+                            (typCastTo == TYP_ULONG && typCastFm == TYP_UINT))
+                        {
+                            // Guessed as ZEXT or SEXT for iteration variant.
+                            // TODO-CQ : this is not a exact ZEXT or SEXT. we have to make sure that its ZEXT or SEXT
+                            //           by checking shift after cast.
+
+                            lpCntFetch.push_back(8 /* sizeof(TYP_ULONG || TYP_LONG) */);
+                        }
+                    }
+#endif
                 }
                 lpCntStmts++;
             }
@@ -3745,10 +3734,26 @@ void Compiler::optUnrollLoops()
             {
                 break;
             }
-            else if (bbIter->bbJumpKind != BBJ_NONE)
+            else if (bbIter->bbJumpKind != BBJ_NONE || lpIsSimpleALU)
             {
-                // if the BasicBlock doesn't end with BBJ_NONE. it mean this block has condition.
+                // this should be marked as condition.
                 lpCntConds++;
+
+                // if the BasicBlock doesn't end with BBJ_NONE. it mean this block has condition. This means that
+                // this loop can exit before something to modified because its exiting before increasing iteration
+                // variable.
+                if (!lpIsSimpleALU)
+                {
+                    continue;
+                }
+                else if (bbIter->bbJumpKind == BBJ_COND && bbIter->bbJumpDest == bbExit)
+                {
+                    lpIsSimpleALU = false;
+                }
+                else if (loopDesc->lpExitCnt > 1)
+                {
+                    lpIsSimpleALU = false;
+                }
             }
         }
 
@@ -3787,7 +3792,7 @@ void Compiler::optUnrollLoops()
                 unsigned int LSDThreshold = 0;
                 for (unsigned int i = 1;; ++i)
                 {
-                    if (lpCntFetch.size() * i < 4 && lpIter / i >= 64)
+                    if (lpCntFetch.size() * i <= 4 && lpIter / i >= 64)
                     {
                         LSDThreshold = i;
                     }
