@@ -1754,7 +1754,6 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     {
         if (RequestedAggressiveOptimization())
         {
-            fEligibleForCallCounting = FALSE;
             fWasPromotedToTier1 = TRUE;
         }
         else if (g_pConfig->TieredCompilation_CallCounting())

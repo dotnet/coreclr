@@ -213,7 +213,7 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         }
 
         HRESULT hr = S_OK;
-        if (FAILED(hr = ilVersion.AddNativeCodeVersion(pMethodDesc, &t1NativeCodeVersion)))
+        if (FAILED(hr = ilVersion.AddNativeCodeVersion(pMethodDesc, NativeCodeVersion::OptimizationTier1, &t1NativeCodeVersion)))
         {
             // optimization didn't work for some reason (presumably OOM)
             // just give up and continue on
@@ -222,7 +222,6 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
                 hr, pMethodDesc);
             return;
         }
-        t1NativeCodeVersion.SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
     }
 
     // Insert the method into the optimization queue and trigger a thread to service
