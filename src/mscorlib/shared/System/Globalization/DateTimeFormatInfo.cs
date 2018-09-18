@@ -133,7 +133,7 @@ namespace System.Globalization
         // The string contains the default pattern.
         // When we initially construct our string[], we set the string to string[0]
 
-        // The "default" Date/time patterns 
+        // The "default" Date/time patterns
         private String longDatePattern = null;
         private String shortDatePattern = null;
         private String yearMonthPattern = null;
@@ -554,8 +554,8 @@ namespace System.Globalization
                     SR.ArgumentNull_String);
             }
 
-            // The Era Name and Abbreviated Era Name 
-            // for Taiwan Calendar on non-Taiwan SKU returns empty string (which 
+            // The Era Name and Abbreviated Era Name
+            // for Taiwan Calendar on non-Taiwan SKU returns empty string (which
             // would be matched below) but we don't want the empty string to give
             // us an Era number
             // confer 85900 DTFI.GetEra("") should fail on all cultures
@@ -583,7 +583,7 @@ namespace System.Globalization
             }
             for (int i = 0; i < AbbreviatedEraNames.Length; i++)
             {
-                // Compare the abbreviated era name in a case-insensitive way for the appropriate culture.              
+                // Compare the abbreviated era name in a case-insensitive way for the appropriate culture.
                 if (this.Culture.CompareInfo.Compare(eraName, m_abbrevEraNames[i], CompareOptions.IgnoreCase) == 0)
                 {
                     return (i + 1);
@@ -1707,7 +1707,7 @@ namespace System.Globalization
         internal const String RoundtripFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ss.fffffffK";
         internal const String RoundtripDateTimeUnfixed = "yyyy'-'MM'-'ddTHH':'mm':'ss zzz";
 
-        // Default string isn't necessarily in our string array, so get the 
+        // Default string isn't necessarily in our string array, so get the
         // merged patterns of both
         private String[] AllYearMonthPatterns
         {
@@ -2096,7 +2096,7 @@ namespace System.Globalization
         private DateTimeFormatFlags InitializeFormatFlags()
         {
             // Build the format flags from the data in this DTFI
-            formatFlags = 
+            formatFlags =
                 (DateTimeFormatFlags)DateTimeFormatInfoScanner.GetFormatFlagGenitiveMonth(
                     MonthNames, internalGetGenitiveMonthNames(false), AbbreviatedMonthNames, internalGetGenitiveMonthNames(true)) |
                 (DateTimeFormatFlags)DateTimeFormatInfoScanner.GetFormatFlagUseSpaceInMonthNames(
@@ -2220,6 +2220,8 @@ namespace System.Globalization
         internal const String CJKMinuteSuff = "\u5206";
         internal const String CJKSecondSuff = "\u79d2";
 
+        internal const String JapaneseEraStart = "\u5143";
+
         internal const String LocalTimeMark = "T";
 
         internal const String GMTName = "GMT";
@@ -2321,6 +2323,15 @@ namespace System.Globalization
                 InsertHash(temp, ChineseHourSuff, TokenType.SEP_HourSuff, 0);
                 InsertHash(temp, CJKMinuteSuff, TokenType.SEP_MinuteSuff, 0);
                 InsertHash(temp, CJKSecondSuff, TokenType.SEP_SecondSuff, 0);
+
+                if (!AppContextSwitches.EnforceLegacyJapaneseDateParsing && Calendar.ID == CalendarId.JAPAN)
+                {
+                    // We need to support parsing the dates has the start of era symbol which means it is year 1 in the era.
+                    // The start of era symbol has to be followed by the year symbol suffix, otherwise it would be invalid date.
+                    InsertHash(temp, JapaneseEraStart, TokenType.YearNumberToken, 1);
+                    InsertHash(temp, "(", TokenType.IgnorableSymbol, 0);
+                    InsertHash(temp, ")", TokenType.IgnorableSymbol, 0);
+                }
 
                 // TODO: This ignores other custom cultures that might want to do something similar
                 if (koreanLanguage)
@@ -2621,6 +2632,25 @@ namespace System.Globalization
             return (ch >= '\x0590' && ch <= '\x05ff');
         }
 
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private bool IsAllowedJapaneseTokenFollowedByNonSpaceLetter(string tokenString, char nextCh)
+        {
+            // Allow the parser to recognize the case when having some date part followed by JapaneseEraStart "\u5143"
+            // without spaces in between. e.g. Era name followed by \u5143 in the date formats ggy.
+            // Also, allow recognizing the year suffix symbol "\u5e74" followed the JapaneseEraStart "\u5143"
+            if (!AppContextSwitches.EnforceLegacyJapaneseDateParsing && Calendar.ID == CalendarId.JAPAN &&
+                (
+                    // something like ggy, era followed by year and the year is specified using the JapaneseEraStart "\u5143"
+                    nextCh == JapaneseEraStart[0] ||
+                    // JapaneseEraStart followed by year suffix "\u5143"
+                    (tokenString == JapaneseEraStart && nextCh == CJKYearSuff[0])
+                ))
+            {
+                return true;
+            }
+            return false;
+        }
+
         internal bool Tokenize(TokenType TokenMask, out TokenType tokenType, out int tokenValue,
                                ref __DTString str)
         {
@@ -2687,12 +2717,12 @@ namespace System.Globalization
                         }
                         else if (nextCharIndex < str.Length)
                         {
-                            // Check word boundary.  The next character should NOT be a letter.
+                            // Check word boundary. The next character should NOT be a letter.
                             char nextCh = str.Value[nextCharIndex];
-                            compareStrings = !(Char.IsLetter(nextCh));
+                            compareStrings = !(char.IsLetter(nextCh)) || IsAllowedJapaneseTokenFollowedByNonSpaceLetter(value.tokenString, nextCh);
                         }
                     }
-                    
+
                     if (compareStrings &&
                         ((value.tokenString.Length == 1 && str.Value[str.Index] == value.tokenString[0]) ||
                          Culture.CompareInfo.Compare(str.Value.Slice(str.Index, value.tokenString.Length), value.tokenString, CompareOptions.IgnoreCase) == 0))
