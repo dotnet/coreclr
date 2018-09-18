@@ -1966,6 +1966,7 @@ ReturnZero:
             //**********************************************************************
             // VarR8ToDec - Convert Decimal to double
             //**********************************************************************
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal static double VarR8FromDec(ref decimal pdecIn)
             {
                 // Value taken via reverse engineering the double that corresponds to 2^64. (oleaut32 has ds2to64 = DEFDS(0, 0, DBLBIAS + 65, 0))
