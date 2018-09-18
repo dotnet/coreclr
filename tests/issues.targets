@@ -468,6 +468,9 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinroot/*">
             <Issue>Test times out</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/VS-ia64-JIT/M00/b80373/b80373/*">
+            <Issue>20029</Issue>
+        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/GC/Scenarios/DoublinkList/dlstack/*">
             <Issue>Release only crash</Issue>
         </ExcludeList>
