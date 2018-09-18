@@ -667,7 +667,7 @@ PAL_GetLibraryNativeHandle(
     IN HMODULE hmodule)
 {
     MODSTRUCT *module = (MODSTRUCT*) hmodule;
-
+    module->refcount_get_native_handle++;
     return module->dl_handle;
 }
 
@@ -1105,8 +1105,6 @@ static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain)
     }
 
     module->refcount--;
-    dlclose(module->dl_handle);
-
     TRACE("Reference count for module %p (named %S) decreases to %d\n",
             module, MODNAME(module), module->refcount);
 
@@ -1524,8 +1522,17 @@ static MODSTRUCT *LOADAddModule(void *dl_handle, LPCSTR libraryNameOrPath)
 
             if (module->refcount != -1)
             {
-                module->refcount++;
+                if (module->refcount_get_native_handle == 0)
+                {
+                    module->refcount++;
+                    dlclose(dl_handle);
+                }
+                else
+                {
+                    module->refcount_get_native_handle--;
+                }
             }
+
             return module;
         }
         module = module->next;
