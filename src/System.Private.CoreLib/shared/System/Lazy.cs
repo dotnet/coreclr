@@ -4,8 +4,8 @@
 
 // --------------------------------------------------------------------------------------
 //
-// A class that provides a simple, lightweight implementation of lazy initialization, 
-// obviating the need for a developer to implement a custom, thread-safe lazy initialization 
+// A class that provides a simple, lightweight implementation of lazy initialization,
+// obviating the need for a developer to implement a custom, thread-safe lazy initialization
 // solution.
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -33,6 +33,9 @@ namespace System
         ExecutionAndPublicationViaConstructor = 7,
         ExecutionAndPublicationViaFactory     = 8,
         ExecutionAndPublicationException      = 9,
+
+        ThreadSafeValueOnlyViaConstructor = 10,
+        ThreadSafeValueOnlyViaFactory = 11,
     }
 
     /// <summary>
@@ -117,6 +120,10 @@ namespace System
                 case LazyState.ExecutionAndPublicationException:
                     return LazyThreadSafetyMode.ExecutionAndPublication;
 
+                case LazyState.ThreadSafeValueOnlyViaConstructor:
+                case LazyState.ThreadSafeValueOnlyViaFactory:
+                    return LazyThreadSafetyMode.ThreadSafeValueOnly;
+
                 default:
                     Debug.Fail("Invalid logic; State should always have a valid value");
                     return default;
@@ -146,6 +153,11 @@ namespace System
                     // we need to create an object for ExecutionAndPublication because we use Monitor-based locking
                     var state = useDefaultConstructor ? LazyState.ExecutionAndPublicationViaConstructor : LazyState.ExecutionAndPublicationViaFactory;
                     return new LazyHelper(state);
+
+                case LazyThreadSafetyMode.ThreadSafeValueOnly:
+                    // we need to create an object for ExecutionAndPublication because we use Monitor-based locking
+                    var state2 = useDefaultConstructor ? LazyState.ThreadSafeValueOnlyViaConstructor : LazyState.ThreadSafeValueOnlyViaFactory;
+                    return new LazyHelper(state2);
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(mode), SR.Lazy_ctor_ModeInvalid);
@@ -201,7 +213,7 @@ namespace System
         private T _value;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that 
+        /// Initializes a new instance of the <see cref="T:System.Threading.Lazy{T}"/> class that
         /// uses <typeparamref name="T"/>'s default constructor for lazy initialization.
         /// </summary>
         /// <remarks>
@@ -312,17 +324,22 @@ namespace System
             _state = null; // volatile write, must occur after setting _value
         }
 
+        private void ViaFactory()
+        {
+            Func<T> factory = _factory;
+            if (factory == null)
+                throw new InvalidOperationException(SR.Lazy_Value_RecursiveCallsToValue);
+            _factory = null;
+
+            _value = factory();
+            _state = null; // volatile write, must occur after setting _value
+        }
+
         private void ViaFactory(LazyThreadSafetyMode mode)
         {
             try
             {
-                Func<T> factory = _factory;
-                if (factory == null)
-                    throw new InvalidOperationException(SR.Lazy_Value_RecursiveCallsToValue);
-                _factory = null;
-
-                _value = factory();
-                _state = null; // volatile write, must occur after setting _value
+                ViaFactory();
             }
             catch (Exception exception)
             {
@@ -346,6 +363,26 @@ namespace System
                     else
                     {
                         ViaFactory(LazyThreadSafetyMode.ExecutionAndPublication);
+                    }
+                }
+            }
+        }
+
+        private void ThreadSafeValueOnly(LazyHelper executionAndPublication, bool useDefaultConstructor)
+        {
+            lock (executionAndPublication)
+            {
+                // it's possible for multiple calls to have piled up behind the lock, so we need to check
+                // to see if the ExecutionAndPublication object is still the current implementation.
+                if (ReferenceEquals(_state, executionAndPublication))
+                {
+                    if (useDefaultConstructor)
+                    {
+                        ViaConstructor();
+                    }
+                    else
+                    {
+                        ViaFactory();
                     }
                 }
             }
@@ -396,7 +433,7 @@ namespace System
             // we have to create a copy of state here, and use the copy exclusively from here on in
             // so as to ensure thread safety.
             var state = _state;
-            if (state != null) 
+            if (state != null)
             {
                 switch (state.State)
                 {
@@ -421,11 +458,19 @@ namespace System
                         break;
 
                     case LazyState.ExecutionAndPublicationViaConstructor:
-                        ExecutionAndPublication(state, useDefaultConstructor:true);
+                        ExecutionAndPublication(state, useDefaultConstructor: true);
                         break;
 
                     case LazyState.ExecutionAndPublicationViaFactory:
-                        ExecutionAndPublication(state, useDefaultConstructor:false);
+                        ExecutionAndPublication(state, useDefaultConstructor: false);
+                        break;
+
+                    case LazyState.ThreadSafeValueOnlyViaConstructor:
+                        ThreadSafeValueOnly(state, useDefaultConstructor: true);
+                        break;
+
+                    case LazyState.ThreadSafeValueOnlyViaFactory:
+                        ThreadSafeValueOnly(state, useDefaultConstructor: false);
                         break;
 
                     default:
@@ -476,7 +521,7 @@ namespace System
         /// otherwise, false.</value>
         /// <remarks>
         /// The initialization of a <see cref="T:System.Lazy{T}"/> instance may result in either
-        /// a value being produced or an exception being thrown.  If an exception goes unhandled during initialization, 
+        /// a value being produced or an exception being thrown.  If an exception goes unhandled during initialization,
         /// <see cref="IsValueCreated"/> will return false.
         /// </remarks>
         public bool IsValueCreated => _state == null;
@@ -486,11 +531,11 @@ namespace System
         /// <value>The lazily initialized value of the current <see
         /// cref="T:System.Threading.Lazy{T}"/>.</value>
         /// <exception cref="T:System.MissingMemberException">
-        /// The <see cref="T:System.Threading.Lazy{T}"/> was initialized to use the default constructor 
+        /// The <see cref="T:System.Threading.Lazy{T}"/> was initialized to use the default constructor
         /// of the type being lazily initialized, and that type does not have a public, parameterless constructor.
         /// </exception>
         /// <exception cref="T:System.MemberAccessException">
-        /// The <see cref="T:System.Threading.Lazy{T}"/> was initialized to use the default constructor 
+        /// The <see cref="T:System.Threading.Lazy{T}"/> was initialized to use the default constructor
         /// of the type being lazily initialized, and permissions to access the constructor were missing.
         /// </exception>
         /// <exception cref="T:System.InvalidOperationException">
@@ -506,7 +551,7 @@ namespace System
         public T Value => _state == null ? _value : CreateValue();
     }
 
-    /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and 
+    /// <summary>A debugger view of the Lazy&lt;T&gt; to surface additional debugging properties and
     /// to ensure that the Lazy&lt;T&gt; does not become initialized if it was not already.</summary>
     internal sealed class LazyDebugView<T>
     {
