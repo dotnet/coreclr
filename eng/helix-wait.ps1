@@ -2,7 +2,7 @@
 $finished = 0
 $workItems = {}
 
-while ($finished -ne $env:NumberOfWorkItems) {
+while ($finished -lt $env:NumberOfWorkItems) {
     $workItems = Invoke-WebRequest -Headers @{"Accept"="application/json"} -Uri "https://helix.dot.net/api/2018-03-14/aggregate/workitems?groupBy=job.build&filter.name=$env:HelixJobId&access_token=$env:HelixAccessToken" -UseBasicParsing |
     ConvertFrom-Json
 
