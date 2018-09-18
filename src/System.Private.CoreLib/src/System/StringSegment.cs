@@ -229,7 +229,7 @@ namespace System
         {
             // TODO: Can this be optimized by reading offset + count as a single int64?
 
-            return a._value == b._value
+            return ReferenceEquals(a._value, b._value)
                 && a._offset == b._offset
                 && a._count == b._count;
         }
