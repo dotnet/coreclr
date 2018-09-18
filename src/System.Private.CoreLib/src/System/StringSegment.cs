@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -103,7 +104,7 @@ namespace System
         public static implicit operator StringSegment(string value) => new StringSegment(value);
 
         // ordinal case-sensitive comparison
-        public static bool operator ==(StringSegment a, StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
+        public static bool operator ==(StringSegment a, StringSegment b) => a.AsSpan().SequenceEqual(b.AsSpan());
 
         // TODO: How do we make "<StringSegment> != null" result in a compilation error rather
         // than coercing 'null' to string?
@@ -142,6 +143,42 @@ namespace System
          * METHODS
          */
 
+        // This method is guaranteed not to return a span outside the bounds of the
+        // underlying string instance, even in the face of a torn struct.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe ReadOnlySpan<char> GetSpanInternal()
+        {
+            ref char spanBuffer = ref Unsafe.AsRef<char>(null);
+            int spanLength = 0;
+
+            int tempLength = Length;
+            Debug.Assert(tempLength >= 0, "This field can never be negative, even in a torn struct.");
+
+            if (tempLength > 0)
+            {
+                string tempString = _value;
+
+                int tempOffset = _offset;
+                Debug.Assert(tempOffset >= 0, "This field can never be negative, even in a torn struct.");
+
+                // We can get away with a single if check below since we know that the stored
+                // length and offset are both positive signed integers, which means that their
+                // sum fits within an unsigned integer's range.
+
+                if ((uint)(tempLength + tempOffset) > (uint)tempString.Length)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+
+                spanBuffer = ref Unsafe.Add(ref tempString.GetRawStringData(), tempOffset);
+                spanLength = tempLength;
+            }
+
+            return new ReadOnlySpan<char>(ref spanBuffer, spanLength);
+        }
+
+        public bool Contains(char value) => this.AsSpan().Contains(value);
+
         public override bool Equals(object obj)
         {
             return (obj is StringSegment value) ? Equals(value) : (obj == null && IsEmpty);
@@ -162,6 +199,7 @@ namespace System
             return IsSameSegment(a, b) || a.AsSpan().Equals(b.AsSpan(), comparisonType);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string GetBuffer(out int offset, out int length)
         {
             offset = _offset;
@@ -178,6 +216,8 @@ namespace System
         [Obsolete("This type cannot be pinned because it may result in a char* without a null terminator.", error: true)]
         public ref readonly char GetPinnableReference() => throw new NotSupportedException();
 
+        public int IndexOf(char value) => this.AsSpan().IndexOf(value);
+
         public bool IsEmptyOrWhiteSpace() => this.AsSpan().IsWhiteSpace(); // also performs "is empty?" check
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -190,21 +230,24 @@ namespace System
                 && a._count == b._count;
         }
 
+        public int LastIndexOf(char value) => this.AsSpan().LastIndexOf(value);
+
         public StringSegment Substring(int startIndex)
         {
-            if ((uint)startIndex > (uint)_count)
+            if ((uint)startIndex < (uint)_count)
             {
-                // TODO: better exception
-                throw new Exception("Argument out of range.");
-            }
-            else if (startIndex != _count)
-            {
+                // Most common case: substring doesn't eliminate the entire value
                 return new StringSegment(_value, _offset + startIndex, _count - startIndex, unused: false);
+            }
+            else if (startIndex == _count)
+            {
+                // Less common case: substring away the entire string contents
+                return default;
             }
             else
             {
-                // don't hold on to 'value' if we don't need to
-                return default;
+                // TODO: better exception
+                throw new Exception("Argument out of range.");
             }
         }
 
@@ -228,23 +271,16 @@ namespace System
 
         public override string ToString()
         {
-            if (_count != 0)
+            if (_value != null)
             {
-                if (_count == _value.Length)
-                {
-                    return _value;
-                }
-                else
-                {
-                    return _value.Substring(_offset, _count);
-                }
+                return _value.Substring(_offset, _count);
             }
             else
             {
                 return string.Empty;
             }
         }
-        
+
         public StringSegment Trim() => TrimHelper(TrimType.Both);
 
         public StringSegment TrimEnd() => TrimHelper(TrimType.Tail);
