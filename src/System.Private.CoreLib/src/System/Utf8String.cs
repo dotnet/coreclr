@@ -72,6 +72,116 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlySpan<byte> AsSpanFast() => MemoryMarshal.CreateReadOnlySpan(ref DangerousGetMutableReference(), Length);
 
+        public static Utf8String Concat(Utf8String str0, Utf8String str1)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return str1 ?? Empty;
+            }
+
+            if (IsNullOrEmpty(str1))
+            {
+                return str0;
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            str1.AsSpanFast().CopyTo(writeableSpan.Slice(str0.Length));
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
+        public static Utf8String Concat(Utf8String str0, Utf8String str1, Utf8String str2)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2);
+            }
+
+            // TODO: The concatenations below can be optimized because we know that
+            // some strings (like str0) have actual data.
+
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2);
+            }
+
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1);
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length + str2.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str0.Length);
+            str1.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str1.Length);
+            str2.AsSpanFast().CopyTo(writeableSpan);
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
+        public static Utf8String Concat(Utf8String str0, Utf8String str1, Utf8String str2, Utf8String str3)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2, str3);
+            }
+
+            // TODO: The concatenations below can be optimized because we know that
+            // some strings (like str0) have actual data.
+
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2, str3);
+            }
+
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1, str3);
+            }
+
+            if (IsNullOrEmpty(str3))
+            {
+                return Concat(str0, str1, str2);
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length + str2.Length + str3.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str0.Length);
+            str1.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str1.Length);
+            str2.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str2.Length);
+            str3.AsSpanFast().CopyTo(writeableSpan);
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
         internal string ConvertToUtf16PreservingCorruption()
         {
             // We rely on the fact that UTF-8 to UTF-16 transcoding never increases the overall
