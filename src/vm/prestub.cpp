@@ -334,7 +334,7 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
 #endif
 
 #ifdef FEATURE_READYTORUN
-    if (pCode == NULL && !RequestedAggressiveOptimization())
+    if (pCode == NULL)
     {
         pCode = GetPrecompiledR2RCode(pConfig);
         if (pCode != NULL)
