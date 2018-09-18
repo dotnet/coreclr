@@ -151,19 +151,23 @@ namespace System
             ref char spanBuffer = ref Unsafe.AsRef<char>(null);
             int spanLength = 0;
 
+            // The stored length can be negative in the face of a torn struct.
+            // The if check below prevent us from using it if this is the case.
+
             int tempLength = Length;
-            Debug.Assert(tempLength >= 0, "This field can never be negative, even in a torn struct.");
 
             if (tempLength > 0)
             {
                 string tempString = _value;
 
-                int tempOffset = _offset;
-                Debug.Assert(tempOffset >= 0, "This field can never be negative, even in a torn struct.");
+                // The stored offset can be negative in the face of a torn struct.
+                // Clear the high bit to force the number to be non-negative. We'll
+                // perform a bounds check against this normalized value later.
 
-                // We can get away with a single if check below since we know that the stored
-                // length and offset are both positive signed integers, which means that their
-                // sum fits within an unsigned integer's range.
+                int tempOffset = _offset & 0x7FFFFFFF;
+
+                // Since both the offset and the length are non-negative signed integers,
+                // their sum fits into the range of an unsigned integer without overflow.
 
                 if ((uint)(tempLength + tempOffset) > (uint)tempString.Length)
                 {
