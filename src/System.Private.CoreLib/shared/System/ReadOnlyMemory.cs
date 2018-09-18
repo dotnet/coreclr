@@ -223,7 +223,14 @@ namespace System
                     int desiredStartIndex = _index & RemoveFlagsBitMask;
                     int desiredLength = _length;
 
-                    if (((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan) || ((uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex)))
+                    Debug.Assert(desiredStartIndex >= 0, "This value cannot be negative after stripping the high bit.");
+                    Debug.Assert(desiredLength >= 0, "This field should never be negative, even in a torn struct.");
+
+                    // Since both the start index and the length are non-negative signed integers, their sum
+                    // fits into the range of an unsigned integer. This allows us to get away with a single
+                    // comparison for range checking.
+
+                    if ((uint)(desiredStartIndex + desiredLength) > (uint)lengthOfUnderlyingSpan)
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }
