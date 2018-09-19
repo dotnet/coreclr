@@ -7944,7 +7944,7 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     // RtlVirtualUnwind against "ipToCheck" results in a NULL personality routine, it implies that we are inside
     // the epilog.
 
-    DWORD64 imageBase = 0;
+    DWORD_PTR imageBase = 0;
     CONTEXT tempContext;
     PVOID HandlerData;
     DWORD_PTR establisherFrame = 0;
