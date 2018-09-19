@@ -5158,8 +5158,6 @@ void CEEInfo::getCallInfo(
         EX_THROW(EEMessageException, (kMissingMethodException, IDS_EE_MISSING_METHOD, W("?")));
     }
 
-
-
     TypeHandle exactType = TypeHandle(pResolvedToken->hClass);
 
     TypeHandle constrainedType;
@@ -5300,6 +5298,12 @@ void CEEInfo::getCallInfo(
     bool directCall = false;
     bool resolvedCallVirt = false;
     bool callVirtCrossingVersionBubble = false;
+    bool callerAndCalleeInSystemVersionBubble = false;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation())
+        callerAndCalleeInSystemVersionBubble = pTargetMD->GetModule()->IsSystem() && IsInSameVersionBubble((MethodDesc*)callerHandle, pTargetMD);
+#endif
 
     // Delegate targets are always treated as direct calls here. (It would be nice to clean it up...).
     if (flags & CORINFO_CALLINFO_LDFTN)
@@ -5459,8 +5463,11 @@ void CEEInfo::getCallInfo(
         pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;  // stub dispatch can't handle generic method calls yet
         pResult->nullInstanceCheck = TRUE;
     }
-    // Non-interface dispatches go through the vtable
-    else if (!pTargetMD->IsInterface() && !IsReadyToRunCompilation())
+    // Non-interface dispatches go through the vtable.
+    // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
+    // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
+    // performance optimization.
+    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || callerAndCalleeInSystemVersionBubble))
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
