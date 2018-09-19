@@ -42,7 +42,7 @@ def static getOSGroup(def os) {
                             // Set the label.
                             if (isSmoketest) {
                                 label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
-                                python = "C:\python3.7.0\python.exe"
+                                python = "C:\\python3.7.0\\python.exe"
                             }
                             else {
                                 label('windows_server_2016_clr_perf')
