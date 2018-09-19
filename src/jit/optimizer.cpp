@@ -4005,31 +4005,43 @@ bool Compiler::optUnrollLoopImpl(
                             continue;
                         }
 
-                        GenTree* gtNewExpr;
+                        int newVal = lvaBeg;
+                        switch (lvaOpr)
+                        {
+                        case GT_ADD:
+                            newVal += (i * lvaInc);
+                            break;
+
+                        case GT_SUB:
+                            newVal -= (i * lvaInc);
+                            break;
+
+                        default:
+                            noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
+                        }
+
+                        GenTree* gtNewExpr = nullptr;
+                        GenTree* gtNewIcon = nullptr;
                         if (lpIsFullUrl)
                         {
-                            int newVal = lvaBeg;
-                            switch (lvaOpr)
-                            {
-                                case GT_ADD:
-                                    newVal += (i * lvaInc);
-                                    break;
-
-                                case GT_SUB:
-                                    newVal -= (i * lvaInc);
-                                    break;
-
-                                default:
-                                    noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
-                            }
-
                             // if its full unrolling. we can replace with constant.
-                            gtNewExpr = gtNewIconNode(newVal, gtLclVar->TypeGet());
+                            gtNewIcon = gtNewIconNode(newVal, gtLclVar->TypeGet());
+                            gtNewExpr = gtNewIcon;
                         }
                         else
                         {
-                            GenTree* gtNewIcon = gtNewIconNode(i * lvaInc, gtLclVar->TypeGet());
+                            if (newVal == 0)
+                            {
+                                // Do not add or sub zero.
+                                continue;
+                            }
+                            gtNewIcon = gtNewIconNode(newVal, gtLclVar->TypeGet());
                             gtNewExpr = gtNewOperNode(lvaOpr, gtLclVar->TypeGet(), gtCloneExpr(gtLclVar), gtNewIcon);
+                        }
+
+                        if ((gtLclVar->gtFlags & GTF_VAR_ARR_INDEX) != 0)
+                        {
+                            gtNewExpr->LabelIndex(this);
                         }
 
                         gtLclVar->ReplaceWith(gtNewExpr, this);
