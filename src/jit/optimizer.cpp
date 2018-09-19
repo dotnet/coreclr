@@ -3905,6 +3905,7 @@ bool Compiler::optUnrollLoopImpl(
     unsigned int lvaVar     = lpDesc->lpIterVar();
     int          lvaInc     = lpDesc->lpIterConst();
     int          lvaBeg     = lpDesc->lpConstInit;
+    int          lvaLim     = lpDesc->lpConstLimit();
     BasicBlock*  bbHead     = lpDesc->lpHead;
     BasicBlock*  bbBottom   = lpDesc->lpBottom;
     BasicBlock*  bbBody     = bbHead->bbNext;
@@ -3926,6 +3927,21 @@ bool Compiler::optUnrollLoopImpl(
     {
         return false;
     }
+#endif // !DEBUG
+
+#ifdef DEBUG
+    if(verbose)
+    {
+        printf("\nUnrolling loop " FMT_BB, bbBody->bbNum);
+        if (bbBody->bbNum != bbBottom->bbNum)
+        {
+            printf(".." FMT_BB, bbBottom->bbNum);
+        }
+        printf(" over V%02u from %u to %u", lvaVar, lvaBeg, lvaLim);
+        printf(" unrollCostSz = %d\n", cost);
+        printf("\n");
+    }
+
 #endif // !DEBUG
 
     // Block map for redirecting branches.
@@ -4150,6 +4166,22 @@ bool Compiler::optUnrollLoopImpl(
             gtIntCon->SetIconValue(gtIntCon->IconValue() - lvaInc * outer);
         }
     }
+
+#ifdef DEBUG
+    if(verbose)
+    {
+        if(lpIsFullUrl)
+        {
+            printf("Whole fully unrolled loop: \n");
+        }
+        else
+        {
+            printf("Whole partially unrolled loop as: \n");
+            printf("inner : %d, outer : %d, iteration : %d\n", inner, outer, iter);
+        }
+        fgDumpTrees(bbHead, bbBottom);
+    }
+#endif // !DEBUG
 
     lpDesc->lpFlags |= LPFLG_REMOVED;
     lpDesc->lpHead = lpDesc->lpBottom = nullptr;
