@@ -3653,7 +3653,6 @@ void Compiler::optUnrollLoops()
 
         jitstd::vector<unsigned int> lpCntFetch(this->getAllocator());
         unsigned int                 lpCntConds = 0;
-        unsigned int                 lpCntStmts = 0;
 
         jitstd::vector<GenTree*> lvaLclvar(this->getAllocator());
         jitstd::vector<GenTree*> lvaParent(this->getAllocator());
@@ -3674,10 +3673,9 @@ void Compiler::optUnrollLoops()
                     GenTree* gtParent = lvaParent[CntVars];
                     GenTree* gtLclVar = lvaLclvar[CntVars];
 
+                    // Assign, Load Ind, Store Ind includes uop fetchs.
                     if (gtParent->OperIs(GT_ASG) || gtParent->OperIs(GT_IND) || gtParent->OperIs(GT_STOREIND))
                     {
-                        // Assign, Load Ind, Store Ind includes uop fetchs.
-
                         if (varTypeIsStruct(gtLclVar->TypeGet()))
                         {
                             // size of struct is user defined size, we have to extract from LclVarDsc.
@@ -3701,40 +3699,18 @@ void Compiler::optUnrollLoops()
                         continue;
                     }
 
-#ifdef _TARGET_AMD64_
-                    // When its AMD64, this can have extra type extends for if iteration variant is not same size as
-                    // pointer. It will generate extra "mov" instruction for signeded extends or zero extends.
-                    if (gtParent->OperIs(GT_CAST))
-                    {
-                        GenTreeCast* gtCast    = gtParent->AsCast();
-                        var_types    typCastTo = gtCast->CastToType();
-                        var_types    typCastFm = gtCast->CastFromType();
-
-                        if ((typCastTo == TYP_LONG && typCastFm == TYP_INT) ||
-                            (typCastTo == TYP_ULONG && typCastFm == TYP_UINT))
-                        {
-                            // Guessed as ZEXT or SEXT for iteration variant.
-                            // TODO-CQ : this is not a exact ZEXT or SEXT. we have to make sure that its ZEXT or SEXT
-                            //           by checking shift after cast.
-
-                            lpCntFetch.push_back(8 /* sizeof(TYP_ULONG || TYP_LONG) */);
-                        }
-                    }
-#endif
-
                     if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
                     {
                         continue;
                     }
                 }
-                lpCntStmts++;
             }
 
             if (bbIter == bbBotm)
             {
                 break;
             }
-            else if (bbIter->bbJumpKind != BBJ_NONE || lpIsSimpleALU)
+            else if (bbIter->bbJumpKind != BBJ_NONE)
             {
                 // this should be marked as condition.
                 lpCntConds++;
@@ -3744,6 +3720,7 @@ void Compiler::optUnrollLoops()
                 // variable.
                 if (!lpIsSimpleALU)
                 {
+                    // Already marked as not simple ALU.
                     continue;
                 }
                 else if (bbIter->bbJumpKind == BBJ_COND && bbIter->bbJumpDest == bbExit)
@@ -3799,16 +3776,20 @@ void Compiler::optUnrollLoops()
                     break;
                 }
 
-                lpNewIter    = lpIter / LSDThreshold;
-                lpOuterThres = lpIter % LSDThreshold;
-                lpInnerThres = LSDThreshold;
+                // Check that threshold modifies something.
+                if (LSDThreshold > 1)
+                {
+                    lpNewIter    = lpIter / LSDThreshold;
+                    lpOuterThres = lpIter % LSDThreshold;
+                    lpInnerThres = LSDThreshold;
 
-                // this loop can trigger L.S.D. lets do it!!
-                lpUnrolledCost =
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
-                    ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
+                    lpUnrolledCost =
+                        ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
+                        ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres));
 
-                goto DO_UNROLL;
+                    // this loop can trigger L.S.D. lets do it!!
+                    goto DO_UNROLL;
+                }
             }
 
             // We can't handle this as L.S.D. skipping it.
@@ -3823,7 +3804,6 @@ void Compiler::optUnrollLoops()
         {
             // Do unrolling as possible. because its really fast when its unrolled
             // We are doubling limits for relaxed unrolling for unsafe ALUs(which has no conditional checks)
-
             if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpNewIter > IterLimit * 2)
             {
                 // We are at limits of full unrolling. do partial unrolling.
@@ -3837,17 +3817,22 @@ void Compiler::optUnrollLoops()
                         lpCntFetchTotal += szFetch;
                     }
 
-                    if (lpCntFetchTotal < 64 && (64 / lpCntFetchTotal) > 64)
+                    // Check that is aligned for target platform.
+                    if (lpCntFetchTotal < 64 && CheckAligned(lpCntFetchTotal, emitActualTypeSize(TYP_I_IMPL)))
                     {
-                        // this can be partially unrolled based on cache line. lets do this!!
-
                         // this is maximum inner stmts to fits on cache line.
                         unsigned int CntCacheLineLimit = 64 / lpCntFetchTotal;
 
-                        lpInnerThres = CntCacheLineLimit;
-                        lpOuterThres = lpIter % lpInnerThres;
-                        lpNewIter    = lpIter / CntCacheLineLimit;
-                        goto DO_UNROLL;
+                        // Check that threshold modifies something.
+                        if (CntCacheLineLimit > 1)
+                        {
+                            lpInnerThres = CntCacheLineLimit;
+                            lpOuterThres = lpIter % lpInnerThres;
+                            lpNewIter    = lpIter / CntCacheLineLimit;
+
+                            // this can be partially unrolled based on cache line. lets do this!!
+                            goto DO_UNROLL;
+                        }
                     }
                 }
 
@@ -3865,7 +3850,7 @@ void Compiler::optUnrollLoops()
         // Those are safe ALUs. which can should be fully unrolled so that has better performance than
         // rolled loop because of conditions of bound checks.
         // the goal is make it fully unrolled as possible if that has bound checks
-        if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit || lpNewIter > IterLimit)
+        if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit || lpIter > IterLimit)
         {
             // This is too huge to unroll. skipping it.
             continue;
@@ -3874,9 +3859,9 @@ void Compiler::optUnrollLoops()
         lpInnerThres = lpIter;
         lpOuterThres = 0;
         lpNewIter    = 1;
+    /* Seems good to full unroll it. lets do it! */
 
     DO_UNROLL:
-        /* Seems good to full unroll it. lets do it! */
         noway_assert(!lpUnrolledCost.IsOverflow());
         isChanged |=
             optUnrollLoopImpl(loopId, lpInnerThres, lpOuterThres, lpNewIter, lpUnrolledCost.Value(), lpIsSimpleALU);
