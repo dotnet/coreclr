@@ -7837,7 +7837,7 @@ BOOL IsIPInEE(void *ip)
     }
 }
 
-#ifdef FEATURE_HIJACK
+#if defined(FEATURE_HIJACK) && (!defined(_TARGET_X86_) || defined(FEATURE_PAL))
 
 // This function is used to check if the specified IP is in the prolog or not.
 bool IsIPInProlog(EECodeInfo *pCodeInfo)
@@ -7945,7 +7945,6 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     // the epilog.
 
     DWORD64 imageBase = 0;
-    PUNWIND_INFO pUnwindInfo = NULL;
     CONTEXT tempContext;
     PVOID HandlerData;
     DWORD_PTR establisherFrame = 0;
@@ -7958,7 +7957,6 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     _ASSERTE(funcEntry != NULL);
 
     imageBase = pCodeInfo->GetModuleBase();
-    pUnwindInfo = (PUNWIND_INFO)(imageBase + funcEntry->UnwindData);
 
     ZeroMemory(&tempContext, sizeof(CONTEXT));
     CopyOSContext(&tempContext, pContextToCheck);
@@ -7998,7 +7996,7 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     return fIsInEpilog;
 }
 
-#endif // FEATURE_HIJACK
+#endif // FEATURE_HIJACK && (!_TARGET_X86_ || FEATURE_PAL)
 
 #define EXCEPTION_VISUALCPP_DEBUGGER        ((DWORD) (1<<30 | 0x6D<<16 | 5000))
 
