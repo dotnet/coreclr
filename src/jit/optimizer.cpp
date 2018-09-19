@@ -3706,7 +3706,7 @@ void Compiler::optUnrollLoops()
                     // pointer. It will generate extra "mov" instruction for signeded extends or zero extends.
                     if (gtParent->OperIs(GT_CAST))
                     {
-                        GenTreeCast* gtCast = gtParent->AsCast();
+                        GenTreeCast* gtCast    = gtParent->AsCast();
                         var_types    typCastTo = gtCast->CastToType();
                         var_types    typCastFm = gtCast->CastFromType();
 
@@ -3921,7 +3921,6 @@ bool Compiler::optUnrollLoopImpl(
     BBjumpKinds bbOldBottomJumpKind = bbBottom->bbJumpKind;
     BasicBlock* bbOldBottomNext     = bbBottom->bbNext;
     BasicBlock* bbOldBottomPrev     = bbBottom->bbPrev;
-    
 
 #ifdef DEBUG
     if (JitConfig.JitNoPartialUnroll() && !lpIsFullUrl)
@@ -3931,7 +3930,7 @@ bool Compiler::optUnrollLoopImpl(
 #endif // !DEBUG
 
 #ifdef DEBUG
-    if(verbose)
+    if (verbose)
     {
         printf("\nUnrolling loop " FMT_BB, bbBody->bbNum);
         if (bbBody->bbNum != bbBottom->bbNum)
@@ -4168,9 +4167,9 @@ bool Compiler::optUnrollLoopImpl(
     }
 
 #ifdef DEBUG
-    if(verbose)
+    if (verbose)
     {
-        if(lpIsFullUrl)
+        if (lpIsFullUrl)
         {
             printf("Whole fully unrolled loop: \n");
         }
