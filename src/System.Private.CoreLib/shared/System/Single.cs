@@ -334,15 +334,15 @@ namespace System
             if (!success)
             {
                 ReadOnlySpan<char> sTrim = s.Trim();
-                if (sTrim.EqualsOrdinal(info.PositiveInfinitySymbol))
+                if (sTrim.EqualsOrdinalIgnoreCase(info.PositiveInfinitySymbol))
                 {
                     result = PositiveInfinity;
                 }
-                else if (sTrim.EqualsOrdinal(info.NegativeInfinitySymbol))
+                else if (sTrim.EqualsOrdinalIgnoreCase(info.NegativeInfinitySymbol))
                 {
                     result = NegativeInfinity;
                 }
-                else if (sTrim.EqualsOrdinal(info.NaNSymbol))
+                else if (sTrim.EqualsOrdinalIgnoreCase(info.NaNSymbol))
                 {
                     result = NaN;
                 }

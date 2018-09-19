@@ -10,7 +10,9 @@ namespace System
 {
     internal static partial class Number
     {
-        private const int NumberMaxDigits = 50; // needs to == NUMBER_MAXDIGITS in coreclr's src/classlibnative/bcltype/number.h.
+        // needs to == NUMBER_MAXDIGITS in coreclr's src/classlibnative/bcltype/number.h.
+        // We currently set this to 99, as that is the maximum precision allowed for the standard format strings
+        private const int NumberMaxDigits = 99;
 
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         internal unsafe ref struct NumberBuffer // needs to match layout of NUMBER in coreclr's src/classlibnative/bcltype/number.h

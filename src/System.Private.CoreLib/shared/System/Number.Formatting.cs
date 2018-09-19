@@ -243,8 +243,19 @@ namespace System
     internal static partial class Number
     {
         internal const int DecimalPrecision = 29; // Decimal.DecCalc also uses this value
-        private const int FloatPrecision = 7;
-        private const int DoublePrecision = 15;
+
+        // IEEE Requires at least 9 digits for roundtripping. However, using a lower number
+        // of default digits for the other specifiers results in "prettier" numbers and more
+        // backwards compatible behavior.
+        private const int DefaultSingleDigits = 7;
+        private const int DefaultSinglePrecision = 9;
+
+        // IEEE Requires at least 17 digits for roundtripping. However, using a lower number
+        // of default digits for the other specifiers results in "prettier" numbers and more
+        // backwards compatible behavior.
+        private const int DefaultDoubleDigits = 15;
+        private const int DefaultDoublePrecision = 17;
+
         private const int ScaleNAN = unchecked((int)0x80000000);
         private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
@@ -387,61 +398,34 @@ namespace System
         private static string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = DoublePrecision;
+
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
-            switch (fmt)
+            int precision;
+
+            if ((fmt == 'R') || (fmt == 'r'))
             {
-                case 'R':
-                case 'r':
-                    {
-                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                        // number using 15 digits and then determine if it round trips to the same value. If it does, we
-                        // convert that NUMBER to a string, otherwise we reparse using 17 digits and display that.
-                        DoubleToNumber(value, DoublePrecision, ref number);
-                        if (number.scale == ScaleNAN)
-                        {
-                            return info.NaNSymbol;
-                        }
-                        else if (number.scale == ScaleINF)
-                        {
-                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                        }
+                fmt = 'G';
+                precision = DefaultDoublePrecision;
 
-                        if (NumberToDouble(ref number) == value)
-                        {
-                            NumberToString(ref sb, ref number, 'G', DoublePrecision, info);
-                        }
-                        else
-                        {
-                            DoubleToNumber(value, 17, ref number);
-                            NumberToString(ref sb, ref number, 'G', 17, info);
-                        }
-
-                        return null;
-                    }
-
-                case 'E':
-                case 'e':
-                    // Round values less than E14 to 15 digits
-                    if (digits > 14)
-                    {
-                        precision = 17;
-                    }
-                    break;
-
-                case 'G':
-                case 'g':
-                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
-                    if (digits > 15)
-                    {
-                        precision = 17;
-                    }
-                    break;
+                // IEEE Roundtripping requires us to include at least `17` digits
+                digits = precision;
+            }
+            else if (digits <= 0)
+            {
+                // This ensures that, for the default case, we return a string containing the old
+                // number of digits (15), which results in "prettier" numbers for most cases.
+                precision = DefaultDoubleDigits;
+            }
+            else
+            {
+                // IEEE requires we correctly round to the requested number of digits
+                precision = digits;
             }
 
             DoubleToNumber(value, precision, ref number);
+
             if (number.scale == ScaleNAN)
             {
                 return info.NaNSymbol;
@@ -488,60 +472,34 @@ namespace System
         private static string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             char fmt = ParseFormatSpecifier(format, out int digits);
-            int precision = FloatPrecision;
+
             NumberBuffer number = default;
             number.kind = NumberBufferKind.Double;
 
-            switch (fmt)
+            int precision;
+
+            if ((fmt == 'R') || (fmt == 'r'))
             {
-                case 'R':
-                case 'r':
-                    {
-                        // In order to give numbers that are both friendly to display and round-trippable, we parse the
-                        // number using 7 digits and then determine if it round trips to the same value. If it does, we
-                        // convert that NUMBER to a string, otherwise we reparse using 9 digits and display that.
-                        DoubleToNumber(value, FloatPrecision, ref number);
-                        if (number.scale == ScaleNAN)
-                        {
-                            return info.NaNSymbol;
-                        }
-                        else if (number.scale == ScaleINF)
-                        {
-                            return number.sign ? info.NegativeInfinitySymbol : info.PositiveInfinitySymbol;
-                        }
+                fmt = 'G';
+                precision = DefaultSinglePrecision;
 
-                        if ((float)NumberToDouble(ref number) == value)
-                        {
-                            NumberToString(ref sb, ref number, 'G', FloatPrecision, info);
-                        }
-                        else
-                        {
-                            DoubleToNumber(value, 9, ref number);
-                            NumberToString(ref sb, ref number, 'G', 9, info);
-                        }
-                        return null;
-                    }
-
-                case 'E':
-                case 'e':
-                    // Round values less than E14 to 15 digits.
-                    if (digits > 6)
-                    {
-                        precision = 9;
-                    }
-                    break;
-
-                case 'G':
-                case 'g':
-                    // Round values less than G15 to 15 digits. G16 and G17 will not be touched.
-                    if (digits > 7)
-                    {
-                        precision = 9;
-                    }
-                    break;
+                // IEEE Roundtripping requires us to include at least `9` digits
+                digits = digits;
+            }
+            else if (digits <= 0)
+            {
+                // This ensures that, for the default case, we return a string containing the old
+                // number of digits (7), which results in "prettier" numbers for most cases.
+                precision = DefaultSingleDigits;
+            }
+            else
+            {
+                // IEEE requires we correctly round to the requested number of digits
+                precision = digits;
             }
 
             DoubleToNumber(value, precision, ref number);
+
             if (number.scale == ScaleNAN)
             {
                 return info.NaNSymbol;
@@ -559,6 +517,7 @@ namespace System
             {
                 NumberToStringFormat(ref sb, ref number, format, info);
             }
+
             return null;
         }
 

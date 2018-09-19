@@ -12,7 +12,7 @@
 
 #include <pshpack1.h>
 
-#define NUMBER_MAXDIGITS 50
+#define NUMBER_MAXDIGITS 99
 
 static const double LOG10V2 = 0.30102999566398119521373889472449;
 
