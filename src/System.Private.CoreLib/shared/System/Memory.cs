@@ -288,9 +288,9 @@ namespace System
                     else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                     {
                         // We know the object is not null, it's not a string, and it is variable-length. The only
-                        // remaining option is for it to be a char[] (or something blittable with char[]). Otherwise
-                        // somebody used private reflection to set this field, and we're not too worried about
-                        // type safety violations at this point.
+                        // remaining option is for it to be a T[] (or a U[] which is blittable to T[], like int[]
+                        // and uint[]). Otherwise somebody used private reflection to set this field, and we're not
+                        // too worried about type safety violations at this point.
                         Debug.Assert(tmpObject is Array);
                         refToReturn = ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData();
                         lengthOfUnderlyingSpan = Unsafe.As<T[]>(tmpObject).Length;
