@@ -3842,6 +3842,26 @@ void Compiler::optUnrollLoops()
                     }
                 }
 
+                /* Phase 2 : Check for branch prediciation. */
+                // Default unrolling runtime count on LLVM is 8. we are trying to unroll it for 8 times and check that
+                // iterations are more than 16 to trigger branch predications.
+                if ((lpIter / 8) > 16)
+                {
+                    lpInnerThres = 8;
+                    lpOuterThres = lpIter % lpInnerThres;
+                    lpNewIter    = lpIter / 8;
+
+                    lpUnrolledCost =
+                        ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres)) +
+                        ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres));
+
+                    if (!lpUnrolledCost.IsOverflow() && lpUnrolledCost.Value() <= CostLimit * 2)
+                    {
+                        // this can be partially unrolled based on cache line. lets do this!!
+                        goto DO_UNROLL;
+                    }
+                }
+
                 // We can't handle this. skipping this loop.
                 continue;
             }
