@@ -4008,16 +4008,16 @@ bool Compiler::optUnrollLoopImpl(
                         int newVal = lvaBeg;
                         switch (lvaOpr)
                         {
-                        case GT_ADD:
-                            newVal += (i * lvaInc);
-                            break;
+                            case GT_ADD:
+                                newVal += (i * lvaInc);
+                                break;
 
-                        case GT_SUB:
-                            newVal -= (i * lvaInc);
-                            break;
+                            case GT_SUB:
+                                newVal -= (i * lvaInc);
+                                break;
 
-                        default:
-                            noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
+                            default:
+                                noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
                         }
 
                         GenTree* gtNewExpr = nullptr;
