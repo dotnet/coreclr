@@ -58,7 +58,7 @@
 // errors are limited to OS resource exhaustion or poorly behaved managed code
 // (for example within an AssemblyResolve event or static constructor triggered by the JIT).
 
-#ifdef FEATURE_TIERED_COMPILATION
+#if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
 
 // Called at AppDomain construction
 TieredCompilationManager::TieredCompilationManager() :
@@ -89,6 +89,38 @@ void TieredCompilationManager::Init(ADID appDomainId)
     CrstHolder holder(&m_lock);
     m_domainId = appDomainId;
     m_callCountOptimizationThreshhold = g_pConfig->TieredCompilation_Tier1CallCountThreshold();
+}
+
+#endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE
+
+NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimizationTier(PTR_MethodDesc pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+
+#ifdef FEATURE_TIERED_COMPILATION
+    if (pMethodDesc->RequestedAggressiveOptimization())
+    {
+        // Methods flagged with MethodImplOptions.AggressiveOptimization begin at tier 1, as a workaround to cold methods with
+        // hot loops performing poorly (https://github.com/dotnet/coreclr/issues/19751)
+        return NativeCodeVersion::OptimizationTier1;
+    }
+#endif // FEATURE_TIERED_COMPILATION
+
+    return NativeCodeVersion::OptimizationTier0;
+}
+
+#if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
+
+bool TieredCompilationManager::RequiresCallCounting(MethodDesc* pMethodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(pMethodDesc != NULL);
+    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
+
+    return
+        g_pConfig->TieredCompilation_CallCounting() &&
+        GetInitialOptimizationTier(pMethodDesc) == NativeCodeVersion::OptimizationTier0;
 }
 
 // Called each time code in this AppDomain has been run. This is our sole entrypoint to begin
@@ -790,4 +822,4 @@ CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeV
     return flags;
 }
 
-#endif // FEATURE_TIERED_COMPILATION
+#endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE

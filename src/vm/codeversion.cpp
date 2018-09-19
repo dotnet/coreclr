@@ -150,15 +150,8 @@ void NativeCodeVersionNode::SetActiveChildFlag(BOOL isActive)
 NativeCodeVersion::OptimizationTier NativeCodeVersionNode::GetOptimizationTier() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return m_optTier.Load();
+    return m_optTier;
 }
-#ifndef DACCESS_COMPILE
-void NativeCodeVersionNode::SetOptimizationTier(NativeCodeVersion::OptimizationTier tier)
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    m_optTier.Store(tier);
-}
-#endif
 #endif // FEATURE_TIERED_COMPILATION
 
 NativeCodeVersion::NativeCodeVersion() :
@@ -343,27 +336,9 @@ NativeCodeVersion::OptimizationTier NativeCodeVersion::GetOptimizationTier() con
     }
     else
     {
-        return
-            GetMethodDesc()->RequestedAggressiveOptimization()
-                ? NativeCodeVersion::OptimizationTier1
-                : NativeCodeVersion::OptimizationTier0;
+        return TieredCompilationManager::GetInitialOptimizationTier(GetMethodDesc());
     }
 }
-
-#ifndef DACCESS_COMPILE
-void NativeCodeVersion::SetOptimizationTier(NativeCodeVersion::OptimizationTier tier)
-{
-    LIMITED_METHOD_CONTRACT;
-    if (m_storageKind == StorageKind::Explicit)
-    {
-        AsNode()->SetOptimizationTier(tier);
-    }
-    else
-    {
-        _ASSERTE(!"Do not call SetOptimizationTier on default code versions - these versions are immutable");
-    }
-}
-#endif
 #endif
 
 PTR_NativeCodeVersionNode NativeCodeVersion::AsNode() const
@@ -915,9 +890,7 @@ HRESULT ILCodeVersion::GetOrCreateActiveNativeCodeVersion(MethodDesc* pClosedMet
     if (activeNativeChild.IsNull())
     {
         NativeCodeVersion::OptimizationTier optimizationTier =
-            pClosedMethodDesc->RequestedAggressiveOptimization()
-                ? NativeCodeVersion::OptimizationTier1
-                : NativeCodeVersion::OptimizationTier0;
+            TieredCompilationManager::GetInitialOptimizationTier(pClosedMethodDesc);
         if (FAILED(hr = AddNativeCodeVersion(pClosedMethodDesc, optimizationTier, &activeNativeChild)))
         {
             _ASSERTE(hr == E_OUTOFMEMORY);

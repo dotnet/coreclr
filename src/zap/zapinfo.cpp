@@ -437,15 +437,17 @@ void ZapInfo::CompileMethod()
 
     m_jitFlags = ComputeJitFlags(m_currentMethodHandle);
 
+    if (m_jitFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_AGGRESSIVE_OPT))
+    {
+        // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
+        // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
+        // instead of this check.
+        return;
+    }
+
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
     {
-        if (m_jitFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_AGGRESSIVE_OPT))
-        {
-            // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead
-            return;
-        }
-
         // READYTORUN: FUTURE: Producedure spliting
         m_jitFlags.Clear(CORJIT_FLAGS::CORJIT_FLAG_PROCSPLIT);
 
