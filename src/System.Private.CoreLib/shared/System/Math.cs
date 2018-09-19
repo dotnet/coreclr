@@ -26,16 +26,6 @@ namespace System
 
         public const double PI = 3.14159265358979323846;
 
-        private const int maxRoundingDigits = 15;
-
-        private static double doubleRoundLimit = 1e16d;
-
-        // This table is required for the Round function which can specify the number of digits to round to
-        private static double[] roundPower10Double = new double[] {
-          1E0, 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8,
-          1E9, 1E10, 1E11, 1E12, 1E13, 1E14, 1E15
-        };
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static short Abs(short value)
         {
@@ -697,7 +687,7 @@ namespace System
 
         public static unsafe double Round(double value, int digits, MidpointRounding mode)
         {
-            if ((digits < 0) || (digits > maxRoundingDigits))
+            if ((digits < 0) || (digits > RoundData.maxRoundingDigits))
             {
                 throw new ArgumentOutOfRangeException(nameof(digits), SR.ArgumentOutOfRange_RoundingDigits);
             }
@@ -707,9 +697,9 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
             }
 
-            if (Abs(value) < doubleRoundLimit)
+            if (Abs(value) < RoundData.doubleRoundLimit)
             {
-                var power10 = roundPower10Double[digits];
+                var power10 = RoundData.roundPower10Double[digits];
 
                 value *= power10;
 
@@ -830,6 +820,19 @@ namespace System
         private static void ThrowMinMaxException<T>(T min, T max)
         {
             throw new ArgumentException(SR.Format(SR.Argument_MinMaxValue, min, max));
+        }
+
+        private static class RoundData
+        {
+            public const int maxRoundingDigits = 15;
+
+            public const double doubleRoundLimit = 1e16d;
+
+            // This table is required for the Round function which can specify the number of digits to round to
+            public static double[] roundPower10Double = new double[] {
+                1E0, 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7, 1E8,
+                1E9, 1E10, 1E11, 1E12, 1E13, 1E14, 1E15
+            };
         }
     }
 }
