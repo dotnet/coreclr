@@ -3762,7 +3762,7 @@ void Compiler::optUnrollLoops()
         unsigned int         lpInnerThres = 0;
         unsigned int         lpOuterThres = 0;
 
-        if (lpCntFetch.size() == 0)
+        if (lpCntFetch.empty())
         {
             // Do not unroll if there is no fetches. it is something like only with function call
             // with no arguments and returns which does not affects on performance with unrolling.
@@ -3821,7 +3821,7 @@ void Compiler::optUnrollLoops()
 
         if (lpIsUnsafeALU)
         {
-            // Do unrolling as possable. because its really fast when its unrolled
+            // Do unrolling as possible. because its really fast when its unrolled
             // We are doubling limits for relaxed unrolling for unsafe ALUs(which has no conditional checks)
 
             if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpNewIter > IterLimit * 2)
@@ -3830,7 +3830,7 @@ void Compiler::optUnrollLoops()
                 // TODO : implements for more limit check phases.
 
                 { /* Phase 1 : Check for cache line limits */
-                    // The cache line is 64 bytes on morden AMD64 processors, so chech that fits on cache line
+                    // The cache line is 64 bytes on morden AMD64 processors, so check that fits on cache line
                     unsigned int lpCntFetchTotal = 0;
                     for (unsigned int szFetch : lpCntFetch)
                     {
@@ -3864,7 +3864,7 @@ void Compiler::optUnrollLoops()
 
         // Those are safe ALUs. which can should be fully unrolled so that has better performance than
         // rolled loop because of conditions of bound checks.
-        // the goal is make it fully unrolled as possable if that has bound checks
+        // the goal is make it fully unrolled as possible if that has bound checks
         if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit || lpNewIter > IterLimit)
         {
             // This is too huge to unroll. skipping it.
@@ -3918,9 +3918,10 @@ bool Compiler::optUnrollLoopImpl(
     BasicBlock* bbOldHeadNext = bbHead->bbNext;
 
     BasicBlock* bbOldBottom         = bbBottom;
+    BBjumpKinds bbOldBottomJumpKind = bbBottom->bbJumpKind;
     BasicBlock* bbOldBottomNext     = bbBottom->bbNext;
     BasicBlock* bbOldBottomPrev     = bbBottom->bbPrev;
-    BBjumpKinds bbOldBottomJumpKind = bbBottom->bbJumpKind;
+    
 
 #ifdef DEBUG
     if (JitConfig.JitNoPartialUnroll() && !lpIsFullUrl)
@@ -4075,8 +4076,7 @@ bool Compiler::optUnrollLoopImpl(
                     noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
             }
 
-            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar,
-                                             (iter * inner * lvaInc) + (i * lvaInc) + lvaBeg))
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, newVal))
             {
                 goto FAILED;
             }
@@ -4132,7 +4132,7 @@ bool Compiler::optUnrollLoopImpl(
 
     if (lpIsFullUrl)
     {
-        // Remove test becuase its full unrolling.
+        // Remove test because its full unrolling.
         bbOldBottom->bbJumpDest = nullptr;
         bbOldBottom->bbJumpKind = BBJ_NONE;
     }
