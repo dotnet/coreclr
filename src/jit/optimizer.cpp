@@ -3804,32 +3804,38 @@ void Compiler::optUnrollLoops()
         {
             // Do unrolling as possible. because its really fast when its unrolled
             // We are doubling limits for relaxed unrolling for unsafe ALUs(which has no conditional checks)
-            if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpNewIter > IterLimit * 2)
+            if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpIter > IterLimit * 2)
             {
                 // We are at limits of full unrolling. do partial unrolling.
                 // TODO : implements for more limit check phases.
 
-                { /* Phase 1 : Check for cache line limits */
-                    // The cache line is 64 bytes on morden AMD64 processors, so check that fits on cache line
-                    unsigned int lpCntFetchTotal = 0;
-                    for (unsigned int szFetch : lpCntFetch)
-                    {
-                        lpCntFetchTotal += szFetch;
-                    }
+                /* Phase 1 : Check for cache line limits */
+                // The cache line is 64 bytes on morden AMD64 processors, so check that fits on cache line
+                unsigned int lpCntFetchTotal = 0;
+                for (unsigned int szFetch : lpCntFetch)
+                {
+                    lpCntFetchTotal += szFetch;
+                }
 
-                    // Check that is aligned for target platform.
-                    if (lpCntFetchTotal < 64 && CheckAligned(lpCntFetchTotal, emitActualTypeSize(TYP_I_IMPL)))
-                    {
-                        // this is maximum inner stmts to fits on cache line.
-                        unsigned int CntCacheLineLimit = 64 / lpCntFetchTotal;
+                // Check that is aligned for target platform.
+                if (lpCntFetchTotal < 64 && CheckAligned(lpCntFetchTotal, emitActualTypeSize(TYP_I_IMPL)))
+                {
+                    // this is maximum inner stmts to fits on cache line.
+                    unsigned int CntCacheLineLimit = 64 / lpCntFetchTotal;
 
-                        // Check that threshold modifies something.
-                        if (CntCacheLineLimit > 1)
+                    // Check that threshold modifies something.
+                    if (CntCacheLineLimit > 1)
+                    {
+                        lpInnerThres = CntCacheLineLimit;
+                        lpOuterThres = lpIter % lpInnerThres;
+                        lpNewIter    = lpIter / CntCacheLineLimit;
+
+                        lpUnrolledCost =
+                            ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres)) +
+                            ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres));
+
+                        if (!lpUnrolledCost.IsOverflow() && lpUnrolledCost.Value() <= CostLimit * 2)
                         {
-                            lpInnerThres = CntCacheLineLimit;
-                            lpOuterThres = lpIter % lpInnerThres;
-                            lpNewIter    = lpIter / CntCacheLineLimit;
-
                             // this can be partially unrolled based on cache line. lets do this!!
                             goto DO_UNROLL;
                         }
