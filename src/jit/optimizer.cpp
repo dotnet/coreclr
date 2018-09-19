@@ -3701,17 +3701,12 @@ void Compiler::optUnrollLoops()
                         continue;
                     }
 
-                    if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
-                    {
-                        continue;
-                    }
-
 #ifdef _TARGET_AMD64_
                     // When its AMD64, this can have extra type extends for if iteration variant is not same size as
                     // pointer. It will generate extra "mov" instruction for signeded extends or zero extends.
                     if (gtParent->OperIs(GT_CAST))
                     {
-                        GenTreeCast* gtCast    = gtParent->AsCast();
+                        GenTreeCast* gtCast = gtParent->AsCast();
                         var_types    typCastTo = gtCast->CastToType();
                         var_types    typCastFm = gtCast->CastFromType();
 
@@ -3726,6 +3721,11 @@ void Compiler::optUnrollLoops()
                         }
                     }
 #endif
+
+                    if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
+                    {
+                        continue;
+                    }
                 }
                 lpCntStmts++;
             }
