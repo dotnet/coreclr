@@ -453,6 +453,7 @@ void Precode::ResetTargetInterlocked()
 BOOL Precode::SetTargetInterlocked(PCODE target, BOOL fOnlyRedirectFromPrestub)
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(!IsPointingToPrestub(target));
 
     PCODE expected = GetTarget();
     BOOL ret = FALSE;
@@ -502,7 +503,6 @@ BOOL Precode::SetTargetInterlocked(PCODE target, BOOL fOnlyRedirectFromPrestub)
     }
 #endif
 
-    _ASSERTE(!IsPointingToPrestub());
     return ret;
 }
 
