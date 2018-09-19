@@ -13,6 +13,7 @@
 namespace System.Runtime.CompilerServices
 {
     using System;
+    using System.Diagnostics;
     using System.Security;
     using System.Runtime;
     using System.Runtime.CompilerServices;
@@ -21,7 +22,6 @@ namespace System.Runtime.CompilerServices
     using System.Runtime.Serialization;
     using System.Threading;
     using System.Runtime.Versioning;
-    using Internal.Runtime.CompilerServices;
 
     public static class RuntimeHelpers
     {
@@ -231,14 +231,22 @@ namespace System.Runtime.CompilerServices
             // So in effect this method is the equivalent of
             // return ((MethodTable*)(*obj))->IsStringOrArray();
 
-            // TODO: There's a weird JIT behavior we need to investigate.
-            // Current codegen:
-            //   lea tmp, [obj + 8h]
-            //   mov tmp, qword ptr [tmp - 8h]
-            //   cmp qword [tmp], 0
-            // The first two instructions should be collapsed into a single "mov tmp, qword ptr [obj]".
+            Debug.Assert(obj != null);
+            return *(int*)GetObjectMethodTablePointer(obj) < 0;
+        }
 
-            return *(int*)Unsafe.AsIntPtrRef(obj) < 0;
+        // Given an object reference, returns its MethodTable* as an IntPtr.
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static IntPtr GetObjectMethodTablePointer(object obj)
+        {
+            throw new PlatformNotSupportedException();
+
+            // This method is replaced by the VM with:
+            // ldarg.0
+            // ldind.i
+            // ret
         }
     }
 }
