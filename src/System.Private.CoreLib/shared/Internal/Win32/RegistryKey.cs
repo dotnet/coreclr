@@ -477,9 +477,9 @@ namespace Internal.Win32
     internal static class Registry
     {
         /// <summary>Current User Key. This key should be used as the root for all user specific settings.</summary>
-        public static readonly RegistryKey CurrentUser = RegistryKey.OpenBaseKey(unchecked((IntPtr)0x80000001));
+        public static readonly RegistryKey CurrentUser = RegistryKey.OpenBaseKey(unchecked((IntPtr)(int)0x80000001));
 
         /// <summary>Local Machine key. This key should be used as the root for all machine specific settings.</summary>
-        public static readonly RegistryKey LocalMachine = RegistryKey.OpenBaseKey(unchecked((IntPtr)0x80000002));
+        public static readonly RegistryKey LocalMachine = RegistryKey.OpenBaseKey(unchecked((IntPtr)(int)0x80000002));
     }
 }
