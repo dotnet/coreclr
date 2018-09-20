@@ -444,7 +444,7 @@ namespace System
                 val |= 0x8000000000000000;
             }
 
-            return BitConverter.DoubleToInt64Bits(val);
+            return BitConverter.Int64BitsToDouble(val);
         }
     }
 }
