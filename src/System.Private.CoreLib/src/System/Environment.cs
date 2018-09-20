@@ -27,6 +27,7 @@ namespace System
     using System.Reflection;
     using System.Diagnostics;
     using Microsoft.Win32;
+    using Internal.Win32;
     using System.Runtime.CompilerServices;
     using System.Threading;
     using System.Runtime.ConstrainedExecution;
