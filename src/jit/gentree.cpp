@@ -1361,7 +1361,8 @@ AGAIN:
                 case GT_HWIntrinsic:
                     if ((op1->AsHWIntrinsic()->gtHWIntrinsicId != op2->AsHWIntrinsic()->gtHWIntrinsicId) ||
                         (op1->AsHWIntrinsic()->gtSIMDBaseType != op2->AsHWIntrinsic()->gtSIMDBaseType) ||
-                        (op1->AsHWIntrinsic()->gtSIMDSize != op2->AsHWIntrinsic()->gtSIMDSize))
+                        (op1->AsHWIntrinsic()->gtSIMDSize != op2->AsHWIntrinsic()->gtSIMDSize) ||
+                        (op1->AsHWIntrinsic()->gtIndexBaseType != op2->AsHWIntrinsic()->gtIndexBaseType))
                     {
                         return false;
                     }
@@ -2058,6 +2059,7 @@ AGAIN:
                     hash += tree->gtHWIntrinsic.gtHWIntrinsicId;
                     hash += tree->gtHWIntrinsic.gtSIMDBaseType;
                     hash += tree->gtHWIntrinsic.gtSIMDSize;
+                    hash += tree->gtHWIntrinsic.gtIndexBaseType;
                     break;
 #endif // FEATURE_HW_INTRINSICS
 
@@ -5657,10 +5659,13 @@ bool GenTree::OperMayThrow(Compiler* comp)
             return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(this->AsIndir()->Addr()));
 
         case GT_ARR_LENGTH:
-            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) && comp->fgAddrCouldBeNull(gtOp.gtOp1));
+            return (((this->gtFlags & GTF_IND_NONFAULTING) == 0) &&
+                    comp->fgAddrCouldBeNull(this->AsArrLen()->ArrRef()));
+
+        case GT_ARR_ELEM:
+            return comp->fgAddrCouldBeNull(this->gtArrElem.gtArrObj);
 
         case GT_ARR_BOUNDS_CHECK:
-        case GT_ARR_ELEM:
         case GT_ARR_INDEX:
         case GT_ARR_OFFSET:
         case GT_LCLHEAP:
@@ -7580,6 +7585,7 @@ GenTree* Compiler::gtCloneExpr(
                     GenTreeHWIntrinsic(hwintrinsicOp->TypeGet(), hwintrinsicOp->gtGetOp1(),
                                        hwintrinsicOp->gtGetOp2IfPresent(), hwintrinsicOp->gtHWIntrinsicId,
                                        hwintrinsicOp->gtSIMDBaseType, hwintrinsicOp->gtSIMDSize);
+                copy->AsHWIntrinsic()->gtIndexBaseType = hwintrinsicOp->gtIndexBaseType;
             }
             break;
 #endif
@@ -9732,7 +9738,13 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                     }
                     if (tree->gtFlags & GTF_IND_NONFAULTING)
                     {
-                        printf("x");
+                        printf("n"); // print a n for non-faulting
+                        --msgLength;
+                        break;
+                    }
+                    if (tree->gtFlags & GTF_IND_ASG_LHS)
+                    {
+                        printf("D"); // print a D for definition
                         --msgLength;
                         break;
                     }
@@ -14175,11 +14187,15 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
             op1 = gtNewHelperCallNode(CORINFO_HELP_OVERFLOW, TYP_VOID,
                                       gtNewArgList(gtNewIconNode(compCurBB->bbTryIndex)));
 
+            // op1 is a call to the JIT helper that throws an Overflow exception
+            // attach the ExcSet for VNF_OverflowExc(Void) to this call
+
             if (vnStore != nullptr)
             {
                 op1->gtVNPair =
                     vnStore->VNPWithExc(ValueNumPair(ValueNumStore::VNForVoid(), ValueNumStore::VNForVoid()),
-                                        vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_OverflowExc)));
+                                        vnStore->VNPExcSetSingleton(
+                                            vnStore->VNPairForFunc(TYP_REF, VNF_OverflowExc, vnStore->VNPForVoid())));
             }
 
             tree = gtNewOperNode(GT_COMMA, tree->gtType, op1, op2);
@@ -15175,52 +15191,92 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
         {
             GenTree* node = *use;
 
-            if (!m_compiler->gtTreeHasSideEffects(node, m_flags))
-            {
-                return Compiler::WALK_SKIP_SUBTREES;
-            }
+            bool treeHasSideEffects = m_compiler->gtTreeHasSideEffects(node, m_flags);
 
-            if (m_compiler->gtNodeHasSideEffects(node, m_flags))
+            if (treeHasSideEffects)
             {
-                m_sideEffects.Push(node);
-                return Compiler::WALK_SKIP_SUBTREES;
-            }
-
-            // TODO-Cleanup: These have GTF_ASG set but for some reason gtNodeHasSideEffects ignores
-            // them. See the related gtNodeHasSideEffects comment as well.
-            // Also, these nodes must always be preserved, no matter what side effect flags are passed
-            // in. But then it should never be the case that gtExtractSideEffList gets called without
-            // specifying GTF_ASG so there doesn't seem to be any reason to be inconsistent with
-            // gtNodeHasSideEffects and make this check unconditionally.
-            if (node->OperIsAtomicOp())
-            {
-                m_sideEffects.Push(node);
-                return Compiler::WALK_SKIP_SUBTREES;
-            }
-
-            if ((m_flags & GTF_EXCEPT) != 0)
-            {
-                // Special case - GT_ADDR of GT_IND nodes of TYP_STRUCT have to be kept together.
-                if (node->OperIs(GT_ADDR) && node->gtGetOp1()->OperIsIndir() &&
-                    (node->gtGetOp1()->TypeGet() == TYP_STRUCT))
+                if (m_compiler->gtNodeHasSideEffects(node, m_flags))
                 {
-#ifdef DEBUG
-                    if (m_compiler->verbose)
-                    {
-                        printf("Keep the GT_ADDR and GT_IND together:\n");
-                    }
-#endif
                     m_sideEffects.Push(node);
                     return Compiler::WALK_SKIP_SUBTREES;
                 }
+
+                // TODO-Cleanup: These have GTF_ASG set but for some reason gtNodeHasSideEffects ignores
+                // them. See the related gtNodeHasSideEffects comment as well.
+                // Also, these nodes must always be preserved, no matter what side effect flags are passed
+                // in. But then it should never be the case that gtExtractSideEffList gets called without
+                // specifying GTF_ASG so there doesn't seem to be any reason to be inconsistent with
+                // gtNodeHasSideEffects and make this check unconditionally.
+                if (node->OperIsAtomicOp())
+                {
+                    m_sideEffects.Push(node);
+                    return Compiler::WALK_SKIP_SUBTREES;
+                }
+
+                if ((m_flags & GTF_EXCEPT) != 0)
+                {
+                    // Special case - GT_ADDR of GT_IND nodes of TYP_STRUCT have to be kept together.
+                    if (node->OperIs(GT_ADDR) && node->gtGetOp1()->OperIsIndir() &&
+                        (node->gtGetOp1()->TypeGet() == TYP_STRUCT))
+                    {
+#ifdef DEBUG
+                        if (m_compiler->verbose)
+                        {
+                            printf("Keep the GT_ADDR and GT_IND together:\n");
+                        }
+#endif
+                        m_sideEffects.Push(node);
+                        return Compiler::WALK_SKIP_SUBTREES;
+                    }
+                }
+
+                // Generally all GT_CALL nodes are considered to have side-effects.
+                // So if we get here it must be a helper call that we decided it does
+                // not have side effects that we needed to keep.
+                assert(!node->OperIs(GT_CALL) || (node->AsCall()->gtCallType == CT_HELPER));
             }
 
-            // Generally all GT_CALL nodes are considered to have side-effects.
-            // So if we get here it must be a helper call that we decided it does
-            // not have side effects that we needed to keep.
-            assert(!node->OperIs(GT_CALL) || (node->AsCall()->gtCallType == CT_HELPER));
+            if ((m_flags & GTF_IS_IN_CSE) != 0)
+            {
+                // If we're doing CSE then we also need to unmark CSE nodes. This will fail for CSE defs,
+                // those need to be extracted as if they're side effects.
+                if (!UnmarkCSE(node))
+                {
+                    m_sideEffects.Push(node);
+                    return Compiler::WALK_SKIP_SUBTREES;
+                }
 
-            return Compiler::WALK_CONTINUE;
+                // The existence of CSE defs and uses is not propagated up the tree like side
+                // effects are. We need to continue visiting the tree as if it has side effects.
+                treeHasSideEffects = true;
+            }
+
+            return treeHasSideEffects ? Compiler::WALK_CONTINUE : Compiler::WALK_SKIP_SUBTREES;
+        }
+
+    private:
+        bool UnmarkCSE(GenTree* node)
+        {
+            assert(m_compiler->optValnumCSE_phase);
+
+            if (m_compiler->optUnmarkCSE(node))
+            {
+                // The call to optUnmarkCSE(node) should have cleared any CSE info.
+                assert(!IS_CSE_INDEX(node->gtCSEnum));
+                return true;
+            }
+            else
+            {
+                assert(IS_CSE_DEF(node->gtCSEnum));
+#ifdef DEBUG
+                if (m_compiler->verbose)
+                {
+                    printf("Preserving the CSE def #%02d at ", GET_CSE_INDEX(node->gtCSEnum));
+                    m_compiler->printTreeID(node);
+                }
+#endif
+                return false;
+            }
         }
     };
 
@@ -15437,66 +15493,6 @@ bool Compiler::gtHasCatchArg(GenTree* tree)
         }
     }
     return false;
-}
-
-//------------------------------------------------------------------------
-// gtCheckQuirkAddrExposedLclVar:
-//
-// Arguments:
-//    tree: an address taken GenTree node that is a GT_LCL_VAR
-//    parentStack: a context (stack of parent nodes)
-//    The 'parentStack' is used to ensure that we are in an argument context.
-//
-// Return Value:
-//    None
-//
-// Notes:
-//    When allocation size of this LclVar is 32-bits we will quirk the size to 64-bits
-//    because some PInvoke signatures incorrectly specify a ByRef to an INT32
-//    when they actually write a SIZE_T or INT64. There are cases where overwriting
-//    these extra 4 bytes corrupts some data (such as a saved register) that leads to A/V
-//    Wheras previously the JIT64 codegen did not lead to an A/V
-//
-// Assumptions:
-//    'tree' is known to be address taken and that we have a stack
-//    of parent nodes. Both of these generally requires that
-//    we are performing a recursive tree walk using struct fgWalkData
-//------------------------------------------------------------------------
-void Compiler::gtCheckQuirkAddrExposedLclVar(GenTree* tree, GenTreeStack* parentStack)
-{
-#ifdef _TARGET_64BIT_
-    // We only need to Quirk for _TARGET_64BIT_
-
-    // Do we have a parent node that is a Call?
-    if (!Compiler::gtHasCallOnStack(parentStack))
-    {
-        // No, so we don't apply the Quirk
-        return;
-    }
-    noway_assert(tree->gtOper == GT_LCL_VAR);
-    unsigned   lclNum  = tree->gtLclVarCommon.gtLclNum;
-    LclVarDsc* varDsc  = &lvaTable[lclNum];
-    var_types  vartype = varDsc->TypeGet();
-
-    if (varDsc->lvIsParam)
-    {
-        // We can't Quirk the size of an incoming parameter
-        return;
-    }
-
-    // We may need to Quirk the storage size for this LCL_VAR
-    if (genActualType(vartype) == TYP_INT)
-    {
-        varDsc->lvQuirkToLong = true;
-#ifdef DEBUG
-        if (verbose)
-        {
-            printf("\nAdding a Quirk for the storage size of LvlVar V%02d:", lclNum);
-            printf(" (%s ==> %s)\n", varTypeName(vartype), varTypeName(TYP_LONG));
-        }
-#endif // DEBUG
-    }
-#endif
 }
 
 //------------------------------------------------------------------------
@@ -16924,16 +16920,16 @@ void GenTree::ParseArrayAddress(
             {
                 ValueNum vnForElemSize = vnStore->VNForPtrSizeIntCon(elemSize);
                 ValueNum vnForScaledInx =
-                    vnStore->VNForFunc(TYP_I_IMPL, GetVNFuncForOper(GT_DIV, false), inxVN, vnForElemSize);
+                    vnStore->VNForFunc(TYP_I_IMPL, GetVNFuncForOper(GT_DIV, VOK_Default), inxVN, vnForElemSize);
                 *pInxVN = vnForScaledInx;
             }
 
             if (constInd != 0)
             {
                 ValueNum vnForConstInd = comp->GetValueNumStore()->VNForPtrSizeIntCon(constInd);
-                *pInxVN                = comp->GetValueNumStore()->VNForFunc(TYP_I_IMPL,
-                                                              GetVNFuncForOper(GT_ADD, (gtFlags & GTF_UNSIGNED) != 0),
-                                                              *pInxVN, vnForConstInd);
+                VNFunc   vnFunc        = GetVNFuncForOper(GT_ADD, VOK_Default);
+
+                *pInxVN = comp->GetValueNumStore()->VNForFunc(TYP_I_IMPL, vnFunc, *pInxVN, vnForConstInd);
             }
         }
     }
@@ -17044,13 +17040,12 @@ void GenTree::ParseArrayAddressWork(Compiler*       comp,
             default:
                 break;
         }
-        // If we didn't return above, must be a constribution to the non-constant part of the index VN.
-        ValueNum vn = comp->GetValueNumStore()->VNNormVal(gtVNPair.GetLiberal()); // We don't care about exceptions for
-                                                                                  // this purpose.
+        // If we didn't return above, must be a contribution to the non-constant part of the index VN.
+        ValueNum vn = comp->GetValueNumStore()->VNNormalValue(gtVNPair, VNK_Liberal);
         if (inputMul != 1)
         {
             ValueNum mulVN = comp->GetValueNumStore()->VNForLongCon(inputMul);
-            vn             = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_MUL, false), mulVN, vn);
+            vn = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_MUL, VOK_Default), mulVN, vn);
         }
         if (*pInxVN == ValueNumStore::NoVN)
         {
@@ -17058,7 +17053,8 @@ void GenTree::ParseArrayAddressWork(Compiler*       comp,
         }
         else
         {
-            *pInxVN = comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_ADD, false), *pInxVN, vn);
+            *pInxVN =
+                comp->GetValueNumStore()->VNForFunc(TypeGet(), GetVNFuncForOper(GT_ADD, VOK_Default), *pInxVN, vn);
         }
     }
 }

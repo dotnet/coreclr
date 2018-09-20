@@ -117,7 +117,22 @@ namespace R2RDump
         /// </summary>
         public string CompilerIdentifier { get; }
 
+        /// <summary>
+        /// Exception lookup table is used to map runtime function addresses to EH clauses.
+        /// </summary>
+        public EHLookupTable EHLookupTable { get; }
+
+        /// <summary>
+        /// List of import sections present in the R2R executable.
+        /// </summary>
         public IList<R2RImportSection> ImportSections { get; }
+
+        /// <summary>
+        /// Map from import cell addresses to their symbolic names.
+        /// </summary>
+        public Dictionary<int, string> ImportCellNames { get; }
+
+        private Dictionary<int, DebugInfo> _runtimeFunctionToDebugInfo = new Dictionary<int, DebugInfo>();
 
         public unsafe R2RReader() { }
 
@@ -172,11 +187,17 @@ namespace R2RDump
                 {
                     MetadataReader = PEReader.GetMetadataReader();
 
+                    ParseDebugInfo();
+
+                    R2RSection exceptionInfoSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_EXCEPTION_INFO];
+                    EHLookupTable = new EHLookupTable(Image, GetOffset(exceptionInfoSection.RelativeVirtualAddress), exceptionInfoSection.Size);
+
                     R2RMethods = new List<R2RMethod>();
                     if (R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS))
                     {
                         int runtimeFunctionSize = CalculateRuntimeFunctionSize();
                         R2RSection runtimeFunctionSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS];
+
                         uint nRuntimeFunctions = (uint)(runtimeFunctionSection.Size / runtimeFunctionSize);
                         int runtimeFunctionOffset = GetOffset(runtimeFunctionSection.RelativeVirtualAddress);
                         bool[] isEntryPoint = new bool[nRuntimeFunctions];
@@ -193,6 +214,7 @@ namespace R2RDump
                     CompilerIdentifier = ParseCompilerIdentifier();
 
                     ImportSections = new List<R2RImportSection>();
+                    ImportCellNames = new Dictionary<int, string>();
                     ParseImportSections();
                 }
             }
@@ -277,15 +299,15 @@ namespace R2RDump
             {
                 uint methodFlags = curParser.GetCompressedData();
                 uint rid = curParser.GetCompressedData();
-                if ((methodFlags & (byte)R2RMethod.EncodeMethodSigFlags.ENCODE_METHOD_SIG_MethodInstantiation) != 0)
+                if ((methodFlags & (byte)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_MethodInstantiation) != 0)
                 {
                     uint nArgs = curParser.GetCompressedData();
-                    R2RMethod.GenericElementTypes[] args = new R2RMethod.GenericElementTypes[nArgs];
+                    CorElementType[] args = new CorElementType[nArgs];
                     uint[] tokens = new uint[nArgs];
                     for (int i = 0; i < nArgs; i++)
                     {
-                        args[i] = (R2RMethod.GenericElementTypes)curParser.GetByte();
-                        if (args[i] == R2RMethod.GenericElementTypes.ValueType)
+                        args[i] = (CorElementType)curParser.GetByte();
+                        if (args[i] == CorElementType.ELEMENT_TYPE_VALUETYPE)
                         {
                             tokens[i] = curParser.GetCompressedData();
                             tokens[i] = (tokens[i] >> 2);
@@ -366,7 +388,26 @@ namespace R2RDump
                         }
                     }
 
-                    RuntimeFunction rtf = new RuntimeFunction(runtimeFunctionId, startRva, endRva, unwindRva, codeOffset, method, unwindInfo, gcInfo);
+                    EHInfo ehInfo = null;
+
+                    EHInfoLocation ehInfoLocation;
+                    if (EHLookupTable.RuntimeFunctionToEHInfoMap.TryGetValue(startRva, out ehInfoLocation))
+                    {
+                        ehInfo = new EHInfo(this, ehInfoLocation.EHInfoRVA, startRva, GetOffset(ehInfoLocation.EHInfoRVA), ehInfoLocation.ClauseCount);
+                    }
+
+                    RuntimeFunction rtf = new RuntimeFunction(
+                        runtimeFunctionId,
+                        startRva,
+                        endRva,
+                        unwindRva,
+                        codeOffset,
+                        method,
+                        unwindInfo,
+                        gcInfo,
+                        ehInfo,
+                        _runtimeFunctionToDebugInfo.GetValueOrDefault(runtimeFunctionId));
+
                     method.RuntimeFunctions.Add(rtf);
                     runtimeFunctionId++;
                     codeOffset += rtf.Size;
@@ -401,7 +442,7 @@ namespace R2RDump
                     continue;
 
                 TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
-                string typeDefName = GetTypeDefFullName(MetadataReader, typeDefHandle);
+                string typeDefName = MetadataNameFormatter.FormatHandle(MetadataReader, typeDefHandle);
                 ExportedTypeHandle exportedTypeHandle = MetadataTokens.ExportedTypeHandle((int)rid);
                 string exportedTypeName = GetExportedTypeFullName(MetadataReader, exportedTypeHandle);
                 if (typeDefName == null && exportedTypeName == null)
@@ -457,7 +498,7 @@ namespace R2RDump
                 int sectionOffset = GetOffset(rva);
                 int startOffset = sectionOffset;
                 int size = NativeReader.ReadInt32(Image, ref offset);
-                R2RImportSection.CorCompileImportFlags flags = (R2RImportSection.CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
+                CorCompileImportFlags flags = (CorCompileImportFlags)NativeReader.ReadUInt16(Image, ref offset);
                 byte type = NativeReader.ReadByte(Image, ref offset);
                 byte entrySize = NativeReader.ReadByte(Image, ref offset);
                 if (entrySize == 0)
@@ -492,39 +533,15 @@ namespace R2RDump
                     signatureOffset = GetOffset(signatureRVA);
                 }
                 List<R2RImportSection.ImportSectionEntry> entries = new List<R2RImportSection.ImportSectionEntry>();
-                switch (flags)
+                for (int i = 0; i < entryCount; i++)
                 {
-                    case R2RImportSection.CorCompileImportFlags.CORCOMPILE_IMPORT_FLAGS_EAGER:
-                        {
-                            int tempSignatureOffset = signatureOffset;
-                            int firstSigRva = NativeReader.ReadInt32(Image, ref tempSignatureOffset);
-                            uint sigRva = 0;
-                            while (sigRva != firstSigRva)
-                            {
-                                int entryOffset = sectionOffset - startOffset;
-                                sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
-                                long section = NativeReader.ReadInt64(Image, ref sectionOffset);
-                                int sigOff = GetOffset((int)sigRva);
-                                int sigSampleLength = Math.Min(8, Image.Length - sigOff);
-                                byte[] signatureSample = new byte[sigSampleLength];
-                                Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                                entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
-                            }
-                        }
-                        break;
-                    default:
-                        for (int i = 0; i < entryCount; i++)
-                        {
-                            int entryOffset = sectionOffset - startOffset;
-                            long section = NativeReader.ReadInt64(Image, ref sectionOffset);
-                            uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
-                            int sigOff = GetOffset((int)sigRva);
-                            int sigSampleLength = Math.Min(8, Image.Length - sigOff);
-                            byte[] signatureSample = new byte[sigSampleLength];
-                            Array.Copy(Image, sigOff, signatureSample, 0, sigSampleLength);
-                            entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, signatureSample));
-                        }
-                        break;
+                    int entryOffset = sectionOffset - startOffset;
+                    long section = NativeReader.ReadInt64(Image, ref sectionOffset);
+                    uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
+                    int sigOffset = GetOffset((int)sigRva);
+                    string cellName = MetadataNameFormatter.FormatSignature(this, sigOffset);
+                    entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, cellName));
+                    ImportCellNames.Add(rva + entrySize * i, cellName);
                 }
 
                 int auxDataRVA = NativeReader.ReadInt32(Image, ref offset);
@@ -534,6 +551,30 @@ namespace R2RDump
                     auxDataOffset = GetOffset(auxDataRVA);
                 }
                 ImportSections.Add(new R2RImportSection(ImportSections.Count, Image, rva, size, flags, type, entrySize, signatureRVA, entries, auxDataRVA, auxDataOffset, Machine, R2RHeader.MajorVersion));
+            }
+        }
+
+        private void ParseDebugInfo()
+        {
+            if (!R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_DEBUG_INFO))
+            {
+                return;
+            }
+
+            R2RSection debugInfoSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_DEBUG_INFO];
+            int debugInfoSectionOffset = GetOffset(debugInfoSection.RelativeVirtualAddress);
+
+            NativeArray debugInfoArray = new NativeArray(Image, (uint)debugInfoSectionOffset);
+            for (uint i = 0; i < debugInfoArray.GetCount(); ++i)
+            {
+                int offset = 0;
+                if (!debugInfoArray.TryGetAt(Image, i, ref offset))
+                {
+                    continue;
+                }
+
+                var debugInfo = new DebugInfo(Image, offset, Machine);
+                _runtimeFunctionToDebugInfo.Add((int)i, debugInfo);
             }
         }
 
@@ -550,33 +591,6 @@ namespace R2RDump
             }
             SectionHeader containingSection = PEReader.PEHeaders.SectionHeaders[index];
             return rva - containingSection.VirtualAddress + containingSection.PointerToRawData;
-        }
-
-        /// <summary>
-        /// Get the full name of a type, including parent classes and namespace
-        /// </summary>
-        public static string GetTypeDefFullName(MetadataReader mdReader, TypeDefinitionHandle handle)
-        {
-            string typeNamespace = "";
-            string typeStr = "";
-            do
-            {
-                try
-                {
-                    TypeDefinition typeDef = mdReader.GetTypeDefinition(handle);
-                    typeStr = "." + mdReader.GetString(typeDef.Name) + typeStr;
-                    handle = typeDef.GetDeclaringType();
-                    if (handle.IsNil)
-                        typeNamespace = mdReader.GetString(typeDef.Namespace);
-                }
-                catch (BadImageFormatException)
-                {
-                    return null;
-                }
-            }
-            while (!handle.IsNil);
-
-            return typeNamespace + typeStr;
         }
 
         /// <summary>

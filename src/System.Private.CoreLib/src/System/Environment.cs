@@ -12,26 +12,21 @@
 **
 ============================================================*/
 
+using Microsoft.Win32;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Text;
+using System.Runtime.InteropServices;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading;
+
+#if FEATURE_WIN32_REGISTRY
+using Internal.Win32;
+#endif
+
 namespace System
 {
-    using System.Buffers;
-    using System.IO;
-    using System.Security;
-    using System.Resources;
-    using System.Globalization;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Text;
-    using System.Configuration.Assemblies;
-    using System.Runtime.InteropServices;
-    using System.Reflection;
-    using System.Diagnostics;
-    using Microsoft.Win32;
-    using System.Runtime.CompilerServices;
-    using System.Threading;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.Versioning;
-
     public enum EnvironmentVariableTarget
     {
         Process = 0,
@@ -419,7 +414,7 @@ namespace System
             {
                 throw new ArgumentException(SR.Argument_StringFirstCharIsZero, nameof(variable));
             }
-            if (variable.IndexOf('=') != -1)
+            if (variable.Contains('='))
             {
                 throw new ArgumentException(SR.Argument_IllegalEnvVarName, nameof(variable));
             }

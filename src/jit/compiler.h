@@ -1734,6 +1734,7 @@ class Compiler
     friend class TempDsc;
     friend class LIR;
     friend class ObjectAllocator;
+    friend class LocalAddressVisitor;
     friend struct GenTree;
 
 #ifdef FEATURE_HW_INTRINSICS
@@ -2567,7 +2568,6 @@ public:
     typedef ArrayStack<GenTree*> GenTreeStack;
 
     static bool gtHasCallOnStack(GenTreeStack* parentStack);
-    void gtCheckQuirkAddrExposedLclVar(GenTree* argTree, GenTreeStack* parentStack);
 
 //=========================================================================
 // BasicBlock functions
@@ -2850,6 +2850,18 @@ public:
     //-------------------------------------------------------------------------
 
     void lvaInit();
+
+    LclVarDsc* lvaGetDesc(unsigned lclNum)
+    {
+        assert(lclNum < lvaCount);
+        return &lvaTable[lclNum];
+    }
+
+    LclVarDsc* lvaGetDesc(GenTreeLclVarCommon* lclVar)
+    {
+        assert(lclVar->GetLclNum() < lvaCount);
+        return &lvaTable[lclVar->GetLclNum()];
+    }
 
     unsigned lvaLclSize(unsigned varNum);
     unsigned lvaLclExactSize(unsigned varNum);
@@ -4777,15 +4789,13 @@ protected:
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
 
-    void fgMarkJumpTarget(BYTE* jumpTarget, IL_OFFSET offs);
-
-    void fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE* jumpTarget);
+    void fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, FixedBitVect* jumpTarget);
 
     void fgMarkBackwardJump(BasicBlock* startBlock, BasicBlock* endBlock);
 
     void fgLinkBasicBlocks();
 
-    unsigned fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, BYTE* jumpTarget);
+    unsigned fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, FixedBitVect* jumpTarget);
 
     void fgCheckBasicBlockControlFlow();
 
@@ -5159,9 +5169,9 @@ private:
     static fgWalkPreFn fgDebugCheckFatPointerCandidates;
 #endif
 
-    void         fgPromoteStructs();
-    fgWalkResult fgMorphStructField(GenTree* tree, fgWalkData* fgWalkPre);
-    fgWalkResult fgMorphLocalField(GenTree* tree, fgWalkData* fgWalkPre);
+    void fgPromoteStructs();
+    void fgMorphStructField(GenTree* tree, GenTree* parent);
+    void fgMorphLocalField(GenTree* tree, GenTree* parent);
 
     // Identify which parameters are implicit byrefs, and flag their LclVarDscs.
     void fgMarkImplicitByRefArgs();
@@ -5177,17 +5187,10 @@ private:
     // Clear up annotations for any struct promotion temps created for implicit byrefs.
     void fgMarkDemotedImplicitByRefArgs();
 
-    static fgWalkPreFn  fgMarkAddrTakenLocalsPreCB;
-    static fgWalkPostFn fgMarkAddrTakenLocalsPostCB;
-    void                fgMarkAddressExposedLocals();
-    bool fgNodesMayInterfere(GenTree* store, GenTree* load);
+    void fgMarkAddressExposedLocals();
 
     static fgWalkPreFn  fgUpdateSideEffectsPre;
     static fgWalkPostFn fgUpdateSideEffectsPost;
-
-    // Returns true if the type of tree is of size at least "width", or if "tree" is not a
-    // local variable.
-    bool fgFitsInOrNotLoc(GenTree* tree, unsigned width);
 
     // The given local variable, required to be a struct variable, is being assigned via
     // a "lclField", to make it masquerade as an integral type in the ABI.  Make sure that
@@ -5818,12 +5821,6 @@ protected:
     bool optCSE_canSwap(GenTree* firstNode, GenTree* secondNode);
     bool optCSE_canSwap(GenTree* tree);
 
-    static fgWalkPostFn optPropagateNonCSE;
-    static fgWalkPreFn  optHasNonCSEChild;
-
-    static fgWalkPreFn optUnmarkCSEs;
-    static fgWalkPreFn optHasCSEdefWithSideeffect;
-
     static int __cdecl optCSEcostCmpEx(const void* op1, const void* op2);
     static int __cdecl optCSEcostCmpSz(const void* op1, const void* op2);
 
@@ -5851,7 +5848,6 @@ protected:
     void     optValnumCSE_DataFlow();
     void     optValnumCSE_Availablity();
     void     optValnumCSE_Heuristic();
-    bool optValnumCSE_UnmarkCSEs(GenTree* deadTree, GenTree** wbKeepList);
 
 #endif // FEATURE_VALNUM_CSE
 

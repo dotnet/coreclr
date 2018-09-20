@@ -764,7 +764,7 @@ protected:
 
     void genSetRegToConst(regNumber targetReg, var_types targetType, GenTree* tree);
     void genCodeForTreeNode(GenTree* treeNode);
-    void genCodeForBinary(GenTree* treeNode);
+    void genCodeForBinary(GenTreeOp* treeNode);
 
 #if defined(_TARGET_X86_)
     void genCodeForLongUMod(GenTreeOp* node);
@@ -958,6 +958,7 @@ protected:
     void genLZCNTIntrinsic(GenTreeHWIntrinsic* node);
     void genPCLMULQDQIntrinsic(GenTreeHWIntrinsic* node);
     void genPOPCNTIntrinsic(GenTreeHWIntrinsic* node);
+    void genXCNTIntrinsic(GenTreeHWIntrinsic* node, instruction ins);
     template <typename HWIntrinsicSwitchCaseBody>
     void genHWIntrinsicJumpTableFallback(NamedIntrinsic            intrinsic,
                                          regNumber                 nonConstImmReg,

@@ -122,6 +122,112 @@
         }
     },
     {
+        "name": "System.Collections.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_SimpleInt_int_With_Comparer_WrapStructural_SimpleInt.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_IDictionary_NonGeneric_Tests.IEnumerable_NonGeneric_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_string_string.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedBeforeEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_Reset_ModifiedAfterEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                },
+                {
+                    "name": "System.Collections.Tests.Dictionary_Generic_Tests_int_int.IEnumerable_Generic_Enumerator_MoveNext_ModifiedDuringEnumeration_ThrowsInvalidOperationException",
+                    "reason": "outdated"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Net.Http.Functional.Tests",
         "enabled": true,
         "exclusions": {
@@ -139,9 +245,8 @@
             ]
         }
     },
-    
     {
-        "name":"System.IO.FileSystem.Tests",
+        "name": "System.IO.FileSystem.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
@@ -158,7 +263,6 @@
                 {
                     "name": "System.IO.Tests.File_GetSetTimes.SettingUpdatesProperties",
                     "reason": "Assert.All() Failure: 6 out of 6 items in the collection did not pass."
-               
                 },
                 {
                     "name": "System.IO.Tests.FileInfo_GetSetTimes.SettingUpdatesProperties",
@@ -268,10 +372,10 @@
             "namespaces": null,
             "classes": null,
             "methods": [
-               { 
-                "name": "System.Threading.Threads.Tests.ThreadTests.ApartmentState_NoAttributePresent_STA_Windows_Core",
-                "reason": "https://github.com/dotnet/coreclr/issues/19478"
-               }
+                {
+                    "name": "System.Threading.Threads.Tests.ThreadTests.ApartmentState_NoAttributePresent_STA_Windows_Core",
+                    "reason": "https://github.com/dotnet/coreclr/issues/19478"
+                }
             ]
         }
     },
@@ -282,10 +386,10 @@
             "namespaces": null,
             "classes": null,
             "methods": [
-               { 
-                "name": "System.Buffers.Text.Tests.FormatterTests.TestFormatterDecimal",
-                "reason": "https://github.com/dotnet/coreclr/pull/19775"
-               }
+                {
+                    "name": "System.Buffers.Text.Tests.FormatterTests.TestFormatterDecimal",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19775"
+                }
             ]
         }
     },
@@ -296,10 +400,10 @@
             "namespaces": null,
             "classes": null,
             "methods": [
-               { 
-                "name": "System.Tests.ConvertToStringTests.FromBoxedObject",
-                "reason": "https://github.com/dotnet/coreclr/pull/19775"
-               }
+                {
+                    "name": "System.Tests.ConvertToStringTests.FromBoxedObject",
+                    "reason": "https://github.com/dotnet/coreclr/pull/19775"
+                }
             ]
         }
     }

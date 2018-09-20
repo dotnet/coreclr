@@ -158,6 +158,7 @@
     <Compile Condition="'$(FeatureCominterop)' != 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\NonPortable.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\DispatchWrapper.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ICustomFactory.cs" />
+    <Compile Condition="'$(FeatureCominteropUnmanagedActivation)' == 'true'" Include="$(BclSourcesRoot)\System\Runtime\InteropServices\ComActivator.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Runtime\InteropServices\Expando\IExpando.cs" />
@@ -294,6 +295,7 @@
     <Compile Include="$(BclSourcesRoot)\System\RuntimeArgumentHandle.cs" />
     <Compile Include="$(BclSourcesRoot)\System\RuntimeHandles.cs" />
     <Compile Include="$(BclSourcesRoot)\System\SharedStatics.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\StartupHookProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\StubHelpers.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Type.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeNameParser.cs" />
@@ -308,7 +310,6 @@
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
     <Compile Include="$(BclSourcesRoot)\System\CLRConfig.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\StartupHookProvider.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\__ComObject.cs" />
     <Compile Condition="'$(FeatureCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\Variant.cs" />
     <Compile Condition="'$(FeatureClassicCominterop)' == 'true'" Include="$(BclSourcesRoot)\System\OleAutBinder.cs" />
@@ -454,6 +455,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\DotNETRuntimeEventSource.cs" />
     <Compile Include="$(IntermediateOutputPath)..\eventing\DotNETRuntimeEventSource.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipe.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeController.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventDispatcher.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeEventProvider.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Diagnostics\Eventing\EventPipeMetadataGenerator.cs" />
@@ -480,9 +482,11 @@
     <Compile Include="$(BclSourcesRoot)\System\Runtime\Serialization\FormatterServices.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\Win32Native.cs" />
-    <Compile Condition="'$(FeatureWin32Registry)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\RegistryKey.cs" />
     <Compile Condition="'$(FeatureClassicCominterop)' == 'true'" Include="$(BclSourcesRoot)\Microsoft\Win32\OAVariantLib.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -490,8 +494,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Resources\IResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ManifestBasedResourceGroveler.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceManager.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceReader.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Resources\ResourceSet.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\Collections\Generic\Comparer.cs" />
@@ -507,7 +509,6 @@
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\CultureInfo.Unix.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Runtime\Versioning\CompatibilitySwitch.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Threading\ClrThreadPoolBoundHandle.Unix.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsWindows)' == 'true'">

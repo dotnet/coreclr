@@ -1078,7 +1078,12 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             // Set type of registers
             for (unsigned index = 0; index < info->numRegs; index++)
             {
-                var_types regType          = comp->getJitGCType(gcLayout[index]);
+                var_types regType = comp->getJitGCType(gcLayout[index]);
+                // Account for the possibility that float fields may be passed in integer registers.
+                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
+                {
+                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
+                }
                 argSplit->m_regType[index] = regType;
             }
         }
@@ -1087,7 +1092,12 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
             GenTreeFieldList* fieldListPtr = arg->AsFieldList();
             for (unsigned index = 0; index < info->numRegs; fieldListPtr = fieldListPtr->Rest(), index++)
             {
-                var_types regType          = fieldListPtr->gtGetOp1()->TypeGet();
+                var_types regType = fieldListPtr->gtGetOp1()->TypeGet();
+                // Account for the possibility that float fields may be passed in integer registers.
+                if (varTypeIsFloating(regType) && !genIsValidFloatReg(argSplit->GetRegNumByIdx(index)))
+                {
+                    regType = (regType == TYP_FLOAT) ? TYP_INT : TYP_LONG;
+                }
                 argSplit->m_regType[index] = regType;
 
                 // Clear the register assignments on the fieldList nodes, as these are contained.
@@ -5628,61 +5638,6 @@ void Lowering::ContainCheckNode(GenTree* node)
         default:
             break;
     }
-}
-
-//------------------------------------------------------------------------
-// ContainCheckDivOrMod: determine which operands of a div/mod should be contained.
-//
-// Arguments:
-//    node - pointer to the GT_UDIV/GT_UMOD node
-//
-void Lowering::ContainCheckDivOrMod(GenTreeOp* node)
-{
-    assert(node->OperIs(GT_DIV, GT_MOD, GT_UDIV, GT_UMOD));
-
-#ifdef _TARGET_XARCH_
-    GenTree* dividend = node->gtGetOp1();
-    GenTree* divisor  = node->gtGetOp2();
-
-    if (varTypeIsFloating(node->TypeGet()))
-    {
-        // No implicit conversions at this stage as the expectation is that
-        // everything is made explicit by adding casts.
-        assert(dividend->TypeGet() == divisor->TypeGet());
-
-        if (IsContainableMemoryOp(divisor) || divisor->IsCnsNonZeroFltOrDbl())
-        {
-            MakeSrcContained(node, divisor);
-        }
-        else
-        {
-            // If there are no containable operands, we can make an operand reg optional.
-            // SSE2 allows only divisor to be a memory-op.
-            divisor->SetRegOptional();
-        }
-        return;
-    }
-    bool divisorCanBeRegOptional = true;
-#ifdef _TARGET_X86_
-    if (dividend->OperGet() == GT_LONG)
-    {
-        divisorCanBeRegOptional = false;
-        MakeSrcContained(node, dividend);
-    }
-#endif
-
-    // divisor can be an r/m, but the memory indirection must be of the same size as the divide
-    if (IsContainableMemoryOp(divisor) && (divisor->TypeGet() == node->TypeGet()))
-    {
-        MakeSrcContained(node, divisor);
-    }
-    else if (divisorCanBeRegOptional)
-    {
-        // If there are no containable operands, we can make an operand reg optional.
-        // Div instruction allows only divisor to be a memory op.
-        divisor->SetRegOptional();
-    }
-#endif // _TARGET_XARCH_
 }
 
 //------------------------------------------------------------------------
