@@ -717,8 +717,10 @@ static bool CallerAndCalleeInSystemVersionBubble(MethodDesc* pCaller, MethodDesc
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
         return pCallee->GetModule()->IsSystem() && IsInSameVersionBubble(pCaller, pCallee);
+#endif
 
     return false;
 }
