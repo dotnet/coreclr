@@ -55,11 +55,11 @@ void ThreadLocalBlock::FreeTLM(SIZE_T i, BOOL isThreadShuttingdown)
                         ThreadLocalModule::CollectibleDynamicEntry *entry = (ThreadLocalModule::CollectibleDynamicEntry*)pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;
                         if (entry->m_hGCStatics != NULL)
                         {
-                            pThreadLocalModule->m_pLoaderAllocator->ClearHandle(entry->m_hGCStatics);
+                            pThreadLocalModule->m_pLoaderAllocator->FreeHandle(entry->m_hGCStatics);
                         }
                         if (entry->m_hNonGCStatics != NULL)
                         {
-                            pThreadLocalModule->m_pLoaderAllocator->ClearHandle(entry->m_hNonGCStatics);
+                            pThreadLocalModule->m_pLoaderAllocator->FreeHandle(entry->m_hNonGCStatics);
                         }
                     }
                     delete pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;

@@ -845,7 +845,7 @@ OBJECTREF LoaderAllocator::GetHandleValue(LOADERHANDLE handle)
     return objRet;
 }
 
-void LoaderAllocator::ClearHandle(LOADERHANDLE handle)
+void LoaderAllocator::FreeHandle(LOADERHANDLE handle)
 {
     CONTRACTL
     {

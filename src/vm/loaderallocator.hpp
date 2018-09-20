@@ -426,7 +426,7 @@ public:
 
     void SetHandleValue(LOADERHANDLE handle, OBJECTREF value);
     OBJECTREF CompareExchangeValueInHandle(LOADERHANDLE handle, OBJECTREF value, OBJECTREF compare);
-    void ClearHandle(LOADERHANDLE handle);
+    void FreeHandle(LOADERHANDLE handle);
 
     // The default implementation is a no-op. Only collectible loader allocators implement this method.
     virtual void RegisterHandleForCleanup(OBJECTHANDLE /* objHandle */) { }
