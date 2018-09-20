@@ -713,6 +713,16 @@ static bool IsInSameVersionBubble(MethodDesc* pCurMD, MethodDesc *pTargetMD)
 
 #endif // FEATURE_READYTORUN_COMPILER
 
+static bool CallerAndCalleeInSystemVersionBubble(MethodDesc* pCaller, MethodDesc* pCallee)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (IsReadyToRunCompilation())
+        return pCallee->GetModule()->IsSystem() && IsInSameVersionBubble(pCaller, pCallee);
+
+    return false;
+}
+
 
 /*********************************************************************/
 CorInfoCanSkipVerificationResult CEEInfo::canSkipVerification(
@@ -5298,12 +5308,6 @@ void CEEInfo::getCallInfo(
     bool directCall = false;
     bool resolvedCallVirt = false;
     bool callVirtCrossingVersionBubble = false;
-    bool callerAndCalleeInSystemVersionBubble = false;
-
-#ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation())
-        callerAndCalleeInSystemVersionBubble = pTargetMD->GetModule()->IsSystem() && IsInSameVersionBubble((MethodDesc*)callerHandle, pTargetMD);
-#endif
 
     // Delegate targets are always treated as direct calls here. (It would be nice to clean it up...).
     if (flags & CORINFO_CALLINFO_LDFTN)
@@ -5467,7 +5471,7 @@ void CEEInfo::getCallInfo(
     // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
     // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
     // performance optimization.
-    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || callerAndCalleeInSystemVersionBubble))
+    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD)))
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
