@@ -9488,7 +9488,7 @@ void Thread::DeleteThreadStaticData(ModuleIndex index)
         ThreadLocalBlock * pTLB = m_pTLBTable[i];
         if (pTLB != NULL)
         {
-            pTLB->FreeTLM(index.m_dwIndex);
+            pTLB->FreeTLM(index.m_dwIndex, FALSE /* isThreadShuttingDown */);
         }
     }
 }

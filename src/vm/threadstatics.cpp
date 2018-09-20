@@ -17,7 +17,7 @@
 
 #ifndef DACCESS_COMPILE
 
-void ThreadLocalBlock::FreeTLM(SIZE_T i)
+void ThreadLocalBlock::FreeTLM(SIZE_T i, BOOL isThreadShuttingdown)
 {
     CONTRACTL
     {
@@ -50,6 +50,18 @@ void ThreadLocalBlock::FreeTLM(SIZE_T i)
             {
                 if (pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry != NULL)
                 {
+                    if (isThreadShuttingdown && (pThreadLocalModule->m_pDynamicClassTable[k].m_dwFlags & ClassInitFlags::COLLECTIBLE_FLAG))
+                    {
+                        ThreadLocalModule::CollectibleDynamicEntry *entry = (ThreadLocalModule::CollectibleDynamicEntry*)pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;
+                        if (entry->m_hGCStatics != NULL)
+                        {
+                            pThreadLocalModule->m_pLoaderAllocator->ClearHandle(entry->m_hGCStatics);
+                        }
+                        if (entry->m_hNonGCStatics != NULL)
+                        {
+                            pThreadLocalModule->m_pLoaderAllocator->ClearHandle(entry->m_hNonGCStatics);
+                        }
+                    }
                     delete pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;
                     pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry = NULL;
                 }
@@ -80,7 +92,7 @@ void ThreadLocalBlock::FreeTable()
         {
             if (m_pTLMTable[i].pTLM != NULL)
             {
-                FreeTLM(i);
+                FreeTLM(i, TRUE /* isThreadShuttingDown */);
             }
         }
 
@@ -722,6 +734,7 @@ PTR_ThreadLocalModule ThreadStatics::AllocateTLM(Module * pModule)
     }
     CONTRACTL_END;
 
+
     SIZE_T size = pModule->GetThreadLocalModuleSize();
 
     _ASSERTE(size >= ThreadLocalModule::OffsetOfDataBlob());
@@ -736,6 +749,11 @@ PTR_ThreadLocalModule ThreadStatics::AllocateTLM(Module * pModule)
     // Zero out the part of memory where the TLM resides
     memset(pThreadLocalModule, 0, size);
     
+    if (pModule->IsCollectible())
+    {
+        pThreadLocalModule->SetLoaderAllocator(pModule->GetLoaderAllocator());
+    }
+
     return pThreadLocalModule;
 }
 

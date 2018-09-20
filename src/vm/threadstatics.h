@@ -410,6 +410,13 @@ struct ThreadLocalModule
 
     void    PopulateClass(MethodTable *pMT);
 
+    void    SetLoaderAllocator(LoaderAllocator *pLoaderAllocator)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_pLoaderAllocator = pLoaderAllocator;
+    }
+
 #endif
 
 #ifdef DACCESS_COMPILE
@@ -432,6 +439,7 @@ private:
     PTR_DynamicClassInfo     m_pDynamicClassTable;   // used for generics and reflection.emit in memory
     SIZE_T                   m_aDynamicEntries;      // number of entries in dynamic table
     OBJECTHANDLE             m_pGCStatics;           // Handle to GC statics of the module
+    LoaderAllocator*         m_pLoaderAllocator;
 
     // Note that the static offset calculation in code:Module::BuildStaticsOffsets takes the offset m_pDataBlob
     // into consideration so we do not need any padding to ensure that the start of the data blob is aligned
@@ -498,7 +506,7 @@ public:
 };  // struct ThreadLocalModule
 
 
-#define OFFSETOF__ThreadLocalModule__m_pDataBlob               (3 * TARGET_POINTER_SIZE /* m_pDynamicClassTable + m_aDynamicEntries + m_pGCStatics */)
+#define OFFSETOF__ThreadLocalModule__m_pDataBlob               (4 * TARGET_POINTER_SIZE /* m_pDynamicClassTable + m_aDynamicEntries + m_pGCStatics + m_pLoaderAllocator */)
 #ifdef FEATURE_64BIT_ALIGNMENT
 #define OFFSETOF__ThreadLocalModule__DynamicEntry__m_pDataBlob (TARGET_POINTER_SIZE /* m_pGCStatics */ + TARGET_POINTER_SIZE /* m_padding */)
 #else
@@ -562,7 +570,7 @@ public:
         m_TLMTableLock.Init(LOCK_TYPE_DEFAULT);
     }
 
-    void    FreeTLM(SIZE_T i);
+    void    FreeTLM(SIZE_T i, BOOL isThreadShuttingDown);
 
     void    FreeTable();
 
