@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "ClientTests.h"
+#include <cmath>
 #include <numeric>
 #include <vector>
 
@@ -12,7 +13,7 @@ namespace
     {
         double low = expected - 0.00001;
         double high = expected + 0.00001;
-        double eps = std::fabs(expected - actual);
+        double eps = std::abs(expected - actual);
         bool isEqual = eps < std::numeric_limits<double>::epsilon() || (low < actual && actual < high);
         return isEqual;
     }
