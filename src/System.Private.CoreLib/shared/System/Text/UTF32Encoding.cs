@@ -42,9 +42,9 @@ namespace System.Text
         private static readonly byte[] s_bigEndianPreamble = new byte[4] { 0x00, 0x00, 0xFE, 0xFF };
         private static readonly byte[] s_littleEndianPreamble = new byte[4] { 0xFF, 0xFE, 0x00, 0x00 };
 
-        private readonly bool _emitUTF32ByteOrderMark;
-        private readonly bool _isThrowException;
-        private readonly bool _bigEndian;
+        private readonly bool _emitUTF32ByteOrderMark = false;
+        private readonly bool _isThrowException = false;
+        private readonly bool _bigEndian = false;
 
 
         public UTF32Encoding() : this(false, true)

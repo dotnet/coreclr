@@ -66,19 +66,18 @@ namespace System.Text
 
         // Yes, the idea of emitting U+FEFF as a UTF-8 identifier has made it into
         // the standard.
-        internal readonly bool _emitUTF8Identifier;
+        internal readonly bool _emitUTF8Identifier = false;
 
-        private readonly bool _isThrowException;
+        private readonly bool _isThrowException = false;
 
 
-        public UTF8Encoding() :
-            base(UTF8_CODEPAGE)
+        public UTF8Encoding() : this(false)
         {
         }
 
 
         public UTF8Encoding(bool encoderShouldEmitUTF8Identifier) :
-            this()
+            base(UTF8_CODEPAGE)
         {
             _emitUTF8Identifier = encoderShouldEmitUTF8Identifier;
         }

@@ -29,10 +29,10 @@ namespace System.Text
         private static readonly byte[] s_bigEndianPreamble = new byte[2] { 0xfe, 0xff };
         private static readonly byte[] s_littleEndianPreamble = new byte[2] { 0xff, 0xfe };
 
-        private readonly bool isThrowException;
+        private readonly bool isThrowException = false;
 
-        private readonly bool bigEndian;
-        private readonly bool byteOrderMark;
+        private readonly bool bigEndian = false;
+        private readonly bool byteOrderMark = false;
 
         // Unicode version 2.0 character size in bytes
         public const int CharSize = 2;
