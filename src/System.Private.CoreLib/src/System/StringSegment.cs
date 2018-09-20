@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -103,7 +104,7 @@ namespace System
         public static implicit operator StringSegment(string value) => new StringSegment(value);
 
         // ordinal case-sensitive comparison
-        public static bool operator ==(StringSegment a, StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
+        public static bool operator ==(StringSegment a, StringSegment b) => a.AsSpan().SequenceEqual(b.AsSpan());
 
         // TODO: How do we make "<StringSegment> != null" result in a compilation error rather
         // than coercing 'null' to string?
@@ -119,9 +120,68 @@ namespace System
 
         public int Length => _count;
 
+        public ref readonly char this[int index]
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if ((uint)index >= (uint)Length)
+                {
+                    ThrowHelper.ThrowIndexOutOfRangeException();
+                }
+
+                // We use AsSpanFast() because we expect the string to be non-null at this point,
+                // as the check above should throw for any zero-length segment. If this is a torn
+                // struct, the accessor below will null ref, which is fine. The span indexer will
+                // also make sure we're not going out of bounds when reading the string instance.
+
+                return ref _value.AsSpanFast()[_offset + index];
+            }
+        }
+
         /*
          * METHODS
          */
+
+        // This method is guaranteed not to return a span outside the bounds of the
+        // underlying string instance, even in the face of a torn struct.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal unsafe ReadOnlySpan<char> GetSpanInternal()
+        {
+            ref char spanBuffer = ref Unsafe.AsRef<char>(null);
+            int spanLength = 0;
+
+            // The stored length can be negative in the face of a torn struct.
+            // The if check below prevent us from using it if this is the case.
+
+            int tempLength = Length;
+
+            if (tempLength > 0)
+            {
+                string tempString = _value;
+
+                // The stored offset can be negative in the face of a torn struct.
+                // Clear the high bit to force the number to be non-negative. We'll
+                // perform a bounds check against this normalized value later.
+
+                int tempOffset = _offset & 0x7FFFFFFF;
+
+                // Since both the offset and the length are non-negative signed integers,
+                // their sum fits into the range of an unsigned integer without overflow.
+
+                if ((uint)(tempLength + tempOffset) > (uint)tempString.Length)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                }
+
+                spanBuffer = ref Unsafe.Add(ref tempString.GetRawStringData(), tempOffset);
+                spanLength = tempLength;
+            }
+
+            return new ReadOnlySpan<char>(ref spanBuffer, spanLength);
+        }
+
+        public bool Contains(char value) => this.AsSpan().Contains(value);
 
         public override bool Equals(object obj)
         {
@@ -143,6 +203,7 @@ namespace System
             return IsSameSegment(a, b) || a.AsSpan().Equals(b.AsSpan(), comparisonType);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public string GetBuffer(out int offset, out int length)
         {
             offset = _offset;
@@ -159,6 +220,8 @@ namespace System
         [Obsolete("This type cannot be pinned because it may result in a char* without a null terminator.", error: true)]
         public ref readonly char GetPinnableReference() => throw new NotSupportedException();
 
+        public int IndexOf(char value) => this.AsSpan().IndexOf(value);
+
         public bool IsEmptyOrWhiteSpace() => this.AsSpan().IsWhiteSpace(); // also performs "is empty?" check
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -166,26 +229,29 @@ namespace System
         {
             // TODO: Can this be optimized by reading offset + count as a single int64?
 
-            return a._value == b._value
+            return ReferenceEquals(a._value, b._value)
                 && a._offset == b._offset
                 && a._count == b._count;
         }
 
+        public int LastIndexOf(char value) => this.AsSpan().LastIndexOf(value);
+
         public StringSegment Substring(int startIndex)
         {
-            if ((uint)startIndex > (uint)_count)
+            if ((uint)startIndex < (uint)_count)
             {
-                // TODO: better exception
-                throw new Exception("Argument out of range.");
-            }
-            else if (startIndex != _count)
-            {
+                // Most common case: substring doesn't eliminate the entire value
                 return new StringSegment(_value, _offset + startIndex, _count - startIndex, unused: false);
+            }
+            else if (startIndex == _count)
+            {
+                // Less common case: substring away the entire string contents
+                return default;
             }
             else
             {
-                // don't hold on to 'value' if we don't need to
-                return default;
+                // TODO: better exception
+                throw new Exception("Argument out of range.");
             }
         }
 
@@ -209,23 +275,16 @@ namespace System
 
         public override string ToString()
         {
-            if (_count != 0)
+            if (_value != null)
             {
-                if (_count == _value.Length)
-                {
-                    return _value;
-                }
-                else
-                {
-                    return _value.Substring(_offset, _count);
-                }
+                return _value.Substring(_offset, _count);
             }
             else
             {
                 return string.Empty;
             }
         }
-        
+
         public StringSegment Trim() => TrimHelper(TrimType.Both);
 
         public StringSegment TrimEnd() => TrimHelper(TrimType.Tail);

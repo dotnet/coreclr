@@ -72,6 +72,116 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ReadOnlySpan<byte> AsSpanFast() => MemoryMarshal.CreateReadOnlySpan(ref DangerousGetMutableReference(), Length);
 
+        public static Utf8String Concat(Utf8String str0, Utf8String str1)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return str1 ?? Empty;
+            }
+
+            if (IsNullOrEmpty(str1))
+            {
+                return str0;
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            str1.AsSpanFast().CopyTo(writeableSpan.Slice(str0.Length));
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
+        public static Utf8String Concat(Utf8String str0, Utf8String str1, Utf8String str2)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2);
+            }
+
+            // TODO: The concatenations below can be optimized because we know that
+            // some strings (like str0) have actual data.
+
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2);
+            }
+
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1);
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length + str2.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str0.Length);
+            str1.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str1.Length);
+            str2.AsSpanFast().CopyTo(writeableSpan);
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
+        public static Utf8String Concat(Utf8String str0, Utf8String str1, Utf8String str2, Utf8String str3)
+        {
+            if (IsNullOrEmpty(str0))
+            {
+                return Concat(str1, str2, str3);
+            }
+
+            // TODO: The concatenations below can be optimized because we know that
+            // some strings (like str0) have actual data.
+
+            if (IsNullOrEmpty(str1))
+            {
+                return Concat(str0, str2, str3);
+            }
+
+            if (IsNullOrEmpty(str2))
+            {
+                return Concat(str0, str1, str3);
+            }
+
+            if (IsNullOrEmpty(str3))
+            {
+                return Concat(str0, str1, str2);
+            }
+
+            // Integer addition below may overflow, resulting in allocating a new Utf8String instance
+            // of an unexpected size. That's fine; we'll check for this in the copy routines below and
+            // will throw if there's a problem.
+
+            UnbakedUtf8String retVal = new UnbakedUtf8String(str0.Length + str1.Length + str2.Length + str3.Length);
+            Span<byte> writeableSpan = retVal.GetSpan();
+
+            str0.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str0.Length);
+            str1.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str1.Length);
+            str2.AsSpanFast().CopyTo(writeableSpan);
+            writeableSpan = writeableSpan.Slice(str2.Length);
+            str3.AsSpanFast().CopyTo(writeableSpan);
+
+            // TODO: Merge characteristics from input Utf8String instances, copy them into new Utf8String instance.
+
+            return retVal.BakeWithoutValidation();
+        }
+
         internal string ConvertToUtf16PreservingCorruption()
         {
             // We rely on the fact that UTF-8 to UTF-16 transcoding never increases the overall
@@ -149,6 +259,35 @@ namespace System
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ref byte DangerousGetMutableReference() => ref Unsafe.AsRef(in _firstByte);
+
+        public bool EndsWith(UnicodeScalar value)
+        {
+            if (Length == 0)
+            {
+                // Empty string doesn't end with anything
+                return false;
+            }
+
+            // Common case is looking for an ASCII value (one UTF-8 code unit), so try that now
+            // optimistically.
+
+            if (Unsafe.Add(ref DangerousGetMutableReference(), Length) == value.Value)
+            {
+                return true; // match!
+            }
+
+            if (value.IsAscii || Length < 2)
+            {
+                return false; // no need to search future bytes
+            }
+
+            // Slow path: searching for a multi-byte sequence
+            // TODO: This can be optimized if the input UnicodeScalar is a compile-time constant.
+
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
+            int actualSequenceLength = value.ToUtf8(valueAsUtf8);
+            return AsSpanFast().EndsWith(valueAsUtf8.Slice(0, actualSequenceLength));
+        }
 
         public override bool Equals(object obj) => (obj is Utf8String other) && this.Equals(other);
 
@@ -434,11 +573,110 @@ namespace System
 
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
+        public int IndexOf(char value)
+        {
+            return IndexOf_Char_NoBoundsChecks(value, 0, Length);
+        }
+
+        public int IndexOf(char value, int startIndex)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            return IndexOf_Char_NoBoundsChecks(value, startIndex, Length - startIndex);
+        }
+
+        public int IndexOf(char value, int startIndex, int count)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            if ((uint)count > (uint)(Length - startIndex))
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
+            }
+
+            return IndexOf_Char_NoBoundsChecks(value, startIndex, count);
+        }
+
+        public int IndexOf(UnicodeScalar value)
+        {
+            return IndexOf_Scalar_NoBoundsChecks(value, 0, Length);
+        }
+
+        public int IndexOf(UnicodeScalar value, int startIndex)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            return IndexOf_Scalar_NoBoundsChecks(value, startIndex, Length - startIndex);
+        }
+
+        public int IndexOf(UnicodeScalar value, int startIndex, int count)
+        {
+            if ((uint)startIndex > (uint)Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(startIndex), SR.ArgumentOutOfRange_Index);
+            }
+
+            if ((uint)count > (uint)(Length - startIndex))
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
+            }
+
+            return IndexOf_Scalar_NoBoundsChecks(value, startIndex, count);
+        }
+
+        private int IndexOf_Ascii_NoBoundsChecks(byte value, int startIndex, int count)
+        {
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), value, count);
+        }
+
+        private int IndexOf_Char_NoBoundsChecks(char value, int startIndex, int count)
+        {
+            if (value <= 0x7FU)
+            {
+                // ASCII
+                return IndexOf_Ascii_NoBoundsChecks((byte)value, startIndex, count);
+            }
+            else if (!IsKnownAscii() && UnicodeScalar.TryCreate(value, out var scalar))
+            {
+                // Search character is not ASCII (but is still a valid scalar),
+                // and the search space may contain non-ASCII data.
+                return IndexOf_Scalar_NoBoundsChecks(scalar, startIndex, count);
+            }
+
+            // If we reached this point, we're being asked to look for a non-ASCII
+            // character in a string we know to be all-ASCII, or we're being asked
+            // to look for a character that can't be represented in UTF-8 (such as
+            // a UTF-16 surrogate code unit). In both cases, return "not found".
+
+            return -1;
+        }
+
+        private int IndexOf_Scalar_NoBoundsChecks(UnicodeScalar value, int startIndex, int count)
+        {
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // worst possible output case
+            int utf8CodeUnitCount = value.ToUtf8(valueAsUtf8);
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), count, ref MemoryMarshal.GetReference(valueAsUtf8), utf8CodeUnitCount);
+        }
+
         public static bool IsEmptyOrWhiteSpace(ReadOnlySpan<byte> value)
         {
             return value.IsEmpty || IsWhiteSpaceCore(value);
         }
 
+        /// <summary>
+        /// Returns true iff this instance is known to contain all-ASCII data. Returns
+        /// false if the string contains non-ASCII data or if the instance was never
+        /// scanned to confirm that all the data is ASCII.
+        /// </summary>
         internal bool IsKnownAscii() => GetCharacteristics().HasFlag(Characteristics.IsAscii);
 
         public static bool IsNullOrEmpty(Utf8String value)
@@ -465,6 +703,35 @@ namespace System
         public static Utf8String Literal(string value)
         {
             return RuntimeHelpers.GetUtf8StringLiteral(value);
+        }
+
+        public bool StartsWith(UnicodeScalar value)
+        {
+            if (Length == 0)
+            {
+                // Empty string doesn't start with anything
+                return false;
+            }
+
+            // Common case is looking for an ASCII value (one UTF-8 code unit), so try that now
+            // optimistically.
+
+            if (_firstByte == value.Value)
+            {
+                return true; // match!
+            }
+
+            if (value.IsAscii || Length < 2)
+            {
+                return false; // no need to search future bytes
+            }
+
+            // Slow path: searching for a multi-byte sequence
+            // TODO: This can be optimized if the input UnicodeScalar is a compile-time constant.
+
+            Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
+            int actualSequenceLength = value.ToUtf8(valueAsUtf8);
+            return AsSpanFast().StartsWith(valueAsUtf8.Slice(0, actualSequenceLength));
         }
 
         private static unsafe nuint strlen(byte* value)

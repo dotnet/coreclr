@@ -459,22 +459,19 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this StringSegment text)
         {
-            // Call to Utf8String.AsSpan below will perform parameter validation
-            return (!text.IsEmpty) ? text.GetBuffer(out var offset, out var length).AsSpan(offset, length) : ReadOnlySpan<char>.Empty;
+            return text.GetSpanInternal(); // struct tearing validation performed within method
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this StringSegment text, int start)
         {
-            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
-            return (!text.IsEmpty) ? AsSpan(text).Slice(start) : ReadOnlySpan<char>.Empty;
+            return AsSpan(text).Slice(start); // parameter validation performed within methods
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<char> AsSpan(this StringSegment text, int start, int length)
         {
-            // Call to Utf8String.AsSpan and Slice below will perform parameter validation
-            return (!text.IsEmpty) ? AsSpan(text).Slice(start, length) : ReadOnlySpan<char>.Empty;
+            return AsSpan(text).Slice(start, length); // parameter validation performed within methods
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

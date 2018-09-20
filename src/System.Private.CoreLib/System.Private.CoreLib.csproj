@@ -261,6 +261,7 @@
     <Compile Include="src\System\Text\SequenceValidity.cs" />
     <Compile Include="src\System\Text\UnicodeReader.cs" />
     <Compile Include="src\System\Text\OperationStatus.cs" />
+    <Compile Include="src\System\Text\Utf8.cs" />
     <Compile Include="src\System\Text\Utf8Transcoder.cs" />
     <Compile Include="src\System\Text\UnicodeScalar.cs" />
     <Compile Include="src\System\Text\Utf16Utility.cs" />
@@ -306,6 +307,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Utf8StringSegment.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Utf8String.Creation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\StringSegment.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\StringSegmentComparer.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
     <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />

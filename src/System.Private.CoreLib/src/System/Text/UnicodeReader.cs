@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+
 namespace System.Text
 {
     /// <summary>
@@ -219,6 +221,66 @@ namespace System.Text
             // And so we have an invalid sequence of length 3.
 
             return (SequenceValidity.Invalid, UnicodeScalar.ReplacementChar, charsConsumed: 3);
+        }
+
+        public static (SequenceValidity status, UnicodeScalar scalar, int charsConsumed) PeekLastScalarUtf8(ReadOnlySpan<byte> buffer)
+        {
+            // See comments in PeekFirstScalarUtf8 for full details of how this works. In short, we look for
+            // the last byte that's not a continuation character, and we slice the buffer from that point forward
+            // and perform a forward read.
+
+            if (buffer.Length < 1)
+            {
+                return (SequenceValidity.Incomplete, UnicodeScalar.ReplacementChar, charsConsumed: 0);
+            }
+
+            if (buffer.Length < 2 || !UnicodeHelpers.IsUtf8ContinuationByte(in buffer[buffer.Length - 1]))
+            {
+                // Forward read of only last byte.
+                return PeekFirstScalarUtf8(buffer.Slice(buffer.Length - 1));
+            }
+
+            // From this point forward, we're committed to a multi-byte read.
+
+            if (buffer.Length < 3 || !UnicodeHelpers.IsUtf8ContinuationByte(in buffer[buffer.Length - 2]))
+            {
+                // Forward read of only last 2 bytes.
+                buffer = buffer.Slice(buffer.Length - 2);
+            }
+            else if (buffer.Length < 4 || !UnicodeHelpers.IsUtf8ContinuationByte(in buffer[buffer.Length - 3]))
+            {
+                // Forward read of only last 3 bytes.
+                buffer = buffer.Slice(buffer.Length - 3);
+            }
+            else
+            {
+                // Fall back to forward read of only last 4 bytes.
+                // No need to keep going backward because 4 code units is the longest valid UTF-8 sequence length.
+                buffer = buffer.Slice(buffer.Length - 4);
+            }
+
+            // Forward read the final slice of the buffer.
+
+            var result = PeekFirstScalarUtf8(buffer);
+            Debug.Assert(0 < result.charsConsumed && result.charsConsumed <= buffer.Length);
+
+            // It's possible that the call above won't consume the entire buffer. If this happens it means that
+            // there's an invalid sequence at the end of the buffer. Consider the sequence [ 58 80 ], which is
+            // the ASCII character 'X' followed by a standalone continuation byte. A forward read would consume
+            // only the single ASCII byte. Another example is [ ED BF BF ], which would decode to within the
+            // UTF-16 surrogate range. A forward read would consume the first two bytes. What all of these cases
+            // have in common is that a forward read loop eventually would've hit the final continuation byte
+            // and errored out with "standalone continuation byte not preceded by a valid multi-byte marker
+            // sequence". Like the forward read case, we treat this as a standalone invalid sequence of length 1.
+
+            if (result.charsConsumed == buffer.Length)
+            {
+                return result;
+            }
+            else
+            {
+                return (SequenceValidity.Invalid, UnicodeScalar.ReplacementChar, charsConsumed: 1);
+            }
         }
     }
 }
