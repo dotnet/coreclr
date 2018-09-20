@@ -15,38 +15,38 @@ namespace System
         private static readonly ulong[] rgval64Power10 = new ulong[]
         {
             // powers of 10
-            0XA000000000000000,     // 1
-            0XC800000000000000,     // 2
-            0XFA00000000000000,     // 3
-            0X9C40000000000000,     // 4
-            0XC350000000000000,     // 5
-            0XF424000000000000,     // 6
-            0X9896800000000000,     // 7
-            0XBEBC200000000000,     // 8
-            0XEE6B280000000000,     // 9
-            0X9502F90000000000,     // 10
-            0XBA43B74000000000,     // 11
-            0XE8D4A51000000000,     // 12
-            0X9184E72A00000000,     // 13
-            0XB5E620F480000000,     // 14
-            0XE35FA931A0000000,     // 15
+            0XA0000000_00000000,     // 1
+            0XC8000000_00000000,     // 2
+            0XFA000000_00000000,     // 3
+            0X9C400000_00000000,     // 4
+            0XC3500000_00000000,     // 5
+            0XF4240000_00000000,     // 6
+            0X98968000_00000000,     // 7
+            0XBEBC2000_00000000,     // 8
+            0XEE6B2800_00000000,     // 9
+            0X9502F900_00000000,     // 10
+            0XBA43B740_00000000,     // 11
+            0XE8D4A510_00000000,     // 12
+            0X9184E72A_00000000,     // 13
+            0XB5E620F4_80000000,     // 14
+            0XE35FA931_A0000000,     // 15
 
             // powers of 0.1
-            0xCCCCCCCCCCCCCCCD,     // 1
-            0xA3D70A3D70A3D70B,     // 2
-            0x83126E978D4FDF3C,     // 3
-            0xD1B71758E219652E,     // 4
-            0xA7C5AC471B478425,     // 5
-            0x8637BD05AF6C69B7,     // 6
-            0xD6BF94D5E57A42BE,     // 7
-            0xABCC77118461CEFF,     // 8
-            0x89705F4136B4A599,     // 9
-            0xDBE6FECEBDEDD5C2,     // 10
-            0xAFEBFF0BCB24AB02,     // 11
-            0x8CBCCC096F5088CF,     // 12
-            0xE12E13424BB40E18,     // 13
-            0xB424DC35095CD813,     // 14
-            0x901D7CF73AB0ACDC,     // 15
+            0xCCCCCCCC_CCCCCCCD,     // 1
+            0xA3D70A3D_70A3D70B,     // 2
+            0x83126E97_8D4FDF3C,     // 3
+            0xD1B71758_E219652E,     // 4
+            0xA7C5AC47_1B478425,     // 5
+            0x8637BD05_AF6C69B7,     // 6
+            0xD6BF94D5_E57A42BE,     // 7
+            0xABCC7711_8461CEFF,     // 8
+            0x89705F41_36B4A599,     // 9
+            0xDBE6FECE_BDEDD5C2,     // 10
+            0xAFEBFF0B_CB24AB02,     // 11
+            0x8CBCCC09_6F5088CF,     // 12
+            0xE12E1342_4BB40E18,     // 13
+            0xB424DC35_095CD813,     // 14
+            0x901D7CF7_3AB0ACDC,     // 15
         };
 
         private static readonly short[] rgexp64Power10 = new short[]
@@ -72,50 +72,50 @@ namespace System
         private static readonly ulong[] rgval64Power10By16 = new ulong[]
         {
             // powers of 10^16
-            0x8E1BC9BF04000000,     // 1
-            0x9DC5ADA82B70B59E,     // 2
-            0xAF298D050E4395D6,     // 3
-            0xC2781F49FFCFA6D4,     // 4
-            0xD7E77A8F87DAF7FA,     // 5
-            0xEFB3AB16C59B14A0,     // 6
-            0x850FADC09923329C,     // 7
-            0x93BA47C980E98CDE,     // 8
-            0xA402B9C5A8D3A6E6,     // 9
-            0xB616A12B7FE617A8,     // 10
-            0xCA28A291859BBF90,     // 11
-            0xE070F78D39275566,     // 12
-            0xF92E0C3537826140,     // 13
-            0x8A5296FFE33CC92C,     // 14
-            0x9991A6F3D6BF1762,     // 15
-            0xAA7EEBFB9DF9DE8A,     // 16
-            0xBD49D14AA79DBC7E,     // 17
-            0xD226FC195C6A2F88,     // 18
-            0xE950DF20247C83F8,     // 19
-            0x81842F29F2CCE373,     // 20
-            0x8FCAC257558EE4E2,     // 21
+            0x8E1BC9BF_04000000,     // 1
+            0x9DC5ADA8_2B70B59E,     // 2
+            0xAF298D05_0E4395D6,     // 3
+            0xC2781F49_FFCFA6D4,     // 4
+            0xD7E77A8F_87DAF7FA,     // 5
+            0xEFB3AB16_C59B14A0,     // 6
+            0x850FADC0_9923329C,     // 7
+            0x93BA47C9_80E98CDE,     // 8
+            0xA402B9C5_A8D3A6E6,     // 9
+            0xB616A12B_7FE617A8,     // 10
+            0xCA28A291_859BBF90,     // 11
+            0xE070F78D_39275566,     // 12
+            0xF92E0C35_37826140,     // 13
+            0x8A5296FF_E33CC92C,     // 14
+            0x9991A6F3_D6BF1762,     // 15
+            0xAA7EEBFB_9DF9DE8A,     // 16
+            0xBD49D14A_A79DBC7E,     // 17
+            0xD226FC19_5C6A2F88,     // 18
+            0xE950DF20_247C83F8,     // 19
+            0x81842F29_F2CCE373,     // 20
+            0x8FCAC257_558EE4E2,     // 21
 
             // powers of 0.1^16
-            0xE69594BEC44DE160,     // 1
-            0xCFB11EAD453994C3,     // 2
-            0xBB127C53B17EC165,     // 3
-            0xA87FEA27A539E9B3,     // 4
-            0x97C560BA6B0919B5,     // 5
-            0x88B402F7FD7553AB,     // 6
-            0xF64335BCF065D3A0,     // 7
-            0xDDD0467C64BCE4C4,     // 8
-            0xC7CABA6E7C5382ED,     // 9
-            0xB3F4E093DB73A0B7,     // 10
-            0xA21727DB38CB0053,     // 11
-            0x91FF83775423CC29,     // 12
-            0x8380DEA93DA4BC82,     // 13
-            0xECE53CEC4A314F00,     // 14
-            0xD5605FCDCF32E217,     // 15
-            0xC0314325637A1978,     // 16
-            0xAD1C8EAB5EE43BA2,     // 17
-            0x9BECCE62836AC5B0,     // 18
-            0x8C71DCD9BA0B495C,     // 19
-            0xFD00B89747823938,     // 20
-            0xE3E27A444D8D991A,     // 21
+            0xE69594BE_C44DE160,     // 1
+            0xCFB11EAD_453994C3,     // 2
+            0xBB127C53_B17EC165,     // 3
+            0xA87FEA27_A539E9B3,     // 4
+            0x97C560BA_6B0919B5,     // 5
+            0x88B402F7_FD7553AB,     // 6
+            0xF64335BC_F065D3A0,     // 7
+            0xDDD0467C_64BCE4C4,     // 8
+            0xC7CABA6E_7C5382ED,     // 9
+            0xB3F4E093_DB73A0B7,     // 10
+            0xA21727DB_38CB0053,     // 11
+            0x91FF8377_5423CC29,     // 12
+            0x8380DEA9_3DA4BC82,     // 13
+            0xECE53CEC_4A314F00,     // 14
+            0xD5605FCD_CF32E217,     // 15
+            0xC0314325_637A1978,     // 16
+            0xAD1C8EAB_5EE43BA2,     // 17
+            0x9BECCE62_836AC5B0,     // 18
+            0x8C71DCD9_BA0B495C,     // 19
+            0xFD00B897_47823938,     // 20
+            0xE3E27A44_4D8D991A,     // 21
         };
 
         private static readonly short[] rgexp64Power10By16 = new short[]
@@ -152,24 +152,24 @@ namespace System
             ulong val;
             int exp;
 
-            val = 0xa000000000000000;
+            val = 0xA0000000_00000000;
             exp = 4; // 10
 
             CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10, 0, 15), "rgval64Power10");
             CheckPow10ExponentTable(val, exp, new Span<short>(rgexp64Power10, 0, 15), "rgexp64Power10");
 
-            val = 0x8E1BC9BF04000000;
+            val = 0x8E1BC9BF_04000000;
             exp = 54; //10^16
 
             CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10By16, 0, 21), "rgval64Power10By16");
             CheckPow10ExponentTable(val, exp, new Span<short>(rgexp64Power10By16, 0, 21), "rgexp64Power10By16");
 
-            val = 0xCCCCCCCCCCCCCCCD;
+            val = 0xCCCCCCCC_CCCCCCCD;
             exp = -3; // 0.1
 
             CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10, 15, 15), "rgval64Power10 - inv");
 
-            val = 0xE69594BEC44DE160;
+            val = 0xE69594BE_C44DE160;
             exp = -53; // 0.1^16
 
             CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10By16, 21, 21), "rgval64Power10By16 - inv");
@@ -226,6 +226,27 @@ namespace System
 
             Debug.Assert(!isBad, "NumberToDouble table not correct. Correct version dumped to debug output.");
         }
+
+        // slower high precision version of Mul64 for computation of the tables
+        private static ulong Mul64Precise(ulong a, ulong b, ref int exp)
+        {
+            ulong hilo = ((Mul32x32To64((uint)(a >> 32), (uint)(b)) >> 1)
+                       + (Mul32x32To64((uint)(a), (uint)(b >> 32)) >> 1)
+                       + (Mul32x32To64((uint)(a), (uint)(b)) >> 33)) >> 30;
+
+            ulong val = Mul32x32To64((uint)(a >> 32), (uint)(b >> 32))
+                      + (hilo >> 1)
+                      + (hilo & 1);
+
+            // normalize
+            if ((val & 0x80000000_00000000) == 0)
+            {
+                val <<= 1;
+                exp--;
+            }
+
+            return val;
+        }
 #endif
 
         // get 32-bit integer from at most 9 digits
@@ -273,28 +294,7 @@ namespace System
                       + (Mul32x32To64((uint)(a), (uint)(b >> 32)) >> 32);
 
             // normalize
-            if ((val & 0x8000000000000000) == 0)
-            {
-                val <<= 1;
-                exp--;
-            }
-
-            return val;
-        }
-
-        // slower high precision version of Mul64 for computation of the tables
-        private static ulong Mul64Precise(ulong a, ulong b, ref int exp)
-        {
-            ulong hilo = ((Mul32x32To64((uint)(a >> 32), (uint)(b)) >> 1)
-                       + (Mul32x32To64((uint)(a), (uint)(b >> 32)) >> 1)
-                       + (Mul32x32To64((uint)(a), (uint)(b)) >> 33)) >> 30;
-
-            ulong val = Mul32x32To64((uint)(a >> 32), (uint)(b >> 32))
-                      + (hilo >> 1)
-                      + (hilo & 1);
-
-            // normalize
-            if ((val & 0x8000000000000000) == 0)
+            if ((val & 0x80000000_00000000) == 0)
             {
                 val <<= 1;
                 exp--;
@@ -362,12 +362,12 @@ namespace System
             int exp = 64;
 
             // normalize the mantissa
-            if ((val & 0xFFFFFFFF00000000) == 0) { val <<= 32; exp -= 32; }
-            if ((val & 0xFFFF000000000000) == 0) { val <<= 16; exp -= 16; }
-            if ((val & 0xFF00000000000000) == 0) { val <<= 8; exp -= 8; }
-            if ((val & 0xF000000000000000) == 0) { val <<= 4; exp -= 4; }
-            if ((val & 0xC000000000000000) == 0) { val <<= 2; exp -= 2; }
-            if ((val & 0x8000000000000000) == 0) { val <<= 1; exp -= 1; }
+            if ((val & 0xFFFFFFFF_00000000) == 0) { val <<= 32; exp -= 32; }
+            if ((val & 0xFFFF0000_00000000) == 0) { val <<= 16; exp -= 16; }
+            if ((val & 0xFF000000_00000000) == 0) { val <<= 8; exp -= 8; }
+            if ((val & 0xF0000000_00000000) == 0) { val <<= 4; exp -= 4; }
+            if ((val & 0xC0000000_00000000) == 0) { val <<= 2; exp -= 2; }
+            if ((val & 0x80000000_00000000) == 0) { val <<= 1; exp -= 1; }
 
             int index = absscale & 15;
             if (index != 0)
@@ -390,7 +390,6 @@ namespace System
                 ulong multval = rgval64Power10By16[index + ((scale < 0) ? 21 : 0) - 1];
                 val = Mul64Lossy(val, multval, ref exp);
             }
-
 
             // round & scale down
             if (((uint)(val) & (1 << 10)) != 0)
@@ -444,7 +443,7 @@ namespace System
                 val |= 0x8000000000000000;
             }
 
-            return BitConverter.Int64BitsToDouble(val);
+            return BitConverter.Int64BitsToDouble((long)(val));
         }
     }
 }
