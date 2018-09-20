@@ -10,8 +10,8 @@ using System.Runtime.InteropServices;
 using System.Security;
 #if !CORECLR && !ES_BUILD_PN
 using System.Security.Permissions;
-#endif // !CORECLR && !ES_BUILD_PN
-#if CORECLR
+#endif
+#if CORECLR && PLATFORM_WINDOWS
 using Internal.Win32;
 #endif
 using System.Threading;
