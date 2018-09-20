@@ -3646,10 +3646,10 @@ void Compiler::optUnrollLoops()
         BasicBlock*  bbExit        = loopDesc->lpExit;
         GenTree*     gtTest        = bbBotm->lastStmt();
         GenTree*     gtIncr        = gtTest->gtPrev;
-        unsigned int lpIter        = optComputeLoopIter(loopId); /* Loop constant iteration               */
-        unsigned int lpCost        = optComputeLoopCost(loopId); /* Loop cost for one iteration           */
-        bool         lpIsSimpleALU = true;
-        bool         lpIsUnsafeALU = true;
+        unsigned int lpIter        = optComputeLoopIter(loopId); /* Loop constant iteration. */
+        unsigned int lpCost        = optComputeLoopCost(loopId); /* Loop cost for only one iteration. */
+        bool         lpIsSimpleALU = true; /* is this loop has no side effect with iteration variants.  */
+        bool         lpIsUnsafeALU = true; /* is this loop has no bound checks with iteration variants. */
 
         jitstd::vector<unsigned int> lpCntFetch(this->getAllocator());
         unsigned int                 lpCntConds = 0;
@@ -3748,16 +3748,16 @@ void Compiler::optUnrollLoops()
 
         if (lpIter >= 64 && lpCntFetch.size() <= 4 && lpCntConds <= 8)
         {
-            bool isSzFetchCorrect = true;
+            bool isFetchFits = true;
             for (unsigned int szFetch : lpCntFetch)
             {
                 if (szFetch > 16)
                 {
-                    isSzFetchCorrect = false;
+                    isFetchFits = false;
                 }
             }
 
-            if (isSzFetchCorrect)
+            if (isFetchFits)
             {
                 // here checks that this loop can trigger is L.S.D.(Loop Stream Detection)
                 //   - Fetches should be less or equal to 4
@@ -3766,22 +3766,22 @@ void Compiler::optUnrollLoops()
                 //   - The loop iterations should more than 64.
 
                 noway_assert(lpCntFetch.size() != 0); /* DIVIDE BY ZERO */
-                unsigned int LSDThreshold = 0;
-                for (unsigned int i = 1;; ++i)
+                unsigned int szLSDThreshold = 0;
+                for (unsigned int i = 1;; i <<= 1)
                 {
                     if (lpCntFetch.size() * i <= 4 && lpIter / i >= 64)
                     {
-                        LSDThreshold = i;
+                        szLSDThreshold = i;
                     }
                     break;
                 }
 
                 // Check that threshold modifies something.
-                if (LSDThreshold > 1)
+                if (szLSDThreshold > 1)
                 {
-                    lpNewIter    = lpIter / LSDThreshold;
-                    lpOuterThres = lpIter % LSDThreshold;
-                    lpInnerThres = LSDThreshold;
+                    lpNewIter    = lpIter / szLSDThreshold;
+                    lpOuterThres = lpIter % szLSDThreshold;
+                    lpInnerThres = szLSDThreshold;
 
                     lpUnrolledCost =
                         ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres)) +
@@ -3811,24 +3811,31 @@ void Compiler::optUnrollLoops()
 
                 /* Phase 1 : Check for cache line limits */
                 // The cache line is 64 bytes on morden AMD64 processors, so check that fits on cache line
-                unsigned int lpCntFetchTotal = 0;
+                unsigned int szTotalFetch = 0;
                 for (unsigned int szFetch : lpCntFetch)
                 {
-                    lpCntFetchTotal += szFetch;
+                    szTotalFetch += szFetch;
                 }
 
-                // Check that is aligned for target platform.
-                if (lpCntFetchTotal < 64 && CheckAligned(lpCntFetchTotal, emitActualTypeSize(TYP_I_IMPL)))
+                if (szTotalFetch < 64)
                 {
                     // this is maximum inner stmts to fits on cache line.
-                    unsigned int CntCacheLineLimit = 64 / lpCntFetchTotal;
+                    unsigned int cntCacheLim = 0;
+                    for (unsigned int i = 1;; i <<= 1)
+                    {
+                        if (szTotalFetch * i < 64)
+                        {
+                            cntCacheLim = i;
+                        }
+                        break;
+                    }
 
                     // Check that threshold modifies something.
-                    if (CntCacheLineLimit > 1)
+                    if (cntCacheLim > 1)
                     {
-                        lpInnerThres = CntCacheLineLimit;
-                        lpOuterThres = lpIter % lpInnerThres;
-                        lpNewIter    = lpIter / CntCacheLineLimit;
+                        lpInnerThres = cntCacheLim;
+                        lpOuterThres = lpIter % cntCacheLim;
+                        lpNewIter    = lpIter / cntCacheLim;
 
                         lpUnrolledCost =
                             ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres)) +
@@ -3848,7 +3855,7 @@ void Compiler::optUnrollLoops()
                 if ((lpIter / 8) > 16)
                 {
                     lpInnerThres = 8;
-                    lpOuterThres = lpIter % lpInnerThres;
+                    lpOuterThres = lpIter % 8;
                     lpNewIter    = lpIter / 8;
 
                     lpUnrolledCost =
@@ -3974,6 +3981,49 @@ bool Compiler::optUnrollLoopImpl(
         fgRemoveStmt(bbOldBottom, gtIncr);
     }
 
+    // Unroll as outer loop expressions
+    for (unsigned int i = 0; i < outer; ++i)
+    {
+        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
+        {
+            BasicBlock* bbNew = bbBottom = fgNewBBafter(bbIter->bbJumpKind, bbBottom, true);
+            mapRedirect.Set(bbIter, bbNew);
+
+            int newVal = lvaBeg;
+            switch (lvaOpr)
+            {
+                case GT_ADD:
+                    newVal += (iter * inner * lvaInc) + (i * lvaInc);
+                    break;
+
+                case GT_SUB:
+                    newVal -= (iter * inner * lvaInc) + (i * lvaInc);
+                    break;
+
+                default:
+                    noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
+            }
+
+            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, newVal))
+            {
+                goto FAILED;
+            }
+
+            if (bbIter == bbOldBottom)
+            {
+                bbNew->bbJumpKind = BBJ_NONE;
+                break;
+            }
+        }
+
+        for (BasicBlock* bbIter = bbBody; bbIter != bbOldBottom; bbIter = bbIter->bbNext)
+        {
+            BasicBlock* bbNew = mapRedirect[bbIter];
+            optCopyBlkDest(bbIter, bbNew);
+            optRedirectBlock(bbNew, &mapRedirect);
+        }
+    }
+
     // Unroll as inner loop expressions
     for (unsigned int i = 0; i < inner; ++i)
     {
@@ -4075,49 +4125,6 @@ bool Compiler::optUnrollLoopImpl(
         }
     }
 
-    // Unroll as outer loop expressions
-    for (unsigned int i = 0; i < outer; ++i)
-    {
-        for (BasicBlock* bbIter = bbBody;; bbIter = bbIter->bbNext)
-        {
-            BasicBlock* bbNew = bbBottom = fgNewBBafter(bbIter->bbJumpKind, bbBottom, true);
-            mapRedirect.Set(bbIter, bbNew);
-
-            int newVal = lvaBeg;
-            switch (lvaOpr)
-            {
-                case GT_ADD:
-                    newVal += (iter * inner * lvaInc) + (i * lvaInc);
-                    break;
-
-                case GT_SUB:
-                    newVal -= (iter * inner * lvaInc) + (i * lvaInc);
-                    break;
-
-                default:
-                    noway_assert(!"iteration operator should GT_ADD or GT_SUB!!");
-            }
-
-            if (!BasicBlock::CloneBlockState(this, bbNew, bbIter, lvaVar, newVal))
-            {
-                goto FAILED;
-            }
-
-            if (bbIter == bbOldBottom)
-            {
-                bbNew->bbJumpKind = BBJ_NONE;
-                break;
-            }
-        }
-
-        for (BasicBlock* bbIter = bbBody; bbIter != bbOldBottom; bbIter = bbIter->bbNext)
-        {
-            BasicBlock* bbNew = mapRedirect[bbIter];
-            optCopyBlkDest(bbIter, bbNew);
-            optRedirectBlock(bbNew, &mapRedirect);
-        }
-    }
-
     if (lpIsSimpleALU)
     {
         // Insert incr at the bottom. we've removed incr to clone BasicBlocks.
@@ -4187,6 +4194,38 @@ bool Compiler::optUnrollLoopImpl(
             GenTreeIntCon* gtIntCon = gtCnsInt->AsIntCon();
             gtIntCon->SetIconValue(gtIntCon->IconValue() - lvaInc * outer);
         }
+
+        GenTreeStmt* gtParticleIncr = gtCloneExpr(gtIncr)->AsStmt();
+
+        lvaParent.clear();
+        lvaLclvar.clear();
+        for (auto CntVars = optExtractVaraibles(gtParticleIncr, &lvaLclvar, &lvaParent); CntVars--;)
+        {
+            GenTree* gtParent = lvaParent[CntVars];
+            GenTree* gtOp1    = lvaLclvar[CntVars];
+            GenTree* gtOp2    = gtParent->gtGetOp2();
+
+            if (gtParent->OperIs(GT_ASG) || gtOp1->AsLclVar()->GetLclNum() != lvaVar)
+            {
+                // the local variable number should same.
+                // the incr nodes are starting with ASG node. skipping it.
+                continue;
+            }
+
+            if (gtOp2 != nullptr && gtOp2->OperIs(GT_CNS_INT))
+            {
+                GenTreeIntCon* CnsInt = gtOp2->AsIntCon();
+
+                CnsInt->SetIconValue(lvaInc * outer);
+                continue;
+            }
+
+            GenTree* gtNewIcon = gtNewIconNode(lvaInc * outer, gtOp2->TypeGet());
+            GenTree* gtNewExpr = gtNewOperNode(GT_MUL, gtOp2->TypeGet(), gtNewIcon, gtCloneExpr(gtOp2));
+            gtOp2->ReplaceWith(gtNewExpr, this);
+        }
+
+        fgInsertStmtAtEnd(bbBottom, gtParticleIncr);
     }
 
 #ifdef DEBUG
