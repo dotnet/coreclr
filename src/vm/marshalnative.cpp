@@ -27,16 +27,13 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "security.h"
 #include "dbginterface.h"
 #include "objecthandle.h"
 #include "marshalnative.h"
 #include "fcall.h"
 #include "dllimportcallback.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "comdelegate.h"
 #include "handletablepriv.h"
 #include "mdaassistants.h"
@@ -186,11 +183,13 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     CONTRACTL_END;
 
     OBJECTREF  pObj = ObjectToOBJECTREF(pObjIn);
+    
+    HELPER_METHOD_FRAME_BEGIN_1(pObj);
 
     if (ptr == NULL)
-        FCThrowArgumentNullVoid(W("ptr"));
+        COMPlusThrowArgumentNull(W("ptr"));
     if (pObj == NULL) 
-        FCThrowArgumentNullVoid(W("structure"));
+        COMPlusThrowArgumentNull(W("structure"));
 
     // Code path will accept regular layout objects.
     MethodTable *pMT = pObj->GetMethodTable();
@@ -198,7 +197,7 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     // Validate that the object passed in is not a value class.
     if (!allowValueClasses && pMT->IsValueType())
     {
-        FCThrowArgumentVoid(W("structure"), W("Argument_StructMustNotBeValueClass"));
+        COMPlusThrowArgumentException(W("structure"), W("Argument_StructMustNotBeValueClass"));
     }
     else if (pMT->IsBlittable())
     {
@@ -206,14 +205,14 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     }
     else if (pMT->HasLayout())
     {
-        HELPER_METHOD_FRAME_BEGIN_1(pObj);
-            LayoutUpdateCLR((LPVOID*) &(pObj), Object::GetOffsetOfFirstField(), pMT, (LPBYTE)(ptr));
-        HELPER_METHOD_FRAME_END();
+        LayoutUpdateCLR((LPVOID*) &(pObj), Object::GetOffsetOfFirstField(), pMT, (LPBYTE)(ptr));
     }
     else
     {
-        FCThrowArgumentVoid(W("structure"), W("Argument_MustHaveLayoutOrBeBlittable"));
-    }
+        COMPlusThrowArgumentException(W("structure"), W("Argument_MustHaveLayoutOrBeBlittable"));
+    }   
+    
+    HELPER_METHOD_FRAME_END();  
 }
 FCIMPLEND
 
@@ -446,29 +445,6 @@ FCIMPL3(LPVOID, MarshalNative::GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnM
     CONTRACTL_END;
 
     LPVOID pThunk = NULL;
-#ifdef FEATURE_MIXEDMODE    
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    if (pfnMethodToWrap == NULL)
-        COMPlusThrowArgumentNull(W("pfnMethodToWrap"));
-    if (pbSignature == NULL)
-        COMPlusThrowArgumentNull(W("pbSignature"));
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4996) // Suppress warning on call to deprecated method
-#endif
-    Module *pModule = SystemDomain::GetCallersModule(1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    PREFIX_ASSUME(pModule != NULL);
-    pThunk = pModule->GetUMThunk(pfnMethodToWrap, pbSignature, cbSignature);
-    if (!pThunk) 
-        COMPlusThrowOM();
-
-    HELPER_METHOD_FRAME_END();
-#endif // FEATURE_MIXEDMODE    
     return pThunk;
 }
 FCIMPLEND
@@ -488,31 +464,6 @@ FCIMPL3(LPVOID, MarshalNative::GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnM
     CONTRACTL_END;
 
     LPVOID pThunk = NULL;
-#ifdef FEATURE_MIXEDMODE    
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    if (pfnMethodToWrap == NULL)
-        COMPlusThrowArgumentNull(W("pfnMethodToWrap"));
-    if (pbSignature == NULL)
-        COMPlusThrowArgumentNull(W("pbSignature"));
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4996) // Suppress warning on call to deprecated method
-#endif
-    Module *pModule = SystemDomain::GetCallersModule(1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    if (!pModule)
-        ThrowOutOfMemory();
-    
-    pThunk = pModule->GetMUThunk(pfnMethodToWrap, pbSignature, cbSignature);
-    if (!pThunk) 
-        ThrowOutOfMemory();
-
-    HELPER_METHOD_FRAME_END();
-#endif //  FEATURE_MIXEDMODE    
     return pThunk;
 }
 FCIMPLEND
@@ -1538,17 +1489,6 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
     BOOL fSet = FALSE;
     
     // Start by checking if we can cast the obj to the wrapper type.
-#ifdef FEATURE_REMOTING
-    if (pObjMT->IsTransparentProxy())
-    {
-        if (CRemotingServices::CheckCast(gc.obj, pNewWrapMT))
-        {
-            gc.refRetVal = gc.obj;
-            fSet = TRUE;
-        }
-    }
-    else
-#endif
     if (TypeHandle(pObjMT).CanCastTo(TypeHandle(pNewWrapMT)))
     {
         gc.refRetVal = gc.obj;
@@ -2333,9 +2273,6 @@ FCIMPL2(void, MarshalNative::ChangeWrapperHandleStrength, Object* orefUNSAFE, CL
         COMPlusThrowArgumentNull(W("otp"));
     
     if (
-#ifdef FEATURE_REMOTING
-        CRemotingServices::IsTransparentProxy(OBJECTREFToObject(oref)) ||
-#endif
         !oref->GetMethodTable()->IsComImport())
     {
         CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&oref);

@@ -13,6 +13,8 @@
 #ifndef __CALLING_CONVENTION_INCLUDED
 #define __CALLING_CONVENTION_INCLUDED
 
+BOOL IsRetBuffPassedAsFirstArg();
+
 // Describes how a single argument is laid out in registers and/or stack locations when given as an input to a
 // managed method as part of a larger signature.
 //
@@ -32,20 +34,25 @@
 // and possibly on to the stack as well.
 struct ArgLocDesc
 {
-    int     m_idxFloatReg;  // First floating point register used (or -1)
-    int     m_cFloatReg;    // Count of floating point registers used (or 0)
+    int     m_idxFloatReg;        // First floating point register used (or -1)
+    int     m_cFloatReg;          // Count of floating point registers used (or 0)
 
-    int     m_idxGenReg;    // First general register used (or -1)
-    int     m_cGenReg;      // Count of general registers used (or 0)
+    int     m_idxGenReg;          // First general register used (or -1)
+    int     m_cGenReg;            // Count of general registers used (or 0)
 
-    int     m_idxStack;     // First stack slot used (or -1)
-    int     m_cStack;       // Count of stack slots used (or 0)
+    int     m_idxStack;           // First stack slot used (or -1)
+    int     m_cStack;             // Count of stack slots used (or 0)
 
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
 
-    EEClass* m_eeClass;     // For structs passed in register, it points to the EEClass of the struct
+    EEClass* m_eeClass;           // For structs passed in register, it points to the EEClass of the struct
 
 #endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+#if defined(_TARGET_ARM64_)
+    bool    m_isSinglePrecision;  // For determining if HFA is single or double
+                                  // precision
+#endif // defined(_TARGET_ARM64_)
 
 #if defined(_TARGET_ARM_)
     BOOL    m_fRequires64BitAlignment; // True if the argument should always be aligned (in registers or on the stack
@@ -68,6 +75,9 @@ struct ArgLocDesc
 #if defined(_TARGET_ARM_)
         m_fRequires64BitAlignment = FALSE;
 #endif
+#if defined(_TARGET_ARM64_)
+        m_isSinglePrecision = FALSE;
+#endif // defined(_TARGET_ARM64_)
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
         m_eeClass = NULL;
 #endif
@@ -111,6 +121,7 @@ struct TransitionBlock
         };
     };
     ArgumentRegisters       m_argumentRegisters;
+    TADDR padding; // Keep size of TransitionBlock as multiple of 16-byte. Simplifies code in PROLOG_WITH_TRANSITION_BLOCK
 #else
     PORTABILITY_ASSERT("TransitionBlock");
 #endif
@@ -487,7 +498,7 @@ public:
 
     ArgLocDesc* GetArgLocDescForStructInRegs()
     {
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if (defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)) || defined (_TARGET_ARM64_)
         return m_hasArgLocDescForStructInRegs ? &m_argLocDescForStructInRegs : NULL;
 #else
         return NULL;
@@ -553,7 +564,10 @@ public:
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
                 CorElementType type = m_argTypeHandle.GetHFAType();
-                pLoc->m_cFloatReg = (type == ELEMENT_TYPE_R4)? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
+                bool isFloatType = (type == ELEMENT_TYPE_R4);
+
+                pLoc->m_cFloatReg = isFloatType ? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
+                pLoc->m_isSinglePrecision = isFloatType;
             }
             else
             {
@@ -636,7 +650,7 @@ protected:
     CorElementType      m_argType;
     int                 m_argSize;
     TypeHandle          m_argTypeHandle;
-#if defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)) || defined(_TARGET_ARM64_)
     ArgLocDesc          m_argLocDescForStructInRegs;
     bool                m_hasArgLocDescForStructInRegs;
 #endif // _TARGET_AMD64_ && UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
@@ -734,6 +748,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetRetBuffArgOffset()
 #if _TARGET_X86_
     // x86 is special as always
     ret += this->HasThis() ? offsetof(ArgumentRegisters, EDX) : offsetof(ArgumentRegisters, ECX);
+#elif _TARGET_ARM64_
+    ret += (int) offsetof(ArgumentRegisters, x[8]);
 #else
     if (this->HasThis())
         ret += sizeof(void *);
@@ -761,7 +777,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetVASigCookieOffset()
         ret += sizeof(void*);
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += sizeof(void*);
     }
@@ -814,7 +830,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetParamTypeArgOffset()
         ret += sizeof(void*);
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += sizeof(void*);
     }
@@ -845,7 +861,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (this->HasThis())
             numRegistersUsed++;
 
-        if (this->HasRetBuffArg())
+        if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             numRegistersUsed++;
 
         _ASSERTE(!this->IsVarArg() || !this->HasParamType());
@@ -954,8 +970,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     m_fArgInRegisters = true;
 
     int cFPRegs = 0;
+    int cGenRegs = 0;
     int cbArg = StackElemSize(argSize);
-    int cGenRegs = cbArg / 8; // GP reg size
 
     switch (argType)
     {
@@ -1027,6 +1043,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     }
 
     default:
+        cGenRegs = cbArg / 8; // GP reg size
         break;
     }
 
@@ -1093,10 +1110,14 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         // the interop "native value types".
         fRequiresAlign64Bit = thValueType.RequiresAlign8();
 
+#ifdef FEATURE_HFA
         // Handle HFAs: packed structures of 1-4 floats or doubles that are passed in FP argument
         // registers if possible.
         if (thValueType.IsHFA())
+        {
             fFloatingPoint = true;
+        }
+#endif
 
         break;
     }
@@ -1118,6 +1139,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     // Ignore floating point argument placement in registers if we're dealing with a vararg function (the ABI
     // specifies this so that vararg processing on the callee side is simplified).
+#ifndef ARM_SOFTFP
     if (fFloatingPoint && !this->IsVarArg())
     {
         // Handle floating point (primitive) arguments.
@@ -1170,6 +1192,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
         return argOfs;
     }
+#endif // ARM_SOFTFP
 
     //
     // Handle the non-floating point case.
@@ -1245,7 +1268,17 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (thValueType.IsHFA())
         {
             CorElementType type = thValueType.GetHFAType();
+            bool isFloatType = (type == ELEMENT_TYPE_R4);
+
             cFPRegs = (type == ELEMENT_TYPE_R4)? (argSize/sizeof(float)): (argSize/sizeof(double));
+
+            m_argLocDescForStructInRegs.Init();
+            m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
+            m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
+
+            m_argLocDescForStructInRegs.m_isSinglePrecision = isFloatType;
+                
+            m_hasArgLocDescForStructInRegs = true;
         }
         else 
         {
@@ -1331,11 +1364,15 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         break;
 
     case ELEMENT_TYPE_R4:
+#ifndef ARM_SOFTFP
         flags |= sizeof(float) << RETURN_FP_SIZE_SHIFT;
+#endif
         break;
 
     case ELEMENT_TYPE_R8:
+#ifndef ARM_SOFTFP
         flags |= sizeof(double) << RETURN_FP_SIZE_SHIFT;
+#endif
         break;
 
     case ELEMENT_TYPE_VALUETYPE:
@@ -1445,7 +1482,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
     if (this->HasThis())
         numRegistersUsed++;
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
         numRegistersUsed++;
 
     if (this->IsVarArg())
@@ -1685,6 +1722,27 @@ inline BOOL HasRetBuffArg(MetaSig * pSig)
     WRAPPER_NO_CONTRACT;
     ArgIterator argit(pSig);
     return argit.HasRetBuffArg();
+}
+
+#ifdef UNIX_X86_ABI
+// For UNIX_X86_ABI and unmanaged function, we always need RetBuf if the return type is VALUETYPE
+inline BOOL HasRetBuffArgUnmanagedFixup(MetaSig * pSig)
+{
+    WRAPPER_NO_CONTRACT;
+    // We cannot just pSig->GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums
+    CorElementType type = pSig->GetRetTypeHandleThrowing().GetVerifierCorElementType();
+    return type == ELEMENT_TYPE_VALUETYPE;
+}
+#endif
+
+inline BOOL IsRetBuffPassedAsFirstArg()
+{
+    WRAPPER_NO_CONTRACT;
+#ifndef _TARGET_ARM64_
+    return TRUE;
+#else
+    return FALSE;
+#endif        
 }
 
 #endif // __CALLING_CONVENTION_INCLUDED

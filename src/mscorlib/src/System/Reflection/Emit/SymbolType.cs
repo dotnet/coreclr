@@ -4,7 +4,7 @@
 
 // 
 
-namespace System.Reflection.Emit 
+namespace System.Reflection.Emit
 {
     using System.Runtime.InteropServices;
     using System;
@@ -12,24 +12,24 @@ namespace System.Reflection.Emit
     using System.Diagnostics.Contracts;
     using CultureInfo = System.Globalization.CultureInfo;
 
-    [Serializable]
     internal enum TypeKind
     {
-        IsArray   = 1,
+        IsArray = 1,
         IsPointer = 2,
-        IsByRef   = 3,
+        IsByRef = 3,
     }
 
     // This is a kind of Type object that will represent the compound expression of a parameter type or field type.
     internal sealed class SymbolType : TypeInfo
     {
-        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo){
-            if(typeInfo==null) return false;            
+        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
+        {
+            if (typeInfo == null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
         #region Static Members
-        internal static Type FormCompoundType(char[] bFormat, Type baseType, int curIndex)
+        internal static Type FormCompoundType(string format, Type baseType, int curIndex)
         {
             // This function takes a string to describe the compound type, such as "[,][]", and a baseType.
             // 
@@ -46,32 +46,32 @@ namespace System.Reflection.Emit
             int iLowerBound;
             int iUpperBound;
 
-            if (bFormat == null || curIndex == bFormat.Length)
+            if (format == null || curIndex == format.Length)
             {
                 // we have consumed all of the format string
                 return baseType;
             }
 
-              
-             
 
-            if (bFormat[curIndex] == '&')
+
+
+            if (format[curIndex] == '&')
             {
                 // ByRef case
 
                 symbolType = new SymbolType(TypeKind.IsByRef);
-                symbolType.SetFormat(bFormat, curIndex, 1);
+                symbolType.SetFormat(format, curIndex, 1);
                 curIndex++;
-                
-                if (curIndex != bFormat.Length)
+
+                if (curIndex != format.Length)
                     // ByRef has to be the last char!!
-                    throw new ArgumentException(Environment.GetResourceString("Argument_BadSigFormat"));
+                    throw new ArgumentException(SR.Argument_BadSigFormat);
 
                 symbolType.SetElementType(baseType);
                 return symbolType;
             }
 
-            if (bFormat[curIndex] == '[')
+            if (format[curIndex] == '[')
             {
                 // Array type.
                 symbolType = new SymbolType(TypeKind.IsArray);
@@ -84,29 +84,29 @@ namespace System.Reflection.Emit
                 // Example: [2..4]  - one dimension array with lower bound 2 and size of 3
                 // Example: [3, 5, 6] - three dimension array with lower bound 3, 5, 6
                 // Example: [-3, ] [] - one dimensional array of two dimensional array (with lower bound -3 sepcified)
-                
-                while (bFormat[curIndex] != ']')
+
+                while (format[curIndex] != ']')
                 {
-                    if (bFormat[curIndex] == '*')
+                    if (format[curIndex] == '*')
                     {
                         symbolType.m_isSzArray = false;
-                        curIndex++;                        
+                        curIndex++;
                     }
                     // consume, one dimension at a time
-                    if ((bFormat[curIndex] >= '0' && bFormat[curIndex] <= '9') || bFormat[curIndex] == '-')
+                    if ((format[curIndex] >= '0' && format[curIndex] <= '9') || format[curIndex] == '-')
                     {
                         bool isNegative = false;
-                        if (bFormat[curIndex] == '-')
+                        if (format[curIndex] == '-')
                         {
                             isNegative = true;
                             curIndex++;
                         }
 
                         // lower bound is specified. Consume the low bound
-                        while (bFormat[curIndex] >= '0' && bFormat[curIndex] <= '9')
+                        while (format[curIndex] >= '0' && format[curIndex] <= '9')
                         {
                             iLowerBound = iLowerBound * 10;
-                            iLowerBound += bFormat[curIndex] - '0';
+                            iLowerBound += format[curIndex] - '0';
                             curIndex++;
                         }
 
@@ -117,37 +117,36 @@ namespace System.Reflection.Emit
 
                         // set the upper bound to be less than LowerBound to indicate that upper bound it not specified yet!
                         iUpperBound = iLowerBound - 1;
-
                     }
-                    if (bFormat[curIndex] == '.')
-                    {                       
+                    if (format[curIndex] == '.')
+                    {
                         // upper bound is specified
 
                         // skip over ".."
                         curIndex++;
-                        if (bFormat[curIndex] != '.')
+                        if (format[curIndex] != '.')
                         {
                             // bad format!! Throw exception
-                            throw new ArgumentException(Environment.GetResourceString("Argument_BadSigFormat"));
+                            throw new ArgumentException(SR.Argument_BadSigFormat);
                         }
 
                         curIndex++;
                         // consume the upper bound
-                        if ((bFormat[curIndex] >= '0' && bFormat[curIndex] <= '9') || bFormat[curIndex] == '-')
+                        if ((format[curIndex] >= '0' && format[curIndex] <= '9') || format[curIndex] == '-')
                         {
                             bool isNegative = false;
                             iUpperBound = 0;
-                            if (bFormat[curIndex] == '-')
+                            if (format[curIndex] == '-')
                             {
                                 isNegative = true;
                                 curIndex++;
                             }
 
                             // lower bound is specified. Consume the low bound
-                            while (bFormat[curIndex] >= '0' && bFormat[curIndex] <= '9')
+                            while (format[curIndex] >= '0' && format[curIndex] <= '9')
                             {
                                 iUpperBound = iUpperBound * 10;
-                                iUpperBound += bFormat[curIndex] - '0';
+                                iUpperBound += format[curIndex] - '0';
                                 curIndex++;
                             }
                             if (isNegative)
@@ -158,12 +157,12 @@ namespace System.Reflection.Emit
                             {
                                 // User specified upper bound less than lower bound, this is an error.
                                 // Throw error exception.
-                                throw new ArgumentException(Environment.GetResourceString("Argument_BadSigFormat"));
+                                throw new ArgumentException(SR.Argument_BadSigFormat);
                             }
                         }
                     }
 
-                    if (bFormat[curIndex] == ',')
+                    if (format[curIndex] == ',')
                     {
                         // We have more dimension to deal with.
                         // now set the lower bound, the size, and increase the dimension count!
@@ -174,33 +173,33 @@ namespace System.Reflection.Emit
                         iLowerBound = 0;
                         iUpperBound = -1;
                     }
-                    else if (bFormat[curIndex] != ']')
+                    else if (format[curIndex] != ']')
                     {
-                        throw new ArgumentException(Environment.GetResourceString("Argument_BadSigFormat"));
+                        throw new ArgumentException(SR.Argument_BadSigFormat);
                     }
                 }
-                
+
                 // The last dimension information
                 symbolType.SetBounds(iLowerBound, iUpperBound);
 
                 // skip over ']'
                 curIndex++;
 
-                symbolType.SetFormat(bFormat, startIndex, curIndex - startIndex);
+                symbolType.SetFormat(format, startIndex, curIndex - startIndex);
 
                 // set the base type of array
                 symbolType.SetElementType(baseType);
-                return FormCompoundType(bFormat, symbolType, curIndex);
+                return FormCompoundType(format, symbolType, curIndex);
             }
-            else if (bFormat[curIndex] == '*')
+            else if (format[curIndex] == '*')
             {
                 // pointer type.
 
                 symbolType = new SymbolType(TypeKind.IsPointer);
-                symbolType.SetFormat(bFormat, curIndex, 1);
+                symbolType.SetFormat(format, curIndex, 1);
                 curIndex++;
                 symbolType.SetElementType(baseType);
-                return FormCompoundType(bFormat, symbolType, curIndex);
+                return FormCompoundType(format, symbolType, curIndex);
             }
 
             return null;
@@ -209,21 +208,21 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Data Members
-        internal TypeKind       m_typeKind;
-        internal Type           m_baseType;
-        internal int            m_cRank;        // count of dimension
+        internal TypeKind m_typeKind;
+        internal Type m_baseType;
+        internal int m_cRank;        // count of dimension
         // If LowerBound and UpperBound is equal, that means one element. 
         // If UpperBound is less than LowerBound, then the size is not specified.
-        internal int[]          m_iaLowerBound;
-        internal int[]          m_iaUpperBound; // count of dimension
-        private char[]          m_bFormat;      // format string to form the full name.
-        private bool            m_isSzArray = true;
+        internal int[] m_iaLowerBound;
+        internal int[] m_iaUpperBound; // count of dimension
+        private string m_format;      // format string to form the full name.
+        private bool m_isSzArray = true;
         #endregion
 
         #region Constructor
         internal SymbolType(TypeKind typeKind)
         {
-            m_typeKind = typeKind;            
+            m_typeKind = typeKind;
             m_iaLowerBound = new int[4];
             m_iaUpperBound = new int[4];
         }
@@ -234,7 +233,7 @@ namespace System.Reflection.Emit
         internal void SetElementType(Type baseType)
         {
             if (baseType == null)
-                throw new ArgumentNullException("baseType");
+                throw new ArgumentNullException(nameof(baseType));
             Contract.EndContractBlock();
 
             m_baseType = baseType;
@@ -246,15 +245,15 @@ namespace System.Reflection.Emit
 
             if (lower != 0 || upper != -1)
                 m_isSzArray = false;
-            
+
             if (m_iaLowerBound.Length <= m_cRank)
             {
                 // resize the bound array
-                int[]  iaTemp = new int[m_cRank * 2];
-                Array.Copy(m_iaLowerBound, iaTemp, m_cRank);
-                m_iaLowerBound = iaTemp;            
-                Array.Copy(m_iaUpperBound, iaTemp, m_cRank);
-                m_iaUpperBound = iaTemp;            
+                int[] iaTemp = new int[m_cRank * 2];
+                Array.Copy(m_iaLowerBound, 0, iaTemp, 0, m_cRank);
+                m_iaLowerBound = iaTemp;
+                Array.Copy(m_iaUpperBound, 0, iaTemp, 0, m_cRank);
+                m_iaUpperBound = iaTemp;
             }
 
             m_iaLowerBound[m_cRank] = lower;
@@ -262,45 +261,37 @@ namespace System.Reflection.Emit
             m_cRank++;
         }
 
-        internal void SetFormat(char[] bFormat, int curIndex, int length)
+        internal void SetFormat(string format, int curIndex, int length)
         {
             // Cache the text display format for this SymbolType
 
-            char[] bFormatTemp = new char[length];
-            Array.Copy(bFormat, curIndex, bFormatTemp, 0, length);
-            m_bFormat = bFormatTemp;
+            m_format = format.Substring(curIndex, length);
         }
         #endregion
-        
+
         #region Type Overrides
-        internal override bool IsSzArray 
-        { 
-            get 
-            { 
-                if (m_cRank > 1)
-                    return false;
-                
-                return m_isSzArray;
-            }
+
+        public override bool IsTypeDefinition => false;
+
+        public override bool IsSZArray => m_cRank <= 1 && m_isSzArray;
+
+        public override Type MakePointerType()
+        {
+            return SymbolType.FormCompoundType(m_format + "*", m_baseType, 0);
         }
 
-        public override Type MakePointerType() 
-        { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "*").ToCharArray(), m_baseType, 0);
+        public override Type MakeByRefType()
+        {
+            return SymbolType.FormCompoundType(m_format + "&", m_baseType, 0);
         }
 
-        public override Type MakeByRefType() 
-        { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "&").ToCharArray(), m_baseType, 0);
+        public override Type MakeArrayType()
+        {
+            return SymbolType.FormCompoundType(m_format + "[]", m_baseType, 0);
         }
-        
-        public override Type MakeArrayType() 
-        { 
-            return SymbolType.FormCompoundType((new String(m_bFormat) + "[]").ToCharArray(), m_baseType, 0);
-        }
-        
-        public override Type MakeArrayType(int rank) 
-        { 
+
+        public override Type MakeArrayType(int rank)
+        {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
             Contract.EndContractBlock();
@@ -310,214 +301,211 @@ namespace System.Reflection.Emit
             {
                 szrank = "*";
             }
-            else 
+            else
             {
-                for(int i = 1; i < rank; i++)
+                for (int i = 1; i < rank; i++)
                     szrank += ",";
             }
 
             string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
-            SymbolType st = SymbolType.FormCompoundType((new String(m_bFormat) + s).ToCharArray(), m_baseType, 0) as SymbolType;
+            SymbolType st = SymbolType.FormCompoundType(m_format + s, m_baseType, 0) as SymbolType;
             return st;
         }
 
         public override int GetArrayRank()
         {
             if (!IsArray)
-                throw new NotSupportedException(Environment.GetResourceString("NotSupported_SubclassOverride"));
+                throw new NotSupportedException(SR.NotSupported_SubclassOverride);
             Contract.EndContractBlock();
 
             return m_cRank;
         }
-        
-        public override Guid GUID 
+
+        public override Guid GUID
         {
-            get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType")); }
+            get { throw new NotSupportedException(SR.NotSupported_NonReflectedType); }
         }
 
-        public override Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target, 
+        public override Object InvokeMember(String name, BindingFlags invokeAttr, Binder binder, Object target,
             Object[] args, ParameterModifier[] modifiers, CultureInfo culture, String[] namedParameters)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
-        public override Module Module 
+        public override Module Module
         {
-            get 
+            get
             {
                 Type baseType;
 
-                for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType) baseType).m_baseType);
+                for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType) ;
 
                 return baseType.Module;
             }
         }
-        public override Assembly Assembly 
+        public override Assembly Assembly
         {
-            get 
+            get
             {
                 Type baseType;
 
-                for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType) baseType).m_baseType);
+                for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType) ;
 
                 return baseType.Assembly;
             }
         }
-                
-        public override RuntimeTypeHandle TypeHandle 
+
+        public override RuntimeTypeHandle TypeHandle
         {
-             get { throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType")); }     
+            get { throw new NotSupportedException(SR.NotSupported_NonReflectedType); }
         }
-            
-        public override String Name 
+
+        public override String Name
         {
-            get 
-            { 
+            get
+            {
                 Type baseType;
-                String sFormat = new String(m_bFormat);
+                String sFormat = m_format;
 
                 for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType)
-                    sFormat = new String(((SymbolType)baseType).m_bFormat) + sFormat;
+                    sFormat = ((SymbolType)baseType).m_format + sFormat;
 
                 return baseType.Name + sFormat;
             }
         }
-                
-        public override String FullName 
+
+        public override String FullName
         {
-            get 
-            { 
+            get
+            {
                 return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.FullName);
             }
         }
 
-        public override String AssemblyQualifiedName 
+        public override String AssemblyQualifiedName
         {
-            get 
-            { 
+            get
+            {
                 return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.AssemblyQualifiedName);
             }
         }
 
         public override String ToString()
-        {            
-                return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.ToString);
+        {
+            return TypeNameBuilder.ToString(this, TypeNameBuilder.Format.ToString);
         }
-    
-        public override String Namespace 
+
+        public override String Namespace
         {
             get { return m_baseType.Namespace; }
         }
-    
-        public override Type BaseType 
+
+        public override Type BaseType
         {
-             
             get { return typeof(System.Array); }
         }
-        
-        protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr,Binder binder,
-                CallingConventions callConvention, Type[] types,ParameterModifier[] modifiers)
+
+        protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr, Binder binder,
+                CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-        
-[System.Runtime.InteropServices.ComVisible(true)]
+
         public override ConstructorInfo[] GetConstructors(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-        
-        protected override MethodInfo GetMethodImpl(String name,BindingFlags bindingAttr,Binder binder,
-                CallingConventions callConvention, Type[] types,ParameterModifier[] modifiers)
+
+        protected override MethodInfo GetMethodImpl(String name, BindingFlags bindingAttr, Binder binder,
+                CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         public override MethodInfo[] GetMethods(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         public override FieldInfo GetField(String name, BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-        
+
         public override FieldInfo[] GetFields(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
-        public override Type GetInterface(String name,bool ignoreCase)
+
+        public override Type GetInterface(String name, bool ignoreCase)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         public override Type[] GetInterfaces()
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
-        public override EventInfo GetEvent(String name,BindingFlags bindingAttr)
+
+        public override EventInfo GetEvent(String name, BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         public override EventInfo[] GetEvents()
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
-        protected override PropertyInfo GetPropertyImpl(String name, BindingFlags bindingAttr, Binder binder, 
+
+        protected override PropertyInfo GetPropertyImpl(String name, BindingFlags bindingAttr, Binder binder,
                 Type returnType, Type[] types, ParameterModifier[] modifiers)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         public override PropertyInfo[] GetProperties(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
         public override Type[] GetNestedTypes(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-   
+
         public override Type GetNestedType(String name, BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
-        public override MemberInfo[] GetMember(String name,  MemberTypes type, BindingFlags bindingAttr)
+        public override MemberInfo[] GetMember(String name, MemberTypes type, BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-        
+
         public override MemberInfo[] GetMembers(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
-[System.Runtime.InteropServices.ComVisible(true)]
         public override InterfaceMapping GetInterfaceMap(Type interfaceType)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
         public override EventInfo[] GetEvents(BindingFlags bindingAttr)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
-    
+
         protected override TypeAttributes GetAttributeFlagsImpl()
         {
             // Return the attribute flags of the base type?
             Type baseType;
-            for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType);
+            for (baseType = m_baseType; baseType is SymbolType; baseType = ((SymbolType)baseType).m_baseType) ;
             return baseType.Attributes;
         }
-        
+
         protected override bool IsArrayImpl()
         {
             return m_typeKind == TypeKind.IsArray;
@@ -537,12 +525,12 @@ namespace System.Reflection.Emit
         {
             return false;
         }
-        
-        protected override bool IsValueTypeImpl() 
+
+        protected override bool IsValueTypeImpl()
         {
             return false;
         }
-        
+
         protected override bool IsCOMObjectImpl()
         {
             return false;
@@ -560,31 +548,30 @@ namespace System.Reflection.Emit
         {
             return m_baseType;
         }
-        
+
         protected override bool HasElementTypeImpl()
         {
             return m_baseType != null;
         }
-    
-        public override Type UnderlyingSystemType 
+
+        public override Type UnderlyingSystemType
         {
-             
             get { return this; }
         }
-            
+
         public override Object[] GetCustomAttributes(bool inherit)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
 
-        public override bool IsDefined (Type attributeType, bool inherit)
+        public override bool IsDefined(Type attributeType, bool inherit)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_NonReflectedType"));      
+            throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
         #endregion
     }

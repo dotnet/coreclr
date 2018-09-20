@@ -13,7 +13,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL SunOS)
   set(CMAKE_REQUIRED_INCLUDES /opt/local/include)
 endif()
 if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
-  set(CMAKE_REQUIRED_DEFINITIONS "-D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L")
+  set(CMAKE_REQUIRED_DEFINITIONS "-D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L")
 endif()
 
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_FILE_OFFSET_BITS=64)
@@ -33,20 +33,46 @@ check_include_files(sys/lwp.h HAVE_SYS_LWP_H)
 check_include_files(lwp.h HAVE_LWP_H)
 check_include_files(libunwind.h HAVE_LIBUNWIND_H)
 check_include_files(runetype.h HAVE_RUNETYPE_H)
+check_include_files(semaphore.h HAVE_SEMAPHORE_H)
+check_include_files(sys/prctl.h HAVE_PRCTL_H)
+check_include_files(numa.h HAVE_NUMA_H)
+check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  set(CMAKE_REQUIRED_FLAGS "-ldl")
+endif()
 check_include_files(lttng/tracepoint.h HAVE_LTTNG_TRACEPOINT_H)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  unset(CMAKE_REQUIRED_FLAGS)
+endif()
+
 check_include_files(uuid/uuid.h HAVE_LIBUUID_H)
+check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
+check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
 
 check_function_exists(kqueue HAVE_KQUEUE)
 check_function_exists(getpwuid_r HAVE_GETPWUID_R)
-check_library_exists(pthread pthread_suspend "" HAVE_PTHREAD_SUSPEND)
-check_library_exists(pthread pthread_suspend_np "" HAVE_PTHREAD_SUSPEND_NP)
-check_library_exists(pthread pthread_continue "" HAVE_PTHREAD_CONTINUE)
-check_library_exists(pthread pthread_continue_np "" HAVE_PTHREAD_CONTINUE_NP)
-check_library_exists(pthread pthread_resume_np "" HAVE_PTHREAD_RESUME_NP)
-check_library_exists(pthread pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)
-check_library_exists(pthread pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
-check_library_exists(pthread pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
-check_library_exists(pthread pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
+
+check_library_exists(pthread pthread_create "" HAVE_LIBPTHREAD)
+check_library_exists(c pthread_create "" HAVE_PTHREAD_IN_LIBC)
+
+if (HAVE_LIBPTHREAD)
+  set(PTHREAD_LIBRARY pthread)
+elseif (HAVE_PTHREAD_IN_LIBC)
+  set(PTHREAD_LIBRARY c)
+endif()
+
+check_library_exists(${PTHREAD_LIBRARY} pthread_suspend "" HAVE_PTHREAD_SUSPEND)
+check_library_exists(${PTHREAD_LIBRARY} pthread_suspend_np "" HAVE_PTHREAD_SUSPEND_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_continue "" HAVE_PTHREAD_CONTINUE)
+check_library_exists(${PTHREAD_LIBRARY} pthread_continue_np "" HAVE_PTHREAD_CONTINUE_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_resume_np "" HAVE_PTHREAD_RESUME_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_attr_get_np "" HAVE_PTHREAD_ATTR_GET_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getattr_np "" HAVE_PTHREAD_GETATTR_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
+check_library_exists(${PTHREAD_LIBRARY} pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
+check_library_exists(${PTHREAD_LIBRARY} pthread_getaffinity_np "" HAVE_PTHREAD_GETAFFINITY_NP)
+
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
 set(CMAKE_REQUIRED_LIBRARIES m)
@@ -56,11 +82,11 @@ check_function_exists(fsync HAVE_FSYNC)
 check_function_exists(futimes HAVE_FUTIMES)
 check_function_exists(utimes HAVE_UTIMES)
 check_function_exists(sysctl HAVE_SYSCTL)
+check_function_exists(sysinfo HAVE_SYSINFO)
 check_function_exists(sysconf HAVE_SYSCONF)
 check_function_exists(localtime_r HAVE_LOCALTIME_R)
 check_function_exists(gmtime_r HAVE_GMTIME_R)
 check_function_exists(timegm HAVE_TIMEGM)
-check_function_exists(_snwprintf HAVE__SNWPRINTF)
 check_function_exists(poll HAVE_POLL)
 check_function_exists(statvfs HAVE_STATVFS)
 check_function_exists(thread_self HAVE_THREAD_SELF)
@@ -73,6 +99,7 @@ check_function_exists(directio HAVE_DIRECTIO)
 check_function_exists(semget HAS_SYSV_SEMAPHORES)
 check_function_exists(pthread_mutex_init HAS_PTHREAD_MUTEXES)
 check_function_exists(ttrace HAVE_TTRACE)
+check_function_exists(pipe2 HAVE_PIPE2)
 set(CMAKE_REQUIRED_LIBRARIES unwind unwind-generic)
 check_cxx_source_compiles("
 #include <libunwind.h>
@@ -96,11 +123,20 @@ int main(int argc, char **argv) {
 }" HAVE_UNW_GET_ACCESSORS)
 set(CMAKE_REQUIRED_LIBRARIES)
 
+check_cxx_source_compiles("
+#include <pthread_np.h>
+int main(int argc, char **argv) {
+  cpuset_t cpuSet;
+
+  return 0;
+}" HAVE_CPUSET_T)
+
 check_struct_has_member ("struct stat" st_atimespec "sys/types.h;sys/stat.h" HAVE_STAT_TIMESPEC)
 check_struct_has_member ("struct stat" st_atimensec "sys/types.h;sys/stat.h" HAVE_STAT_NSEC)
 check_struct_has_member ("struct tm" tm_gmtoff time.h HAVE_TM_GMTOFF)
 check_struct_has_member ("ucontext_t" uc_mcontext.gregs[0] ucontext.h HAVE_GREGSET_T)
 check_struct_has_member ("ucontext_t" uc_mcontext.__gregs[0] ucontext.h HAVE___GREGSET_T)
+check_struct_has_member ("struct sysinfo" mem_unit "sys/sysinfo.h" HAVE_SYSINFO_WITH_MEM_UNIT)
 
 set(CMAKE_EXTRA_INCLUDE_FILES machine/reg.h)
 check_type_size("struct reg" BSD_REGS_T)
@@ -382,6 +418,9 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC)
+
+check_library_exists(pthread pthread_condattr_setclock "" HAVE_PTHREAD_CONDATTR_SETCLOCK)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -441,47 +480,6 @@ int main(void) {
   exit(0);
 }" HAVE_MMAP_DEV_ZERO)
 check_cxx_source_runs("
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
-#ifndef MAP_ANON
-#define MAP_ANON MAP_ANONYMOUS
-#endif
-
-int main(void) {
-  void *hint, *ptr;
-  int pagesize;
-  int fd;
-
-  pagesize = getpagesize();
-  fd = open(\"/etc/passwd\", O_RDONLY);
-  if (fd == -1) {
-    exit(0);
-  }
-  ptr = mmap(NULL, pagesize, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
-  if (ptr == MAP_FAILED) {
-    exit(0);
-  }
-  hint = mmap(NULL, pagesize, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
-  if (hint == MAP_FAILED) {
-    exit(0);
-  }
-  if (munmap(ptr, pagesize) != 0) {
-    exit(0);
-  }
-  if (munmap(hint, pagesize) != 0) {
-    exit(0);
-  }
-  ptr = mmap(hint, pagesize, PROT_NONE, MAP_FIXED | MAP_PRIVATE, fd, 0);
-  if (ptr == MAP_FAILED || ptr != hint) {
-    exit(0);
-  }
-  exit(1);
-}" MMAP_IGNORES_HINT)
-check_cxx_source_runs("
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <signal.h>
@@ -521,34 +519,6 @@ int main(void) {
   *ptr = 123;
   exit(0);
 }" MMAP_ANON_IGNORES_PROTECTION)
-check_cxx_source_runs("
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/mman.h>
-
-#ifndef MAP_ANON
-#define MAP_ANON MAP_ANONYMOUS
-#endif
-
-int main()
-{
-  int iRet = 1;
-  void * pAddr = MAP_FAILED;
-  int MemSize = 1024;
-
-  MemSize = getpagesize();
-  pAddr = mmap(0x0, MemSize, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-  if (pAddr == MAP_FAILED)
-    exit(0);
-
-  pAddr = mmap(pAddr, MemSize, PROT_WRITE | PROT_READ, MAP_FIXED | MAP_PRIVATE | MAP_ANON, -1, 0);
-  if (pAddr == MAP_FAILED)
-    iRet = 0;
-
-  munmap(pAddr, MemSize); // don't care of this
-  exit (iRet);
-}" MMAP_DOESNOT_ALLOW_REMAP)
 check_cxx_source_runs("
 #include <stdio.h>
 #include <unistd.h>
@@ -665,13 +635,85 @@ int main(void) {
   char path[1024];
 #endif
 
-  sprintf(path, \"/proc/%u/$1\", getpid());
-  fd = open(path, $2);
+  sprintf(path, \"/proc/%u/ctl\", getpid());
+  fd = open(path, O_WRONLY);
   if (fd == -1) {
     exit(1);
   }
   exit(0);
 }" HAVE_PROCFS_CTL)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/maps\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_MAPS)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/stat\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_STAT)
+set(CMAKE_REQUIRED_LIBRARIES)
+check_cxx_source_runs("
+#include <fcntl.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(void) {
+  int fd;
+#ifdef PATH_MAX
+  char path[PATH_MAX];
+#elif defined(MAXPATHLEN)
+  char path[MAXPATHLEN];
+#else
+  char path[1024];
+#endif
+
+  sprintf(path, \"/proc/%u/status\", getpid());
+  fd = open(path, O_RDONLY);
+  if (fd == -1) {
+    exit(1);
+  }
+  exit(0);
+}" HAVE_PROCFS_STATUS)
 set(CMAKE_REQUIRED_LIBRARIES m)
 check_cxx_source_runs("
 #include <math.h>
@@ -703,7 +745,25 @@ check_cxx_source_runs("
 
 int main(void) {
   double infinity = 1.0 / 0.0;
-  if (!isnan(pow(1.0, infinity))) {
+  if (pow(1.0, infinity) != 1.0 || pow(1.0, -infinity) != 1.0) {
+    exit(1);
+  }
+  if (pow(-1.0, infinity) != 1.0 || pow(-1.0, -infinity) != 1.0) {
+    exit(1);
+  }
+  if (pow(0.0, infinity) != 0.0) {
+    exit(1);
+  }
+  if (pow(0.0, -infinity) != infinity) {
+    exit(1);
+  }
+  if (pow(-1.1, infinity) != infinity || pow(1.1, infinity) != infinity) {
+    exit(1);
+  }
+  if (pow(-1.1, -infinity) != 0.0 || pow(1.1, -infinity) != 0.0) {
+    exit(1);
+  }
+  if (pow(-0.0, -1) != -infinity) {
     exit(1);
   }
   if (pow(0.0, -1) != infinity) {
@@ -844,7 +904,8 @@ int main(void)
   unlink(szFileName);
   exit(ret);
 }" UNGETC_NOT_RETURN_EOF)
-set(CMAKE_REQUIRED_LIBRARIES pthread)
+
+set(CMAKE_REQUIRED_LIBRARIES ${PTHREAD_LIBRARY})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <errno.h>
@@ -939,6 +1000,272 @@ int main(int argc, char **argv)
         return 0;
 }" UNWIND_CONTEXT_IS_UCONTEXT_T)
 
+check_cxx_source_compiles("
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <vm/vm_param.h>
+
+int main(int argc, char **argv)
+{
+    struct xswdev xsw;
+
+    return 0;
+}" HAVE_XSWDEV)
+
+check_cxx_source_compiles("
+#include <sys/param.h>
+#include <sys/sysctl.h>
+
+int main(int argc, char **argv)
+{
+    struct xsw_usage xsu;
+
+    return 0;
+}" HAVE_XSW_USAGE)
+
+check_cxx_source_compiles("
+#include <signal.h>
+
+int main(int argc, char **argv)
+{
+    struct _xstate xstate;
+    struct _fpx_sw_bytes bytes;
+    return 0;
+}" HAVE_PUBLIC_XSTATE_STRUCT)
+
+check_cxx_source_compiles("
+#include <sys/prctl.h>
+
+int main(int argc, char **argv)
+{
+    int flag = (int)PR_SET_PTRACER;
+    return 0;
+}" HAVE_PR_SET_PTRACER)
+
+set(CMAKE_REQUIRED_LIBRARIES pthread)
+check_cxx_source_compiles("
+#include <errno.h>
+#include <pthread.h>
+#include <time.h>
+
+int main()
+{
+    pthread_mutexattr_t mutexAttributes;
+    pthread_mutexattr_init(&mutexAttributes);
+    pthread_mutexattr_setpshared(&mutexAttributes, PTHREAD_PROCESS_SHARED);
+    pthread_mutexattr_settype(&mutexAttributes, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutexattr_setrobust(&mutexAttributes, PTHREAD_MUTEX_ROBUST);
+
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, &mutexAttributes);
+
+    pthread_mutexattr_destroy(&mutexAttributes);
+
+    struct timespec timeoutTime;
+    timeoutTime.tv_sec = 1; // not the right way to specify absolute time, but just checking availability of timed lock
+    timeoutTime.tv_nsec = 0;
+    pthread_mutex_timedlock(&mutex, &timeoutTime);
+    pthread_mutex_consistent(&mutex);
+
+    pthread_mutex_destroy(&mutex);
+
+    int error = EOWNERDEAD;
+    error = ENOTRECOVERABLE;
+    error = ETIMEDOUT;
+    error = 0;
+    return error;
+}" HAVE_FULLY_FEATURED_PTHREAD_MUTEXES)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
+  set(CMAKE_REQUIRED_LIBRARIES pthread)
+  check_cxx_source_runs("
+  // This test case verifies the pthread process-shared robust mutex's cross-process abandon detection. The parent process starts
+  // a child process that locks the mutex, the process process then waits to acquire the lock, and the child process abandons the
+  // mutex by exiting the process while holding the lock. The parent process should then be released from its wait, be assigned
+  // ownership of the lock, and be notified that the mutex was abandoned.
+  
+  #include <sys/mman.h>
+  #include <sys/time.h>
+  
+  #include <errno.h>
+  #include <pthread.h>
+  #include <stdio.h>
+  #include <unistd.h>
+  
+  #include <new>
+  using namespace std;
+  
+  struct Shm
+  {
+      pthread_mutex_t syncMutex;
+      pthread_cond_t syncCondition;
+      pthread_mutex_t robustMutex;
+      int conditionValue;
+  
+      Shm() : conditionValue(0)
+      {
+      }
+  } *shm;
+  
+  int GetFailTimeoutTime(struct timespec *timeoutTimeRef)
+  {
+      int getTimeResult = clock_gettime(CLOCK_REALTIME, timeoutTimeRef);
+      if (getTimeResult != 0)
+      {
+          struct timeval tv;
+          getTimeResult = gettimeofday(&tv, NULL);
+          if (getTimeResult != 0)
+              return 1;
+          timeoutTimeRef->tv_sec = tv.tv_sec;
+          timeoutTimeRef->tv_nsec = tv.tv_usec * 1000;
+      }
+      timeoutTimeRef->tv_sec += 30;
+      return 0;
+  }
+  
+  int WaitForConditionValue(int desiredConditionValue)
+  {
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      if (pthread_mutex_timedlock(&shm->syncMutex, &timeoutTime) != 0)
+          return 1;
+  
+      if (shm->conditionValue != desiredConditionValue)
+      {
+          if (GetFailTimeoutTime(&timeoutTime) != 0)
+              return 1;
+          if (pthread_cond_timedwait(&shm->syncCondition, &shm->syncMutex, &timeoutTime) != 0)
+              return 1;
+          if (shm->conditionValue != desiredConditionValue)
+              return 1;
+      }
+  
+      if (pthread_mutex_unlock(&shm->syncMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  int SetConditionValue(int newConditionValue)
+  {
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      if (pthread_mutex_timedlock(&shm->syncMutex, &timeoutTime) != 0)
+          return 1;
+  
+      shm->conditionValue = newConditionValue;
+      if (pthread_cond_signal(&shm->syncCondition) != 0)
+          return 1;
+  
+      if (pthread_mutex_unlock(&shm->syncMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  void DoTest_Child();
+  
+  int DoTest()
+  {
+      // Map some shared memory
+      void *shmBuffer = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+      if (shmBuffer == MAP_FAILED)
+          return 1;
+      shm = new(shmBuffer) Shm;
+  
+      // Create sync mutex
+      pthread_mutexattr_t syncMutexAttributes;
+      if (pthread_mutexattr_init(&syncMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_setpshared(&syncMutexAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_mutex_init(&shm->syncMutex, &syncMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_destroy(&syncMutexAttributes) != 0)
+          return 1;
+  
+      // Create sync condition
+      pthread_condattr_t syncConditionAttributes;
+      if (pthread_condattr_init(&syncConditionAttributes) != 0)
+          return 1;
+      if (pthread_condattr_setpshared(&syncConditionAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_cond_init(&shm->syncCondition, &syncConditionAttributes) != 0)
+          return 1;
+      if (pthread_condattr_destroy(&syncConditionAttributes) != 0)
+          return 1;
+  
+      // Create the robust mutex that will be tested
+      pthread_mutexattr_t robustMutexAttributes;
+      if (pthread_mutexattr_init(&robustMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_setpshared(&robustMutexAttributes, PTHREAD_PROCESS_SHARED) != 0)
+          return 1;
+      if (pthread_mutexattr_setrobust(&robustMutexAttributes, PTHREAD_MUTEX_ROBUST) != 0)
+          return 1;
+      if (pthread_mutex_init(&shm->robustMutex, &robustMutexAttributes) != 0)
+          return 1;
+      if (pthread_mutexattr_destroy(&robustMutexAttributes) != 0)
+          return 1;
+  
+      // Start child test process
+      int error = fork();
+      if (error == -1)
+          return 1;
+      if (error == 0)
+      {
+          DoTest_Child();
+          return -1;
+      }
+  
+      // Wait for child to take a lock
+      WaitForConditionValue(1);
+  
+      // Wait to try to take a lock. Meanwhile, child abandons the robust mutex.
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return 1;
+      error = pthread_mutex_timedlock(&shm->robustMutex, &timeoutTime);
+      if (error != EOWNERDEAD) // expect to be notified that the robust mutex was abandoned
+          return 1;
+      if (pthread_mutex_consistent(&shm->robustMutex) != 0)
+          return 1;
+  
+      if (pthread_mutex_unlock(&shm->robustMutex) != 0)
+          return 1;
+      if (pthread_mutex_destroy(&shm->robustMutex) != 0)
+          return 1;
+      return 0;
+  }
+  
+  void DoTest_Child()
+  {
+      // Lock the robust mutex
+      struct timespec timeoutTime;
+      if (GetFailTimeoutTime(&timeoutTime) != 0)
+          return;
+      if (pthread_mutex_timedlock(&shm->robustMutex, &timeoutTime) != 0)
+          return;
+  
+      // Notify parent that robust mutex is locked
+      if (SetConditionValue(1) != 0)
+          return;
+  
+      // Wait a short period to let the parent block on waiting for a lock
+      sleep(1);
+  
+      // Abandon the mutex by exiting the process while holding the lock. Parent's wait should be released by EOWNERDEAD.
+  }
+  
+  int main()
+  {
+      int result = DoTest();
+      return result >= 0 ? result : 0;
+  }" HAVE_FUNCTIONAL_PTHREAD_ROBUST_MUTEXES)
+  set(CMAKE_REQUIRED_LIBRARIES)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   if(NOT HAVE_LIBUUID_H)
     unset(HAVE_LIBUUID_H CACHE)
@@ -973,13 +1300,6 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(HAS_FTRUNCATE_LENGTH_ISSUE 0)
   set(BSD_REGS_STYLE "((reg).r_##rr)")
   set(HAVE_SCHED_OTHER_ASSIGNABLE 1)
-
-  if(EXISTS "/lib/libc.so.7")
-    set(FREEBSD_LIBC "/lib/libc.so.7")
-  else()
-    message(FATAL_ERROR "Cannot find libc on this system.")
-  endif()
-
 elseif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
   if(NOT HAVE_LIBUNWIND_H)
     unset(HAVE_LIBUNWIND_H CACHE)

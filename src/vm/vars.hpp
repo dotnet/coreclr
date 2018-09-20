@@ -66,22 +66,17 @@ typedef unsigned short wchar_t;
 #include <corpriv.h>
 #include <cordbpriv.h>
 
-#ifndef FEATURE_CORECLR
-#include <metahost.h>
-#endif // !FEATURE_CORECLR
 
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 
-#ifdef FEATURE_CAS_POLICY
-#include "certificatecache.h"
-#endif
-
 #include "profilepriv.h"
+
+#include "gcinterface.h"
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
 class TransparentProxyObject;
@@ -103,23 +98,6 @@ class RCWCleanupList;
 #endif // FEATURE_COMINTEROP
 class BBSweep;
 struct IAssemblyUsageLog;
-
-//
-// object handles are opaque types that track object pointers
-//
-#ifndef DACCESS_COMPILE
-
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-
-#else
-
-typedef TADDR OBJECTHANDLE;
-
-#endif
 
 //
 // loader handles are opaque types that track object pointers that have a lifetime
@@ -184,12 +162,6 @@ class OBJECTREF {
         class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
-#ifdef FEATURE_COMPRESSEDSTACK        
-        class CompressedStackObject* m_asCompressedStack;
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-        class SecurityContextObject* m_asSecurityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
         class ExecutionContextObject* m_asExecutionContext;
         class AppDomainBaseObject* m_asAppDomainBase;
         class PermissionSetObject* m_asPermissionSetObject;
@@ -402,6 +374,7 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
+GPTR_DECL(MethodTable,      g_pByReferenceClass);
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -414,12 +387,8 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
-GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
 GPTR_DECL(MethodTable,      g_pByteArrayMT);
@@ -433,7 +402,6 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
-GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
@@ -442,9 +410,6 @@ GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 //<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
 EXTERN bool                 g_fVerifierOff;
 
-#ifndef FEATURE_CORECLR
-EXTERN IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -474,15 +439,17 @@ GPTR_DECL(Thread,g_pSuspensionThread);
 typedef DPTR(SyncTableEntry) PTR_SyncTableEntry;
 GPTR_DECL(SyncTableEntry, g_pSyncTable);
 
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+// Note this is not updated in a thread safe way so the value may not be accurate. We get
+// it accurately in full GCs if the handle count is requested.
+extern DWORD g_dwHandles;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+
 #ifdef FEATURE_COMINTEROP
 // Global RCW cleanup list
 typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_CAS_POLICY
-EXTERN CertificateCache *g_pCertificateCache;
-#endif 
 
 #ifdef FEATURE_IPCMAN
 // support for IPCManager
@@ -562,12 +529,6 @@ EXTERN Volatile<BOOL> g_fEEStarted;
 EXTERN BOOL g_fComStarted;
 #endif
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-EXTERN ICLRRuntimeInfo *g_pCLRRuntime;
-#endif
 
 //
 // Global state variables indicating which stage of shutdown we are in
@@ -579,7 +540,6 @@ EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
 #endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
-EXTERN bool g_fFinalizerRunOnShutDown;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
 EXTERN bool g_fNoExceptions;
@@ -604,6 +564,10 @@ EXTERN DWORD g_FinalizerWaiterStatus;
 extern ULONGLONG g_ObjFinalizeStartTime;
 extern Volatile<BOOL> g_FinalizerIsRunning;
 extern Volatile<ULONG> g_FinalizerLoopCount;
+
+#if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
+extern Volatile<BOOL> g_TriggerHeapDump;
+#endif // FEATURE_PAL
 
 extern LONG GetProcessedExitProcessEventCount();
 

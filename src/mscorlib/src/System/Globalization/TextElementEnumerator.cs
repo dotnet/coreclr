@@ -10,93 +10,85 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+using System.Collections;
+using System.Diagnostics;
 using System.Runtime.Serialization;
 
-
-namespace System.Globalization {
-    using System.Collections;
-    using System.Diagnostics.Contracts;
-
+namespace System.Globalization
+{
     //
     // This is public because GetTextElement() is public.
     //
 
-    [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
-    public class TextElementEnumerator: IEnumerator
+    public class TextElementEnumerator : IEnumerator
     {
-        private String str;
-        private int index;
-        private int startIndex;
-        
+        private String _str;
+        private int _index;
+        private int _startIndex;
+
         [NonSerialized] 
-        private int strLen;                // This is the length of the total string, counting from the beginning of string.
-        
-        [NonSerialized]
-        private int currTextElementLen; // The current text element lenght after MoveNext() is called.
-        
+        private int _strLen;                // This is the length of the total string, counting from the beginning of string.
+
+        [NonSerialized] 
+        private int _currTextElementLen; // The current text element lenght after MoveNext() is called.
+
         [OptionalField(VersionAdded = 2)] 
-        private UnicodeCategory uc;
-        
+        private UnicodeCategory _uc;
+
         [OptionalField(VersionAdded = 2)] 
-        private int charLen;            // The next abstract char to look at after MoveNext() is called.  It could be 1 or 2, depending on if it is a surrogate or not.
+        private int _charLen;            // The next abstract char to look at after MoveNext() is called.  It could be 1 or 2, depending on if it is a surrogate or not.
 
         internal TextElementEnumerator(String str, int startIndex, int strLen)
         {
-            Contract.Assert(str != null, "TextElementEnumerator(): str != null");
-            Contract.Assert(startIndex >= 0 && strLen >= 0, "TextElementEnumerator(): startIndex >= 0 && strLen >= 0");
-            Contract.Assert(strLen >= startIndex, "TextElementEnumerator(): strLen >= startIndex");
-            this.str = str;
-            this.startIndex = startIndex;
-            this.strLen = strLen;
+            Debug.Assert(str != null, "TextElementEnumerator(): str != null");
+            Debug.Assert(startIndex >= 0 && strLen >= 0, "TextElementEnumerator(): startIndex >= 0 && strLen >= 0");
+            Debug.Assert(strLen >= startIndex, "TextElementEnumerator(): strLen >= startIndex");
+            _str = str;
+            _startIndex = startIndex;
+            _strLen = strLen;
             Reset();
         }
 
-#region Serialization 
         // the following fields is defined to keep the compatibility with Everett.
         // don't change/remove the names/types of these fields.
-        private int endIndex;
-        private int nextTextElementLen;
+        private int _endIndex;
+        private int _nextTextElementLen;
 
-        [OnDeserializing] 
-        private void OnDeserializing(StreamingContext ctx) 
-        { 
-            charLen = -1;    
-        }   
-        
+        [OnDeserializing]
+        private void OnDeserializing(StreamingContext ctx)
+        {
+            _charLen = -1;
+        }
+
         [OnDeserialized]
         private void OnDeserialized(StreamingContext ctx)
         {
-            strLen              = endIndex + 1;
-            currTextElementLen  = nextTextElementLen;
+            _strLen = _endIndex + 1;
+            _currTextElementLen = _nextTextElementLen;
 
-            if (charLen == -1)
+            if (_charLen == -1)
             {
-                uc = CharUnicodeInfo.InternalGetUnicodeCategory(str, index, out charLen);
+                _uc = CharUnicodeInfo.InternalGetUnicodeCategory(_str, _index, out _charLen);
             }
-        }   
-        
-        [OnSerializing] 
-        private void OnSerializing(StreamingContext ctx) 
-        { 
-            endIndex            = strLen - 1;
-            nextTextElementLen  = currTextElementLen;
-        }   
+        }
 
-#endregion Serialization
-
-
+        [OnSerializing]
+        private void OnSerializing(StreamingContext ctx)
+        {
+            _endIndex = _strLen - 1;
+            _nextTextElementLen = _currTextElementLen;
+        }
 
         public bool MoveNext()
         {
-            if (index >= strLen)
+            if (_index >= _strLen)
             {
-                // Make the index to be greater than strLen so that we can throw exception if GetTextElement() is called.
-                index = strLen + 1;
+                // Make the _index to be greater than _strLen so that we can throw exception if GetTextElement() is called.
+                _index = _strLen + 1;
                 return (false);
             }
-            currTextElementLen = StringInfo.GetCurrentTextElementLen(str, index, strLen, ref uc, ref charLen);
-            index += currTextElementLen;
+            _currTextElementLen = StringInfo.GetCurrentTextElementLen(_str, _index, _strLen, ref _uc, ref _charLen);
+            _index += _currTextElementLen;
             return (true);
         }
 
@@ -104,8 +96,10 @@ namespace System.Globalization {
         // Get the current text element.
         //
 
-        public Object Current {
-            get {
+        public Object Current
+        {
+            get
+            {
                 return (GetTextElement());
             }
         }
@@ -116,16 +110,18 @@ namespace System.Globalization {
 
         public String GetTextElement()
         {
-            if (index == startIndex) {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumNotStarted"));
+            if (_index == _startIndex)
+            {
+                throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
             }
-            if (index > strLen) {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumEnded"));                        
-            }                
-            
-            return (str.Substring(index - currTextElementLen, currTextElementLen));
+            if (_index > _strLen)
+            {
+                throw new InvalidOperationException(SR.InvalidOperation_EnumEnded);
+            }
+
+            return (_str.Substring(_index - _currTextElementLen, _currTextElementLen));
         }
-        
+
         //
         // Get the starting index of the current text element.
         //
@@ -134,22 +130,23 @@ namespace System.Globalization {
         {
             get
             {
-                if (index == startIndex) 
+                if (_index == _startIndex)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumNotStarted"));
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                 }
-                return (index - currTextElementLen);
+                return (_index - _currTextElementLen);
             }
         }
 
 
         public void Reset()
         {
-            index = startIndex;
-            if (index < strLen) {
+            _index = _startIndex;
+            if (_index < _strLen)
+            {
                 // If we have more than 1 character, get the category of the current char.
-                uc = CharUnicodeInfo.InternalGetUnicodeCategory(str, index, out charLen);
-            }            
+                _uc = CharUnicodeInfo.InternalGetUnicodeCategory(_str, _index, out _charLen);
+            }
         }
     }
 }

@@ -31,14 +31,11 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "security.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
 #include "sigformat.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeprofinterfaces.h"
 #include "dllimportcallback.h"
 #include "listlock.h"

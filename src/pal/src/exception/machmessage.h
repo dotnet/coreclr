@@ -36,7 +36,7 @@ using namespace CorUnix;
         if (machret != KERN_SUCCESS)                                        \
         {                                                                   \
             char _szError[1024];                                            \
-            sprintf(_szError, "%s: %u: %s", __FUNCTION__, __LINE__, _msg);  \
+            snprintf(_szError, _countof(_szError), "%s: %u: %s", __FUNCTION__, __LINE__, _msg);  \
             mach_error(_szError, machret);                                  \
             abort();                                                        \
         }                                                                   \
@@ -395,7 +395,7 @@ private:
     // x86_THREAD_STATE and x86_THREAD_STATE32 state flavors are supported.
     thread_act_t GetThreadFromState(thread_state_flavor_t eFlavor, thread_state_t pState);
 
-    // Transform a exception handler behavior type into the corresponding Mach message ID for the
+    // Transform an exception handler behavior type into the corresponding Mach message ID for the
     // notification.
     mach_msg_id_t MapBehaviorToNotificationType(exception_behavior_t eBehavior);
 

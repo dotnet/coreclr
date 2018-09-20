@@ -2,10 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 BSOPNAME(BSOP_Assign)
 BSOPNAME(BSOP_AssignAllowUninitRhs)
 BSOPNAME(BSOP_AssignNocopy)
+BSOPNAME(BSOP_OldStyleClearD)
 BSOPNAME(BSOP_ClearD)
 BSOPNAME(BSOP_MakeSingleton)
 BSOPNAME(BSOP_MakeEmpty)

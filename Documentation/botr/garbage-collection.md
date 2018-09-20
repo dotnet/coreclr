@@ -2,7 +2,7 @@ Garbage Collection Design
 =========================
 Author: Maoni Stephens ([@maoni0](https://github.com/maoni0)) - 2015
 
-Note: See the The Garbage Collection Handbook referenced in the resources section at the end of this document to learn more about garbage collection topics.
+Note: See _The Garbage Collection Handbook_ (referenced in the resources section at the end of this document) to learn more about garbage collection topics.
 
 Component Architecture
 ======================
@@ -113,7 +113,7 @@ address, which means objects of lower addresses on the segment are
 older than those of higher addresses. Again there are exceptions that
 will be described below.
 
-Heap segments can be aquired as needed. They are  deleted when they
+Heap segments can be acquired as needed. They are  deleted when they
 don’t contain any live objects, however the initial segment on the heap
 will always exist. For each heap, one segment at a time is acquired,
 which is done during a GC for small objects and during allocation time
@@ -189,8 +189,8 @@ Code Flow
 
 Terms:
 
-- **WKS GC:** Workstation GC.
-- **SRV GC:** Server GC
+- **WKS GC:** Workstation GC
+- **SVR GC:** Server GC
 
 Functional Behavior
 -------------------

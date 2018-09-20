@@ -36,10 +36,12 @@ Stub * GenerateInitPInvokeFrameHelper();
 
 EXTERN_C void checkStack(void);
 
+#define THUMB_CODE      1
+
 #ifdef CROSSGEN_COMPILE
 #define GetEEFuncEntryPoint(pfn) 0x1001
 #else
-#define GetEEFuncEntryPoint(pfn) GFN_TADDR(pfn)
+#define GetEEFuncEntryPoint(pfn) (GFN_TADDR(pfn) | THUMB_CODE)
 #endif
 
 //**********************************************************************
@@ -55,15 +57,12 @@ EXTERN_C void checkStack(void);
 #define JUMP_ALLOCATE_SIZE                      8   // # bytes to allocate for a jump instruction
 #define BACK_TO_BACK_JUMP_ALLOCATE_SIZE         8   // # bytes to allocate for a back to back jump instruction
 
-//#define HAS_COMPACT_ENTRYPOINTS                 1
+#define HAS_COMPACT_ENTRYPOINTS                 1
 
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 
 #define USE_INDIRECT_CODEHEADER
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
 
 EXTERN_C void getFPReturn(int fpSize, INT64 *pRetVal);
 EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
@@ -90,6 +89,12 @@ EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
 // Given a return address retrieved during stackwalk,
 // this is the offset by which it should be decremented to arrive at the callsite.
 #define STACKWALK_CONTROLPC_ADJUST_OFFSET 2
+
+// Max offset for unconditional thumb branch
+#define MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB 2048
+
+// Offset of pc register
+#define PC_REG_RELATIVE_OFFSET 4
 
 //=======================================================================
 // IMPORTANT: This value is used to figure out how much to allocate
@@ -237,6 +242,53 @@ void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
 #endif // FEATURE_COMINTEROP
 
 //------------------------------------------------------------------------
+inline void emitUnconditionalBranchThumb(LPBYTE pBuffer, int16_t offset)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    uint16_t *pInstr = (uint16_t *) pBuffer;
+
+    // offset from -2KB to +2KB
+    _ASSERTE (offset >= - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB && offset < MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB);
+
+    if (offset >= 0)
+    {
+        offset = offset >> 1;
+    }
+    else
+    {
+        offset = ((MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB + offset) >> 1) | 0x400;
+    }
+
+    *pInstr = 0xE000 | offset;
+}
+
+//------------------------------------------------------------------------
+inline int16_t decodeUnconditionalBranchThumb(LPBYTE pBuffer)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    uint16_t *pInstr = (uint16_t *) pBuffer;
+
+    int16_t offset = (~0xE000) & (*pInstr);
+
+    if ((offset & 0x400) == 0)
+    {
+        offset = offset << 1;
+    }
+    else
+    {
+        offset = (~0x400) & offset;
+        offset = (offset << 1) - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB;
+    }
+
+    // offset from -2KB to +2KB
+    _ASSERTE (offset >= - MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB && offset < MAX_OFFSET_UNCONDITIONAL_BRANCH_THUMB);
+
+    return offset;
+}
+
+//------------------------------------------------------------------------
 inline void emitJump(LPBYTE pBuffer, LPVOID target)
 {
     LIMITED_METHOD_CONTRACT;
@@ -305,8 +357,6 @@ inline PCODE decodeBackToBackJump(PCODE pBuffer)
 //----------------------------------------------------------------------
 #include "stublink.h"
 struct ArrayOpScript;
-
-#define THUMB_CODE      1
 
 inline BOOL IsThumbCode(PCODE pCode)
 {
@@ -959,9 +1009,9 @@ struct HijackArgs
     union
     {
         DWORD R0;
-        size_t ReturnValue; // this may not be the return value when return is >32bits or return value is in VFP reg
-                            // but it works for us as this is only used by functions OnHijackObjectWorker()
-                            // and OnHijackInteriorPointerWorker() (where return is an address)
+        size_t ReturnValue[1]; // this may not be the return value when return is >32bits 
+                               // or return value is in VFP reg but it works for us as 
+                               // this is only used by functions OnHijackWorker()
     };
 
     //
@@ -1196,7 +1246,7 @@ struct FixupPrecode {
 typedef DPTR(FixupPrecode) PTR_FixupPrecode;
 
 
-// Precode to stuffle this and retbuf for closed delegates over static methods with return buffer
+// Precode to shuffle this and retbuf for closed delegates over static methods with return buffer
 struct ThisPtrRetBufPrecode {
 
     static const int Type = 0x84;

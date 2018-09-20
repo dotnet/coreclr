@@ -15,9 +15,8 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Threading
@@ -35,10 +34,8 @@ namespace System.Threading
     /// </remarks>
     [DebuggerTypeProxy(typeof(SystemThreading_ThreadLocalDebugView<>))]
     [DebuggerDisplay("IsValueCreated={IsValueCreated}, Value={ValueForDebugDisplay}, Count={ValuesCountForDebugDisplay}")]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public class ThreadLocal<T> : IDisposable
     {
-
         // a delegate that returns the created value, if null the created value will be default(T)
         private Func<T> m_valueFactory;
 
@@ -50,10 +47,10 @@ namespace System.Threading
         // the ThreadLocal<T> instance.
         //
         [ThreadStatic]
-        static LinkedSlotVolatile[] ts_slotArray;
+        private static LinkedSlotVolatile[] ts_slotArray;
 
         [ThreadStatic]
-        static FinalizationHelper ts_finalizationHelper;
+        private static FinalizationHelper ts_finalizationHelper;
 
         // Slot ID of this ThreadLocal<> instance. We store a bitwise complement of the ID (that is ~ID), which allows us to distinguish
         // between the case when ID is 0 and an incompletely initialized object, either due to a thread abort in the constructor, or
@@ -107,7 +104,7 @@ namespace System.Threading
         public ThreadLocal(Func<T> valueFactory)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, false);
         }
@@ -127,7 +124,7 @@ namespace System.Threading
         public ThreadLocal(Func<T> valueFactory, bool trackAllValues)
         {
             if (valueFactory == null)
-                throw new ArgumentNullException("valueFactory");
+                throw new ArgumentNullException(nameof(valueFactory));
 
             Initialize(valueFactory, trackAllValues);
         }
@@ -193,7 +190,7 @@ namespace System.Threading
 
                 if (id < 0 || !m_initialized)
                 {
-                    Contract.Assert(id >= 0 || !m_initialized, "expected id >= 0 if initialized");
+                    Debug.Assert(id >= 0 || !m_initialized, "expected id >= 0 if initialized");
 
                     // Handle double Dispose calls or disposal of an instance whose constructor threw an exception.
                     return;
@@ -278,7 +275,7 @@ namespace System.Threading
                     && id < slotArray.Length   // Is the table large enough?
                     && (slot = slotArray[id].Value) != null   // Has a LinkedSlot object has been allocated for this ID?
                     && m_initialized // Has the instance *still* not been disposed (important for a race condition with Dispose)?
-                ) 
+                )
                 {
                     // We verified that the instance has not been disposed *after* we got a reference to the slot.
                     // This guarantees that we have a reference to the right slot.
@@ -326,7 +323,7 @@ namespace System.Threading
             int id = ~m_idComplement;
             if (id < 0)
             {
-                throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
             }
 
             Debugger.NotifyOfCrossThreadDependency();
@@ -343,7 +340,7 @@ namespace System.Threading
 
                 if (IsValueCreated)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("ThreadLocal_Value_RecursiveCallsToValue"));
+                    throw new InvalidOperationException(SR.ThreadLocal_Value_RecursiveCallsToValue);
                 }
             }
 
@@ -359,7 +356,7 @@ namespace System.Threading
             // If the object has been disposed, id will be -1.
             if (id < 0)
             {
-                throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
             }
 
             // If a slot array has not been created on this thread yet, create it.
@@ -397,7 +394,7 @@ namespace System.Threading
 
                 if (!m_initialized)
                 {
-                    throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                    throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 }
 
                 slot.Value = value;
@@ -419,7 +416,7 @@ namespace System.Threading
                 // Dispose also executes under a lock.
                 if (!m_initialized)
                 {
-                    throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                    throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 }
 
                 LinkedSlot firstRealNode = m_linkedSlot.Next;
@@ -457,11 +454,11 @@ namespace System.Threading
             {
                 if (!m_trackAllValues)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("ThreadLocal_ValuesNotAvailable"));
+                    throw new InvalidOperationException(SR.ThreadLocal_ValuesNotAvailable);
                 }
 
                 var list = GetValuesAsList(); // returns null if disposed
-                if (list == null) throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                if (list == null) throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 return list;
             }
         }
@@ -514,7 +511,7 @@ namespace System.Threading
                 int id = ~m_idComplement;
                 if (id < 0)
                 {
-                    throw new ObjectDisposedException(Environment.GetResourceString("ThreadLocal_Disposed"));
+                    throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 }
 
                 LinkedSlotVolatile[] slotArray = ts_slotArray;
@@ -550,7 +547,7 @@ namespace System.Threading
         /// </summary>
         private void GrowTable(ref LinkedSlotVolatile[] table, int minLength)
         {
-            Contract.Assert(table.Length < minLength);
+            Debug.Assert(table.Length < minLength);
 
             // Determine the size of the new table and allocate it.
             int newLen = GetNewTableSize(minLength);
@@ -588,7 +585,7 @@ namespace System.Threading
                 // Intentionally return a value that will result in an OutOfMemoryException
                 return int.MaxValue;
             }
-            Contract.Assert(minSize > 0);
+            Debug.Assert(minSize > 0);
 
             //
             // Round up the size to the next power of 2
@@ -737,7 +734,7 @@ namespace System.Threading
             ~FinalizationHelper()
             {
                 LinkedSlotVolatile[] slotArray = SlotArray;
-                Contract.Assert(slotArray != null);
+                Debug.Assert(slotArray != null);
 
                 for (int i = 0; i < slotArray.Length; i++)
                 {
@@ -765,7 +762,7 @@ namespace System.Threading
                             }
 
                             // Since the list uses a dummy head node, the Previous reference should never be null.
-                            Contract.Assert(linkedSlot.Previous != null);
+                            Debug.Assert(linkedSlot.Previous != null);
                             linkedSlot.Previous.Next = linkedSlot.Next;
                         }
                     }

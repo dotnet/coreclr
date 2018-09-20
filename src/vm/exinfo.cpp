@@ -9,6 +9,7 @@
 #include "exinfo.h"
 #include "dbginterface.h"
 
+#ifndef WIN64EXCEPTIONS
 #ifndef DACCESS_COMPILE
 //
 // Destroy the handle within an ExInfo. This respects the fact that we can have preallocated global handles living
@@ -76,9 +77,11 @@ void ExInfo::CopyAndClearSource(ExInfo *from)
     // Finally, initialize the source ExInfo.
     from->Init();
 
+#ifndef FEATURE_PAL
     // Clear the Watson Bucketing information as well since they
     // have been transferred over by the "memcpy" above.
     from->GetWatsonBucketTracker()->Init();
+#endif // FEATURE_PAL
 }
 
 void ExInfo::Init()
@@ -115,11 +118,9 @@ void ExInfo::Init()
     m_CorruptionSeverity = NotSet;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
     // By default, mark the tracker as not having delivered the first
     // chance exception notification
     m_fDeliveredFirstChanceNotification = FALSE;
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
 
     m_pTopMostHandlerDuringSO = NULL;
 
@@ -136,8 +137,10 @@ ExInfo::ExInfo()
     m_hThrowable = NULL;
     Init();
 
+#ifndef FEATURE_PAL
     // Init the WatsonBucketTracker
     m_WatsonBucketTracker.Init();
+#endif // FEATURE_PAL
 }
 
 //*******************************************************************************
@@ -206,9 +209,11 @@ void ExInfo::UnwindExInfo(VOID* limit)
             pPrevNestedInfo->DestroyExceptionHandle();
         }
 
+        #ifndef FEATURE_PAL
         // Free the Watson bucket details when ExInfo
         // is being released
         pPrevNestedInfo->GetWatsonBucketTracker()->ClearWatsonBucketDetails();
+        #endif // FEATURE_PAL
 
         pPrevNestedInfo->m_StackTraceInfo.FreeStackTrace();
 
@@ -256,8 +261,10 @@ void ExInfo::UnwindExInfo(VOID* limit)
         // We just do a basic Init of the current top ExInfo here.
         Init();
 
+        #ifndef FEATURE_PAL
         // Init the Watson buckets as well
         GetWatsonBucketTracker()->ClearWatsonBucketDetails();
+        #endif // FEATURE_PAL
     }
 }
 #endif // DACCESS_COMPILE
@@ -304,3 +311,4 @@ void ExInfo::SetExceptionCode(const EXCEPTION_RECORD *pCER)
     DacError(E_UNEXPECTED);
 #endif // !DACCESS_COMPILE
 }
+#endif // !WIN64EXCEPTIONS

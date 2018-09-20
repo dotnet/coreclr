@@ -14,17 +14,20 @@
 // Copy a block of memory in a forward direction.
 //
 
-    LEAF_ENTRY FCallMemcpy, _TEXT
+    NESTED_ENTRY FCallMemcpy, _TEXT, NoHandler
         cmp r2, #0
         
         beq LOCAL_LABEL(GC_POLL)
+
+        PROLOG_PUSH  "{r7, lr}"
+        PROLOG_STACK_SAVE r7
         
         ldr r3, [r0]
         ldr r3, [r1]
         
-        push {lr}
         blx C_FUNC(memcpy)
-        pop {lr}
+
+        EPILOG_POP   "{r7, pc}"
 
 LOCAL_LABEL(GC_POLL):
         ldr r0, =g_TrapReturningThreads
@@ -33,4 +36,4 @@ LOCAL_LABEL(GC_POLL):
         it ne
         bne C_FUNC(FCallMemCpy_GCPoll)
         bx lr
-    LEAF_END FCallMemcpy, _TEXT
+    NESTED_END_MARKED FCallMemcpy, _TEXT

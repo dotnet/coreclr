@@ -11,12 +11,11 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-   
-    using System;
 
-    [Serializable]
+using System;
 
+namespace System.Runtime.InteropServices
+{
     public sealed class VariantWrapper
     {
         public VariantWrapper(Object obj)
@@ -24,9 +23,9 @@ namespace System.Runtime.InteropServices {
             m_WrappedObject = obj;
         }
 
-        public Object WrappedObject 
+        public Object WrappedObject
         {
-            get 
+            get
             {
                 return m_WrappedObject;
             }

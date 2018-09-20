@@ -6,7 +6,10 @@
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
+#include <locale.h>
 
+#include "icushim.h"
 #include "locale.hpp"
 
 int32_t UErrorCodeToBool(UErrorCode status)
@@ -67,7 +70,7 @@ int32_t GetLocale(
         char language[ULOC_LANG_CAPACITY];
         uloc_getLanguage(localeNameTemp, language, ULOC_LANG_CAPACITY, err);
 
-        if (*err == U_STRING_NOT_TERMINATED_WARNING)
+        if (*err == U_BUFFER_OVERFLOW_ERROR || *err == U_STRING_NOT_TERMINATED_WARNING)
         {
             // ULOC_LANG_CAPACITY includes the null terminator, so if we couldn't extract the language with the null
             // terminator, the language must be invalid.
@@ -110,6 +113,91 @@ int32_t FixupLocaleName(UChar* value, int32_t valueLength)
     return i;
 }
 
+bool IsEnvVarSet(const char* name)
+{
+    const char* value = getenv(name);
+
+    return (value != nullptr) && (strcmp("", value) != 0);
+}
+
+// The behavior of uloc_getDefault() on POSIX systems is to query
+// setlocale(LC_MESSAGES) and use that value, unless it is C or
+// POSIX. In that case it tries to read LC_ALL, LC_MESSAGES and LANG
+// and then falls back to en_US_POSIX if none of them are set.
+//
+// en_US_POSIX is a weird locale since the collation rules treat 'a'
+// and 'A' as different letters even when ignoring case. Furthermore
+// it's common for LC_ALL, LC_MESSAGES and LANG to be unset when
+// running under Docker.
+//
+// We'd rather default to invariant in this case. If any of these
+// are set, we'll just call into ICU and let it do whatever
+// normalization it would do.
+const char* DetectDefaultLocaleName()
+{
+    char* loc = setlocale(LC_MESSAGES, nullptr);
+
+    if (loc != nullptr && (strcmp("C", loc) == 0 || strcmp("POSIX", loc) == 0))
+    {
+        if (!IsEnvVarSet("LC_ALL") && !IsEnvVarSet("LC_MESSAGES") && !IsEnvVarSet("LANG"))
+        {
+            return "";
+        }
+    }
+
+    return uloc_getDefault();
+}
+
+// GlobalizationNative_GetLocales gets all locale names and store it in the value buffer
+// in case of success, it returns the count of the characters stored in value buffer  
+// in case of failure, it returns negative number.
+// if the input value buffer is null, it returns the length needed to store the 
+// locale names list.
+// if the value is not null, it fills the value with locale names separated by the length 
+// of each name. 
+extern "C" int32_t GlobalizationNative_GetLocales(UChar *value, int32_t valueLength)
+{
+    int32_t totalLength = 0;
+    int32_t index = 0;
+    int32_t localeCount = uloc_countAvailable();
+    
+    if (localeCount <=  0)
+        return -1; // failed
+    
+    for (int32_t i = 0; i < localeCount; i++)
+    {
+        const char *pLocaleName = uloc_getAvailable(i);
+        if (pLocaleName[0] == 0) // unexpected empty name
+            return -2;
+        
+        int32_t localeNameLength = strlen(pLocaleName);
+        
+        totalLength += localeNameLength + 1; // add 1 for the name length
+        
+        if (value != nullptr)
+        {
+            if (totalLength > valueLength)
+                return -3;
+            
+            value[index++] = (UChar) localeNameLength;
+            
+            for (int j=0; j<localeNameLength; j++)
+            {
+                if (pLocaleName[j] == '_') // fix the locale name  
+                {
+                    value[index++] = (UChar) '-';
+                }
+                else
+                {
+                    value[index++] = (UChar) pLocaleName[j];
+                }
+            }
+        }
+    }
+    
+    return totalLength;
+}
+
 extern "C" int32_t GlobalizationNative_GetLocaleName(const UChar* localeName, UChar* value, int32_t valueLength)
 {
     UErrorCode status = U_ZERO_ERROR;
@@ -135,7 +223,7 @@ extern "C" int32_t GlobalizationNative_GetDefaultLocaleName(UChar* value, int32_
     char localeNameBuffer[ULOC_FULLNAME_CAPACITY];
     UErrorCode status = U_ZERO_ERROR;
 
-    const char* defaultLocale = uloc_getDefault();
+    const char* defaultLocale = DetectDefaultLocaleName();
 
     uloc_getBaseName(defaultLocale, localeNameBuffer, ULOC_FULLNAME_CAPACITY, &status);
 

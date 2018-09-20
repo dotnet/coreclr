@@ -2,13 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Runtime.Serialization;
+using System.Globalization;
+
 namespace System.Text
 {
-    using System;
-    using System.Runtime.Serialization;
-    using System.Globalization;
-
-    [Serializable]
     public sealed class DecoderExceptionFallback : DecoderFallback
     {
         // Construction
@@ -87,46 +86,44 @@ namespace System.Text
                 strBytes.Append(bytesUnknown[i].ToString("X2", CultureInfo.InvariantCulture));
                 strBytes.Append("]");
             }
-            
+
             // In case the string's really long
             if (i == 20)
                 strBytes.Append(" ...");
 
             // Known index
             throw new DecoderFallbackException(
-                Environment.GetResourceString("Argument_InvalidCodePageBytesIndex",
-                   strBytes, index), bytesUnknown, index);           
+                SR.Format(SR.Argument_InvalidCodePageBytesIndex, strBytes, index), bytesUnknown, index);
         }
-
     }
 
     // Exception for decoding unknown byte sequences.
-    [Serializable]
     public sealed class DecoderFallbackException : ArgumentException
     {
-        byte[]    bytesUnknown = null;
-        int       index = 0;
+        private byte[] bytesUnknown = null;
+        private int index = 0;
 
         public DecoderFallbackException()
-            : base(Environment.GetResourceString("Arg_ArgumentException"))
+            : base(SR.Arg_ArgumentException)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         public DecoderFallbackException(String message)
             : base(message)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         public DecoderFallbackException(String message, Exception innerException)
             : base(message, innerException)
         {
-            SetErrorCode(__HResults.COR_E_ARGUMENT);
+            HResult = __HResults.COR_E_ARGUMENT;
         }
 
         internal DecoderFallbackException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
+            throw new PlatformNotSupportedException();
         }
 
         public DecoderFallbackException(
@@ -148,7 +145,7 @@ namespace System.Text
         {
             get
             {
-                return this.index;
+                return index;
             }
         }
     }

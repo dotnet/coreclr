@@ -15,178 +15,217 @@
 
 using System.Diagnostics.Contracts;
 
-namespace System.Collections {
+namespace System.Collections
+{
     ///    This is a simple implementation of IDictionary that is empty and readonly.
-    [Serializable]
-    internal sealed class EmptyReadOnlyDictionaryInternal: IDictionary {
-
+    internal sealed class EmptyReadOnlyDictionaryInternal : IDictionary
+    {
         // Note that this class must be agile with respect to AppDomains.  See its usage in
         // System.Exception to understand why this is the case.
 
-        public EmptyReadOnlyDictionaryInternal() {
+        public EmptyReadOnlyDictionaryInternal()
+        {
         }
 
         // IEnumerable members
 
-        IEnumerator IEnumerable.GetEnumerator() {
+        IEnumerator IEnumerable.GetEnumerator()
+        {
             return new NodeEnumerator();
         }
 
         // ICollection members
 
-        public void CopyTo(Array array, int index)  {
-            if (array==null)
-                throw new ArgumentNullException("array");
+        public void CopyTo(Array array, int index)
+        {
+            if (array == null)
+                throw new ArgumentNullException(nameof(array));
 
             if (array.Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankMultiDimNotSupported"));
+                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
 
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
+                throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            if ( array.Length - index < this.Count ) 
-                throw new ArgumentException( Environment.GetResourceString("ArgumentOutOfRange_Index"), "index");
+            if (array.Length - index < this.Count)
+                throw new ArgumentException(SR.ArgumentOutOfRange_Index, nameof(index));
             Contract.EndContractBlock();
 
             // the actual copy is a NOP
         }
 
-        public int Count {
-            get {
+        public int Count
+        {
+            get
+            {
                 return 0;
             }
-        }   
+        }
 
-        public Object SyncRoot {
-            get {
+        public Object SyncRoot
+        {
+            get
+            {
                 return this;
             }
         }
 
-        public bool IsSynchronized {
-            get {
+        public bool IsSynchronized
+        {
+            get
+            {
                 return false;
             }
         }
 
         // IDictionary members
 
-        public Object this[Object key] {
-            get {
-                if (key == null) {
-                    throw new ArgumentNullException("key", Environment.GetResourceString("ArgumentNull_Key"));
+        public Object this[Object key]
+        {
+            get
+            {
+                if (key == null)
+                {
+                    throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
                 Contract.EndContractBlock();
                 return null;
             }
-            set {
-                if (key == null) {
-                    throw new ArgumentNullException("key", Environment.GetResourceString("ArgumentNull_Key"));
+            set
+            {
+                if (key == null)
+                {
+                    throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
                 }
 
-                if (!key.GetType().IsSerializable)                 
-                    throw new ArgumentException(Environment.GetResourceString("Argument_NotSerializable"), "key");                    
+                if (!key.GetType().IsSerializable)
+                    throw new ArgumentException(SR.Argument_NotSerializable, nameof(key));
 
-                if( (value != null) && (!value.GetType().IsSerializable ) )
-                    throw new ArgumentException(Environment.GetResourceString("Argument_NotSerializable"), "value");                    
+                if ((value != null) && (!value.GetType().IsSerializable))
+                    throw new ArgumentException(SR.Argument_NotSerializable, nameof(value));
                 Contract.EndContractBlock();
 
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
+                throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
         }
 
-        public ICollection Keys {
-            get {
-                return EmptyArray<Object>.Value;
+        public ICollection Keys
+        {
+            get
+            {
+                return Array.Empty<Object>();
             }
         }
 
-        public ICollection Values {
-            get {
-                return EmptyArray<Object>.Value;
+        public ICollection Values
+        {
+            get
+            {
+                return Array.Empty<Object>();
             }
         }
 
-        public bool Contains(Object key) {
+        public bool Contains(Object key)
+        {
             return false;
         }
 
-        public void Add(Object key, Object value) {
-            if (key == null) {
-                throw new ArgumentNullException("key", Environment.GetResourceString("ArgumentNull_Key"));
+        public void Add(Object key, Object value)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException(nameof(key), SR.ArgumentNull_Key);
             }
 
-            if (!key.GetType().IsSerializable)                 
-                throw new ArgumentException(Environment.GetResourceString("Argument_NotSerializable"), "key" );                    
+            if (!key.GetType().IsSerializable)
+                throw new ArgumentException(SR.Argument_NotSerializable, nameof(key));
 
-            if( (value != null) && (!value.GetType().IsSerializable) )
-                throw new ArgumentException(Environment.GetResourceString("Argument_NotSerializable"), "value");                    
+            if ((value != null) && (!value.GetType().IsSerializable))
+                throw new ArgumentException(SR.Argument_NotSerializable, nameof(value));
             Contract.EndContractBlock();
 
-            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
+            throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
         }
 
-        public void Clear() {
-            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
+        public void Clear()
+        {
+            throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
         }
 
-        public bool IsReadOnly {
-            get {
+        public bool IsReadOnly
+        {
+            get
+            {
                 return true;
             }
         }
 
-        public bool IsFixedSize {
-            get {
+        public bool IsFixedSize
+        {
+            get
+            {
                 return true;
             }
         }
 
-        public IDictionaryEnumerator GetEnumerator() {
+        public IDictionaryEnumerator GetEnumerator()
+        {
             return new NodeEnumerator();
         }
 
-        public void Remove(Object key) {
-            throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
+        public void Remove(Object key)
+        {
+            throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
         }
 
-        private sealed class NodeEnumerator : IDictionaryEnumerator {
-
-            public NodeEnumerator() {
+        private sealed class NodeEnumerator : IDictionaryEnumerator
+        {
+            public NodeEnumerator()
+            {
             }
 
             // IEnumerator members
 
-            public bool MoveNext() {
+            public bool MoveNext()
+            {
                 return false;
             }
 
-            public Object Current {
-                get {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+            public Object Current
+            {
+                get
+                {
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
             }
 
-            public void Reset() {
+            public void Reset()
+            {
             }
 
             // IDictionaryEnumerator members
 
-            public Object Key {
-                get {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+            public Object Key
+            {
+                get
+                {
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
             }
 
-            public Object Value {
-                get {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+            public Object Value
+            {
+                get
+                {
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
             }
 
-            public DictionaryEntry Entry {
-                get {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_EnumOpCantHappen"));
+            public DictionaryEntry Entry
+            {
+                get
+                {
+                    throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                 }
             }
         }

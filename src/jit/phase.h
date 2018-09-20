@@ -9,19 +9,20 @@
 class Phase
 {
 public:
-    Phase(Compiler *_comp, 
-          const char *_name, 
-          Phases _phase=PHASE_NUMBER_OF) 
-        : comp(_comp), name(_name), phase(_phase) {}
     virtual void Run();
+
+protected:
+    Phase(Compiler* _comp, const char* _name, Phases _phase = PHASE_NUMBER_OF) : comp(_comp), name(_name), phase(_phase)
+    {
+    }
+
     virtual void PrePhase();
     virtual void DoPhase() = 0;
     virtual void PostPhase();
 
-protected:
-    Compiler *comp;
-    const char *name;
-    Phases phase;
+    Compiler*   comp;
+    const char* name;
+    Phases      phase;
 };
 
 inline void Phase::Run()
@@ -71,7 +72,6 @@ inline void Phase::PostPhase()
     comp->fgDebugCheckBBlist();
     comp->fgDebugCheckLinks();
 #endif // DEBUG
-
 }
 
 #endif /* End of _PHASE_H_ */

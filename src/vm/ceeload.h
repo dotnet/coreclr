@@ -13,9 +13,6 @@
 #define CEELOAD_H_
 
 #include "common.h"
-#ifdef FEATURE_FUSION
-#include <fusion.h>
-#endif
 #include "vars.hpp" // for LPCUTF8
 #include "hash.h"
 #include "clsload.hpp"
@@ -84,7 +81,8 @@ class TypeHandleList;
 class ProfileEmitter;
 class ReJitManager;
 class TrackingMap;
-class PersistentInlineTrackingMap;
+struct MethodInModule;
+class PersistentInlineTrackingMapNGen;
 
 // Hash table parameter of available classes (name -> module/class) hash
 #define AVAILABLE_CLASSES_HASH_BUCKETS 1024
@@ -93,9 +91,21 @@ class PersistentInlineTrackingMap;
 #define PARAMMETHODS_HASH_BUCKETS 11
 #define METHOD_STUBS_HASH_BUCKETS 11
 #define GUID_TO_TYPE_HASH_BUCKETS 16
+            
+// The native symbol reader dll name
+#if defined(_AMD64_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.amd64.dll")
+#elif defined(_X86_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.x86.dll")
+#elif defined(_ARM_)
+#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm.dll")
+#elif defined(_ARM64_)
+// Use diasymreader until the package has an arm64 version - issue #7360
+//#define NATIVE_SYMBOL_READER_DLL W("Microsoft.DiaSymReader.Native.arm64.dll")
+#define NATIVE_SYMBOL_READER_DLL W("diasymreader.dll")
+#endif
 
-
-typedef DPTR(PersistentInlineTrackingMap) PTR_PersistentInlineTrackingMap;
+typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
 
 extern VerboseLevel g_CorCompileVerboseLevel;
 #endif  // FEATURE_PREJIT
@@ -1599,9 +1609,7 @@ private:
     // IL stub cache with fabricated MethodTable parented by this module.
     ILStubCache                *m_pILStubCache;
 
-#ifndef FEATURE_CORECLR
     ULONG m_DefaultDllImportSearchPathsAttributeValue;
-#endif
 
      LPCUTF8 m_pszCultureName;
      ULONG m_CultureNameLength;
@@ -1771,40 +1779,6 @@ private:
     NgenStats                *m_pNgenStats;
 #endif // FEATURE_PREJIT
 
-#ifdef FEATURE_MIXEDMODE 
-    // LoaderHeap for storing thunks
-    PTR_LoaderHeap           m_pThunkHeap;
-
-    // Self-initializing accessor for thunk heap
-    LoaderHeap              *GetThunkHeap();
-    // Self-initializing accessor for domain-independent thunk heap
-    LoaderHeap              *GetDllThunkHeap();
-
-
-public:
-    UMEntryThunk*            GetADThunkTable();
-    void                     SetADThunkTable(UMEntryThunk* pTable);
-
-protected:
-    // Domain that the IJW fixups were applied in
-    ADID                    m_DomainIdOfIJWFixups;
-
-public:
-    ADID                    GetDomainIdOfIJWFixups()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(m_DomainIdOfIJWFixups != ADID());
-        return m_DomainIdOfIJWFixups;
-    }
-
-    void                     SetDomainIdOfIJWFixups(ADID id)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(id != ADID());
-        m_DomainIdOfIJWFixups = id;
-    }
-
-#endif // FEATURE_MIXEDMODE
 
 protected:
 
@@ -1816,6 +1790,7 @@ protected:
 protected:
 #ifndef DACCESS_COMPILE
     virtual void Initialize(AllocMemTracker *pamTracker, LPCWSTR szName = NULL);
+    void InitializeForProfiling();
 #ifdef FEATURE_PREJIT 
     void InitializeNativeImage(AllocMemTracker* pamTracker);
 #endif
@@ -1854,9 +1829,6 @@ protected:
 
     void ApplyMetaData();
 
-#ifdef FEATURE_MIXEDMODE
-    void FixupVTables();
-#endif 
 
     void FreeClassTables();
 
@@ -2171,11 +2143,6 @@ protected:
 
     virtual void ReleaseILData();
 
-#ifdef FEATURE_FUSION
-    void FusionCopyPDBs(LPCWSTR moduleName);
-    // This function will return PDB stream if exist.
-    HRESULT GetHostPdbStream(IStream **ppStream);
-#endif // FEATURE_FUSION
 
 #endif // DACCESS_COMPILE
 
@@ -2665,7 +2632,8 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    PTR_PersistentInlineTrackingMap GetNgenInlineTrackingMap();
+    BOOL HasInlineTrackingMap();
+    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2694,10 +2662,6 @@ public:
 
     BOOL CanExecuteCode();
 
-#ifdef FEATURE_MIXEDMODE
-    LPVOID GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-    LPVOID GetMUThunk(LPVOID pUnmanagedIp, PCCOR_SIGNATURE pSig, ULONG cSig);
-#endif // FEATURE_MIXEDMODE
 
     // This data is only valid for NGEN'd modules, and for modules we're creating at NGEN time.
     ModuleCtorInfo* GetZapModuleCtorInfo()
@@ -2709,9 +2673,6 @@ public:
 
  private:
 
-#ifdef FEATURE_MIXEDMODE 
-    class MUThunkHash *m_pMUThunkHash;
-#endif // FEATURE_MIXEDMODE
 
  public:
 #ifndef DACCESS_COMPILE
@@ -2774,6 +2735,8 @@ public:
     }
 #endif // FEATURE_PREJIT
 
+
+    BOOL            HasNativeOrReadyToRunImage();
     PEImageLayout * GetNativeOrReadyToRunImage();
     PTR_CORCOMPILE_IMPORT_SECTION GetImportSections(COUNT_T *pCount);
     PTR_CORCOMPILE_IMPORT_SECTION GetImportSectionFromIndex(COUNT_T index);
@@ -3106,6 +3069,10 @@ public:
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
     static void WriteAllModuleProfileData(bool cleanup);
+    void SetMethodProfileList(CORCOMPILE_METHOD_PROFILE_LIST * value)
+    {
+        m_methodProfileList = value;
+    }
 
     void CreateProfilingData();
     void DeleteProfilingData();
@@ -3353,7 +3320,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsRuntimeWrapExceptions();
 
-#ifndef FEATURE_CORECLR
     BOOL                    HasDefaultDllImportSearchPathsAttribute();
 
     BOOL IsDefaultDllImportSearchPathsAttributeCached()
@@ -3373,7 +3339,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
-#endif // !FEATURE_CORECLR
 
     //-----------------------------------------------------------------------------------------
     // True iff metadata version string is 1.* or 2.*.
@@ -3382,10 +3347,6 @@ public:
     //-----------------------------------------------------------------------------------------
     BOOL                    IsPreV4Assembly();
 
-    //-----------------------------------------------------------------------------------------
-    // Get reliability contract info, see ConstrainedExecutionRegion.cpp for details.
-    //-----------------------------------------------------------------------------------------
-    DWORD                   GetReliabilityContract();
 
     //-----------------------------------------------------------------------------------------
     // Parse/Return NeutralResourcesLanguageAttribute if it exists (updates Module member variables at ngen time)
@@ -3394,48 +3355,13 @@ public:
 
 protected:
 
-    Volatile<DWORD>         m_dwReliabilityContract;
 
     // initialize Crst controlling the Dynamic IL hashtables
     void                    InitializeDynamicILCrst();
 
-#ifndef DACCESS_COMPILE
 public:
 
-    // Support for getting and creating information about Constrained Execution Regions rooted in this module.
-
-    // Access to CerPrepInfo, the structure used to track CERs prepared at runtime (as opposed to ngen time). GetCerPrepInfo will
-    // return the structure associated with the given method desc if it exists or NULL otherwise. CreateCerPrepInfo will get the
-    // structure if it exists or allocate and return a new struct otherwise. Creation of CerPrepInfo structures is automatically
-    // synchronized by the CerCrst (lazily allocated as needed).
-    CerPrepInfo *GetCerPrepInfo(MethodDesc *pMD);
-    CerPrepInfo *CreateCerPrepInfo(MethodDesc *pMD);
-
-#ifdef FEATURE_PREJIT
-    // Access to CerNgenRootTable which holds holds information for all the CERs rooted at a method in this module (that were
-    // discovered during an ngen).
-
-    // Add a list of MethodContextElements representing a CER to the root table keyed by the MethodDesc* of the root method. Creates
-    // or expands the root table as necessary.
-    void AddCerListToRootTable(MethodDesc *pRootMD, MethodContextElement *pList);
-
-    // Returns true if the given method is a CER root detected at ngen time.
-    bool IsNgenCerRootMethod(MethodDesc *pMD);
-
-    // Restores the CER rooted at this method (no-op if this method isn't a CER root).
-    void RestoreCer(MethodDesc *pMD);
-#endif // FEATURE_PREJIT
-
-    Crst *GetCerCrst()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pCerCrst;
-    }
-#endif // !DACCESS_COMPILE
-
-#ifdef FEATURE_CORECLR
     void VerifyAllMethods();
-#endif //FEATURE_CORECLR
 
     CrstBase *GetLookupTableCrst()
     {
@@ -3444,11 +3370,6 @@ public:
     }
 
 private:
-    EEPtrHashTable       *m_pCerPrepInfo;       // Root methods prepared for Constrained Execution Regions
-    Crst                 *m_pCerCrst;           // Mutex protecting update access to both of the above hashes
-#ifdef FEATURE_PREJIT
-    CerNgenRootTable     *m_pCerNgenRootTable;  // Root methods of CERs found during ngen and requiring runtime restoration
-#endif
 
     // This struct stores the data used by the managed debugging infrastructure.  If it turns out that 
     // the debugger is increasing the size of the Module class by too much, we can consider allocating
@@ -3480,7 +3401,7 @@ private:
     DebuggerSpecificData  m_debuggerSpecificData;
 
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
-    PTR_PersistentInlineTrackingMap m_persistentInlineTrackingMap;
+    PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
 
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name

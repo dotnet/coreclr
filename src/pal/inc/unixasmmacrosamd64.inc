@@ -8,7 +8,7 @@
 #if defined(__APPLE__)
         .cfi_personality 0x9b, C_FUNC(\Handler) // 0x9b == DW_EH_PE_indirect | DW_EH_PE_pcrel | DW_EH_PE_sdata4
 #else
-        .cfi_personality 0, C_FUNC(\Handler) // 0 == DW_EH_PE_absptr
+        .cfi_personality 0x1b, C_FUNC(\Handler) // 0x1b == DW_EH_PE_pcrel | DW_EH_PE_sdata4
 #endif
         .endif
 .endm
@@ -16,10 +16,10 @@
 .macro NESTED_END Name, Section
         LEAF_END \Name, \Section
 #if defined(__APPLE__)
+        .set LOCAL_LABEL(\Name\()_Size), . - C_FUNC(\Name)
         .section __LD,__compact_unwind,regular,debug
         .quad C_FUNC(\Name)
-        .set C_FUNC(\Name\()_Size), C_FUNC(\Name\()_End) - C_FUNC(\Name)
-        .long C_FUNC(\Name\()_Size)
+        .long LOCAL_LABEL(\Name\()_Size)
         .long 0x04000000 # DWARF
         .quad 0
         .quad 0
@@ -42,13 +42,26 @@ C_FUNC(\Name):
         .cfi_startproc
 .endm
 
-.macro LEAF_END_MARKED Name, Section
-C_FUNC(\Name\()_End):
-        .global C_FUNC(\Name\()_End)
+.macro LEAF_END Name, Section
 #if !defined(__APPLE__)
         .size \Name, .-\Name
 #endif
         .cfi_endproc
+.endm
+
+.macro LEAF_END_MARKED Name, Section
+C_FUNC(\Name\()_End):
+        .global C_FUNC(\Name\()_End)
+        LEAF_END \Name, \Section
+.endm
+
+.macro NOP_6_BYTE
+        .byte 0x66
+        .byte 0x0F
+        .byte 0x1F
+        .byte 0x44
+        .byte 0x00
+        .byte 0x00
 .endm
 
 .macro NOP_3_BYTE
@@ -88,7 +101,7 @@ C_FUNC(\Name\()_End):
 
 .macro alloc_stack Size
 .att_syntax
-        lea -\Size(%rsp), %rsp
+        lea -(\Size)(%rsp), %rsp
 .intel_syntax noprefix
         .cfi_adjust_cfa_offset \Size
 .endm
@@ -259,6 +272,8 @@ C_FUNC(\Name\()_End):
 // extra locals + padding to qword align
 .macro PROLOG_WITH_TRANSITION_BLOCK extraLocals = 0, stackAllocOnEntry = 0, stackAllocSpill1, stackAllocSpill2, stackAllocSpill3
 
+        set_cfa_register rsp, 8
+        
         __PWTB_FloatArgumentRegisters = \extraLocals
 
         .if ((__PWTB_FloatArgumentRegisters % 16) != 0)
@@ -336,5 +351,14 @@ C_FUNC(\Name\()_End):
         free_stack      __PWTB_StackAlloc
         POP_ARGUMENT_REGISTERS
         POP_CALLEE_SAVED_REGISTERS
+
+.endm
+
+.macro RESET_FRAME_WITH_RBP
+
+        mov     rsp, rbp
+        set_cfa_register rsp, 16
+        pop_nonvol_reg rbp
+        .cfi_same_value rbp
 
 .endm

@@ -10,31 +10,35 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
 
-    using System;
-    using System.Runtime.Serialization;
+using System;
+using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class SafeArrayRankMismatchException : SystemException {
-        public SafeArrayRankMismatchException() 
-            : base(Environment.GetResourceString("Arg_SafeArrayRankMismatchException")) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
-        }
-    
-        public SafeArrayRankMismatchException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
-        }
-    
-        public SafeArrayRankMismatchException(String message, Exception inner) 
-            : base(message, inner) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYRANKMISMATCH);
+namespace System.Runtime.InteropServices
+{
+    public class SafeArrayRankMismatchException : SystemException
+    {
+        public SafeArrayRankMismatchException()
+            : base(SR.Arg_SafeArrayRankMismatchException)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYRANKMISMATCH;
         }
 
-        protected SafeArrayRankMismatchException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public SafeArrayRankMismatchException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYRANKMISMATCH;
         }
 
+        public SafeArrayRankMismatchException(String message, Exception inner)
+            : base(message, inner)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYRANKMISMATCH;
+        }
+
+        protected SafeArrayRankMismatchException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
-
 }

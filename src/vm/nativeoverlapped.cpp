@@ -35,14 +35,14 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
 {
     FCALL_CONTRACT;
 
-#ifndef FEATURE_PAL       
+#ifndef FEATURE_PAL
     Thread *pThread = GetThread();
     DWORD adid = pThread->GetDomain()->GetId().m_dwId;
     size_t key=0;
 
-    _ASSERTE(pThread);  
+    _ASSERTE(pThread);
 
-    //Poll and wait if GC is in progress, to avoid blocking GC for too long.    
+    //Poll and wait if GC is in progress, to avoid blocking GC for too long.
     FC_GC_POLL();
 
     *lpOverlapped = ThreadpoolMgr::CompletionPortDispatchWorkWithinAppDomain(pThread, errorCode, numBytes, &key, adid);
@@ -54,18 +54,12 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
     OVERLAPPEDDATAREF overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(*lpOverlapped));
 
     _ASSERTE(overlapped->GetAppDomainId() == adid);
-    _ASSERTE(CLRIoCompletionHosted() == FALSE);
 
     if(overlapped->m_iocb == NULL)
     {
         // no user delegate to callback
-        _ASSERTE((overlapped->m_iocbHelper == NULL) || !"This is benign, but should be optimized");        
+        _ASSERTE((overlapped->m_iocbHelper == NULL) || !"This is benign, but should be optimized");
 
-        if (g_pAsyncFileStream_AsyncResultClass)
-        {
-            SetAsyncResultProperties(overlapped, *errorCode, *numBytes);
-        } 
-        else 
         {
             //We're not initialized yet, go back to the Vm, and process the packet there.
             ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, *lpOverlapped);
@@ -75,7 +69,7 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
         return;
     }
     else
-    {        
+    {
         if(!pThread->IsRealThreadPoolResetNeeded())
         {
             pThread->ResetManagedThreadObjectInCoopMode(ThreadNative::PRIORITY_NORMAL);
@@ -84,7 +78,7 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
             {
                 //We may have to create a CP thread, go back to the Vm, and process the packet there.
                 ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, *lpOverlapped);
-                *lpOverlapped = NULL;              
+                *lpOverlapped = NULL;
             }
         }
         else
@@ -93,7 +87,7 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
             //and process the packet there.
 
             ThreadpoolMgr::StoreOverlappedInfoInThread(pThread, *errorCode, *numBytes, key, *lpOverlapped);
-            *lpOverlapped = NULL;              
+            *lpOverlapped = NULL;
         }
     }
 
@@ -105,8 +99,8 @@ FCIMPL3(void, CheckVMForIOPacket, LPOVERLAPPED* lpOverlapped, DWORD* errorCode, 
     *lpOverlapped = NULL;
 #endif // !FEATURE_PAL
 
-    return;     
-} 
+    return;
+}
 FCIMPLEND
 
 FCIMPL1(void*, AllocateNativeOverlapped, OverlappedDataObject* overlappedUNSAFE)
@@ -161,21 +155,6 @@ FCIMPL1(void*, AllocateNativeOverlapped, OverlappedDataObject* overlappedUNSAFE)
 
     handle = GetAppDomain()->CreateTypedHandle(overlapped, HNDTYPE_ASYNCPINNED);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    // CoreCLR does not have IO completion hosted
-    if (CLRIoCompletionHosted()) 
-    {
-        _ASSERTE(CorHost2::GetHostIoCompletionManager());
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = CorHost2::GetHostIoCompletionManager()->InitializeHostOverlapped(&overlapped->Internal);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (FAILED(hr)) 
-        {
-            COMPlusThrowHR(hr);
-        }
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     handle.SuppressRelease();
     overlapped->m_pinSelf = handle;

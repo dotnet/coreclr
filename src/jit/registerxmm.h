@@ -2,10 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// clang-format off
 /*****************************************************************************/
 /*****************************************************************************/
 #ifndef REGDEF
 #error  Must define REGDEF macro before including this file
+#endif
+
+#ifndef LEGACY_BACKEND
+#error This file is only used for the LEGACY_BACKEND build.
 #endif
 
 #if defined(_TARGET_XARCH_)
@@ -39,3 +44,5 @@ REGDEF(XMM15,   15,  XMMMASK(16), "xmm15" )
 /*****************************************************************************/
 #undef  REGDEF
 /*****************************************************************************/
+
+// clang-format on

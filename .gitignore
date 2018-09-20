@@ -12,6 +12,7 @@ syntax: glob
 *.user
 *.userosscache
 *.sln.docstates
+*.swp
 
 # Build results
 [Dd]ebug/
@@ -25,6 +26,9 @@ bld/
 [Bb]in/
 [Oo]bj/
 msbuild.log
+
+# add back architecture directories ignored in 'Build results'
+!tests/x86
 
 # Visual Studio 2015
 .vs/
@@ -79,9 +83,11 @@ _Chutzpah*
 ipch/
 *.aps
 *.ncb
+*.opendb
 *.opensdf
 *.sdf
 *.cachefile
+*.VC.db
 
 # Visual Studio profiler
 *.psess
@@ -143,8 +149,11 @@ publish/
 
 # NuGet Packages
 *.nupkg
+*.nuget.g.props
+*.nuget.g.targets
 **/packages/*
 project.lock.json
+project.assets.json
 
 # Windows Azure Build Output
 csx/
@@ -192,6 +201,12 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+
+# C/C++ extension for Visual Studio Code
+browse.VC.db
+
+# Local settings folder for Visual Studio Code
+.vscode/
 
 ### MonoDevelop ###
 
@@ -258,13 +273,22 @@ Temporary Items
 # We have some checked in prebuilt generated files
 !src/pal/prebuilt/idl/*_i.c
 
-# Valid 'debug' folder, that contains CLR debuggin code
+# Valid 'debug' folder, that contains CLR debugging code
 !src/debug
 
 # Ignore folders created by the test build
-TestWrappers_x64_debug
-TestWrappers_x64_checked
-TestWrappers_x64_release
+TestWrappers_x64_[d|D]ebug
+TestWrappers_x64_[c|C]hecked
+TestWrappers_x64_[r|R]elease
+TestWrappers_x86_[d|D]ebug
+TestWrappers_x86_[c|C]hecked
+TestWrappers_x86_[r|R]elease
+TestWrappers_arm_[d|D]ebug
+TestWrappers_arm_[c|C]hecked
+TestWrappers_arm_[r|R]elease
+TestWrappers_arm64_[d|D]ebug
+TestWrappers_arm64_[c|C]hecked
+TestWrappers_arm64_[r|R]elease
 tests/src/common/test_runtime/project.json
 
 Vagrantfile
@@ -278,6 +302,18 @@ Makefile
 
 # Cross compilation
 cross/rootfs/*
+cross/android-rootfs/*
+# add x86 as it is ignored in 'Build results'
+!cross/x86
 
 #python import files
 *.pyc
+
+# JIT32 files
+src/jit32
+
+# performance testing sandbox
+sandbox
+
+#IL linker for testing
+linker

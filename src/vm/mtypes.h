@@ -41,6 +41,7 @@ DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_DATE,            DateMarshaler,              
  
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_LPWSTR,          WSTRMarshaler,                       false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_LPSTR,           CSTRMarshaler,                       false)
+DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_LPUTF8STR,       CUTF8Marshaler,                      false)
 #ifdef FEATURE_COMINTEROP
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_BSTR,            BSTRMarshaler,                       false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_ANSIBSTR,        AnsiBSTRMarshaler,                   false)
@@ -53,12 +54,13 @@ DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_PCEVENTARGS,     PCEventArgsMarshaler,       
 
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_LPWSTR_BUFFER,   WSTRBufferMarshaler,                 false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_LPSTR_BUFFER,    CSTRBufferMarshaler,                 false)
+DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_UTF8_BUFFER,     UTF8BufferMarshaler,                 false)
 
-#if defined(FEATURE_COMINTEROP) || !defined(FEATURE_CORECLR)
+#if defined(FEATURE_COMINTEROP)
 // CoreCLR doesn't have any support for marshalling interface pointers.
 // Not even support for fake CCWs.
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_INTERFACE,       InterfaceMarshaler,                  true)
-#endif // defined(FEATURE_COMINTEROP) || !defined(FEATURE_CORECLR)
+#endif // defined(FEATURE_COMINTEROP) 
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_SAFEARRAY,       SafeArrayMarshaler,                  false)
@@ -87,9 +89,6 @@ DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_VALUECLASS,                      ValueClassMa
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_REFERENCECUSTOMMARSHALER,        ReferenceCustomMarshaler,      false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_ARGITERATOR,                     ArgIteratorMarshaler,          false)
 
-#ifndef FEATURE_CORECLR
-DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR, BlittableValueClassWithCopyCtorMarshaler, false)
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_OBJECT,                          ObjectMarshaler,               false)

@@ -14,6 +14,7 @@
 #include "common.h"
 
 #include "gcenv.h"
+#include "gc.h"
 
 #ifndef FEATURE_REDHAWK
 #include "nativeoverlapped.h"
@@ -610,7 +611,7 @@ TableSegment *SegmentAlloc(HandleTable *pTable)
     _ASSERTE(HANDLE_SEGMENT_ALIGNMENT >= HANDLE_SEGMENT_SIZE);
     _ASSERTE(HANDLE_SEGMENT_ALIGNMENT == 0x10000);
 
-    pSegment = (TableSegment *)GCToOSInterface::VirtualReserve(NULL, HANDLE_SEGMENT_SIZE, HANDLE_SEGMENT_ALIGNMENT, VirtualReserveFlags::None);
+    pSegment = (TableSegment *)GCToOSInterface::VirtualReserve(HANDLE_SEGMENT_SIZE, HANDLE_SEGMENT_ALIGNMENT, VirtualReserveFlags::None);
     _ASSERTE(((size_t)pSegment % HANDLE_SEGMENT_ALIGNMENT) == 0);
     
     // bail out if we couldn't get any memory
@@ -960,12 +961,12 @@ BOOL SegmentHandleAsyncPinHandles (TableSegment *pSegment)
 }
 
 // Replace an async pin handle with one from default domain
-void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTargetTable)
+bool SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTargetTable)
 {
     CONTRACTL
     {
         GC_NOTRIGGER;
-        THROWS;
+        NOTHROW;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -974,7 +975,7 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
     if (uBlock == BLOCK_INVALID)
     {
         // There is no pinning handles.
-        return;
+        return true;
     }
     for (uBlock = 0; uBlock < pSegment->bEmptyLine; uBlock ++)
     {
@@ -1002,12 +1003,21 @@ void SegmentRelocateAsyncPinHandles (TableSegment *pSegment, HandleTable *pTarge
                     overlapped->m_userObject = NULL;
                 }
                 BashMTForPinnedObject(ObjectToOBJECTREF(value));
-                overlapped->m_pinSelf = CreateAsyncPinningHandle((HHANDLETABLE)pTargetTable,ObjectToOBJECTREF(value));
+
+                overlapped->m_pinSelf = HndCreateHandle((HHANDLETABLE)pTargetTable, HNDTYPE_ASYNCPINNED, ObjectToOBJECTREF(value));
+                if (!overlapped->m_pinSelf)
+                {
+                    // failed to allocate a new handle - callers have to handle this.
+                    return false;
+                }
+
                 *pValue = NULL;
             }
             pValue ++;
         } while (pValue != pLast);
     }
+
+    return true;
 }
 
 // Mark all non-pending AsyncPinHandle ready for cleanup.
@@ -1066,6 +1076,7 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 
     BOOL fGotException = FALSE;
     TableSegment *pSegment = pTable->pSegmentList;
+    bool wasSuccessful = true;
     
 #ifdef _DEBUG
     // on debug builds, execute the OOM path 10% of the time.
@@ -1074,21 +1085,18 @@ void TableRelocateAsyncPinHandles(HandleTable *pTable, HandleTable *pTargetTable
 #endif
 
     // Step 1: replace pinning handles with ones from default domain
-    EX_TRY
+    while (pSegment)
     {
-        while (pSegment)
+        wasSuccessful = wasSuccessful && SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
+        if (!wasSuccessful)
         {
-            SegmentRelocateAsyncPinHandles (pSegment, pTargetTable);
-            pSegment = pSegment->pNextSegment;
+            break;
         }
-    }
-    EX_CATCH
-    {
-        fGotException = TRUE;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
 
-    if (!fGotException)
+        pSegment = pSegment->pNextSegment;
+    }
+
+    if (wasSuccessful)
     {
         return;
     }
@@ -1111,13 +1119,13 @@ SLOW_PATH:
         // we have the lock held but the part we care about (the async table scan) takes the table lock during
         // a preparation step so we'll be able to complete our segment moves before the async scan has a
         // chance to interfere with us (or vice versa).
-        if (GCHeap::GetGCHeap()->IsConcurrentGCInProgress())
+        if (g_theGCHeap->IsConcurrentGCInProgress())
         {
             // A concurrent GC is in progress so someone might be scanning our segments asynchronously.
             // Release the lock, wait for the GC to complete and try again. The order is important; if we wait
             // before releasing the table lock we can deadlock with an async table scan.
             ch.Release();
-            GCHeap::GetGCHeap()->WaitUntilConcurrentGCComplete();
+            g_theGCHeap->WaitUntilConcurrentGCComplete();
             continue;
         }
 
@@ -1584,12 +1592,15 @@ void SegmentResortChains(TableSegment *pSegment)
 
     // clear the sort flag for this segment
     pSegment->fResortChains = FALSE;
+    BOOL fScavengingOccurred = FALSE;
 
     // first, do we need to scavenge any blocks?
     if (pSegment->fNeedsScavenging)
     {
         // clear the scavenge flag
         pSegment->fNeedsScavenging = FALSE;
+
+        fScavengingOccurred = TRUE;
 
         // we may need to explicitly scan the user data chain too
         BOOL fCleanupUserData = FALSE;
@@ -1749,6 +1760,21 @@ void SegmentResortChains(TableSegment *pSegment)
             // it back into this chain if so (the choice of block is arbitrary, this case is very rare).
             if (pSegment->rgBlockType[pSegment->rgHint[uType]] != uType)
                 pSegment->rgHint[uType] = bBlock;
+        }
+        else
+        {
+            // No blocks of this type were found in the rgBlockType array, meaning either there were no
+            // such blocks on entry to this function (in which case the associated tail is guaranteed
+            // to already be marked invalid) OR that there were blocks but all of them were reclaimed
+            // by the scavenging logic above (in which case the associated tail is guaranteed to point
+            // to one of the scavenged blocks). In the latter case, the tail is currently "stale"
+            // and therefore needs to be manually updated.
+            if (pSegment->rgTail[uType] != BLOCK_INVALID)
+            {
+                _ASSERTE(fScavengingOccurred);
+                pSegment->rgTail[uType] = BLOCK_INVALID;
+                pSegment->rgHint[uType] = BLOCK_INVALID;
+            }
         }
     }
 
@@ -2541,6 +2567,14 @@ uint32_t BlockFreeHandles(TableSegment *pSegment, uint32_t uBlock, OBJECTHANDLE 
     if (fAllMasksWeTouchedAreFree)
     {
         // is the block unlocked?
+        // NOTE: This check is incorrect and defeats the intended purpose of scavenging. If the
+        // current block is locked and has just been emptied, then it cannot be removed right now
+        // and therefore will nominally need to be scavenged. The only code that triggers
+        // scavenging is in SegmentRemoveFreeBlocks, and setting the flag is the only way to
+        // trigger a call into SegmentRemoveFreeBlocks call. As a result, by NOT setting the flag
+        // this code is generally PREVENTING scavenging in exactly the cases where scavenging is
+        // needed. The code is not being changed because it has always been this way and scavenging
+        // itself generally has extremely low value.
         if (!BlockIsLocked(pSegment, uBlock))
         {
             // tell the caller it might be a good idea to scan for free blocks
@@ -2718,9 +2752,8 @@ void TableFreeBulkUnpreparedHandles(HandleTable *pTable, uint32_t uType, const O
 {
     CONTRACTL
     {
-        THROWS;
+        NOTHROW;
         WRAPPER(GC_TRIGGERS);
-        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 

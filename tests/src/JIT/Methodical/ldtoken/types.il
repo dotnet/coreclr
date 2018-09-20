@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -31,7 +34,7 @@
       call       string [mscorlib]System.String::Concat(string, string)
       call       void [System.Console]System.Console::WriteLine(string)
       ldc.i4.s   101
-      call       void [mscorlib]System.Environment::Exit(int32)
+      call       void [system.runtime.extensions]System.Environment::Exit(int32)
       IL_EXIT:
       ret
     }

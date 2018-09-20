@@ -136,7 +136,7 @@ public:
     static BOOL ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszFullName);
 
     // Map a well-known CLR typename to WinRT typename
-    static BOOL WinMDAdapter::ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszNamespace, LPCSTR *pszName);
+    static BOOL ConvertWellKnownTypeNameFromClrToWinRT(LPCSTR *pszNamespace, LPCSTR *pszName);
         
     // Returns names of redirected type 'index'.
     static void GetRedirectedTypeInfo(
@@ -236,14 +236,12 @@ public:
             if (pusRevisionNumber != nullptr)
                 *pusRevisionNumber = VER_ASSEMBLYBUILD_QFE;
 
-#ifdef FEATURE_CORECLR
             // Under CoreCLR, we replace the ECMA key in the mscorlib assembly ref with the CoreCLR platform public key token
             if (ppbPublicKeyOrToken != nullptr)
             {
                 *ppbPublicKeyOrToken = g_rbTheSilverlightPlatformKeyToken;
                 *pcbPublicKeyOrToken = _countof(g_rbTheSilverlightPlatformKeyToken);
             }
-#endif
         }
         else if (RidFromToken(mdar) > m_rawAssemblyRefCount)
         {
@@ -632,11 +630,7 @@ public:
             case FrameworkAssembly_SystemRuntimeWindowsRuntimeUIXaml:
                 return "System.Runtime.WindowsRuntime.UI.Xaml";
             case FrameworkAssembly_SystemNumericsVectors:
-#ifdef FEATURE_CORECLR
                 return "System.Numerics.Vectors";
-#else
-                return "System.Numerics";
-#endif 
             default:
                 _ASSERTE(!"Invalid AssemblyRef token!");
                 return NULL;

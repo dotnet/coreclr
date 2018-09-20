@@ -15,15 +15,11 @@
 #define DECLARE_DATA
 
 #include "assembler.h"
-#ifdef FEATURE_CORECLR
 #ifdef FEATURE_PAL
 #include "coreclrloader.h"
 CoreCLRLoader *g_loader;
 #endif // FEATURE_PAL
 MetaDataGetDispenserFunc metaDataGetDispenser;
-#else
-#include "MscorpeSxS.h"
-#endif // FEATURE_CORECLR
 
 void indexKeywords(Indx* indx); // defined in asmparse.y
 
@@ -197,11 +193,9 @@ Assembler::~Assembler()
     if (m_pCeeFileGen != NULL) {
         if (m_pCeeFile)
             m_pCeeFileGen->DestroyCeeFile(&m_pCeeFile);
-#ifdef FEATURE_CORECLR
+
         DestroyICeeFileGen(&m_pCeeFileGen);
-#else
-        MscorpeSxS::DestroyICeeFileGen(&m_pCeeFileGen);
-#endif
+
         m_pCeeFileGen = NULL;
     }
 
@@ -237,24 +231,18 @@ Assembler::~Assembler()
         m_pDisp = NULL;
     }
 
-#ifdef FEATURE_CORECLR
 #ifdef FEATURE_PAL
     if (g_loader != NULL)
     {
         g_loader->Finish();
     }
 #endif
-#else
-    if (m_fDidCoInitialise)
-        CoUninitialize();
-#endif // FEATURE_CORECLR
 
 }
 
 
 BOOL Assembler::Init()
 {
-#ifdef FEATURE_CORECLR
 #ifdef FEATURE_PAL
     g_loader = CoreCLRLoader::Create(g_pszExeFile);
     if (g_loader == NULL)
@@ -265,29 +253,17 @@ BOOL Assembler::Init()
 #else
     metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
 #endif // FEATURE_PAL
-#else
-    if(!m_fDidCoInitialise)
-    {
-        if (FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED)))
-            return FALSE;
-        m_fDidCoInitialise = TRUE;
-    }
-#endif // FEATURE_CORECLR
     if (m_pCeeFileGen != NULL) {
         if (m_pCeeFile)
             m_pCeeFileGen->DestroyCeeFile(&m_pCeeFile);
-#ifdef FEATURE_CORECLR
+        
         DestroyICeeFileGen(&m_pCeeFileGen);
-#else
-        MscorpeSxS::DestroyICeeFileGen(&m_pCeeFileGen);
-#endif
+
         m_pCeeFileGen = NULL;
     }
-#ifdef FEATURE_CORECLR
+
     if (FAILED(CreateICeeFileGen(&m_pCeeFileGen))) return FALSE;
-#else
-    if (FAILED(MscorpeSxS::CreateICeeFileGen(&m_pCeeFileGen))) return FALSE;
-#endif
+
     if (FAILED(m_pCeeFileGen->CreateCeeFileEx(&m_pCeeFile,(ULONG)m_dwCeeFileFlags))) return FALSE;
 
     if (FAILED(m_pCeeFileGen->GetSectionCreate(m_pCeeFile, ".il", sdReadOnly, &m_pILSection))) return FALSE;

@@ -12,47 +12,23 @@
 **
 ** 
 ===========================================================*/
+
+using System;
+using System.Globalization;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Runtime.Versioning;
+
 namespace System.Collections.Generic
 {
-    using System;
-    using System.Globalization;
-    using System.Runtime.CompilerServices;
-    using System.Diagnostics.Contracts;
-    using System.Runtime.Versioning;
-    
     #region ArraySortHelper for single arrays
 
-#if CONTRACTS_FULL
-    [ContractClass(typeof(IArraySortHelperContract<>))]
-#endif // CONTRACTS_FULL
     internal interface IArraySortHelper<TKey>
     {
         void Sort(TKey[] keys, int index, int length, IComparer<TKey> comparer);
         int BinarySearch(TKey[] keys, int index, int length, TKey value, IComparer<TKey> comparer);
     }
-
-#if CONTRACTS_FULL
-    [ContractClassFor(typeof(IArraySortHelper<>))]
-    internal abstract class IArraySortHelperContract<TKey> : IArraySortHelper<TKey>
-    {
-        void IArraySortHelper<TKey>.Sort(TKey[] keys, int index, int length, IComparer<TKey> comparer)
-        {
-            Contract.Requires(keys != null, "Check the arguments in the caller!");
-            Contract.Requires(index >= 0 && index <= keys.Length);  // allow 0?
-            Contract.Requires(length >= 0 && index + length <= keys.Length);
-        }
-
-        int IArraySortHelper<TKey>.BinarySearch(TKey[] keys, int index, int length, TKey value, IComparer<TKey> comparer)
-        {
-            Contract.Requires(index >= 0 && index <= keys.Length);  // allow 0?
-            Contract.Requires(length >= 0 && index + length <= keys.Length);
-            Contract.Ensures((Contract.Result<int>() >= index && Contract.Result<int>() <= index + length) ||
-                (~Contract.Result<int>() >= index && ~Contract.Result<int>() <= index + length), "Binary search returned a bad value");
-
-            return default(int);
-        }
-    }
-#endif // CONTRACTS_FULL
 
     internal static class IntrospectiveSortUtilities
     {
@@ -60,8 +36,6 @@ namespace System.Collections.Generic
         // Imperically, 16 seems to speed up most cases without slowing down others, at least for integers.
         // Large value types may benefit from a smaller number.
         internal const int IntrosortSizeThreshold = 16;
-
-        internal const int QuickSortDepthThreshold = 32;
 
         internal static int FloorLog2(int n)
         {
@@ -74,27 +48,18 @@ namespace System.Collections.Generic
             return result;
         }
 
-        internal static void ThrowOrIgnoreBadComparer(Object comparer) {
-            // This is hit when an invarant of QuickSort is violated due to a bad IComparer implementation (for
-            // example, imagine an IComparer that returns 0 when items are equal but -1 all other times).
-            //
-            // We could have thrown this exception on v4, but due to changes in v4.5 around how we partition arrays
-            // there are different sets of input where we would throw this exception.  In order to reduce overall risk from
-            // an app compat persective, we're changing to never throw on v4.  Instead, we'll return with a partially
-            // sorted array.
-            if(BinaryCompatibility.TargetsAtLeast_Desktop_V4_5) {
-                throw new ArgumentException(Environment.GetResourceString("Arg_BogusIComparer", comparer));
-            }
+        internal static void ThrowOrIgnoreBadComparer(Object comparer)
+        {
+            throw new ArgumentException(SR.Format(SR.Arg_BogusIComparer, comparer));
         }
-
     }
 
-    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`1")]     
-    internal class ArraySortHelper<T>  
+    [TypeDependencyAttribute("System.Collections.Generic.GenericArraySortHelper`1")]
+    internal class ArraySortHelper<T>
         : IArraySortHelper<T>
     {
-        static volatile IArraySortHelper<T> defaultArraySortHelper;
-        
+        private static volatile IArraySortHelper<T> defaultArraySortHelper;
+
         public static IArraySortHelper<T> Default
         {
             get
@@ -105,9 +70,8 @@ namespace System.Collections.Generic
 
                 return sorter;
             }
-        }                
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
+        }
+
         private static IArraySortHelper<T> CreateArraySortHelper()
         {
             if (typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
@@ -116,7 +80,7 @@ namespace System.Collections.Generic
             }
             else
             {
-                defaultArraySortHelper = new ArraySortHelper<T>();                        
+                defaultArraySortHelper = new ArraySortHelper<T>();
             }
             return defaultArraySortHelper;
         }
@@ -125,8 +89,8 @@ namespace System.Collections.Generic
 
         public void Sort(T[] keys, int index, int length, IComparer<T> comparer)
         {
-            Contract.Assert(keys != null, "Check the arguments in the caller!");
-            Contract.Assert( index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(keys != null, "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
             // underlying IComparables, etc) that are bogus.
@@ -137,22 +101,7 @@ namespace System.Collections.Generic
                     comparer = Comparer<T>.Default;
                 }
 
-#if FEATURE_CORECLR
-                // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
-                IntrospectiveSort(keys, index, length, comparer);
-#else
-                if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                {
-                    IntrospectiveSort(keys, index, length, comparer);
-                }
-                else
-                {
-                    DepthLimitedQuickSort(keys, index, length + index - 1, comparer, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                }
-#endif
+                IntrospectiveSort(keys, index, length, comparer.Compare);
             }
             catch (IndexOutOfRangeException)
             {
@@ -160,7 +109,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -177,11 +126,32 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
         #endregion
+
+        internal static void Sort(T[] keys, int index, int length, Comparison<T> comparer)
+        {
+            Debug.Assert(keys != null, "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(comparer != null, "Check the arguments in the caller!");
+
+            // Add a try block here to detect bogus comparisons
+            try
+            {
+                IntrospectiveSort(keys, index, length, comparer);
+            }
+            catch (IndexOutOfRangeException)
+            {
+                IntrospectiveSortUtilities.ThrowOrIgnoreBadComparer(comparer);
+            }
+            catch (Exception e)
+            {
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
+            }
+        }
 
         internal static int InternalBinarySearch(T[] array, int index, int length, T value, IComparer<T> comparer)
         {
@@ -209,11 +179,11 @@ namespace System.Collections.Generic
             return ~lo;
         }
 
-        private static void SwapIfGreater(T[] keys, IComparer<T> comparer, int a, int b)
+        private static void SwapIfGreater(T[] keys, Comparison<T> comparer, int a, int b)
         {
             if (a != b)
             {
-                if (comparer.Compare(keys[a], keys[b]) > 0)
+                if (comparer(keys[a], keys[b]) > 0)
                 {
                     T key = keys[a];
                     keys[a] = keys[b];
@@ -224,7 +194,7 @@ namespace System.Collections.Generic
 
         private static void Swap(T[] a, int i, int j)
         {
-            if(i != j)
+            if (i != j)
             {
                 T t = a[i];
                 a[i] = a[j];
@@ -232,63 +202,7 @@ namespace System.Collections.Generic
             }
         }
 
-        internal static void DepthLimitedQuickSort(T[] keys, int left, int right, IComparer<T> comparer, int depthLimit)
-        {
-            do
-            {
-                if (depthLimit == 0)
-                {
-                    Heapsort(keys, left, right, comparer);
-                    return;
-                }
-
-                int i = left;
-                int j = right;
-
-                // pre-sort the low, middle (pivot), and high values in place.
-                // this improves performance in the face of already sorted data, or 
-                // data that is made up of multiple sorted runs appended together.
-                int middle = i + ((j - i) >> 1);
-                SwapIfGreater(keys, comparer, i, middle);  // swap the low with the mid point
-                SwapIfGreater(keys, comparer, i, j);   // swap the low with the high
-                SwapIfGreater(keys, comparer, middle, j); // swap the middle with the high
-
-                T x = keys[middle];
-                do
-                {
-                    while (comparer.Compare(keys[i], x) < 0) i++;
-                    while (comparer.Compare(x, keys[j]) < 0) j--;
-                    Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
-                    if (i > j) break;
-                    if (i < j)
-                    {
-                        T key = keys[i];
-                        keys[i] = keys[j];
-                        keys[j] = key;
-                    }
-                    i++;
-                    j--;
-                } while (i <= j);
-
-                // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
-                // both sorts see the new value.
-                depthLimit--;
-
-                if (j - left <= right - i)
-                {
-                    if (left < j) DepthLimitedQuickSort(keys, left, j, comparer, depthLimit);
-                    left = i;
-                }
-                else
-                {
-                    if (i < right) DepthLimitedQuickSort(keys, i, right, comparer, depthLimit);
-                    right = j;
-                }
-            } while (left < right);
-        }
-
-        internal static void IntrospectiveSort(T[] keys, int left, int length, IComparer<T> comparer)
+        internal static void IntrospectiveSort(T[] keys, int left, int length, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(comparer != null);
@@ -303,7 +217,7 @@ namespace System.Collections.Generic
             IntroSort(keys, left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2(keys.Length), comparer);
         }
 
-        private static void IntroSort(T[] keys, int lo, int hi, int depthLimit, IComparer<T> comparer)
+        private static void IntroSort(T[] keys, int lo, int hi, int depthLimit, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(comparer != null);
@@ -326,9 +240,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreater(keys, comparer, lo, hi-1);
+                        SwapIfGreater(keys, comparer, lo, hi - 1);
                         SwapIfGreater(keys, comparer, lo, hi);
-                        SwapIfGreater(keys, comparer, hi-1, hi);
+                        SwapIfGreater(keys, comparer, hi - 1, hi);
                         return;
                     }
 
@@ -350,7 +264,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private static int PickPivotAndPartition(T[] keys, int lo, int hi, IComparer<T> comparer)
+        private static int PickPivotAndPartition(T[] keys, int lo, int hi, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(comparer != null);
@@ -373,8 +287,8 @@ namespace System.Collections.Generic
 
             while (left < right)
             {
-                while (comparer.Compare(keys[++left], pivot) < 0) ;
-                while (comparer.Compare(pivot, keys[--right]) < 0) ;
+                while (comparer(keys[++left], pivot) < 0) ;
+                while (comparer(pivot, keys[--right]) < 0) ;
 
                 if (left >= right)
                     break;
@@ -387,7 +301,7 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void Heapsort(T[] keys, int lo, int hi, IComparer<T> comparer)
+        private static void Heapsort(T[] keys, int lo, int hi, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(comparer != null);
@@ -407,7 +321,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private static void DownHeap(T[] keys, int i, int n, int lo, IComparer<T> comparer)
+        private static void DownHeap(T[] keys, int i, int n, int lo, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(comparer != null);
@@ -419,11 +333,11 @@ namespace System.Collections.Generic
             while (i <= n / 2)
             {
                 child = 2 * i;
-                if (child < n && comparer.Compare(keys[lo + child - 1], keys[lo + child]) < 0)
+                if (child < n && comparer(keys[lo + child - 1], keys[lo + child]) < 0)
                 {
                     child++;
                 }
-                if (!(comparer.Compare(d, keys[lo + child - 1]) < 0))
+                if (!(comparer(d, keys[lo + child - 1]) < 0))
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
                 i = child;
@@ -431,7 +345,7 @@ namespace System.Collections.Generic
             keys[lo + i - 1] = d;
         }
 
-        private static void InsertionSort(T[] keys, int lo, int hi, IComparer<T> comparer)
+        private static void InsertionSort(T[] keys, int lo, int hi, Comparison<T> comparer)
         {
             Contract.Requires(keys != null);
             Contract.Requires(lo >= 0);
@@ -444,7 +358,7 @@ namespace System.Collections.Generic
             {
                 j = i;
                 t = keys[i + 1];
-                while (j >= lo && comparer.Compare(t, keys[j]) < 0)
+                while (j >= lo && comparer(t, keys[j]) < 0)
                 {
                     keys[j + 1] = keys[j];
                     j--;
@@ -454,60 +368,28 @@ namespace System.Collections.Generic
         }
     }
 
-    [Serializable()]
     internal class GenericArraySortHelper<T>
         : IArraySortHelper<T>
         where T : IComparable<T>
     {
         // Do not add a constructor to this class because ArraySortHelper<T>.CreateSortHelper will not execute it
-        
+
         #region IArraySortHelper<T> Members
 
         public void Sort(T[] keys, int index, int length, IComparer<T> comparer)
         {
-            Contract.Assert(keys != null, "Check the arguments in the caller!");
-            Contract.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(keys != null, "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             try
             {
-                if (comparer == null || comparer == Comparer<T>.Default) {
-
-#if FEATURE_CORECLR
-                    // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                    // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                    // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
+                if (comparer == null || comparer == Comparer<T>.Default)
+                {
                     IntrospectiveSort(keys, index, length);
-#else
-                    // call the faster version of our sort algorithm if the user doesn't provide a comparer
-                    if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                    {
-                        IntrospectiveSort(keys, index, length);
-                    }
-                    else
-                    {
-                        DepthLimitedQuickSort(keys, index, length + index - 1, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                    }
-#endif
                 }
                 else
                 {
-#if FEATURE_CORECLR
-                    // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                    // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                    // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
-                    ArraySortHelper<T>.IntrospectiveSort(keys, index, length, comparer);
-#else
-                    if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                    {
-                        ArraySortHelper<T>.IntrospectiveSort(keys, index, length, comparer);
-                    }
-                    else
-                    {
-                        ArraySortHelper<T>.DepthLimitedQuickSort(keys, index, length + index - 1, comparer, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                    }
-#endif
+                    ArraySortHelper<T>.IntrospectiveSort(keys, index, length, comparer.Compare);
                 }
             }
             catch (IndexOutOfRangeException)
@@ -516,14 +398,14 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
         public int BinarySearch(T[] array, int index, int length, T value, IComparer<T> comparer)
         {
-            Contract.Assert(array != null, "Check the arguments in the caller!");
-            Contract.Assert(index >= 0 && length >= 0 && (array.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(array != null, "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (array.Length - index >= length), "Check the arguments in the caller!");
 
             try
             {
@@ -538,7 +420,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -601,84 +483,12 @@ namespace System.Collections.Generic
 
         private static void Swap(T[] a, int i, int j)
         {
-            if(i!=j)
+            if (i != j)
             {
                 T t = a[i];
                 a[i] = a[j];
                 a[j] = t;
             }
-        }
-
-        private static void DepthLimitedQuickSort(T[] keys, int left, int right, int depthLimit)
-        {
-            Contract.Requires(keys != null);
-            Contract.Requires(0 <= left && left < keys.Length);
-            Contract.Requires(0 <= right && right < keys.Length);
-
-            // The code in this function looks very similar to QuickSort in ArraySortHelper<T> class.
-            // The difference is that T is constrainted to IComparable<T> here.
-            // So the IL code will be different. This function is faster than the one in ArraySortHelper<T>.
-
-            do
-            {
-                if (depthLimit == 0)
-                {
-                    Heapsort(keys, left, right);
-                    return;
-                }
-
-                int i = left;
-                int j = right;
-
-                // pre-sort the low, middle (pivot), and high values in place.
-                // this improves performance in the face of already sorted data, or 
-                // data that is made up of multiple sorted runs appended together.
-                int middle = i + ((j - i) >> 1);
-                SwapIfGreaterWithItems(keys, i, middle); // swap the low with the mid point
-                SwapIfGreaterWithItems(keys, i, j);      // swap the low with the high
-                SwapIfGreaterWithItems(keys, middle, j); // swap the middle with the high
-
-                T x = keys[middle];
-                do
-                {
-                    if (x == null)
-                    {
-                        // if x null, the loop to find two elements to be switched can be reduced.
-                        while (keys[j] != null) j--;
-                    }
-                    else
-                    {
-                        while (x.CompareTo(keys[i]) > 0) i++;
-                        while (x.CompareTo(keys[j]) < 0) j--;
-                    }
-                    Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
-                    if (i > j) break;
-                    if (i < j)
-                    {
-                        T key = keys[i];
-                        keys[i] = keys[j];
-                        keys[j] = key;
-                    }
-                    i++;
-                    j--;
-                } while (i <= j);
-
-                // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
-                // both sorts see the new value.
-                depthLimit--;
-
-                if (j - left <= right - i)
-                {
-                    if (left < j) DepthLimitedQuickSort(keys, left, j, depthLimit);
-                    left = i;
-                }
-                else
-                {
-                    if (i < right) DepthLimitedQuickSort(keys, i, right, depthLimit);
-                    right = j;
-                }
-            } while (left < right);
         }
 
         internal static void IntrospectiveSort(T[] keys, int left, int length)
@@ -717,9 +527,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, lo, hi);
-                        SwapIfGreaterWithItems(keys, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, hi - 1, hi);
                         return;
                     }
 
@@ -863,7 +673,7 @@ namespace System.Collections.Generic
     internal class ArraySortHelper<TKey, TValue>
         : IArraySortHelper<TKey, TValue>
     {
-        static volatile IArraySortHelper<TKey, TValue> defaultArraySortHelper;
+        private static volatile IArraySortHelper<TKey, TValue> defaultArraySortHelper;
 
         public static IArraySortHelper<TKey, TValue> Default
         {
@@ -877,7 +687,6 @@ namespace System.Collections.Generic
             }
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         private static IArraySortHelper<TKey, TValue> CreateArraySortHelper()
         {
             if (typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey)))
@@ -893,8 +702,8 @@ namespace System.Collections.Generic
 
         public void Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer)
         {
-            Contract.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
-            Contract.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+            Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
             // underlying IComparables, etc) that are bogus.
@@ -905,22 +714,7 @@ namespace System.Collections.Generic
                     comparer = Comparer<TKey>.Default;
                 }
 
-#if FEATURE_CORECLR
-                // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
                 IntrospectiveSort(keys, values, index, length, comparer);
-#else
-                if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                {
-                    IntrospectiveSort(keys, values, index, length, comparer);
-                }
-                else
-                {
-                    DepthLimitedQuickSort(keys, values, index, length + index - 1, comparer, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                }
-#endif
             }
             catch (IndexOutOfRangeException)
             {
@@ -928,7 +722,7 @@ namespace System.Collections.Generic
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -959,80 +753,18 @@ namespace System.Collections.Generic
 
         private static void Swap(TKey[] keys, TValue[] values, int i, int j)
         {
-            if(i!=j)
+            if (i != j)
             {
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if(values != null)
+                if (values != null)
                 {
                     TValue v = values[i];
                     values[i] = values[j];
                     values[j] = v;
                 }
             }
-        }
-
-        internal static void DepthLimitedQuickSort(TKey[] keys, TValue[] values, int left, int right, IComparer<TKey> comparer, int depthLimit)
-        {
-            do
-            {
-                if (depthLimit == 0)
-                {
-                    Heapsort(keys, values, left, right, comparer);
-                    return;
-                }
-
-                int i = left;
-                int j = right;
-
-                // pre-sort the low, middle (pivot), and high values in place.
-                // this improves performance in the face of already sorted data, or 
-                // data that is made up of multiple sorted runs appended together.
-                int middle = i + ((j - i) >> 1);
-                SwapIfGreaterWithItems(keys, values, comparer, i, middle);  // swap the low with the mid point
-                SwapIfGreaterWithItems(keys, values, comparer, i, j);   // swap the low with the high
-                SwapIfGreaterWithItems(keys, values, comparer, middle, j); // swap the middle with the high
-
-                TKey x = keys[middle];
-                do
-                {
-                    while (comparer.Compare(keys[i], x) < 0) i++;
-                    while (comparer.Compare(x, keys[j]) < 0) j--;
-                    Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
-                    if (i > j) break;
-                    if (i < j)
-                    {
-                        TKey key = keys[i];
-                        keys[i] = keys[j];
-                        keys[j] = key;
-                        if (values != null)
-                        {
-                            TValue value = values[i];
-                            values[i] = values[j];
-                            values[j] = value;
-                        }
-                    }
-                    i++;
-                    j--;
-                } while (i <= j);
-
-                // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
-                // both sorts see the new value.
-                depthLimit--;
-
-                if (j - left <= right - i)
-                {
-                    if (left < j) DepthLimitedQuickSort(keys, values, left, j, comparer, depthLimit);
-                    left = i;
-                }
-                else
-                {
-                    if (i < right) DepthLimitedQuickSort(keys, values, i, right, comparer, depthLimit);
-                    right = j;
-                }
-            } while (left < right);
         }
 
         internal static void IntrospectiveSort(TKey[] keys, TValue[] values, int left, int length, IComparer<TKey> comparer)
@@ -1076,9 +808,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, values, comparer, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, values, comparer, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, values, comparer, lo, hi);
-                        SwapIfGreaterWithItems(keys, values, comparer, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, values, comparer, hi - 1, hi);
                         return;
                     }
 
@@ -1179,12 +911,12 @@ namespace System.Collections.Generic
                 if (!(comparer.Compare(d, keys[lo + child - 1]) < 0))
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if(values != null)
+                if (values != null)
                     values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if(values != null)
+            if (values != null)
                 values[lo + i - 1] = dValue;
         }
 
@@ -1208,12 +940,12 @@ namespace System.Collections.Generic
                 while (j >= lo && comparer.Compare(t, keys[j]) < 0)
                 {
                     keys[j + 1] = keys[j];
-                    if(values != null)
+                    if (values != null)
                         values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if(values != null)
+                if (values != null)
                     values[j + 1] = tValue;
             }
         }
@@ -1225,61 +957,29 @@ namespace System.Collections.Generic
     {
         public void Sort(TKey[] keys, TValue[] values, int index, int length, IComparer<TKey> comparer)
         {
-            Contract.Assert(keys != null, "Check the arguments in the caller!");
-            Contract.Assert( index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
-            
+            Debug.Assert(keys != null, "Check the arguments in the caller!");
+            Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
+
             // Add a try block here to detect IComparers (or their
             // underlying IComparables, etc) that are bogus.
             try
             {
                 if (comparer == null || comparer == Comparer<TKey>.Default)
                 {
-#if FEATURE_CORECLR
-                    // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                    // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                    // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
                     IntrospectiveSort(keys, values, index, length);
-#else
-                    // call the faster version of our sort algorithm if the user doesn't provide a comparer
-                    if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                    {
-                        IntrospectiveSort(keys, values, index, length);
-                    }
-                    else
-                    {
-                        DepthLimitedQuickSort(keys, values, index, length + index - 1, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                    }
-#endif
                 }
                 else
                 {
-#if FEATURE_CORECLR
-                    // Since QuickSort and IntrospectiveSort produce different sorting sequence for equal keys the upgrade 
-                    // to IntrospectiveSort was quirked. However since the phone builds always shipped with the new sort aka 
-                    // IntrospectiveSort and we would want to continue using this sort moving forward CoreCLR always uses the new sort.
-
                     ArraySortHelper<TKey, TValue>.IntrospectiveSort(keys, values, index, length, comparer);
-#else
-                    if (BinaryCompatibility.TargetsAtLeast_Desktop_V4_5)
-                    {
-                        ArraySortHelper<TKey, TValue>.IntrospectiveSort(keys, values, index, length, comparer);
-                    }
-                    else
-                    {
-                        ArraySortHelper<TKey, TValue>.DepthLimitedQuickSort(keys, values, index, length + index - 1, comparer, IntrospectiveSortUtilities.QuickSortDepthThreshold);
-                    }
-#endif
                 }
-
-            }                    
+            }
             catch (IndexOutOfRangeException)
             {
                 IntrospectiveSortUtilities.ThrowOrIgnoreBadComparer(comparer);
             }
             catch (Exception e)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_IComparerFailed"), e);
+                throw new InvalidOperationException(SR.InvalidOperation_IComparerFailed, e);
             }
         }
 
@@ -1304,92 +1004,18 @@ namespace System.Collections.Generic
 
         private static void Swap(TKey[] keys, TValue[] values, int i, int j)
         {
-            if(i != j)
+            if (i != j)
             {
                 TKey k = keys[i];
                 keys[i] = keys[j];
                 keys[j] = k;
-                if(values != null)
+                if (values != null)
                 {
                     TValue v = values[i];
                     values[i] = values[j];
                     values[j] = v;
                 }
             }
-        }
-
-        private static void DepthLimitedQuickSort(TKey[] keys, TValue[] values, int left, int right, int depthLimit)
-        {
-            // The code in this function looks very similar to QuickSort in ArraySortHelper<T> class.
-            // The difference is that T is constrainted to IComparable<T> here.
-            // So the IL code will be different. This function is faster than the one in ArraySortHelper<T>.
-
-            do
-            {
-                if (depthLimit == 0)
-                {
-                    Heapsort(keys, values, left, right);
-                    return;
-                }
-
-                int i = left;
-                int j = right;
-
-                // pre-sort the low, middle (pivot), and high values in place.
-                // this improves performance in the face of already sorted data, or 
-                // data that is made up of multiple sorted runs appended together.
-                int middle = i + ((j - i) >> 1);
-                SwapIfGreaterWithItems(keys, values, i, middle); // swap the low with the mid point
-                SwapIfGreaterWithItems(keys, values, i, j);      // swap the low with the high
-                SwapIfGreaterWithItems(keys, values, middle, j); // swap the middle with the high
-
-                TKey x = keys[middle];
-                do
-                {
-                    if (x == null)
-                    {
-                        // if x null, the loop to find two elements to be switched can be reduced.
-                        while (keys[j] != null) j--;
-                    }
-                    else
-                    {
-                        while (x.CompareTo(keys[i]) > 0) i++;
-                        while (x.CompareTo(keys[j]) < 0) j--;
-                    }
-                    Contract.Assert(i >= left && j <= right, "(i>=left && j<=right)  Sort failed - Is your IComparer bogus?");
-                    if (i > j) break;
-                    if (i < j)
-                    {
-                        TKey key = keys[i];
-                        keys[i] = keys[j];
-                        keys[j] = key;
-                        if (values != null)
-                        {
-                            TValue value = values[i];
-                            values[i] = values[j];
-                            values[j] = value;
-                        }
-                    }
-                    i++;
-                    j--;
-                } while (i <= j);
-
-                // The next iteration of the while loop is to "recursively" sort the larger half of the array and the
-                // following calls recursively sort the smaller half.  So we subtract one from depthLimit here so
-                // both sorts see the new value.
-                depthLimit--;
-
-                if (j - left <= right - i)
-                {
-                    if (left < j) DepthLimitedQuickSort(keys, values, left, j, depthLimit);
-                    left = i;
-                }
-                else
-                {
-                    if (i < right) DepthLimitedQuickSort(keys, values, i, right, depthLimit);
-                    right = j;
-                }
-            } while (left < right);
         }
 
         internal static void IntrospectiveSort(TKey[] keys, TValue[] values, int left, int length)
@@ -1431,9 +1057,9 @@ namespace System.Collections.Generic
                     }
                     if (partitionSize == 3)
                     {
-                        SwapIfGreaterWithItems(keys, values, lo, hi-1);
+                        SwapIfGreaterWithItems(keys, values, lo, hi - 1);
                         SwapIfGreaterWithItems(keys, values, lo, hi);
-                        SwapIfGreaterWithItems(keys, values, hi-1, hi);
+                        SwapIfGreaterWithItems(keys, values, hi - 1, hi);
                         return;
                     }
 
@@ -1478,10 +1104,10 @@ namespace System.Collections.Generic
 
             while (left < right)
             {
-                if(pivot == null)
+                if (pivot == null)
                 {
                     while (left < (hi - 1) && keys[++left] == null) ;
-                    while (right > lo && keys[--right] != null);
+                    while (right > lo && keys[--right] != null) ;
                 }
                 else
                 {
@@ -1539,12 +1165,12 @@ namespace System.Collections.Generic
                 if (keys[lo + child - 1] == null || keys[lo + child - 1].CompareTo(d) < 0)
                     break;
                 keys[lo + i - 1] = keys[lo + child - 1];
-                if(values != null)
+                if (values != null)
                     values[lo + i - 1] = values[lo + child - 1];
                 i = child;
             }
             keys[lo + i - 1] = d;
-            if(values != null)
+            if (values != null)
                 values[lo + i - 1] = dValue;
         }
 
@@ -1563,16 +1189,16 @@ namespace System.Collections.Generic
             {
                 j = i;
                 t = keys[i + 1];
-                tValue = (values != null)? values[i + 1] : default(TValue);
+                tValue = (values != null) ? values[i + 1] : default(TValue);
                 while (j >= lo && (t == null || t.CompareTo(keys[j]) < 0))
                 {
                     keys[j + 1] = keys[j];
-                    if(values != null)
+                    if (values != null)
                         values[j + 1] = values[j];
                     j--;
                 }
                 keys[j + 1] = t;
-                if(values != null)
+                if (values != null)
                     values[j + 1] = tValue;
             }
         }
@@ -1580,5 +1206,3 @@ namespace System.Collections.Generic
 
     #endregion
 }
-
-

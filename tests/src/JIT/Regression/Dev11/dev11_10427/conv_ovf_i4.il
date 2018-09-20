@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly Conv_ovf_u4_Bug {}
 
@@ -20,7 +23,7 @@
 
 .try
 {
-call int32 [mscorlib]System.Environment::get_TickCount()
+call int32 [system.runtime.extensions]System.Environment::get_TickCount()
 conv.i8
 ldc.i8 0x80000000
 or
@@ -73,4 +76,3 @@ EXIT:
 ldloc result
 ret
 }
-

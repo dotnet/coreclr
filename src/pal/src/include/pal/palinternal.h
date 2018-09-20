@@ -169,7 +169,6 @@ function_name() to call the system's implementation
 #define memmove DUMMY_memmove 
 #define memchr DUMMY_memchr
 #define strlen DUMMY_strlen
-#define strnlen DUMMY_strnlen
 #define stricmp DUMMY_stricmp 
 #define strstr DUMMY_strstr 
 #define strcmp DUMMY_strcmp 
@@ -184,12 +183,6 @@ function_name() to call the system's implementation
 #define strpbrk DUMMY_strpbrk
 #define strtod DUMMY_strtod
 #define strspn DUMMY_strspn
-#if HAVE__SNPRINTF
-#define _snprintf DUMMY__snprintf
-#endif /* HAVE__SNPRINTF */
-#if HAVE__SNWPRINTF
-#define _snwprintf DUMMY__snwprintf
-#endif  /* HAVE__SNWPRINTF */
 #define tolower DUMMY_tolower
 #define toupper DUMMY_toupper
 #define islower DUMMY_islower
@@ -205,22 +198,30 @@ function_name() to call the system's implementation
 #define va_list DUMMY_va_list
 #define abs DUMMY_abs
 #define llabs DUMMY_llabs
-#define atan DUMMY_atan
-#define tan DUMMY_tan
-#define cos DUMMY_cos
-#define sin DUMMY_sin
-#define cosh DUMMY_cosh
-#define sinh DUMMY_sinh
-#define tanh DUMMY_tanh
-#define modf DUMMY_modf
-#define fmod DUMMY_fmod
-#define fmodf DUMMY_fmodf
-#define sqrt DUMMY_sqrt
 #define ceil DUMMY_ceil
+#define cos DUMMY_cos
+#define cosh DUMMY_cosh
 #define fabs DUMMY_fabs
-#define fabsf DUMMY_fabsf
 #define floor DUMMY_floor
+#define fmod DUMMY_fmod
+#define modf DUMMY_modf
+#define sin DUMMY_sin
+#define sinh DUMMY_sinh
+#define sqrt DUMMY_sqrt
+#define tan DUMMY_tan
+#define tanh DUMMY_tanh
+#define ceilf DUMMY_ceilf
+#define cosf DUMMY_cosf
+#define coshf DUMMY_coshf
+#define fabsf DUMMY_fabsf
+#define floorf DUMMY_floorf
+#define fmodf DUMMY_fmodf
 #define modff DUMMY_modff
+#define sinf DUMMY_sinf
+#define sinhf DUMMY_sinhf
+#define sqrtf DUMMY_sqrtf
+#define tanf DUMMY_tanf
+#define tanhf DUMMY_tanhf
 
 /* RAND_MAX needed to be renamed to avoid duplicate definition when including 
    stdlib.h header files. PAL_RAND_MAX should have the same value as RAND_MAX 
@@ -334,7 +335,7 @@ function_name() to call the system's implementation
 #undef va_arg
 #endif
 
-#if !defined(_MSC_VER) && defined(FEATURE_PAL) && defined(_WIN64)
+#if !defined(_MSC_VER) && defined(_WIN64)
 #undef _BitScanForward64
 #endif 
 
@@ -350,15 +351,14 @@ function_name() to call the system's implementation
 #undef atexit
 #undef div
 #undef div_t
-#if !defined(_DEBUG)
 #undef memcpy
-#endif //!defined(_DEBUG)
 #undef memcmp
 #undef memset
 #undef memmove
 #undef memchr
 #undef strlen
 #undef strnlen
+#undef wcsnlen
 #undef stricmp
 #undef strstr
 #undef strcmp
@@ -443,11 +443,44 @@ function_name() to call the system's implementation
 #undef llabs
 #undef acos
 #undef asin
+#undef atan
 #undef atan2
+#undef ceil
+#undef cos
+#undef cosh
 #undef exp
+#undef fabs
+#undef floor
+#undef fmod
 #undef log
 #undef log10
+#undef modf
 #undef pow
+#undef sin
+#undef sinh
+#undef sqrt
+#undef tan
+#undef tanh
+#undef acosf
+#undef asinf
+#undef atanf
+#undef atan2f
+#undef ceilf
+#undef cosf
+#undef coshf
+#undef expf
+#undef fabsf
+#undef floorf
+#undef fmodf
+#undef logf
+#undef log10f
+#undef modff
+#undef powf
+#undef sinf
+#undef sinhf
+#undef sqrtf
+#undef tanf
+#undef tanhf
 #undef rand
 #undef srand
 #undef errno
@@ -455,22 +488,6 @@ function_name() to call the system's implementation
 #undef wcsspn
 #undef open
 #undef glob
-#undef atan
-#undef tan
-#undef cos
-#undef sin
-#undef cosh
-#undef sinh
-#undef tanh
-#undef modf
-#undef fmod
-#undef fmodf
-#undef sqrt
-#undef ceil
-#undef fabs
-#undef fabsf
-#undef floor
-#undef modff
 
 #undef wchar_t
 #undef ptrdiff_t
@@ -486,13 +503,6 @@ function_name() to call the system's implementation
 #undef vfwprintf
 #undef vprintf
 #undef wprintf
-#undef sprintf
-#undef swprintf
-#undef _snprintf
-#if HAVE__SNWPRINTF
-#undef _snwprintf
-#endif  /* HAVE__SNWPRINTF */
-#undef sscanf
 #undef wcstod
 #undef wcstol
 #undef wcstoul
@@ -503,7 +513,6 @@ function_name() to call the system's implementation
 #undef wcsncmp
 #undef wcschr
 #undef wcsrchr
-#undef wsprintf
 #undef swscanf
 #undef wcspbrk
 #undef wcsstr
@@ -516,11 +525,6 @@ function_name() to call the system's implementation
 #undef iswspace
 #undef towlower
 #undef towupper
-#undef vsprintf
-#undef vswprintf
-#undef _vsnprintf
-#undef _vsnwprintf
-#undef vsnprintf
 #undef wvsnprintf
 
 #ifdef _AMD64_ 
@@ -567,6 +571,10 @@ function_name() to call the system's implementation
 #endif
 #include <ctype.h>
 
+// Don't use C++ wrappers for stdlib.h
+// https://gcc.gnu.org/ml/libstdc++/2016-01/msg00025.html 
+#define _GLIBCXX_INCLUDE_NEXT_C_HEADERS 1
+
 #define _WITH_GETLINE
 #include <stdio.h>
 #include <stdlib.h>
@@ -594,14 +602,18 @@ function_name() to call the system's implementation
 #define INFTIM  -1
 #endif // !HAVE_INFTIM
 
-#if (__GNUC__ >= 4)
 #define OffsetOf(TYPE, MEMBER) __builtin_offsetof(TYPE, MEMBER)
-#else
-#define OffsetOf(s, f) (INT)(SIZE_T)&(((s*)0)->f)
-#endif /* __GNUC__ version check*/
 
 #undef assert
 #define assert (Use__ASSERTE_instead_of_assert) assert
+
+#ifndef __ANDROID__
+#define TEMP_DIRECTORY_PATH "/tmp/"
+#else
+// On Android, "/tmp/" doesn't exist; temporary files should go to
+// /data/local/tmp/
+#define TEMP_DIRECTORY_PATH "/data/local/tmp/"
+#endif
 
 #define PROCESS_PIPE_NAME_PREFIX ".dotnet-pal-processpipe"
 
@@ -686,7 +698,7 @@ inline T* InterlockedCompareExchangePointerT(
 
 #include "volatile.h"
 
-const char StackOverflowMessage[] = "Process is terminated due to StackOverflowException.\n";
+const char StackOverflowMessage[] = "Process is terminating due to StackOverflowException.\n";
 
 #endif // __cplusplus
 

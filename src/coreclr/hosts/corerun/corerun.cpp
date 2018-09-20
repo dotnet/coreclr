@@ -47,7 +47,7 @@ class HostEnvironment
     // The list of paths to the assemblies that will be trusted by CoreCLR
     SString m_tpaList;
 
-    ICLRRuntimeHost2* m_CLRRuntimeHost;
+    ICLRRuntimeHost4* m_CLRRuntimeHost;
 
     HMODULE m_coreCLRModule;
 
@@ -161,7 +161,7 @@ public:
         }
     }
 
-    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    bool TPAListContainsFile(_In_z_ wchar_t* fileNameWithoutExtension, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         if (m_tpaList.IsEmpty()) return false;
 
@@ -201,7 +201,7 @@ public:
         }
     }
 
-    void AddFilesFromDirectoryToTPAList(_In_z_ const wchar_t* targetPath, _In_reads_(countExtensions) wchar_t** rgTPAExtensions, int countExtensions)
+    void AddFilesFromDirectoryToTPAList(_In_z_ const wchar_t* targetPath, _In_reads_(countExtensions) const wchar_t** rgTPAExtensions, int countExtensions)
     {
         *m_log << W("Adding assemblies from ") << targetPath << W(" to the TPA list") << Logger::endl;
         StackSString assemblyPath;
@@ -259,7 +259,7 @@ public:
     // On first call, scans the coreclr directory for dlls and adds them all to the list.
     const wchar_t * GetTpaList() {
         if (m_tpaList.IsEmpty()) {
-            wchar_t *rgTPAExtensions[] = {
+            const wchar_t *rgTPAExtensions[] = {
                         W("*.ni.dll"),		// Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
                         W("*.dll"),
                         W("*.ni.exe"),
@@ -298,8 +298,8 @@ public:
         return m_hostExeName;
     }
 
-    // Returns the ICLRRuntimeHost2 instance, loading it from CoreCLR.dll if necessary, or nullptr on failure.
-    ICLRRuntimeHost2* GetCLRRuntimeHost() {
+    // Returns the ICLRRuntimeHost4 instance, loading it from CoreCLR.dll if necessary, or nullptr on failure.
+    ICLRRuntimeHost4* GetCLRRuntimeHost() {
         if (!m_CLRRuntimeHost) {
 
             if (!m_coreCLRModule) {
@@ -319,9 +319,9 @@ public:
 
             *m_log << W("Calling GetCLRRuntimeHost(...)") << Logger::endl;
 
-            HRESULT hr = pfnGetCLRRuntimeHost(IID_ICLRRuntimeHost2, (IUnknown**)&m_CLRRuntimeHost);
+            HRESULT hr = pfnGetCLRRuntimeHost(IID_ICLRRuntimeHost4, (IUnknown**)&m_CLRRuntimeHost);
             if (FAILED(hr)) {
-                *m_log << W("Failed to get ICLRRuntimeHost2 interface. ERRORCODE: ") << Logger::hresult << hr << Logger::endl;
+                *m_log << W("Failed to get ICLRRuntimeHost4 interface. ERRORCODE: ") << Logger::hresult << hr << Logger::endl;
                 return nullptr;
             }
         }
@@ -442,7 +442,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     // Start the CoreCLR
 
-    ICLRRuntimeHost2 *host = hostEnvironment.GetCLRRuntimeHost();
+    ICLRRuntimeHost4 *host = hostEnvironment.GetCLRRuntimeHost();
     if (!host) {
         return false;
     }
@@ -451,7 +451,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     
     
     STARTUP_FLAGS flags = CreateStartupFlags();
-    log << W("Setting ICLRRuntimeHost2 startup flags") << Logger::endl;
+    log << W("Setting ICLRRuntimeHost4 startup flags") << Logger::endl;
     log << W("Server GC enabled: ") << HAS_FLAG(flags, STARTUP_FLAGS::STARTUP_SERVER_GC) << Logger::endl;
     log << W("Concurrent GC enabled: ") << HAS_FLAG(flags, STARTUP_FLAGS::STARTUP_CONCURRENT_GC) << Logger::endl;
 
@@ -462,13 +462,25 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         return false;
     }
 
-    log << W("Starting ICLRRuntimeHost2") << Logger::endl;
+    log << W("Starting ICLRRuntimeHost4") << Logger::endl;
 
     hr = host->Start();
     if (FAILED(hr)) {
         log << W("Failed to start CoreCLR. ERRORCODE: ") << Logger::hresult << hr << Logger:: endl;
         return false;
     }
+
+    StackSString tpaList;
+    if (!managedAssemblyFullName.IsEmpty())
+    {
+        // Target assembly should be added to the tpa list. Otherwise corerun.exe
+        // may find wrong assembly to execute.
+        // Details can be found at https://github.com/dotnet/coreclr/issues/5631
+        tpaList = managedAssemblyFullName;
+        tpaList.Append(W(';'));
+    }
+
+    tpaList.Append(hostEnvironment.GetTpaList());
 
     //-------------------------------------------------------------
 
@@ -495,20 +507,17 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         W("APP_PATHS"),
         W("APP_NI_PATHS"),
         W("NATIVE_DLL_SEARCH_DIRECTORIES"),
-        W("AppDomainCompatSwitch"),
         W("APP_LOCAL_WINMETADATA")
     };
     const wchar_t *property_values[] = { 
         // TRUSTED_PLATFORM_ASSEMBLIES
-        hostEnvironment.GetTpaList(),
+        tpaList,
         // APP_PATHS
         appPath,
         // APP_NI_PATHS
         appNiPath,
         // NATIVE_DLL_SEARCH_DIRECTORIES
         nativeDllSearchDirs,
-        // AppDomainCompatSwitch
-        W("UseLatestBehaviorWhenTFMNotSpecified"),
         // APP_LOCAL_WINMETADATA
         appLocalWinmetadata
     };
@@ -584,15 +593,17 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     log << W("Unloading the AppDomain") << Logger::endl;
 
-    hr = host->UnloadAppDomain(
+    hr = host->UnloadAppDomain2(
         domainId, 
-        true);                          // Wait until done
+        true,
+        (int *)&exitCode);                          // Wait until done
 
     if (FAILED(hr)) {
         log << W("Failed to unload the AppDomain. ERRORCODE: ") << Logger::hresult << hr << Logger::endl;
         return false;
     }
 
+    log << W("App domain unloaded exit value = ") << exitCode << Logger::endl;
 
     //-------------------------------------------------------------
 
@@ -611,7 +622,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     // Release the reference to the host
 
-    log << W("Releasing ICLRRuntimeHost2") << Logger::endl;
+    log << W("Releasing ICLRRuntimeHost4") << Logger::endl;
 
     host->Release();
 
@@ -657,7 +668,7 @@ int __cdecl wmain(const int argc, const wchar_t* argv[])
         } else if ( stringsEqual(arg, W("/d")) || stringsEqual(arg, W("-d")) ) {
                 waitForDebugger = true;
                 return true;
-        } else if ( stringsEqual(arg, W("/?")) || stringsEqual(arg, W("-?")) ) {
+        } else if ( stringsEqual(arg, W("/?")) || stringsEqual(arg, W("-?")) || stringsEqual(arg, W("-h")) || stringsEqual(arg, W("--help")) ) {
             helpRequested = true;
             return true;
         } else {

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -32,7 +33,7 @@
                int32 V_1)
       .try
       {
-			ldc.i4     0xc0000005
+			ldc.i4   0xC0000017
 			ldc.i4.0
 			dup
 			dup
@@ -43,7 +44,7 @@
 			calli   void (unsigned int32, unsigned int32, unsigned int32, native uint)
 			leave.s    IL_001d
       }  // end .try
-      catch [mscorlib]System.AccessViolationException 
+      catch [mscorlib]System.OutOfMemoryException 
       {
         IL_000f:  stloc.0
         IL_0010:  ldloc.0

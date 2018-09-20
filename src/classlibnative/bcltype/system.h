@@ -72,14 +72,8 @@ private:
 public:
     // Functions on the System.Environment class
     static FCDECL0(INT64, __GetSystemTimeAsFileTime);
+    static FCDECL0(UINT32, GetCurrentProcessorNumber);
     static FCDECL0(UINT32, GetTickCount);
-    static FCDECL1(FC_BOOL_RET, GetOSVersion, OSVERSIONINFOObject *osVer);
-    static FCDECL1(FC_BOOL_RET, GetOSVersionEx, OSVERSIONINFOEXObject *osVer);
-
-#ifndef FEATURE_CORECLR
-    static
-    INT64 QCALLTYPE GetWorkingSet();
-#endif // !FEATURE_CORECLR
 
     static
     void QCALLTYPE Exit(INT32 exitcode);
@@ -95,10 +89,6 @@ public:
     static FCDECL1(VOID, FailFast, StringObject* refMessageUNSAFE);
     static FCDECL2(VOID, FailFastWithExitCode, StringObject* refMessageUNSAFE, UINT exitCode);
     static FCDECL2(VOID, FailFastWithException, StringObject* refMessageUNSAFE, ExceptionObject* refExceptionUNSAFE);
-#ifndef FEATURE_CORECLR
-    static void QCALLTYPE TriggerCodeContractFailure(ContractFailureKind failureKind, LPCWSTR pMessage, LPCWSTR pCondition, LPCWSTR exceptionAsText);
-    static BOOL QCALLTYPE IsCLRHosted();
-#endif // !FEATURE_CORECLR
 
     static FCDECL0(StringObject*, GetDeveloperPath);
     static FCDECL1(Object*,       _GetEnvironmentVariable, StringObject* strVar);
@@ -122,23 +112,10 @@ public:
     // Return a method info for the method were the exception was thrown
     static FCDECL1(ReflectMethodObject*, GetMethodFromStackTrace, ArrayBase* pStackTraceUNSAFE);
 
-#ifndef FEATURE_CORECLR    
-    // Functions on the System.TimeSpan class
-    static FCDECL0(FC_BOOL_RET, LegacyFormatMode);
-	// Function on the DateTime
-    static BOOL QCALLTYPE EnableAmPmParseAdjustment();
-	static BOOL QCALLTYPE LegacyDateTimeParseMode();
-#endif // !FEATURE_CORECLR
 
 	
 // Move this into a separate CLRConfigQCallWrapper class once CLRConfif has been refactored:
-#ifndef FEATURE_CORECLR        
-    static FCDECL0(FC_BOOL_RET, CheckLegacyManagedDeflateStream);
-#endif // !FEATURE_CORECLR
 	
-#ifndef FEATURE_CORECLR        
-    static FCDECL0(FC_BOOL_RET, CheckThrowUnobservedTaskExceptions);
-#endif // !FEATURE_CORECLR
 
 private:
     // Common processing code for FailFast

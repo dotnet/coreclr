@@ -49,7 +49,7 @@
 #include "registrywrapper.h"
 #include "longfilepathwrappers.h"
 
-#ifdef _PREFAST_
+#if defined(_PREFAST_) || defined(SOURCE_FORMATTING)
 //
 // For PREFAST we don't want the C_ASSERT to be expanded since it always
 // involves the comparison of two constants which causes PREfast warning 326
@@ -86,8 +86,6 @@
 #undef lstrcmp
 #undef lstrcmpi
 #undef lstrcpyn
-#undef lstrcpy
-#undef lstrcat
 #undef lstrlen
 #undef CreateMutex
 #undef OpenMutex
@@ -222,7 +220,6 @@
 // winuser.h
 #undef MAKEINTRESOURCE
 #undef wvsprintf
-#undef wsprintf
 #undef LoadKeyboardLayout
 #undef GetKeyboardLayoutName
 #undef CreateDesktop
@@ -395,8 +392,6 @@
 #define WszQueryRecoveryAgents   QueryRecoveryAgentsW
 #define Wszlstrcmp   lstrcmpW
 #define Wszlstrcmpi   lstrcmpiW
-#define Wszlstrcpy lstrcpyW
-#define Wszlstrcat lstrcatW
 #define WszCreateMutex CreateMutexW
 #define WszOpenMutex OpenMutexW
 #define WszCreateEvent CreateEventW
@@ -489,7 +484,6 @@
 #define WszLogonUser LogonUserW
 #define WszCreateProcessAsUser CreateProcessAsUserW
 #define WszGetCurrentHwProfile GetCurrentHwProfileW
-#define WszGetVersionEx GetVersionExW
 #define WszCreateJobObject CreateJobObjectW
 #define WszOpenJobObject OpenJobObjectW
 
@@ -638,16 +632,6 @@
 #define WszRegQueryValueExTrue RegQueryValueExW
 #define WszRegQueryStringValueEx RegQueryValueExW
 
-#ifndef FEATURE_CORECLR
-#define WszRegDeleteKey RegDeleteKeyW
-#define WszRegCreateKeyEx ClrRegCreateKeyEx
-#define WszRegSetValueEx RegSetValueExW
-#define WszRegDeleteValue RegDeleteValueW
-#define WszRegLoadKey RegLoadKeyW
-#define WszRegUnLoadKey RegUnLoadKeyW
-#define WszRegRestoreKey RegRestoreKeyW
-#define WszRegReplaceKey RegReplaceKeyW
-#endif //#ifndef FEATURE_CORECLR
 
 #define WszRegQueryInfoKey RegQueryInfoKeyW
 #define WszRegEnumValue RegEnumValueW
@@ -684,8 +668,6 @@
 
 // on win98 and higher
 #define Wszlstrlen      lstrlenW
-#define Wszlstrcpy      lstrcpyW
-#define Wszlstrcat      lstrcatW
 
 //File and Directory Functions which need special handling for LongFile Names
 //Note only the functions which are currently used are defined
@@ -942,8 +924,6 @@ __forceinline LONGLONG __InterlockedExchangeAdd64(LONGLONG volatile * Addend, LO
 #define CLR_VER_SUITENAME                   0x0000040
 #define CLR_VER_PRODUCT_TYPE                0x0000080
 
-BOOL GetOSVersion(LPOSVERSIONINFOW osVer);
-
 // Output printf-style formatted text to the debugger if it's present or stdout otherwise.
 inline void DbgWPrintf(const LPCWSTR wszFormat, ...)
 {
@@ -978,14 +958,8 @@ inline int LateboundMessageBoxW(HWND hWnd,
                                 UINT uType)
 {
 #ifndef FEATURE_PAL
-#if defined(FEATURE_CORESYSTEM) && !defined(CROSSGEN_COMPILE)
-    // Some CoreSystem OSs will support MessageBoxW via an extension library. The following technique is what
-    // was recommeded by Philippe Joubert from the CoreSystem team.
-    HMODULE hGuiExtModule = WszLoadLibrary(W("ext-ms-win-ntuser-gui-l1"), NULL, 0);
-#else
-    // Outside of CoreSystem, MessageBoxW lives in User32
+    // User32 should exist on all systems where displaying a message box makes sense.
     HMODULE hGuiExtModule = WszLoadLibrary(W("user32"));
-#endif
     if (hGuiExtModule)
     {
         int result = IDCANCEL;

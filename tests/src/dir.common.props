@@ -18,19 +18,19 @@
     <DebugSymbols Condition="'$(DebugSymbols)' == ''">true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">false</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
-    <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+    <DefineConstants>$(DefineConstants);DEBUG;TRACE;XUNIT_PERF</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugSymbols Condition="'$(DebugSymbols)' == ''">true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">pdbonly</DebugType>
-    <DefineConstants>$(DefineConstants);TRACE</DefineConstants>
+    <DefineConstants>$(DefineConstants);TRACE;XUNIT_PERF</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Checked'">
     <DebugSymbols Condition="'$(DebugSymbols)' == ''">true</DebugSymbols>
     <Optimize Condition="'$(Optimize)' == ''">true</Optimize>
     <DebugType Condition="'$(DebugType)' == ''">full</DebugType>
-    <DefineConstants>$(DefineConstants);DEBUG;TRACE</DefineConstants>
+    <DefineConstants>$(DefineConstants);DEBUG;TRACE;XUNIT_PERF</DefineConstants>
   </PropertyGroup>
 
 <!-- Setup the default output and intermediate paths -->
@@ -40,22 +40,24 @@
     <BaseOutputPath Condition="'$(__TestRootDir)' != ''">$(__TestRootDir)\</BaseOutputPath>
     <BaseOutputPathWithConfig>$(BaseOutputPath)\$(OSPlatformConfig)\</BaseOutputPathWithConfig>
     <BinDir>$(BaseOutputPathWithConfig)</BinDir>
-    <BaseIntermediateOutputPath>$(ProjectDir)\..\bin\tests\obj\$(OSPlatformConfig)\Managed</BaseIntermediateOutputPath>
+    <BaseIntermediateOutputPath>$(ProjectDir)\..\bin\tests\obj\$(OSPlatformConfig)\Managed\</BaseIntermediateOutputPath>
     <BaseIntermediateOutputPath Condition="'$(__ManagedTestIntermediatesDir)' != ''">$(__ManagedTestIntermediatesDir)\</BaseIntermediateOutputPath>
     <__NativeTestIntermediatesDir Condition="'$(__NativeTestIntermediatesDir)' == ''">$([System.IO.Path]::GetFullPath($(BaseOutputPathWithConfig)..\obj\$(BuildOS).$(Platform).$(Configuration)\Native\))</__NativeTestIntermediatesDir>
     <BuildProjectRelativeDir>$(MSBuildProjectName)\</BuildProjectRelativeDir>
     <BuildProjectRelativeDir Condition="'$(MSBuildProjectDirectory.Contains($(SourceDir)))'">$([System.String]::Copy('$(MSBuildProjectDirectory)').Replace($(SourceDir),''))\$(MSBuildProjectName)</BuildProjectRelativeDir>
-    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(BuildProjectRelativeDir)</IntermediateOutputPath>
+    <IntermediateOutputPath>$(BaseIntermediateOutputPath)$(BuildProjectRelativeDir)\</IntermediateOutputPath>
     <OutputPath>$(BaseOutputPathWithConfig)$(BuildProjectRelativeDir)\</OutputPath>
     <TestWorkingDir Condition="'$(TestWorkingDir)'==''">$(BaseOutputPath)\testStagingDir\</TestWorkingDir>
     <TestPath Condition="'$(TestPath)'==''">$(TestWorkingDir)$(OSPlatformConfig)\$(MSBuildProjectName)/</TestPath>
   </PropertyGroup>
 
-  <!-- Default priority building values. -->
+  <!-- Setup the output location for the project.json generated for the local CoreCLR build. -->
   <PropertyGroup>
-    <CLRTestKind Condition="'$(CLRTestKind)' == ' '">BuildAndRun</CLRTestKind>
-    <CLRTestPriority Condition="'$(CLRTestPriority)' == ''">0</CLRTestPriority>
+    <TestRuntimeProjectJsonDir>$(BaseOutputPath)\test_runtime</TestRuntimeProjectJsonDir>
+    <TestRuntimeProjectJson>$(TestRuntimeProjectJsonDir)\project.json</TestRuntimeProjectJson>
+    <TestRuntimeProjectLockJson>$(TestRuntimeProjectJsonDir)\project.lock.json</TestRuntimeProjectLockJson>
   </PropertyGroup>
+
 
 </Project>
 

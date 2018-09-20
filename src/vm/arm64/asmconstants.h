@@ -48,7 +48,7 @@ ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 
 #define METHODDESC_REGISTER            x12
 
-#define SIZEOF__ArgumentRegisters 0x40
+#define SIZEOF__ArgumentRegisters 0x48
 ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 
 #define SIZEOF__FloatArgumentRegisters 0x40
@@ -116,7 +116,7 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__CONTEXT == sizeof(T_CONTEXT));
 
 #ifdef FEATURE_COMINTEROP
 
-#define SIZEOF__ComMethodFrame 0x68
+#define SIZEOF__ComMethodFrame 0x70
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame));
 
 #define UnmanagedToManagedFrame__m_pvDatum 0x10
@@ -146,6 +146,32 @@ ASMCONSTANTS_C_ASSERT(CONTEXT_Pc == offsetof(T_CONTEXT,Pc))
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
+
+#define SIZEOF__FixupPrecode                 24
+#define Offset_PrecodeChunkIndex             15
+#define Offset_MethodDescChunkIndex          14
+#define MethodDesc_ALIGNMENT_SHIFT           3
+#define FixupPrecode_ALIGNMENT_SHIFT_1       3
+#define FixupPrecode_ALIGNMENT_SHIFT_2       4
+
+ASMCONSTANTS_C_ASSERT(SIZEOF__FixupPrecode == sizeof(FixupPrecode));
+ASMCONSTANTS_C_ASSERT(Offset_PrecodeChunkIndex == offsetof(FixupPrecode, m_PrecodeChunkIndex));
+ASMCONSTANTS_C_ASSERT(Offset_MethodDescChunkIndex == offsetof(FixupPrecode, m_MethodDescChunkIndex));
+ASMCONSTANTS_C_ASSERT(MethodDesc_ALIGNMENT_SHIFT == MethodDesc::ALIGNMENT_SHIFT);
+ASMCONSTANTS_C_ASSERT((1<<FixupPrecode_ALIGNMENT_SHIFT_1) + (1<<FixupPrecode_ALIGNMENT_SHIFT_2)  == sizeof(FixupPrecode));
+
+#ifndef CROSSGEN_COMPILE
+#define ResolveCacheElem__target      0x10
+#define ResolveCacheElem__pNext       0x18
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__target == offsetof(ResolveCacheElem, target));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext == offsetof(ResolveCacheElem, pNext));
+#endif // CROSSGEN_COMPILE
+
+#define DomainLocalModule__m_pDataBlob 0x30
+#define DomainLocalModule__m_pGCStatics 0x20
+ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pDataBlob == offsetof(DomainLocalModule, m_pDataBlob));
+ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pGCStatics == offsetof(DomainLocalModule, m_pGCStatics));
+
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT

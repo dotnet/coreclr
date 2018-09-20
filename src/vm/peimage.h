@@ -60,9 +60,6 @@ typedef DPTR(class PEImage)                PTR_PEImage;
 class PEImage 
 {
     friend class PEModule;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    friend class CCLRDebugManager;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 public:
     // ------------------------------------------------------------
     // Public constants
@@ -111,14 +108,6 @@ public:
         LPCWSTR pPath,
         MDInternalImportFlags flags = MDInternalImport_Default);
 
-#ifdef FEATURE_FUSION
-    static PTR_PEImage OpenImage(
-        IStream *pIStream,
-        UINT64 uStreamAsmId,
-        DWORD dwModuleId,
-        BOOL resourceFile,
-        MDInternalImportFlags flags = MDInternalImport_Default);
-#endif
 
     // clones the image with new flags (this is pretty much about cached / noncached difference)
     void Clone(MDInternalImportFlags flags, PTR_PEImage* ppImage)
@@ -133,13 +122,11 @@ public:
 
     };
 
-#ifdef FEATURE_HOSTED_BINDER
     // pUnkResource must be one of the ICLRPrivResource* interfaces defined in CLRPrivBinding.IDL.
     // pUnkResource will be queried for each of these to find a match and 
     static PEImage * OpenImage(
         ICLRPrivResource * pIResource,
         MDInternalImportFlags flags = MDInternalImport_Default);
-#endif
 
     static PTR_PEImage FindById(UINT64 uStreamAsmId, DWORD dwModuleId);
     static PTR_PEImage FindByPath(LPCWSTR pPath);    
@@ -263,13 +250,6 @@ public:
     void VerifyIsAssembly();
     void VerifyIsNIAssembly();
 
-#ifndef FEATURE_CORECLR
-    BOOL IsReportedToUsageLog();
-    void SetReportedToUsageLog();
-#ifndef DACCESS_COMPILE
-    HRESULT GetILFingerprint(IILFingerprint **ppFingerprint);
-#endif //!DACCESS_COMPILE
-#endif //!FEATURE_CORECLR
 
     static void GetAll(SArray<PEImage*> &images);
 
@@ -295,33 +275,9 @@ private:
 
     struct PEImageLocator
     {
-#ifdef FEATURE_FUSION
-        BOOL m_fIsIStream;
-        DWORD m_dwStreamModuleId;
-        UINT64 m_StreamAsmId;
-#endif
 
         LPCWSTR m_pPath;
 
-#ifdef FEATURE_FUSION
-        PEImageLocator(LPCWSTR pPath)
-            : m_fIsIStream(FALSE), m_pPath(pPath)
-        {
-        }
-
-        PEImageLocator(UINT64 uStreamAsmId, DWORD dwModuleId)
-            : m_fIsIStream(TRUE), m_dwStreamModuleId(dwModuleId), m_StreamAsmId(uStreamAsmId)
-        {
-        }
-
-        PEImageLocator(PEImage * pImage)
-            : m_fIsIStream(pImage->m_fIsIStream),
-              m_dwStreamModuleId(pImage->m_dwStreamModuleId),
-              m_StreamAsmId(pImage->m_StreamAsmId),
-              m_pPath(pImage->m_path.GetUnicode())
-        {
-        }
-#else // FEATURE_FUSION
         PEImageLocator(LPCWSTR pPath)
             : m_pPath(pPath)
         {
@@ -331,13 +287,9 @@ private:
             : m_pPath(pImage->m_path.GetUnicode())
         {
         }
-#endif // FEATURE_FUSION
     };
 
     static BOOL CompareImage(UPTR image1, UPTR image2);
-#ifdef FEATURE_MIXEDMODE
-    static BOOL CompareIJWDataBase(UPTR base, UPTR mapping);
-#endif // FEATURE_MIXEDMODE
 
     void DECLSPEC_NORETURN ThrowFormat(HRESULT hr);
 
@@ -361,9 +313,6 @@ private:
     BOOL        m_bIsTrustedNativeImage;
     BOOL        m_bIsNativeImageInstall;
     BOOL        m_bPassiveDomainOnly;
-#ifndef FEATURE_CORECLR
-    BOOL        m_fReportedToUsageLog;
-#endif // !FEATURE_CORECLR
 #ifdef FEATURE_LAZY_COW_PAGES
     BOOL        m_bAllocatedLazyCOWPages;
 #endif // FEATURE_LAZY_COW_PAGES
@@ -394,11 +343,6 @@ protected:
     IMDInternalImport* m_pMDImport;
     IMDInternalImport* m_pNativeMDImport;
 
-#ifdef FEATURE_FUSION
-    UINT64      m_StreamAsmId;
-    DWORD       m_dwStreamModuleId;
-    BOOL        m_fIsIStream;
-#endif
 
 private:
 
@@ -417,73 +361,17 @@ private:
     BOOL        m_bSignatureInfoCached;
     HRESULT   m_hrSignatureInfoStatus;
     DWORD        m_dwSignatureInfo;    
-#ifdef FEATURE_MIXEDMODE
-    //@TODO:workaround: Remove this when we have one PEImage per mapped image,
-    //@TODO:workaround: and move the lock there
-    // This is for IJW thunk initialization, as it is no longer guaranteed
-    // that the initialization will occur under the loader lock.
-    static CrstStatic   s_ijwHashLock;
-    static PtrHashMap   *s_ijwFixupDataHash;
-
-public:
-    class IJWFixupData
-    {
-    private:
-        Crst            m_lock;
-        void           *m_base;
-        DWORD           m_flags;
-        PTR_LoaderHeap  m_DllThunkHeap;
-
-        // the fixup for the next iteration in FixupVTables
-        // we use it to make sure that we do not try to fix up the same entry twice
-        // if there was a pass that was aborted in the middle
-        COUNT_T         m_iNextFixup;
-        COUNT_T         m_iNextMethod;
-
-        enum {
-            e_FIXED_UP = 0x1
-        };
-
-    public:
-        IJWFixupData(void *pBase);
-        ~IJWFixupData();
-        void *GetBase() { LIMITED_METHOD_CONTRACT; return m_base; }
-        Crst *GetLock() { LIMITED_METHOD_CONTRACT; return &m_lock; }
-        BOOL IsFixedUp() { LIMITED_METHOD_CONTRACT; return m_flags & e_FIXED_UP; }
-        void SetIsFixedUp() { LIMITED_METHOD_CONTRACT; m_flags |= e_FIXED_UP; }
-        PTR_LoaderHeap  GetThunkHeap();
-        void MarkMethodFixedUp(COUNT_T iFixup, COUNT_T iMethod);
-        BOOL IsMethodFixedUp(COUNT_T iFixup, COUNT_T iMethod);
-    };
-
-    static IJWFixupData *GetIJWData(void *pBase);
-    static PTR_LoaderHeap GetDllThunkHeap(void *pBase);
-    static void UnloadIJWModule(void *pBase);
-#endif //FEATURE_MIXEDMODE
 private:
     DWORD m_dwPEKind;
     DWORD m_dwMachine;
     BOOL  m_fCachedKindAndMachine;
 
-#ifdef FEATURE_APTCA
-    BOOL  m_fMayBeConditionalAptca;
-#endif // FEATURE_APTCA
 
-#ifdef FEATURE_FUSION
-    PEFingerprint *m_pILFingerprint; // has to be the real type (as opposed to an interface) so we can delete it
-#endif // FEATURE_FUSION
 
 public:
     void CachePEKindAndMachine();
     void GetPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine);
-#ifdef FEATURE_FUSION	
-    PEKIND GetFusionProcessorArchitecture();
-#endif
 
-#ifdef FEATURE_APTCA
-    inline BOOL MayBeConditionalAptca();
-    inline void SetIsNotConditionalAptca();
-#endif // FEATURE_APTCA
 };
 
 FORCEINLINE void PEImageRelease(PEImage *i)

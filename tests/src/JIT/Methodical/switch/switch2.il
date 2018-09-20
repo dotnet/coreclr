@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // add and subtract integers
 
 .assembly extern legacy library mscorlib {}
@@ -41,7 +44,7 @@
     IL_001e:  bne.un.s   IL_0031
 
     IL_0020:  ldc.i4.s   100
-    IL_0022:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_0022:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_0027:  ldstr      "Test passed"
     IL_002c:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0031:  br.s       IL_005f
@@ -55,13 +58,13 @@
     IL_0039:  bne.un.s   IL_004b
 
     IL_003b:  ldc.i4.1
-    IL_003c:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_003c:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_0041:  ldstr      "Test failed"
     IL_0046:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_004b:  br.s       IL_005f
 
     IL_004d:  ldc.i4.1
-    IL_004e:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_004e:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_0053:  ldstr      "Test failed"
     IL_0058:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_005d:  br.s       IL_005f
@@ -75,8 +78,9 @@
     .maxstack  8
     IL_0000:  ldc.i4.1
     IL_0001:  call       void Test::DoSwitch(int32)
-    IL_0006:  ret
+    IL_0006:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
+              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+              ret
   } 
 
  } 
-

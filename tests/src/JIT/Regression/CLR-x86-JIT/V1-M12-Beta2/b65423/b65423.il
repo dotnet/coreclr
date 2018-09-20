@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -245,11 +248,12 @@
                                                                                class System.String)
 	IL_003d:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
 	IL_0042:  ldsfld     int32 b1904::Count
-	IL_0047:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+	IL_0047:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
 	IL_004c:  leave.s    IL_0083 
     }
-    IL_0083:  ret
+    IL_0083:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
+              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+              ret
   } 
 
 } 
-

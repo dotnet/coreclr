@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern mscorlib { }
 .assembly extern System.Console
@@ -21,7 +22,7 @@
       .maxstack  4
       .locals (int32 V_0)
       ldc.i4.1
-      call       void [mscorlib]System.Environment::set_ExitCode(int32)
+      call       void [system.runtime.extensions]System.Environment::set_ExitCode(int32)
       ldsfld     int32 JitTest.Test::n
       ldc.i4.1
       bne.un.s   IL_0047
@@ -75,7 +76,7 @@ MERGE1:
       .maxstack  4
       .locals (int32 V_0)
       ldc.i4.1
-      call       void [mscorlib]System.Environment::set_ExitCode(int32)
+      call       void [system.runtime.extensions]System.Environment::set_ExitCode(int32)
       ldsfld     int32 JitTest.Test::n
       ldc.i4.1
       bne.un.s   IL_0047
@@ -129,7 +130,7 @@ MERGE1:
       .maxstack  4
       .locals (int32 V_0)
       ldc.i4.1
-      call       void [mscorlib]System.Environment::set_ExitCode(int32)
+      call       void [system.runtime.extensions]System.Environment::set_ExitCode(int32)
       ldsfld     int32 JitTest.Test::n
       ldc.i4.1
       bne.un.s   IL_0047

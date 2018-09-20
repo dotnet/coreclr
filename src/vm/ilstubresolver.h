@@ -64,8 +64,8 @@ public:
 
     void SetTokenLookupMap(TokenLookupMap* pMap);
 
-    void SetJitFlags(DWORD dwJitFlags);
-    DWORD GetJitFlags();
+    void SetJitFlags(CORJIT_FLAGS jitFlags);
+    CORJIT_FLAGS GetJitFlags();
 
     static void StubGenFailed(ILStubResolver* pResolver);
 
@@ -83,6 +83,7 @@ protected:
         ArrayOpStub,
 #endif
 #ifdef FEATURE_STUBS_AS_IL
+        SecureDelegateStub,
         MulticastDelegateStub,
         UnboxingILStub,
         InstantiatingStub,
@@ -115,7 +116,7 @@ protected:
     PTR_MethodDesc          m_pStubMD;
     PTR_MethodDesc          m_pStubTargetMD;
     ILStubType              m_type;
-    DWORD                   m_dwJitFlags;
+    CORJIT_FLAGS            m_jitFlags;
 };
 
 typedef Holder<ILStubResolver*, DoNothing<ILStubResolver*>, ILStubResolver::StubGenFailed, NULL> ILStubGenHolder;

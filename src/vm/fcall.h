@@ -138,10 +138,13 @@
 //    FCThrow(). This is because FCThrow() has to generate an unexecuted
 //    "return" statement for the code parser.
 //
-//  - If first and/or second argument of your FCall is 64-bit value on x86
-//    (ie INT64, UINT64 or DOUBLE), you must use "V" versions of FCDECL and 
-//    FCIMPL macros to enregister arguments correctly. For example, FCDECL3_IVI 
-//    must be used for FCalls that take 3 arguments and 2nd argument is INT64.
+//  - On x86, if first and/or second argument of your FCall cannot be passed
+//    in either of the __fastcall registers (ECX/EDX), you must use "V" versions
+//    of FCDECL and  FCIMPL macros to enregister arguments correctly. Some of the
+//    most common types that fit this requirement are 64-bit values (i.e. INT64 or
+//    UINT64) and floating-point values (i.e. FLOAT or DOUBLE). For example, FCDECL3_IVI 
+//    must be used for FCalls that take 3 arguments and 2nd argument is INT64 and
+//    FDECL2_VV must be used for FCalls that take 2 arguments where both are FLOAT.
 //
 //  - You may use structs for protecting multiple OBJECTREF's simultaneously.
 //    In these cases, you must use a variant of a helper method frame with PROTECT
@@ -374,16 +377,27 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 
 // Choose the appropriate calling convention for FCALL helpers on the basis of the JIT calling convention
 #ifdef __GNUC__
-#define F_CALL_CONV __attribute__((stdcall, regparm(3)))
-#else
+#define F_CALL_CONV __attribute__((cdecl, regparm(3)))
+
+// GCC fastcall convention (simulated via stdcall) is different from MSVC fastcall convention. GCC can use up
+// to 3 registers to store parameters. The registers used are EAX, EDX, ECX. Dummy parameters and reordering
+// of the actual parameters in the FCALL signature is used to make the calling convention to look like in MSVC.
+#define SWIZZLE_REGARG_ORDER
+#else // __GNUC__
 #define F_CALL_CONV __fastcall
-#endif
+#endif // !__GNUC__
 
-#if defined(__GNUC__)
+#define SWIZZLE_STKARG_ORDER
+#else // _TARGET_X86_
 
-// GCC fastcall convention is different from MSVC fastcall convention. GCC can use up to 3 registers to
-// store parameters. The registers used are EAX, EDX, ECX. Dummy parameters and reordering of the 
-// actual parameters in the FCALL signature is used to make the calling convention to look like in MSVC.
+//
+// non-x86 platforms don't have messed-up calling convention swizzling
+//
+#define F_CALL_CONV
+#endif // !_TARGET_X86_
+
+#ifdef SWIZZLE_STKARG_ORDER
+#ifdef SWIZZLE_REGARG_ORDER
 
 #define FCDECL0(rettype, funcname) rettype F_CALL_CONV funcname()
 #define FCDECL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(int /* EAX */, int /* EDX */, a1)
@@ -414,7 +428,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #define FCDECL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(int /* EAX */, a3, a1, a5, a4, a2)
 #define FCDECL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(int /* EAX */, a3, a2, a5, a4, a1)
 
-#else // __GNUC__
+#else // SWIZZLE_REGARG_ORDER
 
 #define FCDECL0(rettype, funcname) rettype F_CALL_CONV funcname()
 #define FCDECL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(a1)
@@ -445,7 +459,7 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #define FCDECL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(a1, a3, a5, a4, a2)
 #define FCDECL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(a2, a3, a5, a4, a1)
 
-#endif // __GNUC__
+#endif // !SWIZZLE_REGARG_ORDER
 
 #if 0
 //
@@ -469,40 +483,38 @@ LPVOID __FCThrowArgument(LPVOID me, enum RuntimeExceptionKind reKind, LPCWSTR ar
 #define FCCALL12(funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) funcname(a1, a2, a12, a11, a10, a9, a8, a7, a6, a5, a4, a3)
 #endif // 0
 
-#else // !_TARGET_X86
+#else // !SWIZZLE_STKARG_ORDER
 
-#define F_CALL_CONV
+#define FCDECL0(rettype, funcname) rettype F_CALL_CONV funcname()
+#define FCDECL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(a1)
+#define FCDECL1_V(rettype, funcname, a1) rettype F_CALL_CONV funcname(a1)
+#define FCDECL2(rettype, funcname, a1, a2) rettype F_CALL_CONV funcname(a1, a2)
+#define FCDECL2VA(rettype, funcname, a1, a2) rettype F_CALL_CONV funcname(a1, a2, ...)
+#define FCDECL2_VV(rettype, funcname, a1, a2) rettype F_CALL_CONV funcname(a1, a2)
+#define FCDECL2_VI(rettype, funcname, a1, a2) rettype F_CALL_CONV funcname(a1, a2)
+#define FCDECL2_IV(rettype, funcname, a1, a2) rettype F_CALL_CONV funcname(a1, a2)
+#define FCDECL3(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL3_IIV(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL3_VII(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL3_IVV(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL3_IVI(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL3_VVI(rettype, funcname, a1, a2, a3) rettype F_CALL_CONV funcname(a1, a2, a3)
+#define FCDECL4(rettype, funcname, a1, a2, a3, a4) rettype F_CALL_CONV funcname(a1, a2, a3, a4)
+#define FCDECL5(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5)
+#define FCDECL6(rettype, funcname, a1, a2, a3, a4, a5, a6) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6)
+#define FCDECL7(rettype, funcname, a1, a2, a3, a4, a5, a6, a7) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7)
+#define FCDECL8(rettype, funcname, a1, a2, a3, a4, a5, a6, a7, a8) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8)
+#define FCDECL9(rettype, funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9)
+#define FCDECL10(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
+#define FCDECL11(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
+#define FCDECL12(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+#define FCDECL13(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
+#define FCDECL14(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
 
-#define FCDECL0(rettype, funcname) rettype funcname()
-#define FCDECL1(rettype, funcname, a1) rettype funcname(a1)
-#define FCDECL1_V(rettype, funcname, a1) rettype funcname(a1)
-#define FCDECL2(rettype, funcname, a1, a2) rettype funcname(a1, a2)
-#define FCDECL2VA(rettype, funcname, a1, a2) rettype funcname(a1, a2, ...)
-#define FCDECL2_VV(rettype, funcname, a1, a2) rettype funcname(a1, a2)
-#define FCDECL2_VI(rettype, funcname, a1, a2) rettype funcname(a1, a2)
-#define FCDECL2_IV(rettype, funcname, a1, a2) rettype funcname(a1, a2)
-#define FCDECL3(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL3_IIV(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL3_VII(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL3_IVV(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL3_IVI(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL3_VVI(rettype, funcname, a1, a2, a3) rettype funcname(a1, a2, a3)
-#define FCDECL4(rettype, funcname, a1, a2, a3, a4) rettype funcname(a1, a2, a3, a4)
-#define FCDECL5(rettype, funcname, a1, a2, a3, a4, a5) rettype funcname(a1, a2, a3, a4, a5)
-#define FCDECL6(rettype, funcname, a1, a2, a3, a4, a5, a6) rettype funcname(a1, a2, a3, a4, a5, a6)
-#define FCDECL7(rettype, funcname, a1, a2, a3, a4, a5, a6, a7) rettype funcname(a1, a2, a3, a4, a5, a6, a7)
-#define FCDECL8(rettype, funcname, a1, a2, a3, a4, a5, a6, a7, a8) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8)
-#define FCDECL9(rettype, funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9)
-#define FCDECL10(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10)
-#define FCDECL11(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11)
-#define FCDECL12(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
-#define FCDECL13(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13)
-#define FCDECL14(rettype,funcname, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14) rettype funcname(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14)
+#define FCDECL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5)
+#define FCDECL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(a1, a2, a3, a4, a5)
 
-#define FCDECL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype funcname(a1, a2, a3, a4, a5)
-#define FCDECL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype funcname(a1, a2, a3, a4, a5)
-
-#endif // _TARGET_X86_ 
+#endif // !SWIZZLE_STKARG_ORDER
 
 #define HELPER_FRAME_DECL(x) FrameWithCookie<HelperMethodFrame_##x##OBJ> __helperframe
 
@@ -933,12 +945,14 @@ extern int FC_NO_TAILCALL;
     FC_COMMON_PROLOG(__me, FCallAssert)
 
 
-#if defined(_DEBUG) && !defined(CROSSGEN_COMPILE)
-
+#if defined(_DEBUG) && !defined(CROSSGEN_COMPILE) && !defined(__GNUC__)
 // Build the list of all fcalls signatures. It is used in binder.cpp to verify 
 // compatibility of managed and unmanaged fcall signatures. The check is currently done 
 // for x86 only.
+#define CHECK_FCALL_SIGNATURE
+#endif
 
+#ifdef CHECK_FCALL_SIGNATURE
 struct FCSigCheck {
 public:
     FCSigCheck(void* fnc, char* sig)
@@ -960,16 +974,15 @@ public:
 #define FCSIGCHECK(funcname, signature) \
     static FCSigCheck UNIQUE_LABEL(FCSigCheck)(GetEEFuncEntryPointMacro(funcname), signature);
 
-#else
+#else // CHECK_FCALL_SIGNATURE
 
 #define FCSIGCHECK(funcname, signature)
 
-#endif
+#endif // !CHECK_FCALL_SIGNATURE
 
 
-#ifdef _TARGET_X86_
-
-#if defined(__GNUC__)
+#ifdef SWIZZLE_STKARG_ORDER
+#ifdef SWIZZLE_REGARG_ORDER
 
 #define FCIMPL0(rettype, funcname) rettype F_CALL_CONV funcname() { FCIMPL_PROLOG(funcname)
 #define FCIMPL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(int /* EAX */, int /* EDX */, a1) { FCIMPL_PROLOG(funcname)
@@ -999,7 +1012,7 @@ public:
 #define FCIMPL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(int /* EAX */, a3, a1, a5, a4, a2) { FCIMPL_PROLOG(funcname)
 #define FCIMPL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype F_CALL_CONV funcname(int /* EAX */, a3, a2, a5, a4, a1) { FCIMPL_PROLOG(funcname)
 
-#else // __GNUC__
+#else // SWIZZLE_REGARG_ORDER
 
 #define FCIMPL0(rettype, funcname) FCSIGCHECK(funcname, #rettype) \
     rettype F_CALL_CONV funcname() { FCIMPL_PROLOG(funcname)
@@ -1057,12 +1070,9 @@ public:
 #define FCIMPL5_VII(rettype, funcname, a1, a2, a3, a4, a5) FCSIGCHECK(funcname, #rettype "," "V" #a1 "," #a2 "," #a3 "," #a4 "," #a5) \
     rettype F_CALL_CONV funcname(a2, a3, a5, a4, a1) { FCIMPL_PROLOG(funcname)
 
-#endif // __GNUC__
+#endif // !SWIZZLE_REGARG_ORDER
 
-#else // !_TARGET_X86_ 
-//
-// non-x86 platforms don't have messed-up calling convention swizzling 
-//
+#else // SWIZZLE_STKARG_ORDER
 
 #define FCIMPL0(rettype, funcname) rettype funcname() { FCIMPL_PROLOG(funcname)
 #define FCIMPL1(rettype, funcname, a1) rettype funcname(a1) {  FCIMPL_PROLOG(funcname)
@@ -1093,7 +1103,7 @@ public:
 #define FCIMPL5_IVI(rettype, funcname, a1, a2, a3, a4, a5) rettype funcname(a1, a2, a3, a4, a5) { FCIMPL_PROLOG(funcname)
 #define FCIMPL5_VII(rettype, funcname, a1, a2, a3, a4, a5) rettype funcname(a1, a2, a3, a4, a5) { FCIMPL_PROLOG(funcname)
 
-#endif
+#endif // !SWIZZLE_STKARG_ORDER
 
 //==============================================================================================
 // Use this to terminte an FCIMPLEND.
@@ -1109,9 +1119,8 @@ public:
     // they do not remember the function they come from. Thus they will not
     // show up in a stack trace.  This is what you want for JIT helpers and the like
 
-#ifdef _TARGET_X86_
-
-#if defined(__GNUC__)
+#ifdef SWIZZLE_STKARG_ORDER
+#ifdef SWIZZLE_REGARG_ORDER
 
 #define HCIMPL0(rettype, funcname) rettype F_CALL_CONV funcname() { HCIMPL_PROLOG(funcname)
 #define HCIMPL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(int /* EAX */, int /* EDX */, a1) { HCIMPL_PROLOG(funcname)
@@ -1134,7 +1143,7 @@ public:
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(0, a2, a1, a5, a4, a3)
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(int /* EAX */, int /* EDX */, a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(int /* EAX */, a2, a1)
-#else
+#else // SWIZZLE_REGARG_ORDER
 
 #define HCIMPL0(rettype, funcname) rettype F_CALL_CONV funcname() { HCIMPL_PROLOG(funcname) 
 #define HCIMPL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(a1) { HCIMPL_PROLOG(funcname)
@@ -1157,13 +1166,8 @@ public:
 #define HCCALL5(funcname, a1, a2, a3, a4, a5)   funcname(a1, a2, a5, a4, a3)
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
-
-#endif
-
-#else // !_TARGET_X86_ 
-//
-// non-x86 platforms don't have messed-up calling convention swizzling 
-//
+#endif // !SWIZZLE_REGARG_ORDER
+#else // SWIZZLE_STKARG_ORDER
 
 #define HCIMPL0(rettype, funcname) rettype F_CALL_CONV funcname() { HCIMPL_PROLOG(funcname) 
 #define HCIMPL1(rettype, funcname, a1) rettype F_CALL_CONV funcname(a1) { HCIMPL_PROLOG(funcname)
@@ -1187,7 +1191,7 @@ public:
 #define HCCALL1_PTR(rettype, funcptr, a1)        rettype (F_CALL_CONV * funcptr)(a1)
 #define HCCALL2_PTR(rettype, funcptr, a1, a2)    rettype (F_CALL_CONV * funcptr)(a1, a2)
 
-#endif
+#endif // !SWIZZLE_STKARG_ORDER
 
 #define HCIMPLEND_RAW   }
 #define HCIMPLEND       FCALL_TRANSITION_END(); }

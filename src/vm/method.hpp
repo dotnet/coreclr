@@ -797,24 +797,6 @@ public:
 
     //================================================================
     // Does it represent a one way method call with no out/return parameters?
-#ifdef FEATURE_REMOTING
-    inline BOOL IsOneWay()
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-        }
-        CONTRACTL_END
-
-        return (S_OK == GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                                "System.Runtime.Remoting.Messaging.OneWayAttribute",
-                                                                NULL,
-                                                                NULL));
-
-    }
-#endif // FEATURE_REMOTING
 
     //================================================================
     // FCalls.
@@ -1308,6 +1290,58 @@ public:
 
 public:
 
+#ifdef FEATURE_TIERED_COMPILATION
+    // Is this method allowed to be recompiled and the entrypoint redirected so that we
+    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
+    BOOL IsEligibleForTieredCompilation()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        // This policy will need to change some more before tiered compilation feature
+        // can be properly supported across a broad range of scenarios. For instance it 
+        // wouldn't interact correctly debugging or profiling at the moment because we 
+        // enable it too aggresively and it conflicts with the operations of those features.
+
+        //Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
+        //In the future we might want mutable vtable slots too, but that would require
+        //more work around the runtime to prevent those mutable pointers from leaking
+        return g_pConfig->TieredCompilation() &&
+            !GetModule()->HasNativeOrReadyToRunImage() &&
+            !IsEnCMethod() &&
+            HasNativeCodeSlot();
+
+    }
+#endif
+
+    // Does this method force the NativeCodeSlot to stay fixed after it
+    // is first initialized to native code? Consumers of the native code
+    // pointer need to be very careful about if and when they cache it
+    // if it is not stable.
+    //
+    // The stability of the native code pointer is separate from the
+    // stability of the entrypoint. A stable entrypoint can be a precode
+    // which dispatches to an unstable native code pointer.
+    BOOL IsNativeCodeStableAfterInit()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return 
+#ifdef FEATURE_TIERED_COMPILATION
+            !IsEligibleForTieredCompilation() &&
+#endif
+            !IsEnCMethod();
+    }
+
+    //Is this method currently pointing to native code that will never change?
+    BOOL IsPointingToStableNativeCode()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        if (!IsNativeCodeStableAfterInit())
+            return FALSE;
+
+        return IsPointingToNativeCode();
+    }
+
     // Note: We are skipping the prestub based on addition information from the JIT.
     // (e.g. that the call is on same this ptr or that the this ptr is not null).
     // Thus we can end up with a running NGENed method for which IsPointingToNativeCode is false!
@@ -1649,7 +1683,7 @@ public:
 
     PCODE DoPrestub(MethodTable *pDispatchingMT);
 
-    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD  flags, DWORD flags2);
+    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags);
 
     VOID GetMethodInfo(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
     VOID GetMethodInfoWithNewSig(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
@@ -1997,23 +2031,18 @@ public:
     // direct call to direct jump.
     //
     // We use (1) for x86 and (2) for 64-bit to get the best performance on each platform.
-    //
+    // For ARM (1) is used.
 
     TADDR AllocateCompactEntryPoints(LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);
 
     static MethodDesc* GetMethodDescFromCompactEntryPoint(PCODE addr, BOOL fSpeculative = FALSE);
     static SIZE_T SizeOfCompactEntryPoints(int count);
 
-    static BOOL IsCompactEntryPointAtAddress(PCODE addr)
-    {
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-        // Compact entrypoints start at odd addresses
-        LIMITED_METHOD_DAC_CONTRACT;
-        return (addr & 1) != 0;
-#else
-        #error Unsupported platform
-#endif
-    }
+    static BOOL IsCompactEntryPointAtAddress(PCODE addr);
+
+#ifdef _TARGET_ARM_
+    static int GetCompactEntryPointMaxCount ();
+#endif // _TARGET_ARM_
 #endif // HAS_COMPACT_ENTRYPOINTS
 
     FORCEINLINE PTR_MethodTable GetMethodTable()
@@ -2304,6 +2333,7 @@ protected:
         nomdStubNeedsCOMStarted   = 0x0800,  // EnsureComStarted must be called before executing the method
         nomdMulticastStub         = 0x1000,
         nomdUnboxingILStub        = 0x2000,
+        nomdSecureDelegateStub    = 0x4000,
 
         nomdILStub          = 0x00010000,
         nomdLCGMethod       = 0x00020000,
@@ -2412,6 +2442,11 @@ public:
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
 #ifdef FEATURE_STUBS_AS_IL
+    bool IsSecureDelegateStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(IsILStub());
+        return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
+    }
     bool IsMulticastStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 
         _ASSERTE(IsILStub());
@@ -2553,9 +2588,7 @@ public:
         NDirectImportThunkGlue      m_ImportThunkGlue;
 #endif // HAS_NDIRECT_IMPORT_PRECODE
 
-#ifndef FEATURE_CORECLR
         ULONG       m_DefaultDllImportSearchPathsAttributeValue; // DefaultDllImportSearchPathsAttribute is saved.
-#endif
 
         // Various attributes needed at runtime.
         WORD        m_wFlags;
@@ -2588,9 +2621,7 @@ public:
 
         kHasSuppressUnmanagedCodeAccess = 0x0002,
 
-#ifndef FEATURE_CORECLR
         kDefaultDllImportSearchPathsIsCached = 0x0004, // set if we cache attribute value.
-#endif
 
         // kUnusedMask                  = 0x0008
 
@@ -2614,9 +2645,7 @@ public:
 
         kIsQCall                        = 0x1000,
 
-#if !defined(FEATURE_CORECLR)
         kDefaultDllImportSearchPathsStatus = 0x2000, // either method has custom attribute or not.
-#endif
 
         kHasCopyCtorArgs                = 0x4000,
 
@@ -2645,19 +2674,6 @@ public:
     // Atomically set specified flags. Only setting of the bits is supported.
     void InterlockedSetNDirectFlags(WORD wFlags);
 
-#ifdef FEATURE_MIXEDMODE // IJW
-    void SetIsEarlyBound()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ndirect.m_wFlags |= kEarlyBound;
-    }
-
-    BOOL IsEarlyBound()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (ndirect.m_wFlags & kEarlyBound) != 0;
-    }
-#endif // FEATURE_MIXEDMODE
 
     BOOL IsNativeAnsi() const
     {
@@ -2673,22 +2689,6 @@ public:
         return (ndirect.m_wFlags & kNativeNoMangle) != 0;
     }
 
-#ifndef FEATURE_CORECLR
-    BOOL HasSuppressUnmanagedCodeAccessAttr() const
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (ndirect.m_wFlags & kHasSuppressUnmanagedCodeAccess) != 0;
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            ndirect.m_wFlags |= kHasSuppressUnmanagedCodeAccess;
-    }
-#endif
 
     DWORD GetECallID() const
     {
@@ -2749,7 +2749,6 @@ public:
         return (ndirect.m_wFlags & kIsQCall) != 0;
     }
 
-#ifndef FEATURE_CORECLR
     BOOL HasDefaultDllImportSearchPathsAttribute();
 
     BOOL IsDefaultDllImportSearchPathsAttributeCached()
@@ -2769,7 +2768,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
-#endif // !FEATURE_CORECLR
 
     BOOL HasCopyCtorArgs() const
     {
@@ -2898,9 +2896,6 @@ public:
     }
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_MIXEDMODE // IJW
-    VOID InitEarlyBoundNDirectTarget();
-#endif
 
     // In AppDomains, we can trigger declarer's cctor when we link the P/Invoke,
     // which takes care of inlined calls as well. See code:NDirect.NDirectLink.
@@ -2964,12 +2959,7 @@ struct ComPlusCallInfo
         kHasCopyCtorArgs                = 0x4,
     };
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // These two fields cannot overlap in this case because of AMD64 GenericComPlusCallStub uses m_pILStub on the COM event provider path
-    struct
-#else
     union
-#endif
     {
         // IL stub for CLR to COM call
         PCODE m_pILStub; 
@@ -3103,32 +3093,6 @@ public:
         return m_pComPlusCallInfo->m_pEventProviderMD;
     }
 
-#ifndef FEATURE_CORECLR
-
-    BOOL HasSuppressUnmanagedCodeAccessAttr()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (m_pComPlusCallInfo != NULL)
-        {
-            return (m_pComPlusCallInfo->m_flags & ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess) != 0;
-        }
-        
-        // it is possible that somebody will call this before we initialized m_pComPlusCallInfo
-        return (GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                        COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                        NULL,
-                                                        NULL) == S_OK);
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            FastInterlockOr(reinterpret_cast<DWORD *>(&m_pComPlusCallInfo->m_flags), ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess);
-    }
-#endif // FEATURE_CORECLR
 
     BOOL RequiresArgumentWrapping()
     {
@@ -3597,6 +3561,22 @@ inline BOOL MethodDesc::HasMethodInstantiation() const
 
     return mcInstantiated == GetClassification() && AsInstantiatedMethodDesc()->IMD_HasMethodInstantiation();
 }
+
+#if defined(FEATURE_GDBJIT)
+class CalledMethod
+{
+private:
+    MethodDesc * m_pMD;
+    void * m_CallAddr;
+    CalledMethod * m_pNext;
+public:
+    CalledMethod(MethodDesc *pMD, void * addr, CalledMethod * next) : m_pMD(pMD), m_CallAddr(addr), m_pNext(next)  {}
+    ~CalledMethod() {}
+    MethodDesc * GetMethodDesc() { return m_pMD; }
+    void * GetCallAddr() { return m_CallAddr; }
+    CalledMethod * GetNext() { return m_pNext; }
+};
+#endif
 
 #include "method.inl"
 

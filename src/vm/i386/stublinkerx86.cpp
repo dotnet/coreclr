@@ -26,9 +26,6 @@
 #include "array.h"
 #include "jitinterface.h"
 #include "codeman.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "dbginterface.h"
 #include "eeprofinterfaces.h"
 #include "eeconfig.h"
@@ -64,6 +61,7 @@ extern "C" HRESULT __cdecl StubRareDisableHR(Thread *pThread);
 #endif // FEATURE_COMINTEROP
 extern "C" VOID __cdecl StubRareDisableTHROW(Thread *pThread, Frame *pFrame);
 
+#ifndef FEATURE_ARRAYSTUB_AS_IL
 extern "C" VOID __cdecl ArrayOpStubNullException(void);
 extern "C" VOID __cdecl ArrayOpStubRangeException(void);
 extern "C" VOID __cdecl ArrayOpStubTypeMismatchException(void);
@@ -78,10 +76,13 @@ EXCEPTION_HELPERS(ArrayOpStubNullException);
 EXCEPTION_HELPERS(ArrayOpStubRangeException);
 EXCEPTION_HELPERS(ArrayOpStubTypeMismatchException);
 #undef EXCEPTION_HELPERS
+#endif // !_TARGET_AMD64_
+#endif // !FEATURE_ARRAYSTUB_AS_IL
 
-#if defined(_DEBUG) 
+#if defined(_TARGET_AMD64_)
+#if defined(_DEBUG)
 extern "C" VOID __cdecl DebugCheckStubUnwindInfo();
-#endif
+#endif // _DEBUG
 #endif // _TARGET_AMD64_
 
 // Presumably this code knows what it is doing with TLS.  If we are hiding these
@@ -1250,7 +1251,7 @@ VOID StubLinkerCPU::X86EmitReturn(WORD wArgBytes)
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(UNIX_X86_ABI)
         PRECONDITION(wArgBytes == 0);
 #endif
 
@@ -2535,7 +2536,7 @@ VOID StubLinkerCPU::X86EmitCurrentAppDomainFetch(X86Reg dstreg, unsigned preserv
 #endif // FEATURE_IMPLICIT_TLS
 }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_)
 
 #ifdef PROFILING_SUPPORTED
 VOID StubLinkerCPU::EmitProfilerComCallProlog(TADDR pFrameVptr, X86Reg regFrame)
@@ -2624,6 +2625,7 @@ VOID StubLinkerCPU::EmitProfilerComCallEpilog(TADDR pFrameVptr, X86Reg regFrame)
 #endif // PROFILING_SUPPORTED
 
 
+#ifndef FEATURE_STUBS_AS_IL
 //========================================================================
 //  Prolog for entering managed code from COM
 //  pushes the appropriate frame ptr
@@ -2850,6 +2852,7 @@ void StubLinkerCPU::EmitComMethodStubEpilog(TADDR pFrameVptr,
     EmitLabel(rgRareLabels[0]);  // label for rare setup thread
     EmitRareSetup(rgRejoinLabels[0], /*fThrow*/ TRUE); // emit rare setup thread
 }
+#endif // !FEATURE_STUBS_AS_IL
 
 //---------------------------------------------------------------
 // Emit code to store the setup current Thread structure in eax.
@@ -2882,6 +2885,7 @@ VOID StubLinkerCPU::EmitSetup(CodeLabel *pForwardRef)
     switch (mode)
     {
         case TLSACCESS_WNT: 
+#ifndef FEATURE_PAL
             {
                 unsigned __int32 tlsofs = offsetof(TEB, TlsSlots) + (idx * sizeof(void*));
 
@@ -2889,6 +2893,9 @@ VOID StubLinkerCPU::EmitSetup(CodeLabel *pForwardRef)
                 EmitBytes(code, sizeof(code));
                 Emit32(tlsofs);
             }
+#else  // !FEATURE_PAL
+            _ASSERTE("TLSACCESS_WNT mode is not supported");
+#endif // !FEATURE_PAL
             break;
 
         case TLSACCESS_GENERIC:
@@ -2919,7 +2926,6 @@ VOID StubLinkerCPU::EmitSetup(CodeLabel *pForwardRef)
     X86EmitDebugTrashReg(kECX);
     X86EmitDebugTrashReg(kEDX);
 #endif
-
 }
 
 VOID StubLinkerCPU::EmitRareSetup(CodeLabel *pRejoinPoint, BOOL fThrow)
@@ -3262,7 +3268,7 @@ VOID StubLinkerCPU::EmitMethodStubEpilog(WORD numArgBytes, int transitionBlockOf
     X86EmitPopReg(kR15);
 #endif
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(UNIX_X86_ABI)
     // Caller deallocates argument space.  (Bypasses ASSERT in
     // X86EmitReturn.)
     numArgBytes = 0;
@@ -4217,6 +4223,10 @@ VOID StubLinkerCPU::EmitShuffleThunk(ShuffleEntry *pShuffleEntryArray)
     if (haveMemMemMove)
         X86EmitPopReg(SCRATCH_REGISTER_X86REG);
 
+#ifdef UNIX_X86_ABI
+    _ASSERTE(pWalk->stacksizedelta == 0);
+#endif
+
     if (pWalk->stacksizedelta)
         X86EmitAddEsp(pWalk->stacksizedelta);
 
@@ -4824,8 +4834,9 @@ VOID StubLinkerCPU::EmitSecureDelegateInvoke(UINT_PTR hash)
     // Epilog
     EmitMethodStubEpilog(numStackBytes, SecureDelegateFrame::GetOffsetOfTransitionBlock());
 }
+#endif // !CROSSGEN_COMPILE && !FEATURE_STUBS_AS_IL
 
-#ifndef FEATURE_ARRAYSTUB_AS_IL
+#if !defined(CROSSGEN_COMPILE) && !defined(FEATURE_ARRAYSTUB_AS_IL)
 
 // Little helper to generate code to move nbytes bytes of non Ref memory
 
@@ -5710,8 +5721,12 @@ COPY_VALUE_CLASS:
     X86EmitPopReg(kFactorReg);
     X86EmitPopReg(kTotalReg);
 
+#ifndef UNIX_X86_ABI
     // ret N
     X86EmitReturn(pArrayOpScript->m_cbretpop);
+#else
+    X86EmitReturn(0);
+#endif
 #endif // !_TARGET_AMD64_
 
     // Exception points must clean up the stack for all those extra args.
@@ -5768,8 +5783,9 @@ COPY_VALUE_CLASS:
 #pragma warning(pop)
 #endif
 
-#endif // FEATURE_ARRAYSTUB_AS_IL
+#endif // !CROSSGEN_COMPILE && !FEATURE_ARRAYSTUB_AS_IL
 
+#if !defined(CROSSGEN_COMPILE) && !defined(FEATURE_STUBS_AS_IL)
 //===========================================================================
 // Emits code to break into debugger
 VOID StubLinkerCPU::EmitDebugBreak()
@@ -5841,9 +5857,9 @@ Thread* __stdcall CreateThreadBlockReturnHr(ComMethodFrame *pFrame)
 #pragma warning(pop)
 #endif
 
-#endif // defined(FEATURE_COMINTEROP) && defined(_TARGET_X86_)
+#endif // FEATURE_COMINTEROP && _TARGET_X86_
 
-#endif // !defined(CROSSGEN_COMPILE) && !defined(FEATURE_STUBS_AS_IL)
+#endif // !CROSSGEN_COMPILE && !FEATURE_STUBS_AS_IL
 
 #endif // !DACCESS_COMPILE
 
@@ -5919,8 +5935,8 @@ void TailCallFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
                     atEnd = (offsetEnd & 1);
                     offsetEnd = (offsetEnd & ~1) << 1;
                     // range encoding starts with a range of 3 (2 is better to encode as
-                    // 2 offsets), so 0 == 3
-                    offsetEnd += sizeof(void*) * 3;
+                    // 2 offsets), so 0 == 2 (the last offset in the range)
+                    offsetEnd += sizeof(void*) * 2;
                     rangeEnd = prevOffset - offsetEnd;
                 }
 
@@ -6048,8 +6064,8 @@ static void EncodeGCOffsets(CPUSTUBLINKER *pSl, /* const */ ULONGARRAY & gcOffse
             {
                 EncodeOneGCOffset(pSl, delta, FALSE, TRUE, last); 
                 i = j - 1;
-                _ASSERTE(rangeOffset >= (offset + (sizeof(void*) * 3)));
-                delta = rangeOffset - (offset + (sizeof(void*) * 3));
+                _ASSERTE(rangeOffset >= (offset + (sizeof(void*) * 2)));
+                delta = rangeOffset - (offset + (sizeof(void*) * 2));
                 offset = rangeOffset;
             }
         }
@@ -6529,6 +6545,22 @@ TADDR FixupPrecode::GetMethodDesc()
 }
 #endif
 
+#ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+PCODE FixupPrecode::GetDynamicMethodEntryJumpStub()
+{
+    _ASSERTE(((PTR_MethodDesc)GetMethodDesc())->IsLCGMethod());
+
+    // m_PrecodeChunkIndex has a value inverted to the order of precodes in memory (the precode at the lowest address has the
+    // highest index, and the precode at the highest address has the lowest index). To map a precode to its jump stub by memory
+    // order, invert the precode index to get the jump stub index.
+    UINT32 count = ((PTR_MethodDesc)GetMethodDesc())->GetMethodDescChunk()->GetCount();
+    _ASSERTE(m_PrecodeChunkIndex < count);
+    SIZE_T jumpStubIndex = count - 1 - m_PrecodeChunkIndex;
+
+    return GetBase() + sizeof(PTR_MethodDesc) + jumpStubIndex * BACK_TO_BACK_JUMP_ALLOCATE_SIZE;
+}
+#endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+
 #ifdef DACCESS_COMPILE
 void FixupPrecode::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 {
@@ -6648,10 +6680,17 @@ void FixupPrecode::Init(MethodDesc* pMD, LoaderAllocator *pLoaderAllocator, int 
 
     _ASSERTE(GetMethodDesc() == (TADDR)pMD);
 
+    PCODE target = (PCODE)GetEEFuncEntryPoint(PrecodeFixupThunk);
+#ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+    if (pMD->IsLCGMethod())
+    {
+        m_rel32 = rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodEntryJumpStub());
+        return;
+    }
+#endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
     if (pLoaderAllocator != NULL)
     {
-        m_rel32 = rel32UsingJumpStub(&m_rel32,
-            GetEEFuncEntryPoint(PrecodeFixupThunk), NULL /* pMD */, pLoaderAllocator);
+        m_rel32 = rel32UsingJumpStub(&m_rel32, target, NULL /* pMD */, pLoaderAllocator);
     }
 }
 
@@ -6667,21 +6706,40 @@ BOOL FixupPrecode::SetTargetInterlocked(TADDR target, TADDR expected)
     INT64 oldValue = *(INT64*)this;
     BYTE* pOldValue = (BYTE*)&oldValue;
 
-    if (pOldValue[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP] != FixupPrecode::TypePrestub)
-        return FALSE;
-
     MethodDesc * pMD = (MethodDesc*)GetMethodDesc();
     g_IBCLogger.LogMethodPrecodeWriteAccess(pMD);
     
     INT64 newValue = oldValue;
     BYTE* pNewValue = (BYTE*)&newValue;
 
-    pNewValue[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP] = FixupPrecode::Type;
+    if (pOldValue[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP] == FixupPrecode::TypePrestub)
+    {
+        pNewValue[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP] = FixupPrecode::Type;
 
-    pOldValue[offsetof(FixupPrecode,m_op)] = X86_INSTR_CALL_REL32;
-    pNewValue[offsetof(FixupPrecode,m_op)] = X86_INSTR_JMP_REL32;
-
-    *(INT32*)(&pNewValue[offsetof(FixupPrecode,m_rel32)]) = rel32UsingJumpStub(&m_rel32, target, pMD);
+        pOldValue[offsetof(FixupPrecode, m_op)] = X86_INSTR_CALL_REL32;
+        pNewValue[offsetof(FixupPrecode, m_op)] = X86_INSTR_JMP_REL32;
+    }
+    else if (pOldValue[OFFSETOF_PRECODE_TYPE_CALL_OR_JMP] == FixupPrecode::Type)
+    {
+#ifdef FEATURE_TIERED_COMPILATION
+        // No change needed, jmp is already in place
+#else
+        // Setting the target more than once is unexpected
+        return FALSE;
+#endif
+    }
+    else
+    {
+        // Pre-existing code doesn't conform to the expectations for a FixupPrecode
+        return FALSE;
+    }
+	
+    *(INT32*)(&pNewValue[offsetof(FixupPrecode, m_rel32)]) =
+#ifdef FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+        pMD->IsLCGMethod() ?
+            rel32UsingPreallocatedJumpStub(&m_rel32, target, GetDynamicMethodEntryJumpStub()) :
+#endif // FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS
+            rel32UsingJumpStub(&m_rel32, target, pMD);
 
     _ASSERTE(IS_ALIGNED(this, sizeof(INT64)));
     EnsureWritableExecutablePages(this, sizeof(INT64));

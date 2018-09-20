@@ -5,6 +5,11 @@
 #ifndef __XPLAT_H__
 #define __XPLAT_H__
 
+#ifdef _MSC_VER
+// Our tests don't care about secure CRT
+#define _CRT_SECURE_NO_WARNINGS 1
+#endif
+
 // common headers
 #include <stdio.h>
 #include <memory.h>
@@ -24,11 +29,11 @@
 //  include 
 #ifdef _WIN32
 	#include <windows.h>
-	#include <wchar.h>
 	#include <tchar.h>
 #else
 	#include "types.h"
 #endif
+#include <wchar.h>
 
 
 // dllexport
@@ -48,9 +53,16 @@
 
 #endif //_WIN32
 
+// The default P/Invoke calling convetion is STDCALL on Window, but CDECL on Unix.
+#ifdef _WIN32
+#define CALLBACK    __stdcall
+#define NATIVEAPI   __stdcall
+#else // _WIN32
+#define CALLBACK
+#define NATIVEAPI
+#endif // !_WIN32
 
-#define WINAPI   _cdecl
-#ifndef __stdcall
+#ifndef _MSC_VER
 #if __i386__
 #define __stdcall __attribute__((stdcall))
 #define _cdecl __attribute__((cdecl))
@@ -115,7 +127,9 @@ public:
 // function implementation
 size_t strncpy_s(char* strDest, size_t numberOfElements, const char *strSource, size_t count)
 {
-	return snprintf(strDest, count, "%s", strSource);
+    // NOTE: Need to pass count + 1 since strncpy_s does not count null,
+    // while snprintf does. 
+	return snprintf(strDest, count + 1, "%s", strSource);
 }
 
 size_t strcpy_s(char *dest, size_t n, char const *src)
@@ -180,7 +194,9 @@ int wcsncpy_s(LPWSTR strDestination, size_t size1, LPCWSTR strSource)
 
 }
 
-int wmemcmp(LPWSTR str1, LPWSTR str2,size_t len)
+#define wcsncmp wmemcmp
+
+int wmemcmp(LPCWSTR str1, LPCWSTR str2,size_t len)
 {
 	// < 0 str1 less than str2
 	// 0  str1 identical to str2

@@ -1,45 +1,21 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <Import Project="Microsoft.NETCore.Runtime.CoreCLR.props" />
+
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
 
-  <PropertyGroup>
-    <Version>1.0.2</Version>
-    <SkipPackageFileCheck>true</SkipPackageFileCheck>
-    <SkipValidatePackage>true</SkipValidatePackage>
-    <PackagePlatforms>x64;x86;arm</PackagePlatforms>
-    <OutputPath>$(PackagesOutputPath)</OutputPath>
-    <IncludeRuntimeJson>true</IncludeRuntimeJson>
+  <PropertyGroup Condition="'$(PackageTargetRuntime)' == ''">
+    <IsLineupPackage Condition="'$(IsLineupPackage)' == ''">true</IsLineupPackage>
   </PropertyGroup>
-
-  <ItemGroup>
-    <!-- ApiSets are only applicable for Windows. 
-         Despite the unconditioned package dependency it is constrained by runtime IDs within it's own package -->
-    <Dependency Include="Microsoft.NETCore.Windows.ApiSets">
-      <Version>1.0.1-rc3-23915</Version>
-    </Dependency>
-    <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>amd64</Platform>
+  
+  <ItemGroup Condition="'$(IsLineupPackage)' == 'true'">
+    <ProjectReference Include="..\Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.pkgproj">
+      <AdditionalProperties>%(ProjectReference.AdditionalProperties);IsLineupPackage=false</AdditionalProperties>
     </ProjectReference>
-    <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>x86</Platform>
-    </ProjectReference>
-    <ProjectReference Include="win\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>arm</Platform>
-    </ProjectReference>
-    <ProjectReference Include="rhel\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>amd64</Platform>
-    </ProjectReference>
-    <ProjectReference Include="debian\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>amd64</Platform>
-    </ProjectReference>
-    <ProjectReference Include="osx\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>amd64</Platform>
-    </ProjectReference>
-    <ProjectReference Include="ubuntu\Microsoft.NETCore.Runtime.CoreCLR.pkgproj">
-      <Platform>amd64</Platform>
-    </ProjectReference>
-
   </ItemGroup>
 
+  <Import Condition="'$(_packageTargetOSGroup)' != ''"  Project="$(MSBuildThisFileDirectory)runtime.$(_packageTargetOSGroup).$(MSBuildProjectName).props" />
+  
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

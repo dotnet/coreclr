@@ -176,23 +176,6 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_pILStub == offsetof(UMThunkMarshInfo, 
 #define UMThunkMarshInfo__m_cbActualArgSize 0x04
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMarshInfo, m_cbActualArgSize))
 
-#ifdef FEATURE_REMOTING
-
-#define TransparentProxyObject___stubData 0x8
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stubData == offsetof(TransparentProxyObject, _stubData))
-
-#define TransparentProxyObject___stub 0x14
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stub == offsetof(TransparentProxyObject, _stub))
-
-#define TransparentProxyObject___pMT 0xc
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___pMT == offsetof(TransparentProxyObject, _pMT))
-
-#define RemotingPrecode__m_pMethodDesc 0x10
-ASMCONSTANTS_C_ASSERT(RemotingPrecode__m_pMethodDesc == offsetof(RemotingPrecode, m_pMethodDesc))
-
-#define REMOTING_PRECODE_RET_OFFSET 0x06
-
-#endif // FEATURE_REMOTING
 
 #define MethodDesc__m_wFlags DBG_FRE(0x1A, 0x06)
 ASMCONSTANTS_C_ASSERT(MethodDesc__m_wFlags == offsetof(MethodDesc, m_wFlags))
@@ -225,10 +208,10 @@ ASMCONSTANTS_C_ASSERT(UnmanagedToManagedFrame__m_pvDatum == offsetof(UnmanagedTo
 
 #ifndef CROSSGEN_COMPILE
 #define               Thread__m_alloc_context__alloc_limit   0x44
-ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
 
 #define               Thread__m_alloc_context__alloc_ptr   0x40
-ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+ASMCONSTANTS_C_ASSERT(Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
 #endif // CROSSGEN_COMPILE
 
 #define               Thread__m_fPreemptiveGCDisabled   0x08

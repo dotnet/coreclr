@@ -327,6 +327,12 @@ FCIMPL3(void, RuntimeMethodHandle::CheckLinktimeDemands, ReflectMethodObject *pM
     }
     CONTRACTL_END;
 
+    if(!Security::IsTransparencyEnforcementEnabled())
+    {
+        FCUnique(0xb0);
+        return;
+    }
+
     REFLECTMETHODREF refMethod = (REFLECTMETHODREF)ObjectToOBJECTREF(pMethodUNSAFE);
     REFLECTMODULEBASEREF refModule = (REFLECTMODULEBASEREF)ObjectToOBJECTREF(pModuleUNSAFE);
 
@@ -346,13 +352,6 @@ FCIMPL3(void, RuntimeMethodHandle::CheckLinktimeDemands, ReflectMethodObject *pM
             }
         }
 
-#ifndef FEATURE_CORECLR    
-        if (pCallee->RequiresLinktimeCheck())
-        {
-            Module *pModule = refModule->GetModule();
-            Security::LinktimeCheckMethod(pDecoratedModule->GetAssembly(), pCallee);
-        }
-#endif // !FEATURE_CORECLR
     }
     HELPER_METHOD_FRAME_END();
 }
@@ -562,43 +561,6 @@ FCIMPLEND
 
 
 
-#ifndef FEATURE_CORECLR
-FCIMPL2(FC_BOOL_RET, RuntimeTypeHandle::IsEquivalentTo, ReflectClassBaseObject *rtType1UNSAFE, ReflectClassBaseObject *rtType2UNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BOOL bResult = FALSE;
-
-    REFLECTCLASSBASEREF rtType1 = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(rtType1UNSAFE);
-    REFLECTCLASSBASEREF rtType2 = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(rtType2UNSAFE);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_2(rtType1, rtType2);
-    if (rtType1 == NULL)
-        COMPlusThrowArgumentNull(W("rtType1"));
-    if (rtType2 == NULL)
-        COMPlusThrowArgumentNull(W("rtType2"));
-
-    bResult = rtType1->GetType().IsEquivalentTo(rtType2->GetType());
-    HELPER_METHOD_FRAME_END();
-
-    FC_RETURN_BOOL(bResult);
-}
-FCIMPLEND
-
-FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsEquivalentType, ReflectClassBaseObject *rtTypeUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BOOL bResult = FALSE;
-
-    TypeHandle typeHandle = rtTypeUNSAFE->GetType();
-    if (!typeHandle.IsTypeDesc())
-        bResult = typeHandle.AsMethodTable()->GetClass()->IsEquivalentType();
-
-    FC_RETURN_BOOL(bResult);
-}
-FCIMPLEND
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_COMINTEROP
 FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsWindowsRuntimeObjectType, ReflectClassBaseObject *rtTypeUNSAFE)
@@ -841,6 +803,12 @@ void QCALLTYPE RuntimeFieldHandle::CheckAttributeAccess(FieldDesc *pFD, QCall::M
         PRECONDITION(CheckPointer(pModule.m_pModule));
     }
     CONTRACTL_END;
+    
+    if(!Security::IsTransparencyEnforcementEnabled())
+    {
+        FCUnique(0xb1);
+        return;
+    }
 
     BEGIN_QCALL;
 
@@ -1249,32 +1217,6 @@ FCIMPL1(INT32, RuntimeTypeHandle::GetAttributes, ReflectClassBaseObject *pTypeUN
 }
 FCIMPLEND
 
-#ifdef FEATURE_REMOTING    
-FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsContextful, ReflectClassBaseObject *pTypeUNSAFE) {
-    CONTRACTL {
-        FCALL_CHECK;
-    }
-    CONTRACTL_END;
-    
-    REFLECTCLASSBASEREF refType = (REFLECTCLASSBASEREF)ObjectToOBJECTREF(pTypeUNSAFE);
-
-    if (refType == NULL)
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    TypeHandle typeHandle = refType->GetType();
-    
-    if (typeHandle.IsTypeDesc())
-        FC_RETURN_BOOL(FALSE);
-
-    MethodTable* pMT= typeHandle.GetMethodTable();
-    
-    if (!pMT)
-        FCThrowRes(kArgumentException, W("Arg_InvalidHandle"));
-
-    FC_RETURN_BOOL(pMT->IsContextful());
-}
-FCIMPLEND
-#endif
 
 FCIMPL1(FC_BOOL_RET, RuntimeTypeHandle::IsValueType, ReflectClassBaseObject *pTypeUNSAFE)
 {
@@ -1880,10 +1822,9 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByNameUsingCARules(LPCWSTR pwzClassName
 
 void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase, BOOL bReflectionOnly,
                                                 QCall::StackCrawlMarkHandle pStackMark, 
-#ifdef FEATURE_HOSTED_BINDER
                                                 ICLRPrivBinder * pPrivHostBinder,
-#endif
-                                                BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType)
+                                                BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
+                                                QCall::ObjectHandleOnStack keepAlive)
 {
     QCALL_CONTRACT;
     
@@ -1894,32 +1835,16 @@ void QCALLTYPE RuntimeTypeHandle::GetTypeByName(LPCWSTR pwzClassName, BOOL bThro
     if (!pwzClassName)
             COMPlusThrowArgumentNull(W("className"),W("ArgumentNull_String"));
 
-    GCX_COOP();
     {
-        OBJECTREF keepAlive = NULL;
+        typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, bReflectionOnly, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark,
+                                              bLoadTypeFromPartialNameHack, (OBJECTREF*)keepAlive.m_ppObject,
+                                              pPrivHostBinder);
+    }
 
-        // BEGIN_QCALL/END_QCALL define try/catch scopes for potential exceptions thrown when bThrowOnError is enabled.
-        // Originally, in case of an exception the GCFrame was removed from the Thread's Frame chain in the catch block, in UnwindAndContinueRethrowHelperInsideCatch.
-        // However, the catch block declared some local variables that overlapped the location of the now out of scope GCFrame and OBJECTREF, therefore corrupting
-        // those values. Having the GCX_COOP/GCX_PREEMP switching GC modes, allowed a situation where in case of an exception, the thread would wait for a GC to complete
-        // while still having the GCFrame in the Thread's Frame chain, but with a corrupt OBJECTREF due to stack location reuse in the catch block.
-        // The solution is to force the removal of GCFrame (and the Frames above) from the Thread's Frame chain before entering the catch block, at the time of 
-        // FrameWithCookieHolder's destruction.
-        GCPROTECT_HOLDER(keepAlive);
-
-        {
-            GCX_PREEMP();
-            typeHandle = TypeName::GetTypeManaged(pwzClassName, NULL, bThrowOnError, bIgnoreCase, bReflectionOnly, /*bProhibitAsmQualifiedName =*/ FALSE, pStackMark, bLoadTypeFromPartialNameHack, &keepAlive
-#ifdef FEATURE_HOSTED_BINDER
-                                                  , pPrivHostBinder
-#endif
-                );
-        }
-
-        if (!typeHandle.IsNull())
-        {
-            retType.Set(typeHandle.GetManagedClassObject());
-        }
+    if (!typeHandle.IsNull())
+    {
+        GCX_COOP();
+        retType.Set(typeHandle.GetManagedClassObject());
     }
 
     END_QCALL;
@@ -2690,6 +2615,10 @@ void QCALLTYPE RuntimeMethodHandle::Destroy(MethodDesc * pMethod)
     // Fire Unload Dynamic Method Event here
     ETW::MethodLog::DynamicMethodDestroyed(pMethod);
 
+    BEGIN_PIN_PROFILER(CORProfilerIsMonitoringDynamicFunctionUnloads());
+    g_profControlBlock.pProfInterface->DynamicMethodUnloaded((FunctionID)pMethod);
+    END_PIN_PROFILER();
+
     pDynamicMethodDesc->Destroy();
 
     END_QCALL;
@@ -3268,36 +3197,6 @@ FCIMPL1(INT32, AssemblyHandle::GetToken, AssemblyBaseObject* pAssemblyUNSAFE) {
 }
 FCIMPLEND
 
-#ifdef FEATURE_APTCA
-FCIMPL2(FC_BOOL_RET, AssemblyHandle::AptcaCheck, AssemblyBaseObject* pTargetAssemblyUNSAFE,  AssemblyBaseObject* pSourceAssemblyUNSAFE) 
-{
-    FCALL_CONTRACT;
-
-    ASSEMBLYREF refTargetAssembly = (ASSEMBLYREF)ObjectToOBJECTREF(pTargetAssemblyUNSAFE);
-    ASSEMBLYREF refSourceAssembly = (ASSEMBLYREF)ObjectToOBJECTREF(pSourceAssemblyUNSAFE);
-    
-    if ((refTargetAssembly == NULL) || (refSourceAssembly == NULL))
-        FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
-
-    DomainAssembly *pTargetAssembly = refTargetAssembly->GetDomainAssembly();
-    DomainAssembly *pSourceAssembly = refSourceAssembly->GetDomainAssembly();
-    
-    if (pTargetAssembly == pSourceAssembly)
-        FC_RETURN_BOOL(TRUE);
-
-    BOOL bResult = TRUE;
-    
-    HELPER_METHOD_FRAME_BEGIN_RET_2(refSourceAssembly, refTargetAssembly);
-    {
-        bResult = ( pTargetAssembly->GetAssembly()->AllowUntrustedCaller() || // target assembly allows untrusted callers unconditionally
-                    pSourceAssembly->GetSecurityDescriptor()->IsFullyTrusted());
-    }
-    HELPER_METHOD_FRAME_END();
-
-    FC_RETURN_BOOL(bResult);
-}
-FCIMPLEND
-#endif // FEATURE_APTCA
     
 void QCALLTYPE ModuleHandle::GetPEKind(QCall::ModuleHandle pModule, DWORD* pdwPEKind, DWORD* pdwMachine)
 {

@@ -16,10 +16,8 @@
 using System;
 using System.Runtime.Serialization;
 
-namespace System.IO {
-
-    [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+namespace System.IO
+{
     public class IOException : SystemException
     {
         // For debugging purposes, store the complete path in the IOException
@@ -33,36 +31,43 @@ namespace System.IO {
         [NonSerialized]
         private String _maybeFullPath;  // For debuggers on partial trust code
 
-        public IOException() 
-            : base(Environment.GetResourceString("Arg_IOException")) {
-            SetErrorCode(__HResults.COR_E_IO);
-        }
-        
-        public IOException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_IO);
+        public IOException()
+            : base(SR.Arg_IOException)
+        {
+            HResult = __HResults.COR_E_IO;
         }
 
-        public IOException(String message, int hresult) 
-            : base(message) {
-            SetErrorCode(hresult);
+        public IOException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_IO;
+        }
+
+        public IOException(String message, int hresult)
+            : base(message)
+        {
+            HResult = hresult;
         }
 
         // Adding this for debuggers when looking at exceptions in partial
         // trust code that may not have interesting path information in
         // the exception message.
-        internal IOException(String message, int hresult, String maybeFullPath) 
-            : base(message) {
-            SetErrorCode(hresult);
+        internal IOException(String message, int hresult, String maybeFullPath)
+            : base(message)
+        {
+            HResult = hresult;
             _maybeFullPath = maybeFullPath;
         }
-        
-        public IOException(String message, Exception innerException) 
-            : base(message, innerException) {
-            SetErrorCode(__HResults.COR_E_IO);
+
+        public IOException(String message, Exception innerException)
+            : base(message, innerException)
+        {
+            HResult = __HResults.COR_E_IO;
         }
 
-        protected IOException(SerializationInfo info, StreamingContext context) : base (info, context) {
+        protected IOException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
         }
     }
 }

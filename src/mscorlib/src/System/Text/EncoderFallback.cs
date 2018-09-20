@@ -5,16 +5,16 @@
 using System;
 using System.Security;
 using System.Threading;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Text
 {
-    [Serializable]
     public abstract class EncoderFallback
     {
-// disable csharp compiler warning #0414: field assigned unused value
+        // disable csharp compiler warning #0414: field assigned unused value
 #pragma warning disable 0414
-        internal bool                 bIsMicrosoftBestFitFallback = false;
+        internal bool bIsMicrosoftBestFitFallback = false;
 #pragma warning restore 0414
 
         private static volatile EncoderFallback replacementFallback; // Default fallback, uses no best fit & "?"
@@ -42,7 +42,7 @@ namespace System.Text
             get
             {
                 if (replacementFallback == null)
-                    lock(InternalSyncObject)
+                    lock (InternalSyncObject)
                         if (replacementFallback == null)
                             replacementFallback = new EncoderReplacementFallback();
 
@@ -56,7 +56,7 @@ namespace System.Text
             get
             {
                 if (exceptionFallback == null)
-                    lock(InternalSyncObject)
+                    lock (InternalSyncObject)
                         if (exceptionFallback == null)
                             exceptionFallback = new EncoderExceptionFallback();
 
@@ -106,25 +106,22 @@ namespace System.Text
 
         public virtual void Reset()
         {
-            while (GetNextChar() != (char)0);
+            while (GetNextChar() != (char)0) ;
         }
 
         // Internal items to help us figure out what we're doing as far as error messages, etc.
         // These help us with our performance and messages internally
-        [SecurityCritical]
-        internal    unsafe char*   charStart;
-        [SecurityCritical]
-        internal    unsafe char*   charEnd;
-        internal    EncoderNLS     encoder;
-        internal    bool           setEncoder;
-        internal    bool           bUsedEncoder;
-        internal    bool           bFallingBack = false;
-        internal    int            iRecursionCount = 0;
-        private const int          iMaxRecursion = 250;
+        internal unsafe char* charStart;
+        internal unsafe char* charEnd;
+        internal EncoderNLS encoder;
+        internal bool setEncoder;
+        internal bool bUsedEncoder;
+        internal bool bFallingBack = false;
+        internal int iRecursionCount = 0;
+        private const int iMaxRecursion = 250;
 
         // Internal Reset
         // For example, what if someone fails a conversion and wants to reset one of our fallback buffers?
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe void InternalReset()
         {
             charStart = null;
@@ -135,7 +132,6 @@ namespace System.Text
 
         // Set the above values
         // This can't be part of the constructor because EncoderFallbacks would have to know how to impliment these.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe void InternalInitialize(char* charStart, char* charEnd, EncoderNLS encoder, bool setEncoder)
         {
             this.charStart = charStart;
@@ -163,11 +159,10 @@ namespace System.Text
         // Note that this could also change the contents of this.encoder, which is the same
         // object that the caller is using, so the caller could mess up the encoder for us
         // if they aren't careful.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe virtual bool InternalFallback(char ch, ref char* chars)
         {
             // Shouldn't have null charStart
-            Contract.Assert(charStart != null,
+            Debug.Assert(charStart != null,
                 "[EncoderFallback.InternalFallbackBuffer]Fallback buffer is not initialized");
 
             // Get our index, remember chars was preincremented to point at next char, so have to -1
@@ -228,9 +223,7 @@ namespace System.Text
         {
             // Throw it, using our complete character
             throw new ArgumentException(
-                Environment.GetResourceString("Argument_RecursiveFallback",
-                    charRecursive), "chars");
+                SR.Format(SR.Argument_RecursiveFallback, charRecursive), "chars");
         }
-
     }
 }

@@ -1,11 +1,11 @@
-@echo off
+@if not defined __echo @echo off
 rem
 rem This file invokes cmake and generates the build system for windows.
 
 set argC=0
 for %%x in (%*) do Set /A argC+=1
 
-if NOT %argC%==3 GOTO :USAGE
+if %argC% lss 3 GOTO :USAGE
 if %1=="/?" GOTO :USAGE
 
 setlocal
@@ -15,24 +15,32 @@ set "basePath=%basePath:"=%"
 :: remove trailing slash
 if %basePath:~-1%==\ set "basePath=%basePath:~0,-1%"
 
-set __VSString=12 2013
-if /i "%2" == "vs2015" (set __VSString=14 2015)
-if /i "%3" == "x64" (set __VSString=%__VSString% Win64)
-if /i "%3" == "arm64" (
-    set USE_VS=0
-)
+set __SourceDir=%1
+set __VSVersion=%2
+set __Arch=%3
+set __CmakeGenerator=Visual Studio
+if /i "%__VSVersion%" == "vs2017" (set __CmakeGenerator=%__CmakeGenerator% 15 2017)
+if /i "%__VSVersion%" == "vs2015" (set __CmakeGenerator=%__CmakeGenerator% 14 2015)
+if /i "%__Arch%" == "x64" (set __CmakeGenerator=%__CmakeGenerator% Win64)
+if /i "%__Arch%" == "arm64" (set __CmakeGenerator=%__CmakeGenerator% Win64)
+if /i "%__Arch%" == "arm" (set __CmakeGenerator=%__CmakeGenerator% ARM)
+
+if /i "%__NMakeMakefiles%" == "1" (set __CmakeGenerator=NMake Makefiles)
+
+:loop
+if [%4] == [] goto end_loop
+set __ExtraCmakeParams=%__ExtraCmakeParams% %4
+shift
+goto loop
+:end_loop
 
 if defined CMakePath goto DoGen
 
 :: Eval the output from probe-win1.ps1
-for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy RemoteSigned "& .\probe-win.ps1"') do %%a
+for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy ByPass "& "%basePath%\probe-win.ps1""') do %%a
 
 :DoGen
-if "%USE_VS%" == "0" (
-    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_TARGET_ARCH=%3" -G "Visual Studio %__VSString% Win64" %1
-) else (
-    "%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCLR_CMAKE_TARGET_ARCH=%3" -G "Visual Studio %__VSString%" %1
-)
+"%CMakePath%" "-DCMAKE_USER_MAKE_RULES_OVERRIDE=%basePath%\windows-compiler-override.txt" "-DCMAKE_INSTALL_PREFIX:PATH=$ENV{__CMakeBinDir}" "-DCLR_CMAKE_HOST_ARCH=%__Arch%" %__ExtraCmakeParams% -G "%__CmakeGenerator%" %__SourceDir%
 endlocal
 GOTO :DONE
 
@@ -40,14 +48,8 @@ GOTO :DONE
   echo "Usage..."
   echo "gen-buildsys-win.bat <path to top level CMakeLists.txt> <VSVersion>"
   echo "Specify the path to the top level CMake file - <ProjectK>/src/NDP"
-  echo "Specify the VSVersion to be used - VS2013 or VS2015"
+  echo "Specify the VSVersion to be used - VS2015 or VS2017"
   EXIT /B 1
 
 :DONE
   EXIT /B 0
-
-
-
-
-
-

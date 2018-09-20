@@ -4,8 +4,9 @@
 //
 // .NET SIMD to solve Burgers' equation
 //
-// Benchmark based on 
-// http://taumuon-jabuka.blogspot.co.uk/2014/10/net-simd-to-solve-burgers-equation.html
+// Benchmark based on
+// https://github.com/taumuon/SIMD-Vectorisation-Burgers-Equation-CSharp
+// http://www.taumuon.co.uk/2014/10/net-simd-to-solve-burgers-equation.html
 
 using Microsoft.Xunit.Performance;
 using System;
@@ -14,7 +15,6 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
 public class Burgers
 {
@@ -191,7 +191,7 @@ public class Burgers
         double[] x = linspace(0.0, 2.0 * Math.PI, nx);
         double[] initial = GetAnalytical(x, 0.0, nu);
 
-        // Warmup 
+        // Warmup
 
         GetCalculated0(1, nx, dx, dt, nu, initial);
         GetCalculated1(1, nx, dx, dt, nu, initial);

@@ -107,6 +107,38 @@ void ZapBaseRelocs::WriteReloc(PVOID pSrc, int offset, ZapNode * pTarget, int ta
         // IMAGE_REL_BASED_THUMB_BRANCH24 does not need base reloc entry
         return;
 #endif
+#if defined(_TARGET_ARM64_)
+    case IMAGE_REL_ARM64_BRANCH26:
+        {
+            TADDR pSite = (TADDR)m_pImage->GetBaseAddress() + rva;
+
+            INT32 relOffset = (INT32)(pActualTarget - pSite);
+            if (!FitsInRel28(relOffset))
+            {
+                ThrowHR(COR_E_OVERFLOW);
+            }
+            PutArm64Rel28((UINT32 *)pLocation,relOffset);
+        }
+        return;
+
+    case IMAGE_REL_ARM64_PAGEBASE_REL21:
+        {
+            TADDR pSitePage = ((TADDR)m_pImage->GetBaseAddress() + rva) & 0xFFFFFFFFFFFFF000LL;
+            TADDR pActualTargetPage = pActualTarget & 0xFFFFFFFFFFFFF000LL;
+
+            INT64 relPage = (INT64)(pActualTargetPage - pSitePage);
+            INT32 imm21 = (INT32)(relPage >> 12) & 0x1FFFFF;
+            PutArm64Rel21((UINT32 *)pLocation, imm21);
+        }
+        return;
+
+    case IMAGE_REL_ARM64_PAGEOFFSET_12A:
+        {
+            INT32 imm12 = (INT32)(pActualTarget & 0xFFFLL);
+            PutArm64Rel12((UINT32 *)pLocation, imm12);
+        }
+        return;
+#endif
 
     default:
         _ASSERTE(!"Unknown relocation type");
@@ -257,6 +289,21 @@ void ZapBlobWithRelocs::Save(ZapWriter * pZapWriter)
                 targetOffset = GetThumb2BlRel24((UINT16 *)pLocation);
                 break;
 #endif // defined(_TARGET_ARM_)
+
+#if defined(_TARGET_ARM64_)
+            case IMAGE_REL_ARM64_BRANCH26:
+                targetOffset = (int)GetArm64Rel28((UINT32*)pLocation);
+                break;
+
+            case IMAGE_REL_ARM64_PAGEBASE_REL21:
+                targetOffset = (int)GetArm64Rel21((UINT32*)pLocation);
+                break;
+
+            case IMAGE_REL_ARM64_PAGEOFFSET_12A:
+                targetOffset = (int)GetArm64Rel12((UINT32*)pLocation);
+                break;
+
+#endif // defined(_TARGET_ARM64_)
 
             default:
                 _ASSERTE(!"Unknown reloc type");

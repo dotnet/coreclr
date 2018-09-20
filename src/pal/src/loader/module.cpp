@@ -18,11 +18,13 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(LOADER); // some headers have code with asserts, so do this first
+
 #include "pal/thread.hpp"
 #include "pal/malloc.hpp"
 #include "pal/file.hpp"
 #include "pal/palinternal.h"
-#include "pal/dbgmsg.h"
 #include "pal/module.h"
 #include "pal/cs.hpp"
 #include "pal/process.h"
@@ -54,13 +56,11 @@ Abstract:
 #include <sys/types.h>
 #include <sys/mman.h>
 
-#if defined(__linux__)
+#if HAVE_GNU_LIBNAMES_H
 #include <gnu/lib-names.h>
 #endif
 
 using namespace CorUnix;
-
-SET_DEFAULT_DEBUG_CHANNEL(LOADER);
 
 // In safemath.h, Template SafeInt uses macro _ASSERTE, which need to use variable
 // defdbgchan defined by SET_DEFAULT_DEBUG_CHANNEL. Therefore, the include statement
@@ -189,7 +189,7 @@ LoadLibraryExA(
  Done:
     if (lpstr != nullptr)
     {
-        InternalFree(lpstr);
+        free(lpstr);
     }
 
     LOGEXIT("LoadLibraryExA returns HMODULE %p\n", hModule);
@@ -280,6 +280,16 @@ GetProcAddress(
 
     module = (MODSTRUCT *) hModule;
 
+    /* try to assert on attempt to locate symbol by ordinal */
+    /* this can't be an exact test for HIWORD((DWORD)lpProcName) == 0
+       because of the address range reserved for ordinals contain can
+       be a valid string address on non-Windows systems
+    */
+    if ((DWORD_PTR)lpProcName < VIRTUAL_PAGE_SIZE)
+    {
+        ASSERT("Attempt to locate symbol by ordinal?!\n");
+    }
+
     /* parameter validation */
 
     if ((lpProcName == nullptr) || (*lpProcName == '\0'))
@@ -294,16 +304,6 @@ GetProcAddress(
         TRACE("Invalid module handle %p\n", hModule);
         SetLastError(ERROR_INVALID_HANDLE);
         goto done;
-    }
-    
-    /* try to assert on attempt to locate symbol by ordinal */
-    /* this can't be an exact test for HIWORD((DWORD)lpProcName) == 0
-       because of the address range reserved for ordinals contain can
-       be a valid string address on non-Windows systems
-    */
-    if ((DWORD_PTR)lpProcName < VIRTUAL_PAGE_SIZE)
-    {
-        ASSERT("Attempt to locate symbol by ordinal?!\n");
     }
 
     // Get the symbol's address.
@@ -754,7 +754,7 @@ PAL_LOADLoadPEFile(HANDLE hFile)
                 loadedBase = MAPMapPEFile(hFile); // load it again
             }
 
-            InternalFree(envVar);
+            free(envVar);
         }
     }
 #endif // _DEBUG
@@ -908,7 +908,7 @@ BOOL LOADSetExeName(LPWSTR name)
     LockModuleList();
 
     // Save the exe path in the exe module struct
-    InternalFree(exe_module.lib_name);
+    free(exe_module.lib_name);
     exe_module.lib_name = name;
 
     // For platforms where we can't trust the handle to be constant, we need to 
@@ -939,7 +939,7 @@ BOOL LOADSetExeName(LPWSTR name)
 exit:
     if (pszExeName)
     {
-        InternalFree(pszExeName);
+        free(pszExeName);
     }
 #endif
     UnlockModuleList();
@@ -1111,8 +1111,8 @@ static BOOL LOADFreeLibrary(MODSTRUCT *module, BOOL fCallDllMain)
     }
 
     /* release all memory */
-    InternalFree(module->lib_name);
-    InternalFree(module);
+    free(module->lib_name);
+    free(module);
 
     retval = TRUE;
 
@@ -1423,7 +1423,7 @@ static MODSTRUCT *LOADAllocModule(void *dl_handle, LPCSTR name)
     if (nullptr == wide_name)
     {
         ERROR("couldn't convert name to a wide-character string\n");
-        InternalFree(module);
+        free(module);
         return nullptr;
     }
 
@@ -1607,21 +1607,25 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
     HMODULE module = nullptr;
     void *dl_handle = nullptr;
 
-    // Check whether we have been requested to load 'libc'. If that's the case then use the
-    // full name of the library that is defined in <gnu/lib-names.h> by the LIBC_SO constant.
-    // The problem is that calling dlopen("libc.so") will fail for libc even thought it works
-    // for other libraries. The reason is that libc.so is just linker script (i.e. a test file).
-    // As a result, we have to use the full name (i.e. lib.so.6) that is defined by LIBC_SO.
+    // Check whether we have been requested to load 'libc'. If that's the case, then:
+    // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
+    //   LIBC_SO constant. The problem is that calling dlopen("libc.so") will fail for libc even
+    //   though it works for other libraries. The reason is that libc.so is just linker script
+    //   (i.e. a test file).
+    //   As a result, we have to use the full name (i.e. lib.so.6) that is defined by LIBC_SO.
+    // * For macOS, use constant value absolute path "/usr/lib/libc.dylib".
+    // * For FreeBSD, use constant value "libc.so.7".
+    // * For rest of Unices, use constant value "libc.so".
     if (strcmp(shortAsciiName, LIBC_NAME_WITHOUT_EXTENSION) == 0)
     {
 #if defined(__APPLE__)
-        shortAsciiName = "libc.dylib";
+        shortAsciiName = "/usr/lib/libc.dylib";
 #elif defined(__FreeBSD__)
-        shortAsciiName = FREEBSD_LIBC;
-#elif defined(__NetBSD__)
-        shortAsciiName = "libc.so";
-#else
+        shortAsciiName = "libc.so.7";
+#elif defined(LIBC_SO)
         shortAsciiName = LIBC_SO;
+#else
+        shortAsciiName = "libc.so";
 #endif
     }
 

@@ -16,9 +16,6 @@
 #include "field.h"
 #include "dllimportcallback.h"
 #include "dllimport.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
 #include "cgensys.h"
 #include "asmconstants.h"
@@ -378,7 +375,7 @@ void ValidateWriteBarriers()
 // Update the instructions in our various write barrier implementations that refer directly to the values
 // of GC globals such as g_lowest_address and g_card_table. We don't particularly care which values have
 // changed on each of these callbacks, it's pretty cheap to refresh them all.
-void UpdateGCWriteBarriers(BOOL postGrow = false)
+void UpdateGCWriteBarriers(bool postGrow = false)
 {
     // Define a helper macro that abstracts the minutia of patching the instructions to access the value of a
     // particular GC global.
@@ -455,7 +452,7 @@ void UpdateGCWriteBarriers(BOOL postGrow = false)
     FlushInstructionCache(GetCurrentProcess(), pbAlteredRange, cbAlteredRange);
 }
 
-void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
+void StompWriteBarrierResize(bool isRuntimeSuspended, bool bReqUpperBoundsCheck)
 {
     // The runtime is not always suspended when this is called (unlike StompWriteBarrierEphemeral) but we have
     // no way to update the barrier code atomically on ARM since each 32-bit value we change is loaded over
@@ -469,7 +466,7 @@ void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
     GCStressPolicy::InhibitHolder iholder;
 
     bool fSuspended = false;
-    if (!g_fEEInit && !GCHeap::IsGCInProgress())
+    if (!isRuntimeSuspended)
     {
         ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
         fSuspended = true;
@@ -481,9 +478,10 @@ void StompWriteBarrierResize(BOOL bReqUpperBoundsCheck)
         ThreadSuspend::RestartEE(FALSE, TRUE);
 }
 
-void StompWriteBarrierEphemeral(void)
+void StompWriteBarrierEphemeral(bool isRuntimeSuspended)
 {
-    _ASSERTE(GCHeap::IsGCInProgress() || g_fEEInit);
+    UNREFERENCED_PARAMETER(isRuntimeSuspended);
+    _ASSERTE(isRuntimeSuspended);
     UpdateGCWriteBarriers();
 }
 #endif // CROSSGEN_COMPILE
@@ -536,10 +534,22 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&ctx, &nonVolRegPtrs);
 #else // !FEATURE_PAL
-        PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+#ifdef DACCESS_COMPILE
+        HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else // DACCESS_COMPILE
+        BOOL success = PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+        if (!success)
+        {
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+#endif // DACCESS_COMPILE
         pvControlPc = GetIP(&ctx);
 #endif // !FEATURE_PAL
-
         if (funCallDepth > 0)
         {
             --funCallDepth;
@@ -1322,6 +1332,13 @@ void ResolveHolder::Initialize(PCODE resolveWorkerTarget, PCODE patcherTarget,
 BOOL DoesSlotCallPrestub(PCODE pCode)
 {
     PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(pCode));
+
+#ifdef HAS_COMPACT_ENTRYPOINTS
+    if (MethodDescChunk::GetMethodDescFromCompactEntryPoint(pCode, TRUE) != NULL)
+    {
+        return TRUE;
+    }
+#endif // HAS_COMPACT_ENTRYPOINTS
 
     // FixupPrecode
     if (pInstr[0] == 0x46fc && // // mov r12, pc
@@ -2471,12 +2488,6 @@ void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 }
 #endif
 
-void PInvokeStubForHost(void)
-{ 
-    // Hosted P/Invoke is not implemented on ARM. See ARMTODO in code:CorHost2::SetHostControl.
-    UNREACHABLE();
-}
-
 class UMEntryThunk * UMEntryThunk::Decode(void *pCallback)
 {
     _ASSERTE(offsetof(UMEntryThunkCode, m_code) == 0);
@@ -2637,7 +2648,7 @@ void InitJITHelpers1()
         ))
     {
 
-        _ASSERTE(GCHeap::UseAllocationContexts());
+        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
         // If the TLS for Thread is low enough use the super-fast helpers
         if (gThreadTLSIndex < TLS_MINIMUM_AVAILABLE)
         {
@@ -2662,7 +2673,6 @@ void InitJITHelpers1()
     }
 
 
-#ifdef FEATURE_CORECLR
     if(IsSingleAppDomain())
     {
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_GCSTATIC_BASE,          JIT_GetSharedGCStaticBase_SingleAppDomain);
@@ -2671,7 +2681,6 @@ void InitJITHelpers1()
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_NONGCSTATIC_BASE_NOCTOR,JIT_GetSharedNonGCStaticBaseNoCtor_SingleAppDomain);
     }
     else
-#endif
     if (gAppDomainTLSIndex >= TLS_MINIMUM_AVAILABLE)
     {
         SetJitHelperFunction(CORINFO_HELP_GETSHARED_GCSTATIC_BASE,          JIT_GetSharedGCStaticBase_Portable);
@@ -3501,177 +3510,6 @@ VOID ResetCurrentContext()
 }
 #endif // !DACCESS_COMPILE
 
-#if defined(FEATURE_REMOTING) && !defined(CROSSGEN_COMPILE)
-
-#ifndef DACCESS_COMPILE
-PCODE CTPMethodTable::CreateThunkForVirtualMethod(DWORD dwSlot, BYTE *startaddr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(startaddr));
-    }
-    CONTRACTL_END;
-
-    WORD *pCode = (WORD*)((ULONG_PTR)startaddr);
-
-    // Slot literal is split into four pieces in the mov instruction:
-    //  imm4:i:imm3:imm8
-    _ASSERTE(FitsInU2(dwSlot));
-    WORD imm4 = ((WORD)dwSlot & 0xf000) >> 12;
-    WORD i    = ((WORD)dwSlot & 0x0800) >> 11;
-    WORD imm3 = ((WORD)dwSlot & 0x0700) >> 8;
-    WORD imm8 =  (WORD)dwSlot & 0x00ff;
-
-    // f240 0c00    mov r12, #dwSlot
-    // f8df f000    ldr pc, [pc, #0]
-    // ???? ????    dcd TransparentProxyStub
-
-    *pCode++ = 0xf240 | (i << 10) | imm4;
-    *pCode++ = 0x0c00 | (imm3 << 12) | imm8;
-    *pCode++ = 0xf8df;
-    *pCode++ = 0xf000;
-    *((PCODE*)pCode) = GetTPStubEntryPoint();
-
-    _ASSERTE(CVirtualThunkMgr::IsThunkByASM((PCODE)startaddr));
-
-    return (PCODE)(startaddr + THUMB_CODE);
-}
-#endif // DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::IsThunkByASM(PCODE startaddr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(startaddr != NULL);
-    }
-    CONTRACTL_END;
-
-#ifndef DACCESS_COMPILE
-    PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(startaddr));
-
-    return (((pInstr[0] & 0xf240) == 0xf240) &&
-            ((pInstr[1] & 0x0c00) == 0x0c00) &&
-            (pInstr[2] == 0xf8df) &&
-            (pInstr[3] == 0xf000) &&
-            (*(PCODE*)&pInstr[4] == CTPMethodTable::GetTPStubEntryPoint()));
-#else
-    DacNotImpl();
-    return FALSE;
-#endif
-}
-
-MethodDesc *CVirtualThunkMgr::GetMethodDescByASM(PCODE startaddr, MethodTable *pMT)
-{
-    CONTRACT (MethodDesc*)
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(startaddr != NULL);
-        PRECONDITION(CheckPointer(pMT));
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    _ASSERTE(IsThunkByASM(startaddr));
-
-    PTR_WORD pInstr = dac_cast<PTR_WORD>(PCODEToPINSTR(startaddr));
-
-    WORD i    = (pInstr[0] & 0x0400) >> 10;
-    WORD imm4 =  pInstr[0] & 0x000f;
-    WORD imm3 = (pInstr[1] & 0x7000) >> 12;
-    WORD imm8 =  pInstr[1] & 0x00ff;
-
-    WORD wSlot = (imm4 << 12) | (i << 11) | (imm3 << 8) | imm8;
-
-    RETURN (pMT->GetMethodDescForSlot(wSlot));
-}
-
-#ifndef DACCESS_COMPILE
-
-BOOL CVirtualThunkMgr::DoTraceStub(PCODE stubStartAddress, TraceDestination *trace)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(stubStartAddress != NULL);
-        PRECONDITION(CheckPointer(trace));
-    }
-    CONTRACTL_END;
-
-    TADDR pInstr = PCODEToPINSTR(stubStartAddress);
-
-    BOOL bIsStub = FALSE;
-
-    // Find a thunk whose code address matching the starting address
-    LPBYTE pThunk = FindThunk((LPBYTE)pInstr);
-    if (pThunk)
-    {
-        LONG destAddress = 0;
-
-        // The stub target address is stored as an absolute pointer 8 byte into the thunk.
-        destAddress = *(LONG*)(pThunk + 8);
-
-        // We cannot tell where the stub will end up until OnCall is reached.
-        // So we tell the debugger to run till OnCall is reached and then
-        // come back and ask us again for the actual destination address of
-        // the call
-
-        Stub *stub = Stub::RecoverStub((TADDR)destAddress);
-
-        trace->InitForFramePush(stub->GetPatchAddress());
-        bIsStub = TRUE;
-    }
-
-    return bIsStub;
-}
-
-extern "C" UINT_PTR __stdcall CRemotingServices__CheckForContextMatch(Object* pStubData)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;    // due to the Object parameter
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pStubData));
-    }
-    CONTRACTL_END;
-
-    UINT_PTR contextID  = *(UINT_PTR*)pStubData->UnBox();
-    UINT_PTR contextCur = (UINT_PTR)GetThread()->m_Context;
-    return (contextCur != contextID);   // chosen to match x86 convention
-}
-
-// Return true if the current context matches that of the transparent proxy given.
-BOOL CTPMethodTable__GenericCheckForContextMatch(Object* orTP)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;    // due to the Object parameter
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    Object *StubData = OBJECTREFToObject(((TransparentProxyObject*)orTP)->GetStubData());
-    CTPMethodTable::CheckContextCrossingProc *pfnCheckContextCrossing =
-            (CTPMethodTable::CheckContextCrossingProc*)(((TransparentProxyObject*)orTP)->GetStub());
-    return pfnCheckContextCrossing(StubData) == 0;
-}
-
-#endif // !DACCESS_COMPILE
-
-#endif // FEATURE_REMOTING && !CROSSGEN_COMPILE
 
 #ifdef FEATURE_COMINTEROP
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
@@ -3921,6 +3759,13 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     END_DYNAMIC_HELPER_EMIT();
 }
 
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule)
+{
+    STANDARD_VM_CONTRACT;
+
+    // TODO (NYI)
+    ThrowHR(E_NOTIMPL);
+}
 #endif // FEATURE_READYTORUN
 
 #endif // CROSSGEN_COMPILE

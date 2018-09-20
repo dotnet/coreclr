@@ -24,22 +24,10 @@
 #include "comsynchronizable.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
-#include "stackcompressor.h"
-#ifdef FEATURE_REMOTING
-#include "appdomainhelper.h"
-#include "objectclone.h"
-#else
 #include "callhelpers.h"
-#endif
 #include "appdomain.hpp"
 #include "appdomain.inl"
-#ifdef FEATURE_REMOTING
-#include "crossdomaincalls.h"
-#endif
 
 #include "newapis.h"
 
@@ -53,9 +41,8 @@ struct SharedState
     OBJECTHANDLE    m_Threadable;
     OBJECTHANDLE    m_ThreadStartArg;
     Thread         *m_Internal;
-    OBJECTHANDLE    m_Principal;
 
-    SharedState(OBJECTREF threadable, OBJECTREF threadStartArg, Thread *internal, OBJECTREF principal)
+    SharedState(OBJECTREF threadable, OBJECTREF threadStartArg, Thread *internal)
     {
         CONTRACTL
         {
@@ -72,8 +59,6 @@ struct SharedState
         m_ThreadStartArg = ad->CreateHandle(threadStartArg);
 
         m_Internal = internal;
-
-        m_Principal = ad->CreateHandle(principal);
     }
 
     ~SharedState()
@@ -96,7 +81,6 @@ struct SharedState
         {
             DestroyHandle(m_Threadable);
             DestroyHandle(m_ThreadStartArg);
-            DestroyHandle(m_Principal);
         }
     }
 };
@@ -116,15 +100,9 @@ static inline BOOL ThreadNotStarted(Thread *t)
 static inline BOOL ThreadIsRunning(Thread *t)
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    return (t &&
-            (t->m_State & (Thread::TS_ReportDead|Thread::TS_Dead)) == 0 &&
-            (CLRTaskHosted()? t->GetHostTask()!=NULL:t->HasValidThreadHandle()));
-#else // !FEATURE_INCLUDE_ALL_INTERFACES
     return (t &&
             (t->m_State & (Thread::TS_ReportDead|Thread::TS_Dead)) == 0 &&
             (t->HasValidThreadHandle()));
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 static inline BOOL ThreadIsDead(Thread *t)
@@ -231,7 +209,6 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
     // we are saving the delagate and result primarily for debugging
     struct _gc
     {
-        OBJECTREF orPrincipal;
         OBJECTREF orThreadStartArg;
         OBJECTREF orDelegate;
         OBJECTREF orResult;
@@ -244,22 +221,6 @@ void ThreadNative::KickOffThread_Worker(LPVOID ptr)
     _ASSERTE(pThread);
     GCPROTECT_BEGIN(gc);
     BEGIN_SO_INTOLERANT_CODE(pThread);
-
-    gc.orPrincipal = ObjectFromHandle(args->share->m_Principal);
-
-#ifdef FEATURE_IMPERSONATION
-    // Push the initial security principal object (if any) onto the
-    // managed thread.
-    if (gc.orPrincipal != NULL)
-    {
-        gc.orThread = args->pThread->GetExposedObject();
-        MethodDescCallSite setPrincipalInternal(METHOD__THREAD__SET_PRINCIPAL_INTERNAL, &gc.orThread);
-        ARG_SLOT argsToSetPrincipal[2];
-        argsToSetPrincipal[0] = ObjToArgSlot(gc.orThread);
-        argsToSetPrincipal[1] = ObjToArgSlot(gc.orPrincipal);
-        setPrincipalInternal.Call(argsToSetPrincipal);
-    }
-#endif
 
     gc.orDelegate = ObjectFromHandle(args->share->m_Threadable);
     gc.orThreadStartArg = ObjectFromHandle(args->share->m_ThreadStartArg);
@@ -328,7 +289,7 @@ static void PulseAllHelper(Thread* pThread)
 }
 
 // When an exposed thread is started by Win32, this is where it starts.
-ULONG __stdcall ThreadNative::KickOffThread(void* pass)
+ULONG WINAPI ThreadNative::KickOffThread(void* pass)
 {
 
     CONTRACTL
@@ -435,20 +396,20 @@ ULONG __stdcall ThreadNative::KickOffThread(void* pass)
 }
 
 
-FCIMPL3(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE, Object* pPrincipalUNSAFE, StackCrawlMark* pStackMark)
+FCIMPL2(void, ThreadNative::Start, ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
 {
     FCALL_CONTRACT;
 
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
 
-    StartInner(pThisUNSAFE, pPrincipalUNSAFE, pStackMark);
+    StartInner(pThisUNSAFE, pStackMark);
 
     HELPER_METHOD_FRAME_END_POLL();
 }
 FCIMPLEND
 
 // Start up a thread, which by now should be in the ThreadStore's Unstarted list.
-void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, Object* pPrincipalUNSAFE, StackCrawlMark* pStackMark)
+void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, StackCrawlMark* pStackMark)
 {
     CONTRACTL
     {
@@ -460,11 +421,9 @@ void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, Object* pPrincipalU
 
     struct _gc
     {
-        OBJECTREF       pPrincipal;
         THREADBASEREF   pThis;
     } gc;
 
-    gc.pPrincipal  = (OBJECTREF) pPrincipalUNSAFE;
     gc.pThis       = (THREADBASEREF) pThisUNSAFE;
 
     GCPROTECT_BEGIN(gc);
@@ -499,7 +458,7 @@ void ThreadNative::StartInner(ThreadBaseObject* pThisUNSAFE, Object* pPrincipalU
 
         // Allocate this away from our stack, so we can unwind without affecting
         // KickOffThread.  It is inside a GCFrame, so we can enable GC now.
-        NewHolder<SharedState> share(new SharedState(threadable, threadStartArg, pNewThread, gc.pPrincipal));
+        NewHolder<SharedState> share(new SharedState(threadable, threadStartArg, pNewThread));
 
         pNewThread->IncExternalCount();
 
@@ -631,59 +590,6 @@ FCIMPL1(void, ThreadNative::ResetAbort, ThreadBaseObject* pThis)
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR
-// You can only suspend a running thread.
-FCIMPL1(void, ThreadNative::Suspend, ThreadBaseObject* pThisUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    if (pThisUNSAFE == NULL)
-        FCThrowResVoid(kNullReferenceException, W("NullReference_This"));
-
-    Thread  *thread = pThisUNSAFE->GetInternal();
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(DangerousThreadingAPI, ReportViolation(W("System.Threading.Thread.Suspend")));
-#endif
-    
-    if (!ThreadIsRunning(thread))
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_SUSPEND_NON_RUNNING);
-
-    thread->UserSuspendThread();
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-// You can only resume a thread that is in the user-suspended state.  (This puts a large
-// burden on the app developer, but we want him to be thinking carefully about race
-// conditions.  Precise errors give him a hope of sorting out his logic).
-FCIMPL1(void, ThreadNative::Resume, ThreadBaseObject* pThisUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    if (pThisUNSAFE == NULL)
-        FCThrowResVoid(kNullReferenceException, W("NullReference_This"));
-
-    Thread  *thread = pThisUNSAFE->GetInternal();
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    // UserResumeThread() will return 0 if there isn't a user suspension for us to
-    // clear.
-    if (!ThreadIsRunning(thread))
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_RESUME_NON_RUNNING);
-
-    if (thread->UserResumeThread() == 0)
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_RESUME_NON_USER_SUSPEND);
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-#endif // FEATURE_CORECLR
 
 // Note that you can manipulate the priority of a thread that hasn't started yet,
 // or one that is running.  But you get an exception if you manipulate the priority
@@ -1020,18 +926,8 @@ FCIMPL1(INT32, ThreadNative::GetThreadState, ThreadBaseObject* pThisUNSAFE)
     if (state & Thread::TS_Interruptible)
         res |= ThreadWaitSleepJoin;
 
-    // Don't report a SuspendRequested if the thread has actually Suspended.
-    if ((state & Thread::TS_UserSuspendPending) &&
-        (state & Thread::TS_SyncSuspended)
-       )
-    {
-        res |= ThreadSuspended;
-    }
-    else
-    if (state & Thread::TS_UserSuspendPending)
-    {
-        res |= ThreadSuspendRequested;
-    }
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(state & Thread::TS_UserSuspendPending));
 
     HELPER_METHOD_POLL();
     HELPER_METHOD_FRAME_END();
@@ -1398,7 +1294,6 @@ void ThreadBaseObject::InitExisting()
 
 }
 
-#ifndef FEATURE_LEAK_CULTURE_INFO
 OBJECTREF ThreadBaseObject::GetManagedThreadCulture(BOOL bUICulture)
 {
     CONTRACTL {
@@ -1514,7 +1409,6 @@ void ThreadBaseObject::ResetManagedThreadCulture(BOOL bUICulture)
     }
 }
 
-#endif // FEATURE_LEAK_CULTURE_INFO
 
 
 FCIMPL1(void, ThreadNative::Finalize, ThreadBaseObject* pThisUNSAFE)
@@ -1551,39 +1445,6 @@ FCIMPL1(void, ThreadNative::DisableComObjectEagerCleanup, ThreadBaseObject* pThi
 FCIMPLEND
 #endif //FEATURE_COMINTEROP
 
-#ifdef FEATURE_LEAK_CULTURE_INFO
-FCIMPL1(FC_BOOL_RET, ThreadNative::SetThreadUILocale, StringObject* localeNameUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    BOOL result = TRUE;
-
-    STRINGREF name = (STRINGREF) localeNameUNSAFE;
-    VALIDATEOBJECTREF(name);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-    
-    LCID lcid=NewApis::LocaleNameToLCID(name->GetBuffer(),0);
-    if (lcid == 0)
-    {
-        ThrowHR(HRESULT_FROM_WIN32(GetLastError()));
-    }
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostTaskManager *manager = CorHost2::GetHostTaskManager();
-    if (manager) {
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        result = (manager->SetUILocale(lcid) == S_OK);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif  // FEATURE_INCLUDE_ALL_INTERFACES
-
-    HELPER_METHOD_FRAME_END();
-   
-    FC_RETURN_BOOL(result);
-}
-FCIMPLEND
-#endif // FEATURE_LEAK_CULTURE_INFO
 
 FCIMPL0(Object*, ThreadNative::GetDomain)
 {
@@ -1604,7 +1465,7 @@ FCIMPL0(Object*, ThreadNative::GetDomain)
 }
 FCIMPLEND
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && defined(_MSC_VER)
 __declspec(naked) LPVOID __fastcall ThreadNative::FastGetDomain()
 {
     STATIC_CONTRACT_MODE_COOPERATIVE;
@@ -1624,7 +1485,7 @@ done:
         ret
     }
 }
-#else // _TARGET_X86_
+#else // _TARGET_X86_ && _MSC_VER
 LPVOID F_CALL_CONV ThreadNative::FastGetDomain()
 {
     CONTRACTL
@@ -1650,191 +1511,8 @@ LPVOID F_CALL_CONV ThreadNative::FastGetDomain()
     }
     return NULL;
 }
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && _MSC_VER
 
-#ifdef FEATURE_REMOTING
-// This is just a helper method that lets BCL get to the managed context
-// from the contextID.
-FCIMPL1(Object*, ThreadNative::GetContextFromContextID, LPVOID ContextID)
-{
-    FCALL_CONTRACT;
-
-    OBJECTREF   rv   = NULL;
-    Context*    pCtx = (Context *) ContextID;
-    // Get the managed context backing this unmanaged context
-    rv = pCtx->GetExposedObjectRaw();
-
-    // This assert maintains the following invariant:
-    // Only default unmanaged contexts can have a null managed context
-    // (All non-deafult contexts are created as managed contexts first, and then
-    // hooked to the unmanaged context)
-    _ASSERTE((rv != NULL) || (pCtx->GetDomain()->GetDefaultContext() == pCtx));
-
-    return OBJECTREFToObject(rv);
-}
-FCIMPLEND
-
-
-FCIMPL6(Object*, ThreadNative::InternalCrossContextCallback, ThreadBaseObject* refThis, ContextBaseObject* refContext, LPVOID contextID, INT32 appDomainId, Object* oDelegateUNSAFE, PtrArray* oArgsUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    _ASSERTE(refThis != NULL);
-    VALIDATEOBJECT(refThis);
-    Thread *pThread = refThis->GetInternal();
-    Context *pCtx = (Context *)contextID;
-
-
-    _ASSERTE(pCtx && (refContext == NULL || pCtx->GetExposedObjectRaw() == NULL ||
-             ObjectToOBJECTREF(refContext) == pCtx->GetExposedObjectRaw()));
-    LOG((LF_APPDOMAIN, LL_INFO1000, "ThreadNative::InternalCrossContextCallback: %p, %p\n", refContext, pCtx));
-    // install our frame. We have to put it here before we put the helper frame on
-
-    // Set the VM conext
-
-    struct _gc {
-        OBJECTREF oRetVal;
-        OBJECTREF oDelegate;
-        OBJECTREF oArgs;
-        // We need to report the managed context object because it may become unreachable in the caller, 
-        // however we have to keep it alive, otherwise its finalizer could free the unmanaged internal context
-        OBJECTREF oContext;
-    } gc;
-
-    gc.oRetVal   = NULL;
-    gc.oDelegate = ObjectToOBJECTREF(oDelegateUNSAFE);
-    gc.oArgs     = ObjectToOBJECTREF(oArgsUNSAFE);
-    gc.oContext  = ObjectToOBJECTREF(refContext);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    if (pThread == NULL)
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_CANNOT_GET);
-
-#ifdef _DEBUG
-    MethodDesc* pTargetMD = COMDelegate::GetMethodDesc(gc.oDelegate);
-    _ASSERTE(pTargetMD->IsStatic());
-#endif
-
-    // If we have a non-zero appDomain index, this is a x-domain call
-    // We must verify that the AppDomain is not unloaded
-    PREPARE_NONVIRTUAL_CALLSITE(METHOD__THREAD__COMPLETE_CROSSCONTEXTCALLBACK);
-
-    AppDomainFromIDHolder ad;
-    if (appDomainId != 0)
-    {
-        //
-        // NOTE: there is a potential race between the time we retrieve the app domain pointer,
-        // and the time which this thread enters the domain.
-        //
-        // To solve the race, we rely on the fact that there is a thread sync
-        // between releasing an app domain's handle, and destroying the app domain.  Thus
-        // it is important that we not go into preemptive gc mode in that window.
-        //
-        {
-            ad.Assign(ADID(appDomainId), TRUE); 
-            
-            if (ad.IsUnloaded() || !ad->CanThreadEnter(pThread))
-                COMPlusThrow(kAppDomainUnloadedException, W("Remoting_AppDomainUnloaded"));
-        }
-    }
-
-    // Verify that the Context is valid.
-    if ( !Context::ValidateContext(pCtx) )
-        COMPlusThrow(kRemotingException, W("Remoting_InvalidContext"));
-
-    DEBUG_ASSURE_NO_RETURN_BEGIN(COMSYNCH)
-
-    FrameWithCookie<ContextTransitionFrame>  frame;
-
-    Context*    pCurrContext    = pThread->GetContext();
-    bool        fTransition     = (pCurrContext != pCtx);
-    BOOL        fSameDomain     = (appDomainId==0) || (pCurrContext->GetDomain()->GetId() == (ADID)appDomainId);
-    _ASSERTE( fTransition || fSameDomain);
-    if (fTransition) 
-        if (appDomainId!=0)
-            ad->EnterContext(pThread,pCtx, &frame);
-        else
-            pThread->EnterContextRestricted(pCtx,&frame);
-    ad.Release();
-
-
-    LOG((LF_EH, LL_INFO100, "MSCORLIB_ENTER_CONTEXT( %s::%s ): %s\n",
-        pTargetMD->m_pszDebugClassName,
-        pTargetMD->m_pszDebugMethodName,
-        fTransition ? "ENTERED" : "NOP"));
-
-    Exception* pOriginalException=NULL;
-        
-    EX_TRY
-    {
-        DECLARE_ARGHOLDER_ARRAY(callArgs, 2);
-
-#if CHECK_APP_DOMAIN_LEAKS
-        // We're passing the delegate object to another appdomain
-        // without marshaling, that is OK - it's a static function delegate
-        // but we should mark it as agile then.
-        gc.oDelegate->SetSyncBlockAppDomainAgile();
-#endif
-        callArgs[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(gc.oDelegate);
-        callArgs[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(gc.oArgs);
-
-        CATCH_HANDLER_FOUND_NOTIFICATION_CALLSITE;
-        CALL_MANAGED_METHOD_RETREF(gc.oRetVal, OBJECTREF, callArgs);
-    }
-    EX_CATCH
-    {
-        LOG((LF_EH, LL_INFO100, "MSCORLIB_CONTEXT_TRANSITION(     %s::%s ): exception in flight\n", pTargetMD->m_pszDebugClassName, pTargetMD->m_pszDebugMethodName));
-
-        if (!fTransition || fSameDomain)
-        {
-            if (fTransition)
-            {
-                GCX_FORBID();
-                pThread->ReturnToContext(&frame);
-            }
-#ifdef FEATURE_TESTHOOKS
-            if (appDomainId!=0)
-            {
-                TESTHOOKCALL(LeftAppDomain(appDomainId));
-            }
-#endif
-            EX_RETHROW;
-        }
-
-        pOriginalException=EXTRACT_EXCEPTION();
-        CAPTURE_BUCKETS_AT_TRANSITION(pThread, CLRException::GetThrowableFromException(pOriginalException));
-        goto lAfterCtxUnwind;
-    }
-    EX_END_CATCH_UNREACHABLE;
-    if (0)
-    {
-lAfterCtxUnwind:
-        LOG((LF_EH, LL_INFO100, "MSCORLIB_RaiseCrossContextException( %s::%s )\n", pTargetMD->m_pszDebugClassName, pTargetMD->m_pszDebugMethodName));
-        pThread->RaiseCrossContextException(pOriginalException,&frame);
-    }
-
-    LOG((LF_EH, LL_INFO100, "MSCORLIB_LEAVE_CONTEXT_TRANSITION( %s::%s )\n", pTargetMD->m_pszDebugClassName, pTargetMD->m_pszDebugMethodName));
-
-    if (fTransition)
-    {
-        GCX_FORBID();
-        pThread->ReturnToContext(&frame);
-    }
-#ifdef FEATURE_TESTHOOKS
-    if(appDomainId!=0)
-    {
-        TESTHOOKCALL(LeftAppDomain(appDomainId));
-    }
-#endif
-
-    DEBUG_ASSURE_NO_RETURN_END(COMSYNCH)
-
-    HELPER_METHOD_FRAME_END();
-    return OBJECTREFToObject(gc.oRetVal);
-}
-FCIMPLEND
-#endif //FEATURE_REMOTING
 
 //
 // nativeGetSafeCulture is used when the culture get requested from the thread object. 
@@ -1846,31 +1524,7 @@ FCIMPLEND
 // unloaded and this culture will survive although the type metadata will be unloaded 
 // and GC will crash first time accessing this object after the app domain unload.
 //
-#ifdef FEATURE_LEAK_CULTURE_INFO
-FCIMPL4(FC_BOOL_RET, ThreadNative::nativeGetSafeCulture, 
-        ThreadBaseObject*   threadUNSAFE, 
-        int                 appDomainId, 
-        CLR_BOOL            isUI, 
-        OBJECTREF*          safeCulture)
-{
-    FCALL_CONTRACT;
 
-    THREADBASEREF thread(threadUNSAFE);
-
-    CULTUREINFOBASEREF pCulture = isUI ? thread->GetCurrentUICulture() : thread->GetCurrentUserCulture();
-    if (pCulture != NULL) {
-        if (pCulture->IsSafeCrossDomain() || pCulture->GetCreatedDomainID() == ADID(appDomainId)) {
-            SetObjectReference(safeCulture, pCulture, pCulture->GetAppDomain());
-        } else {
-            FC_RETURN_BOOL(FALSE);
-        }
-    }
-    FC_RETURN_BOOL(TRUE);
-}
-FCIMPLEND
-#endif // FEATURE_LEAK_CULTURE_INFO
-
-#ifndef FEATURE_LEAK_CULTURE_INFO
 void QCALLTYPE ThreadNative::nativeInitCultureAccessors()
 {
     QCALL_CONTRACT;
@@ -1882,7 +1536,6 @@ void QCALLTYPE ThreadNative::nativeInitCultureAccessors()
 
     END_QCALL;
 }
-#endif // FEATURE_LEAK_CULTURE_INFO
 
 
 void QCALLTYPE ThreadNative::InformThreadNameChange(QCall::ThreadHandle thread, LPCWSTR name, INT32 len)
@@ -1937,41 +1590,6 @@ UINT64 QCALLTYPE ThreadNative::GetProcessDefaultStackSize()
     return (UINT64)reserve;
 }
 
-#ifndef FEATURE_CORECLR
-FCIMPL0(void, ThreadNative::BeginCriticalRegion)
-{
-    FCALL_CONTRACT;
-    if (CLRHosted())
-    {
-        GetThread()->BeginCriticalRegion_NoCheck();
-    }
-}
-FCIMPLEND
-
-FCIMPL0(void, ThreadNative::EndCriticalRegion)
-{
-    FCALL_CONTRACT;
-    if (CLRHosted())
-    {
-        GetThread()->EndCriticalRegion_NoCheck();
-    }
-}
-FCIMPLEND
-
-FCIMPL0(void, ThreadNative::BeginThreadAffinity)
-{
-    FCALL_CONTRACT;
-    Thread::BeginThreadAffinity();
-}
-FCIMPLEND
-
-FCIMPL0(void, ThreadNative::EndThreadAffinity)
-{
-    FCALL_CONTRACT;
-    Thread::EndThreadAffinity();
-}
-FCIMPLEND
-#endif // !FEATURE_CORECLR
 
 
 FCIMPL1(FC_BOOL_RET, ThreadNative::IsThreadpoolThread, ThreadBaseObject* thread)
@@ -2041,61 +1659,6 @@ BOOL QCALLTYPE ThreadNative::YieldThread()
     return ret;
 }
 
-#ifdef FEATURE_COMPRESSEDSTACK
-FCIMPL2(void*, ThreadNative::SetAppDomainStack, ThreadBaseObject* pThis, SafeHandle* hcsUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    void* pRet = NULL;
-    SAFEHANDLE hcsSAFE = (SAFEHANDLE) hcsUNSAFE;
-    HELPER_METHOD_FRAME_BEGIN_RET_1(hcsSAFE);
-
-
-    void* unmanagedCompressedStack = NULL;
-    if (hcsSAFE != NULL)
-    {
-        unmanagedCompressedStack = (void *)hcsSAFE->GetHandle();
-    }
-
-
-    VALIDATEOBJECT(pThis);
-    Thread *pThread = pThis->GetInternal();
-    if (pThread == NULL)
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_CANNOT_GET);
-
-    pRet = StackCompressor::SetAppDomainStack(pThread, unmanagedCompressedStack);
-    HELPER_METHOD_FRAME_END_POLL();
-    return pRet;
-}
-FCIMPLEND
-
-
-FCIMPL2(void, ThreadNative::RestoreAppDomainStack, ThreadBaseObject* pThis, void* appDomainStack)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_NOPOLL();
-
-    VALIDATEOBJECT(pThis);
-    Thread *pThread = pThis->GetInternal();
-    if (pThread == NULL)
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_CANNOT_GET);
-
-    StackCompressor::RestoreAppDomainStack(pThread, appDomainStack);
-    HELPER_METHOD_FRAME_END_POLL();
-}
-FCIMPLEND
-#endif //#ifdef FEATURE_COMPRESSEDSTACK
-
-FCIMPL0(void, ThreadNative::FCMemoryBarrier)
-{
-    FCALL_CONTRACT;
-
-    MemoryBarrier();
-    FC_GC_POLL();
-}
-FCIMPLEND
-
 FCIMPL2(void, ThreadNative::SetAbortReason, ThreadBaseObject* pThisUNSAFE, Object* pObject)
 {
     FCALL_CONTRACT;
@@ -2152,69 +1715,6 @@ FCIMPL2(void, ThreadNative::SetAbortReason, ThreadBaseObject* pThisUNSAFE, Objec
 }
 FCIMPLEND
 
-#ifndef FEATURE_CORECLR // core clr does not support abort reason 
-FCIMPL1(Object*, ThreadNative::GetAbortReason, ThreadBaseObject *pThisUNSAFE)
-{
-    FCALL_CONTRACT;
-
-    if (pThisUNSAFE==NULL)
-        FCThrowRes(kNullReferenceException, W("NullReference_This"));
-
-    OBJECTREF refRetVal = NULL;
-    Thread   *pThread   = pThisUNSAFE->GetInternal();
-
-    // Set up a frame in case of GC or EH
-    HELPER_METHOD_FRAME_BEGIN_RET_1(refRetVal)
-
-    if (pThread == NULL)
-        COMPlusThrow(kThreadStateException, IDS_EE_THREAD_CANNOT_GET);
-
-    // While the ExceptionInfo probably will be *set* from a different
-    //  thread, it should only be *read* from the current thread.
-    _ASSERTE(GetThread() == pThread);
-
-    // Set cooperative mode, to avoid AD unload while we're working.
-    GCX_COOP();
-
-    OBJECTHANDLE oh=NULL;
-    ADID adid;
-    // Scope the lock to reading the two fields on the Thread object.
-    {   // Atomically get the OBJECTHANDLE and ADID of the object
-        //  NOTE: get the lock on this thread object, not on the executing thread.
-        Thread::AbortRequestLockHolder lock(pThread);
-        oh = pThread->m_AbortReason;
-        adid = pThread->m_AbortReasonDomainID;
-    }
-
-    // If the OBJECTHANDLE is not 0...
-    if (oh != 0)
-    {
-
-        AppDomain *pCurrentDomain = pThread->GetDomain();
-        // See if the appdomain is equal to the appdomain of the currently running
-        //  thread.  
-
-        if (pCurrentDomain->GetId() == adid)
-        {   // Same appdomain; just return object from the OBJECTHANDLE
-            refRetVal = ObjectFromHandle(oh);
-        }
-        else
-        {   // Otherwise, try to marshal the object from the other AppDomain
-            ENTER_DOMAIN_ID(adid);
-            CrossAppDomainClonerCallback cadcc;
-            ObjectClone Cloner(&cadcc, CrossAppDomain, FALSE);
-            refRetVal = Cloner.Clone(ObjectFromHandle(oh), GetAppDomain(), pCurrentDomain, NULL);
-            Cloner.RemoveGCFrames();
-            END_DOMAIN_TRANSITION;
-        }
-    }
-
-    HELPER_METHOD_FRAME_END()
-
-    return OBJECTREFToObject(refRetVal);
-}
-FCIMPLEND
-#endif // !FEATURE_CORECLR
 
 FCIMPL1(void, ThreadNative::ClearAbortReason, ThreadBaseObject* pThisUNSAFE)
 {

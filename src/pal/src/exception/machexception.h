@@ -25,8 +25,6 @@ extern "C"
 {
 #endif // __cplusplus
 
-#define HIJACK_ON_SIGNAL 1
-
 // List of exception types we will be watching for
 // NOTE: if you change any of these, you need to adapt s_nMachExceptionPortsMax in thread.hpp
 #define PAL_EXC_ILLEGAL_MASK   (EXC_MASK_BAD_INSTRUCTION | EXC_MASK_EMULATION)
@@ -35,7 +33,7 @@ extern "C"
 #define PAL_EXC_ALL_MASK       (PAL_EXC_ILLEGAL_MASK | PAL_EXC_DEBUGGING_MASK | PAL_EXC_MANAGED_MASK)
 
 // Process and thread initialization/cleanup/context routines
-BOOL SEHInitializeMachExceptions(void);
+BOOL SEHInitializeMachExceptions(DWORD flags);
 void SEHCleanupExceptionPort (void);
 void MachExceptionInitializeDebug(void);
 PAL_NORETURN void MachSetThreadContext(CONTEXT *lpContext);

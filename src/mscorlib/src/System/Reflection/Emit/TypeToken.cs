@@ -12,40 +12,35 @@
 **
 ** 
 ===========================================================*/
-namespace System.Reflection.Emit {
-    
-    using System;
-    using System.Reflection;
-    using System.Threading;
-    using System.Security.Permissions;
 
-    [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public struct TypeToken {
-    
+using System;
+using System.Reflection;
+using System.Threading;
+
+namespace System.Reflection.Emit
+{
+    public struct TypeToken
+    {
         public static readonly TypeToken Empty = new TypeToken();
 
         internal int m_class;
-    
-#if false
-        public TypeToken() {
-            m_class=0;
+
+
+        internal TypeToken(int str)
+        {
+            m_class = str;
         }
-#endif
-        
-        internal TypeToken(int str) {
-            m_class=str;
-        }
-    
-        public int Token {
+
+        public int Token
+        {
             get { return m_class; }
         }
-        
+
         public override int GetHashCode()
         {
             return m_class;
         }
-        
+
         public override bool Equals(Object obj)
         {
             if (obj is TypeToken)
@@ -53,22 +48,21 @@ namespace System.Reflection.Emit {
             else
                 return false;
         }
-        
+
         public bool Equals(TypeToken obj)
         {
             return obj.m_class == m_class;
         }
-    
+
         public static bool operator ==(TypeToken a, TypeToken b)
         {
             return a.Equals(b);
         }
-        
+
         public static bool operator !=(TypeToken a, TypeToken b)
         {
             return !(a == b);
         }
-                
     }
 }
 

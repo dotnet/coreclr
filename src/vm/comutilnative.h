@@ -26,9 +26,6 @@
 #include "windows.h"
 #undef GetCurrentTime
 
-#ifndef FEATURE_CORECLR
-#include <winnls.h>
-#endif
 
 #ifdef  FEATURE_RANDOMIZED_STRING_HASHING
 #pragma warning(push)
@@ -98,13 +95,11 @@ public:
     static FCDECL1(FC_BOOL_RET, IsTransient, INT32 hresult);
     static FCDECL3(StringObject *, StripFileInfo, Object *orefExcepUNSAFE, StringObject *orefStrUNSAFE, CLR_BOOL isRemoteStackTrace);
     static void QCALLTYPE GetMessageFromNativeResources(ExceptionMessageKind kind, QCall::StringHandleOnStack retMesg);
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     static FCDECL0(VOID, PrepareForForeignExceptionRaise);
     static FCDECL1(Object*, CopyStackTrace, Object* pStackTraceUNSAFE);
     static FCDECL1(Object*, CopyDynamicMethods, Object* pDynamicMethodsUNSAFE);
     static FCDECL3(VOID, GetStackTracesDeepCopy, Object* pExceptionObjectUnsafe, Object **pStackTraceUnsafe, Object **pDynamicMethodsUnsafe);
     static FCDECL3(VOID, SaveStackTracesFromDeepCopy, Object* pExceptionObjectUnsafe, Object *pStackTraceUnsafe, Object *pDynamicMethodsUnsafe);
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 
     // NOTE: caller cleans up any partially initialized BSTRs in pED
@@ -115,6 +110,12 @@ public:
     static FCDECL0(INT32, GetExceptionCode);
 };
 
+class MemoryNative
+{
+public:
+    static void QCALLTYPE Clear(void *dst, size_t length);
+    static FCDECL3(VOID, BulkMoveWithWriteBarrier, void *dst, void *src, size_t byteCount);
+};
 
 //
 // Buffer
@@ -184,6 +185,8 @@ public:
     static FCDECL1(void,    ReRegisterForFinalize, Object *obj);
     static FCDECL2(int,     CollectionCount, INT32 generation, INT32 getSpecialGCCount);
     
+    static FCDECL0(INT64,    GetAllocatedBytesForCurrentThread);
+
     static 
     int QCALLTYPE StartNoGCRegion(INT64 totalSize, BOOL lohSizeKnown, INT64 lohSize, BOOL disallowFullBlockingGC);
 
@@ -231,6 +234,9 @@ public:
         static FCDECL2_IV(INT64, ExchangeAdd64, INT64 *location, INT64 value);
         static FCDECL2_VV(void, ExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value);
         static FCDECL3_VVI(void, CompareExchangeGeneric, FC_TypedByRef location, FC_TypedByRef value, LPVOID comparand);
+
+        static FCDECL0(void, FCMemoryBarrier);
+        static void QCALLTYPE MemoryBarrierProcessWide();
 };
 
 class ManagedLoggingHelper {
@@ -247,35 +253,6 @@ public:
     static FCDECL1(INT32, GetHashCodeOfPtr, LPVOID ptr);
 };
 
-#ifndef FEATURE_CORECLR
-class SizedRefHandle
-{
-public:
-    static FCDECL1(OBJECTHANDLE,    Initialize, Object* _obj);
-    static FCDECL1(VOID,            Free, OBJECTHANDLE handle);
-    static FCDECL1(LPVOID,          GetTarget, OBJECTHANDLE handle);
-    static FCDECL1(INT64,           GetApproximateSize, OBJECTHANDLE handle);
-};
-
-typedef BOOL (*PFN_IS_NLS_DEFINED_STRING)(NLS_FUNCTION, DWORD, LPNLSVERSIONINFO, LPCWSTR, INT);
-typedef INT (*PFN_COMPARE_STRING_EX)(LPCWSTR, DWORD, LPCWSTR, INT, LPCWSTR, INT, LPNLSVERSIONINFO, LPVOID, LPARAM);
-typedef INT (*PFN_LC_MAP_STRING_EX)(LPCWSTR, DWORD, LPCWSTR, INT, LPWSTR, INT, LPNLSVERSIONINFO, LPVOID, LPARAM);
-typedef INT (*PFN_FIND_NLS_STRING_EX)(LPCWSTR, DWORD, LPCWSTR, INT, LPCWSTR, INT, LPINT, LPNLSVERSIONINFO, LPVOID, LPARAM);
-typedef INT (*PFN_COMPARE_STRING_ORDINAL)(LPCWSTR, INT, LPCWSTR, INT, BOOL);
-typedef BOOL (*PFN_GET_NLS_VERSION_EX)(NLS_FUNCTION, LPCWSTR, LPNLSVERSIONINFOEX);
-typedef INT (*PFN_FIND_STRING_ORDINAL)(DWORD, LPCWSTR, INT, LPCWSTR, INT, BOOL);
-
-class COMNlsCustomSortLibrary {
-public:
-    PFN_IS_NLS_DEFINED_STRING pIsNLSDefinedString;
-    PFN_COMPARE_STRING_EX pCompareStringEx;
-    PFN_LC_MAP_STRING_EX pLCMapStringEx;
-    PFN_FIND_NLS_STRING_EX pFindNLSStringEx;
-    PFN_COMPARE_STRING_ORDINAL pCompareStringOrdinal;
-    PFN_GET_NLS_VERSION_EX pGetNLSVersionEx;
-    PFN_FIND_STRING_ORDINAL pFindStringOrdinal;
-};
-#endif //!FEATURE_CORECLR
 
 typedef const BYTE  * PCBYTE;
 
@@ -287,9 +264,7 @@ public:
     INT32 HashSortKey(PCBYTE pSrc, SIZE_T cbSrc, BOOL forceRandomHashing, INT64 additionalEntropy);
     INT32 HashiStringKnownLower80(LPCWSTR lpszStr, INT32 strLen, BOOL forceRandomHashing, INT64 additionalEntropy);
 
-#ifdef FEATURE_CORECLR
     static COMNlsHashProvider s_NlsHashProvider;
-#endif // FEATURE_CORECLR
 
 #ifdef  FEATURE_RANDOMIZED_STRING_HASHING
     void SetUseRandomHashing(BOOL useRandomHashing) { LIMITED_METHOD_CONTRACT; bUseRandomHashing = useRandomHashing; }

@@ -8,6 +8,7 @@ using System;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -29,12 +30,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private MapToCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        [SecurityCritical]
         internal int Count<K, V>()
         {
             object _this = JitHelpers.UnsafeCast<object>(this);
@@ -46,7 +46,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (((uint)Int32.MaxValue) < size)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingDictionaryTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingDictionaryTooLarge);
                 }
 
                 return (int)size;
@@ -58,7 +58,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (((uint)Int32.MaxValue) < size)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 
                 return (int)size;
@@ -66,14 +66,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IsReadOnly { get }
-        [SecurityCritical]
         internal bool IsReadOnly<K, V>()
         {
             return false;
         }
 
         // void Add(T item)
-        [SecurityCritical]
         internal void Add<K, V>(KeyValuePair<K, V> item)
         {
             object _this = JitHelpers.UnsafeCast<object>(this);
@@ -91,7 +89,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<K, V>()
         {
             object _this = JitHelpers.UnsafeCast<object>(this);
@@ -109,7 +106,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Contains(T item)
-        [SecurityCritical]
         internal bool Contains<K, V>(KeyValuePair<K, V> item)
         {
             object _this = JitHelpers.UnsafeCast<object>(this);
@@ -135,20 +131,19 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void CopyTo(T[] array, int arrayIndex)
-        [SecurityCritical]
         internal void CopyTo<K, V>(KeyValuePair<K, V>[] array, int arrayIndex)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             if (arrayIndex < 0)
-                throw new ArgumentOutOfRangeException("arrayIndex");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
             if (array.Length <= arrayIndex && Count<K, V>() > 0)
-                throw new ArgumentException(Environment.GetResourceString("Argument_IndexOutOfArrayBounds"));
+                throw new ArgumentException(SR.Argument_IndexOutOfArrayBounds);
 
             if (array.Length - arrayIndex < Count<K, V>())
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             Contract.EndContractBlock();
 
@@ -160,7 +155,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Remove(T item)
-        [SecurityCritical]
         internal bool Remove<K, V>(KeyValuePair<K, V> item)
         {
             object _this = JitHelpers.UnsafeCast<object>(this);
@@ -181,7 +175,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 if (((uint)Int32.MaxValue) < index)
                 {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                    throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
                 }
 
                 VectorToListAdapter.RemoveAtHelper<KeyValuePair<K, V>>(_this_vector, index);

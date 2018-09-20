@@ -11,6 +11,7 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System.Security;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.ExceptionServices;
 using System.Runtime.CompilerServices;
@@ -28,13 +29,12 @@ namespace System.Threading.Tasks
         private Task m_antecedent;
 
         public ContinuationTaskFromTask(
-            Task antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, ref StackCrawlMark stackMark) :
+            Task antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(action is Action<Task> || action is Action<Task, object>, 
+            Contract.Requires(action is Action<Task> || action is Action<Task, object>,
                 "Invalid delegate type in ContinuationTaskFromTask");
             m_antecedent = antecedent;
-            PossiblyCaptureContext(ref stackMark);
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace System.Threading.Tasks
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
-            Contract.Assert(antecedent != null, 
+            Debug.Assert(antecedent != null,
                 "No antecedent was set for the ContinuationTaskFromTask.");
             m_antecedent = null;
 
@@ -53,7 +53,7 @@ namespace System.Threading.Tasks
             antecedent.NotifyDebuggerOfWaitCompletionIfNecessary();
 
             // Invoke the delegate
-            Contract.Assert(m_action != null);
+            Debug.Assert(m_action != null);
             var action = m_action as Action<Task>;
             if (action != null)
             {
@@ -66,7 +66,7 @@ namespace System.Threading.Tasks
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
-            Contract.Assert(false, "Invalid m_action in ContinuationTaskFromTask");
+            Debug.Assert(false, "Invalid m_action in ContinuationTaskFromTask");
         }
     }
 
@@ -76,13 +76,12 @@ namespace System.Threading.Tasks
         private Task m_antecedent;
 
         public ContinuationResultTaskFromTask(
-            Task antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, ref StackCrawlMark stackMark) :
+            Task antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(function is Func<Task, TResult> || function is Func<Task, object, TResult>, 
+            Contract.Requires(function is Func<Task, TResult> || function is Func<Task, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromTask");
             m_antecedent = antecedent;
-            PossiblyCaptureContext(ref stackMark);
         }
 
         /// <summary>
@@ -93,7 +92,7 @@ namespace System.Threading.Tasks
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
-            Contract.Assert(antecedent != null, 
+            Debug.Assert(antecedent != null,
                 "No antecedent was set for the ContinuationResultTaskFromTask.");
             m_antecedent = null;
 
@@ -101,7 +100,7 @@ namespace System.Threading.Tasks
             antecedent.NotifyDebuggerOfWaitCompletionIfNecessary();
 
             // Invoke the delegate
-            Contract.Assert(m_action != null);
+            Debug.Assert(m_action != null);
             var func = m_action as Func<Task, TResult>;
             if (func != null)
             {
@@ -114,7 +113,7 @@ namespace System.Threading.Tasks
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
-            Contract.Assert(false, "Invalid m_action in ContinuationResultTaskFromTask");
+            Debug.Assert(false, "Invalid m_action in ContinuationResultTaskFromTask");
         }
     }
 
@@ -124,13 +123,12 @@ namespace System.Threading.Tasks
         private Task<TAntecedentResult> m_antecedent;
 
         public ContinuationTaskFromResultTask(
-            Task<TAntecedentResult> antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, ref StackCrawlMark stackMark) :
+            Task<TAntecedentResult> antecedent, Delegate action, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(action, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
-            Contract.Requires(action is Action<Task<TAntecedentResult>> || action is Action<Task<TAntecedentResult>, object>, 
+            Contract.Requires(action is Action<Task<TAntecedentResult>> || action is Action<Task<TAntecedentResult>, object>,
                 "Invalid delegate type in ContinuationTaskFromResultTask");
             m_antecedent = antecedent;
-            PossiblyCaptureContext(ref stackMark);
         }
 
         /// <summary>
@@ -141,7 +139,7 @@ namespace System.Threading.Tasks
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
-            Contract.Assert(antecedent != null, 
+            Debug.Assert(antecedent != null,
                 "No antecedent was set for the ContinuationTaskFromResultTask.");
             m_antecedent = null;
 
@@ -149,7 +147,7 @@ namespace System.Threading.Tasks
             antecedent.NotifyDebuggerOfWaitCompletionIfNecessary();
 
             // Invoke the delegate
-            Contract.Assert(m_action != null);
+            Debug.Assert(m_action != null);
             var action = m_action as Action<Task<TAntecedentResult>>;
             if (action != null)
             {
@@ -162,7 +160,7 @@ namespace System.Threading.Tasks
                 actionWithState(antecedent, m_stateObject);
                 return;
             }
-            Contract.Assert(false, "Invalid m_action in ContinuationTaskFromResultTask");
+            Debug.Assert(false, "Invalid m_action in ContinuationTaskFromResultTask");
         }
     }
 
@@ -172,13 +170,12 @@ namespace System.Threading.Tasks
         private Task<TAntecedentResult> m_antecedent;
 
         public ContinuationResultTaskFromResultTask(
-            Task<TAntecedentResult> antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions, ref StackCrawlMark stackMark) :
+            Task<TAntecedentResult> antecedent, Delegate function, object state, TaskCreationOptions creationOptions, InternalTaskOptions internalOptions) :
             base(function, state, Task.InternalCurrentIfAttached(creationOptions), default(CancellationToken), creationOptions, internalOptions, null)
         {
             Contract.Requires(function is Func<Task<TAntecedentResult>, TResult> || function is Func<Task<TAntecedentResult>, object, TResult>,
                 "Invalid delegate type in ContinuationResultTaskFromResultTask");
             m_antecedent = antecedent;
-            PossiblyCaptureContext(ref stackMark);
         }
 
         /// <summary>
@@ -189,7 +186,7 @@ namespace System.Threading.Tasks
             // Get and null out the antecedent.  This is crucial to avoid a memory
             // leak with long chains of continuations.
             var antecedent = m_antecedent;
-            Contract.Assert(antecedent != null, 
+            Debug.Assert(antecedent != null,
                 "No antecedent was set for the ContinuationResultTaskFromResultTask.");
             m_antecedent = null;
 
@@ -197,7 +194,7 @@ namespace System.Threading.Tasks
             antecedent.NotifyDebuggerOfWaitCompletionIfNecessary();
 
             // Invoke the delegate
-            Contract.Assert(m_action != null);
+            Debug.Assert(m_action != null);
             var func = m_action as Func<Task<TAntecedentResult>, TResult>;
             if (func != null)
             {
@@ -210,7 +207,7 @@ namespace System.Threading.Tasks
                 m_result = funcWithState(antecedent, m_stateObject);
                 return;
             }
-            Contract.Assert(false, "Invalid m_action in ContinuationResultTaskFromResultTask");
+            Debug.Assert(false, "Invalid m_action in ContinuationResultTaskFromResultTask");
         }
     }
 
@@ -235,11 +232,10 @@ namespace System.Threading.Tasks
         /// <param name="needsProtection">
         /// true if we need to protect against multiple threads racing to start/cancel the task; otherwise, false.
         /// </param>
-        [SecuritySafeCritical]
         protected static void InlineIfPossibleOrElseQueue(Task task, bool needsProtection)
         {
             Contract.Requires(task != null);
-            Contract.Assert(task.m_taskScheduler != null);
+            Debug.Assert(task.m_taskScheduler != null);
 
             // Set the TASK_STATE_STARTED flag.  This only needs to be done
             // if the task may be canceled or if someone else has a reference to it
@@ -280,7 +276,6 @@ namespace System.Threading.Tasks
         }
 
         internal abstract Delegate[] GetDelegateContinuationsForDebugger();
-
     }
 
     /// <summary>Provides the standard implementation of a task continuation.</summary>
@@ -305,7 +300,7 @@ namespace System.Threading.Tasks
             m_options = options;
             m_taskScheduler = scheduler;
             if (AsyncCausalityTracer.LoggingOn)
-                AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, m_task.Id, "Task.ContinueWith: " + ((Delegate)task.m_action).Method.Name, 0);
+                AsyncCausalityTracer.TraceOperationCreation(CausalityTraceLevel.Required, m_task.Id, "Task.ContinueWith: " + task.m_action.Method.Name, 0);
 
             if (Task.s_asyncDebuggingEnabled)
             {
@@ -318,14 +313,14 @@ namespace System.Threading.Tasks
         /// <param name="bCanInlineContinuationTask">Whether the continuation can be inlined.</param>
         internal override void Run(Task completedTask, bool bCanInlineContinuationTask)
         {
-            Contract.Assert(completedTask != null);
-            Contract.Assert(completedTask.IsCompleted, "ContinuationTask.Run(): completedTask not completed");
+            Debug.Assert(completedTask != null);
+            Debug.Assert(completedTask.IsCompleted, "ContinuationTask.Run(): completedTask not completed");
 
             // Check if the completion status of the task works with the desired 
             // activation criteria of the TaskContinuationOptions.
             TaskContinuationOptions options = m_options;
             bool isRightKind =
-                completedTask.IsRanToCompletion ?
+                completedTask.IsCompletedSuccessfully ?
                     (options & TaskContinuationOptions.NotOnRanToCompletion) == 0 :
                     (completedTask.IsCanceled ?
                         (options & TaskContinuationOptions.NotOnCanceled) == 0 :
@@ -374,7 +369,7 @@ namespace System.Threading.Tasks
                 return m_task.GetDelegateContinuationsForDebugger();
             }
 
-            return new Delegate[] { m_task.m_action as Delegate };
+            return new Delegate[] { m_task.m_action };
         }
     }
 
@@ -384,7 +379,6 @@ namespace System.Threading.Tasks
         /// <summary>SendOrPostCallback delegate to invoke the action.</summary>
         private readonly static SendOrPostCallback s_postCallback = state => ((Action)state)(); // can't use InvokeAction as it's SecurityCritical
         /// <summary>Cached delegate for PostAction</summary>
-        [SecurityCritical]
         private static ContextCallback s_postActionCallback;
         /// <summary>The context with which to run the action.</summary>
         private readonly SynchronizationContext m_syncContext;
@@ -393,20 +387,17 @@ namespace System.Threading.Tasks
         /// <param name="context">The synchronization context with which to invoke the action.  Must not be null.</param>
         /// <param name="action">The action to invoke. Must not be null.</param>
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark.</param>
-        [SecurityCritical]
         internal SynchronizationContextAwaitTaskContinuation(
-            SynchronizationContext context, Action action, bool flowExecutionContext, ref StackCrawlMark stackMark) :
-            base(action, flowExecutionContext, ref stackMark)
+            SynchronizationContext context, Action action, bool flowExecutionContext) :
+            base(action, flowExecutionContext)
         {
-            Contract.Assert(context != null);
+            Debug.Assert(context != null);
             m_syncContext = context;
         }
 
         /// <summary>Inlines or schedules the continuation.</summary>
         /// <param name="ignored">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
-        [SecuritySafeCritical]
         internal sealed override void Run(Task task, bool canInlineContinuationTask)
         {
             // If we're allowed to inline, run the action on this thread.
@@ -431,7 +422,6 @@ namespace System.Threading.Tasks
 
         /// <summary>Calls InvokeOrPostAction(false) on the supplied SynchronizationContextAwaitTaskContinuation.</summary>
         /// <param name="state">The SynchronizationContextAwaitTaskContinuation.</param>
-        [SecurityCritical]
         private static void PostAction(object state)
         {
             var c = (SynchronizationContextAwaitTaskContinuation)state;
@@ -465,7 +455,6 @@ namespace System.Threading.Tasks
         /// to be passed as state.
         /// </returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [SecurityCritical]
         private static ContextCallback GetPostActionCallback()
         {
             ContextCallback callback = s_postActionCallback;
@@ -484,13 +473,11 @@ namespace System.Threading.Tasks
         /// <param name="scheduler">The task scheduler with which to invoke the action.  Must not be null.</param>
         /// <param name="action">The action to invoke. Must not be null.</param>
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark.</param>
-        [SecurityCritical]
         internal TaskSchedulerAwaitTaskContinuation(
-            TaskScheduler scheduler, Action action, bool flowExecutionContext, ref StackCrawlMark stackMark) :
-            base(action, flowExecutionContext, ref stackMark)
+            TaskScheduler scheduler, Action action, bool flowExecutionContext) :
+            base(action, flowExecutionContext)
         {
-            Contract.Assert(scheduler != null);
+            Debug.Assert(scheduler != null);
             m_scheduler = scheduler;
         }
 
@@ -517,7 +504,8 @@ namespace System.Threading.Tasks
 
                 // Create the continuation task task. If we're allowed to inline, try to do so.  
                 // The target scheduler may still deny us from executing on this thread, in which case this'll be queued.
-                var task = CreateTask(state => {
+                var task = CreateTask(state =>
+                {
                     try { ((Action)state)(); }
                     catch (Exception exc) { ThrowAsyncIfNecessary(exc); }
                 }, m_action, m_scheduler);
@@ -549,31 +537,13 @@ namespace System.Threading.Tasks
         /// <summary>Initializes the continuation.</summary>
         /// <param name="action">The action to invoke. Must not be null.</param>
         /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        /// <param name="stackMark">The captured stack mark with which to construct an ExecutionContext.</param>
-        [SecurityCritical]
-        internal AwaitTaskContinuation(Action action, bool flowExecutionContext, ref StackCrawlMark stackMark)
-        {
-            Contract.Requires(action != null);
-            m_action = action;
-            if (flowExecutionContext)
-            {
-                m_capturedContext = ExecutionContext.Capture(
-                    ref stackMark, 
-                    ExecutionContext.CaptureOptions.IgnoreSyncCtx | ExecutionContext.CaptureOptions.OptimizeDefaultCase);
-            }
-        }
-
-        /// <summary>Initializes the continuation.</summary>
-        /// <param name="action">The action to invoke. Must not be null.</param>
-        /// <param name="flowExecutionContext">Whether to capture and restore ExecutionContext.</param>
-        [SecurityCritical]
         internal AwaitTaskContinuation(Action action, bool flowExecutionContext)
         {
             Contract.Requires(action != null);
             m_action = action;
             if (flowExecutionContext)
             {
-                m_capturedContext = ExecutionContext.FastCapture();
+                m_capturedContext = ExecutionContext.Capture();
             }
         }
 
@@ -588,17 +558,16 @@ namespace System.Threading.Tasks
             Contract.Requires(scheduler != null);
 
             return new Task(
-                action, state, null, default(CancellationToken), 
-                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)  
-            { 
-                CapturedContext = m_capturedContext 
+                action, state, null, default(CancellationToken),
+                TaskCreationOptions.None, InternalTaskOptions.QueuedByRuntime, scheduler)
+            {
+                CapturedContext = m_capturedContext
             };
         }
 
         /// <summary>Inlines or schedules the continuation onto the default scheduler.</summary>
         /// <param name="ignored">The antecedent task, which is ignored.</param>
         /// <param name="canInlineContinuationTask">true if inlining is permitted; otherwise, false.</param>
-        [SecuritySafeCritical]
         internal override void Run(Task task, bool canInlineContinuationTask)
         {
             // For the base AwaitTaskContinuation, we allow inlining if our caller allows it
@@ -621,7 +590,7 @@ namespace System.Threading.Tasks
 
                 // We couldn't inline, so now we need to schedule it
                 ThreadPool.UnsafeQueueCustomWorkItem(this, forceGlobal: false);
-           }
+            }
         }
 
         /// <summary>
@@ -657,8 +626,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>IThreadPoolWorkItem override, which is the entry function for this when the ThreadPool scheduler decides to run it.</summary>
-        [SecurityCritical]
-        void ExecuteWorkItemHelper()
+        private void ExecuteWorkItemHelper()
         {
             var etwLog = TplEtwProvider.Log;
             Guid savedActivityId = Guid.Empty;
@@ -677,14 +645,10 @@ namespace System.Threading.Tasks
                 {
                     m_action();
                 }
-                    // If there is an execution context, get the cached delegate and run the action under the context.
+                // If there is an execution context, get the cached delegate and run the action under the context.
                 else
                 {
-                    try
-                    {
-                        ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action, true);
-                    }
-                    finally { m_capturedContext.Dispose(); }
+                    ExecutionContext.Run(m_capturedContext, GetInvokeActionCallback(), m_action);
                 }
             }
             finally
@@ -696,12 +660,10 @@ namespace System.Threading.Tasks
             }
         }
 
-        [SecurityCritical]
         void IThreadPoolWorkItem.ExecuteWorkItem()
         {
             // inline the fast path
-            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled()
-            )
+            if (m_capturedContext == null && !TplEtwProvider.Log.IsEnabled())
             {
                 m_action();
             }
@@ -714,20 +676,16 @@ namespace System.Threading.Tasks
         /// <summary>
         /// The ThreadPool calls this if a ThreadAbortException is thrown while trying to execute this workitem.
         /// </summary>
-        [SecurityCritical]
         void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
 
         /// <summary>Cached delegate that invokes an Action passed as an object parameter.</summary>
-        [SecurityCritical]
         private static ContextCallback s_invokeActionCallback;
 
         /// <summary>Runs an action provided as an object parameter.</summary>
         /// <param name="state">The Action to invoke.</param>
-        [SecurityCritical]
         private static void InvokeAction(object state) { ((Action)state)(); }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        [SecurityCritical]
         protected static ContextCallback GetInvokeActionCallback()
         {
             ContextCallback callback = s_invokeActionCallback;
@@ -739,11 +697,10 @@ namespace System.Threading.Tasks
         /// <param name="callback">The callback to run.</param>
         /// <param name="state">The state to pass to the callback.</param>
         /// <param name="currentTask">A reference to Task.t_currentTask.</param>
-        [SecurityCritical]
         protected void RunCallback(ContextCallback callback, object state, ref Task currentTask)
         {
             Contract.Requires(callback != null);
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Debug.Assert(currentTask == Task.t_currentTask);
 
             // Pretend there's no current task, so that no task is seen as a parent
             // and TaskScheduler.Current does not reflect false information
@@ -755,7 +712,7 @@ namespace System.Threading.Tasks
                 // If there's no captured context, just run the callback directly.
                 if (m_capturedContext == null) callback(state);
                 // Otherwise, use the captured context to do so.
-                else ExecutionContext.Run(m_capturedContext, callback, state, true);
+                else ExecutionContext.Run(m_capturedContext, callback, state);
             }
             catch (Exception exc) // we explicitly do not request handling of dangerous exceptions like AVs
             {
@@ -765,9 +722,6 @@ namespace System.Threading.Tasks
             {
                 // Restore the current task information
                 if (prevCurrentTask != null) currentTask = prevCurrentTask;
-
-                // Clean up after the execution context, which is only usable once.
-                if (m_capturedContext != null) m_capturedContext.Dispose();
             }
         }
 
@@ -787,10 +741,9 @@ namespace System.Threading.Tasks
         /// only happens in Task.SetContinuationForAwait if execution context flow was disabled
         /// via using TaskAwaiter.UnsafeOnCompleted or a similar path.
         /// </remarks>
-        [SecurityCritical]
         internal static void RunOrScheduleAction(Action action, bool allowInlining, ref Task currentTask)
         {
-            Contract.Assert(currentTask == Task.t_currentTask);
+            Debug.Assert(currentTask == Task.t_currentTask);
 
             // If we're not allowed to run here, schedule the action
             if (!allowInlining || !IsValidLocationForInlining)
@@ -818,7 +771,6 @@ namespace System.Threading.Tasks
 
         /// <summary>Schedules the action to be executed.  No ExecutionContext work is performed used.</summary>
         /// <param name="action">The action to invoke or queue.</param>
-        [SecurityCritical]
         internal static void UnsafeScheduleAction(Action action, Task task)
         {
             AwaitTaskContinuation atc = new AwaitTaskContinuation(action, flowExecutionContext: false);
@@ -859,9 +811,8 @@ namespace System.Threading.Tasks
 
         internal override Delegate[] GetDelegateContinuationsForDebugger()
         {
-            Contract.Assert(m_action != null);
+            Debug.Assert(m_action != null);
             return new Delegate[] { AsyncMethodBuilderCore.TryGetStateMachineForDebugger(m_action) };
         }
     }
-
 }

@@ -11,31 +11,35 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
 
-    using System;
-    using System.Runtime.Serialization;
+using System;
+using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable] public class SafeArrayTypeMismatchException : SystemException {
-        public SafeArrayTypeMismatchException() 
-            : base(Environment.GetResourceString("Arg_SafeArrayTypeMismatchException")) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYTYPEMISMATCH);
-        }
-    
-        public SafeArrayTypeMismatchException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYTYPEMISMATCH);
-        }
-    
-        public SafeArrayTypeMismatchException(String message, Exception inner) 
-            : base(message, inner) {
-            SetErrorCode(__HResults.COR_E_SAFEARRAYTYPEMISMATCH);
+namespace System.Runtime.InteropServices
+{
+    public class SafeArrayTypeMismatchException : SystemException
+    {
+        public SafeArrayTypeMismatchException()
+            : base(SR.Arg_SafeArrayTypeMismatchException)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYTYPEMISMATCH;
         }
 
-        protected SafeArrayTypeMismatchException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public SafeArrayTypeMismatchException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYTYPEMISMATCH;
         }
 
+        public SafeArrayTypeMismatchException(String message, Exception inner)
+            : base(message, inner)
+        {
+            HResult = __HResults.COR_E_SAFEARRAYTYPEMISMATCH;
+        }
+
+        protected SafeArrayTypeMismatchException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
+        }
     }
-
 }

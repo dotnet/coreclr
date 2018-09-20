@@ -76,11 +76,33 @@ internal partial class VectorTest
         if (VectorAbsTest<Double>.VectorAbs(-1d, 1d) != Pass) returnVal = Fail;
         if (VectorAbsTest<int>.VectorAbs(-1, 1) != Pass) returnVal = Fail;
         if (VectorAbsTest<long>.VectorAbs(-1, 1) != Pass) returnVal = Fail;
+        if (VectorAbsTest<short>.VectorAbs((short)-1, (short)1) != Pass) returnVal = Fail;
+        if (VectorAbsTest<sbyte>.VectorAbs((sbyte)-1, (sbyte)1) != Pass) returnVal = Fail;
         if (Vector4Test.VectorAbs() != Pass) returnVal = Fail;
         if (Vector3Test.VectorAbs() != Pass) returnVal = Fail;
         if (Vector2Test.VectorAbs() != Pass) returnVal = Fail;
         if (VectorAbsTest<ushort>.VectorAbs((ushort)0xffff, (ushort)0xffff) != Pass) returnVal = Fail;
         if (VectorAbsTest<byte>.VectorAbs((byte)0xff, (byte)0xff) != Pass) returnVal = Fail;
+        if (VectorAbsTest<uint>.VectorAbs(0x41000000u, 0x41000000u) != Pass) returnVal = Fail;
+        if (VectorAbsTest<ulong>.VectorAbs(0x4100000000000000ul, 0x4100000000000000ul) != Pass) returnVal = Fail;
+
+        JitLog jitLog = new JitLog();
+        if (!jitLog.Check("Abs", "Single")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "Double")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "Int64")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "Int32")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "Int16")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "SByte")) returnVal = Fail;
+        if (!jitLog.Check("System.Numerics.Vector4:Abs")) returnVal = Fail;
+        if (!jitLog.Check("System.Numerics.Vector3:Abs")) returnVal = Fail;
+        if (!jitLog.Check("System.Numerics.Vector2:Abs")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "UInt16")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "Byte")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "UInt32")) returnVal = Fail;
+        if (!jitLog.Check("Abs", "UInt64")) returnVal = Fail;
+
+        jitLog.Dispose();
+
         return returnVal;
     }
 }

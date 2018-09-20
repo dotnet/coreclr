@@ -1432,7 +1432,19 @@ HRESULT CordbThread::FindFrame(ICorDebugFrame ** ppFrame, FramePointer fp)
     return E_FAIL;
 }
 
+
 #if !defined(DBG_TARGET_ARM) // @ARMTODO
+
+#if defined(CROSS_COMPILE) && defined(_TARGET_ARM64_)
+extern "C" double FPFillR8(void* pFillSlot)
+{
+    _ASSERTE(!"nyi for platform");
+    return 0;
+}
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) 
+extern "C" double FPFillR8(void* pFillSlot);
+#endif
+
 
 #if defined(_TARGET_X86_)
 
@@ -1481,7 +1493,7 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
 
     for (i = 0; i <= floatStackTop; i++)
     {
-        long double td;
+        double td = 0.0;
         __asm fstp td // copy out the double
         m_floatValues[i] = td;
     }
@@ -1496,8 +1508,7 @@ void CordbThread::Get32bitFPRegisters(CONTEXT * pContext)
     m_floatStackTop = floatStackTop;
 } // CordbThread::Get32bitFPRegisters
 
-#elif defined(_TARGET_AMD64_)
-extern "C" double FPFillR8(void* pFillSlot);
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
 // CordbThread::Get64bitFPRegisters
 // Converts the values in the floating point register area of the context to real number values. See
@@ -1524,7 +1535,6 @@ void CordbThread::Get64bitFPRegisters(FPRegister64 * rgContextFPRegisters, int s
         m_floatValues[reg] = FPFillR8(&rgContextFPRegisters[reg - start]);
     }
 } // CordbThread::Get64bitFPRegisters
-
 
 #endif // _TARGET_X86_
 
@@ -1556,6 +1566,10 @@ void CordbThread::LoadFloatState()
 #elif defined(_TARGET_AMD64_)
     // we have no fixed-value registers, so we begin with the first one and initialize all 16
     Get64bitFPRegisters((FPRegister64*) &(tempContext.Xmm0), 0, 16);
+#elif defined(_TARGET_ARM64_)
+    Get64bitFPRegisters((FPRegister64*) &(tempContext.V), 0, 32);
+#else 
+    _ASSERTE(!"nyi for platform");
 #endif // !_TARGET_X86_
 
     m_fFloatStateValid = true;
@@ -4571,7 +4585,7 @@ void CordbUnmanagedThread::SaveRaiseExceptionEntryContext()
         LOG((LF_CORDB, LL_INFO1000, "CP::SREEC: failed to read exception information pointer.\n"));
         return;
     }
-#elif
+#else
     _ASSERTE(!"Implement this for your platform");
     return;
 #endif
@@ -5835,11 +5849,11 @@ CordbMiscFrame::CordbMiscFrame()
 // the real constructor which stores the funclet-related information in the CordbMiscFrame
 CordbMiscFrame::CordbMiscFrame(DebuggerIPCE_JITFuncData * pJITFuncData)
 {
-#if defined(DBG_TARGET_WIN64) || defined(DBG_TARGET_ARM)
+#ifdef WIN64EXCEPTIONS
     this->parentIP       = pJITFuncData->parentNativeOffset;
     this->fpParentOrSelf = pJITFuncData->fpParentOrSelf;
     this->fIsFilterFunclet = (pJITFuncData->fIsFilterFrame == TRUE);
-#endif // DBG_TARGET_WIN64 || DBG_TARGET_ARM
+#endif // WIN64EXCEPTIONS
 }
 
 /* ------------------------------------------------------------------------- *
@@ -6991,6 +7005,8 @@ HRESULT CordbNativeFrame::GetLocalRegisterValue(CorDebugRegister reg,
     if ((reg >= REGISTER_X86_FPSTACK_0) && (reg <= REGISTER_X86_FPSTACK_7))
 #elif defined(DBG_TARGET_AMD64)
     if ((reg >= REGISTER_AMD64_XMM0) && (reg <= REGISTER_AMD64_XMM15))
+#elif defined(DBG_TARGET_ARM64)
+    if ((reg >= REGISTER_ARM64_V0) && (reg <= REGISTER_ARM64_V31))
 #endif
     {
         return GetLocalFloatingPointValue(reg, pType, ppValue);
@@ -7239,6 +7255,11 @@ HRESULT CordbNativeFrame::GetLocalFloatingPointValue(DWORD index,
           (index <= REGISTER_AMD64_XMM15)))
         return E_INVALIDARG;
     index -= REGISTER_AMD64_XMM0;
+#elif defined(DBG_TARGET_ARM64)
+    if (!((index >= REGISTER_ARM64_V0) &&
+        (index <= REGISTER_ARM64_V31)))
+        return E_INVALIDARG;
+    index -= REGISTER_ARM64_V0;
 #else
     if (!((index >= REGISTER_X86_FPSTACK_0) &&
           (index <= REGISTER_X86_FPSTACK_7)))
@@ -8914,8 +8935,13 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
     bool found = false;
     ULONG32 currentOffset = m_nativeFrame->GetIPOffset();
     for (ULONG32 i = 0; i < count; ++i)
-        if ((found = currentOffset == offsets[i]))
+    {
+        if (currentOffset == offsets[i])
+        {
+            found = true;
             break;
+        }
+    }
 
     if (!found)
         return E_UNEXPECTED;
@@ -8941,20 +8967,25 @@ HRESULT CordbJITILFrame::GetReturnValueForILOffsetImpl(ULONG32 ILoffset, ICorDeb
 
 HRESULT CordbJITILFrame::GetReturnValueForType(CordbType *pType, ICorDebugValue **ppReturnValue)
 {
-#if defined(DBG_TARGET_ARM) || defined(DBG_TARGET_ARM64)
+#if defined(DBG_TARGET_ARM) 
     return E_NOTIMPL;
 #else
+
 
 #if defined(DBG_TARGET_X86)
     const CorDebugRegister floatRegister = REGISTER_X86_FPSTACK_0;
 #elif defined(DBG_TARGET_AMD64)
     const CorDebugRegister floatRegister = REGISTER_AMD64_XMM0;
+#elif  defined(DBG_TARGET_ARM64)
+    const CorDebugRegister floatRegister = REGISTER_ARM64_V0;
 #endif
     
 #if defined(DBG_TARGET_X86)
     const CorDebugRegister ptrRegister = REGISTER_X86_EAX;
 #elif defined(DBG_TARGET_AMD64)
     const CorDebugRegister ptrRegister = REGISTER_AMD64_RAX;
+#elif  defined(DBG_TARGET_ARM64)
+    const CorDebugRegister ptrRegister = REGISTER_ARM64_X0;
 #endif
 
     CorElementType corReturnType = pType->GetElementType();

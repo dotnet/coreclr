@@ -46,7 +46,7 @@ public:
     // PInvoke stub helpers
     //-------------------------------------------------------
 
-    static FCDECL1(double,          DateMarshaler__ConvertToNative,  INT64 managedDate);
+    static FCDECL1_V(double,        DateMarshaler__ConvertToNative,  INT64 managedDate);
     static FCDECL1_V(INT64,         DateMarshaler__ConvertToManaged, double nativeDate);
 
     static FCDECL4(void,            ValueClassMarshaler__ConvertToNative, LPVOID pDest, LPVOID pSrc, MethodTable* pMT, OBJECTREF *ppCleanupWorkListOnStack);
@@ -95,12 +95,6 @@ public:
     static FCDECL1(void*,           GetNDirectTarget,       NDirectMethodDesc* pNMD);
     static FCDECL2(void*,           GetDelegateTarget,      DelegateObject *pThisUNSAFE, UINT_PTR *ppStubArg);
 
-#ifndef FEATURE_CORECLR
-#ifndef _WIN64
-    static FCDECL3(void*,           GetFinalStubTarget, LPVOID pStubArg, LPVOID pUnmngThis, DWORD dwFlags);
-#endif // !_WIN64
-    static FCDECL1(void,            DemandPermission, NDirectMethodDesc *pNMD);
-#endif // !FEATURE_CORECLR
 
     static FCDECL2(void,            ThrowInteropParamException, UINT resID, UINT paramIdx);
     static FCDECL1(Object*,         GetHRExceptionObject,   HRESULT hr);

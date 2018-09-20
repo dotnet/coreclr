@@ -9,7 +9,6 @@ using System.Diagnostics;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
-    [Serializable]
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class DictionaryKeyCollection<TKey, TValue> : ICollection<TKey>
     {
@@ -18,7 +17,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public DictionaryKeyCollection(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
@@ -26,13 +25,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public void CopyTo(TKey[] array, int index)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             if (array.Length <= index && this.Count > 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_IndexOutOfRangeException"));
+                throw new ArgumentException(SR.Arg_IndexOutOfRangeException);
             if (array.Length - index < dictionary.Count)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             int i = index;
             foreach (KeyValuePair<TKey, TValue> mapping in dictionary)
@@ -41,22 +40,24 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public int Count {
+        public int Count
+        {
             get { return dictionary.Count; }
         }
 
-        bool ICollection<TKey>.IsReadOnly {
+        bool ICollection<TKey>.IsReadOnly
+        {
             get { return true; }
         }
 
         void ICollection<TKey>.Add(TKey item)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_KeyCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_KeyCollectionSet);
         }
 
         void ICollection<TKey>.Clear()
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_KeyCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_KeyCollectionSet);
         }
 
         public bool Contains(TKey item)
@@ -66,7 +67,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         bool ICollection<TKey>.Remove(TKey item)
         {
-            throw new NotSupportedException(Environment.GetResourceString("NotSupported_KeyCollectionSet"));
+            throw new NotSupportedException(SR.NotSupported_KeyCollectionSet);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -81,7 +82,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class DictionaryKeyCollection<TKey, TValue>
 
 
-    [Serializable]
     internal sealed class DictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey>
     {
         private readonly IDictionary<TKey, TValue> dictionary;
@@ -90,10 +90,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public DictionaryKeyEnumerator(IDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
-            this.enumeration = dictionary.GetEnumerator();
+            enumeration = dictionary.GetEnumerator();
         }
 
         void IDisposable.Dispose()
@@ -106,11 +106,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current {
+        Object IEnumerator.Current
+        {
             get { return ((IEnumerator<TKey>)this).Current; }
         }
 
-        public TKey Current {
+        public TKey Current
+        {
             get { return enumeration.Current.Key; }
         }
 

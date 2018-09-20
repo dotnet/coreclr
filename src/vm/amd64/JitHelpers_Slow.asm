@@ -28,6 +28,11 @@ EXTERN  g_lowest_address:QWORD
 EXTERN  g_highest_address:QWORD
 EXTERN  g_card_table:QWORD
 
+ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+EXTERN  g_sw_ww_table:QWORD
+EXTERN  g_sw_ww_enabled_for_gc_heap:BYTE
+endif
+
 ifdef WRITE_BARRIER_CHECK
 ; Those global variables are always defined, but should be 0 for Server GC
 g_GCShadow                      TEXTEQU <?g_GCShadow@@3PEAEEA>
@@ -118,6 +123,19 @@ ifdef WRITE_BARRIER_CHECK
     DoneShadow:
 endif
 
+ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        ; Update the write watch table if necessary
+        cmp     byte ptr [g_sw_ww_enabled_for_gc_heap], 0h
+        je      CheckCardTable
+        mov     r10, rcx
+        shr     r10, 0Ch ; SoftwareWriteWatch::AddressToTableByteIndexShift
+        add     r10, qword ptr [g_sw_ww_table]
+        cmp     byte ptr [r10], 0h
+        jne     CheckCardTable
+        mov     byte ptr [r10], 0FFh
+endif
+
+    CheckCardTable:
         ; See if we can just quick out
         cmp     rax, [g_ephemeral_low]
         jb      Exit
@@ -259,7 +277,7 @@ NESTED_ENTRY AllocateStringFastMP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -449,13 +467,9 @@ NESTED_END JIT_NewArr1OBJ_MP, _TEXT
 
 
 
-; <TODO> this m_GCLock should be a size_t so we don't have a store-forwarding penalty in the code below.
-;        Unfortunately, the compiler intrinsic for InterlockedExchangePointer seems to be broken and we
-;        get bad code gen in gc.cpp on IA64. </TODO>
 
-M_GCLOCK equ ?m_GCLock@@3HC
-extern M_GCLOCK:dword
-extern generation_table:qword
+extern g_global_alloc_lock:dword
+extern g_global_alloc_context:qword
 
 LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
 
@@ -463,20 +477,20 @@ LEAF_ENTRY JIT_TrialAllocSFastSP, _TEXT
 
         ; m_BaseSize is guaranteed to be a multiple of 8.
 
-        inc     [M_GCLOCK]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NEW
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
+        mov     r10, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_limit]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], rcx
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
 ifdef _DEBUG
         call    DEBUG_TrialAllocSetAppDomain_NoScratchArea
@@ -485,7 +499,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_NEW
 LEAF_END JIT_TrialAllocSFastSP, _TEXT
 
@@ -502,11 +516,11 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
 
         ; m_BaseSize is guaranteed to be a multiple of 8.
 
-        inc     [M_GCLOCK]
+        inc     [g_global_alloc_lock]
         jnz     JIT_Box
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
+        mov     r10, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_limit]     ; limit_ptr
 
         add     r8, rax
 
@@ -514,9 +528,9 @@ NESTED_ENTRY JIT_BoxFastUP, _TEXT
         ja      NoAlloc
 
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], rcx
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
 ifdef _DEBUG
         call    DEBUG_TrialAllocSetAppDomain_NoScratchArea
@@ -556,7 +570,7 @@ endif ; _DEBUG
         ret
 
     NoAlloc:
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_Box
 NESTED_END JIT_BoxFastUP, _TEXT
 
@@ -570,7 +584,7 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
 
         ; Instead of doing elaborate overflow checks, we just limit the number of elements
         ; to (LARGE_OBJECT_SIZE - 256)/sizeof(WCHAR) or less.
-        ; This will avoid avoid all overflow problems, as well as making sure
+        ; This will avoid all overflow problems, as well as making sure
         ; big string objects are correctly allocated in the big object heap.
 
         cmp     ecx, (ASM_LARGE_OBJECT_SIZE - 256)/2
@@ -584,20 +598,20 @@ LEAF_ENTRY AllocateStringFastUP, _TEXT
         lea     r8d, [r8d + ecx*2 + 7]
         and     r8d, -8
 
-        inc     [M_GCLOCK]
+        inc     [g_global_alloc_lock]
         jnz     FramedAllocateString
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
+        mov     r10, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_limit]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r11
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     [rax + OFFSETOF__StringObject__m_StringLength], ecx
 
@@ -608,7 +622,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
         jmp     FramedAllocateString
 LEAF_END AllocateStringFastUP, _TEXT
 
@@ -650,11 +664,11 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
         add     r8d, 7
         and     r8d, -8
 
-        inc     [M_GCLOCK]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NewArr1
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
+        mov     r10, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_limit]     ; limit_ptr
 
         add     r8, rax
         jc      AllocFailed
@@ -662,9 +676,9 @@ LEAF_ENTRY JIT_NewArr1VC_UP, _TEXT
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r9
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     dword ptr [rax + OFFSETOF__ArrayBase__m_NumComponents], edx
 
@@ -675,7 +689,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
         jmp     JIT_NewArr1
 LEAF_END JIT_NewArr1VC_UP, _TEXT
 
@@ -713,20 +727,20 @@ LEAF_ENTRY JIT_NewArr1OBJ_UP, _TEXT
         ; No need for rounding in this case - element size is 8, and m_BaseSize is guaranteed
         ; to be a multiple of 8.
 
-        inc     [M_GCLOCK]
+        inc     [g_global_alloc_lock]
         jnz     JIT_NewArr1
 
-        mov     rax, [generation_table + 0]     ; alloc_ptr
-        mov     r10, [generation_table + 8]     ; limit_ptr
+        mov     rax, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr]       ; alloc_ptr
+        mov     r10, [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_limit]     ; limit_ptr
 
         add     r8, rax
 
         cmp     r8, r10
         ja      AllocFailed
 
-        mov     qword ptr [generation_table + 0], r8     ; update the alloc ptr
+        mov     qword ptr [g_global_alloc_context + OFFSETOF__gc_alloc_context__alloc_ptr], r8     ; update the alloc ptr
         mov     [rax], r9
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
         mov     dword ptr [rax + OFFSETOF__ArrayBase__m_NumComponents], edx
 
@@ -737,7 +751,7 @@ endif ; _DEBUG
         ret
 
     AllocFailed:
-        mov     [M_GCLOCK], -1
+        mov     [g_global_alloc_lock], -1
 
     OversizedArray:
         jmp     JIT_NewArr1
@@ -1434,6 +1448,10 @@ NESTED_ENTRY JIT_MonTryEnter_Slow, _TEXT
         ret
 
     PrepareToWaitThinLock:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz     TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
         jle     FramedLockHelper
@@ -1535,9 +1553,13 @@ endif
         ret
 
     PrepareToWait:
+        ; Return failure if timeout is zero
+        test    rsi, rsi
+        jz      TimeoutZero
+
         ; If we are on an MP system, we try spinning for a certain number of iterations
         cmp     dword ptr [g_SystemInfo + OFFSETOF__g_SystemInfo__dwNumberOfProcessors], 1
-        jle     WouldBlock
+        jle     Block
     
         ; Exponential backoff; delay by approximately 2*r10d clock cycles
         mov     eax, r10d
@@ -1552,15 +1574,11 @@ endif
         cmp     r10d, dword ptr [g_SpinConstants + OFFSETOF__g_SpinConstants__dwMaximumDuration]
         jle     RetrySyncBlock
 
-        ; We would need to block to enter the section. Return failure if
-        ; timeout is zero, else call the farmed helper to do the blocking
-        ; form of TryEnter.
-    WouldBlock:
-        test    rsi, rsi
-        jnz     Block
+        jmp     Block
 
+    TimeoutZero:
         ; Return FALSE
-        mov		byte ptr [r8], 0
+        mov     byte ptr [r8], 0
         add     rsp, MON_ENTER_STACK_SIZE
         pop     rsi
         ret

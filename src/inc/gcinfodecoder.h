@@ -11,13 +11,47 @@
 #ifndef _GC_INFO_DECODER_
 #define _GC_INFO_DECODER_
 
-#include "daccess.h"
+#define _max(a, b) (((a) > (b)) ? (a) : (b)) 
+#define _min(a, b) (((a) < (b)) ? (a) : (b))
 
-#ifndef GCINFODECODER_NO_EE
+#if !defined(_TARGET_X86_)
+#define USE_GC_INFO_DECODER
+#endif
+
+#if !defined(GCINFODECODER_NO_EE)
 
 #include "eetwain.h"
 
-#else // GCINFODECODER_NO_EE
+#else
+
+#ifdef FEATURE_REDHAWK
+
+typedef ArrayDPTR(const uint8_t) PTR_CBYTE;
+
+#define LIMITED_METHOD_CONTRACT
+#define SUPPORTS_DAC
+
+#define LOG(x)
+#define LOG_PIPTR(pObjRef, gcFlags, hCallBack)
+#define DAC_ARG(x)
+
+#define VALIDATE_ROOT(isInterior, hCallBack, pObjRef)
+
+#define _ASSERTE(x) assert(x)
+
+#define UINT32 UInt32
+#define INT32 Int32
+#define UINT16 UInt16
+#define UINT UInt32
+#define SIZE_T UIntNative
+#define SSIZE_T IntNative
+#define LPVOID void*
+
+typedef void * OBJECTREF;
+
+#define GET_CALLER_SP(pREGDISPLAY) ((TADDR)0)
+
+#else // FEATURE_REDHAWK
 
 // Stuff from cgencpu.h:
 
@@ -109,10 +143,16 @@ inline BOOL IS_ALIGNED( void* val, size_t alignment )
 #ifndef _EETWAIN_H
 
 typedef void (*GCEnumCallback)(
-    LPVOID          hCallback,      // callback data
+    void *          hCallback,      // callback data
     OBJECTREF*      pObject,        // address of obect-reference we are reporting
     uint32_t        flags           // is this a pinned and/or interior pointer
 );
+
+#endif // !_EETWAIN_H
+
+#include "regdisp.h"
+
+#endif // FEATURE_REDHAWK
 
 #ifndef _strike_h
 
@@ -132,15 +172,8 @@ enum ICodeManagerFlags
 
 #endif // !_strike_h
 
-#if !defined(_TARGET_X86_)
-#define USE_GC_INFO_DECODER
-#endif
-
-#include "regdisp.h"
-
-#endif // !_EETWAIN_H
-
 #endif // GCINFODECODER_NO_EE
+
 
 #include "gcinfotypes.h"
 
@@ -154,6 +187,7 @@ enum ICodeManagerFlags
 
 enum GcInfoDecoderFlags
 {
+    DECODE_EVERYTHING            = 0x0,
     DECODE_SECURITY_OBJECT       = 0x01,    // stack location of security object
     DECODE_CODE_LENGTH           = 0x02,
     DECODE_VARARG                = 0x04,
@@ -167,11 +201,9 @@ enum GcInfoDecoderFlags
     DECODE_FOR_RANGES_CALLBACK   = 0x200,
     DECODE_PROLOG_LENGTH         = 0x400,   // length of the prolog (used to avoid reporting generics context)
     DECODE_EDIT_AND_CONTINUE     = 0x800,
+    DECODE_REVERSE_PINVOKE_VAR   = 0x1000,
+    DECODE_RETURN_KIND           = 0x2000
 };
-
-#ifdef VERIFY_GCINFO
-#include "dbggcinfodecoder.h"
-#endif
 
 enum GcInfoHeaderFlags
 {
@@ -187,10 +219,11 @@ enum GcInfoHeaderFlags
     GC_INFO_HAS_STACK_BASE_REGISTER     = 0x40,
     GC_INFO_WANTS_REPORT_ONLY_LEAF      = 0x80,
     GC_INFO_HAS_EDIT_AND_CONTINUE_PRESERVED_SLOTS = 0x100,
+    GC_INFO_REVERSE_PINVOKE_FRAME = 0x200,
 
-    GC_INFO_FLAGS_BIT_SIZE              = 9,
+    GC_INFO_FLAGS_BIT_SIZE_VERSION_1    = 9,
+    GC_INFO_FLAGS_BIT_SIZE              = 10,
 };
-
 
 class BitStreamReader
 {
@@ -279,8 +312,6 @@ public:
     
     __forceinline void SetCurrentPos( size_t pos )
     {
-        STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY; // note: this will set only the host instance, not the target instance
-
         size_t adjPos = pos + m_InitialRelPos;
         m_pCurrent = m_pBuffer + adjPos / BITS_PER_SIZE_T;
         m_RelPos = (int)(adjPos % BITS_PER_SIZE_T);
@@ -420,17 +451,17 @@ private:
     GcSlotDesc* m_pLastSlot;
 };
 
+#ifdef USE_GC_INFO_DECODER
 class GcInfoDecoder
 {
 public:
 
-    // If you are not insterested in interruptibility or gc lifetime information, pass 0 as instructionOffset
+    // If you are not interested in interruptibility or gc lifetime information, pass 0 as instructionOffset
     GcInfoDecoder(
-            PTR_CBYTE gcInfoAddr,
-            GcInfoDecoderFlags flags,
+            GCInfoToken gcInfoToken,
+            GcInfoDecoderFlags flags = DECODE_EVERYTHING,
             UINT32 instructionOffset = 0
             );
-
 
     //------------------------------------------------------------------------
     // Interruptibility
@@ -442,16 +473,16 @@ public:
     // This is used for gccoverage
     bool IsSafePoint(UINT32 codeOffset);
 
-    typedef void EnumerateSafePointsCallback (UINT32 offset, LPVOID hCallback);
-    void EnumerateSafePoints(EnumerateSafePointsCallback *pCallback, LPVOID hCallback);
+    typedef void EnumerateSafePointsCallback (UINT32 offset, void * hCallback);
+    void EnumerateSafePoints(EnumerateSafePointsCallback * pCallback, void * hCallback);
 
 #endif
     // Returns true to stop enumerating.
-    typedef bool EnumerateInterruptibleRangesCallback (UINT32 startOffset, UINT32 stopOffset, LPVOID hCallback);
+    typedef bool EnumerateInterruptibleRangesCallback (UINT32 startOffset, UINT32 stopOffset, void * hCallback);
 
     void EnumerateInterruptibleRanges (
                 EnumerateInterruptibleRangesCallback *pCallback,
-                LPVOID                                hCallback);
+                void *                                hCallback);
 
     //------------------------------------------------------------------------
     // GC lifetime information
@@ -462,7 +493,7 @@ public:
                 bool                reportScratchSlots,
                 unsigned            flags,
                 GCEnumCallback      pCallBack,
-                LPVOID              hCallBack
+                void *              hCallBack
                 );
 
     // Public for the gc info dumper
@@ -470,7 +501,7 @@ public:
                 PREGDISPLAY         pRD,
                 unsigned            flags,
                 GCEnumCallback      pCallBack,
-                LPVOID              hCallBack
+                void *              hCallBack
                 );
 
     //------------------------------------------------------------------------
@@ -484,10 +515,12 @@ public:
     UINT32  GetPrologSize();
     INT32   GetPSPSymStackSlot();
     INT32   GetGenericsInstContextStackSlot();
+    INT32   GetReversePInvokeFrameStackSlot();
     bool    HasMethodDescGenericsInstContext();
     bool    HasMethodTableGenericsInstContext();
     bool    GetIsVarArg();
     bool    WantsReportOnlyLeaf();
+    ReturnKind GetReturnKind();
     UINT32  GetCodeLength();
     UINT32  GetStackBaseRegister();
     UINT32  GetSizeOfEditAndContinuePreservedArea();
@@ -510,6 +543,7 @@ private:
     bool    m_WantsReportOnlyLeaf;
     INT32   m_SecurityObjectStackSlot;
     INT32   m_GSCookieStackSlot;
+    INT32   m_ReversePInvokeFrameStackSlot;
     UINT32  m_ValidRangeStart;
     UINT32  m_ValidRangeEnd;
     INT32   m_PSPSymStackSlot;
@@ -517,6 +551,7 @@ private:
     UINT32  m_CodeLength;
     UINT32  m_StackBaseRegister;
     UINT32  m_SizeOfEditAndContinuePreservedArea;
+    ReturnKind m_ReturnKind;
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
     UINT32  m_NumSafePoints;
     UINT32  m_SafePointIndex;
@@ -532,12 +567,9 @@ private:
     GcInfoDecoderFlags m_Flags;
     PTR_CBYTE m_GcInfoAddress;
 #endif
+    UINT32 m_Version;
 
-#ifdef VERIFY_GCINFO
-    DbgGcInfo::GcInfoDecoder m_DbgDecoder;
-#endif    
-
-    static bool SetIsInterruptibleCB (UINT32 startOffset, UINT32 stopOffset, LPVOID hCallback);
+    static bool SetIsInterruptibleCB (UINT32 startOffset, UINT32 stopOffset, void * hCallback);
 
     OBJECTREF* GetRegisterSlot(
                         int             regNum,
@@ -569,7 +601,7 @@ private:
                 PREGDISPLAY         pRD,
                 unsigned            flags,
                 GCEnumCallback      pCallBack,
-                LPVOID              hCallBack
+                void *              hCallBack
                 );
 
     void ReportRegisterToGC(
@@ -578,7 +610,7 @@ private:
                                 PREGDISPLAY     pRD,
                                 unsigned        flags,
                                 GCEnumCallback  pCallBack,
-                                LPVOID          hCallBack
+                                void *          hCallBack
                                 );
 
     void ReportStackSlotToGC(
@@ -588,7 +620,7 @@ private:
                                 PREGDISPLAY     pRD,
                                 unsigned        flags,
                                 GCEnumCallback  pCallBack,
-                                LPVOID          hCallBack
+                                void *          hCallBack
                                 );
 
 
@@ -599,7 +631,7 @@ private:
                     bool                reportScratchSlots,
                     unsigned            inputFlags,
                     GCEnumCallback      pCallBack,
-                    LPVOID              hCallBack
+                    void *              hCallBack
                     )
     {
         _ASSERTE(slotIndex < slotDecoder.GetNumSlots());
@@ -610,13 +642,6 @@ private:
             UINT32 regNum = pSlot->Slot.RegisterNumber;
             if( reportScratchSlots || !IsScratchRegister( regNum, pRD ) )
             {
-#ifdef VERIFY_GCINFO
-                m_DbgDecoder.VerifyLiveRegister(
-                            regNum,
-                            pSlot->Flags
-                            );
-#endif
-
                 ReportRegisterToGC(
                             regNum,
                             pSlot->Flags,
@@ -637,14 +662,6 @@ private:
             GcStackSlotBase spBase = pSlot->Slot.Stack.Base;
             if( reportScratchSlots || !IsScratchStackSlot(spOffset, spBase, pRD) )
             {
-#ifdef VERIFY_GCINFO
-                m_DbgDecoder.VerifyLiveStackSlot(
-                            spOffset,
-                            spBase,
-                            pSlot->Flags
-                            );
-#endif
-
                 ReportStackSlotToGC(
                             spOffset,
                             spBase,
@@ -662,6 +679,7 @@ private:
         }
     }
 };
+#endif // USE_GC_INFO_DECODER
 
 
 #endif // _GC_INFO_DECODER_

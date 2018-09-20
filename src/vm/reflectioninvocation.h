@@ -50,16 +50,10 @@ public:
 
     static FCDECL1(void, RunClassConstructor, ReflectClassBaseObject *pTypeUNSAFE);
     static FCDECL1(void, RunModuleConstructor, ReflectModuleBaseObject *pModuleUNSAFE);
-#ifndef FEATURE_CORECLR
-    static FCDECL3(void, PrepareMethod, ReflectMethodObject* pMethodUNSAFE, TypeHandle *pInstantiation, UINT32 cInstantiation);
-    static FCDECL1(void, PrepareDelegate, Object* delegateUNSAFE);
-#endif // !FEATURE_CORECLR
     static FCDECL1(void, PrepareContractedDelegate, Object* delegateUNSAFE);
     static FCDECL0(void, ProbeForSufficientStack);    
-	static FCDECL0(void, EnsureSufficientExecutionStack);
-#ifdef FEATURE_CORECLR // currently only used from mscorlib in FEATURE_CORECLR
-	static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
-#endif // FEATURE_CORECLR
+    static FCDECL0(void, EnsureSufficientExecutionStack);
+    static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
     static FCDECL3(void, ExecuteCodeWithGuaranteedCleanup, Object* pCodeDelegateUNSAFE, Object* pBackoutDelegateUNSAFE, Object* pUserDataUNSAFE);
 
     // TypedReference functions, should go somewhere else
@@ -95,8 +89,6 @@ public:
 class ReflectionSerialization {
 public:
     static FCDECL1(Object*, GetUninitializedObject, ReflectClassBaseObject* objTypeUNSAFE);
-    static FCDECL1(Object*, GetSafeUninitializedObject, ReflectClassBaseObject* objTypeUNSAFE);
-    static FCDECL0(FC_BOOL_RET, GetEnableUnsafeTypeForwarders);
 };
 
 class ReflectionEnum {

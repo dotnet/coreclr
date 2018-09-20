@@ -9,6 +9,7 @@ using System.Runtime;
 using System.Security;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -27,19 +28,18 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private BindableVectorToCollectionAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // int Count { get }
         [Pure]
-        [SecurityCritical]
         internal int Count()
         {
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);
             uint size = _this.Size;
             if (((uint)Int32.MaxValue) < size)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CollectionBackingListTooLarge"));
+                throw new InvalidOperationException(SR.InvalidOperation_CollectionBackingListTooLarge);
             }
 
             return (int)size;
@@ -47,7 +47,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool IsSynchronized { get }
         [Pure]
-        [SecurityCritical]
         internal bool IsSynchronized()
         {
             return false;
@@ -55,7 +54,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // object SyncRoot { get }
         [Pure]
-        [SecurityCritical]
         internal object SyncRoot()
         {
             return this;
@@ -63,15 +61,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // void CopyTo(Array array, int index)
         [Pure]
-        [SecurityCritical]
         internal void CopyTo(Array array, int arrayIndex)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             // ICollection expects the destination array to be single-dimensional.
             if (array.Rank != 1)
-                throw new ArgumentException(Environment.GetResourceString("Arg_RankMultiDimNotSupported"));
+                throw new ArgumentException(SR.Arg_RankMultiDimNotSupported);
 
             int destLB = array.GetLowerBound(0);
 
@@ -79,7 +76,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             int destLen = array.GetLength(0);
 
             if (arrayIndex < destLB)
-                throw new ArgumentOutOfRangeException("arrayIndex");
+                throw new ArgumentOutOfRangeException(nameof(arrayIndex));
 
             // Does the dimension in question have sufficient space to copy the expected number of entries?
             // We perform this check before valid index check to ensure the exception message is in sync with
@@ -90,11 +87,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Array items = Array.CreateInstance(typeof(object), new int[] { 1 }, new int[] { -1 });
             // list.CopyTo(items, 0);
 
-            if(srcLen > (destLen - (arrayIndex - destLB)))
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+            if (srcLen > (destLen - (arrayIndex - destLB)))
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
-            if(arrayIndex - destLB > destLen)
-                throw new ArgumentException(Environment.GetResourceString("Argument_IndexOutOfArrayBounds"));
+            if (arrayIndex - destLB > destLen)
+                throw new ArgumentException(SR.Argument_IndexOutOfArrayBounds);
 
             // We need to verify the index as we;
             IBindableVector _this = JitHelpers.UnsafeCast<IBindableVector>(this);

@@ -328,15 +328,6 @@ inline BOOL MethodTable::IsSerializable()
 }
 
 //==========================================================================================
-inline BOOL MethodTable::ContainsStackPtr()
-{
-    WRAPPER_NO_CONTRACT;
-    return (this == g_ArgumentHandleMT || 
-            this == g_ArgIteratorMT ||
-            this == g_TypedReferenceMT);
-}
-
-//==========================================================================================
 inline BOOL MethodTable::SupportsGenericInterop(TypeHandle::InteropKind interopKind,
                         MethodTable::Mode mode /*= modeAll*/)
 {
@@ -355,14 +346,6 @@ inline BOOL MethodTable::SupportsGenericInterop(TypeHandle::InteropKind interopK
 #endif // FEATURE_COMINTEROP
 }
 
-#ifdef FEATURE_REMOTING
-//==========================================================================================
-inline BOOL MethodTable::CannotBeBlittedByObjectCloner()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetClass()->CannotBeBlittedByObjectCloner();
-}
-#endif
 
 //==========================================================================================
 inline BOOL MethodTable::IsNotTightlyPacked()
@@ -382,25 +365,17 @@ inline BOOL MethodTable::HasFieldsWhichMustBeInited()
 inline BOOL MethodTable::SupportsAutoNGen()
 {
     LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-    return GetAssembly()->SupportsAutoNGen();
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
 inline BOOL MethodTable::RunCCTorAsIfNGenImageExists()
 {
     LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-    return this->SupportsAutoNGen();
-#else
 #ifdef FEATURE_CORESYSTEM
     return TRUE; // On our coresystem builds we will always be using triton in the customer scenario.
 #else
     return FALSE;
-#endif
 #endif
 }
 
@@ -412,35 +387,6 @@ inline BOOL MethodTable::IsAbstract()
 }
 
 //==========================================================================================
-#ifdef FEATURE_REMOTING
-inline BOOL MethodTable::HasRemotableMethodInfo()
-{
-    WRAPPER_NO_CONTRACT;
-    return (IsMarshaledByRef() || IsInterface() || this == g_pObjectClass || g_pObjectClass == NULL) && IsCanonicalMethodTable();
-}
-
-//==========================================================================================
-inline void MethodTable::SetHasRemotingVtsInfo()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_HasRemotingVtsInfo);
-}
-
-//==========================================================================================
-inline BOOL MethodTable::HasRemotingVtsInfo()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetFlag(enum_flag_HasRemotingVtsInfo);
-}
-
-//==========================================================================================
-inline PTR_RemotingVtsInfo MethodTable::GetRemotingVtsInfo()
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(HasRemotingVtsInfo());
-    return *GetRemotingVtsInfoPtr();
-}
-#endif // FEATURE_REMOTING
 
 #ifdef FEATURE_COMINTEROP
 //==========================================================================================
@@ -546,14 +492,7 @@ inline BOOL MethodTable::IsFieldNotSerialized(DWORD dwFieldIndex)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(IsSerializable());
-#ifdef FEATURE_REMOTING
-    if (!HasRemotingVtsInfo())
-        return FALSE;
-
-    return GetRemotingVtsInfo()->IsNotSerialized(dwFieldIndex);
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
@@ -561,14 +500,7 @@ inline BOOL MethodTable::IsFieldOptionallySerialized(DWORD dwFieldIndex)
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(IsSerializable());
-#ifdef FEATURE_REMOTING
-    if (!HasRemotingVtsInfo())
-        return FALSE;
-
-    return GetRemotingVtsInfo()->IsOptionallySerialized(dwFieldIndex);
-#else
     return FALSE;
-#endif
 }
 
 //==========================================================================================
@@ -1650,35 +1582,6 @@ inline OBJECTREF MethodTable::AllocateNoChecks()
     return AllocateObject(this);
 }
 
-#ifdef FEATURE_REMOTING
-//==========================================================================================
-inline BOOL MethodTable::HasContextStatics()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetFlag(enum_flag_ContextStatic);
-}
-
-//==========================================================================================
-inline void MethodTable::SetHasContextStatics()
-{
-    LIMITED_METHOD_CONTRACT;
-    SetFlag(enum_flag_ContextStatic);
-}
-
-//==========================================================================================
-inline DWORD MethodTable::GetContextStaticsOffset()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetContextStaticsBucket()->m_dwContextStaticsOffset;
-}
-
-//==========================================================================================
-inline WORD MethodTable::GetContextStaticsSize()
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return GetContextStaticsBucket()->m_wContextStaticsSize;
-}
-#endif // FEATURE_REMOTING
 
 //==========================================================================================
 inline DWORD MethodTable::GetClassIndex()
@@ -1866,10 +1769,6 @@ FORCEINLINE OBJECTREF MethodTable::GetManagedClassObjectIfExists()
     {
         return NULL;
     }
-
-    // Only code:MethodTable::GetManagedClassObject sets m_pExposedClassObject and it insures that 
-    // remoted objects and arrays don't get in.  
-    _ASSERTE(!IsArray() && !IsTransparentProxy());
 
     COMPILER_ASSUME(retVal != NULL);
     return retVal;

@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchF
+{
 public static class DMath
 {
 #if DEBUG
@@ -109,5 +110,6 @@ public static class DMath
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }
 

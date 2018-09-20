@@ -44,11 +44,6 @@
 #include "metadataexports.h"
 #include "inlinetracking.h"
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#include "crossdomaincalls.h"
-#include "objectclone.h"
-#endif
 
 #ifdef FEATURE_PREJIT
 #include "exceptionhandling.h"
@@ -78,14 +73,10 @@
 #include "perflog.h"
 #include "ecall.h"
 #include "../md/compiler/custattr.h"
-#include "constrainedexecutionregion.h"
 #include "typekey.h"
 #include "peimagelayout.inl"
 #include "ildbsymlib.h"
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
-#include "clrprivbinderappx.h"
-#endif //defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
 
 #if defined(PROFILING_SUPPORTED)
 #include "profilermetadataemitvalidator.h"
@@ -187,292 +178,37 @@ ARRAY_PTR_COR_IL_MAP InstrumentedILOffsetMapping::GetOffsets() const
     return m_rgMap;
 }
 
-PTR_PersistentInlineTrackingMap Module::GetNgenInlineTrackingMap()
+BOOL Module::HasInlineTrackingMap()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return m_persistentInlineTrackingMap;
+#ifdef FEATURE_READYTORUN
+	if (IsReadyToRun() && GetReadyToRunInfo()->GetInlineTrackingMap() != NULL)
+	{
+		return TRUE;
+	}
+#endif
+    return (m_pPersistentInlineTrackingMapNGen != NULL);
+}
+
+COUNT_T Module::GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData)
+{
+    WRAPPER_NO_CONTRACT;
+#ifdef FEATURE_READYTORUN
+    if(IsReadyToRun() && GetReadyToRunInfo()->GetInlineTrackingMap() != NULL)
+    {
+        return GetReadyToRunInfo()->GetInlineTrackingMap()->GetInliners(inlineeOwnerMod, inlineeTkn, inlinersSize, inliners, incompleteData);
+    }
+#endif
+    if(m_pPersistentInlineTrackingMapNGen != NULL)
+    {
+        return m_pPersistentInlineTrackingMapNGen->GetInliners(inlineeOwnerMod, inlineeTkn, inlinersSize, inliners, incompleteData);
+    }
+    return 0;
 }
 
 
 #ifndef DACCESS_COMPILE 
 
-#ifdef FEATURE_MIXEDMODE
-
-#include <pshpack1.h>
-struct MUThunk
-{
-    VASigCookie     *m_pCookie;
-    PCCOR_SIGNATURE  m_pSig;
-    LPVOID           m_pTarget;
-#ifdef _TARGET_X86_ 
-    LPVOID           GetCode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return &m_op1;
-    }
-
-    BYTE             m_op1;     //0x58  POP   eax       ;;pop return address
-
-    BYTE             m_op2;     //0x68  PUSH  cookie
-    UINT32           m_opcookie;//
-
-    BYTE             m_op3;     //0x50  PUSH  eax       ;;repush return address
-
-    BYTE             m_op4;     //0xb8  MOV   eax,target
-    UINT32           m_optarget;//
-    BYTE             m_jmp;     //0xe9  JMP   PInvokeCalliStub
-    UINT32           m_jmptarg;
-#else // !_TARGET_X86_
-    LPVOID           GetCode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        PORTABILITY_ASSERT("MUThunk not implemented on this platform");
-        return NULL;
-    }
-#endif // !_TARGET_X86_
-};
-#include <poppack.h>
-
-
-//
-// A hashtable for u->m thunks not represented in the fixup tables.
-//
-class MUThunkHash : public CClosedHashBase {
-    private:
-        //----------------------------------------------------
-        // Hash key for CClosedHashBase
-        //----------------------------------------------------
-        struct UTHKey {
-            LPVOID          m_pTarget;
-            PCCOR_SIGNATURE m_pSig;
-            DWORD           m_cSig;
-        };
-
-        //----------------------------------------------------
-        // Hash entry for CClosedHashBase
-        //----------------------------------------------------
-        struct UTHEntry {
-            UTHKey           m_key;
-            ELEMENTSTATUS    m_status;
-            MUThunk          *m_pMUThunk;
-        };
-
-    public:
-        MUThunkHash(Module *pModule) :
-            CClosedHashBase(
-#ifdef _DEBUG 
-                             3,
-#else // !_DEBUG
-                            17,    // CClosedHashTable will grow as necessary
-#endif // !_DEBUG
-
-                            sizeof(UTHEntry),
-                            FALSE
-                            ),
-            m_crst(CrstMUThunkHash)
-
-        {
-            WRAPPER_NO_CONTRACT;
-            m_pModule = pModule;
-        }
-
-        ~MUThunkHash()
-        {
-            CONTRACT_VOID
-            {
-                NOTHROW;
-                DESTRUCTOR_CHECK;
-                GC_NOTRIGGER;
-                FORBID_FAULT;
-                MODE_ANY;
-            }
-            CONTRACT_END
-
-            UTHEntry *phe = (UTHEntry*)GetFirst();
-            while (phe) {
-                delete (BYTE*)phe->m_pMUThunk->m_pSig;
-                DeleteExecutable(phe->m_pMUThunk);
-                phe = (UTHEntry*)GetNext((BYTE*)phe);
-            }
-
-            RETURN;
-        }
-
-
-#ifdef FEATURE_MIXEDMODE
-    public:
-        LPVOID GetMUThunk(LPVOID pTarget, PCCOR_SIGNATURE pSig0, DWORD cSig)
-        {
-            STATIC_CONTRACT_THROWS;
-
-            // A persistent copy of the sig
-            NewArrayHolder<COR_SIGNATURE> sigHolder = new COR_SIGNATURE[cSig];
-
-            memcpyNoGCRefs(sigHolder.GetValue(), pSig0, cSig);
-            sigHolder[0] = IMAGE_CEE_CS_CALLCONV_STDCALL;
-
-            // Have to lookup cookie eagerly because once we've added a blank
-            // entry to the hashtable, it's not easy to tolerate failure.
-            VASigCookie *pCookie = m_pModule->GetVASigCookie(Signature(sigHolder, cSig));
-
-            if (pCookie == NULL)
-            {
-                return NULL;
-            }
-            sigHolder.SuppressRelease();
-            return GetMUThunkHelper(pTarget, sigHolder, cSig, pCookie);
-        }
-private:
-        LPVOID GetMUThunkHelper(LPVOID pTarget, PCCOR_SIGNATURE pSig, DWORD cSig, VASigCookie *pCookie)
-        {
-            CONTRACT (LPVOID)
-            {
-                INSTANCE_CHECK;
-                THROWS;
-                GC_TRIGGERS;
-                MODE_ANY;
-                INJECT_FAULT(COMPlusThrowOM());
-                POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-            }
-            CONTRACT_END
-
-            UTHEntry *phe;
-            CrstHolder ch(&m_crst);
-
-            UTHKey key;
-            key.m_pTarget = pTarget;
-            key.m_pSig    = pSig;
-            key.m_cSig    = cSig;
-
-            bool bNew;
-            phe = (UTHEntry*)FindOrAdd((LPVOID)&key, /*modifies*/bNew);
-
-            if (phe)
-            {
-                if (bNew)
-                {
-                    phe->m_pMUThunk = new (executable) MUThunk;
-                    phe->m_pMUThunk->m_pCookie = pCookie;
-                    phe->m_pMUThunk->m_pSig    = pSig;
-                    phe->m_pMUThunk->m_pTarget = pTarget;
-#ifdef _TARGET_X86_ 
-                    phe->m_pMUThunk->m_op1      = 0x58;       //POP EAX
-                    phe->m_pMUThunk->m_op2      = 0x68;       //PUSH
-                    phe->m_pMUThunk->m_opcookie = (UINT32)(size_t)pCookie;
-                    phe->m_pMUThunk->m_op3      = 0x50;       //POP EAX
-                    phe->m_pMUThunk->m_op4      = 0xb8;       //mov eax
-                    phe->m_pMUThunk->m_optarget = (UINT32)(size_t)pTarget;
-                    phe->m_pMUThunk->m_jmp      = 0xe9;       //jmp
-                    phe->m_pMUThunk->m_jmptarg  = (UINT32)(GetEEFuncEntryPoint(GenericPInvokeCalliHelper) - ((size_t)( 1 + &(phe->m_pMUThunk->m_jmptarg))));
-#else // !_TARGET_X86_
-                    PORTABILITY_ASSERT("MUThunkHash not implemented on this platform");
-#endif // !_TARGET_X86_
-
-                    phe->m_key = key;
-                    phe->m_status = USED;
-                }
-                else
-                {
-                    delete[] (BYTE*)pSig;
-                }
-            }
-            else
-            {
-                delete[] (BYTE*)pSig;
-            }
-
-            if (phe)
-                RETURN (LPVOID)(phe->m_pMUThunk->GetCode());
-            else
-                RETURN NULL;
-        }
-#endif // FEATURE_MIXEDMODE
-
-public:
-
-        // *** OVERRIDES FOR CClosedHashBase ***/
-
-        //*****************************************************************************
-        // Hash is called with a pointer to an element in the table.  You must override
-        // this method and provide a hash algorithm for your element type.
-        //*****************************************************************************
-            virtual unsigned int Hash(             // The key value.
-                void const  *pData)                 // Raw data to hash.
-            {
-                LIMITED_METHOD_CONTRACT;
-
-                UTHKey *pKey = (UTHKey*)pData;
-                return (ULONG)(size_t)(pKey->m_pTarget);
-            }
-
-
-        //*****************************************************************************
-        // Compare is used in the typical memcmp way, 0 is eqaulity, -1/1 indicate
-        // direction of miscompare.  In this system everything is always equal or not.
-        //*****************************************************************************
-        unsigned int Compare(          // 0, -1, or 1.
-                              void const  *pData,               // Raw key data on lookup.
-                              BYTE        *pElement)            // The element to compare data against.
-        {
-            CONTRACTL
-            {
-                NOTHROW;
-                GC_TRIGGERS;
-                MODE_ANY;
-            }
-            CONTRACTL_END;
-
-            UTHKey *pkey1 = (UTHKey*)pData;
-            UTHKey *pkey2 = &( ((UTHEntry*)pElement)->m_key );
-
-            if (pkey1->m_pTarget != pkey2->m_pTarget)
-                return 1;
-
-            if (S_OK != MetaSig::CompareMethodSigsNT(pkey1->m_pSig, pkey1->m_cSig, m_pModule, NULL, pkey2->m_pSig, pkey2->m_cSig, m_pModule, NULL))
-                return 1;
-
-            return 0;
-        }
-
-        //*****************************************************************************
-        // Return true if the element is free to be used.
-        //*****************************************************************************
-            virtual ELEMENTSTATUS Status(           // The status of the entry.
-                BYTE        *pElement)            // The element to check.
-            {
-                LIMITED_METHOD_CONTRACT;
-
-                return ((UTHEntry*)pElement)->m_status;
-            }
-
-        //*****************************************************************************
-        // Sets the status of the given element.
-        //*****************************************************************************
-            virtual void SetStatus(
-                BYTE        *pElement,              // The element to set status for.
-                ELEMENTSTATUS eStatus)            // New status.
-            {
-                LIMITED_METHOD_CONTRACT;
-
-                ((UTHEntry*)pElement)->m_status = eStatus;
-            }
-
-        //*****************************************************************************
-        // Returns the internal key value for an element.
-        //*****************************************************************************
-            virtual void *GetKey(                   // The data to hash on.
-                BYTE        *pElement)            // The element to return data ptr for.
-            {
-                LIMITED_METHOD_CONTRACT;
-                return (BYTE*) &(((UTHEntry*)pElement)->m_key);
-            }
-
-
-
-        Module      *m_pModule;
-        Crst         m_crst;
-};
-#endif // FEATURE_MIXEDMODE
 
 
 // ===========================================================================
@@ -701,6 +437,55 @@ Module::Module(Assembly *pAssembly, mdFile moduleRef, PEFile *file)
     file->AddRef();
 }
 
+void Module::InitializeForProfiling()
+{
+    CONTRACTL
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(HasNativeOrReadyToRunImage());
+    }
+    CONTRACTL_END;
+
+    COUNT_T  cbProfileList = 0;
+
+    m_nativeImageProfiling = FALSE;
+
+    if (HasNativeImage())
+    {
+        PEImageLayout * pNativeImage = GetNativeImage();
+        CORCOMPILE_VERSION_INFO * pNativeVersionInfo = pNativeImage->GetNativeVersionInfoMaybeNull();
+        if ((pNativeVersionInfo != NULL) && (pNativeVersionInfo->wConfigFlags & CORCOMPILE_CONFIG_INSTRUMENTATION))
+        {
+            m_nativeImageProfiling = GetAssembly()->IsInstrumented();
+        }
+
+        // Link the module to the profile data list if available.
+        m_methodProfileList = pNativeImage->GetNativeProfileDataList(&cbProfileList);
+    }
+    else // ReadyToRun image
+    {
+        // We already setup the m_methodProfileList in the ReadyToRunInfo constructor
+        if (m_methodProfileList != nullptr)
+        {
+            ReadyToRunInfo * pInfo = GetReadyToRunInfo();
+            PEImageLayout *  pImage = pInfo->GetImage();
+
+            // Enable profiling if the ZapBBInstr value says to
+            m_nativeImageProfiling = GetAssembly()->IsInstrumented();
+        }
+    }
+
+#ifdef FEATURE_LAZY_COW_PAGES
+    // When running a IBC tuning image to gather profile data 
+    // we increment the block counts contained in this area.
+    //
+    if (cbProfileList)
+        EnsureWritablePages(m_methodProfileList, cbProfileList);
+#endif
+}
 
 #ifdef FEATURE_PREJIT 
 
@@ -724,20 +509,6 @@ void Module::InitializeNativeImage(AllocMemTracker* pamTracker)
     PEImageLayout * pNativeImage = GetNativeImage();
 
     ExecutionManager::AddNativeImageRange(dac_cast<TADDR>(pNativeImage->GetBase()), pNativeImage->GetVirtualSize(), this);
-
-    CORCOMPILE_VERSION_INFO * pNativeVersionInfo = pNativeImage->GetNativeVersionInfoMaybeNull();
-    if ((pNativeVersionInfo != NULL) && (pNativeVersionInfo->wConfigFlags & CORCOMPILE_CONFIG_INSTRUMENTATION))
-    {
-        m_nativeImageProfiling = GetAssembly()->IsInstrumented();
-    }
-
-    // Link the module to the profile data list if available.
-    COUNT_T cbProfileList;
-    m_methodProfileList = pNativeImage->GetNativeProfileDataList(&cbProfileList);
-#ifdef FEATURE_LAZY_COW_PAGES
-    if (cbProfileList)
-        EnsureWritablePages(m_methodProfileList, cbProfileList);
-#endif
 
 #ifndef CROSSGEN_COMPILE
     LoadTokenTables();
@@ -916,9 +687,15 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
 #ifdef FEATURE_PREJIT 
     // Set up native image
     if (HasNativeImage())
+    {
         InitializeNativeImage(pamTracker);
+    }
 #endif // FEATURE_PREJIT
 
+    if (HasNativeOrReadyToRunImage())
+    {
+        InitializeForProfiling();
+    }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
     if (g_CorCompileVerboseLevel)
@@ -1570,24 +1347,6 @@ void Module::Destruct()
     FreeClassTables();
     
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // Destroys thunks for all methods included in hash table.
-    if (m_pInstMethodHashTable != NULL)
-    {
-        InstMethodHashTable::Iterator it(m_pInstMethodHashTable);
-        InstMethodHashEntry *pEntry;
-
-        while (m_pInstMethodHashTable->FindNext(&it, &pEntry))
-        {
-            MethodDesc *pMD = pEntry->GetMethod();
-            if (!pMD->IsRestored())
-                continue;
-
-            if(pMD->GetMethodTable()->IsMarshaledByRef())
-                CRemotingServices::DestroyThunk(pMD);
-        }
-    }
-#endif // FEATURE_REMOTING && !HAS_REMOTING_PRECODE
 
 #ifdef DEBUGGING_SUPPORTED 
     if (g_pDebugInterface)
@@ -1616,10 +1375,6 @@ void Module::Destruct()
         delete m_pILStubCache;
     }
 
-#ifdef FEATURE_MIXEDMODE // IJW
-    delete m_pMUThunkHash;
-    delete m_pThunkHeap;
-#endif // FEATURE_MIXEDMODE // IJW
 
 
 #ifdef PROFILING_SUPPORTED 
@@ -1656,22 +1411,6 @@ void Module::Destruct()
     m_InstMethodHashTableCrst.Destroy();
     m_ISymUnmanagedReaderCrst.Destroy();
 
-    if (m_pCerPrepInfo)
-    {
-        _ASSERTE(m_pCerCrst != NULL);
-        CrstHolder sCrstHolder(m_pCerCrst);
-
-        EEHashTableIteration sIter;
-        m_pCerPrepInfo->IterateStart(&sIter);
-        while (m_pCerPrepInfo->IterateNext(&sIter)) {
-            CerPrepInfo *pPrepInfo = (CerPrepInfo*)m_pCerPrepInfo->IterateGetValue(&sIter);
-            delete pPrepInfo;
-        }
-
-        delete m_pCerPrepInfo;
-    }
-    if (m_pCerCrst)
-        delete m_pCerCrst;
 
     if (m_debuggerSpecificData.m_pDynamicILCrst)
     {
@@ -1702,8 +1441,6 @@ void Module::Destruct()
     }
 
 #ifdef FEATURE_PREJIT 
-    if (m_pCerNgenRootTable && (m_dwTransientFlags & M_CER_ROOT_TABLE_ON_HEAP))
-        delete m_pCerNgenRootTable;
 
     if (HasNativeImage())
     {
@@ -3022,7 +2759,6 @@ BOOL Module::GetNeutralResourcesLanguage(LPCUTF8 * cultureName, ULONG * cultureN
 }
 
 
-#ifndef FEATURE_CORECLR
 BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 {
     CONTRACTL
@@ -3052,7 +2788,6 @@ BOOL Module::HasDefaultDllImportSearchPathsAttribute()
 
     return (m_dwPersistedFlags & DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS) != 0 ;
 }
-#endif // !FEATURE_CORECLR
 
 // Returns a BOOL to indicate if we have computed whether compiler has instructed us to
 // wrap the non-CLS compliant exceptions or not.
@@ -3156,32 +2891,6 @@ BOOL Module::IsPreV4Assembly()
     return !!(m_dwPersistedFlags & IS_PRE_V4_ASSEMBLY);
 }
 
-DWORD Module::GetReliabilityContract()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    if (!(m_dwPersistedFlags & COMPUTED_RELIABILITY_CONTRACT))
-    {
-        // The flags should be precomputed in native images
-        _ASSERTE(!HasNativeImage());
-
-        // This flag applies to assembly, but it is stored on module so it can be cached in ngen image
-        // Thus, we should ever need it for manifest module only.
-        IMDInternalImport *mdImport = GetAssembly()->GetManifestImport();
-
-        m_dwReliabilityContract = ::GetReliabilityContract(mdImport, TokenFromRid(1, mdtAssembly));
-
-        FastInterlockOr(&m_dwPersistedFlags, COMPUTED_RELIABILITY_CONTRACT);
-    }
-
-    return m_dwReliabilityContract;
-}
 
 ArrayDPTR(FixupPointer<PTR_MethodTable>) ModuleCtorInfo::GetGCStaticMTs(DWORD index)
 {
@@ -3429,8 +3138,8 @@ void Module::EnumRegularStaticGCRefs(AppDomain* pAppDomain, promote_func* fn, Sc
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() && 
-         GCHeap::IsServerHeap() && 
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() && 
+         GCHeapUtilities::IsServerHeap() && 
          IsGCSpecialThread());
 
 
@@ -3877,8 +3586,21 @@ void Module::StartUnload()
     }
 #endif // PROFILING_SUPPORTED
 #ifdef FEATURE_PREJIT 
-    // Write out the method profile data
-    /*hr=*/WriteMethodProfileDataLogFile(true);
+    if (g_IBCLogger.InstrEnabled())
+    {
+        Thread * pThread = GetThread();
+        ThreadLocalIBCInfo* pInfo = pThread->GetIBCInfo();
+
+        // Acquire the Crst lock before creating the IBCLoggingDisabler object.
+        // Only one thread at a time can be processing an IBC logging event.
+        CrstHolder lock(g_IBCLogger.GetSync());
+        {
+            IBCLoggingDisabler disableLogging( pInfo );  // runs IBCLoggingDisabler::DisableLogging
+
+            // Write out the method profile data
+            /*hr=*/WriteMethodProfileDataLogFile(true);
+        }
+    }
 #endif // FEATURE_PREJIT
     SetBeingUnloaded();
 }
@@ -3892,103 +3614,6 @@ void Module::ReleaseILData(void)
 }
 
 
-#ifdef FEATURE_FUSION
-
-//
-// Module::FusionCopyPDBs asks Fusion to copy PDBs for a given
-// assembly if they need to be copied. This is for the case where a PE
-// file is shadow copied to the Fusion cache. Fusion needs to be told
-// to take the time to copy the PDB, too.
-//
-STDAPI CopyPDBs(IAssembly *pAsm); // private fusion API
-void Module::FusionCopyPDBs(LPCWSTR moduleName)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    Assembly *pAssembly = GetAssembly();
-
-    // Just return if we've already done this for this Module's
-    // Assembly.
-    if ((pAssembly->GetDebuggerInfoBits() & DACF_PDBS_COPIED) ||
-        (pAssembly->GetFusionAssembly() == NULL))
-    {
-        LOG((LF_CORDB, LL_INFO10,
-             "Don't need to copy PDB's for module %S\n",
-             moduleName));
-
-        return;
-    }
-
-    LOG((LF_CORDB, LL_INFO10,
-         "Attempting to copy PDB's for module %S\n", moduleName));
-
-    HRESULT hr;
-    hr = CopyPDBs(pAssembly->GetFusionAssembly());
-    LOG((LF_CORDB, LL_INFO10,
-            "Fusion.dll!CopyPDBs returned hr=0x%08x for module 0x%08x\n",
-            hr, this));
-
-    // Remember that we've copied the PDBs for this assembly.
-    pAssembly->SetCopiedPDBs();
-}
-
-// This function will return PDB stream if exist.
-// It is the caller responsibility to call release on *ppStream after a successful
-// result.
-// We will first check to see if we have a cached pdb stream available. If not,
-// we will ask fusion which in terms to ask host vis HostProvideAssembly. Host may
-// decide to provide one or not.
-//
-HRESULT Module::GetHostPdbStream(IStream **ppStream)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        if(GetThread()) {GC_TRIGGERS;} else {GC_NOTRIGGER;}
-    }
-    CONTRACTL_END
-
-    HRESULT hr = NOERROR;
-
-    _ASSERTE(ppStream);
-
-    *ppStream = NULL;
-
-    if (m_file->IsIStream() == false)
-    {
-        // not a host stream
-        return E_FAIL;
-    }
-
-    // Maybe fusion can ask our host. This will give us back a PDB stream if
-    // host decides to provide one.
-    //
-    if (m_file->IsAssembly())
-    {
-        GCX_PREEMP();
-        hr = ((PEAssembly*)m_file)->GetIHostAssembly()->GetAssemblyDebugStream(ppStream);
-    }
-    else
-    {
-        _ASSERTE(m_file->IsModule());
-        IHostAssemblyModuleImport *pIHAMI;
-        MAKE_WIDEPTR_FROMUTF8_NOTHROW(pName, m_file->GetSimpleName());
-        if (pName == NULL)
-            return E_OUTOFMEMORY;
-        IfFailRet(m_file->GetAssembly()->GetIHostAssembly()->GetModuleByName(pName, &pIHAMI));
-        hr = pIHAMI->GetModuleDebugStream(ppStream);
-    }
-    return hr;
-}
-
-#endif
 
 //---------------------------------------------------------------------------------------
 //
@@ -4256,14 +3881,12 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
 
         SafeComHolder<ISymUnmanagedBinder> pBinder;
 
-#if defined(FEATURE_CORECLR)
         if (g_pDebugInterface == NULL)
         {
             // @TODO: this is reachable when debugging!
             UNREACHABLE_MSG("About to CoCreateInstance!  This code should not be "
                             "reachable or needs to be reimplemented for CoreCLR!");
         }
-#endif // FEATURE_CORECLR
 
         if (this->GetInMemorySymbolStreamFormat() == eSymbolFormatILDB)
         {
@@ -4282,17 +3905,13 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
             // On desktop, the framework installer is supposed to install diasymreader.dll as well
             // and so this shouldn't happen.
             hr = FakeCoCreateInstanceEx(CLSID_CorSymBinder_SxS,
-                                        GetInternalSystemDirectory(),
+                                        NATIVE_SYMBOL_READER_DLL,
                                         IID_ISymUnmanagedBinder,
                                         (void**)&pBinder,
                                         NULL);
             if (FAILED(hr))
             {
-#ifdef FEATURE_CORECLR
                 RETURN (NULL);
-#else
-                ThrowHR(hr);
-#endif
             }
 
         }
@@ -4329,18 +3948,6 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
                     pIStream->AddRef();
                 }
             }
-#ifdef FEATURE_FUSION
-            else
-            {
-                // Verified this above.
-                _ASSERTE(m_file->IsIStream());
-
-                // Case 2: get assembly from host.
-                // This commonly would be cached already as GetInMemorySymbolStream() in code:Module.FetchPdbsFromHost,
-                // but may not be cached if the host didn't provide the PDBs at the time. 
-                hr = GetHostPdbStream(&pIStream);
-            }
-#endif
             if (SUCCEEDED(hr))
             {
                 hr = pBinder->GetReaderFromStream(GetRWImporter(), pIStream, &pReader);
@@ -4354,9 +3961,6 @@ ISymUnmanagedReader *Module::GetISymUnmanagedReader(void)
             // Call Fusion to ensure that any PDB's are shadow copied before
             // trying to get a symbol reader. This has to be done once per
             // Assembly.
-#ifdef FEATURE_FUSION
-            FusionCopyPDBs(path);
-#endif
             // for this to work with winmds we cannot simply call GetRWImporter() as winmds are RO
             // and thus don't implement the RW interface. so we call this wrapper function which knows 
             // how to get a IMetaDataImport interface regardless of the underlying module type.
@@ -4435,21 +4039,6 @@ BOOL Module::IsSymbolReadingEnabled()
     }
 #endif // DEBUGGING_SUPPORTED
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    // See if there is an explicit policy configuration overriding our default.
-    // This can be set by the SymbolReadingPolicy config switch or by a host via
-    // ICLRDebugManager.AllowFileLineInfo.
-    ESymbolReadingPolicy policy = CCLRDebugManager::GetSymbolReadingPolicy();
-    if( policy == eSymbolReadingAlways )
-    {
-        return TRUE;
-    }
-    else if( policy == eSymbolReadingNever )
-    {
-        return FALSE;
-    }
-    _ASSERTE( policy == eSymbolReadingFullTrustOnly );
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     // Default policy - only read symbols corresponding to full-trust assemblies.
     // Note that there is no strong (cryptographic) connection between a symbol file and its assembly.
@@ -4742,6 +4331,16 @@ BOOL Module::IsVisibleToDebugger()
         return FALSE;
     }
     return TRUE;
+}
+
+BOOL            Module::HasNativeOrReadyToRunImage()
+{
+#ifdef FEATURE_READYTORUN
+    if (IsReadyToRun())
+        return TRUE;
+#endif
+
+    return HasNativeImage();
 }
 
 PEImageLayout * Module::GetNativeOrReadyToRunImage()
@@ -5636,13 +5235,10 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
             // This extended check is designed only to find assemblies loaded via an AssemblySpecBindingCache based binder. Verify that's what we found.
             if(pAssemblyCandidate != NULL)
             {
-#ifdef FEATURE_HOSTED_BINDER
                 if (!pAssemblyCandidate->GetManifestFile()->HasHostAssembly())
-#endif // FEATURE_HOSTED_BINDER
                 {
                     pAssembly = pAssemblyCandidate;
                 }
-#ifdef FEATURE_HOSTED_BINDER
                 else
                 {
                     DWORD binderFlags = 0;
@@ -5661,7 +5257,6 @@ Assembly * Module::GetAssemblyIfLoadedFromNativeAssemblyRefWithRefDefMismatch(md
                         _ASSERTE("Non-AssemblySpecBindingCache based assembly found with extended search" && !(IsStackWalkerThread() || IsGCThread()) && IsGenericInstantiationLookupCompareThread());
                     }
                 }
-#endif // FEATURE_HOSTED_BINDER
             }
         }
     }
@@ -5762,7 +5357,6 @@ Module::GetAssemblyIfLoaded(
                 _ASSERTE(szWinRtClassName != NULL);
                 
                 CLRPrivBinderWinRT * pWinRtBinder = pAppDomainExamine->GetWinRtBinder();
-#ifdef FEATURE_HOSTED_BINDER
                 if (pWinRtBinder == nullptr)
                 {   // We are most likely in AppX mode (calling AppX::IsAppXProcess() for verification is painful in DACCESS)
 #ifndef DACCESS_COMPILE
@@ -5789,17 +5383,8 @@ Module::GetAssemblyIfLoaded(
 #endif //!DACCESS_COMPILE
                     if (pAssembly == nullptr)
                     {   
-#if defined(FEATURE_APPX_BINDER)
-                        // Use WinRT binder from "global" AppX binder (there's only 1 AppDomain in non-design mode)
-                        CLRPrivBinderAppX * pAppXBinder = CLRPrivBinderAppX::GetBinderOrNull();
-                        if (pAppXBinder != nullptr)
-                        {
-                            pWinRtBinder = pAppXBinder->GetWinRtBinder();
-                        }
-#endif // defined(FEATURE_APPX_BINDER)
                     }
                 }
-#endif //FEATURE_HOSTED_BINDER
                 
                 if (pWinRtBinder != nullptr)
                 {
@@ -5838,7 +5423,6 @@ Module::GetAssemblyIfLoaded(
                     continue;
                 }
 
-#if defined(FEATURE_CORECLR)                
                 // If we have been passed the binding context for the loaded assembly that is being looked up in the 
                 // cache, then set it up in the AssemblySpec for the cache lookup to use it below.
                 if (pBindingContextForLoadedAssembly != NULL)
@@ -5846,23 +5430,8 @@ Module::GetAssemblyIfLoaded(
                     _ASSERTE(spec.GetBindingContext() == NULL);
                     spec.SetBindingContext(pBindingContextForLoadedAssembly);
                 }
-#endif // defined(FEATURE_CORECLR)
                 DomainAssembly * pDomainAssembly = nullptr;
 
-#ifdef FEATURE_APPX_BINDER
-                if (AppX::IsAppXProcess_Initialized_NoFault() && GetAssembly()->GetManifestFile()->HasHostAssembly())
-                {
-                    ICLRPrivAssembly * pPrivBinder = GetAssembly()->GetManifestFile()->GetHostAssembly();
-                    ReleaseHolder<ICLRPrivAssembly> pPrivAssembly;
-                    HRESULT hrCachedResult;
-                    if (SUCCEEDED(pPrivBinder->FindAssemblyBySpec(pAppDomainExamine, &spec, &hrCachedResult, &pPrivAssembly)) &&
-                        SUCCEEDED(hrCachedResult))
-                    {
-                        pDomainAssembly = pAppDomainExamine->FindAssembly(pPrivAssembly);
-                    }
-                }
-                else
-#endif // FEATURE_APPX_BINDER
                 {
                     pDomainAssembly = pAppDomainExamine->FindCachedAssembly(&spec, FALSE /*fThrow*/);
                 }
@@ -5899,10 +5468,6 @@ Module::GetAssemblyIfLoaded(
         BOOL eligibleForAdditionalChecks = TRUE;
         if (szWinRtNamespace != NULL)
             eligibleForAdditionalChecks = FALSE; // WinRT binds do not support this scan
-#ifdef FEATURE_FUSION
-        else if ((this->GetAssembly()->GetManifestFile()->GetLoadContext() != LOADCTX_TYPE_DEFAULT) && (this->GetAssembly()->GetManifestFile()->GetLoadContext() != LOADCTX_TYPE_HOSTED))
-            eligibleForAdditionalChecks = FALSE; // Only load and hosted context binds support this kind of discovery.
-#endif // FEATURE_FUSION
         else if (this->GetAssembly()->GetManifestFile()->IsDesignerBindingContext())
         {
             eligibleForAdditionalChecks = FALSE; 
@@ -6128,22 +5693,6 @@ DomainAssembly * Module::LoadAssembly(
 
     bool fHasBindableIdentity = HasBindableIdentity(kAssemblyRef);
     
-#ifdef FEATURE_REFLECTION_ONLY_LOAD
-    if (IsIntrospectionOnly())
-    {
-        // We will not get here on GC thread
-        GCX_PREEMP();
-        
-        AssemblySpec spec;
-        spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly(), IsIntrospectionOnly());
-        if (szWinRtTypeClassName != NULL)
-        {
-            spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
-        }
-        pDomainAssembly = GetAppDomain()->BindAssemblySpecForIntrospectionDependencies(&spec);
-    }
-    else
-#endif //FEATURE_REFLECTION_ONLY_LOAD
     {
         PEAssemblyHolder pFile = GetDomainFile(GetAppDomain())->GetFile()->LoadAssembly(
                 kAssemblyRef, 
@@ -6152,7 +5701,6 @@ DomainAssembly * Module::LoadAssembly(
                 szWinRtTypeClassName);
         AssemblySpec spec;
         spec.InitializeSpec(kAssemblyRef, GetMDImport(), GetDomainFile(GetAppDomain())->GetDomainAssembly(), IsIntrospectionOnly());
-#if defined(FEATURE_CORECLR)      
         // Set the binding context in the AssemblySpec if one is available. This can happen if the LoadAssembly ended up
         // invoking the custom AssemblyLoadContext implementation that returned a reference to an assembly bound to a different
         // AssemblyLoadContext implementation.
@@ -6161,7 +5709,6 @@ DomainAssembly * Module::LoadAssembly(
         {
             spec.SetBindingContext(pBindingContext);
         }
-#endif // defined(FEATURE_CORECLR)
         if (szWinRtTypeClassName != NULL)
         {
             spec.SetWindowsRuntimeType(szWinRtTypeNamespace, szWinRtTypeClassName);
@@ -6270,15 +5817,6 @@ Module *Module::GetModuleIfLoaded(mdFile kFile, BOOL onlyLoadedInAppDomain, BOOL
         pModule = NULL;
 
 #ifndef DACCESS_COMPILE
-#if defined(FEATURE_MULTIMODULE_ASSEMBLIES)
-    // check if actually loaded, unless happens during GC (GC works only with loaded assemblies)
-    if (!GCHeap::IsGCInProgress() && onlyLoadedInAppDomain && pModule && !pModule->IsManifest())
-    {
-        DomainModule *pDomainModule = pModule->FindDomainModule(GetAppDomain());
-        if (pDomainModule == NULL || !pDomainModule->IsLoaded())
-            pModule = NULL;
-    }    
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 #endif // !DACCESS_COMPILE
     RETURN pModule;
 }
@@ -6300,99 +5838,6 @@ DomainFile *Module::LoadModule(AppDomain *pDomain, mdFile kFile,
     }
     CONTRACT_END;
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-
-    // Handle the module ref case
-    if (TypeFromToken(kFile) == mdtModuleRef)
-    {
-        LPCSTR moduleName;
-        IfFailThrow(GetMDImport()->GetModuleRefProps(kFile, &moduleName));
-        
-        mdFile kFileLocal = GetAssembly()->GetManifestFileToken(moduleName);
-        
-        if (kFileLocal == mdTokenNil)
-        {
-            COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
-        }
-        
-        RETURN GetAssembly()->GetManifestModule()->LoadModule(pDomain, kFileLocal, permitResources, bindOnly);
-    }
-
-    // First, make sure the assembly is loaded in our domain
-
-    DomainAssembly *pDomainAssembly = GetAssembly()->FindDomainAssembly(pDomain);
-    if (!bindOnly)
-    {
-        if (pDomainAssembly == NULL)
-            pDomainAssembly = GetAssembly()->GetDomainAssembly(pDomain);
-        pDomain->LoadDomainFile(pDomainAssembly, FILE_LOADED);
-    }
-
-    if (kFile == mdFileNil)
-        RETURN pDomainAssembly;
-
-    if (pDomainAssembly == NULL)
-        RETURN NULL;
-
-    // Now look for the module in the rid maps
-
-    Module *pModule = LookupFile(kFile);
-    if (pModule == NULL && !IsManifest())
-    {
-        // If we didn't find it there, look at the "master rid map" in the manifest file
-        Assembly *pAssembly = GetAssembly();
-        mdFile kMatch = pAssembly->GetManifestFileToken(GetMDImport(), kFile);
-        if (IsNilToken(kMatch)) {
-            if (kMatch == mdFileNil)
-                pModule = pAssembly->GetManifestModule();
-            else
-                COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
-        }
-        else
-            pModule = pAssembly->GetManifestModule()->LookupFile(kMatch);
-    }
-
-    // Get a DomainModule for our domain
-
-    DomainModule *pDomainModule = NULL;
-    if (pModule)
-    {
-        pDomainModule = pModule->FindDomainModule(pDomain);
-
-        if (!bindOnly && (permitResources || !pModule->IsResource()))
-        {
-            if (pDomainModule == NULL)
-                pDomainModule = pDomain->LoadDomainModule(pDomainAssembly, (PEModule*) pModule->GetFile(), FILE_LOADED);
-            else
-                pDomain->LoadDomainFile(pDomainModule, FILE_LOADED);
-        }
-    }
-    else if (!bindOnly)
-    {
-        PEModuleHolder pFile(GetAssembly()->LoadModule_AddRef(kFile, permitResources));
-        if (pFile)
-            pDomainModule = pDomain->LoadDomainModule(pDomainAssembly, pFile, FILE_LOADED);
-    }
-    
-    if (pDomainModule != NULL && pDomainModule->GetCurrentModule() != NULL)
-    {
-        // Make sure the module we're loading isn't its own assembly
-        if (pDomainModule->GetCurrentModule()->IsManifest())
-            COMPlusThrowHR(COR_E_ASSEMBLY_NOT_EXPECTED);
-        
-        // Cache the result in the rid map
-        StoreFileThrowing(kFile, pDomainModule->GetCurrentModule());
-    }
-    
-    // Make sure we didn't load a different module than what was in the rid map
-    CONSISTENCY_CHECK(pDomainModule == NULL || pModule == NULL || pDomainModule->GetModule() == pModule);
-
-    // We may not want to return a resource module
-    if (!permitResources && pDomainModule != NULL && pDomainModule->GetFile()->IsResource())
-        pDomainModule = NULL;
-
-    RETURN pDomainModule;
-#else //!FEATURE_MULTIMODULE_ASSEMBLIES
     if (bindOnly)
     {
         RETURN  NULL;
@@ -6417,7 +5862,6 @@ DomainFile *Module::LoadModule(AppDomain *pDomain, mdFile kFile,
         SString name(SString::Utf8, psModuleName);
         EEFileLoadException::Throw(name, COR_E_MULTIMODULEASSEMBLIESDIALLOWED, NULL);
     }
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 }
 #endif // !DACCESS_COMPILE
 
@@ -7080,7 +6524,9 @@ MethodDesc *Module::FindMethod(mdToken pMethod)
         CONTRACT_VIOLATION(ThrowsViolation);
         char szMethodName [MAX_CLASSNAME_LENGTH];
         CEEInfo::findNameOfToken(this, pMethod, szMethodName, COUNTOF (szMethodName));
-        LOG((LF_IJW, LL_INFO10, "Failed to find Method: %s for Vtable Fixup\n", szMethodName));
+        // This used to be LF_IJW, but changed to LW_INTEROP to reclaim a bit in our log facilities
+        // IJW itself is not supported in coreclr so this code should never be run.
+        LOG((LF_INTEROP, LL_INFO10, "Failed to find Method: %s for Vtable Fixup\n", szMethodName));
 #endif // _DEBUG
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7442,84 +6888,6 @@ void Module::UpdateDynamicMetadataIfNeeded()
 
 #ifdef DEBUGGING_SUPPORTED 
 
-#ifdef FEATURE_FUSION
-
-// Fetch Pdbs from the host
-// 
-// Returns:
-//    No explicit return value. 
-//    Caches the pdb stream on the module instance if available.
-//    Does nothing if not hosted or if the host does not provide a stream.
-//    Throws on exception if the host does provide a stream, but we can't copy it out. 
-//    
-// Notes:
-//    This fetches PDBs from the host and caches them so that they are available for when the debugger attaches.
-//    This lets Arrowhead tools run against Whidbey hosts in a compatibility mode.
-//    We expect to add a hosting knob that will allow a host to disable this eager fetching and not run in
-//    compat mode.
-void Module::FetchPdbsFromHost()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    
-    ReleaseHolder<IStream> pHostStream;
-
-    hr = GetHostPdbStream(&pHostStream); // addrefs, holder will release
-    if (pHostStream == NULL)
-    {
-        // Common failure case, we're either not hosted, or the host doesn't have a stream.
-        return;
-    }
-    // pHostStream is a stream implemented by the host, so be extra cautious about methods failing,
-    // especially with E_NOTIMPL.
-
-    SafeComHolder<CGrowableStream> pStream(new CGrowableStream()); // throws
-
-    //
-    // Copy from pHostStream (owned by host) to CGrowableStream (owned by CLR, and visible to debugger from OOP).
-    // 
-    
-    // Get number of bytes to copy.
-    STATSTG     SizeData = {0};
-    hr = pHostStream->Stat(&SizeData, STATFLAG_NONAME);
-    IfFailThrow(hr);
-    ULARGE_INTEGER streamSize = SizeData.cbSize;
-
-    if (streamSize.u.HighPart > 0)
-    {
-        // Too big. We shouldn't have a PDB larger than 4gb. 
-        ThrowHR(E_OUTOFMEMORY);
-    }
-    ULONG cbRequest = streamSize.u.LowPart;
-
-
-    // Allocate 
-    hr = pStream->SetSize(streamSize);
-    IfFailThrow(hr);
-
-    _ASSERTE(pStream->GetRawBuffer().Size() == cbRequest);
-
-    // Do the actual copy
-    ULONG cbActualRead = 0;
-    hr = pHostStream->Read(pStream->GetRawBuffer().StartAddress(), cbRequest, &cbActualRead);
-    IfFailThrow(hr);
-    if (cbRequest != cbActualRead)
-    {
-        ThrowWin32(ERROR_READ_FAULT);
-    }
-
-    // We now have a full copy of the PDB provided from the host. 
-    // This addrefs pStream, which lets it survive past the holder's scope.
-    SetInMemorySymbolStream(pStream, eSymbolFormatPDB);
-}
-#endif // FEATURE_FUSION
 
 #endif // DEBUGGING_SUPPORTED
 
@@ -7538,16 +6906,6 @@ BOOL Module::NotifyDebuggerLoad(AppDomain *pDomain, DomainFile * pDomainFile, in
         pModule->UpdateDynamicMetadataIfNeeded();
     }
 
-#ifdef FEATURE_FUSION
-    // Eagerly fetch pdbs for hosted modules.
-    // This is only needed for debugging, so errors are not fatal in normal cases.
-    HRESULT hrFetchPdbs = S_OK;
-    EX_TRY
-    {
-        FetchPdbsFromHost();
-    }
-    EX_CATCH_HRESULT(hrFetchPdbs);
-#endif // FEATURE_FUSION
 
     //
     // Remaining work is only needed if a debugger is attached
@@ -7613,619 +6971,6 @@ void Module::NotifyDebuggerUnload(AppDomain *pDomain)
     g_pDebugInterface->UnloadModule(this, pDomain);
 }
 
-#if defined(FEATURE_MIXEDMODE) && !defined(CROSSGEN_COMPILE)
-
-//======================================================================================
-// These are used to call back to the shim to get the information about
-// thunks, and to set the new targets.
-typedef mdToken STDMETHODCALLTYPE GetTokenForVTableEntry_t(HINSTANCE hInst, BYTE **ppVTEntry);
-typedef void STDMETHODCALLTYPE SetTargetForVTableEntry_t(HINSTANCE hInst, BYTE **ppVTEntry, BYTE *pTarget);
-typedef BYTE * STDMETHODCALLTYPE GetTargetForVTableEntry_t(HINSTANCE hInst, BYTE **ppVTEntry);
-
-GetTokenForVTableEntry_t *g_pGetTokenForVTableEntry = NULL;
-SetTargetForVTableEntry_t *g_pSetTargetForVTableEntry = NULL;
-GetTargetForVTableEntry_t *g_pGetTargetForVTableEntry = NULL;
-
-//======================================================================================
-void InitThunkCallbackFunctions(HINSTANCE hInstShim)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-    } CONTRACTL_END;
-
-    typedef enum {
-        e_UNINITIALIZED,
-        e_INITIALIZED_SUCCESS,
-    } InitState_t;
-
-    static InitState_t s_state = e_UNINITIALIZED;
-    if (s_state == e_UNINITIALIZED) {
-        g_pGetTokenForVTableEntry = (GetTokenForVTableEntry_t *)GetProcAddress(hInstShim, "GetTokenForVTableEntry");
-        if (g_pGetTokenForVTableEntry == NULL) {
-            COMPlusThrow(kMissingMethodException, IDS_EE_MSCOREE_MISSING_ENTRYPOINT, W("GetTokenForVTableEntry"));
-        }
-        g_pSetTargetForVTableEntry = (SetTargetForVTableEntry_t *)GetProcAddress(hInstShim, "SetTargetForVTableEntry");
-        if (g_pSetTargetForVTableEntry == NULL) {
-            COMPlusThrow(kMissingMethodException, IDS_EE_MSCOREE_MISSING_ENTRYPOINT, W("SetTargetForVTableEntry"));
-        }
-        g_pGetTargetForVTableEntry = (GetTargetForVTableEntry_t *)GetProcAddress(hInstShim, "GetTargetForVTableEntry");
-        if (g_pGetTargetForVTableEntry == NULL) {
-            COMPlusThrow(kMissingMethodException, IDS_EE_MSCOREE_MISSING_ENTRYPOINT, W("GetTargetForVTableEntry"));
-        }
-        s_state = e_INITIALIZED_SUCCESS;
-    }
-    CONSISTENCY_CHECK(s_state != e_UNINITIALIZED);
-}
-
-//======================================================================================
-void InitShimHINSTANCE()
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-    } CONTRACTL_END;
-
-    if (g_hInstShim == NULL) {
-        g_hInstShim = WszLoadLibrary(MSCOREE_SHIM_W);
-        if (g_hInstShim == NULL) {
-            InlineSString<80> ssErrorFormat;
-            if(!ssErrorFormat.LoadResource(CCompRC::Optional, IDS_EE_MSCOREE_MISSING))
-            {
-                // Keep this in sync with the actual message
-                ssErrorFormat.Set(W("MSCOREE is not loaded."));
-            }
-            EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, ssErrorFormat.GetUnicode());
-        }
-    }
-}
-
-//======================================================================================
-HINSTANCE GetShimHINSTANCE() // dead code?
-{
-    WRAPPER_NO_CONTRACT;
-    InitShimHINSTANCE();
-    return g_hInstShim;
-}
-
-//======================================================================================
-// Fixup vtables stored in the header to contain pointers to method desc
-// prestubs rather than metadata method tokens.
-void Module::FixupVTables()
-{
-    CONTRACTL {
-        INSTANCE_CHECK;
-        STANDARD_VM_CHECK;
-    } CONTRACTL_END;
-
-
-    // If we've already fixed up, or this is not an IJW module, just return.
-    // NOTE: This relies on ILOnly files not having fixups. If this changes,
-    //       we need to change this conditional.
-    if (IsIJWFixedUp() || m_file->IsILOnly() || IsIntrospectionOnly()) {
-        return;
-    }
-
-    // An EEException will be thrown if either MSCOREE or any of the required
-    // entrypoints cannot be found.
-    InitShimHINSTANCE();
-    InitThunkCallbackFunctions(g_hInstShim);
-
-    HINSTANCE hInstThis = GetFile()->GetIJWBase();
-
-    // <REVISIT_TODO>@todo: workaround!</REVISIT_TODO>
-    // If we are compiling in-process, we don't want to fixup the vtables - as it
-    // will have side effects on the other copy of the module!
-    if (SystemDomain::GetCurrentDomain()->IsPassiveDomain()) {
-        return;
-    }
-
-#ifdef FEATURE_PREJIT
-    // We delayed filling in this value until the LoadLibrary occurred
-    if (HasTls() && HasNativeImage()) {
-        CORCOMPILE_EE_INFO_TABLE *pEEInfo = GetNativeImage()->GetNativeEEInfoTable();
-        pEEInfo->rvaStaticTlsIndex = GetTlsIndex();
-    }
-#endif
-    // Get vtable fixup data
-    COUNT_T cFixupRecords;
-    IMAGE_COR_VTABLEFIXUP *pFixupTable = m_file->GetVTableFixups(&cFixupRecords);
-
-     // No records then return
-    if (cFixupRecords == 0) {
-        return;
-    }
-
-    // Now, we need to take a lock to serialize fixup.
-    PEImage::IJWFixupData *pData = PEImage::GetIJWData(m_file->GetIJWBase());
-
-    // If it's already been fixed (in some other appdomain), record the fact and return
-    if (pData->IsFixedUp()) {
-        SetIsIJWFixedUp();
-        return;
-    }
-
-    //////////////////////////////////////////////////////
-    //
-    // This is done in three stages:
-    //  1. We enumerate the types we'll need to load
-    //  2. We load the types
-    //  3. We create and install the thunks
-    //
-
-    COUNT_T cVtableThunks = 0;
-    struct MethodLoadData
-    {
-        mdToken     token;
-        MethodDesc *pMD;
-    };
-    MethodLoadData *rgMethodsToLoad = NULL;
-    COUNT_T cMethodsToLoad = 0;
-
-    //
-    // Stage 1
-    //
-
-    // Each fixup entry describes a vtable, so iterate the vtables and sum their counts
-    {
-        DWORD iFixup;
-        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
-            cVtableThunks += pFixupTable[iFixup].Count;
-    }
-
-    Thread *pThread = GetThread();
-    StackingAllocator *pAlloc = &pThread->m_MarshalAlloc;
-    CheckPointHolder cph(pAlloc->GetCheckpoint());
-
-    // Allocate the working array of tokens.
-    cMethodsToLoad = cVtableThunks;
-
-    rgMethodsToLoad = new (pAlloc) MethodLoadData[cMethodsToLoad];
-    memset(rgMethodsToLoad, 0, cMethodsToLoad*sizeof(MethodLoadData));
-
-    // Now take the IJW module lock and get all the tokens
-    {
-        // Take the lock
-        CrstHolder lockHolder(pData->GetLock());
-
-        // If someone has beaten us, just return
-        if (pData->IsFixedUp())
-        {
-            SetIsIJWFixedUp();
-            return;
-        }
-
-        COUNT_T iCurMethod = 0;
-
-        if (cFixupRecords != 0)
-        {
-            for (COUNT_T iFixup = 0; iFixup < cFixupRecords; iFixup++)
-            {
-                // Vtables can be 32 or 64 bit.
-                if ((pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED)) ||
-                    (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED|COR_VTABLE_FROM_UNMANAGED)) ||
-                    (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED|COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN)))
-                {
-                    const BYTE** pPointers = (const BYTE **) m_file->GetVTable(pFixupTable[iFixup].RVA);
-                    for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
-                    {
-                        if (pData->IsMethodFixedUp(iFixup,iMethod))
-                            continue;
-                        mdToken mdTok = (*g_pGetTokenForVTableEntry)(hInstThis, (BYTE **)(pPointers + iMethod));
-                        CONSISTENCY_CHECK(mdTok != mdTokenNil);
-                        rgMethodsToLoad[iCurMethod++].token = mdTok;
-                    }
-                }
-            }
-        }
-
-    }
-
-    //
-    // Stage 2 - Load the types
-    //
-
-    {
-        for (COUNT_T iCurMethod = 0; iCurMethod < cMethodsToLoad; iCurMethod++)
-        {
-            mdToken curTok = rgMethodsToLoad[iCurMethod].token;
-            if(!GetMDImport()->IsValidToken(curTok))
-            {
-                _ASSERTE(!"Invalid token in v-table fix-up table");
-                ThrowHR(COR_E_BADIMAGEFORMAT);
-            }
-
-
-            // Find the method desc
-            MethodDesc *pMD;
-
-            {
-                CONTRACT_VIOLATION(LoadsTypeViolation);
-                pMD = FindMethodThrowing(curTok);
-            }
-
-            CONSISTENCY_CHECK(CheckPointer(pMD));
-
-            rgMethodsToLoad[iCurMethod].pMD = pMD;
-        }
-    }
-
-    //
-    // Stage 3 - Create the thunk data
-    //
-    {
-        // Take the lock
-        CrstHolder lockHolder(pData->GetLock());
-
-        // If someone has beaten us, just return
-        if (pData->IsFixedUp())
-        {
-            SetIsIJWFixedUp();
-            return;
-        }
-
-        // This is the app domain which all of our U->M thunks for this module will have
-        // affinity with.  Note that if the module is shared between multiple domains, all thunks will marshal back
-        // to the original domain, so some of the thunks may cause a surprising domain switch to occur.
-        // (And furthermore note that if the original domain is unloaded, all the thunks will simply throw an
-        // exception.)
-        //
-        // (The essential problem is that these thunks are shared via the global process address space
-        // rather than per domain, thus there is no context to figure out our domain from.  We could
-        // use the current thread's domain, but that is effectively undefined in unmanaged space.)
-        //
-        // The bottom line is that the IJW model just doesn't fit with multiple app domain design very well, so
-        // better to have well defined limitations than flaky behavior.
-        //
-        //  
-
-        AppDomain *pAppDomain = GetAppDomain();
-
-        // Used to index into rgMethodsToLoad
-        COUNT_T iCurMethod = 0;
-
-
-        // Each fixup entry describes a vtable (each slot contains a metadata token
-        // at this stage).
-        DWORD iFixup;
-        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
-            cVtableThunks += pFixupTable[iFixup].Count;
-
-        DWORD dwIndex=0;
-        DWORD dwThunkIndex = 0;
-
-        // Now to fill in the thunk table.
-        for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
-        {
-            const BYTE** pPointers = (const BYTE **)
-                m_file->GetVTable(pFixupTable[iFixup].RVA);
-
-            // Vtables can be 32 or 64 bit.
-            if (pFixupTable[iFixup].Type == COR_VTABLE_PTRSIZED)
-            {
-                for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
-                {
-                    if (pData->IsMethodFixedUp(iFixup,iMethod))
-                        continue;
-
-                    mdToken mdTok = rgMethodsToLoad[iCurMethod].token;
-                    MethodDesc *pMD = rgMethodsToLoad[iCurMethod].pMD;
-                    iCurMethod++;
-
-#ifdef _DEBUG 
-                    if (pMD->IsNDirect())
-                    {
-                        LOG((LF_IJW, LL_INFO10, "[0x%lx] <-- PINV thunk for \"%s\" (target = 0x%lx)\n",
-                             (size_t)&(pPointers[iMethod]),  pMD->m_pszDebugMethodName,
-                             (size_t) (((NDirectMethodDesc*)pMD)->GetNDirectTarget())));
-                    }
-#endif // _DEBUG
-
-                    CONSISTENCY_CHECK(dwThunkIndex < cVtableThunks);
-
-                    // Point the local vtable slot to the thunk we created
-                    (*g_pSetTargetForVTableEntry)(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pMD->GetMultiCallableAddrOfCode());
-
-                    pData->MarkMethodFixedUp(iFixup,iMethod);
-
-                    dwThunkIndex++;
-                }
-
-            }
-            else if (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED|COR_VTABLE_FROM_UNMANAGED))
-            {
-
-                for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
-                {
-                    if (pData->IsMethodFixedUp(iFixup,iMethod))
-                        continue;
-
-                    mdToken mdTok = rgMethodsToLoad[iCurMethod].token;
-                    MethodDesc *pMD = rgMethodsToLoad[iCurMethod].pMD;
-                    iCurMethod++;
-                    LOG((LF_IJW, LL_INFO10, "[0x%p] <-- VTable  thunk for \"%s\" (pMD = 0x%p)\n", 
-                        (UINT_PTR)&(pPointers[iMethod]), pMD->m_pszDebugMethodName, pMD));
-
-                    UMEntryThunk *pUMEntryThunk = (UMEntryThunk*)(void*)(GetDllThunkHeap()->AllocAlignedMem(sizeof(UMEntryThunk), CODE_SIZE_ALIGN)); // UMEntryThunk contains code
-                    FillMemory(pUMEntryThunk,     sizeof(*pUMEntryThunk),     0);
-
-                    UMThunkMarshInfo *pUMThunkMarshInfo = (UMThunkMarshInfo*)(void*)(GetThunkHeap()->AllocAlignedMem(sizeof(UMThunkMarshInfo), CODE_SIZE_ALIGN));
-                    FillMemory(pUMThunkMarshInfo, sizeof(*pUMThunkMarshInfo), 0);
-
-                    pUMThunkMarshInfo->LoadTimeInit(pMD);
-                    pUMEntryThunk->LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD, pAppDomain->GetId());
-                    (*g_pSetTargetForVTableEntry)(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pUMEntryThunk->GetCode());
-
-                    pData->MarkMethodFixedUp(iFixup,iMethod);
-                }
-            }
-            else if (pFixupTable[iFixup].Type == (COR_VTABLE_PTRSIZED|COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN))
-            {
-
-                for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
-                {
-                    if (pData->IsMethodFixedUp(iFixup,iMethod))
-                        continue;
-
-                    mdToken mdTok = rgMethodsToLoad[iCurMethod].token;
-                    iCurMethod++;
-
-                    IJWNOADThunk* pThunkLocal = new(GetDllThunkHeap()->AllocAlignedMem(sizeof(IJWNOADThunk), CODE_SIZE_ALIGN)) IJWNOADThunk(GetFile()->GetIJWBase(),dwIndex++,mdTok);
-                    (*g_pSetTargetForVTableEntry)(hInstThis, (BYTE **)&pPointers[iMethod], (BYTE *)pThunkLocal->GetCode());
-
-                    pData->MarkMethodFixedUp(iFixup,iMethod);
-                }
-            }
-            else if ((pFixupTable[iFixup].Type & COR_VTABLE_NOT_PTRSIZED) == COR_VTABLE_NOT_PTRSIZED)
-            {
-                // fixup type doesn't match the platform
-                THROW_BAD_FORMAT(BFA_FIXUP_WRONG_PLATFORM, this);
-            }
-            else
-            {
-                _ASSERTE(!"Unknown vtable fixup type");
-            }
-        }
-
-
-        if(!GetAssembly()->IsDomainNeutral())
-            CreateDomainThunks();
-
-        SetDomainIdOfIJWFixups(pAppDomain->GetId());
-#ifdef FEATURE_PREJIT
-        if (HasNativeImage()) {
-            CORCOMPILE_EE_INFO_TABLE *pEEInfo = GetNativeImage()->GetNativeEEInfoTable();
-
-            if (pEEInfo->nativeEntryPointStart != 0) {
-                PTR_PEImageLayout pIJWLayout = m_file->GetLoadedIL();
-                SIZE_T base = (SIZE_T)pIJWLayout->GetBase();
-
-                _ASSERTE(pIJWLayout->CheckRva((RVA)pEEInfo->nativeEntryPointStart));
-                _ASSERTE(pIJWLayout->CheckRva((RVA)pEEInfo->nativeEntryPointEnd));
-
-                pEEInfo->nativeEntryPointStart += base;
-                pEEInfo->nativeEntryPointEnd += base;
-            }
-            else {
-                _ASSERTE(pEEInfo->nativeEntryPointEnd == 0);
-            }
-        }
-#endif
-        // Indicate that this module has been fixed before releasing the lock
-        pData->SetIsFixedUp();  // On the data
-        SetIsIJWFixedUp();      // On the module
-    } // End of Stage 3
-}
-
-// Self-initializing accessor for m_pThunkHeap
-LoaderHeap *Module::GetDllThunkHeap()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    return PEImage::GetDllThunkHeap(GetFile()->GetIJWBase());
-
-}
-LoaderHeap *Module::GetThunkHeap()
-{
-    CONTRACT (LoaderHeap *)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END
-
-    if (!m_pThunkHeap)
-    {
-        size_t * pPrivatePCLBytes = NULL;
-        size_t * pGlobalPCLBytes  = NULL;
-
-#ifdef PROFILING_SUPPORTED 
-        pPrivatePCLBytes   = &(GetPerfCounters().m_Loading.cbLoaderHeapSize);
-#endif
-
-        LoaderHeap *pNewHeap = new LoaderHeap(VIRTUAL_ALLOC_RESERVE_GRANULARITY, // DWORD dwReserveBlockSize
-                                              0,                                 // DWORD dwCommitBlockSize
-                                              pPrivatePCLBytes,
-                                              ThunkHeapStubManager::g_pManager->GetRangeList(),
-                                              TRUE);                             // BOOL fMakeExecutable
-
-        if (FastInterlockCompareExchangePointer(&m_pThunkHeap, pNewHeap, 0) != 0)
-        {
-            delete pNewHeap;
-        }
-    }
-
-    RETURN m_pThunkHeap;
-}
-
-void Module::SetADThunkTable(UMEntryThunk* pTable)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    GetDomainLocalModule()->SetADThunkTable(pTable);
-}
-
-UMEntryThunk* Module::GetADThunkTable()
-{
-    CONTRACT(UMEntryThunk*)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END
-
-    DomainLocalModule* pMod=GetDomainLocalModule();
-    _ASSERTE(pMod);
-    UMEntryThunk * pADThunkTable = pMod->GetADThunkTable();
-    if (pADThunkTable == NULL)
-    {
-        CreateDomainThunks();
-        pADThunkTable = pMod->GetADThunkTable();
-        _ASSERTE(pADThunkTable != NULL);
-    }
-
-    RETURN (UMEntryThunk*)pADThunkTable;
-};
-
-void Module::CreateDomainThunks()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-    }
-    CONTRACTL_END;
-
-    AppDomain *pAppDomain = GetAppDomain();
-    if(!pAppDomain)
-    {
-        _ASSERTE(!"No appdomain");
-        return;
-    }
-
-    UINT32 cFixupRecords;
-    IMAGE_COR_VTABLEFIXUP *pFixupTable = m_file->GetVTableFixups(&cFixupRecords);
-
-    DWORD iFixup;
-    DWORD cVtableThunks=0;
-    for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
-    {
-        if (pFixupTable[iFixup].Type==(COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN|COR_VTABLE_PTRSIZED))
-        {
-            cVtableThunks += pFixupTable[iFixup].Count;
-        }
-    }
-
-    if (cVtableThunks==0)
-    {
-        return;
-    }
-
-    AllocMemTracker amTracker;
-    AllocMemTracker *pamTracker = &amTracker;
-
-    UMEntryThunk* pTable=((UMEntryThunk*)pamTracker->Track(pAppDomain->GetStubHeap()->AllocAlignedMem(sizeof(UMEntryThunk)*cVtableThunks, CODE_SIZE_ALIGN)));
-    DWORD dwCurrIndex=0;
-    for (iFixup = 0; iFixup < cFixupRecords; iFixup++)
-    {
-        if (pFixupTable[iFixup].Type == (COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN|COR_VTABLE_PTRSIZED))
-        {
-            const BYTE **pPointers = (const BYTE **) m_file->GetVTable(pFixupTable[iFixup].RVA);
-            for (int iMethod = 0; iMethod < pFixupTable[iFixup].Count; iMethod++)
-            {
-                PCODE pCode = (PCODE)
-                    (*g_pGetTargetForVTableEntry)((HINSTANCE)GetFile()->GetIJWBase(), (BYTE **)&pPointers[iMethod]);
-                IJWNOADThunk* pThnk = IJWNOADThunk::FromCode(pCode);
-                mdToken tok=pThnk->GetToken(); //!!
-                if(!GetMDImport()->IsValidToken(tok))
-                {
-                    ThrowHR(COR_E_BADIMAGEFORMAT, BFA_INVALID_TOKEN);
-                    return;
-                }
-
-                MethodDesc *pMD = FindMethodThrowing(tok);
-
-                // @TODO: Check for out of memory
-                UMThunkMarshInfo *pUMThunkMarshInfo = (UMThunkMarshInfo*)pamTracker->Track(pAppDomain->GetStubHeap()->AllocAlignedMem(sizeof(UMThunkMarshInfo), CODE_SIZE_ALIGN));
-                _ASSERTE(pUMThunkMarshInfo != NULL);
-
-                pUMThunkMarshInfo->LoadTimeInit(pMD);
-                pTable[dwCurrIndex].LoadTimeInit(NULL, NULL, pUMThunkMarshInfo, pMD, pAppDomain->GetId());
-
-                // If we're setting up a domain that is cached, update the code pointer in the cache
-                if (pThnk->IsCachedAppDomainID(pAppDomain->GetId()))
-                    pThnk->SetCachedInfo(pAppDomain->GetId(), (LPVOID)GetEEFuncEntryPoint((LPVOID)pTable[dwCurrIndex].GetCode()));
-
-                dwCurrIndex++;
-            }
-        }
-    }
-
-    pamTracker->SuppressRelease();
-    SetADThunkTable(pTable);
-}
-
-LPVOID Module::GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        CAN_TAKE_LOCK;
-    }
-    CONTRACTL_END;
-
-    return GetDomainFile()->GetUMThunk(pManagedIp, pSig, cSig);
-}
-
-
-void *Module::GetMUThunk(LPVOID pUnmanagedIp, PCCOR_SIGNATURE pSig, ULONG cSig)
-{
-    CONTRACT (void*)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-    }
-    CONTRACT_END
-
-    if (m_pMUThunkHash == NULL)
-    {
-        MUThunkHash *pMUThunkHash = new MUThunkHash(this);
-        if (FastInterlockCompareExchangePointer(&m_pMUThunkHash, pMUThunkHash, NULL) != NULL)
-            delete pMUThunkHash;
-    }
-    RETURN m_pMUThunkHash->GetMUThunk(pUnmanagedIp, pSig, cSig);
-}
-
-#endif //FEATURE_MIXEDMODE && !CROSSGEN_COMPILE
 
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
@@ -9771,43 +8516,6 @@ void ModuleCtorInfo::Save(DataImage *image, CorProfileData *profileData)
     }
 }
 
-#ifdef FEATURE_REMOTING
-static void IsCrossAppDomainOptimizableWrapper(MethodDesc * pMD,
-                                               DWORD* pnumDwords)
-{
-    STANDARD_VM_CONTRACT;
-
-    GCX_COOP();
-
-    EX_TRY
-    {
-        if (pMD->GetNumGenericMethodArgs() == 0 && !pMD->IsStatic())
-            RemotableMethodInfo::IsCrossAppDomainOptimizable(pMD, pnumDwords);
-    }
-    EX_CATCH
-    {
-        // If there is an exception, it'll mean the info for this method will remain uninitialized.
-        // Just ignore the exception. At runtime, we'll try to initialize it
-        // An exception is possible during ngen if all dependencies are not available
-    }
-    EX_END_CATCH(SwallowAllExceptions)
-}
-
-static void PrepareRemotableMethodInfo(MethodTable * pMT)
-{
-    STANDARD_VM_CONTRACT;
-
-    if (!pMT->HasRemotableMethodInfo())
-        return;
-
-    MethodTable::MethodIterator it(pMT);
-    for (; it.IsValid(); it.Next())
-    {
-        DWORD numDwords = 0;
-        IsCrossAppDomainOptimizableWrapper(it.GetMethodDesc(), &numDwords);
-    }
-}
-#endif // FEATURE_REMOTING
 
 bool Module::AreAllClassesFullyLoaded()
 {
@@ -9860,14 +8568,7 @@ void Module::PrepareTypesForSave(DataImage *image)
             if (pMT == NULL || !pMT->IsFullyLoaded())
                 continue;
 
-#ifdef FEATURE_REMOTING
-            PrepareRemotableMethodInfo(pMT);
-#endif // FEATURE_REMOTING
 
-            // If this module defines any CriticalFinalizerObject derived classes,
-            // then we'll prepare these types for Constrained Execution Regions (CER) now.
-            // (Normally they're prepared at object instantiation time, a little too late for ngen).
-            PrepareCriticalType(pMT);
         }
     }
 
@@ -9896,16 +8597,6 @@ void Module::PrepareTypesForSave(DataImage *image)
             }
         }
 
-#ifdef FEATURE_REMOTING
-        for(COUNT_T i = 0; i < pTypes.GetCount(); i ++)
-        {
-            MethodTable * pMT = pTypes[i].AsMethodTable();
-
-            PrepareRemotableMethodInfo(pMT);
-
-            // @todo: prepare critical instantiated types?
-        }
-#endif // FEATURE_REMOTING
     }
 
     image->GetPreloader()->TriageForZap(FALSE, FALSE);
@@ -9951,12 +8642,9 @@ void Module::Save(DataImage *image)
     // Cache values of all persisted flags computed from custom attributes
     IsNoStringInterning();
     IsRuntimeWrapExceptions();
-    GetReliabilityContract();
     IsPreV4Assembly();
 
-#ifndef FEATURE_CORECLR
     HasDefaultDllImportSearchPathsAttribute();
-#endif
 
     // Precompute property information to avoid runtime metadata lookup
     PopulatePropertyInfoMap();
@@ -10308,10 +8996,6 @@ void Module::Save(DataImage *image)
                           m_nPropertyNameSet * sizeof(BYTE),
                           DataImage::ITEM_PROPERTY_NAME_SET);
 
-    // Save Constrained Execution Region (CER) fixup information (used to eagerly fixup trees of methods to avoid any runtime
-    // induced failures when invoking the tree).
-    if (m_pCerNgenRootTable != NULL)
-        m_pCerNgenRootTable->Save(image, profileData);
 
     // Sort the list of RVA statics in an ascending order wrt the RVA
     // and save them.
@@ -10367,8 +9051,8 @@ void Module::Save(DataImage *image)
     InlineTrackingMap *inlineTrackingMap = image->GetInlineTrackingMap();
     if (inlineTrackingMap) 
     {
-        m_persistentInlineTrackingMap = new (image->GetHeap()) PersistentInlineTrackingMap(this);
-        m_persistentInlineTrackingMap->Save(image, inlineTrackingMap);
+        m_pPersistentInlineTrackingMapNGen = new (image->GetHeap()) PersistentInlineTrackingMapNGen(this);
+        m_pPersistentInlineTrackingMapNGen->Save(image, inlineTrackingMap);
     }
 
     if (m_pNgenStats && g_CorCompileVerboseLevel >= CORCOMPILE_STATS)
@@ -10767,16 +9451,6 @@ void Module::PlaceMethod(DataImage *image, MethodDesc *pMD, DWORD profilingFlags
         image->PlaceStructureForAddress(pMD, CORCOMPILE_SECTION_WRITE);
     }
 
-    if (profilingFlags & (1 << ReadCerMethodList))
-    {
-        // protect against stale IBC data
-        // Check if the profiling data incorrectly set the ReadCerMethodList bit.
-        // This is more likely to happen with incremental IBC.
-        if ((m_pCerNgenRootTable != NULL) && m_pCerNgenRootTable->IsNgenRootMethod(pMD))
-        {
-            image->PlaceStructureForAddress(m_pCerNgenRootTable->GetList(pMD), CORCOMPILE_SECTION_HOT);
-        }
-    }
 
     if (profilingFlags & (1 << WriteMethodPrecode))
     {
@@ -10876,7 +9550,7 @@ void Module::Arrange(DataImage *image)
             else if (TypeFromToken(token) == mdtFieldDef)
             {
                 FieldDesc *pFD = LookupFieldDef(token);
-                if (pFD && pFD->IsILOnlyRVAField())
+                if (pFD && pFD->IsRVA())
                 {
                     if (entry->flags & (1 << RVAFieldData))
                     {
@@ -11320,22 +9994,6 @@ void Module::Fixup(DataImage *image)
     image->ZeroField(m_FileReferencesMap.pTable, 0,
                      m_FileReferencesMap.GetSize() * sizeof(void*));
 
-    //
-    // Fixup Constrained Execution Regions restoration records.
-    //
-    if (m_pCerNgenRootTable != NULL)
-    {
-        image->BeginRegion(CORINFO_REGION_HOT);
-        image->FixupPointerField(this, offsetof(Module, m_pCerNgenRootTable));
-        m_pCerNgenRootTable->Fixup(image);
-        image->EndRegion(CORINFO_REGION_HOT);
-    }
-    else
-        image->ZeroPointerField(this, offsetof(Module, m_pCerNgenRootTable));
-
-    // Zero out fields we always compute at runtime lazily.
-    image->ZeroField(this, offsetof(Module, m_pCerPrepInfo), sizeof(m_pCerPrepInfo));
-    image->ZeroField(this, offsetof(Module, m_pCerCrst), sizeof(m_pCerCrst));
 
     image->ZeroField(this, offsetof(Module, m_debuggerSpecificData), sizeof(m_debuggerSpecificData));
 
@@ -11393,14 +10051,14 @@ void Module::Fixup(DataImage *image)
     }
 
     // Fix up inlining data
-    if(m_persistentInlineTrackingMap)
+    if(m_pPersistentInlineTrackingMapNGen)
     {
-        image->FixupPointerField(this, offsetof(Module, m_persistentInlineTrackingMap));
-        m_persistentInlineTrackingMap->Fixup(image);
+        image->FixupPointerField(this, offsetof(Module, m_pPersistentInlineTrackingMapNGen));
+        m_pPersistentInlineTrackingMapNGen->Fixup(image);
     } 
     else
     {
-        image->ZeroPointerField(this, offsetof(Module, m_persistentInlineTrackingMap));
+        image->ZeroPointerField(this, offsetof(Module, m_pPersistentInlineTrackingMapNGen));
     }
 
     SetIsModuleSaved();
@@ -14049,13 +12707,6 @@ void Module::DeleteProfilingData()
 }
 #endif //FEATURE_PREJIT
 
-#ifdef FEATURE_MIXEDMODE
-void Module::SetIsIJWFixedUp()
-{
-    LIMITED_METHOD_CONTRACT;
-    FastInterlockOr(&m_dwTransientFlags, IS_IJW_FIXED_UP);
-}
-#endif
 
 
 #ifdef FEATURE_PREJIT
@@ -14119,6 +12770,11 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     if (!m_nativeImageProfiling)
         return;
 
+    if (flagnum >= CORBBTPROF_TOKEN_MAX_NUM_FLAGS)
+    {
+        return;
+    }
+
     mdToken rid = RidFromToken(token);
     CorTokenType  tkType  = (CorTokenType) TypeFromToken(token);
     SectionFormat tkKind  = (SectionFormat) (tkType >> 24);
@@ -14147,8 +12803,9 @@ void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
     else if (tkKind == (SectionFormat) (ibcMethodSpec >> 24))
         tkKind = IbcMethodSpecSection;
 
+    _ASSERTE(tkKind >= 0);
     _ASSERTE(tkKind < SectionFormatCount);
-    if (tkKind >= SectionFormatCount)
+    if (tkKind < 0 || tkKind >= SectionFormatCount)
     {
         return;
     }
@@ -14489,15 +13146,8 @@ ReflectionModule *ReflectionModule::Create(Assembly *pAssembly, PEFile *pFile, A
     // Hoist CONTRACT into separate routine because of EX incompatibility
 
     mdFile token;
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    if (pFile->IsAssembly())
-        token = mdFileNil;
-    else
-        token = ((PEModule *)pFile)->GetToken();
-#else
     _ASSERTE(pFile->IsAssembly());
     token = mdFileNil;
-#endif
 
     // Initial memory block for Modules must be zero-initialized (to make it harder
     // to introduce Destruct crashes arising from OOM's during initialization.)
@@ -15487,12 +14137,6 @@ void Module::EnumMemoryRegions(CLRDataEnumMemoryFlags flags,
             m_pStubMethodHashTable->EnumMemoryRegions(flags);
         }
 #endif // FEATURE_PREJIT
-#ifdef FEATURE_MIXEDMODE
-        if (m_pThunkHeap.IsValid())
-        {
-            m_pThunkHeap->EnumMemoryRegions(flags);
-        }
-#endif // FEATURE_MIXEDMODE
         if (m_pBinder.IsValid())
         {
             m_pBinder->EnumMemoryRegions(flags);
@@ -15599,159 +14243,6 @@ FieldDesc *Module::LookupFieldDef(mdFieldDef token)
 #endif // DACCESS_COMPILE
 
 
-#ifndef DACCESS_COMPILE 
-
-// Access to CerPrepInfo, the structure used to track CERs prepared at runtime (as opposed to ngen time). GetCerPrepInfo will
-// return the structure associated with the given method desc if it exists or NULL otherwise. CreateCerPrepInfo will get the
-// structure if it exists or allocate and return a new struct otherwise. Creation of CerPrepInfo structures is automatically
-// synchronized by the CerCrst (lazily allocated as needed).
-CerPrepInfo *Module::GetCerPrepInfo(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pMD));
-    }
-    CONTRACTL_END;
-
-    if (m_pCerPrepInfo == NULL)
-        return NULL;
-
-    // Don't need a crst for read only access to the hash table.
-    HashDatum sDatum;
-    if (m_pCerPrepInfo->GetValue(pMD, &sDatum))
-        return (CerPrepInfo*)sDatum;
-    else
-        return NULL;
-}
-
-CerPrepInfo *Module::CreateCerPrepInfo(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(pMD));
-    }
-    CONTRACTL_END;
-
-    // Lazily allocate a Crst to serialize update access to the info structure.
-    // Carefully synchronize to ensure we don't leak a Crst in race conditions.
-    if (m_pCerCrst == NULL)
-    {
-        Crst *pCrst = new Crst(CrstCer);
-        if (InterlockedCompareExchangeT(&m_pCerCrst, pCrst, NULL) != NULL)
-            delete pCrst;
-    }
-
-    CrstHolder sCrstHolder(m_pCerCrst);
-
-    // Lazily allocate the info structure.
-    if (m_pCerPrepInfo == NULL)
-    {
-        LockOwner sLock = {m_pCerCrst, IsOwnerOfCrst};
-        NewHolder <EEPtrHashTable> tempCerPrepInfo (new EEPtrHashTable());
-        if (!tempCerPrepInfo->Init(CER_DEFAULT_HASH_SIZE, &sLock))
-            COMPlusThrowOM();
-        m_pCerPrepInfo = tempCerPrepInfo.Extract ();
-    }
-    else
-    {
-        // Try getting an existing value first.
-        HashDatum sDatum;
-        if (m_pCerPrepInfo->GetValue(pMD, &sDatum))
-            return (CerPrepInfo*)sDatum;
-    }
-
-    // We get here if there was no info structure or no existing method desc entry. Either way we now have an info structure and
-    // need to create a new method desc entry.
-    NewHolder<CerPrepInfo> pInfo(new CerPrepInfo());
-
-    m_pCerPrepInfo->InsertValue(pMD, (HashDatum)pInfo);
-
-    return pInfo.Extract();
-}
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-// Access to CerNgenRootTable which holds holds information for all the CERs rooted at a method in this module (that were
-// discovered during an ngen).
-
-// Add a list of MethodContextElements representing a CER to the root table keyed by the MethodDesc* of the root method. Creates
-// or expands the root table as necessary. This should only be called during ngen (at runtime we only read the table).
-void Module::AddCerListToRootTable(MethodDesc *pRootMD, MethodContextElement *pList)
-{
-    CONTRACTL
-    {
-        STANDARD_VM_CHECK;
-        PRECONDITION(IsCompilationProcess());
-    }
-    CONTRACTL_END;
-
-    // Although this is only called during ngen we still get cases where a module comes through here already ngen'd (because of
-    // ngen's habit of letting code execute during compilation). Until that's fixed we'll just back out if the module has already
-    // fixed the root table into unwriteable storage.
-    if (m_pCerNgenRootTable && !(m_dwTransientFlags & M_CER_ROOT_TABLE_ON_HEAP))
-        return;
-
-    // Lazily allocate a Crst to serialize update access to the info structure.
-    // Carefully synchronize to ensure we don't leak a Crst in race conditions.
-    if (m_pCerCrst == NULL)
-    {
-        Crst *pCrst = new Crst(CrstCer);
-        if (InterlockedCompareExchangeT(&m_pCerCrst, pCrst, NULL) != NULL)
-            delete pCrst;
-    }
-
-    CrstHolder sCrstHolder(m_pCerCrst);
-
-    // Lazily allocate the root table structure.
-    if (m_pCerNgenRootTable == NULL)
-    {
-        FastInterlockOr(&m_dwTransientFlags, M_CER_ROOT_TABLE_ON_HEAP);
-        m_pCerNgenRootTable = new CerNgenRootTable();
-    }
-
-    _ASSERTE(m_dwTransientFlags & M_CER_ROOT_TABLE_ON_HEAP);
-
-    // And add the new element.
-    m_pCerNgenRootTable->AddRoot(pRootMD, pList);
-}
-#endif // FEATURE_NATIVE_IMAGE_GENERATION
-
-#ifdef FEATURE_PREJIT 
-// Returns true if the given method is a CER root detected at ngen time.
-bool Module::IsNgenCerRootMethod(MethodDesc *pMD)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    _ASSERTE(pMD->GetModule() == this);
-    if (m_pCerNgenRootTable)
-        return m_pCerNgenRootTable->IsNgenRootMethod(pMD);
-    return false;
-}
-
-// Restores the CER rooted at this method (no-op if this method isn't a CER root).
-void Module::RestoreCer(MethodDesc *pMD)
-{
-    STANDARD_VM_CONTRACT;
-    _ASSERTE(pMD->GetModule() == this);
-    if (m_pCerNgenRootTable)
-        m_pCerNgenRootTable->Restore(pMD);
-}
-
-#endif // FEATURE_PREJIT
-
-#endif // !DACCESS_COMPILE
 
 
 
@@ -15784,7 +14275,6 @@ LPCWSTR Module::GetPathForErrorMessages()
     }
 }
 
-#ifdef FEATURE_CORECLR
 #ifndef DACCESS_COMPILE
 BOOL IsVerifiableWrapper(MethodDesc* pMD)
 {
@@ -15851,9 +14341,6 @@ void Module::VerifyAllMethods()
     };
     //Verify all methods in a module eagerly, forcing them to get loaded.
 
-    /* XXX Thu 4/26/2007
-     * This code is lifted mostly from Validator.cpp
-     */
     IMDInternalImport * pMDI = GetMDImport();
     HENUMTypeDefInternalHolder hEnum(pMDI);
     mdTypeDef td;
@@ -15877,7 +14364,6 @@ void Module::VerifyAllMethods()
         EEFileLoadException::Throw(GetFile(), COR_E_VERIFICATION);
 #endif //DACCESS_COMPILE
 }
-#endif //FEATURE_CORECLR
 
 
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
@@ -15917,9 +14403,9 @@ void Module::ExpandAll()
                                                                                  pMD->GetMDImport(),
                                                                                  &ignored));
 #ifdef FEATURE_INTERPRETER
-                pMD->MakeJitWorker(pHeader, CORJIT_FLG_MAKEFINALCODE, 0);
+                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE));
 #else
-                pMD->MakeJitWorker(pHeader, 0, 0);
+                pMD->MakeJitWorker(pHeader, CORJIT_FLAGS());
 #endif
             }
         }
@@ -16054,8 +14540,7 @@ void Module::ExpandAll()
 #include "clrvarargs.h" /* for VARARG C_ASSERTs in asmconstants.h */
 class CheckAsmOffsets
 {
-#define ASMCONSTANTS_C_ASSERT(cond) \
-        typedef char UNIQUE_LABEL(__C_ASSERT__)[(cond) ? 1 : -1];
+#define ASMCONSTANTS_C_ASSERT(cond) static_assert(cond, #cond);
 #include "asmconstants.h"
 };
 

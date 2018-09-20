@@ -20,16 +20,11 @@
 #include "../inc/mdlog.h"
 #include "utsem.h"
 
-#include "newmerger.h"
-
 #include "rwutil.h"
 #include "mdperf.h"
 #include <ivehandler.h>
 
 #include "sigparser.h"
-#ifdef FEATURE_FUSION
-#include "fusion.h"
-#endif
 
 #include "winmdinterfaces.h"
 
@@ -155,9 +150,7 @@ class RegMeta :
     public IMetaDataAssemblyImport, 
     public IMetaDataTables2
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
     , public IMetaDataInfo 
-#endif
 
 #ifdef FEATURE_METADATA_EMIT
     , public IMetaDataEmit2 
@@ -188,7 +181,6 @@ class RegMeta :
 #endif
     , public IMDCommon
 {
-    friend class NEWMERGER;
     friend class CImportTlb;
     friend class MDInternalRW;
     friend class MDInternalRO;
@@ -1492,7 +1484,6 @@ public:
         const void **ppv,                       // [OUT] put pointer to MD stream here.
         ULONG       *pcb);                      // [OUT] put size of the stream here.
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
 
 //*****************************************************************************
 // IMetaDataInfo
@@ -1511,7 +1502,6 @@ public:
         ULONGLONG *   pcbData,          // [out] Size of the mapped memory region..
         DWORD *       pdwMappingType);  // [out] Type of file mapping (code:CorFileMapping).
 
-#endif //!FEATURE_METADATA_STANDALONE_WINRT
 
 #if defined(FEATURE_METADATA_IN_VM) && defined(FEATURE_PREJIT)
 
@@ -1633,8 +1623,6 @@ protected:
     }
 
     HRESULT PreSave();
-    HRESULT ProcessFilter();
-    HRESULT ProcessFilterWorker();
 
     // Initialize the EE
     HRESULT StartupEE();
@@ -2026,18 +2014,12 @@ protected:
     bool        m_fIsTypeDefDirty;          // This flag is set when the TypeRef to TypeDef map is not valid
     bool        m_fIsMemberDefDirty;        // This flag is set when the MemberRef to MemberDef map is not valid
     bool        m_fStartedEE;               // Set when EE runtime has been started up.
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    ICorRuntimeHost *m_pCorHost;            // Hosting environment for EE runtime.
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     IUnknown    *m_pAppDomain;              // AppDomain in which managed security code will be run. 
 
 private:
     ULONG       m_OpenFlags;                // Open time flags.
 
     LONG        m_cRef;                     // Ref count.
-#ifdef FEATURE_METADATA_EMIT_ALL
-    NEWMERGER   m_newMerger;                // class for handling merge 
-#endif //FEATURE_METADATA_EMIT_ALL
     IUnknown    *m_pFreeThreadedMarshaler;   // FreeThreadedMarshaler
     
 #ifdef FEATURE_METADATA_PERF_STATS
@@ -2059,9 +2041,6 @@ private:
 
     CorValidatorModuleType      m_ModuleType;
     IVEHandler                  *m_pVEHandler;
-#ifndef FEATURE_CORECLR
-    ValidateRecordFunction      m_ValidateRecordFunctionTable[TBL_COUNT];
-#endif
     CCustAttrHash               m_caHash;   // Hashed list of custom attribute types seen.
     
     bool        m_bKeepKnownCa;             // Should all known CA's be kept?

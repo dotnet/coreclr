@@ -226,13 +226,8 @@ class Object
     // advance to the true method table or class.
     BOOL            IsTransparentProxy()                        
     { 
-#ifdef FEATURE_REMOTING
-        WRAPPER_NO_CONTRACT;
-        return( GetMethodTable()->IsTransparentProxy() );
-#else
         LIMITED_METHOD_CONTRACT;
         return FALSE;
-#endif
     }
 
 #define MARKED_BIT 0x1
@@ -326,6 +321,8 @@ class Object
 #ifndef DACCESS_COMPILE
     // Set app domain of object to current domain.
     void SetAppDomain() { WRAPPER_NO_CONTRACT; SetAppDomain(::GetAppDomain()); }
+    BOOL SetAppDomainNoThrow();
+    
 #endif
 
     // Set app domain of object to given domain - it can only be set once
@@ -637,10 +634,10 @@ class Object
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
 
-        // lose GC marking bit and the pinning bit
+        // lose GC marking bit and the reserved bit
         // A method table pointer should always be aligned.  During GC we set the least 
-        // significant bit for marked objects and we set the second to least significant
-        // bit for pinned objects.  So if we want the actual MT pointer during a GC
+        // significant bit for marked objects, and the second to least significant
+        // bit is reserved.  So if we want the actual MT pointer during a GC
         // we must zero out the lowest 2 bits.
         return dac_cast<PTR_MethodTable>((dac_cast<TADDR>(m_pMethTab)) & ~((UINT_PTR)3));
     }
@@ -1060,11 +1057,7 @@ typedef PTR_StringObject STRINGREF;
  *
  * Special String implementation for performance.   
  *
- *   m_ArrayLength  - Length of buffer (m_Characters) in number of WCHARs
- *   m_StringLength - Length of string in number of WCHARs, may be smaller
- *                    than the m_ArrayLength implying that there is extra
- *                    space at the end. The high two bits of this field are used
- *                    to indicate if the String has characters higher than 0x7F
+ *   m_StringLength - Length of string in number of WCHARs
  *   m_Characters   - The string buffer
  *
  */
@@ -1275,10 +1268,6 @@ inline STRINGREF* StringObject::GetEmptyStringRefPtr() {
 // RuntimeMethodInfo, and RtFieldInfo.
 class BaseObjectWithCachedData : public Object
 {
-#ifdef FEATURE_REMOTING
-    protected:
-        OBJECTREF  m_CachedData;
-#endif //FEATURE_REMOTING
 };
 
 // This is the Class version of the Reflection object.
@@ -1295,9 +1284,6 @@ protected:
     OBJECTREF           m_keepalive;
     OBJECTREF           m_cache;
     TypeHandle          m_typeHandle;
-#ifdef FEATURE_APPX
-    UINT32              m_invocationFlags;
-#endif
 
 #ifdef _DEBUG
     void TypeCheck()
@@ -1510,10 +1496,6 @@ class PermissionListSetObject: public Object
 private:
     OBJECTREF _firstPermSetTriple;
     OBJECTREF _permSetTriples;
-#ifdef FEATURE_COMPRESSEDSTACK
-    OBJECTREF _zoneList;
-    OBJECTREF _originList;
-#endif // FEATURE_COMPRESSEDSTACK
 
 public:
     BOOL IsEmpty() 
@@ -1521,10 +1503,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (_firstPermSetTriple == NULL &&
                 _permSetTriples == NULL
-#ifdef FEATURE_COMPRESSEDSTACK
-                && _zoneList == NULL &&
-                _originList == NULL
-#endif // FEATURE_COMPRESSEDSTACK
                 );
     }
 };
@@ -1534,74 +1512,8 @@ typedef REF<PermissionListSetObject> PERMISSIONLISTSETREF;
 #else
 typedef PermissionListSetObject*     PERMISSIONLISTSETREF;
 #endif
-#ifdef FEATURE_COMPRESSEDSTACK
-class CompressedStackObject: public Object
-{
-    friend class MscorlibBinder;
-
-private:
-    // These field are also defined in the managed representation.  (CompressedStack.cs)If you
-    // add or change these field you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size. 
-    PERMISSIONLISTSETREF m_pls;
-    SAFEHANDLEREF m_compressedStackHandle;
-
-public:
-    void* GetUnmanagedCompressedStack();
-    BOOL IsEmptyPLS() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_pls == NULL || m_pls->IsEmpty());
-    }
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<CompressedStackObject> COMPRESSEDSTACKREF;
-#else
-typedef CompressedStackObject*     COMPRESSEDSTACKREF;
-#endif
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
     
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-class SecurityContextObject: public Object
-{
-    friend class MscorlibBinder;
 
-private:
-    
-    // These field are also defined in the managed representation.  (SecurityContext.cs)If you
-    // add or change these field you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size. 
-
-    OBJECTREF               _executionContext;
-#ifdef FEATURE_IMPERSONATION
-    OBJECTREF               _windowsIdentity;
-#endif // FEATURE_IMPERSONATION
-#ifdef FEATURE_COMPRESSEDSTACK
-    COMPRESSEDSTACKREF      _compressedStack;
-#endif // FEATURE_COMPRESSEDSTACK
-    INT32                   _disableFlow;
-    CLR_BOOL                _isNewCapture;
-public:
-#ifdef FEATURE_COMPRESSEDSTACK    
-    COMPRESSEDSTACKREF GetCompressedStack()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _compressedStack;
-    }
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<SecurityContextObject> SECURITYCONTEXTREF;
-#else
-typedef SecurityContextObject*     SECURITYCONTEXTREF;
-#endif
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 #define SYNCCTXPROPS_REQUIRESWAITNOTIFICATION 0x1 // Keep in sync with SynchronizationContext.cs SynchronizationContextFlags
 class ThreadBaseObject;
 class SynchronizationContextObject: public Object
@@ -1622,210 +1534,21 @@ public:
         return FALSE;
     }
 };
-#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 
-#ifdef FEATURE_REMOTING
-class CallContextRemotingDataObject : public Object
-{
-private:
-    // These field are also defined in the managed representation.  (SecurityContext.cs)If you
-    // add or change these field you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size. 
-    OBJECTREF _logicalCallID;
-public:
-    OBJECTREF GetLogicalCallID()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _logicalCallID;
-    }
-};
 
-class CallContextSecurityDataObject : public Object
-{
-private:
-    // These field are also defined in the managed representation.  (SecurityContext.cs)If you
-    // add or change these field you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size. 
-    OBJECTREF _principal;
-public:
-    OBJECTREF GetPrincipal()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _principal;
-    }
-
-    void SetPrincipal(OBJECTREF ref)
-    {
-        WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked(&_principal, ref);
-    }
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<CallContextSecurityDataObject> CCSECURITYDATAREF;
-typedef REF<CallContextRemotingDataObject> CCREMOTINGDATAREF;
-#else
-typedef CallContextSecurityDataObject*     CCSECURITYDATAREF;
-typedef CallContextRemotingDataObject*     CCREMOTINGDATAREF;
-#endif
-
-class LogicalCallContextObject : public Object
-{
-    friend class MscorlibBinder;
-    
-    // These field are also defined in the managed representation.  (CallContext.cs) If you
-    // add or change these field you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size.
-private :
-    OBJECTREF               m_Datastore;
-    CCREMOTINGDATAREF       m_RemotingData;
-    CCSECURITYDATAREF       m_SecurityData;
-    OBJECTREF               m_HostContext;
-    OBJECTREF               _sendHeaders;
-    OBJECTREF               _recvHeaders;
-    CLR_BOOL                m_IsCorrelationMgr;
-
-public:
-    CCSECURITYDATAREF GetSecurityData()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_SecurityData;
-    }
-
-    // This is an unmanaged equivalent of System.Runtime.Remoting.Messaging.LogicalCallContext.HasInfo
-    BOOL ContainsDataForSerialization() 
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            SO_TOLERANT;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-        return (ContainsNonSecurityDataForSerialization() ||
-               (m_SecurityData != NULL && m_SecurityData->GetPrincipal() != NULL));
-    }
-
-    BOOL ContainsNonSecurityDataForSerialization() 
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        // m_Datastore may contain 0 items even if it's non-NULL in which case it does
-        // not really contain any useful data for serialization and this function could
-        // return FALSE. However we don't waste time trying to detect this case - it will
-        // be reset to NULL the first time a call is made due to how LogicalCallContext's
-        // ISerializable implementation works.
-        return (m_Datastore != NULL ||
-               (m_RemotingData != NULL && m_RemotingData->GetLogicalCallID() != NULL) ||
-                m_HostContext != NULL);
-    }
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<LogicalCallContextObject> LOGICALCALLCONTEXTREF;
-#else
-typedef LogicalCallContextObject*     LOGICALCALLCONTEXTREF;
-#endif
-
-#endif // FEATURE_REMOTING
-
-#ifndef FEATURE_CORECLR
-class ExecutionContextObject : public Object
-{
-    friend class MscorlibBinder;
-    
-    // These fields are also defined in the managed representation.  (ExecutionContext.cs) If you
-    // add or change these fields you must also change the managed code so that
-    // it matches these.  This is necessary so that the object is the proper
-    // size.
-private :
-#ifdef FEATURE_CAS_POLICY
-    OBJECTREF               _hostExecutionContext;
-#endif // FEATURE_CAS_POLICY
-    OBJECTREF               _syncContext;
-    OBJECTREF               _syncContextNoFlow;
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-    SECURITYCONTEXTREF      _securityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-#ifdef FEATURE_REMOTING
-    LOGICALCALLCONTEXTREF   _logicalCallContext;
-    OBJECTREF               _illogicalCallContext;
-#endif // #ifdef FEATURE_REMOTING
-    INT32                   _flags;
-    OBJECTREF               _localValues;
-    OBJECTREF               _localChangeNotifications;
-
-public:
-    OBJECTREF GetSynchronizationContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _syncContext;
-    }   
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)    
-    SECURITYCONTEXTREF GetSecurityContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _securityContext;
-    }
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-#ifdef FEATURE_REMOTING
-    LOGICALCALLCONTEXTREF GetLogicalCallContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _logicalCallContext;
-    }
-    void SetLogicalCallContext(LOGICALCALLCONTEXTREF ref)
-    { 
-        WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked((OBJECTREF*)&_logicalCallContext, (OBJECTREF)ref);
-    }
-    OBJECTREF GetIllogicalCallContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _illogicalCallContext;
-    }
-    void SetIllogicalCallContext(OBJECTREF ref)
-    { 
-        WRAPPER_NO_CONTRACT;
-        SetObjectReferenceUnchecked((OBJECTREF*)&_illogicalCallContext, ref);
-    }
-#endif //#ifdef FEATURE_REMOTING
-#ifdef FEATURE_COMPRESSEDSTACK    
-    COMPRESSEDSTACKREF GetCompressedStack()
-    {
-        WRAPPER_NO_CONTRACT;
-        if (_securityContext != NULL)
-            return _securityContext->GetCompressedStack();
-        return NULL;
-    }
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-        
-};
-#endif //FEATURE_CORECLR
 
 
 
 typedef DPTR(class CultureInfoBaseObject) PTR_CultureInfoBaseObject;
 
 #ifdef USE_CHECKED_OBJECTREFS
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 typedef REF<SynchronizationContextObject> SYNCHRONIZATIONCONTEXTREF;
-#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 typedef REF<ExecutionContextObject> EXECUTIONCONTEXTREF;
 typedef REF<CultureInfoBaseObject> CULTUREINFOBASEREF;
 typedef REF<ArrayBase> ARRAYBASEREF;
 
 #else
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 typedef SynchronizationContextObject*     SYNCHRONIZATIONCONTEXTREF;
-#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
-#ifndef FEATURE_CORECLR
-typedef ExecutionContextObject*     EXECUTIONCONTEXTREF;
-#endif
 typedef CultureInfoBaseObject*     CULTUREINFOBASEREF;
 typedef PTR_ArrayBase ARRAYBASEREF;
 #endif
@@ -1851,210 +1574,34 @@ class CultureInfoBaseObject : public Object
 private:
     OBJECTREF compareInfo;
     OBJECTREF textInfo;
-#ifndef FEATURE_CORECLR
-    OBJECTREF regionInfo;
-#endif // !FEATURE_CORECLR
     OBJECTREF numInfo;
     OBJECTREF dateTimeInfo;
     OBJECTREF calendar;
-    OBJECTREF m_cultureData;
-#ifndef FEATURE_CORECLR
-    OBJECTREF m_consoleFallbackCulture;
-#endif // !FEATURE_CORECLR
-    STRINGREF m_name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
-    STRINGREF m_nonSortName;                // name w/o sort info (de-DE for de-DE_phoneb)
-    STRINGREF m_sortName;                   // Sort only name (de-DE_phoneb, en-us for fj-fj (w/us sort)
-    CULTUREINFOBASEREF m_parent;
-#if !FEATURE_CORECLR
-    INT32    iDataItem;                     // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-    INT32    iCultureID;                    // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    INT32 m_createdDomainID;
-#endif // FEATURE_LEAK_CULTURE_INFO
-    CLR_BOOL m_isReadOnly;
-    CLR_BOOL m_isInherited;
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    CLR_BOOL m_isSafeCrossDomain;
-#endif // FEATURE_LEAK_CULTURE_INFO
-#ifndef FEATURE_COREFX_GLOBALIZATION
-    CLR_BOOL m_useUserOverride;
-#endif
+    OBJECTREF _cultureData;
+    OBJECTREF _consoleFallbackCulture;
+    STRINGREF _name;                       // "real" name - en-US, de-DE_phoneb or fj-FJ
+    STRINGREF _nonSortName;                // name w/o sort info (de-DE for de-DE_phoneb)
+    STRINGREF _sortName;                   // Sort only name (de-DE_phoneb, en-us for fj-fj (w/us sort)
+    CULTUREINFOBASEREF _parent;
+    CLR_BOOL _isReadOnly;
+    CLR_BOOL _isInherited;
+    CLR_BOOL _useUserOverride;
 
 public:
     CULTUREINFOBASEREF GetParent()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_parent;
+        return _parent;
     }// GetParent
 
 
     STRINGREF GetName()
     {
         LIMITED_METHOD_CONTRACT;
-        return m_name;
+        return _name;
     }// GetName
 
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    BOOL IsSafeCrossDomain()
-    {
-        return m_isSafeCrossDomain;
-    }// IsSafeCrossDomain
-
-    ADID GetCreatedDomainID()
-    {
-        return ADID(m_createdDomainID);
-    }// GetCreatedDomain
-#endif // FEATURE_LEAK_CULTURE_INFO
-
 }; // class CultureInfoBaseObject
-
-
-#ifndef FEATURE_COREFX_GLOBALIZATION
-typedef DPTR(class CultureDataBaseObject) PTR_CultureDataBaseObject;
-class CultureDataBaseObject : public Object
-{
-public:
-        // offsets are for Silverlight
-        /* 0x000 */ STRINGREF sRealName                ; // Name you passed in (ie: en-US, en, or de-DE_phoneb)
-        /* 0x008 */ STRINGREF sWindowsName             ; // Name OS thinks the object is (ie: de-DE_phoneb, or en-US (even if en was passed in))       
-        /* 0x010 */ STRINGREF sName                    ; // locale name (ie: en-us, NO sort info, but could be neutral)
-        /* 0x012 */ STRINGREF sParent                  ; // Parent name (which may be a custom locale/culture)        
-        /* 0x020 */ STRINGREF sLocalizedDisplayName    ; // Localized pretty name for this locale
-        /* 0x028 */ STRINGREF sEnglishDisplayName      ; // English pretty name for this locale
-        /* 0x030 */ STRINGREF sNativeDisplayName       ; // Native pretty name for this locale        
-        /* 0x038 */ STRINGREF sSpecificCulture         ; // The culture name to be used in CultureInfo.CreateSpecificCulture(), en-US form if neutral, sort name if sort
-        /* 0x040 */ STRINGREF sISO639Language          ; // ISO 639 Language Name
-        /* 0x048 */ STRINGREF sLocalizedLanguage       ; // Localized name for this language
-        /* 0x050 */ STRINGREF sEnglishLanguage         ; // English name for this language
-        /* 0x058 */ STRINGREF sNativeLanguage          ; // Native name of this language
-        /* 0x060 */ STRINGREF sRegionName              ; // (RegionInfo)        
-        /* 0x068 */ STRINGREF sLocalizedCountry        ; // localized country name
-        /* 0x070 */ STRINGREF sEnglishCountry          ; // english country name (RegionInfo)
-        /* 0x078 */ STRINGREF sNativeCountry           ; // native country name
-        /* 0x080 */ STRINGREF sISO3166CountryName      ; // (RegionInfo), ie: US
-        /* 0x088 */ STRINGREF sPositiveSign            ; // (user can override) positive sign
-        /* 0x090 */ STRINGREF sNegativeSign            ; // (user can override) negative sign
-
-        /* 0x098 */ PTRARRAYREF saNativeDigits         ; // (user can override) native characters for digits 0-9
-        /* 0x0a0 */ I4ARRAYREF  waGrouping             ; // (user can override) grouping of digits
-
-        /* 0x0a8 */ STRINGREF sDecimalSeparator        ; // (user can override) decimal separator
-        /* 0x0b0 */ STRINGREF sThousandSeparator       ; // (user can override) thousands separator
-        /* 0x0b8 */ STRINGREF sNaN                     ; // Not a Number
-        /* 0x0c0 */ STRINGREF sPositiveInfinity        ; // + Infinity
-        /* 0x0c8 */ STRINGREF sNegativeInfinity        ; // - Infinity
-        /* 0x0d0 */ STRINGREF sPercent                 ; // Percent (%) symbol
-        /* 0x0d8 */ STRINGREF sPerMille                ; // PerMille (U+2030) symbol
-        /* 0x0e0 */ STRINGREF sCurrency                ; // (user can override) local monetary symbol
-        /* 0x0e8 */ STRINGREF sIntlMonetarySymbol      ; // international monetary symbol (RegionInfo)
-        /* 0x0f0 */ STRINGREF sEnglishCurrency         ; // English name for this currency
-        /* 0x0f8 */ STRINGREF sNativeCurrency          ; // Native name for this currency
-
-        /* 0x100 */ I4ARRAYREF  waMonetaryGrouping     ; // (user can override) monetary grouping of digits
-
-        /* 0x108 */ STRINGREF sMonetaryDecimal         ; // (user can override) monetary decimal separator
-        /* 0x110 */ STRINGREF sMonetaryThousand        ; // (user can override) monetary thousands separator
-        /* 0x118 */ STRINGREF sListSeparator           ; // (user can override) list separator       
-        /* 0x120 */ STRINGREF sAM1159                  ; // (user can override) AM designator
-        /* 0x128 */ STRINGREF sPM2359                  ; // (user can override) PM designator
-                    STRINGREF sTimeSeparator           ; // Time Separator
-
-        /* 0x130 */ PTRARRAYREF saLongTimes            ; // (user can override) time format
-        /* 0x138 */ PTRARRAYREF saShortTimes           ; // short time format
-        /* 0x140 */ PTRARRAYREF saDurationFormats      ; // time duration format 
-
-        /* 0x148 */ I4ARRAYREF  waCalendars            ; // all available calendar type(s).  The first one is the default calendar
-
-        /* 0x150 */ PTRARRAYREF calendars              ; // Store for specific calendar data
-
-        /* 0x158 */ STRINGREF sTextInfo                ; // Text info name to use for custom
-        /* 0x160 */ STRINGREF sCompareInfo             ; // Compare info name (including sorting key) to use if custom
-        /* 0x168 */ STRINGREF sScripts                 ; // Typical Scripts for this locale (latn;cyrl; etc)
-
-#if !defined(FEATURE_CORECLR)
-        // desktop only fields - these are ordered correctly
-        /* ????? */ STRINGREF sAbbrevLang              ; // abbreviated language name (Windows Language Name) ex: ENU
-        /* ????? */ STRINGREF sAbbrevCountry           ; // abbreviated country name (RegionInfo) (Windows Region Name) ex: USA
-        /* ????? */ STRINGREF sISO639Language2         ; // 3 char ISO 639 lang name 2 ex: eng
-        /* ????? */ STRINGREF sISO3166CountryName2     ; // 3 char ISO 639 country name 2 2(RegionInfo) ex: USA (ISO)
-        /* ????? */ STRINGREF sConsoleFallbackName     ; // The culture name for the console fallback UI culture
-        /* ????? */ STRINGREF sKeyboardsToInstall      ; // Keyboard installation string.
-        /* ????? */ STRINGREF fontSignature            ; // Font signature (16 WORDS)
-#endif
-
-// Unused for now:        /* ????? */ INT32    iCountry                  ; // (user can override) country code (RegionInfo)
-        /* 0x170 */ INT32    iGeoId                    ; // GeoId
-        /* 0x174 */ INT32    iDigitSubstitution        ; // (user can override) Digit substitution 0=context, 1=none/arabic, 2=Native/national (2 seems to be unused)
-        /* 0x178 */ INT32    iLeadingZeros             ; // (user can override) leading zeros 0 = no leading zeros, 1 = leading zeros
-        /* 0x17c */ INT32    iDigits                   ; // (user can override) number of fractional digits
-        /* 0x180 */ INT32    iNegativeNumber           ; // (user can override) negative number format
-        /* 0x184 */ INT32    iNegativePercent          ; // Negative Percent (0-3)
-        /* 0x188 */ INT32    iPositivePercent          ; // Positive Percent (0-11)
-        /* 0x18c */ INT32    iCurrencyDigits           ; // (user can override) # local monetary fractional digits
-        /* 0x190 */ INT32    iCurrency                 ; // (user can override) positive currency format
-        /* 0x194 */ INT32    iNegativeCurrency         ; // (user can override) negative currency format       
-        /* 0x198 */ INT32    iMeasure                  ; // (user can override) system of measurement 0=metric, 1=US (RegionInfo)
-// Unused for now        /* ????? */ INT32    iPaperSize                ; // default paper size (RegionInfo)
-        /* 0x19c */ INT32    iFirstDayOfWeek           ; // (user can override) first day of week (gregorian really)
-        /* 0x1a0 */ INT32    iFirstWeekOfYear          ; // (user can override) first week of year (gregorian really)
-
-        /* ????? */ INT32    iReadingLayout; // Reading Layout Data (0-3)
-#if !defined(FEATURE_CORECLR)
-        // desktop only fields - these are ordered correctly
-        /* ????? */ INT32    iDefaultAnsiCodePage      ; // default ansi code page ID (ACP)
-        /* ????? */ INT32    iDefaultOemCodePage       ; // default oem code page ID (OCP or OEM)
-        /* ????? */ INT32    iDefaultMacCodePage       ; // default macintosh code page
-        /* ????? */ INT32    iDefaultEbcdicCodePage    ; // default EBCDIC code page
-        /* ????? */ INT32    iLanguage                 ; // locale ID (0409) - NO sort information
-        /* ????? */ INT32    iInputLanguageHandle      ; // input language handle
-#endif
-        /* 0x1a4 */ CLR_BOOL bUseOverrides             ; // use user overrides?
-        /* 0x1a5 */ CLR_BOOL bNeutral                  ; // Flags for the culture (ie: neutral or not right now)        
-#if !defined(FEATURE_CORECLR)
-        /* ????? */ CLR_BOOL bWin32Installed           ; // Flags indicate if the culture is Win32 installed       
-        /* ????? */ CLR_BOOL bFramework                ; // Flags for indicate if the culture is one of Whidbey cultures 
-#endif
-
-}; // class CultureDataBaseObject
-
-
-
-typedef DPTR(class CalendarDataBaseObject) PTR_CalendarDataBaseObject;
-class CalendarDataBaseObject : public Object
-{
-public:   
-    /* 0x000 */ STRINGREF   sNativeName                 ; // Calendar Name for the locale
-    
-    // Formats
-    
-    /* 0x008 */ PTRARRAYREF saShortDates                ; // Short Data format, default first
-    /* 0x010 */ PTRARRAYREF saYearMonths                ; // Year/Month Data format, default first
-    /* 0x018 */ PTRARRAYREF saLongDates                 ; // Long Data format, default first
-    /* 0x020 */ STRINGREF   sMonthDay                   ; // Month/Day format
-
-    // Calendar Parts Names
-    /* 0x028 */ PTRARRAYREF saEraNames                  ; // Names of Eras
-    /* 0x030 */ PTRARRAYREF saAbbrevEraNames            ; // Abbreviated Era Names
-    /* 0x038 */ PTRARRAYREF saAbbrevEnglishEraNames     ; // Abbreviated Era Names in English
-    /* 0x040 */ PTRARRAYREF saDayNames                  ; // Day Names, null to use locale data, starts on Sunday
-    /* 0x048 */ PTRARRAYREF saAbbrevDayNames            ; // Abbrev Day Names, null to use locale data, starts on Sunday
-    /* 0x050 */ PTRARRAYREF saSuperShortDayNames        ; // Super short Day of week names
-    /* 0x058 */ PTRARRAYREF saMonthNames                ; // Month Names (13)
-    /* 0x060 */ PTRARRAYREF saAbbrevMonthNames          ; // Abbrev Month Names (13)
-    /* 0x068 */ PTRARRAYREF saMonthGenitiveNames        ; // Genitive Month Names (13)
-    /* 0x070 */ PTRARRAYREF saAbbrevMonthGenitiveNames  ; // Genitive Abbrev Month Names (13)
-    /* 0x078 */ PTRARRAYREF saLeapYearMonthNames        ; // Multiple strings for the month names in a leap year.
-
-    // Integers at end to make marshaller happier
-    /* 0x080 */ INT32       iTwoDigitYearMax            ; // Max 2 digit year (for Y2K bug data entry)
-    /* 0x084 */ INT32       iCurrentEra                 ; // current era # (usually 1)
-
-    // Use overrides?
-    /* 0x088 */ CLR_BOOL    bUseUserOverrides           ; // True if we want user overrides.
-}; // class CalendarDataBaseObject
-#endif
-
 
 typedef DPTR(class ThreadBaseObject) PTR_ThreadBaseObject;
 class ThreadBaseObject : public Object
@@ -2072,18 +1619,10 @@ private:
     //  size.  The order here must match that order which the loader will choose
     //  when laying out the managed class.  Note that the layouts are checked
     //  at run time, not compile time.
-#ifdef FEATURE_REMOTING    
-    OBJECTREF     m_ExposedContext;
-#endif    
-#ifndef FEATURE_CORECLR
-    EXECUTIONCONTEXTREF     m_ExecutionContext;
-#endif
+    OBJECTREF     m_ExecutionContext;
+    OBJECTREF     m_SynchronizationContext;
     OBJECTREF     m_Name;
     OBJECTREF     m_Delegate;
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    CULTUREINFOBASEREF     m_CurrentUserCulture;
-    CULTUREINFOBASEREF     m_CurrentUICulture;
-#endif
 #ifdef IO_CANCELLATION_ENABLED
     OBJECTREF     m_CancellationSignals;
 #endif
@@ -2147,87 +1686,21 @@ public:
     OBJECTREF GetDelegate()                   { LIMITED_METHOD_CONTRACT; return m_Delegate; }
     void      SetDelegate(OBJECTREF delegate);
 
-#ifndef FEATURE_LEAK_CULTURE_INFO
     CULTUREINFOBASEREF GetCurrentUserCulture();
     CULTUREINFOBASEREF GetCurrentUICulture();
     OBJECTREF GetManagedThreadCulture(BOOL bUICulture);
     void ResetManagedThreadCulture(BOOL bUICulture);
     void ResetCurrentUserCulture();
     void ResetCurrentUICulture();
-#endif
 
-#ifdef FEATURE_REMOTING
-    // These expose the remoting context (System\Remoting\Context)
-    OBJECTREF GetExposedContext() { LIMITED_METHOD_CONTRACT; return m_ExposedContext; }
-    OBJECTREF SetExposedContext(OBJECTREF newContext) 
-    {
-        WRAPPER_NO_CONTRACT;
 
-        OBJECTREF oldContext = m_ExposedContext;
 
-        // Note: this is a very dangerous unchecked assignment.  We are taking
-        // responsibilty here for cleaning out the ExposedContext field when 
-        // an app domain is unloaded.
-        SetObjectReferenceUnchecked( (OBJECTREF *)&m_ExposedContext, newContext );
-
-        return oldContext;
-    }
-#endif
-
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    CULTUREINFOBASEREF GetCurrentUserCulture()
-    { 
-        LIMITED_METHOD_CONTRACT; 
-        return m_CurrentUserCulture;
-    }
-
-    void ResetCurrentUserCulture()
-    { 
-        WRAPPER_NO_CONTRACT; 
-        ClearObjectReference((OBJECTREF *)&m_CurrentUserCulture);
-    }
-
-    CULTUREINFOBASEREF GetCurrentUICulture() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
-        return m_CurrentUICulture;
-    }
-
-    void ResetCurrentUICulture()
-    { 
-        WRAPPER_NO_CONTRACT; 
-        ClearObjectReference((OBJECTREF *)&m_CurrentUICulture);
-    }
-#endif // FEATURE_LEAK_CULTURE_INFO
-
-#ifndef FEATURE_CORECLR
     OBJECTREF GetSynchronizationContext()
     {
-        LIMITED_METHOD_CONTRACT; 
-        if (m_ExecutionContext != NULL)
-            return m_ExecutionContext->GetSynchronizationContext();
-        return NULL;
-    }
-    OBJECTREF GetExecutionContext() 
-    { 
-        LIMITED_METHOD_CONTRACT; 
-        return (OBJECTREF)m_ExecutionContext;
-    }
-    void SetExecutionContext(OBJECTREF ref)
-    { 
         LIMITED_METHOD_CONTRACT;
-        SetObjectReferenceUnchecked((OBJECTREF*)&m_ExecutionContext, ref);
+        return m_SynchronizationContext;
     }
-#endif //!FEATURE_CORECLR
-#ifdef FEATURE_COMPRESSEDSTACK    
-    COMPRESSEDSTACKREF GetCompressedStack()
-    {
-        WRAPPER_NO_CONTRACT;
-        if (m_ExecutionContext != NULL)
-            return m_ExecutionContext->GetCompressedStack();
-        return NULL;
-    }
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
+
     // SetDelegate is our "constructor" for the pathway where the exposed object is
     // created first.  InitExisting is our "constructor" for the pathway where an
     // existing physical thread is later exposed.
@@ -2264,22 +1737,6 @@ public:
 //  
 class MarshalByRefObjectBaseObject : public Object
 {
-#ifdef FEATURE_REMOTING
-    friend class MscorlibBinder;
-
-  public:
-    static int GetOffsetOfServerIdentity() { LIMITED_METHOD_CONTRACT; return offsetof(MarshalByRefObjectBaseObject, m_ServerIdentity); }
-
-  protected:
-    // READ ME:
-    // Modifying the order or fields of this object may require other changes to the
-    //  classlib class definition of this object.
-    OBJECTREF     m_ServerIdentity;
-
-  protected:
-    MarshalByRefObjectBaseObject() {LIMITED_METHOD_CONTRACT;}
-   ~MarshalByRefObjectBaseObject() {LIMITED_METHOD_CONTRACT;}   
-#endif   
 };
 
 
@@ -2377,40 +1834,16 @@ class AppDomainBaseObject : public MarshalByRefObjectBaseObject
     OBJECTREF    m_pTypeEventHandler;     // Delegate for 'resolve type' event
     OBJECTREF    m_pResourceEventHandler; // Delegate for 'resolve resource' event
     OBJECTREF    m_pAsmResolveEventHandler; // Delegate for 'resolve assembly' event
-#ifdef FEATURE_REFLECTION_ONLY_LOAD
-    OBJECTREF    m_pReflectionAsmResolveEventHandler; //Delegate for 'reflection resolve assembly' event
-#endif    
-#ifdef FEATURE_REMOTING
-    OBJECTREF    m_pDefaultContext;     // Default managed context for this AD.
-#endif    
-#ifdef FEATURE_CLICKONCE
-    OBJECTREF    m_pActivationContext;   // ClickOnce ActivationContext.
-    OBJECTREF    m_pApplicationIdentity; // App ApplicationIdentity.
-#endif    
     OBJECTREF    m_pApplicationTrust;    // App ApplicationTrust.
-#ifdef FEATURE_IMPERSONATION
-    OBJECTREF    m_pDefaultPrincipal;  // Lazily computed default principle object used by threads
-#endif // FEATURE_IMPERSONATION
-#ifdef FEATURE_REMOTING    
-    OBJECTREF    m_pURITable;          // Identity table for remoting
-#endif    
     OBJECTREF    m_pProcessExitEventHandler; // Delegate for 'process exit' event.  Only used in Default appdomain.
     OBJECTREF    m_pDomainUnloadEventHandler; // Delegate for 'about to unload domain' event
     OBJECTREF    m_pUnhandledExceptionEventHandler; // Delegate for 'unhandled exception' event
-#ifdef FEATURE_APTCA
-    OBJECTREF    m_aptcaVisibleAssemblies;  // array of conditional APTCA assembly names that should be APTCA visible
-#endif
 
     OBJECTREF    m_compatFlags;
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
     OBJECTREF    m_pFirstChanceExceptionHandler; // Delegate for 'FirstChance Exception' event
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
 
     AppDomain*   m_pDomain;            // Pointer to the BaseDomain Structure
-#ifdef FEATURE_CAS_POLICY
-    INT32        m_iPrincipalPolicy;   // Type of principal to create by default
-#endif    
     CLR_BOOL     m_bHasSetPolicy;               // SetDomainPolicy has been called for this domain
     CLR_BOOL     m_bIsFastFullTrustDomain;      // We know for sure that this is a homogeneous full trust domain.  
     CLR_BOOL     m_compatFlagsInitialized;
@@ -2456,13 +1889,6 @@ class AppDomainBaseObject : public MarshalByRefObjectBaseObject
         return !!m_bIsFastFullTrustDomain;
     }
 
-#ifdef FEATURE_APTCA
-    OBJECTREF GetPartialTrustVisibleAssemblies()
-    {
-        LIMITED_METHOD_CONTRACT
-        return m_aptcaVisibleAssemblies;
-    }
-#endif // FEATURE_APTCA
 
     // Ref needs to be a PTRARRAYREF
     void SetPolicies(OBJECTREF ref)
@@ -2470,28 +1896,13 @@ class AppDomainBaseObject : public MarshalByRefObjectBaseObject
         WRAPPER_NO_CONTRACT;
         SetObjectReference(&m_pPolicies, ref, m_pDomain );
     }
-#ifdef FEATURE_REMOTING
-    void SetDefaultContext(OBJECTREF ref)
-    {
-        WRAPPER_NO_CONTRACT;
-        SetObjectReference(&m_pDefaultContext,ref,m_pDomain);
-    }
-#endif
     BOOL HasSetPolicy()
     {
         LIMITED_METHOD_CONTRACT;
         return m_bHasSetPolicy;
     }
 
-#ifdef FEATURE_CLICKONCE
-    BOOL HasActivationContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pActivationContext != NULL;
-    }
-#endif // FEATURE_CLICKONCE
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
     // Returns the reference to the delegate of the first chance exception notification handler
     OBJECTREF GetFirstChanceExceptionNotificationHandler()
     {
@@ -2499,49 +1910,8 @@ class AppDomainBaseObject : public MarshalByRefObjectBaseObject
 
         return m_pFirstChanceExceptionHandler;
     }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
 };
 
-#ifndef FEATURE_CORECLR
-// The managed definition of AppDomainSortingSetupInfo is in BCL\System\Globalization\AppDomainSortingSetupInfo.cs
-class AppDomainSortingSetupInfoObject : public Object
-{
-    friend class MscorlibBinder;
-
-  protected:
-    INT_PTR m_pfnIsNLSDefinedString;
-    INT_PTR m_pfnCompareStringEx;
-    INT_PTR m_pfnLCMapStringEx;
-    INT_PTR m_pfnFindNLSStringEx;
-    INT_PTR m_pfnCompareStringOrdinal;
-    INT_PTR m_pfnGetNLSVersionEx;
-    INT_PTR m_pfnFindStringOrdinal;
-    CLR_BOOL m_useV2LegacySorting;
-    CLR_BOOL m_useV4LegacySorting;
-
-  protected:
-    AppDomainSortingSetupInfoObject() { LIMITED_METHOD_CONTRACT; }
-   ~AppDomainSortingSetupInfoObject() { LIMITED_METHOD_CONTRACT; }
-
-  public:
-    CLR_BOOL UseV2LegacySorting() { LIMITED_METHOD_CONTRACT; return m_useV2LegacySorting; }
-    CLR_BOOL UseV4LegacySorting() { LIMITED_METHOD_CONTRACT; return m_useV4LegacySorting; }
-
-    INT_PTR GetPFNIsNLSDefinedString() { LIMITED_METHOD_CONTRACT; return m_pfnIsNLSDefinedString; }
-    INT_PTR GetPFNCompareStringEx() { LIMITED_METHOD_CONTRACT; return m_pfnCompareStringEx; }
-    INT_PTR GetPFNLCMapStringEx() { LIMITED_METHOD_CONTRACT; return m_pfnLCMapStringEx; }
-    INT_PTR GetPFNFindNLSStringEx() { LIMITED_METHOD_CONTRACT; return m_pfnFindNLSStringEx; }
-    INT_PTR GetPFNCompareStringOrdinal() { LIMITED_METHOD_CONTRACT; return m_pfnCompareStringOrdinal; }
-    INT_PTR GetPFNGetNLSVersionEx() { LIMITED_METHOD_CONTRACT; return m_pfnGetNLSVersionEx; }
-    INT_PTR GetPFNFindStringOrdinal() { LIMITED_METHOD_CONTRACT; return m_pfnFindStringOrdinal; }
-};
-typedef DPTR(AppDomainSortingSetupInfoObject) PTR_AppDomainSortingSetupInfoObject;
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<AppDomainSortingSetupInfoObject> APPDOMAINSORTINGSETUPINFOREF;
-#else
-typedef AppDomainSortingSetupInfoObject*     APPDOMAINSORTINGSETUPINFOREF;
-#endif // USE_CHECKED_OBJECTREFS
-#endif // FEATURE_CORECLR
 
 // The managed definition of AppDomainSetup is in BCL\System\AppDomainSetup.cs
 class AppDomainSetupObject : public Object
@@ -2553,21 +1923,12 @@ class AppDomainSetupObject : public Object
     STRINGREF m_AppBase;
     OBJECTREF m_AppDomainInitializer;
     PTRARRAYREF m_AppDomainInitializerArguments;
-#ifdef FEATURE_CLICKONCE
-    OBJECTREF m_ActivationArguments;
-#endif // FEATURE_CLICKONCE
     STRINGREF m_ApplicationTrust;
     I1ARRAYREF m_ConfigurationBytes;
     STRINGREF m_AppDomainManagerAssembly;
     STRINGREF m_AppDomainManagerType;
-#if FEATURE_APTCA
-    PTRARRAYREF m_AptcaVisibleAssemblies;
-#endif
     OBJECTREF m_CompatFlags;
     STRINGREF m_TargetFrameworkName;
-#ifndef FEATURE_CORECLR
-    APPDOMAINSORTINGSETUPINFOREF m_AppDomainSortingSetupInfo;
-#endif // FEATURE_CORECLR
     INT32 m_LoaderOptimization;
 #ifdef FEATURE_COMINTEROP
     CLR_BOOL m_DisableInterfaceCache;
@@ -2583,9 +1944,6 @@ class AppDomainSetupObject : public Object
    ~AppDomainSetupObject() { LIMITED_METHOD_CONTRACT; }
 
   public:
-#ifndef FEATURE_CORECLR
-    APPDOMAINSORTINGSETUPINFOREF GetAppDomainSortingSetupInfo() { LIMITED_METHOD_CONTRACT; return m_AppDomainSortingSetupInfo; }
-#endif // FEATURE_CORECLR
 #ifdef FEATURE_RANDOMIZED_STRING_HASHING
     BOOL UseRandomizedStringHashing() { LIMITED_METHOD_CONTRACT; return (BOOL) m_UseRandomizedStringHashing; }
 #endif // FEATURE_RANDOMIZED_STRING_HASHING
@@ -2667,9 +2025,7 @@ class AssemblyNameBaseObject : public Object
     OBJECTREF     m_pCodeBase;
     OBJECTREF     m_pVersion;
     OBJECTREF     m_StrongNameKeyPair;
-#ifdef FEATURE_SERIALIZATION
     OBJECTREF     m_siInfo;
-#endif
     U1ARRAYREF    m_HashForControl;
     DWORD         m_HashAlgorithm;
     DWORD         m_HashAlgorithmForControl;
@@ -2740,10 +2096,6 @@ class FrameSecurityDescriptorBaseObject : public Object
     OBJECTREF       m_DeclarativeAssertions;
     OBJECTREF       m_DeclarativeDenials;
     OBJECTREF       m_DeclarativeRestrictions;
-#ifndef FEATURE_PAL
-    SAFEHANDLEREF   m_callerToken; // the thread token (or process token if there was no thread token) when a call to Impersonate was made ("previous" token)
-    SAFEHANDLEREF   m_impToken; // the thread token after a call to Impersonate is made (the "current" impersonation)
-#endif // !FEATURE_PAL
     CLR_BOOL        m_assertFT;
     CLR_BOOL        m_assertAllPossible;
     CLR_BOOL        m_declSecComputed;
@@ -2877,24 +2229,8 @@ class FrameSecurityDescriptorBaseObject : public Object
         LIMITED_METHOD_CONTRACT;
         m_declSecComputed = !!declSec;
     }
-    LPVOID GetCallerToken();
-    LPVOID GetImpersonationToken();
 };
 
-#ifdef FEATURE_COMPRESSEDSTACK
-class FrameSecurityDescriptorWithResolverBaseObject : public FrameSecurityDescriptorBaseObject
-{
-public:
-    OBJECTREF m_resolver;
-
-public:
-    void SetDynamicMethodResolver(OBJECTREF resolver)
-    {
-        LIMITED_METHOD_CONTRACT;
-        SetObjectReference(&m_resolver, resolver, this->GetAppDomain());
-    }
-};
-#endif // FEATURE_COMPRESSEDSTACK
 
 class WeakReferenceObject : public Object
 {
@@ -2928,9 +2264,6 @@ typedef REF<VersionBaseObject> VERSIONREF;
 
 typedef REF<FrameSecurityDescriptorBaseObject> FRAMESECDESCREF;
 
-#ifdef FEATURE_COMPRESSEDSTACK
-typedef REF<FrameSecurityDescriptorWithResolverBaseObject> FRAMESECDESWITHRESOLVERCREF;
-#endif // FEATURE_COMPRESSEDSTACK
 
 typedef REF<WeakReferenceObject> WEAKREFERENCEREF;
 
@@ -2983,9 +2316,6 @@ typedef MarshalByRefObjectBaseObject* MARSHALBYREFOBJECTBASEREF;
 typedef VersionBaseObject* VERSIONREF;
 typedef FrameSecurityDescriptorBaseObject* FRAMESECDESCREF;
 
-#ifdef FEATURE_COMPRESSEDSTACK
-typedef FrameSecurityDescriptorWithResolverBaseObject* FRAMESECDESWITHRESOLVERCREF;
-#endif // FEATURE_COMPRESSEDSTACK
 
 typedef WeakReferenceObject* WEAKREFERENCEREF;
 #endif // #ifndef DACCESS_COMPILE
@@ -3682,8 +3012,8 @@ class SafeBuffer : SafeHandle
   public:
     static FCDECL1(UINT, SizeOfType, ReflectClassBaseObject* typeUNSAFE);
     static FCDECL1(UINT, AlignedSizeOfType, ReflectClassBaseObject* typeUNSAFE);
-    static FCDECL3(void, PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT);
-    static FCDECL3(void, StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT);
+    static FCDECL3_IVI(void, PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT);
+    static FCDECL3_VII(void, StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT);
 };
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -3806,217 +3136,6 @@ typedef REF<DelegateObject> DELEGATEREF;
 typedef DelegateObject* DELEGATEREF;
 #endif // USE_CHECKED_OBJECTREFS
 
-// This class corresponds to PermissionSet on the managed side.
-class PermissionSetObject : public Object
-{
-    friend class MscorlibBinder;
-
-public:
-    BOOL AllPermissionsDecoded()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _allPermissionsDecoded == TRUE;
-    }
-
-    BOOL ContainsCas()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _ContainsCas == TRUE;
-    }
-
-    BOOL ContainsNonCas()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _ContainsNonCas == TRUE;
-    }
-
-    BOOL CheckedForNonCas()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _CheckedForNonCas == TRUE;
-    }
-
-    BOOL IsUnrestricted()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _Unrestricted == TRUE;
-    }
-
-    OBJECTREF GetTokenBasedSet()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _permSet;
-    }
-
-
-    // README:
-    // If you modify the order of these fields, make sure to update the definition in 
-    // BCL for this object.
-private:
-    // Order of the fields is important as it mirrors the layout of PermissionSet
-    // to access the fields directly from unmanaged code given an OBJECTREF. 
-    // Please keep them in sync when you make changes to the fields. 
-    OBJECTREF _permSet;
-    STRINGREF _serializedPermissionSet;
-    OBJECTREF _permSetSaved;
-    OBJECTREF _unrestrictedPermSet;
-    OBJECTREF _normalPermSet;
-    CLR_BOOL _Unrestricted;
-    CLR_BOOL _allPermissionsDecoded;
-    CLR_BOOL _ignoreTypeLoadFailures;
-    CLR_BOOL _CheckedForNonCas;
-    CLR_BOOL _ContainsCas;
-    CLR_BOOL _ContainsNonCas;
-    CLR_BOOL _Readable;
-#ifdef FEATURE_CAS_POLICY
-    CLR_BOOL _canUnrestrictedOverride;
-#endif // FEATURE_CAS_POLICY
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<PermissionSetObject> PERMISSIONSETREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef PermissionSetObject* PERMISSIONSETREF;
-#endif // USE_CHECKED_OBJECTREFS
-
-// This class corresponds to TokenBasedSet on the managed side.
-class TokenBasedSetObject : public Object
-{
-public:
-    INT32 GetNumElements () {
-        LIMITED_METHOD_CONTRACT;
-        return _cElt;
-    }
-
-    OBJECTREF GetPermSet () {
-        LIMITED_METHOD_CONTRACT;
-        return _Obj;
-    }
-
-private:
-    // If you modify the order of these fields, make sure
-    // to update the definition in BCL for this object.
-    OBJECTREF _objSet;
-    OBJECTREF _Obj;
-    OBJECTREF _Set;
-    INT32 _initSize;
-    INT32 _increment;
-    INT32 _cElt;
-    INT32 _maxIndex;
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<TokenBasedSetObject> TOKENBASEDSETREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef TokenBasedSetObject* TOKENBASEDSETREF;
-#endif // USE_CHECKED_OBJECTREFS
-
-// This class corresponds to PolicyStatement on the managed side.
-class PolicyStatementObject : public Object
-{
-    friend class MscorlibBinder;
-private:
-    PERMISSIONSETREF _permSet;
-#ifdef FEATURE_CAS_POLICY
-    OBJECTREF _dependentEvidence;
-#endif // FEATURE_CAS_POLICY
-    INT32 _attributes;
-
-public:
-    PERMISSIONSETREF GetPermissionSet()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _permSet;
-    }
-};
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<PolicyStatementObject> POLICYSTATEMENTREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef PolicyStatementObject* POLICYSTATEMENTREF;
-#endif // USE_CHECKED_OBJECTREFS
-
-// This class corresponds to ApplicationTrust on the managed side.
-class ApplicationTrustObject : public Object
-{
-    friend class MscorlibBinder;
-private:
-#ifdef FEATURE_CLICKONCE
-    OBJECTREF _appId;
-    OBJECTREF _extraInfo;
-    OBJECTREF _elExtraInfo;
-#endif // FEATURE_CLICKONCE
-    POLICYSTATEMENTREF _psDefaultGrant;
-    OBJECTREF _fullTrustAssemblies;
-    DWORD _grantSetSpecialFlags;
-#ifdef FEATURE_CLICKONCE
-    CLR_BOOL _appTrustedToRun;
-    CLR_BOOL _persist;
-#endif // FEATURE_CLICKONCE
-
-public:
-    POLICYSTATEMENTREF GetPolicyStatement()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _psDefaultGrant;
-    }
-
-    // The grant set special flags are mapped in the BCL for the DefaultGrantSet of the ApplicationTrust. 
-    // Since ApplicationTrust provides a reference to its DefaultGrantSet rather than a copy, the flags may
-    // not be in sync if user code can ever get a hold of the ApplicationTrust object.  Therefore, these
-    // flags should only be used in code paths where we are sure that only trusted code can ever get a
-    // reference to the ApplicationTrust (such as the ApplicationTrust created when setting up a homogenous
-    // AppDomain).
-    DWORD GetGrantSetSpecialFlags()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return _grantSetSpecialFlags;
-    }
-};
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<ApplicationTrustObject> APPLICATIONTRUSTREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef ApplicationTrustObject* APPLICATIONTRUSTREF;
-#endif // USE_CHECKED_OBJECTREFS
-
-// This class corresponds to SecurityPermission on the managed side.
-class SecurityPermissionObject : public Object
-{
-public:
-    DWORD GetFlags () {
-        LIMITED_METHOD_CONTRACT;
-        return _flags;
-    }
-
-private:
-    // If you modify the order of these fields, make sure
-    // to update the definition in BCL for this object.
-    DWORD _flags;
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<SecurityPermissionObject> SECURITYPERMISSIONREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef SecurityPermissionObject* SECURITYPERMISSIONREF;
-#endif // USE_CHECKED_OBJECTREFS
-
-// This class corresponds to ReflectionPermission on the managed side.
-class ReflectionPermissionObject : public Object
-{
-public:
-    DWORD GetFlags () {
-        LIMITED_METHOD_CONTRACT;
-        return _flags;
-    }
-
-private:
-    DWORD _flags;
-};
-
-#ifdef USE_CHECKED_OBJECTREFS
-typedef REF<ReflectionPermissionObject> REFLECTIONPERMISSIONREF;
-#else // USE_CHECKED_OBJECTREFS
-typedef ReflectionPermissionObject* REFLECTIONPERMISSIONREF;
-#endif // USE_CHECKED_OBJECTREFS
 
 struct StackTraceElement;
 class ClrDataAccess;
@@ -4479,9 +3598,7 @@ private:
     STRINGREF   _remoteStackTraceString;
     PTRARRAYREF _dynamicMethods;
     STRINGREF   _source;         // Mainly used by VB.
-#ifdef FEATURE_SERIALIZATION
-    OBJECTREF   _safeSerializationManager;
-#endif // FEATURE_SERIALIZATION
+
     IN_WIN64(void* _xptrs;)
     IN_WIN64(UINT_PTR    _ipForWatsonBuckets;) // Contains the IP of exception for watson bucketing
     INT32       _remoteStackIndex;
@@ -4547,9 +3664,6 @@ public:
     STRINGREF sCurrencyGroup;       // currencyDecimalSeparator
     STRINGREF sCurrencyDecimal;     // currencyGroupSeparator
     STRINGREF sCurrency;            // currencySymbol
-#ifndef FEATURE_COREFX_GLOBALIZATION
-    STRINGREF sAnsiCurrency;        // ansiCurrencySymbol
-#endif
     STRINGREF sNaN;                 // nanSymbol
     STRINGREF sPositiveInfinity;    // positiveInfinitySymbol
     STRINGREF sNegativeInfinity;    // negativeInfinitySymbol
@@ -4560,9 +3674,6 @@ public:
 
     PTRARRAYREF sNativeDigits;      // nativeDigits (a string array)
 
-#ifndef FEATURE_COREFX_GLOBALIZATION    
-    INT32 iDataItem;                // Index into the CultureInfo Table.  Only used from managed code.
-#endif
     INT32 cNumberDecimals;          // numberDecimalDigits
     INT32 cCurrencyDecimals;        // currencyDecimalDigits
     INT32 cPosCurrencyFormat;       // positiveCurrencyFormat
@@ -4571,19 +3682,10 @@ public:
     INT32 cPositivePercentFormat;   // positivePercentFormat
     INT32 cNegativePercentFormat;   // negativePercentFormat
     INT32 cPercentDecimals;         // percentDecimalDigits
-#ifndef FEATURE_CORECLR    
     INT32 iDigitSubstitution;       // digitSubstitution
-#endif    
 
     CLR_BOOL bIsReadOnly;              // Is this NumberFormatInfo ReadOnly?
-#ifndef FEATURE_COREFX_GLOBALIZATION
-    CLR_BOOL bUseUserOverride;         // Flag to use user override. Only used from managed code.
-#endif
     CLR_BOOL bIsInvariant;             // Is this the NumberFormatInfo for the Invariant Culture?
-#ifndef FEATURE_CORECLR    
-    CLR_BOOL bvalidForParseAsNumber;   // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-    CLR_BOOL bvalidForParseAsCurrency; // NEVER USED, DO NOT USE THIS! (Serialized in Whidbey/Everett)
-#endif // !FEATURE_CORECLR
 };
 
 typedef NumberFormatInfo * NUMFMTREF;

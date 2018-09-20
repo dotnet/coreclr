@@ -24,8 +24,12 @@
 #endif // __clang__
 #endif // !_MSC_VER
 
+#ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t)-1)
+#endif
+#ifndef SSIZE_T_MAX
 #define SSIZE_T_MAX ((ptrdiff_t)(SIZE_T_MAX / 2))
+#endif
 
 #ifndef _INC_WINDOWS
 // -----------------------------------------------------------------------------------------------------------
@@ -33,7 +37,7 @@
 // Aliases for Win32 types
 //
 
-typedef uint32_t BOOL;
+typedef int BOOL;
 typedef uint32_t DWORD;
 
 // -----------------------------------------------------------------------------------------------------------
@@ -61,6 +65,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_UNEXPECTED            0x8000FFFF
 #define E_NOTIMPL               0x80004001
 #define E_INVALIDARG            0x80070057
+#define COR_E_EXECUTIONENGINE   0x80131506
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -69,7 +74,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define FALSE false
 
 #define CALLBACK __stdcall
-#define FORCEINLINE inline
+#define FORCEINLINE __forceinline
 
 #define INFINITE 0xFFFFFFFF
 
@@ -92,7 +97,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define UNREFERENCED_PARAMETER(P)          (void)(P)
 
 #ifdef PLATFORM_UNIX
-#define  _vsnprintf vsnprintf
+#define _vsnprintf_s(string, sizeInBytes, count, format, args) vsnprintf(string, sizeInBytes, format, args)
 #define sprintf_s snprintf
 #define swprintf_s swprintf
 #endif
@@ -172,6 +177,12 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 
 #endif // _MSC_VER
 
+typedef struct _PROCESSOR_NUMBER {
+    uint16_t Group;
+    uint8_t Number;
+    uint8_t Reserved;
+} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
+
 #endif // _INC_WINDOWS
 
 // -----------------------------------------------------------------------------------------------------------
@@ -244,6 +255,8 @@ typedef uintptr_t TADDR;
     extern type var
 #define GVAL_IMPL(type, var) \
     type var
+#define GVAL_IMPL_INIT(type, var, init) \
+    type var = init
 
 #define GPTR_DECL(type, var) \
     extern type* var
@@ -315,16 +328,6 @@ typedef PTR_Object OBJECTREF;
 typedef PTR_PTR_Object PTR_OBJECTREF;
 typedef PTR_Object _UNCHECKED_OBJECTREF;
 typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
-
-#ifndef DACCESS_COMPILE
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-#else
-typedef TADDR OBJECTHANDLE;
-#endif
 
 // With no object reference wrapping the following macros are very simple.
 #define ObjectToOBJECTREF(_obj) (OBJECTREF)(_obj)
@@ -429,41 +432,16 @@ extern MethodTable * g_pFreeObjectMethodTable;
 
 extern int32_t g_TrapReturningThreads;
 
-extern bool g_fFinalizerRunOnShutDown;
-
 //
 // Locks
 //
 
-struct alloc_context;
+struct gc_alloc_context;
 class Thread;
 
 Thread * GetThread();
 
 typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
-
-class FinalizerThread
-{
-public:
-    static bool Initialize();
-    static void EnableFinalization();
-
-    static bool HaveExtraWorkForFinalizer();
-
-    static bool IsCurrentThreadFinalizer();
-    static void Wait(DWORD timeout, bool allowReentrantWait = false);
-    static bool WatchDog();
-    static void SignalFinalizationDone(bool fFinalizer);
-    static void SetFinalizerThread(Thread * pThread);
-    static HANDLE GetFinalizerEvent();
-};
-
-#ifdef FEATURE_REDHAWK
-typedef uint32_t (__stdcall *BackgroundCallback)(void* pCallbackContext);
-REDHAWK_PALIMPORT bool REDHAWK_PALAPI PalStartBackgroundGCThread(BackgroundCallback callback, void* pCallbackContext);
-#endif // FEATURE_REDHAWK
-
-void DestroyThread(Thread * pThread);
 
 bool IsGCSpecialThread();
 
@@ -499,52 +477,13 @@ namespace ETW
 // Logging
 //
 
-#ifdef _MSC_VER
-#define SUPPRESS_WARNING_4127   \
-    __pragma(warning(push))     \
-    __pragma(warning(disable:4127)) /* conditional expression is constant*/
-#define POP_WARNING_STATE       \
-    __pragma(warning(pop))
-#else // _MSC_VER
-#define SUPPRESS_WARNING_4127
-#define POP_WARNING_STATE
-#endif // _MSC_VER
-
-#define WHILE_0             \
-    SUPPRESS_WARNING_4127   \
-    while(0)                \
-    POP_WARNING_STATE       \
-
-#define LOG(x)
-
 void LogSpewAlways(const char *fmt, ...);
-
-#define LL_INFO10 4
-
-#define STRESS_LOG_VA(msg)                                              do { } WHILE_0
-#define STRESS_LOG0(facility, level, msg)                               do { } WHILE_0
-#define STRESS_LOG1(facility, level, msg, data1)                        do { } WHILE_0
-#define STRESS_LOG2(facility, level, msg, data1, data2)                 do { } WHILE_0
-#define STRESS_LOG3(facility, level, msg, data1, data2, data3)          do { } WHILE_0
-#define STRESS_LOG4(facility, level, msg, data1, data2, data3, data4)   do { } WHILE_0
-#define STRESS_LOG5(facility, level, msg, data1, data2, data3, data4, data5)   do { } WHILE_0
-#define STRESS_LOG6(facility, level, msg, data1, data2, data3, data4, data5, data6)   do { } WHILE_0
-#define STRESS_LOG7(facility, level, msg, data1, data2, data3, data4, data5, data6, data7)   do { } WHILE_0
-#define STRESS_LOG_PLUG_MOVE(plug_start, plug_end, plug_delta)          do { } WHILE_0
-#define STRESS_LOG_ROOT_PROMOTE(root_addr, objPtr, methodTable)         do { } WHILE_0
-#define STRESS_LOG_ROOT_RELOCATE(root_addr, old_value, new_value, methodTable) do { } WHILE_0
-#define STRESS_LOG_GC_START(gcCount, Gen, collectClasses)               do { } WHILE_0
-#define STRESS_LOG_GC_END(gcCount, Gen, collectClasses)                 do { } WHILE_0
-#define STRESS_LOG_OOM_STACK(size)   do { } while(0)
-#define STRESS_LOG_RESERVE_MEM(numChunks) do {} while (0)
-#define STRESS_LOG_GC_STACK
 
 #define DEFAULT_GC_PRN_LVL 3
 
 // -----------------------------------------------------------------------------------------------------------
 
-void StompWriteBarrierEphemeral();
-void StompWriteBarrierResize(bool bReqUpperBoundsCheck);
+bool IsGCThread();
 
 class CLRConfig
 {
@@ -568,7 +507,7 @@ public:
     typedef CLRConfigTypes ConfigStringInfo;
 
     static uint32_t GetConfigValue(ConfigDWORDInfo eType);
-    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, TCHAR * * outVal);
+    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, __out_z TCHAR * * outVal);
 };
 
 inline bool FitsInU1(uint64_t val)
@@ -638,5 +577,22 @@ public:
     }
 };
 #endif // STRESS_HEAP
+
+class NumaNodeInfo
+{
+public:
+    static bool CanEnableGCNumaAware();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
+    static bool GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, uint16_t * node_no);
+};
+
+class CPUGroupInfo
+{
+public:
+    static bool CanEnableGCCPUGroups();
+    static uint32_t GetNumActiveProcessors();
+    static void GetGroupForProcessor(uint16_t processor_number, uint16_t * group_number, uint16_t * group_processor_number);
+};
+
 
 #endif // __GCENV_BASE_INCLUDED__

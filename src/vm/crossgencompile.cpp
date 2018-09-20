@@ -16,13 +16,9 @@
 
 #include "comdelegate.h"
 #include "compile.h"
-#include "constrainedexecutionregion.h"
 #include "security.h"
 #include "invokeutil.h"
 #include "comcallablewrapper.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 //---------------------------------------------------------------------------------------
 //
@@ -78,18 +74,23 @@ BOOL Debug_IsLockedViaThreadSuspension()
 #endif // _DEBUG
 
 #if defined(FEATURE_MERGE_JIT_AND_ENGINE) && defined(FEATURE_IMPLICIT_TLS)
-Compiler* theTlsCompiler;
+void* theJitTls;
 
-Compiler* GetTlsCompiler()
+extern "C"
+{
+
+void* GetJitTls()
 {
     LIMITED_METHOD_CONTRACT
 
-    return theTlsCompiler;
+    return theJitTls;
 }
-void SetTlsCompiler(Compiler* c)
+void SetJitTls(void* v)
 {
     LIMITED_METHOD_CONTRACT
-    theTlsCompiler = c;
+    theJitTls = v;
+}
+
 }
 #endif
 
@@ -125,16 +126,14 @@ BOOL __SwitchToThread(DWORD, DWORD)
 // Globals and misc other
 //
 
-GPTR_IMPL(GCHeap,g_pGCHeap);
+GPTR_IMPL(IGCHeap,g_pGCHeap);
 
 BOOL g_fEEOtherStartup=FALSE;
 BOOL g_fEEComActivatedStartup=FALSE;
 
 GVAL_IMPL_INIT(DWORD, g_fHostConfig, 0);
 
-#ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(uint32_t,GCHeap,gcHeapType,GCHeap::GC_HEAP_WKS);
-#endif
+GVAL_IMPL_INIT(GCHeapType, g_heap_type, GC_HEAP_WKS);
 
 void UpdateGCSettingFromHost()
 {
@@ -291,16 +290,16 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
     // crossgen does not have jump stubs
     return 0;
 }
-#endif
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-void CRemotingServices::DestroyThunk(MethodDesc* pMD)
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr)
 {
-    UNREACHABLE();
+    // crossgen does not have jump stubs
+    return 0;
 }
 #endif
 
-CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc *  pMD, MethodTable * pMT, LPVOID signature)
+
+CORINFO_GENERIC_HANDLE JIT_GenericHandleWorker(MethodDesc *  pMD, MethodTable * pMT, LPVOID signature, DWORD dictionaryIndexAndSlot, Module* pModule)
 {
     UNREACHABLE();
 }
@@ -325,6 +324,11 @@ GCFrame::GCFrame(OBJECTREF *pObjRefs, UINT numObjRefs, BOOL maybeInterior)
 }
 
 void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
+{
+    UNREACHABLE();
+}
+
+void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 {
     UNREACHABLE();
 }
@@ -451,12 +455,10 @@ void AppDomain::RaiseLoadingAssemblyEvent(DomainAssembly *pAssembly)
 {
 }
 
-#ifdef FEATURE_CORECLR
 BOOL AppDomain::BindingByManifestFile()
 {
     return FALSE;
 }
-#endif
 
 ReJitManager::ReJitManager()
 { 

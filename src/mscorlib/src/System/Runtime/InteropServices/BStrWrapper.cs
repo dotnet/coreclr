@@ -11,37 +11,27 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-   
-    using System;
-    using System.Security;
-    using System.Security.Permissions;
 
-    [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+using System;
+using System.Security;
+
+namespace System.Runtime.InteropServices
+{
     public sealed class BStrWrapper
     {
-        [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand,Flags=SecurityPermissionFlag.UnmanagedCode)]
-#pragma warning restore 618
         public BStrWrapper(String value)
         {
             m_WrappedObject = value;
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-#pragma warning disable 618
-        [SecurityPermissionAttribute(SecurityAction.Demand, Flags = SecurityPermissionFlag.UnmanagedCode)]
-#pragma warning restore 618
         public BStrWrapper(Object value)
         {
             m_WrappedObject = (String)value;
         }
 
-        public String WrappedObject 
+        public String WrappedObject
         {
-            get 
+            get
             {
                 return m_WrappedObject;
             }

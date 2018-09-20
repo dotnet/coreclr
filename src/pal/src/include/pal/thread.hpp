@@ -94,11 +94,6 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InitializeGlobalThreadData(
-        void
-        );
-
-    PAL_ERROR
     CreateThreadData(
         CPalThread **ppThread
         );
@@ -243,12 +238,6 @@ namespace CorUnix
 
         friend
             PAL_ERROR
-            InitializeGlobalThreadData(
-                void
-                );
-
-        friend
-            PAL_ERROR
             CreateThreadData(
                 CPalThread **ppThread
                 );
@@ -337,13 +326,6 @@ namespace CorUnix
         void* m_stackBase;
         // Limit address of the stack of this thread
         void* m_stackLimit;
-
-        // The default stack size of a newly created thread (currently 256KB)
-        // when the dwStackSize paramter of PAL_CreateThread()
-        // is zero. This value can be set by setting the
-        // environment variable PAL_THREAD_DEFAULT_STACK_SIZE
-        // (the value should be in bytes and in hex).
-        static DWORD s_dwDefaultThreadStackSize; 
 
         //
         // The thread entry routine (called from InternalCreateThread)
@@ -828,6 +810,9 @@ inline SIZE_T THREADSilentGetCurrentThreadId() {
     pthread_threadid_np(pthread_self(), &tid);
     return (SIZE_T)tid;
 }
+#elif defined(__NetBSD__)
+#include <lwp.h>
+#define THREADSilentGetCurrentThreadId() (SIZE_T)_lwp_self()
 #else
 #define THREADSilentGetCurrentThreadId() (SIZE_T)pthread_self()
 #endif

@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // isinst_catch_neg.il
 .assembly extern mscorlib { }
@@ -22,7 +23,6 @@
       .locals (int32 V_0,
                int32 V_1,
                class [mscorlib]System.Exception V_2,
-               class [mscorlib]System.ApplicationException V_3,
                int32 V_4)
       .try
       {
@@ -46,7 +46,7 @@
         }
         catch [mscorlib]System.Exception 
         {
-          IL_0020:  isinst  [mscorlib]System.ApplicationException
+          IL_0020:  isinst  [mscorlib]System.ArgumentException
           			dup
           			brinst inst
 					newobj instance void [mscorlib]System.InvalidCastException::.ctor()

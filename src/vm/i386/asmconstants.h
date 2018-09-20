@@ -33,30 +33,12 @@
 #define DBG_FRE(dbg,fre) fre
 #endif
 
-//***************************************************************************
-#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 1
- #define TRACK_CXX_EXCEPTION_CODE_HACK
-#else
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 0
-#endif
-
 #define INITIAL_SUCCESS_COUNT               0x100
 
 #define DynamicHelperFrameFlags_Default     0
 #define DynamicHelperFrameFlags_ObjectArg   1
 #define DynamicHelperFrameFlags_ObjectArg2  2
 
-#ifdef FEATURE_REMOTING
-#define TransparentProxyObject___stubData 0x8
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stubData == offsetof(TransparentProxyObject, _stubData))
-
-#define TransparentProxyObject___stub 0x14
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stub == offsetof(TransparentProxyObject, _stub))
-
-#define TransparentProxyObject___pMT 0xc
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___pMT == offsetof(TransparentProxyObject, _pMT))
-#endif // FEATURE_REMOTING
 
 // CONTEXT from rotor_pal.h
 #define CONTEXT_Edi 0x9c
@@ -97,6 +79,7 @@ ASMCONSTANTS_C_ASSERT(SpinConstants_dwMaximumDuration == offsetof(SpinConstants,
 #define SpinConstants_dwBackoffFactor 8
 ASMCONSTANTS_C_ASSERT(SpinConstants_dwBackoffFactor == offsetof(SpinConstants,dwBackoffFactor))
 
+#ifndef WIN64EXCEPTIONS
 // EHContext from clr/src/vm/i386/cgencpu.h
 #define EHContext_Eax 0x00
 ASMCONSTANTS_C_ASSERT(EHContext_Eax == offsetof(EHContext,Eax))
@@ -124,6 +107,7 @@ ASMCONSTANTS_C_ASSERT(EHContext_Esp == offsetof(EHContext,Esp))
 
 #define EHContext_Eip 0x20
 ASMCONSTANTS_C_ASSERT(EHContext_Eip == offsetof(EHContext,Eip))
+#endif // WIN64EXCEPTIONS
 
 
 // from clr/src/fjit/helperframe.h
@@ -208,14 +192,7 @@ ASMCONSTANTS_C_ASSERT(CORINFO_ArgumentException_ASM == CORINFO_ArgumentException
 #ifndef CROSSGEN_COMPILE
 
 // from clr/src/vm/threads.h
-#if defined(TRACK_CXX_EXCEPTION_CODE_HACK) // Is C++ exception code tracking turned on?
-    #define Thread_m_LastCxxSEHExceptionCode      0x20
-    ASMCONSTANTS_C_ASSERT(Thread_m_LastCxxSEHExceptionCode == offsetof(Thread, m_LastCxxSEHExceptionCode))
-
-    #define Thread_m_Context    0x3C
-#else
-    #define Thread_m_Context    0x38
-#endif // TRACK_CXX_EXCEPTION_CODE_HACK
+#define Thread_m_Context    0x38
 ASMCONSTANTS_C_ASSERT(Thread_m_Context == offsetof(Thread, m_Context))
 
 #define Thread_m_State      0x04
@@ -256,16 +233,6 @@ ASMCONSTANTS_C_ASSERT(Thread::TS_Hijacked == TS_Hijacked_ASM)
 ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
 
 // from clr/src/vm/ceeload.cpp
-#ifdef FEATURE_MIXEDMODE
-#define IJWNOADThunk__m_cache 0x1C
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__m_cache == offsetof(IJWNOADThunk, m_cache))
-
-#define IJWNOADThunk__NextCacheOffset 0x8
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__NextCacheOffset == sizeof(IJWNOADThunkStubCache))
-
-#define IJWNOADThunk__CodeAddrOffsetFromADID 0x4
-ASMCONSTANTS_C_ASSERT(IJWNOADThunk__CodeAddrOffsetFromADID == offsetof(IJWNOADThunkStubCache, m_CodeAddr))
-#endif //FEATURE_MIXEDMODE
 
 // from clr/src/vm/syncblk.h
 #define SizeOfSyncTableEntry_ASM 8
@@ -448,6 +415,61 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__pArgumentRegisters   == offsetof(CallDescrD
 ASMCONSTANTS_C_ASSERT(CallDescrData__fpReturnSize         == offsetof(CallDescrData, fpReturnSize))
 ASMCONSTANTS_C_ASSERT(CallDescrData__pTarget              == offsetof(CallDescrData, pTarget))
 ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrData, returnValue))
+
+#define               UMEntryThunk__m_pUMThunkMarshInfo     0x0C
+ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_pUMThunkMarshInfo == offsetof(UMEntryThunk, m_pUMThunkMarshInfo))
+
+#define               UMEntryThunk__m_dwDomainId            0x10
+ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_dwDomainId == offsetof(UMEntryThunk, m_dwDomainId))
+
+#define               UMThunkMarshInfo__m_pILStub           0x00
+ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_pILStub == offsetof(UMThunkMarshInfo, m_pILStub))
+
+#define               UMThunkMarshInfo__m_cbActualArgSize   0x04
+ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMarshInfo, m_cbActualArgSize))
+
+#ifdef FEATURE_STUBS_AS_IL
+#define               UMThunkMarshInfo__m_cbRetPop   0x08
+ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbRetPop == offsetof(UMThunkMarshInfo, m_cbRetPop))
+#endif //FEATURE_STUBS_AS_IL
+
+#ifndef CROSSGEN_COMPILE
+#define               Thread__m_pDomain                     0x14
+ASMCONSTANTS_C_ASSERT(Thread__m_pDomain == offsetof(Thread, m_pDomain));
+
+#endif
+
+#ifdef FEATURE_STUBS_AS_IL
+// DelegateObject from src/vm/object.h
+#define DelegateObject___target             0x04    // offset 0 is m_pMethTab of base class Object
+#define DelegateObject___methodBase         0x08
+#define DelegateObject___methodPtr          0x0c
+#define DelegateObject___methodPtrAux       0x10
+#define DelegateObject___invocationList     0x14
+#define DelegateObject___invocationCount    0x18
+
+ASMCONSTANTS_C_ASSERT(DelegateObject___target           == offsetof(DelegateObject, _target));
+ASMCONSTANTS_C_ASSERT(DelegateObject___methodBase       == offsetof(DelegateObject, _methodBase));
+ASMCONSTANTS_C_ASSERT(DelegateObject___methodPtr        == offsetof(DelegateObject, _methodPtr));
+ASMCONSTANTS_C_ASSERT(DelegateObject___methodPtrAux     == offsetof(DelegateObject, _methodPtrAux));
+ASMCONSTANTS_C_ASSERT(DelegateObject___invocationList   == offsetof(DelegateObject, _invocationList));
+ASMCONSTANTS_C_ASSERT(DelegateObject___invocationCount  == offsetof(DelegateObject, _invocationCount));
+
+#endif
+
+#ifndef CROSSGEN_COMPILE
+// ResolveCacheElem from src/vm/virtualcallstub.h
+#define ResolveCacheElem__pMT               0x00
+#define ResolveCacheElem__token             0x04
+#define ResolveCacheElem__target            0x08
+#define ResolveCacheElem__pNext             0x0C
+
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pMT     == offsetof(ResolveCacheElem, pMT));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__token   == offsetof(ResolveCacheElem, token));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__target  == offsetof(ResolveCacheElem, target));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext   == offsetof(ResolveCacheElem, pNext));
+
+#endif // !CROSSGEN_COMPILE
 
 #undef ASMCONSTANTS_C_ASSERT
 #undef ASMCONSTANTS_RUNTIME_ASSERT

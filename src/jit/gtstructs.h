@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// clang-format off
 
 /*****************************************************************************/
 
@@ -64,7 +65,8 @@ GTSTRUCT_1(Cast        , GT_CAST)
 GTSTRUCT_1(Box         , GT_BOX)
 GTSTRUCT_1(Field       , GT_FIELD) 
 GTSTRUCT_1(Call        , GT_CALL) 
-GTSTRUCT_1(ArgList     , GT_LIST)
+GTSTRUCT_2(ArgList     , GT_LIST, GT_FIELD_LIST)
+GTSTRUCT_1(FieldList   , GT_FIELD_LIST)
 GTSTRUCT_1(Colon       , GT_COLON)
 GTSTRUCT_1(FptrVal     , GT_FTN_ADDR)
 GTSTRUCT_1(Intrinsic   , GT_INTRINSIC) 
@@ -79,26 +81,27 @@ GTSTRUCT_1(ArrElem     , GT_ARR_ELEM)
 GTSTRUCT_1(ArrOffs     , GT_ARR_OFFSET)
 GTSTRUCT_1(ArrIndex    , GT_ARR_INDEX) 
 GTSTRUCT_1(RetExpr     , GT_RET_EXPR) 
-GTSTRUCT_1(Stmt        , GT_STMT) 
-GTSTRUCT_1(Obj         , GT_OBJ)
+GTSTRUCT_2(Stmt        , GT_STMT, GT_IL_OFFSET) 
+GTSTRUCT_2(CopyOrReload, GT_COPY, GT_RELOAD)
 GTSTRUCT_2(ClsVar      , GT_CLS_VAR, GT_CLS_VAR_ADDR) 
 GTSTRUCT_1(ArgPlace    , GT_ARGPLACE) 
 GTSTRUCT_1(Label       , GT_LABEL) 
 GTSTRUCT_1(CmpXchg     , GT_CMPXCHG)
 GTSTRUCT_1(AddrMode    , GT_LEA)
+GTSTRUCT_N(Blk         , GT_BLK, GT_STORE_BLK, GT_OBJ, GT_STORE_OBJ, GT_DYN_BLK, GT_STORE_DYN_BLK)
+GTSTRUCT_2(Obj         , GT_OBJ, GT_STORE_OBJ)
+GTSTRUCT_2(DynBlk      , GT_DYN_BLK, GT_STORE_DYN_BLK)
 GTSTRUCT_1(Qmark       , GT_QMARK)
 GTSTRUCT_1(PhiArg      , GT_PHI_ARG)
 GTSTRUCT_1(StoreInd    , GT_STOREIND)
-GTSTRUCT_2(Indir       , GT_STOREIND, GT_IND)
+GTSTRUCT_N(Indir       , GT_STOREIND, GT_IND, GT_NULLCHECK, GT_BLK, GT_STORE_BLK, GT_OBJ, GT_STORE_OBJ, GT_DYN_BLK, GT_STORE_DYN_BLK)
 GTSTRUCT_1(PutArgStk   , GT_PUTARG_STK)
 GTSTRUCT_1(PhysReg     , GT_PHYSREG)
-GTSTRUCT_3(BlkOp       , GT_COPYBLK, GT_INITBLK, GT_COPYOBJ)
-GTSTRUCT_1(CpObj       , GT_COPYOBJ)
-GTSTRUCT_1(InitBlk     , GT_INITBLK)
-GTSTRUCT_1(CpBlk       , GT_COPYBLK)
 #ifdef FEATURE_SIMD
 GTSTRUCT_1(SIMD        , GT_SIMD) 
 #endif // FEATURE_SIMD
+GTSTRUCT_1(AllocObj    , GT_ALLOCOBJ)
+GTSTRUCT_1(JumpCC      , GT_JCC)
 /*****************************************************************************/
 #undef  GTSTRUCT_0
 #undef  GTSTRUCT_1
@@ -107,3 +110,5 @@ GTSTRUCT_1(SIMD        , GT_SIMD)
 #undef  GTSTRUCT_4
 #undef  GTSTRUCT_N
 /*****************************************************************************/
+
+// clang-format on

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  test16.c
+  test16.cpp
 )
 
 add_executable(paltest_swprintf_test16
@@ -13,7 +13,5 @@ add_executable(paltest_swprintf_test16
 add_dependencies(paltest_swprintf_test16 coreclrpal)
 
 target_link_libraries(paltest_swprintf_test16
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

@@ -103,7 +103,18 @@ enum EtwThreadFlags
 
 
 #else //defined(FEATURE_PAL)
+#if defined(FEATURE_PERFTRACING)
+#define ETW_INLINE
+#define ETWOnStartup(StartEventName, EndEventName)
+#define ETWFireEvent(EventName)
 
+#define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
+#else //defined(FEATURE_PERFTRACING)
 #define ETW_INLINE  
 #define ETWOnStartup(StartEventName, EndEventName)
 #define ETWFireEvent(EventName)
@@ -114,7 +125,7 @@ enum EtwThreadFlags
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
-
+#endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
 #else // FEATURE_EVENT_TRACE
@@ -154,11 +165,6 @@ public:
 
 class Object;
 #if !defined(FEATURE_PAL)
-/******************************/
-/* CLR ETW supported versions */
-/******************************/
-#define ETW_SUPPORTED_MAJORVER 5    // ETW is supported on win2k and above
-#define ETW_ENABLED_MAJORVER 6      // OS versions >= to this we enable ETW registration by default, since on XP and Windows 2003, registration is too slow.
 
 /***************************************/
 /* Tracing levels supported by CLR ETW */
@@ -201,11 +207,6 @@ struct ProfilingScanContext;
 #include <wmistr.h>
 #include <evntrace.h>
 #include <evntprov.h>
-#if !defined(DONOT_DEFINE_ETW_CALLBACK) && !defined(DACCESS_COMPILE)
-#define GetVersionEx(Version) (GetOSVersion((LPOSVERSIONINFOW)Version))
-#else
-#define GetVersionEx(Version) (WszGetVersionEx((LPOSVERSIONINFOW)Version))
-#endif // !DONOT_DEFINE_ETW_CALLBACK && !DACCESS_COMPILE
 #endif //!FEATURE_REDHAWK
 #endif //!defined(FEATURE_PAL)
 
@@ -226,6 +227,14 @@ extern BOOL g_fEEManagedEXEStartup;
 extern BOOL g_fEEIJWStartup;
 
 #define GetClrInstanceId()  (static_cast<UINT16>(g_nClrInstanceId))
+
+#if defined(FEATURE_PERFTRACING)
+class EventPipeHelper
+{
+public:
+    static bool Enabled();
+};
+#endif // defined(FEATURE_PERFTRACING)
 
 #if defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT)
 
@@ -297,12 +306,6 @@ extern "C" {
 #endif //!FEATURE_PAL
 
 #include "clretwallmain.h"
-
-// The bulk type event is too complex for MC.exe to auto-generate proper code.
-// Use code:BulkTypeEventLogger instead.
-#ifdef FireEtwBulkType
-#undef FireEtwBulkType
-#endif // FireEtwBulkType
 
 #endif // FEATURE_EVENT_TRACE 
 

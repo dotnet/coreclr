@@ -21,20 +21,17 @@
 #include <float.h>
 #include <limits.h>
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #ifndef WIN64EXCEPTIONS
 #define WIN64EXCEPTIONS
 #endif
-#endif // !_TARGET_X86_
+#endif // !_TARGET_X86_ || FEATURE_PAL
 
 #include "utilcode.h"
 #include "corjit.h"
 #include "jithost.h"
 #include "corcompile.h"
 #include "iceefilegen.h"
-#ifdef FEATURE_FUSION
-#include "fusionbind.h"
-#endif
 #include "corpriv.h"
 
 #include "holder.h"
@@ -50,9 +47,6 @@
 #include "guidfromname.h"
 #include "../dlls/mscorrc/resource.h"
 #include "zaplog.h"
-#ifndef FEATURE_CORECLR
-#include "eventmsg.h"
-#endif // FEATURE_CORECLR
 #include "ndpversion.h"
 
 #include "loaderheap.h"

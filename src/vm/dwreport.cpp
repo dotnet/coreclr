@@ -29,10 +29,6 @@
 
 #include "imagehlp.h"
 
-#ifdef FEATURE_UEF_CHAINMANAGER
-// This is required to register our UEF callback with the UEF chain manager
-#include <mscoruefwrapper.h>
-#endif // FEATURE_UEF_CHAINMANAGER
 
 EFaultRepRetVal DoReportFault(EXCEPTION_POINTERS * pExceptionInfo);
 
@@ -42,9 +38,7 @@ static BOOL g_watsonErrorReportingEnabled = FALSE;
 // Variables to control launching Watson only once, but making all threads wait for that single launch to finish.
 LONG g_watsonAlreadyLaunched = 0; // Used to note that another thread has done Watson.
 
-#if !defined(FEATURE_UEF_CHAINMANAGER)
 HandleHolder g_hWatsonCompletionEvent = NULL; // Used to signal that Watson has finished.
-#endif // FEATURE_UEF_CHAINMANAGER
 
 const WCHAR kErrorReportingPoliciesKey[] = W("SOFTWARE\\Policies\\Microsoft\\PCHealth\\ErrorReporting");
 const WCHAR kErrorReportingKey[] = W("SOFTWARE\\Microsoft\\PCHealth\\ErrorReporting");
@@ -177,14 +171,10 @@ BOOL InitializeWatson(COINITIEE fFlags)
         return TRUE;
     }
 
-#if defined(FEATURE_UEF_CHAINMANAGER)
-    return TRUE;
-#else
     // Create the event that all-but-the-first threads will wait on (the first thread
     // will set the event when Watson is done.)
     g_hWatsonCompletionEvent = WszCreateEvent(NULL, TRUE /*manual reset*/, FALSE /*initial state*/, NULL);
     return (g_hWatsonCompletionEvent != NULL);
-#endif // FEATURE_UEF_CHAINMANAGER
 
 } // BOOL InitializeWatson()
 
@@ -337,7 +327,6 @@ DWORD ClrWaitForSingleObject(HANDLE handle, DWORD timeout)
 
     CONTRACT_VIOLATION(ThrowsViolation);
 
-    LeaveRuntimeHolder holder(reinterpret_cast< size_t >(WaitForSingleObject));
     return WaitForSingleObject(handle, timeout);
 } // DWORD ClrWaitForSingleObject()
 
@@ -1496,19 +1485,6 @@ BOOL RunWatson(
         
 
         {
-    #if !defined(FEATURE_CORECLR)
-            // Use the version of DW20.exe that lives in the system directory.
-            DWORD ret;
-
-            if (FAILED(GetCORSystemDirectoryInternaL(watsonAppName)))
-            {
-                hr = E_FAIL;
-                break;
-            }
-            watsonCommandLine.Set(watsonAppName);
-            watsonCommandLine.Append(kWatsonImageNameOnVista);
-
-    #else // FEATURE_CORECLR
             HKEYHolder hKey;
             // Look for key \\HKLM\Software\Microsoft\PCHealth\ErrorReporting\DW\Installed"
             DWORD ret = WszRegOpenKeyEx(HKEY_LOCAL_MACHINE,
@@ -1529,7 +1505,6 @@ BOOL RunWatson(
 
             ClrRegReadString(hKey, kWatsonValue, watsonAppName);
 
-    #endif // ! FEATURE_CORECLR
 
             COUNT_T len = watsonCommandLine.GetCount();
             WCHAR* buffer = watsonCommandLine.OpenUnicodeBuffer(len);
@@ -1551,30 +1526,28 @@ BOOL RunWatson(
         return false;
     }
 
+    {
+        BOOL ret = WszCreateProcess(watsonAppName,
+                                    watsonCommandLine,
+                                    NULL,
+                                    NULL,
+                                    TRUE,
+                                    NULL,
+                                    NULL,
+                                    NULL,
+                                    &startupInfo,
+                                    &processInformation);
+
+        if (FALSE == ret)
         {
-            BOOL ret = WszCreateProcess(watsonAppName,
-                                        watsonCommandLine,
-                                        NULL,
-                                        NULL,
-                                        TRUE,
-                                        NULL,
-                                        NULL,
-                                        NULL,
-                                        &startupInfo,
-                                        &processInformation);
-
-            if (FALSE == ret)
-            {
-                //
-                // Watson failed to start up.
-                //
-                // This can happen if e.g. Watson wasn't installed on the machine.
-                //
-                 return  E_FAIL;
-                 
-            }
-
+            //
+            // Watson failed to start up.
+            //
+            // This can happen if e.g. Watson wasn't installed on the machine.
+            //
+            return FALSE;
         }
+    }
 
     
 
@@ -1612,7 +1585,6 @@ BOOL RunWatson(
             continue;
         }
 
-        Thread::BeginThreadAffinity();
         // we timed-out waiting for DW to respond.
         DWORD dw = WaitForSingleObject(hMutex, DW_TIMEOUT_VALUE);
 
@@ -1653,7 +1625,6 @@ BOOL RunWatson(
 
             ReleaseMutex(hMutex);
         }
-        Thread::EndThreadAffinity();
     }
 
     // Go ahead and bail if Watson didn't exit for some reason.
@@ -1907,14 +1878,6 @@ HRESULT GetManagedBucketParametersForIp(
     }
 
     WatsonBucketType bucketType = GetWatsonBucketType();
-#ifndef FEATURE_CORECLR
-    if (bucketType == MoCrash)
-    {
-        MoCrashBucketParamsManager moCrashManager(pGenericModeBlock, tore, currentPC, pThread, pThrowable);
-        moCrashManager.PopulateBucketParameters();
-    }
-    else
-#endif // !FEATURE_CORECLR
     {
 #ifdef FEATURE_WINDOWSPHONE
         _ASSERTE(bucketType == WinPhoneCrash);
@@ -2053,11 +2016,9 @@ HRESULT RetrieveManagedBucketParameters(
 #if defined(PRESERVE_WATSON_ACROSS_CONTEXTS)
     GenericModeBlock *pBuckets = NULL;
 
-#ifdef FEATURE_CORECLR
     // On CoreCLR, Watson may not be enabled. Thus, we should
     // skip this.
     if (IsWatsonEnabled())
-#endif // FEATURE_CORECLR
     {
         if (pThread != NULL)
         {
@@ -2243,7 +2204,6 @@ FaultReportResult DoFaultReportWorker(      // Was Watson attempted, successful?
         return FaultReportResultQuit;
     }
 
-#if !defined(FEATURE_UEF_CHAINMANAGER)
     // If we've already tried to report a Watson crash once, we don't really
     // want to pester the user about this exception. This can occur in certain
     // pathological programs.
@@ -2259,7 +2219,6 @@ FaultReportResult DoFaultReportWorker(      // Was Watson attempted, successful?
             return FaultReportResultQuit;
         }
     }
-#endif // FEATURE_UEF_CHAINMANAGER
 
     // Assume an unmanaged fault until we determine otherwise.
     BOOL bIsManagedFault = FALSE;
@@ -2507,7 +2466,7 @@ FaultReportResult DoFaultReportWorker(      // Was Watson attempted, successful?
             {   // Look for final '\'
                 pName = wcsrchr(buf, W('\\'));
                 // If found, skip it; if not, point to full name.
-                pName = pName ? pName+1 : buf;
+                pName = pName ? pName+1 : (LPCWSTR)buf;
             }
         }
 
@@ -3094,7 +3053,6 @@ FaultReportResult DoFaultReport(            // Was Watson attempted, successful?
 
     Thread *pThread = GetThread();
 
-#ifdef FEATURE_CORECLR    
     // If watson isn't available (eg. in Silverlight), then use a simple dialog box instead
     if (!IsWatsonEnabled())
     {
@@ -3133,53 +3091,7 @@ FaultReportResult DoFaultReport(            // Was Watson attempted, successful?
 
         return fri.m_faultReportResult;
     } 
-#endif // FEATURE_CORECLR
 
-#ifdef FEATURE_UEF_CHAINMANAGER
-    if (g_pUEFManager && !tore.IsUserBreakpoint())
-    {
-        IWatsonSxSManager * pWatsonSxSManager = g_pUEFManager->GetWastonSxSManagerInstance();
-        
-        // Has Watson report been triggered?
-        if (pWatsonSxSManager->HasWatsonBeenTriggered())
-        {
-            LOG((LF_EH, LL_INFO100, "DoFaultReport: Watson has been triggered."));
-            LeaveRuntimeHolderNoThrow holder(reinterpret_cast< size_t >(WaitForSingleObject));
-            pWatsonSxSManager->WaitForWatsonSxSCompletionEvent();
-            return FaultReportResultQuit;
-        }
-        // The unhandled exception is thrown by the current runtime.
-        else if (IsExceptionFromManagedCode(pExceptionInfo->ExceptionRecord))   
-        {
-            // Is the current runtime allowed to report Watson?
-            if (!pWatsonSxSManager->IsCurrentRuntimeAllowedToReportWatson())
-            {
-                LOG((LF_EH, LL_INFO100, "DoFaultReport: Watson is reported by another runtime."));
-                LeaveRuntimeHolderNoThrow holder(reinterpret_cast< size_t >(WaitForSingleObject));
-                pWatsonSxSManager->WaitForWatsonSxSCompletionEvent();
-                return FaultReportResultQuit;
-            }
-        }
-        // The unhandled exception is thrown by another runtime in the process.
-        else if (pWatsonSxSManager->IsExceptionClaimed(pExceptionInfo->ExceptionRecord))
-        {
-            LOG((LF_EH, LL_INFO100, "DoFaultReport: Watson will be reported by another runtime.\n"));
-            return FaultReportResultQuit;
-        }
-        // The unhandled exception is thrown by native code.
-        else
-        {
-            // Is the current runtime allowed to report Watson?
-            if (!pWatsonSxSManager->IsCurrentRuntimeAllowedToReportWatson())
-            {
-                LOG((LF_EH, LL_INFO100, "DoFaultReport: Watson is reported by another runtime."));
-                LeaveRuntimeHolderNoThrow holder(reinterpret_cast< size_t >(WaitForSingleObject));
-                pWatsonSxSManager->WaitForWatsonSxSCompletionEvent();
-                return FaultReportResultQuit;
-            }
-        }
-    }
-#endif // FEATURE_UEF_CHAINMANAGER
 
     // Check if the current thread has the permission to open a process handle of the current process.
     // If not, the current thread may have been impersonated, we have to launch Watson from a new thread as in SO case.
@@ -3212,7 +3124,7 @@ FaultReportResult DoFaultReport(            // Was Watson attempted, successful?
             // thread under Coop mode, this will let the new generated DoFaultReportCallBack 
             // thread trigger a deadlock. So in this case, we should directly abort the fault 
             // report to avoid the deadlock.
-            ((IsGCThread() || pThread->PreemptiveGCDisabled()) && GCHeap::IsGCInProgress()) ||
+            ((IsGCThread() || pThread->PreemptiveGCDisabled()) && GCHeapUtilities::IsGCInProgress()) ||
              FAILED(g_pDebugInterface->RequestFavor(DoFaultReportFavorWorker, pData)))
         {
             // If we can't initialize the debugger helper thread or we are running on the debugger helper

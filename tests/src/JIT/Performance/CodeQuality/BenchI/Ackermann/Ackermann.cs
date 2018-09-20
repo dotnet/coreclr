@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchI
+{
 public static class Ackermann
 {
 
@@ -40,7 +41,7 @@ public static class Ackermann
         int a33 = Acker(3, 3);
         return (a00 == 1) && (a11 == 3) && (a22 == 7) & (a33 == 61);
     }
-    
+
     [Benchmark]
     public static void Test() {
         foreach (var iteration in Benchmark.Iterations) {
@@ -59,9 +60,10 @@ public static class Ackermann
         }
         return result;
     }
-    
+
     public static int Main() {
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

@@ -24,9 +24,7 @@
 #include "mscoree.h"
 #include "corhost.h"
 
-#ifdef FEATURE_HOSTED_BINDER
 #include "clrprivhosting.h"
-#endif
 
 extern HRESULT TypeNameFactoryCreateObject(REFIID riid, void **ppUnk);
 
@@ -44,16 +42,6 @@ const COCLASS_REGISTER g_CoClasses[] =
 {
 //  pClsid                              szProgID                        pfnCreateObject
     { &CLSID_CorMetaDataDispenser,        W("CorMetaDataDispenser"),        Disp::CreateObject },
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE) // coreclr doesn't export these
-    { &CLSID_CorMetaDataDispenserRuntime, W("CorMetaDataDispenserRuntime"), Disp::CreateObject },
-
-    { &CLSID_CorRuntimeHost,              W("CorRuntimeHost"),              CorHost::CreateObject },
-    { &CLSID_CLRRuntimeHost,              W("CLRRuntimeHost"),              CorHost2::CreateObject },
-#ifdef FEATURE_HOSTED_BINDER
-    { &__uuidof(CLRPrivRuntime),          W("CLRPrivRuntime"),              CorHost2::CreateObject },
-#endif
-    { &CLSID_TypeNameFactory,             NULL,                           (PFN_CREATE_OBJ)TypeNameFactoryCreateObject },
-#endif // FEATURE_CORECLR && !CROSSGEN_COMPILE
     { NULL,                               NULL,                           NULL }
 };
 

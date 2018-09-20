@@ -10,14 +10,8 @@
 #define STRESS_HEAP
 #endif
 
-#if !defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-#define STRESS_THREAD
-#endif
 
-// On CoreCLR, define VERIFY_HEAP only in debug builds
-#if defined(_DEBUG) || !defined(FEATURE_CORECLR)
 #define VERIFY_HEAP
-#endif
 
 #define GC_CONFIG_DRIVEN
 
@@ -40,7 +34,7 @@
     #define LOGGING
 #endif
 
-#if !defined(_TARGET_X86_)
+#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
 #define WIN64EXCEPTIONS
 #endif
 
@@ -70,9 +64,6 @@
 #define GC_STATS
 #endif
 
-#if !defined(FEATURE_CORECLR)
-#define EMIT_FIXUPS
-#endif
 
 #if defined(_DEBUG) && !defined(DACCESS_COMPILE) && (defined(_TARGET_X86_) || defined(_TARGET_AMD64_))
 // On x86/x64 Windows debug builds, respect the COMPlus_EnforceEEThreadNotRequiredContracts
@@ -113,16 +104,12 @@
 // ALLOW_SXS_JIT_NGEN enables AltJit support for NGEN, via COMPlus_AltJitNgen / COMPlus_AltJitName.
 // Note that if ALLOW_SXS_JIT_NGEN is defined, then ALLOW_SXS_JIT must be defined.
 #define ALLOW_SXS_JIT
-#if defined(ALLOW_SXS_JIT)
 #define ALLOW_SXS_JIT_NGEN
-#endif // ALLOW_SXS_JIT
 
-#if defined(FEATURE_CORECLR)
 //master switch for gc suspension not based on hijacking
 #define FEATURE_ENABLE_GCPOLL
-#endif //FEATURE_CORECLR
 
-#if defined(FEATURE_ENABLE_GCPOLL) && defined(_TARGET_X86_)
+#if defined(_TARGET_X86_)
 //this enables a fast version of the GC Poll helper instead of the default portable one.
 #define ENABLE_FAST_GCPOLL_HELPER
 #endif // defined(FEATURE_ENABLE_GCPOLL) && defined(_TARGET_X86_)
@@ -135,18 +122,13 @@
 #define PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
 #endif // !FEATURE_PAL
 
-#if !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND) && !defined(FEATURE_ENABLE_GCPOLL)
-#error "Platform must support either safe thread suspension or GC polling"
-#endif
 
 #if defined(STRESS_HEAP) && defined(_DEBUG) && defined(FEATURE_HIJACK)
 #define HAVE_GCCOVER
 #endif
 
-#ifdef FEATURE_CORECLR
 //Turns on a startup delay to allow simulation of slower and faster startup times.
 #define ENABLE_STARTUP_DELAY
-#endif
 
 
 #ifndef ALLOW_LOCAL_WORKER
@@ -185,23 +167,10 @@
 #define FEATURE_PROFAPI_EVENT_LOGGING
 #endif // defined(PROFILING_SUPPORTED)
 
-// Windows desktop supports the profiling API attach / detach feature.
-// This will eventually be supported on coreclr as well. 
-#if defined(PROFILING_SUPPORTED) && !defined(FEATURE_CORECLR)
-#define FEATURE_PROFAPI_ATTACH_DETACH
-#endif
-
-// Windows desktop DAC builds need to see some of the data used in the profiling API
-// attach / detach feature, particularly Thread::m_dwProfilerEvacuationCounter 
-#if defined(PROFILING_SUPPORTED_DATA) && !defined(FEATURE_CORECLR)
-#define DATA_PROFAPI_ATTACH_DETACH
-#endif
-
 // MUST NEVER CHECK IN WITH THIS ENABLED.
 // This is just for convenience in doing performance investigations in a checked-out enlistment.
 // #define FEATURE_ENABLE_NO_RANGE_CHECKS
 
-#ifndef FEATURE_CORECLR
 // This controls whether a compilation-timing feature that relies on Windows APIs, if available, else direct
 // hardware instructions (rdtsc), for accessing high-resolution hardware timers is enabled. This is disabled
 // in Silverlight (just to avoid thinking about whether the extra code space is worthwhile).
@@ -211,7 +180,6 @@
 // feature also supports using COMPlus_JitTimeLogCsv=a.csv, which will dump method-level and phase-level timing
 // statistics. Also see comments on FEATURE_JIT_TIMER.
 #define FEATURE_JIT_METHOD_PERF
-#endif // FEATURE_CORECLR
 
 
 #ifndef FEATURE_USE_ASM_GC_WRITE_BARRIERS
@@ -224,11 +192,9 @@
 // are treated as potential pinned interior pointers. When enabled, the runtime flag COMPLUS_GCCONSERVATIVE 
 // determines dynamically whether GC is conservative. Note that appdomain unload, LCG and unloadable assemblies
 // do not work reliably with conservative GC.
-#ifdef FEATURE_CORECLR
 #define FEATURE_CONSERVATIVE_GC 1
-#endif
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+#if (defined(_TARGET_ARM_) && !defined(ARM_SOFTFP)) || defined(_TARGET_ARM64_)
 #define FEATURE_HFA
 #endif
 
@@ -249,7 +215,7 @@
 #define FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 #endif // defined(FEATURE_CORESYSTEM)
 
-#if defined(FEATURE_PREJIT) && defined(FEATURE_CORECLR) && defined(FEATURE_CORESYSTEM)
+#if defined(FEATURE_PREJIT) && defined(FEATURE_CORESYSTEM)
 // Desktop CLR allows profilers and debuggers to opt out of loading NGENd images, and to
 // JIT everything instead. "FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS" is roughly the
 // equivalent for Apollo, where MSIL images may not be available at all.
@@ -263,9 +229,12 @@
 // If defined, support interpretation.
 #if !defined(CROSSGEN_COMPILE)
 
-#if defined(ALLOW_SXS_JIT) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
 #define FEATURE_STACK_SAMPLING
 #endif // defined (ALLOW_SXS_JIT)
 
 #endif // !defined(CROSSGEN_COMPILE)
 
+#if defined(FEATURE_INTERPRETER) && defined(CROSSGEN_COMPILE)
+#undef FEATURE_INTERPRETER
+#endif

@@ -28,15 +28,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private IMapViewToIReadOnlyDictionaryAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // V this[K key] { get }
-        [SecurityCritical]
         internal V Indexer_Get<K, V>(K key)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
             Contract.EndContractBlock();
 
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
@@ -44,7 +43,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<K> Keys { get }
-        [SecurityCritical]
         internal IEnumerable<K> Keys<K, V>()
         {
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
@@ -53,7 +51,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<V> Values { get }
-        [SecurityCritical]
         internal IEnumerable<V> Values<K, V>()
         {
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
@@ -63,22 +60,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // bool ContainsKey(K key)
         [Pure]
-        [SecurityCritical]
         internal bool ContainsKey<K, V>(K key)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
             return _this.HasKey(key);
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        [SecurityCritical]
         internal bool TryGetValue<K, V>(K key, out V value)
         {
             if (key == null)
-                throw new ArgumentNullException("key");
+                throw new ArgumentNullException(nameof(key));
 
             IMapView<K, V> _this = JitHelpers.UnsafeCast<IMapView<K, V>>(this);
 
@@ -119,7 +114,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             catch (Exception ex)
             {
                 if (__HResults.E_BOUNDS == ex._HResult)
-                    throw new KeyNotFoundException(Environment.GetResourceString("Arg_KeyNotFound"));
+                    throw new KeyNotFoundException(SR.Arg_KeyNotFound);
                 throw;
             }
         }
@@ -128,7 +123,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }
 
     // Note: One day we may make these return IReadOnlyCollection<T>
-    [Serializable]
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey>
     {
@@ -137,7 +131,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public ReadOnlyDictionaryKeyCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
@@ -146,13 +140,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public void CopyTo(TKey[] array, int index)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             if (array.Length <= index && this.Count > 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_IndexOutOfRangeException"));
+                throw new ArgumentException(SR.Arg_IndexOutOfRangeException);
             if (array.Length - index < dictionary.Count)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             int i = index;
             foreach (KeyValuePair<TKey, TValue> mapping in dictionary)
@@ -183,7 +177,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryKeyCollection<TKey, TValue>
 
 
-    [Serializable]
     internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey>
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
@@ -192,10 +185,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public ReadOnlyDictionaryKeyEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
-            this.enumeration = dictionary.GetEnumerator();
+            enumeration = dictionary.GetEnumerator();
         }
 
         void IDisposable.Dispose()
@@ -208,11 +201,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current {
+        Object IEnumerator.Current
+        {
             get { return ((IEnumerator<TKey>)this).Current; }
         }
 
-        public TKey Current {
+        public TKey Current
+        {
             get { return enumeration.Current.Key; }
         }
 
@@ -223,7 +218,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // class ReadOnlyDictionaryKeyEnumerator<TKey, TValue>
 
 
-    [Serializable]
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue>
     {
@@ -232,7 +226,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public ReadOnlyDictionaryValueCollection(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
         }
@@ -241,13 +235,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public void CopyTo(TValue[] array, int index)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
             if (index < 0)
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
             if (array.Length <= index && this.Count > 0)
-                throw new ArgumentException(Environment.GetResourceString("Arg_IndexOutOfRangeException"));
+                throw new ArgumentException(SR.Arg_IndexOutOfRangeException);
             if (array.Length - index < dictionary.Count)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InsufficientSpaceToCopyCollection"));
+                throw new ArgumentException(SR.Argument_InsufficientSpaceToCopyCollection);
 
             int i = index;
             foreach (KeyValuePair<TKey, TValue> mapping in dictionary)
@@ -282,7 +276,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryValueCollection<TKey, TValue>
 
 
-    [Serializable]
     internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
@@ -291,10 +284,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         public ReadOnlyDictionaryValueEnumerator(IReadOnlyDictionary<TKey, TValue> dictionary)
         {
             if (dictionary == null)
-                throw new ArgumentNullException("dictionary");
+                throw new ArgumentNullException(nameof(dictionary));
 
             this.dictionary = dictionary;
-            this.enumeration = dictionary.GetEnumerator();
+            enumeration = dictionary.GetEnumerator();
         }
 
         void IDisposable.Dispose()
@@ -307,11 +300,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return enumeration.MoveNext();
         }
 
-        Object IEnumerator.Current {
+        Object IEnumerator.Current
+        {
             get { return ((IEnumerator<TValue>)this).Current; }
         }
 
-        public TValue Current {
+        public TValue Current
+        {
             get { return enumeration.Current.Value; }
         }
 
@@ -320,5 +315,4 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             enumeration = dictionary.GetEnumerator();
         }
     }  // class ReadOnlyDictionaryValueEnumerator<TKey, TValue>
-
 }

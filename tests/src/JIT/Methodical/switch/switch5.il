@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // Stack implementation
 
 .assembly extern legacy library mscorlib {}
@@ -53,13 +56,13 @@
     IL_003c:  brtrue.s   IL_0051
 
     IL_003e:  ldc.i4.s   100
-    IL_0040:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_0040:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_0045:  ldstr      "Test passed"
     IL_004a:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_004f:  br.s       IL_0061
 
     IL_0051:  ldc.i4.1
-    IL_0052:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_0052:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_0057:  ldstr      "Test failed"
     IL_005c:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0061:  br.s       IL_0063
@@ -153,7 +156,9 @@
     IL_001b:  ldloc.0
     IL_001c:  ldc.i4.3
     IL_001d:  call       instance void TestStack::DoSwitch(int32)
-    IL_0022:  ret
+    IL_0022:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
+              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+              ret
   } 
 
 } 

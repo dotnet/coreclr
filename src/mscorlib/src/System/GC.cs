@@ -12,23 +12,22 @@
 **
 **
 ===========================================================*/
-namespace System {
-    //This class only static members and doesn't require the serializable keyword.
+//This class only static members and doesn't require the serializable keyword.
 
-    using System;
-    using System.Security.Permissions;
-    using System.Reflection;
-    using System.Security;
-    using System.Threading;
-    using System.Runtime;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Globalization;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
+using System;
+using System.Reflection;
+using System.Security;
+using System.Threading;
+using System.Runtime;
+using System.Runtime.CompilerServices;
+using System.Runtime.ConstrainedExecution;
+using System.Globalization;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+using System.Diagnostics.Contracts;
 
-    [Serializable]
+namespace System
+{
     public enum GCCollectionMode
     {
         Default = 0,
@@ -39,7 +38,6 @@ namespace System {
     // !!!!!!!!!!!!!!!!!!!!!!!
     // make sure you change the def in vm\gc.h 
     // if you change this!
-    [Serializable]
     internal enum InternalGCCollectionMode
     {
         NonBlocking = 0x00000001,
@@ -51,7 +49,6 @@ namespace System {
     // !!!!!!!!!!!!!!!!!!!!!!!
     // make sure you change the def in vm\gc.h 
     // if you change this!
-    [Serializable]
     public enum GCNotificationStatus
     {
         Succeeded = 0,
@@ -61,146 +58,132 @@ namespace System {
         NotApplicable = 4
     }
 
-    public static class GC 
+    public static class GC
     {
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetGCLatencyMode();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int SetGCLatencyMode(int newLatencyMode);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         internal static extern int _EndNoGCRegion();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetLOHCompactionMode();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void SetLOHCompactionMode(int newLOHCompactionMode);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern long GetTotalMemory();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _Collect(int generation, int mode);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetMaxGeneration();
-    
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        private static extern int _CollectionCount (int generation, int getSpecialGCCount);
 
-        [System.Security.SecurityCritical]  // auto-generated
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern int _CollectionCount(int generation, int getSpecialGCCount);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool IsServerGC();
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         private static extern void _AddMemoryPressure(UInt64 bytesAllocated);
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
         private static extern void _RemoveMemoryPressure(UInt64 bytesAllocated);
-        
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public static void AddMemoryPressure (long bytesAllocated) {
-            if( bytesAllocated <= 0) {
-                throw new ArgumentOutOfRangeException("bytesAllocated", 
-                        Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
+
+        public static void AddMemoryPressure(long bytesAllocated)
+        {
+            if (bytesAllocated <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
+                        SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if( (4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue) ) {
-                throw new ArgumentOutOfRangeException("pressure", 
-                        Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegInt32"));
+            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
+            {
+                throw new ArgumentOutOfRangeException("pressure",
+                    SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
             Contract.EndContractBlock();
 
             _AddMemoryPressure((ulong)bytesAllocated);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated_required
-        public static void RemoveMemoryPressure (long bytesAllocated) {
-            if( bytesAllocated <= 0) {
-                throw new ArgumentOutOfRangeException("bytesAllocated", 
-                        Environment.GetResourceString("ArgumentOutOfRange_NeedPosNum"));
+        public static void RemoveMemoryPressure(long bytesAllocated)
+        {
+            if (bytesAllocated <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
+                    SR.ArgumentOutOfRange_NeedPosNum);
             }
 
-            if( (4 == IntPtr.Size)  && (bytesAllocated > Int32.MaxValue) ) {
-                throw new ArgumentOutOfRangeException("bytesAllocated", 
-                        Environment.GetResourceString("ArgumentOutOfRange_MustBeNonNegInt32"));
+            if ((4 == IntPtr.Size) && (bytesAllocated > Int32.MaxValue))
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesAllocated),
+                    SR.ArgumentOutOfRange_MustBeNonNegInt32);
             }
             Contract.EndContractBlock();
 
-            _RemoveMemoryPressure((ulong) bytesAllocated);
+            _RemoveMemoryPressure((ulong)bytesAllocated);
         }
 
 
         // Returns the generation that obj is currently in.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern int GetGeneration(Object obj);
 
-    
+
         // Forces a collection of all generations from 0 through Generation.
         //
-        public static void Collect(int generation) {
+        public static void Collect(int generation)
+        {
             Collect(generation, GCCollectionMode.Default);
         }
-    
+
         // Garbage Collect all generations.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void Collect() {
+        public static void Collect()
+        {
             //-1 says to GC all generations.
             _Collect(-1, (int)InternalGCCollectionMode.Blocking);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void Collect(int generation, GCCollectionMode mode) 
+        public static void Collect(int generation, GCCollectionMode mode)
         {
             Collect(generation, mode, true);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void Collect(int generation, GCCollectionMode mode, bool blocking) 
+        public static void Collect(int generation, GCCollectionMode mode, bool blocking)
         {
             Collect(generation, mode, blocking, false);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void Collect(int generation, GCCollectionMode mode, bool blocking, bool compacting)
         {
-            if (generation<0) 
+            if (generation < 0)
             {
-                throw new ArgumentOutOfRangeException("generation", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
+                throw new ArgumentOutOfRangeException(nameof(generation), SR.ArgumentOutOfRange_GenericPositive);
             }
 
             if ((mode < GCCollectionMode.Default) || (mode > GCCollectionMode.Optimized))
             {
-                throw new ArgumentOutOfRangeException("mode", Environment.GetResourceString("ArgumentOutOfRange_Enum"));
+                throw new ArgumentOutOfRangeException(nameof(mode), SR.ArgumentOutOfRange_Enum);
             }
 
             Contract.EndContractBlock();
@@ -227,31 +210,16 @@ namespace System {
             _Collect(generation, iInternalModes);
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        public static int CollectionCount (int generation) 
+        public static int CollectionCount(int generation)
         {
-            if (generation<0) 
+            if (generation < 0)
             {
-                throw new ArgumentOutOfRangeException("generation", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
+                throw new ArgumentOutOfRangeException(nameof(generation), SR.ArgumentOutOfRange_GenericPositive);
             }
             Contract.EndContractBlock();
             return _CollectionCount(generation, 0);
         }
 
-        // pass in true to get the BGC or FGC count.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal static int CollectionCount (int generation, bool getSpecialGCCount) 
-        {
-            if (generation<0) 
-            {
-                throw new ArgumentOutOfRangeException("generation", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-            }
-            Contract.EndContractBlock();
-            return _CollectionCount(generation, (getSpecialGCCount ? 1 : 0));
-        }
-        
         // This method DOES NOT DO ANYTHING in and of itself.  It's used to 
         // prevent a finalizable object from losing any outstanding references 
         // a touch too early.  The JIT is very aggressive about keeping an 
@@ -288,50 +256,45 @@ namespace System {
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         public static void KeepAlive(Object obj)
         {
         }
 
         // Returns the generation in which wo currently resides.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static int GetGeneration(WeakReference wo) {
+        public static int GetGeneration(WeakReference wo)
+        {
             int result = GetGenerationWR(wo.m_handle);
             KeepAlive(wo);
             return result;
         }
-    
+
         // Returns the maximum GC generation.  Currently assumes only 1 heap.
         //
-        public static int MaxGeneration {
-            [System.Security.SecuritySafeCritical]  // auto-generated
+        public static int MaxGeneration
+        {
             get { return GetMaxGeneration(); }
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern void _WaitForPendingFinalizers();
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void WaitForPendingFinalizers() {
+        public static void WaitForPendingFinalizers()
+        {
             // QCalls can not be exposed from mscorlib directly, need to wrap it.
             _WaitForPendingFinalizers();
         }
-    
+
         // Indicates that the system should not call the Finalize() method on
         // an object that would normally require this call.
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern void _SuppressFinalize(Object o);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        public static void SuppressFinalize(Object obj) {
+        public static void SuppressFinalize(Object obj)
+        {
             if (obj == null)
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             Contract.EndContractBlock();
             _SuppressFinalize(obj);
         }
@@ -340,14 +303,13 @@ namespace System {
         // for which SuppressFinalize has already been called. The other situation 
         // where calling ReRegisterForFinalize is useful is inside a finalizer that 
         // needs to resurrect itself or an object that it references.
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _ReRegisterForFinalize(Object o);
-        
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static void ReRegisterForFinalize(Object obj) {
+
+        public static void ReRegisterForFinalize(Object obj)
+        {
             if (obj == null)
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             Contract.EndContractBlock();
             _ReRegisterForFinalize(obj);
         }
@@ -356,8 +318,8 @@ namespace System {
         // the GC heap.  This does not return the total size of the GC heap, but
         // only the live objects in the GC heap.
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public static long GetTotalMemory(bool forceFullCollection) {
+        public static long GetTotalMemory(bool forceFullCollection)
+        {
             long size = GetTotalMemory();
             if (!forceFullCollection)
                 return size;
@@ -369,7 +331,8 @@ namespace System {
             int reps = 20;  // Number of iterations
             long newSize = size;
             float diff;
-            do {
+            do
+            {
                 GC.WaitForPendingFinalizers();
                 GC.Collect();
                 size = newSize;
@@ -379,7 +342,14 @@ namespace System {
             return newSize;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        private static extern long _GetAllocatedBytesForCurrentThread();
+
+        public static long GetAllocatedBytesForCurrentThread()
+        {
+            return _GetAllocatedBytesForCurrentThread();
+        }
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
 
@@ -392,74 +362,68 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int _WaitForFullGCComplete(int millisecondsTimeout);
 
-        [SecurityCritical]
         public static void RegisterForFullGCNotification(int maxGenerationThreshold, int largeObjectHeapThreshold)
         {
             if ((maxGenerationThreshold <= 0) || (maxGenerationThreshold >= 100))
             {
-                throw new ArgumentOutOfRangeException("maxGenerationThreshold", 
+                throw new ArgumentOutOfRangeException(nameof(maxGenerationThreshold),
                                                       String.Format(
                                                           CultureInfo.CurrentCulture,
-                                                          Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper"), 
-                                                          1, 
+                                                          SR.ArgumentOutOfRange_Bounds_Lower_Upper,
+                                                          1,
                                                           99));
             }
-            
+
             if ((largeObjectHeapThreshold <= 0) || (largeObjectHeapThreshold >= 100))
             {
-                throw new ArgumentOutOfRangeException("largeObjectHeapThreshold", 
+                throw new ArgumentOutOfRangeException(nameof(largeObjectHeapThreshold),
                                                       String.Format(
                                                           CultureInfo.CurrentCulture,
-                                                          Environment.GetResourceString("ArgumentOutOfRange_Bounds_Lower_Upper"), 
-                                                          1, 
+                                                          SR.ArgumentOutOfRange_Bounds_Lower_Upper,
+                                                          1,
                                                           99));
-}
+            }
 
             if (!_RegisterForFullGCNotification(maxGenerationThreshold, largeObjectHeapThreshold))
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotWithConcurrentGC"));
+                throw new InvalidOperationException(SR.InvalidOperation_NotWithConcurrentGC);
             }
         }
 
-        [SecurityCritical]
         public static void CancelFullGCNotification()
         {
             if (!_CancelFullGCNotification())
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotWithConcurrentGC"));
+                throw new InvalidOperationException(SR.InvalidOperation_NotWithConcurrentGC);
             }
         }
 
-        [SecurityCritical]
         public static GCNotificationStatus WaitForFullGCApproach()
         {
             return (GCNotificationStatus)_WaitForFullGCApproach(-1);
         }
 
-        [SecurityCritical]
         public static GCNotificationStatus WaitForFullGCApproach(int millisecondsTimeout)
         {
             if (millisecondsTimeout < -1)
-                throw new ArgumentOutOfRangeException("millisecondsTimeout", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
 
             return (GCNotificationStatus)_WaitForFullGCApproach(millisecondsTimeout);
         }
 
-        [SecurityCritical]
         public static GCNotificationStatus WaitForFullGCComplete()
         {
             return (GCNotificationStatus)_WaitForFullGCComplete(-1);
         }
 
-        [SecurityCritical]
         public static GCNotificationStatus WaitForFullGCComplete(int millisecondsTimeout)
         {
             if (millisecondsTimeout < -1)
-                throw new ArgumentOutOfRangeException("millisecondsTimeout", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegOrNegative1"));
+                throw new ArgumentOutOfRangeException(nameof(millisecondsTimeout), SR.ArgumentOutOfRange_NeedNonNegOrNegative1);
             return (GCNotificationStatus)_WaitForFullGCComplete(millisecondsTimeout);
         }
 
-        enum StartNoGCRegionStatus
+        private enum StartNoGCRegionStatus
         {
             Succeeded = 0,
             NotEnoughMemory = 1,
@@ -467,7 +431,7 @@ namespace System {
             AlreadyInProgress = 3
         }
 
-        enum EndNoGCRegionStatus
+        private enum EndNoGCRegionStatus
         {
             Succeeded = 0,
             NotInProgress = 1,
@@ -475,12 +439,11 @@ namespace System {
             AllocationExceeded = 3
         }
 
-        [SecurityCritical]
-        static bool StartNoGCRegionWorker(long totalSize, bool hasLohSize, long lohSize, bool disallowFullBlockingGC)
+        private static bool StartNoGCRegionWorker(long totalSize, bool hasLohSize, long lohSize, bool disallowFullBlockingGC)
         {
             StartNoGCRegionStatus status = (StartNoGCRegionStatus)_StartNoGCRegion(totalSize, hasLohSize, lohSize, disallowFullBlockingGC);
             if (status == StartNoGCRegionStatus.AmountTooLarge)
-                throw new ArgumentOutOfRangeException("totalSize", 
+                throw new ArgumentOutOfRangeException(nameof(totalSize),
                     "totalSize is too large. For more information about setting the maximum size, see \"Latency Modes\" in http://go.microsoft.com/fwlink/?LinkId=522706");
             else if (status == StartNoGCRegionStatus.AlreadyInProgress)
                 throw new InvalidOperationException("The NoGCRegion mode was already in progress");
@@ -489,32 +452,27 @@ namespace System {
             return true;
         }
 
-        [SecurityCritical]
         public static bool TryStartNoGCRegion(long totalSize)
         {
             return StartNoGCRegionWorker(totalSize, false, 0, false);
         }
 
-        [SecurityCritical]
         public static bool TryStartNoGCRegion(long totalSize, long lohSize)
         {
             return StartNoGCRegionWorker(totalSize, true, lohSize, false);
         }
 
-        [SecurityCritical]
         public static bool TryStartNoGCRegion(long totalSize, bool disallowFullBlockingGC)
         {
             return StartNoGCRegionWorker(totalSize, false, 0, disallowFullBlockingGC);
         }
 
-        [SecurityCritical]
         public static bool TryStartNoGCRegion(long totalSize, long lohSize, bool disallowFullBlockingGC)
         {
             return StartNoGCRegionWorker(totalSize, true, lohSize, disallowFullBlockingGC);
         }
 
-        [SecurityCritical]
-        static EndNoGCRegionStatus EndNoGCRegionWorker()
+        private static EndNoGCRegionStatus EndNoGCRegionWorker()
         {
             EndNoGCRegionStatus status = (EndNoGCRegionStatus)_EndNoGCRegion();
             if (status == EndNoGCRegionStatus.NotInProgress)
@@ -527,106 +485,9 @@ namespace System {
             return EndNoGCRegionStatus.Succeeded;
         }
 
-        [SecurityCritical]
         public static void EndNoGCRegion()
         {
             EndNoGCRegionWorker();
         }
     }
-
-#if !FEATURE_CORECLR
-    internal class SizedReference : IDisposable
-    {
-        [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern IntPtr CreateSizedRef(Object o);
-
-        [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern void FreeSizedRef(IntPtr h);
-
-        [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern Object GetTargetOfSizedRef(IntPtr h);
-
-        [System.Security.SecurityCritical]
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern Int64 GetApproximateSizeOfSizedRef(IntPtr h);
-
-        #pragma warning disable 420
-        [System.Security.SecuritySafeCritical]
-        private void Free()
-        {
-            IntPtr temp = _handle;
-            if (temp != IntPtr.Zero && 
-                (Interlocked.CompareExchange(ref _handle, IntPtr.Zero, temp) == temp))
-            {
-                FreeSizedRef(temp);
-            }
-        }
-
-        internal volatile IntPtr _handle;
-
-        [System.Security.SecuritySafeCritical]
-        public SizedReference(Object target)
-        {
-            IntPtr temp = IntPtr.Zero;
-            temp = CreateSizedRef(target);
-            _handle = temp;
-        }
-
-        ~SizedReference()
-        {
-            Free();
-        }
-
-        public Object Target
-        {
-            [System.Security.SecuritySafeCritical]
-            get 
-            {
-                IntPtr temp = _handle; 
-                if (temp == IntPtr.Zero)
-                {
-                    return null;
-                }
-
-                Object o = GetTargetOfSizedRef(temp);
-
-                return (_handle == IntPtr.Zero) ? null : o;
-            }
-        }
-
-        public Int64 ApproximateSize
-        {
-            [System.Security.SecuritySafeCritical]
-            get 
-            {
-                IntPtr temp = _handle; 
-                
-                if (temp == IntPtr.Zero)
-                {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
-                }
-
-                Int64 size = GetApproximateSizeOfSizedRef(temp);
-
-                if (_handle == IntPtr.Zero)
-                {
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_HandleIsNotInitialized"));
-                }
-                else
-                {
-                    return size;
-                }
-            }
-        }
-
-        public void Dispose()
-        {
-            Free();
-            GC.SuppressFinalize(this);
-        }
-    }
-#endif
 }

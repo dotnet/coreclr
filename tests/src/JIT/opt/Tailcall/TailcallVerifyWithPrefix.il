@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -8,6 +9,11 @@
 
 .assembly extern mscorlib { }
 .assembly extern System.Console
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:0:0:0
+}
+.assembly extern System.Threading.Thread
 {
   .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
   .ver 4:0:0:0
@@ -95,7 +101,7 @@
       IL_0031:  ldstr      "Caller"
       IL_0036:  callvirt   instance int32 [mscorlib]System.String::IndexOf(string)
       IL_003b:  ldc.i4.m1
-      IL_003c:  bne.un.s   IL_006e
+      IL_003c:  beq.s   IL_006e
 
       IL_003e:  ldstr      "FAILED: Found the word 'Caller' in the stacktrace."
       IL_0043:  call       void [System.Console]System.Console::WriteLine(string)
@@ -597,7 +603,7 @@
     .maxstack  3
     .locals init ([0] class TailcallVerify.Condition16 con,
              [1] class [mscorlib]System.Exception e,
-             [2] class [mscorlib]System.Threading.Thread t)
+             [2] class [System.Threading.Thread]System.Threading.Thread t)
     IL_0000:  ldstr      "Executing Condition16.Test1 - Caller: Arguments: N"
     + "one - ReturnType: void; Callee: Arguments: None - ReturnType: void"
     IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
@@ -649,13 +655,13 @@
                                                                                                     native int)
       IL_008a:  stsfld     class [mscorlib]System.Threading.ParameterizedThreadStart TailcallVerify.Condition16::'CS$<>9__CachedAnonymousMethodDelegate1'
       IL_008f:  ldsfld     class [mscorlib]System.Threading.ParameterizedThreadStart TailcallVerify.Condition16::'CS$<>9__CachedAnonymousMethodDelegate1'
-      IL_0094:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ParameterizedThreadStart)
+      IL_0094:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ParameterizedThreadStart)
       IL_0099:  stloc.2
       IL_009a:  ldloc.2
       IL_009b:  ldloc.0
-      IL_009c:  callvirt   instance void [mscorlib]System.Threading.Thread::Start(object)
+      IL_009c:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Start(object)
       IL_00a1:  ldloc.2
-      IL_00a2:  callvirt   instance void [mscorlib]System.Threading.Thread::Join()
+      IL_00a2:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Join()
       IL_00a7:  leave.s    IL_00a9
 
     }  // end handler
@@ -703,7 +709,7 @@
   {
     // Code size       59 (0x3b)
     .maxstack  3
-    .locals init ([0] class [mscorlib]System.Threading.Thread t)
+    .locals init ([0] class [System.Threading.Thread]System.Threading.Thread t)
     IL_0000:  ldsfld     class [mscorlib]System.Threading.ParameterizedThreadStart TailcallVerify.Condition16::'CS$<>9__CachedAnonymousMethodDelegate3'
     IL_0005:  brtrue.s   IL_0018
 
@@ -713,13 +719,13 @@
                                                                                                   native int)
     IL_0013:  stsfld     class [mscorlib]System.Threading.ParameterizedThreadStart TailcallVerify.Condition16::'CS$<>9__CachedAnonymousMethodDelegate3'
     IL_0018:  ldsfld     class [mscorlib]System.Threading.ParameterizedThreadStart TailcallVerify.Condition16::'CS$<>9__CachedAnonymousMethodDelegate3'
-    IL_001d:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ParameterizedThreadStart)
+    IL_001d:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ParameterizedThreadStart)
     IL_0022:  stloc.0
     IL_0023:  ldloc.0
     IL_0024:  ldarg.0
-    IL_0025:  callvirt   instance void [mscorlib]System.Threading.Thread::Start(object)
+    IL_0025:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Start(object)
     IL_002a:  ldloc.0
-    IL_002b:  callvirt   instance void [mscorlib]System.Threading.Thread::Join()
+    IL_002b:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Join()
     IL_0030:  ldc.i4.1
     IL_0031:  volatile.
     IL_0033:  ldsfld     int32 modreq([mscorlib]System.Runtime.CompilerServices.IsVolatile) TailcallVerify.Condition16::zero
@@ -2784,157 +2790,180 @@
   {
     .entrypoint
     .maxstack  1
-	
-    IL_0000:  ldstr      "Condition1.Test1"
-    IL_0001:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0002:  pop	
-    IL_0003:  ldstr      "Condition1.Test2"
-    IL_0004:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0005:  pop	
-    IL_0006:  ldstr      "Condition1.Test3"
-    IL_0007:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0008:  pop	
-    IL_0009:  ldstr      "Condition2.Test1"
-    IL_000a:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_000b:  pop	
-    IL_000c:  ldstr      "Condition2.Test2"
-    IL_000d:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_000e:  pop	
-    IL_000f:  ldstr      "Condition3.Test1"
-    IL_0010:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0011:  pop	
-    IL_0012:  ldstr      "Condition3.Test2"
-    IL_0013:  call       int32 TailcallVerify.Program::Run(string)      
-	IL_0014:  pop	
-    IL_0015:  ldstr      "Condition4.Test1"
-    IL_0016:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0017:  pop	
-    IL_0018:  ldstr      "Condition4.Test2"
-    IL_0019:  call       int32 TailcallVerify.Program::Run(string)     
-    IL_001a:  pop	
-    IL_001b:  ldstr      "Condition5.Test1"
-    IL_001c:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_001d:  pop	
-    IL_001e:  ldstr      "Condition5.Test2"
-    IL_001f:  call       int32 TailcallVerify.Program::Run(string)     
-    IL_0020:  pop	
-    IL_0021:  ldstr      "Condition5.Test3"
-    IL_0022:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0023:  pop	
-    IL_0024:  ldstr      "Condition5.Test4"
-    IL_0025:  call       int32 TailcallVerify.Program::Run(string)    
-    IL_0026:  pop	
-	IL_0027:  ldstr      "Condition5.Test5"
-    IL_0028:  call       int32 TailcallVerify.Program::Run(string)    
-    IL_0029:  pop	
-    IL_002a:  ldstr      "Condition5.Test6"
-    IL_002b:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_002c:  pop		
-    IL_002d:  ldstr      "Condition5.Test7"
-    IL_002e:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_002f:  pop	
-    IL_0030:  ldstr      "Condition5.Test8"
-    IL_003a:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_003b:  pop	
-    IL_003c:  ldstr      "Condition5.Test9"
-    IL_003d:  call       int32 TailcallVerify.Program::Run(string)    
-    IL_003e:  pop	
-    IL_003f:  ldstr      "Condition6.Test1"
-    IL_0040:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0041:  pop	
-    IL_0042:  ldstr      "Condition6.Test2"
-    IL_0043:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0044:  pop	 
-    IL_0045:  ldstr      "Condition6.Test3"
-    IL_0046:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0047:  pop	
-    IL_0048:  ldstr      "Condition6.Test4"
-    IL_0049:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_004a:  pop	
-    IL_004b:  ldstr      "Condition6.Test5"
-    IL_004c:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_004d:  pop	
-	IL_004e:  ldstr      "Condition7.Test1"
-    IL_004f:  call       int32 TailcallVerify.Program::Run(string)    
-    IL_0050:  pop	
-	IL_0051:  ldstr      "Condition7.Test2"
-    IL_0052:  call       int32 TailcallVerify.Program::Run(string)    
-    IL_0053:  pop	
-    IL_0054:  ldstr      "Condition7.Test3"
-    IL_0055:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0056:  pop	
-    IL_0057:  ldstr      "Condition7.Test4"
-    IL_0058:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0059:  pop	
-    IL_005a:  ldstr      "Condition8.Test1"
-    IL_005b:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_005c:  pop	
-    IL_005d:  ldstr      "Condition8.Test2"
-    IL_005e:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_005f:  pop	
-    IL_0060:  ldstr      "Condition8.Test3"
-    IL_0061:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0062:  pop	
-    IL_0063:  ldstr      "Condition9.Test1"
-    IL_0064:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0065:  pop	
-    IL_0066:  ldstr      "Condition10.Test1"
-    IL_0067:  call       int32 TailcallVerify.Program::Run(string)     
-    IL_0068:  pop	
-    IL_0069:  ldstr      "Condition10.Test2"
-    IL_006a:  call       int32 TailcallVerify.Program::Run(string)     
-    IL_006b:  pop	
-    IL_006c:  ldstr      "Condition10.Test3"
-    IL_006d:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_006e:  pop	
-    IL_0070:  ldstr      "Condition10.Test4"
-    IL_0071:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0072:  pop	
-    IL_0073:  ldstr      "Condition10.Test5"
-    IL_0074:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0075:  pop	
-    IL_0076:  ldstr      "Condition11.Test1"
-    IL_0077:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0078:  pop	
-    IL_0079:  ldstr      "Condition11.Test2"
-    IL_007a:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_007b:  pop	
-    IL_007c:  ldstr      "Condition12.Test1"
-    IL_007d:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_007e:  pop	
-    IL_007f:  ldstr      "Condition13.Test1"
-    IL_0080:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0081:  pop	
-    IL_0082:  ldstr      "Condition16.Test1"
-    IL_0083:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0084:  pop	
-    IL_0085:  ldstr      "Condition17.Test1"
-    IL_0086:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0087:  pop	
-    IL_0088:  ldstr      "Condition17.Test4"
-    IL_0089:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_008a:  pop	
-    IL_008b:  ldstr      "Condition18.Test1"
-    IL_008c:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_008d:  pop	
-    IL_0091:  ldstr      "Condition18.Test3"
-    IL_0092:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0093:  pop	
-    IL_0094:  ldstr      "Condition19.Test1"
-    IL_0095:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0096:  pop	
-    IL_0097:  ldstr      "Condition19.Test2"
-    IL_0098:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_0099:  pop	
-    IL_009a:  ldstr      "Condition20.Test1"
-    IL_009b:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_009c:  pop	
-    IL_00a6:  ldstr      "Condition22.Test2"
-    IL_00a7:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_00a8:  pop	
-    IL_00a9:  ldstr      "Condition22.Test4"
-    IL_00aa:  call       int32 TailcallVerify.Program::Run(string)      
-    IL_00ba:  ret    
+
+    // Disable tests intending to test tail.call,pop,ret sequence.
+    //ldstr      "Condition1.Test1"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition1.Test2"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition1.Test3"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition2.Test1"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition2.Test2"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    ldstr      "Condition3.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition3.Test2"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition4.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition4.Test2"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition5.Test1"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition5.Test2"
+    call       int32 TailcallVerify.Program::Run(string)     
+    pop	
+    ldstr      "Condition5.Test3"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition5.Test4"
+    call       int32 TailcallVerify.Program::Run(string)    
+    pop	
+    ldstr      "Condition5.Test5"
+    call       int32 TailcallVerify.Program::Run(string)    
+    pop	
+    ldstr      "Condition5.Test6"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop		
+    ldstr      "Condition5.Test7"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition5.Test8"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition5.Test9"
+    call       int32 TailcallVerify.Program::Run(string)    
+    pop	
+    ldstr      "Condition6.Test1"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition6.Test2"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	 
+    ldstr      "Condition6.Test3"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition6.Test4"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition6.Test5"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition7.Test1"
+    call       int32 TailcallVerify.Program::Run(string)    
+    pop	
+    ldstr      "Condition7.Test2"
+    call       int32 TailcallVerify.Program::Run(string)    
+    pop	
+    ldstr      "Condition7.Test3"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+    ldstr      "Condition7.Test4"
+    call       int32 TailcallVerify.Program::Run(string)      
+    pop	
+
+    // Condition8 tests use varargs calling conventions.
+    // The lines below should be uncommented when/if CoreCLR starts
+    // supporting varargs.
+    //ldstr      "Condition8.Test1"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition8.Test2"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition8.Test3"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+
+    ldstr      "Condition9.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition10.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition10.Test2"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition10.Test3"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition10.Test4"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition10.Test5"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition11.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition11.Test2"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition12.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition13.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition16.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition17.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition17.Test4"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition18.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition18.Test3"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition19.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition19.Test2"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition20.Test1"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    // Disable tests intending to test tail.call,pop,ret sequence.
+    //ldstr      "Condition21.Test1"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    //ldstr      "Condition21.Test2"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    ldstr      "Condition21.Test3"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition21.Test6"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    ldstr      "Condition21.Test7"
+    call       int32 TailcallVerify.Program::Run(string)
+    pop
+    // Disable tests intending to test tail.call,pop,ret sequence.
+    //ldstr      "Condition22.Test2"
+    //call       int32 TailcallVerify.Program::Run(string)
+    //pop
+    ldstr      "Condition22.Test4"
+    call       int32 TailcallVerify.Program::Run(string)
+    ret    
   } // end of method Program::Main
     
   .method private hidebysig static void  Usage() cil managed
@@ -3540,7 +3569,8 @@
     IL_0056:  ldc.i4.3
     IL_0057:  ldc.i4.4
     IL_0058:  ldloc.0
-    IL_0059:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeIsOdd1(int32,
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_0059:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeIsOdd1(int32,
                                                                                                            int32,
                                                                                                            int32,
                                                                                                            int32,
@@ -3919,7 +3949,8 @@
     IL_0032:  ldloca.s   CS$0$0000
     IL_0034:  initobj    TailcallVerify.ValueType3Bytes
     IL_003a:  ldloc.0
-    IL_003b:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeIsEven2(int32,
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_003b:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeIsEven2(int32,
                                                                                                             int32,
                                                                                                             int32,
                                                                                                             valuetype TailcallVerify.ValueType3Bytes)
@@ -4082,7 +4113,7 @@
   {
     // Code size       394 (0x18a)
     .maxstack  3
-    .locals init ([0] class [mscorlib]System.Threading.Thread t1,
+    .locals init ([0] class [System.Threading.Thread]System.Threading.Thread t1,
              [1] class [mscorlib]System.Exception e,
              [2] int64 l,
              [3] int64 V_3,
@@ -4103,14 +4134,14 @@
     {
       IL_0025:  ldnull
       IL_0026:  ldftn      void TailcallVerify.Condition21::Caller3()
-      IL_002c:  newobj     instance void [mscorlib]System.Threading.ThreadStart::.ctor(object,
+      IL_002c:  newobj     instance void [System.Threading.Thread]System.Threading.ThreadStart::.ctor(object,
                                                                                        native int)
-      IL_0031:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ThreadStart)
+      IL_0031:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [System.Threading.Thread]System.Threading.ThreadStart)
       IL_0036:  stloc.0
       IL_0037:  ldloc.0
-      IL_0038:  callvirt   instance void [mscorlib]System.Threading.Thread::Start()
+      IL_0038:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Start()
       IL_003d:  ldloc.0
-      IL_003e:  callvirt   instance void [mscorlib]System.Threading.Thread::Join()
+      IL_003e:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Join()
       IL_0043:  leave.s    IL_009c
 
     }  // end .try
@@ -4589,7 +4620,8 @@
     IL_0037:  ldloca.s   CS$0$0000
     IL_0039:  initobj    TailcallVerify.ValueType3Bytes
     IL_003f:  ldloc.0
-    IL_0040:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeE4(int32,
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_0040:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition21::CalleeE4(int32,
                                                                                                        int32,
                                                                                                        int32,
                                                                                                        int32,
@@ -4778,8 +4810,8 @@
     .maxstack  3
     .locals init ([0] class TailcallVerify.Condition21 con1,
              [1] class TailcallVerify.Condition21 con2,
-             [2] class [mscorlib]System.Threading.Thread t1,
-             [3] class [mscorlib]System.Threading.Thread t2,
+             [2] class [System.Threading.Thread]System.Threading.Thread t1,
+             [3] class [System.Threading.Thread]System.Threading.Thread t2,
              [4] class [mscorlib]System.Exception ex,
              [5] int32 i,
              [6] int32 V_6)
@@ -4794,26 +4826,26 @@
     IL_001c:  stloc.1
     IL_001d:  ldloc.0
     IL_001e:  ldftn      instance void TailcallVerify.Condition21::Caller5()
-    IL_0024:  newobj     instance void [mscorlib]System.Threading.ThreadStart::.ctor(object,
+    IL_0024:  newobj     instance void [System.Threading.Thread]System.Threading.ThreadStart::.ctor(object,
                                                                                      native int)
-    IL_0029:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ThreadStart)
+    IL_0029:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [System.Threading.Thread]System.Threading.ThreadStart)
     IL_002e:  stloc.2
     IL_002f:  ldloc.1
     IL_0030:  ldftn      instance void TailcallVerify.Condition21::Caller5()
-    IL_0036:  newobj     instance void [mscorlib]System.Threading.ThreadStart::.ctor(object,
+    IL_0036:  newobj     instance void [System.Threading.Thread]System.Threading.ThreadStart::.ctor(object,
                                                                                      native int)
-    IL_003b:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ThreadStart)
+    IL_003b:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [System.Threading.Thread]System.Threading.ThreadStart)
     IL_0040:  stloc.3
     .try
     {
       IL_0041:  ldloc.2
-      IL_0042:  callvirt   instance void [mscorlib]System.Threading.Thread::Start()
+      IL_0042:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Start()
       IL_0047:  ldloc.3
-      IL_0048:  callvirt   instance void [mscorlib]System.Threading.Thread::Start()
+      IL_0048:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Start()
       IL_004d:  ldloc.2
-      IL_004e:  callvirt   instance void [mscorlib]System.Threading.Thread::Join()
+      IL_004e:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Join()
       IL_0053:  ldloc.3
-      IL_0054:  callvirt   instance void [mscorlib]System.Threading.Thread::Join()
+      IL_0054:  callvirt   instance void [System.Threading.Thread]System.Threading.Thread::Join()
       IL_0059:  leave.s    IL_007c
 
     }  // end .try
@@ -5589,6 +5621,9 @@
     .method public hidebysig instance void 
             Caller1() cil managed
     {
+      // This method depends on JIT compiler doing automatic tail call, which isn't supported by Ready-to-Run.
+      .custom instance void System.Runtime.BypassReadyToRunAttribute::.ctor() = ( 01 00 00 00 )
+
       // Code size       53 (0x35)
       .maxstack  8
       IL_0000:  ldc.i4.0
@@ -5612,6 +5647,9 @@
     .method public hidebysig instance void 
             Caller1Recursive() cil managed
     {
+      // This method depends on JIT compiler doing automatic tail call, which isn't supported by Ready-to-Run.
+      .custom instance void System.Runtime.BypassReadyToRunAttribute::.ctor() = ( 01 00 00 00 )
+
       // Code size       55 (0x37)
       .maxstack  8
       IL_0000:  ldc.i4.0
@@ -5649,6 +5687,9 @@
     .method private hidebysig instance void 
             Callee1Recursive(int32 i) cil managed
     {
+      // This method depends on JIT compiler doing automatic tail call, which isn't supported by Ready-to-Run.
+      .custom instance void System.Runtime.BypassReadyToRunAttribute::.ctor() = ( 01 00 00 00 )
+
       // Code size       93 (0x5d)
       .maxstack  3
       .locals init ([0] string stackTrace,
@@ -5784,6 +5825,9 @@
             Caller1(!V arg1,
                     !K arg2) cil managed
     {
+      // This method depends on JIT compiler doing automatic tail call, which isn't supported by Ready-to-Run.
+      .custom instance void System.Runtime.BypassReadyToRunAttribute::.ctor() = ( 01 00 00 00 )
+
       // Code size       54 (0x36)
       .maxstack  8
       IL_0000:  ldc.i4.0
@@ -5995,6 +6039,9 @@
 
   .method private hidebysig static void  Caller2() cil managed
   {
+    // This method depends on JIT compiler doing automatic tail call, which isn't supported by Ready-to-Run.
+    .custom instance void System.Runtime.BypassReadyToRunAttribute::.ctor() = ( 01 00 00 00 )
+
     // Code size       52 (0x34)
     .maxstack  8
     IL_0000:  ldc.i4.0
@@ -6685,8 +6732,10 @@
     IL_011d:  box        [mscorlib]System.Int16
     IL_0122:  stelem.ref
     IL_0123:  ldloc.0
-    IL_0124:  call       void [System.Console]System.Console::WriteLine(string,
-                                                                  object[])
+    IL_0124:  call       void [System.Console]System.Console::Write(string)
+              callvirt   instance string [mscorlib]System.Object::ToString()
+              call       void [System.Console]System.Console::WriteLine(string)
+
     IL_0129:  ldc.i4.1
     IL_012a:  volatile.
     IL_012c:  ldsfld     int32 modreq([mscorlib]System.Runtime.CompilerServices.IsVolatile) TailcallVerify.Condition7::zero
@@ -8768,7 +8817,7 @@
     .maxstack  3
     .locals init ([0] valuetype TailcallVerify.ValueType3Bytes v,
              [1] class [mscorlib]System.Exception e)
-    IL_0000:  ldstr      "Executing Condition4.Test1 - Caller: Arguments: No"
+    IL_0000:  ldstr      "Executing Condition4.Test2 - Caller: Arguments: No"
     + "ne - ReturnType: 3 byte struct; Callee: Arguments: None - ReturnType: 3"
     + " byte struct [Verifying the field values in the return type struct]"
     IL_0005:  call       void [System.Console]System.Console::WriteLine(string)
@@ -8792,17 +8841,19 @@
       IL_0035:  ldstr      "FAILED: The fields in the return type struct have "
       + "the wrong values."
       IL_003a:  call       void [System.Console]System.Console::WriteLine(string)
-      IL_003f:  ldstr      "v.i1: {0} != byte.MinValue || v.i2: {1} != short.M"
+      IL_003f:  ldstr      "v.i1: != byte.MinValue || v.i2: != short.M"
       + "axValue"
+                call       void [System.Console]System.Console::WriteLine(string)
       IL_0044:  ldloca.s   v
       IL_0046:  ldfld      uint8 TailcallVerify.ValueType3Bytes::i1
       IL_004b:  box        [mscorlib]System.Byte
+                callvirt   instance string [mscorlib]System.Object::ToString()
+                call       void [System.Console]System.Console::WriteLine(string)
       IL_0050:  ldloca.s   v
       IL_0052:  ldfld      int16 TailcallVerify.ValueType3Bytes::i2
       IL_0057:  box        [mscorlib]System.Int16
-      IL_005c:  call       void [System.Console]System.Console::WriteLine(string,
-                                                                    object,
-                                                                    object)
+                callvirt   instance string [mscorlib]System.Object::ToString()
+      IL_005c:  call       void [System.Console]System.Console::WriteLine(string)
       IL_0061:  leave.s    IL_0082
 
     }  // end .try
@@ -9225,7 +9276,8 @@
     IL_0022:  call       void [System.Console]System.Console::WriteLine(string)
     IL_0027:  ldc.i4.s   101
     IL_0029:  stsfld     int32 TailcallVerify.Condition2::Result
-    IL_002e:  tail. call       int32 TailcallVerify.Condition2::Callee1()
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_002e:  call       int32 TailcallVerify.Condition2::Callee1()
     IL_0033:  pop
     IL_0034:  ret
   } // end of method Condition2::Caller1
@@ -9326,7 +9378,8 @@
     IL_0027:  ldc.i4.s   101
     IL_0029:  stsfld     int32 TailcallVerify.Condition2::Result
     IL_002e:  ldc.i4.0
-    IL_002f:  tail. call       string TailcallVerify.Condition2::Callee2(int32)
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_002f:  call       string TailcallVerify.Condition2::Callee2(int32)
     IL_0034:  pop
     IL_0035:  ret
   } // end of method Condition2::Caller2
@@ -9461,7 +9514,8 @@
     IL_0022:  call       void [System.Console]System.Console::WriteLine(string)
     IL_0027:  ldc.i4.s   101
     IL_0029:  stsfld     int32 TailcallVerify.Condition1::Result
-    IL_002e:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee1()
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_002e:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee1()
     IL_0033:  pop
     IL_0034:  ret
   } // end of method Condition1::Caller1
@@ -9567,7 +9621,8 @@
     IL_0027:  ldc.i4.s   101
     IL_0029:  stsfld     int32 TailcallVerify.Condition1::Result
     IL_002e:  ldc.i4.0
-    IL_002f:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee2(int32)
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_002f:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee2(int32)
     IL_0034:  pop
     IL_0035:  ret
   } // end of method Condition1::Caller2
@@ -9680,7 +9735,8 @@
     IL_0047:  ldc.i4     0x7fffffff
     IL_004c:  ldc.i4     0x80000000
     IL_0051:  ldc.i4     0x7fffffff
-    IL_0056:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee3(int32,
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_0056:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee3(int32,
                                                                                                      int32,
                                                                                                      int32,
                                                                                                      int32,
@@ -9874,7 +9930,8 @@
     IL_0099:  ldc.r8     -1.7976931348623157e+308
     IL_00a2:  ldc.r4     3.4028235e+038
     IL_00a7:  ldloc.1
-    IL_00a8:  tail. call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee4(int32,
+//            tail.      // tail.call, pop, ret sequence is never valid for .NET Core (but is accepted by .NET x64)
+    IL_00a8:  call       valuetype TailcallVerify.ValueType3Bytes TailcallVerify.Condition1::Callee4(int32,
                                                                                                      int64,
                                                                                                      valuetype TailcallVerify.ValueType3Bytes,
                                                                                                      int16,
@@ -10350,6 +10407,21 @@
 
   .field static assembly valuetype '<PrivateImplementationDetails>{D1242658-CA16-4D11-A740-6635F112F4B5}'/'__StaticArrayInitTypeSize=20' '$$method0x6000076-1' at I_00005C00
 } // end of class '<PrivateImplementationDetails>{D1242658-CA16-4D11-A740-6635F112F4B5}'
+
+.class private auto ansi sealed beforefieldinit System.Runtime.BypassReadyToRunAttribute
+       extends [mscorlib]System.Attribute
+{
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    // Code size       7 (0x7)
+    .maxstack  8
+    IL_0000:  ldarg.0
+    IL_0001:  call       instance void [mscorlib]System.Attribute::.ctor()
+    IL_0006:  ret
+  } // end of method BypassReadyToRunAttribute::.ctor
+
+} // end of class System.Runtime.BypassReadyToRunAttribute
 
 
 // =============================================================

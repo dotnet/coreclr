@@ -261,8 +261,6 @@ enum ParseCtl {
     stopAfterRuntimeSection // stop after <runtime>...</runtime> section
 };
 
-extern CorHostProtectionManager s_CorHostProtectionManager;
-
 class EEConfig
 {
 public:
@@ -296,6 +294,11 @@ public:
     bool          AddRejitNops(void)                const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
     bool          JitMinOpts(void)                  const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
     
+    // Tiered Compilation config
+#if defined(FEATURE_TIERED_COMPILATION)
+    bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+#endif
+
     BOOL PInvokeRestoreEsp(BOOL fDefault) const
     {
         LIMITED_METHOD_CONTRACT;
@@ -512,9 +515,7 @@ public:
     }
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_CORECLR
     bool VerifyModulesOnLoad(void) const { LIMITED_METHOD_CONTRACT; return fVerifyAllOnLoad; }
-#endif
 #ifdef _DEBUG
     bool ExpandModulesOnLoad(void) const { LIMITED_METHOD_CONTRACT; return fExpandAllOnLoad; }
 #endif //_DEBUG
@@ -692,6 +693,8 @@ public:
     int     GetGCForceCompact()             const {LIMITED_METHOD_CONTRACT; return iGCForceCompact; }
     int     GetGCRetainVM ()                const {LIMITED_METHOD_CONTRACT; return iGCHoardVM;}
     int     GetGCLOHCompactionMode()        const {LIMITED_METHOD_CONTRACT; return iGCLOHCompactionMode;}
+    int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
+    int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -708,12 +711,6 @@ public:
 #ifdef _DEBUG
     bool    SkipGCCoverage(LPCUTF8 assemblyName) const {WRAPPER_NO_CONTRACT; return (pSkipGCCoverageList != NULL 
                                                                                     && pSkipGCCoverageList->IsInList(assemblyName));}
-#endif
-
-
-    // thread stress: number of threads to run
-#ifdef STRESS_THREAD
-    DWORD GetStressThreadCount ()           const {LIMITED_METHOD_CONTRACT; return dwStressThreadCount;}
 #endif
 
 #ifdef _DEBUG
@@ -760,11 +757,7 @@ public:
 #ifdef _DEBUG
     bool    ForbidZap(LPCUTF8 assemblyName) const;
 #endif
-
-#ifdef _TARGET_AMD64_
-    bool    DisableNativeImageLoad(LPCUTF8 assemblyName) const;
-    bool    IsDisableNativeImageLoadListNonEmpty() const { LIMITED_METHOD_CONTRACT; return (pDisableNativeImageLoadList != NULL); }
-#endif
+    bool    ExcludeReadyToRun(LPCUTF8 assemblyName) const;
     
     LPCWSTR ZapSet()                        const { LIMITED_METHOD_CONTRACT; return pZapSet; }
 
@@ -1007,9 +1000,7 @@ private: //----------------------------------------------------------------
     bool   m_fDeveloperInstallation;      // We are on a developers machine
     bool   fAppDomainUnload;            // Enable appdomain unloading
     
-#ifdef FEATURE_CORECLR
     bool fVerifyAllOnLoad;              // True if we want to verify all methods in an assembly at load time.
-#endif //FEATURE_CORECLR
 
     DWORD  dwADURetryCount;
 
@@ -1076,6 +1067,8 @@ private: //----------------------------------------------------------------
     int  iGCForceCompact;
     int  iGCHoardVM;
     int  iGCLOHCompactionMode;
+    int  iGCHeapCount;
+    int  iGCNoAffinitize;
 
 #ifdef GCTRIMCOMMIT
 
@@ -1091,10 +1084,6 @@ private: //----------------------------------------------------------------
 #endif // _WIN64
 
     bool fGCBreakOnOOM;
-
-#ifdef  STRESS_THREAD
-    DWORD dwStressThreadCount;
-#endif
 
 #ifdef _DEBUG
     DWORD iFastGCStress;
@@ -1118,21 +1107,14 @@ private: //----------------------------------------------------------------
     // This overrides pRequireZapsList.
     AssemblyNamesList * pRequireZapsExcludeList;
 
+    // Assemblies which cannot use Ready to Run images.
+    AssemblyNamesList * pReadyToRunExcludeList;
+
 #ifdef _DEBUG
     // Exact opposite of require zaps
     BOOL iForbidZaps;
     AssemblyNamesList * pForbidZapsList;
     AssemblyNamesList * pForbidZapsExcludeList;
-#endif
-
-#ifdef _TARGET_AMD64_
-    // Assemblies for which we will not load a native image. This is from the COMPlus_DisableNativeImageLoadList
-    // variable / reg key. It performs the same function as the config file key "<disableNativeImageLoad>" (except
-    // that is it just a list of assembly names, which the config file key can specify full assembly identities).
-    // This was added to support COMPlus_UseLegacyJit, to support the rollout of RyuJIT to replace JIT64, where
-    // the user can cause the CLR to fall back to JIT64 for JITting but not for NGEN. This allows the user to
-    // force JITting for a specified list of NGEN assemblies.
-    AssemblyNamesList * pDisableNativeImageLoadList;
 #endif
 
     LPCWSTR pZapSet;
@@ -1190,21 +1172,11 @@ private: //----------------------------------------------------------------
     DWORD testThreadAbort;
 #endif
 
+#if defined(FEATURE_TIERED_COMPILATION)
+    bool fTieredCompilation;
+#endif
+
 public:
-#ifndef FEATURE_CORECLR // unimpactful install --> no config files
-    HRESULT ImportConfigurationFile(
-        ConfigStringHashtable* pTable,
-        LPCWSTR pszFileName,
-        LPCWSTR version,
-        ParseCtl parseCtl = parseAll);
-
-    HRESULT AppendConfigurationFile(
-        LPCWSTR pszFileName,
-        LPCWSTR version,
-        ParseCtl parseCtl = parseAll); 
-
-    HRESULT SetupConfiguration();
-#endif // FEATURE_CORECLR
 
     HRESULT GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch direction, __deref_out_opt LPCWSTR* value);
     LPCWSTR  GetProcessBindingFile();  // All flavors must support this method
@@ -1274,14 +1246,6 @@ private:
 public:
     DWORD GetSleepOnExit()
     { return dwSleepOnExit; }
-
-#if FEATURE_APPX
-private:
-    DWORD dwWindows8ProfileAPICheckFlag;
-
-public:
-    DWORD GetWindows8ProfileAPICheckFlag() { return dwWindows8ProfileAPICheckFlag; }
-#endif
 };
 
 
@@ -1323,24 +1287,6 @@ public:
 #define FILE_FORMAT_CHECK(_condition)
 
 #endif
-
-void InitHostProtectionManager();
-
-extern BYTE g_CorHostProtectionManagerInstance[];
-
-inline CorHostProtectionManager* GetHostProtectionManager()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-//        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    return (CorHostProtectionManager*)g_CorHostProtectionManagerInstance;
-}
 
 extern BOOL g_CLRPolicyRequested;
 

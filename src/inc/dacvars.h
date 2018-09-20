@@ -92,9 +92,6 @@ DEFINE_DACVAR(ULONG, PTR_ReadyToRunJitManager, ExecutionManager__m_pReadyToRunJi
 DEFINE_DACVAR_NO_DUMP(ULONG, VMHELPDEF *, dac__hlpFuncTable, ::hlpFuncTable)
 DEFINE_DACVAR(ULONG, VMHELPDEF *, dac__hlpDynamicFuncTable, ::hlpDynamicFuncTable)
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-DEFINE_DACVAR(ULONG, PTR_ConnectionNameTable, CCLRDebugManager__m_pConnectionNameHash, CCLRDebugManager::m_pConnectionNameHash)
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 DEFINE_DACVAR(ULONG, PTR_StubManager, StubManager__g_pFirstManager, StubManager::g_pFirstManager)
 DEFINE_DACVAR(ULONG, PTR_PrecodeStubManager, PrecodeStubManager__g_pManager, PrecodeStubManager::g_pManager)
 DEFINE_DACVAR(ULONG, PTR_StubLinkStubManager, StubLinkStubManager__g_pManager, StubLinkStubManager::g_pManager)
@@ -124,21 +121,8 @@ DEFINE_DACVAR(ULONG, int, dac__HillClimbingLogSize, ::HillClimbingLogSize)
 DEFINE_DACVAR(ULONG, PTR_Thread, dac__g_pFinalizerThread, ::g_pFinalizerThread)
 DEFINE_DACVAR(ULONG, PTR_Thread, dac__g_pSuspensionThread, ::g_pSuspensionThread)
 
-#ifdef FEATURE_SVR_GC
-DEFINE_DACVAR(ULONG, DWORD, GCHeap__gcHeapType, GCHeap::gcHeapType)
-#endif // FEATURE_SVR_GC
-
-DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__alloc_allocated, WKS::gc_heap::alloc_allocated)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /*PTR_heap_segment*/, WKS__gc_heap__ephemeral_heap_segment, WKS::gc_heap::ephemeral_heap_segment)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /*PTR_CFinalize*/, WKS__gc_heap__finalize_queue, WKS::gc_heap::finalize_queue)
-
-// Can not use MULTIPLE_HEAPS here because desktop build contains it is not defined for workstation GC
-// but we include workstation GC in mscorwks.dll.
-#ifdef FEATURE_SVR_GC
-DEFINE_DACVAR_SVR(ULONG, int, SVR__gc_heap__n_heaps, SVR::gc_heap::n_heaps)
-DEFINE_DACVAR_SVR(ULONG, UNKNOWN_POINTER_TYPE /*(PTR_gc_heap*)*/, SVR__gc_heap__g_heaps, SVR::gc_heap::g_heaps)
-#endif // FEATURE_SVR_GC
-DEFINE_DACVAR(ULONG, oom_history, WKS__gc_heap__oom_info, WKS::gc_heap::oom_info)
+DEFINE_DACVAR(ULONG, DWORD, dac__g_heap_type, g_heap_type)
+DEFINE_DACVAR(ULONG, PTR_GcDacVars, dac__g_gcDacGlobals, g_gcDacGlobals)
 
 DEFINE_DACVAR(ULONG, PTR_SystemDomain, SystemDomain__m_pSystemDomain, SystemDomain::m_pSystemDomain)
 DEFINE_DACVAR(ULONG, ArrayListStatic, SystemDomain__m_appDomainIndexList, SystemDomain::m_appDomainIndexList)
@@ -150,27 +134,18 @@ DEFINE_DACVAR(ULONG, PTR_SharedDomain, SharedDomain__m_pSharedDomain, SharedDoma
 
 DEFINE_DACVAR(ULONG, DWORD, CExecutionEngine__TlsIndex, CExecutionEngine::TlsIndex)
 
-DEFINE_DACVAR(ULONG, LONG, GCScan__m_GcStructuresInvalidCnt, GCScan::m_GcStructuresInvalidCnt)
-
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES) || defined(FEATURE_WINDOWSPHONE)
+#if defined(FEATURE_WINDOWSPHONE)
 DEFINE_DACVAR(ULONG, int, CCLRErrorReportingManager__g_ECustomDumpFlavor, CCLRErrorReportingManager::g_ECustomDumpFlavor)
 #endif
 
 DEFINE_DACVAR(ULONG, PTR_SString, SString__s_Empty, SString::s_Empty)
 
 #ifdef FEATURE_APPX
-#if defined(FEATURE_CORECLR)
 DEFINE_DACVAR(ULONG, BOOL, dac__g_fAppX, ::g_fAppX)
-#else
-DEFINE_DACVAR(ULONG, PTR_AppXRTInfo, dac__g_pAppXRTInfo, ::g_pAppXRTInfo)
-#endif
 #endif // FEATURE_APPX
 
 DEFINE_DACVAR(ULONG, BOOL, SString__s_IsANSIMultibyte, SString::s_IsANSIMultibyte)
 
-#ifdef FEATURE_REMOTING
-DEFINE_DACVAR_NO_DUMP(ULONG, MethodTable, CTPMethodTable__s_pThunkTable, CTPMethodTable::s_pThunkTable)
-#endif // FEATURE_REMOTING
 
 DEFINE_DACVAR(ULONG, INT32, ArrayBase__s_arrayBoundsZero, ArrayBase::s_arrayBoundsZero)
 
@@ -193,20 +168,11 @@ DEFINE_DACVAR(ULONG, MscorlibBinder, dac__g_Mscorlib, ::g_Mscorlib)
 DEFINE_DACVAR(ULONG, ProfControlBlock, dac__g_profControlBlock, ::g_profControlBlock)
 #endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__generation_table, WKS::generation_table)
 DEFINE_DACVAR(ULONG, PTR_DWORD, dac__g_card_table, ::g_card_table)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_lowest_address, ::g_lowest_address)
 DEFINE_DACVAR(ULONG, PTR_BYTE, dac__g_highest_address, ::g_highest_address)
 
-DEFINE_DACVAR(ULONG, GCHeap, dac__g_pGCHeap, ::g_pGCHeap)
-
-#ifdef GC_CONFIG_DRIVEN
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__interesting_data_per_heap, WKS::interesting_data_per_heap)
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__compact_reasons_per_heap, WKS::compact_reasons_per_heap)
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__expand_mechanisms_per_heap, WKS::expand_mechanisms_per_heap)
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__interesting_mechanism_bits_per_heap, WKS::interesting_mechanism_bits_per_heap)
-DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__gc_global_mechanisms, ::gc_global_mechanisms)
-#endif //GC_CONFIG_DRIVEN
+DEFINE_DACVAR(ULONG, IGCHeap, dac__g_pGCHeap, ::g_pGCHeap)
 
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pThinLockThreadIdDispenser, ::g_pThinLockThreadIdDispenser)    
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pModuleIndexDispenser, ::g_pModuleIndexDispenser)    
@@ -217,6 +183,7 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pStringClass, ::g_pStringClass
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pArrayClass, ::g_pArrayClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pSZArrayHelperClass, ::g_pSZArrayHelperClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pNullableClass, ::g_pNullableClass)
+DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pByReferenceClass, ::g_pByReferenceClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pExceptionClass, ::g_pExceptionClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pThreadAbortExceptionClass, ::g_pThreadAbortExceptionClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pOutOfMemoryExceptionClass, ::g_pOutOfMemoryExceptionClass)
@@ -229,11 +196,7 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pOverlappedDataClass, ::g_pOve
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pValueTypeClass, ::g_pValueTypeClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pEnumClass, ::g_pEnumClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pThreadClass, ::g_pThreadClass)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pCriticalFinalizerObjectClass, ::g_pCriticalFinalizerObjectClass)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pAsyncFileStream_AsyncResultClass, ::g_pAsyncFileStream_AsyncResultClass)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pPredefinedArrayTypes, ::g_pPredefinedArrayTypes)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgumentHandleMT, ::g_ArgumentHandleMT)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_ArgIteratorMT, ::g_ArgIteratorMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_TypedReferenceMT, ::g_TypedReferenceMT)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pByteArrayMT, ::g_pByteArrayMT)
 
@@ -246,7 +209,6 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pBaseRuntimeClass, ::g_pBaseRu
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pICastableInterface, ::g_pICastableInterface)
 #endif // FEATURE_ICASTABLE
 
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pPrepareConstrainedRegionsMethod, ::g_pPrepareConstrainedRegionsMethod)
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pExecuteBackoutCodeHelperMethod, ::g_pExecuteBackoutCodeHelperMethod)
 
 DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pObjectCtorMD, ::g_pObjectCtorMD)
@@ -296,24 +258,10 @@ DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE, dac__g_pIPCManagerInterface, ::g_pIPC
 
 DEFINE_DACVAR_NO_DUMP(ULONG, SIZE_T, dac__g_FCDynamicallyAssignedImplementations, ::g_FCDynamicallyAssignedImplementations)
 
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /*BYTE**/, WKS__gc_heap__internal_root_array, WKS::gc_heap::internal_root_array)
-DEFINE_DACVAR(ULONG, size_t, WKS__gc_heap__internal_root_array_index, WKS::gc_heap::internal_root_array_index)
-DEFINE_DACVAR(ULONG, ULONG, WKS__gc_heap__heap_analyze_success, WKS::gc_heap::heap_analyze_success)
-
-DEFINE_DACVAR(ULONG, SIZE_T, WKS__gc_heap__mark_array, WKS::gc_heap::mark_array)
-DEFINE_DACVAR(ULONG, SIZE_T, WKS__gc_heap__current_c_gc_state, WKS::gc_heap::current_c_gc_state)
-DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__next_sweep_obj, WKS::gc_heap::next_sweep_obj)
-DEFINE_DACVAR(ULONG, UNKNOWN_POINTER_TYPE /* PTR_heap_segment */, WKS__gc_heap__saved_sweep_ephemeral_seg, WKS::gc_heap::saved_sweep_ephemeral_seg)
-DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__saved_sweep_ephemeral_start, WKS::gc_heap::saved_sweep_ephemeral_start)
-DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__background_saved_lowest_address, WKS::gc_heap::background_saved_lowest_address)
-DEFINE_DACVAR(ULONG, PTR_BYTE, WKS__gc_heap__background_saved_highest_address, WKS::gc_heap::background_saved_highest_address)
-
-#ifdef FEATURE_CORECLR
 #ifndef FEATURE_PAL
 DEFINE_DACVAR(ULONG, HANDLE, dac__g_hContinueStartupEvent, ::g_hContinueStartupEvent)
 #endif // !FEATURE_PAL
 DEFINE_DACVAR(ULONG, DWORD, CorHost2__m_dwStartupFlags, CorHost2::m_dwStartupFlags)
-#endif // FEATURE_CORECLR
 
 DEFINE_DACVAR(ULONG, HRESULT, dac__g_hrFatalError, ::g_hrFatalError)
 
@@ -321,13 +269,7 @@ DEFINE_DACVAR(ULONG, HRESULT, dac__g_hrFatalError, ::g_hrFatalError)
     DEFINE_DACVAR(ULONG, DWORD, PEFile__s_NGENDebugFlags, PEFile::s_NGENDebugFlags)
 #endif //defined(DEBUGGING_SUPPORTED) && defined (FEATURE_PREJIT)
 
-#ifndef FEATURE_CORECLR
-DEFINE_DACVAR(ULONG, DWORD, AssemblyUsageLogManager__s_UsageLogFlags, AssemblyUsageLogManager::s_UsageLogFlags)
-#endif // FEATURE_CORECLR
 
-#if defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX_BINDER)
-DEFINE_DACVAR(ULONG, PTR_CLRPrivBinderAppX, CLRPrivBinderAppX__s_pSingleton, CLRPrivBinderAppX::s_pSingleton)
-#endif //defined(FEATURE_HOSTED_BINDER) && defined(FEATURE_APPX)
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 DEFINE_DACVAR(ULONG, DWORD, dac__g_MiniMetaDataBuffMaxSize, ::g_MiniMetaDataBuffMaxSize)

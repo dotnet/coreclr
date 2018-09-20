@@ -31,7 +31,7 @@ DataTarget::QueryInterface(
         AddRef();
         return S_OK;
     }
-    if (InterfaceId == IID_ICorDebugDataTarget4)
+    else if (InterfaceId == IID_ICorDebugDataTarget4)
     {
         *Interface = (ICorDebugDataTarget4*)this;
         AddRef();
@@ -81,7 +81,14 @@ HRESULT STDMETHODCALLTYPE
 DataTarget::GetPointerSize(
     /* [out] */ ULONG32 *size)
 {
+#if defined(SOS_TARGET_AMD64) || defined(SOS_TARGET_ARM64)
     *size = 8;
+#elif defined(SOS_TARGET_ARM) || defined(SOS_TARGET_X86)
+    *size = 4;
+#else
+  #error Unsupported architecture
+#endif
+
     return S_OK;
 }
 

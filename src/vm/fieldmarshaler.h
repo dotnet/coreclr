@@ -85,7 +85,12 @@ enum NStructFieldType
 //=======================================================================
 // Magic number for default struct packing size.
 //=======================================================================
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+// A double is 4-byte aligned on GCC (without -malign-dobule)
+#define DEFAULT_PACKING_SIZE 4
+#else // _TARGET_X86_ && UNIX_X86_ABI
 #define DEFAULT_PACKING_SIZE 8
+#endif // !_TARGET_X86_ || !UNIX_X86_ABI
 
 
 //=======================================================================
@@ -757,6 +762,19 @@ public:
     ELEMENT_SIZE_IMPL(sizeof(LPWSTR), sizeof(LPWSTR))
 };
 
+//=======================================================================
+// LPUTF8STR <--> System.String
+//=======================================================================
+class FieldMarshaler_StringUtf8 : public FieldMarshaler
+{
+public:
+
+	VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
+	VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
+	VOID DestroyNativeImpl(LPVOID pNativeValue) const;
+
+	ELEMENT_SIZE_IMPL(sizeof(LPSTR), sizeof(LPSTR))
+};
 
 //=======================================================================
 // LPSTR <--> System.String

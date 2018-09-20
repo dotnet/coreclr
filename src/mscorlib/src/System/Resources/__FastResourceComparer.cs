@@ -13,12 +13,15 @@
 **
 ** 
 ===========================================================*/
-namespace System.Resources {
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Diagnostics.Contracts;
 
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
+namespace System.Resources
+{
     internal sealed class FastResourceComparer : IComparer, IEqualityComparer, IComparer<String>, IEqualityComparer<String>
     {
         internal static readonly FastResourceComparer Default = new FastResourceComparer();
@@ -26,7 +29,7 @@ namespace System.Resources {
         // Implements IHashCodeProvider too, due to Hashtable requirements.
         public int GetHashCode(Object key)
         {
-            String s = (String) key;
+            String s = (String)key;
             return FastResourceComparer.HashFunction(s);
         }
 
@@ -44,9 +47,9 @@ namespace System.Resources {
             // others can read & write our .resources files.  Additionally, we
             // have a copy of it in InternalResGen as well.
             uint hash = 5381;
-            for(int i=0; i<key.Length; i++)
+            for (int i = 0; i < key.Length; i++)
                 hash = ((hash << 5) + hash) ^ key[i];
-            return (int) hash;
+            return (int)hash;
         }
 
         // Compares Strings quickly in a case-sensitive way
@@ -73,16 +76,15 @@ namespace System.Resources {
             if (a == b) return true;
             String sa = (String)a;
             String sb = (String)b;
-            return String.Equals(sa,sb);
+            return String.Equals(sa, sb);
         }
 
         // Input is one string to compare with, and a byte[] containing chars in 
         // little endian unicode.  Pass in the number of valid chars.
-        [System.Security.SecurityCritical]  // auto-generated
         public unsafe static int CompareOrdinal(String a, byte[] bytes, int bCharLength)
         {
-            Contract.Assert(a != null && bytes != null, "FastResourceComparer::CompareOrdinal must have non-null params");
-            Contract.Assert(bCharLength * 2 <= bytes.Length, "FastResourceComparer::CompareOrdinal - numChars is too big!");
+            Debug.Assert(a != null && bytes != null, "FastResourceComparer::CompareOrdinal must have non-null params");
+            Debug.Assert(bCharLength * 2 <= bytes.Length, "FastResourceComparer::CompareOrdinal - numChars is too big!");
             // This is a managed version of strcmp, but I can't take advantage
             // of a terminating 0, unlike strcmp in C.
             int i = 0;
@@ -93,10 +95,11 @@ namespace System.Resources {
                 numChars = bCharLength;
             if (bCharLength == 0)   // Can't use fixed on a 0-element array.
                 return (a.Length == 0) ? 0 : -1;
-            fixed(byte* pb = bytes) {
-
-                byte *pChar = pb;
-                while (i < numChars && r == 0) {
+            fixed (byte* pb = bytes)
+            {
+                byte* pChar = pb;
+                while (i < numChars && r == 0)
+                {
                     // little endian format
                     int b = pChar[0] | pChar[1] << 8;
                     r = a[i++] - b;
@@ -107,7 +110,6 @@ namespace System.Resources {
             return a.Length - bCharLength;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         public static int CompareOrdinal(byte[] bytes, int aCharLength, String b)
         {
             return -CompareOrdinal(b, bytes, aCharLength);
@@ -115,12 +117,11 @@ namespace System.Resources {
 
         // This method is to handle potentially misaligned data accesses.
         // The byte* must point to little endian Unicode characters.
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static int CompareOrdinal(byte* a, int byteLen, String b)
         {
-            Contract.Assert((byteLen & 1) == 0, "CompareOrdinal is expecting a UTF-16 string length, which must be even!");
-            Contract.Assert(a != null && b != null, "Null args not allowed.");
-            Contract.Assert(byteLen >= 0, "byteLen must be non-negative.");
+            Debug.Assert((byteLen & 1) == 0, "CompareOrdinal is expecting a UTF-16 string length, which must be even!");
+            Debug.Assert(a != null && b != null, "Null args not allowed.");
+            Debug.Assert(byteLen >= 0, "byteLen must be non-negative.");
 
             int r = 0;
             int i = 0;
@@ -128,9 +129,10 @@ namespace System.Resources {
             int numChars = byteLen >> 1;
             if (numChars > b.Length)
                 numChars = b.Length;
-            while(i < numChars && r == 0) {
+            while (i < numChars && r == 0)
+            {
                 // Must compare character by character, not byte by byte.
-                char aCh = (char) (*a++ | (*a++ << 8));
+                char aCh = (char)(*a++ | (*a++ << 8));
                 r = aCh - b[i++];
             }
             if (r != 0) return r;

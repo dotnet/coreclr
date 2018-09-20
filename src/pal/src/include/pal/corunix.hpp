@@ -178,6 +178,7 @@ namespace CorUnix
         otiAutoResetEvent = 0,
         otiManualResetEvent,
         otiMutex,
+        otiNamedMutex,
         otiSemaphore,
         otiFile,
         otiFileMapping,
@@ -1123,6 +1124,10 @@ namespace CorUnix
         DispatchPendingAPCs(
             CPalThread *pThread
             ) = 0;
+
+        virtual
+        PAL_ERROR
+        SendTerminationRequestToWorkerThread() = 0;
 
         //
         // This routine is primarily meant for use by WaitForMultipleObjects[Ex].

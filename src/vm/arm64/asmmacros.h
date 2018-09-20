@@ -9,6 +9,15 @@
 ;; ==--==
 
 ;-----------------------------------------------------------------------------
+; Macro used to assign an alternate name to a symbol containing characters normally disallowed in a symbol
+; name (e.g. C++ decorated names).
+    MACRO
+      SETALIAS   $name, $symbol
+        GBLS    $name
+$name   SETS    "|$symbol|"
+    MEND
+
+;-----------------------------------------------------------------------------
 ; Basic extension of Assembler Macros- For Consistency
 
     MACRO
@@ -65,7 +74,7 @@ __PWTB_TransitionBlock SETA __PWTB_FloatArgumentRegisters
 __PWTB_StackAlloc SETA __PWTB_TransitionBlock
 __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96 
 
-        PROLOG_SAVE_REG_PAIR   fp, lr, #-160!
+        PROLOG_SAVE_REG_PAIR   fp, lr, #-176!
         ; Spill callee saved registers 
         PROLOG_SAVE_REG_PAIR   x19, x20, #16
         PROLOG_SAVE_REG_PAIR   x21, x22, #32
@@ -86,6 +95,23 @@ __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96
     MEND
 
 ;-----------------------------------------------------------------------------
+; Provides a matching epilog to PROLOG_WITH_TRANSITION_BLOCK and returns to caller.
+;
+    MACRO
+        EPILOG_WITH_TRANSITION_BLOCK_RETURN
+
+        EPILOG_STACK_FREE                 __PWTB_StackAlloc
+       
+        EPILOG_RESTORE_REG_PAIR   x19, x20, #16
+        EPILOG_RESTORE_REG_PAIR   x21, x22, #32
+        EPILOG_RESTORE_REG_PAIR   x23, x24, #48
+        EPILOG_RESTORE_REG_PAIR   x25, x26, #64
+        EPILOG_RESTORE_REG_PAIR   x27, x28, #80
+        EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
+		EPILOG_RETURN
+    MEND	
+	
+;-----------------------------------------------------------------------------
 ; Provides a matching epilog to PROLOG_WITH_TRANSITION_BLOCK and ends by preparing for tail-calling.
 ; Since this is a tail call argument registers are restored.
 ;
@@ -104,7 +130,7 @@ __PWTB_ArgumentRegisters SETA __PWTB_StackAlloc + 96
         EPILOG_RESTORE_REG_PAIR   x23, x24, #48
         EPILOG_RESTORE_REG_PAIR   x25, x26, #64
         EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-        EPILOG_RESTORE_REG_PAIR   fp, lr,   #160!
+        EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
     MEND
 
 ;-----------------------------------------------------------------------------
@@ -134,7 +160,7 @@ $FuncName
 ; base address to be passed in $reg
 ;
 
-; Reserve 64 bytes of memory before calling  SAVE_ARGUMENT_REGISTERS
+; Reserve 72 bytes of memory before calling  SAVE_ARGUMENT_REGISTERS
     MACRO
        SAVE_ARGUMENT_REGISTERS $reg, $offset 
 
@@ -150,6 +176,7 @@ __PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET SETA 0
         stp                    x2, x3, [$reg, #(__PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET + 16)]
         stp                    x4, x5, [$reg, #(__PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET + 32)]
         stp                    x6, x7, [$reg, #(__PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET + 48)]
+        str                    x8, [$reg, #(__PWTB_SAVE_ARGUMENT_REGISTERS_OFFSET + 64)]
     MEND
 
 ; Reserve 64 bytes of memory before calling  SAVE_FLOAT_ARGUMENT_REGISTERS
@@ -185,6 +212,7 @@ __PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET SETA 0
         ldp                    x2, x3, [$reg, #(__PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET + 16)]
         ldp                    x4, x5, [$reg, #(__PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET + 32)]
         ldp                    x6, x7, [$reg, #(__PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET + 48)]
+        ldr                    x8, [$reg, #(__PWTB_RESTORE_ARGUMENT_REGISTERS_OFFSET + 64)]
     MEND
 
     MACRO

@@ -416,12 +416,12 @@ class EEClassLayoutInfo
             e_ZERO_SIZED                =   0x04,
             // The size of the struct is explicitly specified in the meta-data.
             e_HAS_EXPLICIT_SIZE         = 0x08,
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
 #ifdef FEATURE_HFA
-#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF defined at the same time.
+#error Can't have FEATURE_HFA and FEATURE_UNIX_AMD64_STRUCT_PASSING defined at the same time.
 #endif // FEATURE_HFA
             e_NATIVE_PASS_IN_REGISTERS  = 0x10, // Flag wheter a native struct is passed in registers.
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 #ifdef FEATURE_HFA
             // HFA type of the unmanaged layout
             e_R4_HFA                    = 0x10,
@@ -510,13 +510,13 @@ class EEClassLayoutInfo
             return m_cbPackingSize;
         }
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
         bool IsNativeStructPassedInRegisters()
         {
             LIMITED_METHOD_CONTRACT;
             return (m_bFlags & e_NATIVE_PASS_IN_REGISTERS) != 0;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 #ifdef FEATURE_HFA
         bool IsNativeHFA()
@@ -570,13 +570,13 @@ class EEClassLayoutInfo
             m_bFlags |= (hfaType == ELEMENT_TYPE_R4) ? e_R4_HFA : e_R8_HFA;
         }
 #endif
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
         void SetNativeStructPassedInRegisters()
         {
             LIMITED_METHOD_CONTRACT;
             m_bFlags |= e_NATIVE_PASS_IN_REGISTERS;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING_ITF
+#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
 
 };
 
@@ -703,7 +703,6 @@ class EEClassOptionalFields
     #define    MODULE_NON_DYNAMIC_STATICS      ((DWORD)-1)
     DWORD m_cbModuleDynamicID;
 
-    DWORD m_dwReliabilityContract;
 
     SecurityProperties m_SecProps;
 
@@ -1040,21 +1039,6 @@ public:
         return m_pMethodTable;
     }
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_REMOTING
-    inline void SetMethodTableForTransparentProxy(MethodTable*  pMT)
-    {
-        LIMITED_METHOD_CONTRACT;
-        // Transparent proxy class' true method table
-        // is replaced by a global thunk table
-
-        _ASSERTE(pMT->IsTransparentProxy() &&
-                m_pMethodTable->IsTransparentProxy());
-
-        IBCLOG(LogEEClassCOWTableAccess(GetMethodTable()));
-
-        m_pMethodTable = pMT;
-    }
-#endif
 
     inline void SetMethodTable(MethodTable*  pMT)
     {
@@ -1358,9 +1342,6 @@ public:
         _ASSERTE(HasCriticalTransparentInfo());
         return (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_ALLCRITICAL_TAS ||
                (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_TAS_NOTCRITICAL
-#ifndef FEATURE_CORECLR
-            || (m_VMFlags & VMFLAG_TRANSPARENCY_MASK) == VMFLAG_TRANSPARENCY_CRITICAL_TAS
-#endif // !FEATURE_CORECLR;
             ;
     }
 
@@ -1386,9 +1367,6 @@ public:
     }
 
     void SetCriticalTransparentInfo(
-#ifndef FEATURE_CORECLR
-                                    BOOL fIsCritical,
-#endif // !FEATURE_CORECLR
                                     BOOL fIsTreatAsSafe,
                                     BOOL fIsAllTransparent,
                                     BOOL fIsAllCritical)
@@ -1397,9 +1375,7 @@ public:
         
         // TAS wihtout critical doesn't make sense - although it was allowed in the v2 desktop model,
         // so we need to allow it for compatibility reasons on the desktop.
-#ifdef FEATURE_CORECLR
         _ASSERTE(!fIsTreatAsSafe || fIsAllCritical);
-#endif // FEATURE_CORECLR
 
         //if nothing is set, then we're transparent.
         unsigned flags = VMFLAG_TRANSPARENCY_TRANSPARENT;
@@ -1413,13 +1389,6 @@ public:
             flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_ALLCRITICAL_TAS :
                                      VMFLAG_TRANSPARENCY_ALLCRITICAL;
         }
-#ifndef FEATURE_CORECLR
-        else if (fIsCritical)
-        {
-            flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_CRITICAL_TAS :
-                                     VMFLAG_TRANSPARENCY_CRITICAL;
-        }
-#endif // !FEATURE_CORECLR
         else
         {
             flags = fIsTreatAsSafe ? VMFLAG_TRANSPARENCY_TAS_NOTCRITICAL :
@@ -1583,16 +1552,6 @@ public:
     DWORD  SomeMethodsRequireInheritanceCheck();
     void SetSomeMethodsRequireInheritanceCheck();
 
-    BOOL ContainsStackPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_VMFlags & VMFLAG_CONTAINS_STACK_PTR;
-    }
-    void SetContainsStackPtr()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_VMFlags |= (DWORD)VMFLAG_CONTAINS_STACK_PTR;
-    }
     BOOL HasFixedAddressVTStatics()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1660,23 +1619,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         m_VMFlags |= (DWORD)VMFLAG_HAS_FIELDS_WHICH_MUST_BE_INITED;
     }
-#ifdef FEATURE_REMOTING
-    DWORD CannotBeBlittedByObjectCloner()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_VMFlags & VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER);
-    }
-    void SetCannotBeBlittedByObjectCloner()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_VMFlags |= (DWORD)VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER;
-    }
-#else
     void SetCannotBeBlittedByObjectCloner()
     {
         /* no op */
     }
-#endif
     DWORD HasNonPublicFields()
     {
         LIMITED_METHOD_CONTRACT;
@@ -1778,12 +1724,6 @@ public:
     // Cached class level reliability contract info, see ConstrainedExecutionRegion.cpp for details.
     DWORD GetReliabilityContract();
 
-    inline void SetReliabilityContract(DWORD dwValue)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(HasOptionalFields());
-        GetOptionalFields()->m_dwReliabilityContract = dwValue;
-    }
 
 #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
     // Get number of eightbytes used by a struct passed in registers.
@@ -2144,9 +2084,6 @@ public:
         VMFLAG_FIXED_ADDRESS_VT_STATICS        = 0x00000020, // Value type Statics in this class will be pinned
         VMFLAG_HASLAYOUT                       = 0x00000040,
         VMFLAG_ISNESTED                        = 0x00000080,
-#ifdef FEATURE_REMOTING
-        VMFLAG_CANNOT_BE_BLITTED_BY_OBJECT_CLONER = 0x00000100,  // This class has GC type fields, or implements ISerializable or has non-Serializable fields
-#endif
 
         VMFLAG_IS_EQUIVALENT_TYPE              = 0x00000200,
 
@@ -2422,6 +2359,7 @@ public:
     PTR_Stub            m_pInstRetBuffCallStub;
     PTR_MethodDesc      m_pInvokeMethod;
     PTR_Stub            m_pMultiCastInvokeStub;
+    PTR_Stub            m_pSecureDelegateInvokeStub;
     UMThunkMarshInfo*   m_pUMThunkMarshInfo;
     PTR_MethodDesc      m_pBeginInvokeMethod;
     PTR_MethodDesc      m_pEndInvokeMethod;
@@ -2563,6 +2501,17 @@ inline PCODE GetPreStubEntryPoint()
 {
     return GetEEFuncEntryPoint(ThePreStub);
 }
+
+#if defined(HAS_COMPACT_ENTRYPOINTS) && defined(_TARGET_ARM_)
+
+EXTERN_C void STDCALL ThePreStubCompactARM();
+
+inline PCODE GetPreStubCompactARMEntryPoint()
+{
+    return GetEEFuncEntryPoint(ThePreStubCompactARM);
+}
+
+#endif // defined(HAS_COMPACT_ENTRYPOINTS) && defined(_TARGET_ARM_)
 
 PCODE TheUMThunkPreStub();
 

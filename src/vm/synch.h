@@ -36,16 +36,20 @@ public:
     void CreateAutoEvent(BOOL bInitialState);
     void CreateManualEvent(BOOL bInitialState);
 
+    // Non-throwing variants of the functions above
+    BOOL CreateAutoEventNoThrow(BOOL bInitialState);
+    BOOL CreateManualEventNoThrow(BOOL bInitialState);
+
     void CreateMonitorEvent(SIZE_T Cookie); // robust against initialization races - for exclusive use by AwareLock
 
-#ifdef FEATURE_RWLOCK
-    void CreateRWLockReaderEvent(BOOL bInitialState, CRWLock* pRWLock);
-    void CreateRWLockWriterEvent(BOOL bInitialState, CRWLock* pRWLock);
-#endif
 
     // Create an Event that is not host aware
     void CreateOSAutoEvent (BOOL bInitialState);
     void CreateOSManualEvent (BOOL bInitialState);
+
+    // Non-throwing variants of the functions above
+    BOOL CreateOSAutoEventNoThrow (BOOL bInitialState);
+    BOOL CreateOSManualEventNoThrow (BOOL bInitialState);
 
     void CloseEvent();
 
@@ -64,7 +68,6 @@ public:
 #ifndef DACCESS_COMPILE
     HANDLE GetHandleUNHOSTED() {
         LIMITED_METHOD_CONTRACT;
-        _ASSERTE (IsOSEvent() || !CLRSyncHosted());
         return m_handle;
     }
 #endif // DACCESS_COMPILE

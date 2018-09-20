@@ -711,23 +711,6 @@ HRESULT ProfilingAPIAttachDetach::Initialize()
 
     INDEBUG(VerifyMessageStructureLayout());
 
-    // If the CLR is being memory- or sync-hosted, then attach is not supported
-    // (see comments above)
-    if (CLRMemoryHosted() || CLRSyncHosted())
-    {
-        LOG((
-            LF_CORPROF, 
-            LL_INFO10, 
-            "**PROF: Process is running with a host that implements custom memory or "
-                "synchronization management.  So it will not be possible to attach a "
-                "profiler to this process.\n"));
-
-        // NOTE: Intentionally not logging this to the event log, as it would be
-        // obnoxious to see such a message every time SQL started up
-
-        return S_FALSE;
-    }
-
     InitializeAttachThreadingMode();
 
     if (s_attachThreadingMode == kOnDemand)
@@ -806,7 +789,7 @@ void ProfilingAPIAttachDetach::InitializeAttachThreadingMode()
     // Environment variable trumps all, so check it first
     DWORD dwAlwaysOn = g_pConfig->GetConfigDWORD_DontUse_(
         CLRConfig::EXTERNAL_AttachThreadAlwaysOn,
-        GCHeap::IsServerHeap() ? 1 : 0);      // Default depends on GC server mode
+        GCHeapUtilities::IsServerHeap() ? 1 : 0);      // Default depends on GC server mode
 
     if (dwAlwaysOn == 0)
     {

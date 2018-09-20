@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+
+  <PropertyGroup>
+    <ContainerNamePrefix Condition="'$(ContainerNamePrefix)' == ''">coreclr-$(PreReleaseLabel)</ContainerNamePrefix>
+    <ContainerName Condition="'$(__Container)' == '' and '$(ContainerNamePrefix)' != '' and '$(BuildNumberMajor)' != '' and '$(BuildNumberMinor)' != ''">$(ContainerNamePrefix)-$(BuildNumberMajor)-$(BuildNumberMinor)</ContainerName>
+    <ContainerName Condition="'$(__Container)' != ''">$(__Container)</ContainerName>
+    <ContainerName>$(ContainerName.Replace(".","-"))</ContainerName>
+    <BlobNamePrefix>$(__BlobNamePrefix)</BlobNamePrefix>
+    <DownloadDirectory Condition="'$(PublishTestNativeBins)' != 'true'">$(PackagesDir)AzureTransfer</DownloadDirectory>
+    <DownloadDirectory Condition="'$(PublishTestNativeBins)' == 'true'">$(PackagesDir)TestNativeBins\$(RuntimeId)</DownloadDirectory>
+  </PropertyGroup>
+
+  <Import Project="$(ToolsDir)SyncCloudContent.targets" />
+
+  <Target Name="ValidateRequiredProperties">
+    <Error Condition="'$(CloudDropAccountName)' == ''" Text="Missing property CloudDropAccountName." />
+    <Error Condition="'$(CloudDropAccessToken)' == ''" Text="Missing property CloudDropAccessToken." />
+    <Error Condition="'$(__Container)' == '' and '$(PublishTestNativeBins)' == 'true'" Text="Missing property Container." />
+    <Error Condition="'$(RuntimeId)' == '' and '$(PublishTestNativeBins)' == 'true'" Text="Missing property RuntimeId." />
+  </Target>
+
+  <Target Name="Build" DependsOnTargets="ValidateRequiredProperties;DownloadBlobsFromAzureTargets" />
+</Project>

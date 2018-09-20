@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 //
+
 using System;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
@@ -26,87 +27,110 @@ namespace System.Threading
     //
     public static class Volatile
     {
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static bool Read(ref bool location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static sbyte Read(ref sbyte location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static byte Read(ref byte location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static short Read(ref short location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static ushort Read(ref ushort location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static int Read(ref int location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static uint Read(ref uint location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+#if BIT64
+        [System.Runtime.Versioning.NonVersionable]
+        public static long Read(ref long location)
+        {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            var value = location;
+            Interlocked.MemoryBarrier();
+            return value;
+        }
+
+        [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
+        public static ulong Read(ref ulong location)
+        {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            var value = location;
+            Interlocked.MemoryBarrier();
+            return value;
+        }
+#else
         public static long Read(ref long location)
         {
             //
@@ -118,9 +142,7 @@ namespace System.Threading
             return Interlocked.CompareExchange(ref location, 0, 0);
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
-        [SecuritySafeCritical] // contains unsafe code
         public static ulong Read(ref ulong location)
         {
             unsafe
@@ -135,42 +157,43 @@ namespace System.Threading
                 }
             }
         }
+#endif
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static IntPtr Read(ref IntPtr location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static UIntPtr Read(ref UIntPtr location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static float Read(ref float location)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static double Read(ref double location)
         {
             //
@@ -182,95 +205,115 @@ namespace System.Threading
             return Interlocked.CompareExchange(ref location, 0, 0);
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [SecuritySafeCritical] //the intrinsic implementation of this method contains unverifiable code
+        [System.Runtime.Versioning.NonVersionable]
         public static T Read<T>(ref T location) where T : class
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
             var value = location;
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             return value;
         }
 
 
 
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref bool location, bool value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref sbyte location, sbyte value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref byte location, byte value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref short location, short value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref ushort location, ushort value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref int location, int value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref uint location, uint value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+#if BIT64
+        [System.Runtime.Versioning.NonVersionable]
+        public static void Write(ref long location, long value)
+        {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            Interlocked.MemoryBarrier();
+            location = value;
+        }
+
+        [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
+        public static void Write(ref ulong location, ulong value)
+        {
+            // 
+            // The VM will replace this with a more efficient implementation.
+            //
+            Interlocked.MemoryBarrier();
+            location = value;
+        }
+#else
         public static void Write(ref long location, long value)
         {
             //
@@ -282,9 +325,7 @@ namespace System.Threading
             Interlocked.Exchange(ref location, value);
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
-        [SecuritySafeCritical] // contains unsafe code
         public static void Write(ref ulong location, ulong value)
         {
             //
@@ -305,39 +346,40 @@ namespace System.Threading
                 }
             }
         }
+#endif
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref IntPtr location, IntPtr value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [CLSCompliant(false)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref UIntPtr location, UIntPtr value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref float location, float value)
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write(ref double location, double value)
         {
             //
@@ -349,14 +391,13 @@ namespace System.Threading
             Interlocked.Exchange(ref location, value);
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        [SecuritySafeCritical] //the intrinsic implementation of this method contains unverifiable code
+        [System.Runtime.Versioning.NonVersionable]
         public static void Write<T>(ref T location, T value) where T : class
         {
             // 
             // The VM will replace this with a more efficient implementation.
             //
-            Thread.MemoryBarrier();
+            Interlocked.MemoryBarrier();
             location = value;
         }
     }

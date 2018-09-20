@@ -14,27 +14,18 @@
 #include "gcenv.h"
 #include "gc.h"
 
-#ifdef FEATURE_SVR_GC
-SVAL_IMPL_INIT(uint32_t,GCHeap,gcHeapType,GCHeap::GC_HEAP_INVALID);
-#endif // FEATURE_SVR_GC
+IGCHeapInternal* g_theGCHeap;
+IGCHandleManager* g_theGCHandleManager;
 
-GPTR_IMPL(GCHeap,g_pGCHeap);
-
-/* global versions of the card table and brick table */ 
-GPTR_IMPL(uint32_t,g_card_table);
-
-/* absolute bounds of the GC memory */
-GPTR_IMPL_INIT(uint8_t,g_lowest_address,0);
-GPTR_IMPL_INIT(uint8_t,g_highest_address,0);
+#ifdef FEATURE_STANDALONE_GC
+IGCToCLR* g_theGCToCLR;
+#endif // FEATURE_STANDALONE_GC
 
 #ifdef GC_CONFIG_DRIVEN
-GARY_IMPL(size_t, gc_global_mechanisms, MAX_GLOBAL_GC_MECHANISMS_COUNT);
+size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
 #endif //GC_CONFIG_DRIVEN
 
 #ifndef DACCESS_COMPILE
-
-uint8_t* g_ephemeral_low = (uint8_t*)1;
-uint8_t* g_ephemeral_high = (uint8_t*)~0;
 
 #ifdef WRITE_BARRIER_CHECK
 uint8_t* g_GCShadow;
@@ -42,12 +33,22 @@ uint8_t* g_GCShadowEnd;
 uint8_t* g_shadow_lowest_address = NULL;
 #endif
 
-VOLATILE(int32_t) m_GCLock = -1;
+uint32_t* g_gc_card_table;
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+uint32_t* g_gc_card_bundle_table;
+#endif
+
+uint8_t* g_gc_lowest_address  = 0;
+uint8_t* g_gc_highest_address = 0;
+GCHeapType g_gc_heap_type = GC_HEAP_INVALID;
+uint32_t g_max_generation = max_generation;
+MethodTable* g_gc_pFreeObjectMethodTable = nullptr;
 
 #ifdef GC_CONFIG_DRIVEN
 void record_global_mechanism (int mech_index)
 {
-	(gc_global_mechanisms[mech_index])++;
+    (gc_global_mechanisms[mech_index])++;
 }
 #endif //GC_CONFIG_DRIVEN
 
@@ -110,6 +111,90 @@ void record_changed_seg (uint8_t* start, uint8_t* end,
     {
         saved_changed_segs_count = 0;
     }
+}
+
+// The runtime needs to know whether we're using workstation or server GC 
+// long before the GCHeap is created.
+void InitializeHeapType(bool bServerHeap)
+{
+    LIMITED_METHOD_CONTRACT;
+#ifdef FEATURE_SVR_GC
+    g_gc_heap_type = bServerHeap ? GC_HEAP_SVR : GC_HEAP_WKS;
+#ifdef WRITE_BARRIER_CHECK
+    if (g_gc_heap_type == GC_HEAP_SVR)
+    {
+        g_GCShadow = 0;
+        g_GCShadowEnd = 0;
+    }
+#endif // WRITE_BARRIER_CHECK
+#else // FEATURE_SVR_GC
+    UNREFERENCED_PARAMETER(bServerHeap);
+    CONSISTENCY_CHECK(bServerHeap == false);
+#endif // FEATURE_SVR_GC
+}
+
+namespace WKS 
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+namespace SVR
+{
+    extern void PopulateDacVars(GcDacVars* dacVars);
+}
+
+bool InitializeGarbageCollector(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    IGCHeapInternal* heap;
+
+    assert(gcDacVars != nullptr);
+    assert(gcHeap != nullptr);
+    assert(gcHandleManager != nullptr);
+
+    IGCHandleManager* handleManager = CreateGCHandleManager();
+    if (handleManager == nullptr)
+    {
+        return false;
+    }
+
+#ifdef FEATURE_SVR_GC
+    assert(g_gc_heap_type != GC_HEAP_INVALID);
+
+    if (g_gc_heap_type == GC_HEAP_SVR)
+    {
+        heap = SVR::CreateGCHeap();
+        SVR::PopulateDacVars(gcDacVars);
+    }
+    else
+    {
+        heap = WKS::CreateGCHeap();
+        WKS::PopulateDacVars(gcDacVars);
+    }
+#else
+    heap = WKS::CreateGCHeap();
+    WKS::PopulateDacVars(gcDacVars);
+#endif
+
+    if (heap == nullptr)
+    {
+        return false;
+    }
+
+    g_theGCHeap = heap;
+
+#ifdef FEATURE_STANDALONE_GC
+    assert(clrToGC != nullptr);
+    g_theGCToCLR = clrToGC;
+#else
+    UNREFERENCED_PARAMETER(clrToGC);
+    assert(clrToGC == nullptr);
+#endif
+
+    *gcHandleManager = handleManager;
+    *gcHeap = heap;
+    return true;
 }
 
 #endif // !DACCESS_COMPILE

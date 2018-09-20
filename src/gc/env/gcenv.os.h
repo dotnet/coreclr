@@ -47,6 +47,86 @@ struct GCThreadAffinity
     int Processor;
 };
 
+// An event is a synchronization object whose state can be set and reset
+// indicating that an event has occured. It is used pervasively throughout
+// the GC.
+//
+// Note that GCEvent deliberately leaks its contents by not having a non-trivial destructor.
+// This is by design; since all uses of GCEvent have static lifetime, their destructors
+// are run on process exit, potentially concurrently with other threads that may still be
+// operating on the static event. To avoid these sorts of unsafety, GCEvent chooses to
+// not have a destructor at all. The cost of this is leaking a small amount of memory, but
+// this is not a problem since a majority of the uses of GCEvent are static. See CoreCLR#11111
+// for more details on the hazards of static destructors.
+class GCEvent {
+private:
+    class Impl;
+    Impl *m_impl;
+
+public:
+    // Constructs a new uninitialized event.
+    GCEvent();
+
+    // Closes the event. Attempting to use the event past calling CloseEvent
+    // is a logic error.
+    void CloseEvent();
+
+    // "Sets" the event, indicating that a particular event has occured. May
+    // wake up other threads waiting on this event. Depending on whether or
+    // not this event is an auto-reset event, the state of the event may
+    // or may not be automatically reset after Set is called.
+    void Set();
+
+    // Resets the event, resetting it back to a non-signalled state. Auto-reset
+    // events automatically reset once the event is set, while manual-reset
+    // events do not reset until Reset is called. It is a no-op to call Reset
+    // on an auto-reset event.
+    void Reset();
+
+    // Waits for some period of time for this event to be signalled. The
+    // period of time may be infinite (if the timeout argument is INFINITE) or
+    // it may be a specified period of time, in milliseconds.
+    // Returns:
+    //   One of three values, depending on how why this thread was awoken:
+    //      WAIT_OBJECT_0 - This event was signalled and woke up this thread.
+    //      WAIT_TIMEOUT  - The timeout interval expired without this event being signalled.
+    //      WAIT_FAILED   - The wait failed.
+    uint32_t Wait(uint32_t timeout, bool alertable);
+
+    // Determines whether or not this event is valid.
+    // Returns:
+    //  true if this event is invalid (i.e. it has not yet been initialized or
+    //  has already been closed), false otherwise
+    bool IsValid() const
+    {
+        return m_impl != nullptr;
+    }
+
+    // Initializes this event to be a host-aware manual reset event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateManualEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-aware auto-resetting event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateAutoEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-unaware manual reset event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateOSManualEventNoThrow(bool initialState);
+
+    // Initializes this event to be a host-unaware auto-resetting event with the
+    // given initial state.
+    // Returns:
+    //   true if the initialization succeeded, false if it did not
+    bool CreateOSAutoEventNoThrow(bool initialState);
+};
+
 // GC thread function prototype
 typedef void (*GCThreadFunction)(void* param);
 
@@ -73,13 +153,12 @@ public:
 
     // Reserve virtual memory range.
     // Parameters:
-    //  address   - starting virtual address, it can be NULL to let the function choose the starting address
     //  size      - size of the virtual memory range
     //  alignment - requested memory alignment
     //  flags     - flags to control special settings like write watching
     // Return:
     //  Starting virtual address of the reserved range
-    static void* VirtualReserve(void *address, size_t size, size_t alignment, uint32_t flags);
+    static void* VirtualReserve(size_t size, size_t alignment, uint32_t flags);
 
     // Release virtual memory range previously reserved using VirtualReserve
     // Parameters:
@@ -181,7 +260,7 @@ public:
     // current platform. It is indended for logging purposes only.
     // Return:
     //  Numeric id of the current thread or 0 if the 
-    static uint32_t GetCurrentThreadIdForLogging();
+    static uint64_t GetCurrentThreadIdForLogging();
 
     // Get id of the current process
     // Return:
@@ -224,31 +303,35 @@ public:
     static bool GetCurrentProcessAffinityMask(uintptr_t *processMask, uintptr_t *systemMask);
 
     //
-    // Support for acting on memory limit imposed on this process, eg, running in a job object on Windows.
+    // Global memory info
     //
-    
-    // If the process's memory is restricted (ie, beyond what's available on the machine), return that limit.
+
+    // Return the size of the user-mode portion of the virtual address space of this process.
+    // Return:
+    //  non zero if it has succeeded, 0 if it has failed
+    static size_t GetVirtualMemoryLimit();
+
+    // Get the physical memory that this process can use.
     // Return:
     //  non zero if it has succeeded, 0 if it has failed
     // Remarks:
-    //  If a process runs with a restricted memory limit, and we are successful at getting 
-    //  that limit, it returns the limit. If there's no limit specified, or there's an error 
-    //  at getting that limit, it returns 0.
-    static uint64_t GetRestrictedPhysicalMemoryLimit();
+    //  If a process runs with a restricted memory limit, it returns the limit. If there's no limit 
+    //  specified, it returns amount of actual physical memory.
+    static uint64_t GetPhysicalMemoryLimit();
 
-    // Get the current physical memory this process is using.
-    // Return:
-    //  non zero if it has succeeded, 0 if it has failed
-    static size_t GetCurrentPhysicalMemory();
-    
+    // Get memory status
+    // Parameters:
+    //  memory_load - A number between 0 and 100 that specifies the approximate percentage of physical memory
+    //      that is in use (0 indicates no memory use and 100 indicates full memory use).
+    //  available_physical - The amount of physical memory currently available, in bytes.
+    //  available_page_file - The maximum amount of memory the current process can commit, in bytes.
+    // Remarks:
+    //  Any parameter can be null.
+    static void GetMemoryStatus(uint32_t* memory_load, uint64_t* available_physical, uint64_t* available_page_file);
+
     //
     // Misc
     //
-
-    // Get global memory status
-    // Parameters:
-    //  ms - pointer to the structure that will be filled in with the memory status
-    static void GetMemoryStatus(GCMemoryStatus* ms);
 
     // Flush write buffers of processors that are executing threads of the current process
     static void FlushProcessWriteBuffers();

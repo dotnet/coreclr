@@ -9,6 +9,11 @@
 #include "common.h"
 #include "gmscpu.h"
 
+#ifdef FEATURE_PAL
+#define USE_EXTERNAL_UNWINDER
+#endif
+
+#ifndef USE_EXTERNAL_UNWINDER
 /***************************************************************/
 /* setMachState figures out what the state of the CPU will be
    when the function that calls 'setMachState' returns.  It stores
@@ -42,18 +47,31 @@
    
 #if !defined(DACCESS_COMPILE)
 
+#ifdef _MSC_VER
 #pragma optimize("gsy", on )        // optimize to insure that code generation does not have junk in it
+#endif // _MSC_VER
 #pragma warning(disable:4717) 
 
 static int __stdcall zeroFtn() {
     return 0;
 }
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winfinite-recursion"
+#endif
+
 static int __stdcall recursiveFtn() {
     return recursiveFtn()+1;
 }
 
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
+
+#ifdef _MSC_VER
 #pragma optimize("", on )
+#endif // _MSC_VER
 
 
 /* Has mscorwks been instrumented so that calls are morphed into push XXXX call <helper> */
@@ -670,6 +688,10 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 ip += 2;
                 break;
 
+            case 0x34:                            // XOR AL, imm8
+                ip += 2;
+                break;
+
             case 0x31:
             case 0x32:
             case 0x33:
@@ -866,6 +888,14 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 datasize = b16bit?2:4;
                 goto decodeRM;
 
+            case 0x24:                           // AND AL, imm8
+                ip += 2;
+                break;
+
+            case 0x01:                           // ADD mod/rm
+            case 0x03:
+            case 0x11:                           // ADC mod/rm
+            case 0x13:
             case 0x29:                           // SUB mod/rm
             case 0x2B:
                 datasize = 0;
@@ -1106,7 +1136,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                     goto again;
                 }
 #ifndef _PREFIX_
-                *((int*) 0) = 1;        // If you get at this error, it is because yout
+                *((volatile int*) 0) = 1; // If you get at this error, it is because yout
                                         // set a breakpoint in a helpermethod frame epilog
                                         // you can't do that unfortunately.  Just move it
                                         // into the interior of the method to fix it  
@@ -1223,7 +1253,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 // FIX what to do here?
 #ifndef DACCESS_COMPILE
 #ifndef _PREFIX_
-                *((unsigned __int8**) 0) = ip;  // cause an access violation (Free Build assert)
+                *((volatile PTR_BYTE*) 0) = ip;  // cause an access violation (Free Build assert)
 #endif // !_PREFIX_                            
 #else
                 DacNotImpl();
@@ -1241,3 +1271,111 @@ done:
 #ifdef _PREFAST_
 #pragma warning(pop)
 #endif
+#else  // !USE_EXTERNAL_UNWINDER
+
+void LazyMachState::unwindLazyState(LazyMachState* baseState,
+                                    MachState* lazyState,
+                                    DWORD threadId,
+                                    int funCallDepth /* = 1 */,
+                                    HostCallPreference hostCallPreference /* = (HostCallPreference)(-1) */)
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        SUPPORTS_DAC;
+    } CONTRACTL_END;
+
+    CONTEXT                         ctx;
+    KNONVOLATILE_CONTEXT_POINTERS   nonVolRegPtrs;
+
+    ctx.Eip = baseState->captureEip;
+    ctx.Esp = baseState->captureEsp;
+    ctx.Ebp = baseState->captureEbp;
+
+    ctx.Edi = lazyState->_edi = baseState->_edi;
+    ctx.Esi = lazyState->_esi = baseState->_esi;
+    ctx.Ebx = lazyState->_ebx = baseState->_ebx;
+
+    nonVolRegPtrs.Edi = &(baseState->_edi);
+    nonVolRegPtrs.Esi = &(baseState->_esi);
+    nonVolRegPtrs.Ebx = &(baseState->_ebx);
+    nonVolRegPtrs.Ebp = &(baseState->_ebp);
+
+    PCODE pvControlPc;
+
+    LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    LazyMachState::unwindLazyState(ip:%p,bp:%p,sp:%p)\n", baseState->captureEip, baseState->captureEbp, baseState->captureEsp));
+
+    do
+    {
+#ifdef DACCESS_COMPILE
+        HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
+        if (FAILED(hr))
+        {
+            DacError(hr);
+        }
+#else
+        BOOL success = PAL_VirtualUnwind(&ctx, &nonVolRegPtrs);
+        if (!success)
+        {
+            _ASSERTE(!"unwindLazyState: Unwinding failed");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+#endif // DACCESS_COMPILE
+
+        pvControlPc = GetIP(&ctx);
+
+        _ASSERTE(pvControlPc != 0);
+
+        if (funCallDepth > 0)
+        {
+            --funCallDepth;
+            if (funCallDepth == 0)
+                break;
+        }
+        else
+        {
+            // Determine  whether given IP resides in JITted code. (It returns nonzero in that case.) 
+            // Use it now to see if we've unwound to managed code yet.
+            BOOL fFailedReaderLock = FALSE;
+            BOOL fIsManagedCode = ExecutionManager::IsManagedCode(pvControlPc, hostCallPreference, &fFailedReaderLock);            
+            if (fFailedReaderLock)
+            {
+                // We don't know if we would have been able to find a JIT
+                // manager, because we couldn't enter the reader lock without
+                // yielding (and our caller doesn't want us to yield).  So abort
+                // now.
+                
+                // Invalidate the lazyState we're returning, so the caller knows
+                // we aborted before we could fully unwind
+                lazyState->_pRetAddr = NULL;                
+                return;
+            }
+
+            if (fIsManagedCode)
+                break;
+        }
+    }
+    while(TRUE);    
+
+    lazyState->_esp = ctx.Esp;
+    lazyState->_pRetAddr = PTR_TADDR(lazyState->_esp - 4);
+
+    lazyState->_edi = ctx.Edi;
+    lazyState->_esi = ctx.Esi;
+    lazyState->_ebx = ctx.Ebx;
+    lazyState->_ebp = ctx.Ebp;
+   
+#ifdef DACCESS_COMPILE
+    lazyState->_pEdi = NULL;
+    lazyState->_pEsi = NULL;
+    lazyState->_pEbx = NULL;
+    lazyState->_pEbp = NULL;
+#else  // DACCESS_COMPILE
+    lazyState->_pEdi = nonVolRegPtrs.Edi;
+    lazyState->_pEsi = nonVolRegPtrs.Esi;
+    lazyState->_pEbx = nonVolRegPtrs.Ebx;
+    lazyState->_pEbp = nonVolRegPtrs.Ebp;
+#endif // DACCESS_COMPILE
+}
+#endif // !USE_EXTERNAL_UNWINDER

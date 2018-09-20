@@ -22,15 +22,15 @@ bool g_fAllowNativeImages = true;
 //
 // Default install library
 //
-const WCHAR g_pwBaseLibrary[]     = W("mscorlib.dll");
-const WCHAR g_pwBaseLibraryName[] = W("mscorlib");
-const char g_psBaseLibrary[]      = "mscorlib.dll";
-const char g_psBaseLibraryName[]  = "mscorlib";
-const char g_psBaseLibrarySatelliteAssemblyName[]  = "mscorlib.resources";
+const WCHAR g_pwBaseLibrary[]     = CoreLibName_IL_W;
+const WCHAR g_pwBaseLibraryName[] = CoreLibName_W;
+const char g_psBaseLibrary[]      = CoreLibName_IL_A;
+const char g_psBaseLibraryName[]  = CoreLibName_A;
+const char g_psBaseLibrarySatelliteAssemblyName[]  = CoreLibSatelliteName_A;
 
 #ifdef FEATURE_COMINTEROP
-const WCHAR g_pwBaseLibraryTLB[]  = W("mscorlib.tlb");
-const char g_psBaseLibraryTLB[]   = "mscorlib.tlb";
+const WCHAR g_pwBaseLibraryTLB[]  = CoreLibName_TLB_W;
+const char g_psBaseLibraryTLB[]   = CoreLibName_TLB_A;
 #endif  // FEATURE_COMINTEROP
 
 Volatile<LONG>       g_TrapReturningThreads;
@@ -69,6 +69,7 @@ GPTR_IMPL(MethodTable,      g_pStringClass);
 GPTR_IMPL(MethodTable,      g_pArrayClass);
 GPTR_IMPL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_IMPL(MethodTable,      g_pNullableClass);
+GPTR_IMPL(MethodTable,      g_pByReferenceClass);
 GPTR_IMPL(MethodTable,      g_pExceptionClass);
 GPTR_IMPL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_IMPL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -79,13 +80,9 @@ GPTR_IMPL(MethodTable,      g_pMulticastDelegateClass);
 GPTR_IMPL(MethodTable,      g_pValueTypeClass);
 GPTR_IMPL(MethodTable,      g_pEnumClass);
 GPTR_IMPL(MethodTable,      g_pThreadClass);
-GPTR_IMPL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_IMPL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_IMPL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_IMPL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_IMPL(MethodTable,      g_ArgumentHandleMT);
-GPTR_IMPL(MethodTable,      g_ArgIteratorMT);
 GPTR_IMPL(MethodTable,      g_TypedReferenceMT);
 
 GPTR_IMPL(MethodTable,      g_pByteArrayMT);
@@ -100,7 +97,6 @@ GPTR_IMPL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
 
-GPTR_IMPL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
 GPTR_IMPL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
 GPTR_IMPL(MethodDesc,       g_pObjectCtorMD);
@@ -111,6 +107,10 @@ GPTR_IMPL(Thread,g_pSuspensionThread);
 
 // Global SyncBlock cache
 GPTR_IMPL(SyncTableEntry,g_pSyncTable);
+
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+DWORD g_dwHandles = 0;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef STRESS_LOG
 GPTR_IMPL_INIT(StressLog, g_pStressLog, &StressLog::theLog);
@@ -127,9 +127,6 @@ GPTR_IMPL(RCWCleanupList,g_pRCWCleanupList);
 // <TODO> @TODO Remove eventually - </TODO> determines whether the verifier throws an exception when something fails
 bool                g_fVerifierOff;
 
-#ifndef FEATURE_CORECLR
-IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
-#endif
 
 // <TODO> @TODO - PROMOTE. </TODO>
 OBJECTHANDLE         g_pPreallocatedOutOfMemoryException;
@@ -139,10 +136,6 @@ OBJECTHANDLE         g_pPreallocatedRudeThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedThreadAbortException;
 OBJECTHANDLE         g_pPreallocatedSentinelObject;
 OBJECTHANDLE         g_pPreallocatedBaseException;
-
-#ifdef FEATURE_CAS_POLICY
-CertificateCache *g_pCertificateCache = NULL;
-#endif
 
 // 
 //
@@ -230,7 +223,6 @@ GVAL_IMPL(SIZE_T, g_runtimeVirtualSize);
 #ifndef DACCESS_COMPILE
 
 Volatile<LONG> g_fForbidEnterEE = false;
-bool g_fFinalizerRunOnShutDown = false;
 bool g_fManagedAttach = false;
 bool g_fNoExceptions = false;
 #ifdef FEATURE_COMINTEROP

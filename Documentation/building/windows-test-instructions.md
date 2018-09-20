@@ -5,37 +5,31 @@ Building and running tests on Windows
 
 To build the tests simply navigate to the tests directory above the repo and run,
 
-    C:\git\coreclr>tests\buildtest.cmd
+    C:\git\coreclr>build-test.cmd
 
 *Cleaning Tests*
 
 **Note:** Cleaning should be done before all tests to be sure that the test assets are initialized correctly. To do a clean build of the tests, in a clean command prompt, issue the following command: 
 
-    C:\git\coreclr>tests\buildtest.cmd clean
+    C:\git\coreclr>build-test.cmd -rebuild
 
 *Building tests that will be precompiled*
 
-    C:\git\coreclr>tests\buildtest.cmd crossgen
+    C:\git\coreclr>build-test.cmd crossgen
 
 This will use crossgen.exe to precompile the test executables before they are executed.
 
 *Building Other Priority Tests*
 
-    C:\git\coreclr>tests\buildtest.cmd priority 2
+    C:\git\coreclr>build-test.cmd -priority=2
 
 The number '2' is just an example. The default value (if no priority is specified) is 0. To clarify, if '2' is specified, all tests with CLRTestPriorty 0, 1 AND 2 will be built and consequently run.
-
-*Specify GCStress Level*
-
-    C:\git\coreclr>tests\buildtest.cmd gcstresslevel 2
-
-GCStress is used to help with identifying GC holes in the implementation of the managed runtime or GC life-time reporting done by the JIT. Valid values are the values supported by GCStressFlags enum in src/vm/eeconfig.h.
 
 **Example**
 
 To run a clean, priority 1, crossgen test pass:
 
-    C:\git\coreclr>tests\buildtest.cmd clean crossgen priority 1
+    C:\git\coreclr>build-test.cmd -rebuild crossgen -priority=1
 
 **buildtest /?** will list additional supported parameters.
 
@@ -93,7 +87,6 @@ If test changes are needed, make the change and build the test project. This wil
 4. Add the project of the new test to `<repo_root>\tests\src\AllTestProjects.sln` in VS
 5. Add source files to this newly added project.
 6. Indicate the success of the test by returning `100`.
-7. Add the .NET CoreFX contract references, as required, via the Nuget Package Manager in Visual Studio. *Make sure this does not change the csproj. If it does, then undo the change in the csproj.*
 8. Add any other projects as a dependency, if needed.
 9. Build the test.
 10. Follow the steps to re-run a failed test to validate the new test.
@@ -107,3 +100,7 @@ Note:
      ``<DisableProjectBuild Condition=" '$(Platform)' == 'arm64' ">true</DisableProjectBuild>``
 
   ``</PropertyGroup>``
+
+2. To Add Nuget\MyGet Refernces use this (project.json)[https://github.com/dotnet/coreclr/blob/master/tests/src/Common/test_dependencies/project.json]
+
+3. To Build against the mscorlib facade add  ``<ReferenceLocalMscorlib>true</ReferenceLocalMscorlib>`` to your project

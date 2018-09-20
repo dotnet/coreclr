@@ -23,7 +23,6 @@ using System.Threading;
 
 namespace System
 {
-
     /// <summary>Represents one or more errors that occur during application execution.</summary>
     /// <remarks>
     /// <see cref="AggregateException"/> is used to consolidate multiple failures into a single, throwable
@@ -31,16 +30,16 @@ namespace System
     /// </remarks>
     [Serializable]
     [DebuggerDisplay("Count = {InnerExceptionCount}")]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class AggregateException : Exception
     {
-
-        private ReadOnlyCollection<Exception> m_innerExceptions; // Complete set of exceptions.
+        private ReadOnlyCollection<Exception> m_innerExceptions; // Complete set of exceptions. Do not rename (binary serialization)
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AggregateException"/> class.
         /// </summary>
         public AggregateException()
-            : base(Environment.GetResourceString("AggregateException_ctor_DefaultMessage"))
+            : base(SR.AggregateException_ctor_DefaultMessage)
         {
             m_innerExceptions = new ReadOnlyCollection<Exception>(new Exception[0]);
         }
@@ -69,7 +68,7 @@ namespace System
         {
             if (innerException == null)
             {
-                throw new ArgumentNullException("innerException");
+                throw new ArgumentNullException(nameof(innerException));
             }
 
             m_innerExceptions = new ReadOnlyCollection<Exception>(new Exception[] { innerException });
@@ -85,7 +84,7 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
         public AggregateException(IEnumerable<Exception> innerExceptions) :
-            this(Environment.GetResourceString("AggregateException_ctor_DefaultMessage"), innerExceptions)
+            this(SR.AggregateException_ctor_DefaultMessage, innerExceptions)
         {
         }
 
@@ -99,7 +98,7 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptions"/> is
         /// null.</exception>
         public AggregateException(params Exception[] innerExceptions) :
-            this(Environment.GetResourceString("AggregateException_ctor_DefaultMessage"), innerExceptions)
+            this(SR.AggregateException_ctor_DefaultMessage, innerExceptions)
         {
         }
 
@@ -149,7 +148,7 @@ namespace System
         {
             if (innerExceptions == null)
             {
-                throw new ArgumentNullException("innerExceptions");
+                throw new ArgumentNullException(nameof(innerExceptions));
             }
 
             // Copy exceptions to our internal array and validate them. We must copy them,
@@ -163,7 +162,7 @@ namespace System
 
                 if (exceptionsCopy[i] == null)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("AggregateException_ctor_InnerExceptionNull"));
+                    throw new ArgumentException(SR.AggregateException_ctor_InnerExceptionNull);
                 }
             }
 
@@ -182,7 +181,7 @@ namespace System
         /// <exception cref="T:System.ArgumentException">An element of <paramref name="innerExceptionInfos"/> is
         /// null.</exception>
         internal AggregateException(IEnumerable<ExceptionDispatchInfo> innerExceptionInfos) :
-            this(Environment.GetResourceString("AggregateException_ctor_DefaultMessage"), innerExceptionInfos)
+            this(SR.AggregateException_ctor_DefaultMessage, innerExceptionInfos)
         {
         }
 
@@ -202,9 +201,9 @@ namespace System
         internal AggregateException(string message, IEnumerable<ExceptionDispatchInfo> innerExceptionInfos)
             // If it's already an IList, pass that along (a defensive copy will be made in the delegated ctor).  If it's null, just pass along
             // null typed correctly.  Otherwise, create an IList from the enumerable and pass that along. 
-            : this(message, innerExceptionInfos as IList<ExceptionDispatchInfo> ?? 
-                                (innerExceptionInfos == null ? 
-                                    (List<ExceptionDispatchInfo>)null : 
+            : this(message, innerExceptionInfos as IList<ExceptionDispatchInfo> ??
+                                (innerExceptionInfos == null ?
+                                    (List<ExceptionDispatchInfo>)null :
                                     new List<ExceptionDispatchInfo>(innerExceptionInfos)))
         {
         }
@@ -227,7 +226,7 @@ namespace System
         {
             if (innerExceptionInfos == null)
             {
-                throw new ArgumentNullException("innerExceptionInfos");
+                throw new ArgumentNullException(nameof(innerExceptionInfos));
             }
 
             // Copy exceptions to our internal array and validate them. We must copy them,
@@ -242,7 +241,7 @@ namespace System
 
                 if (exceptionsCopy[i] == null)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("AggregateException_ctor_InnerExceptionNull"));
+                    throw new ArgumentException(SR.AggregateException_ctor_InnerExceptionNull);
                 }
             }
 
@@ -258,19 +257,18 @@ namespace System
         /// contains contextual information about the source or destination. </param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="info"/> argument is null.</exception>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The exception could not be deserialized correctly.</exception>
-        [SecurityCritical]
         protected AggregateException(SerializationInfo info, StreamingContext context) :
             base(info, context)
         {
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             Exception[] innerExceptions = info.GetValue("InnerExceptions", typeof(Exception[])) as Exception[];
             if (innerExceptions == null)
             {
-                throw new SerializationException(Environment.GetResourceString("AggregateException_DeserializationFailure"));
+                throw new SerializationException(SR.AggregateException_DeserializationFailure);
             }
 
             m_innerExceptions = new ReadOnlyCollection<Exception>(innerExceptions);
@@ -285,12 +283,11 @@ namespace System
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"/> that
         /// contains contextual information about the source or destination. </param>
         /// <exception cref="T:System.ArgumentNullException">The <paramref name="info"/> argument is null.</exception>
-        [SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
             {
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             }
 
             base.GetObjectData(info, context);
@@ -351,7 +348,7 @@ namespace System
         {
             if (predicate == null)
             {
-                throw new ArgumentNullException("predicate");
+                throw new ArgumentNullException(nameof(predicate));
             }
 
             List<Exception> unhandledExceptions = null;
@@ -379,7 +376,8 @@ namespace System
 
 
         /// <summary>
-        /// Flattens an <see cref="AggregateException"/> instances into a single, new instance.
+        /// Flattens the inner instances of <see cref="AggregateException"/> by expanding its contained <see cref="Exception"/> instances
+        /// into a new <see cref="AggregateException"/>
         /// </summary>
         /// <returns>A new, flattened <see cref="AggregateException"/>.</returns>
         /// <remarks>
@@ -469,7 +467,7 @@ namespace System
             {
                 text = String.Format(
                     CultureInfo.InvariantCulture,
-                    Environment.GetResourceString("AggregateException_ToString"),
+                    SR.AggregateException_ToString,
                     text, Environment.NewLine, i, m_innerExceptions[i].ToString(), "<---", Environment.NewLine);
             }
 
@@ -493,5 +491,4 @@ namespace System
             }
         }
     }
-
 }

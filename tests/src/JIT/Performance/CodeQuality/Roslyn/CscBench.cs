@@ -13,7 +13,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
 public static class CscBench
 {
@@ -32,7 +31,14 @@ public static class CscBench
     {
         string CoreRoot = System.Environment.GetEnvironmentVariable("CORE_ROOT");
         if (CoreRoot == null) { return false; }
-        MscorlibPath = Path.Combine(CoreRoot, "mscorlib.dll");
+        // Some CoreCLR packages have System.Private.CoreLib.ni.dll only
+        string nicorlib = Path.Combine(CoreRoot, "System.Private.CoreLib.ni.dll");
+        if(File.Exists(nicorlib))
+        {
+            MscorlibPath = nicorlib;
+            return true;
+        }
+        MscorlibPath = Path.Combine(CoreRoot, "System.Private.CoreLib.dll");
         return File.Exists(MscorlibPath);
     }
 

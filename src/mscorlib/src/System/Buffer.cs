@@ -2,27 +2,36 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-namespace System {
-    
+#if AMD64 || (BIT32 && !ARM)
+#define HAS_CUSTOM_BLOCKS
+#endif
+
+namespace System
+{
     //Only contains static methods.  Does not require serialization
-    
+
     using System;
     using System.Runtime.CompilerServices;
     using System.Runtime.ConstrainedExecution;
     using System.Runtime.InteropServices;
     using System.Runtime.Versioning;
+    using System.Diagnostics;
     using System.Diagnostics.Contracts;
     using System.Security;
     using System.Runtime;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+#if BIT64
+    using nuint = System.UInt64;
+#else // BIT64
+    using nuint = System.UInt32;
+#endif // BIT64
+
     public static class Buffer
     {
         // Copies from one primitive array to another primitive array without
         // respecting types.  This calls memmove internally.  The count and 
         // offset parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void BlockCopy(Array src, int srcOffset,
             Array dst, int dstOffset, int count);
@@ -31,7 +40,6 @@ namespace System {
         // parameter validation has already been done.  The count and offset
         // parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
-        [System.Security.SecuritySafeCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void InternalBlockCopy(Array src, int srcOffsetBytes,
             Array dst, int dstOffsetBytes, int byteCount);
@@ -41,10 +49,9 @@ namespace System {
         // It is however cross platform as the CRT hasn't ported their fast version to 64-bit
         // platforms.
         //
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static int IndexOfByte(byte* src, byte value, int index, int count)
         {
-            Contract.Assert(src != null, "src should not be null");
+            Debug.Assert(src != null, "src should not be null");
 
             byte* pByte = src + index;
 
@@ -54,7 +61,7 @@ namespace System {
                 if (count == 0)
                     return -1;
                 else if (*pByte == value)
-                    return (int) (pByte - src);
+                    return (int)(pByte - src);
 
                 count--;
                 pByte++;
@@ -84,7 +91,7 @@ namespace System {
                 if (t1 != 0)
                 {
                     // We've found a match for value, figure out which position it's in.
-                    int foundIndex = (int) (pByte - src);
+                    int foundIndex = (int)(pByte - src);
                     if (pByte[0] == value)
                         return foundIndex;
                     else if (pByte[1] == value)
@@ -97,14 +104,13 @@ namespace System {
 
                 count -= 4;
                 pByte += 4;
-
             }
 
             // Catch any bytes that might be left at the tail of the buffer
             while (count > 0)
             {
                 if (*pByte == value)
-                    return (int) (pByte - src);
+                    return (int)(pByte - src);
 
                 count--;
                 pByte++;
@@ -113,10 +119,9 @@ namespace System {
             // If we don't have a match return -1;
             return -1;
         }
-        
+
         // Returns a bool to indicate if the array is of primitive data types
         // or not.
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool IsPrimitiveTypeArray(Array array);
 
@@ -126,24 +131,22 @@ namespace System {
         // This essentially does the following: 
         // return ((byte*)array) + index.
         //
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern byte _GetByte(Array array, int index);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static byte GetByte(Array array, int index)
         {
             // Is the array present?
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?
             if (!IsPrimitiveTypeArray(array))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBePrimArray"), "array");
+                throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
 
             // Is the index in valid range of the array?
             if (index < 0 || index >= _ByteLength(array))
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             return _GetByte(array, index);
         }
@@ -154,86 +157,80 @@ namespace System {
         // This essentially does the following: 
         // *(((byte*)array) + index) = value.
         //
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern void _SetByte(Array array, int index, byte value);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static void SetByte(Array array, int index, byte value)
         {
             // Is the array present?
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?
             if (!IsPrimitiveTypeArray(array))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBePrimArray"), "array");
+                throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
 
             // Is the index in valid range of the array?
             if (index < 0 || index >= _ByteLength(array))
-                throw new ArgumentOutOfRangeException("index");
+                throw new ArgumentOutOfRangeException(nameof(index));
 
             // Make the FCall to do the work
             _SetByte(array, index, value);
         }
 
-    
+
         // Gets a particular byte out of the array.  The array must be an
         // array of primitives.  
         //
         // This essentially does the following: 
         // return array.length * sizeof(array.UnderlyingElementType).
         //
-        [System.Security.SecurityCritical]  // auto-generated
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int _ByteLength(Array array);
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public static int ByteLength(Array array)
         {
             // Is the array present?
             if (array == null)
-                throw new ArgumentNullException("array");
+                throw new ArgumentNullException(nameof(array));
 
             // Is it of primitive types?
             if (!IsPrimitiveTypeArray(array))
-                throw new ArgumentException(Environment.GetResourceString("Arg_MustBePrimArray"), "array");
+                throw new ArgumentException(SR.Arg_MustBePrimArray, nameof(array));
 
             return _ByteLength(array);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal unsafe static void ZeroMemory(byte* src, long len)
         {
-            while(len-- > 0)
+            while (len-- > 0)
                 *(src + len) = 0;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        internal unsafe static void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len) {
-            Contract.Assert( (srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
-            Contract.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
+        internal unsafe static void Memcpy(byte[] dest, int destIndex, byte* src, int srcIndex, int len)
+        {
+            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
+            Debug.Assert(dest.Length - destIndex >= len, "not enough bytes in dest");
             // If dest has 0 elements, the fixed statement will throw an 
             // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len==0)
+            if (len == 0)
                 return;
-            fixed(byte* pDest = dest) {
+            fixed (byte* pDest = dest)
+            {
                 Memcpy(pDest + destIndex, src + srcIndex, len);
             }
         }
 
-        [SecurityCritical]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         internal unsafe static void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
         {
-            Contract.Assert( (srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");        
-            Contract.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
+            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
+            Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
             // If dest has 0 elements, the fixed statement will throw an 
             // IndexOutOfRangeException.  Special-case 0-byte copies.
-            if (len==0)
+            if (len == 0)
                 return;
-            fixed(byte* pSrc = src) {
+            fixed (byte* pSrc = src)
+            {
                 Memcpy(pDest + destIndex, pSrc + srcIndex, len);
             }
         }
@@ -248,276 +245,204 @@ namespace System {
         // 1. This method is given access to other internal dlls and this close to release we do not want to change it.
         // 2. It is difficult to get this right for arm and again due to release dates we would like to visit it later.
         [FriendAccessAllowed]
-        [System.Security.SecurityCritical]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
 #if ARM
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal unsafe static extern void Memcpy(byte* dest, byte* src, int len);
 #else // ARM
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        internal unsafe static void Memcpy(byte* dest, byte* src, int len) {
-            Contract.Assert(len >= 0, "Negative length in memcopy!");
+        internal unsafe static void Memcpy(byte* dest, byte* src, int len)
+        {
+            Debug.Assert(len >= 0, "Negative length in memcopy!");
             Memmove(dest, src, (uint)len);
         }
 #endif // ARM
 
         // This method has different signature for x64 and other platforms and is done for performance reasons.
-        [System.Security.SecurityCritical]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-#if WIN64
-        internal unsafe static void Memmove(byte* dest, byte* src, ulong len)
-#else
-        internal unsafe static void Memmove(byte* dest, byte* src, uint len)
-#endif
+        internal unsafe static void Memmove(byte* dest, byte* src, nuint len)
         {
-            // P/Invoke into the native version when the buffers are overlapping and the copy needs to be performed backwards
-            // This check can produce false positives for lengths greater than Int32.MaxInt. It is fine because we want to use PInvoke path for the large lengths anyway.
-#if WIN64
-            if ((ulong)dest - (ulong)src < len) goto PInvoke;
+#if AMD64 || (BIT32 && !ARM)
+            const nuint CopyThreshold = 2048;
 #else
-            if (((uint)dest - (uint)src) < len) goto PInvoke;
-#endif
-            //
-            // This is portable version of memcpy. It mirrors what the hand optimized assembly versions of memcpy typically do.
-            //
-            // Ideally, we would just use the cpblk IL instruction here. Unfortunately, cpblk IL instruction is not as efficient as
-            // possible yet and so we have this implementation here for now.
-            //
+            const nuint CopyThreshold = 512;
+#endif // AMD64 || (BIT32 && !ARM)
 
-            switch (len)
+            // P/Invoke into the native version when the buffers are overlapping.
+
+            if (((nuint)dest - (nuint)src < len) || ((nuint)src - (nuint)dest < len)) goto PInvoke;
+
+            byte* srcEnd = src + len;
+            byte* destEnd = dest + len;
+
+            if (len <= 16) goto MCPY02;
+            if (len > 64) goto MCPY05;
+
+            MCPY00:
+            // Copy bytes which are multiples of 16 and leave the remainder for MCPY01 to handle.
+            Debug.Assert(len > 16 && len <= 64);
+#if HAS_CUSTOM_BLOCKS
+            *(Block16*)dest = *(Block16*)src;                   // [0,16]
+#elif BIT64
+            *(long*)dest = *(long*)src;
+            *(long*)(dest + 8) = *(long*)(src + 8);             // [0,16]
+#else
+            *(int*)dest = *(int*)src;
+            *(int*)(dest + 4) = *(int*)(src + 4);
+            *(int*)(dest + 8) = *(int*)(src + 8);
+            *(int*)(dest + 12) = *(int*)(src + 12);             // [0,16]
+#endif
+            if (len <= 32) goto MCPY01;
+#if HAS_CUSTOM_BLOCKS
+            *(Block16*)(dest + 16) = *(Block16*)(src + 16);     // [0,32]
+#elif BIT64
+            *(long*)(dest + 16) = *(long*)(src + 16);
+            *(long*)(dest + 24) = *(long*)(src + 24);           // [0,32]
+#else
+            *(int*)(dest + 16) = *(int*)(src + 16);
+            *(int*)(dest + 20) = *(int*)(src + 20);
+            *(int*)(dest + 24) = *(int*)(src + 24);
+            *(int*)(dest + 28) = *(int*)(src + 28);             // [0,32]
+#endif
+            if (len <= 48) goto MCPY01;
+#if HAS_CUSTOM_BLOCKS
+            *(Block16*)(dest + 32) = *(Block16*)(src + 32);     // [0,48]
+#elif BIT64
+            *(long*)(dest + 32) = *(long*)(src + 32);
+            *(long*)(dest + 40) = *(long*)(src + 40);           // [0,48]
+#else
+            *(int*)(dest + 32) = *(int*)(src + 32);
+            *(int*)(dest + 36) = *(int*)(src + 36);
+            *(int*)(dest + 40) = *(int*)(src + 40);
+            *(int*)(dest + 44) = *(int*)(src + 44);             // [0,48]
+#endif
+
+            MCPY01:
+            // Unconditionally copy the last 16 bytes using destEnd and srcEnd and return.
+            Debug.Assert(len > 16 && len <= 64);
+#if HAS_CUSTOM_BLOCKS
+            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+#elif BIT64
+            *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
+            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
+#else
+            *(int*)(destEnd - 16) = *(int*)(srcEnd - 16);
+            *(int*)(destEnd - 12) = *(int*)(srcEnd - 12);
+            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
+            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+#endif
+            return;
+
+            MCPY02:
+            // Copy the first 8 bytes and then unconditionally copy the last 8 bytes and return.
+            if ((len & 24) == 0) goto MCPY03;
+            Debug.Assert(len >= 8 && len <= 16);
+#if BIT64
+            *(long*)dest = *(long*)src;
+            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
+#else
+            *(int*)dest = *(int*)src;
+            *(int*)(dest + 4) = *(int*)(src + 4);
+            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
+            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+#endif
+            return;
+
+            MCPY03:
+            // Copy the first 4 bytes and then unconditionally copy the last 4 bytes and return.
+            if ((len & 4) == 0) goto MCPY04;
+            Debug.Assert(len >= 4 && len < 8);
+            *(int*)dest = *(int*)src;
+            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
+            return;
+
+            MCPY04:
+            // Copy the first byte. For pending bytes, do an unconditionally copy of the last 2 bytes and return.
+            Debug.Assert(len < 4);
+            if (len == 0) return;
+            *dest = *src;
+            if ((len & 2) == 0) return;
+            *(short*)(destEnd - 2) = *(short*)(srcEnd - 2);
+            return;
+
+            MCPY05:
+            // PInvoke to the native version when the copy length exceeds the threshold.
+            if (len > CopyThreshold)
             {
-            case 0:
-                return;
-            case 1:
-                *dest = *src;
-                return;
-            case 2:
-                *(short *)dest = *(short *)src;
-                return;
-            case 3:
-                *(short *)dest = *(short *)src;
-                *(dest + 2) = *(src + 2);
-                return;
-            case 4:
-                *(int *)dest = *(int *)src;
-                return;
-            case 5:
-                *(int*)dest = *(int*)src;
-                *(dest + 4) = *(src + 4);
-                return;
-            case 6:
-                *(int*)dest = *(int*)src;
-                *(short*)(dest + 4) = *(short*)(src + 4);
-                return;
-            case 7:
-                *(int*)dest = *(int*)src;
-                *(short*)(dest + 4) = *(short*)(src + 4);
-                *(dest + 6) = *(src + 6);
-                return;
-            case 8:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                return;
-            case 9:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(dest + 8) = *(src + 8);
-                return;
-            case 10:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(short*)(dest + 8) = *(short*)(src + 8);
-                return;
-            case 11:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(short*)(dest + 8) = *(short*)(src + 8);
-                *(dest + 10) = *(src + 10);
-                return;
-            case 12:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                return;
-            case 13:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(dest + 12) = *(src + 12);
-                return;
-            case 14:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(short*)(dest + 12) = *(short*)(src + 12);
-                return;
-            case 15:
-#if WIN64
-                *(long*)dest = *(long*)src;
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-#endif
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(short*)(dest + 12) = *(short*)(src + 12);
-                *(dest + 14) = *(src + 14);
-                return;
-            case 16:
-#if WIN64
-                *(long*)dest = *(long*)src;
-                *(long*)(dest + 8) = *(long*)(src + 8);
-#else
-                *(int*)dest = *(int*)src;
-                *(int*)(dest + 4) = *(int*)(src + 4);
-                *(int*)(dest + 8) = *(int*)(src + 8);
-                *(int*)(dest + 12) = *(int*)(src + 12);
-#endif
-                return;
-            default:
-                break;
+                goto PInvoke;
             }
 
-            // P/Invoke into the native version for large lengths
-            if (len >= 512) goto PInvoke;
+            // Copy 64-bytes at a time until the remainder is less than 64.
+            // If remainder is greater than 16 bytes, then jump to MCPY00. Otherwise, unconditionally copy the last 16 bytes and return.
+            Debug.Assert(len > 64 && len <= CopyThreshold);
+            nuint n = len >> 6;
 
-            if (((int)dest & 3) != 0)
-            {
-                if (((int)dest & 1) != 0)
-                {
-                    *dest = *src;
-                    src++;
-                    dest++;
-                    len--;
-                    if (((int)dest & 2) == 0)
-                        goto Aligned;
-                }
-                *(short *)dest = *(short *)src;
-                src += 2;
-                dest += 2;
-                len -= 2;
-            Aligned: ;
-            }
-
-#if WIN64
-            if (((int)dest & 4) != 0)
-            {
-                *(int *)dest = *(int *)src;
-                src += 4;
-                dest += 4;
-                len -= 4;
-            }
-#endif
-
-#if WIN64
-            ulong count = len / 16;
+            MCPY06:
+#if HAS_CUSTOM_BLOCKS
+            *(Block64*)dest = *(Block64*)src;
+#elif BIT64
+            *(long*)dest = *(long*)src;
+            *(long*)(dest + 8) = *(long*)(src + 8);
+            *(long*)(dest + 16) = *(long*)(src + 16);
+            *(long*)(dest + 24) = *(long*)(src + 24);
+            *(long*)(dest + 32) = *(long*)(src + 32);
+            *(long*)(dest + 40) = *(long*)(src + 40);
+            *(long*)(dest + 48) = *(long*)(src + 48);
+            *(long*)(dest + 56) = *(long*)(src + 56);
 #else
-            uint count = len / 16;
+            *(int*)dest = *(int*)src;
+            *(int*)(dest + 4) = *(int*)(src + 4);
+            *(int*)(dest + 8) = *(int*)(src + 8);
+            *(int*)(dest + 12) = *(int*)(src + 12);
+            *(int*)(dest + 16) = *(int*)(src + 16);
+            *(int*)(dest + 20) = *(int*)(src + 20);
+            *(int*)(dest + 24) = *(int*)(src + 24);
+            *(int*)(dest + 28) = *(int*)(src + 28);
+            *(int*)(dest + 32) = *(int*)(src + 32);
+            *(int*)(dest + 36) = *(int*)(src + 36);
+            *(int*)(dest + 40) = *(int*)(src + 40);
+            *(int*)(dest + 44) = *(int*)(src + 44);
+            *(int*)(dest + 48) = *(int*)(src + 48);
+            *(int*)(dest + 52) = *(int*)(src + 52);
+            *(int*)(dest + 56) = *(int*)(src + 56);
+            *(int*)(dest + 60) = *(int*)(src + 60);
 #endif
-            while (count > 0)
-            {
-#if WIN64
-                ((long*)dest)[0] = ((long*)src)[0];
-                ((long*)dest)[1] = ((long*)src)[1];
-#else
-                ((int*)dest)[0] = ((int*)src)[0];
-                ((int*)dest)[1] = ((int*)src)[1];
-                ((int*)dest)[2] = ((int*)src)[2];
-                ((int*)dest)[3] = ((int*)src)[3];
-#endif
-                dest += 16;
-                src += 16;
-                count--;
-            }
+            dest += 64;
+            src += 64;
+            n--;
+            if (n != 0) goto MCPY06;
 
-            if ((len & 8) != 0)
-            {
-#if WIN64
-                ((long*)dest)[0] = ((long*)src)[0];
+            len %= 64;
+            if (len > 16) goto MCPY00;
+#if HAS_CUSTOM_BLOCKS
+            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+#elif BIT64
+            *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
+            *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
 #else
-                ((int*)dest)[0] = ((int*)src)[0];
-                ((int*)dest)[1] = ((int*)src)[1];
+            *(int*)(destEnd - 16) = *(int*)(srcEnd - 16);
+            *(int*)(destEnd - 12) = *(int*)(srcEnd - 12);
+            *(int*)(destEnd - 8) = *(int*)(srcEnd - 8);
+            *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
 #endif
-                dest += 8;
-                src += 8;
-           }
-           if ((len & 4) != 0) 
-           {
-                ((int*)dest)[0] = ((int*)src)[0];
-                dest += 4;
-                src += 4;
-           }
-           if ((len & 2) != 0) 
-           {
-                ((short*)dest)[0] = ((short*)src)[0];
-                dest += 2;
-                src += 2;
-           }
-           if ((len & 1) != 0)
-                *dest = *src;
-
             return;
 
             PInvoke:
             _Memmove(dest, src, len);
-
         }
-
+        
         // Non-inlinable wrapper around the QCall that avoids poluting the fast path
         // with P/Invoke prolog/epilog.
-        [SecurityCritical]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         [MethodImplAttribute(MethodImplOptions.NoInlining)]
-#if WIN64
-        private unsafe static void _Memmove(byte* dest, byte* src, ulong len)
-#else
-        private unsafe static void _Memmove(byte* dest, byte* src, uint len)
-#endif
+        private unsafe static void _Memmove(byte* dest, byte* src, nuint len)
         {
             __Memmove(dest, src, len);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
-        [SecurityCritical]
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-#if WIN64
-        extern private unsafe static void __Memmove(byte* dest, byte* src, ulong len);
-#else
-        extern private unsafe static void __Memmove(byte* dest, byte* src, uint len);
-#endif
-
+        extern private unsafe static void __Memmove(byte* dest, byte* src, nuint len);
 
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
@@ -526,17 +451,12 @@ namespace System {
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
-#if WIN64
-            Memmove((byte*)destination, (byte*)source, checked((ulong) sourceBytesToCopy));
-#else
-            Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
-#endif // WIN64
+            Memmove((byte*)destination, (byte*)source, checked((nuint)sourceBytesToCopy));
         }
 
 
         // The attributes on this method are chosen for best JIT performance. 
         // Please do not edit unless intentional.
-        [System.Security.SecurityCritical]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         [CLSCompliant(false)]
         public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
@@ -545,11 +465,19 @@ namespace System {
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
             }
-#if WIN64
+#if BIT64
             Memmove((byte*)destination, (byte*)source, sourceBytesToCopy);
-#else
+#else // BIT64
             Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
-#endif // WIN64
+#endif // BIT64
         }
+        
+#if HAS_CUSTOM_BLOCKS        
+        [StructLayout(LayoutKind.Sequential, Size = 16)]
+        private struct Block16 { }
+
+        [StructLayout(LayoutKind.Sequential, Size = 64)]
+        private struct Block64 { } 
+#endif // HAS_CUSTOM_BLOCKS         
     }
 }

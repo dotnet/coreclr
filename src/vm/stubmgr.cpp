@@ -9,9 +9,6 @@
 #include "dllimportcallback.h"
 #include "stubhelpers.h"
 #include "asmconstants.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #ifdef FEATURE_COMINTEROP
 #include "olecontexthelpers.h"
 #endif
@@ -2102,18 +2099,6 @@ BOOL InteropDispatchStubManager::TraceManager(Thread *thread,
 
         Object * pThis = StubManagerHelpers::GetThisPtr(pContext);
 
-#ifdef FEATURE_REMOTING
-        if (pThis != NULL && pThis->IsTransparentProxy())
-        {
-            // We have remoting proxy in the way
-#ifdef DACCESS_COMPILE
-            DacNotImpl();
-#else
-            trace->InitForFramePush(GetEEFuncEntryPoint(TransparentProxyStubPatchLabel));
-#endif
-        }
-        else
-#endif // FEATURE_REMOTING
         {
             if (!pCMD->m_pComPlusCallInfo->m_pInterfaceMT->IsComEventItfType() && (pCMD->m_pComPlusCallInfo->m_pILStub != NULL))
             {
@@ -2304,6 +2289,18 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
 #elif defined(_TARGET_ARM_)
     (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
     pThis = (BYTE*)(size_t)(pContext->R0);
+
+    // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
+    // shuffle thunk (destination in _methodPtrAux).
+    int offsetOfNextDest;
+    if (pc == GetEEFuncEntryPoint(SinglecastDelegateInvokeStub))
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtr();
+    else
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtrAux();
+    destAddr = *(PCODE*)(pThis + offsetOfNextDest);
+#elif defined(_TARGET_ARM64_)
+    (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
+    pThis = (BYTE*)(size_t)(pContext->X0);
 
     // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
     // shuffle thunk (destination in _methodPtrAux).

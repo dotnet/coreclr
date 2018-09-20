@@ -258,7 +258,7 @@ static int __check_float_string(size_t nFloatStrUsed,
 #endif  /* ALLOC_TABLE */
 
 #if _INTEGRAL_MAX_BITS >= 64   
-    __uint64_t num64 = 0LL;             /* temp for 64-bit integers          */
+    uint64_t num64 = 0LL;             /* temp for 64-bit integers          */
 #endif  /* _INTEGRAL_MAX_BITS >= 64    */
     void *pointer=NULL;                 /* points to user data receptacle    */
     void *start;                        /* indicate non-empty string         */
@@ -671,7 +671,7 @@ scanit:
 #endif  /* _SECURE_SCANF */
 #ifndef _UNICODE
                                     if (fl_wchar_arg) {
-                                        wctemp = L'?';
+                                        wctemp = W('?');
                                         char temp[2];
                                         temp[0] = (char) ch;
 #if 0       // we are not supporting multibyte input strings
@@ -682,7 +682,7 @@ scanit:
 #endif  /* 0 */
                                         _MBTOWC(&wctemp, temp, MB_CUR_MAX);
                                         *(wchar_t UNALIGNED *)pointer = wctemp;
-                                        /* just copy L'?' if mbtowc fails, errno is set by mbtowc */
+                                        /* just copy W('?') if mbtowc fails, errno is set by mbtowc */
                                         pointer = (wchar_t *)pointer + 1;
 #ifdef _SECURE_SCANF
                                         --array_width;
@@ -927,7 +927,7 @@ getnum:
                             } /* end of WHILE loop */
 
                             if (negative)
-                                num64 = (__uint64_t )(-(__int64)num64);
+                                num64 = (uint64_t )(-(__int64)num64);
                         }
                         else {
 #endif  /* _INTEGRAL_MAX_BITS >= 64    */
@@ -984,7 +984,7 @@ getnum:
 assign_num:
 #if _INTEGRAL_MAX_BITS >= 64   
                                 if ( integer64 )
-                                    *(__int64 UNALIGNED *)pointer = ( __uint64_t )num64;
+                                    *(__int64 UNALIGNED *)pointer = ( uint64_t )num64;
                                 else
 #endif  /* _INTEGRAL_MAX_BITS >= 64    */
                                 if (longone)

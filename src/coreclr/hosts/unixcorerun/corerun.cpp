@@ -56,7 +56,7 @@ bool ParseArguments(
                         break;
                     }
                 }
-                else if (strcmp(argv[i], "--help") == 0)
+                else if (strcmp(argv[i], "-?") == 0 || strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "--help") == 0)
                 {
                     DisplayUsage();
                     break;
@@ -127,7 +127,7 @@ int corerun(const int argc, const char* argv[])
 
     // Make sure we have a full path for argv[0].
     std::string argv0AbsolutePath;
-    if (!GetAbsolutePath(argv[0], argv0AbsolutePath))
+    if (!GetEntrypointExecutableAbsolutePath(argv0AbsolutePath))
     {
         perror("Could not get full path");
         return -1;

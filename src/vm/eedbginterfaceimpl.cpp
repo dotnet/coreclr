@@ -483,6 +483,7 @@ MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
     RETURN ExecutionManager::GetCodeMethodDesc(address);
 }
 
+#ifndef USE_GC_INFO_DECODER
 // IsInPrologOrEpilog doesn't seem to be used for code that uses GC_INFO_DECODER
 BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
                                             size_t* prologSize)
@@ -501,9 +502,9 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     if (codeInfo.IsValid())
     {
-        LPVOID methodInfo = codeInfo.GetGCInfo();
+        GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
 
-        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), methodInfo, prologSize))
+        if (codeInfo.GetCodeManager()->IsInPrologOrEpilog(codeInfo.GetRelOffset(), gcInfoToken, prologSize))
         {
             return TRUE;
         }
@@ -511,6 +512,7 @@ BOOL EEDbgInterfaceImpl::IsInPrologOrEpilog(const BYTE *address,
 
     return FALSE;
 }
+#endif // USE_GC_INFO_DECODER
 
 // 
 // Given a collection of native offsets of a certain function, determine if each falls
@@ -665,10 +667,8 @@ size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
         return 0;
 
     EECodeInfo codeInfo(methodStart);
-
-    PTR_VOID methodInfo = codeInfo.GetGCInfo();
-
-    return codeInfo.GetCodeManager()->GetFunctionSize(methodInfo);
+    GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+    return codeInfo.GetCodeManager()->GetFunctionSize(gcInfoToken);
 }
 #endif //!DACCESS_COMPILE
 
@@ -1588,15 +1588,8 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
         ret |= (unsigned)USER_WAIT_SLEEP_JOIN;          
     }
 
-    // Don't report a SuspendRequested if the thread has actually Suspended.
-    if ( ((ts & Thread::TS_UserSuspendPending) && (ts & Thread::TS_SyncSuspended)))
-    {
-        ret |= (unsigned)USER_SUSPENDED;
-    }
-    else if (ts & Thread::TS_UserSuspendPending)
-    {
-        ret |= (unsigned)USER_SUSPEND_REQUESTED;
-    }
+    // CoreCLR does not support user-requested thread suspension
+    _ASSERTE(!(ts & Thread::TS_UserSuspendPending));
 
     LOG((LF_CORDB,LL_INFO1000, "EEDbgII::GUS: thread 0x%x (id:0x%x)"
         " userThreadState is 0x%x\n", pThread, pThread->GetThreadId(), ret));
@@ -1657,8 +1650,6 @@ BOOL EEDbgInterfaceImpl::ObjIsInstanceOf(Object *pElement, TypeHandle toTypeHnd)
 void EEDbgInterfaceImpl::ClearAllDebugInterfaceReferences()
 {
     LIMITED_METHOD_CONTRACT;
-
-    g_pDebugInterface = NULL;
 }
 
 #ifndef DACCESS_COMPILE

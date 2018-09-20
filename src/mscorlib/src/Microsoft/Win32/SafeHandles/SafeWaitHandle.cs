@@ -14,7 +14,6 @@
 
 using System;
 using System.Security;
-using System.Security.Permissions;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
@@ -22,9 +21,8 @@ using System.Runtime.Versioning;
 using Microsoft.Win32;
 using System.Threading;
 
-namespace Microsoft.Win32.SafeHandles {
- 
-    [System.Security.SecurityCritical]  // auto-generated_required
+namespace Microsoft.Win32.SafeHandles
+{
     public sealed class SafeWaitHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
         // Called by P/Invoke marshaler
@@ -32,13 +30,11 @@ namespace Microsoft.Win32.SafeHandles {
         {
         }
 
-        [ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         public SafeWaitHandle(IntPtr existingHandle, bool ownsHandle) : base(ownsHandle)
         {
             SetHandle(existingHandle);
         }
 
-        [System.Security.SecurityCritical]
         override protected bool ReleaseHandle()
         {
             return Win32Native.CloseHandle(handle);

@@ -15,7 +15,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System
@@ -26,16 +26,21 @@ namespace System
     // three fields from an ArraySegment may not see the same ArraySegment from one call to another
     // (ie, users could assign a new value to the old location).  
     [Serializable]
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public struct ArraySegment<T> : IList<T>, IReadOnlyList<T>
     {
-        private T[] _array;
-        private int _offset;
-        private int _count;
-        
+        // Do not replace the array allocation with Array.Empty. We don't want to have the overhead of
+        // instantiating another generic type in addition to ArraySegment<T> for new type parameters.
+        public static ArraySegment<T> Empty { get; } = new ArraySegment<T>(new T[0]);
+
+        private readonly T[] _array; // Do not rename (binary serialization)
+        private readonly int _offset; // Do not rename (binary serialization)
+        private readonly int _count; // Do not rename (binary serialization)
+
         public ArraySegment(T[] array)
         {
             if (array == null)
-                throw new ArgumentNullException("array");
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             Contract.EndContractBlock();
 
             _array = array;
@@ -45,14 +50,11 @@ namespace System
 
         public ArraySegment(T[] array, int offset, int count)
         {
-            if (array == null)
-                throw new ArgumentNullException("array");
-            if (offset < 0)
-                throw new ArgumentOutOfRangeException("offset", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            if (count < 0)
-                throw new ArgumentOutOfRangeException("count", Environment.GetResourceString("ArgumentOutOfRange_NeedNonNegNum"));
-            if (array.Length - offset < count)
-                throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOffLen"));
+            // Validate arguments, check is minimal instructions with reduced branching for inlinable fast-path
+            // Negative values discovered though conversion to high values when converted to unsigned
+            // Failure should be rare and location determination and message is delegated to failure functions
+            if (array == null || (uint)offset > (uint)array.Length || (uint)count > (uint)(array.Length - offset))
+                ThrowHelper.ThrowArraySegmentCtorValidationFailedExceptions(array, offset, count);
             Contract.EndContractBlock();
 
             _array = array;
@@ -60,61 +62,76 @@ namespace System
             _count = count;
         }
 
-        public T[] Array
+        public T[] Array => _array;
+
+        public int Offset => _offset;
+
+        public int Count => _count;
+
+        public T this[int index]
         {
             get
             {
-                Contract.Assert(    (null == _array && 0 == _offset && 0 == _count)
-                                 || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
-                
-                return _array;
-            }
-        }
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
 
-        public int Offset
-        {
-            get
+                return _array[_offset + index];
+            }
+            set
             {
-                // Since copying value types is not atomic & callers cannot atomically 
-                // read all three fields, we cannot guarantee that Offset is within 
-                // the bounds of Array.  That is our intent, but let's not specify 
-                // it as a postcondition - force callers to re-verify this themselves
-                // after reading each field out of an ArraySegment into their stack.
-                Contract.Ensures(Contract.Result<int>() >= 0);
+                if ((uint)index >= (uint)_count)
+                {
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+                }
 
-                Contract.Assert(    (null == _array && 0 == _offset && 0 == _count)
-                                 || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
-
-                return _offset;
+                _array[_offset + index] = value;
             }
         }
 
-        public int Count
+        public Enumerator GetEnumerator()
         {
-            get
-            {
-                // Since copying value types is not atomic & callers cannot atomically 
-                // read all three fields, we cannot guarantee that Count is within 
-                // the bounds of Array.  That's our intent, but let's not specify 
-                // it as a postcondition - force callers to re-verify this themselves
-                // after reading each field out of an ArraySegment into their stack.
-                Contract.Ensures(Contract.Result<int>() >= 0);
-
-                Contract.Assert(     (null == _array && 0 == _offset && 0 == _count)
-                                  || (null != _array && _offset >= 0 && _count >= 0 && _offset + _count <= _array.Length),
-                                "ArraySegment is invalid");
-
-                return _count;
-            }
+            ThrowInvalidOperationIfDefault();
+            return new Enumerator(this);
         }
-        
+
         public override int GetHashCode()
         {
-            return null == _array
-                        ? 0
-                        : _array.GetHashCode() ^ _offset ^ _count;
+            if (_array == null)
+            {
+                return 0;
+            }
+
+            int hash = 5381;
+            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _offset);
+            hash = System.Numerics.Hashing.HashHelpers.Combine(hash, _count);
+
+            // The array hash is expected to be an evenly-distributed mixture of bits,
+            // so rather than adding the cost of another rotation we just xor it.
+            hash ^= _array.GetHashCode();
+            return hash;
+        }
+
+        public void CopyTo(T[] destination) => CopyTo(destination, 0);
+
+        public void CopyTo(T[] destination, int destinationIndex)
+        {
+            ThrowInvalidOperationIfDefault();
+            System.Array.Copy(_array, _offset, destination, destinationIndex, _count);
+        }
+
+        public void CopyTo(ArraySegment<T> destination)
+        {
+            ThrowInvalidOperationIfDefault();
+            destination.ThrowInvalidOperationIfDefault();
+
+            if (_count > destination._count)
+            {
+                ThrowHelper.ThrowArgumentException_DestinationTooShort();
+            }
+
+            System.Array.Copy(_array, _offset, destination._array, destination._offset, _count);
         }
 
         public override bool Equals(Object obj)
@@ -124,31 +141,70 @@ namespace System
             else
                 return false;
         }
-    
+
         public bool Equals(ArraySegment<T> obj)
         {
             return obj._array == _array && obj._offset == _offset && obj._count == _count;
         }
-    
+
+        public ArraySegment<T> Slice(int index)
+        {
+            ThrowInvalidOperationIfDefault();
+            
+            if ((uint)index > (uint)_count)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
+            return new ArraySegment<T>(_array, _offset + index, _count - index);
+        }
+
+        public ArraySegment<T> Slice(int index, int count)
+        {
+            ThrowInvalidOperationIfDefault();
+
+            if ((uint)index > (uint)_count || (uint)count > (uint)(_count - index))
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.index);
+            }
+
+            return new ArraySegment<T>(_array, _offset + index, count);
+        }
+
+        public T[] ToArray()
+        {
+            ThrowInvalidOperationIfDefault();
+
+            if (_count == 0)
+            {
+                return Empty._array;
+            }
+
+            var array = new T[_count];
+            System.Array.Copy(_array, _offset, array, 0, _count);
+            return array;
+        }
+
         public static bool operator ==(ArraySegment<T> a, ArraySegment<T> b)
         {
             return a.Equals(b);
         }
-        
+
         public static bool operator !=(ArraySegment<T> a, ArraySegment<T> b)
         {
             return !(a == b);
         }
+
+        public static implicit operator ArraySegment<T>(T[] array) => new ArraySegment<T>(array);
 
         #region IList<T>
         T IList<T>.this[int index]
         {
             get
             {
-                if (_array == null)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-                if (index < 0 || index >=  _count)
-                    throw new ArgumentOutOfRangeException("index");
+                ThrowInvalidOperationIfDefault();
+                if (index < 0 || index >= _count)
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 return _array[_offset + index];
@@ -156,10 +212,9 @@ namespace System
 
             set
             {
-                if (_array == null)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
-                    throw new ArgumentOutOfRangeException("index");
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 _array[_offset + index] = value;
@@ -168,13 +223,11 @@ namespace System
 
         int IList<T>.IndexOf(T item)
         {
-            if (_array == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
-            Contract.Assert(index == -1 || 
+            Debug.Assert(index == -1 ||
                             (index >= _offset && index < _offset + _count));
 
             return index >= 0 ? index - _offset : -1;
@@ -182,12 +235,12 @@ namespace System
 
         void IList<T>.Insert(int index, T item)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
 
         void IList<T>.RemoveAt(int index)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
         #endregion
 
@@ -196,10 +249,9 @@ namespace System
         {
             get
             {
-                if (_array == null)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
+                ThrowInvalidOperationIfDefault();
                 if (index < 0 || index >= _count)
-                    throw new ArgumentOutOfRangeException("index");
+                    ThrowHelper.ThrowArgumentOutOfRange_IndexException();
                 Contract.EndContractBlock();
 
                 return _array[_offset + index];
@@ -220,84 +272,69 @@ namespace System
 
         void ICollection<T>.Add(T item)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
 
         void ICollection<T>.Clear()
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
 
         bool ICollection<T>.Contains(T item)
         {
-            if (_array == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-            Contract.EndContractBlock();
+            ThrowInvalidOperationIfDefault();
 
             int index = System.Array.IndexOf<T>(_array, item, _offset, _count);
 
-            Contract.Assert(index == -1 ||
+            Debug.Assert(index == -1 ||
                             (index >= _offset && index < _offset + _count));
 
             return index >= 0;
         }
 
-        void ICollection<T>.CopyTo(T[] array, int arrayIndex)
-        {
-            if (_array == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-            Contract.EndContractBlock();
-
-            System.Array.Copy(_array, _offset, array, arrayIndex, _count);
-        }
-
         bool ICollection<T>.Remove(T item)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return default(bool);
         }
         #endregion
 
         #region IEnumerable<T>
-        IEnumerator<T> IEnumerable<T>.GetEnumerator()
-        {
-            if (_array == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-            Contract.EndContractBlock();
 
-            return new ArraySegmentEnumerator(this);
-        }
+        IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
         #endregion
 
         #region IEnumerable
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            if (_array == null)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NullArray"));
-            Contract.EndContractBlock();
 
-            return new ArraySegmentEnumerator(this);
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         #endregion
 
-        [Serializable]
-        private sealed class ArraySegmentEnumerator : IEnumerator<T>
+        private void ThrowInvalidOperationIfDefault()
         {
-            private T[] _array;
-            private int _start;
-            private int _end;
+            if (_array == null)
+            {
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.InvalidOperation_NullArray);
+            }
+        }
+
+        public struct Enumerator : IEnumerator<T>
+        {
+            private readonly T[] _array;
+            private readonly int _start;
+            private readonly int _end; // cache Offset + Count, since it's a little slow
             private int _current;
 
-            internal ArraySegmentEnumerator(ArraySegment<T> arraySegment)
+            internal Enumerator(ArraySegment<T> arraySegment)
             {
                 Contract.Requires(arraySegment.Array != null);
                 Contract.Requires(arraySegment.Offset >= 0);
                 Contract.Requires(arraySegment.Count >= 0);
                 Contract.Requires(arraySegment.Offset + arraySegment.Count <= arraySegment.Array.Length);
 
-                _array = arraySegment._array;
-                _start = arraySegment._offset;
-                _end = _start + arraySegment._count;
-                _current = _start - 1;
+                _array = arraySegment.Array;
+                _start = arraySegment.Offset;
+                _end = arraySegment.Offset + arraySegment.Count;
+                _current = arraySegment.Offset - 1;
             }
 
             public bool MoveNext()
@@ -314,19 +351,15 @@ namespace System
             {
                 get
                 {
-                    if (_current < _start) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumNotStarted));
-                    if (_current >= _end) throw new InvalidOperationException(Environment.GetResourceString(ResId.InvalidOperation_EnumEnded));
+                    if (_current < _start)
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumNotStarted();
+                    if (_current >= _end)
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumEnded();
                     return _array[_current];
                 }
             }
 
-            object IEnumerator.Current
-            {
-                get
-                {
-                    return Current;
-                }
-            }
+            object IEnumerator.Current => Current;
 
             void IEnumerator.Reset()
             {

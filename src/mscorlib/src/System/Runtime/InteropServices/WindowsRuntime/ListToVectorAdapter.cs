@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -28,15 +29,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private ListToVectorAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // T GetAt(uint index)
-        [SecurityCritical]
         internal T GetAt<T>(uint index)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            EnsureIndexInt32(index, _this.Count);        
+            EnsureIndexInt32(index, _this.Count);
 
             try
             {
@@ -49,7 +49,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        [SecurityCritical]
         internal uint Size<T>()
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -57,11 +56,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IVectorView<T> GetView()
-        [SecurityCritical]
         internal IReadOnlyList<T> GetView<T>()
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            Contract.Assert(_this != null);
+            Debug.Assert(_this != null);
 
             // Note: This list is not really read-only - you could QI for a modifiable
             // list.  We gain some perf by doing this.  We believe this is acceptable.
@@ -74,7 +72,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IndexOf(T value, out uint index)
-        [SecurityCritical]
         internal bool IndexOf<T>(T value, out uint index)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -91,7 +88,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void SetAt(uint index, T value)
-        [SecurityCritical]
         internal void SetAt<T>(uint index, T value)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -108,7 +104,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void InsertAt(uint index, T value)
-        [SecurityCritical]
         internal void InsertAt<T>(uint index, T value)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -130,11 +125,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAt(uint index)
-        [SecurityCritical]
         internal void RemoveAt<T>(uint index)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
-            EnsureIndexInt32(index, _this.Count); 
+            EnsureIndexInt32(index, _this.Count);
 
             try
             {
@@ -149,7 +143,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Append(T value)
-        [SecurityCritical]
         internal void Append<T>(T value)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -157,13 +150,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void RemoveAtEnd()
-        [SecurityCritical]
         internal void RemoveAtEnd<T>()
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
             if (_this.Count == 0)
             {
-                Exception e = new InvalidOperationException(Environment.GetResourceString("InvalidOperation_CannotRemoveLastFromEmptyCollection"));
+                Exception e = new InvalidOperationException(SR.InvalidOperation_CannotRemoveLastFromEmptyCollection);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
             }
@@ -173,7 +165,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        [SecurityCritical]
         internal void Clear<T>()
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -181,7 +172,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint GetMany(uint startIndex, T[] items)
-        [SecurityCritical]
         internal uint GetMany<T>(uint startIndex, T[] items)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -189,7 +179,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void ReplaceAll(T[] items)
-        [SecurityCritical]
         internal void ReplaceAll<T>(T[] items)
         {
             IList<T> _this = JitHelpers.UnsafeCast<IList<T>>(this);
@@ -212,7 +201,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // that Size > Int32.MaxValue:
             if (((uint)Int32.MaxValue) <= index || index >= (uint)listCapacity)
             {
-                Exception e = new ArgumentOutOfRangeException("index", Environment.GetResourceString("ArgumentOutOfRange_IndexLargerThanMaxValue"));
+                Exception e = new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_IndexLargerThanMaxValue);
                 e.SetErrorCode(__HResults.E_BOUNDS);
                 throw e;
             }

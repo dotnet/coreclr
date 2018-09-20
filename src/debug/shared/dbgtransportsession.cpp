@@ -130,6 +130,11 @@ HRESULT DbgTransportSession::Init(DebuggerIPCControlBlock *pDCB, AppDomainEnumer
     m_hSessionOpenEvent = WszCreateEvent(NULL, TRUE, FALSE, NULL); // Manual reset, not signalled
     if (m_hSessionOpenEvent == NULL)
         return E_OUTOFMEMORY;
+#else // RIGHT_SIDE_COMPILE
+    DWORD pid = GetCurrentProcessId(); 
+    if (!m_pipe.CreateServer(pid)) {
+        return E_OUTOFMEMORY;
+    }
 #endif // RIGHT_SIDE_COMPILE
 
     // Allocate some buffers to receive incoming events. The initial number is chosen arbitrarily, tune as
@@ -214,6 +219,8 @@ void DbgTransportSession::Shutdown()
     Release();
 }
 
+#ifndef RIGHT_SIDE_COMPILE
+
 // Cleans up the named pipe connection so no tmp files are left behind. Does only
 // the minimum and must be safe to call at any time. Called during PAL ExitProcess,
 // TerminateProcess and for unhandled native exceptions and asserts.
@@ -222,7 +229,6 @@ void DbgTransportSession::AbortConnection()
     m_pipe.Disconnect();
 }
 
-#ifndef RIGHT_SIDE_COMPILE
 // API used only by the LS to drive the transport into a state where it won't accept connections. This is used
 // when no proxy is detected at startup but it's too late to shutdown all of the debugging system easily. It's
 // mainly paranoia to increase the protection of your system when the proxy isn't started.
@@ -233,9 +239,16 @@ void DbgTransportSession::Neuter()
     // AV on a deallocated handle, which might happen if we simply called Shutdown()).
     m_eState = SS_Closed;
 }
-#endif // !RIGHT_SIDE_COMPILE
 
-#ifdef RIGHT_SIDE_COMPILE
+#else // RIGHT_SIDE_COMPILE
+
+// Used by debugger side (RS) to cleanup the target (LS) named pipes 
+// and semaphores when the debugger detects the debuggee process  exited.
+void DbgTransportSession::CleanupTargetProcess()
+{
+    m_pipe.CleanupTargetProcess();
+}
+
 // On the RS it may be useful to wait and see if the session can reach the SS_Open state. If the target
 // runtime has terminated for some reason then we'll never reach the open state. So the method below gives the
 // RS a way to try and establish a connection for a reasonable amount of time and to time out otherwise. They
@@ -1127,33 +1140,6 @@ DbgTransportSession::Message * DbgTransportSession::RemoveMessageFromSendQueue(D
 
 #ifndef RIGHT_SIDE_COMPILE
 
-#ifdef FEATURE_PAL
-__attribute__((noinline))
-__attribute__((optnone))
-static void 
-ProbeMemory(__in_ecount(cbBuffer) volatile PBYTE pbBuffer, DWORD cbBuffer, bool fWriteAccess)
-{
-    // Need an throw in this function to fool the C++ runtime into handling the 
-    // possible h/w exception below.
-    if (pbBuffer == NULL)
-    {
-        throw PAL_SEHException();
-    }
-
-    // Simple one byte at a time probing
-    while (cbBuffer > 0)
-    {
-        volatile BYTE read = *pbBuffer;
-        if (fWriteAccess)
-        {
-            *pbBuffer = read;
-        }
-        ++pbBuffer;
-        --cbBuffer;
-    }
-}
-#endif // FEATURE_PAL
-
 // Check read and optionally write memory access to the specified range of bytes. Used to check
 // ReadProcessMemory and WriteProcessMemory requests.
 HRESULT DbgTransportSession::CheckBufferAccess(__in_ecount(cbBuffer) PBYTE pbBuffer, DWORD cbBuffer, bool fWriteAccess)
@@ -1207,14 +1193,7 @@ HRESULT DbgTransportSession::CheckBufferAccess(__in_ecount(cbBuffer) PBYTE pbBuf
     }
     while (cbBuffer > 0);
 #else
-    try
-    {
-        // Need to explicit h/w exception holder so to catch them in ProbeMemory
-        CatchHardwareExceptionHolder __catchHardwareException;
-
-        ProbeMemory(pbBuffer, cbBuffer, fWriteAccess);
-    }
-    catch(...)
+    if (!PAL_ProbeMemory(pbBuffer, cbBuffer, fWriteAccess))
     {
         return HRESULT_FROM_WIN32(ERROR_INVALID_ADDRESS);
     }
@@ -1337,7 +1316,8 @@ void DbgTransportSession::TransportWorker()
         else
         {
             DWORD pid = GetCurrentProcessId(); 
-            if (m_pipe.CreateServer(pid) && m_pipe.WaitForConnection())
+            if ((m_pipe.GetState() == TwoWayPipe::Created || m_pipe.CreateServer(pid)) && 
+                 m_pipe.WaitForConnection())
             {
                 eStatus = SCS_Success;
             }

@@ -9,8 +9,9 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
+namespace Benchstone.BenchI
+{
 public static class BubbleSort2
 {
 
@@ -82,9 +83,10 @@ public static class BubbleSort2
         }
         return result;
     }
-    
+
     public static int Main() {
         bool result = TestBase();
         return (result ? 100 : -1);
     }
+}
 }

@@ -46,16 +46,18 @@
 
 BOOL IsCompilationProcess();
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #include "clrprivbindercoreclr.h"
 #include "clrprivbinderassemblyloadcontext.h"
 // Helper function in the VM, invoked by the Binder, to invoke the host assembly resolver
-extern HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, IAssemblyName *pIAssemblyName, ICLRPrivAssembly **ppLoadedAssembly);
+extern HRESULT RuntimeInvokeHostAssemblyResolver(INT_PTR pManagedAssemblyLoadContextToBindWithin, 
+                                                IAssemblyName *pIAssemblyName, CLRPrivBinderCoreCLR *pTPABinder,
+                                                BINDER_SPACE::AssemblyName *pAssemblyName, ICLRPrivAssembly **ppLoadedAssembly);
 
 // Helper to check if we have a host assembly resolver set
 extern BOOL RuntimeCanUseAppPathAssemblyResolver(DWORD adid);
 
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 namespace BINDER_SPACE
 {
@@ -673,36 +675,31 @@ namespace BINDER_SPACE
 
         _ASSERTE(ppSystemAssembly != NULL);
 
-        StackSString sMscorlibDir(systemDirectory);
+        StackSString sCoreLibDir(systemDirectory);
         ReleaseHolder<Assembly> pSystemAssembly;
 
-        if(!sMscorlibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
+        if(!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
         {
-            sMscorlibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
+            sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
         }
 
-        StackSString sMscorlib;
+        StackSString sCoreLib;
 
-        // At run-time, mscorlib.ni.dll is typically always available, and
-        // mscorlib.dll is typically not.  So check for the NI first.
-        sMscorlib = sMscorlibDir;
-        sMscorlib.Append(W("mscorlib.ni.dll"));
-        if (!fBindToNativeImage || FAILED(AssemblyBinder::GetAssembly(sMscorlib,
-                                               FALSE /* fInspectionOnly */,
-                                               TRUE /* fIsInGAC */,
-                                               TRUE /* fExplicitBindToNativeImage */,
-                                               &pSystemAssembly)))
-        {
-            // If mscorlib.ni.dll is unavailable, look for mscorlib.dll instead
-            sMscorlib = sMscorlibDir;
-            sMscorlib.Append(W("mscorlib.dll"));
-            IF_FAIL_GO(AssemblyBinder::GetAssembly(sMscorlib,
+        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
+        sCoreLib = sCoreLibDir;
+        sCoreLib.Append(CoreLibName_IL_W);
+        BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
+#ifdef FEATURE_NI_BIND_FALLBACK
+        // Some non-Windows platforms do not automatically generate the NI image as CoreLib.dll.
+        // If those platforms also do not support automatic fallback from NI to IL, bind as IL.
+        fExplicitBindToNativeImage = FALSE;
+#endif // FEATURE_NI_BIND_FALLBACK
+        IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                    FALSE /* fInspectionOnly */,
                                                    TRUE /* fIsInGAC */,
-                                                   FALSE /* fExplicitBindToNativeImage */,
+                                                   fExplicitBindToNativeImage,
                                                    &pSystemAssembly));
-        }
-
+        
         *ppSystemAssembly = pSystemAssembly.Extract();
 
     Exit:
@@ -1071,12 +1068,12 @@ namespace BINDER_SPACE
                 // Dynamic binds need to be always considered a failure for binding closures
                 IF_FAIL_GO(FUSION_E_APP_DOMAIN_LOCKED);
             }
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             else if (IgnoreRefDefMatch(dwBindFlags))
             {
                 // Skip RefDef matching if we have been asked to.
             }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             else
             {
                 // Can't give higher serciving than already bound
@@ -1391,13 +1388,13 @@ namespace BINDER_SPACE
 
             bool fUseAppPathsBasedResolver = !excludeAppPaths;
             
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             // If Host Assembly Resolver is specified, then we will use that as the override for the default resolution mechanism (that uses AppPath probing).
             if (fUseAppPathsBasedResolver && !RuntimeCanUseAppPathAssemblyResolver(pApplicationContext->GetAppDomainId()))
             {
                 fUseAppPathsBasedResolver = false;
             }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
              
             // This loop executes twice max.  First time through we probe AppNiPaths, the second time we probe AppPaths
             bool parseNiPaths = true;
@@ -1599,8 +1596,13 @@ namespace BINDER_SPACE
                 IF_FAIL_GO(BinderHasNativeHeader(pNativePEImage, &hasHeader));
                 if (!hasHeader)
                 {
-                     pPEImage = pNativePEImage;
-                     pNativePEImage = NULL;
+                    BinderReleasePEImage(pPEImage);
+                    BinderReleasePEImage(pNativePEImage);
+
+                    BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false);
+                    BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
+                    IF_FAIL_GO(hr);
                 }
             }
 
@@ -1810,10 +1812,11 @@ namespace BINDER_SPACE
 
 #endif //CROSSGEN_COMPILE
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 HRESULT AssemblyBinder::BindUsingHostAssemblyResolver (/* in */ INT_PTR pManagedAssemblyLoadContextToBindWithin,
                                                        /* in */ AssemblyName       *pAssemblyName,
                                                       /* in */ IAssemblyName      *pIAssemblyName,
+                                                      /* in */ CLRPrivBinderCoreCLR *pTPABinder,
                                                       /* out */ Assembly           **ppAssembly)
 {
     HRESULT hr = E_FAIL;
@@ -1821,9 +1824,10 @@ HRESULT AssemblyBinder::BindUsingHostAssemblyResolver (/* in */ INT_PTR pManaged
     
     _ASSERTE(pManagedAssemblyLoadContextToBindWithin != NULL);
     
-    // Call into the VM to use the HostAssemblyResolver and load the assembly
+    // RuntimeInvokeHostAssemblyResolver will perform steps 2-4 of CLRPrivBinderAssemblyLoadContext::BindAssemblyByName.
     ICLRPrivAssembly *pLoadedAssembly = NULL;
-    hr = RuntimeInvokeHostAssemblyResolver(pManagedAssemblyLoadContextToBindWithin, pIAssemblyName, &pLoadedAssembly);
+    hr = RuntimeInvokeHostAssemblyResolver(pManagedAssemblyLoadContextToBindWithin, pIAssemblyName, 
+                                           pTPABinder, pAssemblyName, &pLoadedAssembly);
     if (SUCCEEDED(hr))
     {
         _ASSERTE(pLoadedAssembly != NULL);
@@ -1943,7 +1947,7 @@ Exit:
     BINDER_LOG_LEAVE_HR(W("AssemblyBinder::BindUsingPEImage"), hr);
     return hr;
 }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 };
 
 

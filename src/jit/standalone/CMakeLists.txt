@@ -1,18 +1,28 @@
 project(ryujit)
+
 add_definitions(-DFEATURE_NO_HOST)
 add_definitions(-DSELF_NO_HOST)
 add_definitions(-DFEATURE_READYTORUN_COMPILER)
 remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 
-if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
-    # This is required to force using our own PAL, not one that we are loaded with.
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
-endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
+if(CLR_CMAKE_TARGET_ARCH_ARM)
+  add_definitions(-DLEGACY_BACKEND)
+endif()
 
-add_library_clr(ryujit
+if(WIN32)
+  add_definitions(-DFX_VER_INTERNALNAME_STR=clrjit.dll)
+endif(WIN32)
+
+add_library_clr(clrjit
    SHARED
    ${SHARED_LIB_SOURCES}
+   ${JIT_ARCH_SOURCES}
 )
+
+add_dependencies(clrjit jit_exports)
+
+set_property(TARGET clrjit APPEND_STRING PROPERTY LINK_FLAGS ${JIT_EXPORTS_LINKER_OPTION})
+set_property(TARGET clrjit APPEND_STRING PROPERTY LINK_DEPENDS ${JIT_EXPORTS_FILE})
 
 set(RYUJIT_LINK_LIBRARIES
    utilcodestaticnohost
@@ -27,7 +37,8 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     )
 else()
     list(APPEND RYUJIT_LINK_LIBRARIES
-       msvcrt.lib
+       ${STATIC_MT_CRT_LIB}
+       ${STATIC_MT_VCRT_LIB}
        kernel32.lib
        advapi32.lib
        ole32.lib
@@ -42,9 +53,12 @@ else()
     )
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-target_link_libraries(ryujit
+target_link_libraries(clrjit
    ${RYUJIT_LINK_LIBRARIES}
 )
 
 # add the install targets
-install_clr(ryujit)
+install_clr(clrjit)
+
+# Enable profile guided optimization
+add_pgo(clrjit)

@@ -178,22 +178,22 @@ CrstStatic ReJitManager::s_csGlobalRequest;
 //---------------------------------------------------------------------------------------
 // Helpers
 
-static DWORD JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags)
+inline CORJIT_FLAGS JitFlagsFromProfCodegenFlags(DWORD dwCodegenFlags)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    DWORD jitFlags = 0;
+    CORJIT_FLAGS jitFlags;
 
     // Note: COR_PRF_CODEGEN_DISABLE_INLINING is checked in
     // code:CEEInfo::canInline#rejit (it has no equivalent CORJIT flag).
 
     if ((dwCodegenFlags & COR_PRF_CODEGEN_DISABLE_ALL_OPTIMIZATIONS) != 0)
     {
-        jitFlags |= CORJIT_FLG_DEBUG_CODE;
+        jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE);
     }
 
     // In the future more flags may be added that need to be converted here (e.g.,
-    // COR_PRF_CODEGEN_ENTERLEAVE / CORJIT_FLG_PROF_ENTERLEAVE)
+    // COR_PRF_CODEGEN_ENTERLEAVE / CORJIT_FLAG_PROF_ENTERLEAVE)
 
     return jitFlags;
 }
@@ -447,16 +447,10 @@ HRESULT ProfilerFunctionControl::SetILInstrumentedCodeMap(ULONG cILMapEntries, C
         return E_INVALIDARG;
     }
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
 
     // copy the il map and il map entries into the corresponding fields.
@@ -1769,6 +1763,10 @@ DWORD ReJitManager::GetCurrentReJitFlags(PTR_MethodDesc pMD)
 //      E_OUTOFMEMORY
 //
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable:4702) // Disable bogus unreachable code warning
+#endif // _MSC_VER
 HRESULT ReJitManager::RequestRevertByToken(PTR_Module pModule, mdMethodDef methodDef)
 {
     CONTRACTL
@@ -1825,7 +1823,9 @@ HRESULT ReJitManager::RequestRevertByToken(PTR_Module pModule, mdMethodDef metho
     }
     return S_OK;
 }
-
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif // _MSC_VER
 
 
 
@@ -2164,8 +2164,7 @@ PCODE ReJitManager::DoReJit(ReJitInfo * pInfo)
     pCodeOfRejittedCode = UnsafeJitFunction(
         pInfo->GetMethodDesc(),
         &ILHeader,
-        JitFlagsFromProfCodegenFlags(pInfo->m_pShared->m_dwCodegenFlags),
-        0);
+        JitFlagsFromProfCodegenFlags(pInfo->m_pShared->m_dwCodegenFlags));
 
     _ASSERTE(pCodeOfRejittedCode != NULL);
 
@@ -3111,8 +3110,8 @@ void ReJitManager::Dump(LPCSTR szIntroText)
             "\tInfo 0x%p: State=0x%x, Next=0x%p, Shared=%p, SharedState=0x%x\n",
             pInfo,
             pInfo->GetState(),
-            pInfo->m_pNext,
-            pInfo->m_pShared,
+            (void*)pInfo->m_pNext,
+            (void*)pInfo->m_pShared,
             pInfo->m_pShared->GetState());
 
         switch(pInfo->m_key.m_keyType)
@@ -3120,7 +3119,7 @@ void ReJitManager::Dump(LPCSTR szIntroText)
         case ReJitInfo::Key::kMethodDesc:
             printf(
                 "\t\tMD=0x%p, %s.%s (%s)\n",
-                pInfo->GetMethodDesc(),
+                (void*)pInfo->GetMethodDesc(),
                 pInfo->GetMethodDesc()->m_pszDebugClassName,
                 pInfo->GetMethodDesc()->m_pszDebugMethodName,
                 pInfo->GetMethodDesc()->m_pszDebugMethodSignature);
@@ -3718,10 +3717,10 @@ COR_ILMETHOD * ReJitInfo::GetIL()
 
 
 SharedReJitInfo::SharedReJitInfo()
-    : m_reJitId(InterlockedIncrement(reinterpret_cast<LONG*>(&s_GlobalReJitId))),
-    m_dwInternalFlags(kStateRequested),
+    : m_dwInternalFlags(kStateRequested),
     m_pbIL(NULL),
     m_dwCodegenFlags(0),
+    m_reJitId(InterlockedIncrement(reinterpret_cast<LONG*>(&s_GlobalReJitId))),
     m_pInfoList(NULL)
 {
     LIMITED_METHOD_CONTRACT;

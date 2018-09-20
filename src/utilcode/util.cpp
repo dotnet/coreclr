@@ -19,9 +19,6 @@
 #include "cor.h"
 #include "corinfo.h"
 
-#ifndef FEATURE_CORECLR
-#include "metahost.h"
-#endif // !FEATURE_CORECLR
 
 const char g_RTMVersion[]= "v1.0.3705";
 
@@ -562,20 +559,6 @@ LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocatio
 #endif // !FEATURE_PAL
 }
 
-// Reserves free memory within the range [pMinAddr..pMaxAddr] using
-// ClrVirtualQuery to find free memory and ClrVirtualAlloc to reserve it.
-//
-// This method only supports the flAllocationType of MEM_RESERVE
-// Callers also should set dwSize to a multiple of sysInfo.dwAllocationGranularity (64k).
-// That way they can reserve a large region and commit smaller sized pages
-// from that region until it fills up.  
-//
-// This functions returns the reserved memory block upon success
-//
-// It returns NULL when it fails to find any memory that satisfies
-// the range.
-//
-
 #ifdef _DEBUG
 static DWORD ShouldInjectFaultInRange()
 {
@@ -586,6 +569,22 @@ static DWORD ShouldInjectFaultInRange()
     return fInjectFaultInRange;
 }
 #endif
+
+// Reserves free memory within the range [pMinAddr..pMaxAddr] using
+// ClrVirtualQuery to find free memory and ClrVirtualAlloc to reserve it.
+//
+// This method only supports the flAllocationType of MEM_RESERVE, and expects that the memory
+// is being reserved for the purpose of eventually storing executable code.
+//
+// Callers also should set dwSize to a multiple of sysInfo.dwAllocationGranularity (64k).
+// That way they can reserve a large region and commit smaller sized pages
+// from that region until it fills up.  
+//
+// This functions returns the reserved memory block upon success
+//
+// It returns NULL when it fails to find any memory that satisfies
+// the range.
+//
 
 BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
                                   const BYTE *pMaxAddr,
@@ -601,7 +600,16 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-    BYTE *pResult = NULL;
+    BYTE *pResult = nullptr;  // our return value;
+
+    static unsigned countOfCalls = 0;  // We log the number of tims we call this method
+    countOfCalls++;                    // increment the call counter
+
+    if (dwSize == 0)
+    {
+        return nullptr;
+    }
+
     //
     // First lets normalize the pMinAddr and pMaxAddr values
     //
@@ -617,93 +625,133 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         pMaxAddr = (BYTE *) TOP_MEMORY;
     }
 
+    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
+    if (pMaxAddr <= pMinAddr)
+    {
+        return nullptr;
+    }
+
     // If pMinAddr is BOT_MEMORY and pMaxAddr is TOP_MEMORY
     // then we can call ClrVirtualAlloc instead 
     if ((pMinAddr == (BYTE *) BOT_MEMORY) && (pMaxAddr == (BYTE *) TOP_MEMORY))
     {
-        return (BYTE*) ClrVirtualAlloc(NULL, dwSize, flAllocationType, flProtect);
+        return (BYTE*) ClrVirtualAlloc(nullptr, dwSize, flAllocationType, flProtect);
     }
 
-    // If pMaxAddr is not greater than pMinAddr we can not make an allocation
-    if (dwSize == 0 || pMaxAddr <= pMinAddr)
+#ifdef FEATURE_PAL
+    pResult = (BYTE *)PAL_VirtualReserveFromExecutableMemoryAllocatorWithinRange(pMinAddr, pMaxAddr, dwSize);
+    if (pResult != nullptr)
     {
-        return NULL;
+        return pResult;
     }
+#endif // FEATURE_PAL
 
-    // We will do one scan: [pMinAddr .. pMaxAddr]
-    // Align to 64k. See docs for VirtualAllocEx and lpAddress and 64k alignment for reasons.
-    BYTE *tryAddr = (BYTE *)ALIGN_UP((BYTE *)pMinAddr, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
+    // We will do one scan from [pMinAddr .. pMaxAddr]
+    // First align the tryAddr up to next 64k base address. 
+    // See docs for VirtualAllocEx and lpAddress and 64k alignment for reasons.
+    //
+    BYTE *   tryAddr            = (BYTE *)ALIGN_UP((BYTE *)pMinAddr, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
+    bool     virtualQueryFailed = false;
+    bool     faultInjected      = false;
+    unsigned virtualQueryCount  = 0;
 
     // Now scan memory and try to find a free block of the size requested.
     while ((tryAddr + dwSize) <= (BYTE *) pMaxAddr)
     {
         MEMORY_BASIC_INFORMATION mbInfo;
-
+            
         // Use VirtualQuery to find out if this address is MEM_FREE
         //
+        virtualQueryCount++;
         if (!ClrVirtualQuery((LPCVOID)tryAddr, &mbInfo, sizeof(mbInfo)))
+        {
+            // Exit and return nullptr if the VirtualQuery call fails.
+            virtualQueryFailed = true;
             break;
-
+        }
+            
         // Is there enough memory free from this start location?
-        // The PAL version of VirtualQuery sets RegionSize to 0 for free
-        // memory regions, in which case we go just ahead and try
-        // VirtualAlloc without checking the size, and see if it succeeds.
-        if (mbInfo.State == MEM_FREE &&
-            (mbInfo.RegionSize >= (SIZE_T) dwSize || mbInfo.RegionSize == 0))
+        // Note that for most versions of UNIX the mbInfo.RegionSize returned will always be 0
+        if ((mbInfo.State == MEM_FREE) && 
+            (mbInfo.RegionSize >= (SIZE_T) dwSize || mbInfo.RegionSize == 0)) 
         {
             // Try reserving the memory using VirtualAlloc now
-            pResult = (BYTE*) ClrVirtualAlloc(tryAddr, dwSize, MEM_RESERVE, flProtect);
+            pResult = (BYTE*)ClrVirtualAlloc(tryAddr, dwSize, MEM_RESERVE, flProtect);
 
-            if (pResult != NULL) 
+            // Normally this will be successful
+            //
+            if (pResult != nullptr)
             {
-                return pResult;
+                // return pResult
+                break;
             }
-#ifdef _DEBUG 
-            // pResult == NULL
-            else if (ShouldInjectFaultInRange())
+
+#ifdef _DEBUG
+            if (ShouldInjectFaultInRange())
             {
-                return NULL;
+                // return nullptr (failure)
+                faultInjected = true;
+                break;
             }
 #endif // _DEBUG
 
-            // We could fail in a race.  Just move on to next region and continue trying
+            // On UNIX we can also fail if our request size 'dwSize' is larger than 64K and
+            // and our tryAddr is pointing at a small MEM_FREE region (smaller than 'dwSize')
+            // However we can't distinguish between this and the race case.
+
+            // We might fail in a race.  So just move on to next region and continue trying
             tryAddr = tryAddr + VIRTUAL_ALLOC_RESERVE_GRANULARITY;
         }
         else
         {
             // Try another section of memory
             tryAddr = max(tryAddr + VIRTUAL_ALLOC_RESERVE_GRANULARITY,
-                (BYTE*) mbInfo.BaseAddress + mbInfo.RegionSize);
+                          (BYTE*) mbInfo.BaseAddress + mbInfo.RegionSize);
         }
     }
 
-    // Our tryAddr reached pMaxAddr
-    return NULL;
+    STRESS_LOG7(LF_JIT, LL_INFO100,
+                "ClrVirtualAllocWithinRange request #%u for %08x bytes in [ %p .. %p ], query count was %u - returned %s: %p\n",
+                countOfCalls, (DWORD)dwSize, pMinAddr, pMaxAddr,
+                virtualQueryCount, (pResult != nullptr) ? "success" : "failure", pResult);
+
+    // If we failed this call the process will typically be terminated
+    // so we log any additional reason for failing this call.
+    //
+    if (pResult == nullptr)
+    {
+        if ((tryAddr + dwSize) > (BYTE *)pMaxAddr)
+        {
+            // Our tryAddr reached pMaxAddr
+            STRESS_LOG0(LF_JIT, LL_INFO100, "Additional reason: Address space exhausted.\n");
+        }
+
+        if (virtualQueryFailed)
+        {
+            STRESS_LOG0(LF_JIT, LL_INFO100, "Additional reason: VirtualQuery operation failed.\n");
+        }
+
+        if (faultInjected)
+        {
+            STRESS_LOG0(LF_JIT, LL_INFO100, "Additional reason: fault injected.\n");
+        }
+    }
+
+    return pResult;
 }
 
 //******************************************************************************
 // NumaNodeInfo 
 //******************************************************************************
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
-#if !defined(FEATURE_CORESYSTEM)
-/*static*/ NumaNodeInfo::PGNPN    NumaNodeInfo::m_pGetNumaProcessorNode = NULL;
-#endif
+#if !defined(FEATURE_REDHAWK)
 /*static*/ NumaNodeInfo::PGNHNN NumaNodeInfo::m_pGetNumaHighestNodeNumber = NULL;
 /*static*/ NumaNodeInfo::PVAExN NumaNodeInfo::m_pVirtualAllocExNuma = NULL;
-
-#if !defined(FEATURE_CORESYSTEM)
-/*static*/ BOOL NumaNodeInfo::GetNumaProcessorNode(UCHAR proc_no, PUCHAR node_no)
-{
-    return (*m_pGetNumaProcessorNode)(proc_no, node_no);
-}
-#endif
 
 /*static*/ LPVOID NumaNodeInfo::VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T dwSize,
 		    		     DWORD allocType, DWORD prot, DWORD node)
 {
     return (*m_pVirtualAllocExNuma)(hProc, lpAddr, dwSize, allocType, prot, node);
 }
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
 /*static*/ NumaNodeInfo::PGNPNEx NumaNodeInfo::m_pGetNumaProcessorNodeEx = NULL;
 
 /*static*/ BOOL NumaNodeInfo::GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no)
@@ -711,20 +759,23 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     return (*m_pGetNumaProcessorNodeEx)(proc_no, node_no);
 }
 #endif
-#endif
 
 /*static*/ BOOL NumaNodeInfo::m_enableGCNumaAware = FALSE;
 /*static*/ BOOL NumaNodeInfo::InitNumaNodeInfoAPI()
 {
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
     //check for numa support if multiple heaps are used
     ULONG highest = 0;
 	
     if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_GCNumaAware) == 0)
         return FALSE;
 
+#ifndef FEATURE_PAL
     // check if required APIs are supported
     HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
+#else
+    HMODULE hMod = GetCLRModule();
+#endif    
     if (hMod == NULL)
         return FALSE;
 
@@ -736,17 +787,9 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     if (!m_pGetNumaHighestNodeNumber(&highest) || (highest == 0))
         return FALSE;
 
-#if !defined(FEATURE_CORESYSTEM)
-    m_pGetNumaProcessorNode = (PGNPN) GetProcAddress(hMod, "GetNumaProcessorNode");
-    if (m_pGetNumaProcessorNode == NULL)
-        return FALSE;
-#endif
-
-#if !defined(FEATURE_CORECLR) || defined(FEATURE_CORESYSTEM)
     m_pGetNumaProcessorNodeEx = (PGNPNEx) GetProcAddress(hMod, "GetNumaProcessorNodeEx");
     if (m_pGetNumaProcessorNodeEx == NULL)
         return FALSE;
-#endif
 
     m_pVirtualAllocExNuma = (PVAExN) GetProcAddress(hMod, "VirtualAllocExNuma");
     if (m_pVirtualAllocExNuma == NULL)
@@ -771,14 +814,12 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 //******************************************************************************
 // NumaNodeInfo 
 //******************************************************************************
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 /*static*/ CPUGroupInfo::PGLPIEx CPUGroupInfo::m_pGetLogicalProcessorInformationEx = NULL;
 /*static*/ CPUGroupInfo::PSTGA   CPUGroupInfo::m_pSetThreadGroupAffinity = NULL;
 /*static*/ CPUGroupInfo::PGTGA   CPUGroupInfo::m_pGetThreadGroupAffinity = NULL;
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
 /*static*/ CPUGroupInfo::PGCPNEx CPUGroupInfo::m_pGetCurrentProcessorNumberEx = NULL;
 /*static*/ CPUGroupInfo::PGST    CPUGroupInfo::m_pGetSystemTimes = NULL;
-#endif
 /*static*/ //CPUGroupInfo::PNTQSIEx CPUGroupInfo::m_pNtQuerySystemInformationEx = NULL;
 
 /*static*/ BOOL CPUGroupInfo::GetLogicalProcessorInformationEx(DWORD relationship,
@@ -801,13 +842,11 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     return (*m_pGetThreadGroupAffinity)(h, groupAffinity);
 }
 
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
 /*static*/ BOOL CPUGroupInfo::GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime)
 {
     LIMITED_METHOD_CONTRACT;
     return (*m_pGetSystemTimes)(idleTime, kernelTime, userTime);
 }
-#endif
 #endif
 
 /*static*/ BOOL  CPUGroupInfo::m_enableGCCPUGroups = FALSE;
@@ -828,8 +867,12 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
+#ifndef FEATURE_PAL    
     HMODULE hMod = GetModuleHandleW(WINDOWS_KERNEL32_DLLNAME_W);
+#else
+    HMODULE hMod = GetCLRModule();
+#endif
     if (hMod == NULL)
         return FALSE;
 
@@ -845,21 +888,42 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     if (m_pGetThreadGroupAffinity == NULL)
         return FALSE;
 
-#if !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR)
     m_pGetCurrentProcessorNumberEx = (PGCPNEx)GetProcAddress(hMod, "GetCurrentProcessorNumberEx");
     if (m_pGetCurrentProcessorNumberEx == NULL)
         return FALSE;
 
+#ifndef FEATURE_PAL    
     m_pGetSystemTimes = (PGST)GetProcAddress(hMod, "GetSystemTimes");
     if (m_pGetSystemTimes == NULL)
         return FALSE;
 #endif
-
+    
     return TRUE;
 #else
     return FALSE;
 #endif
 }
+
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
+// Calculate greatest common divisor
+DWORD GCD(DWORD u, DWORD v)
+{
+    while (v != 0)
+    {
+        DWORD dwTemp = v;
+        v = u % v;
+        u = dwTemp;
+    }
+
+    return u;
+}
+
+// Calculate least common multiple
+DWORD LCM(DWORD u, DWORD v)
+{
+    return u / GCD(u, v) * v;
+}
+#endif
 
 /*static*/ BOOL CPUGroupInfo::InitCPUGroupInfoArray()
 {
@@ -871,7 +935,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
     BYTE *bBuffer = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pSLPIEx = NULL;
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *pRecord = NULL;
@@ -922,11 +986,13 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
         m_CPUGroupInfoArray[i].nr_active   = (WORD)pRecord->Group.GroupInfo[i].ActiveProcessorCount;
         m_CPUGroupInfoArray[i].active_mask = pRecord->Group.GroupInfo[i].ActiveProcessorMask;
         m_nProcessors += m_CPUGroupInfoArray[i].nr_active;
-        dwWeight *= (DWORD)m_CPUGroupInfoArray[i].nr_active;
+        dwWeight = LCM(dwWeight, (DWORD)m_CPUGroupInfoArray[i].nr_active);
     }
 
-    //NOTE: the weight setting should work fine with 4 CPU groups upto 64 LPs each. the minimum number of threads
-    //     per group before the weight overflow is 2^32/(2^6x2^6x2^6) = 2^14 (i.e. 16K threads)
+    // The number of threads per group that can be supported will depend on the number of CPU groups
+    // and the number of LPs within each processor group. For example, when the number of LPs in
+    // CPU groups is the same and is 64, the number of threads per group before weight overflow
+    // would be 2^32/2^6 = 2^26 (64M threads)
     for (DWORD i = 0; i < m_nGroups; i++)
     {
         m_CPUGroupInfoArray[i].groupWeight = dwWeight / (DWORD)m_CPUGroupInfoArray[i].nr_active;
@@ -944,7 +1010,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
     WORD begin   = 0;
     WORD nr_proc = 0;
 
@@ -971,12 +1037,12 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
     BOOL enableGCCPUGroups     = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_GCCpuGroup) != 0;
-	BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
+    BOOL threadUseAllCpuGroups = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_Thread_UseAllCpuGroups) != 0;
 
-	if (!enableGCCPUGroups)
-		return;
+    if (!enableGCCPUGroups)
+        return;
 
     if (!InitCPUGroupInfoAPI())
         return;
@@ -1054,7 +1120,7 @@ retry:
 {
     LIMITED_METHOD_CONTRACT;
 
-#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
     WORD bTemp = 0;
     WORD bDiff = processor_number - bTemp;
 
@@ -1085,7 +1151,7 @@ retry:
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK) && defined(_TARGET_AMD64_)
     // m_enableGCCPUGroups and m_threadUseAllCpuGroups must be TRUE
     _ASSERTE(m_enableGCCPUGroups && m_threadUseAllCpuGroups);
 
@@ -1106,7 +1172,7 @@ retry:
 #endif
 }
 
-#if !defined(FEATURE_REDHAWK) && !defined(FEATURE_CORESYSTEM) && !defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_REDHAWK)
 //Lock ThreadStore before calling this function, so that updates of weights/counts are consistent
 /*static*/ void CPUGroupInfo::ChooseCPUGroupAffinity(GROUP_AFFINITY *gf)
 {
@@ -1185,9 +1251,6 @@ found:
 //******************************************************************************
 // Returns the number of processors that a process has been configured to run on
 //******************************************************************************
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
 int GetCurrentProcessCpuCount()
 {
     CONTRACTL
@@ -1203,49 +1266,44 @@ int GetCurrentProcessCpuCount()
     if (cCPUs != 0)
         return cCPUs;
 
-#if !defined(FEATURE_CORESYSTEM)
-
+    int count = 0;
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
-        return 1;
-
-    if (pmask == 1)
-        return 1;
-
-    pmask &= smask;
-        
-    int count = 0;
-    while (pmask)
     {
-        if (pmask & 1)
-            count++;
-                
-        pmask >>= 1;
+        count = 1;
     }
-        
-    // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
-    // than 64 processors, which would leave us with a count of 0.  Since the GC
-    // expects there to be at least one processor to run on (and thus at least one
-    // heap), we'll return 64 here if count is 0, since there are likely a ton of
-    // processors available in that case.  The GC also cannot (currently) handle
-    // the case where there are more than 64 processors, so we will return a
-    // maximum of 64 here.
-    if (count == 0 || count > 64)
-        count = 64;
+    else
+    {
+        pmask &= smask;
+
+        while (pmask)
+        {
+            pmask &= (pmask - 1);
+            count++;
+        }
+
+        // GetProcessAffinityMask can return pmask=0 and smask=0 on systems with more
+        // than 64 processors, which would leave us with a count of 0.  Since the GC
+        // expects there to be at least one processor to run on (and thus at least one
+        // heap), we'll return 64 here if count is 0, since there are likely a ton of
+        // processors available in that case.  The GC also cannot (currently) handle
+        // the case where there are more than 64 processors, so we will return a
+        // maximum of 64 here.
+        if (count == 0 || count > 64)
+            count = 64;
+    }
+
+#ifdef FEATURE_PAL
+    uint32_t cpuLimit;
+
+    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < count)
+        count = cpuLimit;
+#endif
 
     cCPUs = count;
-            
+
     return count;
-
-#else // !FEATURE_CORESYSTEM
-
-    SYSTEM_INFO sysInfo;
-    ::GetSystemInfo(&sysInfo);
-    cCPUs = sysInfo.dwNumberOfProcessors;
-    return sysInfo.dwNumberOfProcessors;
-
-#endif // !FEATURE_CORESYSTEM
 }
 
 DWORD_PTR GetCurrentProcessCpuMask()
@@ -1258,7 +1316,7 @@ DWORD_PTR GetCurrentProcessCpuMask()
     }
     CONTRACTL_END;
 
-#if !defined(FEATURE_CORESYSTEM)
+#ifndef FEATURE_PAL
     DWORD_PTR pmask, smask;
 
     if (!GetProcessAffinityMask(GetCurrentProcess(), &pmask, &smask))
@@ -2684,6 +2742,41 @@ INT32 GetArm64Rel28(UINT32 * pCode)
 }
 
 //*****************************************************************************
+//  Extract the PC-Relative offset from an adrp instruction
+//*****************************************************************************
+INT32 GetArm64Rel21(UINT32 * pCode)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    UINT32 addInstr = *pCode;
+
+    // 23-5 bits for the high part. Shift it by 5.
+    INT32 immhi = (((INT32)(addInstr & 0xFFFFE0))) >> 5;
+    // 30,29 bits for the lower part. Shift it by 29.
+    INT32 immlo = ((INT32)(addInstr & 0x60000000)) >> 29;
+
+    // Merge them
+    INT32 imm21 = (immhi << 2) | immlo;
+
+    return imm21;
+}
+
+//*****************************************************************************
+//  Extract the PC-Relative offset from an add instruction
+//*****************************************************************************
+INT32 GetArm64Rel12(UINT32 * pCode)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    UINT32 addInstr = *pCode;
+
+    // 21-10 contains value. Mask 12 bits and shift by 10 bits.
+    INT32 imm12 = (INT32)(addInstr & 0x003FFC00) >> 10;
+
+    return imm12;
+}
+
+//*****************************************************************************
 //  Deposit the PC-Relative offset 'imm28' into a b or bl instruction 
 //*****************************************************************************
 void PutArm64Rel28(UINT32 * pCode, INT32 imm28)
@@ -2704,6 +2797,52 @@ void PutArm64Rel28(UINT32 * pCode, INT32 imm28)
     *pCode = branchInstr;          // write the assembled instruction
 
     _ASSERTE(GetArm64Rel28(pCode) == imm28);
+}
+
+//*****************************************************************************
+//  Deposit the PC-Relative offset 'imm21' into an adrp instruction
+//*****************************************************************************
+void PutArm64Rel21(UINT32 * pCode, INT32 imm21)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Verify that we got a valid offset
+    _ASSERTE(FitsInRel21(imm21));
+
+    UINT32 adrpInstr = *pCode;
+    // Check adrp opcode 1ii1 0000 ...
+    _ASSERTE((adrpInstr & 0x9F000000) == 0x90000000);
+
+    adrpInstr &= 0x9F00001F;               // keep bits 31, 28-24, 4-0.
+    INT32 immlo = imm21 & 0x03;            // Extract low 2 bits which will occupy 30-29 bits.
+    INT32 immhi = (imm21 & 0x1FFFFC) >> 2; // Extract high 19 bits which will occupy 23-5 bits.
+    adrpInstr |= ((immlo << 29) | (immhi << 5));
+
+    *pCode = adrpInstr;                    // write the assembled instruction
+
+    _ASSERTE(GetArm64Rel21(pCode) == imm21);
+}
+
+//*****************************************************************************
+//  Deposit the PC-Relative offset 'imm12' into an add instruction
+//*****************************************************************************
+void PutArm64Rel12(UINT32 * pCode, INT32 imm12)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    // Verify that we got a valid offset
+    _ASSERTE(FitsInRel12(imm12));
+
+    UINT32 addInstr = *pCode;
+    // Check add opcode 1001 0001 00...
+    _ASSERTE((addInstr & 0xFFC00000) == 0x91000000);
+
+    addInstr &= 0xFFC003FF;     // keep bits 31-22, 9-0
+    addInstr |= (imm12 << 10);  // Occupy 21-10.
+
+    *pCode = addInstr;          // write the assembled instruction
+
+    _ASSERTE(GetArm64Rel12(pCode) == imm12);
 }
 
 //---------------------------------------------------------------------
@@ -3220,114 +3359,6 @@ BOOL FileExists(LPCWSTR filename)
     return TRUE;                
 }
 
-#ifndef FEATURE_CORECLR
-// Current users for FileLock are ngen and ngen service
-
-FileLockHolder::FileLockHolder()
-{
-    _hLock = INVALID_HANDLE_VALUE;
-}
-    
-FileLockHolder::~FileLockHolder()
-{
-    Release();
-}
-
-// the amount of time we want to wait
-#define FILE_LOCK_RETRY_TIME 100
-
-void FileLockHolder::Acquire(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
-{
-    WRAPPER_NO_CONTRACT;
-
-    DWORD dwErr = 0;
-    DWORD dwAccessDeniedRetry = 0;
-    const DWORD MAX_ACCESS_DENIED_RETRIES = 10;
-
-    if (pInterrupted)
-    {
-        *pInterrupted = FALSE;
-    }
-
-    _ASSERTE(_hLock == INVALID_HANDLE_VALUE);
-
-    for (;;) {
-        _hLock = WszCreateFile(lockName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE, NULL);
-        if (_hLock != INVALID_HANDLE_VALUE) {
-            return; 
-        }
-
-        dwErr = GetLastError();
-        // Logically we should only expect ERROR_SHARING_VIOLATION, but Windows can also return
-        // ERROR_ACCESS_DENIED for underlying NtStatus DELETE_PENDING.  That happens when another process
-        // (gacutil.exe or indexer) have the file opened.  Unfortunately there is no public API that would
-        // allow us to detect this NtStatus and distinguish it from 'real' access denied (candidates are
-        // RtlGetLastNtStatus that is not documented on MSDN and NtCreateFile that is internal and can change
-        // at any time), so we retry on access denied, but only for a limited number of times.
-        if (dwErr == ERROR_SHARING_VIOLATION ||
-            (dwErr == ERROR_ACCESS_DENIED && ++dwAccessDeniedRetry <= MAX_ACCESS_DENIED_RETRIES))
-        {
-            // Somebody is holding the lock. Let's sleep, and come back again.
-            if (hInterrupt)
-            {
-                _ASSERTE(pInterrupted && 
-                    "If you can be interrupted, you better want to know if you actually were interrupted");
-                if (WaitForSingleObject(hInterrupt, FILE_LOCK_RETRY_TIME) == WAIT_OBJECT_0)
-                {
-                      if (pInterrupted)
-                      {
-                        *pInterrupted = TRUE;
-                      }
-
-                      // We've been interrupted, so return without acquiring
-                      return;
-                }
-            }
-            else
-            {
-                ClrSleepEx(FILE_LOCK_RETRY_TIME, FALSE);
-            }
-        }
-        else {
-            ThrowHR(HRESULT_FROM_WIN32(dwErr));
-        }
-    }
-}
-
-
-HRESULT FileLockHolder::AcquireNoThrow(LPCWSTR lockName, HANDLE hInterrupt, BOOL* pInterrupted)
-{
-    HRESULT hr = S_OK;
-    
-    EX_TRY
-    {
-        Acquire(lockName, hInterrupt, pInterrupted);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
-BOOL FileLockHolder::IsTaken(LPCWSTR lockName)
-{
-    
-    // We don't want to do an acquire the lock to know if its taken, so we want to see if the file
-    // exists. However, in situations like unplugging a machine, a DELETE_ON_CLOSE still leaves the file
-    // around. We try to delete it here. If the lock is acquired, DeleteFile will fail, as the file is
-    // not opened with SHARE_DELETE.
-    WszDeleteFile(lockName);
-
-    return FileExists(lockName);
-}
-
-void FileLockHolder::Release()
-{
-    if (_hLock != INVALID_HANDLE_VALUE) {
-        CloseHandle(_hLock);
-        _hLock = INVALID_HANDLE_VALUE;
-    }
-}
-#endif // FEATURE_CORECLR
 
 //======================================================================
 // This function returns true, if it can determine that the instruction pointer
@@ -3485,59 +3516,6 @@ RUNTIMEVERSIONINFO RUNTIMEVERSIONINFO::notDefined;
 
 BOOL IsV2RuntimeLoaded(void)
 {
-#ifndef FEATURE_CORECLR
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        CANNOT_TAKE_LOCK;
-    }
-    CONTRACTL_END;
-
-    ReleaseHolder<ICLRMetaHost>    pMetaHost(NULL);
-    ReleaseHolder<IEnumUnknown>    pEnum(NULL);
-    ReleaseHolder<IUnknown>        pUnk(NULL);
-    ReleaseHolder<ICLRRuntimeInfo> pRuntime(NULL);
-    HRESULT hr;
-
-    HModuleHolder hModule = WszLoadLibrary(MSCOREE_SHIM_W);
-    if (hModule == NULL)
-        return FALSE;
-
-    CLRCreateInstanceFnPtr pfnCLRCreateInstance = (CLRCreateInstanceFnPtr)::GetProcAddress(hModule, "CLRCreateInstance");
-    if (pfnCLRCreateInstance == NULL)
-        return FALSE;
-
-    hr = (*pfnCLRCreateInstance)(CLSID_CLRMetaHost, IID_ICLRMetaHost, (LPVOID *)&pMetaHost);
-    if (FAILED(hr))
-        return FALSE;
-
-    hr = pMetaHost->EnumerateLoadedRuntimes(GetCurrentProcess(), &pEnum);
-    if (FAILED(hr))
-        return FALSE;
-
-    while (pEnum->Next(1, &pUnk, NULL) == S_OK)
-    {
-        hr = pUnk->QueryInterface(IID_ICLRRuntimeInfo, (void **)&pRuntime);
-        if (FAILED(hr))
-            continue;
-
-        WCHAR wszVersion[30];
-        DWORD cchVersion = _countof(wszVersion);
-        hr = pRuntime->GetVersionString(wszVersion, &cchVersion);
-        if (FAILED(hr))
-            continue;
-
-        // Is it a V2 runtime?
-        if ((cchVersion < 3) || 
-            ((wszVersion[0] != W('v')) && (wszVersion[0] != W('V'))) || 
-            (wszVersion[1] != W('2')) || 
-            (wszVersion[2] != W('.')))
-            continue;
-
-        return TRUE;
-    }
-#endif //  FEATURE_CORECLR
 
     return FALSE;
 }
@@ -3548,11 +3526,6 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
     // let's simply check for all CLSIDs that are known to be runtime implemented and capped to 2.0
     return (
             rclsid == CLSID_ComCallUnmarshal ||
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-            rclsid == CLSID_CorRuntimeHost ||
-            rclsid == CLSID_CLRRuntimeHost ||
-            rclsid == CLSID_CLRProfiling ||
-#endif
             rclsid == CLSID_CorMetaDataDispenser ||
             rclsid == CLSID_CorMetaDataDispenserRuntime ||
             rclsid == CLSID_TypeNameFactory);
@@ -3561,54 +3534,6 @@ BOOL IsClrHostedLegacyComObject(REFCLSID rclsid)
 
 
 
-#if !defined(FEATURE_CORECLR) && !defined(SELF_NO_HOST) && !defined(FEATURE_UTILCODE_NO_DEPENDENCIES)
-
-namespace UtilCode
-{
-
-#pragma warning(push)
-#pragma warning(disable:4996) // For use of deprecated LoadLibraryShim
-
-    // When a NULL version is passed to LoadLibraryShim, this told the shim to bind the already-loaded
-    // runtime or to the latest runtime. In hosted environments, we already know a runtime (or two) is
-    // loaded, and since we are no longer guaranteed that a call to mscoree!LoadLibraryShim with a NULL
-    // version will return the correct runtime, this code uses the ClrCallbacks infrastructure
-    // available to get the ICLRRuntimeInfo for the runtime in which this code is hosted, and then
-    // calls ICLRRuntimeInfo::LoadLibrary to make sure that the load occurs within the context of the
-    // correct runtime.
-    HRESULT LoadLibraryShim(LPCWSTR szDllName, LPCWSTR szVersion, LPVOID pvReserved, HMODULE *phModDll)
-    {
-        HRESULT hr = S_OK;
-
-        if (szVersion != NULL)
-        {   // If a version is provided, then we just fall back to the legacy function to allow
-            // it to construct the explicit path and load from that location.
-            //@TODO: Can we verify that all callers of LoadLibraryShim in hosted environments always pass null and eliminate this code?
-            return ::LoadLibraryShim(szDllName, szVersion, pvReserved, phModDll);
-        }
-
-        //
-        // szVersion is NULL, which means we should load the DLL from the hosted environment's directory.
-        //
-
-        typedef ICLRRuntimeInfo *GetCLRRuntime_t();
-        GetCLRRuntime_t *pfnGetCLRRuntime =
-            reinterpret_cast<GetCLRRuntime_t *>((*GetClrCallbacks().m_pfnGetCLRFunction)("GetCLRRuntime"));
-        if (pfnGetCLRRuntime == NULL)
-            return E_UNEXPECTED;
-
-        ICLRRuntimeInfo* pRI = (*pfnGetCLRRuntime)();
-        if (pRI == NULL)
-            return E_UNEXPECTED;
-
-        return pRI->LoadLibrary(szDllName, phModDll);
-    }
-
-#pragma warning(pop)
-
-}
-
-#endif //!FEATURE_CORECLR && !SELF_NO_HOST && !FEATURE_UTILCODE_NO_DEPENDENCIES
 
 namespace Clr
 {

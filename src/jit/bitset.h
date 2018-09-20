@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 // A set of integers in the range [0..N], for some given N.
 
 /*****************************************************************************/
@@ -15,10 +14,7 @@
 class BitSetSupport
 {
 #ifdef DEBUG
-    template<typename BitSetType,
-             unsigned Brand,
-             typename Env, 
-             typename BitSetTraits>
+    template <typename BitSetType, unsigned Brand, typename Env, typename BitSetTraits>
     static void RunTests(Env env);
 #endif
 
@@ -29,12 +25,12 @@ public:
     static unsigned BitCountTable[16];
 
     // Returns the number of 1 bits in the binary representation of "u".
-    template<typename T>
+    template <typename T>
     static unsigned CountBitsInIntegral(T u)
     {
         unsigned res = 0;
         // We process "u" in 4-bit nibbles, hence the "*2" below.
-        for (int i = 0; i < sizeof(T)*2; i++)
+        for (int i = 0; i < sizeof(T) * 2; i++)
         {
             res += BitCountTable[u & 0xf];
             u >>= 4;
@@ -58,12 +54,13 @@ public:
 
     class BitSetOpCounter
     {
-        unsigned TotalOps;
-        unsigned OpCounts[BSOP_NUMOPS];
+        unsigned    TotalOps;
+        unsigned    OpCounts[BSOP_NUMOPS];
         const char* m_fileName;
-        FILE* OpOutputFile;
-      public:
-        BitSetOpCounter(const char* fileName) : TotalOps(0), m_fileName(fileName), OpOutputFile(NULL)
+        FILE*       OpOutputFile;
+
+    public:
+        BitSetOpCounter(const char* fileName) : TotalOps(0), m_fileName(fileName), OpOutputFile(nullptr)
         {
             for (unsigned i = 0; i < BSOP_NUMOPS; i++)
             {
@@ -75,15 +72,15 @@ public:
     };
 };
 
-template <> FORCEINLINE
-unsigned BitSetSupport::CountBitsInIntegral<unsigned>(unsigned c)
+template <>
+FORCEINLINE unsigned BitSetSupport::CountBitsInIntegral<unsigned>(unsigned c)
 {
     // Make sure we're 32 bit.
     assert(sizeof(unsigned) == 4);
-    c = (c & 0x55555555) + ((c >>  1) & 0x55555555);
-    c = (c & 0x33333333) + ((c >>  2) & 0x33333333);
-    c = (c & 0x0f0f0f0f) + ((c >>  4) & 0x0f0f0f0f);
-    c = (c & 0x00ff00ff) + ((c >>  8) & 0x00ff00ff);
+    c = (c & 0x55555555) + ((c >> 1) & 0x55555555);
+    c = (c & 0x33333333) + ((c >> 2) & 0x33333333);
+    c = (c & 0x0f0f0f0f) + ((c >> 4) & 0x0f0f0f0f);
+    c = (c & 0x00ff00ff) + ((c >> 8) & 0x00ff00ff);
     c = (c & 0x0000ffff) + ((c >> 16) & 0x0000ffff);
     return c;
 }
@@ -112,14 +109,14 @@ unsigned BitSetSupport::CountBitsInIntegral<unsigned>(unsigned c)
 // function, which makes a copy of the referent data structure in the indirect case, and an
 // "AssignNoCopy" version, which does not, and instead introduces sharing in the indirect case.
 // Obviously, the latter should be used with care.
-// 
+//
 // (Orthogonally, there are also further versions of assignment that differ in whether the "rhs"
 // argument may be uninitialized.  The normal assignment operation requires the "rhs" argument not be
 // uninitialized; "AssignNoCopy" has the same requirement.  The "AssignAllowUninitRhs" version allows
 // the "rhs" to be the uninit value, and sets the "lhs" to be uninitialized in that case.)
 
 // This class has static methods that provide the operations on BitSets.
-// 
+//
 // An instantiation requires:
 //    typename BitSetType:         the representation type of this kind of BitSet.
 //
@@ -137,10 +134,11 @@ unsigned BitSetSupport::CountBitsInIntegral<unsigned>(unsigned c)
 //      An "adapter" class that provides methods that retrieves things from the Env:
 //        static IAllocator* GetAllococator(Env):   yields an "IAllocator*" that the BitSet implementation can use.
 //        static unsigned    GetSize(Env):          the current size (= # of bits) of this bitset type.
-//        static unsigned    GetArrSize(Env, unsigned elemSize):  The number of "elemSize" chunks sufficient to hold "GetSize".
-//                                                                A given BitSet implementation must call this with only one constant value.
-//                                                                Thus, and "Env" may compute this result when GetSize changes.
-//                                    
+//        static unsigned    GetArrSize(Env, unsigned elemSize):  The number of "elemSize" chunks sufficient to hold
+//                                                                "GetSize". A given BitSet implementation must call
+//                                                                this with only one constant value. Thus, and "Env"
+//                                                                may compute this result when GetSize changes.
+//
 //        static unsigned    GetEpoch(Env):         the current epoch.
 //
 // (For many instantiations, BitSetValueArgType and BitSetValueRetType will be the same as BitSetType; in cases where
@@ -149,29 +147,28 @@ unsigned BitSetSupport::CountBitsInIntegral<unsigned>(unsigned c)
 // In addition to implementing the method signatures here, an instantiation of BitSetOps must also export a
 // BitSetOps::Iter type, which supports the following operations:
 //      Iter(BitSetValueArgType):        a constructor
-//      bool NextElem(unsigned* pElem):  returns true if the iteration is not complete, and sets *pElem to the next yielded member.
+//      bool NextElem(unsigned* pElem):  returns true if the iteration is not complete, and sets *pElem to the next
+//                                       yielded member.
 //
 // Finally, it should export two further types:
-// 
+//
 //    ValArgType: the type used to pass a BitSet as a by-value argument.
 //    RetValType: the type that should be used to return a BitSet.
-// 
+//
 // For many instantiations, these can be identical to BitSetTypes.  When the representation type is a class,
 // however, ValArgType may need to be "const BitSetType&", and RetValArg may need to be a helper class, if the
 // class hides default copy constructors and assignment operators to detect erroneous usage.
 //
-template<typename BitSetType,
-         unsigned Brand,
-         typename Env, 
-         typename BitSetTraits>
+template <typename BitSetType, unsigned Brand, typename Env, typename BitSetTraits>
 class BitSetOps
 {
+#if 0
     // Below are the set of methods that an instantiation of BitSetOps should provide.  This is
     // #if'd out because it doesn't make any difference; C++ has no mechanism for checking that
     // the methods of an instantiation are consistent with these signatures, other than the expectations
     // embodied in the program that uses the instantiation(s).  But it's useful documentation, and
     // we should try to keep it up to date.
-#if 0
+
   public:
 
     // The uninitialized value -- not a real bitset (if possible).
@@ -208,9 +205,13 @@ class BitSetOps
     // Destructively set "bs" to be the empty set.  This method is unique, in that it does *not*
     // require "bs" to be a bitset of the current epoch.  It ensures that it is after, however.
     // (If the representation is indirect, this requires allocating a new, empty representation.
-    // If this is a performance issue, we could provide a new version of ClearD that assumes/asserts
+    // If this is a performance issue, we could provide a new version of OldStyleClearD that assumes/asserts
     // that the rep is for the current epoch -- this would be useful if a given bitset were repeatedly
     // cleared within an epoch.)
+    // TODO #11263: delete it.
+    static void OldStyleClearD(Env env, BitSetType& bs);
+
+    // Destructively set "bs" to be the empty set.
     static void ClearD(Env env, BitSetType& bs);
 
     // Returns a copy of "bs".  If the representation of "bs" involves a level of indirection, the data
@@ -275,25 +276,22 @@ class BitSetOps
 
     typename ValArgType;
     typename RetValType;
-#endif // 0 -- the above is #if'd out, since it's really just an extended comment on what an instantiation 
+#endif // 0 -- the above is #if'd out, since it's really just an extended comment on what an instantiation
        // should provide.
 };
 
-template<typename BitSetType,
-         unsigned Brand,
-         typename Env, 
-         typename BitSetTraits,
-         typename BitSetValueArgType,
-         typename BitSetValueRetType,
-         typename BaseIter>
+template <typename BitSetType,
+          unsigned Brand,
+          typename Env,
+          typename BitSetTraits,
+          typename BitSetValueArgType,
+          typename BitSetValueRetType,
+          typename BaseIter>
 class BitSetOpsWithCounter
 {
-    typedef BitSetOps<BitSetType,
-                      Brand,
-                      Env, 
-                      BitSetTraits> BSO;
+    typedef BitSetOps<BitSetType, Brand, Env, BitSetTraits> BSO;
 
-  public:
+public:
     static BitSetValueRetType UninitVal()
     {
         return BSO::UninitVal();
@@ -331,6 +329,11 @@ class BitSetOpsWithCounter
     {
         BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_AssignNocopy);
         BSO::AssignNoCopy(env, lhs, rhs);
+    }
+    static void OldStyleClearD(Env env, BitSetType& bs)
+    {
+        BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_OldStyleClearD);
+        BSO::OldStyleClearD(env, bs);
     }
     static void ClearD(Env env, BitSetType& bs)
     {
@@ -430,13 +433,17 @@ class BitSetOpsWithCounter
     }
 #endif
 
-    class Iter {
+    class Iter
+    {
         BaseIter m_iter;
 
-      public:
-        Iter(Env env, BitSetValueArgType bs) : m_iter(env, bs) {}
+    public:
+        Iter(Env env, BitSetValueArgType bs) : m_iter(env, bs)
+        {
+        }
 
-        bool NextElem(Env env, unsigned* pElem) {
+        bool NextElem(Env env, unsigned* pElem)
+        {
             BitSetTraits::GetOpCounter(env)->RecordOp(BitSetSupport::BSOP_NextBit);
             return m_iter.NextElem(env, pElem);
         }
@@ -445,11 +452,9 @@ class BitSetOpsWithCounter
 
 // We define symbolic names for the various bitset implementations available, to allow choices between them.
 
-#define BSUInt64      0
-#define BSShortLong   1
+#define BSUInt64 0
+#define BSShortLong 1
 #define BSUInt64Class 2
-
-
 
 /*****************************************************************************/
 #endif // _BITSET_H_

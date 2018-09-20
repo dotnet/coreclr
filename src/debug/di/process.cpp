@@ -2142,6 +2142,12 @@ HRESULT CordbProcess::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugProcess8*>(this);
     }
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+    else if (id == IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
+    {
+        *pInterface = static_cast<ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly*>(this);
+    }
+#endif
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
@@ -2357,18 +2363,7 @@ HRESULT CordbProcess::EnumerateHandles(CorGCReferenceType types, ICorDebugGCRefe
 
 HRESULT CordbProcess::EnableNGENPolicy(CorDebugNGENPolicy ePolicy)
 {
-#ifdef FEATURE_CORECLR
     return E_NOTIMPL;
-#else
-    HRESULT hr = S_OK;
-    PUBLIC_API_BEGIN(this);
-
-    IDacDbiInterface* pDAC = GetProcess()->GetDAC();
-    hr = pDAC->EnableNGENPolicy(ePolicy);
-
-    PUBLIC_API_END(hr);
-    return hr;
-#endif
 }
 
 
@@ -2494,6 +2489,20 @@ COM_METHOD CordbProcess::EnableExceptionCallbacksOutsideOfMyCode(BOOL enableExce
     PUBLIC_API_END(hr);
     return hr;
 }
+
+#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
+
+COM_METHOD CordbProcess::InvokePauseCallback()
+{
+    return S_OK;
+}
+
+COM_METHOD CordbProcess::InvokeResumeCallback()
+{
+    return S_OK;
+}
+
+#endif
 
 HRESULT CordbProcess::GetTypeForObject(CORDB_ADDRESS addr, CordbType **ppType, CordbAppDomain **pAppDomain)
 {
@@ -4482,12 +4491,6 @@ void CordbProcess::GetModulesInLoadOrder(
 // static 
 void CordbProcess::CountConnectionsCallback(DWORD id, LPCWSTR pName, void * pUserData)
 {
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES)
-    EnumerateConnectionsData * pCallbackData = reinterpret_cast<EnumerateConnectionsData *>(pUserData);
-    INTERNAL_DAC_CALLBACK(pCallbackData->m_pThis);
-
-    pCallbackData->m_uIndex += 1;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 //---------------------------------------------------------------------------------------
@@ -4504,20 +4507,6 @@ void CordbProcess::CountConnectionsCallback(DWORD id, LPCWSTR pName, void * pUse
 // static  
 void CordbProcess::EnumerateConnectionsCallback(DWORD id, LPCWSTR pName, void * pUserData)
 {
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES)
-    EnumerateConnectionsData * pCallbackData = reinterpret_cast<EnumerateConnectionsData *>(pUserData);
-    INTERNAL_DAC_CALLBACK(pCallbackData->m_pThis);
-
-    // get the next entry in the array to be filled in
-    EnumerateConnectionsEntry * pEntry = &(pCallbackData->m_pEntryArray[pCallbackData->m_uIndex]);
-
-    // initialize the StringCopyHolder in the entry and copy over the name of the connection
-    new (&(pEntry->m_pName)) StringCopyHolder;
-    pEntry->m_pName.AssignCopy(pName);
-    pEntry->m_dwID = id;
-
-    pCallbackData->m_uIndex += 1;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 //---------------------------------------------------------------------------------------
@@ -4529,51 +4518,6 @@ void CordbProcess::QueueFakeConnectionEvents()
 {
     PUBLIC_API_ENTRY_FOR_SHIM(this);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    EnumerateConnectionsData callbackData;
-    callbackData.m_pThis = this;
-    callbackData.m_uIndex = 0;
-    callbackData.m_pEntryArray = NULL;
-
-    UINT32 uSize = 0;
-
-    // We must take the process lock before calling DAC primitives which will call back into DBI.
-    // On the other hand, we must NOT be holding the lock when we call out to the shim.
-    // So introduce a new scope here.
-    {
-        RSLockHolder lockHolder(GetProcessLock());
-        GetDAC()->EnumerateConnections(CountConnectionsCallback, &callbackData);
-
-        // save the size for later
-        uSize = callbackData.m_uIndex;
-
-        // Allocate the array to store the connections.  This array will be released when the dtor runs.
-        callbackData.m_uIndex = 0;
-        callbackData.m_pEntryArray = new EnumerateConnectionsEntry[uSize];
-        GetDAC()->EnumerateConnections(EnumerateConnectionsCallback, &callbackData);
-        _ASSERTE(uSize == callbackData.m_uIndex);
-    }
-
-    {
-        // V2 would send CreateConnection for all connections, and then ChangeConnection
-        // for all connections.
-        PUBLIC_CALLBACK_IN_THIS_SCOPE0_NO_LOCK(this); 
-        for (UINT32 i = 0; i < uSize; i++)
-        {
-            EnumerateConnectionsEntry * pEntry = &(callbackData.m_pEntryArray[i]);
-            GetShim()->GetShimCallback()->CreateConnection(
-                this, 
-                (CONNID)pEntry->m_dwID, 
-                const_cast<WCHAR *>((const WCHAR *)(pEntry->m_pName)));
-        }
-
-        for (UINT32 i = 0; i < uSize; i++)
-        {
-            EnumerateConnectionsEntry * pEntry = &(callbackData.m_pEntryArray[i]);
-            GetShim()->GetShimCallback()->ChangeConnection(this, (CONNID)pEntry->m_dwID);
-        }
-    }
-#endif
 }
 
 //
@@ -4581,10 +4525,6 @@ void CordbProcess::QueueFakeConnectionEvents()
 // from the runtime controller. This represents the last amount of processing
 // the DI gets to do on an event before giving it to the user.
 //
-#ifdef _PREFAST_
-#pragma warning(push)
-#pragma warning(disable:21000) // Suppress PREFast warning about overly large function
-#endif
 void CordbProcess::DispatchRCEvent()
 {
     INTERNAL_API_ENTRY(this);
@@ -4785,6 +4725,10 @@ void CordbProcess::DbgAssertAppDomainDeleted(VMPTR_AppDomain vmAppDomainDeleted)
 //    A V2 shim can provide a proxy calllack that takes these events and queues them and 
 //    does the real dispatch to the user to emulate V2 semantics.
 //
+#ifdef _PREFAST_
+#pragma warning(push)
+#pragma warning(disable:21000) // Suppress PREFast warning about overly large function
+#endif
 void CordbProcess::RawDispatchEvent(
     DebuggerIPCEvent *          pEvent, 
     RSLockHolder *              pLockHolder,
@@ -7314,6 +7258,7 @@ CordbUnmanagedThread *CordbProcess::HandleUnmanagedCreateThread(DWORD dwThreadId
         if (!SUCCEEDED(hr))
         {
             delete ut;
+            ut = NULL;
 
             LOG((LF_CORDB, LL_INFO10000, "Failed adding unmanaged thread to process!\n"));
             CORDBSetUnrecoverableError(this, hr, 0);
@@ -7488,33 +7433,6 @@ void CordbProcess::VerifyControlBlock()
     // For Telesto, Dbi and Wks have a more flexible versioning allowed, as described by the Debugger
     // Version Protocol String in DEBUGGER_PROTOCOL_STRING in DbgIpcEvents.h. This allows different build
     // numbers, but the other protocol numbers should still match.
-#if !defined(FEATURE_CORECLR)
-    bool fSkipVerCheck = false;
-#if _DEBUG
-    // In debug builds, allow us to disable the version check to help with applying hotfixes.
-    // The hotfix may be built against a compatible IPC protocol, but have a slightly different build number.
-    fSkipVerCheck = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DbgSkipVerCheck) != 0;
-#endif
-
-    if (!fSkipVerCheck)
-    {
-        //
-        // These asserts double check that the version of the Right Side matches the version of the left side.
-        //
-        // If you hit these asserts, it is probably because you rebuilt mscordbi without rebuilding mscorwks, or rebuilt
-        // mscorwks without rebuilding mscordbi. You might be able to ignore these asserts, but proceed at your own risk.
-        //
-        CONSISTENCY_CHECK_MSGF(VER_PRODUCTBUILD == GetDCB()->m_verMajor,
-            ("version of %s (%d) in the debuggee does not match version of mscordbi.dll (%d) in the debugger.\n"
-             "This means your setup is wrong. You can ignore this but proceed at your own risk.\n", 
-             MAIN_CLR_DLL_NAME_A, GetDCB()->m_verMajor, VER_PRODUCTBUILD));
-        CONSISTENCY_CHECK_MSGF(VER_PRODUCTBUILD_QFE == GetDCB()->m_verMinor,
-            ("QFE version of %s (%d) in the debuggee does not match QFE version of mscordbi.dll (%d) in the debugger.\n"
-             "Both dlls have build # (%d).\n"
-             "This means your setup is wrong. You can ignore this but proceed at your own risk.\n", 
-             MAIN_CLR_DLL_NAME_A, GetDCB()->m_verMinor, VER_PRODUCTBUILD_QFE, VER_PRODUCTBUILD));
-    }
-#endif // !FEATURE_CORECLR
 
     // These assertions verify that the debug manager is behaving correctly.
     // An assertion failure here means that the runtime version of the debuggee is different from the runtime version of
@@ -8099,7 +8017,9 @@ void CordbProcess::DispatchUnmanagedInBandEvent()
             break;
 
         // Get the thread for this event
+        _ASSERTE(pUnmanagedThread == NULL);
         pUnmanagedThread = pUnmanagedEvent->m_owner;
+        _ASSERTE(pUnmanagedThread != NULL);
 
         // We better not have dispatched it yet!
         _ASSERTE(!pUnmanagedEvent->IsDispatched());
@@ -8157,13 +8077,10 @@ void CordbProcess::DispatchUnmanagedInBandEvent()
         m_pShim->GetWin32EventThread()->DoDbgContinue(this, pUnmanagedEvent);
 
         // Release our reference to the unmanaged thread that we dispatched
-        if (pUnmanagedThread)
-        {
-            // This event should have been continued long ago...
-            _ASSERTE(!pUnmanagedThread->IBEvent()->IsEventWaitingForContinue());
-            pUnmanagedThread->InternalRelease();
-            pUnmanagedThread = NULL;
-        }
+        // This event should have been continued long ago...
+        _ASSERTE(!pUnmanagedThread->IBEvent()->IsEventWaitingForContinue());
+        pUnmanagedThread->InternalRelease();
+        pUnmanagedThread = NULL;
     }
 
     m_dispatchingUnmanagedEvent = false;
@@ -14415,13 +14332,12 @@ void ExitProcessWorkItem::Do()
         PUBLIC_CALLBACK_IN_THIS_SCOPE0_NO_LOCK(GetProcess());
         pCordb->m_managedCallback->ExitProcess(GetProcess());
     }
+
     // This CordbProcess object now has no reservations against a client calling ICorDebug::Terminate.
     // That call may race against the CordbProcess::Neuter below, but since we already neutered the children,
     // that neuter call will not do anything interesting that will conflict with Terminate.
     
-    
     LOG((LF_CORDB, LL_INFO1000,"W32ET::EP: returned from ExitProcess callback\n"));
-
 
     {
         RSLockHolder ch(GetProcess()->GetStopGoLock());
@@ -14575,6 +14491,10 @@ void CordbWin32EventThread::ExitProcess(bool fDetach)
     // and dispatch it inband w/the other callbacks.
     if (!fDetach)
     {
+#ifdef FEATURE_PAL
+        // Cleanup the transport pipe and semaphore files that might be left by the target (LS) process.
+        m_pNativePipeline->CleanupTargetProcess();
+#endif
         ExitProcessWorkItem * pItem = new (nothrow) ExitProcessWorkItem(m_pProcess);
         if (pItem != NULL)
         {
@@ -15187,11 +15107,7 @@ bool CordbProcess::IsCompatibleWith(DWORD clrMajorVersion)
     //  honored for SLv4.
     if (requiredVersion <= 0)
     {
-#if defined(FEATURE_CORECLR)
         requiredVersion = 2;
-#else
-        requiredVersion = 4;
-#endif
     }
 
     // Compare the version we were created for against the minimum required

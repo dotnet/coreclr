@@ -46,12 +46,7 @@ public:
     static
     void QCALLTYPE GetExecutingAssembly(QCall::StackCrawlMarkHandle stackMark, QCall::ObjectHandleOnStack retAssembly);
 
-    static FCDECL2(Object*,         LoadFile,                   StringObject* pathUNSAFE,
-                                                                Object* securityUNSAFE);
-    static FCDECL6(Object*,         LoadImage,                  U1Array* PEByteArrayUNSAFE, U1Array* SymByteArrayUNSAFE, Object* securityUNSAFE, StackCrawlMark* stackMark, CLR_BOOL fForIntrospection, SecurityContextSource securityContextSource);
-
-#ifdef FEATURE_HOSTED_BINDER
-    static FCDECL9(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
+    static FCDECL10(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
                                                                 StringObject* codeBaseUNSAFE, 
                                                                 Object* securityUNSAFE, 
                                                                 AssemblyBaseObject* requestingAssemblyUNSAFE,
@@ -59,21 +54,8 @@ public:
                                                                 ICLRPrivBinder * pPrivHostBinder,
                                                                 CLR_BOOL fThrowOnFileNotFound,
                                                                 CLR_BOOL fForIntrospection,
-                                                                CLR_BOOL fSuppressSecurityChecks);
-
-#else //!FEATURE_HOSTED_BINDER
-    static FCDECL8(Object*,         Load,                       AssemblyNameBaseObject* assemblyNameUNSAFE, 
-                                                                StringObject* codeBaseUNSAFE, 
-                                                                Object* securityUNSAFE, 
-                                                                AssemblyBaseObject* requestingAssemblyUNSAFE,
-                                                                StackCrawlMark* stackMark,
-                                                                CLR_BOOL fThrowOnFileNotFound,
-                                                                CLR_BOOL fForIntrospection,
-                                                                CLR_BOOL fSuppressSecurityChecks);
-#endif // FEATURE_HOSTED_BINDER
-
-    static FCDECL1(FC_BOOL_RET, IsFrameworkAssembly, AssemblyNameBaseObject* refAssemblyNameUNSAFE);
-    static FCDECL1(FC_BOOL_RET, IsNewPortableAssembly, AssemblyNameBaseObject* refAssemblyNameUNSAFE);
+                                                                CLR_BOOL fSuppressSecurityChecks,
+                                                                INT_PTR ptrLoadContextBinder);
 
     //
     // instance FCALLs
@@ -85,10 +67,6 @@ public:
     static
     INT32 QCALLTYPE GetHashAlgorithm(QCall::AssemblyHandle pAssembly);
 
-#ifndef FEATURE_CORECLR
-    static
-    BYTE QCALLTYPE GetSecurityRuleSet(QCall::AssemblyHandle pAssembly);
-#endif // !FEATURE_CORECLR
 
     static 
     void QCALLTYPE GetSimpleName(QCall::AssemblyHandle pAssembly, QCall::StringHandleOnStack retSimpleName);
@@ -131,7 +109,7 @@ public:
                                              QCall::ObjectHandleOnStack retModule);
 
     static 
-    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType);
+    void QCALLTYPE GetType(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive);
     
     static 
     INT32 QCALLTYPE GetManifestResourceInfo(QCall::AssemblyHandle pAssembly, LPCWSTR wszName, QCall::ObjectHandleOnStack retAssembly, QCall::StringHandleOnStack retFileName, QCall::StackCrawlMarkHandle stackMark);
@@ -160,10 +138,6 @@ public:
     static FCDECL1(ReflectModuleBaseObject *, GetOnDiskAssemblyModule, AssemblyBaseObject * pAssemblyUNSAFE);
     static FCDECL1(ReflectModuleBaseObject *, GetInMemoryAssemblyModule, AssemblyBaseObject * pAssemblyUNSAFE);
 
-#ifndef FEATURE_CORECLR
-    static 
-    FCDECL1(FC_BOOL_RET, IsGlobalAssemblyCache, AssemblyBaseObject* pAssemblyUNSAFE);
-#endif // !FEATURE_CORECLR
 
     static
     void QCALLTYPE GetGrantSet(QCall::AssemblyHandle pAssembly, QCall::ObjectHandleOnStack retGranted, QCall::ObjectHandleOnStack retDenied);
@@ -186,10 +160,6 @@ public:
     static
     INT64 QCALLTYPE GetHostContext(QCall::AssemblyHandle pAssembly);
 
-#ifdef FEATURE_CAS_POLICY
-    static
-    BOOL QCALLTYPE IsStrongNameVerified(QCall::AssemblyHandle pAssembly);
-#endif // FEATURE_CAS_POLICY
 
     //
     // AssemblyBuilder FCALLs
@@ -198,22 +168,6 @@ public:
     static
     void QCALLTYPE PrepareForSavingManifestToDisk(QCall::AssemblyHandle pAssembly, QCall::ModuleHandle pAssemblyModule);
 
-#ifndef FEATURE_CORECLR    
-    static
-    void QCALLTYPE SaveManifestToDisk(QCall::AssemblyHandle pAssembly,
-                                      LPCWSTR           wszManifestFileName, 
-                                      INT32             entrypoint, 
-                                      INT32             fileKind, 
-                                      INT32             portableExecutableKind, 
-                                      INT32             imageFileMachine);
-
-    static 
-    mdExportedType QCALLTYPE AddExportedTypeOnDisk(QCall::AssemblyHandle pAssembly, LPCWSTR wzzCOMTypeName, INT32 tkImpl, INT32 tkTypeDef, INT32 flags);
-
-    static 
-    mdExportedType QCALLTYPE AddExportedTypeInMemory(QCall::AssemblyHandle pAssembly, LPCWSTR wzzCOMTypeName, INT32 tkImpl, INT32 tkTypeDef, INT32 flags);
-
-#endif // FEATURE_CORECLR
 
     static
     mdFile QCALLTYPE AddFile(QCall::AssemblyHandle pAssembly, LPCWSTR wszFileName);
@@ -227,22 +181,6 @@ public:
     static
     void QCALLTYPE AddDeclarativeSecurity(QCall::AssemblyHandle pAssembly, INT32 action, PVOID blob, INT32 length);
 
-#ifndef FEATURE_CORECLR
-    static 
-    void QCALLTYPE CreateVersionInfoResource(LPCWSTR    pwzFilename,
-                                             LPCWSTR    pwzTitle,
-                                             LPCWSTR    pwzIconFilename,
-                                             LPCWSTR    pwzDescription,
-                                             LPCWSTR    pwzCopyright,
-                                             LPCWSTR    pwzTrademark,
-                                             LPCWSTR    pwzCompany,
-                                             LPCWSTR    pwzProduct,
-                                             LPCWSTR    pwzProductVersion,
-                                             LPCWSTR    pwzFileVersion,
-                                             INT32      lcid,
-                                             BOOL       fIsDll,
-                                             QCall::StringHandleOnStack retFileName);
-#endif // !FEATURE_CORECLR
 
     static
     void QCALLTYPE GetRawBytes(QCall::AssemblyHandle pAssembly, QCall::ObjectHandleOnStack retRawBytes);

@@ -34,7 +34,7 @@
 
 // Comment this out to use a fixed random number seed.
 
-#define USE_RANDOM_SEED
+// #define USE_RANDOM_SEED
 
 // The code has been adapted for use as a benchmark by Microsoft.
 
@@ -43,7 +43,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace Crypto
+[assembly: OptimizeForBenchmarks]
+
+namespace V8.Crypto
 {
     public class Support
     {

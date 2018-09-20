@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Text;
 
@@ -20,7 +21,7 @@ namespace System.Globalization
                 CodePageDataItem dataItem = s_encodingDataTableItems[i];
 
                 arrayEncodingInfo[i] = new EncodingInfo(dataItem.CodePage, dataItem.WebName,
-                    Environment.GetResourceString(dataItem.DisplayNameResourceKey));
+                    SR.GetResourceString(dataItem.DisplayNameResourceKey));
             }
 
             return arrayEncodingInfo;
@@ -30,7 +31,7 @@ namespace System.Globalization
         {
             if (name == null)
             {
-                throw new ArgumentNullException("name");
+                throw new ArgumentNullException(nameof(name));
             }
             Contract.EndContractBlock();
 
@@ -44,7 +45,7 @@ namespace System.Globalization
             throw new ArgumentException(
                 string.Format(
                     CultureInfo.CurrentCulture,
-                    Environment.GetResourceString("Argument_EncodingNotSupported"), name), "name");
+                    SR.Argument_EncodingNotSupported, name), nameof(name));
         }
 
         internal static CodePageDataItem GetCodePageDataItem(int codepage)
@@ -82,7 +83,7 @@ namespace System.Globalization
                     break;
             }
 
-            Contract.Assert(item == null || item.CodePage == codepage, "item.CodePage needs to equal the specified codepage");
+            Debug.Assert(item == null || item.CodePage == codepage, "item.CodePage needs to equal the specified codepage");
             return item;
         }
 
@@ -91,7 +92,7 @@ namespace System.Globalization
 #if DEBUG
         static EncodingTable()
         {
-            Contract.Assert(
+            Debug.Assert(
                 s_encodingDataTable.Count == EncodingTableCapacity,
                 string.Format(CultureInfo.InvariantCulture,
                     "EncodingTable s_encodingDataTable's initial capacity (EncodingTableCapacity) is incorrect.{0}Expected (s_encodingDataTable.Count): {1}, Actual (EncodingTableCapacity): {2}",

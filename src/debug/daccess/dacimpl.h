@@ -1432,7 +1432,6 @@ private:
     ICLRMetadataLocator * m_legacyMetaDataLocator;
 
     LONG m_refs;
-    HRESULT m_memStatus;
     MDImportsCache m_mdImports;
     ICLRDataEnumMemoryRegionsCallback* m_enumMemCb;
     ICLRDataEnumMemoryRegionsCallback2* m_updateMemCb;
@@ -2570,9 +2569,14 @@ public:
         /* [size_is][out] */ BYTE *outBuffer);
 
     HRESULT RequestGetModulePtr(IN ULONG32 inBufferSize,
-                              IN BYTE* inBuffer,
-                              IN ULONG32 outBufferSize,
-                              OUT BYTE* outBuffer);
+                                IN BYTE* inBuffer,
+                                IN ULONG32 outBufferSize,
+                                OUT BYTE* outBuffer);
+
+    HRESULT RequestGetModuleData(IN ULONG32 inBufferSize,
+                                 IN BYTE* inBuffer,
+                                 IN ULONG32 outBufferSize,
+                                 OUT BYTE* outBuffer);
 
     Module* GetModule(void)
     {

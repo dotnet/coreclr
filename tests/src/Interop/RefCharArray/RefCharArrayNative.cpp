@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int LEN = 10;
+const int LEN = 10;
 extern "C" BOOL DLL_EXPORT _cdecl MarshalRefCharArray_Cdecl(char ** pstr)
 {
     //Check the Input

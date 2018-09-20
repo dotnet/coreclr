@@ -55,9 +55,6 @@ class FieldDesc
         // 8 bits...
         unsigned m_isStatic         : 1;
         unsigned m_isThreadLocal    : 1;
-#ifdef FEATURE_REMOTING
-        unsigned m_isContextLocal   : 1;
-#endif
         unsigned m_isRVA            : 1;
         unsigned m_prot             : 3;
         // Does this field's mb require all 24 bits
@@ -277,12 +274,6 @@ public:
                       : dwOffset;
     }
 
-    BOOL IsILOnlyRVAField()
-    {
-        WRAPPER_NO_CONTRACT;
-        return (IsRVA() && GetModule()->GetFile()->IsILOnly());
-    }
-
     DWORD   IsStatic() const
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -295,9 +286,6 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         return m_isStatic && (m_isRVA || m_isThreadLocal
-#ifdef FEATURE_REMOTING
-            || m_isContextLocal
-#endif
             );
     }
 
@@ -335,11 +323,7 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-#ifdef FEATURE_REMOTING     
-        return m_isContextLocal;
-#else
         return FALSE;
-#endif
     }
 
     // Indicate that this field was added by EnC
@@ -619,11 +603,6 @@ public:
 
         _ASSERTE(IsStatic());
 
-#ifdef FEATURE_REMOTING     
-        if (IsContextStatic()) 
-            return Context::GetStaticFieldAddress(this);
-        else 
-#endif            
         if (IsThreadStatic()) 
         {
             return Thread::GetStaticFieldAddress(this);

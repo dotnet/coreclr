@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -33,7 +36,7 @@
              int32 V_7)
     IL_0000:  ldc.i4.1
     IL_0001:  stloc.0
-    IL_0002:  ldftn       string[] [mscorlib]System.Environment::GetCommandLineArgs()
+    IL_0002:  ldftn       string[] [system.runtime.extensions]System.Environment::GetCommandLineArgs()
     IL_0003:  calli       string[]()
     IL_0007:  stloc.1
     IL_0008:  ldloc.1

@@ -52,6 +52,39 @@ public class StringMarshalingTest
         }
     }
 
+    private unsafe void SecureStringToBSTRToString()
+    {
+        foreach (String ts in TestStrings)
+        {
+            SecureString secureString = new SecureString();
+            foreach (char character in ts)
+            {
+                secureString.AppendChar(character);
+            }
+
+            IntPtr BStr = IntPtr.Zero;
+            String str;
+
+            try
+            {
+                BStr = Marshal.SecureStringToBSTR(secureString);
+                str = Marshal.PtrToStringBSTR(BStr);
+            }
+            finally
+            {
+                if (BStr != IntPtr.Zero)
+                {
+                    Marshal.ZeroFreeBSTR(BStr);
+                }
+            }
+
+            if (!str.Equals(ts))
+            {
+                throw new Exception();
+            }
+        }
+    }
+
     private void StringToCoTaskMemAnsiToString()
     {
         foreach (String ts in TestStrings)
@@ -171,14 +204,42 @@ public class StringMarshalingTest
 
     }
 
+    public  void TestUTF8String()
+    {
+        foreach (String srcString in TestStrings)
+        {
+            // we assume string null terminated
+            if (srcString.Contains("\0"))
+                continue;
+
+            IntPtr ptrString = Marshal.StringToCoTaskMemUTF8(srcString);
+            string retString = Marshal.PtrToStringUTF8(ptrString);
+
+            if (!srcString.Equals(retString))
+            {
+                throw new Exception("Round triped strings do not match...");
+            }
+            if (srcString.Length > 0)
+            {
+                string retString2 = Marshal.PtrToStringUTF8(ptrString, srcString.Length - 1);
+                if (!retString2.Equals(srcString.Substring(0, srcString.Length - 1)))
+                {
+                    throw new Exception("Round triped strings do not match...");
+                }
+            }
+            Marshal.FreeHGlobal(ptrString);
+        }
+    }
 
     public  bool RunTests()
     {
         StringToBStrToString();
+        SecureStringToBSTRToString();
         StringToCoTaskMemAnsiToString();
         StringToCoTaskMemUniToString();
         StringToHGlobalAnsiToString();
         StringToHGlobalUniToString();
+        TestUTF8String();
         return true;
     }
 

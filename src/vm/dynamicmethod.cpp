@@ -376,7 +376,7 @@ HeapList* HostCodeHeap::CreateCodeHeap(CodeHeapRequestInfo *pInfo, EEJitManager 
     pHp->bFull           = FALSE;
     pHp->cBlocks         = 0;
 #ifdef _WIN64
-    emitJump(pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
+    emitJump((LPBYTE)pHp->CLRPersonalityRoutine, (void *)ProcessCLRException);
 #endif
 
     // zero the ref count as now starts the real counter
@@ -917,7 +917,7 @@ void LCGMethodResolver::Reset()
     m_DynamicStringLiterals = NULL;
     m_recordCodePointer     = NULL;
     m_UsedIndCellList       = NULL;
-    m_jumpStubBlock         = NULL;
+    m_pJumpStubCache        = NULL;
     m_next                  = NULL;
     m_Code                  = NULL;
 }
@@ -1035,19 +1035,24 @@ void LCGMethodResolver::Destroy(BOOL fDomainUnload)
             m_recordCodePointer = NULL;
         }
 
-        JumpStubBlockHeader* current = m_jumpStubBlock;
-        JumpStubBlockHeader* next;
-        while (current)
+        if (m_pJumpStubCache != NULL)
         {
-            next = current->m_next;
+            JumpStubBlockHeader* current = m_pJumpStubCache->m_pBlocks;            
+            while (current)
+            {
+                JumpStubBlockHeader* next = current->m_next;
 
-            HostCodeHeap *pHeap = current->GetHostCodeHeap();
-            LOG((LF_BCL, LL_INFO1000, "Level3 - Resolver {0x%p} - Release reference to heap {%p, vt(0x%x)} \n", current, pHeap, *(size_t*)pHeap));
-            pHeap->m_pJitManager->FreeCodeMemory(pHeap, current);
+                HostCodeHeap *pHeap = current->GetHostCodeHeap();
+                LOG((LF_BCL, LL_INFO1000, "Level3 - Resolver {0x%p} - Release reference to heap {%p, vt(0x%x)} \n", current, pHeap, *(size_t*)pHeap));
+                pHeap->m_pJitManager->FreeCodeMemory(pHeap, current);
 
-            current = next;
+                current = next;
+            }
+            m_pJumpStubCache->m_pBlocks = NULL;
+
+            delete m_pJumpStubCache;
+            m_pJumpStubCache = NULL;
         }
-        m_jumpStubBlock = NULL;
 
         if (m_managedResolver)
         {

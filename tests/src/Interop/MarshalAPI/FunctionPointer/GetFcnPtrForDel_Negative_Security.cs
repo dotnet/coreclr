@@ -4,10 +4,11 @@
 using System;
 using System.Security;
 using System.Runtime.InteropServices;
+#pragma warning disable 618
 
 partial class FunctionPtr
 {
-    [DllImport("FunctionPointerNative")]
+    [DllImport("FunctionPointerNative", CallingConvention=CallingConvention.Cdecl)]
     public static extern bool CheckFcnPtr(IntPtr fcnptr);
 
     public delegate bool DelegateWithLong(long l); //Singlecast delegate
@@ -83,3 +84,4 @@ partial class FunctionPtr
             throw new Exception("Failed multicast call");
     }
 }
+#pragma warning restore 618

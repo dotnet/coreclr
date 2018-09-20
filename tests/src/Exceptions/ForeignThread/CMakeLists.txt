@@ -11,5 +11,3 @@ add_library (ForeignThreadExceptionsNative SHARED ${SOURCES})
 
 # add the install targets
 install (TARGETS ForeignThreadExceptionsNative DESTINATION bin)
-
-

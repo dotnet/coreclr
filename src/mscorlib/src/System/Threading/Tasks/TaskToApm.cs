@@ -22,6 +22,7 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System.IO;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Threading.Tasks
@@ -59,7 +60,7 @@ namespace System.Threading.Tasks
             {
                 // Asynchronous completion
                 asyncResult = task.AsyncState == state ? (IAsyncResult)task : new TaskWrapperAsyncResult(task, state, completedSynchronously: false);
-                if (callback != null) 
+                if (callback != null)
                     InvokeCallbackWhenTaskCompletes(task, callback, asyncResult);
             }
             return asyncResult;
@@ -76,7 +77,7 @@ namespace System.Threading.Tasks
             if (twar != null)
             {
                 task = twar.Task;
-                Contract.Assert(task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
+                Debug.Assert(task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
             }
             // Otherwise, the IAsyncResult should be a Task.
             else
@@ -101,7 +102,7 @@ namespace System.Threading.Tasks
             if (twar != null)
             {
                 task = twar.Task as Task<TResult>;
-                Contract.Assert(twar.Task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
+                Debug.Assert(twar.Task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
             }
             // Otherwise, the IAsyncResult should be a Task<TResult>.
             else
@@ -128,7 +129,7 @@ namespace System.Threading.Tasks
             // We use OnCompleted rather than ContinueWith in order to avoid running synchronously
             // if the task has already completed by the time we get here.  This is separated out into
             // its own method currently so that we only pay for the closure if necessary.
-            antecedent.ConfigureAwait(continueOnCapturedContext:false)
+            antecedent.ConfigureAwait(continueOnCapturedContext: false)
                       .GetAwaiter()
                       .OnCompleted(() => callback(asyncResult));
 
@@ -166,7 +167,7 @@ namespace System.Threading.Tasks
             /// <param name="task">The Task to wrap.</param>
             /// <param name="state">The new AsyncState value</param>
             /// <param name="completedSynchronously">The new CompletedSynchronously value.</param>
-            internal TaskWrapperAsyncResult(Task task, object state, bool completedSynchronously) 
+            internal TaskWrapperAsyncResult(Task task, object state, bool completedSynchronously)
             {
                 Contract.Requires(task != null);
                 Contract.Requires(!completedSynchronously || task.IsCompleted, "If completedSynchronously is true, the task must be completed.");

@@ -11,30 +11,35 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
 
-    using System;
-    using System.Runtime.Serialization;
+using System;
+using System.Runtime.Serialization;
 
-[System.Runtime.InteropServices.ComVisible(true)]
-    [Serializable]
-    public class MarshalDirectiveException : SystemException {
-        public MarshalDirectiveException() 
-            : base(Environment.GetResourceString("Arg_MarshalDirectiveException")) {
-            SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
-        }
-    
-        public MarshalDirectiveException(String message) 
-            : base(message) {
-            SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
-        }
-    
-        public MarshalDirectiveException(String message, Exception inner) 
-            : base(message, inner) {
-            SetErrorCode(__HResults.COR_E_MARSHALDIRECTIVE);
+namespace System.Runtime.InteropServices
+{
+    public class MarshalDirectiveException : SystemException
+    {
+        public MarshalDirectiveException()
+            : base(SR.Arg_MarshalDirectiveException)
+        {
+            HResult = __HResults.COR_E_MARSHALDIRECTIVE;
         }
 
-        protected MarshalDirectiveException(SerializationInfo info, StreamingContext context) : base(info, context) {
+        public MarshalDirectiveException(String message)
+            : base(message)
+        {
+            HResult = __HResults.COR_E_MARSHALDIRECTIVE;
+        }
+
+        public MarshalDirectiveException(String message, Exception inner)
+            : base(message, inner)
+        {
+            HResult = __HResults.COR_E_MARSHALDIRECTIVE;
+        }
+
+        protected MarshalDirectiveException(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            throw new PlatformNotSupportedException();
         }
     }
 }

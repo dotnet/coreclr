@@ -6,11 +6,11 @@ CoreCLR tests
 
 **Building**
 
-Build CoreCLR and CoreFX. Refer to building instructions in the respective repository.
+Build CoreCLR on [Windows](https://github.com/dotnet/coreclr/blob/master/Documentation/building/windows-instructions.md) & [Unix](https://github.com/dotnet/coreclr/blob/master/Documentation/building/linux-instructions.md), and CoreFX on [Unix](https://github.com/dotnet/corefx/blob/master/Documentation/building/unix-instructions.md).
 
 To build only the tests, on the Windows machine:
 
-> `C:\coreclr>tests\buildtest.cmd clean`
+> `C:\coreclr>build-test.cmd -rebuild`
 
 **Running tests**
 
@@ -18,7 +18,6 @@ The following instructions assume that on the Unix machine:
 - The CoreCLR repo is cloned at `~/coreclr`
 - The CoreFX repo is cloned at `~/corefx`
 - The Windows clone of the CoreCLR repo is mounted at `/media/coreclr`
-- The Windows clone of the CoreFX repo is mounted at `/media/corefx`
 
 Tests currently need to be built on Windows and copied over to the Unix machine for testing. Copy the test build over to the Unix machine:
 
@@ -28,17 +27,29 @@ See runtest.sh usage information:
 
 > `~/coreclr$ tests/runtest.sh --help`
 
-Run tests:
+Run tests (`Debug` may be replaced with `Release` or `Checked`, depending on which Configuration you've built):
 
 > ```bash
 > ~/coreclr$ tests/runtest.sh
 >     --testRootDir=~/test/Windows_NT.x64.Debug
 >     --testNativeBinDir=~/coreclr/bin/obj/Linux.x64.Debug/tests
 >     --coreClrBinDir=~/coreclr/bin/Product/Linux.x64.Debug
->     --mscorlibDir=/media/coreclr/bin/Product/Linux.x64.Debug
->     --coreFxBinDir=~/corefx/bin/Linux.AnyCPU.Debug
->     --coreFxNativeBinDir=~/corefx/bin/Linux.x64.Debug
+>     --mscorlibDir=~/coreclr/bin/Product/Linux.x64.Debug
+>     --coreFxBinDir=~/corefx/bin/runtime/netcoreapp-Linux-Debug-x64
 > ```
+
+The method above will copy dependencies from the set of directories provided to create an 'overlay' directory.
+If you already have an overlay directory prepared with the dependencies you need, you can specify `--coreOverlayDir`
+instead of `--coreClrBinDir`, `--mscorlibDir`, `--coreFxBinDir`, and `--coreFxNativeBinDir`. It would look something like:
+
+
+> ```bash
+> ~/coreclr$ tests/runtest.sh
+>     --testRootDir=~/test/Windows_NT.x64.Debug
+>     --testNativeBinDir=~/coreclr/bin/obj/Linux.x64.Debug/tests
+>     --coreOverlayDir=/path/to/directory/containing/overlay
+> ```
+
 
 Test results will go into:
 

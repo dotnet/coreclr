@@ -285,12 +285,7 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
 {
     CONTRACTL
     {
-#ifdef FEATURE_REDHAWK
-        // Redhawk returns NULL on failure.
         NOTHROW;
-#else
-        THROWS;
-#endif
         GC_NOTRIGGER;
         if (object != NULL) 
         { 
@@ -308,10 +303,13 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     if (g_pConfig->ShouldInjectFault(INJECTFAULT_HANDLETABLE))
     {
         FAULT_NOT_FATAL();
-        char *a = new char;
-        delete a;
+        return NULL;
     }
 #endif // _DEBUG && !FEATURE_REDHAWK
+
+    // If we are creating a variable-strength handle, verify that the
+    // requested variable handle type is valid.
+    _ASSERTE(uType != HNDTYPE_VARIABLE || IS_VALID_VHT_VALUE(lExtraInfo));
 
     VALIDATEOBJECTREF(object);
 
@@ -327,11 +325,7 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     // did the allocation succeed?
     if (!handle)
     {
-#ifdef FEATURE_REDHAWK
         return NULL;
-#else
-        ThrowOutOfMemory();
-#endif
     }
 
 #ifdef DEBUG_DestroyedHandleValue
@@ -353,8 +347,9 @@ OBJECTHANDLE HndCreateHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTREF obje
     // store the reference
     HndAssignHandle(handle, object);
 
-    // update perf-counters: track number of handles
-    COUNTER_ONLY(GetPerfCounters().m_GC.cHandles ++);
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    g_dwHandles++;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef GC_PROFILING
     {
@@ -503,8 +498,9 @@ void HndDestroyHandle(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE handle)
     }        
 #endif //GC_PROFILING
 
-    // update perf-counters: track number of handles
-    COUNTER_ONLY(GetPerfCounters().m_GC.cHandles --);
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    g_dwHandles--;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
     // sanity check the type index
     _ASSERTE(uType < pTable->uTypeCount);
@@ -583,8 +579,9 @@ uint32_t HndCreateHandles(HHANDLETABLE hTable, uint32_t uType, OBJECTHANDLE *pHa
         uSatisfied += TableAllocHandlesFromCache(pTable, uType, pHandles + uSatisfied, uCount - uSatisfied);
     }
 
-    // update perf-counters: track number of handles
-    COUNTER_ONLY(GetPerfCounters().m_GC.cHandles += uSatisfied);
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    g_dwHandles += uSatisfied;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef GC_PROFILING
     {
@@ -629,8 +626,9 @@ void HndDestroyHandles(HHANDLETABLE hTable, uint32_t uType, const OBJECTHANDLE *
     }
 #endif
 
-    // update perf-counters: track number of handles
-    COUNTER_ONLY(GetPerfCounters().m_GC.cHandles -= uCount);
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    g_dwHandles -= uCount;
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
     // is this a small number of handles?
     if (uCount <= SMALL_ALLOC_COUNT)
@@ -751,7 +749,7 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
         uint32_t hndType = HandleFetchType(handle);
         ADIndex appDomainIndex = HndGetHandleADIndex(handle);   
         AppDomain* pAppDomain = SystemDomain::GetAppDomainAtIndex(appDomainIndex);
-        uint32_t generation = value != 0 ? GCHeap::GetGCHeap()->WhichGeneration(value) : 0;
+        uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
         FireEtwSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
         FireEtwPrvSetGCHandle((void*) handle, value, hndType, generation, (int64_t) pAppDomain, GetClrInstanceId());
 
@@ -770,14 +768,14 @@ void HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value)
                     for (size_t i = 0; i < num; i ++)
                     {
                         value = ppObj[i];
-                        uint32_t generation = value != 0 ? GCHeap::GetGCHeap()->WhichGeneration(value) : 0;
+                        uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
                         FireEtwSetGCHandle(overlapped, value, HNDTYPE_PINNED, generation, (int64_t) pAppDomain, GetClrInstanceId());
                     }
                 }
                 else
                 {
                     value = OBJECTREF_TO_UNCHECKED_OBJECTREF(overlapped->m_userObject);
-                    uint32_t generation = value != 0 ? GCHeap::GetGCHeap()->WhichGeneration(value) : 0;
+                    uint32_t generation = value != 0 ? g_theGCHeap->WhichGeneration(value) : 0;
                     FireEtwSetGCHandle(overlapped, value, HNDTYPE_PINNED, generation, (int64_t) pAppDomain, GetClrInstanceId());
                 }
             }
@@ -834,7 +832,7 @@ void HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF objref)
     if (*pClumpAge != 0) // Perf optimization: if clumpAge is 0, nothing more to do
     {
         // find out generation
-        int generation = GCHeap::GetGCHeap()->WhichGeneration(value);
+        int generation = g_theGCHeap->WhichGeneration(value);
         uint32_t uType = HandleFetchType(handle);
 
 #ifndef FEATURE_REDHAWK
@@ -1330,24 +1328,6 @@ void  Ref_RelocateAsyncPinHandles(HandleTableBucket *pSource, HandleTableBucket 
 }
 #endif // !FEATURE_REDHAWK
 
-BOOL Ref_ContainHandle(HandleTableBucket *pBucket, OBJECTHANDLE handle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    int limit = getNumberOfSlots();
-    for (int n = 0; n < limit; n ++ )
-    {
-        if (TableContainHandle(Table(pBucket->pTable[n]), handle))
-            return TRUE;
-    }
-
-    return FALSE;
-}
 /*--------------------------------------------------------------------------*/
 
 

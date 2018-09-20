@@ -10,7 +10,6 @@
 #include "corinfo.h"
 #include "codeman.h"
 #include "jitinterface.h"
-#include "simplerhash.h"
 #include "stack.h"
 #include "crst.h"
 #include "callhelpers.h"
@@ -719,7 +718,7 @@ class InterpreterCEEInfo: public CEEInfo
 {
     CEEJitInfo m_jitInfo;
 public:
-    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CorJitFlag(0)) { m_pOverride = this; }
+    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CORJIT_FLAGS::CORJIT_FLAG_SPEED_OPT) { m_pOverride = this; }
     
     // Certain methods are unimplemented by CEEInfo (they hit an assert).  They are implemented by CEEJitInfo, yet
     // don't seem to require any of the CEEJitInfo state we can't provide.  For those case, delegate to the "partial"
@@ -1017,7 +1016,7 @@ private:
 #endif
     };
 
-    typedef SimplerHashTable<void*, PtrKeyFuncs<void>, CORINFO_METHOD_HANDLE, DefaultSimplerHashBehavior> AddrToMDMap;
+    typedef MapSHash<void*, CORINFO_METHOD_HANDLE> AddrToMDMap;
     static AddrToMDMap* s_addrToMDMap;
     static AddrToMDMap* GetAddrToMdMap();
 
@@ -1030,7 +1029,7 @@ private:
         Thread* m_thread;
 #endif // _DEBUG
     };
-    typedef SimplerHashTable<CORINFO_METHOD_HANDLE, PtrKeyFuncs<CORINFO_METHOD_STRUCT_>, MethInfo, DefaultSimplerHashBehavior> MethodHandleToInterpMethInfoPtrMap;
+    typedef MapSHash<CORINFO_METHOD_HANDLE, MethInfo> MethodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* s_methodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* GetMethodHandleToInterpMethInfoPtrMap();
 

@@ -11,42 +11,26 @@
 **
 ** 
 ===========================================================*/
-namespace System.Diagnostics.SymbolStore {
-    
-    using System;
-    using System.Text;
-    using System.Reflection;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
 
+using System;
+using System.Text;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+
+namespace System.Diagnostics.SymbolStore
+{
     // Interface does not need to be marked with the serializable attribute
-[System.Runtime.InteropServices.ComVisible(true)]
-    public interface ISymbolWriter
+    internal interface ISymbolWriter
     {
-        // Set the IMetadataEmitter that this symbol writer is associated
-        // with. This must be done only once before any other ISymbolWriter
-        // methods are called.
-        void Initialize(IntPtr emitter, String filename, bool fFullBuild);
-        
         // Define a source document. Guid's will be provided for the
         // languages, vendors, and document types that we currently know
         // about.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         ISymbolDocumentWriter DefineDocument(String url,
                                           Guid language,
                                           Guid languageVendor,
                                           Guid documentType);
-    
-        // Define the method that the user has defined as their entrypoint
-        // for this module. This would be, perhaps, the user's main method
-        // rather than compiler generated stubs before main.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
-        void SetUserEntryPoint(SymbolToken entryMethod);
-    
+
         // Open a method to emit symbol information into. The given method
         // becomes the current method for calls do define sequence points,
         // parameters and lexical scopes. There is an implicit lexical
@@ -55,32 +39,23 @@ namespace System.Diagnostics.SymbolStore {
         // defined symbols for that method.
         //
         // There can be only one open method at a time.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void OpenMethod(SymbolToken method);
-    
+
         // Close the current method. Once a method is closed, no more
         // symbols can be defined within it.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void CloseMethod();
-    
+
         // Define a group of sequence points within the current method.
         // Each line/column defines the start of a statement within a
         // method. The arrays should be sorted by offset. The offset is
         // always the offset from the start of the method, in bytes.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void DefineSequencePoints(ISymbolDocumentWriter document,
                                   int[] offsets,
                                   int[] lines,
                                   int[] columns,
                                   int[] endLines,
                                   int[] endColumns);
-    
+
         // Open a new lexical scope in the current method. The scope
         // becomes the new current scope and is effectivley pushed onto a
         // stack of scopes. startOffset is the offset, in bytes from the
@@ -96,22 +71,13 @@ namespace System.Diagnostics.SymbolStore {
         // Note: scope id's are only valid in the current method.
         //
 
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         int OpenScope(int startOffset);
-    
+
         // Close the current lexical scope. Once a scope is closed no more
         // variables can be defined within it. endOffset points past the
         // last instruction in the scope.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void CloseScope(int endOffset);
-    
-        // Define the offset range for a given lexical scope.
-        void SetScopeRange(int scopeID, int startOffset, int endOffset);
-    
+
         // Define a single variable in the current lexical
         // scope. startOffset and endOffset are optional. If 0, then they
         // are ignored and the variable is defined over the entire
@@ -120,9 +86,6 @@ namespace System.Diagnostics.SymbolStore {
         // variable of the same name that has multiple homes throughout a
         // scope. (Note: start/end offsets must not overlap in such a
         // case.)
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void DefineLocalVariable(String name,
                                         FieldAttributes attributes,
                                         byte[] signature,
@@ -132,87 +95,17 @@ namespace System.Diagnostics.SymbolStore {
                                         int addr3,
                                         int startOffset,
                                         int endOffset);
-    
-        // Define a single parameter in the current method. The type of
-        // each parameter is taken from its position (sequence) within the
-        // method's signature.
-        //
-        // Note: if parameters are defined in the metadata for a given
-        // method, then clearly one would not have to define them again
-        // with calls to this method. The symbol readers will have to be
-        // smart enough to check the normal metadata for these first then
-        // fall back to the symbol store.
-        void DefineParameter(String name,
-                                    ParameterAttributes attributes,
-                                    int sequence,
-                                    SymAddressKind addrKind,
-                                    int addr1,
-                                    int addr2,
-                                    int addr3);
-    
-        // Define a single variable not within a method. This is used for
-        // certian fields in classes, bitfields, etc.
-        void DefineField(SymbolToken parent,
-                                String name,
-                                FieldAttributes attributes,
-                                byte[] signature,
-                                SymAddressKind addrKind,
-                                int addr1,
-                                int addr2,
-                                int addr3);
-    
-        // Define a single global variable.
-        void DefineGlobalVariable(String name,
-                                         FieldAttributes attributes,
-                                         byte[] signature,
-                                         SymAddressKind addrKind,
-                                         int addr1,
-                                         int addr2,
-                                         int addr3);
-    
-        // Close will close the ISymbolWriter and commit the symbols
-        // to the symbol store. The ISymbolWriter becomes invalid
-        // after this call for further updates.
-        void Close();
-    
+
         // Defines a custom attribute based upon its name. Not to be
         // confused with Metadata custom attributes, these attributes are
         // held in the symbol store.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void SetSymAttribute(SymbolToken parent, String name, byte[] data);
-    
-        // Opens a new namespace. Call this before defining methods or
-        // variables that live within a namespace. Namespaces can be nested.
-        void OpenNamespace(String name);
-    
-        // Close the most recently opened namespace.
-        void CloseNamespace();
-    
+
         // Specifies that the given, fully qualified namespace name is
         // being used within the currently open lexical scope. Closing the
         // current scope will also stop using the namespace, and the
         // namespace will be in use in all scopes that inherit from the
         // currently open scope.
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         void UsingNamespace(String fullName);
-        
-        // Specifies the true start and end of a method within a source
-        // file. Use this to specify the extent of a method independently
-        // of what sequence points exist within the method.
-        void SetMethodSourceRange(ISymbolDocumentWriter startDoc,
-                                         int startLine,
-                                         int startColumn,
-                                         ISymbolDocumentWriter endDoc,
-                                         int endLine,
-                                         int endColumn);
-
-        // Used to set the underlying ISymUnmanagedWriter that a
-        // managed ISymbolWriter may use to emit symbols with.
-        void SetUnderlyingWriter(IntPtr underlyingWriter);
     }
-
 }

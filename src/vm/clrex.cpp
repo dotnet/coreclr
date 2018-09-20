@@ -343,9 +343,8 @@ HRESULT CLRException::SetErrorInfo()
 
         EX_TRY
         {
-            LeaveRuntimeHolderNoThrow lrh((size_t)::SetErrorInfo);                
-            ::SetErrorInfo(0, pErrorInfo);                                              
-            pErrorInfo->Release(); 
+            ::SetErrorInfo(0, pErrorInfo);
+            pErrorInfo->Release();
 
             // Success in setting the ErrorInfo on the thread
             hr = S_OK;
@@ -1717,11 +1716,7 @@ OBJECTREF EETypeLoadException::CreateThrowable()
 // EEFileLoadException is an EE exception subclass representing a file loading
 // error
 // ---------------------------------------------------------------------------
-#ifdef FEATURE_FUSION
-EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, IFusionBindLog *pFusionLog, Exception *pInnerException/* = NULL*/)
-#else
 EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, void *pFusionLog, Exception *pInnerException/* = NULL*/)
-#endif
   : EEException(GetFileLoadKind(hr)),
     m_name(name),
     m_pFusionLog(pFusionLog),
@@ -1753,10 +1748,6 @@ EEFileLoadException::EEFileLoadException(const SString &name, HRESULT hr, void *
 
         m_name.Set(wszTemplate);
     }
-#ifdef FEATURE_FUSION
-    if (m_pFusionLog != NULL)
-        m_pFusionLog->AddRef();
-#endif    
 }
 
 
@@ -1765,10 +1756,6 @@ EEFileLoadException::~EEFileLoadException()
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-#ifdef FEATURE_FUSION
-    if (m_pFusionLog)
-        m_pFusionLog->Release();
-#endif    
 }
 
 
@@ -1880,19 +1867,6 @@ OBJECTREF EEFileLoadException::CreateThrowable()
 
     // Fetch any log info from the fusion log
     SString logText;
-#ifdef FEATURE_FUSION    
-    if (m_pFusionLog != NULL)
-    {
-        DWORD dwSize = 0;
-        HRESULT hr = m_pFusionLog->GetBindLog(0,0,NULL,&dwSize);
-        if (hr==HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER)) 
-        {
-            WCHAR *buffer = logText.OpenUnicodeBuffer(dwSize);
-            hr=m_pFusionLog->GetBindLog(0,0,buffer, &dwSize);
-            logText.CloseBuffer();
-        }
-    }
-#endif
     struct _gc {
         OBJECTREF pNewException;
         STRINGREF pNewFileString;
@@ -1958,33 +1932,6 @@ BOOL EEFileLoadException::CheckType(Exception* ex)
 // <TODO>@todo: ideally we would use inner exceptions with these routines</TODO>
 
 /* static */
-#ifdef FEATURE_FUSION
-void DECLSPEC_NORETURN EEFileLoadException::Throw(AssemblySpec *pSpec, IFusionBindLog *pFusionLog, HRESULT hr, Exception *pInnerException/* = NULL*/)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    
-    if (hr == COR_E_THREADABORTED)
-        COMPlusThrow(kThreadAbortException);
-    if (hr == E_OUTOFMEMORY)
-        COMPlusThrowOM();
-#ifdef FEATURE_COMINTEROP
-    if ((hr == RO_E_METADATA_NAME_NOT_FOUND) || (hr == CLR_E_BIND_TYPE_NOT_FOUND))
-    {   // These error codes behave like FileNotFound, but are exposed as TypeLoadException
-        EX_THROW_WITH_INNER(EETypeLoadException, (pSpec->GetWinRtTypeNamespace(), pSpec->GetWinRtTypeClassName(), nullptr, nullptr, IDS_EE_WINRT_LOADFAILURE), pInnerException);
-    }
-#endif //FEATURE_COMINTEROP
-    
-    StackSString name;
-    pSpec->GetFileOrDisplayName(0, name);
-    EX_THROW_WITH_INNER(EEFileLoadException, (name, hr, pFusionLog), pInnerException);
-}
-#endif //FEATURE_FUSION
 
 /* static */
 void DECLSPEC_NORETURN EEFileLoadException::Throw(AssemblySpec  *pSpec, HRESULT hr, Exception *pInnerException/* = NULL*/)
@@ -2055,56 +2002,10 @@ void DECLSPEC_NORETURN EEFileLoadException::Throw(LPCWSTR path, HRESULT hr, Exce
     if (hr == E_OUTOFMEMORY)
         COMPlusThrowOM();
 
-#ifndef CROSSGEN_COMPILE
-    // Remove path - location must be hidden for security purposes
-
-    LPCWSTR pStart = wcsrchr(path, '\\');
-    if (pStart != NULL)
-        pStart++;
-    else
-        pStart = path;
-#else
-    LPCWSTR pStart = path;
-#endif
-    EX_THROW_WITH_INNER(EEFileLoadException, (StackSString(pStart), hr), pInnerException);
+    EX_THROW_WITH_INNER(EEFileLoadException, (StackSString(path), hr), pInnerException);
 }
 
 /* static */
-#ifdef FEATURE_FUSION
-void DECLSPEC_NORETURN EEFileLoadException::Throw(IAssembly *pIAssembly, IHostAssembly *pIHostAssembly, HRESULT hr, Exception *pInnerException/* = NULL*/)
-{
-    CONTRACTL
-    {
-        GC_TRIGGERS;
-        THROWS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-    
-    if (hr == COR_E_THREADABORTED)
-        COMPlusThrow(kThreadAbortException);
-    if (hr == E_OUTOFMEMORY || hr == HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY))
-        COMPlusThrowOM();
-
-    StackSString name;
-
-    {
-        SafeComHolder<IAssemblyName> pName;
-    
-        HRESULT newHr;
-        
-        if (pIAssembly)
-            newHr = pIAssembly->GetAssemblyNameDef(&pName);
-        else
-            newHr = pIHostAssembly->GetAssemblyNameDef(&pName);
-
-        if (SUCCEEDED(newHr))
-            FusionBind::GetAssemblyNameDisplayName(pName, name, 0);
-    }
-        
-    EX_THROW_WITH_INNER(EEFileLoadException, (name, hr), pInnerException);
-}
-#endif
 /* static */
 void DECLSPEC_NORETURN EEFileLoadException::Throw(PEAssembly *parent, 
                                                   const void *memory, COUNT_T size, HRESULT hr, Exception *pInnerException/* = NULL*/)
@@ -2566,10 +2467,6 @@ CLRLastThrownObjectException* CLRLastThrownObjectException::Validate()
 
     DWORD dwCurrentExceptionCode = GetCurrentExceptionCode();
 
-#if HAS_TRACK_CXX_EXCEPTION_CODE_HACK
-    DWORD dwLastCxxSEHExceptionCode = pThread->m_LastCxxSEHExceptionCode;
-#endif // HAS_TRACK_CXX_EXCEPTION_CODE_HACK
-
     if (dwCurrentExceptionCode == BOOTUP_EXCEPTION_COMPLUS)
     {
         // BOOTUP_EXCEPTION_COMPLUS can be thrown when a thread setup is failed due to reasons like
@@ -2609,75 +2506,7 @@ CLRLastThrownObjectException* CLRLastThrownObjectException::Validate()
         //
         // This also ensures that the handling of BOOTUP_EXCEPTION_COMPLUS is now insync between the chk and fre builds in terms of the throwable returned.
     }
-    else 
-    
-#if HAS_TRACK_CXX_EXCEPTION_CODE_HACK // ON x86, we grab the exception code.
-
-    // The exception code can legitimately take several values.
-    // The most obvious is EXCEPTION_COMPLUS, as when managed code does 'throw new Exception'.
-    // Another case is EXCEPTION_MSVC, when we EX_RETHROW a CLRLastThrownObjectException, which will
-    //  throw an actual CLRLastThrownObjectException C++ exception.
-    // Other values are possible, if we are wrapping an SEH exception (say, AV) in 
-    //  a managed exception.  In these other cases, the exception object should have 
-    //  an XCode that is the same as the exception code.
-    // So, if the exception code isn't EXCEPTION_COMPLUS, and isn't EXCEPTION_MSVC, then 
-    //  we shouldn't be getting a CLRLastThrownObjectException.  This indicates that 
-    //  we are missing a "callout filter", which should have transformed the SEH 
-    //  exception into a COMPLUS exception.
-    // It also turns out that sometimes we see STATUS_UNWIND more recently than the exception
-    //  code.  In that case, we have lost the original exception code, and so can't check.
-    
-    if (dwLastCxxSEHExceptionCode != EXCEPTION_COMPLUS &&
-        dwLastCxxSEHExceptionCode != EXCEPTION_MSVC &&
-        dwLastCxxSEHExceptionCode != STATUS_UNWIND)
-    {
-        // Maybe there is an exception wrapping a Win32 fault.  In that case, the 
-        //  last exception code won't be EXCEPTION_COMPLUS, but the last thrown exception
-        //  will have an XCode equal to the last exception code.
-
-        // Get the exception code from the exception object.
-        DWORD dwExceptionXCode = GetExceptionXCode(throwable);
-
-        // If that code is the same as the last exception code, call it good...
-        if (dwLastCxxSEHExceptionCode != dwExceptionXCode)
-        {
-            // For rude thread abort, we may have updated the LastThrownObject without throwing exception.
-            BOOL fIsRudeThreadAbortException =
-                throwable == CLRException::GetPreallocatedRudeThreadAbortException();
-
-            // For stack overflow, we may have updated the LastThrownObject without throwing exception.
-            BOOL fIsStackOverflowException =
-                throwable == CLRException::GetPreallocatedStackOverflowException()  &&
-                (IsSOExceptionCode(dwLastCxxSEHExceptionCode));
-
-            // ... but if not, raise an error.
-            if (!fIsRudeThreadAbortException && !fIsStackOverflowException)
-            {
-            static int iSuppress = -1;
-            if (iSuppress == -1) 
-                iSuppress = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_SuppressLostExceptionTypeAssert);
-            if (!iSuppress)
-            {   
-                // Raising an assert message can  cause a mode violation.
-                CONTRACT_VIOLATION(ModeViolation);
-
-                // Use DbgAssertDialog to get the formatting right.
-                DbgAssertDialog(__FILE__, __LINE__, 
-                    "The 'current' exception is not EXCEPTION_COMPLUS, yet the runtime is\n"
-                    " requesting the 'LastThrownObject'.\n"
-                    "The runtime may have lost track of the type of an exception in flight.\n"
-                    "  Please get a good stack trace of the exception that was thrown first\n"
-                    "  (by re-running the app & catching first chance exceptions), find\n"
-                    "  the caller of Validate, and file a bug against the owner.\n\n"
-                    "To suppress this assert 'set COMPlus_SuppressLostExceptionTypeAssert=1'");
-                }
-            }
-        }
-    }
-    else
-#endif // _x86_
-    
-    if (throwable == NULL)
+    else if (throwable == NULL)
     {   // If there isn't a LastThrownObject at all, that's a problem for GetLastThrownObject
         // We've lost track of the exception's type.  Raise an assert.  (This is configurable to allow
         //  stress labs to turn off the assert.)

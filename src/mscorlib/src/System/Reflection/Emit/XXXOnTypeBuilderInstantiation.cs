@@ -4,15 +4,16 @@
 
 // 
 
+using System;
+using System.Reflection;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection.Emit
 {
-    using System;
-    using System.Reflection;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Globalization;
-    using System.Diagnostics.Contracts;
-
     internal sealed class MethodOnTypeBuilderInstantiation : MethodInfo
     {
         #region Private Static Members
@@ -30,43 +31,27 @@ namespace System.Reflection.Emit
         #region Constructor
         internal MethodOnTypeBuilderInstantiation(MethodInfo method, TypeBuilderInstantiation type)
         {
-            Contract.Assert(method is MethodBuilder || method is RuntimeMethodInfo);
+            Debug.Assert(method is MethodBuilder || method is RuntimeMethodInfo);
 
             m_method = method;
             m_type = type;
         }
         #endregion
-        
+
         internal override Type[] GetParameterTypes()
         {
             return m_method.GetParameterTypes();
         }
 
         #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return m_method.MemberType;  } }
+        public override MemberTypes MemberType { get { return m_method.MemberType; } }
         public override String Name { get { return m_method.Name; } }
         public override Type DeclaringType { get { return m_type; } }
         public override Type ReflectedType { get { return m_type; } }
-        public override Object[] GetCustomAttributes(bool inherit) { return m_method.GetCustomAttributes(inherit); } 
+        public override Object[] GetCustomAttributes(bool inherit) { return m_method.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_method.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_method.IsDefined(attributeType, inherit); }
-        internal int MetadataTokenInternal
-        {
-            get
-            {
-                MethodBuilder mb = m_method as MethodBuilder;
-
-                if (mb != null)
-                    return mb.MetadataTokenInternal;
-                else
-                {
-                    Contract.Assert(m_method is RuntimeMethodInfo);
-                    return m_method.MetadataToken;
-                }
-            }
-        }
-        public override Module Module { get { return m_method.Module; } }              
-        public new Type GetType() { return base.GetType(); }
+        public override Module Module { get { return m_method.Module; } }
         #endregion
 
         #region MethodBase Members
@@ -80,21 +65,21 @@ namespace System.Reflection.Emit
             throw new NotSupportedException();
         }
         public override CallingConventions CallingConvention { get { return m_method.CallingConvention; } }
-        public override Type [] GetGenericArguments() { return m_method.GetGenericArguments(); }
+        public override Type[] GetGenericArguments() { return m_method.GetGenericArguments(); }
         public override MethodInfo GetGenericMethodDefinition() { return m_method; }
         public override bool IsGenericMethodDefinition { get { return m_method.IsGenericMethodDefinition; } }
         public override bool ContainsGenericParameters { get { return m_method.ContainsGenericParameters; } }
         public override MethodInfo MakeGenericMethod(params Type[] typeArgs)
         {
             if (!IsGenericMethodDefinition)
-                throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericMethodDefinition"));
+                throw new InvalidOperationException(SR.Arg_NotGenericMethodDefinition);
             Contract.EndContractBlock();
 
             return MethodBuilderInstantiation.MakeGenericMethod(this, typeArgs);
         }
 
         public override bool IsGenericMethod { get { return m_method.IsGenericMethod; } }
-      
+
         #endregion
 
         #region Public Abstract\Virtual Members
@@ -122,13 +107,13 @@ namespace System.Reflection.Emit
         #region Constructor
         internal ConstructorOnTypeBuilderInstantiation(ConstructorInfo constructor, TypeBuilderInstantiation type)
         {
-            Contract.Assert(constructor is ConstructorBuilder || constructor is RuntimeConstructorInfo);
+            Debug.Assert(constructor is ConstructorBuilder || constructor is RuntimeConstructorInfo);
 
             m_ctor = constructor;
             m_type = type;
         }
         #endregion
-        
+
         internal override Type[] GetParameterTypes()
         {
             return m_ctor.GetParameterTypes();
@@ -144,7 +129,7 @@ namespace System.Reflection.Emit
         public override String Name { get { return m_ctor.Name; } }
         public override Type DeclaringType { get { return m_type; } }
         public override Type ReflectedType { get { return m_type; } }
-        public override Object[] GetCustomAttributes(bool inherit) { return m_ctor.GetCustomAttributes(inherit); } 
+        public override Object[] GetCustomAttributes(bool inherit) { return m_ctor.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_ctor.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_ctor.IsDefined(attributeType, inherit); }
         internal int MetadataTokenInternal
@@ -157,13 +142,12 @@ namespace System.Reflection.Emit
                     return cb.MetadataTokenInternal;
                 else
                 {
-                    Contract.Assert(m_ctor is RuntimeConstructorInfo);
+                    Debug.Assert(m_ctor is RuntimeConstructorInfo);
                     return m_ctor.MetadataToken;
                 }
             }
         }
-        public override Module Module { get { return m_ctor.Module; } }              
-        public new Type GetType() { return base.GetType(); }
+        public override Module Module { get { return m_ctor.Module; } }
         #endregion
 
         #region MethodBase Members
@@ -211,10 +195,12 @@ namespace System.Reflection.Emit
             // We're not entirely sure if this cache helps any specific scenarios, so 
             // long-term, one could investigate whether it's needed. In any case, this
             // method isn't expected to be on any critical paths for performance.
-            if (type.m_hashtable.Contains(Field)) {
+            if (type.m_hashtable.Contains(Field))
+            {
                 m = type.m_hashtable[Field] as FieldInfo;
             }
-            else {
+            else
+            {
                 m = new FieldOnTypeBuilderInstantiation(Field, type);
                 type.m_hashtable[Field] = m;
             }
@@ -231,7 +217,7 @@ namespace System.Reflection.Emit
         #region Constructor
         internal FieldOnTypeBuilderInstantiation(FieldInfo field, TypeBuilderInstantiation type)
         {
-            Contract.Assert(field is FieldBuilder || field is RuntimeFieldInfo);
+            Debug.Assert(field is FieldBuilder || field is RuntimeFieldInfo);
 
             m_field = field;
             m_type = type;
@@ -241,11 +227,11 @@ namespace System.Reflection.Emit
         internal FieldInfo FieldInfo { get { return m_field; } }
 
         #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return System.Reflection.MemberTypes.Field; } }          
+        public override MemberTypes MemberType { get { return System.Reflection.MemberTypes.Field; } }
         public override String Name { get { return m_field.Name; } }
         public override Type DeclaringType { get { return m_type; } }
         public override Type ReflectedType { get { return m_type; } }
-        public override Object[] GetCustomAttributes(bool inherit) { return m_field.GetCustomAttributes(inherit); } 
+        public override Object[] GetCustomAttributes(bool inherit) { return m_field.GetCustomAttributes(inherit); }
         public override Object[] GetCustomAttributes(Type attributeType, bool inherit) { return m_field.GetCustomAttributes(attributeType, inherit); }
         public override bool IsDefined(Type attributeType, bool inherit) { return m_field.IsDefined(attributeType, inherit); }
         internal int MetadataTokenInternal
@@ -258,13 +244,12 @@ namespace System.Reflection.Emit
                     return fb.MetadataTokenInternal;
                 else
                 {
-                    Contract.Assert(m_field is RuntimeFieldInfo);
+                    Debug.Assert(m_field is RuntimeFieldInfo);
                     return m_field.MetadataToken;
                 }
             }
         }
-        public override Module Module { get { return m_field.Module; } }              
-        public new Type GetType() { return base.GetType(); }
+        public override Module Module { get { return m_field.Module; } }
         #endregion
 
         #region Public Abstract\Virtual Members
@@ -277,15 +262,15 @@ namespace System.Reflection.Emit
         public override Object GetValueDirect(TypedReference obj)
         {
             throw new NotImplementedException();
-        }    
-        public override RuntimeFieldHandle FieldHandle 
+        }
+        public override RuntimeFieldHandle FieldHandle
         {
             get { throw new NotImplementedException(); }
-        }    
+        }
         public override Type FieldType { get { throw new NotImplementedException(); } }
         public override Object GetValue(Object obj) { throw new InvalidOperationException(); }
         public override void SetValue(Object obj, Object value, BindingFlags invokeAttr, Binder binder, CultureInfo culture) { throw new InvalidOperationException(); }
-        public override FieldAttributes Attributes { get { return m_field.Attributes;  } }
+        public override FieldAttributes Attributes { get { return m_field.Attributes; } }
         #endregion
     }
 }

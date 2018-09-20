@@ -12,12 +12,12 @@
 **
 =============================================================================*/
 
-namespace System.Runtime.InteropServices {
-    using System;
+using System;
 
-[System.Runtime.InteropServices.ComVisible(true)]
+namespace System.Runtime.InteropServices
+{
     public interface ICustomAdapter
-    {        
-        [return:MarshalAs(UnmanagedType.IUnknown)] Object GetUnderlyingObject();
+    {
+        [return: MarshalAs(UnmanagedType.IUnknown)] Object GetUnderlyingObject();
     }
 }

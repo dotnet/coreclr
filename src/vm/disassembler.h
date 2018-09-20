@@ -10,19 +10,18 @@
 #define USE_COREDISTOOLS_DISASSEMBLER 0
 #define USE_MSVC_DISASSEMBLER 0
 #ifdef HAVE_GCCOVER
-    #if defined(FEATURE_CORECLR)
-        // COREDISTOOLS disassembler only supports amd64, so if this is
-        // CoreCLR but not amd64, we will fall out of this check and not
+        // COREDISTOOLS disassembler only supports amd64 and x86, so if this is
+        // CoreCLR but not amd64 and not x86, we will fall out of this check and not
         // set USE_DISASSEMBLER.
-        #if defined(_TARGET_AMD64_)
+        #if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
             #undef USE_COREDISTOOLS_DISASSEMBLER
             #define USE_COREDISTOOLS_DISASSEMBLER 1
         #endif
-    #elif defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
-        #undef USE_MSVC_DISASSEMBLER
-        #define USE_MSVC_DISASSEMBLER 1
-    #endif // defined(FEATURE_CORECLR) || defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
 #endif // HAVE_GCCOVER
+
+#if USE_COREDISTOOLS_DISASSEMBLER
+#include "coredistools.h"
+#endif
 
 #if USE_COREDISTOOLS_DISASSEMBLER || USE_MSVC_DISASSEMBLER
     #define USE_DISASSEMBLER 1
@@ -61,7 +60,6 @@ class Disassembler
 {
 #if USE_COREDISTOOLS_DISASSEMBLER
 private:
-    class CorDisasm;
     typedef CorDisasm ExternalDisassembler;
 #elif USE_MSVC_DISASSEMBLER
 private:
@@ -98,23 +96,9 @@ public:
 #if USE_COREDISTOOLS_DISASSEMBLER
 private:
     static HMODULE s_libraryHandle;
-
-    // 'coredistools' library exports
-private:
-
-    enum TargetArch {
-      Target_Host, // Target is the same as host architecture
-      Target_X86,
-      Target_X64,
-      Target_Thumb,
-      Target_Arm64
-    };
-
-    static CorDisasm *(*External_InitDisasm)(enum TargetArch Target);
-    static SIZE_T (*External_DisasmInstruction)(const CorDisasm *Disasm, size_t Address,
-                                  const uint8_t *Bytes, size_t Maxlength,
-                                  bool PrintAssembly);
-    static void (*External_FinishDisasm)(const CorDisasm *Disasm);
+    static InitDisasm_t *External_InitDisasm;
+    static FinishDisasm_t *External_FinishDisasm;
+    static DisasmInstruction_t *External_DisasmInstruction;
 #endif // USE_COREDISTOOLS_DISASSEMBLER
 
 private:

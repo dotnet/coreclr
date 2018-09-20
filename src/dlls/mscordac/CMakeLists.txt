@@ -1,5 +1,4 @@
 include(${CLR_DIR}/dac.cmake)
-
 add_definitions(-DFEATURE_NO_HOST)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
@@ -7,7 +6,6 @@ if(CLR_CMAKE_PLATFORM_UNIX)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 set(CLR_DAC_SOURCES
-    mscordac.cpp
 )
 
 add_definitions(-DFX_VER_INTERNALNAME_STR=mscordaccore.dll)
@@ -20,29 +18,59 @@ if(WIN32)
         mscordac.src
     )
 
+    set(CURRENT_BINARY_DIR_FOR_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR})
+
     #Preprocess exports definition file
-    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/${DEF_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/mscordac.def)
+    preprocess_def_file(${CMAKE_CURRENT_SOURCE_DIR}/${DEF_SOURCES} ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     #create target to add file dependency on mscordac.def
-    add_custom_target(mscordaccore_def DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mscordac.def)
+    add_custom_target(mscordaccore_def DEPENDS ${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def)
 
     # No library groups for Win32
     set(START_LIBRARY_GROUP)
     set(END_LIBRARY_GROUP)
 else(WIN32)
-    if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
-        # This option is necessary to ensure that the overloaded delete operator defined inside
-        # of the utilcode will be used instead of the standard library delete operator.
-        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Bsymbolic-functions")
-
-        # The following linked options can be inserted into the linker libraries list to 
-        # ensure proper resolving of circular references between a subset of the libraries.
-        set(START_LIBRARY_GROUP -Wl,--start-group)
-        set(END_LIBRARY_GROUP -Wl,--end-group)
-    endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_NETBSD)
+    set(DEF_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/mscordac_unixexports.src)
+    set(EXPORTS_FILE ${CMAKE_CURRENT_BINARY_DIR}/mscordac.exports)
+    generate_exports_file(${DEF_SOURCES} ${EXPORTS_FILE})
 endif(WIN32)
 
-add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES})
+if(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+    # This option is necessary to ensure that the overloaded delete operator defined inside
+    # of the utilcode will be used instead of the standard library delete operator.
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Xlinker -Bsymbolic -Xlinker -Bsymbolic-functions")    
+
+    # The following linked options can be inserted into the linker libraries list to 
+    # ensure proper resolving of circular references between a subset of the libraries.
+    set(START_LIBRARY_GROUP -Wl,--start-group)
+    set(END_LIBRARY_GROUP -Wl,--end-group)
+
+    # These options are used to force every object to be included even if it's unused.
+    set(START_WHOLE_ARCHIVE -Wl,--whole-archive)
+    set(END_WHOLE_ARCHIVE -Wl,--no-whole-archive) 
+
+    # Add linker exports file option
+    set(EXPORTS_LINKER_OPTION -Wl,--version-script=${EXPORTS_FILE})
+endif(CLR_CMAKE_PLATFORM_LINUX OR CLR_CMAKE_PLATFORM_FREEBSD OR CLR_CMAKE_PLATFORM_NETBSD)
+
+if(CLR_CMAKE_PLATFORM_DARWIN)
+    # Add linker exports file option
+    set(EXPORTS_LINKER_OPTION -Wl,-exported_symbols_list,${EXPORTS_FILE})
+endif(CLR_CMAKE_PLATFORM_DARWIN)
+
+# Create object library to enable creation of proper dependency of mscordaccore.exp on mscordac.obj and
+# mscordaccore on both the mscordaccore.exp and mscordac.obj.
+add_library(mscordacobj OBJECT mscordac.cpp)
+
+add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
+
+if(CLR_CMAKE_PLATFORM_UNIX)
+    add_custom_target(mscordaccore_exports DEPENDS ${EXPORTS_FILE})
+    add_dependencies(mscordaccore mscordaccore_exports)
+
+    set_property(TARGET mscordaccore APPEND_STRING PROPERTY LINK_FLAGS ${EXPORTS_LINKER_OPTION})
+    set_property(TARGET mscordaccore APPEND_STRING PROPERTY LINK_DEPENDS ${EXPORTS_FILE})
+endif(CLR_CMAKE_PLATFORM_UNIX)
 
 # IMPORTANT! Please do not rearrange the order of the libraries. The linker on Linux is
 # order dependent and changing the order can result in undefined symbols in the shared 
@@ -61,6 +89,7 @@ set(COREDAC_LIBRARIES
     strongname_dac
     utilcode_dac
     unwinder_dac
+    gc_dac
     ${END_LIBRARY_GROUP} # End group of libraries that have circular references
 )
 
@@ -68,15 +97,26 @@ if(WIN32)
     # mscordac.def should be generated before mscordaccore.dll is built
     add_dependencies(mscordaccore mscordaccore_def)
 
+    set(MSCORDAC_OBJ_PATH "${CMAKE_CURRENT_BINARY_DIR}/mscordacobj.dir/${CMAKE_CFG_INTDIR}/mscordac.obj")
+
     # Generate export file
-    add_custom_command(TARGET mscordaccore
-        PRE_LINK
-        COMMAND lib.exe /OUT:"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.lib" /DEF:"${CMAKE_CURRENT_BINARY_DIR}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} "${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.dir/$<CONFIG>/mscordac.obj"
+    add_custom_command(
+        DEPENDS mscordaccore_def "${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" mscordacobj daccess
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp
+        COMMAND lib.exe /OUT:"${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.lib" /DEF:"${CURRENT_BINARY_DIR_FOR_CONFIG}/mscordac.def" "$<TARGET_FILE:daccess>" $<$<OR:$<CONFIG:Release>,$<CONFIG:Relwithdebinfo>>:/LTCG> ${STATIC_LIBRARY_FLAGS} ${MSCORDAC_OBJ_PATH}
         COMMENT "Generating mscordaccore.exp export file"
     )
 
+    set_source_files_properties(
+        ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp
+        PROPERTIES GENERATED TRUE
+    )
+
+    add_custom_target(mscordaccore_exp DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp)
+    add_dependencies(mscordaccore mscordaccore_exp)
+
     set(COREDAC_LIBRARIES
-        ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/mscordaccore.exp # export file
+        ${CMAKE_CURRENT_BINARY_DIR}/mscordaccore.exp # export file
         ${COREDAC_LIBRARIES}
         mdwinmd_dac
         kernel32.lib
@@ -86,24 +126,19 @@ if(WIN32)
         uuid.lib
         user32.lib
         ${STATIC_MT_CRT_LIB}
+        ${STATIC_MT_VCRT_LIB}
     )
-
-    # ARM64_TODO: Enable this for Windows Arm64
-    if (NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
-        list(APPEND COREDAC_LIBRARIES 
-          ${STATIC_MT_VCRT_LIB}
-        )
-    endif()
-
 else(WIN32)
     list(APPEND COREDAC_LIBRARIES
         mscorrc_debug
+        ${START_WHOLE_ARCHIVE} # force all PAL objects to be included so all exports are available  
         coreclrpal
+        ${END_WHOLE_ARCHIVE}
         palrt
     )
 endif(WIN32)
 
-target_link_libraries(mscordaccore ${COREDAC_LIBRARIES})
+target_link_libraries(mscordaccore PRIVATE ${COREDAC_LIBRARIES})
 
 # add the install targets
 install_clr(mscordaccore)

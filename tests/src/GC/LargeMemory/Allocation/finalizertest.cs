@@ -3,19 +3,20 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.CompilerServices;
 
 // a large object that resurrects itself
 public sealed class LargeObject2 {
 
     private byte[][] data;
 
-    public const long GB = 1024*1024*1024;
+    public const long MB = 1024*1024;
 
-    public LargeObject2(uint sizeInGB)
+    public LargeObject2(uint sizeInMB)
     {
-        data = new byte[sizeInGB][];
-        for (int i=0; i<sizeInGB; i++) {
-            data[i] = new byte[GB];
+        data = new byte[sizeInMB][];
+        for (int i=0; i<sizeInMB; i++) {
+            data[i] = new byte[MB];
         }
 
     }
@@ -30,9 +31,9 @@ public sealed class LargeObject2 {
 public sealed class FinalizerObject {
     uint size = 0;
 
-    public FinalizerObject(uint sizeInGB)
+    public FinalizerObject(uint sizeInMB)
     {
-        size = sizeInGB;
+        size = sizeInMB;
     }
 
     ~FinalizerObject() {
@@ -46,7 +47,7 @@ public sealed class FinalizerObject {
             return;
         } catch (Exception e) {
             Console.WriteLine("Unexpected Exception");
-            Console.WriteLine(e);
+            Console.WriteLine(e.ToString());
             return;
         }
 
@@ -62,6 +63,8 @@ public sealed class FinalizerTest {
     public static LargeObject2 LO2 = null;
     public static long ObjectSize = 0;
 
+    public LargeObject2 TempObject;
+
     private uint size = 0;
     private int numTests = 0;
 
@@ -69,18 +72,29 @@ public sealed class FinalizerTest {
     public FinalizerTest(uint size) {
         this.size = size;
     }
+    
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    public void CreateLargeObject() {
+        TempObject = new LargeObject2(size);
+    }
+    
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    public void DestroyLargeObject() {
+        TempObject = null;
+    }
 
     bool ressurectionTest() {
         numTests++;
 
         try {
-            new LargeObject2(size);
+            CreateLargeObject();
+            DestroyLargeObject();
         } catch (OutOfMemoryException) {
             Console.WriteLine("Large Memory Machine required");
             return false;
         } catch (Exception e) {
             Console.WriteLine("Unexpected Exception");
-            Console.WriteLine(e);
+            Console.WriteLine(e.ToString());
             return false;
         }
 
@@ -109,7 +123,7 @@ public sealed class FinalizerTest {
             return false;
         } catch (Exception e) {
             Console.WriteLine("Unexpected Exception");
-            Console.WriteLine(e);
+            Console.WriteLine(e.ToString());
             return false;
         }
 
@@ -117,11 +131,11 @@ public sealed class FinalizerTest {
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        if (ObjectSize == size*LargeObject.GB) {
+        if (ObjectSize == size*LargeObject.MB) {
             Console.WriteLine("allocateInFinalizerTest passed");
             return true;
         }
-        Console.WriteLine("{0} {1}", ObjectSize, size*LargeObject.GB);
+        Console.WriteLine("{0} {1}", ObjectSize, size*LargeObject.MB);
         Console.WriteLine("allocateInFinalizerTest failed");
         return false;
 
@@ -145,19 +159,24 @@ public sealed class FinalizerTest {
 
     public static int Main(string[] args) {
 
-        uint size = 0;
+        uint sizeInMB = 0;
         try {
-            size = UInt32.Parse(args[0]);
+            sizeInMB = UInt32.Parse(args[0]);
         } catch (Exception e) {
             if ( (e is IndexOutOfRangeException) || (e is FormatException) || (e is OverflowException) ) {
-                Console.WriteLine("args: uint - number of GB to allocate");
+                Console.WriteLine("args: uint - number of MB to allocate");
                 return 0;
             }
             throw;
         }
 
-        FinalizerTest test = new FinalizerTest(size);
+        int availableMem = MemCheck.GetPhysicalMem();
+        if (availableMem != -1 && availableMem < sizeInMB){
+            sizeInMB = (uint)(availableMem > 300 ? 300 : (availableMem / 2));
+            Console.WriteLine("Not enough memory. Allocating " + sizeInMB + "MB instead.");
+        }
 
+        FinalizerTest test = new FinalizerTest(sizeInMB);
 
         if (test.RunTests()) {
             Console.WriteLine("Test passed");

@@ -28,7 +28,6 @@ using System.Diagnostics.Contracts;
 using System.Diagnostics.Tracing;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Security.Permissions;
 
 namespace System.Runtime.CompilerServices
 {
@@ -48,7 +47,6 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Provides an awaiter that switches into a target environment.</summary>
         /// <remarks>This type is intended for compiler use only.</remarks>
-        [HostProtection(Synchronization = true, ExternalThreading = true)]
         public struct YieldAwaiter : ICriticalNotifyCompletion
         {
             /// <summary>Gets whether a yield is not required.</summary>
@@ -58,7 +56,6 @@ namespace System.Runtime.CompilerServices
             /// <summary>Posts the <paramref name="continuation"/> back to the current context.</summary>
             /// <param name="continuation">The action to invoke asynchronously.</param>
             /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>
-            [SecuritySafeCritical]
             public void OnCompleted(Action continuation)
             {
                 QueueContinuation(continuation, flowContext: true);
@@ -67,7 +64,6 @@ namespace System.Runtime.CompilerServices
             /// <summary>Posts the <paramref name="continuation"/> back to the current context.</summary>
             /// <param name="continuation">The action to invoke asynchronously.</param>
             /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>
-            [SecurityCritical]
             public void UnsafeOnCompleted(Action continuation)
             {
                 QueueContinuation(continuation, flowContext: false);
@@ -77,11 +73,10 @@ namespace System.Runtime.CompilerServices
             /// <param name="continuation">The action to invoke asynchronously.</param>
             /// <param name="flowContext">true to flow ExecutionContext; false if flowing is not required.</param>
             /// <exception cref="System.ArgumentNullException">The <paramref name="continuation"/> argument is null (Nothing in Visual Basic).</exception>
-            [SecurityCritical]
             private static void QueueContinuation(Action continuation, bool flowContext)
             {
                 // Validate arguments
-                if (continuation == null) throw new ArgumentNullException("continuation");
+                if (continuation == null) throw new ArgumentNullException(nameof(continuation));
                 Contract.EndContractBlock();
 
                 if (TplEtwProvider.Log.IsEnabled())
@@ -149,7 +144,6 @@ namespace System.Runtime.CompilerServices
 
                     etwLog.TaskWaitContinuationComplete(continuationId);
                 });
-                
             }
 
             /// <summary>WaitCallback that invokes the Action supplied as object state.</summary>
@@ -162,7 +156,7 @@ namespace System.Runtime.CompilerServices
             private static void RunAction(object state) { ((Action)state)(); }
 
             /// <summary>Ends the await operation.</summary>
-            public void GetResult() {} // Nop. It exists purely because the compiler pattern demands it.
+            public void GetResult() { } // Nop. It exists purely because the compiler pattern demands it.
         }
     }
 }

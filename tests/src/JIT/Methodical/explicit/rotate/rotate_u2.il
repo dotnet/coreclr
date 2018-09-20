@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -190,7 +191,7 @@
         IL_00e6:  conv.i4
         IL_00e7:  beq.s      IL_00ef
 
-        IL_00e9:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_00e9:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_00ee:  throw
 
         IL_00ef:  ldarg.0
@@ -209,7 +210,7 @@
         IL_0110:  conv.i4
         IL_0111:  beq.s      IL_0119
 
-        IL_0113:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_0113:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_0118:  throw
 
         IL_0119:  ret

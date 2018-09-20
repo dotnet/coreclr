@@ -33,7 +33,7 @@ protected:
     enum
     {
         DEFAULT_PAGE_SIZE = 16 * OS_page_size,
-        MIN_PAGE_SIZE = sizeof(PageDescriptor)
+        MIN_PAGE_SIZE     = sizeof(PageDescriptor)
     };
 
     static size_t s_defaultPageSize;
@@ -44,7 +44,7 @@ protected:
     PageDescriptor* m_lastPage;
 
     // These two pointers (when non-null) will always point into 'm_lastPage'.
-    BYTE* m_nextFreeByte; 
+    BYTE* m_nextFreeByte;
     BYTE* m_lastFreeByte;
 
     bool isInitialized();
@@ -67,27 +67,12 @@ public:
 
     virtual void destroy();
 
-#if defined(DEBUG)
-    void* allocateMemory(size_t sz);
-#else // defined(DEBUG)
-    inline void* allocateMemory(size_t size)
-    {
-        void* block = m_nextFreeByte;
-        m_nextFreeByte += size;
-
-        if (m_nextFreeByte > m_lastFreeByte)
-        {
-            block = allocateNewPage(size, true);
-        }
-
-        return block;
-    }
-#endif // !defined(DEBUG)
+    inline void* allocateMemory(size_t sz);
 
     size_t getTotalBytesAllocated();
     size_t getTotalBytesUsed();
 
-    static bool bypassHostAllocator();
+    static bool   bypassHostAllocator();
     static size_t getDefaultPageSize();
 
     static void startup();
@@ -95,5 +80,61 @@ public:
 
     static ArenaAllocator* getPooledAllocator(IEEMemoryManager* memoryManager);
 };
+
+//------------------------------------------------------------------------
+// ArenaAllocator::allocateMemory:
+//    Allocates memory using an `ArenaAllocator`.
+//
+// Arguments:
+//    size - The number of bytes to allocate.
+//
+// Return Value:
+//    A pointer to the allocated memory.
+//
+// Note:
+//    The DEBUG version of the method has some abilities that the release
+//    version does not: it may inject faults into the allocator and
+//    seeds all allocations with a specified pattern to help catch
+//    use-before-init problems.
+//
+inline void* ArenaAllocator::allocateMemory(size_t size)
+{
+    assert(isInitialized());
+    assert(size != 0);
+
+    // Ensure that we always allocate in pointer sized increments.
+    size = (size_t)roundUp(size, sizeof(size_t));
+
+#if defined(DEBUG)
+    if (JitConfig.ShouldInjectFault() != 0)
+    {
+        // Force the underlying memory allocator (either the OS or the CLR hoster)
+        // to allocate the memory. Any fault injection will kick in.
+        void* p = ClrAllocInProcessHeap(0, S_SIZE_T(1));
+        if (p != nullptr)
+        {
+            ClrFreeInProcessHeap(0, p);
+        }
+        else
+        {
+            NOMEM(); // Throw!
+        }
+    }
+#endif
+
+    void* block = m_nextFreeByte;
+    m_nextFreeByte += size;
+
+    if (m_nextFreeByte > m_lastFreeByte)
+    {
+        block = allocateNewPage(size, true);
+    }
+
+#if defined(DEBUG)
+    memset(block, UninitializedWord<char>(), size);
+#endif
+
+    return block;
+}
 
 #endif // _ALLOC_H_

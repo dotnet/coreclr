@@ -8,9 +8,8 @@
 #pragma warning disable 0420 // turn off 'a reference to a volatile field will not be treated as volatile' during CAS.
 
 using System;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Security.Permissions;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime;
 using System.Runtime.CompilerServices;
@@ -38,8 +37,6 @@ namespace System.Threading
     /// All members of this struct are thread-safe and may be used concurrently from multiple threads.
     /// </para>
     /// </remarks>
-    [ComVisible(false)]
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     [DebuggerDisplay("IsCancellationRequested = {IsCancellationRequested}")]
     public struct CancellationToken
     {
@@ -81,14 +78,14 @@ namespace System.Threading
         /// particularly in situations where related objects are being canceled concurrently.
         /// </para>
         /// </remarks>
-        public bool IsCancellationRequested 
+        public bool IsCancellationRequested
         {
             get
             {
                 return m_source != null && m_source.IsCancellationRequested;
             }
         }
-        
+
         /// <summary>
         /// Gets whether this token is capable of being in the canceled state.
         /// </summary>
@@ -156,18 +153,18 @@ namespace System.Threading
         public CancellationToken(bool canceled) :
             this()
         {
-            if(canceled)
+            if (canceled)
                 m_source = CancellationTokenSource.InternalGetStaticSource(canceled);
         }
 
         /* Methods */
-        
+
 
         private readonly static Action<Object> s_ActionToActionObjShunt = new Action<Object>(ActionToActionObjShunt);
         private static void ActionToActionObjShunt(object obj)
         {
             Action action = obj as Action;
-            Contract.Assert(action != null, "Expected an Action here");
+            Debug.Assert(action != null, "Expected an Action here");
             action();
         }
 
@@ -192,8 +189,8 @@ namespace System.Threading
         public CancellationTokenRegistration Register(Action callback)
         {
             if (callback == null)
-                throw new ArgumentNullException("callback");
-            
+                throw new ArgumentNullException(nameof(callback));
+
             return Register(
                 s_ActionToActionObjShunt,
                 callback,
@@ -227,8 +224,8 @@ namespace System.Threading
         public CancellationTokenRegistration Register(Action callback, bool useSynchronizationContext)
         {
             if (callback == null)
-                throw new ArgumentNullException("callback");
-            
+                throw new ArgumentNullException(nameof(callback));
+
             return Register(
                 s_ActionToActionObjShunt,
                 callback,
@@ -260,7 +257,7 @@ namespace System.Threading
         public CancellationTokenRegistration Register(Action<Object> callback, Object state)
         {
             if (callback == null)
-                throw new ArgumentNullException("callback");
+                throw new ArgumentNullException(nameof(callback));
 
             return Register(
                 callback,
@@ -304,7 +301,7 @@ namespace System.Threading
                 true   // useExecutionContext=true
              );
         }
-        
+
         // helper for internal registration needs that don't require an EC capture (e.g. creating linked token sources, or registering unstarted TPL tasks)
         // has a handy signature, and skips capturing execution context.
         internal CancellationTokenRegistration InternalRegisterWithoutEC(Action<object> callback, Object state)
@@ -318,14 +315,10 @@ namespace System.Threading
         }
 
         // the real work..
-        [SecuritySafeCritical]
-        [MethodImpl(MethodImplOptions.NoInlining)]
         private CancellationTokenRegistration Register(Action<Object> callback, Object state, bool useSynchronizationContext, bool useExecutionContext)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-
             if (callback == null)
-                throw new ArgumentNullException("callback");
+                throw new ArgumentNullException(nameof(callback));
 
             if (CanBeCanceled == false)
             {
@@ -343,8 +336,7 @@ namespace System.Threading
                 if (useSynchronizationContext)
                     capturedSyncContext = SynchronizationContext.Current;
                 if (useExecutionContext)
-                    capturedExecutionContext = ExecutionContext.Capture(
-                        ref stackMark, ExecutionContext.CaptureOptions.OptimizeDefaultCase); // ideally we'd also use IgnoreSyncCtx, but that could break compat
+                    capturedExecutionContext = ExecutionContext.Capture();
             }
 
             // Register the callback with the source.
@@ -374,14 +366,14 @@ namespace System.Threading
             {
                 return other.m_source == CancellationTokenSource.InternalGetStaticSource(false);
             }
-            
+
             if (other.m_source == null)
             {
                 return m_source == CancellationTokenSource.InternalGetStaticSource(false);
             }
 
             // general case, we check if the sources are identical
-            
+
             return m_source == other.m_source;
         }
 
@@ -400,7 +392,7 @@ namespace System.Threading
         {
             if (other is CancellationToken)
             {
-                return Equals((CancellationToken) other);
+                return Equals((CancellationToken)other);
             }
 
             return false;
@@ -418,9 +410,9 @@ namespace System.Threading
                 return CancellationTokenSource.InternalGetStaticSource(false).GetHashCode();
             }
 
-            return m_source.GetHashCode(); 
+            return m_source.GetHashCode();
         }
-        
+
         /// <summary>
         /// Determines whether two <see cref="T:System.Threading.CancellationToken">CancellationToken</see> instances are equal.
         /// </summary>
@@ -463,7 +455,7 @@ namespace System.Threading
         /// cref="T:System.Threading.CancellationTokenSource">CancellationTokenSource</see> has been disposed.</exception>
         public void ThrowIfCancellationRequested()
         {
-            if (IsCancellationRequested) 
+            if (IsCancellationRequested)
                 ThrowOperationCanceledException();
         }
 
@@ -477,17 +469,17 @@ namespace System.Threading
         // Throws an OCE; separated out to enable better inlining of ThrowIfCancellationRequested
         private void ThrowOperationCanceledException()
         {
-            throw new OperationCanceledException(Environment.GetResourceString("OperationCanceled"), this);
+            throw new OperationCanceledException(SR.OperationCanceled, this);
         }
 
         private static void ThrowObjectDisposedException()
         {
-            throw new ObjectDisposedException(null, Environment.GetResourceString("CancellationToken_SourceDisposed"));
+            throw new ObjectDisposedException(null, SR.CancellationToken_SourceDisposed);
         }
 
         // -----------------------------------
         // Private helpers
-        
+
         private void InitializeDefaultSource()
         {
             // Lazy is slower, and although multiple threads may try and set m_source repeatedly, the race condition is benign.

@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -57,7 +60,7 @@
 	start_try1: 
 		call void EHTest::f3()
 	try1_out:
-	newobj instance void [mscorlib]System.ApplicationException::.ctor()
+	newobj instance void [mscorlib]System.Exception::.ctor()
 	throw
 	end_try1: 
 	OUT: ret

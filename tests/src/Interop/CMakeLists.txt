@@ -1,13 +1,28 @@
 
+if(WIN32)
+	if(CLR_CMAKE_HOST_ARCH STREQUAL arm)
+	    list(APPEND LINK_LIBRARIES_ADDITIONAL
+	        ole32.lib
+	    )
+	endif(CLR_CMAKE_HOST_ARCH STREQUAL arm)
+endif(WIN32)
+
 include_directories(common)
+add_subdirectory(NativeCallable)
 add_subdirectory(PrimitiveMarshalling/Bool)
 add_subdirectory(PrimitiveMarshalling/UIntPtr)
 add_subdirectory(ArrayMarshalling/BoolArray)
 add_subdirectory(ArrayMarshalling/ByValArray)
+add_subdirectory(PrimitiveMarshalling/EnumMarshalling)
+add_subdirectory(FuncPtrAsDelegateParam)
+add_subdirectory(SimpleStruct)
+add_subdirectory(StructMarshalling/PInvoke)
 add_subdirectory(BestFitMapping)
 add_subdirectory(RefInt)
 add_subdirectory(RefCharArray)
 add_subdirectory(StringMarshalling/LPSTR)
 add_subdirectory(StringMarshalling/LPTSTR)
+add_subdirectory(StringMarshalling/UTF8)
 add_subdirectory(MarshalAPI/FunctionPointer)
 add_subdirectory(MarshalAPI/IUnknown)
+add_subdirectory(SizeConst)

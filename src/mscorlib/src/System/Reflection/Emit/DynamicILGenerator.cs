@@ -6,24 +6,21 @@
 
 namespace System.Reflection.Emit
 {
-
     using System;
     using System.Globalization;
-    using TextWriter = System.IO.TextWriter;
     using System.Diagnostics.SymbolStore;
     using System.Runtime.InteropServices;
     using System.Reflection;
     using System.Collections;
     using System.Collections.Generic;
-    using System.Security.Permissions;
     using System.Threading;
+    using System.Diagnostics;
     using System.Diagnostics.CodeAnalysis;
     using System.Diagnostics.Contracts;
     using System.Security;
 
     internal class DynamicILGenerator : ILGenerator
     {
-
         internal DynamicScope m_scope;
         private int m_methodSigToken;
 
@@ -36,7 +33,6 @@ namespace System.Reflection.Emit
         }
 
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal void GetCallableMethod(RuntimeModule module, DynamicMethod dm)
         {
             dm.m_methodHandle = ModuleHandle.GetDynamicMethod(dm,
@@ -46,34 +42,19 @@ namespace System.Reflection.Emit
                                           new DynamicResolver(this));
         }
 
-#if FEATURE_APPX
-        private bool ProfileAPICheck
-        {
-            get
-            {
-                return ((DynamicMethod)m_methodBuilder).ProfileAPICheck;
-            }
-        }
-#endif // FEATURE_APPX
-
         // *** ILGenerator api ***
 
         public override LocalBuilder DeclareLocal(Type localType, bool pinned)
         {
             LocalBuilder localBuilder;
             if (localType == null)
-                throw new ArgumentNullException("localType");
+                throw new ArgumentNullException(nameof(localType));
             Contract.EndContractBlock();
 
             RuntimeType rtType = localType as RuntimeType;
 
             if (rtType == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"));
-
-#if FEATURE_APPX
-            if (ProfileAPICheck && (rtType.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtType.FullName));
-#endif
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             localBuilder = new LocalBuilder(m_localCount, localType, m_methodBuilder);
             // add the localType to local signature
@@ -87,11 +68,10 @@ namespace System.Reflection.Emit
         // Token resolution calls
         //
         //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override void Emit(OpCode opcode, MethodInfo meth)
         {
             if (meth == null)
-                throw new ArgumentNullException("meth");
+                throw new ArgumentNullException(nameof(meth));
             Contract.EndContractBlock();
 
             int stackchange = 0;
@@ -101,7 +81,7 @@ namespace System.Reflection.Emit
             {
                 RuntimeMethodInfo rtMeth = meth as RuntimeMethodInfo;
                 if (rtMeth == null)
-                    throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeMethodInfo"), "meth");
+                    throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(meth));
 
                 RuntimeType declaringType = rtMeth.GetRuntimeType();
                 if (declaringType != null && (declaringType.IsGenericType || declaringType.IsArray))
@@ -114,7 +94,7 @@ namespace System.Reflection.Emit
                 // rule out not allowed operations on DynamicMethods
                 if (opcode.Equals(OpCodes.Ldtoken) || opcode.Equals(OpCodes.Ldftn) || opcode.Equals(OpCodes.Ldvirtftn))
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_InvalidOpCodeOnDynamicMethod"));
+                    throw new ArgumentException(SR.Argument_InvalidOpCodeOnDynamicMethod);
                 }
                 token = GetTokenFor(dynMeth);
             }
@@ -144,16 +124,15 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public override void Emit(OpCode opcode, ConstructorInfo con)
         {
             if (con == null)
-                throw new ArgumentNullException("con");
+                throw new ArgumentNullException(nameof(con));
             Contract.EndContractBlock();
 
             RuntimeConstructorInfo rtConstructor = con as RuntimeConstructorInfo;
             if (rtConstructor == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeMethodInfo"), "con");
+                throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(con));
 
             RuntimeType declaringType = rtConstructor.GetRuntimeType();
             int token;
@@ -176,13 +155,13 @@ namespace System.Reflection.Emit
         public override void Emit(OpCode opcode, Type type)
         {
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
             Contract.EndContractBlock();
 
             RuntimeType rtType = type as RuntimeType;
 
             if (rtType == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"));
+                throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
             int token = GetTokenFor(rtType);
             EnsureCapacity(7);
@@ -193,12 +172,12 @@ namespace System.Reflection.Emit
         public override void Emit(OpCode opcode, FieldInfo field)
         {
             if (field == null)
-                throw new ArgumentNullException("field");
+                throw new ArgumentNullException(nameof(field));
             Contract.EndContractBlock();
 
             RuntimeFieldInfo runtimeField = field as RuntimeFieldInfo;
             if (runtimeField == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeFieldInfo"), "field");
+                throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo, nameof(field));
 
             int token;
             if (field.DeclaringType == null)
@@ -214,7 +193,7 @@ namespace System.Reflection.Emit
         public override void Emit(OpCode opcode, String str)
         {
             if (str == null)
-                throw new ArgumentNullException("str");
+                throw new ArgumentNullException(nameof(str));
             Contract.EndContractBlock();
 
             int tempVal = GetTokenForString(str);
@@ -228,7 +207,6 @@ namespace System.Reflection.Emit
         // Signature related calls (vararg, calli)
         //
         //
-        [System.Security.SecuritySafeCritical] // overrides SC
         public override void EmitCalli(OpCode opcode,
                                        CallingConventions callingConvention,
                                        Type returnType,
@@ -240,7 +218,7 @@ namespace System.Reflection.Emit
             if (optionalParameterTypes != null)
                 if ((callingConvention & CallingConventions.VarArgs) == 0)
 
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotAVarArgCallingConvention"));
+                    throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
 
             sig = GetMemberRefSignature(callingConvention,
                                         returnType,
@@ -270,57 +248,19 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        public override void EmitCalli(OpCode opcode,
-                                       CallingConvention unmanagedCallConv,
-                                       Type returnType,
-                                       Type[] parameterTypes)
-        {
-            int stackchange = 0;
-            int cParams = 0;
-            int i;
-            SignatureHelper sig;
-
-            if (parameterTypes != null)
-                cParams = parameterTypes.Length;
-
-            sig = SignatureHelper.GetMethodSigHelper(unmanagedCallConv, returnType);
-
-            if (parameterTypes != null)
-                for (i = 0; i < cParams; i++)
-                    sig.AddArgument(parameterTypes[i]);
-
-            // If there is a non-void return type, push one.
-            if (returnType != typeof(void))
-                stackchange++;
-
-            // Pop off arguments if any.
-            if (parameterTypes != null)
-                stackchange -= cParams;
-
-            // Pop the native function pointer.
-            stackchange--;
-            UpdateStackSize(OpCodes.Calli, stackchange);
-
-            EnsureCapacity(7);
-            Emit(OpCodes.Calli);
-            int token = GetTokenForSig(sig.GetSignature(true));
-            PutInteger4(token);
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public override void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[] optionalParameterTypes)
         {
             if (methodInfo == null)
-                throw new ArgumentNullException("methodInfo");
+                throw new ArgumentNullException(nameof(methodInfo));
 
             if (!(opcode.Equals(OpCodes.Call) || opcode.Equals(OpCodes.Callvirt) || opcode.Equals(OpCodes.Newobj)))
-                throw new ArgumentException(Environment.GetResourceString("Argument_NotMethodCallOpcode"), "opcode");
+                throw new ArgumentException(SR.Argument_NotMethodCallOpcode, nameof(opcode));
 
             if (methodInfo.ContainsGenericParameters)
-                throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), "methodInfo");
+                throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
 
             if (methodInfo.DeclaringType != null && methodInfo.DeclaringType.ContainsGenericParameters)
-                throw new ArgumentException(Environment.GetResourceString("Argument_GenericsInvalid"), "methodInfo");
+                throw new ArgumentException(SR.Argument_GenericsInvalid, nameof(methodInfo));
             Contract.EndContractBlock();
 
             int tk;
@@ -351,7 +291,7 @@ namespace System.Reflection.Emit
         public override void Emit(OpCode opcode, SignatureHelper signature)
         {
             if (signature == null)
-                throw new ArgumentNullException("signature");
+                throw new ArgumentNullException(nameof(signature));
             Contract.EndContractBlock();
 
             int stackchange = 0;
@@ -365,7 +305,7 @@ namespace System.Reflection.Emit
             // SignatureHelper.
             if (opcode.StackBehaviourPop == StackBehaviour.Varpop)
             {
-                Contract.Assert(opcode.Equals(OpCodes.Calli),
+                Debug.Assert(opcode.Equals(OpCodes.Calli),
                                 "Unexpected opcode encountered for StackBehaviour VarPop.");
                 // Pop the arguments..
                 stackchange -= signature.ArgumentCount;
@@ -383,25 +323,26 @@ namespace System.Reflection.Emit
         // Exception related generation
         //
         //
-        public override Label BeginExceptionBlock()
-        {
-            return base.BeginExceptionBlock();
-        }
-
-        public override void EndExceptionBlock()
-        {
-            base.EndExceptionBlock();
-        }
-
         public override void BeginExceptFilterBlock()
         {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
+            // Begins an exception filter block. Emits a branch instruction to the end of the current exception block.
+
+            if (CurrExcStackCount == 0)
+                throw new NotSupportedException(SR.Argument_NotInExceptionBlock);
+
+            __ExceptionInfo current = CurrExcStack[CurrExcStackCount - 1];
+
+            Label endLabel = current.GetEndLabel();
+            Emit(OpCodes.Leave, endLabel);
+            UpdateStackSize(OpCodes.Nop, 1);
+
+            current.MarkFilterAddr(ILOffset);
         }
 
         public override void BeginCatchBlock(Type exceptionType)
         {
             if (CurrExcStackCount == 0)
-                throw new NotSupportedException(Environment.GetResourceString("Argument_NotInExceptionBlock"));
+                throw new NotSupportedException(SR.Argument_NotInExceptionBlock);
             Contract.EndContractBlock();
 
             __ExceptionInfo current = CurrExcStack[CurrExcStackCount - 1];
@@ -412,43 +353,35 @@ namespace System.Reflection.Emit
             {
                 if (exceptionType != null)
                 {
-                    throw new ArgumentException(Environment.GetResourceString("Argument_ShouldNotSpecifyExceptionType"));
+                    throw new ArgumentException(SR.Argument_ShouldNotSpecifyExceptionType);
                 }
 
                 this.Emit(OpCodes.Endfilter);
+
+                current.MarkCatchAddr(ILOffset, null);
             }
             else
             {
                 // execute this branch if previous clause is Catch or Fault
                 if (exceptionType == null)
-                    throw new ArgumentNullException("exceptionType");
+                    throw new ArgumentNullException(nameof(exceptionType));
 
                 if (rtType == null)
-                    throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeType"));
+                    throw new ArgumentException(SR.Argument_MustBeRuntimeType);
 
                 Label endLabel = current.GetEndLabel();
                 this.Emit(OpCodes.Leave, endLabel);
 
                 // if this is a catch block the exception will be pushed on the stack and we need to update the stack info
                 UpdateStackSize(OpCodes.Nop, 1);
+
+                current.MarkCatchAddr(ILOffset, exceptionType);
+
+
+                // this is relying on too much implementation details of the base and so it's highly breaking
+                // Need to have a more integrated story for exceptions
+                current.m_filterAddr[current.m_currentCatch - 1] = GetTokenFor(rtType);
             }
-
-            current.MarkCatchAddr(ILOffset, exceptionType);
-
-
-            // this is relying on too much implementation details of the base and so it's highly breaking
-            // Need to have a more integreted story for exceptions
-            current.m_filterAddr[current.m_currentCatch - 1] = GetTokenFor(rtType);
-        }
-
-        public override void BeginFaultBlock()
-        {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
-        }
-
-        public override void BeginFinallyBlock()
-        {
-            base.BeginFinallyBlock();
         }
 
         //
@@ -459,7 +392,7 @@ namespace System.Reflection.Emit
         [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
         public override void UsingNamespace(String ns)
         {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
+            throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
 
         [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
@@ -469,32 +402,31 @@ namespace System.Reflection.Emit
                                                int endLine,
                                                int endColumn)
         {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
+            throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
 
         public override void BeginScope()
         {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
+            throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
 
         public override void EndScope()
         {
-            throw new NotSupportedException(Environment.GetResourceString("InvalidOperation_NotAllowedInDynamicMethod"));
+            throw new NotSupportedException(SR.InvalidOperation_NotAllowedInDynamicMethod);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         private int GetMemberRefToken(MethodBase methodInfo, Type[] optionalParameterTypes)
         {
             Type[] parameterTypes;
 
             if (optionalParameterTypes != null && (methodInfo.CallingConvention & CallingConventions.VarArgs) == 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_NotAVarArgCallingConvention"));
+                throw new InvalidOperationException(SR.InvalidOperation_NotAVarArgCallingConvention);
 
             RuntimeMethodInfo rtMeth = methodInfo as RuntimeMethodInfo;
             DynamicMethod dm = methodInfo as DynamicMethod;
 
             if (rtMeth == null && dm == null)
-                throw new ArgumentException(Environment.GetResourceString("Argument_MustBeRuntimeMethodInfo"), "methodInfo");
+                throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(methodInfo));
 
             ParameterInfo[] paramInfo = methodInfo.GetParametersNoCopy();
             if (paramInfo != null && paramInfo.Length != 0)
@@ -519,29 +451,24 @@ namespace System.Reflection.Emit
                 return GetTokenForVarArgMethod(dm, sig);
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal override SignatureHelper GetMemberRefSignature(
                                                 CallingConventions call,
                                                 Type returnType,
                                                 Type[] parameterTypes,
                                                 Type[] optionalParameterTypes)
         {
-            int cParams;
-            int i;
-            SignatureHelper sig;
-            if (parameterTypes == null)
-                cParams = 0;
-            else
-                cParams = parameterTypes.Length;
-            sig = SignatureHelper.GetMethodSigHelper(call, returnType);
-            for (i = 0; i < cParams; i++)
-                sig.AddArgument(parameterTypes[i]);
+            SignatureHelper sig = SignatureHelper.GetMethodSigHelper(call, returnType);
+            if (parameterTypes != null)
+            {
+                foreach (Type t in parameterTypes)
+                    sig.AddArgument(t);
+            }
             if (optionalParameterTypes != null && optionalParameterTypes.Length != 0)
             {
                 // add the sentinel
                 sig.AddSentinel();
-                for (i = 0; i < optionalParameterTypes.Length; i++)
-                    sig.AddArgument(optionalParameterTypes[i]);
+                foreach (Type t in optionalParameterTypes)
+                    sig.AddArgument(t);
             }
             return sig;
         }
@@ -554,94 +481,36 @@ namespace System.Reflection.Emit
         #region GetTokenFor helpers
         private int GetTokenFor(RuntimeType rtType)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck && (rtType.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtType.FullName));
-#endif
-
             return m_scope.GetTokenFor(rtType.TypeHandle);
         }
 
         private int GetTokenFor(RuntimeFieldInfo runtimeField)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck)
-            {
-                RtFieldInfo rtField = runtimeField as RtFieldInfo;
-                if (rtField != null && (rtField.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtField.FullName));
-            }
-#endif
-
             return m_scope.GetTokenFor(runtimeField.FieldHandle);
         }
 
         private int GetTokenFor(RuntimeFieldInfo runtimeField, RuntimeType rtType)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck)
-            {
-                RtFieldInfo rtField = runtimeField as RtFieldInfo;
-                if (rtField != null && (rtField.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtField.FullName));
-
-                if ((rtType.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtType.FullName));
-            }
-#endif
-
             return m_scope.GetTokenFor(runtimeField.FieldHandle, rtType.TypeHandle);
         }
 
         private int GetTokenFor(RuntimeConstructorInfo rtMeth)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck && (rtMeth.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtMeth.FullName));
-#endif
-
             return m_scope.GetTokenFor(rtMeth.MethodHandle);
         }
 
         private int GetTokenFor(RuntimeConstructorInfo rtMeth, RuntimeType rtType)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck)
-            {
-                if ((rtMeth.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtMeth.FullName));
-
-                if ((rtType.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtType.FullName));
-            }
-#endif
-
             return m_scope.GetTokenFor(rtMeth.MethodHandle, rtType.TypeHandle);
         }
 
         private int GetTokenFor(RuntimeMethodInfo rtMeth)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck && (rtMeth.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtMeth.FullName));
-#endif
-
             return m_scope.GetTokenFor(rtMeth.MethodHandle);
         }
 
         private int GetTokenFor(RuntimeMethodInfo rtMeth, RuntimeType rtType)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck)
-            {
-                if ((rtMeth.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtMeth.FullName));
-
-                if ((rtType.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                    throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtType.FullName));
-            }
-#endif
-
             return m_scope.GetTokenFor(rtMeth.MethodHandle, rtType.TypeHandle);
         }
 
@@ -652,10 +521,6 @@ namespace System.Reflection.Emit
 
         private int GetTokenForVarArgMethod(RuntimeMethodInfo rtMeth, SignatureHelper sig)
         {
-#if FEATURE_APPX
-            if (ProfileAPICheck && (rtMeth.InvocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_NON_W8P_FX_API) != 0)
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_APIInvalidForCurrentContext", rtMeth.FullName));
-#endif
             VarArgMethod varArgMeth = new VarArgMethod(rtMeth, sig);
             return m_scope.GetTokenFor(varArgMeth);
         }
@@ -704,9 +569,6 @@ namespace System.Reflection.Emit
             m_method.m_resolver = this;
         }
 
-#if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-#endif
         internal DynamicResolver(DynamicILInfo dynamicILInfo)
         {
             m_stackSize = dynamicILInfo.MaxStackSize;
@@ -774,7 +636,6 @@ namespace System.Reflection.Emit
         {
             internal RuntimeMethodHandleInternal m_methodHandle;
 
-            [System.Security.SecuritySafeCritical]  // auto-generated
             ~DestroyScout()
             {
                 if (m_methodHandle.IsNullHandle())
@@ -821,17 +682,6 @@ namespace System.Reflection.Emit
 
             typeOwner = m_method.m_typeOwner;
 
-#if FEATURE_COMPRESSEDSTACK
-            if (m_method.m_creationContext != null)
-            {
-                flags |= SecurityControlFlags.HasCreationContext;
-                if(m_method.m_creationContext.CanSkipEvaluation)
-                {
-                    flags |= SecurityControlFlags.CanSkipCSEvaluation;
-                }
-            }
-            
-#endif // FEATURE_COMPRESSEDSTACK
 
             securityControlFlags = (int)flags;
 
@@ -887,7 +737,6 @@ namespace System.Reflection.Emit
             return m_exceptionHeader;
         }
 
-        [System.Security.SecurityCritical]  // auto-generated
         internal override unsafe void GetEHInfo(int excNumber, void* exc)
         {
             CORINFO_EH_CLAUSE* exception = (CORINFO_EH_CLAUSE*)exc;
@@ -915,14 +764,7 @@ namespace System.Reflection.Emit
 
         internal override String GetStringLiteral(int token) { return m_scope.GetString(token); }
 
-#if FEATURE_COMPRESSEDSTACK
-        internal override CompressedStack GetSecurityContext()
-        {
-            return m_method.m_creationContext;
-        }
-#endif // FEATURE_COMPRESSEDSTACK
 
-        [System.Security.SecurityCritical]
         internal override void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle)
         {
             typeHandle = new IntPtr();
@@ -1003,11 +845,7 @@ namespace System.Reflection.Emit
     }
 
 
-#if FEATURE_CORECLR
-[System.Security.SecurityCritical] // auto-generated
-#endif
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class DynamicILInfo
+    internal class DynamicILInfo
     {
         #region Private Data Members
         private DynamicMethod m_method;
@@ -1019,20 +857,7 @@ namespace System.Reflection.Emit
         private int m_methodSignature;
         #endregion
 
-        #region Constructor
-        internal DynamicILInfo(DynamicScope scope, DynamicMethod method, byte[] methodSignature)
-        {
-            m_method = method;
-            m_scope = scope;
-            m_methodSignature = m_scope.GetTokenFor(methodSignature);
-            m_exceptions = EmptyArray<Byte>.Value;
-            m_code = EmptyArray<Byte>.Value;
-            m_localSignature = EmptyArray<Byte>.Value;
-        }
-        #endregion
-
         #region Internal Methods
-        [System.Security.SecurityCritical]  // auto-generated
         internal void GetCallableMethod(RuntimeModule module, DynamicMethod dm)
         {
             dm.m_methodHandle = ModuleHandle.GetDynamicMethod(dm,
@@ -1058,117 +883,8 @@ namespace System.Reflection.Emit
         public DynamicMethod DynamicMethod { get { return m_method; } }
         internal DynamicScope DynamicScope { get { return m_scope; } }
 
-        public void SetCode(byte[] code, int maxStackSize)
-        {
-            m_code = (code != null) ? (byte[])code.Clone() : EmptyArray<Byte>.Value;
-            m_maxStackSize = maxStackSize;
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false)]
-        public unsafe void SetCode(byte* code, int codeSize, int maxStackSize)
-        {
-            if (codeSize < 0)
-                throw new ArgumentOutOfRangeException("codeSize", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-
-            if (codeSize > 0 && code == null)
-                throw new ArgumentNullException("code");
-            Contract.EndContractBlock();
-
-            m_code = new byte[codeSize];
-            for (int i = 0; i < codeSize; i++)
-            {
-                m_code[i] = *code;
-                code++;
-            }
-
-            m_maxStackSize = maxStackSize;
-        }
-
-        public void SetExceptions(byte[] exceptions)
-        {
-            m_exceptions = (exceptions != null) ? (byte[])exceptions.Clone() : EmptyArray<Byte>.Value;
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false)]
-        public unsafe void SetExceptions(byte* exceptions, int exceptionsSize)
-        {
-            if (exceptionsSize < 0)
-                throw new ArgumentOutOfRangeException("exceptionsSize", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-
-            if (exceptionsSize > 0 && exceptions == null)
-                throw new ArgumentNullException("exceptions");
-            Contract.EndContractBlock();
-
-            m_exceptions = new byte[exceptionsSize];
-
-            for (int i = 0; i < exceptionsSize; i++)
-            {
-                m_exceptions[i] = *exceptions;
-                exceptions++;
-            }
-        }
-
-        public void SetLocalSignature(byte[] localSignature)
-        {
-            m_localSignature = (localSignature != null) ? (byte[])localSignature.Clone() : EmptyArray<Byte>.Value;
-        }
-
-        [System.Security.SecurityCritical]  // auto-generated
-        [CLSCompliant(false)]
-        public unsafe void SetLocalSignature(byte* localSignature, int signatureSize)
-        {
-            if (signatureSize < 0)
-                throw new ArgumentOutOfRangeException("signatureSize", Environment.GetResourceString("ArgumentOutOfRange_GenericPositive"));
-
-            if (signatureSize > 0 && localSignature == null)
-                throw new ArgumentNullException("localSignature");
-            Contract.EndContractBlock();
-
-            m_localSignature = new byte[signatureSize];
-            for (int i = 0; i < signatureSize; i++)
-            {
-                m_localSignature[i] = *localSignature;
-                localSignature++;
-            }
-        }
         #endregion
-
         #region Public Scope Methods
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public int GetTokenFor(RuntimeMethodHandle method)
-        {
-            return DynamicScope.GetTokenFor(method);
-        }
-        public int GetTokenFor(DynamicMethod method)
-        {
-            return DynamicScope.GetTokenFor(method);
-        }
-        public int GetTokenFor(RuntimeMethodHandle method, RuntimeTypeHandle contextType)
-        {
-            return DynamicScope.GetTokenFor(method, contextType);
-        }
-        public int GetTokenFor(RuntimeFieldHandle field)
-        {
-            return DynamicScope.GetTokenFor(field);
-        }
-        public int GetTokenFor(RuntimeFieldHandle field, RuntimeTypeHandle contextType)
-        {
-            return DynamicScope.GetTokenFor(field, contextType);
-        }
-        public int GetTokenFor(RuntimeTypeHandle type)
-        {
-            return DynamicScope.GetTokenFor(type);
-        }
-        public int GetTokenFor(string literal)
-        {
-            return DynamicScope.GetTokenFor(literal);
-        }
-        public int GetTokenFor(byte[] signature)
-        {
-            return DynamicScope.GetTokenFor(signature);
-        }
         #endregion
     }
 
@@ -1222,7 +938,6 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Methods
-        [System.Security.SecuritySafeCritical]  // auto-generated
         public int GetTokenFor(RuntimeMethodHandle method)
         {
             IRuntimeMethodInfo methodReal = method.GetMethodInfo();
@@ -1238,7 +953,7 @@ namespace System.Reflection.Emit
                     Type t = m.DeclaringType.GetGenericTypeDefinition();
 
                     throw new ArgumentException(String.Format(
-                        CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_MethodDeclaringTypeGenericLcg"), m, t));
+                        CultureInfo.CurrentCulture, SR.Argument_MethodDeclaringTypeGenericLcg, m, t));
                 }
             }
 
@@ -1325,5 +1040,4 @@ namespace System.Reflection.Emit
             m_signature = signature;
         }
     }
-
 }

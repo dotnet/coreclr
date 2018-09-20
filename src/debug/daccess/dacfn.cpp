@@ -16,12 +16,12 @@
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif // FEATURE_PREJIT
-#ifdef FEATURE_REMOTING
-#include <remoting.h>
-#include "objectclone.h"
-#endif
 #include <virtualcallstub.h>
 #include "peimagelayout.inl"
+
+#include "gcinterface.h"
+#include "gcinterface.dac.h"
+
 
 DacTableInfo g_dacTableInfo;
 DacGlobals g_dacGlobals;
@@ -217,9 +217,9 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
     return S_OK;
 }
 
-#if defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
+#ifdef FEATURE_PAL
 HRESULT 
-DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
+DacVirtualUnwind(DWORD threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
 {
     if (!g_dacImpl)
     {
@@ -242,7 +242,7 @@ DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINT
 
     return hr;
 }
-#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
+#endif // FEATURE_PAL
 
 // DacAllocVirtual - Allocate memory from the target process
 // Note: this is only available to clients supporting the legacy
@@ -1104,6 +1104,7 @@ PWSTR    DacGetVtNameW(TADDR targetVtable)
         if (targetVtable == (*targ + DacGlobalBase()))
         {
             pszRet = (PWSTR) *(g_dacVtStrings + (targ - targStart));
+            break;
         }
 
         targ++;
@@ -1385,6 +1386,8 @@ bool DacTargetConsistencyAssertsEnabled()
 //
 void DacEnumCodeForStackwalk(TADDR taCallEnd)
 {
+    if (taCallEnd == 0)
+        return;
     //
     // x86 stack walkers often end up having to guess
     // about what's a return address on the stack.

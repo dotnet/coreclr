@@ -246,7 +246,7 @@ void SafeHandle::Dispose()
     // Suppress finalization on this object (we may be racing here but the
     // operation below is idempotent and a dispose should never race a
     // finalization).
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
     GCPROTECT_END();
 }
 
@@ -394,7 +394,7 @@ FCIMPL1(void, SafeHandle::SetHandleAsInvalid, SafeHandle* refThisUNSAFE)
 
     } while (InterlockedCompareExchange((LONG*)&sh->m_state, newState, oldState) != oldState);
 
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
 }
 FCIMPLEND
 
@@ -483,7 +483,7 @@ FCIMPL1(UINT, SafeBuffer::AlignedSizeOfType, ReflectClassBaseObject* typeUNSAFE)
 }
 FCIMPLEND
 
-FCIMPL3(void, SafeBuffer::PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT)
+FCIMPL3_IVI(void, SafeBuffer::PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT)
 {
 	FCALL_CONTRACT;
 
@@ -494,7 +494,7 @@ FCIMPL3(void, SafeBuffer::PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UI
 }
 FCIMPLEND
 
-FCIMPL3(void, SafeBuffer::StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT)
+FCIMPL3_VII(void, SafeBuffer::StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT)
 {
 	FCALL_CONTRACT;
 

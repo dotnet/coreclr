@@ -617,6 +617,11 @@ typedef struct _DacGlobals
     ULONG fn__ThreadpoolMgr__AsyncTimerCallbackCompletion;
     ULONG fn__DACNotifyCompilationFinished;
     ULONG fn__ThePreStub;
+
+#ifdef _TARGET_ARM_
+    ULONG fn__ThePreStubCompactARM;
+#endif // _TARGET_ARM_
+
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
     ULONG fn__StubDispatchFixupStub;
@@ -774,18 +779,18 @@ interface IMDInternalImport* DacGetMDImport(const ReflectionModule* reflectionMo
 
 int DacGetIlMethodSize(TADDR methAddr);
 struct COR_ILMETHOD* DacGetIlMethod(TADDR methAddr);
-#if defined(WIN64EXCEPTIONS)
+#ifdef WIN64EXCEPTIONS
 struct _UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo);
 
 // virtually unwind a CONTEXT out-of-process
 struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
+#endif // WIN64EXCEPTIONS
 
 #if defined(FEATURE_PAL)
 // call back through data target to unwind out-of-process
-HRESULT DacVirtualUnwind(ULONG32 threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
+HRESULT DacVirtualUnwind(ULONG32 threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
 #endif // FEATURE_PAL
-#endif // _WIN64
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 class SString;
@@ -2345,6 +2350,7 @@ typedef ArrayDPTR(signed char) PTR_SBYTE;
 typedef ArrayDPTR(const BYTE) PTR_CBYTE;
 typedef DPTR(INT8)    PTR_INT8;
 typedef DPTR(INT16)   PTR_INT16;
+typedef DPTR(UINT16)  PTR_UINT16;
 typedef DPTR(WORD)    PTR_WORD;
 typedef DPTR(USHORT)  PTR_USHORT;
 typedef DPTR(DWORD)   PTR_DWORD;
@@ -2391,6 +2397,10 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 #include <corhdr.h>
 #include <clrdata.h>
 #include <xclrdata.h>
+#endif
+
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #endif
 
 #ifdef _WIN64
@@ -2445,13 +2455,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 #endif
 
 // Macros like MAIN_CLR_MODULE_NAME* for the DAC module
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 #define MAIN_DAC_MODULE_NAME_W  W("mscordaccore")
 #define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordaccore.dll")
-#else
-#define MAIN_DAC_MODULE_NAME_W  W("mscordacwks")
-#define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordacwks.dll")
-#endif
 
 // TARGET_CONSISTENCY_CHECK represents a condition that should not fail unless the DAC target is corrupt. 
 // This is in contrast to ASSERTs in DAC infrastructure code which shouldn't fail regardless of the memory

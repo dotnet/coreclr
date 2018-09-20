@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // checking fallthrough in switch
 
@@ -30,13 +33,13 @@
     IL_0014:  br.s       IL_0016
 
     IL_0016:  ldc.i4.s   100
-    IL_0018:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_0018:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_001d:  ldstr      "Test passed"
     IL_0022:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0027:  br.s       IL_003b
 
     IL_0029:  ldc.i4.1
-    IL_002a:  call       void ['mscorlib']System.Environment::set_ExitCode(int32)
+    IL_002a:  call       void ['system.runtime.extensions']System.Environment::set_ExitCode(int32)
     IL_002f:  ldstr      "Test failed"
     IL_0034:  call       void ['mscorlib']System.Console::WriteLine(class System.String)
     IL_0039:  br.s       IL_003b
@@ -50,9 +53,10 @@
     .maxstack  8
     IL_0000:  ldc.i4.1
     IL_0001:  call       void Test::DoSwitch(int32)
-    IL_0006:  ret
+    IL_0006:  call       int32 ['system.runtime.extensions']System.Environment::get_ExitCode()
+              call       void ['system.runtime.extensions']System.Environment::Exit(int32)
+              ret
   } 
 
   
 } 
-

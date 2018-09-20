@@ -12,73 +12,62 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-using System.Security;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+using System.Runtime.Serialization;
+using System.Text;
 
-namespace System.Globalization {
-    using System;
-    using System.Text;
-    using System.Threading;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Serialization;
-    using System.Runtime.Versioning;
-    using System.Security.Permissions;
-    using System.Diagnostics.Contracts;
-
-
-    [Serializable]
-    [System.Runtime.InteropServices.ComVisible(true)]
-    public class TextInfo : ICloneable, IDeserializationCallback
+namespace System.Globalization
+{
+    public partial class TextInfo : ICloneable, IDeserializationCallback
     {
-        //--------------------------------------------------------------------//
-        //                        Internal Information                        //
-        //--------------------------------------------------------------------//
+        ////--------------------------------------------------------------------//
+        ////                        Internal Information                        //
+        ////--------------------------------------------------------------------//
 
+        private enum Tristate : byte
+        {
+            NotInitialized,
+            True,
+            False,
+        }
 
-        //
-        //  Variables.
-        //
+        ////
+        ////  Variables.
+        ////
 
         [OptionalField(VersionAdded = 2)]
-        private String m_listSeparator;
-
+        private String _listSeparator;
         [OptionalField(VersionAdded = 2)]
-        private bool m_isReadOnly = false;
+        private bool _isReadOnly = false;
 
-        //
-        // In Whidbey we had several names:
-        //      m_win32LangID is the name of the culture, but only used for (de)serialization.
-        //      customCultureName is the name of the creating custom culture (if custom)  In combination with m_win32LangID
-        //              this is authoratative, ie when deserializing.
-        //      m_cultureTableRecord was the data record of the creating culture.  (could have different name if custom)
-        //      m_textInfoID is the LCID of the textinfo itself (no longer used)
-        //      m_name is the culture name (from cultureinfo.name)
-        //
-        // In Silverlight/Arrowhead this is slightly different:
-        //      m_cultureName is the name of the creating culture.  Note that we consider this authoratative,
-        //              if the culture's textinfo changes when deserializing, then behavior may change.
-        //              (ala Whidbey behavior).  This is the only string Arrowhead needs to serialize.
-        //      m_cultureData is the data that backs this class.
-        //      m_textInfoName  is the actual name of the textInfo (from cultureData.STEXTINFO)
-        //              m_textInfoName can be the same as m_cultureName on Silverlight since the OS knows
-        //              how to do the sorting. However in the desktop, when we call the sorting dll, it doesn't
-        //              know how to resolve custom locle names to sort ids so we have to have alredy resolved this.
-        //      
+        ////      _cultureName is the name of the creating culture.  Note that we consider this authoratative,
+        ////              if the culture's textinfo changes when deserializing, then behavior may change.
+        ////              (ala Whidbey behavior).  This is the only string Arrowhead needs to serialize.
+        ////      _cultureData is the data that backs this class.
+        ////      _textInfoName is the actual name of the textInfo (from cultureData.STEXTINFO)
+        ////              this can be the same as _cultureName on Silverlight since the OS knows
+        ////              how to do the sorting. However in the desktop, when we call the sorting dll, it doesn't
+        ////              know how to resolve custom locle names to sort ids so we have to have alredy resolved this.
+        ////      
 
         [OptionalField(VersionAdded = 3)]
-        private String                          m_cultureName;      // Name of the culture that created this text info
-        [NonSerialized]private CultureData      m_cultureData;      // Data record for the culture that made us, not for this textinfo
-        [NonSerialized]private String           m_textInfoName;     // Name of the text info we're using (ie: m_cultureData.STEXTINFO)
-        [NonSerialized]private IntPtr           m_dataHandle;       // Sort handle
-        [NonSerialized]private IntPtr           m_handleOrigin;
-        [NonSerialized]private bool?            m_IsAsciiCasingSameAsInvariant;
+        private String _cultureName;      // Name of the culture that created this text info
+        [NonSerialized]
+        private CultureData _cultureData;      // Data record for the culture that made us, not for this textinfo
+        [NonSerialized]
+        private String _textInfoName;     // Name of the text info we're using (ie: _cultureData.STEXTINFO)
+        [NonSerialized]
+        private Tristate _isAsciiCasingSameAsInvariant = Tristate.NotInitialized;
 
+        // _invariantMode is defined for the perf reason as accessing the instance field is faster than access the static property GlobalizationMode.Invariant
+        [NonSerialized] 
+        private readonly bool _invariantMode = GlobalizationMode.Invariant;
 
         // Invariant text info
-        internal static TextInfo Invariant  
+        internal static TextInfo Invariant
         {
-            get 
+            get
             {
                 if (s_Invariant == null)
                     s_Invariant = new TextInfo(CultureData.Invariant);
@@ -87,253 +76,59 @@ namespace System.Globalization {
         }
         internal volatile static TextInfo s_Invariant;
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  TextInfo Constructors
-        //
-        //  Implements CultureInfo.TextInfo.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        internal TextInfo(CultureData cultureData) 
+        //////////////////////////////////////////////////////////////////////////
+        ////
+        ////  TextInfo Constructors
+        ////
+        ////  Implements CultureInfo.TextInfo.
+        ////
+        //////////////////////////////////////////////////////////////////////////
+        internal unsafe TextInfo(CultureData cultureData)
         {
             // This is our primary data source, we don't need most of the rest of this
-            this.m_cultureData = cultureData;
-            this.m_cultureName = this.m_cultureData.CultureName;
-            this.m_textInfoName = this.m_cultureData.STEXTINFO;
-#if !FEATURE_CORECLR
-            IntPtr handleOrigin;
-            this.m_dataHandle = CompareInfo.InternalInitSortHandle(m_textInfoName, out handleOrigin);
-            this.m_handleOrigin = handleOrigin;
-#endif
+            _cultureData = cultureData;
+            _cultureName = _cultureData.CultureName;
+            _textInfoName = _cultureData.STEXTINFO;
+            FinishInitialization(_textInfoName);
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  Serialization / Deserialization
-        //
-        //  Note that we have to respect the Whidbey behavior for serialization compatibility
-        //
-        ////////////////////////////////////////////////////////////////////////
-
-#region Serialization 
-        // the following fields are defined to keep the compatibility with Whidbey.
-        // don't change/remove the names/types of these fields.
-        [OptionalField(VersionAdded = 2)]
-        private string customCultureName;
-
-#if !FEATURE_CORECLR
-        // the following fields are defined to keep compatibility with Everett.
-        // don't change/remove the names/types of these fields.
-        [OptionalField(VersionAdded = 1)]
-        internal int    m_nDataItem;
-        [OptionalField(VersionAdded = 1)]
-        internal bool   m_useUserOverride;
-        [OptionalField(VersionAdded = 1)]
-        internal int    m_win32LangID;
-#endif // !FEATURE_CORECLR
-
-
-        [OnDeserializing] 
-        private void OnDeserializing(StreamingContext ctx) 
-        { 
-            // Clear these so we can check if we've fixed them yet            
-            this.m_cultureData = null;
-            this.m_cultureName = null;            
-        }   
-
-        private void OnDeserialized()
+        void IDeserializationCallback.OnDeserialization(Object sender)
         {
-            // this method will be called twice because of the support of IDeserializationCallback
-            if (this.m_cultureData == null)
-            {
-                if (this.m_cultureName == null)
-                {
-                    // This is whidbey data, get it from customCultureName/win32langid               
-                    if (this.customCultureName != null)
-                    {
-                        // They gave a custom cultuer name, so use that
-                        this.m_cultureName = this.customCultureName; 
-                    }
-#if FEATURE_USE_LCID
-                    else
-                    {
-                        if (m_win32LangID == 0)
-                        {
-                            // m_cultureName and m_win32LangID are nulls which means we got uninitialized textinfo serialization stream. 
-                            // To be compatible with v2/3/3.5 we need to return ar-SA TextInfo in this case.
-                            m_cultureName = "ar-SA";
-                        }
-                        else
-                        {
-                            // No custom culture, use the name from the LCID
-                            m_cultureName = CultureInfo.GetCultureInfo(m_win32LangID).m_cultureData.CultureName;
-                        }
-                    }
-#endif                
-                }
-                
-                // Get the text info name belonging to that culture
-                this.m_cultureData = CultureInfo.GetCultureInfo(m_cultureName).m_cultureData;
-                this.m_textInfoName = this.m_cultureData.STEXTINFO;
-#if !FEATURE_CORECLR
-                IntPtr handleOrigin;
-                this.m_dataHandle = CompareInfo.InternalInitSortHandle(m_textInfoName, out handleOrigin);
-                this.m_handleOrigin = handleOrigin;
-#endif
-            }            
+            throw new PlatformNotSupportedException();
         }
-
-        
-        [OnDeserialized]
-        private void OnDeserialized(StreamingContext ctx)
-        {
-            OnDeserialized();
-        }   
-        
-        [OnSerializing]
-        private void OnSerializing(StreamingContext ctx) 
-        { 
-#if !FEATURE_CORECLR
-            // Initialize the fields Whidbey expects:
-            // Whidbey expected this, so set it, but the value doesn't matter much
-            this.m_useUserOverride = false;
-#endif // FEATURE_CORECLR
-
-            // Relabel our name since Whidbey expects it to be called customCultureName
-            this.customCultureName = this.m_cultureName;
-
-#if FEATURE_USE_LCID
-            // Ignore the m_win32LangId because whidbey'll just get it by name if we make it the LOCALE_CUSTOM_UNSPECIFIED.
-            this.m_win32LangID     = (CultureInfo.GetCultureInfo(m_cultureName)).LCID;
-#endif
-        }   
-        
-#endregion Serialization
 
         //
         // Internal ordinal comparison functions
         //
-        internal static int GetHashCodeOrdinalIgnoreCase(String s)
-        {
-            return GetHashCodeOrdinalIgnoreCase(s, false, 0);
-        }
 
-        internal static int GetHashCodeOrdinalIgnoreCase(String s, bool forceRandomizedHashing, long additionalEntropy)
+        internal static int GetHashCodeOrdinalIgnoreCase(String s)
         {
             // This is the same as an case insensitive hash for Invariant
             // (not necessarily true for sorting, but OK for casing & then we apply normal hash code rules)
-            return (Invariant.GetCaseInsensitiveHashCode(s, forceRandomizedHashing, additionalEntropy));
+            return (Invariant.GetCaseInsensitiveHashCode(s));
         }
 
-        [System.Security.SecuritySafeCritical]
-        internal static unsafe bool TryFastFindStringOrdinalIgnoreCase(int searchFlags, String source, int startIndex, String value, int count, ref int foundIndex)
-        {
-            return InternalTryFindStringOrdinalIgnoreCase(searchFlags, source, count, startIndex, value, value.Length, ref foundIndex);
-        }
-
-        // This function doesn't check arguments. Please do check in the caller.
-        // The underlying unmanaged code will assert the sanity of arguments.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal static unsafe int CompareOrdinalIgnoreCase(String str1, String str2)
-        {
-            // Compare the whole string and ignore case.
-            return InternalCompareStringOrdinalIgnoreCase(str1, 0, str2, 0, str1.Length, str2.Length);
-        }
-
-        // This function doesn't check arguments. Please do check in the caller.
-        // The underlying unmanaged code will assert the sanity of arguments.
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal static unsafe int CompareOrdinalIgnoreCaseEx(String strA, int indexA, String strB, int indexB, int lengthA, int lengthB )
-        {
-            Contract.Assert(strA.Length >= indexA + lengthA,  "[TextInfo.CompareOrdinalIgnoreCaseEx] Caller should've validated strA.Length >= indexA + lengthA");
-            Contract.Assert(strB.Length >= indexB + lengthB, "[TextInfo.CompareOrdinalIgnoreCaseEx]  Caller should've validated strB.Length >= indexB + lengthB");
-            return InternalCompareStringOrdinalIgnoreCase(strA, indexA, strB, indexB, lengthA, lengthB);
-        }
-
+        // Currently we don't have native functions to do this, so we do it the hard way
         internal static int IndexOfStringOrdinalIgnoreCase(String source, String value, int startIndex, int count)
         {
-            Contract.Assert(source != null, "[TextInfo.IndexOfStringOrdinalIgnoreCase] Caller should've validated source != null");
-            Contract.Assert(value != null, "[TextInfo.IndexOfStringOrdinalIgnoreCase] Caller should've validated value != null");
-            Contract.Assert(startIndex + count <= source.Length, "[TextInfo.IndexOfStringOrdinalIgnoreCase] Caller should've validated startIndex + count <= source.Length");
-
-            // We return 0 if both inputs are empty strings
-            if (source.Length == 0 && value.Length == 0)
+            if (count > source.Length || count < 0 || startIndex < 0 || startIndex >= source.Length || startIndex + count > source.Length)
             {
-                return 0;
+                return -1;
             }
 
-            // fast path
-            int ret = -1;
-            if (TryFastFindStringOrdinalIgnoreCase(Microsoft.Win32.Win32Native.FIND_FROMSTART, source, startIndex, value, count, ref ret))
-                return ret;
-
-            // the search space within [source] starts at offset [startIndex] inclusive and includes
-            // [count] characters (thus the last included character is at index [startIndex + count -1]
-            // [end] is the index of the next character after the search space
-            // (it points past the end of the search space)
-            int end = startIndex + count;
-            
-            // maxStartIndex is the index beyond which we never *start* searching, inclusive; in other words;
-            // a search could include characters beyond maxStartIndex, but we'd never begin a search at an 
-            // index strictly greater than maxStartIndex. 
-            int maxStartIndex = end - value.Length;
-
-            for (; startIndex <= maxStartIndex; startIndex++)
-            {
-                // We should always have the same or more characters left to search than our actual pattern
-                Contract.Assert(end - startIndex >= value.Length);
-                // since this is an ordinal comparison, we can assume that the lengths must match
-                if (CompareOrdinalIgnoreCaseEx(source, startIndex, value, 0, value.Length, value.Length) == 0)
-                {
-                    return startIndex;
-                }
-            }
-            
-            // Not found
-            return -1;
+            return CultureInfo.InvariantCulture.CompareInfo.IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
         }
 
+        // Currently we don't have native functions to do this, so we do it the hard way
         internal static int LastIndexOfStringOrdinalIgnoreCase(String source, String value, int startIndex, int count)
         {
-            Contract.Assert(source != null, "[TextInfo.LastIndexOfStringOrdinalIgnoreCase] Caller should've validated source != null");
-            Contract.Assert(value != null, "[TextInfo.LastIndexOfStringOrdinalIgnoreCase] Caller should've validated value != null");
-            Contract.Assert(startIndex - count+1 >= 0, "[TextInfo.LastIndexOfStringOrdinalIgnoreCase] Caller should've validated startIndex - count+1 >= 0");
-            Contract.Assert(startIndex <= source.Length, "[TextInfo.LastIndexOfStringOrdinalIgnoreCase] Caller should've validated startIndex <= source.Length");
-
-            // If value is Empty, the return value is startIndex
-            if (value.Length == 0)
+            if (count > source.Length || count < 0 || startIndex < 0 || startIndex > source.Length - 1 || (startIndex - count + 1 < 0))
             {
-                return startIndex;
+                return -1;
             }
 
-            // fast path
-            int ret = -1;
-            if (TryFastFindStringOrdinalIgnoreCase(Microsoft.Win32.Win32Native.FIND_FROMEND, source, startIndex, value, count, ref ret))
-                return ret;
-
-            // the search space within [source] ends at offset [startIndex] inclusive
-            // and includes [count] characters 
-            // minIndex is the first included character and is at index [startIndex - count + 1]
-            int minIndex = startIndex - count + 1;
-        
-            // First place we can find it is start index - (value.length -1)
-            if (value.Length > 0)
-            {
-                startIndex -= (value.Length - 1);
-            }
-
-            for (; startIndex >= minIndex; startIndex--)
-            {
-                if (CompareOrdinalIgnoreCaseEx(source, startIndex, value, 0, value.Length, value.Length) == 0)
-                {
-                    return startIndex;
-                }
-            }
-        
-            // Not found
-            return -1;
+            return CultureInfo.InvariantCulture.CompareInfo.LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -348,69 +143,62 @@ namespace System.Globalization {
         ////////////////////////////////////////////////////////////////////////
 
 
-#if !FEATURE_CORECLR
-        public virtual int ANSICodePage {
-            get {
-                return (this.m_cultureData.IDEFAULTANSICODEPAGE);
-            }
-        }
-
- 
-        public virtual int OEMCodePage {
-            get {
-                return (this.m_cultureData.IDEFAULTOEMCODEPAGE);
+        public virtual int ANSICodePage
+        {
+            get
+            {
+                return (_cultureData.IDEFAULTANSICODEPAGE);
             }
         }
 
 
-        public virtual int MacCodePage {
-            get {
-                return (this.m_cultureData.IDEFAULTMACCODEPAGE);
+        public virtual int OEMCodePage
+        {
+            get
+            {
+                return (_cultureData.IDEFAULTOEMCODEPAGE);
             }
         }
 
 
-        public virtual int EBCDICCodePage {
-            get {
-                return (this.m_cultureData.IDEFAULTEBCDICCODEPAGE);
+        public virtual int MacCodePage
+        {
+            get
+            {
+                return (_cultureData.IDEFAULTMACCODEPAGE);
             }
         }
-#endif 
 
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  LCID
-        //
-        //  We need a way to get an LCID from outside of the BCL. This prop is the way.
-        //  NOTE: neutral cultures will cause GPS incorrect LCIDS from this
-        //
-        ////////////////////////////////////////////////////////////////////////
+        public virtual int EBCDICCodePage
+        {
+            get
+            {
+                return (_cultureData.IDEFAULTEBCDICCODEPAGE);
+            }
+        }
 
-#if FEATURE_USE_LCID 
-        [System.Runtime.InteropServices.ComVisible(false)]
         public int LCID 
         {
-            get 
+            get
             {
                 // Just use the LCID from our text info name
-                return CultureInfo.GetCultureInfo(this.m_textInfoName).LCID;
+                return CultureInfo.GetCultureInfo(_textInfoName).LCID;
             }
         }
-#endif
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  CultureName
-        //
-        //  The name of the culture associated with the current TextInfo.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public string CultureName 
+
+        //////////////////////////////////////////////////////////////////////////
+        ////
+        ////  CultureName
+        ////
+        ////  The name of the culture associated with the current TextInfo.
+        ////
+        //////////////////////////////////////////////////////////////////////////
+        public string CultureName
         {
-            get 
+            get
             {
-                return(this.m_textInfoName);
+                return _textInfoName;
             }
         }
 
@@ -421,27 +209,25 @@ namespace System.Globalization {
         //  Detect if the object is readonly.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public bool IsReadOnly 
+        public bool IsReadOnly
         {
-            get { return (m_isReadOnly); }
+            get { return (_isReadOnly); }
         }
 
-        ////////////////////////////////////////////////////////////////////////
-        //
-        //  Clone
-        //
-        //  Is the implementation of IColnable.
-        //
-        ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public virtual Object Clone()
+        //////////////////////////////////////////////////////////////////////////
+        ////
+        ////  Clone
+        ////
+        ////  Is the implementation of ICloneable.
+        ////
+        //////////////////////////////////////////////////////////////////////////
+        public virtual object Clone()
         {
             object o = MemberwiseClone();
-            ((TextInfo) o).SetReadOnlyState(false);
+            ((TextInfo)o).SetReadOnlyState(false);
             return (o);
         }
-        
+
         ////////////////////////////////////////////////////////////////////////
         //
         //  ReadOnly
@@ -450,31 +236,29 @@ namespace System.Globalization {
         //  readonly.
         //
         ////////////////////////////////////////////////////////////////////////
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public static TextInfo ReadOnly(TextInfo textInfo) 
+        public static TextInfo ReadOnly(TextInfo textInfo)
         {
-            if (textInfo == null)       { throw new ArgumentNullException("textInfo"); }
+            if (textInfo == null) { throw new ArgumentNullException(nameof(textInfo)); }
             Contract.EndContractBlock();
-            if (textInfo.IsReadOnly)    { return (textInfo); }
-            
+            if (textInfo.IsReadOnly) { return (textInfo); }
+
             TextInfo clonedTextInfo = (TextInfo)(textInfo.MemberwiseClone());
             clonedTextInfo.SetReadOnlyState(true);
-            
+
             return (clonedTextInfo);
         }
 
         private void VerifyWritable()
         {
-            if (m_isReadOnly) 
+            if (_isReadOnly)
             {
-                throw new InvalidOperationException(Environment.GetResourceString("InvalidOperation_ReadOnly"));
+                throw new InvalidOperationException(SR.InvalidOperation_ReadOnly);
             }
-            Contract.EndContractBlock();
         }
 
         internal void SetReadOnlyState(bool readOnly)
         {
-            m_isReadOnly = readOnly;
+            _isReadOnly = readOnly;
         }
 
 
@@ -485,29 +269,25 @@ namespace System.Globalization {
         //  Returns the string used to separate items in a list.
         //
         ////////////////////////////////////////////////////////////////////////
-
-
-        public virtual String ListSeparator 
+        public virtual String ListSeparator
         {
-            [System.Security.SecuritySafeCritical]  // auto-generated
-            get 
+            get
             {
-                if (m_listSeparator == null) {
-                    m_listSeparator = this.m_cultureData.SLIST;
+                if (_listSeparator == null)
+                {
+                    _listSeparator = _cultureData.SLIST;
                 }
-                return (m_listSeparator);
+                return (_listSeparator);
             }
 
-            [System.Runtime.InteropServices.ComVisible(false)]
-            set 
+            set
             {
-                if (value == null) 
+                if (value == null)
                 {
-                    throw new ArgumentNullException("value", Environment.GetResourceString("ArgumentNull_String"));
+                    throw new ArgumentNullException(nameof(value), SR.ArgumentNull_String);
                 }
-                Contract.EndContractBlock();
                 VerifyWritable();
-                m_listSeparator = value;
+                _listSeparator = value;
             }
         }
 
@@ -519,30 +299,123 @@ namespace System.Globalization {
         //  have different casing semantics from the file systems in Win32.
         //
         ////////////////////////////////////////////////////////////////////////
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public unsafe virtual char ToLower(char c) 
+        public unsafe virtual char ToLower(char c)
         {
-            if(IsAscii(c) && IsAsciiCasingSameAsInvariant)
+            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToLowerAsciiInvariant(c);
             }
-            return (InternalChangeCaseChar(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, c, false));
+
+            return (ChangeCase(c, toUpper: false));
         }
 
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public unsafe virtual String ToLower(String str) 
+        public unsafe virtual String ToLower(String str)
         {
-            if (str == null) { throw new ArgumentNullException("str"); }
-            Contract.EndContractBlock();
+            if (str == null) { throw new ArgumentNullException(nameof(str)); }
 
-            return InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, false);
+            if (_invariantMode)
+            {
+                return ToLowerAsciiInvariant(str);
+            }
 
+            return ChangeCase(str, toUpper: false);
         }
 
-        static private Char ToLowerAsciiInvariant(Char c)
+        private unsafe string ToLowerAsciiInvariant(string s)
         {
-            if ('A' <= c && c <= 'Z')
+            if (s.Length == 0)
+            {
+                return string.Empty;
+            }
+            
+            fixed (char* pSource = s)
+            {
+                int i = 0;
+                while (i < s.Length)
+                {
+                    if ((uint)(pSource[i] - 'A') <= (uint)('Z' - 'A'))
+                    {
+                        break;
+                    }
+                    i++;
+                }
+                
+                if (i >= s.Length)
+                {
+                    return s;
+                }
+
+                string result = string.FastAllocateString(s.Length);
+                fixed (char* pResult = result)
+                {
+                    for (int j = 0; j < i; j++)
+                    {
+                        pResult[j] = pSource[j];
+                    }
+                    
+                    pResult[i] = (Char)(pSource[i] | 0x20);
+                    i++;
+
+                    while (i < s.Length)
+                    {
+                        pResult[i] = ToLowerAsciiInvariant(pSource[i]);
+                        i++;
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        private unsafe string ToUpperAsciiInvariant(string s)
+        {
+            if (s.Length == 0)
+            {
+                return string.Empty;
+            }
+            
+            fixed (char* pSource = s)
+            {
+                int i = 0;
+                while (i < s.Length)
+                {
+                    if ((uint)(pSource[i] - 'a') <= (uint)('z' - 'a'))
+                    {
+                        break;
+                    }
+                    i++;
+                }
+                
+                if (i >= s.Length)
+                {
+                    return s;
+                }
+
+                string result = string.FastAllocateString(s.Length);
+                fixed (char* pResult = result)
+                {
+                    for (int j = 0; j < i; j++)
+                    {
+                        pResult[j] = pSource[j];
+                    }
+                    
+                    pResult[i] = (char)(pSource[i] & ~0x20);
+                    i++;
+
+                    while (i < s.Length)
+                    {
+                        pResult[i] = ToUpperAsciiInvariant(pSource[i]);
+                        i++;
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        private static Char ToLowerAsciiInvariant(Char c)
+        {
+            if ((uint)(c - 'A') <= (uint)('Z' - 'A'))
             {
                 c = (Char)(c | 0x20);
             }
@@ -557,36 +430,38 @@ namespace System.Globalization {
         //  have different casing semantics from the file systems in Win32.
         //
         ////////////////////////////////////////////////////////////////////////
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public unsafe virtual char ToUpper(char c) 
+        public unsafe virtual char ToUpper(char c)
         {
-            if (IsAscii(c) && IsAsciiCasingSameAsInvariant)
+            if (_invariantMode || (IsAscii(c) && IsAsciiCasingSameAsInvariant))
             {
                 return ToUpperAsciiInvariant(c);
             }
-            return (InternalChangeCaseChar(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, c, true));
+            
+            return (ChangeCase(c, toUpper: true));
         }
 
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        public unsafe virtual String ToUpper(String str) 
+        public unsafe virtual String ToUpper(String str)
         {
-            if (str == null) { throw new ArgumentNullException("str"); }
-            Contract.EndContractBlock();
-            return InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, true);
+            if (str == null) { throw new ArgumentNullException(nameof(str)); }
+
+            if (_invariantMode)
+            {
+                return ToUpperAsciiInvariant(str);
+            }
+
+            return ChangeCase(str, toUpper: true);
         }
 
-        static private Char ToUpperAsciiInvariant(Char c)
+        private static Char ToUpperAsciiInvariant(Char c)
         {
-            if ('a' <= c && c <= 'z')
+            if ((uint)(c - 'a') <= (uint)('z' - 'a'))
             {
                 c = (Char)(c & ~0x20);
             }
             return c;
         }
 
-        static private bool IsAscii(Char c)
+        private static bool IsAscii(Char c)
         {
             return c < 0x80;
         }
@@ -595,14 +470,25 @@ namespace System.Globalization {
         {
             get
             {
-                if (m_IsAsciiCasingSameAsInvariant == null)
+                if (_isAsciiCasingSameAsInvariant == Tristate.NotInitialized)
                 {
-                    m_IsAsciiCasingSameAsInvariant =
-                        CultureInfo.GetCultureInfo(m_textInfoName).CompareInfo.Compare("abcdefghijklmnopqrstuvwxyz",
+                    _isAsciiCasingSameAsInvariant = CultureInfo.GetCultureInfo(_textInfoName).CompareInfo.Compare("abcdefghijklmnopqrstuvwxyz",
                                                                              "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-                                                                             CompareOptions.IgnoreCase) == 0;
+                                                                             CompareOptions.IgnoreCase) == 0 ? Tristate.True : Tristate.False;
                 }
-                return (bool)m_IsAsciiCasingSameAsInvariant;
+                return _isAsciiCasingSameAsInvariant == Tristate.True;
+            }
+        }
+
+        // IsRightToLeft
+        //
+        // Returns true if the dominant direction of text and UI such as the relative position of buttons and scroll bars
+        //
+        public bool IsRightToLeft
+        {
+            get
+            {
+                return _cultureData.IsRightToLeft;
             }
         }
 
@@ -614,20 +500,17 @@ namespace System.Globalization {
         //  or not object refers to the same CultureInfo as the current instance.
         //
         ////////////////////////////////////////////////////////////////////////
-
-
         public override bool Equals(Object obj)
         {
             TextInfo that = obj as TextInfo;
-            
+
             if (that != null)
             {
                 return this.CultureName.Equals(that.CultureName);
             }
-            
+
             return (false);
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -638,13 +521,10 @@ namespace System.Globalization {
         //  and B where A.Equals(B) is true.
         //
         ////////////////////////////////////////////////////////////////////////
-
-
         public override int GetHashCode()
         {
             return (this.CultureName.GetHashCode());
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -654,13 +534,10 @@ namespace System.Globalization {
         //  TextInfo.
         //
         ////////////////////////////////////////////////////////////////////////
-
-
         public override String ToString()
         {
-            return ("TextInfo - " + this.m_cultureData.CultureName);
+            return ("TextInfo - " + _cultureData.CultureName);
         }
-
 
         //
         // Titlecasing:
@@ -676,37 +553,44 @@ namespace System.Globalization {
         // influence which letter or letters of a "word" are uppercased when titlecasing strings.  For example
         // "l'arbre" is considered two words in French, whereas "can't" is considered one word in English.
         //
-        //
-        // Differences between UNICODE 5.0 and the .NET Framework:
-        // -------------------------------------------------------------------------------------
-        // The .NET Framework previously shipped a naive titlecasing implementation.  Every word is titlecased
-        // regardless of language or orthographic practice.  Furthermore, apostrophe is always considered to be
-        // a word joiner as used in English.  The longterm vision is to depend on the operating system for
-        // titlecasing.  Windows 7 is expected to be the first release with this feature.  On the Macintosh side,
-        // titlecasing is not available as of version 10.5 of the operating system.
-        //
-#if !FEATURE_CORECLR
-        public unsafe String ToTitleCase(String str) {
-            if (str==null)  {
-                throw new ArgumentNullException("str");
+        public unsafe String ToTitleCase(String str)
+        {
+            if (str == null)
+            {
+                throw new ArgumentNullException(nameof(str));
             }
             Contract.EndContractBlock();
-            if (str.Length == 0) {
+            if (str.Length == 0)
+            {
                 return (str);
             }
 
             StringBuilder result = new StringBuilder();
-            String lowercaseData = null;
+            string lowercaseData = null;
+            // Store if the current culture is Dutch (special case)
+            bool isDutchCulture = CultureName.StartsWith("nl-", StringComparison.OrdinalIgnoreCase);
 
-            for (int i = 0; i < str.Length; i++) {
+            for (int i = 0; i < str.Length; i++)
+            {
                 UnicodeCategory charType;
                 int charLen;
 
                 charType = CharUnicodeInfo.InternalGetUnicodeCategory(str, i, out charLen);
-                if (Char.CheckLetter(charType)) {
-                    // Do the titlecasing for the first character of the word.
-                    i = AddTitlecaseLetter(ref result, ref str, i, charLen) + 1;
-                     
+                if (Char.CheckLetter(charType))
+                {
+                    // Special case to check for Dutch specific titlecasing with "IJ" characters 
+                    // at the beginning of a word
+                    if (isDutchCulture && i < str.Length - 1 && (str[i] == 'i' || str[i] == 'I') && (str[i+1] == 'j' || str[i+1] == 'J'))
+                    {
+                        result.Append("IJ");
+                        i += 2;
+                    }
+                    else
+                    {
+                        // Do the titlecasing for the first character of the word.
+                        i = AddTitlecaseLetter(ref result, ref str, i, charLen) + 1;
+                    }
+
                     //
                     // Convert the characters until the end of the this word
                     // to lowercase.
@@ -719,30 +603,43 @@ namespace System.Globalization {
                     //
                     bool hasLowerCase = (charType == UnicodeCategory.LowercaseLetter);
                     // Use a loop to find all of the other letters following this letter.
-                    while (i < str.Length) {
+                    while (i < str.Length)
+                    {
                         charType = CharUnicodeInfo.InternalGetUnicodeCategory(str, i, out charLen);
-                        if (IsLetterCategory(charType)) {
-                            if (charType == UnicodeCategory.LowercaseLetter) {
+                        if (IsLetterCategory(charType))
+                        {
+                            if (charType == UnicodeCategory.LowercaseLetter)
+                            {
                                 hasLowerCase = true;
                             }
                             i += charLen;
-                        } else if (str[i] == '\'') {
+                        }
+                        else if (str[i] == '\'')
+                        {
                             i++;
-                            if (hasLowerCase) {
-                                if (lowercaseData==null) {
+                            if (hasLowerCase)
+                            {
+                                if (lowercaseData == null)
+                                {
                                     lowercaseData = this.ToLower(str);
                                 }
                                 result.Append(lowercaseData, lowercaseStart, i - lowercaseStart);
-                            } else {
+                            }
+                            else
+                            {
                                 result.Append(str, lowercaseStart, i - lowercaseStart);
                             }
                             lowercaseStart = i;
                             hasLowerCase = true;
-                        } else if (!IsWordSeparator(charType)) {
+                        }
+                        else if (!IsWordSeparator(charType))
+                        {
                             // This category is considered to be part of the word.
                             // This is any category that is marked as false in wordSeprator array.
                             i+= charLen;
-                        } else {
+                        }
+                        else
+                        {
                             // A word separator. Break out of the loop.
                             break;
                         }
@@ -750,23 +647,30 @@ namespace System.Globalization {
 
                     int count = i - lowercaseStart;
 
-                    if (count>0) {
-                        if (hasLowerCase) {
-                            if (lowercaseData==null) {
+                    if (count > 0)
+                    {
+                        if (hasLowerCase)
+                        {
+                            if (lowercaseData == null)
+                            {
                                 lowercaseData = this.ToLower(str);
                             }
                             result.Append(lowercaseData, lowercaseStart, count);
-                        } else {
+                        }
+                        else
+                        {
                             result.Append(str, lowercaseStart, count);
                         }
                     }
 
-                    if (i < str.Length) {
+                    if (i < str.Length)
+                    {
                         // not a letter, just append it
                         i = AddNonLetter(ref result, ref str, i, charLen);
                     }
                 }
-                else {
+                else
+                {
                     // not a letter, just append it
                     i = AddNonLetter(ref result, ref str, i, charLen);
                 }
@@ -774,68 +678,73 @@ namespace System.Globalization {
             return (result.ToString());
         }
 
-        private static int AddNonLetter(ref StringBuilder result, ref String input, int inputIndex, int charLen) {
-            Contract.Assert(charLen == 1 || charLen == 2, "[TextInfo.AddNonLetter] CharUnicodeInfo.InternalGetUnicodeCategory returned an unexpected charLen!");
-            if (charLen == 2) {
+        private static int AddNonLetter(ref StringBuilder result, ref String input, int inputIndex, int charLen)
+        {
+            Debug.Assert(charLen == 1 || charLen == 2, "[TextInfo.AddNonLetter] CharUnicodeInfo.InternalGetUnicodeCategory returned an unexpected charLen!");
+            if (charLen == 2)
+            {
                 // Surrogate pair
                 result.Append(input[inputIndex++]);
                 result.Append(input[inputIndex]);
             }
-            else {
+            else
+            {
                 result.Append(input[inputIndex]);
-            }                   
+            }
             return inputIndex;
         }
 
-
-        private int AddTitlecaseLetter(ref StringBuilder result, ref String input, int inputIndex, int charLen) {
-            Contract.Assert(charLen == 1 || charLen == 2, "[TextInfo.AddTitlecaseLetter] CharUnicodeInfo.InternalGetUnicodeCategory returned an unexpected charLen!");
+        private int AddTitlecaseLetter(ref StringBuilder result, ref String input, int inputIndex, int charLen)
+        {
+            Debug.Assert(charLen == 1 || charLen == 2, "[TextInfo.AddTitlecaseLetter] CharUnicodeInfo.InternalGetUnicodeCategory returned an unexpected charLen!");
 
             // for surrogate pairs do a simple ToUpper operation on the substring
-            if (charLen == 2) {
+            if (charLen == 2)
+            {
                 // Surrogate pair
-                result.Append( this.ToUpper(input.Substring(inputIndex, charLen)) );
+                result.Append(ToUpper(input.Substring(inputIndex, charLen)));
                 inputIndex++;
             }
-            else {
-                switch (input[inputIndex]) {
+            else
+            {
+                switch (input[inputIndex])
+                {
                     //
                     // For AppCompat, the Titlecase Case Mapping data from NDP 2.0 is used below.
-                    case (char)0x01C4:  // DZ with Caron -> Dz with Caron
-                    case (char)0x01C5:  // Dz with Caron -> Dz with Caron
-                    case (char)0x01C6:  // dz with Caron -> Dz with Caron
-                        result.Append( (char)0x01C5 );
+                    case (char) 0x01C4:  // DZ with Caron -> Dz with Caron
+                    case (char) 0x01C5:  // Dz with Caron -> Dz with Caron
+                    case (char) 0x01C6:  // dz with Caron -> Dz with Caron
+                        result.Append((char) 0x01C5);
                         break;
-                    case (char)0x01C7:  // LJ -> Lj
-                    case (char)0x01C8:  // Lj -> Lj
-                    case (char)0x01C9:  // lj -> Lj
-                        result.Append( (char)0x01C8 );
+                    case (char) 0x01C7:  // LJ -> Lj
+                    case (char) 0x01C8:  // Lj -> Lj
+                    case (char) 0x01C9:  // lj -> Lj
+                        result.Append((char) 0x01C8);
                         break;
-                    case (char)0x01CA:  // NJ -> Nj
-                    case (char)0x01CB:  // Nj -> Nj
-                    case (char)0x01CC:  // nj -> Nj
-                        result.Append( (char)0x01CB );
+                    case (char) 0x01CA:  // NJ -> Nj
+                    case (char) 0x01CB:  // Nj -> Nj
+                    case (char) 0x01CC:  // nj -> Nj
+                        result.Append((char) 0x01CB);
                         break;
-                    case (char)0x01F1:  // DZ -> Dz
-                    case (char)0x01F2:  // Dz -> Dz
-                    case (char)0x01F3:  // dz -> Dz
-                        result.Append( (char)0x01F2 );
+                    case (char) 0x01F1:  // DZ -> Dz
+                    case (char) 0x01F2:  // Dz -> Dz
+                    case (char) 0x01F3:  // dz -> Dz
+                        result.Append((char) 0x01F2);
                         break;
                     default:
-                        result.Append( this.ToUpper(input[inputIndex]) );
+                        result.Append(ToUpper(input[inputIndex]));
                         break;
                 }
-            }                   
+            }
             return inputIndex;
         }
-
 
         //
         // Used in ToTitleCase():
         // When we find a starting letter, the following array decides if a category should be
         // considered as word seprator or not.
         //
-        private const int wordSeparatorMask = 
+        private const int c_wordSeparatorMask = 
             /* false */ (0 <<  0) | // UppercaseLetter = 0,
             /* false */ (0 <<  1) | // LowercaseLetter = 1,
             /* false */ (0 <<  2) | // TitlecaseLetter = 2,
@@ -866,101 +775,78 @@ namespace System.Globalization {
             /* true  */ (1 << 27) | // ModifierSymbol = 27,
             /* true  */ (1 << 28) | // OtherSymbol = 28,
             /* false */ (0 << 29);  // OtherNotAssigned = 29;
-
-        private static bool IsWordSeparator(UnicodeCategory category) {
-            return (wordSeparatorMask & (1 << (int)category)) != 0;
+        
+        private static bool IsWordSeparator(UnicodeCategory category) 
+        {
+            return (c_wordSeparatorMask & (1 << (int) category)) != 0;
         }
 
-        private static bool IsLetterCategory(UnicodeCategory uc) {
+        private static bool IsLetterCategory(UnicodeCategory uc)
+        {
             return (uc == UnicodeCategory.UppercaseLetter
                  || uc == UnicodeCategory.LowercaseLetter
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
                  || uc == UnicodeCategory.OtherLetter);
         }
-#endif
-
-
-        // IsRightToLeft
-        //
-        // Returns true if the dominant direction of text and UI such as the relative position of buttons and scroll bars
-        //
-        [System.Runtime.InteropServices.ComVisible(false)]
-        public bool IsRightToLeft
-        {
-            get
-            {
-                return this.m_cultureData.IsRightToLeft;
-            }
-        }
-
-#if FEATURE_SERIALIZATION
-        /// <internalonly/>
-        void IDeserializationCallback.OnDeserialization(Object sender)
-        {
-            OnDeserialized();
-        }
-#endif
 
         //
         // Get case-insensitive hash code for the specified string.
         //
-        // NOTENOTE: this is an internal function.  The caller should verify the string
-        // is not null before calling this.  Currenlty, CaseInsensitiveHashCodeProvider
-        // does that.
-        //
-        [System.Security.SecuritySafeCritical]  // auto-generated
         internal unsafe int GetCaseInsensitiveHashCode(String str)
         {
-            return GetCaseInsensitiveHashCode(str, false, 0);
-        }
-
-        [System.Security.SecuritySafeCritical]  // auto-generated
-        internal unsafe int GetCaseInsensitiveHashCode(String str, bool forceRandomizedHashing, long additionalEntropy)
-        {
             // Validate inputs
-            if (str==null) 
+            if (str == null)
             {
-                 throw new ArgumentNullException("str");
+                throw new ArgumentNullException(nameof(str));
             }
-            Contract.EndContractBlock();
 
-            // Return our result
-            return (InternalGetCaseInsHash(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, forceRandomizedHashing, additionalEntropy));
+            // This code assumes that ASCII casing is safe for whatever context is passed in.
+            // this is true today, because we only ever call these methods on Invariant.  It would be ideal to refactor
+            // these methods so they were correct by construction and we could only ever use Invariant.
+
+            uint hash = 5381;
+            uint c;
+
+            // Note: We assume that str contains only ASCII characters until
+            // we hit a non-ASCII character to optimize the common case.
+            for (int i = 0; i < str.Length; i++)
+            {
+                c = str[i];
+                if (c >= 0x80)
+                {
+                    return GetCaseInsensitiveHashCodeSlow(str);
+                }
+
+                // If we have a lowercase character, ANDing off 0x20
+                // will make it an uppercase character.
+                if ((c - 'a') <= ('z' - 'a'))
+                {
+                    c = (uint)((int)c & ~0x20);
+                }
+
+                hash = ((hash << 5) + hash) ^ c;
+            }
+
+            return (int)hash;
         }
 
-        // Change case (ToUpper/ToLower) -- COMNlsInfo::InternalChangeCaseChar
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern char InternalChangeCaseChar(IntPtr handle, IntPtr handleOrigin, String localeName, char ch, bool isToUpper);
-        
-        // Change case (ToUpper/ToLower) -- COMNlsInfo::InternalChangeCaseString
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern String InternalChangeCaseString(IntPtr handle, IntPtr handleOrigin, String localeName, String str, bool isToUpper);
+        private unsafe int GetCaseInsensitiveHashCodeSlow(String str)
+        {
+            Debug.Assert(str != null);
 
-        // Get case insensitive hash -- ComNlsInfo::InternalGetCaseInsHash
-        [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static unsafe extern int InternalGetCaseInsHash(IntPtr handle, IntPtr handleOrigin, String localeName, String str, bool forceRandomizedHashing, long additionalEntropy);
+            string upper = ToUpper(str);
 
-        // Call ::CompareStringOrdinal -- ComNlsInfo::InternalCompareStringOrdinalIgnoreCase
-        // Start at indexes and compare for length characters (or remainder of string if length == -1)
-        [System.Security.SecurityCritical]  // auto-generated
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        private static unsafe extern int InternalCompareStringOrdinalIgnoreCase(String string1, int index1, String string2, int index2, int length1, int length2);
+            uint hash = 5381;
+            uint c;
 
-        // ComNlsInfo::InternalTryFindStringOrdinalIgnoreCase attempts a faster IndexOf/LastIndexOf OrdinalIgnoreCase using a kernel function.
-        // Returns true if FindStringOrdinal was handled, with foundIndex set to the target's index into the source
-        // Returns false when FindStringOrdinal wasn't handled
-        [System.Security.SecurityCritical]  // auto-generated
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [SuppressUnmanagedCodeSecurity]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static unsafe extern bool InternalTryFindStringOrdinalIgnoreCase(int searchFlags, String source, int sourceCount, int startIndex, String target, int targetCount, ref int foundIndex);
+            for (int i = 0; i < upper.Length; i++)
+            {
+                c = upper[i];
+                hash = ((hash << 5) + hash) ^ c;
+            }
+
+            return (int)hash;
+        }
     }
-
 }
-
-

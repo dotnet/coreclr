@@ -34,11 +34,9 @@ namespace System.Reflection
         internal IntPtr m_nativeLoaderAllocator;
 
         [SuppressUnmanagedCodeSecurity]
-        [SecurityCritical]
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern bool Destroy(IntPtr nativeLoaderAllocator);
 
-        [SecuritySafeCritical]
         ~LoaderAllocatorScout()
         {
             if (m_nativeLoaderAllocator.IsNull())
@@ -51,7 +49,6 @@ namespace System.Reflection
             if (!Environment.HasShutdownStarted &&
                 !AppDomain.CurrentDomain.IsFinalizingForUnload())
             {
-
                 // Destroy returns false if the managed LoaderAllocator is still alive.
                 if (!Destroy(m_nativeLoaderAllocator))
                 {
@@ -65,9 +62,9 @@ namespace System.Reflection
 
     internal sealed class LoaderAllocator
     {
-        LoaderAllocator()
+        private LoaderAllocator()
         {
-            m_slots = new object [5];
+            m_slots = new object[5];
             // m_slotsUsed = 0;
 
             m_scout = new LoaderAllocatorScout();
@@ -75,10 +72,10 @@ namespace System.Reflection
 
 #pragma warning disable 169
 #pragma warning disable 414
-        LoaderAllocatorScout m_scout;
-        object [] m_slots;
+        private LoaderAllocatorScout m_scout;
+        private object[] m_slots;
         internal CerHashtable<RuntimeMethodInfo, RuntimeMethodInfo> m_methodInstantiations;
-        int m_slotsUsed;
+        private int m_slotsUsed;
 #pragma warning restore 414
 #pragma warning restore 169
     }

@@ -32,7 +32,7 @@
 template<class T> void DeleteDbiMemory(T *p);
 // Need a class to serve as a tag that we can use to overload New/Delete.
 class forDbiWorker {};
-#define forDbi (*(forDbiWorker *)NULL)
+extern forDbiWorker forDbi;
 extern void * operator new(size_t lenBytes, const forDbiWorker &);
 extern void * operator new[](size_t lenBytes, const forDbiWorker &);
 extern void operator delete(void *p, const forDbiWorker &);
@@ -979,9 +979,6 @@ public:
     //    V2 Attach would provide faked up CreateConnection, ChangeConnection events on attach. 
     //    This enumeration ability allows V3 to emulate that behavior.
     //    
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    virtual void EnumerateConnections(FP_CONNECTION_CALLBACK fpCallback, CALLBACK_DATA pUserData) = 0; 
-#endif //FEATURE_INCLUDE_ALL_INTERFACES
 
     //
     // Enumerate all threads in the target.
@@ -2508,17 +2505,20 @@ public:
     virtual
     HRESULT GetTypeID(CORDB_ADDRESS obj, COR_TYPEID * pType) = 0;
 
-	virtual
-	HRESULT GetObjectFields(COR_TYPEID id, ULONG32 celt, OUT COR_FIELD * layout, OUT ULONG32 * pceltFetched) = 0;
-
-	virtual
-	HRESULT GetTypeLayout(COR_TYPEID id, COR_TYPE_LAYOUT * pLayout) = 0;
-	
-	virtual
-	HRESULT GetArrayLayout(COR_TYPEID id, COR_ARRAY_LAYOUT * pLayout) = 0;
-	
-	virtual
-	void GetGCHeapInformation(OUT COR_HEAPINFO * pHeapInfo) = 0;
+    virtual
+    HRESULT GetTypeIDForType(VMPTR_TypeHandle vmTypeHandle, COR_TYPEID *pId) = 0;
+    
+    virtual
+    HRESULT GetObjectFields(COR_TYPEID id, ULONG32 celt, OUT COR_FIELD * layout, OUT ULONG32 * pceltFetched) = 0;
+    
+    virtual
+    HRESULT GetTypeLayout(COR_TYPEID id, COR_TYPE_LAYOUT * pLayout) = 0;
+    
+    virtual
+    HRESULT GetArrayLayout(COR_TYPEID id, COR_ARRAY_LAYOUT * pLayout) = 0;
+    
+    virtual
+    void GetGCHeapInformation(OUT COR_HEAPINFO * pHeapInfo) = 0;
 
     // If a PEFile has an RW capable IMDInternalImport, this returns the address of the MDInternalRW
     // object which implements it.

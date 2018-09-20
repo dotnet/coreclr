@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <UsingTask AssemblyFile="$(PackagesDir)xunit.runner.msbuild\2.1.0\build\portable-net45+win8+wp8+wpa81\xunit.runner.msbuild.dll" TaskName="Xunit.Runner.MSBuild.xunit" />
+  <UsingTask AssemblyFile="$(PackagesDir)xunit.runner.msbuild\$(XunitPackageVersion)\build\portable-net45+win8+wp8+wpa81\xunit.runner.msbuild.dll" TaskName="Xunit.Runner.MSBuild.xunit" />
   
   <ItemGroup>
     <_SkipTestAssemblies Include="$(SkipTestAssemblies)" />
@@ -14,7 +14,7 @@
   </PropertyGroup>
   <Target Name="FindTestDirectories">
     <ItemGroup>
-      <AllTestAssemblies Include="$(BaseOutputPathWithConfig)\*\*.XUnitWrapper.dll" />
+      <AllTestAssemblies Include="$(BaseOutputPathWithConfig)\**\*.XUnitWrapper.dll" />
       <TestAssemblies Include="@(AllTestAssemblies)" Exclude="@(_SkipTestAssemblies -> '$(TestAssemblyDir)%(Identity)\%(Identity).XUnitWrapper.dll')" />
     </ItemGroup>
     
@@ -27,7 +27,7 @@
   </Target>
 
   <UsingTask
-    AssemblyFile="$(SourceDir)\packages\xunit.runner.msbuild\2.1.0\build\portable-net45+win8+wp8+wpa81\xunit.runner.msbuild.dll"
+    AssemblyFile="$(SourceDir)\packages\xunit.runner.msbuild\$(XunitPackageVersion)\build\portable-net45+win8+wp8+wpa81\xunit.runner.msbuild.dll"
     TaskName="Xunit.Runner.MSBuild.xunit" />
 
    <Target Name="RunTests"
@@ -37,6 +37,7 @@
 
     <PropertyGroup>
       <ExcludeTraits Condition="'$(ExcludeTraits)'==''">category=outerloop;category=failing</ExcludeTraits>
+      <ParallelRun Condition="'$(ParallelRun)'==''">true</ParallelRun>
     </PropertyGroup>
     <ItemGroup>
       <IncludeTraitsItems Include="$(IncludeTraits)" />
@@ -44,8 +45,8 @@
     </ItemGroup>
 
     <xunit Assemblies="@(TestAssemblies)"
-      ParallelizeAssemblies="True"
-      ParallelizeTestCollections="True"
+      ParallelizeAssemblies="$(ParallelRun)"
+      ParallelizeTestCollections="$(ParallelRun)"
       Html="$(__TestRunHtmlLog)"
       Xml="$(__TestRunXmlLog)"
       IncludeTraits="@(IncludeTraitsItems)"

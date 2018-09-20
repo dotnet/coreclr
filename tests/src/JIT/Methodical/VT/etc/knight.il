@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -129,7 +130,7 @@
       IL_00bb:  add
       IL_00bc:  beq.s      IL_00c4
 
-      IL_00be:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      IL_00be:  newobj     instance void [mscorlib]System.Exception::.ctor()
       IL_00c3:  throw
 
       IL_00c4:  ldloc.0

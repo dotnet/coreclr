@@ -12,11 +12,11 @@
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 using System;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using System.Security.Permissions;
 using System.Threading;
 
 // Disable the "reference to volatile field not treated as volatile" error.
@@ -47,7 +47,6 @@ namespace System.Threading.Tasks
     /// </remarks>
     /// <typeparam name="TResult">The type of the result value assocatied with this <see
     /// cref="TaskCompletionSource{TResult}"/>.</typeparam>
-    [HostProtection(Synchronization = true, ExternalThreading = true)]
     public class TaskCompletionSource<TResult>
     {
         private readonly Task<TResult> m_task;
@@ -132,7 +131,7 @@ namespace System.Threading.Tasks
         {
             // Spin wait until the completion is finalized by another thread.
             var sw = new SpinWait();
-            while (!m_task.IsCompleted) 
+            while (!m_task.IsCompleted)
                 sw.SpinOnce();
         }
 
@@ -156,7 +155,7 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public bool TrySetException(Exception exception)
         {
-            if (exception == null) throw new ArgumentNullException("exception");
+            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
             bool rval = m_task.TrySetException(exception);
             if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
@@ -185,36 +184,20 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public bool TrySetException(IEnumerable<Exception> exceptions)
         {
-            if (exceptions == null) throw new ArgumentNullException("exceptions");
-            
+            if (exceptions == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exceptions);
+
             List<Exception> defensiveCopy = new List<Exception>();
             foreach (Exception e in exceptions)
             {
                 if (e == null)
-                    throw new ArgumentException(Environment.GetResourceString("TaskCompletionSourceT_TrySetException_NullException"), "exceptions");
+                    ThrowHelper.ThrowArgumentException(ExceptionResource.TaskCompletionSourceT_TrySetException_NullException, ExceptionArgument.exceptions);
                 defensiveCopy.Add(e);
             }
 
             if (defensiveCopy.Count == 0)
-                throw new ArgumentException(Environment.GetResourceString("TaskCompletionSourceT_TrySetException_NoExceptions"), "exceptions");
+                ThrowHelper.ThrowArgumentException(ExceptionResource.TaskCompletionSourceT_TrySetException_NoExceptions, ExceptionArgument.exceptions);
 
             bool rval = m_task.TrySetException(defensiveCopy);
-            if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
-            return rval;
-        }
-
-        /// <summary>Attempts to transition the underlying task to the faulted state.</summary>
-        /// <param name="exceptions">The collection of exception dispatch infos to bind to this task.</param>
-        /// <returns>True if the operation was successful; otherwise, false.</returns>
-        /// <remarks>Unlike the public methods, this method doesn't currently validate that its arguments are correct.</remarks>
-        internal bool TrySetException(IEnumerable<ExceptionDispatchInfo> exceptions)
-        {
-            Contract.Assert(exceptions != null);
-#if DEBUG
-            foreach(var edi in exceptions) Contract.Assert(edi != null, "Contents must be non-null");
-#endif
-
-            bool rval = m_task.TrySetException(exceptions);
             if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
             return rval;
         }
@@ -238,11 +221,11 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public void SetException(Exception exception)
         {
-            if (exception == null) throw new ArgumentNullException("exception");
+            if (exception == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.exception);
 
             if (!TrySetException(exception))
             {
-                throw new InvalidOperationException(Environment.GetResourceString("TaskT_TransitionToFinal_AlreadyCompleted"));
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
             }
         }
 
@@ -268,7 +251,7 @@ namespace System.Threading.Tasks
         {
             if (!TrySetException(exceptions))
             {
-                throw new InvalidOperationException(Environment.GetResourceString("TaskT_TransitionToFinal_AlreadyCompleted"));
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
             }
         }
 
@@ -293,7 +276,7 @@ namespace System.Threading.Tasks
         public bool TrySetResult(TResult result)
         {
             bool rval = m_task.TrySetResult(result);
-            if (!rval && !m_task.IsCompleted) SpinUntilCompleted();
+            if (!rval) SpinUntilCompleted();
             return rval;
         }
 
@@ -316,7 +299,7 @@ namespace System.Threading.Tasks
         public void SetResult(TResult result)
         {
             if (!TrySetResult(result))
-                throw new InvalidOperationException(Environment.GetResourceString("TaskT_TransitionToFinal_AlreadyCompleted"));
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }
 
         /// <summary>
@@ -363,8 +346,8 @@ namespace System.Threading.Tasks
         /// <exception cref="T:System.ObjectDisposedException">The <see cref="Task"/> was disposed.</exception>
         public void SetCanceled()
         {
-            if(!TrySetCanceled())
-                throw new InvalidOperationException(Environment.GetResourceString("TaskT_TransitionToFinal_AlreadyCompleted"));
+            if (!TrySetCanceled())
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
         }
     }
 }

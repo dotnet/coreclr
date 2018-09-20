@@ -7,6 +7,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -25,11 +26,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToIterableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         // This method is invoked when First is called on a managed implementation of IIterable<T>.
-        [System.Security.SecurityCritical]
         internal IIterator<T> First_Stub<T>()
         {
             IEnumerable<T> _this = JitHelpers.UnsafeCast<IEnumerable<T>>(this);
@@ -41,7 +41,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     {
         private EnumerableToBindableIterableAdapter()
         {
-            Contract.Assert(false, "This class is never instantiated");
+            Debug.Assert(false, "This class is never instantiated");
         }
 
         internal sealed class NonGenericToGenericEnumerator : IEnumerator<object>
@@ -51,21 +51,20 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             public NonGenericToGenericEnumerator(IEnumerator enumerator)
             { this.enumerator = enumerator; }
 
-            public object Current  { get { return enumerator.Current; } }
+            public object Current { get { return enumerator.Current; } }
             public bool MoveNext() { return enumerator.MoveNext(); }
-            public void Reset()    { enumerator.Reset(); }
-            public void Dispose()  { }
+            public void Reset() { enumerator.Reset(); }
+            public void Dispose() { }
         }
 
         // This method is invoked when First is called on a managed implementation of IBindableIterable.
-        [System.Security.SecurityCritical]
         internal IBindableIterator First_Stub()
         {
             IEnumerable _this = JitHelpers.UnsafeCast<IEnumerable>(this);
-            return new EnumeratorToIteratorAdapter<object>(new NonGenericToGenericEnumerator(_this.GetEnumerator()) );
+            return new EnumeratorToIteratorAdapter<object>(new NonGenericToGenericEnumerator(_this.GetEnumerator()));
         }
     }
-    
+
     // Adapter class which holds a managed IEnumerator<T>, exposing it as a Windows Runtime IIterator<T>
     internal sealed class EnumeratorToIteratorAdapter<T> : IIterator<T>, IBindableIterator
     {

@@ -10,6 +10,7 @@
 **
 ** 
 ===========================================================*/
+
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Collections.Generic;
@@ -19,24 +20,16 @@ using System.StubHelpers;
 using System.Threading.Tasks;
 
 #if FEATURE_COMINTEROP
-
 using System.Runtime.InteropServices.WindowsRuntime;
-
-[assembly:Guid("BED7F4EA-1A96-11d2-8F08-00A0C9A6186D")]
-
-// The following attribute are required to ensure COM compatibility.
-[assembly:System.Runtime.InteropServices.ComCompatibleVersion(1, 0, 3300, 0)]
-[assembly:System.Runtime.InteropServices.TypeLibVersion(2, 4)]
-
 #endif // FEATURE_COMINTEROP
 
-[assembly:DefaultDependencyAttribute(LoadHint.Always)]
+[assembly: DefaultDependencyAttribute(LoadHint.Always)]
 // mscorlib would like to have its literal strings frozen if possible
 [assembly: System.Runtime.CompilerServices.StringFreezingAttribute()]
 
 namespace System
 {
-    static class Internal
+    static class CommonlyUsedGenericInstantiations
     {
         // This method is purely an aid for NGen to statically deduce which
         // instantiations to save in the ngen image.
@@ -47,17 +40,23 @@ namespace System
         // This can be removed after V2, when we implement other schemes
         // of keeping the JIT-compiler out for generic instantiations.
 
-        static void CommonlyUsedGenericInstantiations()
+        // Method marked as NoOptimization as we don't want the JIT to
+        // inline any methods or take any short-circuit paths since the 
+        // instantiation closure process is driven by "fixup" references 
+        // left in the final code stream.
+        [MethodImplAttribute(MethodImplOptions.NoOptimization)]
+        static CommonlyUsedGenericInstantiations()
         {
             // Make absolutely sure we include some of the most common 
             // instantiations here in mscorlib's ngen image.
             // Note that reference type instantiations are already included
             // automatically for us.
 
-            System.Array.Sort<double>(null);
-            System.Array.Sort<int>(null);
-            System.Array.Sort<IntPtr>(null);
-            
+            // Need to sort non null, len > 1 array or paths will short-circuit
+            Array.Sort<double>(new double[1]);
+            Array.Sort<int>(new int[1]);
+            Array.Sort<IntPtr>(new IntPtr[1]);
+
             new ArraySegment<byte>(new byte[1], 0, 0);
 
             new Dictionary<Char, Object>();
@@ -79,24 +78,23 @@ namespace System
             new Dictionary<Object, UInt32>();
             new Dictionary<UInt32, Object>();
             new Dictionary<Int64, Object>();
-#if FEATURE_CORECLR
+
             // to genereate mdil for Dictionary instantiation when key is user defined value type
             new Dictionary<Guid, Int32>();
-#endif
 
-        // Microsoft.Windows.Design
+            // Microsoft.Windows.Design
             new Dictionary<System.Reflection.MemberTypes, Object>();
             new EnumEqualityComparer<System.Reflection.MemberTypes>();
 
-        // Microsoft.Expression.DesignModel
-            new Dictionary<Object, KeyValuePair<Object,Object>>();
-            new Dictionary<KeyValuePair<Object,Object>, Object>();
+            // Microsoft.Expression.DesignModel
+            new Dictionary<Object, KeyValuePair<Object, Object>>();
+            new Dictionary<KeyValuePair<Object, Object>, Object>();
 
             NullableHelper<Boolean>();
             NullableHelper<Byte>();
             NullableHelper<Char>();
-            NullableHelper<DateTime>(); 
-            NullableHelper<Decimal>(); 
+            NullableHelper<DateTime>();
+            NullableHelper<Decimal>();
             NullableHelper<Double>();
             NullableHelper<Guid>();
             NullableHelper<Int16>();
@@ -130,7 +128,7 @@ namespace System
             new KeyValuePair<Char, UInt16>('\0', UInt16.MinValue);
             new KeyValuePair<UInt16, Double>(UInt16.MinValue, Double.MinValue);
             new KeyValuePair<Object, Int32>(String.Empty, Int32.MinValue);
-            new KeyValuePair<Int32, Int32>(Int32.MinValue, Int32.MinValue);            
+            new KeyValuePair<Int32, Int32>(Int32.MinValue, Int32.MinValue);
             SZArrayHelper<Boolean>(null);
             SZArrayHelper<Byte>(null);
             SZArrayHelper<DateTime>(null);
@@ -151,25 +149,23 @@ namespace System
             SZArrayHelper<CustomAttributeTypedArgument>(null);
             SZArrayHelper<CustomAttributeNamedArgument>(null);
 
-#if FEATURE_CORECLR
 #pragma warning disable 4014
             // This is necessary to generate MDIL for AsyncVoidMethodBuilder
             AsyncHelper<int>();
             AsyncHelper2<int>();
             AsyncHelper3();
 #pragma warning restore 4014
-#endif
         }
 
-        static T NullableHelper<T>() where T : struct
+        private static T NullableHelper<T>() where T : struct
         {
-            Nullable.Compare<T>(null, null);    
-            Nullable.Equals<T>(null, null); 
+            Nullable.Compare<T>(null, null);
+            Nullable.Equals<T>(null, null);
             Nullable<T> nullable = new Nullable<T>();
             return nullable.GetValueOrDefault();
-        }       
+        }
 
-        static void SZArrayHelper<T>(SZArrayHelper oSZArrayHelper)
+        private static void SZArrayHelper<T>(SZArrayHelper oSZArrayHelper)
         {
             // Instantiate common methods for IList implementation on Array
             oSZArrayHelper.get_Count<T>();
@@ -177,27 +173,25 @@ namespace System
             oSZArrayHelper.GetEnumerator<T>();
         }
 
-#if FEATURE_CORECLR
         // System.Runtime.CompilerServices.AsyncVoidMethodBuilder
         // System.Runtime.CompilerServices.TaskAwaiter
-        static async void AsyncHelper<T>()
+        private static async void AsyncHelper<T>()
         {
             await Task.Delay(1);
         }
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1[System.__Canon]
         // System.Runtime.CompilerServices.TaskAwaiter'[System.__Canon]
-        static async Task<String> AsyncHelper2<T>()
+        private static async Task<String> AsyncHelper2<T>()
         {
             return await Task.FromResult<string>("");
         }
 
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder
         // System.Runtime.CompilerServices.AsyncTaskMethodBuilder'1[VoidTaskResult]
-        static async Task AsyncHelper3()
+        private static async Task AsyncHelper3()
         {
             await Task.FromResult<string>("");
         }
-#endif
 
 #if FEATURE_COMINTEROP
 
@@ -208,8 +202,7 @@ namespace System
         // typed as matching instantiations of mscorlib copies of WinRT interfaces (IIterable<T>, IVector<T>,
         // IMap<K, V>, ...) which is necessary to generate all required IL stubs.
 
-        [SecurityCritical]
-        static void CommonlyUsedWinRTRedirectedInterfaceStubs()
+        private static void CommonlyUsedWinRTRedirectedInterfaceStubs()
         {
             WinRT_IEnumerable<byte>(null, null, null);
             WinRT_IEnumerable<char>(null, null, null);
@@ -255,16 +248,14 @@ namespace System
             WinRT_Nullable<double>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IEnumerable<T>(IterableToEnumerableAdapter iterableToEnumerableAdapter, EnumerableToIterableAdapter enumerableToIterableAdapter, IIterable<T> iterable)
+        private static void WinRT_IEnumerable<T>(IterableToEnumerableAdapter iterableToEnumerableAdapter, EnumerableToIterableAdapter enumerableToIterableAdapter, IIterable<T> iterable)
         {
             // instantiate stubs for the one method on IEnumerable<T> and the one method on IIterable<T>
             iterableToEnumerableAdapter.GetEnumerator_Stub<T>();
             enumerableToIterableAdapter.First_Stub<T>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IList<T>(VectorToListAdapter vectorToListAdapter, VectorToCollectionAdapter vectorToCollectionAdapter, ListToVectorAdapter listToVectorAdapter, IVector<T> vector)
+        private static void WinRT_IList<T>(VectorToListAdapter vectorToListAdapter, VectorToCollectionAdapter vectorToCollectionAdapter, ListToVectorAdapter listToVectorAdapter, IVector<T> vector)
         {
             WinRT_IEnumerable<T>(null, null, null);
 
@@ -288,8 +279,7 @@ namespace System
             listToVectorAdapter.Clear<T>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IReadOnlyCollection<T>(VectorViewToReadOnlyCollectionAdapter vectorViewToReadOnlyCollectionAdapter)
+        private static void WinRT_IReadOnlyCollection<T>(VectorViewToReadOnlyCollectionAdapter vectorViewToReadOnlyCollectionAdapter)
         {
             WinRT_IEnumerable<T>(null, null, null);
 
@@ -297,8 +287,7 @@ namespace System
             vectorViewToReadOnlyCollectionAdapter.Count<T>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IReadOnlyList<T>(IVectorViewToIReadOnlyListAdapter vectorToListAdapter, IReadOnlyListToIVectorViewAdapter listToVectorAdapter, IVectorView<T> vectorView)
+        private static void WinRT_IReadOnlyList<T>(IVectorViewToIReadOnlyListAdapter vectorToListAdapter, IReadOnlyListToIVectorViewAdapter listToVectorAdapter, IVectorView<T> vectorView)
         {
             WinRT_IEnumerable<T>(null, null, null);
             WinRT_IReadOnlyCollection<T>(null);
@@ -311,8 +300,7 @@ namespace System
             listToVectorAdapter.Size<T>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IDictionary<K, V>(MapToDictionaryAdapter mapToDictionaryAdapter, MapToCollectionAdapter mapToCollectionAdapter, DictionaryToMapAdapter dictionaryToMapAdapter, IMap<K, V> map)
+        private static void WinRT_IDictionary<K, V>(MapToDictionaryAdapter mapToDictionaryAdapter, MapToCollectionAdapter mapToCollectionAdapter, DictionaryToMapAdapter dictionaryToMapAdapter, IMap<K, V> map)
         {
             WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
 
@@ -337,8 +325,7 @@ namespace System
             dictionaryToMapAdapter.Clear<K, V>();
         }
 
-        [SecurityCritical]
-        static void WinRT_IReadOnlyDictionary<K, V>(IMapViewToIReadOnlyDictionaryAdapter mapToDictionaryAdapter, IReadOnlyDictionaryToIMapViewAdapter dictionaryToMapAdapter, IMapView<K, V> mapView, MapViewToReadOnlyCollectionAdapter mapViewToReadOnlyCollectionAdapter)
+        private static void WinRT_IReadOnlyDictionary<K, V>(IMapViewToIReadOnlyDictionaryAdapter mapToDictionaryAdapter, IReadOnlyDictionaryToIMapViewAdapter dictionaryToMapAdapter, IMapView<K, V> mapView, MapViewToReadOnlyCollectionAdapter mapViewToReadOnlyCollectionAdapter)
         {
             WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
             WinRT_IReadOnlyCollection<KeyValuePair<K, V>>(null);
@@ -358,8 +345,7 @@ namespace System
             dictionaryToMapAdapter.HasKey<K, V>(default(K));
         }
 
-        [SecurityCritical]
-        static void WinRT_Nullable<T>() where T : struct
+        private static void WinRT_Nullable<T>() where T : struct
         {
             Nullable<T> nullable = new Nullable<T>();
             NullableMarshaler.ConvertToNative(ref nullable);

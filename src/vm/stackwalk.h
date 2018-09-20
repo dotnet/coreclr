@@ -36,14 +36,14 @@ class AppDomain;
 //  on the stack.  The FEF is used for unwinding.  If not defined, the unwinding
 //  uses the exception context.
 #define USE_FEF // to mark where code needs to be changed to eliminate the FEF
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
  #undef USE_FEF // Turn off the FEF use on x86.
  #define ELIMINATE_FEF
 #else
  #if defined(ELIMINATE_FEF)
   #undef ELIMINATE_FEF
  #endif 
-#endif // _86_
+#endif // _TARGET_X86_ && !FEATURE_PAL
 
 //************************************************************************
 // Enumerate all functions.
@@ -107,6 +107,7 @@ public:
 
     BOOL IsInCalleesFrames(LPVOID stackPointer);
 
+#ifndef DACCESS_COMPILE
     /* Returns address of the securityobject stored in the current function (method?)
        Returns NULL if
             - not a function OR
@@ -114,6 +115,7 @@ public:
               (which is an error)
      */
     OBJECTREF * GetAddrOfSecurityObject();
+#endif // DACCESS_COMPILE
 
     // Fetch the extra type argument passed in some cases
     PTR_VOID GetParamTypeArg();
@@ -322,6 +324,13 @@ public:
         // This assumes that CrawlFrame is host-only structure with DACCESS_COMPILE
         // and thus it always returns the host address.
         return &codeInfo;
+    }
+
+    GCInfoToken GetGCInfoToken()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(isFrameless);
+        return codeInfo.GetGCInfoToken();
     }
 
     PTR_VOID GetGCInfo()

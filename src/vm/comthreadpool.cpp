@@ -28,11 +28,7 @@
 #include "corhost.h"
 #include "nativeoverlapped.h"
 #include "comsynchronizable.h"
-#ifdef FEATURE_REMOTING
-#include "crossdomaincalls.h"
-#else
 #include "callhelpers.h"
-#endif
 #include "appdomain.inl"
 /*****************************************************************************************************/
 #ifdef _DEBUG
@@ -273,7 +269,7 @@ FCIMPL0(FC_BOOL_RET, ThreadPoolNative::NotifyRequestComplete)
         }
 
         if (needReset)
-            pThread->InternalReset (FALSE, TRUE, TRUE, FALSE);
+            pThread->InternalReset(FALSE, TRUE, TRUE, FALSE);
 
         HELPER_METHOD_FRAME_END();    
     }
@@ -299,17 +295,6 @@ void QCALLTYPE ThreadPoolNative::InitializeVMTp(CLR_BOOL* pEnableWorkerTracking)
     *pEnableWorkerTracking = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_EnableWorkerTracking) ? TRUE : FALSE;
     END_QCALL;
 }
-
-
-FCIMPL0(FC_BOOL_RET, ThreadPoolNative::IsThreadPoolHosted)
-{
-    FCALL_CONTRACT;
-
-    FCUnique(0x22);
-
-    FC_RETURN_BOOL(ThreadpoolMgr::IsThreadPoolHosted());
-}
-FCIMPLEND
 
 /*****************************************************************************************************/
 
@@ -632,29 +617,6 @@ void SetAsyncResultProperties(
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    ASYNCRESULTREF asyncResult = overlapped->m_asyncResult;
-    // only filestream is expected to have a null delegate in which
-    // case we do the necessary book-keeping here. However, for robustness
-    // we should make sure that the asyncResult is indeed an instance of
-    // FileStreamAsyncResult
-    if (asyncResult->GetMethodTable() == g_pAsyncFileStream_AsyncResultClass)
-    {
-        // Handle reading from & writing to closed pipes. It's possible for
-        // an async read on a pipe to be issued and then the pipe is closed,
-        // returning this error.  This may very well be necessary. -BG
-        if (dwErrorCode == ERROR_BROKEN_PIPE || dwErrorCode == ERROR_NO_DATA)
-            dwErrorCode = 0;
-        asyncResult->SetErrorCode(dwErrorCode);
-        asyncResult->SetNumBytes(dwNumBytes);
-        asyncResult->SetCompletedAsynchronously();
-        asyncResult->SetIsComplete();
-
-        // Signal the event - the OS does not do this for us.
-        WAITHANDLEREF waitHandle = asyncResult->GetWaitHandle();
-        HANDLE h = waitHandle->GetWaitHandle();
-        if ((h != NULL) && (h != (HANDLE) -1))
-            UnsafeSetEvent(h);
-    }
 }
 
 VOID BindIoCompletionCallBack_Worker(LPVOID args)
@@ -663,11 +625,11 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
     STATIC_CONTRACT_SO_INTOLERANT;
-    
+
     DWORD        ErrorCode = ((BindIoCompletion_Args *)args)->ErrorCode;
     DWORD        numBytesTransferred = ((BindIoCompletion_Args *)args)->numBytesTransferred;
     LPOVERLAPPED lpOverlapped = ((BindIoCompletion_Args *)args)->lpOverlapped;
-    
+
     OVERLAPPEDDATAREF overlapped = ObjectToOVERLAPPEDDATAREF(OverlappedDataObject::GetOverlapped(lpOverlapped));
 
     GCPROTECT_BEGIN(overlapped);
@@ -682,7 +644,7 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
     if (overlapped->m_iocb != NULL)
     {
         // Caution: the args are not protected, we have to garantee there's no GC from here till
-        PREPARE_NONVIRTUAL_CALLSITE(METHOD__IOCB_HELPER__PERFORM_IOCOMPLETION_CALLBACK);        
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__IOCB_HELPER__PERFORM_IOCOMPLETION_CALLBACK);
         DECLARE_ARGHOLDER_ARRAY(arg, 3);
         arg[ARGNUM_0]  = DWORD_TO_ARGHOLDER(ErrorCode);
         arg[ARGNUM_1]  = DWORD_TO_ARGHOLDER(numBytesTransferred);
@@ -692,20 +654,15 @@ VOID BindIoCompletionCallBack_Worker(LPVOID args)
         CALL_MANAGED_METHOD_NORET(arg);
     }
     else
-    { // no user delegate to callback
+    {
+        // no user delegate to callback
         _ASSERTE((overlapped->m_iocbHelper == NULL) || !"This is benign, but should be optimized");
 
-        // we cannot do this at threadpool initialization time since mscorlib may not have been loaded
-        if (!g_pAsyncFileStream_AsyncResultClass)
-        {
-            g_pAsyncFileStream_AsyncResultClass = MscorlibBinder::GetClass(CLASS__FILESTREAM_ASYNCRESULT);
-        }
 
         SetAsyncResultProperties(overlapped, ErrorCode, numBytesTransferred);
     }
     GCPROTECT_END();
 }
-
 
 void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
                                               DWORD numBytesTransferred,
@@ -768,9 +725,6 @@ void __stdcall BindIoCompletionCallbackStubEx(DWORD ErrorCode,
         appDomain.Release();
         ManagedThreadBase::ThreadPool(ADID(overlapped->GetAppDomainId()), BindIoCompletionCallBack_Worker, &args);
     }
-
- 
-
 
     LOG((LF_INTEROP, LL_INFO10000, "Leaving IO_CallBackStub thread 0x%x retCode 0x%x, overlap 0x%x\n",  pThread, ErrorCode, lpOverlapped));
         // We should have released all locks.

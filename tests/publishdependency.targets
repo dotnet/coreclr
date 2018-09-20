@@ -3,38 +3,54 @@
 
   <UsingTask TaskName="PrereleaseResolveNuGetPackageAssets" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
   <ItemGroup>
-    <TestTargetFramework Include="DNXCore,Version=v5.0">
-      <Folder>dnxcore50</Folder>
+    <TestTargetFramework Include=".NETCoreApp,Version=v2.0">
+      <Folder>netcoreapp2.0</Folder>
     </TestTargetFramework>
   </ItemGroup>
 
+  <PropertyGroup>
+    <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
+    <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(__BuildArch)</PackagePlatform>
+    <PackagePlatform Condition="'$(PackagePlatform)' == 'amd64'">x64</PackagePlatform>
+    <MinOSForArch>win7</MinOSForArch>
+    <MinOSForArch Condition="'$(PackagePlatform)' == 'arm'">win8</MinOSForArch>
+    <MinOSForArch Condition="'$(PackagePlatform)' == 'arm64'">win10</MinOSForArch>
+  </PropertyGroup>
+
   <ItemGroup>
-    <AllProjectJsonLockFiles Include="$(SourceDir)**\*\project.lock.json"/>
+    <CoreRootProjectLockJsonFiles Include="$(SourceDir)Common\test_runtime\obj\project.assets.json"/>
+    <CoreRootProjectLockJsonFiles Include="$(SourceDir)Common\test_dependencies\obj\project.assets.json"/>
   </ItemGroup>
 
-  <Target Name="CopyDependecyToCoreRoot"
-    Inputs="@(AllProjectJsonLockFiles)"
-    Outputs="$(CORE_ROOT)\*.*">
-    
-    <ItemGroup>
-      <ProjectJsonLockFileExclude Include="$(SourceDir).nuget\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)Test*\**\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)Common\Coreclr.TestWrapper\**\project.lock.json" />
-      <ProjectJsonLockFileExclude Include="$(SourceDir)packages\**\*\project.lock.json" />
-    </ItemGroup>
+  <ItemGroup>
+    <RefProjectLockJsonFiles Include="$(SourceDir)Common\targeting_pack_ref\obj\project.assets.json"/>
+  </ItemGroup>
 
-    <ItemGroup>
-      <ProjectLockJsonFiles Include="@(AllProjectJsonLockFiles)"  Exclude="@(ProjectJsonLockFileExclude)"/>
-    </ItemGroup>
+  <ItemGroup>
+    <ProductProjectLockJsonFiles Include="$(SourceDir)Common\build_against_pkg_dependencies\obj\project.assets.json"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <CrossGenFiles Include="..\packages\runtime.$(TargetRid).Microsoft.NETCore.Runtime.CoreCLR\$(DesiredPackageVersionArg)\tools\crossgen*"/>
+  </ItemGroup>
+
+  <PropertyGroup>
+    <ProductDestination>$(ProjectDir)\..\bin\Product\$(BuildOS).$(BuildArch).$(BuildType)</ProductDestination>
+    <RefDestination>$(ProductDestination)\ref</RefDestination>
+  </PropertyGroup>
+
+  <Target Name="CopyDependecyToCoreRoot"
+    Inputs="@(CoreRootProjectLockJsonFiles)"
+    Outputs="$(CORE_ROOT)\*.*">
 
     <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
          for the xunit wrapper projects -->
-    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="true"
+    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="false"
                                          IncludeFrameworkReferences="false"
                                          NuGetPackagesDirectory="$(PackagesDir)"
-                                         RuntimeIdentifier="$(TestNugetRuntimeId)"
+                                         RuntimeIdentifier="$(TargetRid)"
                                          ProjectLanguage="$(Language)"
-                                         ProjectLockFile="%(ProjectLockJsonFiles.Identity)"
+                                         ProjectLockFile="%(CoreRootProjectLockJsonFiles.Identity)"
                                          TargetMonikers="@(TestTargetFramework)">
       <Output TaskParameter="ResolvedAnalyzers" ItemName="Analyzer" />
       <Output TaskParameter="ResolvedReferences" ItemName="Reference" />
@@ -50,6 +66,7 @@
       </AllResolvedRuntimeDependencies>
       <RunTimeDependecyCopyLocalFile Include="@(AllResolvedRuntimeDependencies)"  Exclude="@(RunTimeDependecyExcludeFiles)"/>
       <RunTimeDependecyCopyLocal Include="@(RunTimeDependecyCopyLocalFile -> '%(File)')"  />
+      <RunTimeDependecyCopyLocal Include="$(TargetingPackPath)/*" />
     </ItemGroup>
     
     <Copy
@@ -62,6 +79,83 @@
       UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
       <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
     </Copy>
+  </Target>
+
+  <Target Name="CopyDependencyToRef"
+    Inputs="@(RefProjectLockJsonFiles)"
+    Outputs="$(RefDestination)\*.*">
+
+    <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
+         for the xunit wrapper projects -->
+    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="true"
+                                         IncludeFrameworkReferences="false"
+                                         NuGetPackagesDirectory="$(PackagesDir)"
+                                         RuntimeIdentifier="$(TargetRid)"
+                                         ProjectLanguage="$(Language)"
+                                         ProjectLockFile="%(RefProjectLockJsonFiles.Identity)"
+                                         TargetMonikers="@(TestTargetFramework)">
+      <Output TaskParameter="ResolvedAnalyzers" ItemName="RefAnalyzer" />
+      <Output TaskParameter="ResolvedReferences" ItemName="RefReference" />
+      <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RefRunTimeCopyLocal" />
+    </PrereleaseResolveNuGetPackageAssets>
+    
+    <Copy
+      SourceFiles="@(RefRunTimeCopyLocal)"
+      DestinationFolder="$(RefDestination)"
+      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+      Retries="$(CopyRetryCount)"
+      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+    </Copy>
+  </Target>
+
+  <Target Name="CopyDependencyToProduct"
+    Inputs="@(ProductProjectLockJsonFiles)"
+    Outputs="$(ProductDestination)\*.*">
+
+    <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
+         for the xunit wrapper projects -->
+    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="true"
+                                         IncludeFrameworkReferences="false"
+                                         NuGetPackagesDirectory="$(PackagesDir)"
+                                         RuntimeIdentifier="$(TargetRid)"
+                                         ProjectLanguage="$(Language)"
+                                         ProjectLockFile="%(ProductProjectLockJsonFiles.Identity)"
+                                         TargetMonikers="@(TestTargetFramework)">
+      <Output TaskParameter="ResolvedAnalyzers" ItemName="RefAnalyzer" />
+      <Output TaskParameter="ResolvedReferences" ItemName="RefReference" />
+      <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RefRunTimeCopyLocal" />
+    </PrereleaseResolveNuGetPackageAssets>
+    
+    <Copy
+      SourceFiles="@(RefRunTimeCopyLocal)"
+      DestinationFolder="$(ProductDestination)"
+      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+      Retries="$(CopyRetryCount)"
+      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+    </Copy>
+  </Target>
+
+  <Target Name="CopyCrossgenToProduct"
+    AfterTargets="CopyDependencyToProduct"
+    Outputs="$(ProductDestination)\crossgen.exe;$(CORE_OVERLAY)\crossgen.exe">
+
+    <Copy
+      SourceFiles="@(CrossGenFiles)"
+      DestinationFolder="$(ProductDestination)"
+      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+      Retries="$(CopyRetryCount)"
+      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+    </Copy>
+
   </Target>
 
 </Project>

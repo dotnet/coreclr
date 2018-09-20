@@ -18,9 +18,6 @@
 #include "field.h"
 #include "dllimportcallback.h"
 #include "dllimport.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeconfig.h"
 #include "mdaassistants.h"
 #include "cgensys.h"
@@ -280,7 +277,14 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         COMPlusThrow(kVerificationException);
     }
 
-    UINT stackSizeDelta = stackSizeSrc - stackSizeDst;
+    UINT stackSizeDelta;
+
+#ifdef UNIX_X86_ABI
+    // Stack does not shrink as UNIX_X86_ABI uses CDECL (instead of STDCALL).
+    stackSizeDelta = 0;
+#else
+    stackSizeDelta = stackSizeSrc - stackSizeDst;
+#endif
 
     INT ofsSrc, ofsDst;
 
@@ -611,7 +615,7 @@ Stub* COMDelegate::SetupShuffleThunk(MethodTable * pDelMT, MethodDesc *pTargetMe
 
     EnsureWritablePages(pClass);
 
-    if (!pTargetMeth->IsStatic() && pTargetMeth->HasRetBuffArg()) 
+    if (!pTargetMeth->IsStatic() && pTargetMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
     {
         if (FastInterlockCompareExchangePointer(&pClass->m_pInstRetBuffCallStub, pShuffleThunk, NULL ) != NULL)
         {
@@ -919,28 +923,11 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
         {
             _ASSERTE(pRefFirstArg == NULL || *pRefFirstArg == NULL);
 
-#ifdef FEATURE_REMOTING
-            if (!pTargetMethod->IsStatic())
-            {
-                // Open-instance delegate may have remoted target if the method is declared by
-                // an interface, by a type deriving from MarshalByRefObject, or by System.Object.
-                // The following condition is necessary but not sufficient as it's always possible
-                // to invoke the delegate on a local instance. Precise check would require doing
-                // the check at invocation time. We are secure because we demand MemberAccess when
-                // there is a possibility that the invocation will be remote.
-                // 
-                MethodTable *pMT = pTargetMethod->GetMethodTable();
-                targetPossiblyRemoted = (pMT == g_pObjectClass || pMT->IsInterface() || pMT->IsMarshaledByRef());
-            }
-#endif // FEATURE_REMOTING
         }
         else
         {
             // closed-static is OK and we can check the target in the closed-instance case
             pInstanceMT = (*pRefFirstArg == NULL ? NULL : (*pRefFirstArg)->GetMethodTable());
-#ifdef FEATURE_REMOTING
-            targetPossiblyRemoted = InvokeUtil::IsTargetRemoted(pTargetMethod, pInstanceMT);
-#endif
         }
 
         RefSecContext sCtx(InvokeUtil::GetInvocationAccessCheckType(targetPossiblyRemoted));
@@ -1009,7 +996,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
 
         // Look for a thunk cached on the delegate class first. Note we need a different thunk for instance methods with a
         // hidden return buffer argument because the extra argument switches place with the target when coming from the caller.
-        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg()) 
+        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelegateClass->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelegateClass->m_pStaticCallStub;
@@ -1079,7 +1066,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
             pTargetCode = pTargetMethod->GetMultiCallableAddrOfVirtualizedCode(pRefFirstArg, pTargetMethod->GetMethodTable());
         else
 #ifdef HAS_THISPTR_RETBUF_PRECODE
-        if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg())
+        if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             pTargetCode = pTargetMethod->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
         else
 #endif // HAS_THISPTR_RETBUF_PRECODE
@@ -1098,7 +1085,6 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
     GCPROTECT_END();
 }
 
-#ifdef FEATURE_CORECLR
 // On the CoreCLR, we don't allow non-fulltrust delegates to be marshaled out (or created: CorHost::CreateDelegate ensures that)
 // This helper function checks if we have a full-trust delegate with AllowReversePInvokeCallsAttribute targets.
 BOOL COMDelegate::IsFullTrustDelegate(DELEGATEREF pDelegate)
@@ -1218,7 +1204,6 @@ BOOL COMDelegate::IsMethodAllowedToSinkReversePInvoke(MethodDesc *pMD)
                         NULL));
 #endif // FEATURE_WINDOWSPHONE
 }
-#endif // FEATURE_CORECLR
 
 // Marshals a managed method to an unmanaged callback provided the 
 // managed method is static and it's parameters require no marshalling.
@@ -1249,7 +1234,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
     // Get UMEntryThunk from appdomain thunkcache cache.
     UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
     // System.Runtime.InteropServices.NativeCallableAttribute
     BYTE* pData = NULL;
@@ -1281,7 +1266,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
             pUMThunkMarshalInfo->SetCallingConvention(callConv);
         }
 }
-#endif  //_TARGET_X86_
+#endif  //_TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     pCode = (PCODE)pUMEntryThunk->GetCode();
     _ASSERTE(pCode != NULL);
@@ -1312,7 +1297,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
     MethodTable* pMT = pDelegate->GetMethodTable();
     DelegateEEClass* pClass = (DelegateEEClass*)(pMT->GetClass());
 
-#ifdef FEATURE_CORECLR
     // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
     if (!IsFullTrustDelegate(pDelegate))
     {        
@@ -1320,7 +1304,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
         TypeString::AppendType(strDelegateType, pMT, TypeString::FormatNamespace | TypeString::FormatAngleBrackets| TypeString::FormatSignature);
         COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_1, strDelegateType.GetUnicode());
     }
-#endif        
 
     if (pMT->HasInstantiation())
         COMPlusThrowArgumentException(W("delegate"), W("Argument_NeedNonGenericType"));
@@ -1502,13 +1485,11 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
             COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
-#ifdef FEATURE_CORECLR
         // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
         if (!IsFullTrustDelegate((DELEGATEREF)pDelegate))
         {
             COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
         }
-#endif        
 
         GCPROTECT_END();
         return pDelegate;
@@ -1590,13 +1571,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         MethodDesc *pStubMD = pClass->m_pForwardStubMD;
         _ASSERTE(pStubMD != NULL && pStubMD->IsILStub());
 
-#ifndef FEATURE_CORECLR
-        if (pStubMD->AsDynamicMethodDesc()->HasCopyCtorArgs())
-        {
-            // static stub that gets its arguments in a thread-static field
-            pInterceptStub = NDirect::GetStubForCopyCtor();
-        }
-#endif // !FEATURE_CORECLR
 
 #ifdef MDA_SUPPORTED
         if (MDA_GET_ASSISTANT(PInvokeStackImbalance))
@@ -1605,16 +1579,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         }
 #endif // MDA_SUPPORTED
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        if (NDirect::IsHostHookEnabled() && CallNeedsHostHook((size_t)pCallback))
-        {
-            pInterceptStub = GenerateStubForHost(
-                pMD,
-                pStubMD,
-                pCallback,
-                pInterceptStub);
-        }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     }
 
@@ -1630,13 +1594,11 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     GCPROTECT_END();
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_CORECLR
     // On the CoreCLR, we only allow marshaling out delegates that we can guarantee are full-trust delegates
     if (!IsFullTrustDelegate(delObj))
     {
         COMPlusThrow(kSecurityException, IDS_E_DELEGATE_FULLTRUST_ARPIC_2);
     }
-#endif        
 
     return delObj;
 }
@@ -2044,7 +2006,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
 
         // set the shuffle thunk
         Stub *pShuffleThunk = NULL;
-        if (!pMeth->IsStatic() && pMeth->HasRetBuffArg()) 
+        if (!pMeth->IsStatic() && pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelCls->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelCls->m_pStaticCallStub;
@@ -2102,10 +2064,24 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
                                 // <TODO>it looks like we need to pass an ownerType in here.
                                 //  Why can we take a delegate to an interface method anyway?  </TODO>
                                 // 
-                                pMeth = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
-                                if (pMeth == NULL)
+                                MethodDesc * pDispatchSlotMD = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth).GetMethodDesc();
+                                if (pDispatchSlotMD == NULL)
                                 {
                                     COMPlusThrow(kArgumentException, W("Arg_DlgtTargMeth"));
+                                }
+
+                                if (pMeth->HasMethodInstantiation())
+                                {
+                                    pMeth = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                                        pDispatchSlotMD,
+                                        pMTTarg,
+                                        (!pDispatchSlotMD->IsStatic() && pMTTarg->IsValueType()),
+                                        pMeth->GetMethodInstantiation(),
+                                        FALSE /* allowInstParam */);
+                                }
+                                else
+                                {
+                                    pMeth = pDispatchSlotMD;
                                 }
                             }
                         }
@@ -2148,7 +2124,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
             }
         }
 #ifdef HAS_THISPTR_RETBUF_PRECODE
-        else if (pMeth->HasRetBuffArg())
+        else if (pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             method = pMeth->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
 #endif // HAS_THISPTR_RETBUF_PRECODE
 
@@ -2168,17 +2144,6 @@ void COMDelegate::DoUnmanagedCodeAccessCheck(MethodDesc* pMeth)
     {
         // Check whether this is actually a SuppressUnmanagedCodePermission attribute and
         // if so, don't do a demand
-#ifndef FEATURE_CORECLR
-        MethodTable* pMTMeth = pMeth->GetMethodTable();
-        if (pMTMeth->GetMDImport()->GetCustomAttributeByName(pMeth->GetMethodTable()->GetCl(),
-                                                             COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                             NULL,
-                                                             NULL) == S_OK ||
-            pMTMeth->GetMDImport()->GetCustomAttributeByName(pMeth->GetMemberDef(),
-                                                             COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                             NULL,
-                                                             NULL) == S_OK)
-#endif
         {
             return;
         }
@@ -2381,7 +2346,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     }
     CONTRACT_END;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     static PCODE s_pInvokeStub;
 
     if (s_pInvokeStub == NULL)
@@ -2401,7 +2366,7 @@ PCODE COMDelegate::TheDelegateInvokeStub()
     RETURN s_pInvokeStub;
 #else
     RETURN GetEEFuncEntryPoint(SinglecastDelegateInvokeStub);
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 }
 
 // Get the cpu stub for a delegate invoke.
@@ -2412,7 +2377,7 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         STANDARD_VM_CHECK;
         POSTCONDITION(RETVAL != NULL);
 
-        INJECT_FAULT(COMPlusThrowOM()); 
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACT_END;
 
@@ -2429,29 +2394,8 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
 
         ret = COMDelegate::TheDelegateInvokeStub();
     }
-#ifdef FEATURE_REMOTING
-    else if (pMD == pClass->m_pBeginInvokeMethod)
-    {
-        CRemotingServices::EnsureRemotingStarted();
-
-        if (!ValidateBeginInvoke(pClass))
-            COMPlusThrow(kInvalidProgramException);
-
-        ret = CTPMethodTable::GetDelegateStubEntryPoint();
-    }
-    else if (pMD == pClass->m_pEndInvokeMethod)
-    {
-        CRemotingServices::EnsureRemotingStarted();
-
-        if (!ValidateEndInvoke(pClass))
-            COMPlusThrow(kInvalidProgramException);
-
-        ret = CTPMethodTable::GetDelegateStubEntryPoint();
-    }
-#endif // FEATURE_REMOTING
     else
     {
-#ifndef FEATURE_REMOTING
 
         // Since we do not support asynchronous delegates in CoreCLR, we much ensure that it was indeed a async delegate call
         // and not an invalid-delegate-layout condition. 
@@ -2459,16 +2403,15 @@ PCODE COMDelegate::GetInvokeMethodStub(EEImplMethodDesc* pMD)
         // If the call was indeed for async delegate invocation, we will just throw an exception.
         if ((pMD == pClass->m_pBeginInvokeMethod) || (pMD == pClass->m_pEndInvokeMethod))
         {
-            COMPlusThrow(kNotSupportedException);
+            COMPlusThrow(kPlatformNotSupportedException);
         }
 
-#endif //FEATURE_REMOTING
 
         _ASSERTE(!"Bad Delegate layout");
         COMPlusThrow(kInvalidProgramException);
     }
 
-    RETURN ret;    
+    RETURN ret;
 }
 
 FCIMPL1(Object*, COMDelegate::InternalAlloc, ReflectClassBaseObject * pTargetUNSAFE)
@@ -2541,38 +2484,7 @@ BOOL COMDelegate::NeedsSecureDelegate(MethodDesc* pCreatorMethod, AppDomain *pCr
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CAS_POLICY
     return FALSE;
-#else
-    if (pCreatorMethod)
-    {
-        Assembly* pTargetAssembly = pTargetMD->GetAssembly();
-        Assembly* pCreatorAssembly = pCreatorMethod->GetAssembly();
-        if (pCreatorAssembly != pTargetAssembly)
-        {
-            // We don't need secure delegate is everything in the AppDomain is full trust.
-            if (!pCreatorDomain->GetSecurityDescriptor()->DomainMayContainPartialTrustCode())
-                return FALSE;
-
-            IAssemblySecurityDescriptor *pCreatorAsd = pCreatorAssembly->GetSecurityDescriptor(pCreatorDomain);
-
-            // We should also create secure delegates for anonymously hosted dynamic methods which
-            // are themselves full trust (although transparent) yet can be created from partial trust.
-            if (!pCreatorAsd->IsFullyTrusted() ||
-                pCreatorAssembly->GetDomainAssembly(pCreatorDomain) == pCreatorDomain->GetAnonymouslyHostedDynamicMethodsAssembly())
-            {
-                return TRUE;
-            }
-
-            // Note that if we begin to support using an NGEN image which is not fully trusted, we may need
-            // to force on secure delegates as the grant set of the image may not match between NGEN time
-            // and runtime.
-        }
-    }
-
-    return FALSE;
-
-#endif // FEATURE_CAS_POLICY
 }
 
 BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
@@ -2582,7 +2494,7 @@ BOOL COMDelegate::NeedsWrapperDelegate(MethodDesc* pTargetMD)
 #ifdef _TARGET_ARM_
     // For arm VSD expects r4 to contain the indirection cell. However r4 is a non-volatile register
     // and its value must be preserved. So we need to erect a frame and store indirection cell in r4 before calling
-    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure 
+    // virtual stub dispatch. Erecting frame is already done by secure delegates so the secureDelegate infrastructure
     //  can easliy be used for our purpose.
     // set needsSecureDelegate flag in order to erect a frame. (Secure Delegate stub also loads the right value in r4)
     if (!pTargetMD->IsStatic() && pTargetMD->IsVirtual() && !pTargetMD->GetMethodTable()->IsValueType())
@@ -2914,11 +2826,61 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CAS_POLICY
-#error GetSecureInvoke not implemented
-#else
-    UNREACHABLE();
-#endif
+    MethodTable *       pDelegateMT = pMD->GetMethodTable();
+    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
+    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
+
+    if (pStub == NULL)
+    {
+
+        GCX_PREEMP();
+
+        MetaSig sig(pMD);
+
+        BOOL fReturnVal = !sig.IsReturnTypeVoid();
+
+        SigTypeContext emptyContext;
+        ILStubLinker sl(pMD->GetModule(), pMD->GetSignature(), &emptyContext, pMD, TRUE, TRUE, FALSE);
+
+        ILCodeStream *pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
+
+        // Load the "real" delegate
+        pCode->EmitLoadThis();
+        pCode->EmitLDFLD(pCode->GetToken(MscorlibBinder::GetField(FIELD__MULTICAST_DELEGATE__INVOCATION_LIST)));
+
+        // Load the arguments
+        UINT paramCount = 0;
+        while(paramCount < sig.NumFixedArgs())
+            pCode->EmitLDARG(paramCount++);
+
+        // Call the delegate
+        pCode->EmitCALL(pCode->GetToken(pMD), sig.NumFixedArgs(), fReturnVal);
+
+        // Return
+        pCode->EmitRET();
+
+        PCCOR_SIGNATURE pSig;
+        DWORD cbSig;
+
+        pMD->GetSig(&pSig,&cbSig);
+
+        MethodDesc* pStubMD =
+            ILStubCache::CreateAndLinkNewILStubMethodDesc(pMD->GetLoaderAllocator(),
+                                                          pMD->GetMethodTable(),
+                                                          ILSTUB_SECUREDELEGATE_INVOKE,
+                                                          pMD->GetModule(),
+                                                          pSig, cbSig,
+                                                          NULL,
+                                                          &sl);
+
+        pStub = Stub::NewStub(JitILStub(pStubMD));
+
+        g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
+
+        InterlockedCompareExchangeT<PTR_Stub>(EnsureWritablePages(&delegateEEClass->m_pSecureDelegateInvokeStub), pStub, NULL);
+
+    }
+    return pStub->GetEntryPoint();
 }
 #else // FEATURE_STUBS_AS_IL
 PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
@@ -2932,32 +2894,44 @@ PCODE COMDelegate::GetSecureInvoke(MethodDesc* pMD)
     }
     CONTRACT_END;
 
-    GCX_PREEMP();
-    
-    MetaSig sig(pMD);
+    MethodTable *       pDelegateMT = pMD->GetMethodTable();
+    DelegateEEClass*    delegateEEClass = (DelegateEEClass*) pDelegateMT->GetClass();
 
-    UINT_PTR hash = CPUSTUBLINKER::HashMulticastInvoke(&sig);
+    Stub *pStub = delegateEEClass->m_pSecureDelegateInvokeStub;
 
-    Stub *pStub = m_pSecureDelegateStubCache->GetStub(hash);
-    if (!pStub)
+    if (pStub == NULL)
     {
-        CPUSTUBLINKER sl;
+        GCX_PREEMP();
 
-        LOG((LF_CORDB,LL_INFO10000, "COMD::GIMS making a multicast delegate\n"));
-        sl.EmitSecureDelegateInvoke(hash);
+        MetaSig sig(pMD);
 
-        // The cache is process-wide, based on signature.  It never unloads
-        Stub *pCandidate = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap(), NEWSTUB_FL_MULTICAST);
+        UINT_PTR hash = CPUSTUBLINKER::HashMulticastInvoke(&sig);
 
-        Stub *pWinner = m_pSecureDelegateStubCache->AttemptToSetStub(hash, pCandidate);
-        pCandidate->DecRef();
-        if (!pWinner)
-            COMPlusThrowOM();
+        pStub = m_pSecureDelegateStubCache->GetStub(hash);
+        if (!pStub)
+        {
+            CPUSTUBLINKER sl;
 
-        LOG((LF_CORDB,LL_INFO10000, "Putting a MC stub at 0x%x (code:0x%x)\n",
-            pWinner, (BYTE*)pWinner+sizeof(Stub)));
+            LOG((LF_CORDB,LL_INFO10000, "COMD::GIMS making a multicast delegate\n"));
+            sl.EmitSecureDelegateInvoke(hash);
 
-        pStub = pWinner;
+            // The cache is process-wide, based on signature.  It never unloads
+            Stub *pCandidate = sl.Link(SystemDomain::GetGlobalLoaderAllocator()->GetStubHeap(), NEWSTUB_FL_MULTICAST);
+
+            Stub *pWinner = m_pSecureDelegateStubCache->AttemptToSetStub(hash, pCandidate);
+            pCandidate->DecRef();
+            if (!pWinner)
+                COMPlusThrowOM();
+
+            LOG((LF_CORDB,LL_INFO10000, "Putting a MC stub at 0x%x (code:0x%x)\n",
+                pWinner, (BYTE*)pWinner+sizeof(Stub)));
+
+            pStub = pWinner;
+        }
+
+        g_IBCLogger.LogEEClassCOWTableAccess(pDelegateMT);
+        EnsureWritablePages(&delegateEEClass->m_pSecureDelegateInvokeStub);
+        delegateEEClass->m_pSecureDelegateInvokeStub = pStub;
     }
     RETURN (pStub->GetEntryPoint());
 }
@@ -3555,7 +3529,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
                 pRealCtor = MscorlibBinder::GetMethod(METHOD__MULTICAST_DELEGATE__CTOR_OPENED);
         }
         Stub *pShuffleThunk = NULL;
-        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg()) 
+        if (!pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg()) 
             pShuffleThunk = pDelCls->m_pInstRetBuffCallStub;
         else
             pShuffleThunk = pDelCls->m_pStaticCallStub;
@@ -3583,7 +3557,7 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         // Force closed delegates over static methods with return buffer to go via 
         // the slow path to create ThisPtrRetBufPrecode
-        if (isStatic && pTargetMethod->HasRetBuffArg())
+        if (isStatic && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             return NULL;
 #endif
 
@@ -3720,7 +3694,6 @@ BOOL COMDelegate::ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pd
 {
     WRAPPER_NO_CONTRACT;
 
-#ifdef FEATURE_CORECLR
     if (GetAppDomain()->GetSecurityDescriptor()->IsFullyTrusted())
         return TRUE;
 
@@ -3731,9 +3704,6 @@ BOOL COMDelegate::ValidateSecurityTransparency(MethodDesc *pFtn, MethodTable *pd
     //     1. the delegate is critical and the target method is critical, or
     //     2. the delegate is transparent/safecritical and the target method is transparent/safecritical
     return (fCriticalDelegate == fCriticalTarget);
-#else
-    return TRUE;
-#endif // !FEATURE_CORECLR
 }
 
 
@@ -3949,13 +3919,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
 
     EX_TRY
     {
-        // We have used both the FEATURE_ defines here since without CSE feature,
-        // this aspect of notification feature is pointless. And skipping
-        // FEATURE_EXCEPTION_NOTIFICATIONS with only FEATURE_CORRUPTING_EXCEPTIONS
-        // specified would enable this change for builds that dont support
-        // FEATURE_EXCEPTION_NOTIFICATIONS, like CoreCLR. We dont want that to happen
-        // as well.
-#if defined(FEATURE_CORRUPTING_EXCEPTIONS) && defined(FEATURE_EXCEPTION_NOTIFICATIONS)
+#if defined(FEATURE_CORRUPTING_EXCEPTIONS)
         BOOL fCanMethodHandleException = g_pConfig->LegacyCorruptedStateExceptionsPolicy();
         if (!fCanMethodHandleException)
         {
@@ -3987,7 +3951,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
         }
 
         if (fCanMethodHandleException)
-#endif // defined(FEATURE_CORRUPTING_EXCEPTIONS) && defined(FEATURE_EXCEPTION_NOTIFICATIONS)
+#endif // defined(FEATURE_CORRUPTING_EXCEPTIONS)
         {
             // We've already exercised the prestub on this delegate's COMDelegate::GetMethodDesc,
             // as part of wiring up a reliable event sink. Deliver the notification.
@@ -4003,55 +3967,12 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
 }
 
 
-// cannot combine SEH & C++ exceptions in one method.  Split out from InvokeNotify.
-static void InvokeNotifyInner(OBJECTREF *pDelegate, OBJECTREF *pDomain)
-{
-    // static contract, since we use SEH.
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-
-    _ASSERTE(pDelegate  != NULL && IsProtectedByGCFrame(pDelegate));
-    _ASSERTE(pDomain    != NULL && IsProtectedByGCFrame(pDomain));
-
-    struct Param : ThreadBaseExceptionFilterParam
-    {
-        OBJECTREF *pDelegate;
-        OBJECTREF *pDomain;
-    } param;
-    param.location = SystemNotification;
-    param.pDelegate = pDelegate;
-    param.pDomain = pDomain;
-
-    PAL_TRY(Param *, pParam, &param)
-    {
-        PREPARE_NONVIRTUAL_CALLSITE_USING_CODE(DELEGATEREF(*pParam->pDelegate)->GetMethodPtr());
-
-        DECLARE_ARGHOLDER_ARRAY(args, 3);
-
-        args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(DELEGATEREF(*pParam->pDelegate)->GetTarget());
-        args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(*pParam->pDomain);
-        args[ARGNUM_2] = NULL;
-
-        CALL_MANAGED_METHOD_NORET(args);
-    }
-    PAL_EXCEPT_FILTER(ThreadBaseExceptionFilter)
-    {
-        _ASSERTE(!"ThreadBaseExceptionFilter returned EXECUTE_HANDLER.");
-    }
-    PAL_ENDTRY;
-}
-
-
-
-// Helper to dispatch a single event notification.  If anything goes wrong, we cause
-// an unhandled exception notification to occur out of our first pass, and then we
-// swallow and continue.
+// Helper to dispatch a single event notification.
 static void InvokeNotify(OBJECTREF *pDelegate, OBJECTREF *pDomain)
 {
     CONTRACTL
     {
-        NOTHROW;
+        THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     }
@@ -4073,19 +3994,15 @@ static void InvokeNotify(OBJECTREF *pDelegate, OBJECTREF *pDomain)
     _ASSERTE(!pThread->HasCriticalRegion());
     _ASSERTE(!pThread->HasThreadAffinity());
 
-    EX_TRY
-    {
-        InvokeNotifyInner(pDelegate, pDomain);
-    }
-    EX_CATCH
-    {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
-        // This is an early check for condition that we assert in Thread::InternalReset called from DoOneFinalization later.
-        _ASSERTE(!pThread->HasCriticalRegion());
-        _ASSERTE(!pThread->HasThreadAffinity());
-    }
-    EX_END_CATCH(SwallowAllExceptions)
+    PREPARE_NONVIRTUAL_CALLSITE_USING_CODE(DELEGATEREF(*pDelegate)->GetMethodPtr());
+
+    DECLARE_ARGHOLDER_ARRAY(args, 3);
+
+    args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(DELEGATEREF(*pDelegate)->GetTarget());
+    args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(*pDomain);
+    args[ARGNUM_2] = NULL;
+
+    CALL_MANAGED_METHOD_NORET(args);
 
     // This is an early check for condition that we assert in Thread::InternalReset called from DoOneFinalization later.
     _ASSERTE(!pThread->HasCriticalRegion());
@@ -4093,16 +4010,11 @@ static void InvokeNotify(OBJECTREF *pDelegate, OBJECTREF *pDomain)
 }
 
 
-// For critical system events, ensure that each handler gets a notification --
-// even if prior handlers in the chain have thrown an exception.  Also, try
-// to deliver an unhandled exception event if we ever swallow an exception
-// out of a reliable notification.  Note that the add_ event handers are
-// responsible for any reliable preparation of the target, like eager JITting.
-void DistributeEventReliably(OBJECTREF *pDelegate, OBJECTREF *pDomain)
+void DistributeEvent(OBJECTREF *pDelegate, OBJECTREF *pDomain)
 {
     CONTRACTL
     {
-        NOTHROW;  
+        THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     }
@@ -4113,51 +4025,42 @@ void DistributeEventReliably(OBJECTREF *pDelegate, OBJECTREF *pDomain)
 
     Thread *pThread = GetThread();
 
-    EX_TRY
+    struct _gc
     {
-        struct _gc
-        {
-            PTRARRAYREF Array;
-            OBJECTREF   InnerDelegate;
-        } gc;
-        ZeroMemory(&gc, sizeof(gc));
+        PTRARRAYREF Array;
+        OBJECTREF   InnerDelegate;
+    } gc;
+    ZeroMemory(&gc, sizeof(gc));
 
-        GCPROTECT_BEGIN(gc);
+    GCPROTECT_BEGIN(gc);
 
-        gc.Array = (PTRARRAYREF) ((DELEGATEREF)(*pDelegate))->GetInvocationList();
-        if (gc.Array == NULL || !gc.Array->GetMethodTable()->IsArray())
-        {
-            InvokeNotify(pDelegate, pDomain);
-        }
-        else
-        {
-            // The _invocationCount could be less than the array size, if we are sharing
-            // immutable arrays cleverly.
-            INT_PTR invocationCount = ((DELEGATEREF)(*pDelegate))->GetInvocationCount();
+    gc.Array = (PTRARRAYREF) ((DELEGATEREF)(*pDelegate))->GetInvocationList();
+    if (gc.Array == NULL || !gc.Array->GetMethodTable()->IsArray())
+    {
+        InvokeNotify(pDelegate, pDomain);
+    }
+    else
+    {
+        // The _invocationCount could be less than the array size, if we are sharing
+        // immutable arrays cleverly.
+        INT_PTR invocationCount = ((DELEGATEREF)(*pDelegate))->GetInvocationCount();
             
-            _ASSERTE(FitsInU4(invocationCount));
-            DWORD cnt = static_cast<DWORD>(invocationCount);
+        _ASSERTE(FitsInU4(invocationCount));
+        DWORD cnt = static_cast<DWORD>(invocationCount);
 
-            _ASSERTE(cnt <= gc.Array->GetNumComponents());
+        _ASSERTE(cnt <= gc.Array->GetNumComponents());
 
-            for (DWORD i=0; i<cnt; i++)
+        for (DWORD i=0; i<cnt; i++)
+        {
+            gc.InnerDelegate = gc.Array->m_Array[i];
+            InvokeNotify(&gc.InnerDelegate, pDomain);
+            if (pThread->IsAbortRequested())
             {
-                gc.InnerDelegate = gc.Array->m_Array[i];
-                InvokeNotify(&gc.InnerDelegate, pDomain);
-                if (pThread->IsAbortRequested())
-                {
-                    pThread->UnmarkThreadForAbort(Thread::TAR_Thread);
-                }
+                pThread->UnmarkThreadForAbort(Thread::TAR_Thread);
             }
         }
-        GCPROTECT_END();
     }
-    EX_CATCH
-    {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
-    }
-    EX_END_CATCH(SwallowAllExceptions)
+    GCPROTECT_END();
 }
 
 // The unhandled exception event is a little easier to distribute, because

@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 2.8.12.2)
 
 project(COREPAL)
 
+include(../../clrfeatures.cmake)
+
 include_directories(${COREPAL_SOURCE_DIR}/inc)
 include_directories(${COREPAL_SOURCE_DIR}/src)
 include_directories(${COREPAL_SOURCE_DIR}/../inc)

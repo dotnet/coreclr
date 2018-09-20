@@ -56,13 +56,6 @@ extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
 #endif                               
                                            );
 
-#ifdef FEATURE_REMOTING
-// This is used by TransparentProxyWorkerStub to take a stub address (token), and
-// MethodTable and return the target. It will look in the cache first, and if not found
-// will call the resolver and then put the result into the cache.
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorkerQuick(TransparentProxyObject * orTP, size_t token);
-extern "C" PCODE STDCALL VSD_GetTargetForTPWorker(TransitionBlock * pTransitionBlock, size_t token);
-#endif
 
 /////////////////////////////////////////////////////////////////////////////////////
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
@@ -171,6 +164,9 @@ extern "C" void ResolveWorkerChainLookupAsmStub();    // for chaining of entries
 
 #ifdef _TARGET_X86_ 
 extern "C" void BackPatchWorkerAsmStub();             // backpatch a call site to point to a different stub
+#ifdef FEATURE_PAL
+extern "C" void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
+#endif // FEATURE_PAL
 #endif // _TARGET_X86_
 
 
@@ -554,6 +550,10 @@ private:
                                    , UINT_PTR flags
 #endif                            
                                    );
+
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+    friend void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect);
+#endif
 
     //These are the entrypoints that the stubs actually end up calling via the
     // xxxAsmStub methods above

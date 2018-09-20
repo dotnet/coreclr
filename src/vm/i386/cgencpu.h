@@ -39,9 +39,10 @@ Stub * GenerateInitPInvokeFrameHelper();
 EXTERN_C void STDCALL PInvokeStackImbalanceHelper(void);
 #endif // MDA_SUPPORTED
 
-#ifndef FEATURE_CORECLR
-EXTERN_C void STDCALL CopyCtorCallStub(void);
-#endif // !FEATURE_CORECLR
+
+#ifdef FEATURE_STUBS_AS_IL
+EXTERN_C void SinglecastDelegateInvokeStub();
+#endif // FEATURE_STUBS_AS_IL
 
 BOOL Runtime_Test_For_SSE2();
 
@@ -82,14 +83,15 @@ BOOL Runtime_Test_For_SSE2();
 #define JUMP_ALLOCATE_SIZE                      8   // # bytes to allocate for a jump instruction
 #define BACK_TO_BACK_JUMP_ALLOCATE_SIZE         8   // # bytes to allocate for a back to back jump instruction
 
+#ifdef WIN64EXCEPTIONS
+#define USE_INDIRECT_CODEHEADER
+#endif // WIN64EXCEPTIONS
+
 #define HAS_COMPACT_ENTRYPOINTS                 1
 
 // Needed for PInvoke inlining in ngened images
 #define HAS_NDIRECT_IMPORT_PRECODE              1
 
-#ifdef FEATURE_REMOTING
-#define HAS_REMOTING_PRECODE                    1
-#endif
 #ifdef FEATURE_PREJIT
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
@@ -146,12 +148,22 @@ typedef INT32 StackElemType;
 // This represents some of the FramedMethodFrame fields that are
 // stored at negative offsets.
 //--------------------------------------------------------------------
+#define ENUM_ARGUMENT_AND_SCRATCH_REGISTERS() \
+    ARGUMENT_AND_SCRATCH_REGISTER(Eax) \
+    ARGUMENT_AND_SCRATCH_REGISTER(Ecx) \
+    ARGUMENT_AND_SCRATCH_REGISTER(Edx)
+
+#define ENUM_CALLEE_SAVED_REGISTERS() \
+    CALLEE_SAVED_REGISTER(Edi) \
+    CALLEE_SAVED_REGISTER(Esi) \
+    CALLEE_SAVED_REGISTER(Ebx) \
+    CALLEE_SAVED_REGISTER(Ebp)
+
 typedef DPTR(struct CalleeSavedRegisters) PTR_CalleeSavedRegisters;
 struct CalleeSavedRegisters {
-    INT32       edi;
-    INT32       esi;
-    INT32       ebx;
-    INT32       ebp;
+#define CALLEE_SAVED_REGISTER(regname) INT32 regname;
+    ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
 };
 
 //--------------------------------------------------------------------
@@ -190,6 +202,7 @@ struct ArgumentRegisters {
 struct REGDISPLAY;
 typedef REGDISPLAY *PREGDISPLAY;
 
+#ifndef WIN64EXCEPTIONS
 // Sufficient context for Try/Catch restoration.
 struct EHContext {
     INT32       Eax;
@@ -238,6 +251,7 @@ struct EHContext {
         Eip = 0;
     }
 };
+#endif // !WIN64EXCEPTIONS
 
 #define ARGUMENTREGISTERS_SIZE sizeof(ArgumentRegisters)
 
@@ -469,14 +483,19 @@ inline BOOL IsUnmanagedValueTypeReturnedByRef(UINT sizeofvaluetype)
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifndef UNIX_X86_ABI
     // odd-sized small structures are not 
     //  enregistered e.g. struct { char a,b,c; }
     return (sizeofvaluetype > 8) ||
         (sizeofvaluetype & (sizeofvaluetype - 1)); // check that the size is power of two
+#else
+    // For UNIX_X86_ABI, we always return the value type by reference regardless of its size
+    return true;
+#endif
 }
 
 #include <pshpack1.h>
-DECLSPEC_ALIGN(4) struct UMEntryThunkCode
+struct DECLSPEC_ALIGN(4) UMEntryThunkCode
 {
     BYTE            m_alignpad[2];  // used to guarantee alignment of backpactched portion
     BYTE            m_movEAX;   //MOV EAX,imm32
@@ -513,7 +532,7 @@ struct HijackArgs
     union
     {
         DWORD Eax;
-        size_t ReturnValue;
+        size_t ReturnValue[1];
     };
     DWORD Ebp;
     union
@@ -562,6 +581,7 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 // #define JIT_GetSharedGCStaticBaseNoCtor
 // #define JIT_GetSharedNonGCStaticBaseNoCtor
 
+#ifndef FEATURE_PAL
 #define JIT_ChkCastClass            JIT_ChkCastClass
 #define JIT_ChkCastClassSpecial     JIT_ChkCastClassSpecial
 #define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass
@@ -569,5 +589,5 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
 #define JIT_NewCrossContext         JIT_NewCrossContext
 #define JIT_Stelem_Ref              JIT_Stelem_Ref
-
+#endif // FEATURE_PAL
 #endif // __cgenx86_h__

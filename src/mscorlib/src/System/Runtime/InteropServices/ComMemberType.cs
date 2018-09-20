@@ -4,16 +4,15 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
-namespace System.Runtime.InteropServices {
 
-    using System;
+using System;
 
-    [Serializable]
-[System.Runtime.InteropServices.ComVisible(true)]
+namespace System.Runtime.InteropServices
+{
     public enum ComMemberType
     {
-        Method              = 0,
-        PropGet             = 1,
-        PropSet             = 2
+        Method = 0,
+        PropGet = 1,
+        PropSet = 2
     }
 }

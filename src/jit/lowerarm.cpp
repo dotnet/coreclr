@@ -23,68 +23,93 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
 
-// The ARM backend is not yet implemented, so the methods here are all NYI.
-// TODO-ARM-NYI: Lowering for ARM.
 #ifdef _TARGET_ARM_
 
 #include "jit.h"
+#include "sideeffects.h"
 #include "lower.h"
 #include "lsra.h"
 
-/* Lowering of GT_CAST nodes */
-void Lowering::LowerCast(GenTreePtr *ppTree) { }
-
-
-void Lowering::LowerCntBlockOp(GenTreePtr *ppTree)
+//------------------------------------------------------------------------
+// IsCallTargetInRange: Can a call target address be encoded in-place?
+//
+// Return Value:
+//    True if the addr fits into the range.
+//
+bool Lowering::IsCallTargetInRange(void* addr)
 {
-    NYI_ARM("ARM Lowering for BlockOp");
+    return comp->codeGen->validImmForBL((ssize_t)addr);
 }
 
-void Lowering::LowerRotate(GenTreePtr tree)
+//------------------------------------------------------------------------
+// IsContainableImmed: Is an immediate encodable in-place?
+//
+// Return Value:
+//    True if the immediate can be folded into an instruction,
+//    for example small enough and non-relocatable.
+bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
 {
-    NYI_ARM("ARM Lowering for ROL and ROR");
-}
+    if (varTypeIsFloating(parentNode->TypeGet()))
+    {
+        switch (parentNode->OperGet())
+        {
+            default:
+                return false;
 
-void Lowering::TreeNodeInfoInitCall(GenTree *tree, TreeNodeInfo &info, 
-                                    int &srcCount, // out 
-                                    int &dstCount  // out
-    )
-{
-    NYI_ARM("ARM TreeNodeInfoInit for Call");
-}
+            case GT_EQ:
+            case GT_NE:
+            case GT_LT:
+            case GT_LE:
+            case GT_GE:
+            case GT_GT:
+                if (childNode->IsIntegralConst(0))
+                {
+                    // TODO-ARM-Cleanup: not tested yet.
+                    NYI_ARM("ARM IsContainableImmed for floating point type");
+                    // We can contain a floating point 0.0 constant in a compare instruction
+                    return true;
+                }
+                break;
+        }
+    }
+    else
+    {
+        // Make sure we have an actual immediate
+        if (!childNode->IsCnsIntOrI())
+            return false;
+        if (childNode->IsIconHandle() && comp->opts.compReloc)
+            return false;
 
-Compiler::fgWalkResult Lowering::TreeInfoInitHelper(GenTreePtr* pTree, Compiler::fgWalkData* data)
-{
-    Lowering* lower = (Lowering*)data->pCallbackData;
-    lower->TreeNodeInfoInit(pTree, data->parent);
-    return Compiler::WALK_CONTINUE;
-}
+        ssize_t  immVal = childNode->gtIntCon.gtIconVal;
+        emitAttr attr   = emitActualTypeSize(childNode->TypeGet());
+        emitAttr size   = EA_SIZE(attr);
 
-void Lowering::TreeNodeInfoInit(GenTree* stmt)
-{
-    comp->fgWalkTreePost(&stmt->gtStmt.gtStmtExpr, &Lowering::TreeInfoInitHelper, this);
-}
+        switch (parentNode->OperGet())
+        {
+            default:
+                return false;
 
-void Lowering::TreeNodeInfoInit(GenTreePtr *pTree, GenTree* parent)
-{
-    NYI("ARM TreeNodInfoInit");
-}
+            case GT_ADD:
+            case GT_SUB:
+                if (emitter::emitIns_valid_imm_for_add(immVal, INS_FLAGS_DONT_CARE))
+                    return true;
+                break;
 
-// returns true if the tree can use the read-modify-write memory instruction form
-bool Lowering::isRMWRegOper(GenTreePtr tree)
-{
-    return false;
-}
+            case GT_EQ:
+            case GT_NE:
+            case GT_LT:
+            case GT_LE:
+            case GT_GE:
+            case GT_GT:
+            case GT_AND:
+            case GT_OR:
+            case GT_XOR:
+                if (emitter::emitIns_valid_imm_for_alu(immVal))
+                    return true;
+                break;
+        }
+    }
 
-bool Lowering::IsCallTargetInRange(void *addr)
-{
-    return comp->codeGen->validImmForBL ((ssize_t)addr);
-}
-
-// return true if the immediate can be folded into an instruction, for example small enough and non-relocatable
-bool Lowering:: IsContainableImmed(GenTree* parentNode, GenTree* childNode)
-{
-    NYI_ARM("ARM IsContainableImmed");
     return false;
 }
 

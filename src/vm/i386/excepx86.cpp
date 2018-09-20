@@ -19,7 +19,7 @@
 #include "comutilnative.h"
 #include "sigformat.h"
 #include "siginfo.hpp"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "eedbginterfaceimpl.h" //so we can clearexception in COMPlusThrow
 #include "perfcounters.h"
 #include "eventtrace.h"
@@ -27,17 +27,14 @@
 #include "eedbginterfaceimpl.inl"
 #include "dllimportcallback.h"
 #include "threads.h"
-#ifdef FEATURE_REMOTING
-#include "appdomainhelper.h"
-#endif
 #include "eeconfig.h"
 #include "vars.hpp"
 #include "generics.h"
-#include "securityprincipal.h"
 
 #include "asmconstants.h"
 #include "virtualcallstub.h"
 
+#ifndef WIN64EXCEPTIONS
 MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDesc * pILStubMD, Frame ** ppFrameOut);
 
 #if !defined(DACCESS_COMPILE)
@@ -53,13 +50,15 @@ VOID STDCALL ResumeAtJitEHHelper(EHContext *pContext);
 int STDCALL CallJitEHFilterHelper(size_t *pShadowSP, EHContext *pContext);
 VOID STDCALL CallJitEHFinallyHelper(size_t *pShadowSP, EHContext *pContext);
 
+typedef void (*RtlUnwindCallbackType)(void);
+
 BOOL CallRtlUnwind(EXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
-           void *callback,
+           RtlUnwindCallbackType callback,
            EXCEPTION_RECORD *pExceptionRecord,
            void *retval);
 
 BOOL CallRtlUnwindSafe(EXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
-           void *callback,
+           RtlUnwindCallbackType callback,
            EXCEPTION_RECORD *pExceptionRecord,
            void *retval);
 }
@@ -431,18 +430,6 @@ CPFH_AdjustContextForThreadSuspensionRace(CONTEXT *pContext, Thread *pThread)
 #endif // FEATURE_HIJACK
 
 
-// We want to leave true null reference exceptions alone.  But if we are
-// trashing memory, we don't want the application to swallow it.  The 0x100
-// below will give us false positives for debugging, if the app is accessing
-// a field more than 256 bytes down an object, where the reference is null.
-//
-// Removed use of the IgnoreUnmanagedExceptions reg key...simply return false now.
-//
-static inline BOOL
-CPFH_ShouldIgnoreException(EXCEPTION_RECORD *pExceptionRecord) {
-    LIMITED_METHOD_CONTRACT;
-     return FALSE;
-}
 
 static inline void
 CPFH_UpdatePerformanceCounters() {
@@ -620,7 +607,7 @@ EXCEPTION_DISPOSITION ClrDebuggerDoUnwindAndIntercept(EXCEPTION_REGISTRATION_REC
 // This rethrow issue does not affect COMPLUS exceptions since we always create a brand new exception
 // record for them in RaiseTheExceptionInternalOnly.
 BOOL CallRtlUnwindSafe(EXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
-           void *callback,
+           RtlUnwindCallbackType callback,
            EXCEPTION_RECORD *pExceptionRecord,
            void *retval)
 {
@@ -1097,11 +1084,15 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
             // of the active exception.
             CEHelper::SetupCorruptionSeverityForActiveException(bRethrownException, bNestedException, 
                 CEHelper::ShouldTreatActiveExceptionAsNonCorrupting());
+
+            // Failfast if exception indicates corrupted process state   
+            if (pExInfo->GetCorruptionSeverity() == ProcessCorrupting)
+                EEPOLICY_HANDLE_FATAL_ERROR(exceptionCode);
+                
             END_SO_INTOLERANT_CODE;
         }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-#ifdef FEATURE_CORECLR
         // Check if we are dealing with AV or not and if we are,
         // ensure that this is a real AV and not managed AV exception
         BOOL fIsThrownExceptionAV = FALSE;
@@ -1130,7 +1121,6 @@ CPFH_RealFirstPassHandler(                  // ExceptionContinueSearch, etc.
                 EEPOLICY_HANDLE_FATAL_ERROR(COR_E_SECURITY);
             }
         }
-#endif // FEATURE_CORECLR
 
         // If we're out of memory, then we figure there's probably not memory to maintain a stack trace, so we skip it.
         // If we've got a stack overflow, then we figure the stack will be so huge as to make tracking the stack trace
@@ -1975,7 +1965,6 @@ PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(CONTEXT * pContext)
 }
 
 #if !defined(DACCESS_COMPILE)
-
 PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord()
 {
     WRAPPER_NO_CONTRACT;
@@ -2010,7 +1999,7 @@ PEXCEPTION_REGISTRATION_RECORD GetCurrentSEHRecord()
         pEHR = pEHR->Next;
     }
 #endif
-#endif
+#endif // 0
 
     return (EXCEPTION_REGISTRATION_RECORD*) fs0;
 }
@@ -2051,6 +2040,27 @@ VOID SetCurrentSEHRecord(EXCEPTION_REGISTRATION_RECORD *pSEH)
     *GetThread()->GetExceptionListPtr() = pSEH;
 }
 
+// Note that this logic is copied below, in PopSEHRecords
+__declspec(naked)
+VOID __cdecl PopSEHRecords(LPVOID pTargetSP)
+{
+    // No CONTRACT possible on naked functions
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+
+    __asm{
+        mov     ecx, [esp+4]        ;; ecx <- pTargetSP
+        mov     eax, fs:[0]         ;; get current SEH record
+  poploop:
+        cmp     eax, ecx
+        jge     done
+        mov     eax, [eax]          ;; get next SEH record
+        jmp     poploop
+  done:
+        mov     fs:[0], eax
+        retn
+    }
+}
 
 //
 // Unwind pExinfo, pops FS:[0] handlers until the interception context SP, and
@@ -2243,18 +2253,10 @@ int COMPlusThrowCallbackHelper(IJitManager *pJitManager,
     CONTRACTL_END;
 
     int iFilt = 0;
-    BOOL impersonating = FALSE;
 
     EX_TRY
     {
         GCPROTECT_BEGIN (throwable);
-        if (pData->hCallerToken != NULL)
-        {
-            STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallbackHelper hCallerToken = %d\n",pData->hCallerToken);
-            // CLR_ImpersonateLoggedOnUser fails fast on error
-            COMPrincipal::CLR_ImpersonateLoggedOnUser(pData->hCallerToken);
-            impersonating = TRUE;
-        }
 
         // We want to call filters even if the thread is aborting, so suppress abort
         // checks while the filter runs.
@@ -2263,25 +2265,10 @@ int COMPlusThrowCallbackHelper(IJitManager *pJitManager,
         BYTE* startAddress = (BYTE*)pCf->GetCodeInfo()->GetStartAddress();
         iFilt = ::CallJitEHFilter(pCf, startAddress, EHClausePtr, nestingLevel, throwable);
 
-        if (impersonating)
-        {
-            STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallbackHelper hImpersonationToken = %d\n",pData->hImpersonationToken);
-            // CLR_ImpersonateLoggedOnUser fails fast on error
-            COMPrincipal::CLR_ImpersonateLoggedOnUser(pData->hImpersonationToken);
-            impersonating = FALSE;
-        }
         GCPROTECT_END();
     }
     EX_CATCH
     {
-        if (impersonating)
-        {
-            STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallbackHelper EX_CATCH hImpersonationToken = %d\n",pData->hImpersonationToken);
-            // CLR_ImpersonateLoggedOnUser fails fast on error
-            COMPrincipal::CLR_ImpersonateLoggedOnUser(pData->hImpersonationToken);
-            impersonating = FALSE;
-        }
-
         // We had an exception in filter invocation that remained unhandled.
         // Sync managed exception state, for the managed thread, based upon the active exception tracker.
         pThread->SyncManagedExceptionState(false);
@@ -2409,25 +2396,6 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         pData->bSkipLastElement = FALSE;
     }
 
-    // Check for any impersonation on the frame and save that for use during EH filter callbacks
-    OBJECTREF* pRefSecDesc = pCf->GetAddrOfSecurityObject();
-    if (pRefSecDesc != NULL && *pRefSecDesc != NULL)
-    {
-        FRAMESECDESCREF fsdRef = (FRAMESECDESCREF)*pRefSecDesc;
-        if (fsdRef->GetCallerToken() != NULL)
-        {
-            // Impersonation info present on the Frame
-            pData->hCallerToken = fsdRef->GetCallerToken();
-            STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallback. Found non-NULL callertoken on FSD:%d\n",pData->hCallerToken);
-            if (!pData->bImpersonationTokenSet)
-            {
-                pData->hImpersonationToken = fsdRef->GetImpersonationToken();
-                STRESS_LOG1(LF_EH, LL_INFO100, "In COMPlusThrowCallback. Found non-NULL impersonationtoken on FSD:%d\n",pData->hImpersonationToken);
-                pData->bImpersonationTokenSet = TRUE;
-            }
-        }
-    }
-
     // now we've got the stack trace, if we aren't allowed to catch this and we're first pass, return
     if (pData->bDontCatch)
         return SWA_CONTINUE;
@@ -2453,13 +2421,11 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
                     currentSP = (SIZE_T) ((void*) pFrameStub);
                     currentIP = 0; // no IP.
                     EEToDebuggerExceptionInterfaceWrapper::FirstChanceManagedException(pThread, (SIZE_T)currentIP, (SIZE_T)currentSP);
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
                     // Deliver the FirstChanceNotification after the debugger, if not already delivered.
                     if (!pExInfo->DeliveredFirstChanceNotification())
                     {
                         ExceptionNotifications::DeliverFirstChanceNotification();
                     }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
                 }
             }
         }
@@ -2508,14 +2474,12 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         }
 #endif // DEBUGGING_SUPPORTED
 
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
         // Attempt to deliver the first chance notification to the AD only *AFTER* the debugger
         // has done that, provided we have not already done that.
         if (!pExInfo->DeliveredFirstChanceNotification())
         {
             ExceptionNotifications::DeliverFirstChanceNotification();
         }
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
     }
     IJitManager* pJitManager = pCf->GetJitManager();
     _ASSERTE(pJitManager);
@@ -2604,9 +2568,9 @@ StackWalkAction COMPlusThrowCallback(       // SWA value
         // EX_CATCH just above us.  If not, the exception
         if (   IsFilterHandler(&EHClause)
             && (   offs > EHClause.FilterOffset
-                || offs == EHClause.FilterOffset && !start_adjust)
+                || (offs == EHClause.FilterOffset && !start_adjust) )
             && (   offs < EHClause.HandlerStartPC
-                || offs == EHClause.HandlerStartPC && !end_adjust)) {
+                || (offs == EHClause.HandlerStartPC && !end_adjust) )) {
 
             STRESS_LOG4(LF_EH, LL_INFO100, "COMPlusThrowCallback: Fault inside filter [%d,%d] startAdj %d endAdj %d\n",
                         EHClause.FilterOffset, EHClause.HandlerStartPC, start_adjust, end_adjust);
@@ -2978,9 +2942,9 @@ StackWalkAction COMPlusUnwindCallback (CrawlFrame *pCf, ThrowCallbackType *pData
 
         if (   IsFilterHandler(&EHClause)
             && (   offs > EHClause.FilterOffset
-                || offs == EHClause.FilterOffset && !start_adjust)
+                || (offs == EHClause.FilterOffset && !start_adjust) )
             && (   offs < EHClause.HandlerStartPC
-                || offs == EHClause.HandlerStartPC && !end_adjust)
+                || (offs == EHClause.HandlerStartPC && !end_adjust) )
             ) {
             STRESS_LOG4(LF_EH, LL_INFO100, "COMPlusUnwindCallback: Fault inside filter [%d,%d] startAdj %d endAdj %d\n",
                         EHClause.FilterOffset, EHClause.HandlerStartPC, start_adjust, end_adjust);
@@ -3628,33 +3592,11 @@ EXCEPTION_HANDLER_IMPL(UMThunkPrestubHandler)
     return retval;
 }
 
-LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
-{
-    WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_ENTRY_POINT;
-
-    LONG result = EXCEPTION_CONTINUE_SEARCH;
-
-    // This function can be called during the handling of a SO
-    //BEGIN_ENTRYPOINT_VOIDRET;
-
-    result = CLRVectoredExceptionHandler(pExceptionInfo);
-
-    if (EXCEPTION_EXECUTE_HANDLER == result)
-    {
-        result = EXCEPTION_CONTINUE_SEARCH;
-    }
-
-    //END_ENTRYPOINT_VOIDRET;
-
-    return result;
-}
-
 #ifdef FEATURE_COMINTEROP
 // The reverse COM interop path needs to be sure to pop the ComMethodFrame that is pushed, but we do not want
-// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this 
-// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the 
-// ComMethodFrame, if needed. 
+// to have an additional FS:0 handler between the COM callsite and the call into managed.  So we push this
+// FS:0 handler, which will defer to the usual COMPlusFrameHandler and then perform the cleanup of the
+// ComMethodFrame, if needed.
 EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
 {
     STATIC_CONTRACT_THROWS;
@@ -3673,7 +3615,36 @@ EXCEPTION_HANDLER_IMPL(COMPlusFrameHandlerRevCom)
     return result;
 }
 #endif // FEATURE_COMINTEROP
+#endif // !DACCESS_COMPILE
+#endif // !WIN64EXCEPTIONS
 
+#ifndef DACCESS_COMPILE
+LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv)
+{
+#ifndef WIN64EXCEPTIONS
+    WRAPPER_NO_CONTRACT;
+    STATIC_CONTRACT_ENTRY_POINT;
+
+    LONG result = EXCEPTION_CONTINUE_SEARCH;
+
+    // This function can be called during the handling of a SO
+    //BEGIN_ENTRYPOINT_VOIDRET;
+
+    result = CLRVectoredExceptionHandler(pExceptionInfo);
+
+    if (EXCEPTION_EXECUTE_HANDLER == result)
+    {
+        result = EXCEPTION_CONTINUE_SEARCH;
+    }
+
+    //END_ENTRYPOINT_VOIDRET;
+
+    return result;
+#else  // !WIN64EXCEPTIONS
+    return EXCEPTION_CONTINUE_SEARCH;
+#endif // !WIN64EXCEPTIONS
+}
+#endif // !DACCESS_COMPILE
 
 // Returns TRUE if caller should resume execution.
 BOOL
@@ -3725,10 +3696,15 @@ AdjustContextForVirtualStub(
     pExceptionRecord->ExceptionAddress = (PVOID)callsite;
     SetIP(pContext, callsite);
 
+#ifdef HAVE_GCCOVER
+    // Modify LastAVAddress saved in thread to distinguish between fake & real AV
+    // See comments in IsGcMarker in file excep.cpp for more details
+    pThread->SetLastAVAddress((LPVOID)GetIP(pContext));
+#endif    
+
+
     // put ESP back to what it was before the call.
     SetSP(pContext, dac_cast<PCODE>(dac_cast<PTR_BYTE>(GetSP(pContext)) + sizeof(void*)));
 
     return TRUE;
 }
-
-#endif // !DACCESS_COMPILE

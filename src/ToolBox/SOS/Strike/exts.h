@@ -23,7 +23,6 @@
 #pragma warning(disable:4430)   // missing type specifier: C++ doesn't support default-int
 #endif
 #include "strike.h"
-
 #include <wdbgexts.h>
 #include <dbgeng.h>
 #include <stdio.h>
@@ -42,6 +41,8 @@
 // functions that read directly from the debuggee address space, vs. using 
 // the DAC to read the DAC-ized data structures.
 #include "daccess.h"
+
+#include "gcinfo.h"
 
 // Convert between CLRDATA_ADDRESS and TADDR.
 #define TO_TADDR(cdaddr) ((TADDR)(cdaddr))
@@ -218,8 +219,15 @@ inline void DACMessage(HRESULT Status)
     ExtOut("If you are debugging a minidump, you need to make sure that your executable\n");
     ExtOut("path is pointing to coreclr.dll as well.\n");
 #else // FEATURE_PAL
-    ExtOut("You can run the debugger command 'setclrpath' to control the load of %s.\n", MAKEDLLNAME_A("mscordaccore"));
-    ExtOut("If that succeeds, the SOS command should work on retry.\n");
+    if (Status == CORDBG_E_MISSING_DEBUGGER_EXPORTS)
+    {
+        ExtOut("You can run the debugger command 'setclrpath' to control the load of %s.\n", MAKEDLLNAME_A("mscordaccore"));
+        ExtOut("If that succeeds, the SOS command should work on retry.\n");
+    }
+    else
+    {
+        ExtOut("Can not load or initialize %s. The target runtime may not be initialized.\n", MAKEDLLNAME_A("mscordaccore"));
+    }
 #endif // FEATURE_PAL
 }
 
@@ -379,7 +387,7 @@ public:
 
     typedef void (*printfFtn)(const char* fmt, ...);
     // Dumps the GCInfo
-    virtual void DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const = 0;
+    virtual void DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const = 0;
 
 protected:
     IMachine()           {}

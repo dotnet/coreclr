@@ -15,6 +15,11 @@
 COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeInGC = 0);
 COUNTER_ONLY(PERF_COUNTER_TIMER_PRECISION g_TotalTimeSinceLastGCEnd = 0);
 
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+size_t g_GenerationSizes[NUMBERGENERATIONS];
+size_t g_GenerationPromotedSizes[NUMBERGENERATIONS];
+#endif // ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+
 void GCHeap::UpdatePreGCCounters()
 {
 #if defined(ENABLE_PERF_COUNTERS)
@@ -56,7 +61,6 @@ void GCHeap::UpdatePreGCCounters()
     GetPerfCounters().m_GC.cbAlloc += allocation_0;
     GetPerfCounters().m_GC.cbAlloc += allocation_3;
     GetPerfCounters().m_GC.cbLargeAlloc += allocation_3;
-    GetPerfCounters().m_GC.cPinnedObj = 0;
 
 #ifdef _PREFAST_
     // prefix complains about us dereferencing hp in wks build even though we only access static members
@@ -106,158 +110,168 @@ void GCHeap::UpdatePreGCCounters()
 
 void GCHeap::UpdatePostGCCounters()
 {
-#ifdef FEATURE_EVENT_TRACE
-    // Use of temporary variables to avoid rotor build warnings
-    ETW::GCLog::ETW_GC_INFO Info;
+    totalSurvivedSize = gc_heap::get_total_survived_size();
+
+    //
+    // The following is for instrumentation.
+    //
+    // Calculate the common ones for ETW and perf counters.
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
 #ifdef MULTIPLE_HEAPS
     //take the first heap....
-    gc_mechanisms *pSettings = &gc_heap::g_heaps[0]->settings;
+    gc_heap* hp1 = gc_heap::g_heaps[0];
+    gc_mechanisms *pSettings = &hp1->settings;
 #else
+    gc_heap* hp1 = pGenGCHeap;
     gc_mechanisms *pSettings = &gc_heap::settings;
 #endif //MULTIPLE_HEAPS
 
     int condemned_gen = pSettings->condemned_generation;
+
+    memset (g_GenerationSizes, 0, sizeof (g_GenerationSizes));
+    memset (g_GenerationPromotedSizes, 0, sizeof (g_GenerationPromotedSizes));
+    
+    size_t total_num_gc_handles = g_dwHandles;
+    uint32_t total_num_sync_blocks = SyncBlockCache::GetSyncBlockCache()->GetActiveCount();
+
+    // Note this is however for perf counter only, for legacy reasons. What we showed 
+    // in perf counters for "gen0 size" was really the gen0 budget which made
+    // sense (somewhat) at the time. For backward compatibility we are keeping
+    // this calculated the same way. For ETW we use the true gen0 size (and 
+    // gen0 budget is also reported in an event).
+    size_t youngest_budget = 0;
+
+    size_t promoted_finalization_mem = 0;
+    size_t total_num_pinned_objects = gc_heap::get_total_pinned_objects();
+
+#ifndef FEATURE_REDHAWK
+    // if a max gen garbage collection was performed, resync the GC Handle counter; 
+    // if threads are currently suspended, we do not need to obtain a lock on each handle table
+    if (condemned_gen == max_generation)
+        total_num_gc_handles = HndCountAllHandles(!IsGCInProgress());
+#endif //FEATURE_REDHAWK
+
+    // per generation calculation.
+    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
+    {
+#ifdef MULTIPLE_HEAPS
+        int hn = 0;
+        for (hn = 0; hn < gc_heap::n_heaps; hn++)
+        {
+            gc_heap* hp = gc_heap::g_heaps[hn];
+#else
+            gc_heap* hp = pGenGCHeap;
+            {
+#endif //MULTIPLE_HEAPS
+                dynamic_data* dd = hp->dynamic_data_of (gen_index);
+
+                if (gen_index == 0)
+                {
+                    youngest_budget += dd_desired_allocation (hp->dynamic_data_of (gen_index));
+                }
+
+                g_GenerationSizes[gen_index] += hp->generation_size (gen_index);
+
+                if (gen_index <= condemned_gen)
+                {
+                    g_GenerationPromotedSizes[gen_index] += dd_promoted_size (dd);
+                }
+
+                if ((gen_index == (max_generation+1)) && (condemned_gen == max_generation))
+                {
+                    g_GenerationPromotedSizes[gen_index] += dd_promoted_size (dd);
+                }
+
+                if (gen_index == 0)
+                {
+                    promoted_finalization_mem +=  dd_freach_previous_promotion (dd);
+                }
+#ifdef MULTIPLE_HEAPS
+            }
+#else
+        }
+#endif //MULTIPLE_HEAPS
+    }
+#endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+
+#ifdef FEATURE_EVENT_TRACE
+    ETW::GCLog::ETW_GC_INFO Info;
+
     Info.GCEnd.Depth = condemned_gen;
     Info.GCEnd.Count = (uint32_t)pSettings->gc_index;
     ETW::GCLog::FireGcEndAndGenerationRanges(Info.GCEnd.Count, Info.GCEnd.Depth);
 
-    int xGen;
     ETW::GCLog::ETW_GC_INFO HeapInfo;
     ZeroMemory(&HeapInfo, sizeof(HeapInfo));
-    size_t youngest_gen_size = 0;
-    
-#ifdef MULTIPLE_HEAPS
-    //take the first heap....
-    gc_heap* hp1 = gc_heap::g_heaps[0];
-#else
-    gc_heap* hp1 = pGenGCHeap;
-#endif //MULTIPLE_HEAPS
 
-    size_t promoted_finalization_mem = 0;
-
-    totalSurvivedSize = gc_heap::get_total_survived_size();
-
-    for (xGen = 0; xGen <= (max_generation+1); xGen++)
+    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
     {
-        size_t gensize = 0;
-        size_t promoted_mem = 0; 
-
-#ifdef MULTIPLE_HEAPS
-        int hn = 0;
-
-        for (hn = 0; hn < gc_heap::n_heaps; hn++)
-        {
-            gc_heap* hp2 = gc_heap::g_heaps [hn];
-            dynamic_data* dd2 = hp2->dynamic_data_of (xGen);
-
-            // Generation 0 is empty (if there isn't demotion) so its size is 0
-            // It is more interesting to report the desired size before next collection.
-            // Gen 1 is also more accurate if desired is reported due to sampling intervals.
-            if (xGen == 0)
-            {
-                youngest_gen_size += dd_desired_allocation (hp2->dynamic_data_of (xGen));
-            }
-
-            gensize += hp2->generation_size(xGen);          
-
-            if (xGen <= condemned_gen)
-            {
-                promoted_mem += dd_promoted_size (dd2);
-            }
-
-            if ((xGen == (max_generation+1)) && (condemned_gen == max_generation))
-            {
-                promoted_mem += dd_promoted_size (dd2);
-            }
-
-            if (xGen == 0)
-            {
-                promoted_finalization_mem +=  dd_freach_previous_promotion (dd2);
-            }
-        }
-#else
-        if (xGen == 0)
-        {
-            youngest_gen_size = dd_desired_allocation (hp1->dynamic_data_of (xGen));
-        }
-
-        gensize = hp1->generation_size(xGen);
-        if (xGen <= condemned_gen)
-        {
-            promoted_mem = dd_promoted_size (hp1->dynamic_data_of (xGen));
-        }
-
-        if ((xGen == (max_generation+1)) && (condemned_gen == max_generation))
-        {
-            promoted_mem = dd_promoted_size (hp1->dynamic_data_of (max_generation+1));
-        }
-
-        if (xGen == 0)
-        {
-            promoted_finalization_mem =  dd_freach_previous_promotion (hp1->dynamic_data_of (xGen));
-        }
-
-#endif //MULTIPLE_HEAPS
-
-        HeapInfo.HeapStats.GenInfo[xGen].GenerationSize = gensize;
-        HeapInfo.HeapStats.GenInfo[xGen].TotalPromotedSize = promoted_mem;
+        HeapInfo.HeapStats.GenInfo[gen_index].GenerationSize = g_GenerationSizes[gen_index];
+        HeapInfo.HeapStats.GenInfo[gen_index].TotalPromotedSize = g_GenerationPromotedSizes[gen_index];
     }
 
-    {
 #ifdef SIMPLE_DPRINTF
-        dprintf (2, ("GC#%d: 0: %Id(%Id); 1: %Id(%Id); 2: %Id(%Id); 3: %Id(%Id)", 
-            Info.GCEnd.Count,
-            HeapInfo.HeapStats.GenInfo[0].GenerationSize,
-            HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
-            HeapInfo.HeapStats.GenInfo[1].GenerationSize,
-            HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
-            HeapInfo.HeapStats.GenInfo[2].GenerationSize,
-            HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
-            HeapInfo.HeapStats.GenInfo[3].GenerationSize,
-            HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize));
+    dprintf (2, ("GC#%d: 0: %Id(%Id); 1: %Id(%Id); 2: %Id(%Id); 3: %Id(%Id)", 
+        Info.GCEnd.Count,
+        HeapInfo.HeapStats.GenInfo[0].GenerationSize,
+        HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
+        HeapInfo.HeapStats.GenInfo[1].GenerationSize,
+        HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
+        HeapInfo.HeapStats.GenInfo[2].GenerationSize,
+        HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
+        HeapInfo.HeapStats.GenInfo[3].GenerationSize,
+        HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize));
 #endif //SIMPLE_DPRINTF
-    }
 
     HeapInfo.HeapStats.FinalizationPromotedSize = promoted_finalization_mem;
     HeapInfo.HeapStats.FinalizationPromotedCount = GetFinalizablePromotedCount();
+    HeapInfo.HeapStats.PinnedObjectCount = (uint32_t)total_num_pinned_objects;
+    HeapInfo.HeapStats.SinkBlockCount =  total_num_sync_blocks;
+    HeapInfo.HeapStats.GCHandleCount =  (uint32_t)total_num_gc_handles;
+
+    FireEtwGCHeapStats_V1(HeapInfo.HeapStats.GenInfo[0].GenerationSize, HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
+                    HeapInfo.HeapStats.GenInfo[1].GenerationSize, HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
+                    HeapInfo.HeapStats.GenInfo[2].GenerationSize, HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
+                    HeapInfo.HeapStats.GenInfo[3].GenerationSize, HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize,
+                    HeapInfo.HeapStats.FinalizationPromotedSize,
+                    HeapInfo.HeapStats.FinalizationPromotedCount,
+                    HeapInfo.HeapStats.PinnedObjectCount,
+                    HeapInfo.HeapStats.SinkBlockCount,
+                    HeapInfo.HeapStats.GCHandleCount, 
+                    GetClrInstanceId());
+#endif // FEATURE_EVENT_TRACE
 
 #if defined(ENABLE_PERF_COUNTERS)
-    
-    // if a max gen garbage collection was performed, resync the GC Handle counter; 
-    // if threads are currently suspended, we do not need to obtain a lock on each handle table
-    if (condemned_gen == max_generation)
-        GetPerfCounters().m_GC.cHandles = HndCountAllHandles(!GCHeap::IsGCInProgress());
-
-    for (xGen = 0; xGen <= (max_generation+1); xGen++)
+    for (int gen_index = 0; gen_index <= (max_generation+1); gen_index++)
     {
-        _ASSERTE(FitsIn<size_t>(HeapInfo.HeapStats.GenInfo[xGen].GenerationSize));
-        _ASSERTE(FitsIn<size_t>(HeapInfo.HeapStats.GenInfo[xGen].TotalPromotedSize));
+        _ASSERTE(FitsIn<size_t>(g_GenerationSizes[gen_index]));
+        _ASSERTE(FitsIn<size_t>(g_GenerationPromotedSizes[gen_index]));
 
-        if (xGen == (max_generation+1))
+        if (gen_index == (max_generation+1))
         {
-            GetPerfCounters().m_GC.cLrgObjSize = static_cast<size_t>(HeapInfo.HeapStats.GenInfo[xGen].GenerationSize);
+            GetPerfCounters().m_GC.cLrgObjSize = static_cast<size_t>(g_GenerationSizes[gen_index]);
         }
         else
         {
-            GetPerfCounters().m_GC.cGenHeapSize[xGen] = ((xGen == 0) ? 
-                                                                youngest_gen_size : 
-                                                                static_cast<size_t>(HeapInfo.HeapStats.GenInfo[xGen].GenerationSize));
+            GetPerfCounters().m_GC.cGenHeapSize[gen_index] = ((gen_index == 0) ? 
+                                                                youngest_budget : 
+                                                                static_cast<size_t>(g_GenerationSizes[gen_index]));
         }
 
         // the perf counters only count the promoted size for gen0 and gen1.
-        if (xGen < max_generation)
+        if (gen_index < max_generation)
         {
-            GetPerfCounters().m_GC.cbPromotedMem[xGen] = static_cast<size_t>(HeapInfo.HeapStats.GenInfo[xGen].TotalPromotedSize);
+            GetPerfCounters().m_GC.cbPromotedMem[gen_index] = static_cast<size_t>(g_GenerationPromotedSizes[gen_index]);
         }
 
-        if (xGen <= max_generation)
+        if (gen_index <= max_generation)
         {
-            GetPerfCounters().m_GC.cGenCollections[xGen] =
-                dd_collection_count (hp1->dynamic_data_of (xGen));
+            GetPerfCounters().m_GC.cGenCollections[gen_index] =
+                dd_collection_count (hp1->dynamic_data_of (gen_index));
         }
     }
 
-    //Committed memory 
+    // Committed and reserved memory 
     {
         size_t committed_mem = 0;
         size_t reserved_mem = 0;
@@ -265,24 +279,20 @@ void GCHeap::UpdatePostGCCounters()
         int hn = 0;
         for (hn = 0; hn < gc_heap::n_heaps; hn++)
         {
-            gc_heap* hp2 = gc_heap::g_heaps [hn];
+            gc_heap* hp = gc_heap::g_heaps [hn];
 #else
-            gc_heap* hp2 = hp1;
+            gc_heap* hp = pGenGCHeap;
             {
 #endif //MULTIPLE_HEAPS
-                heap_segment* seg = 
-                    generation_start_segment (hp2->generation_of (max_generation));
+                heap_segment* seg = generation_start_segment (hp->generation_of (max_generation));
                 while (seg)
                 {
-                    committed_mem += heap_segment_committed (seg) - 
-                        heap_segment_mem (seg);
-                    reserved_mem += heap_segment_reserved (seg) - 
-                        heap_segment_mem (seg);
+                    committed_mem += heap_segment_committed (seg) - heap_segment_mem (seg);
+                    reserved_mem += heap_segment_reserved (seg) - heap_segment_mem (seg);
                     seg = heap_segment_next (seg);
                 }
                 //same for large segments
-                seg = 
-                    generation_start_segment (hp2->generation_of (max_generation + 1));
+                seg = generation_start_segment (hp->generation_of (max_generation + 1));
                 while (seg)
                 {
                     committed_mem += heap_segment_committed (seg) - 
@@ -297,10 +307,8 @@ void GCHeap::UpdatePostGCCounters()
         }
 #endif //MULTIPLE_HEAPS
 
-        GetPerfCounters().m_GC.cTotalCommittedBytes = 
-            committed_mem;
-        GetPerfCounters().m_GC.cTotalReservedBytes = 
-            reserved_mem;
+        GetPerfCounters().m_GC.cTotalCommittedBytes = committed_mem;
+        GetPerfCounters().m_GC.cTotalReservedBytes = reserved_mem;
     }
 
     _ASSERTE(FitsIn<size_t>(HeapInfo.HeapStats.FinalizationPromotedSize));
@@ -333,22 +341,10 @@ void GCHeap::UpdatePostGCCounters()
     
     g_TotalTimeSinceLastGCEnd = _currentPerfCounterTimer;
 
-    HeapInfo.HeapStats.PinnedObjectCount = (uint32_t)(GetPerfCounters().m_GC.cPinnedObj);
-    HeapInfo.HeapStats.SinkBlockCount =  (uint32_t)(GetPerfCounters().m_GC.cSinkBlocks);
-    HeapInfo.HeapStats.GCHandleCount =  (uint32_t)(GetPerfCounters().m_GC.cHandles);
+    GetPerfCounters().m_GC.cPinnedObj = total_num_pinned_objects;
+    GetPerfCounters().m_GC.cHandles = total_num_gc_handles;
+    GetPerfCounters().m_GC.cSinkBlocks = total_num_sync_blocks;
 #endif //ENABLE_PERF_COUNTERS
-
-    FireEtwGCHeapStats_V1(HeapInfo.HeapStats.GenInfo[0].GenerationSize, HeapInfo.HeapStats.GenInfo[0].TotalPromotedSize,
-                       HeapInfo.HeapStats.GenInfo[1].GenerationSize, HeapInfo.HeapStats.GenInfo[1].TotalPromotedSize,
-                       HeapInfo.HeapStats.GenInfo[2].GenerationSize, HeapInfo.HeapStats.GenInfo[2].TotalPromotedSize,
-                       HeapInfo.HeapStats.GenInfo[3].GenerationSize, HeapInfo.HeapStats.GenInfo[3].TotalPromotedSize,
-                       HeapInfo.HeapStats.FinalizationPromotedSize,
-                       HeapInfo.HeapStats.FinalizationPromotedCount,
-                       HeapInfo.HeapStats.PinnedObjectCount,
-                       HeapInfo.HeapStats.SinkBlockCount,
-                       HeapInfo.HeapStats.GCHandleCount, 
-                       GetClrInstanceId());
-#endif // FEATURE_EVENT_TRACE
 }
 
 size_t GCHeap::GetCurrentObjSize()
@@ -385,215 +381,12 @@ size_t GCHeap::GetNow()
     return GetHighPrecisionTimeStamp();
 }
 
-void ProfScanRootsHelper(Object** ppObject, ScanContext *pSC, uint32_t dwFlags)
-{
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    Object *pObj = *ppObject;
-#ifdef INTERIOR_POINTERS
-    if (dwFlags & GC_CALL_INTERIOR)
-    {
-        uint8_t *o = (uint8_t*)pObj;
-        gc_heap* hp = gc_heap::heap_of (o);
-
-        if ((o < hp->gc_low) || (o >= hp->gc_high))
-        {
-            return;
-        }
-        pObj = (Object*) hp->find_object(o, hp->gc_low);
-    }
-#endif //INTERIOR_POINTERS
-    ScanRootsHelper(pObj, ppObject, pSC, dwFlags);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-}
-
-// TODO - at some point we would like to completely decouple profiling
-// from ETW tracing using a pattern similar to this, where the
-// ProfilingScanContext has flags about whether or not certain things
-// should be tracked, and each one of these ProfilerShouldXYZ functions
-// will check these flags and determine what to do based upon that.
-// GCProfileWalkHeapWorker can, in turn, call those methods without fear
-// of things being ifdef'd out.
-
-// Returns TRUE if GC profiling is enabled and the profiler
-// should scan dependent handles, FALSE otherwise.
-BOOL ProfilerShouldTrackConditionalWeakTableElements() 
-{
-#if defined(GC_PROFILING)
-    return CORProfilerTrackConditionalWeakTableElements();
-#else
-    return FALSE;
-#endif // defined (GC_PROFILING)
-}
-
-// If GC profiling is enabled, informs the profiler that we are done
-// tracing dependent handles.
-void ProfilerEndConditionalWeakTableElementReferences(void* heapId)
-{
-#if defined (GC_PROFILING)
-    g_profControlBlock.pProfInterface->EndConditionalWeakTableElementReferences(heapId);
-#else
-    UNREFERENCED_PARAMETER(heapId);
-#endif // defined (GC_PROFILING)
-}
-
-// If GC profiling is enabled, informs the profiler that we are done
-// tracing root references.
-void ProfilerEndRootReferences2(void* heapId) 
-{
-#if defined (GC_PROFILING)
-    g_profControlBlock.pProfInterface->EndRootReferences2(heapId);
-#else
-    UNREFERENCED_PARAMETER(heapId);
-#endif // defined (GC_PROFILING)
-}
-
-// This is called only if we've determined that either:
-//     a) The Profiling API wants to do a walk of the heap, and it has pinned the
-//     profiler in place (so it cannot be detached), and it's thus safe to call into the
-//     profiler, OR
-//     b) ETW infrastructure wants to do a walk of the heap either to log roots,
-//     objects, or both.
-// This can also be called to do a single walk for BOTH a) and b) simultaneously.  Since
-// ETW can ask for roots, but not objects
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-
-void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForEtw, BOOL fShouldWalkHeapObjectsForEtw)
-{
-    {
-        ProfilingScanContext SC(fProfilerPinned);
-
-        // **** Scan roots:  Only scan roots if profiling API wants them or ETW wants them.
-        if (fProfilerPinned || fShouldWalkHeapRootsForEtw)
-        {
-#ifdef MULTIPLE_HEAPS
-            int hn;
-
-            // Must emulate each GC thread number so we can hit each
-            // heap for enumerating the roots.
-            for (hn = 0; hn < gc_heap::n_heaps; hn++)
-            {
-                // Ask the vm to go over all of the roots for this specific
-                // heap.
-                gc_heap* hp = gc_heap::g_heaps [hn];
-                SC.thread_number = hn;
-                GCScan::GcScanRoots(&ProfScanRootsHelper, max_generation, max_generation, &SC);
-
-                // The finalizer queue is also a source of roots
-                SC.dwEtwRootKind = kEtwGCRootKindFinalizer;
-                hp->finalize_queue->GcScanRoots(&ProfScanRootsHelper, hn, &SC);
-            }
-#else
-            // Ask the vm to go over all of the roots
-            GCScan::GcScanRoots(&ProfScanRootsHelper, max_generation, max_generation, &SC);
-
-            // The finalizer queue is also a source of roots
-            SC.dwEtwRootKind = kEtwGCRootKindFinalizer;
-            pGenGCHeap->finalize_queue->GcScanRoots(&ProfScanRootsHelper, 0, &SC);
-
-#endif // MULTIPLE_HEAPS
-            // Handles are kept independent of wks/svr/concurrent builds
-            SC.dwEtwRootKind = kEtwGCRootKindHandle;
-            GCScan::GcScanHandlesForProfilerAndETW(max_generation, &SC);
-
-            // indicate that regular handle scanning is over, so we can flush the buffered roots
-            // to the profiler.  (This is for profapi only.  ETW will flush after the
-            // entire heap was is complete, via ETW::GCLog::EndHeapDump.)
-            if (fProfilerPinned)
-            {
-                ProfilerEndRootReferences2(&SC.pHeapId);
-            }
-        }
-
-        // **** Scan dependent handles: only if the profiler supports it or ETW wants roots
-        if ((fProfilerPinned && ProfilerShouldTrackConditionalWeakTableElements()) ||
-            fShouldWalkHeapRootsForEtw)
-        {
-            // GcScanDependentHandlesForProfiler double-checks
-            // CORProfilerTrackConditionalWeakTableElements() before calling into the profiler
-
-            GCScan::GcScanDependentHandlesForProfilerAndETW(max_generation, &SC);
-
-            // indicate that dependent handle scanning is over, so we can flush the buffered roots
-            // to the profiler.  (This is for profapi only.  ETW will flush after the
-            // entire heap was is complete, via ETW::GCLog::EndHeapDump.)
-            if (fProfilerPinned && ProfilerShouldTrackConditionalWeakTableElements())
-            {
-                ProfilerEndConditionalWeakTableElementReferences(&SC.pHeapId);
-            }
-        }
-
-        ProfilerWalkHeapContext profilerWalkHeapContext(fProfilerPinned, SC.pvEtwContext);
-
-        // **** Walk objects on heap: only if profiling API wants them or ETW wants them.
-        if (fProfilerPinned || fShouldWalkHeapObjectsForEtw)
-        {
-#ifdef MULTIPLE_HEAPS
-            int hn;
-
-            // Walk the heap and provide the objref to the profiler
-            for (hn = 0; hn < gc_heap::n_heaps; hn++)
-            {
-                gc_heap* hp = gc_heap::g_heaps [hn];         
-                hp->walk_heap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, TRUE /* walk the large object heap */);
-            }
-#else
-            gc_heap::walk_heap(&HeapWalkHelper, &profilerWalkHeapContext, max_generation, TRUE);
-#endif //MULTIPLE_HEAPS
-        }
-
-#ifdef FEATURE_EVENT_TRACE
-        // **** Done! Indicate to ETW helpers that the heap walk is done, so any buffers
-        // should be flushed into the ETW stream
-        if (fShouldWalkHeapObjectsForEtw || fShouldWalkHeapRootsForEtw)
-        {
-            ETW::GCLog::EndHeapDump(&profilerWalkHeapContext);
-        }
-#endif // FEATURE_EVENT_TRACE
-    }
-}
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-
-void GCProfileWalkHeap()
-{
-    BOOL fWalkedHeapForProfiler = FALSE;
-
-#ifdef FEATURE_EVENT_TRACE
-    if (ETW::GCLog::ShouldWalkStaticsAndCOMForEtw())
-        ETW::GCLog::WalkStaticsAndCOMForETW();
-    
-    BOOL fShouldWalkHeapRootsForEtw = ETW::GCLog::ShouldWalkHeapRootsForEtw();
-    BOOL fShouldWalkHeapObjectsForEtw = ETW::GCLog::ShouldWalkHeapObjectsForEtw();
-#else // !FEATURE_EVENT_TRACE
-    BOOL fShouldWalkHeapRootsForEtw = FALSE;
-    BOOL fShouldWalkHeapObjectsForEtw = FALSE;
-#endif // FEATURE_EVENT_TRACE
-
-#if defined (GC_PROFILING)
-    {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
-        GCProfileWalkHeapWorker(TRUE /* fProfilerPinned */, fShouldWalkHeapRootsForEtw, fShouldWalkHeapObjectsForEtw);
-        fWalkedHeapForProfiler = TRUE;
-        END_PIN_PROFILER();
-    }
-#endif // defined (GC_PROFILING)
-
-#if defined (GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    // we need to walk the heap if one of GC_PROFILING or FEATURE_EVENT_TRACE
-    // is defined, since both of them make use of the walk heap worker.
-    if (!fWalkedHeapForProfiler &&
-        (fShouldWalkHeapRootsForEtw || fShouldWalkHeapObjectsForEtw))
-    {
-        GCProfileWalkHeapWorker(FALSE /* fProfilerPinned */, fShouldWalkHeapRootsForEtw, fShouldWalkHeapObjectsForEtw);
-    }
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-}
-
-BOOL GCHeap::IsGCInProgressHelper (BOOL bConsiderGCStart)
+bool GCHeap::IsGCInProgressHelper (bool bConsiderGCStart)
 {
     return GcInProgress || (bConsiderGCStart? VolatileLoad(&gc_heap::gc_started) : FALSE);
 }
 
-uint32_t GCHeap::WaitUntilGCComplete(BOOL bConsiderGCStart)
+uint32_t GCHeap::WaitUntilGCComplete(bool bConsiderGCStart)
 {
     if (bConsiderGCStart)
     {
@@ -615,12 +408,8 @@ BlockAgain:
         dwWaitResult = WaitForGCEvent->Wait(DETECT_DEADLOCK_TIMEOUT, FALSE );
 
         if (dwWaitResult == WAIT_TIMEOUT) {
-            //  Even in retail, stop in the debugger if available.  Ideally, the
-            //  following would use DebugBreak, but debspew.h makes this a null
-            //  macro in retail.  Note that in debug, we don't use the debspew.h
-            //  macros because these take a critical section that may have been
-            //  taken by a suspended thread.
-            FreeBuildDebugBreak();
+            //  Even in retail, stop in the debugger if available.
+            GCToOSInterface::DebugBreak();
             goto BlockAgain;
         }
 
@@ -634,14 +423,19 @@ BlockAgain:
     return dwWaitResult;
 }
 
-void GCHeap::SetGCInProgress(BOOL fInProgress)
+void GCHeap::SetGCInProgress(bool fInProgress)
 {
     GcInProgress = fInProgress;
 }
 
-CLREvent * GCHeap::GetWaitForGCEvent()
+void GCHeap::SetWaitForGCEvent()
 {
-    return WaitForGCEvent;
+    WaitForGCEvent->Set();
+}
+
+void GCHeap::ResetWaitForGCEvent()
+{
+    WaitForGCEvent->Reset();
 }
 
 void GCHeap::WaitUntilConcurrentGCComplete()
@@ -652,12 +446,12 @@ void GCHeap::WaitUntilConcurrentGCComplete()
 #endif //BACKGROUND_GC
 }
 
-BOOL GCHeap::IsConcurrentGCInProgress()
+bool GCHeap::IsConcurrentGCInProgress()
 {
 #ifdef BACKGROUND_GC
-    return pGenGCHeap->settings.concurrent;
+    return !!pGenGCHeap->settings.concurrent;
 #else
-    return FALSE;
+    return false;
 #endif //BACKGROUND_GC
 }
 
@@ -669,14 +463,21 @@ void gc_heap::fire_etw_allocation_event (size_t allocation_amount, int gen_numbe
 #ifdef FEATURE_REDHAWK
     typeId = RedhawkGCInterface::GetLastAllocEEType();
 #else
-    TypeHandle th = GetThread()->GetTHAllocContextObj();
-    if (th != 0)
+    InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
+
+    EX_TRY
     {
-        InlineSString<MAX_CLASSNAME_LENGTH> strTypeName;
-        th.GetName(strTypeName);
-        typeId = th.GetMethodTable();
-        name = strTypeName.GetUnicode();
+        TypeHandle th = GetThread()->GetTHAllocContextObj();
+
+        if (th != 0)
+        {
+            th.GetName(strTypeName);
+            name = strTypeName.GetUnicode();
+            typeId = th.GetMethodTable();
+        }
     }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions)
 #endif
 
     if (typeId != nullptr)
@@ -724,7 +525,7 @@ void gc_heap::fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject)
 }
 #endif // FEATURE_EVENT_TRACE
 
-uint32_t gc_heap::user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms)
+uint32_t gc_heap::user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms)
 {
     Thread* pCurThread = NULL;
     bool mode = false;
@@ -779,11 +580,11 @@ void gc_heap::background_gc_wait_lh (alloc_wait_reason awr)
 
 
 /******************************************************************************/
-::GCHeap* CreateGCHeap() {
+IGCHeapInternal* CreateGCHeap() {
     return new(nothrow) GCHeap();   // we return wks or svr 
 }
 
-void GCHeap::TraceGCSegments()
+void GCHeap::DiagTraceGCSegments()
 {
 #ifdef FEATURE_EVENT_TRACE
     heap_segment* seg = 0;
@@ -820,39 +621,16 @@ void GCHeap::TraceGCSegments()
 #endif // FEATURE_EVENT_TRACE
 }
 
+void GCHeap::DiagDescrGenerations (gen_walk_fn fn, void *context)
+{
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-void GCHeap::DescrGenerationsToProfiler (gen_walk_fn fn, void *context)
-{
     pGenGCHeap->descr_generations_to_profiler(fn, context);
-}
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-
-#if defined(BACKGROUND_GC) && defined(FEATURE_REDHAWK)
-
-// Helper used to wrap the start routine of background GC threads so we can do things like initialize the
-// Redhawk thread state which requires running in the new thread's context.
-uint32_t WINAPI gc_heap::rh_bgc_thread_stub(void * pContext)
-{
-    rh_bgc_thread_ctx * pStartContext = (rh_bgc_thread_ctx*)pContext;
-
-    // Initialize the Thread for this thread. The false being passed indicates that the thread store lock
-    // should not be acquired as part of this operation. This is necessary because this thread is created in
-    // the context of a garbage collection and the lock is already held by the GC.
-    ASSERT(GCHeap::GetGCHeap()->IsGCInProgress());
-    GCToEEInterface::AttachCurrentThread();
-
-    // Inform the GC which Thread* we are.
-    pStartContext->m_pRealContext->bgc_thread = GetThread();
-
-    // Run the real start procedure and capture its return code on exit.
-    return pStartContext->m_pRealStartRoutine(pStartContext->m_pRealContext);
 }
 
-#endif // BACKGROUND_GC && FEATURE_REDHAWK
-
-#ifdef FEATURE_BASICFREEZE
 segment_handle GCHeap::RegisterFrozenSegment(segment_info *pseginfo)
 {
+#ifdef FEATURE_BASICFREEZE
     heap_segment * seg = new (nothrow) heap_segment;
     if (!seg)
     {
@@ -883,10 +661,15 @@ segment_handle GCHeap::RegisterFrozenSegment(segment_info *pseginfo)
     }
 
     return reinterpret_cast< segment_handle >(seg);
+#else
+    assert(!"Should not call GCHeap::RegisterFrozenSegment without FEATURE_BASICFREEZE defined!");
+    return NULL;
+#endif // FEATURE_BASICFREEZE
 }
 
 void GCHeap::UnregisterFrozenSegment(segment_handle seg)
 {
+#ifdef FEATURE_BASICFREEZE
 #if defined (MULTIPLE_HEAPS) && !defined (ISOLATED_HEAPS)
     gc_heap* heap = gc_heap::g_heaps[0];
 #else
@@ -894,8 +677,15 @@ void GCHeap::UnregisterFrozenSegment(segment_handle seg)
 #endif //MULTIPLE_HEAPS && !ISOLATED_HEAPS
 
     heap->remove_ro_segment(reinterpret_cast<heap_segment*>(seg));
-}
+#else
+    assert(!"Should not call GCHeap::UnregisterFrozenSegment without FEATURE_BASICFREEZE defined!");
 #endif // FEATURE_BASICFREEZE
+}
+
+bool GCHeap::RuntimeStructuresValid()
+{
+    return GCScan::GetGcRuntimeStructuresValid();
+}
 
 
 #endif // !DACCESS_COMPILE

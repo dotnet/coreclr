@@ -142,7 +142,9 @@
 #include "regdisp.h"
 #include "mscoree.h"
 #include "appdomainstack.h"
-#include "gc.h"
+#include "gcheaputilities.h"
+#include "gchandleutilities.h"
+#include "gcinfotypes.h"
 #include <clrhost.h>
 
 class     Thread;
@@ -182,6 +184,10 @@ typedef DPTR(PTR_ThreadLocalBlock) PTR_PTR_ThreadLocalBlock;
 #include "threaddebugblockinginfo.h"
 #include "interoputil.h"
 #include "eventtrace.h"
+
+#ifdef FEATURE_PERFTRACING
+class EventPipeBufferList;
+#endif // FEATURE_PERFTRACING
 
 #ifdef CROSSGEN_COMPILE
 
@@ -242,12 +248,6 @@ public:
 
     static void ObjectRefProtected(const OBJECTREF* ref) { }
     static void ObjectRefNew(const OBJECTREF* ref) { }
-
-    static void ReverseLeaveRuntime();
-    static void __stdcall EnterRuntime();
-
-    static void BeginThreadAffinity() { }
-    static void EndThreadAffinity() { }
 
     void EnablePreemptiveGC() { }
     void DisablePreemptiveGC() { }
@@ -418,32 +418,6 @@ public:
     }
 };
 
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-    }
-
-    HRESULT GetHR() const
-    {
-        STATIC_CONTRACT_LIMITED_METHOD;
-        return S_OK;
-    }
-};
-
 inline BOOL dbgOnly_IsSpecialEEThread() { return FALSE; }
 
 #define INCTHREADLOCKCOUNT() { }
@@ -583,14 +557,6 @@ inline Thread* GetThreadNULLOk()
 #define GetThreadNULLOk() GetThread()
 #endif
 
-//***************************************************************************
-#if defined(_DEBUG) && defined(_TARGET_X86_) && !defined(FEATURE_CORECLR)
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 1
- #define TRACK_CXX_EXCEPTION_CODE_HACK
-#else
- #define HAS_TRACK_CXX_EXCEPTION_CODE_HACK 0
-#endif
-
 // manifest constant for waiting in the exposed classlibs
 const INT32 INFINITE_TIMEOUT = -1;
 
@@ -630,8 +596,9 @@ enum ThreadpoolThreadType
 //
 // Public functions for taking control of a thread at a safe point
 //
-//      VOID OnHijackObjectTripThread() - we've hijacked a JIT object-ref return
-//      VOID OnHijackScalarTripThread() - we've hijacked a JIT non-object ref return
+//      VOID OnHijackTripThread() - we've hijacked a JIT method
+//      VOID OnHijackFPTripThread() - we've hijacked a JIT method, 
+//                                    and need to save the x87 FP stack.
 //
 //***************************************************************************
 
@@ -673,7 +640,7 @@ DWORD GetAppDomainTLSIndex();
 
 DWORD GetRuntimeId();
 
-EXTERN_C Thread* __stdcall CreateThreadBlockThrow();
+EXTERN_C Thread* WINAPI CreateThreadBlockThrow();
 
 //---------------------------------------------------------------------------
 // One-time initialization. Called during Dll initialization.
@@ -686,15 +653,9 @@ void InitThreadManager();
 
 #ifdef FEATURE_HIJACK
 
-EXTERN_C void __stdcall OnHijackObjectTripThread();                 // hijacked JIT code is returning an objectref
-EXTERN_C void __stdcall OnHijackInteriorPointerTripThread();        // hijacked JIT code is returning a byref
-EXTERN_C void __stdcall OnHijackScalarTripThread();                 // hijacked JIT code is returning a non-objectref, non-FP
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-EXTERN_C void __stdcall OnHijackStructInRegsTripThread();           // hijacked JIT code is returning a struct in registers
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
-
+EXTERN_C void WINAPI OnHijackTripThread();
 #ifdef _TARGET_X86_
-EXTERN_C void __stdcall OnHijackFloatingPointTripThread();          // hijacked JIT code is returning an FP value
+EXTERN_C void WINAPI OnHijackFPTripThread();  // hijacked JIT code is returning an FP value
 #endif // _TARGET_X86_
 
 #endif // FEATURE_HIJACK
@@ -1016,13 +977,17 @@ typedef DWORD (*AppropriateWaitFunc) (void *args, DWORD timeout, DWORD option);
 // unstarted System.Thread), then this instance can be found in the TLS
 // of that physical thread.
 
-#ifdef FEATURE_HIJACK
-EXTERN_C void STDCALL OnHijackObjectWorker(HijackArgs * pArgs);
-EXTERN_C void STDCALL OnHijackInteriorPointerWorker(HijackArgs * pArgs);
-EXTERN_C void STDCALL OnHijackScalarWorker(HijackArgs * pArgs);
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-EXTERN_C void STDCALL OnHijackStructInRegsWorker(HijackArgs * pArgs);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+// FEATURE_MULTIREG_RETURN is set for platforms where a struct return value 
+// [GcInfo v2 only]        can be returned in multiple registers
+//                         ex: Windows/Unix ARM/ARM64, Unix-AMD64.
+//                         
+//                       
+// FEATURE_UNIX_AMD64_STRUCT_PASSING is a specific kind of FEATURE_MULTIREG_RETURN
+// [GcInfo v1 and v2]       specified by SystemV ABI for AMD64
+//                                   
+
+#ifdef FEATURE_HIJACK                                                    // Hijack function returning
+EXTERN_C void STDCALL OnHijackWorker(HijackArgs * pArgs);              
 #endif // FEATURE_HIJACK
 
 // This is the code we pass around for Thread.Interrupt, mainly for assertions
@@ -1036,14 +1001,10 @@ class BaseStackGuard;
 // 
 // A code:Thread contains all the per-thread information needed by the runtime.  You can get at this
 // structure throught the and OS TLS slot see code:#RuntimeThreadLocals for more 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-class Thread: public ICLRTask2
-#else // !FEATURE_INCLUDE_ALL_INTERFACES
 // Implementing IUnknown would prevent the field (e.g. m_Context) layout from being rearranged (which will need to be fixed in 
 // "asmconstants.h" for the respective architecture). As it is, ICLRTask derives from IUnknown and would have got IUnknown implemented
 // here - so doing this explicitly and maintaining layout sanity should be just fine.
 class Thread: public IUnknown
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 {
     friend struct ThreadQueue;  // used to enqueue & dequeue threads onto SyncBlocks
     friend class  ThreadStore;
@@ -1070,14 +1031,9 @@ class Thread: public IUnknown
 #ifdef FEATURE_HIJACK
     // MapWin32FaultToCOMPlusException needs access to Thread::IsAddrOfRedirectFunc()
     friend DWORD MapWin32FaultToCOMPlusException(EXCEPTION_RECORD *pExceptionRecord);
-    friend void STDCALL OnHijackObjectWorker(HijackArgs *pArgs);
-    friend void STDCALL OnHijackInteriorPointerWorker(HijackArgs *pArgs);
-    friend void STDCALL OnHijackScalarWorker(HijackArgs *pArgs);
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
-    friend void STDCALL OnHijackStructInRegsWorker(HijackArgs *pArgs);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+    friend void STDCALL OnHijackWorker(HijackArgs * pArgs);
 #ifdef PLATFORM_UNIX
-    friend void PALAPI HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext);
+    friend void HandleGCSuspensionForInterruptedThread(CONTEXT *interruptedContext);
 #endif // PLATFORM_UNIX
 
 #endif // FEATURE_HIJACK
@@ -1279,9 +1235,7 @@ public:
                                                       // effort.
                                                       // 
                                                       // Once we are completely independent of the OS UEF, we could remove this.
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
         TSNC_InsideSyncContextWait      = 0x02000000, // Whether we are inside DoSyncContextWait
-#endif // FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
         TSNC_DebuggerSleepWaitJoin      = 0x04000000, // Indicates to the debugger that this thread is in a sleep wait or join state
                                                       // This almost mirrors the TS_Interruptible state however that flag can change
                                                       // during GC-preemptive mode whereas this one cannot.
@@ -1314,10 +1268,6 @@ public:
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP Reset (BOOL fFull)
         DAC_EMPTY_RET(E_FAIL);
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    STDMETHODIMP GetMemStats(COR_GC_THREAD_STATS *memUsage)
-        DAC_EMPTY_RET(E_FAIL);
-#endif //FEATURE_INCLUDE_ALL_INTERFACES
     STDMETHODIMP ExitTask()
         DAC_EMPTY_RET(E_FAIL);
     STDMETHODIMP Abort()
@@ -1505,6 +1455,24 @@ public:
     }
 #endif //FEATURE_COMINTEROP
 
+#ifndef DACCESS_COMPILE
+    bool HasDeadThreadBeenConsideredForGCTrigger()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsDead());
+
+        return m_fHasDeadThreadBeenConsideredForGCTrigger;
+    }
+
+    void SetHasDeadThreadBeenConsideredForGCTrigger()
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsDead());
+
+        m_fHasDeadThreadBeenConsideredForGCTrigger = true;
+    }
+#endif // !DACCESS_COMPILE
+
     // returns if there is some extra work for the finalizer thread.
     BOOL HaveExtraWorkForFinalizer();
 
@@ -1646,13 +1614,6 @@ public:
     // in the object header to store it.
     DWORD                m_ThreadId;
 
-    #if HAS_TRACK_CXX_EXCEPTION_CODE_HACK // do we have C++ exception code tracking?
-        // It's very hard to deal with SEH properly using C++ catch handlers.  The
-        // following field is updated with the correct SEH exception whenever a C++
-        // __CxxFrameHandler3 call is made on this thread.  If you grab it at the
-        // top of a C++ catch(...), it's likely to be correct.
-        DWORD               m_LastCxxSEHExceptionCode;
-    #endif // HAS_TRACK_CXX_EXCEPTION_CODE_HACK
 
     // RWLock state
     LockEntry           *m_pHead;
@@ -1744,9 +1705,9 @@ public:
 
     // on MP systems, each thread has its own allocation chunk so we can avoid
     // lock prefixes and expensive MP cache snooping stuff
-    alloc_context        m_alloc_context;
+    gc_alloc_context        m_alloc_context;
 
-    inline alloc_context *GetAllocContext() { LIMITED_METHOD_CONTRACT; return &m_alloc_context; }
+    inline gc_alloc_context *GetAllocContext() { LIMITED_METHOD_CONTRACT; return &m_alloc_context; }
 
     // This is the type handle of the first object in the alloc context at the time 
     // we fire the AllocationTick event. It's only for tooling purpose.
@@ -1795,12 +1756,6 @@ public:
 
 private:
     DWORD m_dwBeginLockCount;  // lock count when the thread enters current domain
-#ifndef FEATURE_CORECLR
-    DWORD m_dwBeginCriticalRegionCount;  // lock count when the thread enters current domain
-    DWORD m_dwCriticalRegionCount;
-
-    DWORD m_dwThreadAffinityCount;
-#endif // !FEATURE_CORECLR
 
 #ifdef _DEBUG
     DWORD dbg_m_cSuspendedThreads;
@@ -1893,68 +1848,19 @@ public:
         LIMITED_METHOD_CONTRACT;
 
         _ASSERTE(m_dwLockCount >= m_dwBeginLockCount);
-#ifndef FEATURE_CORECLR
-        _ASSERTE(m_dwCriticalRegionCount >= m_dwBeginCriticalRegionCount);
-#endif // !FEATURE_CORECLR
 
         // Equivalent to (m_dwLockCount != m_dwBeginLockCount ||
         //                m_dwCriticalRegionCount ! m_dwBeginCriticalRegionCount),
         // but without branching instructions
         BOOL fHasLock = (m_dwLockCount ^ m_dwBeginLockCount);
-#ifndef FEATURE_CORECLR
-        fHasLock |= (m_dwCriticalRegionCount ^ m_dwBeginCriticalRegionCount);
-#endif // !FEATURE_CORECLR
 
         return fHasLock; 
     }
-#ifndef FEATURE_CORECLR
-    inline void BeginCriticalRegion()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        if (CLRHosted())
-        {
-            m_dwCriticalRegionCount ++;
-            _ASSERTE (m_dwCriticalRegionCount != 0);
-        }
-    }
-
-    inline void EndCriticalRegion()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        if (CLRHosted())
-        {
-            _ASSERTE (m_dwCriticalRegionCount > 0);
-            m_dwCriticalRegionCount --;
-        }
-    }
-
-    inline void BeginCriticalRegion_NoCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        m_dwCriticalRegionCount ++;
-        _ASSERTE (m_dwCriticalRegionCount != 0);
-    }
-
-    inline void EndCriticalRegion_NoCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        _ASSERTE (m_dwCriticalRegionCount > 0);
-        m_dwCriticalRegionCount --;
-    }
-#endif // !FEATURE_CORECLR
 
     inline BOOL HasCriticalRegion()
     {
         LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-        return m_dwCriticalRegionCount != 0;
-#else 
         return FALSE;        
-#endif
     }
 
     inline DWORD GetNewHashCode()
@@ -1987,63 +1893,11 @@ public:
 #endif
 
 public:
-    static void __stdcall LeaveRuntime(size_t target);
-    static HRESULT LeaveRuntimeNoThrow(size_t target);
-    static void __stdcall LeaveRuntimeThrowComplus(size_t target);
-    static void __stdcall EnterRuntime();
-    static HRESULT EnterRuntimeNoThrow();
-    static HRESULT EnterRuntimeNoThrowWorker();
-
-    // Reverse PInvoke hook for host
-    static void ReverseEnterRuntime();
-    static HRESULT ReverseEnterRuntimeNoThrow();
-    static void ReverseEnterRuntimeThrowComplusHelper(HRESULT hr);
-    static void ReverseEnterRuntimeThrowComplus();
-    static void ReverseLeaveRuntime();
-
-    // Hook for OS Critical Section, Mutex, and others that require thread affinity
-    static void BeginThreadAffinity();
-    static void EndThreadAffinity();
-
-#ifndef FEATURE_CORECLR
-    inline void IncThreadAffinityCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        m_dwThreadAffinityCount++;
-        _ASSERTE (m_dwThreadAffinityCount > 0);
-    }
-    inline void DecThreadAffinityCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE (GetThread() == this);
-        _ASSERTE (m_dwThreadAffinityCount > 0);
-        m_dwThreadAffinityCount --;
-    }
-
-    static void BeginThreadAffinityAndCriticalRegion()
-    {
-        LIMITED_METHOD_CONTRACT;
-        BeginThreadAffinity();
-        GetThread()->BeginCriticalRegion();
-    }
-
-    static void EndThreadAffinityAndCriticalRegion()
-    {
-        LIMITED_METHOD_CONTRACT;
-        GetThread()->EndCriticalRegion();
-        EndThreadAffinity();
-    }
-#endif // !FEATURE_CORECLR
 
     BOOL HasThreadAffinity()
     {
         LIMITED_METHOD_CONTRACT;
-#ifndef FEATURE_CORECLR
-        return m_dwThreadAffinityCount > 0;
-#else
         return FALSE;
-#endif
     }
 
  private:
@@ -2608,9 +2462,6 @@ public:
         return m_Context;
     }
 
-#ifdef FEATURE_REMOTING
-    void SetExposedContext(Context *c);
-#endif
 
     // This callback is used when we are executing in the EE and discover that we need
     // to switch appdomains.
@@ -2641,11 +2492,7 @@ private:
     //
     // In Telesto, we don't support true appdomain marshaling so the "orBlob" is in fact an
     // agile wrapper object whose ToString() echoes the original exception's ToString().
-#ifdef FEATURE_CORECLR
     typedef OBJECTREF  ORBLOBREF;
-#else
-    typedef U1ARRAYREF ORBLOBREF;
-#endif
 
     RaiseCrossContextResult TryRaiseCrossContextException(Exception **ppExOrig,
                                                           Exception *pException,
@@ -2801,7 +2648,7 @@ public:
         CONTRACTL_END;
         return (ObjectFromHandle(m_ExposedObject) != NULL) ;
     }
-#ifndef FEATURE_CORECLR
+
     void GetSynchronizationContext(OBJECTREF *pSyncContextObj)
     {
         CONTRACTL
@@ -2819,23 +2666,7 @@ public:
         if (ExposedThreadObj != NULL)
             *pSyncContextObj = ExposedThreadObj->GetSynchronizationContext();
     }
-#endif //!FEATURE_CORECLR
-#ifdef FEATURE_COMPRESSEDSTACK    
-    OBJECTREF GetCompressedStack()
-    {
-        CONTRACTL
-        {
-            MODE_COOPERATIVE;
-            GC_NOTRIGGER;
-            NOTHROW;
-        }
-        CONTRACTL_END;
-        THREADBASEREF ExposedThreadObj = (THREADBASEREF)GetExposedObjectRaw();
-        if (ExposedThreadObj != NULL)
-            return (OBJECTREF)(ExposedThreadObj->GetCompressedStack());
-        return NULL;
-    }
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
+
 
     // When we create a managed thread, the thread is suspended.  We call StartThread to get
     // the thread start.
@@ -2912,9 +2743,6 @@ public:
     )
     {
         WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        _ASSERTE (m_pHostTask == NULL || GetThreadHandle() != SWITCHOUT_HANDLE_VALUE);
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
          return ::GetThreadContext (GetThreadHandle(), lpContext);
     }
 
@@ -2924,9 +2752,6 @@ public:
     )
     {
         WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        _ASSERTE (m_pHostTask == NULL || GetThreadHandle() != SWITCHOUT_HANDLE_VALUE);
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
          return ::SetThreadContext (GetThreadHandle(), lpContext);
     }
 #endif
@@ -2934,12 +2759,7 @@ public:
     BOOL HasValidThreadHandle ()
     {
         WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        return m_pHostTask != NULL ||
-            GetThreadHandle() != INVALID_HANDLE_VALUE;
-#else // !FEATURE_INCLUDE_ALL_INTERFACES
         return GetThreadHandle() != INVALID_HANDLE_VALUE;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     }
 
     DWORD       GetThreadId()
@@ -2981,17 +2801,6 @@ public:
         return m_dwConnectionId;
     }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostTask* GetHostTask() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pHostTask;
-    }
-
-    IHostTask* GetHostTaskWithAddRef();
-
-    void ReleaseHostTask();
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
     void SetConnectionId(CONNID dwConnectionId)
     {
@@ -3010,10 +2819,6 @@ public:
     static bool    SysStartSuspendForDebug(AppDomain *pAppDomain);
     static bool    SysSweepThreadsForDebug(bool forceSync);
     static void    SysResumeFromDebug(AppDomain *pAppDomain);
-#ifndef FEATURE_CORECLR
-    void           UserSuspendThread();
-    BOOL           UserResumeThread();
-#endif // FEATURE_CORECLR
 
     void           UserSleep(INT32 time);
 
@@ -3169,12 +2974,7 @@ public:
     };
 
 private:
-    BOOL           ReadyForInterrupt()
-    {
-        return ReadyForAsyncException(TI_Interrupt);
-    }
-
-    BOOL           ReadyForAsyncException(ThreadInterruptMode mode);
+    BOOL           ReadyForAsyncException();
 
 public:
     inline BOOL IsYieldRequested()
@@ -3188,7 +2988,7 @@ public:
     void           SetAbortRequest(EEPolicy::ThreadAbortTypes abortType);  // Should only be called by ADUnload
     BOOL           ReadyForAbort()
     {
-        return ReadyForAsyncException(TI_Abort);
+        return ReadyForAsyncException();
     }
 
     BOOL           IsRudeAbort();
@@ -3389,7 +3189,7 @@ public:
         m_singleStepper.Disable();
     }
 
-    void ApplySingleStep(CONTEXT *pCtx)
+    void ApplySingleStep(T_CONTEXT *pCtx)
     {
         m_singleStepper.Apply(pCtx);
     }
@@ -3402,7 +3202,7 @@ public:
     // Fixup code called by our vectored exception handler to complete the emulation of single stepping
     // initiated by EnableSingleStep above. Returns true if the exception was indeed encountered during
     // stepping.
-    bool HandleSingleStep(CONTEXT *pCtx, DWORD dwExceptionCode)
+    bool HandleSingleStep(T_CONTEXT *pCtx, DWORD dwExceptionCode)
     {
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
@@ -3509,23 +3309,21 @@ public:
 
     DWORD          DoAppropriateWait(AppropriateWaitFunc func, void *args, DWORD millis,
                                      WaitMode mode, PendingSync *syncInfo = 0);
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
     DWORD          DoSignalAndWait(HANDLE *handles, DWORD millis, BOOL alertable,
                                      PendingSync *syncState = 0);
-#endif
+#endif // !FEATURE_PAL
 private:
     void           DoAppropriateWaitWorkerAlertableHelper(WaitMode mode);
     DWORD          DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL waitAll,
                                            DWORD millis, WaitMode mode);
     DWORD          DoAppropriateWaitWorker(AppropriateWaitFunc func, void *args,
                                            DWORD millis, WaitMode mode);
-#ifndef FEATURE_CORECLR
+#ifndef FEATURE_PAL
     DWORD          DoSignalAndWaitWorker(HANDLE* pHandles, DWORD millis,BOOL alertable);
-#endif
+#endif // !FEATURE_PAL
     DWORD          DoAppropriateAptStateWait(int numWaiters, HANDLE* pHandles, BOOL bWaitAll, DWORD timeout, WaitMode mode);
-#ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
     DWORD          DoSyncContextWait(OBJECTREF *pSyncCtxObj, int countHandles, HANDLE *handles, BOOL waitAll, DWORD millis);
-#endif // #ifdef FEATURE_SYNCHRONIZATIONCONTEXT_WAIT
 public:
 
     //************************************************************************
@@ -3623,10 +3421,12 @@ public:
     static PCODE VirtualUnwindCallFrame(T_CONTEXT* pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers = NULL,
                                            EECodeInfo * pCodeInfo = NULL);
     static UINT_PTR VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo * pCodeInfo = NULL);
+#ifndef DACCESS_COMPILE
     static PCODE VirtualUnwindLeafCallFrame(T_CONTEXT* pContext);
     static PCODE VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers = NULL,
         PT_RUNTIME_FUNCTION pFunctionEntry = NULL, UINT_PTR uImageBase = NULL);
     static UINT_PTR VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext);
+#endif // DACCESS_COMPILE
 #endif // WIN64EXCEPTIONS
 
     // During a <clinit>, this thread must not be asynchronously
@@ -3710,9 +3510,6 @@ public:
     OBJECTREF GetCulture(BOOL bUICulture);
 
     // Release user cultures that can't survive appdomain unload
-#ifdef FEATURE_LEAK_CULTURE_INFO
-    void ResetCultureForDomain(ADID id);
-#endif // FEATURE_LEAK_CULTURE_INFO
 
     // Functions to set the culture on the thread.
     void SetCultureId(LCID lcid, BOOL bUICulture);
@@ -3938,9 +3735,11 @@ private:
     void    SetupForSuspension(ULONG bit)
     {
         WRAPPER_NO_CONTRACT;
-        if (bit & TS_UserSuspendPending) {
-            m_UserSuspendEvent.Reset();
-        }
+
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(bit & TS_UserSuspendPending));
+
+
         if (bit & TS_DebugSuspendPending) {
             m_DebugSuspendEvent.Reset();
         }
@@ -3957,8 +3756,14 @@ private:
         //
         ThreadState oldState = m_State;
 
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(oldState & TS_UserSuspendPending));
+
         while ((oldState & (TS_UserSuspendPending | TS_DebugSuspendPending)) == 0)
         {
+            // CoreCLR does not support user-requested thread suspension
+            _ASSERTE(!(oldState & TS_UserSuspendPending));
+
             //
             // Construct the destination state we desire - all suspension bits turned off.
             //
@@ -3977,22 +3782,14 @@ private:
             oldState = m_State;
         }
 
-        if (bit & TS_UserSuspendPending) {
-            m_UserSuspendEvent.Set();
-        }
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(bit & TS_UserSuspendPending));
 
         if (bit & TS_DebugSuspendPending) {
             m_DebugSuspendEvent.Set();
         }
 
     }
-
-    // For getting a thread to a safe point.  A client waits on the event, which is
-    // set by the thread when it reaches a safe spot.
-#ifndef FEATURE_CORECLR
-    void    FinishSuspendingThread();
-#endif // FEATURE_CORECLR
-    void    SetSafeEvent();
 
 public:
     FORCEINLINE void UnhijackThreadNoAlloc()
@@ -4078,7 +3875,7 @@ private:
     void        HandleThreadInterrupt(BOOL fWaitForADUnload);
 
 public:
-    static void __stdcall UserInterruptAPC(ULONG_PTR ignore);
+    static void WINAPI UserInterruptAPC(ULONG_PTR ignore);
 
 #if defined(_DEBUG) && defined(TRACK_SYNC)
 
@@ -4114,8 +3911,6 @@ public:
 
 private:
     // For suspends:
-    CLREvent        m_SafeEvent;
-    CLREvent        m_UserSuspendEvent;
     CLREvent        m_DebugSuspendEvent;
 
     // For Object::Wait, Notify and NotifyAll, we use an Event inside the
@@ -4185,7 +3980,6 @@ private:
     DWORD           m_OSThreadId;
 
     BOOL CreateNewOSThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
-    BOOL CreateNewHostTask(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
 
     OBJECTHANDLE    m_ExposedObject;
     OBJECTHANDLE    m_StrongHndToExposedObject;
@@ -4657,11 +4451,9 @@ public:
  public:
 
      typedef Holder<Thread *, DoNothing, Thread::LoadingFileRelease> LoadingFileHolder;
-#ifndef FEATURE_LEAK_CULTURE_INFO
     void InitCultureAccessors();
     FieldDesc *managedThreadCurrentCulture;
     FieldDesc *managedThreadCurrentUICulture;
-#endif
 private:
     // Don't allow a thread to be asynchronously stopped or interrupted (e.g. because
     // it is performing a <clinit>)
@@ -4889,7 +4681,7 @@ private:
 private:
     // When we create an object, or create an OBJECTREF, or create an Interior Pointer, or enter EE from managed
     // code, we will set this flag.
-    // Inside GCHeap::StressHeap, we only do GC if this flag is TRUE.  Then we reset it to zero.
+    // Inside GCHeapUtilities::StressHeap, we only do GC if this flag is TRUE.  Then we reset it to zero.
     BOOL m_fStressHeapCount;
 public:
     void EnableStressHeap()
@@ -4909,16 +4701,6 @@ public:
     }
 
     size_t *m_pCleanedStackBase;
-#endif
-
-#ifdef STRESS_THREAD
-public:
-    LONG  m_stressThreadCount;
-#endif
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-public:
-    IHostTask *m_pHostTask;
 #endif
 
 private:
@@ -4993,7 +4775,7 @@ public:
 private:
     // used to pad stack on thread creation to avoid aliasing penalty in P4 HyperThread scenarios
 
-    static DWORD __stdcall intermediateThreadProc(PVOID arg);
+    static DWORD WINAPI intermediateThreadProc(PVOID arg);
     static int m_offset_counter;
     static const int offset_multiplier = 128;
 
@@ -5255,10 +5037,6 @@ public:
     static BOOL GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize);
 
 private:
-    // YieldTask, ThreadAbort, GC all change thread context.  ThreadAbort and GC uses ThreadStore lock to synchronize.  But YieldTask can
-    // not block.  We use a counter to allow one thread to change thread context.
-
-    Volatile<PVOID> m_WorkingOnThreadContext;
 
     // Although this is a pointer, it is used as a flag to indicate the current context is unsafe 
     // to inspect. When NULL the context is safe to use, otherwise it points to the active patch skipper
@@ -5299,36 +5077,15 @@ private:
         {
             return FALSE;
         }
-        if (CLRTaskHosted())
-        {
-            PVOID myID = ClrTeb::GetFiberPtrId();
-            PVOID id = FastInterlockCompareExchangePointer(pThread->m_WorkingOnThreadContext.GetPointer(), myID, NULL);
-            return id == NULL || id == myID;
-        }
-        else
-        {
-            return TRUE;
-        }
+        return TRUE;
     }
 
     static void LeaveWorkingOnThreadContext(Thread *pThread)
     {
         LIMITED_METHOD_CONTRACT;
-
-        if (pThread->m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId())
-        {
-            pThread->m_WorkingOnThreadContext = NULL;
-        }
     }
 
     typedef ConditionalStateHolder<Thread *, Thread::EnterWorkingOnThreadContext, Thread::LeaveWorkingOnThreadContext> WorkingOnThreadContextHolder;
-
-    BOOL WorkingOnThreadContext()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return !CLRTaskHosted() || m_WorkingOnThreadContext == ClrTeb::GetFiberPtrId();
-    }
 
 public:
     void PrepareThreadForSOWork()
@@ -5497,6 +5254,9 @@ private:
     // Disables pumping and thread join in RCW creation
     bool m_fDisableComObjectEagerCleanup;
 
+    // See ThreadStore::TriggerGCForDeadThreadsIfNecessary()
+    bool m_fHasDeadThreadBeenConsideredForGCTrigger;
+
 private:
     CLRRandom m_random;
 
@@ -5546,11 +5306,11 @@ public:
     // object associated with them (e.g., the bgc thread).
     void SetGCSpecial(bool fGCSpecial);
 
-#if !defined(FEATURE_CORECLR)
+#ifndef FEATURE_PAL
 private:
     WORD m_wCPUGroup;
     DWORD_PTR m_pAffinityMask;
-#endif
+#endif // !FEATURE_PAL
 
 public:
     void ChooseThreadCPUGroupAffinity();
@@ -5577,24 +5337,88 @@ public:
         _ASSERTE(pAllLoggedTypes != NULL ? m_pAllLoggedTypes == NULL : TRUE);
         m_pAllLoggedTypes = pAllLoggedTypes;
     }
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+
+#ifdef FEATURE_PERFTRACING
 private:
-    EEClass* m_pHijackReturnTypeClass;
+    // The object that contains the list write buffers used by this thread.
+    Volatile<EventPipeBufferList*> m_pEventPipeBufferList;
+
+    // Whether or not the thread is currently writing an event.
+    Volatile<bool> m_eventWriteInProgress;
+
+    // SampleProfiler thread state.  This is set on suspension and cleared before restart.
+    // True if the thread was in cooperative mode.  False if it was in preemptive when the suspension started.
+    Volatile<ULONG> m_gcModeOnSuspension;
+
 public:
-    EEClass* GetHijackReturnTypeClass()
+    EventPipeBufferList* GetEventPipeBufferList()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pEventPipeBufferList;
+    }
+
+    void SetEventPipeBufferList(EventPipeBufferList *pList)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_pEventPipeBufferList = pList;
+    }
+
+    bool GetEventWriteInProgress() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_eventWriteInProgress;
+    }
+
+    void SetEventWriteInProgress(bool value)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_eventWriteInProgress = value;
+    }
+
+    bool GetGCModeOnSuspension()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_gcModeOnSuspension;
+    }
+
+    void SaveGCModeOnSuspension()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_gcModeOnSuspension = m_fPreemptiveGCDisabled;
+    }
+
+    void ClearGCModeOnSuspension()
+    {
+        m_gcModeOnSuspension = 0;
+    }
+#endif // FEATURE_PERFTRACING
+
+#ifdef FEATURE_HIJACK
+private:
+
+    // By the time a frame is scanned by the runtime, m_pHijackReturnKind always 
+    // identifies the gc-ness of the return register(s)
+    // If the ReturnKind information is not available from the GcInfo, the runtime
+    // computes it using the return types's class handle.
+
+    ReturnKind m_HijackReturnKind;
+
+public:
+
+    ReturnKind GetHijackReturnKind()
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_pHijackReturnTypeClass;
+        return m_HijackReturnKind;
     }
 
-    void SetHijackReturnTypeClass(EEClass* pClass)
+    void SetHijackReturnKind(ReturnKind returnKind)
     {
         LIMITED_METHOD_CONTRACT;
 
-        m_pHijackReturnTypeClass = pClass;
+        m_HijackReturnKind = returnKind;
     }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // FEATURE_HIJACK
 };
 
 // End of class Thread
@@ -5602,16 +5426,9 @@ public:
 
 LCID GetThreadCultureIdNoThrow(Thread *pThread, BOOL bUICulture);
 
-#ifndef FEATURE_CORECLR
-// Request/Remove Thread Affinity for the current thread
-typedef StateHolder<Thread::BeginThreadAffinityAndCriticalRegion, Thread::EndThreadAffinityAndCriticalRegion> ThreadAffinityAndCriticalRegionHolder;
-#endif // !FEATURE_CORECLR
-typedef StateHolder<Thread::BeginThreadAffinity, Thread::EndThreadAffinity> ThreadAffinityHolder;
-
 typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 typedef Thread::ThreadPreventAsyncHolder ThreadPreventAsyncHolder;
 typedef Thread::ThreadPreventAbortHolder ThreadPreventAbortHolder;
-typedef StateHolder<Thread::ReverseEnterRuntime, Thread::ReverseLeaveRuntime> ReverseEnterRuntimeHolder;
 
 // Combines ForBindSuspendThreadHolder and CrstHolder into one.
 class ForbidSuspendThreadCrstHolder
@@ -5628,97 +5445,13 @@ private:
     CrstHolder                  m_lock_holder;
 };
 
-// Non-throwing flavor of ReverseEnterRuntimeHolder that requires explicit call to AcquireNoThrow to acquire
-class ReverseEnterRuntimeHolderNoThrow : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>
-{
-public:
-    ReverseEnterRuntimeHolderNoThrow()
-        : StateHolder<DoNothing, Thread::ReverseLeaveRuntime>(FALSE)
-    {
-    }
-
-    HRESULT AcquireNoThrow()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        HRESULT hr = Thread::ReverseEnterRuntimeNoThrow();
-        if (SUCCEEDED(hr))
-            Acquire();
-        return hr;
-    }
-};
-
 ETaskType GetCurrentTaskType();
 
-class LeaveRuntimeHolder
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolder(T target)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::LeaveRuntime((size_t)target);
-    }
-
-    ~LeaveRuntimeHolder()
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-            return;
-
-        Thread::EnterRuntime();
-    }
-};
-
-class LeaveRuntimeHolderNoThrow
-{
-public:
-    template <typename T>
-    LeaveRuntimeHolderNoThrow(T target)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::LeaveRuntimeNoThrow((size_t)target);
-    }
-
-    ~LeaveRuntimeHolderNoThrow()
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (!CLRTaskHosted())
-        {
-            hr = S_OK;
-            return;
-        }
-
-        hr = Thread::EnterRuntimeNoThrow();
-    }
-
-    HRESULT GetHR() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return hr;
-    }
-
-private:
-    HRESULT hr;
-};
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-IHostTask *GetCurrentHostTask();
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 
 typedef Thread::AVInRuntimeImplOkayHolder AVInRuntimeImplOkayHolder;
 
-BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken, ThreadAffinityHolder *pTAHolder);
+BOOL RevertIfImpersonated(BOOL *bReverted, HANDLE *phToken);
 void UndoRevert(BOOL bReverted, HANDLE hToken);
 
 // ---------------------------------------------------------------------------
@@ -5865,6 +5598,8 @@ private:
     LONG        m_PendingThreadCount;
 
     LONG        m_DeadThreadCount;
+    LONG        m_DeadThreadCountForGCTrigger;
+    bool        m_TriggerGCForDeadThreads;
 
 private:
     // Space for the lazily-created GUID.
@@ -5876,6 +5611,11 @@ private:
     // thread that holds this lock.
     Thread     *m_HoldingThread;
     EEThreadId  m_holderthreadid;   // current holder (or NULL)
+
+private:
+    static LONG s_DeadThreadCountThresholdForGCTrigger;
+    static DWORD s_DeadThreadGCTriggerPeriodMilliseconds;
+    static SIZE_T *s_DeadThreadGenerationCounts;
 
 public:
 
@@ -5950,6 +5690,14 @@ public:
         LIMITED_METHOD_CONTRACT;
         s_pWaitForStackCrawlEvent->Reset();
     }
+
+private:
+    void IncrementDeadThreadCountForGCTrigger();
+    void DecrementDeadThreadCountForGCTrigger();
+public:
+    void OnMaxGenerationGCStarted();
+    bool ShouldTriggerGCForDeadThreads();
+    void TriggerGCForDeadThreadsIfNecessary();
 };
 
 struct TSSuspendHelper {
@@ -6200,59 +5948,12 @@ struct PendingSync
     void Restore(BOOL bRemoveFromSB);
 };
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-
-//
-// Tracking of unmanaged locks has very low value. It is only
-// exposed via SQL hosting interfaces. The hosts cannot really
-// do anything interesting with it because of the unmanaged locks 
-// are always taken with holders in the VM, and hosts can keep 
-// track of the unmanaged locks taken via hosting API. We should 
-// consider getting rid of it in the next SxS version.
-//
-
-#define INCTHREADLOCKCOUNT()                                    \
-{                                                               \
-        /* IncLockCount() asserts GetThread() == this */        \
-        BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;             \
-        Thread *thread = GetThread();                           \
-        if (thread)                                             \
-            thread->IncLockCount();                             \
-        END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;               \
-}
-
-#define INCTHREADLOCKCOUNTTHREAD(thread)                        \
-{                                                               \
-        /* IncLockCount() asserts GetThread() == this */        \
-        if (thread)                                             \
-            (thread)->IncLockCount();                           \
-}
-
-#define DECTHREADLOCKCOUNT( )                                   \
-{                                                               \
-        /* IncLockCount() asserts GetThread() == this */        \
-        BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;             \
-        Thread *thread = GetThread();                           \
-        if (thread)                                             \
-            thread->DecLockCount();                             \
-        END_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;               \
-}
-
-#define DECTHREADLOCKCOUNTTHREAD(thread)                        \
-{                                                               \
-        /* IncLockCount() asserts GetThread() == this */        \
-        if (thread)                                             \
-            (thread)->DecLockCount();                           \
-}
-
-#else
 
 #define INCTHREADLOCKCOUNT() { }
 #define DECTHREADLOCKCOUNT() { }
 #define INCTHREADLOCKCOUNTTHREAD(thread) { }
 #define DECTHREADLOCKCOUNTTHREAD(thread) { }
 
-#endif
 
 // --------------------------------------------------------------------------------
 // GCHolder is used to implement the normal GCX_ macros.
@@ -7093,29 +6794,28 @@ public:
                             Thread::TriggersGC(GetThread());                \
                         } while(0)
 
-
-inline BOOL GC_ON_TRANSITIONS(BOOL val) {
-    WRAPPER_NO_CONTRACT;
-    Thread* thread = GetThread();
-    if (thread == 0)
-        return(FALSE);
-    BOOL ret = thread->m_GCOnTransitionsOK;
-    thread->m_GCOnTransitionsOK = val;
-    return(ret);
-}
-
-#else   // _DEBUG_IMPL
+#else // ENABLE_CONTRACTS_IMPL
 
 #define BEGINFORBIDGC()
 #define ENDFORBIDGC()
 #define TRIGGERSGC_NOSTOMP() ANNOTATION_GC_TRIGGERS
 #define TRIGGERSGC() ANNOTATION_GC_TRIGGERS
 
-inline BOOL GC_ON_TRANSITIONS(BOOL val) {
-        return FALSE;
-}
+#endif // ENABLE_CONTRACTS_IMPL
 
-#endif  // _DEBUG_IMPL
+inline BOOL GC_ON_TRANSITIONS(BOOL val) {
+    WRAPPER_NO_CONTRACT;
+#ifdef _DEBUG
+    Thread* thread = GetThread();
+    if (thread == 0)
+        return(FALSE);
+    BOOL ret = thread->m_GCOnTransitionsOK;
+    thread->m_GCOnTransitionsOK = val;
+    return(ret);
+#else // _DEBUG
+    return FALSE;
+#endif // !_DEBUG
+}
 
 #ifdef _DEBUG
 inline void ENABLESTRESSHEAP() {
@@ -7764,7 +7464,7 @@ struct ThreadLocalInfo
     AppDomain* m_pAppDomain;
     void** m_EETlsData; // ClrTlsInfo::data
 #ifdef FEATURE_MERGE_JIT_AND_ENGINE
-    Compiler* m_pCompiler;
+    void* m_pJitTls;
 #endif
 };
 #endif // FEATURE_IMPLICIT_TLS

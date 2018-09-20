@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -11,12 +12,8 @@
   .ver 4:0:0:0
 }
 
-.assembly extern mscorlib
-{
-  .hash = (1C E2 9F D4 68 FA BD 67 1C 9F 39 8F 2F E3 3A 67   // ....h..g..9./.:g
-           05 AC 47 E0 )                                     // ..G.
-  .ver 2000:14:2009:0
-}
+.assembly extern mscorlib {}
+
 .assembly test
 {
   .hash algorithm 0x00008004
@@ -62,7 +59,7 @@
 
         IL_0025:  ldstr      "READ-WRITE FAILED"
         IL_002a:  call       void [System.Console]System.Console::WriteLine(string)
-        IL_002f:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+        IL_002f:  newobj     instance void [mscorlib]System.Exception::.ctor()
         IL_0034:  throw
 
         IL_0035:  ldstr      ": OK"

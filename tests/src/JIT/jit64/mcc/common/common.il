@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 // Metadata version: v2.0.50727
 .assembly extern mscorlib
@@ -63,7 +64,7 @@
 } // end of class MCCTest.FormatUtils
 
 .class public auto ansi beforefieldinit MCCTest.ResultVerificationException
-       extends [mscorlib]System.ApplicationException
+       extends [mscorlib]System.Exception
 {
   .method public hidebysig specialname rtspecialname 
           instance void  .ctor(string fieldName,
@@ -163,7 +164,7 @@
     IL_0000:  ldarg.0
     IL_0001:  ldarg.1
     IL_0002:  ldarg.2
-    IL_0003:  call       instance void [mscorlib]System.ApplicationException::.ctor(string,
+    IL_0003:  call       instance void [mscorlib]System.Exception::.ctor(string,
                                                                                     class [mscorlib]System.Exception)
     IL_0008:  nop
     IL_0009:  nop
@@ -206,7 +207,7 @@
     IL_0015:  ldsfld     string [mscorlib]System.String::Empty
     IL_001a:  br.s       IL_0039
 
-    IL_001c:  call       string [mscorlib]System.Environment::get_NewLine()
+    IL_001c:  call       string [system.runtime.extensions]System.Environment::get_NewLine()
     IL_0021:  ldarg.0
     IL_0022:  call       instance class [mscorlib]System.Exception [mscorlib]System.Exception::get_InnerException()
     IL_0027:  castclass  MCCTest.ResultVerificationException

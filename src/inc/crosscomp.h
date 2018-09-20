@@ -68,7 +68,7 @@ typedef struct DECLSPEC_ALIGN(8) _T_CONTEXT {
         NEON128 Q[16];
         ULONGLONG D[32];
         DWORD S[32];
-    } DUMMYUNIONNAME;
+    };
 
     //
     // Debug registers
@@ -88,6 +88,7 @@ typedef struct DECLSPEC_ALIGN(8) _T_CONTEXT {
 // each frame function.
 //
 
+#ifndef FEATURE_PAL
 typedef struct _RUNTIME_FUNCTION {
     DWORD BeginAddress;
     DWORD UnwindData;
@@ -114,6 +115,7 @@ typedef struct _UNWIND_HISTORY_TABLE {
     DWORD HighAddress;
     UNWIND_HISTORY_TABLE_ENTRY Entry[UNWIND_HISTORY_TABLE_SIZE];
 } UNWIND_HISTORY_TABLE, *PUNWIND_HISTORY_TABLE;
+#endif // !FEATURE_PAL
 
 
 //
@@ -193,7 +195,7 @@ typedef union _NEON128 {
     struct {
         ULONGLONG Low;
         LONGLONG High;
-    } DUMMYSTRUCTNAME;
+    };
     double D[2];
     float S[4];
     WORD   H[8];
@@ -286,7 +288,7 @@ typedef struct _T_RUNTIME_FUNCTION {
             DWORD CR : 2;
             DWORD FrameSize : 9;
         } PackedUnwindData;
-    } DUMMYUNIONNAME;
+    };
 } T_RUNTIME_FUNCTION, *PT_RUNTIME_FUNCTION;
 
 

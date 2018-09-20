@@ -23,13 +23,64 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 #include "jitstd.h"
 
+// Fixed-size array that can hold elements with no default constructor;
+// it will construct them all by forwarding whatever arguments are
+// supplied to its constructor.
+template <typename T, int N>
+class ConstructedArray
+{
+    union {
+        // Storage that gets used to hold the T objects.
+        unsigned char bytes[N * sizeof(T)];
+
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
+        // With MSVC pre-VS2015, the code in the #else branch would hit error C2621,
+        // so in that case just count on pointer alignment being sufficient
+        // (currently T is only ever instantiated as jitstd::list<SsaRenameStateForBlock>)
+
+        // Unused (except to impart alignment requirement)
+        void* pointer;
+#else
+        // Unused (except to impart alignment requirement)
+        T alignedArray[N];
+#endif // defined(_MSC_VER) && (_MSC_VER < 1900)
+    };
+
+public:
+    T& operator[](size_t i)
+    {
+        return *(reinterpret_cast<T*>(bytes + i * sizeof(T)));
+    }
+
+    template <typename... Args>
+    ConstructedArray(Args&&... args)
+    {
+        for (int i = 0; i < N; ++i)
+        {
+            new (bytes + i * sizeof(T), jitstd::placement_t()) T(jitstd::forward<Args>(args)...);
+        }
+    }
+
+    ~ConstructedArray()
+    {
+        for (int i = 0; i < N; ++i)
+        {
+            operator[](i).~T();
+        }
+    }
+};
+
 struct SsaRenameStateForBlock
 {
     BasicBlock* m_bb;
     unsigned    m_count;
 
-    SsaRenameStateForBlock(BasicBlock* bb, unsigned count) : m_bb(bb), m_count(count) {}
-    SsaRenameStateForBlock() : m_bb(NULL), m_count(0) {}
+    SsaRenameStateForBlock(BasicBlock* bb, unsigned count) : m_bb(bb), m_count(count)
+    {
+    }
+    SsaRenameStateForBlock() : m_bb(nullptr), m_count(0)
+    {
+    }
 };
 
 // A record indicating that local "m_loc" was defined in block "m_bb".
@@ -38,17 +89,19 @@ struct SsaRenameStateLocDef
     BasicBlock* m_bb;
     unsigned    m_lclNum;
 
-    SsaRenameStateLocDef(BasicBlock* bb, unsigned lclNum) : m_bb(bb), m_lclNum(lclNum) {}
+    SsaRenameStateLocDef(BasicBlock* bb, unsigned lclNum) : m_bb(bb), m_lclNum(lclNum)
+    {
+    }
 };
 
 struct SsaRenameState
 {
     typedef jitstd::list<SsaRenameStateForBlock> Stack;
-    typedef Stack** Stacks;
-    typedef unsigned* Counts;
-    typedef jitstd::list<SsaRenameStateLocDef> DefStack;
+    typedef Stack**                              Stacks;
+    typedef unsigned*                            Counts;
+    typedef jitstd::list<SsaRenameStateLocDef>   DefStack;
 
-    SsaRenameState(const jitstd::allocator<int>& allocator, unsigned lvaCount);
+    SsaRenameState(const jitstd::allocator<int>& allocator, unsigned lvaCount, bool byrefStatesMatchGcHeapStates);
 
     void EnsureCounts();
     void EnsureStacks();
@@ -64,32 +117,47 @@ struct SsaRenameState
     // Requires "lclNum" to be a variable number, and requires "count" to represent
     // an ssa number, that needs to be pushed on to the stack corresponding to the lclNum.
     void Push(BasicBlock* bb, unsigned lclNum, unsigned count);
-    
+
     // Pop all stacks that have an entry for "bb" on top.
     void PopBlockStacks(BasicBlock* bb);
 
-    // Similar functions for the special implicit "Heap" variable.
-    unsigned CountForHeapDef()
+    // Similar functions for the special implicit memory variable.
+    unsigned CountForMemoryDef()
     {
-        if (heapCount == 0)
-            heapCount = SsaConfig::FIRST_SSA_NUM;
-        unsigned res = heapCount;
-        heapCount++;
+        if (memoryCount == 0)
+        {
+            memoryCount = SsaConfig::FIRST_SSA_NUM;
+        }
+        unsigned res = memoryCount;
+        memoryCount++;
         return res;
     }
-    unsigned CountForHeapUse()
+    unsigned CountForMemoryUse(MemoryKind memoryKind)
     {
-        return heapStack.back().m_count;
+        if ((memoryKind == GcHeap) && byrefStatesMatchGcHeapStates)
+        {
+            // Share rename stacks in this configuration.
+            memoryKind = ByrefExposed;
+        }
+        return memoryStack[memoryKind].back().m_count;
     }
 
-    void PushHeap(BasicBlock* bb, unsigned count)
+    void PushMemory(MemoryKind memoryKind, BasicBlock* bb, unsigned count)
     {
-        heapStack.push_back(SsaRenameStateForBlock(bb, count));
+        if ((memoryKind == GcHeap) && byrefStatesMatchGcHeapStates)
+        {
+            // Share rename stacks in this configuration.
+            memoryKind = ByrefExposed;
+        }
+        memoryStack[memoryKind].push_back(SsaRenameStateForBlock(bb, count));
     }
 
-    void PopBlockHeapStack(BasicBlock* bb);
+    void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* bb);
 
-    unsigned HeapCount() { return heapCount; }
+    unsigned MemoryCount()
+    {
+        return memoryCount;
+    }
 
 #ifdef DEBUG
     // Debug interface
@@ -97,7 +165,6 @@ struct SsaRenameState
 #endif
 
 private:
-
     // Map of lclNum -> count.
     Counts counts;
 
@@ -107,14 +174,16 @@ private:
     // This list represents the set of locals defined in the current block.
     DefStack definedLocs;
 
-    // Same state for the special implicit Heap variable.
-    Stack     heapStack;
-    unsigned  heapCount;
+    // Same state for the special implicit memory variables.
+    ConstructedArray<Stack, MemoryKindCount> memoryStack;
+    unsigned memoryCount;
 
     // Number of stacks/counts to allocate.
-    unsigned  lvaCount;
+    unsigned lvaCount;
 
     // Allocator to allocate stacks.
     jitstd::allocator<void> m_alloc;
-};
 
+    // Indicates whether GcHeap and ByrefExposed use the same state.
+    bool byrefStatesMatchGcHeapStates;
+};

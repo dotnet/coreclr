@@ -57,6 +57,7 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 //#define HAS_REMOTING_PRECODE                  1    // TODO: Implement
 #define HAS_FIXUP_PRECODE                       1
 #define HAS_FIXUP_PRECODE_CHUNKS                1
+#define FIXUP_PRECODE_PREALLOCATE_DYNAMIC_METHOD_JUMP_STUBS 1
 
 // ThisPtrRetBufPrecode one is necessary for closed delegates over static methods with return buffer
 #define HAS_THISPTR_RETBUF_PRECODE              1
@@ -65,14 +66,16 @@ EXTERN_C void FastCallFinalizeWorker(Object *obj, PCODE funcPtr);
 #define CACHE_LINE_SIZE                         64   // Current AMD64 processors have 64-byte cache lines as per AMD64 optmization manual
 #define LOG2SLOT                                LOG2_PTRSIZE
 
-#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
-#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
 
 #ifdef UNIX_AMD64_ABI
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 16   // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          16   // bytes
 #define ENREGISTERED_RETURNTYPE_MAXSIZE         16   // bytes
 #define CALLDESCR_ARGREGS                       1    // CallDescrWorker has ArgumentRegister parameter
 #define CALLDESCR_FPARGREGS                     1    // CallDescrWorker has FloatArgumentRegisters parameter
 #else
+#define ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE 8    // bytes
+#define ENREGISTERED_PARAMTYPE_MAXSIZE          8    // bytes
 #define ENREGISTERED_RETURNTYPE_MAXSIZE         8    // bytes
 #define COM_STUBS_SEPARATE_FP_LOCATIONS
 #define CALLDESCR_REGTYPEMAP                    1
@@ -379,6 +382,9 @@ void EncodeLoadAndJumpThunk (LPBYTE pBuffer, LPVOID pv, LPVOID pTarget);
 // Get Rel32 destination, emit jumpStub if necessary
 INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMethod, LoaderAllocator *pLoaderAllocator = NULL);
 
+// Get Rel32 destination, emit jumpStub if necessary into a preallocated location
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr);
+
 void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target);
 
 void emitJump(LPBYTE pBuffer, LPVOID target);
@@ -479,13 +485,13 @@ struct DECLSPEC_ALIGN(8) UMEntryThunkCode
 
 struct HijackArgs
 {
-#ifndef PLATFORM_UNIX
+#ifndef FEATURE_MULTIREG_RETURN
     union
     {
         ULONG64 Rax;
-        ULONG64 ReturnValue;
+        ULONG64 ReturnValue[1];
     };
-#else // PLATFORM_UNIX
+#else // FEATURE_MULTIREG_RETURN
     union
     {
         struct
@@ -554,8 +560,9 @@ inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode)
 #define JIT_IsInstanceOfClass       JIT_IsInstanceOfClass
 #define JIT_ChkCastInterface        JIT_ChkCastInterface
 #define JIT_IsInstanceOfInterface   JIT_IsInstanceOfInterface
-#define JIT_Stelem_Ref              JIT_Stelem_Ref
 
 #endif // FEATURE_PAL
+
+#define JIT_Stelem_Ref              JIT_Stelem_Ref
 
 #endif // __cgencpu_h__

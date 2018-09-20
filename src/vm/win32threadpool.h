@@ -146,7 +146,8 @@ class ThreadpoolMgr
         } m_counts;
 
     private:
-        CLRSemaphore m_sem;  //waiters wait on this
+        const int m_spinLimitPerProcessor; //used when calculating max spin duration
+        CLRSemaphore m_sem;                //waiters wait on this
 
         // padding to ensure we get our own cache line
         BYTE padding2[64];
@@ -183,7 +184,8 @@ class ThreadpoolMgr
 
     public:
 
-        UnfairSemaphore(int maxCount)
+        UnfairSemaphore(int maxCount, int spinLimitPerProcessor)
+            : m_spinLimitPerProcessor(spinLimitPerProcessor)
         {
             CONTRACTL
             {
@@ -277,7 +279,6 @@ class ThreadpoolMgr
             // Now we're a spinner.  
             //
             int numSpins = 0;
-            const int spinLimitPerProcessor = 50;
             while (true)
             {
                 Counts currentCounts, newCounts;
@@ -295,7 +296,7 @@ class ThreadpoolMgr
                 else
                 {
                     double spinnersPerProcessor = (double)currentCounts.spinners / ThreadpoolMgr::NumberOfProcessors;
-                    int spinLimit = (int)((spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
+                    int spinLimit = (int)((m_spinLimitPerProcessor / spinnersPerProcessor) + 0.5);
                     if (numSpins >= spinLimit)
                     {
                         newCounts.spinners--;
@@ -372,9 +373,17 @@ public:
 
         } counts;
 
+        // padding to ensure we get our own cache line
+        BYTE padding[64];
+
         Counts GetCleanCounts()
         {
             LIMITED_METHOD_CONTRACT;
+#ifdef _WIN64
+            // VolatileLoad x64 bit read is atomic
+            return DangerousGetDirtyCounts();
+#else // !_WIN64
+            // VolatileLoad may result in torn read
             Counts result;
 #ifndef DACCESS_COMPILE
             result.AsLongLong = FastInterlockCompareExchangeLong(&counts.AsLongLong, 0, 0);
@@ -383,6 +392,7 @@ public:
             result.AsLongLong = 0; //prevents prefast warning for DAC builds
 #endif
             return result;
+#endif // !_WIN64
         }
 
         //
@@ -445,8 +455,7 @@ public:
         MEMTYPE_AsyncCallback   = 0,
         MEMTYPE_DelegateInfo    = 1,
         MEMTYPE_WorkRequest     = 2,
-        MEMTYPE_PostRequest     = 3,        
-        MEMTYPE_COUNT           = 4,
+        MEMTYPE_COUNT           = 3,
     };
 
     static BOOL Initialize();
@@ -495,22 +504,22 @@ public:
     static BOOL UnregisterWaitEx(HANDLE hWaitObject,HANDLE CompletionEvent);
     static void WaitHandleCleanup(HANDLE hWaitObject);
 
-    static BOOL BindIoCompletionCallback(HANDLE FileHandle,
+    static BOOL WINAPI BindIoCompletionCallback(HANDLE FileHandle,
                                             LPOVERLAPPED_COMPLETION_ROUTINE Function,
                                             ULONG Flags,
                                             DWORD& errorCode);
 
-    static void WaitIOCompletionCallback(DWORD dwErrorCode,
+    static void WINAPI WaitIOCompletionCallback(DWORD dwErrorCode,
                                             DWORD numBytesTransferred,
                                             LPOVERLAPPED lpOverlapped);
 
-    static VOID CallbackForInitiateDrainageOfCompletionPortQueue(
+    static VOID WINAPI CallbackForInitiateDrainageOfCompletionPortQueue(
         DWORD dwErrorCode,
         DWORD dwNumberOfBytesTransfered,
         LPOVERLAPPED lpOverlapped
     );
 
-    static VOID CallbackForContinueDrainageOfCompletionPortQueue(
+    static VOID WINAPI CallbackForContinueDrainageOfCompletionPortQueue(
         DWORD dwErrorCode,
         DWORD dwNumberOfBytesTransfered,
         LPOVERLAPPED lpOverlapped
@@ -522,7 +531,7 @@ public:
     static inline void UpdateLastDequeueTime()
     {
         LIMITED_METHOD_CONTRACT;
-        LastDequeueTime = GetTickCount();
+        VolatileStore(&LastDequeueTime, (unsigned int)GetTickCount());
     }
 
     static BOOL CreateTimerQueueTimer(PHANDLE phNewTimer,
@@ -543,17 +552,6 @@ public:
     static void FlushQueueOfTimerInfos();
 
     static BOOL HaveTimerInfosToFlush() { return TimerInfosToBeRecycled != NULL; }
-
-    inline static BOOL IsThreadPoolHosted()
-    {
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        IHostThreadpoolManager *provider = CorHost2::GetHostThreadpoolManager();
-        if (provider)
-            return TRUE;
-        else
-#endif
-            return FALSE;
-    }
 
 #ifndef FEATURE_PAL    
     static LPOVERLAPPED CompletionPortDispatchWorkWithinAppDomain(Thread* pThread, DWORD* pErrorCode, DWORD* pNumBytes, size_t* pKey, DWORD adid);
@@ -607,44 +605,6 @@ private:
         wr->next = NULL;
         return wr;
     }
-
-    struct PostRequest {
-        LPOVERLAPPED_COMPLETION_ROUTINE Function;
-        DWORD                           errorCode;
-        DWORD                           numBytesTransferred;
-        LPOVERLAPPED                    lpOverlapped;
-    };
-
-
-    inline static PostRequest* MakePostRequest(LPOVERLAPPED_COMPLETION_ROUTINE function, LPOVERLAPPED overlapped)
-    {
-        CONTRACTL
-        {
-            THROWS;     
-            GC_NOTRIGGER;
-            MODE_ANY;
-        }
-        CONTRACTL_END;;
-        
-        PostRequest* pr = (PostRequest*) GetRecycledMemory(MEMTYPE_PostRequest);
-        _ASSERTE(pr);
-		if (NULL == pr)
-			return NULL;
-        pr->Function = function;
-        pr->errorCode = 0;
-        pr->numBytesTransferred = 0;
-        pr->lpOverlapped = overlapped;
-        
-        return pr;
-    }
-    
-    inline static void ReleasePostRequest(PostRequest *postRequest) 
-    {
-        WRAPPER_NO_CONTRACT;
-        ThreadpoolMgr::RecycleMemory(postRequest, MEMTYPE_PostRequest);
-    }
-
-    typedef Wrapper< PostRequest *, DoNothing<PostRequest *>, ThreadpoolMgr::ReleasePostRequest > PostRequestHolder;
     
 #endif // #ifndef DACCESS_COMPILE
 
@@ -1022,12 +982,12 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
 
-	    if (CPUGroupInfo::CanEnableGCCPUGroups() && CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
-            return pRecycledListPerProcessor[CPUGroupInfo::CalculateCurrentProcessorNumber()][memType];
-        else
-            // Turns out GetCurrentProcessorNumber can return a value greater than the number of processors reported by
-            // GetSystemInfo, if we're running in WOW64 on a machine with >32 processors.
-        	return pRecycledListPerProcessor[GetCurrentProcessorNumber()%NumberOfProcessors][memType];
+	        if (CPUGroupInfo::CanEnableGCCPUGroups() && CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
+                return pRecycledListPerProcessor[CPUGroupInfo::CalculateCurrentProcessorNumber()][memType];
+            else
+                // Turns out GetCurrentProcessorNumber can return a value greater than the number of processors reported by
+                // GetSystemInfo, if we're running in WOW64 on a machine with >32 processors.
+        	    return pRecycledListPerProcessor[GetCurrentProcessorNumber()%NumberOfProcessors][memType];
     	}
     };
 
@@ -1037,7 +997,7 @@ public:
 
     // Private methods
 
-    static DWORD __stdcall intermediateThreadProc(PVOID arg);
+    static DWORD WINAPI intermediateThreadProc(PVOID arg);
 
     typedef struct {
         LPTHREAD_START_ROUTINE  lpThreadFunction;
@@ -1118,22 +1078,18 @@ public:
     static void NotifyWorkItemCompleted()
     {
         WRAPPER_NO_CONTRACT;
-        if (!CLRThreadpoolHosted())
-        {
-            Thread::IncrementThreadPoolCompletionCount();
-            UpdateLastDequeueTime();
-        }
+        Thread::IncrementThreadPoolCompletionCount();
+        UpdateLastDequeueTime();
     }
 
     static bool ShouldAdjustMaxWorkersActive()
     {
         WRAPPER_NO_CONTRACT;
 
-        if (CLRThreadpoolHosted())
-            return false;
-
-        DWORD requiredInterval = NextCompletedWorkRequestsTime - PriorCompletedWorkRequestsTime;
-        DWORD elapsedInterval = GetTickCount() - PriorCompletedWorkRequestsTime;
+        DWORD priorTime = PriorCompletedWorkRequestsTime;
+        MemoryBarrier(); // read fresh value for NextCompletedWorkRequestsTime below
+        DWORD requiredInterval = NextCompletedWorkRequestsTime - priorTime;
+        DWORD elapsedInterval = GetTickCount() - priorTime;
         if (elapsedInterval >= requiredInterval)
         {
             ThreadCounter::Counts counts = WorkerCounter.GetCleanCounts();
@@ -1151,7 +1107,7 @@ public:
 
     static DWORD SafeWait(CLREvent * ev, DWORD sleepTime, BOOL alertable);
 
-    static DWORD __stdcall WorkerThreadStart(LPVOID lpArgs);
+    static DWORD WINAPI WorkerThreadStart(LPVOID lpArgs);
 
     static BOOL AddWaitRequest(HANDLE waitHandle, WaitInfo* waitInfo);
 
@@ -1160,7 +1116,7 @@ public:
 
     static BOOL CreateWaitThread();
 
-    static void __stdcall InsertNewWaitForSelf(WaitInfo* pArg);
+    static void WINAPI InsertNewWaitForSelf(WaitInfo* pArg);
 
     static int FindWaitIndex(const ThreadCB* threadCB, const HANDLE waitHandle);
 
@@ -1170,13 +1126,11 @@ public:
                                 unsigned index,      // array index 
                                 BOOL waitTimedOut);
 
-    static DWORD __stdcall WaitThreadStart(LPVOID lpArgs);
+    static DWORD WINAPI WaitThreadStart(LPVOID lpArgs);
 
-    static DWORD __stdcall AsyncCallbackCompletion(PVOID pArgs);
+    static DWORD WINAPI AsyncCallbackCompletion(PVOID pArgs);
 
     static void QueueTimerInfoForRelease(TimerInfo *pTimerInfo);
-
-    static DWORD __stdcall QUWIPostCompletion(PVOID pArgs);
 
     static void DeactivateWait(WaitInfo* waitInfo);
     static void DeactivateNthWait(WaitInfo* waitInfo, DWORD index);
@@ -1198,7 +1152,7 @@ public:
                count * sizeof(LIST_ENTRY));
     }
 
-    static void __stdcall DeregisterWait(WaitInfo* pArgs);
+    static void WINAPI DeregisterWait(WaitInfo* pArgs);
 
 #ifndef FEATURE_PAL
     // holds the aggregate of system cpu usage of all processors
@@ -1215,7 +1169,7 @@ public:
 
     static int GetCPUBusyTime_NT(PROCESS_CPU_INFORMATION* pOldInfo);
     static BOOL CreateCompletionPortThread(LPVOID lpArgs);
-    static DWORD __stdcall CompletionPortThreadStart(LPVOID lpArgs);
+    static DWORD WINAPI CompletionPortThreadStart(LPVOID lpArgs);
 public:
     inline static bool HaveNativeWork()
     {
@@ -1236,7 +1190,7 @@ private:
     static BOOL CreateGateThread();
     static void EnsureGateThreadRunning();
     static bool ShouldGateThreadKeepRunning();
-    static DWORD __stdcall GateThreadStart(LPVOID lpArgs);
+    static DWORD WINAPI GateThreadStart(LPVOID lpArgs);
     static BOOL SufficientDelaySinceLastSample(unsigned int LastThreadCreationTime, 
                                                unsigned NumThreads, // total number of threads of that type (worker or CP)
                                                double   throttleRate=0.0 // the delay is increased by this percentage for each extra thread
@@ -1245,17 +1199,17 @@ private:
 
     static LPVOID   GetRecycledMemory(enum MemType memType);
 
-    static DWORD __stdcall TimerThreadStart(LPVOID args);
+    static DWORD WINAPI TimerThreadStart(LPVOID args);
     static void TimerThreadFire(); // helper method used by TimerThreadStart
-    static void __stdcall InsertNewTimer(TimerInfo* pArg);
+    static void WINAPI InsertNewTimer(TimerInfo* pArg);
     static DWORD FireTimers();
-    static DWORD __stdcall AsyncTimerCallbackCompletion(PVOID pArgs);
+    static DWORD WINAPI AsyncTimerCallbackCompletion(PVOID pArgs);
     static void DeactivateTimer(TimerInfo* timerInfo);
-    static DWORD __stdcall AsyncDeleteTimer(PVOID pArgs);
+    static DWORD WINAPI AsyncDeleteTimer(PVOID pArgs);
     static void DeleteTimer(TimerInfo* timerInfo);
-    static void __stdcall UpdateTimer(TimerUpdateInfo* pArgs);
+    static void WINAPI UpdateTimer(TimerUpdateInfo* pArgs);
 
-    static void __stdcall DeregisterTimer(TimerInfo* pArgs);
+    static void WINAPI DeregisterTimer(TimerInfo* pArgs);
 
     inline static DWORD QueueDeregisterWait(HANDLE waitThread, WaitInfo* waitInfo)
     {
@@ -1293,13 +1247,13 @@ private:
     SVAL_DECL(LONG,MinLimitTotalWorkerThreads);         // same as MinLimitTotalCPThreads
     SVAL_DECL(LONG,MaxLimitTotalWorkerThreads);         // same as MaxLimitTotalCPThreads
         
-    static Volatile<unsigned int> LastDequeueTime;      // used to determine if work items are getting thread starved 
+    DECLSPEC_ALIGN(64) static unsigned int LastDequeueTime;      // used to determine if work items are getting thread starved 
     
     static HillClimbing HillClimbingInstance;
 
-    static Volatile<LONG> PriorCompletedWorkRequests;
-    static Volatile<DWORD> PriorCompletedWorkRequestsTime;
-    static Volatile<DWORD> NextCompletedWorkRequestsTime;
+    DECLSPEC_ALIGN(64) static LONG PriorCompletedWorkRequests;
+    static DWORD PriorCompletedWorkRequestsTime;
+    static DWORD NextCompletedWorkRequestsTime;
 
     static LARGE_INTEGER CurrentSampleStartTime;
 
@@ -1323,7 +1277,7 @@ private:
     static const DWORD WorkerTimeout = 20 * 1000;
     static const DWORD WorkerTimeoutAppX = 5 * 1000;    // shorter timeout to allow threads to exit prior to app suspension
 
-    SVAL_DECL(ThreadCounter,WorkerCounter);
+    DECLSPEC_ALIGN(64) SVAL_DECL(ThreadCounter,WorkerCounter);
 
     // 
     // WorkerSemaphore is an UnfairSemaphore because:
@@ -1352,7 +1306,7 @@ private:
     SVAL_DECL(LIST_ENTRY,TimerQueue);                   // queue of timers
     static HANDLE TimerThread;                          // Currently we only have one timer thread
     static Thread*  pTimerThread;
-    static DWORD LastTickCount;                         // the count just before timer thread goes to sleep
+    DECLSPEC_ALIGN(64) static DWORD LastTickCount;      // the count just before timer thread goes to sleep
 
     static BOOL InitCompletionPortThreadpool;           // flag indicating whether completion port threadpool has been initialized
     static HANDLE GlobalCompletionPort;                 // used for binding io completions on file handles
@@ -1365,20 +1319,20 @@ private:
     SVAL_DECL(LONG,MinLimitTotalCPThreads);             
     SVAL_DECL(LONG,MaxFreeCPThreads);                   // = MaxFreeCPThreadsPerCPU * Number of CPUS
 
-    static LONG   GateThreadStatus;                    // See GateThreadStatus enumeration
+    DECLSPEC_ALIGN(64) static LONG GateThreadStatus;    // See GateThreadStatus enumeration
 
     static Volatile<LONG> NumCPInfrastructureThreads;   // number of threads currently busy handling draining cycle
 
     SVAL_DECL(LONG,cpuUtilization);
     static LONG cpuUtilizationAverage;
 
-    static RecycledListsWrapper RecycledLists;
+    DECLSPEC_ALIGN(64) static RecycledListsWrapper RecycledLists;
 
 #ifdef _DEBUG
     static DWORD   TickCountAdjustment;                 // add this value to value returned by GetTickCount
 #endif
 
-    static int offset_counter;
+    DECLSPEC_ALIGN(64) static int offset_counter;
     static const int offset_multiplier = 128;
 };
 

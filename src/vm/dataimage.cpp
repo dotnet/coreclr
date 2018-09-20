@@ -12,7 +12,6 @@
 #include "compile.h"
 
 #include "field.h"
-#include "constrainedexecutionregion.h"
 
 //
 // Include Zapper infrastructure here
@@ -127,12 +126,7 @@ DataImage::DataImage(Module *module, CEEPreloader *preloader)
     m_pZapImage->m_pDataImage = this;
 
     m_pInternedStructures = new InternedStructureHashTable();
-
-#ifdef FEATURE_CORECLR
-    m_inlineTrackingMap = NULL;
-#else
     m_inlineTrackingMap = new InlineTrackingMap();
-#endif
 }
 
 DataImage::~DataImage()
@@ -896,8 +890,6 @@ void DataImage::FixupRVAs()
     FixupModuleRVAs();
     FixupRvaStructure();
 
-    if (m_module->m_pCerNgenRootTable != NULL)
-        m_module->m_pCerNgenRootTable->FixupRVAs(this);
 
     // Dev11 bug 181494 instrumentation
     if (m_Fixups.GetCount() != m_iCurrentFixup) EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);

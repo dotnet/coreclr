@@ -54,14 +54,20 @@ Notes:
 
 */
 
+#ifdef FEATURE_PAL
+#define INITIALIZE_SHIM { if (PAL_InitializeDLL() != 0) return E_FAIL; }
+#else
+#define INITIALIZE_SHIM
+#endif
+
 // Contract for public APIs. These must be NOTHROW.
 #define PUBLIC_CONTRACT \
+    INITIALIZE_SHIM \
     CONTRACTL \
     { \
         NOTHROW; \
     } \
-    CONTRACTL_END; \
-
+    CONTRACTL_END;
 
 //-----------------------------------------------------------------------------
 // Public API.
@@ -261,9 +267,10 @@ public:
 
     HRESULT Register()
     {
-        if (PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken) != NO_ERROR)
+        DWORD pe = PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken);
+        if (pe != NO_ERROR)
         {
-            return E_INVALIDARG;
+            return HRESULT_FROM_WIN32(pe);
         }
         return S_OK;
     }
@@ -380,24 +387,65 @@ public:
         return hr;
     }
 
+    bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
+    {
+        for (int i = 0; i < (int)arrayLength; i++)
+        {
+            HANDLE h = handleArray[i];
+            if (h == INVALID_HANDLE_VALUE)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     HRESULT InternalEnumerateCLRs(HANDLE** ppHandleArray, _In_reads_(*pdwArrayLength) LPWSTR** ppStringArray, DWORD* pdwArrayLength)
     {
         int numTries = 0;
         HRESULT hr;
 
-        while (numTries < 10)
+        while (numTries < 25)
         {
+            hr = EnumerateCLRs(m_processId, ppHandleArray, ppStringArray, pdwArrayLength);
+
             // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or 
             // ERROR_PARTIAL_COPY. If we get either of those, we try wait 1/10th of a second try again (that
-            // is the recommendation of the OS API owners)
-            hr = EnumerateCLRs(m_processId, ppHandleArray, ppStringArray, pdwArrayLength);
+            // is the recommendation of the OS API owners).
             if ((hr != HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY)) && (hr != HRESULT_FROM_WIN32(ERROR_BAD_LENGTH)))
+            {
+                // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
+                if (FAILED(hr) || *ppHandleArray == NULL || *pdwArrayLength <= 0)
+                {
+                    return hr;
+                }
+                // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
+                // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but 
+                // before g_hContinueStartupEvent has been initialized.
+                if (AreAllHandlesValid(*ppHandleArray, *pdwArrayLength))
+                {
+                    return hr;
+                }
+                // Clean up memory allocated in EnumerateCLRs since this path it succeeded
+                CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
+
+                *ppHandleArray = NULL;
+                *ppStringArray = NULL;
+                *pdwArrayLength = 0;
+            }
+
+            // Sleep and retry enumerating the runtimes
+            Sleep(100);
+            numTries++;
+
+            if (m_canceled)
             {
                 break;
             }
-            Sleep(100);
-            numTries++;
         }
+
+        // Indicate a timeout
+        hr = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 
         return hr;
     }
@@ -426,7 +474,7 @@ public:
         DWORD arrayLength = 0;
 
         // Wake up runtime(s)
-        HRESULT hr = InternalEnumerateCLRs(&handleArray, &stringArray, &arrayLength);
+        HRESULT hr = EnumerateCLRs(m_processId, &handleArray, &stringArray, &arrayLength);
         if (SUCCEEDED(hr))
         {
             WakeRuntimes(handleArray, arrayLength);
@@ -510,7 +558,8 @@ public:
         bool coreclrExists = false;
 
         HRESULT hr = InvokeStartupCallback(&coreclrExists);
-        if (SUCCEEDED(hr))
+        // The retry logic in InternalEnumerateCLRs failed if ERROR_TIMEOUT was returned.
+        if (SUCCEEDED(hr) || (hr == HRESULT_FROM_WIN32(ERROR_TIMEOUT)))
         {
             if (!coreclrExists && !m_canceled)
             {
@@ -522,8 +571,11 @@ public:
                         hr = InvokeStartupCallback(&coreclrExists);
                         if (SUCCEEDED(hr))
                         {
-                            // We should always find a coreclr module
-                            _ASSERTE(coreclrExists);
+                            // We should always find a coreclr module so fail if we don't
+                            if (!coreclrExists)
+                            {
+                                hr = E_FAIL;
+                            }
                         }
                     }
                 }
@@ -1111,8 +1163,6 @@ EnumerateCLRs(
 
             HANDLE hContinueStartupEvent = INVALID_HANDLE_VALUE;
             HRESULT hr = GetContinueStartupEvent(debuggeePID, pStringArray[idx], &hContinueStartupEvent);
-            _ASSERTE(SUCCEEDED(hr) == (hContinueStartupEvent != INVALID_HANDLE_VALUE));
-
             pEventArray[idx] = hContinueStartupEvent;
 #else
             pEventArray[idx] = NULL;
@@ -1720,7 +1770,7 @@ GetContinueStartupEvent(
             ThrowHR(E_FAIL);
         }
 
-        if (NULL != continueEvent)
+        if (NULL != continueEvent && INVALID_HANDLE_VALUE != continueEvent)
         {
             if (!DuplicateHandle(hProcess, continueEvent, GetCurrentProcess(), &continueEvent, 
                 EVENT_MODIFY_STATE, FALSE, 0))
@@ -1768,10 +1818,8 @@ CLRCreateInstance(
     
 #if defined(FEATURE_CORESYSTEM)
     GUID skuId = CLR_ID_ONECORE_CLR;
-#elif defined(FEATURE_CORECLR)
-    GUID skuId = CLR_ID_CORECLR;
 #else
-    GUID skuId = CLR_ID_V4_DESKTOP;
+    GUID skuId = CLR_ID_CORECLR;
 #endif
     
     CLRDebuggingImpl *pDebuggingImpl = new CLRDebuggingImpl(skuId);
@@ -1780,33 +1828,3 @@ CLRCreateInstance(
     return E_NOTIMPL;
 #endif
 }
-
-#ifdef FEATURE_PAL
-
-EXTERN_C BOOL WINAPI
-DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
-{
-    int err = 0;
-
-    switch (reason)
-    {
-        case DLL_PROCESS_ATTACH:
-        {
-            err = PAL_InitializeDLL();
-            break;
-        }
-
-        case DLL_THREAD_ATTACH:
-            err = PAL_EnterTop();
-            break;
-    }
-
-    if (err != 0)
-    {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-#endif // FEATURE_PAL

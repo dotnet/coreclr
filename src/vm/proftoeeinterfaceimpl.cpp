@@ -585,6 +585,10 @@ COM_METHOD ProfToEEInterfaceImpl::QueryInterface(REFIID id, void ** pInterface)
     {
         *pInterface = static_cast<ICorProfilerInfo7 *>(this);
     }
+    else if (id == IID_ICorProfilerInfo8)
+    {
+        *pInterface = static_cast<ICorProfilerInfo8 *>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorProfilerInfo *>(this));
@@ -754,7 +758,7 @@ struct GenerationTable
 
 //---------------------------------------------------------------------------------------
 //
-// This is a callback used by the GC when we call GCHeap::DescrGenerationsToProfiler
+// This is a callback used by the GC when we call GCHeapUtilities::DiagDescrGenerations
 // (from UpdateGenerationBounds() below).  The GC gives us generation information through
 // this callback, which we use to update the GenerationDesc in the corresponding
 // GenerationTable
@@ -874,8 +878,8 @@ void __stdcall UpdateGenerationBounds()
 #endif
         // fill in the values by calling back into the gc, which will report
         // the ranges by calling GenWalkFunc for each one
-        GCHeap *hp = GCHeap::GetGCHeap();
-        hp->DescrGenerationsToProfiler(GenWalkFunc, newGenerationTable);
+        IGCHeap *hp = GCHeapUtilities::GetGCHeap();
+        hp->DiagDescrGenerations(GenWalkFunc, newGenerationTable);
 
         // remember the old table and plug in the new one
         GenerationTable *oldGenerationTable = s_currentGenerationTable;
@@ -1018,7 +1022,7 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
 
 //---------------------------------------------------------------------------------------
 //
-// Callback of type walk_fn used by GCHeap::WalkObject.  Keeps a count of each
+// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Keeps a count of each
 // object reference found.
 //
 // Arguments:
@@ -1029,7 +1033,7 @@ ClassID SafeGetClassIDFromObject(Object * pObj)
 //      Always returns TRUE to object walker so it walks the entire object
 //
 
-BOOL CountContainedObjectRef(Object * pBO, void * context)
+bool CountContainedObjectRef(Object * pBO, void * context)
 {
     LIMITED_METHOD_CONTRACT;
     // Increase the count
@@ -1040,7 +1044,7 @@ BOOL CountContainedObjectRef(Object * pBO, void * context)
 
 //---------------------------------------------------------------------------------------
 //
-// Callback of type walk_fn used by GCHeap::WalkObject.  Stores each object reference
+// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Stores each object reference
 // encountered into an array.
 //
 // Arguments:
@@ -1054,7 +1058,7 @@ BOOL CountContainedObjectRef(Object * pBO, void * context)
 //      Always returns TRUE to object walker so it walks the entire object
 //
 
-BOOL SaveContainedObjectRef(Object * pBO, void * context)
+bool SaveContainedObjectRef(Object * pBO, void * context)
 {
     LIMITED_METHOD_CONTRACT;
     // Assign the value
@@ -1092,7 +1096,7 @@ BOOL SaveContainedObjectRef(Object * pBO, void * context)
 //
 extern bool s_forcedGCInProgress;
 
-BOOL HeapWalkHelper(Object * pBO, void * pvContext)
+bool HeapWalkHelper(Object * pBO, void * pvContext)
 {
     CONTRACTL
     {
@@ -1113,7 +1117,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
     if (pMT->ContainsPointersOrCollectible())
     {
         // First round through calculates the number of object refs for this class
-        GCHeap::GetGCHeap()->WalkObject(pBO, &CountContainedObjectRef, (void *)&cNumRefs);
+        GCHeapUtilities::GetGCHeap()->DiagWalkObject(pBO, &CountContainedObjectRef, (void *)&cNumRefs);
 
         if (cNumRefs > 0)
         {
@@ -1138,7 +1142,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
 
             // Second round saves off all of the ref values
             OBJECTREF * pCurObjRef = arrObjRef;
-            GCHeap::GetGCHeap()->WalkObject(pBO, &SaveContainedObjectRef, (void *)&pCurObjRef);
+            GCHeapUtilities::GetGCHeap()->DiagWalkObject(pBO, &SaveContainedObjectRef, (void *)&pCurObjRef);
         }
     }
 
@@ -1217,7 +1221,7 @@ BOOL HeapWalkHelper(Object * pBO, void * pvContext)
 //      Currently always returns TRUE
 //
 
-BOOL AllocByClassHelper(Object * pBO, void * pv)
+bool AllocByClassHelper(Object * pBO, void * pv)
 {
     CONTRACTL
     {
@@ -1959,7 +1963,7 @@ HRESULT GetFunctionInfoInternal(LPCBYTE ip, EECodeInfo * pCodeInfo)
 }
 
 
-HRESULT GetFunctionFromIPInternal(LPCBYTE ip, EECodeInfo * pCodeInfo)
+HRESULT GetFunctionFromIPInternal(LPCBYTE ip, EECodeInfo * pCodeInfo, BOOL failOnNoMetadata)
 {
     CONTRACTL
     {
@@ -1979,11 +1983,14 @@ HRESULT GetFunctionFromIPInternal(LPCBYTE ip, EECodeInfo * pCodeInfo)
     {
         return hr;
     }
-    
-    // never return a method that the user of the profiler API cannot use
-    if (pCodeInfo->GetMethodDesc()->IsNoMetadata())
+
+    if (failOnNoMetadata)
     {
-        return E_FAIL;
+        // never return a method that the user of the profiler API cannot use
+        if (pCodeInfo->GetMethodDesc()->IsNoMetadata())
+        {
+            return E_FAIL;
+        }
     }
 
     return S_OK;
@@ -2043,7 +2050,7 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionFromIP(LPCBYTE ip, FunctionID * pFunct
 
     EECodeInfo codeInfo;
 
-    hr = GetFunctionFromIPInternal(ip, &codeInfo);
+    hr = GetFunctionFromIPInternal(ip, &codeInfo, /* failOnNoMetadata */ TRUE);
     if (FAILED(hr))
     {
         return hr;
@@ -2096,7 +2103,7 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionFromIP2(LPCBYTE ip, FunctionID * pFunc
 
     EECodeInfo codeInfo;
 
-    hr = GetFunctionFromIPInternal(ip, &codeInfo);
+    hr = GetFunctionFromIPInternal(ip, &codeInfo, /* failOnNoMetadata */ TRUE);
     if (FAILED(hr))
     {
         return hr;
@@ -3550,90 +3557,7 @@ HRESULT ProfToEEInterfaceImpl::GetContextStaticAddress(ClassID classId,
          fieldToken, 
          contextId));
     
-#ifdef FEATURE_REMOTING
-
-    //
-    // Check for NULL parameters
-    //
-    if ((classId == NULL) || (contextId == NULL) || (ppAddress == NULL))
-    {
-        return E_INVALIDARG;
-    }
-
-    if (GetThread() == NULL)
-    {
-        return CORPROF_E_NOT_MANAGED_THREAD;
-    }
-
-    if (GetAppDomain() == NULL)
-    {
-        return E_FAIL;
-    }
-
-    TypeHandle typeHandle = TypeHandle::FromPtr((void *)classId);
-
-    //
-    // If this class is not fully restored, that is all the information we can get at this time.
-    //
-    if (!typeHandle.IsRestored())
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the field descriptor object
-    //
-    FieldDesc *pFieldDesc = typeHandle.GetModule()->LookupFieldDef(fieldToken);
-
-    if (pFieldDesc == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    //
-    // Verify this field is of the right type
-    //
-    if(!pFieldDesc->IsStatic() ||
-       !pFieldDesc->IsContextStatic() ||
-       pFieldDesc->IsRVA() ||
-       pFieldDesc->IsThreadStatic())
-    {
-        return E_INVALIDARG;
-    }
-
-    // It may seem redundant to try to retrieve the same method table from GetEnclosingMethodTable, but classId 
-    // leads to the instantiated method table while GetEnclosingMethodTable returns the uninstantiated one.
-    MethodTable *pMethodTable = pFieldDesc->GetEnclosingMethodTable();
-
-    //
-    // Check that the data is available
-    //
-    if (!IsClassOfMethodTableInited(pMethodTable, GetAppDomain()))
-    {
-        return CORPROF_E_DATAINCOMPLETE;
-    }
-
-    //
-    // Get the context
-    //
-    Context *pContext = reinterpret_cast<Context *>(contextId);
-
-    //
-    // Store the result and return
-    //
-    PTR_VOID pAddress = pContext->GetStaticFieldAddrNoCreate(pFieldDesc);
-    if (pAddress == NULL)
-    {
-        return E_INVALIDARG;
-    }
-
-    *ppAddress = pAddress;
-
-    return S_OK;
-
-#else // FEATURE_REMOTING
     return E_NOTIMPL;
-#endif // FEATURE_REMOTING
 }
 
 /*
@@ -4113,8 +4037,15 @@ DWORD ProfToEEInterfaceImpl::GetModuleFlags(Module * pModule)
     }
     else
     {
-        // Not NGEN.
-
+#ifdef FEATURE_READYTORUN 
+        // pModule->HasNativeImage() returns false for ReadyToRun images
+        if (pModule->IsReadyToRun())
+        {
+            // Ready To Run
+            dwRet |= (COR_PRF_MODULE_DISK | COR_PRF_MODULE_NGEN);
+        }
+#endif
+        // Not NGEN or ReadyToRun.
         if (pPEFile->HasOpenedILimage())
         {
             PEImage * pILImage = pPEFile->GetOpenedILimage();
@@ -4713,16 +4644,10 @@ HRESULT ProfToEEInterfaceImpl::SetILInstrumentedCodeMap(FunctionID functionId,
     if (!pMethodDesc ->IsRestored())
         return CORPROF_E_DATAINCOMPLETE;
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     COR_IL_MAP * rgNewILMapEntries = new (nothrow) COR_IL_MAP[cILMapEntries];
 
@@ -5167,16 +5092,10 @@ HRESULT ProfToEEInterfaceImpl::GetILToNativeMapping2(FunctionID functionId,
         return E_INVALIDARG;
     }
 
-#ifdef FEATURE_CORECLR
     if (g_pDebugInterface == NULL)
     {
         return CORPROF_E_DEBUGGING_DISABLED;
     }
-#else
-    // g_pDebugInterface is initialized on startup on desktop CLR, regardless of whether a debugger
-    // or profiler is loaded.  So it should always be available.
-    _ASSERTE(g_pDebugInterface != NULL);
-#endif // FEATURE_CORECLR
 
     return (g_pDebugInterface->GetILToNativeMapping(pMD, cMap, pcMap, map));
 #else
@@ -6043,7 +5962,7 @@ HRESULT ProfToEEInterfaceImpl::SetEnterLeaveFunctionHooks3WithInfo(FunctionEnter
 
     // The profiler must call SetEnterLeaveFunctionHooks3WithInfo during initialization, since
     // the enter/leave events are immutable and must also be set during initialization.
-    PROFILER_TO_CLR_ENTRYPOINT_SET_ELT((LF_CORPROF, 
+    PROFILER_TO_CLR_ENTRYPOINT_SET_ELT((LF_CORPROF,
                                         LL_INFO10, 
                                         "**PROF: SetEnterLeaveFunctionHooks3WithInfo 0x%p, 0x%p, 0x%p.\n", 
                                         pFuncEnter3WithInfo, 
@@ -6362,6 +6281,294 @@ HRESULT ProfToEEInterfaceImpl::GetFunctionInfo2(FunctionID funcId,
     }
 
     return S_OK;
+}
+
+/*
+* IsFunctionDynamic
+*
+* This function takes a functionId that maybe of a metadata-less method like an IL Stub
+* or LCG method and returns true in the pHasNoMetadata if it is indeed a metadata-less
+* method.
+*
+* Parameters:
+*   functionId - The function that is being requested.
+*   isDynamic - An optional parameter for returning if the function has metadata or not.
+*
+* Returns:
+*   S_OK if successful.
+*/
+HRESULT ProfToEEInterfaceImpl::IsFunctionDynamic(FunctionID functionId, BOOL *isDynamic)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+
+        // Generics::GetExactInstantiationsOfMethodAndItsClassFromCallInformation eventually
+        // reads metadata which causes us to take a reader lock.  However, see
+        // code:#DisableLockOnAsyncCalls
+        DISABLED(CAN_TAKE_LOCK);
+
+        // Asynchronous functions can be called at arbitrary times when runtime 
+        // is holding locks that cannot be reentered without causing deadlock.
+        // This contract detects any attempts to reenter locks held at the time 
+        // this function was called.  
+        CANNOT_RETAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+
+        PRECONDITION(CheckPointer(isDynamic, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    // See code:#DisableLockOnAsyncCalls
+    PERMANENT_CONTRACT_VIOLATION(TakesLockViolation, ReasonProfilerAsyncCannotRetakeLock);
+
+    PROFILER_TO_CLR_ENTRYPOINT_ASYNC_EX(kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+            LL_INFO1000,
+            "**PROF: IsFunctionDynamic 0x%p.\n",
+            functionId));
+
+    //
+    // Verify parameters.
+    //
+
+    if (functionId == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    MethodDesc *pMethDesc = FunctionIdToMethodDesc(functionId);
+
+    if (pMethDesc == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    // it's not safe to examine a methoddesc that has not been restored so do not do so
+    if (!pMethDesc->IsRestored())
+        return CORPROF_E_DATAINCOMPLETE;
+
+    //
+    // Fill in the pHasNoMetadata, if desired.
+    //
+    if (isDynamic != NULL)
+    {
+        *isDynamic = pMethDesc->IsNoMetadata();
+    }
+
+    return S_OK;
+}
+
+/*
+* GetFunctionFromIP3
+*
+* This function takes an IP and determines if it is a managed function returning its
+* FunctionID. This method is different from GetFunctionFromIP in that will return
+* FunctionIDs even if they have no associated metadata.
+*
+* Parameters:
+*   ip - The instruction pointer.
+*   pFunctionId - An optional parameter for returning the FunctionID.
+*   pReJitId - The ReJIT id.
+*
+* Returns:
+*   S_OK if successful.
+*/
+HRESULT ProfToEEInterfaceImpl::GetFunctionFromIP3(LPCBYTE ip, FunctionID * pFunctionId, ReJITID * pReJitId)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+
+        // Grabbing the rejitid requires entering the rejit manager's hash table & lock,
+        // which can switch us to preemptive mode and trigger GCs
+        GC_TRIGGERS;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+
+        // Grabbing the rejitid requires entering the rejit manager's hash table & lock,
+        CAN_TAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    // See code:#DisableLockOnAsyncCalls
+    PERMANENT_CONTRACT_VIOLATION(TakesLockViolation, ReasonProfilerAsyncCannotRetakeLock);
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF,
+            LL_INFO1000,
+            "**PROF: GetFunctionFromIP3 0x%p.\n",
+            ip));
+
+    HRESULT hr = S_OK;
+
+    EECodeInfo codeInfo;
+
+    hr = GetFunctionFromIPInternal(ip, &codeInfo, /* failOnNoMetadata */ FALSE);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+
+    if (pFunctionId)
+    {
+        *pFunctionId = MethodDescToFunctionID(codeInfo.GetMethodDesc());
+    }
+
+    if (pReJitId != NULL)
+    {
+        MethodDesc * pMD = codeInfo.GetMethodDesc();
+        *pReJitId = pMD->GetReJitManager()->GetReJitId(pMD, codeInfo.GetStartAddress());
+    }
+
+    return S_OK;
+}
+
+/*
+* GetDynamicFunctionInfo
+*
+* This function takes a functionId that maybe of a metadata-less method like an IL Stub
+* or LCG method and gives information about it without failing like GetFunctionInfo.
+*
+* Parameters:
+*   functionId - The function that is being requested.
+*   pModuleId - An optional parameter for returning the module of the function.
+*   ppvSig -  An optional parameter for returning the signature of the function.
+*   pbSig - An optional parameter for returning the size of the signature of the function.
+*   cchName - A parameter for indicating the size of buffer for the wszName parameter.
+*   pcchName - An optional parameter for returning the true size of the wszName parameter.
+*   wszName - A parameter to the caller allocated buffer of size cchName
+*
+* Returns:
+*   S_OK if successful.
+*/
+HRESULT ProfToEEInterfaceImpl::GetDynamicFunctionInfo(FunctionID functionId,
+                                                      ModuleID *pModuleId,
+                                                      PCCOR_SIGNATURE* ppvSig,
+                                                      ULONG* pbSig,
+                                                      ULONG cchName,
+                                                      ULONG *pcchName,
+            __out_ecount_part_opt(cchName, *pcchName) WCHAR wszName[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+
+        // Generics::GetExactInstantiationsOfMethodAndItsClassFromCallInformation eventually
+        // reads metadata which causes us to take a reader lock.  However, see
+        // code:#DisableLockOnAsyncCalls
+        DISABLED(CAN_TAKE_LOCK);
+
+        // Asynchronous functions can be called at arbitrary times when runtime 
+        // is holding locks that cannot be reentered without causing deadlock.
+        // This contract detects any attempts to reenter locks held at the time 
+        // this function was called.  
+        CANNOT_RETAKE_LOCK;
+
+        SO_NOT_MAINLINE;
+
+        PRECONDITION(CheckPointer(pModuleId, NULL_OK));
+        PRECONDITION(CheckPointer(ppvSig, NULL_OK));
+        PRECONDITION(CheckPointer(pbSig,  NULL_OK));
+        PRECONDITION(CheckPointer(pcchName, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    // See code:#DisableLockOnAsyncCalls
+    PERMANENT_CONTRACT_VIOLATION(TakesLockViolation, ReasonProfilerAsyncCannotRetakeLock);
+
+    PROFILER_TO_CLR_ENTRYPOINT_ASYNC_EX(kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+            LL_INFO1000,
+            "**PROF: GetDynamicFunctionInfo 0x%p.\n",
+            functionId));
+
+    //
+    // Verify parameters.
+    //
+
+    if (functionId == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    MethodDesc *pMethDesc = FunctionIdToMethodDesc(functionId);
+
+    if (pMethDesc == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    // it's not safe to examine a methoddesc that has not been restored so do not do so
+    if (!pMethDesc->IsRestored())
+        return CORPROF_E_DATAINCOMPLETE;
+
+
+    if (!pMethDesc->IsNoMetadata())
+        return E_INVALIDARG;
+
+    //
+    // Fill in the ModuleId, if desired.
+    //
+    if (pModuleId != NULL)
+    {
+        *pModuleId = (ModuleID)pMethDesc->GetModule();
+    }
+
+    //
+    // Fill in the ppvSig and pbSig, if desired
+    //
+    if (ppvSig != NULL && pbSig != NULL)
+    {
+        pMethDesc->GetSig(ppvSig, pbSig);
+    }
+
+    HRESULT hr = S_OK;
+
+    EX_TRY
+    {
+        if (wszName != NULL)
+            *wszName = 0;
+        if (pcchName != NULL)
+            *pcchName = 0;
+
+        StackSString ss;
+        ss.SetUTF8(pMethDesc->GetName());
+        ss.Normalize();
+        LPCWSTR methodName = ss.GetUnicode();
+
+        ULONG trueLen = (ULONG)(wcslen(methodName) + 1);
+
+        // Return name of method as required.
+        if (wszName && cchName > 0)
+        {
+            if (cchName < trueLen)
+            {
+                hr = HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+            }
+            else
+            {
+                wcsncpy_s(wszName, cchName, methodName, trueLen);
+            }
+        }
+
+        // If they request the actual length of the name
+        if (pcchName)
+            *pcchName = trueLen;
+    }
+    EX_CATCH_HRESULT(hr);
+
+    return (hr);
 }
 
 /*
@@ -7073,12 +7280,13 @@ Loop:
 
             // GC info will assist us in determining whether this is a non-EBP frame and
             // info about pushed arguments.
-            PTR_VOID gcInfo = codeInfo.GetGCInfo();
+            GCInfoToken gcInfoToken = codeInfo.GetGCInfoToken();
+            PTR_VOID gcInfo = gcInfoToken.Info;
             InfoHdr header;
             unsigned uiMethodSizeDummy;
             PTR_CBYTE table = PTR_CBYTE(gcInfo);
             table += decodeUnsigned(table, &uiMethodSizeDummy);
-            table = decodeHeader(table, &header);
+            table = decodeHeader(table, gcInfoToken.Version, &header);
 
             // Ok, GCInfo, can we do a simple EBP walk or what?
 
@@ -7108,8 +7316,8 @@ Loop:
                 REGDISPLAY rd;
                 ZeroMemory(&rd, sizeof(rd));
 
-                rd.pEbp = &ctxCur.Ebp;
-                rd.Esp = ctxCur.Esp;
+                rd.SetEbpLocation(&ctxCur.Ebp);
+                rd.SP = ctxCur.Esp;
                 rd.ControlPC = ctxCur.Eip;
 
                 codeInfo.GetCodeManager()->UnwindStackFrame(
@@ -7119,8 +7327,8 @@ Loop:
                     &codeManState, 
                     NULL);
 
-                ctxCur.Ebp = *(rd.pEbp);
-                ctxCur.Esp = rd.Esp;
+                ctxCur.Ebp = *rd.GetEbpLocation();
+                ctxCur.Esp = rd.SP;
                 ctxCur.Eip = rd.ControlPC;
             }
             else
@@ -7227,18 +7435,13 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                                               ULONG32 contextSize)
 {
 
-#ifdef _TARGET_ARM_
-    // DoStackSnapshot is not supported on arm. Profilers can use OS apis to get the call stack.
-    return E_NOTIMPL;
-#endif
-
-#if !defined(FEATURE_HIJACK) || !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
+#if !defined(FEATURE_HIJACK)
 
     // DoStackSnapshot needs Thread::Suspend/ResumeThread functionality.
     // On platforms w/o support for these APIs return E_NOTIMPL.
     return E_NOTIMPL;
 
-#else // !defined(FEATURE_HIJACK) || !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
+#else // !defined(FEATURE_HIJACK)
 
     CONTRACTL
     {
@@ -7406,6 +7609,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     // First, check "1) Target thread to walk == current thread OR Target thread is suspended"
     if (pThreadToSnapshot != pCurrentThread)
     {
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         // Walking separate thread, so it must be suspended.  First, ensure that
         // target thread exists.
         //
@@ -7441,6 +7648,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
             hr = CORPROF_E_STACKSNAPSHOT_UNSAFE;
             goto Cleanup;            
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
 
     hostCallPreference =
@@ -7473,7 +7681,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         // (Note that this whole block is skipped if pThreadToSnapshot is in preemptive mode (the IF
         // above), as the context is unused in such a case--the EE Frame chain is used
         // to seed the walk instead.)
-
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         if (!pThreadToSnapshot->GetSafelyRedirectableThreadContext(Thread::kDefaultChecks, &ctxCurrent, &rd))
         {
             LOG((LF_CORPROF, LL_INFO100, "**PROF: GetSafelyRedirectableThreadContext failure leads to CORPROF_E_STACKSNAPSHOT_UNSAFE.\n"));
@@ -7534,6 +7745,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         {
             pctxSeed = &ctxCurrent;
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
 
     // Second, check "2) Target thread to walk is currently executing JITted / NGENd code"
@@ -7580,6 +7792,10 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     //
     if (pThreadToSnapshot != pCurrentThread)
     {
+#ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
+        hr = E_NOTIMPL;
+        goto Cleanup;
+#else
         if (pctxSeed == NULL)
         {
             if (pThreadToSnapshot->GetSafelyRedirectableThreadContext(Thread::kDefaultChecks, &ctxCurrent, &rd))
@@ -7596,9 +7812,9 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                 }
             }
         }
+#endif // !PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     }
-#endif
-
+#endif //_DEBUG
     // Third, verify the target thread is seeded or not in the midst of an unwind.
     if (pctxSeed == NULL)
     {
@@ -7663,12 +7879,13 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
 
     INDEBUG(if (pCurrentThread) pCurrentThread->m_ulForbidTypeLoad = ulForbidTypeLoad;)
 
-
 Cleanup:
+#if defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
     if (fResumeThread)
     {
         pThreadToSnapshot->ResumeThread();
     }
+#endif // PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
     if (fResetSnapshotThreadExternalCount)
     {
         pThreadToSnapshot->DecExternalCountDANGEROUSProfilerOnly();
@@ -7676,7 +7893,7 @@ Cleanup:
 
     return hr;
 
-#endif // !defined(FEATURE_HIJACK) || !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
+#endif // !defined(FEATURE_HIJACK)
 }
 
 
@@ -8369,11 +8586,7 @@ HRESULT ProfToEEInterfaceImpl::GetRuntimeInformation(USHORT * pClrInstanceId,
 
     if (pRuntimeType != NULL)
     {
-#ifdef FEATURE_CORECLR
         *pRuntimeType = COR_PRF_CORE_CLR;
-#else // FEATURE_CORECLR
-        *pRuntimeType = COR_PRF_DESKTOP_CLR;
-#endif // FEATURE_CORECLR
     }
 
     if (pMajorVersion != NULL)
@@ -8431,7 +8644,7 @@ HRESULT ProfToEEInterfaceImpl::RequestProfilerDetach(DWORD dwExpectedCompletionM
 typedef struct _COR_PRF_ELT_INFO_INTERNAL
 {
     // Point to a platform dependent structure ASM helper push on the stack
-    void * platformSpecificHandle;  	  
+    void * platformSpecificHandle;
 
     // startAddress of COR_PRF_FUNCTION_ARGUMENT_RANGE structure needs to point 
     // TO the argument value, not BE the argument value.  So, when the argument 
@@ -9101,8 +9314,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    PersistentInlineTrackingMap *inliningMap = inlinersModule->GetNgenInlineTrackingMap();
-    if (inliningMap == NULL)
+    if (!inlinersModule->HasInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9115,14 +9327,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inliningMap->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");
@@ -9453,7 +9665,7 @@ FCIMPL2(void, ProfilingFCallHelper::FC_RemotingClientSendingMessage, GUID *pId, 
     // it is a value class declared on the stack and so GC doesn't
     // know about it.
 
-    _ASSERTE (!GCHeap::GetGCHeap()->IsHeapPointer(pId));     // should be on the stack, not in the heap
+    _ASSERTE (!GCHeapUtilities::GetGCHeap()->IsHeapPointer(pId));     // should be on the stack, not in the heap
     HELPER_METHOD_FRAME_BEGIN_NOPOLL();
 
     {

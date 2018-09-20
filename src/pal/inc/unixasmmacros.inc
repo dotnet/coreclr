@@ -20,9 +20,6 @@
 #define C_PLTFUNC(name) name@PLT
 #endif
 
-.macro LEAF_END Name, Section
-        LEAF_END_MARKED \Name, \Section
-.endm
 
 .macro END_PROLOGUE
 .endm
@@ -31,7 +28,9 @@
         .equiv \New, \Old
 .endm
 
-#if defined(_AMD64_)
+#if defined(_X86_)
+#include "unixasmmacrosx86.inc"
+#elif defined(_AMD64_)
 #include "unixasmmacrosamd64.inc"
 #elif defined(_ARM_)
 #include "unixasmmacrosarm.inc"

@@ -20,6 +20,7 @@
 #include "fcall.h"
 #include "array.h"
 #include "virtualcallstub.h"
+#include "jitinterface.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "clrtocomcall.h"
@@ -192,6 +193,12 @@ void HelperMethodFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         ENUM_CALLEE_SAVED_REGISTERS();
 #undef CALLEE_SAVED_REGISTER
 
+#define CALLEE_SAVED_REGISTER(regname) pRD->pCurrentContextPointers->regname = pUnwoundState->m_Ptrs.p##regname;
+        ENUM_CALLEE_SAVED_REGISTERS();
+#undef CALLEE_SAVED_REGISTER
+
+        ClearRegDisplayArgumentAndScratchRegisters(pRD);
+
         return;
     }
 #endif // DACCESS_COMPILE
@@ -303,8 +310,7 @@ void ResumableFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     RETURN;
 }
 
-// The HijackFrame has to know the registers that are pushed by OnHijackObjectTripThread
-// and OnHijackScalarTripThread, so all three are implemented together.
+// The HijackFrame has to know the registers that are pushed by OnHijackTripThread
 void HijackFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
 {
     CONTRACTL {
@@ -721,6 +727,35 @@ INT32 rel32UsingJumpStub(INT32 UNALIGNED * pRel32, PCODE target, MethodDesc *pMe
     return static_cast<INT32>(offset);
 }
 
+INT32 rel32UsingPreallocatedJumpStub(INT32 UNALIGNED * pRel32, PCODE target, PCODE jumpStubAddr)
+{
+    CONTRACTL
+    {
+        THROWS; // emitBackToBackJump may throw (see emitJump)
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    TADDR baseAddr = (TADDR)pRel32 + 4;
+    _ASSERTE(FitsInI4(jumpStubAddr - baseAddr));
+
+    INT_PTR offset = target - baseAddr;
+    if (!FitsInI4(offset) INDEBUG(|| PEDecoder::GetForceRelocs()))
+    {
+        offset = jumpStubAddr - baseAddr;
+        if (!FitsInI4(offset))
+        {
+            _ASSERTE(!"jump stub was not in expected range");
+            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        }
+
+        emitBackToBackJump((LPBYTE)jumpStubAddr, (LPVOID)target);
+    }
+
+    _ASSERTE(FitsInI4(offset));
+    return static_cast<INT32>(offset);
+}
+
 BOOL DoesSlotCallPrestub(PCODE pCode)
 {
     CONTRACTL {
@@ -953,9 +988,16 @@ PCODE DynamicHelpers::CreateHelper(LoaderAllocator * pAllocator, TADDR arg, PCOD
     END_DYNAMIC_HELPER_EMIT();
 }
 
-PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+void DynamicHelpers::EmitHelperWithArg(BYTE*& p, LoaderAllocator * pAllocator, TADDR arg, PCODE target)
 {
-    BEGIN_DYNAMIC_HELPER_EMIT(15);
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        PRECONDITION(p != NULL && target != NULL);
+    }
+    CONTRACTL_END;
+
+    // Move an an argument into the second argument register and jump to a target function.
 
 #ifdef UNIX_AMD64_ABI
     *(UINT16 *)p = 0xBE48; // mov rsi, XXXXXX
@@ -969,6 +1011,13 @@ PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR ar
     *p++ = X86_INSTR_JMP_REL32; // jmp rel32
     *(INT32 *)p = rel32UsingJumpStub((INT32 *)p, target, NULL, pAllocator);
     p += 4;
+}
+
+PCODE DynamicHelpers::CreateHelperWithArg(LoaderAllocator * pAllocator, TADDR arg, PCODE target)
+{
+    BEGIN_DYNAMIC_HELPER_EMIT(15);
+
+    EmitHelperWithArg(p, pAllocator, arg, target);
 
     END_DYNAMIC_HELPER_EMIT();
 }
@@ -1124,6 +1173,133 @@ PCODE DynamicHelpers::CreateHelperWithTwoArgs(LoaderAllocator * pAllocator, TADD
     p += 4;
 
     END_DYNAMIC_HELPER_EMIT();
+}
+
+PCODE DynamicHelpers::CreateDictionaryLookupHelper(LoaderAllocator * pAllocator, CORINFO_RUNTIME_LOOKUP * pLookup, DWORD dictionaryIndexAndSlot, Module * pModule)
+{
+    STANDARD_VM_CONTRACT;
+
+    PCODE helperAddress = (pLookup->helper == CORINFO_HELP_RUNTIMEHANDLE_METHOD ?
+        GetEEFuncEntryPoint(JIT_GenericHandleMethodWithSlotAndModule) :
+        GetEEFuncEntryPoint(JIT_GenericHandleClassWithSlotAndModule));
+
+    GenericHandleArgs * pArgs = (GenericHandleArgs *)(void *)pAllocator->GetDynamicHelpersHeap()->AllocAlignedMem(sizeof(GenericHandleArgs), DYNAMIC_HELPER_ALIGNMENT);
+    pArgs->dictionaryIndexAndSlot = dictionaryIndexAndSlot;
+    pArgs->signature = pLookup->signature;
+    pArgs->module = (CORINFO_MODULE_HANDLE)pModule;
+
+    // It's available only via the run-time helper function
+    if (pLookup->indirections == CORINFO_USEHELPER)
+    {
+        BEGIN_DYNAMIC_HELPER_EMIT(15);
+
+        // rcx/rdi contains the generic context parameter
+        // mov rdx/rsi,pArgs
+        // jmp helperAddress
+        EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
+
+        END_DYNAMIC_HELPER_EMIT();
+    }
+    else
+    {
+        int indirectionsSize = 0;
+        for (WORD i = 0; i < pLookup->indirections; i++)
+            indirectionsSize += (pLookup->offsets[i] >= 0x80 ? 7 : 4);
+
+        int codeSize = indirectionsSize + (pLookup->testForNull ? 30 : 4);
+
+        BEGIN_DYNAMIC_HELPER_EMIT(codeSize);
+
+        if (pLookup->testForNull)
+        {
+            // rcx/rdi contains the generic context parameter. Save a copy of it in the rax register
+#ifdef UNIX_AMD64_ABI
+            *(UINT32*)p = 0x00f88948; p += 3;   // mov rax,rdi
+#else
+            *(UINT32*)p = 0x00c88948; p += 3;   // mov rax,rcx
+#endif
+        }
+
+        for (WORD i = 0; i < pLookup->indirections; i++)
+        {
+#ifdef UNIX_AMD64_ABI
+            // mov rdi,qword ptr [rdi+offset]
+            if (pLookup->offsets[i] >= 0x80)
+            {
+                *(UINT32*)p = 0x00bf8b48; p += 3;
+                *(UINT32*)p = (UINT32)pLookup->offsets[i]; p += 4;
+            }
+            else
+            {
+                *(UINT32*)p = 0x007f8b48; p += 3;
+                *p++ = (BYTE)pLookup->offsets[i];
+            }
+#else
+            // mov rcx,qword ptr [rcx+offset]
+            if (pLookup->offsets[i] >= 0x80)
+            {
+                *(UINT32*)p = 0x00898b48; p += 3;
+                *(UINT32*)p = (UINT32)pLookup->offsets[i]; p += 4;
+            }
+            else
+            {
+                *(UINT32*)p = 0x00498b48; p += 3;
+                *p++ = (BYTE)pLookup->offsets[i];
+            }
+#endif
+        }
+
+        // No null test required
+        if (!pLookup->testForNull)
+        {
+            // No fixups needed for R2R
+
+#ifdef UNIX_AMD64_ABI
+            *(UINT32*)p = 0x00f88948; p += 3;       // mov rax,rdi
+#else
+            *(UINT32*)p = 0x00c88948; p += 3;       // mov rax,rcx
+#endif
+            *p++ = 0xC3;    // ret
+        }
+        else
+        {
+            // rcx/rdi contains the value of the dictionary slot entry
+
+            _ASSERTE(pLookup->indirections != 0);
+
+#ifdef UNIX_AMD64_ABI
+            *(UINT32*)p = 0x00ff8548; p += 3;       // test rdi,rdi
+#else
+            *(UINT32*)p = 0x00c98548; p += 3;       // test rcx,rcx
+#endif
+
+            // je 'HELPER_CALL' (a jump of 4 bytes)
+            *(UINT16*)p = 0x0474; p += 2;
+
+#ifdef UNIX_AMD64_ABI
+            *(UINT32*)p = 0x00f88948; p += 3;       // mov rax,rdi
+#else
+            *(UINT32*)p = 0x00c88948; p += 3;       // mov rax,rcx
+#endif
+            *p++ = 0xC3;    // ret
+
+            // 'HELPER_CALL'
+            {
+                // Put the generic context back into rcx (was previously saved in rax)
+#ifdef UNIX_AMD64_ABI
+                *(UINT32*)p = 0x00c78948; p += 3;   // mov rdi,rax
+#else
+                *(UINT32*)p = 0x00c18948; p += 3;   // mov rcx,rax
+#endif
+
+                // mov rdx,pArgs
+                // jmp helperAddress
+                EmitHelperWithArg(p, pAllocator, (TADDR)pArgs, helperAddress);
+            }
+        }
+
+        END_DYNAMIC_HELPER_EMIT();
+    }
 }
 
 #endif // FEATURE_READYTORUN

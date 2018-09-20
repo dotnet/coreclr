@@ -14,6 +14,7 @@
 #ifndef _HANDLETABLE_H
 #define _HANDLETABLE_H
 
+#include "gcinterface.h"
 
 /****************************************************************************
  *
@@ -103,11 +104,6 @@ void            HndWriteBarrier(OBJECTHANDLE handle, OBJECTREF value);
  */
 void            HndLogSetEvent(OBJECTHANDLE handle, _UNCHECKED_OBJECTREF value);
 
- /*
-  * Scanning callback.
-  */
-typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
-
 /*
  * NON-GC handle enumeration
  */
@@ -181,8 +177,11 @@ BOOL HndFirstAssignHandle(OBJECTHANDLE handle, OBJECTREF objref);
 
 /*
  * inline handle dereferencing
+ *
+ * NOTE: Changes to this implementation should be kept in sync with ObjectFromHandle
+ *       on the VM side.
+ *
  */
-
 FORCEINLINE OBJECTREF HndFetchHandle(OBJECTHANDLE handle)
 {
     WRAPPER_NO_CONTRACT;
@@ -214,18 +213,6 @@ FORCEINLINE BOOL HndIsNull(OBJECTHANDLE handle)
     _ASSERTE(handle);
 
     return NULL == *(Object **)handle;
-}
-
-
-
-/*
- * inline handle checking
- */
-FORCEINLINE BOOL HndCheckForNullUnchecked(OBJECTHANDLE handle)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (handle == NULL || (*(_UNCHECKED_OBJECTREF *)handle) == NULL);
 }
 
 

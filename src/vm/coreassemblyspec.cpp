@@ -24,7 +24,6 @@
 #include "compile.h"
 #endif
 
-#ifndef FEATURE_FUSION
 
 #include "../binder/inc/textualidentityparser.hpp"
 #include "../binder/inc/assemblyidentity.hpp"
@@ -85,7 +84,6 @@ STDAPI BinderGetDisplayName(PEAssembly *pAssembly,
 }
 
 
-#ifdef FEATURE_VERSIONING
 
 static VOID ThrowLoadError(AssemblySpec * pSpec, HRESULT hr)
 {
@@ -183,9 +181,16 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
                           &pPrivAsm);
     }
 
+    bool fBoundUsingTPABinder = false;
     if(SUCCEEDED(hr))
     {
         _ASSERTE(pPrivAsm != nullptr);
+
+        if (AreSameBinderInstance(pTPABinder, reinterpret_cast<ICLRPrivBinder *>(pPrivAsm.Extract())))
+        {
+            fBoundUsingTPABinder = true;
+        }
+
         result = BINDER_SPACE::GetAssemblyFromPrivAssemblyFast(pPrivAsm.Extract());
         _ASSERTE(result != nullptr);
     }
@@ -193,13 +198,20 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
     pResult->SetHRBindResult(hr);
     if (SUCCEEDED(hr))
     {
-        BOOL fIsInGAC = pAppDomain->IsImageFromTrustedPath(result->GetNativeOrILPEImage());
+        BOOL fIsInGAC = FALSE;
         BOOL fIsOnTpaList = FALSE;
-        const SString &sImagePath = result->GetNativeOrILPEImage()->GetPath();
-        if (pTPABinder->IsInTpaList(sImagePath))
+
+        // Only initialize TPA/GAC status if we bound using DefaultContext
+        if (fBoundUsingTPABinder == true)
         {
-            fIsOnTpaList = TRUE;
+            fIsInGAC = pAppDomain->IsImageFromTrustedPath(result->GetNativeOrILPEImage());
+            const SString &sImagePath = result->GetNativeOrILPEImage()->GetPath();
+            if (pTPABinder->IsInTpaList(sImagePath))
+            {
+                fIsOnTpaList = TRUE;
+            }
         }
+
         pResult->Init(result,fIsInGAC, fIsOnTpaList);
     }
     else if (FAILED(hr) && (fThrowOnFileNotFound || (!Assembly::FileNotFound(hr))))
@@ -208,7 +220,6 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
     }
 }
 
-#endif // FEATURE_VERSIONING
 
 STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
                             PEImage **ppPEImage,
@@ -264,8 +275,32 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
 
 STDAPI BinderHasNativeHeader(PEImage *pPEImage, BOOL* result)
 {
-    *result = pPEImage->HasNativeHeader();
-    return S_OK;
+    HRESULT hr = S_OK;
+
+    _ASSERTE(pPEImage != NULL);
+    _ASSERTE(result != NULL);
+
+    EX_TRY
+    {
+        *result = pPEImage->HasNativeHeader();
+    }
+    EX_CATCH_HRESULT(hr);
+
+    if (FAILED(hr))
+    {
+        *result = false;
+
+#if defined(FEATURE_PAL)
+        // PAL_LOADLoadPEFile may fail while loading IL masquerading as NI.
+        // This will result in a ThrowHR(E_FAIL).  Suppress the error.
+        if(hr == E_FAIL)
+        {
+            hr = S_OK;
+        }
+#endif // defined(FEATURE_PAL)
+    }
+
+    return hr;
 }
 
 STDAPI BinderAcquireImport(PEImage                  *pPEImage,
@@ -341,13 +376,13 @@ HRESULT BaseAssemblySpec::ParseName()
 
         if (pIUnknownBinder != NULL)
         {
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             if (pDomain->GetFusionContext() != pDomain->GetTPABinderContext())
             {
                 pAppContext = (static_cast<CLRPrivBinderAssemblyLoadContext *>(pIUnknownBinder))->GetAppContext();
             }
             else
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
             {
                 pAppContext = (static_cast<CLRPrivBinderCoreCLR *>(pIUnknownBinder))->GetAppContext();
             }
@@ -581,104 +616,4 @@ VOID BaseAssemblySpec::GetFileOrDisplayName(DWORD flags, SString &result) const
                                                               result));
 }
 
-#ifndef FEATURE_CORECLR
 
-//
-// Trivial assembly binder for desktop crossgen
-//
-
-VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
-                             BOOL            fThrowOnFileNotFound,
-                             CoreBindResult *pResult,
-                             BOOL fNgenExplicitBind /* = FALSE */,
-                             BOOL fExplicitBindToNativeImage /* = FALSE */,
-                             StackCrawlMark *pCallerStackMark /* = NULL */)
-{
-    PEImageHolder pImage;
-    BOOL fNativeImage = FALSE;
-
-    if (GetCodeBase() != NULL)
-    {
-        // Normalize the path to maintain identity
-        SString sFullAssemblyPath;
-        Clr::Util::Win32::GetFullPathName(GetCodeBase(), sFullAssemblyPath, NULL);
-
-        pImage = PEImage::OpenImage(sFullAssemblyPath, MDInternalImport_Default);
-    }
-    else
-    {
-        SString sSimpleName(SString::Utf8, m_pAssemblyName);
-
-        fNativeImage = !IsReadyToRunCompilation() && pAppDomain->ToCompilationDomain()->IsInHardBindList(sSimpleName);
-
-        SString sFileName(sSimpleName, fNativeImage ? W(".ni.dll") : W(".dll"));
-
-        if (!CompilationDomain::FindImage(sFileName,
-                fNativeImage ?  MDInternalImport_TrustedNativeImage : MDInternalImport_Default,
-                &pImage))
-        {
-            sFileName.Set(sSimpleName, fNativeImage ? W(".ni.exe") : W(".exe"));
-
-            if (!CompilationDomain::FindImage(sFileName,
-                    fNativeImage ?  MDInternalImport_TrustedNativeImage : MDInternalImport_Default,
-                    &pImage))
-            {
-                EEFileLoadException::Throw(sSimpleName, COR_E_FILENOTFOUND);
-            }
-        }
-    }
-
-    GetSvcLogger()->Printf(W("Loading %s\n"), pImage->GetPath().GetUnicode());
-
-    NewHolder<BINDER_SPACE::Assembly> pAssembly;
-    pAssembly = new BINDER_SPACE::Assembly();
-
-    pAssembly->m_assemblyPath.Set(pImage->GetPath());
-
-    if (fNativeImage)
-        pAssembly->SetNativePEImage(pImage.Extract());
-    else
-        pAssembly->SetPEImage(pImage.Extract());
-
-    pResult->Init(pAssembly.Extract(), TRUE, TRUE);
-}
-
-VOID AssemblySpec::BindToSystem(BINDER_SPACE::Assembly** ppAssembly)
-{
-    PEImageHolder pImage;
-    BOOL fNativeImage = FALSE;
-
-    _ASSERTE(ppAssembly != nullptr);
-
-    if (g_fAllowNativeImages)
-    {
-        if (CompilationDomain::FindImage(W("mscorlib.ni.dll"), MDInternalImport_TrustedNativeImage, &pImage))
-            fNativeImage = TRUE;
-    }
-
-    if (!fNativeImage)
-    {
-        if (!CompilationDomain::FindImage(W("mscorlib.dll"), MDInternalImport_Default, &pImage))
-        {
-            EEFileLoadException::Throw(W("mscorlib.dll"), COR_E_FILENOTFOUND);
-        }
-    }
-
-    GetSvcLogger()->Printf(W("Loading %s\n"), pImage->GetPath().GetUnicode());
-
-    NewHolder<BINDER_SPACE::Assembly> pAssembly;
-    pAssembly = new BINDER_SPACE::Assembly();
-
-    pAssembly->m_assemblyPath.Set(pImage->GetPath());
-
-    if (fNativeImage)
-        pAssembly->SetNativePEImage(pImage.Extract());
-    else
-        pAssembly->SetPEImage(pImage.Extract());
-
-    *ppAssembly = pAssembly.Extract();
-}
-
-#endif // !FEATURE_CORECLR
-
-#endif // FEATURE_FUSION

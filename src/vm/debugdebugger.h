@@ -69,26 +69,33 @@ protected:
 
 
 
-class StackFrameHelper:public Object
+class StackFrameHelper : public Object
 {
     // READ ME:
     // Modifying the order or fields of this object may require other changes to the
     // classlib defintion of the StackFrameHelper class.
 public:
-    THREADBASEREF TargetThread;
+    THREADBASEREF targetThread;
     I4ARRAYREF rgiOffset;
     I4ARRAYREF rgiILOffset;
     BASEARRAYREF rgMethodBase; 
     PTRARRAYREF dynamicMethods;    
     BASEARRAYREF rgMethodHandle; 
+    PTRARRAYREF rgAssemblyPath;
+    BASEARRAYREF rgLoadedPeAddress;
+    I4ARRAYREF rgiLoadedPeSize;
+    BASEARRAYREF rgInMemoryPdbAddress;
+    I4ARRAYREF rgiInMemoryPdbSize;
+    // if rgiMethodToken[i] == 0, then don't attempt to get the portable PDB source/info
+    I4ARRAYREF rgiMethodToken;
     PTRARRAYREF rgFilename;
     I4ARRAYREF rgiLineNumber;
     I4ARRAYREF rgiColumnNumber;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
+
     BOOLARRAYREF rgiLastFrameFromForeignExceptionStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
+
+    OBJECTREF getSourceLineInfo;
     int iFrameCount;
-    CLR_BOOL fNeedFileInfo;
 
 protected:
     StackFrameHelper() {}
@@ -127,11 +134,9 @@ private:
         DWORD dwILOffset;
         MethodDesc *pFunc;
         PCODE ip;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         // TRUE if this element represents the last frame of the foreign
         // exception stack trace.
         BOOL			fIsLastFrameFromForeignStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
         // Initialization done under TSL.
         // This is used when first collecting the stack frame data.
@@ -139,9 +144,7 @@ private:
             DWORD dwNativeOffset,
             MethodDesc *pFunc,
             PCODE ip
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             , BOOL			fIsLastFrameFromForeignStackTrace = FALSE
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 			);
 
         // Initialization done outside the TSL.
@@ -162,9 +165,7 @@ public:
         DebugStackTraceElement* pElements;
         THREADBASEREF   TargetThread;
         AppDomain *pDomain;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         BOOL	fDoWeHaveAnyFramesFromForeignStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 
         GetStackFramesData() :  skip(0), 
@@ -175,9 +176,7 @@ public:
                                 TargetThread((THREADBASEREF)(TADDR)NULL)
         { 
             LIMITED_METHOD_CONTRACT;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             fDoWeHaveAnyFramesFromForeignStackTrace = FALSE;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
         }
 
@@ -187,10 +186,11 @@ public:
         }
     };
 
-    static FCDECL3(void, 
+    static FCDECL4(void, 
                    GetStackFramesInternal, 
                    StackFrameHelper* pStackFrameHelper, 
                    INT32 iSkip, 
+                   CLR_BOOL fNeedFileInfo,
                    Object* pException
                   );
 

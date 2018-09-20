@@ -32,27 +32,6 @@ namespace NewApis
 
         FARPROC result = NULL;
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-
-        // First try to use the function defined in the culture dll 
-        // if we are running on a platform prior to Win7
-        if(!IsWindows7Platform())
-        {
-            // only need to load the culture dll's handle once then we can hold onto it
-            static HMODULE hCulture = NULL;
-            // if we haven't loaded the culture dll yet
-            if (hCulture == NULL)
-            {
-                UtilCode::LoadLibraryShim(MAKEDLLNAME_W(W("culture")), NULL, 0, &hCulture);
-            }
-            
-            // make sure we were successful before using the handle
-            if (hCulture != NULL)
-            {
-                result=GetProcAddress(hCulture,lpProcName);
-            }
-        }
-#endif // !FEATURE_CORECLR && !CROSSGEN_COMPILE
 
         // next try the kernel
         if(result==NULL)
@@ -203,9 +182,6 @@ namespace NewApis
     GetLocaleInfoEx (__in LPCWSTR lpLocaleName, __in LCTYPE LCType, __out_ecount_opt(cchData) LPWSTR lpLCData, __in int cchData)
     {
         _ASSERTE((lpLCData == NULL && cchData == 0) || (lpLCData != NULL && cchData > 0));
-        // ComNlsInfo::nativeInitCultureData calls GetLocaleInfoEx with LcType LOCALE_SNAME
-        // to determine if this is a valid culture. We shouldn't assert in this case, but 
-        // all others we should.
         _ASSERTE(LCType == LOCALE_SNAME || NotLeakingFrameworkOnlyCultures(lpLocaleName));
         int retVal;
         
@@ -775,12 +751,14 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
     int IndexOfString(  __in LPCWSTR lpLocaleName,
                         __in_ecount(cchCount1) LPCWSTR pString1,   // String to search in
                         __in int  cchCount1,                       // length of pString1
-                        __in_ecount(cchCount2) LPCWSTR pString2,    // String we're looking for
+                        __in_ecount(cchCount2) LPCWSTR pString2,   // String we're looking for
                         __in int cchCount2,                        // length of pString2                  
                         __in DWORD dwFlags,                        // search flags
-                        __in BOOL startWith)                       // true if we need to check for prefix case
+                        __in BOOL startWith,					   // true if we need to check for prefix case
+                        __out_opt LPINT pcchFound)                 // length of the string we found in source   
     {
         int iRetVal = -1;
+        int foundLengthInSource = 0;
 
         //
         //  Check the ranges.
@@ -809,6 +787,7 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
         if (dwFlags == COMPARE_OPTIONS_ORDINAL)
         {
             iRetVal = FastIndexOfString(pString1, cchCount1, pString2, cchCount2);
+            foundLengthInSource = cchCount2;
             goto lExit;
         }
         //For dwFlags, 0 is the default, 1 is ignore case, we can handle both.
@@ -822,6 +801,11 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
                     iRetVal = FastIndexOfString(pString1, cchCount1, pString2, cchCount2);
                 else
                     iRetVal = FastIndexOfStringInsensitive(pString1, cchCount1, pString2, cchCount2);
+				
+                // both are ascii strings,
+                // the length should be the same as the length of the string we are searching for.
+                foundLengthInSource = cchCount2;
+				
                 goto lExit;
             }
         }
@@ -853,6 +837,7 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
                 if (result == CSTR_EQUAL)
                 { 
                     iRetVal = iOffset; 
+                    foundLengthInSource = iLength;
                     break;
                 }
                 else if (result == 0)
@@ -869,6 +854,9 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
         {
             iRetVal = -1;
         }
+		
+        if(iRetVal != -1 && pcchFound != NULL)
+            *pcchFound = foundLengthInSource;
 
         return iRetVal;
     }
@@ -880,13 +868,16 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
     int LastIndexOfString(  __in LPCWSTR lpLocaleName,
                             __in_ecount(cchCount1) LPCWSTR pString1,   // String to search in
                             __in int  cchCount1,                       // length of pString1
-                            __in_ecount(cchCount2) LPCWSTR pString2,    // String we're looking for
+                            __in_ecount(cchCount2) LPCWSTR pString2,   // String we're looking for
                             __in int cchCount2,                        // length of pString2                  
                             __in DWORD dwFlags,
-                            __in BOOL endWith)                         // check suffix case
+                            __in BOOL endWith, 						   // check suffix case
+                            __out_opt LPINT pcchFound)                 // length of the string we found in source
         {
         INT32       iRetVal = -1;
         BOOL        comparedOrdinal = FALSE;
+		
+        int foundLengthInSource = 0;
 
         // Check for empty strings
         if (cchCount1 == 0)
@@ -917,6 +908,7 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
         {
             iRetVal = FastLastIndexOfString(pString1, cchCount1, pString2, cchCount2);
             comparedOrdinal = TRUE;
+            foundLengthInSource = cchCount2;
             goto lExit;
         }
 
@@ -931,6 +923,8 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
                 else
                     iRetVal = FastLastIndexOfStringInsensitive(pString1, cchCount1, pString2, cchCount2);
                 comparedOrdinal = TRUE;
+				
+                foundLengthInSource = cchCount2;
                 goto lExit;
             }
         }
@@ -944,6 +938,7 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
                 if (NewApis::CompareStringEx(lpLocaleName, dwFlags, pString2, cchCount2, &pString1[cchCount1 + iOffset - iLength], iLength, NULL, NULL, 0) == CSTR_EQUAL)
                 { 
                     iRetVal= cchCount1 + iOffset - iLength;
+                    foundLengthInSource = iLength;
                     break;
                 }
             }
@@ -961,6 +956,9 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
                 iRetVal = -1;
             }
         }
+		
+        if(iRetVal != -1 && pcchFound != NULL)
+            *pcchFound = foundLengthInSource;
 
         return iRetVal;
     }
@@ -1091,12 +1089,10 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
         int retVal = 0;
 
 #if !defined(ENABLE_DOWNLEVEL_FOR_NLS)
-        retVal = ::LCIDToLocaleName(Locale, lpName, cchName, dwFlags);
+        retVal = ::LCIDToLocaleName(Locale, lpName, cchName, dwFlags | LOCALE_ALLOW_NEUTRAL_NAMES);
 #else
 
-#ifdef FEATURE_CORECLR
-        retVal = DownLevel::LCIDToLocaleName(Locale, lpName,cchName,dwFlags);
-#endif // FEATURE_CORECLR
+        retVal = DownLevel::LCIDToLocaleName(Locale, lpName,cchName,dwFlags | LOCALE_ALLOW_NEUTRAL_NAMES);
 
         typedef int (WINAPI *PFNLCIDToLocaleName)(LCID, LPWSTR,int ,DWORD);
         static PFNLCIDToLocaleName pFNLCIDToLocaleName=NULL;
@@ -1136,11 +1132,9 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
         LCID retVal = 0;
 
 #if !defined(ENABLE_DOWNLEVEL_FOR_NLS)
-        return ::LocaleNameToLCID(lpName, dwFlags);
+        return ::LocaleNameToLCID(lpName, dwFlags | LOCALE_ALLOW_NEUTRAL_NAMES);
 #else
-#ifdef FEATURE_CORECLR
-        retVal = DownLevel::LocaleNameToLCID(lpName, dwFlags);
-#endif // FEATURE_CORECLR
+        retVal = DownLevel::LocaleNameToLCID(lpName, dwFlags | LOCALE_ALLOW_NEUTRAL_NAMES);
 
         typedef int (WINAPI *PFNLocaleNameToLCID)(LPCWSTR,DWORD);
         static PFNLocaleNameToLCID pFNLocaleNameToLCID=NULL;
@@ -1278,26 +1272,6 @@ inline BOOL IsInvariantCasing(__in LPCWSTR lpLocaleName, __in DWORD dwMapFlags)
     }
 
 
-#if !defined(FEATURE_CORECLR)
-    BOOL GetNlsVersionEx(__in NLS_FUNCTION Function, __in LPCWSTR lpLocaleName, __inout LPNLSVERSIONINFOEX lpVersionInfo)
-    {
-
-        typedef BOOL (WINAPI *PFNGetNLSVersionEx)(NLS_FUNCTION, LPCWSTR, LPNLSVERSIONINFOEX);
-        
-        static PFNGetNLSVersionEx pFNGetNLSVersionEx=NULL;
-
-        // See if we still need to find our function
-        if (pFNGetNLSVersionEx == NULL)
-        {
-            // We only call this on Win8 and above, so this should always work.
-            pFNGetNLSVersionEx = (PFNGetNLSVersionEx) GetSystemProcAddressForSortingApi("GetNLSVersionEx", NULL);
-        }
-
-        _ASSERTE(pFNGetNLSVersionEx != NULL);
-
-        return pFNGetNLSVersionEx(Function, lpLocaleName, lpVersionInfo);
-    }
-#endif
 
     // This is a Windows 7 and above function
     // This returns the "specific" locale from an input name, ie: "en" returns "en-US",

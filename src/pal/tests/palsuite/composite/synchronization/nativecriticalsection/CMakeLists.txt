@@ -4,7 +4,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
   mtx_critsect.cpp
-  pal_composite_native_cs.c
+  pal_composite_native_cs.cpp
   resultbuffer.cpp
 )
 
@@ -15,7 +15,5 @@ add_executable(paltest_synchronization_nativecriticalsection
 add_dependencies(paltest_synchronization_nativecriticalsection coreclrpal)
 
 target_link_libraries(paltest_synchronization_nativecriticalsection
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

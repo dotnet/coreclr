@@ -2339,7 +2339,7 @@ namespace serialization { namespace bin {
     };
 
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
+    struct is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -2347,7 +2347,7 @@ namespace serialization { namespace bin {
     // allow types to declare themselves blittable by including a static bool 
     // member "is_blittable".
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
+    struct is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -5235,7 +5235,7 @@ ClrDataAccess::FollowStubStep(
         // this and redirect to the actual code.
         methodDesc = trace.GetMethodDesc();
         if (methodDesc->IsPreImplemented() &&
-            !methodDesc->IsPointingToNativeCode() &&
+            !methodDesc->IsPointingToStableNativeCode() &&
             !methodDesc->IsGenericMethodDefinition() &&
             methodDesc->HasNativeCode())
         {
@@ -5888,14 +5888,15 @@ ClrDataAccess::RawGetMethodName(
         LPCWSTR wszStubManagerName = pStubManager->GetStubManagerName(TO_TADDR(address));
         _ASSERTE(wszStubManagerName != NULL);
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen, 
+            _TRUNCATE,
             s_wszFormatNameWithStubManager,
             wszStubManagerName,                                         // Arg 1 = stub name
             TO_TADDR(address));                                         // Arg 2 = stub hex address
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -5951,13 +5952,14 @@ NameFromMethodDesc:
         // XXX Microsoft - Should this case have a more specific name?
         static WCHAR s_wszFormatNameAddressOnly[] = W("CLRStub@%I64x");
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen,
+            _TRUNCATE,
             s_wszFormatNameAddressOnly,
             TO_TADDR(address));
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -6012,7 +6014,7 @@ ClrDataAccess::GetMethodExtents(MethodDesc* methodDesc,
         EECodeInfo codeInfo(methodStart);
         _ASSERTE(codeInfo.IsValid());
 
-        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
         *extents = new (nothrow) METH_EXTENTS;
         if (!*extents)
@@ -6303,8 +6305,6 @@ bool ClrDataAccess::ReportMem(TADDR addr, TSIZE_T size, bool fExpectSuccess /*= 
         status = m_enumMemCb->EnumMemoryRegion(TO_CDADDR(addr), enumSize);
         if (status != S_OK)
         {
-            m_memStatus = status;
-
             // If dump generation was cancelled, allow us to throw upstack so we'll actually quit.
             if ((fExpectSuccess) && (status != COR_E_OPERATIONCANCELED))
                 return false;
@@ -7352,7 +7352,7 @@ Exit:
 
 //----------------------------------------------------------------------------
 // 
-// IsExceptionFromManagedCode - report if pExceptionRecord points to a exception belonging to the current runtime
+// IsExceptionFromManagedCode - report if pExceptionRecord points to an exception belonging to the current runtime
 // 
 // Arguments:
 //    pExceptionRecord - the exception record
@@ -7932,7 +7932,8 @@ STDAPI OutOfProcessExceptionEventDebuggerLaunchCallback(__in PDWORD pContext,
 
 // DacHandleEnum
 
-#include "handletablepriv.h"
+// TODO(Local GC) - The DAC should not include GC headers
+#include "../../gc/handletablepriv.h"
 #include "comcallablewrapper.h"
 
 DacHandleWalker::DacHandleWalker()
@@ -7974,7 +7975,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeap::GetMaxGeneration())
+    if (gen < 0 || gen > (int)*g_gcDacGlobals->max_gen)
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -8033,7 +8034,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
     int max_slots = 1;
     
 #ifdef FEATURE_SVR_GC
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
         max_slots = GCHeapCount();
 #endif // FEATURE_SVR_GC
 
@@ -8089,7 +8090,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeap::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, *g_gcDacGlobals->max_gen, 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }

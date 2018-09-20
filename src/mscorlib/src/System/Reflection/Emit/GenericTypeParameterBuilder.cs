@@ -4,20 +4,20 @@
 
 // 
 
+using System;
+using System.Reflection;
+using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Diagnostics.Contracts;
+
 namespace System.Reflection.Emit
 {
-    using System;
-    using System.Reflection;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Globalization;
-    using System.Diagnostics.Contracts;
-
-[System.Runtime.InteropServices.ComVisible(true)]
-    public sealed class GenericTypeParameterBuilder: TypeInfo
+    public sealed class GenericTypeParameterBuilder : TypeInfo
     {
-        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo){
-            if(typeInfo==null) return false;            
+        public override bool IsAssignableFrom(System.Reflection.TypeInfo typeInfo)
+        {
+            if (typeInfo == null) return false;
             return IsAssignableFrom(typeInfo.AsType());
         }
 
@@ -33,14 +33,14 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Object Overrides
-        public override String ToString() 
-        { 
+        public override String ToString()
+        {
             return m_type.Name;
         }
-        public override bool Equals(object o) 
-        { 
+        public override bool Equals(object o)
+        {
             GenericTypeParameterBuilder g = o as GenericTypeParameterBuilder;
-            
+
             if (g == null)
                 return false;
 
@@ -63,22 +63,22 @@ namespace System.Reflection.Emit
 
         #region Type Overrides
 
-        public override Type MakePointerType() 
-        { 
-            return SymbolType.FormCompoundType("*".ToCharArray(), this, 0); 
-        }
-
-        public override Type MakeByRefType() 
+        public override Type MakePointerType()
         {
-            return SymbolType.FormCompoundType("&".ToCharArray(), this, 0);
+            return SymbolType.FormCompoundType("*", this, 0);
         }
 
-        public override Type MakeArrayType() 
+        public override Type MakeByRefType()
         {
-            return SymbolType.FormCompoundType("[]".ToCharArray(), this, 0);
+            return SymbolType.FormCompoundType("&", this, 0);
         }
 
-        public override Type MakeArrayType(int rank) 
+        public override Type MakeArrayType()
+        {
+            return SymbolType.FormCompoundType("[]", this, 0);
+        }
+
+        public override Type MakeArrayType(int rank)
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
@@ -89,14 +89,14 @@ namespace System.Reflection.Emit
             {
                 szrank = "*";
             }
-            else 
+            else
             {
-                for(int i = 1; i < rank; i++)
+                for (int i = 1; i < rank; i++)
                     szrank += ",";
             }
 
             string s = String.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
-            SymbolType st = SymbolType.FormCompoundType(s.ToCharArray(), this, 0) as SymbolType;
+            SymbolType st = SymbolType.FormCompoundType(s, this, 0) as SymbolType;
             return st;
         }
 
@@ -114,11 +114,10 @@ namespace System.Reflection.Emit
 
         public override String AssemblyQualifiedName { get { return null; } }
 
-        public override Type BaseType { get { return m_type.BaseType; } } 
+        public override Type BaseType { get { return m_type.BaseType; } }
 
         protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers) { throw new NotSupportedException(); }
 
-[System.Runtime.InteropServices.ComVisible(true)]
         public override ConstructorInfo[] GetConstructors(BindingFlags bindingAttr) { throw new NotSupportedException(); }
 
         protected override MethodInfo GetMethodImpl(String name, BindingFlags bindingAttr, Binder binder, CallingConventions callConvention, Type[] types, ParameterModifier[] modifiers) { throw new NotSupportedException(); }
@@ -147,7 +146,6 @@ namespace System.Reflection.Emit
 
         public override MemberInfo[] GetMember(String name, MemberTypes type, BindingFlags bindingAttr) { throw new NotSupportedException(); }
 
-[System.Runtime.InteropServices.ComVisible(true)]
         public override InterfaceMapping GetInterfaceMap(Type interfaceType) { throw new NotSupportedException(); }
 
         public override EventInfo[] GetEvents(BindingFlags bindingAttr) { throw new NotSupportedException(); }
@@ -155,6 +153,10 @@ namespace System.Reflection.Emit
         public override MemberInfo[] GetMembers(BindingFlags bindingAttr) { throw new NotSupportedException(); }
 
         protected override TypeAttributes GetAttributeFlagsImpl() { return TypeAttributes.Public; }
+
+        public override bool IsTypeDefinition => false;
+
+        public override bool IsSZArray => false;
 
         protected override bool IsArrayImpl() { return false; }
 
@@ -192,13 +194,12 @@ namespace System.Reflection.Emit
 
         public override Type GetGenericTypeDefinition() { throw new InvalidOperationException(); }
 
-        public override Type MakeGenericType(params Type[] typeArguments) { throw new InvalidOperationException(Environment.GetResourceString("Arg_NotGenericTypeDefinition")); }
+        public override Type MakeGenericType(params Type[] typeArguments) { throw new InvalidOperationException(SR.Arg_NotGenericTypeDefinition); }
 
         protected override bool IsValueTypeImpl() { return false; }
 
         public override bool IsAssignableFrom(Type c) { throw new NotSupportedException(); }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         [Pure]
         public override bool IsSubclassOf(Type c) { throw new NotSupportedException(); }
         #endregion
@@ -212,11 +213,8 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Public Members
-        #if FEATURE_CORECLR
-        [System.Security.SecurityCritical] // auto-generated
-        #endif
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
-        {   
+        {
             m_type.SetGenParamCustomAttribute(con, binaryAttribute);
         }
 
@@ -231,7 +229,6 @@ namespace System.Reflection.Emit
             m_type.SetParent(baseTypeConstraint);
         }
 
-        [System.Runtime.InteropServices.ComVisible(true)]
         public void SetInterfaceConstraints(params Type[] interfaceConstraints)
         {
             m_type.CheckContext(interfaceConstraints);

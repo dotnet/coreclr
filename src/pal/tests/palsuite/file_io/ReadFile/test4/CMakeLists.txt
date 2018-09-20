@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  readfile.c
+  readfile.cpp
 )
 
 add_executable(paltest_readfile_test4
@@ -13,7 +13,5 @@ add_executable(paltest_readfile_test4
 add_dependencies(paltest_readfile_test4 coreclrpal)
 
 target_link_libraries(paltest_readfile_test4
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

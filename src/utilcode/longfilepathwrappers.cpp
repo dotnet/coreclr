@@ -17,9 +17,10 @@ private:
         static const WCHAR* UNCPathPrefix;
         static const WCHAR* UNCExtendedPathPrefix;
         static const WCHAR VolumeSeparatorChar;
+		#define UNCPATHPREFIX W("\\\\")
 #endif //FEATURE_PAL
-        static const WCHAR LongFile::DirectorySeparatorChar;
-        static const WCHAR LongFile::AltDirectorySeparatorChar;
+        static const WCHAR DirectorySeparatorChar;
+        static const WCHAR AltDirectorySeparatorChar;
 public:
         static BOOL IsExtended(SString & path);
         static BOOL IsUNCExtended(SString & path);
@@ -1186,7 +1187,6 @@ FindFirstFileExWrapper(
 }
 #endif //!FEATURE_PAL
 
-#if defined(FEATURE_CORECLR) || defined(CROSSGEN_COMPILE)
 
 #ifndef FEATURE_PAL
 
@@ -1246,7 +1246,6 @@ BOOL PAL_GetPALDirectoryWrapper(SString& pbuffer)
 
 #endif // FEATURE_PAL
 
-#endif // FEATURE_CORECLR || CROSSGEN_COMPILE
 
 //Implementation of LongFile Helpers
 const WCHAR LongFile::DirectorySeparatorChar = W('\\');
@@ -1256,7 +1255,7 @@ const WCHAR LongFile::VolumeSeparatorChar = W(':');
 const WCHAR* LongFile::ExtendedPrefix = W("\\\\?\\");
 const WCHAR* LongFile::DevicePathPrefix = W("\\\\.\\");
 const WCHAR* LongFile::UNCExtendedPathPrefix = W("\\\\?\\UNC\\");
-const WCHAR* LongFile::UNCPathPrefix = W("\\\\");
+const WCHAR* LongFile::UNCPathPrefix = UNCPATHPREFIX;
 
 BOOL LongFile::IsExtended(SString & path)
 {
@@ -1326,7 +1325,8 @@ HRESULT LongFile::NormalizePath(SString & path)
         //In this case if path is \\server the extended syntax should be like  \\?\UNC\server
         //The below logic populates the path from prefixLen offset from the start. This ensures that first 2 characters are overwritten
         //
-        prefixLen = prefix.GetCount() - 2;
+        prefixLen = prefix.GetCount() - (COUNT_T)wcslen(UNCPATHPREFIX);
+        _ASSERTE(prefixLen > 0 );
     }
 
    
@@ -1366,12 +1366,25 @@ HRESULT LongFile::NormalizePath(SString & path)
         }
     }
 
+	SString fullpath(SString::Literal,buffer + prefixLen);
 
-    //wcscpy_s always termintes with NULL, so we are saving the character that will be overwriiten
-    WCHAR temp = buffer[prefix.GetCount()];
-    wcscpy_s(buffer, prefix.GetCount() + 1, prefix.GetUnicode());
-    buffer[prefix.GetCount()] = temp;
-    path.CloseBuffer(ret + prefixLen);
+    //Check if the resolved path is a UNC. By default we assume relative path to resolve to disk 
+    if (fullpath.BeginsWith(UNCPathPrefix) && prefixLen != prefix.GetCount() - (COUNT_T)wcslen(UNCPATHPREFIX))
+    {
+
+        //Remove the leading '\\' from the UNC path to be replaced with UNCExtendedPathPrefix
+        fullpath.Replace(fullpath.Begin(), (COUNT_T)wcslen(UNCPATHPREFIX), UNCExtendedPathPrefix);
+        path.CloseBuffer();
+        path.Set(fullpath);
+    }
+    else
+    {
+        //wcscpy_s always termintes with NULL, so we are saving the character that will be overwriiten
+        WCHAR temp = buffer[prefix.GetCount()];
+        wcscpy_s(buffer, prefix.GetCount() + 1, prefix.GetUnicode());
+        buffer[prefix.GetCount()] = temp;
+        path.CloseBuffer(ret + prefixLen);
+    }
 
     return S_OK;
 }

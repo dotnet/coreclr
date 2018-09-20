@@ -441,7 +441,7 @@ operator new[](size_t n)
 
 #endif // HAS_ADDRESS_SANITIZER
 
-void * __cdecl operator new(size_t n, const NoThrow&)
+void * __cdecl operator new(size_t n, const NoThrow&) NOEXCEPT
 {
 #ifdef HAS_ADDRESS_SANITIZER
     // use standard heap functions for address santizier (which doesn't provide for NoThrow)
@@ -461,7 +461,7 @@ void * __cdecl operator new(size_t n, const NoThrow&)
     return result;
 }
 
-void * __cdecl operator new[](size_t n, const NoThrow&)
+void * __cdecl operator new[](size_t n, const NoThrow&) NOEXCEPT
 {
 #ifdef HAS_ADDRESS_SANITIZER
     // use standard heap functions for address santizier (which doesn't provide for NoThrow)
@@ -745,12 +745,12 @@ void ClrFlsAssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback)
     GetExecutionEngine()->TLS_AssociateCallback(slot, callback);
 }
 
-void ** __stdcall ClrFlsGetBlockGeneric()
+LPVOID *ClrFlsGetBlockGeneric()
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    return (void **) GetExecutionEngine()->TLS_GetDataBlock();
+    return (LPVOID *) GetExecutionEngine()->TLS_GetDataBlock();
 }
 
 CLRFLSGETBLOCK __ClrFlsGetBlock = ClrFlsGetBlockGeneric;

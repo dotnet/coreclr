@@ -110,7 +110,7 @@ public:
         return m_pMD;
     }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     PCODE GetExecStubEntryPoint()
     {
         WRAPPER_NO_CONTRACT;
@@ -199,22 +199,38 @@ public:
         return (UINT32)offsetof(UMThunkMarshInfo, m_pILStub);
     }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     // Compiles an unmanaged to managed thunk for the given signature. The thunk
     // will call the stub or, if fNoStub == TRUE, directly the managed target.
     Stub *CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStaticSigInfo* pSigInfo, MetaSig *pMetaSig, BOOL fNoStub);
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
+
+#if defined(_TARGET_X86_) && defined(FEATURE_STUBS_AS_IL)
+    struct ArgumentRegisters
+    {
+        UINT32 Ecx;
+        UINT32 Edx;
+    };
+
+    VOID SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst);
+#endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
 
 private:
     PCODE             m_pILStub;            // IL stub for marshaling 
                                             // On x86, NULL for no-marshal signatures
                                             // On non-x86, the managed entrypoint for no-delegate no-marshal signatures
     UINT32            m_cbActualArgSize;    // caches m_pSig.SizeOfFrameArgumentArray()
-#ifdef _TARGET_X86_
-    Stub*             m_pExecStub;          // UMEntryThunk jumps directly here
+                                            // On x86/Linux we have to augment with numRegistersUsed * STACK_ELEM_SIZE
+#if defined(_TARGET_X86_)
     UINT16            m_cbRetPop;           // stack bytes popped by callee (for UpdateRegDisplay)
+#if defined(FEATURE_STUBS_AS_IL)
+    UINT32            m_cbStackArgSize;     // stack bytes pushed for managed code
+#else
+    Stub*             m_pExecStub;          // UMEntryThunk jumps directly here
     UINT16            m_callConv;           // unmanaged calling convention and flags (CorPinvokeMap)
-#endif
+#endif // FEATURE_STUBS_AS_IL
+#endif // _TARGET_X86_
+
     MethodDesc *      m_pMD;                // maybe null
     Module *          m_pModule;
     Signature         m_sig;
@@ -248,7 +264,7 @@ public:
     static UMEntryThunk* CreateUMEntryThunk();
     static VOID FreeUMEntryThunk(UMEntryThunk* p);
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     // Compiles an unmanaged to managed thunk with the given calling convention adaptation.
     // - psrcofsregs are stack offsets that should be loaded to argument registers (ECX, EDX)
     // - psrcofs are stack offsets that should be repushed for the managed target
@@ -263,7 +279,7 @@ public:
                                      UINT *psrcofsregs,
                                      UINT *psrcofs,
                                      UINT retbufofs);
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 #ifndef DACCESS_COMPILE
     VOID LoadTimeInit(PCODE                   pManagedTarget,
@@ -569,12 +585,12 @@ private:
     AppDomain *m_pDomain;
 };
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 //-------------------------------------------------------------------------
 // One-time creation of special prestub to initialize UMEntryThunks.
 //-------------------------------------------------------------------------
 Stub *GenerateUMThunkPrestub();
-#endif
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 //-------------------------------------------------------------------------
 // NExport stub

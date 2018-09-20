@@ -14,15 +14,19 @@ endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-fPIE)
+  add_definitions(-DNO_NGENPDB)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
 add_definitions(-DFX_VER_INTERNALNAME_STR=crossgen.exe)
-add_definitions(-DNO_NGENPDB)
 
 add_executable_clr(crossgen
   ${crossgen_SOURCES}
   ${crossgen_RESOURCES}
 )
+
+if(FEATURE_MERGE_JIT_AND_ENGINE)
+    set(CLRJIT_CROSSGEN clrjit_crossgen)
+endif(FEATURE_MERGE_JIT_AND_ENGINE)
 
 target_link_libraries(crossgen
     cee_crossgen
@@ -31,7 +35,7 @@ target_link_libraries(crossgen
     mdruntimerw_crossgen
     mdhotdata_crossgen
     corguids
-    jit_crossgen
+    ${CLRJIT_CROSSGEN}
     gcinfo_crossgen
     corzap_crossgen
     mscorlib_crossgen
@@ -57,7 +61,8 @@ else()
         shlwapi
         bcrypt
         mdwinmd_crossgen
-        msvcrt
+        ${STATIC_MT_CRT_LIB}
+        ${STATIC_MT_VCRT_LIB}
     )
 
 endif(CLR_CMAKE_PLATFORM_UNIX)

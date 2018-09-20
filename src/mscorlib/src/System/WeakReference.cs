@@ -8,73 +8,76 @@
 ** Purpose: A wrapper for establishing a WeakReference to an Object.
 **
 ===========================================================*/
-namespace System {
-    
-    using System;
-    using System.Runtime.Serialization;
-    using System.Security;
-    using System.Security.Permissions;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Diagnostics.Contracts;
-    [System.Runtime.InteropServices.ComVisible(true)]
-#if !FEATURE_CORECLR
-    [SecurityPermissionAttribute(SecurityAction.InheritanceDemand, Flags=SecurityPermissionFlag.UnmanagedCode)] // Don't call Object::MemberwiseClone.
-#endif
+
+using System;
+using System.Runtime.Serialization;
+using System.Security;
+using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
+
+namespace System
+{
     [Serializable]
-    public class WeakReference : ISerializable {
+    [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")] 
+    public class WeakReference : ISerializable
+    {
         // If you fix bugs here, please fix them in WeakReference<T> at the same time.
 
         // This field is not a regular GC handle. It can have a special values that are used to prevent a race condition between setting the target and finalization.
         internal IntPtr m_handle;
-    
-#if FEATURE_CORECLR
+
         // Migrating InheritanceDemands requires this default ctor, so we can mark it SafeCritical
-        [SecuritySafeCritical]
-        protected WeakReference() {
-            Contract.Assert(false, "WeakReference's protected default ctor should never be used!");
+        protected WeakReference()
+        {
+            Debug.Assert(false, "WeakReference's protected default ctor should never be used!");
             throw new NotImplementedException();
         }
-#endif
 
         // Creates a new WeakReference that keeps track of target.
         // Assumes a Short Weak Reference (ie TrackResurrection is false.)
         //
-        public WeakReference(Object target) 
-            : this(target, false) {
+        public WeakReference(Object target)
+            : this(target, false)
+        {
         }
-    
+
         //Creates a new WeakReference that keeps track of target.
         //
-        public WeakReference(Object target, bool trackResurrection) {
+        public WeakReference(Object target, bool trackResurrection)
+        {
             Create(target, trackResurrection);
         }
 
-        protected WeakReference(SerializationInfo info, StreamingContext context) {
-            if (info==null) {
-                throw new ArgumentNullException("info");
+        protected WeakReference(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
 
-            Object target = info.GetValue("TrackedObject",typeof(Object));
-            bool trackResurrection = info.GetBoolean("TrackResurrection");
+            Object target = info.GetValue("TrackedObject", typeof(Object)); // Do not rename (binary serialization)
+            bool trackResurrection = info.GetBoolean("TrackResurrection"); // Do not rename (binary serialization)
 
             Create(target, trackResurrection);
         }
-    
+
         //Determines whether or not this instance of WeakReference still refers to an object
         //that has not been collected.
         //
-        public extern virtual bool IsAlive {
+        public extern virtual bool IsAlive
+        {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             get;
-         }
-    
+        }
+
         //Returns a boolean indicating whether or not we're tracking objects until they're collected (true)
         //or just until they're finalized (false).
         //
-        public virtual bool TrackResurrection {
+        public virtual bool TrackResurrection
+        {
             // We need to call IsTrackResurrection non-virtually in GetObjectData, and so the virtual property cannot be FCall directly
             get { return IsTrackResurrection(); }
         }
@@ -82,15 +85,14 @@ namespace System {
         //Gets the Object stored in the handle if it's accessible.
         // Or sets it.
         //
-        public extern virtual Object Target {
+        public extern virtual Object Target
+        {
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             get;
             [MethodImplAttribute(MethodImplOptions.InternalCall)]
-            [SecuritySafeCritical]
             set;
         }
-    
+
         // Free all system resources associated with this reference.
         //
         // Note: The WeakReference finalizer is not actually run, but
@@ -98,27 +100,23 @@ namespace System {
         // This is needed for subclasses deriving from WeakReference, however.
         // Additionally, there may be some cases during shutdown when we run this finalizer.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         extern ~WeakReference();
 
-        [SecurityCritical]
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            if (info==null) {
-                throw new ArgumentNullException("info");
+            if (info == null)
+            {
+                throw new ArgumentNullException(nameof(info));
             }
             Contract.EndContractBlock();
-            info.AddValue("TrackedObject", Target, typeof(Object));
-            info.AddValue("TrackResurrection", IsTrackResurrection());
+            info.AddValue("TrackedObject", Target, typeof(Object)); // Do not rename (binary serialization)
+            info.AddValue("TrackResurrection", IsTrackResurrection()); // Do not rename (binary serialization)
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern void Create(Object target, bool trackResurrection);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        [SecuritySafeCritical]
         private extern bool IsTrackResurrection();
     }
-
 }

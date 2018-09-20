@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -53,7 +54,7 @@
   			ldc.i4	   0xffffff00
   			beq.s      looks_good
   throwex:
-  			newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+  			newobj     instance void ['mscorlib']System.Exception::.ctor()
   			throw
   looks_good:
 
@@ -102,7 +103,7 @@
                 ldc.i4.0
                 ceq
                 brtrue check_done
-                newobj	instance void [mscorlib]System.ApplicationException::.ctor()
+                newobj	instance void [mscorlib]System.Exception::.ctor()
                 throw
 		check_done:
 		
