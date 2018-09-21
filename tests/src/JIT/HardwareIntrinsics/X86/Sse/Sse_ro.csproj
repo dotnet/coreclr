@@ -69,8 +69,6 @@
     <Compile Include="CompareUnorderedScalar.Single.cs" />
     <Compile Include="ConvertToInt32.Vector128Single.cs" />
     <Compile Include="ConvertToInt32WithTruncation.Vector128Single.cs" />
-    <Compile Include="ConvertToInt64.Vector128Single.cs" />
-    <Compile Include="ConvertToInt64WithTruncation.Vector128Single.cs" />
     <Compile Include="ConvertToSingle.Vector128Single.cs" />
     <Compile Include="Divide.Single.cs" />
     <Compile Include="DivideScalar.Single.cs" />
