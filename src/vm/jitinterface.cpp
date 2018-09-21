@@ -7411,14 +7411,17 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
     }
     else if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__GET_OBJECT_METHODTABLE_POINTER)->GetMemberDef())
     {
-        // Treat the object parameter as 'ref IntPtr' and immediately dereference it.
-        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDIND_I, CEE_RET };
-        methInfo->ILCode = const_cast<BYTE*>(ilcode);
-        methInfo->ILCodeSize = sizeof(ilcode);
-        methInfo->maxStack = 1;
-        methInfo->EHcount = 0;
-        methInfo->options = (CorInfoOptions)0;
-        return true;
+        // This code compiles in release but doesn't compile in debug, it hits a JIT assertion.
+        // TODO: Figure out how to make this work correctly in debug.
+
+        //// Treat the object parameter as 'ref IntPtr' and immediately dereference it.
+        //static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDIND_I, CEE_RET };
+        //methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        //methInfo->ILCodeSize = sizeof(ilcode);
+        //methInfo->maxStack = 1;
+        //methInfo->EHcount = 0;
+        //methInfo->options = (CorInfoOptions)0;
+        //return true;
     }
 
     return false;

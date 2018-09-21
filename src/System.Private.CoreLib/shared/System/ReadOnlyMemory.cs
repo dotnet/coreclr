@@ -172,7 +172,7 @@ namespace System
             // It is expected for _index + start to be negative if the memory is already pre-pinned.
             return new ReadOnlyMemory<T>(_object, _index + start, length);
         }
-        
+
         /// <summary>
         /// Returns a span from the memory.
         /// </summary>
@@ -181,24 +181,21 @@ namespace System
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
+                // This property getter has special support for returning a mutable Span<char> that wraps
+                // an immutable String instance. This is obviously a dangerous feature and breaks type safety.
+                // However, we need to handle the case where a ReadOnlyMemory<char> was created from a string
+                // and then cast to a Memory<T>. Such a cast can only be done with unsafe or marshaling code,
+                // in which case that's the dangerous operation performed by the dev, and we're just following
+                // suit here to make it work as best as possible.
+
                 ref T refToReturn = ref Unsafe.AsRef<T>(null);
                 int lengthOfUnderlyingSpan = 0;
 
                 // Copy this field into a local so that it can't change out from under us mid-operation.
-                // Negative values are invalid but may occur in the face of torn structs. We treat these
-                // as equivalent to "empty" for simplicity if we encounter them.
 
-                int desiredLength = _length;
-
-                if (desiredLength > 0)
+                object tmpObject = _object;
+                if (tmpObject != null)
                 {
-                    // Copy this field into a local so that it can't change out from under us mid-operation.
-                    // It should be non-null if the _length field is non-zero. In theory a torn struct could
-                    // result in this value being null even for a non-empty struct instance. We'll take the
-                    // null ref in GetType or ObjectHasComponentSize below in this scenario, and that's ok.
-
-                    object tmpObject = _object;
-
                     if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
                     {
                         // Special-case string since it's the most common for ROM<char>.
@@ -233,15 +230,9 @@ namespace System
                     // AV the process.
 
                     int desiredStartIndex = _index & RemoveFlagsBitMask;
+                    int desiredLength = _length;
 
-                    Debug.Assert(desiredStartIndex >= 0, "This value cannot be negative after stripping the high bit.");
-                    Debug.Assert(desiredLength >= 0, "This should've been checked at method start.");
-
-                    // Since both the start index and the length are non-negative signed integers, their sum
-                    // fits into the range of an unsigned integer without overflow. This allows us to get away
-                    // with a single comparison for range checking.
-
-                    if ((uint)(desiredStartIndex + desiredLength) > (uint)lengthOfUnderlyingSpan)
+                    if ((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan || (uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex))
                     {
                         ThrowHelper.ThrowArgumentOutOfRangeException();
                     }

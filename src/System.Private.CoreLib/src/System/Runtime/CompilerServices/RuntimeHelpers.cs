@@ -22,6 +22,7 @@ namespace System.Runtime.CompilerServices
     using System.Runtime.Serialization;
     using System.Threading;
     using System.Runtime.Versioning;
+    using Internal.Runtime.CompilerServices;
 
     public static class RuntimeHelpers
     {
@@ -236,14 +237,20 @@ namespace System.Runtime.CompilerServices
         }
 
         // Given an object reference, returns its MethodTable* as an IntPtr.
-        [Intrinsic]
-        [NonVersionable]
+        //[Intrinsic]
+        //[NonVersionable]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static IntPtr GetObjectMethodTablePointer(object obj)
         {
-            throw new PlatformNotSupportedException();
+            Debug.Assert(obj != null);
 
-            // This method is replaced by the VM with:
+            // We know that the first data field in any managed object is immediately after the
+            // method table pointer, so just back up one pointer and immediately deref.
+            // This is not ideal in terms of minimizing instruction count but is the best we can do at the moment.
+
+            return Unsafe.Add(ref Unsafe.As<byte, IntPtr>(ref JitHelpers.GetPinningHelper(obj).m_data), -1);
+
+            // Ideally this method would be replaced by the VM with:
             // ldarg.0
             // ldind.i
             // ret
