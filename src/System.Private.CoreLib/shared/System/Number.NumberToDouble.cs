@@ -12,7 +12,7 @@ namespace System
         // two Mul64 during the conversion. This is important not only
         // for speed, but also for precision because of Mul64 computes with 1 bit error.
 
-        private static readonly ulong[] rgval64Power10 = new ulong[]
+        private static readonly ulong[] s_Pow10MantissaTable = new ulong[]
         {
             // powers of 10
             0XA0000000_00000000,     // 1
@@ -49,7 +49,7 @@ namespace System
             0x901D7CF7_3AB0ACDC,     // 15
         };
 
-        private static readonly short[] rgexp64Power10 = new short[]
+        private static readonly short[] s_Pow10ExponentTable = new short[]
         {
             // exponents for both powers of 10 and 0.1
             4,      // 1
@@ -69,7 +69,7 @@ namespace System
             50,     // 15
         };
 
-        private static readonly ulong[] rgval64Power10By16 = new ulong[]
+        private static readonly ulong[] s_Pow10By16MantissaTable = new ulong[]
         {
             // powers of 10^16
             0x8E1BC9BF_04000000,     // 1
@@ -118,7 +118,7 @@ namespace System
             0xE3E27A44_4D8D991A,     // 21
         };
 
-        private static readonly short[] rgexp64Power10By16 = new short[]
+        private static readonly short[] s_Pow10By16ExponentTable = new short[]
         {
             // exponents for both powers of 10^16 and 0.1^16
             54,     // 1
@@ -155,24 +155,24 @@ namespace System
             val = 0xA0000000_00000000;
             exp = 4; // 10
 
-            CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10, 0, 15), "rgval64Power10");
-            CheckPow10ExponentTable(val, exp, new Span<short>(rgexp64Power10, 0, 15), "rgexp64Power10");
+            CheckPow10MantissaTable(val, exp, new Span<ulong>(s_Pow10MantissaTable, 0, 15), nameof(s_Pow10MantissaTable));
+            CheckPow10ExponentTable(val, exp, new Span<short>(s_Pow10ExponentTable, 0, 15), nameof(s_Pow10ExponentTable));
 
             val = 0x8E1BC9BF_04000000;
             exp = 54; //10^16
 
-            CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10By16, 0, 21), "rgval64Power10By16");
-            CheckPow10ExponentTable(val, exp, new Span<short>(rgexp64Power10By16, 0, 21), "rgexp64Power10By16");
+            CheckPow10MantissaTable(val, exp, new Span<ulong>(s_Pow10By16MantissaTable, 0, 21), nameof(s_Pow10By16MantissaTable));
+            CheckPow10ExponentTable(val, exp, new Span<short>(s_Pow10By16ExponentTable, 0, 21), nameof(s_Pow10By16ExponentTable));
 
             val = 0xCCCCCCCC_CCCCCCCD;
             exp = -3; // 0.1
 
-            CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10, 15, 15), "rgval64Power10 - inv");
+            CheckPow10MantissaTable(val, exp, new Span<ulong>(s_Pow10MantissaTable, 15, 15), nameof(s_Pow10MantissaTable) + " - inv");
 
             val = 0xE69594BE_C44DE160;
             exp = -53; // 0.1^16
 
-            CheckPow10MantissaTable(val, exp, new Span<ulong>(rgval64Power10By16, 21, 21), "rgval64Power10By16 - inv");
+            CheckPow10MantissaTable(val, exp, new Span<ulong>(s_Pow10By16MantissaTable, 21, 21), nameof(s_Pow10By16MantissaTable) + " - inv");
         }
 
         // debug-only verification of the precomputed tables
@@ -340,7 +340,7 @@ namespace System
                 remaining -= count;
 
                 // get the denormalized power of 10
-                uint mult = (uint)(rgval64Power10[count - 1] >> (64 - rgexp64Power10[count - 1]));
+                uint mult = (uint)(s_Pow10MantissaTable[count - 1] >> (64 - s_Pow10ExponentTable[count - 1]));
                 val = Mul32x32To64((uint)(val), mult) + DigitsToInt(src + 9, count);
             }
 
@@ -372,22 +372,22 @@ namespace System
             int index = absscale & 15;
             if (index != 0)
             {
-                int multexp = rgexp64Power10[index - 1];
+                int multexp = s_Pow10ExponentTable[index - 1];
                 // the exponents are shared between the inverted and regular table
                 exp += (scale < 0) ? (-multexp + 1) : multexp;
 
-                ulong multval = rgval64Power10[index + ((scale < 0) ? 15 : 0) - 1];
+                ulong multval = s_Pow10MantissaTable[index + ((scale < 0) ? 15 : 0) - 1];
                 val = Mul64Lossy(val, multval, ref exp);
             }
 
             index = absscale >> 4;
             if (index != 0)
             {
-                int multexp = rgexp64Power10By16[index - 1];
+                int multexp = s_Pow10By16ExponentTable[index - 1];
                 // the exponents are shared between the inverted and regular table
                 exp += (scale < 0) ? (-multexp + 1) : multexp;
 
-                ulong multval = rgval64Power10By16[index + ((scale < 0) ? 21 : 0) - 1];
+                ulong multval = s_Pow10By16MantissaTable[index + ((scale < 0) ? 21 : 0) - 1];
                 val = Mul64Lossy(val, multval, ref exp);
             }
 
