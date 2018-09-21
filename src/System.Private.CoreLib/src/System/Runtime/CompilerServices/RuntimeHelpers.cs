@@ -13,6 +13,7 @@
 namespace System.Runtime.CompilerServices
 {
     using System;
+    using System.Diagnostics;
     using System.Security;
     using System.Runtime;
     using System.Runtime.CompilerServices;
@@ -213,6 +214,39 @@ namespace System.Runtime.CompilerServices
             
             return Utf8String.Intern(newUtf8String);
         }
+
+        // Returns true iff the object has a component size;
+        // i.e., is variable length like string, array, Utf8String.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe bool ObjectHasComponentSize(object obj)
+        {
+            // CLR objects are laid out in memory as follows.
+            // [ pMethodTable || .. object data .. ]
+            //   ^-- the object reference points here
+            //
+            // The first DWORD of the method table class will have its high bit set if the
+            // method table has component size info stored somewhere. See member
+            // MethodTable:IsStringOrArray in src\vm\methodtable.h for full details.
+            //
+            // So in effect this method is the equivalent of
+            // return ((MethodTable*)(*obj))->IsStringOrArray();
+
+            Debug.Assert(obj != null);
+            return *(int*)GetObjectMethodTablePointer(obj) < 0;
+        }
+
+        // Given an object reference, returns its MethodTable* as an IntPtr.
+        [Intrinsic]
+        [NonVersionable]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static IntPtr GetObjectMethodTablePointer(object obj)
+        {
+            throw new PlatformNotSupportedException();
+
+            // This method is replaced by the VM with:
+            // ldarg.0
+            // ldind.i
+            // ret
+        }
     }
 }
-
