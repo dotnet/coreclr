@@ -51,7 +51,7 @@ function handle_ctrl_c {
 
     echo ""
     echo "Cancelling test execution."
-    exit $TestsFailed
+    exit $countFailedTests
 }
 
 # Register the Ctrl-C handler
@@ -125,35 +125,13 @@ esac
 
 # Misc defaults
 TestSelection=".*"
-TestsFailed=0
-
-wait_on_pids()
-{
-    echo "===== wait_on_pids ($1) ($2)"
-    # Wait on the last processes
-    for job in $1
-    do
-        wait $job
-        if [ "$?" -ne 0 ]
-        then
-            TestsFailed=$(($TestsFailed+1))
-        fi
-    done
-
-    for runningProjectDir in $2
-    do
-        stdout_file="${runningProjectDir}/stdout.txt"
-        stderr_file="${runningProjectDir}/stderr.txt"
-        echo "===== ${runningProjectDir}: stdout"
-        cat ${stdout_file}
-        echo "===== ${runningProjectDir}: stderr"
-        cat ${stderr_file}
-        echo "====="
-    done
-}
+countTotalTests=0
+countPassedTests=0
+countFailedTests=0
 
 ((processCount = 0))
 declare -a testFolders
+declare -a failedTests
 declare -a outputFilePaths
 declare -a processIds
 waitProcessIndex=
@@ -206,6 +184,13 @@ function finish_test {
     echo ">>>>> ${testFolder}"
     cat ${outputFilePath}
     echo "<<<<<"
+
+    if [ $testScriptExitCode -ne 0 ] ; then
+        failedTests[$countFailedTests]=$testProject
+        countFailedTests=$(($countFailedTests+1))
+    else
+        countPassedTests=$(($countPassedTests+1))
+    fi
 
     let countTotalTests++
 }
@@ -265,6 +250,26 @@ function start_test {
     processIds[$nextProcessIndex]=$!
 
     ((++processCount))
+}
+
+function summarize_test_run {
+    echo ""
+    echo "======================="
+    echo "     Test Results"
+    echo "======================="
+    echo "# Tests Run        : $countTotalTests"
+    echo "# Passed           : $countPassedTests"
+    echo "# Failed           : $countFailedTests"
+    echo "======================="
+
+    if [ $countFailedTests -gt 0 ] ; then
+        echo
+        echo "===== Failed tests:"
+        for (( i=0; i<$countFailedTests; i++ )); do
+            testProject=${failedTests[$i]}
+            echo "=====     $testProject"
+        done
+    fi
 }
 
 ensure_binaries_are_present()
@@ -516,7 +521,6 @@ ensure_binaries_are_present
 
 # Walk the directory tree rooted at src bin/tests/$OS.AnyCPU.$ConfigurationGroup/
 
-TestsFailed=0
 numberOfProcesses=0
 
 # Variables for running tests in the background
@@ -551,11 +555,6 @@ then
     coreclr_code_coverage
 fi
 
-if [ "$TestsFailed" -gt 0 ]
-then
-    echo "$TestsFailed test(s) failed"
-else
-    echo "All tests passed."
-fi
+summarize_test_run
 
-exit $TestsFailed
+exit $countFailedTests
