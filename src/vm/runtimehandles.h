@@ -12,7 +12,6 @@
 #include "fcall.h"
 #include "field.h"
 #include "typectxt.h"
-#include "constrainedexecutionregion.h"
 
 typedef void* EnregisteredTypeHandle;
 class SignatureNative;
@@ -31,81 +30,81 @@ typedef enum ReflectionCallConv {
 
 // Types used to expose method bodies via reflection.
 
-class ExceptionHandlingClause;
-class MethodBody;
-class LocalVariableInfo;
+class RuntimeExceptionHandlingClause;
+class RuntimeMethodBody;
+class RuntimeLocalVariableInfo;
 
 #ifdef USE_CHECKED_OBJECTREFS
-typedef REF<ExceptionHandlingClause> EXCEPTIONHANDLINGCLAUSEREF;
-typedef REF<MethodBody> METHODBODYREF;
-typedef REF<LocalVariableInfo> LOCALVARIABLEINFOREF;
+typedef REF<RuntimeExceptionHandlingClause> RUNTIMEEXCEPTIONHANDLINGCLAUSEREF;
+typedef REF<RuntimeMethodBody> RUNTIMEMETHODBODYREF;
+typedef REF<RuntimeLocalVariableInfo> RUNTIMELOCALVARIABLEINFOREF;
 #else
-typedef DPTR(ExceptionHandlingClause) EXCEPTIONHANDLINGCLAUSEREF;
-typedef DPTR(MethodBody) METHODBODYREF;
-typedef DPTR(LocalVariableInfo) LOCALVARIABLEINFOREF;
+typedef DPTR(RuntimeExceptionHandlingClause) RUNTIMEEXCEPTIONHANDLINGCLAUSEREF;
+typedef DPTR(RuntimeMethodBody) RUNTIMEMETHODBODYREF;
+typedef DPTR(RuntimeLocalVariableInfo) RUNTIMELOCALVARIABLEINFOREF;
 #endif
 
-class ExceptionHandlingClause : Object 
+class RuntimeExceptionHandlingClause : Object 
 {
 private:
     // Disallow creation and copy construction of these.
-    ExceptionHandlingClause() { }
-    ExceptionHandlingClause(ExceptionHandlingClause &r) { }    
+    RuntimeExceptionHandlingClause() { }
+    RuntimeExceptionHandlingClause(RuntimeExceptionHandlingClause &r) { }    
 
 public:
-    METHODBODYREF m_methodBody;
-    CorExceptionFlag m_flags;
-    INT32 m_tryOffset;
-    INT32 m_tryLength;
-    INT32 m_handlerOffset;
-    INT32 m_handlerLength;
-    mdTypeDef m_catchToken;
-    INT32 m_filterOffset;
+    RUNTIMEMETHODBODYREF _methodBody;
+    CorExceptionFlag _flags;
+    INT32 _tryOffset;
+    INT32 _tryLength;
+    INT32 _handlerOffset;
+    INT32 _handlerLength;
+    mdTypeDef _catchToken;
+    INT32 _filterOffset;
 };
 
-class MethodBody : Object 
+class RuntimeMethodBody : Object 
 {     
 private:
     // Disallow creation and copy construction of these.
-    MethodBody() { }
-    MethodBody(MethodBody &r) { }    
+    RuntimeMethodBody() { }
+    RuntimeMethodBody(RuntimeMethodBody &r) { }    
 
 public:
-    U1ARRAYREF m_IL;
-    PTRARRAYREF m_exceptionClauses;
-    PTRARRAYREF m_localVariables;
-    OBJECTREF m_methodBase;
+    U1ARRAYREF _IL;
+    PTRARRAYREF _exceptionClauses;
+    PTRARRAYREF _localVariables;
+    OBJECTREF _methodBase;
 
-    INT32 m_localVarSigToken;
-    INT32 m_maxStackSize;
-    CLR_BOOL m_initLocals;    
+    INT32 _localVarSigToken;
+    INT32 _maxStackSize;
+    CLR_BOOL _initLocals;    
 };
 
-class LocalVariableInfo : Object
+class RuntimeLocalVariableInfo : Object
 {
 private:
     // Disallow creation and copy construction of these.
-    LocalVariableInfo() { }
-    LocalVariableInfo(LocalVariableInfo &r) { }    
+    RuntimeLocalVariableInfo() { }
+    RuntimeLocalVariableInfo(RuntimeLocalVariableInfo &r) { }    
 
 public:
 
     REFLECTCLASSBASEREF GetType()
     {
-        return (REFLECTCLASSBASEREF)m_type;
+        return (REFLECTCLASSBASEREF)_type;
     }
 
     void SetType(OBJECTREF type)
     {
-        SetObjectReference(&m_type, type, GetAppDomain());
+        SetObjectReference(&_type, type, GetAppDomain());
     }
 
-    OBJECTREF m_type;
-    INT32 m_bIsPinned;
-    INT32 m_localIndex;
+    OBJECTREF _type;
+    INT32 _localIndex;
+    CLR_BOOL _isPinned;
 };
 
-class Utf8String {
+class MdUtf8String {
 public:
     static FCDECL3(FC_BOOL_RET, EqualsCaseSensitive, LPCUTF8 szLhs, LPCUTF8 szRhs, INT32 stringNumBytes);
 
@@ -127,12 +126,11 @@ public:
 
     // Static method on RuntimeTypeHandle
     static FCDECL1(Object*, Allocate, ReflectClassBaseObject *refType) ; //A.CI work	
-    static FCDECL6(Object*, CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
+    static FCDECL5(Object*, CreateInstance, ReflectClassBaseObject* refThisUNSAFE,
                                             CLR_BOOL publicOnly,
-                                            CLR_BOOL securityOff,
+                                            CLR_BOOL wrapExceptions,
                                             CLR_BOOL *pbCanBeCached,
-                                            MethodDesc** pConstructor,
-                                            CLR_BOOL *pbNeedSecurityCheck);
+                                            MethodDesc** pConstructor);
 
     static FCDECL2(Object*, CreateCaInstance, ReflectClassBaseObject* refCaType, ReflectMethodObject* pCtorUNSAFE);
 
@@ -158,10 +156,6 @@ public:
     static FCDECL2(FC_BOOL_RET, TypeEQ, Object* left, Object* right);
     static FCDECL2(FC_BOOL_RET, TypeNEQ, Object* left, Object* right);
 
-#ifndef FEATURE_CORECLR
-    static FCDECL2(FC_BOOL_RET, IsEquivalentTo, ReflectClassBaseObject *rtType1UNSAFE, ReflectClassBaseObject *rtType2UNSAFE);
-    static FCDECL1(FC_BOOL_RET, IsEquivalentType, ReflectClassBaseObject *rtTypeUNSAFE);
-#endif // !FEATURE_CORECLR
 
 #ifdef FEATURE_COMINTEROP
     static FCDECL1(FC_BOOL_RET, IsWindowsRuntimeObjectType, ReflectClassBaseObject *rtTypeUNSAFE);
@@ -178,12 +172,11 @@ public:
     void QCALLTYPE GetTypeByNameUsingCARules(LPCWSTR pwzClassName, QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retType);
 
     static
-    void QCALLTYPE GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase, BOOL bReflectionOnly,
+    void QCALLTYPE GetTypeByName(LPCWSTR pwzClassName, BOOL bThrowOnError, BOOL bIgnoreCase,
                                  QCall::StackCrawlMarkHandle pStackMark, 
-#ifdef FEATURE_HOSTED_BINDER
                                  ICLRPrivBinder * pPrivHostBinder,
-#endif
-                                 BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType);
+                                 BOOL bLoadTypeFromPartialNameHack, QCall::ObjectHandleOnStack retType,
+                                 QCall::ObjectHandleOnStack keepAlive);
 
     static FCDECL1(AssemblyBaseObject*, GetAssembly, ReflectClassBaseObject *pType);
     static FCDECL1(ReflectClassBaseObject*, GetBaseType, ReflectClassBaseObject* pType);
@@ -199,25 +192,13 @@ public:
     void QCALLTYPE GetDefaultConstructor(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod);
 
     static FCDECL1(ReflectClassBaseObject*, GetDeclaringType, ReflectClassBaseObject* pType);
-#ifdef FEATURE_REMOTING	
-    static FCDECL1(FC_BOOL_RET, IsContextful, ReflectClassBaseObject* pType);
-#endif
     static FCDECL1(FC_BOOL_RET, IsValueType, ReflectClassBaseObject* pType);
     static FCDECL1(FC_BOOL_RET, IsInterface, ReflectClassBaseObject* pType);
+    static FCDECL1(FC_BOOL_RET, IsByRefLike, ReflectClassBaseObject* pType);
     
     static 
     BOOL QCALLTYPE IsVisible(EnregisteredTypeHandle pTypeHandle);
-    
-    static
-    BOOL QCALLTYPE IsSecurityCritical(EnregisteredTypeHandle pTypeHandle);
 
-    static
-    BOOL QCALLTYPE IsSecuritySafeCritical(EnregisteredTypeHandle pTypeHandle);
-
-    static
-    BOOL QCALLTYPE IsSecurityTransparent(EnregisteredTypeHandle pTypeHandle);
-
-    static FCDECL1(FC_BOOL_RET, HasProxyAttribute, ReflectClassBaseObject *pType);
     static FCDECL2(FC_BOOL_RET, IsComObject, ReflectClassBaseObject *pType, CLR_BOOL isGenericCOM);
     static FCDECL2(FC_BOOL_RET, CanCastTo, ReflectClassBaseObject *pType, ReflectClassBaseObject *pTarget);
     static FCDECL2(FC_BOOL_RET, IsInstanceOfType, ReflectClassBaseObject *pType, Object *object);
@@ -267,7 +248,7 @@ public:
     void QCALLTYPE VerifyInterfaceIsImplemented(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pIFaceHandle);
 
     static
-    INT32 QCALLTYPE GetInterfaceMethodImplementationSlot(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD);
+    MethodDesc* QCALLTYPE GetInterfaceMethodImplementation(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD);
 
     static FCDECL3(FC_BOOL_RET, GetFields, ReflectClassBaseObject *pType, INT32 **result, INT32 *pCount);
 
@@ -286,7 +267,7 @@ class RuntimeMethodHandle {
 public:  
     static FCDECL1(ReflectMethodObject*, GetCurrentMethod, StackCrawlMark* stackMark);
 
-    static FCDECL4(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor);
+    static FCDECL5(Object*, InvokeMethod, Object *target, PTRArray *objs, SignatureNative* pSig, CLR_BOOL fConstructor, CLR_BOOL fWrapExceptions);
 	
     struct StreamingContextData {
         Object * additionalContext;  // additionalContex was changed from OBJECTREF to Object to avoid having a
@@ -316,24 +297,12 @@ public:
         BOOL isBinderDefault, Assembly *caller, Assembly *reflectedClassAssembly, TypeHandle declaringType, SignatureNative* pSig, BOOL verifyAccess);
 
     static
-    BOOL QCALLTYPE IsSecurityCritical(MethodDesc *pMD);
-
-    static
-    BOOL QCALLTYPE IsSecuritySafeCritical(MethodDesc *pMD);
-
-    static
-    BOOL QCALLTYPE IsSecurityTransparent(MethodDesc *pMD);
-
-    static FCDECL2(FC_BOOL_RET, IsTokenSecurityTransparent, ReflectModuleBaseObject *pModuleUNSAFE, INT32 tkToken);
-
-    static
     BOOL QCALLTYPE IsCAVisibleFromDecoratedType(
         EnregisteredTypeHandle targetTypeHandle,
         MethodDesc * pTargetCtor,
         EnregisteredTypeHandle sourceTypeHandle,
         QCall::ModuleHandle sourceModuleHandle);
 
-    static FCDECL3(void, CheckLinktimeDemands, ReflectMethodObject *pMethodUNSAFE, ReflectModuleBaseObject *pModuleUNSAFE, CLR_BOOL isDecoratedTargetSecurityTransparent);
     static FCDECL4(void, SerializationInvoke, ReflectMethodObject *pMethodUNSAFE, Object* targetUNSAFE,
         Object* serializationInfoUNSAFE, struct StreamingContextData * pContext);
 
@@ -370,6 +339,9 @@ public:
     static
     void QCALLTYPE StripMethodInstantiation(MethodDesc * pMethod, QCall::ObjectHandleOnStack refMethod);
 
+    static
+    FCDECL1(INT32, GetGenericParameterCount, MethodDesc * pMethod);
+
     // see comment in the cpp file
     static FCDECL3(MethodDesc*, GetStubIfNeeded, MethodDesc *pMethod, ReflectClassBaseObject *pType, PtrArray* instArray);
     static FCDECL2(MethodDesc*, GetMethodFromCanonical, MethodDesc *pMethod, PTR_ReflectClassBaseObject pType);
@@ -386,7 +358,7 @@ public:
     static
     void QCALLTYPE GetCallerType(QCall::StackCrawlMarkHandle pStackMark, QCall::ObjectHandleOnStack retType);
 
-    static FCDECL2(MethodBody*, GetMethodBody, ReflectMethodObject *pMethodUNSAFE, PTR_ReflectClassBaseObject pDeclaringType);
+    static FCDECL2(RuntimeMethodBody*, GetMethodBody, ReflectMethodObject *pMethodUNSAFE, PTR_ReflectClassBaseObject pDeclaringType);
 
     static FCDECL1(FC_BOOL_RET, IsConstructor, MethodDesc *pMethod);
 
@@ -409,18 +381,6 @@ public:
     static FCDECL1(INT32, GetToken, ReflectFieldObject *pFieldUNSAFE);
     static FCDECL2(FieldDesc*, GetStaticFieldForGenericType, FieldDesc *pField, ReflectClassBaseObject *pDeclaringType);
     static FCDECL1(FC_BOOL_RET, AcquiresContextFromThis, FieldDesc *pField);
-
-    static
-    BOOL QCALLTYPE IsSecurityCritical(FieldDesc *pFD);
-
-    static
-    BOOL QCALLTYPE IsSecuritySafeCritical(FieldDesc *pFD);
-
-    static
-    BOOL QCALLTYPE IsSecurityTransparent(FieldDesc *pFD);
-
-    static
-    void QCALLTYPE CheckAttributeAccess(FieldDesc *pFD, QCall::ModuleHandle pModule);
 };
 
 class ModuleHandle {
@@ -463,9 +423,6 @@ public:
     static FCDECL1(ReflectModuleBaseObject*, GetManifestModule, AssemblyBaseObject *pAssemblyUNSAFE);
 
     static FCDECL1(INT32, GetToken, AssemblyBaseObject *pAssemblyUNSAFE);   
-#ifdef FEATURE_APTCA
-    static FCDECL2(FC_BOOL_RET, AptcaCheck, AssemblyBaseObject *pTargetAssemblyUNSAFE, AssemblyBaseObject *pSourceAssemblyUNSAFE);
-#endif // FEATURE_APTCA
 };
 
 class SignatureNative;

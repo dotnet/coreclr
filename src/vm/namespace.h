@@ -33,6 +33,9 @@
 #define g_WinRTNS           g_InteropNS ".WindowsRuntime"
 #endif // FEATURE_COMINTEROP
 
+#define g_IntrinsicsNS g_RuntimeNS ".Intrinsics"
+
+#define g_InternalCompilerServicesNS "Internal.Runtime.CompilerServices"
 #define g_CompilerServicesNS g_RuntimeNS ".CompilerServices"
 
 #define g_ConstrainedExecutionNS g_RuntimeNS ".ConstrainedExecution"
@@ -43,10 +46,8 @@
 #define g_PermissionsNS     g_SecurityNS ".Permissions"
 #define g_PrincipalNS       g_SecurityNS ".Principal"
 #define g_PolicyNS          g_SecurityNS ".Policy"
-#ifdef FEATURE_X509
 #define g_CryptographyNS    g_SecurityNS ".Cryptography"
 #define g_X509NS            g_CryptographyNS ".X509Certificates"
-#endif // FEATURE_X509
 
 #define g_SerializationNS   g_RuntimeNS ".Serialization"
 #define g_RemotingNS        g_RuntimeNS ".Remoting"
@@ -74,10 +75,6 @@
 
 #define g_WindowsFoundationDiagNS    "Windows.Foundation.Diagnostics"
 
-#if defined(FEATURE_CORRUPTING_EXCEPTIONS) || defined(FEATURE_EXCEPTION_NOTIFICATIONS)
 #define g_ExceptionServicesNS         g_RuntimeNS ".ExceptionServices"
-#endif // defined(FEATURE_CORRUPTING_EXCEPTION) || defined(FEATURE_EXCEPTION_NOTIFICATIONS)
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
 #define g_LoaderNS         g_RuntimeNS ".Loader" 
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)

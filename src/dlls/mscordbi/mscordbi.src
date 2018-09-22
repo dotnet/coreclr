@@ -13,14 +13,13 @@ EXPORTS
 
     // Out-of-proc creation path from the shim - ICLRDebugging
     OpenVirtualProcessImpl
+    OpenVirtualProcessImpl2
 
     // DEPRECATED - use OpenVirtualProcessImpl
     OpenVirtualProcess private 
     OpenVirtualProcess2
 
-#ifdef FEATURE_CORECLR
     CoreCLRCreateCordbObject private
-#endif // FEATURE_CORECLR
 
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
     DllGetClassObject private

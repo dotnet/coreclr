@@ -24,6 +24,7 @@
 #include <pedecoder.h>
 #include <getproductversionnumber.h>
 #include <dbgenginemetrics.h>
+#include <arrayholder.h>
 
 #ifndef FEATURE_PAL
 #define PSAPI_VERSION 2
@@ -54,14 +55,20 @@ Notes:
 
 */
 
+#ifdef FEATURE_PAL
+#define INITIALIZE_SHIM { if (PAL_InitializeDLL() != 0) return E_FAIL; }
+#else
+#define INITIALIZE_SHIM
+#endif
+
 // Contract for public APIs. These must be NOTHROW.
 #define PUBLIC_CONTRACT \
+    INITIALIZE_SHIM \
     CONTRACTL \
     { \
         NOTHROW; \
     } \
-    CONTRACTL_END; \
-
+    CONTRACTL_END;
 
 //-----------------------------------------------------------------------------
 // Public API.
@@ -261,9 +268,10 @@ public:
 
     HRESULT Register()
     {
-        if (PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken) != NO_ERROR)
+        DWORD pe = PAL_RegisterForRuntimeStartup(m_processId, RuntimeStartupHandler, this, &m_unregisterToken);
+        if (pe != NO_ERROR)
         {
-            return E_INVALIDARG;
+            return HRESULT_FROM_WIN32(pe);
         }
         return S_OK;
     }
@@ -380,24 +388,65 @@ public:
         return hr;
     }
 
+    bool AreAllHandlesValid(HANDLE *handleArray, DWORD arrayLength)
+    {
+        for (int i = 0; i < (int)arrayLength; i++)
+        {
+            HANDLE h = handleArray[i];
+            if (h == INVALID_HANDLE_VALUE)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     HRESULT InternalEnumerateCLRs(HANDLE** ppHandleArray, _In_reads_(*pdwArrayLength) LPWSTR** ppStringArray, DWORD* pdwArrayLength)
     {
         int numTries = 0;
         HRESULT hr;
 
-        while (numTries < 10)
+        while (numTries < 25)
         {
+            hr = EnumerateCLRs(m_processId, ppHandleArray, ppStringArray, pdwArrayLength);
+
             // EnumerateCLRs uses the OS API CreateToolhelp32Snapshot which can return ERROR_BAD_LENGTH or 
             // ERROR_PARTIAL_COPY. If we get either of those, we try wait 1/10th of a second try again (that
-            // is the recommendation of the OS API owners)
-            hr = EnumerateCLRs(m_processId, ppHandleArray, ppStringArray, pdwArrayLength);
+            // is the recommendation of the OS API owners).
             if ((hr != HRESULT_FROM_WIN32(ERROR_PARTIAL_COPY)) && (hr != HRESULT_FROM_WIN32(ERROR_BAD_LENGTH)))
+            {
+                // Just return any other error or if no handles were found (which means the coreclr module wasn't found yet).
+                if (FAILED(hr) || *ppHandleArray == NULL || *pdwArrayLength <= 0)
+                {
+                    return hr;
+                }
+                // If EnumerateCLRs succeeded but any of the handles are INVALID_HANDLE_VALUE, then sleep and retry
+                // also. This fixes a race condition where dbgshim catches the coreclr module just being loaded but 
+                // before g_hContinueStartupEvent has been initialized.
+                if (AreAllHandlesValid(*ppHandleArray, *pdwArrayLength))
+                {
+                    return hr;
+                }
+                // Clean up memory allocated in EnumerateCLRs since this path it succeeded
+                CloseCLREnumeration(*ppHandleArray, *ppStringArray, *pdwArrayLength);
+
+                *ppHandleArray = NULL;
+                *ppStringArray = NULL;
+                *pdwArrayLength = 0;
+            }
+
+            // Sleep and retry enumerating the runtimes
+            Sleep(100);
+            numTries++;
+
+            if (m_canceled)
             {
                 break;
             }
-            Sleep(100);
-            numTries++;
         }
+
+        // Indicate a timeout
+        hr = HRESULT_FROM_WIN32(ERROR_TIMEOUT);
 
         return hr;
     }
@@ -426,7 +475,7 @@ public:
         DWORD arrayLength = 0;
 
         // Wake up runtime(s)
-        HRESULT hr = InternalEnumerateCLRs(&handleArray, &stringArray, &arrayLength);
+        HRESULT hr = EnumerateCLRs(m_processId, &handleArray, &stringArray, &arrayLength);
         if (SUCCEEDED(hr))
         {
             WakeRuntimes(handleArray, arrayLength);
@@ -510,7 +559,8 @@ public:
         bool coreclrExists = false;
 
         HRESULT hr = InvokeStartupCallback(&coreclrExists);
-        if (SUCCEEDED(hr))
+        // The retry logic in InternalEnumerateCLRs failed if ERROR_TIMEOUT was returned.
+        if (SUCCEEDED(hr) || (hr == HRESULT_FROM_WIN32(ERROR_TIMEOUT)))
         {
             if (!coreclrExists && !m_canceled)
             {
@@ -522,8 +572,11 @@ public:
                         hr = InvokeStartupCallback(&coreclrExists);
                         if (SUCCEEDED(hr))
                         {
-                            // We should always find a coreclr module
-                            _ASSERTE(coreclrExists);
+                            // We should always find a coreclr module so fail if we don't
+                            if (!coreclrExists)
+                            {
+                                hr = E_FAIL;
+                            }
                         }
                     }
                 }
@@ -1000,6 +1053,58 @@ IsCoreClrWithGoodHeader(
     return false;
 }
 
+static
+HRESULT
+EnumProcessModulesInternal(
+    HANDLE hProcess, 
+    DWORD *pCountModules,
+    HMODULE** ppModules)
+{    
+    *pCountModules = 0;
+    *ppModules = nullptr;
+
+    // Start with 1024 modules
+    DWORD cbNeeded = sizeof(HMODULE) * 1024;
+
+    ArrayHolder<HMODULE> modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
+    if (modules == nullptr)
+    {
+        return HRESULT_FROM_WIN32(ERROR_OUTOFMEMORY);
+    }
+
+    if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded))
+    {
+        return HRESULT_FROM_WIN32(GetLastError());
+    }
+
+    // If 1024 isn't enough, try the modules array size returned (cbNeeded)
+    if (cbNeeded > (sizeof(HMODULE) * 1024)) 
+    {
+        modules = new (nothrow) HMODULE[cbNeeded / sizeof(HMODULE)];
+        if (modules == nullptr)
+        {
+            return HRESULT_FROM_WIN32(ERROR_OUTOFMEMORY);
+        }
+
+        DWORD cbNeeded2;
+        if(!EnumProcessModules(hProcess, modules, cbNeeded, &cbNeeded2))
+        {
+            return HRESULT_FROM_WIN32(GetLastError());
+        }
+
+        // The only way cbNeeded2 could change on the second call is if number of
+        // modules loaded by the process changed in the small window between the
+        // above EnumProcessModules calls. If this actually happens, then give
+        // up on trying to get the whole module list and risk missing the coreclr
+        // module.
+        cbNeeded = min(cbNeeded, cbNeeded2);
+    }
+
+    *pCountModules = cbNeeded / sizeof(HMODULE);
+    *ppModules = modules.Detach();
+    return S_OK;
+}
+
 //-----------------------------------------------------------------------------
 // Public API.
 //
@@ -1037,19 +1142,19 @@ EnumerateCLRs(
     if (NULL == hProcess)
         return E_FAIL;
 
-    // These shouldn't be freed
-    HMODULE modules[1000];
-    DWORD cbNeeded;
-    if(!EnumProcessModules(hProcess, modules, sizeof(modules), &cbNeeded))
+    // The modules in the array returned don't need to be closed
+    DWORD countModules;
+    ArrayHolder<HMODULE> modules = nullptr;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &modules);
+    if (FAILED(hr))
     {
-        return HRESULT_FROM_WIN32(GetLastError());
+        return hr;
     }
 
     //
     // count the number of coreclr.dll entries
     //
     DWORD count = 0;
-    DWORD countModules = cbNeeded/sizeof(HMODULE);
     for(DWORD i = 0; i < countModules; i++)
     {
         if (IsCoreClrWithGoodHeader(hProcess, modules[i]))
@@ -1111,8 +1216,6 @@ EnumerateCLRs(
 
             HANDLE hContinueStartupEvent = INVALID_HANDLE_VALUE;
             HRESULT hr = GetContinueStartupEvent(debuggeePID, pStringArray[idx], &hContinueStartupEvent);
-            _ASSERTE(SUCCEEDED(hr) == (hContinueStartupEvent != INVALID_HANDLE_VALUE));
-
             pEventArray[idx] = hContinueStartupEvent;
 #else
             pEventArray[idx] = NULL;
@@ -1218,15 +1321,15 @@ GetRemoteModuleBaseAddress(
         ThrowHR(E_FAIL);
     }
 
-    // These shouldn't be freed
-    HMODULE modules[1000];
-    DWORD cbNeeded;
-    if(!EnumProcessModules(hProcess, modules, sizeof(modules), &cbNeeded))
+    // The modules in the array returned don't need to be closed
+    DWORD countModules;
+    ArrayHolder<HMODULE> modules = nullptr;
+    HRESULT hr = EnumProcessModulesInternal(hProcess, &countModules, &modules);    
+    if (FAILED(hr))
     {
-        ThrowHR(HRESULT_FROM_WIN32(GetLastError()));
+        ThrowHR(hr);
     }
 
-    DWORD countModules = min(cbNeeded, sizeof(modules)) / sizeof(HMODULE);
     for(DWORD i = 0; i < countModules; i++)
     {
         WCHAR modulePath[MAX_LONGPATH];
@@ -1720,7 +1823,7 @@ GetContinueStartupEvent(
             ThrowHR(E_FAIL);
         }
 
-        if (NULL != continueEvent)
+        if (NULL != continueEvent && INVALID_HANDLE_VALUE != continueEvent)
         {
             if (!DuplicateHandle(hProcess, continueEvent, GetCurrentProcess(), &continueEvent, 
                 EVENT_MODIFY_STATE, FALSE, 0))
@@ -1758,6 +1861,8 @@ CLRCreateInstance(
     REFIID riid, 
     LPVOID *ppInterface)
 {
+    PUBLIC_CONTRACT;
+
 #if defined(FEATURE_CORESYSTEM)
 
     if (ppInterface == NULL)
@@ -1768,45 +1873,16 @@ CLRCreateInstance(
     
 #if defined(FEATURE_CORESYSTEM)
     GUID skuId = CLR_ID_ONECORE_CLR;
-#elif defined(FEATURE_CORECLR)
-    GUID skuId = CLR_ID_CORECLR;
 #else
-    GUID skuId = CLR_ID_V4_DESKTOP;
+    GUID skuId = CLR_ID_CORECLR;
 #endif
     
-    CLRDebuggingImpl *pDebuggingImpl = new CLRDebuggingImpl(skuId);
+    CLRDebuggingImpl *pDebuggingImpl = new (nothrow) CLRDebuggingImpl(skuId);
+    if (NULL == pDebuggingImpl)
+        return E_OUTOFMEMORY;
+
     return pDebuggingImpl->QueryInterface(riid, ppInterface);
 #else
     return E_NOTIMPL;
 #endif
 }
-
-#ifdef FEATURE_PAL
-
-EXTERN_C BOOL WINAPI
-DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
-{
-    int err = 0;
-
-    switch (reason)
-    {
-        case DLL_PROCESS_ATTACH:
-        {
-            err = PAL_InitializeDLL();
-            break;
-        }
-
-        case DLL_THREAD_ATTACH:
-            err = PAL_EnterTop();
-            break;
-    }
-
-    if (err != 0)
-    {
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
-#endif // FEATURE_PAL

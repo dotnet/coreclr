@@ -11,7 +11,6 @@
 #include "sstring.h"
 #include "ex.h"
 #include "holder.h"
-#include "newapis.h"
 
 
 #if defined(_MSC_VER)
@@ -91,7 +90,7 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 #else
     // TODO: Uncertain if this is the best behavior.  Caller should specify locale name
     if (lcid == NULL || lcid[0]==W('!')) lcid = W("");
-    int iRet = NewApis::LCMapStringEx(lcid, dwFlags, &wc, 1, &wTmp, 1, NULL, NULL, 0);
+    int iRet = ::LCMapStringEx(lcid, dwFlags, &wc, 1, &wTmp, 1, NULL, NULL, 0);
 #endif
     if (!iRet) {
         // This can fail in non-exceptional cases becauseof unknown unicode characters. 
@@ -2107,7 +2106,7 @@ void SString::VPrintf(const CHAR *format, va_list args)
         else
         if (errno!=0 && errno!=EBADF && errno!=ERANGE)
         {
-            CONSISTENCY_CHECK_MSG(FALSE, "_vsnprintf failed. Potential globalization bug.");
+            CONSISTENCY_CHECK_MSG(FALSE, "_vsnprintf_s failed. Potential globalization bug.");
             ThrowHR(HRESULT_FROM_WIN32(ERROR_NO_UNICODE_TRANSLATION));
         }
     }
@@ -2211,7 +2210,7 @@ void SString::VPrintf(const WCHAR *format, va_list args)
         else
         if (errno!=0 && errno!=EBADF && errno!=ERANGE)
         {
-            CONSISTENCY_CHECK_MSG(FALSE, "_vsnwprintf failed. Potential globalization bug.");
+            CONSISTENCY_CHECK_MSG(FALSE, "_vsnwprintf_s failed. Potential globalization bug.");
             ThrowHR(HRESULT_FROM_WIN32(ERROR_NO_UNICODE_TRANSLATION));
         }
     }
@@ -2293,7 +2292,7 @@ void SString::PVPrintf(const WCHAR *format, va_list args)
         else
         if (errno!=0 && errno!=EBADF && errno!=ERANGE)
         {
-            CONSISTENCY_CHECK_MSG(FALSE, "_vsnwprintf failed. Potential globalization bug.");
+            CONSISTENCY_CHECK_MSG(FALSE, "_vsnwprintf_s failed. Potential globalization bug.");
             ThrowHR(HRESULT_FROM_WIN32(ERROR_NO_UNICODE_TRANSLATION));
         }
     }

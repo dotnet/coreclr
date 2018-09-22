@@ -15,12 +15,13 @@
 // ============================================================================
 
 #include "common.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "array.h"
 #ifdef FEATURE_PREJIT
 #include "compile.h"
+#endif
+
+#ifdef FEATURE_PERFMAP
+#include "perfmap.h"
 #endif
 
 #ifndef DACCESS_COMPILE 
@@ -524,7 +525,7 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     //
     // Setup an expected number of items to commit and reserve
     //
-    // The commit number is not that important as we alwasy commit at least one page worth of items
+    // The commit number is not that important as we always commit at least one page worth of items
     // The reserve number shoudl be high enough to cover a typical lare application,
     // in order to minimize the fragmentation of our rangelists
     //
@@ -595,20 +596,20 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     //
     // Align up all of the commit and reserve sizes
     //
-    indcell_heap_reserve_size        = (DWORD) ALIGN_UP(indcell_heap_reserve_size,     PAGE_SIZE);
-    indcell_heap_commit_size         = (DWORD) ALIGN_UP(indcell_heap_commit_size,      PAGE_SIZE);
+    indcell_heap_reserve_size        = (DWORD) ALIGN_UP(indcell_heap_reserve_size,     GetOsPageSize());
+    indcell_heap_commit_size         = (DWORD) ALIGN_UP(indcell_heap_commit_size,      GetOsPageSize());
 
-    cache_entry_heap_reserve_size    = (DWORD) ALIGN_UP(cache_entry_heap_reserve_size, PAGE_SIZE);
-    cache_entry_heap_commit_size     = (DWORD) ALIGN_UP(cache_entry_heap_commit_size,  PAGE_SIZE);
+    cache_entry_heap_reserve_size    = (DWORD) ALIGN_UP(cache_entry_heap_reserve_size, GetOsPageSize());
+    cache_entry_heap_commit_size     = (DWORD) ALIGN_UP(cache_entry_heap_commit_size,  GetOsPageSize());
 
-    lookup_heap_reserve_size         = (DWORD) ALIGN_UP(lookup_heap_reserve_size,      PAGE_SIZE);
-    lookup_heap_commit_size          = (DWORD) ALIGN_UP(lookup_heap_commit_size,       PAGE_SIZE);
+    lookup_heap_reserve_size         = (DWORD) ALIGN_UP(lookup_heap_reserve_size,      GetOsPageSize());
+    lookup_heap_commit_size          = (DWORD) ALIGN_UP(lookup_heap_commit_size,       GetOsPageSize());
 
-    dispatch_heap_reserve_size       = (DWORD) ALIGN_UP(dispatch_heap_reserve_size,    PAGE_SIZE);
-    dispatch_heap_commit_size        = (DWORD) ALIGN_UP(dispatch_heap_commit_size,     PAGE_SIZE);
+    dispatch_heap_reserve_size       = (DWORD) ALIGN_UP(dispatch_heap_reserve_size,    GetOsPageSize());
+    dispatch_heap_commit_size        = (DWORD) ALIGN_UP(dispatch_heap_commit_size,     GetOsPageSize());
 
-    resolve_heap_reserve_size        = (DWORD) ALIGN_UP(resolve_heap_reserve_size,     PAGE_SIZE);
-    resolve_heap_commit_size         = (DWORD) ALIGN_UP(resolve_heap_commit_size,      PAGE_SIZE);
+    resolve_heap_reserve_size        = (DWORD) ALIGN_UP(resolve_heap_reserve_size,     GetOsPageSize());
+    resolve_heap_commit_size         = (DWORD) ALIGN_UP(resolve_heap_commit_size,      GetOsPageSize());
 
     BYTE * initReservedMem = NULL;
 
@@ -627,16 +628,16 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
             DWORD dwWastedReserveMemSize = dwTotalReserveMemSize - dwTotalReserveMemSizeCalc;
             if (dwWastedReserveMemSize != 0)
             {
-                DWORD cWastedPages = dwWastedReserveMemSize / PAGE_SIZE;
+                DWORD cWastedPages = dwWastedReserveMemSize / GetOsPageSize();
                 DWORD cPagesPerHeap = cWastedPages / 5;
                 DWORD cPagesRemainder = cWastedPages % 5; // We'll throw this at the resolve heap
 
-                indcell_heap_reserve_size += cPagesPerHeap * PAGE_SIZE;
-                cache_entry_heap_reserve_size += cPagesPerHeap * PAGE_SIZE;
-                lookup_heap_reserve_size += cPagesPerHeap * PAGE_SIZE;
-                dispatch_heap_reserve_size += cPagesPerHeap * PAGE_SIZE;
-                resolve_heap_reserve_size += cPagesPerHeap * PAGE_SIZE;
-                resolve_heap_reserve_size += cPagesRemainder * PAGE_SIZE;
+                indcell_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                cache_entry_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                lookup_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                dispatch_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                resolve_heap_reserve_size += cPagesPerHeap * GetOsPageSize();
+                resolve_heap_reserve_size += cPagesRemainder * GetOsPageSize();
             }
 
             CONSISTENCY_CHECK((indcell_heap_reserve_size     +
@@ -656,20 +657,20 @@ void VirtualCallStubManager::Init(BaseDomain *pDomain, LoaderAllocator *pLoaderA
     }
     else
     {
-        indcell_heap_reserve_size        = PAGE_SIZE;
-        indcell_heap_commit_size         = PAGE_SIZE;
+        indcell_heap_reserve_size        = GetOsPageSize();
+        indcell_heap_commit_size         = GetOsPageSize();
 
-        cache_entry_heap_reserve_size    = PAGE_SIZE;
-        cache_entry_heap_commit_size     = PAGE_SIZE;
+        cache_entry_heap_reserve_size    = GetOsPageSize();
+        cache_entry_heap_commit_size     = GetOsPageSize();
 
-        lookup_heap_reserve_size         = PAGE_SIZE;
-        lookup_heap_commit_size          = PAGE_SIZE;
+        lookup_heap_reserve_size         = GetOsPageSize();
+        lookup_heap_commit_size          = GetOsPageSize();
 
-        dispatch_heap_reserve_size       = PAGE_SIZE;
-        dispatch_heap_commit_size        = PAGE_SIZE;
+        dispatch_heap_reserve_size       = GetOsPageSize();
+        dispatch_heap_commit_size        = GetOsPageSize();
 
-        resolve_heap_reserve_size        = PAGE_SIZE;
-        resolve_heap_commit_size         = PAGE_SIZE;
+        resolve_heap_reserve_size        = GetOsPageSize();
+        resolve_heap_commit_size         = GetOsPageSize();
 
 #ifdef _DEBUG
         DWORD dwTotalReserveMemSizeCalc  = indcell_heap_reserve_size     +
@@ -973,7 +974,7 @@ void VirtualCallStubManager::Reclaim()
 
 //----------------------------------------------------------------------------
 /* static */
-VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddress,  StubKind* wbStubKind)
+VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddress,  StubKind* wbStubKind, BOOL usePredictStubKind)
 {
     CONTRACTL {
         NOTHROW;
@@ -998,7 +999,7 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
     // VirtualCallStubManager::isDispatchingStub
     //
     CONTRACT_VIOLATION(SOToleranceViolation);
-    kind = pCur->getStubKind(stubAddress);
+    kind = pCur->getStubKind(stubAddress, usePredictStubKind);
     if (kind != SK_UNKNOWN)
     {
         if (wbStubKind)
@@ -1010,7 +1011,7 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
     // See if we are managed by the shared domain
     //
     pCur = SharedDomain::GetDomain()->GetLoaderAllocator()->GetVirtualCallStubManager();
-    kind = pCur->getStubKind(stubAddress);
+    kind = pCur->getStubKind(stubAddress, usePredictStubKind);
     if (kind != SK_UNKNOWN)
     {
         if (wbStubKind)
@@ -1025,7 +1026,7 @@ VirtualCallStubManager *VirtualCallStubManager::FindStubManager(PCODE stubAddres
     {
         _ASSERTE(pCur != NULL);
 
-        kind = pCur->getStubKind(stubAddress);
+        kind = pCur->getStubKind(stubAddress, usePredictStubKind);
         if (kind != SK_UNKNOWN)
         {
             if (wbStubKind)
@@ -1107,7 +1108,7 @@ BOOL VirtualCallStubManager::TraceManager(Thread *thread,
 
 #ifdef FEATURE_PREJIT
     // This is the case for the lazy slot fixup
-    if (GetIP(pContext) == GFN_TADDR(StubDispatchFixupPatchLabel)) {
+    if (GetIP(pContext) == GetEEFuncEntryPoint(StubDispatchFixupPatchLabel)) {
 
         *pRetAddr = (BYTE *)StubManagerHelpers::GetReturnAddress(pContext);
 
@@ -1643,6 +1644,13 @@ void VirtualCallStubManager::BackPatchWorkerStatic(PCODE returnAddress, TADDR si
     END_ENTRYPOINT_VOIDRET;
 }
 
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+void BackPatchWorkerStaticStub(PCODE returnAddr, TADDR siteAddrForRegisterIndirect)
+{
+    VirtualCallStubManager::BackPatchWorkerStatic(returnAddr, siteAddrForRegisterIndirect);
+}
+#endif
+
 PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                                             OBJECTREF *protectedObj,
                                             DispatchToken token,
@@ -1971,16 +1979,6 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                 // <token, TPMT, target> entry where target is in AD1, and then matching against
                 // this entry from AD2 which happens to be using the same token, perhaps for a
                 // completely different interface.
-#ifdef FEATURE_REMOTING
-                if (token.IsTypedToken() && objectType->IsTransparentProxy())
-                {
-                    MethodTable * pItfMT = GetTypeFromToken(token);
-                    if (pItfMT->GetDomain() != SharedDomain::GetDomain())
-                    {
-                        insertKind = DispatchCache::IK_NONE;
-                    }
-                }
-#endif
             }
 
             if (insertKind != DispatchCache::IK_NONE)
@@ -2036,7 +2034,7 @@ PCODE VirtualCallStubManager::ResolveWorker(StubCallSite* pCallSite,
                                     ResolveHolder* pResolveHolder = ResolveHolder::FromResolveEntry(pCallSite->GetSiteTarget());
                                     PCODE addrOfFail = pResolveHolder->stub()->failEntryPoint();
                                     pDispatchHolder = GenerateDispatchStub(
-                                        pCallSite, target, addrOfFail, objectType, token.To_SIZE_T());
+                                        target, addrOfFail, objectType, token.To_SIZE_T());
                                     dispatchers->Add((size_t)(pDispatchHolder->stub()->entryPoint()), &probeD);
                                 }
                                 else
@@ -2110,44 +2108,6 @@ VirtualCallStubManager::Resolver(
 
     // NOTE: CERs are not hardened against transparent proxy types,
     // so no need to worry about throwing an exception from here.
-#ifdef FEATURE_REMOTING    
-    if (pMT->IsTransparentProxy())
-    {
-        if (IsInterfaceToken(token))
-        {
-            MethodTable * pItfMT = GetTypeFromToken(token);
-            DispatchSlot ds(pItfMT->FindDispatchSlot(token.GetSlotNumber()));
-            if (pItfMT->HasInstantiation())
-            {
-                MethodDesc * pTargetMD = ds.GetMethodDesc();
-                if (!pTargetMD->HasMethodInstantiation())
-                {
-                    MethodDesc * pInstMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                        pTargetMD, 
-                        pItfMT, 
-                        FALSE,              // forceBoxedEntryPoint
-                        Instantiation(),    // methodInst
-                        FALSE,              // allowInstParam
-                        TRUE);              // forceRemotableMethod
-                    *ppTarget = CRemotingServices::GetStubForInterfaceMethod(pInstMD);
-                    return TRUE;
-                }
-            }
-            *ppTarget = ds.GetTarget();
-        }
-        else
-        {
-            CONSISTENCY_CHECK(IsClassToken(token));
-            // All we do here is call the TP thunk stub.
-            DispatchSlot thunkSlot(CTPMethodTable::GetMethodTable()->FindDispatchSlot(token.GetTypeID(), token.GetSlotNumber()));
-            CONSISTENCY_CHECK(!thunkSlot.IsNull());
-            *ppTarget = thunkSlot.GetTarget();
-        }
-        return TRUE;
-    }
-
-    CONSISTENCY_CHECK(!pMT->IsTransparentProxy());
-#endif //  FEATURE_REMOTING
 
     LOG((LF_LOADER, LL_INFO10000, "SD: VCSM::Resolver: (start) looking up %s method in %s\n",
          token.IsThisToken() ? "this" : "interface",
@@ -2277,12 +2237,11 @@ VirtualCallStubManager::Resolver(
         // It allows objects that implement ICastable to mimic behavior of other types. 
         MethodTable * pTokenMT = GetTypeFromToken(token);
 
-        // Make call to obj.GetImplType(interfaceTypeObj)
-        MethodDesc *pGetImplTypeMD = pMT->GetMethodDescForInterfaceMethod(MscorlibBinder::GetMethod(METHOD__ICASTABLE__GETIMPLTYPE));
+        // Make call to ICastableHelpers.GetImplType(this, interfaceTypeObj)
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__GETIMPLTYPE);
+
         OBJECTREF tokenManagedType = pTokenMT->GetManagedClassObject(); //GC triggers
-
-        PREPARE_NONVIRTUAL_CALLSITE_USING_METHODDESC(pGetImplTypeMD);
-
+        
         DECLARE_ARGHOLDER_ARRAY(args, 2);
         args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*protectedObj);
         args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(tokenManagedType);
@@ -2456,151 +2415,6 @@ PCODE VirtualCallStubManager::CacheLookup(size_t token, UINT16 tokenHash, Method
     return (PCODE)(pElem != NULL ? pElem->target : NULL);
 }
 
-#ifdef FEATURE_REMOTING
-//----------------------------------------------------------------------------
-// This is used by TransparentProxyWorkerStub to take a stub address (token),
-// and MethodTable and return the target. This is the fast version that only
-// checks the cache and returns NULL if a target is not found.
-//
-PCODE VSD_GetTargetForTPWorkerQuick(TransparentProxyObject * orTP, size_t token)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(orTP));
-        PRECONDITION(orTP->IsTransparentProxy());
-    } CONTRACTL_END
-
-    GCX_FORBID();
-
-    DispatchToken tok;
-
-    // If we have a 16-bit number in the token then we have a slot number
-    if (((UINT16)token) == token)
-    {
-        tok = DispatchToken::CreateDispatchToken((UINT32)token);
-    }
-    // Otherwise, we have a MethodDesc
-    else
-    {
-        UINT32       typeID = 0;
-        MethodDesc * pMD    = (MethodDesc *) token;
-
-        if  (pMD->IsInterface())
-        {
-            typeID = pMD->GetMethodTable()->LookupTypeID();
-            // If this type has never had a TypeID assigned, then it couldn't possibly
-            // be in the cache. We do this instead of calling GetTypeID because that can
-            // throw, and this method is not protected from that.
-            if (typeID == TypeIDProvider::INVALID_TYPE_ID)
-            {
-                return NULL;
-            }
-
-#ifdef FAT_DISPATCH_TOKENS
-            if (DispatchToken::RequiresDispatchTokenFat(typeID, pMD->GetSlot()))
-            {
-                tok = pMD->GetMethodTable()->GetLoaderAllocator()->TryLookupDispatchToken(typeID, pMD->GetSlot());
-                if (!tok.IsValid())
-                {
-                    return NULL;
-                }
-            }
-            else
-#endif
-            {
-                tok = DispatchToken::CreateDispatchToken(typeID, pMD->GetSlot());
-            }
-        }
-        else
-        {
-            // On AMD64 a non-virtual call on an in context transparent proxy
-            // results in us reaching here with (pMD->IsInterface == FALSE)
-            return pMD->GetSingleCallableAddrOfCode();
-        }
-    }
-
-    return VirtualCallStubManager::CacheLookup(tok.To_SIZE_T(), DispatchCache::INVALID_HASH, orTP->GetMethodTableBeingProxied());
-}
-
-//----------------------------------------------------------------------------
-// This is used by TransparentProxyWorkerStub to take a stub address (token),
-// and MethodTable and return the target. This is the slow version that can throw
-// On x86 we construct a HelperMethodFrame, while on the 64 bit platforms we are
-// called by ResolveWorkerStatic which already has constructed a frame
-//
-PCODE VSD_GetTargetForTPWorker(TransitionBlock * pTransitionBlock, size_t token)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        SO_TOLERANT;
-        INJECT_FAULT(COMPlusThrowOM(););
-        PRECONDITION(CheckPointer(pTransitionBlock));
-    } CONTRACTL_END
-
-    MAKE_CURRENT_THREAD_AVAILABLE();
-
-    DispatchToken tok;
-    MethodDesc *pRepresentativeMD = NULL;
-    PCODE pRet = NULL;
-
-    BEGIN_SO_INTOLERANT_CODE(CURRENT_THREAD);
-    
-    FrameWithCookie<StubDispatchFrame> frame(pTransitionBlock);
-    StubDispatchFrame * pSDFrame = &frame;
-
-    MethodTable * pMT = CTPMethodTable::GetMethodTableBeingProxied(pSDFrame->GetThis());
-
-    // If we have a 16-bit number in the token then we have a slot number
-    if (((UINT16)token) == token) {
-        tok = DispatchToken::CreateDispatchToken((UINT32)token);
-        pRepresentativeMD = VirtualCallStubManager::GetRepresentativeMethodDescFromToken(tok.To_SIZE_T(), pMT);
-    }
-    // Otherwise, we have a MethodDesc
-    else {
-        // The token will be calculated after we erect a GC frame.
-        pRepresentativeMD = (MethodDesc *)token;
-    }
-    PREFIX_ASSUME(pRepresentativeMD != NULL);
-
-    // Get the current appdomain
-    AppDomain *pAD = (AppDomain *) CURRENT_THREAD->GetDomain();
-
-    // Get the virtual stub manager for this AD. We pick the current
-    // AD because when the AD is unloaded the cache entry will be cleared.
-    // If we happen to be calling from shared to shared, it's no big
-    // deal because we'll just come through here again and add a new
-    // cache entry. We can't choose the manager based on the return
-    // address because this could be tail-called or called indirectly
-    // via helper and so the return address won't be recognized.
-    VirtualCallStubManager *pMgr = pAD->GetLoaderAllocator()->GetVirtualCallStubManager();
-    CONSISTENCY_CHECK(CheckPointer(pMgr));
-
-    pSDFrame->SetFunction(pRepresentativeMD);
-    pSDFrame->Push(CURRENT_THREAD);
-    INSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
-
-    // If we didn't properly create a token above, it's because we needed to wait until
-    // the helper frame was created (GetTypeID is a throwing operation).
-    if (!tok.IsValid()) {
-        tok = pAD->GetLoaderAllocator()->GetDispatchToken(pRepresentativeMD->GetMethodTable()->GetTypeID(),
-                                    pRepresentativeMD->GetSlot());
-    }
-    CONSISTENCY_CHECK(tok.IsValid());
-
-    pRet = pMgr->GetTarget(tok.To_SIZE_T(), pMT);
-    CONSISTENCY_CHECK(pRet != NULL);
-
-    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER_NO_PROBE;
-    pSDFrame->Pop(CURRENT_THREAD);
-
-    END_SO_INTOLERANT_CODE;
-    
-    return pRet;
-}
-#endif // FEATURE_REMOTING
 
 //----------------------------------------------------------------------------
 /* static */
@@ -2703,17 +2517,6 @@ VirtualCallStubManager::TraceResolver(
     MethodTable *pMT = pObj->GetMethodTable();
     CONSISTENCY_CHECK(CheckPointer(pMT));
 
-#ifdef FEATURE_REMOTING
-    if (pMT->IsTransparentProxy())
-    {
-#ifdef DACCESS_COMPILE
-        DacNotImpl();
-#else
-        trace->InitForFramePush(GetEEFuncEntryPoint(TransparentProxyStubPatchLabel));
-#endif
-        return TRUE;
-    }
-#endif    
 
     DispatchSlot slot(pMT->FindDispatchSlot(token));
 
@@ -2761,7 +2564,7 @@ void VirtualCallStubManager::BackPatchWorker(StubCallSite* pCallSite)
              DBG_ADDR(pCallSite->GetReturnAddress()), DBG_ADDR(dispatchHolder->stub())));
 
         //Add back the default miss count to the counter being used by this resolve stub
-        //Since resolve stub are shared amoung many dispatch stubs each dispatch stub
+        //Since resolve stub are shared among many dispatch stubs each dispatch stub
         //that fails decrements the shared counter and the dispatch stub that trips the
         //counter gets converted into a polymorphic site
         INT32* counter = resolveStub->pCounter();
@@ -2895,6 +2698,10 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
     LOG((LF_STUBS, LL_INFO10000, "GenerateDispatchStub for token" FMT_ADDR "and pMT" FMT_ADDR "at" FMT_ADDR "\n",
                                  DBG_ADDR(dispatchToken), DBG_ADDR(pMTExpected), DBG_ADDR(holder->stub())));
 
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "GenerateDispatchStub", (PCODE)holder->stub(), holder->stub()->size());
+#endif
+
     RETURN (holder);
 }
 
@@ -2936,6 +2743,10 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
     stats.stub_space += static_cast<UINT32>(DispatchHolder::GetHolderSize(DispatchStub::e_TYPE_LONG));
     LOG((LF_STUBS, LL_INFO10000, "GenerateDispatchStub for token" FMT_ADDR "and pMT" FMT_ADDR "at" FMT_ADDR "\n",
                                  DBG_ADDR(dispatchToken), DBG_ADDR(pMTExpected), DBG_ADDR(holder->stub())));
+
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "GenerateDispatchStub", (PCODE)holder->stub(), holder->stub()->size());
+#endif
 
     RETURN (holder);
 }
@@ -3023,6 +2834,10 @@ ResolveHolder *VirtualCallStubManager::GenerateResolveStub(PCODE            addr
     LOG((LF_STUBS, LL_INFO10000, "GenerateResolveStub  for token" FMT_ADDR "at" FMT_ADDR "\n",
                                  DBG_ADDR(dispatchToken), DBG_ADDR(holder->stub())));
 
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "GenerateResolveStub", (PCODE)holder->stub(), holder->stub()->size());
+#endif
+
     RETURN (holder);
 }
 
@@ -3052,6 +2867,10 @@ LookupHolder *VirtualCallStubManager::GenerateLookupStub(PCODE addrOfResolver, s
     stats.stub_space += sizeof(LookupHolder);
     LOG((LF_STUBS, LL_INFO10000, "GenerateLookupStub   for token" FMT_ADDR "at" FMT_ADDR "\n",
                                  DBG_ADDR(dispatchToken), DBG_ADDR(holder->stub())));
+
+#ifdef FEATURE_PERFMAP
+    PerfMap::LogStubs(__FUNCTION__, "GenerateLookupStub", (PCODE)holder->stub(), holder->stub()->size());
+#endif
 
     RETURN (holder);
 }

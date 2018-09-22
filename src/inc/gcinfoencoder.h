@@ -12,14 +12,26 @@
  ENCODING LAYOUT
 
  1. Header
+ 
+ Slim Header for simple and common cases:
+    - EncodingType[Slim]
+    - ReturnKind (Fat: 2 bits)
+    - CodeLength
+    - NumCallSites (#ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED)
+
+ Fat Header for other cases:
+    - EncodingType[Fat]
     - Flag:     isVarArg, 
                 hasSecurityObject, 
                 hasGSCookie,
                 hasPSPSymStackSlot,
                 hasGenericsInstContextStackSlot, 
                 hasStackBaseregister,
-                wantsReportOnlyLeaf,
+                wantsReportOnlyLeaf (AMD64 use only),
+                hasTailCalls (ARM/ARM64 only)
                 hasSizeOfEditAndContinuePreservedArea
+                hasReversePInvokeFrame,
+    - ReturnKind (Fat: 4 bits)
     - CodeLength
     - Prolog (if hasSecurityObject || hasGenericsInstContextStackSlot || hasGSCookie)
     - Epilog (if hasGSCookie)
@@ -29,9 +41,11 @@
     - GenericsInstContextStackSlot (if any)
     - StackBaseRegister (if any)
     - SizeOfEditAndContinuePreservedArea (if any)
+    - ReversePInvokeFrameSlot (if any)
     - SizeOfStackOutgoingAndScratchArea (#ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA)
     - NumCallSites (#ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED)
     - NumInterruptibleRanges
+
  2. Call sites offsets (#ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED)
  3. Fully-interruptible ranges
  4. Slot table
@@ -78,20 +92,19 @@
 #include <windows.h>
 #include <wchar.h>
 #include <stdio.h>
-#include "utilcode.h"
 #include "corjit.h"
-#include "slist.h"     // for SList
-#include "arraylist.h"
 #include "iallocator.h"
+#include "gcinfoarraylist.h"
 #include "stdmacros.h"
 #include "eexcp.h"
 #endif
 
 #include "gcinfotypes.h"
 
-#ifdef VERIFY_GCINFO
-#include "dbggcinfoencoder.h"
-#endif //VERIFY_GCINFO
+// As stated in issue #6008, GcInfoSize should be incorporated into debug builds. 
+#ifdef _DEBUG
+#define MEASURE_GCINFO
+#endif
 
 #ifdef MEASURE_GCINFO
 struct GcInfoSize
@@ -103,19 +116,23 @@ struct GcInfoSize
     size_t NumRanges;
     size_t NumRegs;
     size_t NumStack;
-    size_t NumEh;
+    size_t NumUntracked;
     size_t NumTransitions;
     size_t SizeOfCode;
+    size_t EncPreservedSlots;
 
+    size_t UntrackedSlotSize;
+    size_t NumUntrackedSize;
     size_t FlagsSize;
+    size_t RetKindSize;
     size_t CodeLengthSize;
     size_t ProEpilogSize;
     size_t SecObjSize;
     size_t GsCookieSize;
-    size_t GenericsCtxSize;
     size_t PspSymSize;
+    size_t GenericsCtxSize;
     size_t StackBaseSize;
-    size_t FrameMarkerSize;
+    size_t ReversePInvokeFrameSize;
     size_t FixedAreaSize;
     size_t NumCallSitesSize;
     size_t NumRangesSize;
@@ -126,7 +143,6 @@ struct GcInfoSize
     size_t RegSlotSize;
     size_t StackSlotSize;
     size_t CallSiteStateSize;
-    size_t NumEhSize;
     size_t EhPosSize;
     size_t EhStateSize;
     size_t ChunkPtrSize;
@@ -135,7 +151,7 @@ struct GcInfoSize
     size_t ChunkTransitionSize;
 
     GcInfoSize();
-    GcInfoSize& operator+=(GcInfoSize& other);
+    GcInfoSize& operator+=(const GcInfoSize& other);
     void Log(DWORD level, const char * header);
 };
 #endif
@@ -149,23 +165,23 @@ struct GcSlotDesc
     } Slot;
     GcSlotFlags Flags;
 
-    BOOL IsRegister()
+    BOOL IsRegister() const
     {
         return (Flags & GC_SLOT_IS_REGISTER);
     }
-    BOOL IsInterior()
+    BOOL IsInterior() const
     {
         return (Flags & GC_SLOT_INTERIOR);
     }
-    BOOL IsPinned()
+    BOOL IsPinned() const
     {
         return (Flags & GC_SLOT_PINNED);
     }    
-    BOOL IsUntracked()
+    BOOL IsUntracked() const
     {
         return (Flags & GC_SLOT_UNTRACKED);
     }    
-    BOOL IsDeleted()
+    BOOL IsDeleted() const
     {
         return (Flags & GC_SLOT_IS_DELETED);
     }
@@ -183,7 +199,6 @@ public:
 
     // bit 0 is the least significative bit
     void Write( size_t data, UINT32 count );
-    void Write( BitArray& a, UINT32 count );
 
     inline size_t GetBitCount()
     {
@@ -224,23 +239,42 @@ public:
     int EncodeVarLengthSigned( SSIZE_T n, UINT32 base );
 
 private:
-
-    class MemoryBlockDesc
+    class MemoryBlockList;
+    class MemoryBlock
     {
-    public:
-        size_t* StartAddress;
-        SLink m_Link;
+        friend class MemoryBlockList;
+        MemoryBlock* m_next;
 
-        inline void Init()
+    public:
+        size_t Contents[];
+
+        inline MemoryBlock* Next()
         {
-            m_Link.m_pNext = NULL;
+            return m_next;
         }
+    };
+
+    class MemoryBlockList
+    {
+        MemoryBlock* m_head;
+        MemoryBlock* m_tail;
+
+    public:
+        MemoryBlockList();
+
+        inline MemoryBlock* Head()
+        {
+            return m_head;
+        }
+
+        MemoryBlock* AppendNew(IAllocator* allocator, size_t bytes);
+        void Dispose(IAllocator* allocator);
     };
 
     IAllocator* m_pAllocator;
     size_t m_BitCount;
     UINT32 m_FreeBitsInCurrentSlot;
-    SList<MemoryBlockDesc> m_MemoryBlocks;
+    MemoryBlockList m_MemoryBlocks;
     const static int m_MemoryBlockSize = 128;    // must be a multiple of the pointer size
     size_t* m_pCurrentSlot;            // bits are written through this pointer
     size_t* m_OutOfBlockSlot;        // sentinel value to determine when the block is full
@@ -260,15 +294,10 @@ private:
     inline void AllocMemoryBlock()
     {
         _ASSERTE( IS_ALIGNED( m_MemoryBlockSize, sizeof( size_t ) ) );
-        m_pCurrentSlot = (size_t*) m_pAllocator->Alloc( m_MemoryBlockSize );
+        MemoryBlock* pMemBlock = m_MemoryBlocks.AppendNew(m_pAllocator, m_MemoryBlockSize);
+
+        m_pCurrentSlot = pMemBlock->Contents;
         m_OutOfBlockSlot = m_pCurrentSlot + m_MemoryBlockSize / sizeof( size_t );
-
-        MemoryBlockDesc* pMemBlockDesc = (MemoryBlockDesc*) m_pAllocator->Alloc( sizeof( MemoryBlockDesc ) );
-        _ASSERTE( IS_ALIGNED( pMemBlockDesc, sizeof( void* ) ) );
-
-        pMemBlockDesc->Init();
-        pMemBlockDesc->StartAddress = m_pCurrentSlot;
-        m_MemoryBlocks.InsertTail( pMemBlockDesc );
 
 #ifdef _DEBUG
            m_MemoryBlocksCount++;
@@ -305,13 +334,18 @@ enum GENERIC_CONTEXTPARAM_TYPE
     GENERIC_CONTEXTPARAM_THIS = 3,
 };
 
+extern void DECLSPEC_NORETURN ThrowOutOfMemory();
+
 class GcInfoEncoder
 {
 public:
+    typedef void (*NoMemoryFunction)(void);
+
     GcInfoEncoder(
             ICorJitInfo*                pCorJitInfo,
             CORINFO_METHOD_INFO*        pMethodInfo,
-            IAllocator*                 pJitAllocator
+            IAllocator*                 pJitAllocator,
+            NoMemoryFunction            pNoMem = ::ThrowOutOfMemory
             );
 
     struct LifetimeTransition
@@ -377,6 +411,11 @@ public:
                                     );
 
 
+    //------------------------------------------------------------------------
+    // ReturnKind
+    //------------------------------------------------------------------------
+
+    void SetReturnKind(ReturnKind returnKind);
 
     //------------------------------------------------------------------------
     // Miscellaneous method information
@@ -387,6 +426,7 @@ public:
     void SetGSCookieStackSlot( INT32 spOffsetGSCookie, UINT32 validRangeStart, UINT32 validRangeEnd );
     void SetPSPSymStackSlot( INT32 spOffsetPSPSym );
     void SetGenericsInstContextStackSlot( INT32 spOffsetGenericsContext, GENERIC_CONTEXTPARAM_TYPE type);
+    void SetReversePInvokeFrameSlot(INT32 spOffset);
     void SetIsVarArg();
     void SetCodeLength( UINT32 length );
 
@@ -396,10 +436,14 @@ public:
     // Number of slots preserved during EnC remap
     void SetSizeOfEditAndContinuePreservedArea( UINT32 size );
 
+#ifdef _TARGET_AMD64_
     // Used to only report a frame once for the leaf function/funclet
     // instead of once for each live function/funclet on the stack.
     // Called only by RyuJIT (not JIT64)
     void SetWantsReportOnlyLeaf();
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    void SetHasTailCalls();
+#endif // _TARGET_AMD64_
 
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
     void SetSizeOfStackOutgoingAndScratchArea( UINT32 size );
@@ -435,47 +479,10 @@ private:
         UINT32 NormStopOffset;
     };
 
-    class InterruptibleRangeAllocator
-    {
-    public:
-
-        static void *Alloc (void *context, SIZE_T cb)
-        {
-            GcInfoEncoder *pGcInfoEncoder = CONTAINING_RECORD(context, GcInfoEncoder, m_InterruptibleRanges);
-            return pGcInfoEncoder->m_pAllocator->Alloc(cb);
-        }
-
-        static void Free (void *context, void *pv)
-        {
-        #ifdef MUST_CALL_IALLOCATOR_FREE
-            GcInfoEncoder *pGcInfoEncoder = CONTAINING_RECORD(context, GcInfoEncoder, m_InterruptibleRanges);
-            pGcInfoEncoder->m_pAllocator->Free(pv);
-        #endif
-        }
-    };
-
-    class LifetimeTransitionAllocator
-    {
-    public:
-
-        static void *Alloc (void *context, SIZE_T cb)
-        {
-            GcInfoEncoder *pGcInfoEncoder = CONTAINING_RECORD(context, GcInfoEncoder, m_LifetimeTransitions);
-            return pGcInfoEncoder->m_pAllocator->Alloc(cb);
-        }
-
-        static void Free (void *context, void *pv)
-        {
-        #ifdef MUST_CALL_IALLOCATOR_FREE
-            GcInfoEncoder *pGcInfoEncoder = CONTAINING_RECORD(context, GcInfoEncoder, m_LifetimeTransitions);
-            pGcInfoEncoder->m_pAllocator->Free(pv);
-        #endif
-        }
-    };
-
     ICorJitInfo*                m_pCorJitInfo;
     CORINFO_METHOD_INFO*        m_pMethodInfo;
     IAllocator*                 m_pAllocator;
+    NoMemoryFunction            m_pNoMem;
 
 #ifdef _DEBUG
     const char *m_MethodName, *m_ModuleName;
@@ -484,11 +491,15 @@ private:
     BitStreamWriter     m_Info1;    // Used for everything except for chunk encodings
     BitStreamWriter     m_Info2;    // Used for chunk encodings
 
-    StructArrayList<InterruptibleRange, 8, 2, InterruptibleRangeAllocator> m_InterruptibleRanges;
-    StructArrayList<LifetimeTransition, 64, 2, LifetimeTransitionAllocator> m_LifetimeTransitions;
+    GcInfoArrayList<InterruptibleRange, 8> m_InterruptibleRanges;
+    GcInfoArrayList<LifetimeTransition, 64> m_LifetimeTransitions;
 
     bool   m_IsVarArg;
+#if defined(_TARGET_AMD64_)
     bool   m_WantsReportOnlyLeaf;
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    bool   m_HasTailCalls;
+#endif // _TARGET_AMD64_
     INT32  m_SecurityObjectStackSlot;
     INT32  m_GSCookieStackSlot;
     UINT32 m_GSCookieValidRangeStart;
@@ -496,9 +507,11 @@ private:
     INT32  m_PSPSymStackSlot;
     INT32  m_GenericsInstContextStackSlot;
     GENERIC_CONTEXTPARAM_TYPE m_contextParamType;
+    ReturnKind m_ReturnKind;
     UINT32 m_CodeLength;
     UINT32 m_StackBaseRegister;
     UINT32 m_SizeOfEditAndContinuePreservedArea;
+    INT32  m_ReversePInvokeFrameSlot;
     InterruptibleRange* m_pLastInterruptibleRange;
     
 #ifdef FIXED_STACK_PARAMETER_SCRATCH_AREA
@@ -545,10 +558,6 @@ private:
 #ifdef _DEBUG
     bool m_IsSlotTableFrozen;
 #endif
-
-#ifdef VERIFY_GCINFO
-    DbgGcInfo::GcInfoEncoder m_DbgEncoder;
-#endif    
 
 #ifdef MEASURE_GCINFO
     GcInfoSize m_CurrentMethodSize;

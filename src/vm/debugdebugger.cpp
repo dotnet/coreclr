@@ -16,13 +16,12 @@
 
 #include <object.h>
 #include "ceeload.h"
-#include "corpermp.h"
 
 #include "excep.h"
 #include "frames.h"
 #include "vars.hpp"
 #include "field.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "jitinterface.h"
 #include "debugdebugger.h"
 #include "dbginterface.h"
@@ -31,8 +30,6 @@
 #include "generics.h"
 #include "eemessagebox.h"
 #include "stackwalk.h"
-
-LogHashTable g_sLogHashTable;
 
 #ifndef DACCESS_COMPILE
 //----------------------------------------------------------------------------
@@ -102,61 +99,6 @@ UINT_PTR FindMostRecentUserCodeOnStack(void)
     return address;
 }
 
-#ifndef FEATURE_CORECLR   
-// Call into the unhandled-exception processing code to launch Watson.
-// 
-// Arguments:
-//    address - address to distinguish callsite of break.
-//    
-// Notes:
-//    Invokes a watson dialog in response to a user break (Debug.Break).
-//    Assumes that caller has already enforced any policy it cares about related to whether a debugger is attached.
-void DoWatsonForUserBreak(UINT_PTR address)
-{
-    CONTRACTL
-    {
-        MODE_ANY;
-        GC_TRIGGERS;
-        THROWS;
-        PRECONDITION(address != NULL);
-    }
-    CONTRACTL_END;
-
-    CONTEXT context;
-    EXCEPTION_RECORD exceptionRecord;
-    EXCEPTION_POINTERS exceptionPointers;
-
-    ZeroMemory(&context, sizeof(context));
-    ZeroMemory(&exceptionRecord, sizeof(exceptionRecord));
-    ZeroMemory(&exceptionPointers, sizeof(exceptionPointers));
-
-    // Try to locate the user managed code invoking System.Diagnostics.Debugger.Break
-    UINT_PTR userCodeAddress = FindMostRecentUserCodeOnStack();
-    if (userCodeAddress != NULL)
-    {
-        address = userCodeAddress;
-    }
-
-    LOG((LF_EH, LL_INFO10, "DoDebugBreak: break at %0p\n", address));
-
-    exceptionRecord.ExceptionAddress = reinterpret_cast< PVOID >(address);
-    exceptionPointers.ExceptionRecord = &exceptionRecord;
-    exceptionPointers.ContextRecord = &context;
-
-    Thread *pThread = GetThread();
-    PTR_EHWatsonBucketTracker pUEWatsonBucketTracker = pThread->GetExceptionState()->GetUEWatsonBucketTracker();
-    _ASSERTE(pUEWatsonBucketTracker != NULL);
-    pUEWatsonBucketTracker->SaveIpForWatsonBucket(address);
-    pUEWatsonBucketTracker->CaptureUnhandledInfoForWatson(TypeOfReportedError::UserBreakpoint, pThread, NULL);
-    if (pUEWatsonBucketTracker->RetrieveWatsonBuckets() == NULL)
-    {
-        pUEWatsonBucketTracker->ClearWatsonBucketDetails();
-    }
-
-    WatsonLastChance(GetThread(), &exceptionPointers, TypeOfReportedError::UserBreakpoint);
-
-} // void DoDebugBreak()
-#endif // !FEATURE_CORECLR   
 
 // This does a user break, triggered by System.Diagnostics.Debugger.Break, or the IL opcode for break.
 //
@@ -210,12 +152,6 @@ FCIMPL0(void, DebugDebugger::Break)
     }
     else
     {   
-#ifndef FEATURE_CORECLR        
-        // No debugger attached -- Watson up.
-
-        // The HelperMethodFrame knows how to get the return address.
-        DoWatsonForUserBreak(HELPER_METHOD_FRAME_GET_RETURN_ADDRESS());
-#endif //FEATURE_CORECLR
     }
 
     HELPER_METHOD_FRAME_END();
@@ -388,9 +324,10 @@ FCIMPL0(FC_BOOL_RET, DebugDebugger::IsLogging)
 FCIMPLEND
 
 
-FCIMPL3(void, DebugStackTrace::GetStackFramesInternal, 
+FCIMPL4(void, DebugStackTrace::GetStackFramesInternal, 
         StackFrameHelper* pStackFrameHelperUNSAFE, 
         INT32 iSkip, 
+        CLR_BOOL fNeedFileInfo,
         Object* pExceptionUNSAFE
        )
 {    
@@ -423,7 +360,7 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
     if (pException == NULL)
     {
         // Thread is NULL if it's the current thread.
-        data.TargetThread = pStackFrameHelper->TargetThread;
+        data.TargetThread = pStackFrameHelper->targetThread;
         GetStackFrames(NULL, (void*)-1, &data);
     }
     else
@@ -438,56 +375,74 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 
     if (data.cElements != 0)
     {
-#ifdef FEATURE_COMINTEROP        
-        if (pStackFrameHelper->fNeedFileInfo)
+#if defined(FEATURE_ISYM_READER) && defined(FEATURE_COMINTEROP)
+        if (fNeedFileInfo)
         {
              // Calls to COM up ahead.
             EnsureComStarted();
         }
-#endif // FEATURE_COMINTEROP
-
-        MethodTable *pMT = MscorlibBinder::GetClass(CLASS__METHOD_HANDLE);
-        TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pMT), ELEMENT_TYPE_SZARRAY);
+#endif // FEATURE_ISYM_READER && FEATURE_COMINTEROP
 
         // Allocate memory for the MethodInfo objects
-        BASEARRAYREF MethodInfoArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
-        //printf("\nmethod table = %X\n", pMT);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgMethodHandle), (OBJECTREF)MethodInfoArray,
+        BASEARRAYREF methodInfoArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgMethodHandle), (OBJECTREF)methodInfoArray,
                             pStackFrameHelper->GetAppDomain());
 
         // Allocate memory for the Offsets 
-        OBJECTREF Offsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiOffset), (OBJECTREF)Offsets,
+        OBJECTREF offsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiOffset), (OBJECTREF)offsets,
                             pStackFrameHelper->GetAppDomain());
 
         // Allocate memory for the ILOffsets 
-        OBJECTREF ILOffsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiILOffset), (OBJECTREF)ILOffsets,
+        OBJECTREF ilOffsets = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiILOffset), (OBJECTREF)ilOffsets,
                             pStackFrameHelper->GetAppDomain());
 
-        // if we need Filename, linenumber, etc., then allocate memory for the same
+        // Allocate memory for the array of assembly file names
+        PTRARRAYREF assemblyPathArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgAssemblyPath), (OBJECTREF)assemblyPathArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the LoadedPeAddress
+        BASEARRAYREF loadedPeAddressArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgLoadedPeAddress), (OBJECTREF)loadedPeAddressArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the LoadedPeSize
+        OBJECTREF loadedPeSizeArray = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLoadedPeSize), (OBJECTREF)loadedPeSizeArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the InMemoryPdbAddress
+        BASEARRAYREF inMemoryPdbAddressArray = (BASEARRAYREF) AllocatePrimitiveArray(ELEMENT_TYPE_I, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgInMemoryPdbAddress), (OBJECTREF)inMemoryPdbAddressArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the InMemoryPdbSize
+        OBJECTREF inMemoryPdbSizeArray = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiInMemoryPdbSize), (OBJECTREF)inMemoryPdbSizeArray,
+                            pStackFrameHelper->GetAppDomain());
+
+        // Allocate memory for the MethodTokens
+        OBJECTREF methodTokens = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiMethodToken), (OBJECTREF)methodTokens,
+                            pStackFrameHelper->GetAppDomain());
+        
         // Allocate memory for the Filename string objects
-        PTRARRAYREF FilenameArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgFilename), (OBJECTREF)FilenameArray,
+        PTRARRAYREF filenameArray = (PTRARRAYREF) AllocateObjectArray(data.cElements, g_pStringClass);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgFilename), (OBJECTREF)filenameArray,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the Offsets 
-        OBJECTREF LineNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLineNumber), (OBJECTREF)LineNumbers,
+        // Allocate memory for the LineNumbers
+        OBJECTREF lineNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLineNumber), (OBJECTREF)lineNumbers,
                             pStackFrameHelper->GetAppDomain());
 
-        // Allocate memory for the ILOffsets 
-        OBJECTREF ColumnNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
-
-        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiColumnNumber), (OBJECTREF)ColumnNumbers,
+        // Allocate memory for the ColumnNumbers
+        OBJECTREF columnNumbers = AllocatePrimitiveArray(ELEMENT_TYPE_I4, data.cElements);
+        SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiColumnNumber), (OBJECTREF)columnNumbers,
                             pStackFrameHelper->GetAppDomain());
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         // Allocate memory for the flag indicating if this frame represents the last one from a foreign
         // exception stack trace provided we have any such frames. Otherwise, set it to null.
         // When StackFrameHelper.IsLastFrameFromForeignExceptionStackTrace is invoked in managed code,
@@ -501,14 +456,13 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
             IsLastFrameFromForeignStackTraceFlags = AllocatePrimitiveArray(ELEMENT_TYPE_BOOLEAN, data.cElements);
 
             SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLastFrameFromForeignExceptionStackTrace), (OBJECTREF)IsLastFrameFromForeignStackTraceFlags,
-                            pStackFrameHelper->GetAppDomain());
+                                pStackFrameHelper->GetAppDomain());
         }
         else
         {
             SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->rgiLastFrameFromForeignExceptionStackTrace), NULL,
-                            pStackFrameHelper->GetAppDomain());
+                                pStackFrameHelper->GetAppDomain());
         }
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
         // Determine if there are any dynamic methods in the stack trace.  If there are,
         // allocate an ObjectArray large enough to hold an ObjRef to each one.
@@ -530,17 +484,14 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
         
         if (iNumDynamics)
         {            
-            PTRARRAYREF DynamicDataArray = (PTRARRAYREF) AllocateObjectArray(iNumDynamics, g_pObjectClass);
-            
-            SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->dynamicMethods), (OBJECTREF)DynamicDataArray,
+            PTRARRAYREF dynamicDataArray = (PTRARRAYREF) AllocateObjectArray(iNumDynamics, g_pObjectClass);
+            SetObjectReference( (OBJECTREF *)&(pStackFrameHelper->dynamicMethods), (OBJECTREF)dynamicDataArray,
                                 pStackFrameHelper->GetAppDomain());
         }
         
         int iNumValidFrames = 0;
-        for (int i=0; i<data.cElements; i++)
+        for (int i = 0; i < data.cElements; i++)
         {
-            size_t *pElem = (size_t*)pStackFrameHelper->rgMethodHandle->GetDataPtr();
-
             // The managed stacktrace classes always returns typical method definition, so we don't need to bother providing exact instantiation.
             // Generics::GetExactInstantiationsOfMethodAndItsClassFromCallInformation(data.pElements[i].pFunc, data.pElements[i].pExactGenericArgsToken, &pExactMethod, &thExactType);
             MethodDesc* pFunc = data.pElements[i].pFunc;
@@ -550,19 +501,18 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                 pFunc = pFunc->StripMethodInstantiation();
             _ASSERTE(pFunc->IsRuntimeMethodHandle());
 
+            // Method handle
+            size_t *pElem = (size_t*)pStackFrameHelper->rgMethodHandle->GetDataPtr();
             pElem[iNumValidFrames] = (size_t)pFunc;
 
-            // native offset
-            I4 *pI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiOffset)
-                                        ->GetDirectPointerToNonObjectElements();
-            pI4 [iNumValidFrames] = data.pElements[i].dwOffset; 
+            // Native offset
+            I4 *pI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiOffset)->GetDirectPointerToNonObjectElements();
+            pI4[iNumValidFrames] = data.pElements[i].dwOffset;
 
             // IL offset
-            I4 *pILI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiILOffset)
-                                        ->GetDirectPointerToNonObjectElements();
-            pILI4 [iNumValidFrames] = data.pElements[i].dwILOffset; 
+            I4 *pILI4 = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiILOffset)->GetDirectPointerToNonObjectElements();
+            pILI4[iNumValidFrames] = data.pElements[i].dwILOffset;
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
             if (data.fDoWeHaveAnyFramesFromForeignStackTrace)
             {
                 // Set the BOOL indicating if the frame represents the last frame from a foreign exception stack trace.
@@ -570,9 +520,7 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                                             ->GetDirectPointerToNonObjectElements();
                 pIsLastFrameFromForeignExceptionStackTraceU1 [iNumValidFrames] = (U1) data.pElements[i].fIsLastFrameFromForeignStackTrace; 
             }
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
-            BOOL fFileInfoSet = FALSE;
             MethodDesc *pMethod = data.pElements[i].pFunc;
 
             // If there are any dynamic methods, and this one is one of them, store
@@ -585,18 +533,16 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                     OBJECTREF pResolver = pDMD->GetLCGMethodResolver()->GetManagedResolver();
                     _ASSERTE(pResolver != NULL);
                     
-                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt (iCurDynamic++, pResolver);
+                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt(iCurDynamic++, pResolver);
                 }
-                else
-                if (pMethod->GetMethodTable()->Collectible())
+                else if (pMethod->GetMethodTable()->Collectible())
                 {
                     OBJECTREF pLoaderAllocator = pMethod->GetMethodTable()->GetLoaderAllocator()->GetExposedObject();
                     _ASSERTE(pLoaderAllocator != NULL);
-                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt (iCurDynamic++, pLoaderAllocator);
+                    ((PTRARRAYREF)pStackFrameHelper->dynamicMethods)->SetAt(iCurDynamic++, pLoaderAllocator);
                 }
             }
 
-#ifdef FEATURE_ISYM_READER
             Module *pModule = pMethod->GetModule();
 
             // If it's an EnC method, then don't give back any line info, b/c the PDB is out of date.
@@ -610,23 +556,24 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 #ifdef EnC_SUPPORTED                
             if (pModule->IsEditAndContinueEnabled())
             {
-                EditAndContinueModule *eacm = (EditAndContinueModule *) pModule;
+                EditAndContinueModule *eacm = (EditAndContinueModule *)pModule;
                 if (eacm->GetApplyChangesCount() != 1)
                 {
-                    fIsEnc = true;        
-                }                    
+                    fIsEnc = true;
+                }
             }
 #endif
-            
-            // check if the user wants the filenumber, linenumber info...
-            if (!fIsEnc && pStackFrameHelper->fNeedFileInfo)
+            BOOL fPortablePDB = TRUE;
+
+            // Check if the user wants the filenumber, linenumber info and that it is possible.
+            if (!fIsEnc && fNeedFileInfo)
             {
-                // Use the MethodDesc...
+#ifdef FEATURE_ISYM_READER
+                BOOL fFileInfoSet = FALSE;
                 ULONG32 sourceLine = 0;
                 ULONG32 sourceColumn = 0;
                 WCHAR wszFileName[MAX_LONGPATH];
                 ULONG32 fileNameLength = 0;
-
                 {
                     // Note: we need to enable preemptive GC when accessing the unmanages symbol store.
                     GCX_PREEMP();
@@ -639,6 +586,10 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 
                     if (pISymUnmanagedReader != NULL)
                     {
+                        // Found a ISymUnmanagedReader for the regular PDB so don't attempt to 
+                        // read it as a portable PDB in mscorlib's StackFrameHelper.
+                        fPortablePDB = FALSE;
+
                         ReleaseHolder<ISymUnmanagedMethod> pISymUnmanagedMethod;  
                         HRESULT hr = pISymUnmanagedReader->GetMethod(pMethod->GetMemberDef(), 
                                                                      &pISymUnmanagedMethod);
@@ -709,7 +660,7 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                                             // look for the entry matching the one we're looking for
                                             if (offsets[j] >= dwCurILOffset)
                                             {
-                                                // if this offset is > what we're looking for, ajdust the index
+                                                // if this offset is > what we're looking for, adjust the index
                                                 if (offsets[j] > dwCurILOffset && j > 0)
                                                 {
                                                     j--;
@@ -749,7 +700,6 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
                                         hr = documents [j]->GetURL (MAX_LONGPATH, &fileNameLength, wszFileName);
                                         _ASSERTE ( SUCCEEDED(hr) || (hr == E_OUTOFMEMORY) || (hr == HRESULT_FROM_WIN32(ERROR_NOT_ENOUGH_MEMORY)) );
 
-
                                         // indicate that the requisite information has been set!
                                         fFileInfoSet = TRUE;
 
@@ -770,52 +720,73 @@ FCIMPL3(void, DebugStackTrace::GetStackFramesInternal,
 
                 } // GCX_PREEMP()
                 
-                if (fFileInfoSet == TRUE)
+                if (fFileInfoSet)
                 {
                     // Set the line and column numbers
-                    I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)
-                        ->GetDirectPointerToNonObjectElements();
-                    I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)
-                        ->GetDirectPointerToNonObjectElements();
+                    I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)->GetDirectPointerToNonObjectElements();
+                    pI4Line[iNumValidFrames] = sourceLine;  
 
-                    pI4Line [iNumValidFrames] = sourceLine;  
-                    pI4Column [iNumValidFrames] = sourceColumn;  
+                    I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)->GetDirectPointerToNonObjectElements();
+                    pI4Column[iNumValidFrames] = sourceColumn;  
 
                     // Set the file name
                     OBJECTREF obj = (OBJECTREF) StringObject::NewString(wszFileName);
                     pStackFrameHelper->rgFilename->SetAt(iNumValidFrames, obj);
                 }
-            }
 #endif // FEATURE_ISYM_READER
 
-            if (fFileInfoSet == FALSE)
-            {
-                I4 *pI4Line = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLineNumber)
-                                            ->GetDirectPointerToNonObjectElements();
-                I4 *pI4Column = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiColumnNumber)
-                                            ->GetDirectPointerToNonObjectElements();
-                pI4Line [iNumValidFrames] = 0;
-                pI4Column [iNumValidFrames] = 0;
+                // If the above isym reader code did NOT set the source info either because it is ifdef'ed out (on xplat)
+                // or because the pdb is the new portable format on Windows then set the information needed to call the
+                // portable pdb reader in the StackTraceHelper.
+                if (fPortablePDB)
+                {
+                    // Save MethodToken for the function
+                    I4 *pMethodToken = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiMethodToken)->GetDirectPointerToNonObjectElements();
+                    pMethodToken[iNumValidFrames] = pMethod->GetMemberDef();
 
-                pStackFrameHelper->rgFilename->SetAt(iNumValidFrames, NULL);
-                
+                    PEFile *pPEFile = pModule->GetFile();
+
+                    // Get the address and size of the loaded PE image
+                    COUNT_T peSize;
+                    PTR_CVOID peAddress = pPEFile->GetLoadedImageContents(&peSize);
+
+                    // Save the PE address and size
+                    PTR_CVOID *pLoadedPeAddress = (PTR_CVOID *)pStackFrameHelper->rgLoadedPeAddress->GetDataPtr();
+                    pLoadedPeAddress[iNumValidFrames] = peAddress;
+
+                    I4 *pLoadedPeSize = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiLoadedPeSize)->GetDirectPointerToNonObjectElements();
+                    pLoadedPeSize[iNumValidFrames] = (I4)peSize;
+
+                    // If there is a in memory symbol stream
+                    CGrowableStream* stream = pModule->GetInMemorySymbolStream();
+                    if (stream != NULL)
+                    {
+                        MemoryRange range = stream->GetRawBuffer();
+
+                        // Save the in-memory PDB address and size
+                        PTR_VOID *pInMemoryPdbAddress = (PTR_VOID *)pStackFrameHelper->rgInMemoryPdbAddress->GetDataPtr();
+                        pInMemoryPdbAddress[iNumValidFrames] = range.StartAddress();
+
+                        I4 *pInMemoryPdbSize = (I4 *)((I4ARRAYREF)pStackFrameHelper->rgiInMemoryPdbSize)->GetDirectPointerToNonObjectElements();
+                        pInMemoryPdbSize[iNumValidFrames] = (I4)range.Size();
+                    }
+                    else
+                    {
+                        // Set the pdb path (assembly file name)
+                        const SString& assemblyPath = pPEFile->GetPath();
+                        if (!assemblyPath.IsEmpty())
+                        {
+                            OBJECTREF obj = (OBJECTREF)StringObject::NewString(assemblyPath);
+                            pStackFrameHelper->rgAssemblyPath->SetAt(iNumValidFrames, obj);
+                        }
+                    }
+                }
             }
 
             iNumValidFrames++;
         }
 
         pStackFrameHelper->iFrameCount = iNumValidFrames;
-
-        /*
-        int *pArray = (int*)OBJECTREFToObject(pStackFrameHelper->rgMethodHandle);
-        printf("array { MT - %X, size = %d", pArray[0], pArray[1]);
-        for (int i=0; i<pArray[1]; i++)
-        {
-            printf(", method desc in array[%d] = %X", i, pArray[i + 2]);
-        }
-        printf("}\n");
-        */
-
     }
     else
     {
@@ -963,62 +934,8 @@ void DebugStackTrace::GetStackFramesHelper(Frame *pStartFrame,
             goto LSafeToTrace;
         }
 
-        if (state & Thread::TS_UserSuspendPending)
-        {
-            if (state & Thread::TS_SyncSuspended)
-            {
-                goto LSafeToTrace;
-            }
-
-#ifndef DISABLE_THREADSUSPEND
-            // On Mac don't perform the optimization below, but rather wait for 
-            // the suspendee to set the TS_SyncSuspended flag
-
-            // The target thread is not actually suspended yet, but if it is
-            // in preemptive mode, then it is still safe to trace.  Before we
-            // can look at another thread's GC mode, we have to suspend it:
-            // The target thread updates its GC mode flag with non-interlocked
-            // operations, and Thread::SuspendThread drains the CPU's store
-            // buffer (by virtue of calling GetThreadContext).
-            switch (pThread->SuspendThread())
-            {
-            case Thread::STR_Success:
-                if (!pThread->PreemptiveGCDisabledOther())
-                {
-                    pThread->ResumeThread();
-                    goto LSafeToTrace;
-                }
-
-                // Refuse to trace the stack.
-                //
-                // Note that there is a pretty large window in-between when the
-                // target thread sets the GC mode to cooperative, and when it
-                // actually sets the TS_SyncSuspended bit.  In this window, we
-                // will refuse to take a stack trace even though it would be
-                // safe to do so.
-                pThread->ResumeThread();
-                break;
-            case Thread::STR_Failure:
-            case Thread::STR_NoStressLog:
-                break;
-            case Thread::STR_UnstartedOrDead:
-                // We know the thread is not unstarted, because we checked for
-                // TS_Unstarted above.
-                _ASSERTE(!(state & Thread::TS_Unstarted));
-
-                // Since the thread is dead, it is safe to trace.
-                goto LSafeToTrace;
-            case Thread::STR_SwitchedOut:
-                if (!pThread->PreemptiveGCDisabledOther())
-                {
-                    goto LSafeToTrace;
-                }
-                break;
-            default:
-                UNREACHABLE();
-            }
-#endif  // DISABLE_THREADSUSPEND
-        }
+        // CoreCLR does not support user-requested thread suspension
+        _ASSERTE(!(state & Thread::TS_UserSuspendPending));
 
         COMPlusThrow(kThreadStateException, IDS_EE_THREAD_BAD_STATE);
 
@@ -1184,10 +1101,8 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
         // The number of frame info elements in the stack trace info
         pData->cElements = static_cast<int>(traceData.Size());
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         // By default, assume that we have no frames from foreign exception stack trace.
         pData->fDoWeHaveAnyFramesFromForeignStackTrace = FALSE;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
         // Now we know the size, allocate the information for the data struct
         if (pData->cElements != 0)
@@ -1200,7 +1115,6 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
             {
                 StackTraceElement const & cur = traceData[i];
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
                 // If we come across any frame representing foreign exception stack trace,
                 // then set the flag indicating so. This will be used to allocate the
                 // corresponding array in StackFrameHelper.
@@ -1208,7 +1122,6 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
                 {
                     pData->fDoWeHaveAnyFramesFromForeignStackTrace = TRUE;
                 }
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
                 // Fill out the MethodDesc*
                 MethodDesc *pMD = cur.pFunc;
@@ -1231,9 +1144,7 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
                 }
 
                 pData->pElements[i].InitPass1(dwNativeOffset, pMD, (PCODE) cur.ip
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
                     , cur.fIsLastFrameFromForeignStackTrace
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
                     );
 #ifndef DACCESS_COMPILE
                 pData->pElements[i].InitPass2();            
@@ -1255,9 +1166,7 @@ void DebugStackTrace::DebugStackTraceElement::InitPass1(
     DWORD dwNativeOffset,
     MethodDesc *pFunc,
     PCODE ip
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     , BOOL fIsLastFrameFromForeignStackTrace /*= FALSE*/
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 )
 {
     LIMITED_METHOD_CONTRACT;
@@ -1269,9 +1178,7 @@ void DebugStackTrace::DebugStackTraceElement::InitPass1(
     this->pFunc = pFunc;
     this->dwOffset = dwNativeOffset;
     this->ip = ip;
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     this->fIsLastFrameFromForeignStackTrace = fIsLastFrameFromForeignStackTrace;
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 }
 
 #ifndef DACCESS_COMPILE
@@ -1307,426 +1214,6 @@ void DebugStackTrace::DebugStackTraceElement::InitPass2()
     {
         this->dwILOffset = (DWORD)-1;
     }
-}
-
-FCIMPL4(INT32, DebuggerAssert::ShowDefaultAssertDialog, 
-        StringObject* strConditionUNSAFE, 
-        StringObject* strMessageUNSAFE,
-        StringObject* strStackTraceUNSAFE,
-        StringObject* strWindowTitleUNSAFE
-       )
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(strConditionUNSAFE, NULL_OK));
-        PRECONDITION(CheckPointer(strMessageUNSAFE, NULL_OK));
-        PRECONDITION(CheckPointer(strStackTraceUNSAFE, NULL_OK));
-        PRECONDITION(CheckPointer(strWindowTitleUNSAFE, NULL_OK));
-    }
-    CONTRACTL_END;
-    
-    int         result          = IDRETRY;
-
-    struct _gc {
-        STRINGREF strCondition;
-        STRINGREF strMessage;
-        STRINGREF strStackTrace;
-        STRINGREF strWindowTitle;
-    } gc;
-
-    gc.strCondition    = (STRINGREF) ObjectToOBJECTREF(strConditionUNSAFE);
-    gc.strMessage      = (STRINGREF) ObjectToOBJECTREF(strMessageUNSAFE);
-    gc.strStackTrace   = (STRINGREF) ObjectToOBJECTREF(strStackTraceUNSAFE);
-    gc.strWindowTitle  = (STRINGREF) ObjectToOBJECTREF(strWindowTitleUNSAFE);
-
-    HELPER_METHOD_FRAME_BEGIN_RET_PROTECT(gc);
-
-    StackSString condition;
-    StackSString message;
-    StackSString stackTrace;
-    StackSString windowTitle;
-
-    if (gc.strCondition != NULL)
-        gc.strCondition->GetSString(condition);
-    if (gc.strMessage != NULL)
-        gc.strMessage->GetSString(message);
-    if (gc.strStackTrace != NULL)
-        gc.strStackTrace->GetSString(stackTrace);
-    if (gc.strWindowTitle != NULL)
-        gc.strWindowTitle->GetSString(windowTitle);
-
-    StackSString msgText;
-    if (gc.strCondition != NULL) {
-        msgText.Append(W("Expression: "));
-        msgText.Append(condition);
-        msgText.Append(W("\n"));
-    }
-    msgText.Append(W("Description: "));
-    msgText.Append(message);
-    
-    StackSString stackTraceText;
-    if (gc.strStackTrace != NULL) {
-        stackTraceText.Append(W("Stack Trace:\n"));
-        stackTraceText.Append(stackTrace);
-    }
-
-    if (gc.strWindowTitle == NULL) {
-        windowTitle.Set(W("Assert Failure"));
-    }
-
-    // We're taking a string from managed code, and we can't be sure it doesn't have stuff like %s or \n in it.
-    // So, pass a format string of %s and pass the text as a vararg to our message box method.
-    // Also, varargs and StackSString don't mix.  Convert to string first.
-    const WCHAR* msgTextAsUnicode = msgText.GetUnicode();
-    result = EEMessageBoxNonLocalizedNonFatal(W("%s"), windowTitle, stackTraceText, MB_ABORTRETRYIGNORE | MB_ICONEXCLAMATION, msgTextAsUnicode);
-    
-    // map the user's choice to the values recognized by 
-    // the System.Diagnostics.Assert package
-    if (result == IDRETRY)
-    {
-        result = FailDebug;
-    }
-    else if (result == IDIGNORE)
-    {
-        result = FailIgnore;
-    }
-    else
-    {
-        result = FailTerminate;
-    }
-
-    HELPER_METHOD_FRAME_END();
-    return result;
-}
-FCIMPLEND
-
-
-FCIMPL1( void, Log::AddLogSwitch, 
-         LogSwitchObject* logSwitchUNSAFE 
-       )
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(logSwitchUNSAFE));
-    }
-    CONTRACTL_END;
-
-    Thread *pThread = GetThread();
-    _ASSERTE(pThread);
-
-    HRESULT hresult = S_OK;
-        
-    struct _gc {        
-        LOGSWITCHREF    m_LogSwitch;
-        STRINGREF       Name;
-        OBJECTREF       tempObj;
-        STRINGREF       strrefParentName;
-    } gc;
-
-    ZeroMemory(&gc, sizeof(gc));
-
-    HELPER_METHOD_FRAME_BEGIN_PROTECT(gc);        
-        
-    gc.m_LogSwitch = (LOGSWITCHREF)ObjectToOBJECTREF(logSwitchUNSAFE);
-
-    // From the given args, extract the LogSwitch name
-    gc.Name = ((LogSwitchObject*) OBJECTREFToObject(gc.m_LogSwitch))->GetName();
-
-    _ASSERTE( gc.Name != NULL );
-    WCHAR *pstrCategoryName = NULL;
-    int iCategoryLength = 0;
-    WCHAR wszParentName [MAX_LOG_SWITCH_NAME_LEN+1];
-    WCHAR wszSwitchName [MAX_LOG_SWITCH_NAME_LEN+1];
-    wszParentName [0] = W('\0');
-    wszSwitchName [0] = W('\0');
-
-    // extract the (WCHAR) name from the STRINGREF object
-    gc.Name->RefInterpretGetStringValuesDangerousForGC(&pstrCategoryName, &iCategoryLength);
-
-    _ASSERTE (iCategoryLength > 0);
-    wcsncpy_s(wszSwitchName, COUNTOF(wszSwitchName), pstrCategoryName, _TRUNCATE);
-
-    // check if an entry with this name already exists in the hash table.
-    // Duplicates are not allowed.
-    // <REVISIT_TODO>: access to the hashtable is not synchronized!</REVISIT_TODO>
-    if(g_sLogHashTable.GetEntryFromHashTable(pstrCategoryName) != NULL)
-    {
-        hresult = TYPE_E_DUPLICATEID;
-    }
-    else
-    {
-        // Create a strong reference handle to the LogSwitch object
-        OBJECTHANDLE ObjHandle = pThread->GetDomain()->CreateStrongHandle(NULL);
-        StoreObjectInHandle(ObjHandle, ObjectToOBJECTREF(gc.m_LogSwitch));
-        // Use  ObjectFromHandle(ObjHandle) to get back the object. 
-        
-        hresult = g_sLogHashTable.AddEntryToHashTable(pstrCategoryName, ObjHandle);
-
-        // If we failed to insert this into the hash table, destroy the handle so
-        // that we don't leak it.
-        if (FAILED(hresult))
-        {
-             ::DestroyStrongHandle(ObjHandle);
-        }
-
-#ifdef DEBUGGING_SUPPORTED
-        if (hresult == S_OK)
-        {
-            // tell the attached debugger about this switch
-            if (CORDebuggerAttached())
-            {
-                int iLevel = gc.m_LogSwitch->GetLevel();
-                WCHAR *pstrParentName = NULL;
-                int iParentNameLength = 0;
-
-                gc.tempObj = gc.m_LogSwitch->GetParent();
-
-                LogSwitchObject* pParent = (LogSwitchObject*) OBJECTREFToObject( gc.tempObj );
-
-                if (pParent != NULL)
-                {
-                    // From the given args, extract the ParentLogSwitch's name
-                    gc.strrefParentName = pParent->GetName();
-
-                    // extract the (WCHAR) name from the STRINGREF object
-                    gc.strrefParentName->RefInterpretGetStringValuesDangerousForGC(&pstrParentName, &iParentNameLength );
-
-                    if (iParentNameLength > MAX_LOG_SWITCH_NAME_LEN)
-                    {
-                        wcsncpy_s (wszParentName, COUNTOF(wszParentName), pstrParentName, _TRUNCATE);
-                    }
-                    else
-                    {
-                        wcscpy_s (wszParentName, COUNTOF(wszParentName), pstrParentName);
-                    }
-                }
-
-                g_pDebugInterface->SendLogSwitchSetting (iLevel, SWITCH_CREATE, wszSwitchName, wszParentName );
-            }
-        }   
-#endif // DEBUGGING_SUPPORTED
-    }
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-
-FCIMPL3(void, Log::ModifyLogSwitch, 
-        INT32 Level, 
-        StringObject* strLogSwitchNameUNSAFE, 
-        StringObject* strParentNameUNSAFE
-       )
-{
-    CONTRACTL
-    {
-        FCALL_CHECK;
-        PRECONDITION(CheckPointer(strLogSwitchNameUNSAFE));
-        PRECONDITION(CheckPointer(strParentNameUNSAFE));
-    }
-    CONTRACTL_END;
-    
-    STRINGREF strLogSwitchName = (STRINGREF) ObjectToOBJECTREF(strLogSwitchNameUNSAFE);
-    STRINGREF strParentName = (STRINGREF) ObjectToOBJECTREF(strParentNameUNSAFE);
-    
-    HELPER_METHOD_FRAME_BEGIN_2(strLogSwitchName, strParentName);
-
-    _ASSERTE (strLogSwitchName != NULL);
-    
-    WCHAR *pstrLogSwitchName = NULL;
-    WCHAR *pstrParentName = NULL;
-    int iSwitchNameLength = 0;
-    int iParentNameLength = 0;
-    WCHAR wszParentName [MAX_LOG_SWITCH_NAME_LEN+1];
-    WCHAR wszSwitchName [MAX_LOG_SWITCH_NAME_LEN+1];
-    wszParentName [0] = W('\0');
-    wszSwitchName [0] = W('\0');
-
-    // extract the (WCHAR) name from the STRINGREF object
-    strLogSwitchName->RefInterpretGetStringValuesDangerousForGC (
-                        &pstrLogSwitchName,
-                        &iSwitchNameLength);
-
-    if (iSwitchNameLength > MAX_LOG_SWITCH_NAME_LEN)
-    {
-        wcsncpy_s (wszSwitchName, COUNTOF(wszSwitchName), pstrLogSwitchName, _TRUNCATE);
-    }
-    else
-    {
-        wcscpy_s (wszSwitchName, COUNTOF(wszSwitchName), pstrLogSwitchName);
-    }
-
-    // extract the (WCHAR) name from the STRINGREF object
-    strParentName->RefInterpretGetStringValuesDangerousForGC (
-                        &pstrParentName,
-                        &iParentNameLength);
-
-    if (iParentNameLength > MAX_LOG_SWITCH_NAME_LEN)
-    {
-        wcsncpy_s (wszParentName, COUNTOF(wszParentName), pstrParentName, _TRUNCATE);
-    }
-    else
-    {
-        wcscpy_s (wszParentName, COUNTOF(wszParentName), pstrParentName);
-    }
-
-#ifdef DEBUGGING_SUPPORTED
-    if (g_pDebugInterface)
-    {
-        g_pDebugInterface->SendLogSwitchSetting (Level,
-                                                SWITCH_MODIFY,
-                                                wszSwitchName,
-                                                wszParentName
-                                                );
-    }
-#endif // DEBUGGING_SUPPORTED
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-
-void Log::DebuggerModifyingLogSwitch (int iNewLevel, 
-                                      const WCHAR *pLogSwitchName
-                                     )
-{
-    CONTRACTL
-    {
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    // check if an entry with this name exists in the hash table.
-    OBJECTHANDLE ObjHandle = g_sLogHashTable.GetEntryFromHashTable (pLogSwitchName);
-    if ( ObjHandle != NULL)
-    {
-        OBJECTREF obj = ObjectFromHandle (ObjHandle);
-        LogSwitchObject *pLogSwitch = (LogSwitchObject *)(OBJECTREFToObject (obj));
-
-        pLogSwitch->SetLevel (iNewLevel);
-    }
-}
-
-
-// Note: Caller should ensure that it's not adding a duplicate
-// entry by calling GetEntryFromHashTable before calling this
-// function.
-HRESULT LogHashTable::AddEntryToHashTable (const WCHAR *pKey, 
-                                           OBJECTHANDLE pData
-                                          )
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    HashElement *pElement;
-
-    // check that the length is non-zero
-    if (pKey == NULL)
-    {
-        return (E_INVALIDARG);
-    }
-
-    int iHashKey = 0;
-    int iLength = (int)wcslen (pKey);
-
-    for (int i= 0; i<iLength; i++)
-    {
-        iHashKey += pKey [i];
-    }
-
-    iHashKey = iHashKey % MAX_HASH_BUCKETS;
-
-    // Create a new HashElement. This throws on oom, nothing to cleanup.
-    pElement = new HashElement;
-    
-    pElement->SetData (pData, pKey);
-
-    if (m_Buckets [iHashKey] == NULL)
-    {
-        m_Buckets [iHashKey] = pElement;
-    }
-    else
-    {
-        pElement->SetNext (m_Buckets [iHashKey]);
-        m_Buckets [iHashKey] = pElement;
-    }
-
-    return S_OK;
-}
-
-
-OBJECTHANDLE LogHashTable::GetEntryFromHashTable (const WCHAR *pKey)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    if (pKey == NULL)
-    {
-        return NULL;
-    }
-
-    int iHashKey = 0;
-    int iLength = (int)wcslen (pKey);
-
-    // Calculate the hash value of the given key
-    for (int i= 0; i<iLength; i++)
-    {
-        iHashKey += pKey [i];
-    }
-
-    iHashKey = iHashKey % MAX_HASH_BUCKETS;
-
-    HashElement *pElement = m_Buckets [iHashKey];
-
-    // Find and return the data
-    while (pElement != NULL)
-    {
-        if (wcscmp(pElement->GetKey(), pKey) == 0)
-        {
-            return (pElement->GetData());
-        }
-
-        pElement = pElement->GetNext();
-    }
-
-    return NULL;
-}
- 
-//
-// Returns a textual representation of the current stack trace. The format of the stack
-// trace is the same as returned by StackTrace.ToString.
-//
-void GetManagedStackTraceString(BOOL fNeedFileInfo, SString &result)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // Switch to cooperative GC mode before we call into managed code.
-    GCX_COOP();
-
-    MethodDescCallSite managedHelper(METHOD__STACK_TRACE__GET_MANAGED_STACK_TRACE_HELPER);
-    ARG_SLOT args[] = 
-    {
-        BoolToArgSlot(fNeedFileInfo)
-    };
-
-    STRINGREF resultStringRef = (STRINGREF) managedHelper.Call_RetOBJECTREF(args);
-    resultStringRef->GetSString(result);
 }
 
 #endif // !DACCESS_COMPILE

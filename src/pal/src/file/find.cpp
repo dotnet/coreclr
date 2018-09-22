@@ -201,7 +201,7 @@ FindFirstFileA(
                     }
                 }
             }
-            InternalFree(lpTemp);
+            free(lpTemp);
             lpTemp = NULL;
             goto done;
         }
@@ -226,7 +226,7 @@ done:
             {
                 globfree( &(find_data->gGlob) );
             }
-            InternalFree(find_data);
+            free(find_data);
         }
         if (dwLastError)
         {
@@ -383,7 +383,7 @@ FindNextFileA(
             // Split the path into a dir and filename.
             if (_splitpath_s(path, NULL, 0, find_data->dir, _MAX_DIR, find_data->fname, _MAX_PATH, ext, _MAX_EXT) != 0)
             {
-                ASSERT("_splitpath failed on %s\n", path);
+                ASSERT("_splitpath_s failed on %s\n", path);
                 dwLastError = ERROR_INTERNAL_ERROR;
                 goto done;
             }
@@ -417,22 +417,30 @@ FindNextFileA(
     
             if ( stat_result )
             {
-                    lpFindFileData->ftCreationTime = 
+                    lpFindFileData->ftCreationTime =
                         FILEUnixTimeToFileTime( stat_data.st_ctime,
                                         ST_CTIME_NSEC(&stat_data) );
-                    lpFindFileData->ftLastAccessTime = 
+                    lpFindFileData->ftLastAccessTime =
                         FILEUnixTimeToFileTime( stat_data.st_atime,
                                         ST_ATIME_NSEC(&stat_data) );
-                    lpFindFileData->ftLastWriteTime = 
+                    lpFindFileData->ftLastWriteTime =
                         FILEUnixTimeToFileTime( stat_data.st_mtime,
                                         ST_MTIME_NSEC(&stat_data) );
 
-                    /* if Unix mtime is greater than atime, return mtime 
+                    /* if Unix mtime is greater than atime, return mtime
                        as the last access time */
-                    if (CompareFileTime(&lpFindFileData->ftLastAccessTime, 
+                    if (CompareFileTime(&lpFindFileData->ftLastAccessTime,
                                         &lpFindFileData->ftLastWriteTime) < 0)
                     {
                          lpFindFileData->ftLastAccessTime = lpFindFileData->ftLastWriteTime;
+                    }
+
+                    /* if Unix ctime is greater than mtime, return mtime
+                       as the create time */
+                    if (CompareFileTime(&lpFindFileData->ftLastWriteTime,
+                                        &lpFindFileData->ftCreationTime) < 0)
+                    {
+                         lpFindFileData->ftCreationTime = lpFindFileData->ftLastWriteTime;
                     }
 
                     /* get file size */
@@ -571,7 +579,7 @@ FindClose(
     {
         globfree( &(find_data->gGlob) );
     }
-    InternalFree(find_data);
+    free(find_data);
 
 done:
     if (dwLastError)
@@ -716,7 +724,7 @@ Simple helper function to insert backslashes before square brackets
 to prevent glob from using them as wildcards.
 
 note: this functions assumes all backslashes have previously been
-      converted into forwardslashes by _splitpath.
+      converted into forwardslashes by _splitpath_s.
 --*/
 static void FILEEscapeSquareBrackets(char *pattern, char *escaped_pattern)
 {
@@ -750,7 +758,7 @@ Function:
   FILEGlobFromSplitPath
 
 Simple wrapper function around glob(3), except that the pattern is accepted
-in broken-down form like _splitpath produces.
+in broken-down form like _splitpath_s produces.
 
 ie. calling splitpath on a pattern then calling this function should
 produce the same result as just calling glob() on the pattern.
@@ -849,7 +857,7 @@ finding no matches but without any error occurring) or FALSE if any error
 occurs.  It calls SetLastError() if it returns FALSE.
 
 Sorting doesn't seem to be consistent on all Windows platform, and it's
-not required for Rotor to have the same sorting alogrithm than Windows 2000.
+not required for Rotor to have the same sorting algorithm than Windows 2000.
 This implementation will give slightly different result for the sort list 
 than Windows 2000.
 
@@ -874,12 +882,12 @@ static BOOL FILEDosGlobA( CPalThread *pthrCurrent,
 
      _splitpath_s( pattern, NULL, 0, Dir, _MAX_DIR, Filename, _MAX_FNAME+1, Ext, _MAX_EXT);
     
-    /* check to see if _splitpath failed */
+    /* check to see if _splitpath_s failed */
     if ( Filename[0] == 0 )
     {
         if ( Dir[0] == 0 )
         {
-            ERROR("_splitpath failed on path [%s]\n", pattern);
+            ERROR("_splitpath_s failed on path [%s]\n", pattern);
         }
         else
         {

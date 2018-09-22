@@ -224,6 +224,14 @@ namespace NativeFormat
                 return offset;
             }
         }
+
+#ifndef DACCESS_COMPILE
+        const BYTE* GetBlob(uint offset)
+        {
+            EnsureOffsetInRange(offset, 0);
+            return _base + offset;
+        }
+#endif
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -240,9 +248,9 @@ namespace NativeFormat
         {
         }
         
-        NativeParser(NativeReader * pReader, uint offset)
+        NativeParser(PTR_NativeReader pReader, uint offset)
         {
-            _pReader = dac_cast<PTR_NativeReader>(pReader);
+            _pReader = pReader;
             _offset = offset;
         }
 
@@ -287,6 +295,13 @@ namespace NativeFormat
             return pos + (uint)delta;
         }
 
+#ifndef DACCESS_COMPILE
+        const BYTE * GetBlob()
+        {
+            return _pReader->GetBlob(_offset);
+        }
+#endif
+
         void SkipInteger()
         {
             _offset = _pReader->SkipInteger(_offset);
@@ -313,7 +328,7 @@ namespace NativeFormat
         {
         }
 
-        NativeArray(NativeReader * pReader, uint offset)
+        NativeArray(PTR_NativeReader pReader, uint offset)
             : _pReader(pReader)
         {
             uint val;

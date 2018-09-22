@@ -1,8 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
-.assembly extern mscorlib {}
+.assembly extern System.Runtime.Extensions { auto }
+.assembly extern mscorlib { auto }
+
 .assembly MCCTest {}
 .module mcc_i82.exe
 
@@ -11,7 +14,7 @@
 {
   .class MyClass
   {
-    .method assembly static pinvokeimpl("native_i8c" as "#1" cdecl) 
+    .method assembly static pinvokeimpl("native_i8c" as "#1" cdecl)
         vararg valuetype MCCTest.VType8 Sum(float64, int32, int64, float32, int16, float64) cil managed preservesig {
     }
 
@@ -79,21 +82,21 @@
       ldloc.s    v11
       ldloc.s    v12
       tail.
-      call   vararg valuetype MCCTest.VType8 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64, ..., 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8, 
-																valuetype MCCTest.VType8)
-		ret
-	}
+      call   vararg valuetype MCCTest.VType8 MCCTest.MyClass::Sum(float64, int32, int64, float32, int16, float64, ...,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8,
+                                                                valuetype MCCTest.VType8)
+        ret
+    }
 
     .method public specialname rtspecialname instance void  .ctor()
     {
@@ -112,10 +115,10 @@
         [1] valuetype MCCTest.VType8 res,
         [2] int32 rc
       )
-      
+
       newobj     instance void MCCTest.MyClass::.ctor()
       stloc.s    me
-      
+
       ldloc.s    me
       call   instance valuetype MCCTest.VType8 MCCTest.MyClass::GetSum()
       stloc.s    res
@@ -125,7 +128,7 @@
       ldc.i4     12
       call       int32 MCCTest.Common::CheckResult(valuetype MCCTest.VType8, int32)
       stloc.s    rc
-      
+
       ldloc.s    rc
       ret
     } // end of method MyClass::Main

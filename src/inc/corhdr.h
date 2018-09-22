@@ -165,6 +165,9 @@ typedef enum ReplacesCorHdrNumericDefines
     COR_VTABLE_FROM_UNMANAGED_RETAIN_APPDOMAIN=0x08,    // NEW
     COR_VTABLE_CALL_MOST_DERIVED        =0x10,          // Call most derived method described by
 
+// EATJ constants
+    IMAGE_COR_EATJ_THUNK_SIZE           = 32,           // Size of a jump thunk reserved range.
+
 // Max name lengths    
     //@todo: Change to unlimited name lengths.
     MAX_CLASS_NAME                      =1024,
@@ -751,6 +754,7 @@ typedef enum CorAssemblyFlags
 
     afEnableJITcompileTracking   =  0x8000, // From "DebuggableAttribute".
     afDisableJITcompileOptimizer =  0x4000, // From "DebuggableAttribute".
+    afDebuggableAttributeMask    =  0xc000,
 
     afRetargetable          =   0x0100,     // The assembly can be retargeted (at runtime) to an
                                             //  assembly from a different publisher.
@@ -1077,7 +1081,7 @@ typedef enum CorNativeType
 
     NATIVE_TYPE_IINSPECTABLE = 0x2e,
     NATIVE_TYPE_HSTRING     = 0x2f,
-
+    NATIVE_TYPE_LPUTF8STR   = 0x30, // utf-8 string
     NATIVE_TYPE_MAX         = 0x50, // first invalid element type
 } CorNativeType;
 
@@ -1794,10 +1798,6 @@ typedef enum CorAttributeTargets
 #define FRIEND_ASSEMBLY_TYPE_W                  L"System.Runtime.CompilerServices.InternalsVisibleToAttribute"
 #define FRIEND_ASSEMBLY_TYPE                     "System.Runtime.CompilerServices.InternalsVisibleToAttribute"
 #define FRIEND_ASSEMBLY_SIG                     {IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS, 2, ELEMENT_TYPE_VOID, ELEMENT_TYPE_STRING, ELEMENT_TYPE_BOOLEAN}
-
-#define FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE_W  L"System.Runtime.CompilerServices.FriendAccessAllowedAttribute"
-#define FRIEND_ACCESS_ALLOWED_ATTRIBUTE_TYPE     "System.Runtime.CompilerServices.FriendAccessAllowedAttribute"
-#define FRIEND_ACCESS_ALLOWED_SIG               {IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS, 0, ELEMENT_TYPE_VOID}
 
 #define SUBJECT_ASSEMBLY_TYPE_W                 L"System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute"
 #define SUBJECT_ASSEMBLY_TYPE                    "System.Runtime.CompilerServices.IgnoresAccessChecksToAttribute"

@@ -310,7 +310,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     DWORD numNonVirtualSlots = numCtors + 3; // 3 for the proper rank Get, Set, Address
 
     size_t cbMT = sizeof(MethodTable);
-    cbMT += MethodTable::GetNumVtableIndirections(numVirtuals) * sizeof(PTR_PCODE);
+    cbMT += MethodTable::GetNumVtableIndirections(numVirtuals) * sizeof(MethodTable::VTableIndir_t);
 
     // GC info
     size_t cbCGCDescData = 0;
@@ -374,7 +374,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     // If none, we need to allocate space for the slots
     if (!canShareVtableChunks)
     {
-        cbMT += numVirtuals * sizeof(PCODE);
+        cbMT += numVirtuals * sizeof(MethodTable::VTableIndir2_t);
     }
 
     // Canonical methodtable has an array of non virtual slots pointed to by the optional member
@@ -430,16 +430,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pClass->SetAttrClass (tdPublic | tdSerializable | tdSealed);  // This class is public, serializable, sealed
         pClass->SetRank (Rank);
         pClass->SetArrayElementType (elemType);
-        if (pElemMT->GetClass()->ContainsStackPtr())
-            pClass->SetContainsStackPtr();
         pClass->SetMethodTable (pMT);
-
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
-        // Non-covariant arrays of agile types are agile
-        if (elemType != ELEMENT_TYPE_CLASS && elemTypeHnd.IsAppDomainAgile())
-            pClass->SetAppDomainAgile();
-        pClass->SetAppDomainAgilityDone();
-#endif
 
         // Fill In the method table
         pClass->SetNumMethods(numVirtuals + numNonVirtualSlots);
@@ -501,18 +492,21 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     _ASSERTE(pMT->IsClassPreInited());
 
     // Set BaseSize to be size of non-data portion of the array
-    DWORD baseSize = ObjSizeOf(ArrayBase);
+    DWORD baseSize = ARRAYBASE_BASESIZE;
     if (arrayKind == ELEMENT_TYPE_ARRAY)
         baseSize += Rank*sizeof(DWORD)*2;
 
-#if !defined(_WIN64) && (DATA_ALIGNMENT > 4) 
+#if !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4)
     if (dwComponentSize >= DATA_ALIGNMENT)
         baseSize = (DWORD)ALIGN_UP(baseSize, DATA_ALIGNMENT);
-#endif // !defined(_WIN64) && (DATA_ALIGNMENT > 4)
+#endif // !defined(_TARGET_64BIT_) && (DATA_ALIGNMENT > 4)
     pMT->SetBaseSize(baseSize);
     // Because of array method table persisting, we need to copy the map
-    memcpy(pMTHead + imapOffset, pParentClass->GetInterfaceMap(),
-           pParentClass->GetNumInterfaces() * sizeof(InterfaceInfo_t));
+    for (unsigned index = 0; index < pParentClass->GetNumInterfaces(); ++index)
+    {
+      InterfaceInfo_t *pIntInfo = (InterfaceInfo_t *) (pMTHead + imapOffset + index * sizeof(InterfaceInfo_t));
+      pIntInfo->SetMethodTable((pParentClass->GetInterfaceMap() + index)->GetMethodTable());
+    }
     pMT->SetInterfaceMap(pParentClass->GetNumInterfaces(), (InterfaceInfo_t *)(pMTHead + imapOffset));
 
     // Copy down flags for these interfaces as well. This is simplified a bit since we know that System.Array
@@ -527,7 +521,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
     }
 
     // The type is sufficiently initialized for most general purpose accessor methods to work.
-    // Mark the type as restored to avoid avoid asserts. Note that this also enables IBC logging.
+    // Mark the type as restored to avoid asserts. Note that this also enables IBC logging.
     pMTWriteableData->SetIsFullyLoadedForBuildMethodTable();
 
     {
@@ -538,12 +532,12 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             if (canShareVtableChunks)
             {
                 // Share the parent chunk
-                it.SetIndirectionSlot(pParentClass->GetVtableIndirections()[it.GetIndex()]);
+                it.SetIndirectionSlot(pParentClass->GetVtableIndirections()[it.GetIndex()].GetValueMaybeNull());
             }
             else 
             {
                 // Use the locally allocated chunk
-                it.SetIndirectionSlot((PTR_PCODE)(pMemory+cbArrayClass+offsetOfUnsharedVtableChunks));
+                it.SetIndirectionSlot((MethodTable::VTableIndir2_t *)(pMemory+cbArrayClass+offsetOfUnsharedVtableChunks));
                 offsetOfUnsharedVtableChunks += it.GetSize();
             }
         }
@@ -681,7 +675,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
             // This equals the offset of the first pointer if this were an array of entirely pointers, plus the offset of the
             // first pointer in the value class
             pSeries->SetSeriesOffset(ArrayBase::GetDataPtrOffset(pMT)
-                + (sortedSeries[0]->GetSeriesOffset()) - sizeof (Object) );
+                + (sortedSeries[0]->GetSeriesOffset()) - OBJECT_SIZE);
             for (index = 0; index < nSeries; index ++)
             {
                 size_t numPtrsInBytes = sortedSeries[index]->GetSeriesSize()
@@ -700,12 +694,12 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
                 else
                 {
                     skip = sortedSeries[0]->GetSeriesOffset() + pElemMT->GetBaseSize()
-                         - ObjSizeOf(Object) - currentOffset;
+                         - OBJECT_BASESIZE - currentOffset;
                 }
 
-                _ASSERTE(!"Module::CreateArrayMethodTable() - unaligned GC info" || IS_ALIGNED(skip, sizeof(size_t)));
+                _ASSERTE(!"Module::CreateArrayMethodTable() - unaligned GC info" || IS_ALIGNED(skip, TARGET_POINTER_SIZE));
 
-                unsigned short NumPtrs = (unsigned short) (numPtrsInBytes / sizeof(void*));
+                unsigned short NumPtrs = (unsigned short) (numPtrsInBytes / TARGET_POINTER_SIZE);
                 if(skip > MAX_SIZE_FOR_VALUECLASS_IN_ARRAY || numPtrsInBytes > MAX_PTRS_FOR_VALUECLASSS_IN_ARRAY) {
                     StackSString ssElemName;
                     elemTypeHnd.GetName(ssElemName);
@@ -1128,7 +1122,7 @@ void GenerateArrayOpScript(ArrayMethodDesc *pMD, ArrayOpScript *paos)
     MetaSig msig(pMD);
     _ASSERTE(!msig.IsVarArg());     // No array signature is varargs, code below does not expect it.
 
-    switch (pcls->GetArrayElementType())
+    switch (pMT->GetApproxArrayElementTypeHandle().GetInternalCorElementType())
     {
         // These are all different because of sign extension
 

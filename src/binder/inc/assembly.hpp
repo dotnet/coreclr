@@ -21,13 +21,11 @@
 #include "corpriv.h"
 #include "clrprivbinding.h"
 
-#if !defined(FEATURE_FUSION)
 #include "clrprivbindercoreclr.h"
-#endif // !defined(FEATURE_FUSION)
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #include "clrprivbinderassemblyloadcontext.h"
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 STDAPI BinderAcquirePEImage(LPCTSTR   szAssemblyPath,
                             PEImage **ppPEImage,
@@ -102,6 +100,8 @@ namespace BINDER_SPACE
 
         STDMETHOD(GetBinderFlags)(DWORD *pBinderFlags);
 
+        STDMETHOD(GetLoaderAllocator)(LPVOID* pLoaderAllocator);
+
         // --------------------------------------------------------------------
         // Assembly methods
         // --------------------------------------------------------------------
@@ -138,6 +138,11 @@ namespace BINDER_SPACE
         
         static PEKIND GetSystemArchitecture();
         static BOOL IsValidArchitecture(PEKIND kArchitecture);
+
+		inline ICLRPrivBinder* GetBinder()
+		{
+			return m_pBinder;
+		}
 
 #ifndef CROSSGEN_COMPILE
     protected:
@@ -197,19 +202,12 @@ public:
             _ASSERTE(m_pBinder == NULL || m_pBinder == pBinder);
             m_pBinder = pBinder;
         }
-
-        inline ICLRPrivBinder* GetBinder()
-        {
-            return m_pBinder;
-        }
         
-#if !defined(FEATURE_FUSION)
         friend class ::CLRPrivBinderCoreCLR;
-#endif // !defined(FEATURE_FUSION)
 
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         friend class ::CLRPrivBinderAssemblyLoadContext;
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     };
 
     // This is a fast version which goes around the COM interfaces and directly

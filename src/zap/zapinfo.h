@@ -227,9 +227,11 @@ class ZapInfo
     LoadTable<CORINFO_CLASS_HANDLE>  m_ClassLoadTable;
     LoadTable<CORINFO_METHOD_HANDLE> m_MethodLoadTable;
 
+    CORJIT_FLAGS m_jitFlags;
+
     void InitMethodName();
 
-    int ComputeJitFlags(CORINFO_METHOD_HANDLE handle);
+    CORJIT_FLAGS ComputeJitFlags(CORINFO_METHOD_HANDLE handle);
 
     ZapDebugInfo * EmitDebugInfo();
     ZapGCInfo * EmitGCInfo();
@@ -317,12 +319,13 @@ public:
 
     DWORD getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes);
 
+    bool runWithErrorTrap(void (*function)(void*), void* param);
+
     // ICorDynamicInfo
 
     DWORD getThreadTLSIndex(void **ppIndirection);
     const void * getInlinedCallFrameVptr(void **ppIndirection);
     LONG * getAddrOfCaptureThreadGlobal(void **ppIndirection);
-    SIZE_T* getAddrModuleDomainID(CORINFO_MODULE_HANDLE   module);
 
     // get slow lazy string literal helper to use (CORINFO_HELP_STRCNS*). 
     // Returns CORINFO_HELP_UNDEF if lazy string literal helper cannot be used.
@@ -356,6 +359,10 @@ public:
     void* getTailCallCopyArgsThunk (
                       CORINFO_SIG_INFO       *pSig,
                       CorInfoHelperTailCallSpecialHandling flags);
+
+    bool convertPInvokeCalliToCall(
+                      CORINFO_RESOLVED_TOKEN * pResolvedToken,
+                      bool fMustConvert);
 
     void getFunctionEntryPoint(
                       CORINFO_METHOD_HANDLE   ftn,                 /* IN  */
@@ -502,6 +509,8 @@ public:
 
     CorInfoType asCorInfoType(CORINFO_CLASS_HANDLE cls);
     const char* getClassName(CORINFO_CLASS_HANDLE cls);
+    const char* getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName);
+    CORINFO_CLASS_HANDLE getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index);
     const char* getHelperName(CorInfoHelpFunc ftnNum);
     int appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf, int* pnBufLen,
                                   CORINFO_CLASS_HANDLE    cls,
@@ -544,16 +553,17 @@ public:
     CorInfoHelpFunc getBoxHelper(CORINFO_CLASS_HANDLE cls);
     CorInfoHelpFunc getUnBoxHelper(CORINFO_CLASS_HANDLE cls);
 
-    void getReadyToRunHelper(
-            CORINFO_RESOLVED_TOKEN * pResolvedToken,
-            CorInfoHelpFunc          id,
-            CORINFO_CONST_LOOKUP *   pLookup
+    bool getReadyToRunHelper(
+            CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+            CORINFO_LOOKUP_KIND *           pGenericLookupKind,
+            CorInfoHelpFunc                 id,
+            CORINFO_CONST_LOOKUP *          pLookup
             );
 
     void getReadyToRunDelegateCtorHelper(
             CORINFO_RESOLVED_TOKEN * pTargetMethod,
             CORINFO_CLASS_HANDLE     delegateType,
-            CORINFO_CONST_LOOKUP *   pLookup
+            CORINFO_LOOKUP *   pLookup
             );
 
     CorInfoInitClassResult initClass(
@@ -567,8 +577,12 @@ public:
     CORINFO_METHOD_HANDLE mapMethodDeclToMethodImpl(CORINFO_METHOD_HANDLE methHnd);
     CORINFO_CLASS_HANDLE getBuiltinClass(CorInfoClassId classId);
     CorInfoType getTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE cls);
+    CorInfoType getTypeForPrimitiveNumericClass(CORINFO_CLASS_HANDLE cls);
     BOOL canCast(CORINFO_CLASS_HANDLE child, CORINFO_CLASS_HANDLE parent);
     BOOL areTypesEquivalent(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
+    TypeCompareState compareTypesForCast(CORINFO_CLASS_HANDLE fromClass, CORINFO_CLASS_HANDLE toClass);
+    TypeCompareState compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
+
     CORINFO_CLASS_HANDLE mergeClasses(CORINFO_CLASS_HANDLE cls1,
                                 CORINFO_CLASS_HANDLE cls2);
     BOOL shouldEnforceCallvirtRestriction(CORINFO_MODULE_HANDLE scope);
@@ -587,6 +601,7 @@ public:
     // ICorModuleInfo
 
     void resolveToken(CORINFO_RESOLVED_TOKEN * pResolvedToken);
+    bool tryResolveToken(CORINFO_RESOLVED_TOKEN * pResolvedToken);
 
     void findSig(CORINFO_MODULE_HANDLE module, unsigned sigTOK,
                  CORINFO_CONTEXT_HANDLE context,
@@ -611,6 +626,10 @@ public:
 
     const char* getMethodName(CORINFO_METHOD_HANDLE ftn,
                                         const char **moduleName);
+    const char* getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftn,
+                                          const char **className,
+                                          const char **namespaceName);
+
     unsigned getMethodHash(CORINFO_METHOD_HANDLE ftn);
     DWORD getMethodAttribs(CORINFO_METHOD_HANDLE ftn);
     void setMethodAttribs(CORINFO_METHOD_HANDLE ftn, CorInfoMethodRuntimeFlags attribs);
@@ -657,7 +676,24 @@ public:
 
     void getMethodVTableOffset(CORINFO_METHOD_HANDLE method,
                                unsigned * pOffsetOfIndirection,
-                               unsigned * pOffsetAfterIndirection);
+                               unsigned * pOffsetAfterIndirection,
+                               bool * isRelative);
+
+    CORINFO_METHOD_HANDLE resolveVirtualMethod(
+        CORINFO_METHOD_HANDLE virtualMethod,
+        CORINFO_CLASS_HANDLE implementingClass,
+        CORINFO_CONTEXT_HANDLE ownerType);
+
+    CORINFO_METHOD_HANDLE getUnboxedEntry(
+        CORINFO_METHOD_HANDLE ftn,
+        bool* requiresInstMethodTableArg);
+
+    CORINFO_CLASS_HANDLE getDefaultEqualityComparerClass(
+        CORINFO_CLASS_HANDLE elemType);
+
+    void expandRawHandleIntrinsic(
+        CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+        CORINFO_GENERICHANDLE_RESULT *  pResult);
 
     CorInfoIntrinsics getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                      bool * pMustExpand = NULL);
@@ -675,9 +711,6 @@ public:
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_CLASS_HANDLE delegateCls,
                               BOOL* pfIsOpenDelegate);
-
-    BOOL isDelegateCreationAllowed(CORINFO_CLASS_HANDLE        delegateHnd,
-                                   CORINFO_METHOD_HANDLE       calleeHnd);
 
     void getGSCookie(GSCookie * pCookieVal, 
                      GSCookie** ppCookieVal);

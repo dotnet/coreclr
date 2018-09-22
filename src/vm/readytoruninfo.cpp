@@ -13,6 +13,9 @@
 
 #include "dbginterface.h"
 #include "compile.h"
+#include "versionresilienthashcode.h"
+#include "typehashingalgorithms.h"
+#include "method.hpp"
 
 using namespace NativeFormat;
 
@@ -51,7 +54,7 @@ MethodDesc * ReadyToRunInfo::GetMethodDescForEntryPoint(PCODE entryPoint)
     }
     CONTRACTL_END;
 
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && defined(FEATURE_PAL))
     // A normal method entry point is always 8 byte aligned, but a funclet can start at an odd address.
     // Since PtrHashMap can't handle odd pointers, check for this case and return NULL.
     if ((entryPoint & 0x1) != 0)
@@ -93,89 +96,71 @@ BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFo
     if (m_availableTypesHashtable.IsNull())
         return FALSE;
 
-    LPCUTF8 pszName;
-    LPCUTF8 pszNameSpace;
+    LPCUTF8 pszName = NULL;
+    LPCUTF8 pszNameSpace = NULL;
 
     //
     // Compute the hashcode of the type (hashcode based on type name and namespace name)
     //
-    DWORD dwHashCode = 0;
+    int dwHashCode = 0;
+
+    if (pName->GetTypeToken() == mdtBaseType || pName->GetTypeModule() == NULL)
     {
-        if (pName->GetTypeToken() == mdtBaseType)
+        // Name-based lookups (ex: Type.GetType()). 
+
+        pszName = pName->GetName();
+        pszNameSpace = "";
+
+        if (pName->GetNameSpace() != NULL)
         {
-            // Name-based lookups (ex: Type.GetType()). 
-
-            pszName = pName->GetName();
-            pszNameSpace = "";
-
-            if (pName->GetNameSpace() != NULL)
-            {
-                pszNameSpace = pName->GetNameSpace();
-            }
-            else
-            {
-                LPCUTF8 p;
-                CQuickBytes szNamespace;
-
-                if ((p = ns::FindSep(pszName)) != NULL)
-                {
-                    SIZE_T d = p - pszName;
-
-                    FAULT_NOT_FATAL();
-                    pszNameSpace = szNamespace.SetStringNoThrow(pszName, d);
-
-                    if (pszNameSpace == NULL)
-                        return FALSE;
-
-                    pszName = (p + 1);
-                }
-            }
-
-            _ASSERT(pszNameSpace != NULL);
-            dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszName);
-            dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszNameSpace);
-
-            // Bucket is not 'null' for a nested type, and it will have information about the nested type's encloser
-            if (!pName->GetBucket().IsNull())
-            {
-                // Must be a token based bucket that we found earlier in the R2R types hashtable
-                _ASSERT(pName->GetBucket().GetEntryType() == HashedTypeEntry::IsHashedTokenEntry);
-
-                const HashedTypeEntry::TokenTypeEntry& tokenBasedEncloser = pName->GetBucket().GetTokenBasedEntryValue();
-
-                // Token must be a typedef token that we previously resolved (we shouldn't get here with an exported type token)
-                _ASSERT(TypeFromToken(tokenBasedEncloser.m_TypeToken) == mdtTypeDef);
-
-                mdToken mdCurrentTypeToken = tokenBasedEncloser.m_TypeToken;
-                do
-                {
-                    LPCUTF8 pszNameTemp;
-                    LPCUTF8 pszNameSpaceTemp;
-                    if (!GetTypeNameFromToken(tokenBasedEncloser.m_pModule->GetMDImport(), mdCurrentTypeToken, &pszNameTemp, &pszNameSpaceTemp))
-                        return FALSE;
-
-                    dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszNameTemp);
-                    dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszNameSpaceTemp == NULL ? "" : pszNameSpaceTemp);
-
-                } while (GetEnclosingToken(tokenBasedEncloser.m_pModule->GetMDImport(), mdCurrentTypeToken, &mdCurrentTypeToken));
-
-            }
+            pszNameSpace = pName->GetNameSpace();
         }
         else
         {
-            // Token based lookups (ex: tokens from IL code)
+            LPCUTF8 p;
+            CQuickBytes szNamespace;
 
-            mdToken mdCurrentTypeToken = pName->GetTypeToken();
-            do
+            if ((p = ns::FindSep(pszName)) != NULL)
             {
-                if (!GetTypeNameFromToken(pName->GetTypeModule()->GetMDImport(), mdCurrentTypeToken, &pszName, &pszNameSpace))
+                SIZE_T d = p - pszName;
+
+                FAULT_NOT_FATAL();
+                pszNameSpace = szNamespace.SetStringNoThrow(pszName, d);
+
+                if (pszNameSpace == NULL)
                     return FALSE;
 
-                dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszName);
-                dwHashCode = ((dwHashCode << 5) + dwHashCode) ^ HashStringA(pszNameSpace == NULL ? "" : pszNameSpace);
-
-            } while (GetEnclosingToken(pName->GetTypeModule()->GetMDImport(), mdCurrentTypeToken, &mdCurrentTypeToken));
+                pszName = (p + 1);
+            }
         }
+
+        _ASSERT(pszNameSpace != NULL);
+        dwHashCode ^= ComputeNameHashCode(pszNameSpace, pszName);
+
+        // Bucket is not 'null' for a nested type, and it will have information about the nested type's encloser
+        if (!pName->GetBucket().IsNull())
+        {
+            // Must be a token based bucket that we found earlier in the R2R types hashtable
+            _ASSERT(pName->GetBucket().GetEntryType() == HashedTypeEntry::IsHashedTokenEntry);
+
+            const HashedTypeEntry::TokenTypeEntry& tokenBasedEncloser = pName->GetBucket().GetTokenBasedEntryValue();
+
+            // Token must be a typedef token that we previously resolved (we shouldn't get here with an exported type token)
+            _ASSERT(TypeFromToken(tokenBasedEncloser.m_TypeToken) == mdtTypeDef);
+
+            int dwCurrentHashCode;
+            mdToken mdCurrentTypeToken = tokenBasedEncloser.m_TypeToken;
+            if (!GetVersionResilientTypeHashCode(tokenBasedEncloser.m_pModule->GetMDImport(), mdCurrentTypeToken, &dwCurrentHashCode))
+                return FALSE;
+            dwHashCode ^= dwCurrentHashCode;
+        }
+    }
+    else
+    {
+        // Token based lookups (ex: tokens from IL code)
+
+        if (!GetVersionResilientTypeHashCode(pName->GetTypeModule()->GetMDImport(), pName->GetTypeToken(), &dwHashCode))
+            return FALSE;
     }
 
 
@@ -191,7 +176,7 @@ BOOL ReadyToRunInfo::TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFo
             mdToken cl = ((ridAndFlag & 1) ? ((ridAndFlag >> 1) | mdtExportedType) : ((ridAndFlag >> 1) | mdtTypeDef));
             _ASSERT(RidFromToken(cl) != 0);
 
-            if (pName->GetTypeToken() == mdtBaseType)
+            if (pName->GetTypeToken() == mdtBaseType || pName->GetTypeModule() == NULL)
             {
                 // Compare type name and namespace name
                 LPCUTF8 pszFoundName;
@@ -269,7 +254,6 @@ BOOL ReadyToRunInfo::GetEnclosingToken(IMDInternalImport * pImport, mdToken mdTy
     }
     CONTRACTL_END;
 
-    mdToken mdEncloser;
     switch (TypeFromToken(mdType))
     {
     case mdtTypeDef:
@@ -342,7 +326,7 @@ PTR_BYTE ReadyToRunInfo::GetDebugInfo(PTR_RUNTIME_FUNCTION pRuntimeFunction)
     SIZE_T methodIndex = pRuntimeFunction - m_pRuntimeFunctions;
     _ASSERTE(methodIndex < m_nRuntimeFunctions);
 
-    NativeArray debugInfoIndex(&m_nativeReader, pDebugInfoDir->VirtualAddress);
+    NativeArray debugInfoIndex(dac_cast<PTR_NativeReader>(PTR_HOST_INT_TO_TADDR(&m_nativeReader)), pDebugInfoDir->VirtualAddress);
 
     uint offset;
     if (!debugInfoIndex.TryGetAt((DWORD)methodIndex, &offset))
@@ -361,10 +345,109 @@ PTR_BYTE ReadyToRunInfo::GetDebugInfo(PTR_RUNTIME_FUNCTION pRuntimeFunction)
 
 BOOL ReadyToRunInfo::IsReadyToRunEnabled()
 {
-    STANDARD_VM_CONTRACT;
+    WRAPPER_NO_CONTRACT;
 
     static ConfigDWORD configReadyToRun;
     return configReadyToRun.val(CLRConfig::EXTERNAL_ReadyToRun);
+}
+
+// A log file to record success/failure of R2R loads. s_r2rLogFile can have the following values:
+// -1: Logging not yet initialized.
+// NULL: Logging disabled.
+// Any other value: Handle of the log file.
+static  FILE * volatile s_r2rLogFile = (FILE *)(-1);
+
+static void LogR2r(const char *msg, PEFile *pFile)
+{
+    STANDARD_VM_CONTRACT;
+
+    // Make a local copy of s_r2rLogFile, so we're not affected by other threads.
+    FILE *r2rLogFile = s_r2rLogFile;
+    if (r2rLogFile == (FILE *)(-1))
+    {
+        // Initialize Ready to Run logging. Any errors cause logging to be disabled.
+        NewArrayHolder<WCHAR> wszReadyToRunLogFile;
+        if (SUCCEEDED(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ReadyToRunLogFile, &wszReadyToRunLogFile)) && wszReadyToRunLogFile)
+        {
+            // Append process ID to the log file name, so multiple processes can log at the same time.
+            StackSString fullname;
+            fullname.Printf(W("%s.%u"), wszReadyToRunLogFile.GetValue(), GetCurrentProcessId());
+            r2rLogFile = _wfopen(fullname.GetUnicode(), W("w"));
+        }
+        else
+            r2rLogFile = NULL;
+
+        if (r2rLogFile != NULL && !ReadyToRunInfo::IsReadyToRunEnabled())
+        {
+            fputs("Ready to Run not enabled.\n", r2rLogFile);
+            fclose(r2rLogFile);
+            r2rLogFile = NULL;
+        }
+
+        if (InterlockedCompareExchangeT(&s_r2rLogFile, r2rLogFile, (FILE *)(-1)) != (FILE *)(-1))
+        {
+            if (r2rLogFile != NULL)
+                fclose(r2rLogFile);
+            r2rLogFile = s_r2rLogFile;
+        }
+    }
+
+    if (r2rLogFile == NULL)
+        return;
+
+    fprintf(r2rLogFile, "%s: \"%S\".\n", msg, pFile->GetPath().GetUnicode());
+    fflush(r2rLogFile);
+}
+
+#define DoLog(msg) if (s_r2rLogFile != NULL) LogR2r(msg, pFile)
+
+// Try to acquire an R2R image for exclusive use by a particular module.
+// Returns true if successful. Returns false if the image is already been used
+// by another module. Each R2R image has a space to store a pointer to the
+// module that owns it. We set this pointer unless it has already be
+// initialized to point to another Module.
+static bool AcquireImage(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader)
+{
+    STANDARD_VM_CONTRACT;
+
+    // First find the import sections of the image.
+    READYTORUN_IMPORT_SECTION * pImportSections = NULL;
+    READYTORUN_IMPORT_SECTION * pImportSectionsEnd = NULL;
+    READYTORUN_SECTION * pSections = (READYTORUN_SECTION*)(pHeader + 1);
+    for (DWORD i = 0; i < pHeader->NumberOfSections; i++)
+    {
+        if (pSections[i].Type == READYTORUN_SECTION_IMPORT_SECTIONS)
+        {
+            pImportSections = (READYTORUN_IMPORT_SECTION*)((PBYTE)pLayout->GetBase() + pSections[i].Section.VirtualAddress);
+            pImportSectionsEnd = (READYTORUN_IMPORT_SECTION*)((PBYTE)pImportSections + pSections[i].Section.Size);
+            break;
+        }
+    }
+
+    // Go through the import sections to find the import for the module pointer.
+    for (READYTORUN_IMPORT_SECTION * pCurSection = pImportSections; pCurSection < pImportSectionsEnd; pCurSection++)
+    {
+        // The import for the module pointer is always in an eager fixup section, so skip delayed fixup sections.
+        if ((pCurSection->Flags & READYTORUN_IMPORT_SECTION_FLAGS_EAGER) == 0)
+            continue;
+
+        // Found an eager fixup section. Check the signature of each fixup in this section.
+        PVOID *pFixups = (PVOID *)((PBYTE)pLayout->GetBase() + pCurSection->Section.VirtualAddress);
+        DWORD nFixups = pCurSection->Section.Size / TARGET_POINTER_SIZE;
+        DWORD *pSignatures = (DWORD *)((PBYTE)pLayout->GetBase() + pCurSection->Signatures);
+        for (DWORD i = 0; i < nFixups; i++)
+        {
+            // See if we found the fixup for the Module pointer.
+            PBYTE pSig = (PBYTE)pLayout->GetBase() + pSignatures[i];
+            if (pSig[0] == READYTORUN_FIXUP_Helper && pSig[1] == READYTORUN_HELPER_Module)
+            {
+                Module * pPrevious = InterlockedCompareExchangeT(EnsureWritablePages((Module **)(pFixups + i)), pModule, NULL);
+                return pPrevious == NULL || pPrevious == pModule;
+            }
+        }
+    }
+
+    return false;
 }
 
 PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker *pamTracker)
@@ -373,56 +456,88 @@ PTR_ReadyToRunInfo ReadyToRunInfo::Initialize(Module * pModule, AllocMemTracker 
 
     PEFile * pFile = pModule->GetFile();
 
-    // Ignore ReadyToRun for introspection-only loads
-    if (pFile->IsIntrospectionOnly())
+    if (!IsReadyToRunEnabled())
+    {
+        // Log message is ignored in this case.
+        DoLog(NULL);
         return NULL;
+    }
 
     if (!pFile->HasLoadedIL())
+    {
+        DoLog("Ready to Run disabled - no loaded IL image");
         return NULL;
+    }
 
     PEImageLayout * pLayout = pFile->GetLoadedIL();
     if (!pLayout->HasReadyToRunHeader())
-        return NULL;
-
-    if (!IsReadyToRunEnabled())
-        return NULL;
-
-    if (!pLayout->IsNativeMachineFormat())
     {
-#ifdef FEATURE_CORECLR
-        // For CoreCLR, be strict about disallowing machine mismatches.
-        COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
-#else
+        DoLog("Ready to Run header not found");
         return NULL;
-#endif
+    }
+
+    if (CORProfilerDisableAllNGenImages() || CORProfilerUseProfileImages())
+    {
+        DoLog("Ready to Run disabled - profiler disabled native images");
+        return NULL;
+    }
+
+    if (g_pConfig->ExcludeReadyToRun(pModule->GetSimpleName()))
+    {
+        DoLog("Ready to Run disabled - module on exclusion list");
+        return NULL;
     }
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
     // Ignore ReadyToRun during NGen
     if (IsCompilationProcess() && !IsNgenPDBCompilationProcess())
+    {
+        DoLog("Ready to Run disabled - compilation process");
         return NULL;
+    }
 #endif
+
+    if (!pLayout->IsNativeMachineFormat())
+    {
+        // For CoreCLR, be strict about disallowing machine mismatches.
+        COMPlusThrowHR(COR_E_BADIMAGEFORMAT);
+    }
 
 #ifndef CROSSGEN_COMPILE
     // The file must have been loaded using LoadLibrary
     if (!pLayout->IsRelocated())
+    {
+        DoLog("Ready to Run disabled - module not loaded for execution");
         return NULL;
+    }
 #endif
 
     READYTORUN_HEADER * pHeader = pLayout->GetReadyToRunHeader();
 
     // Ignore the content if the image major version is higher than the major version currently supported by the runtime
     if (pHeader->MajorVersion > READYTORUN_MAJOR_VERSION)
+    {
+        DoLog("Ready to Run disabled - unsupported header version");
         return NULL;
+    }
+
+    if (!AcquireImage(pModule, pLayout, pHeader))
+    {
+        DoLog("Ready to Run disabled - module already loaded in another AppDomain");
+        return NULL;
+    }
 
     LoaderHeap *pHeap = pModule->GetLoaderAllocator()->GetHighFrequencyHeap();
     void * pMemory = pamTracker->Track(pHeap->AllocMem((S_SIZE_T)sizeof(ReadyToRunInfo)));
 
-    return new (pMemory) ReadyToRunInfo(pModule, pLayout, pHeader);
+    DoLog("Ready to Run initialized successfully");
+
+    return new (pMemory) ReadyToRunInfo(pModule, pLayout, pHeader, pamTracker);
 }
 
-ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader)
-    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstLeafLock)
+ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYTORUN_HEADER * pHeader, AllocMemTracker *pamTracker)
+    : m_pModule(pModule), m_pLayout(pLayout), m_pHeader(pHeader), m_Crst(CrstReadyToRunEntryPointToMethodDescMap),
+    m_pPersistentInlineTrackingMap(NULL)
 {
     STANDARD_VM_CONTRACT;
 
@@ -456,6 +571,13 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         m_methodDefEntryPoints = NativeArray(&m_nativeReader, pEntryPointsDir->VirtualAddress);
     }
 
+    IMAGE_DATA_DIRECTORY * pinstMethodsDir = FindSection(READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS);
+    if (pinstMethodsDir != NULL)
+    {
+        NativeParser parser = NativeParser(&m_nativeReader, pinstMethodsDir->VirtualAddress);
+        m_instMethodEntryPoints = NativeHashtable(parser);
+    }
+
     IMAGE_DATA_DIRECTORY * pAvailableTypesDir = FindSection(READYTORUN_SECTION_AVAILABLE_TYPES);
     if (pAvailableTypesDir != NULL)
     {
@@ -467,15 +589,87 @@ ReadyToRunInfo::ReadyToRunInfo(Module * pModule, PEImageLayout * pLayout, READYT
         LockOwner lock = {&m_Crst, IsOwnerOfCrst};
         m_entryPointToMethodDescMap.Init(TRUE, &lock);
     }
+
+    // For format version 2.1 and later, there is an optional inlining table 
+    if (IsImageVersionAtLeast(2, 1))
+    {
+        IMAGE_DATA_DIRECTORY * pInlineTrackingInfoDir = FindSection(READYTORUN_SECTION_INLINING_INFO);
+        if (pInlineTrackingInfoDir != NULL)
+        {
+            const BYTE* pInlineTrackingMapData = (const BYTE*)GetImage()->GetDirectoryData(pInlineTrackingInfoDir);
+            PersistentInlineTrackingMapR2R::TryLoad(pModule, pInlineTrackingMapData, pInlineTrackingInfoDir->Size,
+                                                    pamTracker, &m_pPersistentInlineTrackingMap);
+        }
+    }
+    // Fpr format version 2.2 and later, there is an optional profile-data section
+    if (IsImageVersionAtLeast(2, 2))
+    {
+        IMAGE_DATA_DIRECTORY * pProfileDataInfoDir = FindSection(READYTORUN_SECTION_PROFILEDATA_INFO);
+        if (pProfileDataInfoDir != NULL)
+        {
+            CORCOMPILE_METHOD_PROFILE_LIST * pMethodProfileList;
+            pMethodProfileList = (CORCOMPILE_METHOD_PROFILE_LIST *)GetImage()->GetDirectoryData(pProfileDataInfoDir);
+
+            pModule->SetMethodProfileList(pMethodProfileList);  
+        }
+    }
 }
 
-PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
+static bool SigMatchesMethodDesc(MethodDesc* pMD, SigPointer &sig, Module * pModule)
 {
     STANDARD_VM_CONTRACT;
 
-    // READYTORUN: FUTURE: Support for generics
-    if (pMD->HasClassOrMethodInstantiation())
-        return NULL;
+    ZapSig::Context    zapSigContext(pModule, (void *)pModule, ZapSig::NormalTokens);
+    ZapSig::Context *  pZapSigContext = &zapSigContext;
+
+    DWORD methodFlags;
+    IfFailThrow(sig.GetData(&methodFlags));
+
+    if (methodFlags & ENCODE_METHOD_SIG_OwnerType)
+    {
+        PCCOR_SIGNATURE pSigType;
+        DWORD cbSigType;
+        sig.GetSignature(&pSigType, &cbSigType);
+        if (!ZapSig::CompareSignatureToTypeHandle(pSigType, pModule, TypeHandle(pMD->GetMethodTable()), pZapSigContext))
+            return false;
+
+        IfFailThrow(sig.SkipExactlyOne());
+    }
+
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken) == 0);
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_MemberRefToken) == 0);
+
+    RID rid;
+    IfFailThrow(sig.GetData(&rid));
+    if (RidFromToken(pMD->GetMemberDef()) != rid)
+        return false;
+
+    if (methodFlags & ENCODE_METHOD_SIG_MethodInstantiation)
+    {
+        DWORD numGenericArgs;
+        IfFailThrow(sig.GetData(&numGenericArgs));
+        Instantiation inst = pMD->GetMethodInstantiation();
+        if (numGenericArgs != inst.GetNumArgs())
+            return false;
+
+        for (DWORD i = 0; i < numGenericArgs; i++)
+        {
+            PCCOR_SIGNATURE pSigArg;
+            DWORD cbSigArg;
+            sig.GetSignature(&pSigArg, &cbSigArg);
+            if (!ZapSig::CompareSignatureToTypeHandle(pSigArg, pModule, inst[i], pZapSigContext))
+                return false;
+
+            IfFailThrow(sig.SkipExactlyOne());
+        }
+    }
+
+    return true;
+}
+
+PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig, BOOL fFixups)
+{
+    STANDARD_VM_CONTRACT;
 
     mdToken token = pMD->GetMemberDef();
     int rid = RidFromToken(token);
@@ -483,8 +677,55 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
         return NULL;
 
     uint offset;
-    if (!m_methodDefEntryPoints.TryGetAt(rid - 1, &offset))
-        return NULL;
+    if (pMD->HasClassOrMethodInstantiation())
+    {
+        if (m_instMethodEntryPoints.IsNull())
+            return NULL;
+
+        NativeHashtable::Enumerator lookup = m_instMethodEntryPoints.Lookup(GetVersionResilientMethodHashCode(pMD));
+        NativeParser entryParser;
+        offset = -1;
+        while (lookup.GetNext(entryParser))
+        {
+            PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)entryParser.GetBlob();
+            SigPointer sig(pBlob);
+            if (SigMatchesMethodDesc(pMD, sig, m_pModule))
+            {
+                // Get the updated SigPointer location, so we can calculate the size of the blob,
+                // in order to skip the blob and find the entry point data.
+                PCCOR_SIGNATURE pSigNew;
+                DWORD cbSigNew;
+                sig.GetSignature(&pSigNew, &cbSigNew);
+                offset = entryParser.GetOffset() + (uint)(pSigNew - pBlob);
+                break;
+            }
+        }
+
+        if (offset == -1)
+            return NULL;
+    }
+    else
+    {
+        if (!m_methodDefEntryPoints.TryGetAt(rid - 1, &offset))
+            return NULL;
+    }
+
+#ifndef CROSSGEN_COMPILE
+#ifdef PROFILING_SUPPORTED
+        BOOL fShouldSearchCache = TRUE;
+        {
+            BEGIN_PIN_PROFILER(CORProfilerTrackCacheSearches());
+            g_profControlBlock.pProfInterface->
+                JITCachedFunctionSearchStarted((FunctionID)pMD, &fShouldSearchCache);
+            END_PIN_PROFILER();
+        }
+        if (!fShouldSearchCache)
+        {
+            pConfig->SetProfilerRejectedPrecompiledCode();
+            return NULL;
+        }
+#endif // PROFILING_SUPPORTED
+#endif // CROSSGEN_COMPILE
 
     uint id;
     offset = m_nativeReader.DecodeUnsigned(offset, &id);
@@ -501,7 +742,12 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
         if (fFixups)
         {
             if (!m_pModule->FixupDelayList(dac_cast<TADDR>(m_pLayout->GetBase()) + offset))
+            {
+#ifndef CROSSGEN_COMPILE
+                pConfig->SetReadyToRunRejectedPrecompiledCode();
+#endif // CROSSGEN_COMPILE
                 return NULL;
+            }
         }
 
         id >>= 2;
@@ -521,6 +767,17 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
             m_entryPointToMethodDescMap.InsertValue(PCODEToPINSTR(pEntryPoint), pMD);
     }
 
+#ifndef CROSSGEN_COMPILE
+#ifdef PROFILING_SUPPORTED
+        {
+            BEGIN_PIN_PROFILER(CORProfilerTrackCacheSearches());
+            g_profControlBlock.pProfInterface->
+                JITCachedFunctionSearchFinished((FunctionID)pMD, COR_PRF_CACHED_FUNCTION_FOUND);
+            END_PIN_PROFILER();
+        }
+#endif // PROFILING_SUPPORTED
+#endif // CROSSGEN_COMPILE
+
     if (g_pDebugInterface != NULL)
     {
         g_pDebugInterface->JITComplete(pMD, pEntryPoint);
@@ -531,7 +788,13 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, BOOL fFixups /*=TRUE*/)
 
 BOOL ReadyToRunInfo::MethodIterator::Next()
 {
-    STANDARD_VM_CONTRACT;
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
     while (++m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
     {
@@ -549,11 +812,52 @@ MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc()
     return MemberLoader::GetMethodDescFromMethodDef(m_pInfo->m_pModule, mdtMethodDef | (m_methodDefIndex + 1), FALSE);
 }
 
+MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc_NoRestore()
+{
+    CONTRACTL
+    {
+        GC_TRIGGERS;
+        THROWS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    uint offset;
+    if (!m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+    {
+        return NULL;
+    }
+
+    uint id;
+    offset = m_pInfo->m_nativeReader.DecodeUnsigned(offset, &id);
+
+    if (id & 1)
+    {
+        if (id & 2)
+        {
+            uint val;
+            m_pInfo->m_nativeReader.DecodeUnsigned(offset, &val);
+            offset -= val;
+        }
+
+        id >>= 2;
+    }
+    else
+    {
+        id >>= 1;
+    }
+
+    _ASSERTE(id < m_pInfo->m_nRuntimeFunctions);
+    PCODE pEntryPoint = dac_cast<TADDR>(m_pInfo->m_pLayout->GetBase()) + m_pInfo->m_pRuntimeFunctions[id].BeginAddress;
+
+    return m_pInfo->GetMethodDescForEntryPoint(pEntryPoint);
+}
+
 PCODE ReadyToRunInfo::MethodIterator::GetMethodStartAddress()
 {
     STANDARD_VM_CONTRACT;
 
-    PCODE ret = m_pInfo->GetEntryPoint(GetMethodDesc(), FALSE);
+    PCODE ret = m_pInfo->GetEntryPoint(GetMethodDesc(), NULL, FALSE);
     _ASSERTE(ret != NULL);
     return ret;
 }
@@ -577,7 +881,15 @@ DWORD ReadyToRunInfo::GetFieldBaseOffset(MethodTable * pMT)
 
     dwCumulativeInstanceFieldPos = (DWORD)ALIGN_UP(dwCumulativeInstanceFieldPos, dwAlignment);
 
-    return (DWORD)sizeof(Object) + dwCumulativeInstanceFieldPos - dwOffsetBias;
+    return OBJECT_SIZE + dwCumulativeInstanceFieldPos - dwOffsetBias;
+}
+
+BOOL ReadyToRunInfo::IsImageVersionAtLeast(int majorVersion, int minorVersion)
+{
+	LIMITED_METHOD_CONTRACT;
+	return (m_pHeader->MajorVersion == majorVersion && m_pHeader->MinorVersion >= minorVersion) ||
+		   (m_pHeader->MajorVersion > majorVersion);
+
 }
 
 #endif // DACCESS_COMPILE

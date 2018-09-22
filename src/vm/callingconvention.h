@@ -13,6 +13,8 @@
 #ifndef __CALLING_CONVENTION_INCLUDED
 #define __CALLING_CONVENTION_INCLUDED
 
+BOOL IsRetBuffPassedAsFirstArg();
+
 // Describes how a single argument is laid out in registers and/or stack locations when given as an input to a
 // managed method as part of a larger signature.
 //
@@ -32,20 +34,25 @@
 // and possibly on to the stack as well.
 struct ArgLocDesc
 {
-    int     m_idxFloatReg;  // First floating point register used (or -1)
-    int     m_cFloatReg;    // Count of floating point registers used (or 0)
+    int     m_idxFloatReg;        // First floating point register used (or -1)
+    int     m_cFloatReg;          // Count of floating point registers used (or 0)
 
-    int     m_idxGenReg;    // First general register used (or -1)
-    int     m_cGenReg;      // Count of general registers used (or 0)
+    int     m_idxGenReg;          // First general register used (or -1)
+    int     m_cGenReg;            // Count of general registers used (or 0)
 
-    int     m_idxStack;     // First stack slot used (or -1)
-    int     m_cStack;       // Count of stack slots used (or 0)
+    int     m_idxStack;           // First stack slot used (or -1)
+    int     m_cStack;             // Count of stack slots used (or 0)
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
 
-    EEClass* m_eeClass;     // For structs passed in register, it points to the EEClass of the struct
+    EEClass* m_eeClass;           // For structs passed in register, it points to the EEClass of the struct
 
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
+
+#if defined(_TARGET_ARM64_)
+    bool    m_isSinglePrecision;  // For determining if HFA is single or double
+                                  // precision
+#endif // defined(_TARGET_ARM64_)
 
 #if defined(_TARGET_ARM_)
     BOOL    m_fRequires64BitAlignment; // True if the argument should always be aligned (in registers or on the stack
@@ -68,7 +75,10 @@ struct ArgLocDesc
 #if defined(_TARGET_ARM_)
         m_fRequires64BitAlignment = FALSE;
 #endif
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(_TARGET_ARM64_)
+        m_isSinglePrecision = FALSE;
+#endif // defined(_TARGET_ARM64_)
+#if defined(UNIX_AMD64_ABI)
         m_eeClass = NULL;
 #endif
     }
@@ -110,6 +120,8 @@ struct TransitionBlock
             INT64 x19, x20, x21, x22, x23, x24, x25, x26, x27, x28;
         };
     };
+    TADDR padding; // Keep size of TransitionBlock as multiple of 16-byte. Simplifies code in PROLOG_WITH_TRANSITION_BLOCK
+    INT64 m_x8RetBuffReg;
     ArgumentRegisters       m_argumentRegisters;
 #else
     PORTABILITY_ASSERT("TransitionBlock");
@@ -124,9 +136,19 @@ struct TransitionBlock
         return offsetof(TransitionBlock, m_ReturnAddress);
     }
 
+#ifdef _TARGET_ARM64_
+    static int GetOffsetOfRetBuffArgReg()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return offsetof(TransitionBlock, m_x8RetBuffReg);
+    }
+#endif
+
     static BYTE GetOffsetOfArgs()
     {
         LIMITED_METHOD_CONTRACT;
+
+        // Offset of the stack args (which are after the TransitionBlock)
         return sizeof(TransitionBlock);
     }
 
@@ -146,7 +168,7 @@ struct TransitionBlock
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         return offset >= sizeof(TransitionBlock);
 #else        
         int ofsArgRegs = GetOffsetOfArgumentRegisters();
@@ -169,10 +191,10 @@ struct TransitionBlock
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         _ASSERTE(offset != TransitionBlock::StructInRegsOffset);
 #endif        
-        return (offset - GetOffsetOfArgumentRegisters()) / sizeof(TADDR);
+        return (offset - GetOffsetOfArgumentRegisters()) / TARGET_POINTER_SIZE;
     }
 
     static UINT GetStackArgumentIndexFromOffset(int offset)
@@ -188,7 +210,7 @@ struct TransitionBlock
     static BOOL IsFloatArgumentRegisterOffset(int offset)
     {
         LIMITED_METHOD_CONTRACT;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         return (offset != TransitionBlock::StructInRegsOffset) && (offset < 0);
 #else        
         return offset < 0;
@@ -201,7 +223,7 @@ struct TransitionBlock
     static BOOL HasFloatRegister(int offset, ArgLocDesc* argLocDescForStructInRegs)
     {
         LIMITED_METHOD_CONTRACT;
-    #if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+    #if defined(UNIX_AMD64_ABI)
         if (offset == TransitionBlock::StructInRegsOffset)
         {
             return argLocDescForStructInRegs->m_cFloatReg > 0;
@@ -231,13 +253,13 @@ struct TransitionBlock
         negSpaceSize += sizeof(FloatArgumentRegisters);
 #endif
 #ifdef _TARGET_ARM_
-        negSpaceSize += sizeof(TADDR); // padding to make FloatArgumentRegisters address 8-byte aligned
+        negSpaceSize += TARGET_POINTER_SIZE; // padding to make FloatArgumentRegisters address 8-byte aligned
 #endif
         return negSpaceSize;
     }
 
     static const int InvalidOffset = -1;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     // Special offset value to represent  struct passed in registers. Such a struct can span both
     // general purpose and floating point registers, so it can have two different offsets.
     static const int StructInRegsOffset = -2;
@@ -388,7 +410,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         // No arguments are passed by reference on AMD64 on Unix
         return FALSE;
 #else
@@ -405,12 +427,12 @@ public:
         LIMITED_METHOD_CONTRACT;
 
 #ifdef _TARGET_AMD64_
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         PORTABILITY_ASSERT("ArgIteratorTemplate::IsVarArgPassedByRef");                
         return FALSE;
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         return IsArgPassedByRef(size);
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
 #else
         return (size > ENREGISTERED_PARAMTYPE_MAXSIZE);
@@ -480,14 +502,18 @@ public:
     // in signatures (this pointer and the like). Whether or not these can be used successfully before all the
     // explicit arguments have been scanned is platform dependent.
     void GetThisLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetThisOffset(), pLoc); }
-    void GetRetBuffArgLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetRetBuffArgOffset(), pLoc); }
     void GetParamTypeLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetParamTypeArgOffset(), pLoc); }
     void GetVASigCookieLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetVASigCookieOffset(), pLoc); }
+
+#ifndef CALLDESCR_RETBUFFARGREG
+    void GetRetBuffArgLoc(ArgLocDesc * pLoc) { WRAPPER_NO_CONTRACT; GetSimpleLoc(GetRetBuffArgOffset(), pLoc); }
+#endif
+
 #endif // !_TARGET_X86_
 
     ArgLocDesc* GetArgLocDescForStructInRegs()
     {
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI) || defined (_TARGET_ARM64_)
         return m_hasArgLocDescForStructInRegs ? &m_argLocDescForStructInRegs : NULL;
 #else
         return NULL;
@@ -553,7 +579,10 @@ public:
             if (!m_argTypeHandle.IsNull() && m_argTypeHandle.IsHFA())
             {
                 CorElementType type = m_argTypeHandle.GetHFAType();
-                pLoc->m_cFloatReg = (type == ELEMENT_TYPE_R4)? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
+                bool isFloatType = (type == ELEMENT_TYPE_R4);
+
+                pLoc->m_cFloatReg = isFloatType ? GetArgSize()/sizeof(float): GetArgSize()/sizeof(double);
+                pLoc->m_isSinglePrecision = isFloatType;
             }
             else
             {
@@ -570,11 +599,17 @@ public:
             cSlots = 1;
         }
 
+#ifdef _TARGET_ARM64_
+        // Sanity check to make sure no caller is trying to get an ArgLocDesc that
+        // describes the return buffer reg field that's in the TransitionBlock.
+        _ASSERTE(argOffset != TransitionBlock::GetOffsetOfRetBuffArgReg());
+#endif
+
         if (!TransitionBlock::IsStackArgumentOffset(argOffset))
         {
             pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(argOffset);
             pLoc->m_cGenReg = cSlots;
-         }
+        }
         else
         {
             pLoc->m_idxStack = TransitionBlock::GetStackArgumentIndexFromOffset(argOffset);
@@ -589,13 +624,13 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
         if (m_hasArgLocDescForStructInRegs)
         {
             *pLoc = m_argLocDescForStructInRegs;
             return;
         }
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         if (argOffset == TransitionBlock::StructInRegsOffset)
         {
@@ -636,10 +671,10 @@ protected:
     CorElementType      m_argType;
     int                 m_argSize;
     TypeHandle          m_argTypeHandle;
-#if defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
     ArgLocDesc          m_argLocDescForStructInRegs;
     bool                m_hasArgLocDescForStructInRegs;
-#endif // _TARGET_AMD64_ && UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // (_TARGET_AMD64_ && UNIX_AMD64_ABI) || _TARGET_ARM64_
 
 #ifdef _TARGET_X86_
     int                 m_curOfs;           // Current position of the stack iterator
@@ -651,9 +686,7 @@ protected:
     int                 m_idxGenReg;        // Next general register to be assigned a value
     int                 m_idxStack;         // Next stack slot to be assigned a value
     int                 m_idxFPReg;         // Next floating point register to be assigned a value
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
     bool                m_fArgInRegisters;  // Indicates that the current argument is stored in registers
-#endif    
 #else
     int                 m_curOfs;           // Current position of the stack iterator
 #endif
@@ -697,6 +730,13 @@ protected:
     void GetSimpleLoc(int offset, ArgLocDesc * pLoc)
     { 
         WRAPPER_NO_CONTRACT; 
+
+#ifdef CALLDESCR_RETBUFFARGREG
+        // Codepaths where this could happen have been removed. If this occurs, something
+        // has been missed and this needs another look.
+        _ASSERTE(offset != TransitionBlock::GetOffsetOfRetBuffArgReg());
+#endif
+
         pLoc->Init();
         pLoc->m_idxGenReg = TransitionBlock::GetArgumentIndexFromOffset(offset);
         pLoc->m_cGenReg = 1;
@@ -734,9 +774,11 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetRetBuffArgOffset()
 #if _TARGET_X86_
     // x86 is special as always
     ret += this->HasThis() ? offsetof(ArgumentRegisters, EDX) : offsetof(ArgumentRegisters, ECX);
+#elif _TARGET_ARM64_
+    ret = TransitionBlock::GetOffsetOfRetBuffArgReg();
 #else
     if (this->HasThis())
-        ret += sizeof(void *);
+        ret += TARGET_POINTER_SIZE;
 #endif
 
     return ret;
@@ -758,12 +800,12 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetVASigCookieOffset()
 
     if (this->HasThis())
     {
-        ret += sizeof(void*);
+        ret += TARGET_POINTER_SIZE;
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
-        ret += sizeof(void*);
+        ret += TARGET_POINTER_SIZE;
     }
 
     return ret;
@@ -811,12 +853,12 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetParamTypeArgOffset()
 
     if (this->HasThis())
     {
-        ret += sizeof(void*);
+        ret += TARGET_POINTER_SIZE;
     }
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
-        ret += sizeof(void*);
+        ret += TARGET_POINTER_SIZE;
     }
 
     return ret;
@@ -845,7 +887,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (this->HasThis())
             numRegistersUsed++;
 
-        if (this->HasRetBuffArg())
+        if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             numRegistersUsed++;
 
         _ASSERTE(!this->IsVarArg() || !this->HasParamType());
@@ -915,6 +957,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         m_dwFlags |= ITERATION_STARTED;
     }
 
+    // We're done going through the args for this MetaSig
     if (m_argNum == this->NumFixedArgs())
         return TransitionBlock::InvalidOffset;
 
@@ -927,7 +970,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     m_argSize = argSize;
     m_argTypeHandle = thValueType;
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     m_hasArgLocDescForStructInRegs = false;
 #endif
 
@@ -954,8 +997,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     m_fArgInRegisters = true;
 
     int cFPRegs = 0;
+    int cGenRegs = 0;
     int cbArg = StackElemSize(argSize);
-    int cGenRegs = cbArg / 8; // GP reg size
 
     switch (argType)
     {
@@ -972,7 +1015,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     case ELEMENT_TYPE_VALUETYPE:
     {
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         MethodTable *pMT = m_argTypeHandle.AsMethodTable();
         if (pMT->IsRegPassedStruct())
         {
@@ -1019,14 +1062,15 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         cFPRegs = 0;
         cGenRegs = 0;
 
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         argSize = sizeof(TADDR);        
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
         break;
     }
 
     default:
+        cGenRegs = cbArg / 8; // GP reg size
         break;
     }
 
@@ -1043,7 +1087,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         return argOfs;
     }
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
     m_fArgInRegisters = false;
 #endif        
 
@@ -1093,10 +1137,14 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         // the interop "native value types".
         fRequiresAlign64Bit = thValueType.RequiresAlign8();
 
+#ifdef FEATURE_HFA
         // Handle HFAs: packed structures of 1-4 floats or doubles that are passed in FP argument
         // registers if possible.
         if (thValueType.IsHFA())
+        {
             fFloatingPoint = true;
+        }
+#endif
 
         break;
     }
@@ -1118,6 +1166,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     // Ignore floating point argument placement in registers if we're dealing with a vararg function (the ABI
     // specifies this so that vararg processing on the callee side is simplified).
+#ifndef ARM_SOFTFP
     if (fFloatingPoint && !this->IsVarArg())
     {
         // Handle floating point (primitive) arguments.
@@ -1160,7 +1209,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
         // Doubles or HFAs containing doubles need the stack aligned appropriately.
         if (fRequiresAlign64Bit)
-            m_idxStack = ALIGN_UP(m_idxStack, 2);
+            m_idxStack = (int)ALIGN_UP(m_idxStack, 2);
 
         // Indicate the stack location of the argument to the caller.
         int argOfs = TransitionBlock::GetOffsetOfArgs() + m_idxStack * 4;
@@ -1170,6 +1219,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
         return argOfs;
     }
+#endif // ARM_SOFTFP
 
     //
     // Handle the non-floating point case.
@@ -1181,7 +1231,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         {
             // The argument requires 64-bit alignment. Align either the next general argument register if
             // we have any left.  See step C.3 in the algorithm in the ABI spec.       
-            m_idxGenReg = ALIGN_UP(m_idxGenReg, 2);
+            m_idxGenReg = (int)ALIGN_UP(m_idxGenReg, 2);
         }
 
         int argOfs = TransitionBlock::GetOffsetOfArgumentRegisters() + m_idxGenReg * 4;
@@ -1212,7 +1262,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     {
         // The argument requires 64-bit alignment. If it is going to be passed on the stack, align
         // the next stack slot.  See step C.6 in the algorithm in the ABI spec.  
-        m_idxStack = ALIGN_UP(m_idxStack, 2);
+        m_idxStack = (int)ALIGN_UP(m_idxStack, 2);
     }
 
     int argOfs = TransitionBlock::GetOffsetOfArgs() + m_idxStack * 4;
@@ -1245,7 +1295,17 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (thValueType.IsHFA())
         {
             CorElementType type = thValueType.GetHFAType();
+            bool isFloatType = (type == ELEMENT_TYPE_R4);
+
             cFPRegs = (type == ELEMENT_TYPE_R4)? (argSize/sizeof(float)): (argSize/sizeof(double));
+
+            m_argLocDescForStructInRegs.Init();
+            m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
+            m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
+
+            m_argLocDescForStructInRegs.m_isSinglePrecision = isFloatType;
+                
+            m_hasArgLocDescForStructInRegs = true;
         }
         else 
         {
@@ -1281,15 +1341,40 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     }
     else
     {
+        // Only x0-x7 are valid argument registers (x8 is always the return buffer)
         if (m_idxGenReg + cArgSlots <= 8)
         {
+            // The entirety of the arg fits in the register slots.
+
             int argOfs = TransitionBlock::GetOffsetOfArgumentRegisters() + m_idxGenReg * 8;
             m_idxGenReg += cArgSlots;
             return argOfs;
         }
         else
         {
-            m_idxGenReg = 8;
+#ifdef _WIN32
+            if (this->IsVarArg() && m_idxGenReg < 8)
+            {
+                // Address the Windows ARM64 varargs case where an arg is split between regs and stack.
+                // This can happen in the varargs case because the first 64 bytes of the stack are loaded
+                // into x0-x7, and any remaining stack arguments are placed normally.
+                int argOfs = TransitionBlock::GetOffsetOfArgumentRegisters() + m_idxGenReg * 8;
+
+                // Increase m_idxStack to account for the space used for the remainder of the arg after
+                // register slots are filled.
+                m_idxStack += (m_idxGenReg + cArgSlots - 8);
+
+                // We used up the remaining reg slots.
+                m_idxGenReg = 8; 
+
+                return argOfs;
+            }
+            else
+#endif
+            {
+                // Don't use reg slots for this. It will be passed purely on the stack arg space.
+                m_idxGenReg = 8;
+            }
         }
     }
 
@@ -1331,11 +1416,15 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         break;
 
     case ELEMENT_TYPE_R4:
+#ifndef ARM_SOFTFP
         flags |= sizeof(float) << RETURN_FP_SIZE_SHIFT;
+#endif
         break;
 
     case ELEMENT_TYPE_R8:
+#ifndef ARM_SOFTFP
         flags |= sizeof(double) << RETURN_FP_SIZE_SHIFT;
+#endif
         break;
 
     case ELEMENT_TYPE_VALUETYPE:
@@ -1343,7 +1432,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         {
             _ASSERTE(!thValueType.IsNull());
 
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
+#if defined(UNIX_AMD64_ABI)
             MethodTable *pMT = thValueType.AsMethodTable();
             if (pMT->IsRegPassedStruct())
             {
@@ -1375,7 +1464,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
 
                 break;
             }
-#else // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
 
 #ifdef FEATURE_HFA
             if (thValueType.IsHFA() && !this->IsVarArg())
@@ -1403,7 +1492,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
 
             if  (size <= ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE)
                 break;
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
         }
 #endif // ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
 
@@ -1445,7 +1534,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
     if (this->HasThis())
         numRegistersUsed++;
 
-    if (this->HasRetBuffArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
         numRegistersUsed++;
 
     if (this->IsVarArg())
@@ -1525,7 +1614,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
         int stackElemSize;
 
 #ifdef _TARGET_AMD64_
-#ifdef FEATURE_UNIX_AMD64_STRUCT_PASSING
+#ifdef UNIX_AMD64_ABI
         if (m_fArgInRegisters)
         {
             // Arguments passed in registers don't consume any stack 
@@ -1533,11 +1622,11 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
         }
 
         stackElemSize = StackElemSize(GetArgSize());
-#else // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#else // UNIX_AMD64_ABI
         // All stack arguments take just one stack slot on AMD64 because of arguments bigger 
         // than a stack slot are passed by reference. 
         stackElemSize = STACK_ELEM_SIZE;
-#endif // FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 #else // _TARGET_AMD64_
         stackElemSize = StackElemSize(GetArgSize());
 #if defined(ENREGISTERED_PARAMTYPE_MAXSIZE)
@@ -1685,6 +1774,27 @@ inline BOOL HasRetBuffArg(MetaSig * pSig)
     WRAPPER_NO_CONTRACT;
     ArgIterator argit(pSig);
     return argit.HasRetBuffArg();
+}
+
+#ifdef UNIX_X86_ABI
+// For UNIX_X86_ABI and unmanaged function, we always need RetBuf if the return type is VALUETYPE
+inline BOOL HasRetBuffArgUnmanagedFixup(MetaSig * pSig)
+{
+    WRAPPER_NO_CONTRACT;
+    // We cannot just pSig->GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums
+    CorElementType type = pSig->GetRetTypeHandleThrowing().GetVerifierCorElementType();
+    return type == ELEMENT_TYPE_VALUETYPE;
+}
+#endif
+
+inline BOOL IsRetBuffPassedAsFirstArg()
+{
+    WRAPPER_NO_CONTRACT;
+#ifndef _TARGET_ARM64_
+    return TRUE;
+#else
+    return FALSE;
+#endif        
 }
 
 #endif // __CALLING_CONVENTION_INCLUDED

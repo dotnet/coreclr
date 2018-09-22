@@ -1,0 +1,34 @@
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
+
+  <PropertyGroup>
+    <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->
+    <OutputPath>$(PackageOutputPath)</OutputPath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(__SkipCoreLibBuild)'==''">
+    <Project Include="Microsoft.NETCore.Runtime.CoreCLR\Microsoft.NETCore.Runtime.CoreCLR.builds" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetsWindows)'=='true'">
+    <Project Include="Microsoft.TargetingPack.Private.CoreCLR\Microsoft.TargetingPack.Private.CoreCLR.pkgproj" />
+    <Project Include="Microsoft.NET.Sdk.IL\Microsoft.NET.Sdk.IL.pkgproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(__SkipNativeBuild)'==''">
+    <Project Include="Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.builds" />
+    <Project Include="Microsoft.NETCore.TestHost\Microsoft.NETCore.TestHost.builds" />
+    <Project Include="Microsoft.NETCore.Native\Microsoft.NETCore.Native.builds" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Project Include="Microsoft.NETCore.ILAsm\Microsoft.NETCore.ILAsm.builds" />
+    <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
+  </ItemGroup>
+
+  <Import Project="$(ToolsDir)versioning.targets" />
+  <!-- Make sure we create version.txt file since it will be packaged -->
+  <Target Name="EnsureVersionInfoFileExists" BeforeTargets="Build" DependsOnTargets="CreateVersionInfoFile" />
+
+  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.traversal.targets" />
+</Project>

@@ -1,13 +1,11 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
 
-.assembly extern mscorlib { }
+.assembly extern System.Console { auto }
+.assembly extern mscorlib { auto }
+
 .assembly 'tailcall' { }
 .namespace JitTest
 {
@@ -165,7 +163,7 @@
       IL_01dc:  beq.s      IL_END
 
       IL_01de:  ldstr      "Loss of precision or unbox error"
-      IL_01e3:  newobj     instance void [mscorlib]System.ApplicationException::.ctor(string)
+      IL_01e3:  newobj     instance void [mscorlib]System.Exception::.ctor(string)
       IL_01e8:  throw
 
 		IL_END:

@@ -27,18 +27,12 @@
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
-#include "security.h"
+#include "gcheaputilities.h"
 #include "dbginterface.h"
-#include "objecthandle.h"
 #include "marshalnative.h"
 #include "fcall.h"
 #include "dllimportcallback.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "comdelegate.h"
-#include "handletablepriv.h"
 #include "mdaassistants.h"
 #include "typestring.h"
 #include "appdomain.inl"
@@ -186,11 +180,13 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     CONTRACTL_END;
 
     OBJECTREF  pObj = ObjectToOBJECTREF(pObjIn);
+    
+    HELPER_METHOD_FRAME_BEGIN_1(pObj);
 
     if (ptr == NULL)
-        FCThrowArgumentNullVoid(W("ptr"));
+        COMPlusThrowArgumentNull(W("ptr"));
     if (pObj == NULL) 
-        FCThrowArgumentNullVoid(W("structure"));
+        COMPlusThrowArgumentNull(W("structure"));
 
     // Code path will accept regular layout objects.
     MethodTable *pMT = pObj->GetMethodTable();
@@ -198,7 +194,7 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     // Validate that the object passed in is not a value class.
     if (!allowValueClasses && pMT->IsValueType())
     {
-        FCThrowArgumentVoid(W("structure"), W("Argument_StructMustNotBeValueClass"));
+        COMPlusThrowArgumentException(W("structure"), W("Argument_StructMustNotBeValueClass"));
     }
     else if (pMT->IsBlittable())
     {
@@ -206,14 +202,14 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     }
     else if (pMT->HasLayout())
     {
-        HELPER_METHOD_FRAME_BEGIN_1(pObj);
-            LayoutUpdateCLR((LPVOID*) &(pObj), Object::GetOffsetOfFirstField(), pMT, (LPBYTE)(ptr));
-        HELPER_METHOD_FRAME_END();
+        LayoutUpdateCLR((LPVOID*) &(pObj), Object::GetOffsetOfFirstField(), pMT, (LPBYTE)(ptr));
     }
     else
     {
-        FCThrowArgumentVoid(W("structure"), W("Argument_MustHaveLayoutOrBeBlittable"));
-    }
+        COMPlusThrowArgumentException(W("structure"), W("Argument_MustHaveLayoutOrBeBlittable"));
+    }   
+    
+    HELPER_METHOD_FRAME_END();  
 }
 FCIMPLEND
 
@@ -446,29 +442,6 @@ FCIMPL3(LPVOID, MarshalNative::GetUnmanagedThunkForManagedMethodPtr, LPVOID pfnM
     CONTRACTL_END;
 
     LPVOID pThunk = NULL;
-#ifdef FEATURE_MIXEDMODE    
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    if (pfnMethodToWrap == NULL)
-        COMPlusThrowArgumentNull(W("pfnMethodToWrap"));
-    if (pbSignature == NULL)
-        COMPlusThrowArgumentNull(W("pbSignature"));
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4996) // Suppress warning on call to deprecated method
-#endif
-    Module *pModule = SystemDomain::GetCallersModule(1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    PREFIX_ASSUME(pModule != NULL);
-    pThunk = pModule->GetUMThunk(pfnMethodToWrap, pbSignature, cbSignature);
-    if (!pThunk) 
-        COMPlusThrowOM();
-
-    HELPER_METHOD_FRAME_END();
-#endif // FEATURE_MIXEDMODE    
     return pThunk;
 }
 FCIMPLEND
@@ -488,31 +461,6 @@ FCIMPL3(LPVOID, MarshalNative::GetManagedThunkForUnmanagedMethodPtr, LPVOID pfnM
     CONTRACTL_END;
 
     LPVOID pThunk = NULL;
-#ifdef FEATURE_MIXEDMODE    
-    HELPER_METHOD_FRAME_BEGIN_RET_0();
-
-    if (pfnMethodToWrap == NULL)
-        COMPlusThrowArgumentNull(W("pfnMethodToWrap"));
-    if (pbSignature == NULL)
-        COMPlusThrowArgumentNull(W("pbSignature"));
-
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4996) // Suppress warning on call to deprecated method
-#endif
-    Module *pModule = SystemDomain::GetCallersModule(1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-    if (!pModule)
-        ThrowOutOfMemory();
-    
-    pThunk = pModule->GetMUThunk(pfnMethodToWrap, pbSignature, cbSignature);
-    if (!pThunk) 
-        ThrowOutOfMemory();
-
-    HELPER_METHOD_FRAME_END();
-#endif //  FEATURE_MIXEDMODE    
     return pThunk;
 }
 FCIMPLEND
@@ -642,7 +590,7 @@ FCIMPLEND
 
  // Check that the supplied object is valid to put in a pinned handle.
 // Throw an exception if not.
-void GCHandleValidatePinnedObject(OBJECTREF obj)
+void ValidatePinnedObject(OBJECTREF obj)
 {
     CONTRACTL
     {
@@ -689,13 +637,14 @@ FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
     OBJECTHANDLE hnd = 0;
 
     HELPER_METHOD_FRAME_BEGIN_RET_NOPOLL();
-    
+
     // If it is a pinned handle, check the object type.
     if (type == HNDTYPE_PINNED)
-        GCHandleValidatePinnedObject(objRef);
+        ValidatePinnedObject(objRef);
 
+    assert(type >= HNDTYPE_WEAK_SHORT && type <= HNDTYPE_WEAK_WINRT);
     // Create the handle.
-    hnd = GetAppDomain()->CreateTypedHandle(objRef, type);
+    hnd = GetAppDomain()->CreateTypedHandle(objRef, static_cast<HandleType>(type));
 
     HELPER_METHOD_FRAME_END_POLL();
     return (LPVOID) hnd;
@@ -750,7 +699,7 @@ FCIMPL3(VOID, MarshalNative::GCHandleInternalSet, OBJECTHANDLE handle, Object *o
     //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
     {
-        GCHandleValidatePinnedObject(objRef);
+        ValidatePinnedObject(objRef);
     }
 
     // Update the stored object reference.
@@ -771,7 +720,7 @@ FCIMPL4(Object*, MarshalNative::GCHandleInternalCompareExchange, OBJECTHANDLE ha
 
     //<TODO>@todo: If the handle is pinned check the object type.</TODO>
     if (isPinned)
-        GCHandleValidatePinnedObject(newObjref);
+        ValidatePinnedObject(newObjref);
 
     // Update the stored object reference.
     ret = InterlockedCompareExchangeObjectInHandle(handle, newObjref, oldObjref);
@@ -809,26 +758,11 @@ FCIMPL1(LPVOID, MarshalNative::GCHandleInternalAddrOfPinnedObject, OBJECTHANDLE 
 FCIMPLEND
 
 // Make sure the handle is accessible from the current domain.  (Throw if not.)
-FCIMPL1(VOID, MarshalNative::GCHandleInternalCheckDomain, OBJECTHANDLE handle)
-{
-    FCALL_CONTRACT;
-
-    if (handle == NULL)
-        FCThrowArgumentVoid(W("handle"), W("Argument_ArgumentZero"));
-    
-    ADIndex index = HndGetHandleTableADIndex(HndGetHandleTable(handle));
-
-    if (index.m_dwIndex != 1 && index != GetAppDomain()->GetIndex())
-        FCThrowArgumentVoid(W("handle"), W("Argument_HandleLeak"));
-}
-FCIMPLEND
-
-// Make sure the handle is accessible from the current domain.  (Throw if not.)
 FCIMPL1(INT32, MarshalNative::GCHandleInternalGetHandleType, OBJECTHANDLE handle)
 {
     FCALL_CONTRACT;
 
-    return HandleFetchType(handle);
+    return GCHandleUtilities::GetGCHandleManager()->HandleFetchType(handle);
 }
 FCIMPLEND
 
@@ -849,7 +783,7 @@ FCIMPL1(INT32, MarshalNative::CalculateCount, ArrayWithOffsetData* pArrayWithOff
         if (arrayObj->GetMethodTable()->IsMultiDimArray())
             COMPlusThrow(kArgumentException, IDS_EE_NOTISOMORPHIC);
 
-        GCHandleValidatePinnedObject(arrayObj);
+        ValidatePinnedObject(arrayObj);
     }
 
     if (arrayObj == NULL)
@@ -1040,8 +974,7 @@ FCIMPL1(ITypeInfo*, MarshalNative::GetITypeInfoForType, ReflectClassBaseObject* 
         COMPlusThrowArgumentNull(W("t"));
         
     MethodTable *pRefMT = refClass->GetMethodTable();
-    if (pRefMT != g_pRuntimeTypeClass &&
-        pRefMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
     TypeHandle th = refClass->GetType();
@@ -1538,17 +1471,6 @@ FCIMPL2(Object*, MarshalNative::InternalCreateWrapperOfType, Object* objUNSAFE, 
     BOOL fSet = FALSE;
     
     // Start by checking if we can cast the obj to the wrapper type.
-#ifdef FEATURE_REMOTING
-    if (pObjMT->IsTransparentProxy())
-    {
-        if (CRemotingServices::CheckCast(gc.obj, pNewWrapMT))
-        {
-            gc.refRetVal = gc.obj;
-            fSet = TRUE;
-        }
-    }
-    else
-#endif
     if (TypeHandle(pObjMT).CanCastTo(TypeHandle(pNewWrapMT)))
     {
         gc.refRetVal = gc.obj;
@@ -1610,8 +1532,7 @@ FCIMPL1(FC_BOOL_RET, MarshalNative::IsTypeVisibleFromCom, ReflectClassBaseObject
         COMPlusThrowArgumentNull(W("t"));
         
     MethodTable *pRefMT = refClass->GetMethodTable();
-    if (pRefMT != g_pRuntimeTypeClass && 
-        pRefMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
     // Call the internal version of IsTypeVisibleFromCom.
@@ -1805,8 +1726,7 @@ FCIMPL2(void, MarshalNative::DoGenerateGuidForType, GUID * result, ReflectClassB
         COMPlusThrowArgumentNull(W("type"));
         
     MethodTable *pRefMT = refType->GetMethodTable();
-    if (pRefMT != g_pRuntimeTypeClass &&
-        pRefMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pRefMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("type"), W("Argument_MustBeRuntimeType"));
     if (result == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_GUID"));
@@ -2041,8 +1961,7 @@ FCIMPL1(int, MarshalNative::GetStartComSlot, ReflectClassBaseObject* tUNSAFE)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
     
     MethodTable *pTMT = t->GetMethodTable();
-    if (pTMT != g_pRuntimeTypeClass &&
-        pTMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
     MethodTable *pMT = t->GetType().GetMethodTable();
@@ -2075,8 +1994,7 @@ FCIMPL1(int, MarshalNative::GetEndComSlot, ReflectClassBaseObject* tUNSAFE)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
     
     MethodTable *pTMT = t->GetMethodTable();
-    if (pTMT != g_pRuntimeTypeClass &&
-        pTMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
     TypeHandle classTH = t->GetType();
@@ -2154,8 +2072,7 @@ FCIMPL3(Object*, MarshalNative::GetMethodInfoForComSlot, ReflectClassBaseObject*
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_Generic"));
     
     MethodTable *pTMT = t->GetMethodTable();
-    if (pTMT != g_pRuntimeTypeClass &&
-        pTMT != MscorlibBinder::GetClass(CLASS__CLASS_INTROSPECTION_ONLY))
+    if (pTMT != g_pRuntimeTypeClass)
         COMPlusThrowArgumentException(W("t"), W("Argument_MustBeRuntimeType"));
 
     TypeHandle type = t->GetType();
@@ -2333,9 +2250,6 @@ FCIMPL2(void, MarshalNative::ChangeWrapperHandleStrength, Object* orefUNSAFE, CL
         COMPlusThrowArgumentNull(W("otp"));
     
     if (
-#ifdef FEATURE_REMOTING
-        CRemotingServices::IsTransparentProxy(OBJECTREFToObject(oref)) ||
-#endif
         !oref->GetMethodTable()->IsComImport())
     {
         CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&oref);

@@ -36,6 +36,10 @@ static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 1 == METHOD__STRING__CTORF_CH
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 2 == METHOD__STRING__CTORF_CHAR_COUNT);
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 3 == METHOD__STRING__CTORF_CHARPTR);
 static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 4 == METHOD__STRING__CTORF_CHARPTR_START_LEN);
+static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 5 == METHOD__STRING__CTORF_READONLYSPANOFCHAR);
+static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 6 == METHOD__STRING__CTORF_SBYTEPTR);
+static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 7 == METHOD__STRING__CTORF_SBYTEPTR_START_LEN);
+static_assert_no_msg(METHOD__STRING__CTORF_FIRST + 8 == METHOD__STRING__CTORF_SBYTEPTR_START_LEN_ENCODING);
 
 // ECall::CtorCharXxx has to be in same order as METHOD__STRING__CTORF_XXX
 #define ECallCtor_First ECall::CtorCharArrayManaged
@@ -44,8 +48,12 @@ static_assert_no_msg(ECallCtor_First + 1 == ECall::CtorCharArrayStartLengthManag
 static_assert_no_msg(ECallCtor_First + 2 == ECall::CtorCharCountManaged);
 static_assert_no_msg(ECallCtor_First + 3 == ECall::CtorCharPtrManaged);
 static_assert_no_msg(ECallCtor_First + 4 == ECall::CtorCharPtrStartLengthManaged);
+static_assert_no_msg(ECallCtor_First + 5 == ECall::CtorReadOnlySpanOfCharManaged);
+static_assert_no_msg(ECallCtor_First + 6 == ECall::CtorSBytePtrManaged);
+static_assert_no_msg(ECallCtor_First + 7 == ECall::CtorSBytePtrStartLengthManaged);
+static_assert_no_msg(ECallCtor_First + 8 == ECall::CtorSBytePtrStartLengthEncodingManaged);
 
-#define NumberOfStringConstructors 5
+#define NumberOfStringConstructors 9
 
 void ECall::PopulateManagedStringConstructors()
 {
@@ -312,10 +320,14 @@ PCODE ECall::GetFCallImpl(MethodDesc * pMD, BOOL * pfSharedOrDynamicFCallImpl /*
         return GetFCallImpl(MscorlibBinder::GetMethod(METHOD__DELEGATE__CONSTRUCT_DELEGATE));
     }
 
-#ifdef FEATURE_COMINTEROP
     // COM imported classes have special constructors
-    if (pMT->IsComObjectType() && pMT != g_pBaseCOMObject && pMT != g_pBaseRuntimeClass)
+    if (pMT->IsComObjectType() 
+#ifdef FEATURE_COMINTEROP
+        && pMT != g_pBaseCOMObject && pMT != g_pBaseRuntimeClass
+#endif // FEATURE_COMINTEROP
+    )
     {
+#ifdef FEATURE_COMINTEROP
         if (pfSharedOrDynamicFCallImpl)
             *pfSharedOrDynamicFCallImpl = TRUE;
 
@@ -325,8 +337,10 @@ PCODE ECall::GetFCallImpl(MethodDesc * pMD, BOOL * pfSharedOrDynamicFCallImpl /*
 
         // FCComCtor does not need to be in the fcall hashtable since it does not erect frame.
         return GetEEFuncEntryPoint(FCComCtor);
-    }
+#else
+        COMPlusThrow(kPlatformNotSupportedException, IDS_EE_ERROR_COM);
 #endif // FEATURE_COMINTEROP
+    }
 
     if (!pMD->GetModule()->IsSystem())
         COMPlusThrow(kSecurityException, BFA_ECALLS_MUST_BE_IN_SYS_MOD);
@@ -555,10 +569,6 @@ LPVOID ECall::GetQCallImpl(MethodDesc * pMD)
 
     CONSISTENCY_CHECK_MSGF(cur->IsQCall(), 
         ("%s::%s is not registered using QCFuncElement macro in ecall.cpp",
-        pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
-
-    CONSISTENCY_CHECK_MSGF(pMD->HasSuppressUnmanagedCodeAccessAttr(),       
-        ("%s::%s is not marked with SuppressUnmanagedCodeSecurityAttribute()", 
         pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
 
     DWORD dwAttrs = pMD->GetAttrs();

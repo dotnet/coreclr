@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -132,7 +133,7 @@
                                                            string)
         IL_0030:  brtrue.s   IL_0038
 
-        IL_0032:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+        IL_0032:  newobj     instance void [mscorlib]System.Exception::.ctor()
         IL_0037:  throw
 
         IL_0038:  ldloc.1
@@ -164,7 +165,7 @@
                                                                unsigned int32)
         IL_0064:  brtrue.s   IL_006c
 
-        IL_0066:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+        IL_0066:  newobj     instance void [mscorlib]System.Exception::.ctor()
         IL_006b:  throw
 
         IL_006c:  ldloc.2
@@ -175,7 +176,7 @@
                                                                          string)
         IL_007e:  brfalse.s  IL_0086
 
-        IL_0080:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+        IL_0080:  newobj     instance void [mscorlib]System.Exception::.ctor()
         IL_0085:  throw
 
         IL_0086:  ldloc.1
@@ -195,7 +196,7 @@
         IL_0092:  call       bool JitTest.Test::__DestroyMenu(native uint)
         IL_0097:  brtrue.s   IL_009f
 
-        IL_0099:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+        IL_0099:  newobj     instance void [mscorlib]System.Exception::.ctor()
         IL_009e:  throw
 
         IL_009f:  endfinally

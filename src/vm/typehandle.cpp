@@ -491,14 +491,9 @@ BOOL TypeHandle::IsAbstract() const
 DWORD TypeHandle::IsTransparentProxy() const
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_REMOTING
-    return !IsTypeDesc() && AsMethodTable()->IsTransparentProxy();
-#else
     return FALSE;
-#endif
 }
 
-#ifdef FEATURE_HFA
 bool TypeHandle::IsHFA() const
 {
     WRAPPER_NO_CONTRACT;
@@ -524,7 +519,7 @@ CorElementType TypeHandle::GetHFAType() const
 
     return ELEMENT_TYPE_END;
 }
-#endif // FEATURE_HFA
+
 
 #ifdef FEATURE_64BIT_ALIGNMENT
 bool TypeHandle::RequiresAlign8() const
@@ -1082,114 +1077,6 @@ BOOL TypeHandle::IsFnPtrType() const
             (GetSignatureCorElementType() == ELEMENT_TYPE_FNPTR));
 }
 
-// Is this type part of an assembly loaded for introspection?
-BOOL 
-TypeHandle::IsIntrospectionOnly() const
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-    
-#ifndef DACCESS_COMPILE
-    if (IsFnPtrType())
-    {
-        return AsFnPtrType()->IsIntrospectionOnly();
-    }
-    else if (HasTypeParam())
-    {
-        return GetTypeParam().IsIntrospectionOnly();
-    }
-    else
-    {
-        return GetModule()->IsIntrospectionOnly();
-    }
-#else //DACCESS_COMPILE
-    return FALSE;
-#endif //DACCESS_COMPILE
-} // TypeHandle::IsIntrospectionOnly
-
-// Checks this type and its components for "IsIntrospectionOnly"
-BOOL
-TypeHandle::ContainsIntrospectionOnlyTypes() const
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-#ifndef DACCESS_COMPILE
-    if (IsFnPtrType())
-    {
-        return AsFnPtrType()->ContainsIntrospectionOnlyTypes();
-    }
-    else if (HasTypeParam())
-    {
-        return GetTypeParam().ContainsIntrospectionOnlyTypes();
-    }
-    else if (IsTypeDesc())
-    {
-        return GetModule()->IsIntrospectionOnly();
-    }
-    else
-    {
-        return AsMethodTable()->ContainsIntrospectionOnlyTypes();
-    }
-#else //DACCESS_COMPILE
-    return FALSE;
-#endif //DACCESS_COMPILE
-} // TypeHandle::ContainsIntrospectionOnlyTypes
-
-// Is this type part of an assembly loaded for introspection?
-BOOL 
-TypeKey::IsIntrospectionOnly()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-    
-#ifndef DACCESS_COMPILE
-    switch (m_kind)
-    {
-        case ELEMENT_TYPE_CLASS:
-            return u.asClass.m_pModule->IsIntrospectionOnly();
-
-        case ELEMENT_TYPE_ARRAY:
-        case ELEMENT_TYPE_SZARRAY:
-        case ELEMENT_TYPE_PTR:
-        case ELEMENT_TYPE_BYREF:
-            return TypeHandle::FromTAddr(u.asParamType.m_paramType).IsIntrospectionOnly();
-
-        case ELEMENT_TYPE_FNPTR:
-            // Return TRUE if any return/arguments type was loaded for introspection only
-            for (DWORD i = 0; i <= u.asFnPtr.m_numArgs; i++)
-            {
-                if (u.asFnPtr.m_pRetAndArgTypes[i].IsIntrospectionOnly())
-                {
-                    return TRUE;
-                }
-            }
-            // None of return/arguments types was loaded for introspection only
-            return FALSE;
-            
-        default:
-            UNREACHABLE_MSG("Corrupted typekey");
-    }
-#else //DACCESS_COMPILE
-    return FALSE;
-#endif //DACCESS_COMPILE
-} // TypeKey::IsIntrospectionOnly
-
 BOOL TypeHandle::IsRestored_NoLogging() const
 { 
     LIMITED_METHOD_CONTRACT;
@@ -1447,106 +1334,19 @@ OBJECTREF TypeHandle::GetManagedClassObjectFast() const
 
 #endif // #ifndef DACCESS_COMPILE
 
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
-
-BOOL TypeHandle::IsAppDomainAgile() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (!IsTypeDesc())
-    {
-        MethodTable *pMT = AsMethodTable();
-        return pMT->GetClass()->IsAppDomainAgile();
-    }
-    else if (IsArray())
-    {
-        TypeHandle th = AsArray()->GetArrayElementTypeHandle();
-        return th.IsArrayOfElementsAppDomainAgile();
-    }
-    else
-    {
-        // <TODO>@todo: consider other types of type handles agile?</TODO>
-        return FALSE;
-    }
-}
-
-BOOL TypeHandle::IsCheckAppDomainAgile() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (!IsTypeDesc())
-    {
-        MethodTable *pMT = AsMethodTable();
-        return pMT->GetClass()->IsCheckAppDomainAgile();
-    }
-    else if (IsArray())
-    {
-        TypeHandle th = AsArray()->GetArrayElementTypeHandle();  
-        return th.IsArrayOfElementsCheckAppDomainAgile();
-    }
-    else
-    {
-        // <TODO>@todo: consider other types of type handles agile?</TODO>
-        return FALSE;
-    }
-}
-
-BOOL TypeHandle::IsArrayOfElementsAppDomainAgile() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (!IsTypeDesc())
-    {
-        MethodTable *pMT = AsMethodTable();
-        return (pMT->GetClass()->IsSealed()) && pMT->GetClass()->IsAppDomainAgile();
-    }
-    else
-    if (IsArray())
-    {
-        return AsArray()->GetArrayElementTypeHandle().IsArrayOfElementsAppDomainAgile();
-    }
-    else
-    {
-        // I'm not sure how to prove a typedesc is sealed, so
-        // just bail and return FALSE here rather than recursing.
-
-        return FALSE;
-    }
-}
-
-BOOL TypeHandle::IsArrayOfElementsCheckAppDomainAgile() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (!IsTypeDesc())
-    {
-        MethodTable *pMT = AsMethodTable();
-        return (pMT->GetClass()->IsAppDomainAgile()
-                && (pMT->GetClass()->IsSealed()) == 0)
-          || pMT->GetClass()->IsCheckAppDomainAgile();
-    }
-    else
-    if (IsArray())
-    {
-        return AsArray()->GetArrayElementTypeHandle().IsArrayOfElementsCheckAppDomainAgile();
-    }
-    else
-    {
-        // I'm not sure how to prove a typedesc is sealed, so
-        // just bail and return FALSE here rather than recursing.
-
-        return FALSE;
-    }
-}
-
-#endif // defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
-
-
 BOOL TypeHandle::IsByRef()  const
 { 
     LIMITED_METHOD_CONTRACT;
 
     return(IsTypeDesc() && AsTypeDesc()->IsByRef());
+
+}
+
+BOOL TypeHandle::IsByRefLike()  const
+{ 
+    LIMITED_METHOD_CONTRACT;
+
+    return(!IsTypeDesc() && AsMethodTable()->IsByRefLike());
 
 }
 

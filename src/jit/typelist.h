@@ -2,17 +2,17 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#define GCS  EA_GCREF
-#define BRS  EA_BYREF
-#define PS   EA_PTRSIZE
-#define PST  (sizeof(void*)/sizeof(int))
+#define GCS EA_GCREF
+#define BRS EA_BYREF
+#define PS EA_PTRSIZE
+#define PST (TARGET_POINTER_SIZE / sizeof(int))
 
 #ifdef _TARGET_64BIT_
-# define VTF_I32    0
-# define VTF_I64    VTF_I
+#define VTF_I32 0
+#define VTF_I64 VTF_I
 #else
-# define VTF_I32    VTF_I
-# define VTF_I64    0
+#define VTF_I32 VTF_I
+#define VTF_I64 0
 #endif
 
 /*  tn  - TYP_name
@@ -30,6 +30,7 @@
 DEF_TP(tn      ,nm        , jitType,     verType, sz,sze,asze, st,al, tf,            howUsed     )
 */
 
+// clang-format off
 DEF_TP(UNDEF   ,"<UNDEF>" , TYP_UNDEF,   TI_ERROR, 0,  0,  0,   0, 0, VTF_ANY,        0           )
 DEF_TP(VOID    ,"void"    , TYP_VOID,    TI_ERROR, 0,  0,  0,   0, 0, VTF_ANY,        0           )
 
@@ -37,7 +38,6 @@ DEF_TP(BOOL    ,"bool"    , TYP_INT,     TI_BYTE,  1,  1,  4,   1, 1, VTF_INT|VT
 DEF_TP(BYTE    ,"byte"    , TYP_INT,     TI_BYTE,  1,  1,  4,   1, 1, VTF_INT,        TYPE_REF_INT)
 DEF_TP(UBYTE   ,"ubyte"   , TYP_INT,     TI_BYTE,  1,  1,  4,   1, 1, VTF_INT|VTF_UNS,TYPE_REF_INT)
 
-DEF_TP(CHAR    ,"char"    , TYP_INT,     TI_SHORT, 2,  2,  4,   1, 2, VTF_INT|VTF_UNS,TYPE_REF_INT)
 DEF_TP(SHORT   ,"short"   , TYP_INT,     TI_SHORT, 2,  2,  4,   1, 2, VTF_INT,        TYPE_REF_INT)
 DEF_TP(USHORT  ,"ushort"  , TYP_INT,     TI_SHORT, 2,  2,  4,   1, 2, VTF_INT|VTF_UNS,TYPE_REF_INT)
 
@@ -52,14 +52,10 @@ DEF_TP(DOUBLE  ,"double"  , TYP_DOUBLE,  TI_DOUBLE,8,  8,  8,   2, 8, VTF_FLT,  
 
 DEF_TP(REF     ,"ref"     , TYP_REF,     TI_REF,  PS,GCS,GCS, PST,PS, VTF_ANY|VTF_GCR|VTF_I,TYPE_REF_PTR)
 DEF_TP(BYREF   ,"byref"   , TYP_BYREF,   TI_ERROR,PS,BRS,BRS, PST,PS, VTF_ANY|VTF_BYR|VTF_I,TYPE_REF_BYR)
-DEF_TP(ARRAY   ,"array"   , TYP_REF,     TI_REF,  PS,GCS,GCS, PST,PS, VTF_ANY|VTF_GCR|VTF_I,TYPE_REF_PTR)
 DEF_TP(STRUCT  ,"struct"  , TYP_STRUCT,  TI_STRUCT,0,  0,  0,   1, 4, VTF_S,          TYPE_REF_STC)
 
 DEF_TP(BLK     ,"blk"     , TYP_BLK,     TI_ERROR, 0,  0,  0,   1, 4, VTF_ANY,        0           ) // blob of memory
 DEF_TP(LCLBLK  ,"lclBlk"  , TYP_LCLBLK,  TI_ERROR, 0,  0,  0,   1, 4, VTF_ANY,        0           ) // preallocated memory for locspace
-
-DEF_TP(PTR     ,"pointer" , TYP_PTR,     TI_ERROR,PS, PS, PS, PST,PS, VTF_ANY|VTF_I,  TYPE_REF_PTR) // (not currently used)
-DEF_TP(FNC     ,"function", TYP_FNC,     TI_ERROR, 0, PS, PS,   0, 0, VTF_ANY|VTF_I,  0           )
 
 #ifdef FEATURE_SIMD
 // Amd64: The size and alignment of SIMD vector varies at JIT time based on whether target arch supports AVX or SSE2.
@@ -70,10 +66,11 @@ DEF_TP(SIMD32   ,"simd32" , TYP_SIMD32,  TI_STRUCT,32,32, 32,   8,16, VTF_S,    
 #endif // FEATURE_SIMD
 
 DEF_TP(UNKNOWN ,"unknown" ,TYP_UNKNOWN,  TI_ERROR, 0,  0,  0,   0, 0, VTF_ANY,        0           )
+// clang-format on
 
-#undef  GCS
-#undef  BRS
-#undef  PS
-#undef  PST
-#undef  VTF_I32
-#undef  VTF_I64
+#undef GCS
+#undef BRS
+#undef PS
+#undef PST
+#undef VTF_I32
+#undef VTF_I64

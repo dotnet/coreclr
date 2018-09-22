@@ -36,14 +36,18 @@ class AppDomain;
 //  on the stack.  The FEF is used for unwinding.  If not defined, the unwinding
 //  uses the exception context.
 #define USE_FEF // to mark where code needs to be changed to eliminate the FEF
-#if defined(_TARGET_X86_)
+#if defined(_TARGET_X86_) && !defined(FEATURE_PAL)
  #undef USE_FEF // Turn off the FEF use on x86.
  #define ELIMINATE_FEF
 #else
  #if defined(ELIMINATE_FEF)
   #undef ELIMINATE_FEF
  #endif 
-#endif // _86_
+#endif // _TARGET_X86_ && !FEATURE_PAL
+
+#if defined(WIN64EXCEPTIONS)
+#define RECORD_RESUMABLE_FRAME_SP
+#endif
 
 //************************************************************************
 // Enumerate all functions.
@@ -107,6 +111,7 @@ public:
 
     BOOL IsInCalleesFrames(LPVOID stackPointer);
 
+#ifndef DACCESS_COMPILE
     /* Returns address of the securityobject stored in the current function (method?)
        Returns NULL if
             - not a function OR
@@ -114,6 +119,7 @@ public:
               (which is an error)
      */
     OBJECTREF * GetAddrOfSecurityObject();
+#endif // DACCESS_COMPILE
 
     // Fetch the extra type argument passed in some cases
     PTR_VOID GetParamTypeArg();
@@ -304,6 +310,9 @@ public:
      */
     bool IsGcSafe();
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+    bool HasTailCalls();
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
 
     PREGDISPLAY GetRegisterSet()
     {
@@ -322,6 +331,13 @@ public:
         // This assumes that CrawlFrame is host-only structure with DACCESS_COMPILE
         // and thus it always returns the host address.
         return &codeInfo;
+    }
+
+    GCInfoToken GetGCInfoToken()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(isFrameless);
+        return codeInfo.GetGCInfoToken();
     }
 
     PTR_VOID GetGCInfo()
@@ -698,9 +714,9 @@ private:
     bool          m_fDidFuncletReportGCReferences;
 #endif // WIN64EXCEPTIONS
 
-#if !defined(_TARGET_X86_)
+#if defined(RECORD_RESUMABLE_FRAME_SP)
     LPVOID m_pvResumableFrameTargetSP;
-#endif // !_TARGET_X86_
+#endif // RECORD_RESUMABLE_FRAME_SP
 };
 
 void SetUpRegdisplayForStackWalk(Thread * pThread, T_CONTEXT * pContext, REGDISPLAY * pRegdisplay);

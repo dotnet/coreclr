@@ -16,12 +16,12 @@
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif // FEATURE_PREJIT
-#ifdef FEATURE_REMOTING
-#include <remoting.h>
-#include "objectclone.h"
-#endif
 #include <virtualcallstub.h>
 #include "peimagelayout.inl"
+
+#include "gcinterface.h"
+#include "gcinterface.dac.h"
+
 
 DacTableInfo g_dacTableInfo;
 DacGlobals g_dacGlobals;
@@ -203,8 +203,7 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
 
     HRESULT status;
 
-    status = g_dacImpl->m_pMutableTarget->
-        WriteVirtual(addr, (PBYTE)buffer, size);
+    status = g_dacImpl->m_pMutableTarget->WriteVirtual(addr, (PBYTE)buffer, size);
     if (status != S_OK)
     {
         if (throwEx)
@@ -217,9 +216,37 @@ DacWriteAll(TADDR addr, PVOID buffer, ULONG32 size, bool throwEx)
     return S_OK;
 }
 
-#if defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
+#ifdef FEATURE_PAL
+
+static BOOL DacReadAllAdapter(PVOID address, PVOID buffer, SIZE_T size)
+{
+    DAC_INSTANCE* inst = g_dacImpl->m_instances.Find((TADDR)address);
+    if (inst == nullptr || inst->size < size)
+    {
+        inst = g_dacImpl->m_instances.Alloc((TADDR)address, size, DAC_PAL);
+        if (inst == nullptr)
+        {
+            return FALSE;
+        }
+        inst->noReport = 0;
+        HRESULT hr = DacReadAll((TADDR)address, inst + 1, size, false);
+        if (FAILED(hr))
+        {
+            g_dacImpl->m_instances.ReturnAlloc(inst);
+            return FALSE;
+        }
+        if (!g_dacImpl->m_instances.Add(inst))
+        {
+            g_dacImpl->m_instances.ReturnAlloc(inst);
+            return FALSE;
+        }
+    }
+    memcpy(buffer, inst + 1, size);
+    return TRUE;
+}
+
 HRESULT 
-DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
+DacVirtualUnwind(DWORD threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers)
 {
     if (!g_dacImpl)
     {
@@ -233,16 +260,29 @@ DacVirtualUnwind(DWORD threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINT
         memset(contextPointers, 0, sizeof(T_KNONVOLATILE_CONTEXT_POINTERS));
     }
 
+    HRESULT hr = S_OK;
+
+#ifdef FEATURE_DATATARGET4
     ReleaseHolder<ICorDebugDataTarget4> dt;
-    HRESULT hr = g_dacImpl->m_pTarget->QueryInterface(IID_ICorDebugDataTarget4, (void **)&dt);
+    hr = g_dacImpl->m_pTarget->QueryInterface(IID_ICorDebugDataTarget4, (void **)&dt);
     if (SUCCEEDED(hr))
     {
         hr = dt->VirtualUnwind(threadId, sizeof(CONTEXT), (BYTE*)context);
     }
+    else 
+#endif
+    {
+        SIZE_T baseAddress = DacGlobalBase();
+        if (baseAddress == 0 || !PAL_VirtualUnwindOutOfProc(context, contextPointers, baseAddress, DacReadAllAdapter))
+        {
+            hr = E_FAIL;
+        }
+    }
 
     return hr;
 }
-#endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_PAL)
+
+#endif // FEATURE_PAL
 
 // DacAllocVirtual - Allocate memory from the target process
 // Note: this is only available to clients supporting the legacy
@@ -320,7 +360,7 @@ DacInstantiateTypeByAddressHelper(TADDR addr, ULONG32 size, bool throwEx, bool f
 {
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (PVOID)addr;
 
@@ -460,7 +500,7 @@ DacInstantiateClassByVTable(TADDR addr, ULONG32 minSize, bool throwEx)
 {
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (PVOID)addr;
 
@@ -630,7 +670,7 @@ DacInstantiateStringA(TADDR addr, ULONG32 maxChars, bool throwEx)
 {
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (PSTR)addr;
 
@@ -762,7 +802,7 @@ DacInstantiateStringW(TADDR addr, ULONG32 maxChars, bool throwEx)
 {
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (PWSTR)addr;
 
@@ -894,7 +934,7 @@ DacGetTargetAddrForHostAddr(LPCVOID ptr, bool throwEx)
 {
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (TADDR) ptr;
 
@@ -968,7 +1008,7 @@ DacGetTargetAddrForHostInteriorAddr(LPCVOID ptr, bool throwEx)
 
 #ifdef _PREFIX_
 
-    // Dac accesses are not interesting for PREfix and cause alot of PREfix noise
+    // Dac accesses are not interesting for PREfix and cause a lot of PREfix noise
     // so we just return the unmodified pointer for our PREFIX builds
     return (TADDR) ptr;
 
@@ -1104,6 +1144,7 @@ PWSTR    DacGetVtNameW(TADDR targetVtable)
         if (targetVtable == (*targ + DacGlobalBase()))
         {
             pszRet = (PWSTR) *(g_dacVtStrings + (targ - targStart));
+            break;
         }
 
         targ++;
@@ -1385,6 +1426,8 @@ bool DacTargetConsistencyAssertsEnabled()
 //
 void DacEnumCodeForStackwalk(TADDR taCallEnd)
 {
+    if (taCallEnd == 0)
+        return;
     //
     // x86 stack walkers often end up having to guess
     // about what's a return address on the stack.

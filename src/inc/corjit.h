@@ -32,6 +32,8 @@
 
 #include <stdarg.h>
 
+#include <corjitflags.h>
+
 #define CORINFO_STACKPROBE_DEPTH        256*sizeof(UINT_PTR)          // Guaranteed stack until an fcall/unmanaged
                                                     // code can set up a frame. Please make sure
                                                     // this is less than a page. This is due to
@@ -72,94 +74,11 @@ enum CorJitResult
     CORJIT_RECOVERABLEERROR =  MAKE_HRESULT(SEVERITY_ERROR,FACILITY_NULL, 5),
 };
 
-
-/* values for flags in compileMethod */
-
-enum CorJitFlag
-{
-    CORJIT_FLG_SPEED_OPT           = 0x00000001,
-    CORJIT_FLG_SIZE_OPT            = 0x00000002,
-    CORJIT_FLG_DEBUG_CODE          = 0x00000004, // generate "debuggable" code (no code-mangling optimizations)
-    CORJIT_FLG_DEBUG_EnC           = 0x00000008, // We are in Edit-n-Continue mode
-    CORJIT_FLG_DEBUG_INFO          = 0x00000010, // generate line and local-var info
-    CORJIT_FLG_MIN_OPT             = 0x00000020, // disable all jit optimizations (not necesarily debuggable code)
-    CORJIT_FLG_GCPOLL_CALLS        = 0x00000040, // Emit calls to JIT_POLLGC for thread suspension.
-    CORJIT_FLG_MCJIT_BACKGROUND    = 0x00000080, // Calling from multicore JIT background thread, do not call JitComplete
-
-    CORJIT_FLG_UNUSED1             = 0x00000100,
-
-#if defined(_TARGET_X86_)
-
-    CORJIT_FLG_PINVOKE_RESTORE_ESP = 0x00000200, // Restore ESP after returning from inlined PInvoke
-    CORJIT_FLG_TARGET_P4           = 0x00000400,
-    CORJIT_FLG_USE_FCOMI           = 0x00000800, // Generated code may use fcomi(p) instruction
-    CORJIT_FLG_USE_CMOV            = 0x00001000, // Generated code may use cmov instruction
-    CORJIT_FLG_USE_SSE2            = 0x00002000, // Generated code may use SSE-2 instructions
-
-#elif defined(_TARGET_AMD64_)
-
-    CORJIT_FLG_USE_SSE3_4          = 0x00000200,
-    CORJIT_FLG_USE_AVX             = 0x00000400,
-    CORJIT_FLG_USE_AVX2            = 0x00000800,
-    CORJIT_FLG_USE_AVX_512         = 0x00001000,
-    CORJIT_FLG_FEATURE_SIMD        = 0x00002000,
-
-#else // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
-
-    CORJIT_FLG_UNUSED2             = 0x00000200,
-    CORJIT_FLG_UNUSED3             = 0x00000400,
-    CORJIT_FLG_UNUSED4             = 0x00000800,
-    CORJIT_FLG_UNUSED5             = 0x00001000,
-    CORJIT_FLG_UNUSED6             = 0x00002000,
-
-#endif // !defined(_TARGET_X86_) && !defined(_TARGET_AMD64_)
-
-    CORJIT_FLG_CFI_UNWIND          = 0x00004000, // Emit CFI unwind info
-    CORJIT_FLG_MAKEFINALCODE       = 0x00008000, // Use the final code generator, i.e., not the interpreter.
-    CORJIT_FLG_READYTORUN          = 0x00010000, // Use version-resilient code generation
-
-    CORJIT_FLG_PROF_ENTERLEAVE     = 0x00020000, // Instrument prologues/epilogues
-    CORJIT_FLG_PROF_REJIT_NOPS     = 0x00040000, // Insert NOPs to ensure code is re-jitable
-    CORJIT_FLG_PROF_NO_PINVOKE_INLINE
-                                   = 0x00080000, // Disables PInvoke inlining
-    CORJIT_FLG_SKIP_VERIFICATION   = 0x00100000, // (lazy) skip verification - determined without doing a full resolve. See comment below
-    CORJIT_FLG_PREJIT              = 0x00200000, // jit or prejit is the execution engine.
-    CORJIT_FLG_RELOC               = 0x00400000, // Generate relocatable code
-    CORJIT_FLG_IMPORT_ONLY         = 0x00800000, // Only import the function
-    CORJIT_FLG_IL_STUB             = 0x01000000, // method is an IL stub
-    CORJIT_FLG_PROCSPLIT           = 0x02000000, // JIT should separate code into hot and cold sections
-    CORJIT_FLG_BBINSTR             = 0x04000000, // Collect basic block profile information
-    CORJIT_FLG_BBOPT               = 0x08000000, // Optimize method based on profile information
-    CORJIT_FLG_FRAMED              = 0x10000000, // All methods have an EBP frame
-    CORJIT_FLG_ALIGN_LOOPS         = 0x20000000, // add NOPs before loops to align them at 16 byte boundaries
-    CORJIT_FLG_PUBLISH_SECRET_PARAM= 0x40000000, // JIT must place stub secret param into local 0.  (used by IL stubs)
-    CORJIT_FLG_GCPOLL_INLINE       = 0x80000000, // JIT must inline calls to GCPoll when possible
-
-#if COR_JIT_EE_VERSION > 460
-    CORJIT_FLG_CALL_GETJITFLAGS    = 0xffffffff, // Indicates that the JIT should retrieve flags in the form of a
-                                                 // pointer to a CORJIT_FLAGS value via ICorJitInfo::getJitFlags().
-#endif
-};
-
-enum CorJitFlag2
-{
-    CORJIT_FLG2_SAMPLING_JIT_BACKGROUND = 0x00000001, // JIT is being invoked as a result of stack sampling for hot methods in the background
-#if COR_JIT_EE_VERSION > 460
-    CORJIT_FLG2_USE_PINVOKE_HELPERS     = 0x00000002, // The JIT should use the PINVOKE_{BEGIN,END} helpers instead of emitting inline transitions
-#endif
-};
-
-struct CORJIT_FLAGS
-{
-    unsigned corJitFlags;  // Values are from CorJitFlag
-    unsigned corJitFlags2; // Values are from CorJitFlag2
-};
-
 /*****************************************************************************
-Here is how CORJIT_FLG_SKIP_VERIFICATION should be interepreted.
+Here is how CORJIT_FLAG_SKIP_VERIFICATION should be interepreted.
 Note that even if any method is inlined, it need not be verified.
 
-if (CORJIT_FLG_SKIP_VERIFICATION is passed in to ICorJitCompiler::compileMethod())
+if (CORJIT_FLAG_SKIP_VERIFICATION is passed in to ICorJitCompiler::compileMethod())
 {
     No verification needs to be done.
     Just compile the method, generating unverifiable code if necessary
@@ -244,7 +163,7 @@ else
 
     case INSTVER_GENERIC_PASSED_VERIFICATION:
         {
-            This cannot ever happen because the VM would pass in CORJIT_FLG_SKIP_VERIFICATION.
+            This cannot ever happen because the VM would pass in CORJIT_FLAG_SKIP_VERIFICATION.
         }
 
     case INSTVER_GENERIC_FAILED_VERIFICATION:
@@ -259,7 +178,7 @@ else
 
             case CORINFO_VERIFICATION_CAN_SKIP:
                 {
-                    This cannot ever happen because the CLR would pass in CORJIT_FLG_SKIP_VERIFICATION.
+                    This cannot ever happen because the CLR would pass in CORJIT_FLAG_SKIP_VERIFICATION.
                 }
 
             case CORINFO_VERIFICATION_RUNTIME_CHECK:
@@ -300,9 +219,9 @@ enum CorJitFuncKind
     CORJIT_FUNC_FILTER         // a funclet associated with an EH filter
 };
 
-#if !defined(FEATURE_USE_ASM_GC_WRITE_BARRIERS) && defined(FEATURE_COUNT_GC_WRITE_BARRIERS)
-// We have a performance-investigation mode (defined by the FEATURE settings above) in which the
-// JIT adds an argument of this enumeration to checked write barrier calls, to classify them.
+// We have a performance-investigation mode (defined by the FEATURE_USE_ASM_GC_WRITE_BARRIERS and
+// FEATURE_COUNT_GC_WRITE_BARRIER preprocessor symbols) in which the JIT adds an argument of this
+// enumeration to checked write barrier calls in order to classify them.
 enum CheckedWriteBarrierKinds {
     CWBKind_Unclassified,    // Not one of the ones below.
     CWBKind_RetBuf,          // Store through a return buffer pointer argument.
@@ -310,15 +229,10 @@ enum CheckedWriteBarrierKinds {
     CWBKind_OtherByRefLocal, // Store through a by-ref local variable.
     CWBKind_AddrOfLocal,     // Store through the address of a local (arguably a bug that this happens at all).
 };
-#endif
-
-#if COR_JIT_EE_VERSION > 460
 
 #include "corjithost.h"
 
 extern "C" void __stdcall jitStartup(ICorJitHost* host);
-
-#endif
 
 class ICorJitCompiler;
 class ICorJitInfo;
@@ -377,7 +291,7 @@ public:
     // When the EE loads the System.Numerics.Vectors assembly, it asks the JIT what length (in bytes) of
     // SIMD vector it supports as an intrinsic type.  Zero means that the JIT does not support SIMD
     // intrinsics, so the EE should use the default size (i.e. the size of the IL implementation).
-    virtual unsigned getMaxIntrinsicSIMDVectorLength(DWORD cpuCompileFlags) { return 0; }
+    virtual unsigned getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags) { return 0; }
 
     // IL obfuscators sometimes interpose on the EE-JIT interface. This function allows the VM to
     // tell the JIT to use a particular ICorJitCompiler to implement the methods of this interface,
@@ -560,7 +474,6 @@ public:
     // 
     virtual DWORD getExpectedTargetArchitecture() = 0;
 
-#if COR_JIT_EE_VERSION > 460
     // Fetches extended flags for a particular compilation instance. Returns
     // the number of bytes written to the provided buffer.
     virtual DWORD getJitFlags(
@@ -568,7 +481,6 @@ public:
         DWORD        sizeInBytes   /* IN: The size of the buffer. Note that this is effectively a
                                           version number for the CORJIT_FLAGS value. */
         ) = 0;
-#endif
 };
 
 /**********************************************************************************/

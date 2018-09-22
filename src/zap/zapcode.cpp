@@ -805,144 +805,7 @@ void ZapImage::AddRelocsForEHClauses(ZapExceptionInfo * pExceptionInfo)
 // ZapMethodHeader
 //
 
-#ifdef _TARGET_ARM_
-// Avoid ARM hazard due to QualComm Krait processor bug.
-#define ARM_HAZARD_AVOIDANCE
-#endif
-
-#ifdef ARM_HAZARD_AVOIDANCE
-
-//
-// This code was stolen from the C++ linker (vctools\Link\src\arm.cpp)
-// 
-
-bool F32BitInstr(PBYTE pbInstr)
-{
-    const WORD wInstr = *((const WORD UNALIGNED *) pbInstr);
-    return (wInstr >> 11) >= 0x1D;
-}
-
-bool FHazardCandidate(PBYTE pbInstr)
-
-/*++
-
-Routine Description:
-
-    If the following 4-instruction/10-byte pattern begins at the 0xFB8 offset
-    from a page, then it would cause the hazard.
-
-    Address        Contents
-    ------------------------------
-    0x*****FB8     T16 instruction
-    0x*****FBA     T16 instruction
-    0x*****FBC     T16 instruction
-    0x*****FBE     T32 instruction that can branch
-
-    Finding all such instruction sequences could be very difficult, because
-    the function could have literal's which are mixed with instructions and
-    for now we don't have an easy way to find where literal is.
-
-    So instead of detecting such instruction sequence, we assume an instr
-    starts at 0x*****FB8 and check whether such sequence exists.  This may
-    introduce false positive's. 
-    
-Arguments:
-
-    pbCon - pointer to the instruction at 0x*****FB8
-
-Return Value:
-
-    false no hazard true otherwise
-
---*/
-
-{
-    // Check whether there are three 16-bit instructions.
-
-    for (int i = 0; i < 3; i++) {
-        if (F32BitInstr(pbInstr)) {
-            return false;
-        }
-
-        pbInstr += sizeof(WORD);
-    }
-
-    // Check whether next is a 32-bit unconditional PC relative branch.
-
-    if (!F32BitInstr(pbInstr)) {
-        return false;
-    }
-
-    // Check 32-bit branch.
-
-    const DWORD dwInstr = *((const DWORD UNALIGNED *) pbInstr);
-
-    return
-        // B  (A8.6.16, encoding T3)
-
-        ((dwInstr & 0xD000F800) == 0x8000F000 && (dwInstr & 0x3C0) != 0x380) ||
-
-        // B   (A8.6.16, encoding T4)
-
-        ((dwInstr & 0xD000F800) == 0x9000F000) ||
-
-        // BL  (A8.6.23, encoding T1)
-
-        ((dwInstr & 0xD000F800) == 0xD000F000) ||
-
-        // BLX (A8.6.23, encoding T2)
-
-        ((dwInstr & 0xD001F800) == 0xC000F000) ||
-
-        // BXJ (A8.6.26, encoding T1)
-
-        ((dwInstr & 0xFFFFFFF0) == 0x8F00F3C0) ||
-
-        // LDM/LDMIA/LDMFD, with PC in target reg list (A8.6.53, encoding T2)
-
-        ((dwInstr & 0xA000FFD0) == 0x8000E890 && (dwInstr & 0x02F) != 0x02D) ||
-
-        // LDMDB/LDMEA, with PC in target reg list (A.8.6.55, encoding T1)
-
-        ((dwInstr & 0xA000FFD0) == 0x8000E910) ||
-
-        // LDR immediate, with PC as target reg (A8.6.57, encoding T3)
-
-        ((dwInstr & 0xF000FFF0) == 0xF000F8D0 && (dwInstr & 0x0F) != 0x0F) ||
-
-        // LDR immediate, with PC as target reg (A8.6.57, encoding T4)
-
-        ((dwInstr & 0xF800FFF0) == 0xF800F850 && (dwInstr & 0x0F) != 0x0F) ||
-
-        // LDR literal, with PC as target reg (A8.6.59, encoding T2)
-
-        ((dwInstr & 0xF000FF7F) == 0xF000F85F) ||
-
-        // LDR register, with PC as target reg (A8.6.60, encoding T2)
-
-        ((dwInstr & 0xFFC0FFF0) == 0xF000F850) ||
-
-        // POP, with PC in target reg list (A8.6.122, encoding T2)
-
-        ((dwInstr & 0xA000FFFF) == 0x8000E8BD) ||
-
-        // POP, with PC as target reg (A8.6.122, encoding T3)
-
-        (dwInstr == 0xFB04F85D) ||
-
-        // TBB/TBH (A8.6.226, encoding T1)
-
-        ((dwInstr & 0xFFE0FFF0) == 0xF000E8D0);
-}
-
-//
-// End of code stolen from the C++ linker
-//
-
-#endif // ARM_HAZARD_AVOIDANCE
-
-
-#if defined(_TARGET_X86_) || defined(ARM_HAZARD_AVOIDANCE)
+#if defined(_TARGET_X86_)
 
 DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 {
@@ -982,55 +845,6 @@ DWORD ZapCodeBlob::ComputeRVA(ZapWriter * pZapWriter, DWORD dwPos)
 
     return dwPaddedPos + size;
 #endif // _TARGET_X86_
-
-#ifdef ARM_HAZARD_AVOIDANCE
-    for (DWORD dwPadding = 0; dwPadding < 0x1000; dwPadding += dwAlignment)
-    {
-        DWORD dwPaddedPos = dwPos + dwPadding;
-
-        BOOL fHasHazard = FALSE;
-
-        //
-        // Go through all possible places where the hazard may occur within the data block
-        //
-
-        // The possible occurences of the hazard are always at offset 0xFB8 within the 4k page.
-        // Start with the first page containing the block.
-        DWORD dwFirstHazardPos = AlignDown(dwPaddedPos, 0x1000) + 0xFB8;
-        if (dwFirstHazardPos < dwPaddedPos)
-            dwFirstHazardPos += 0x1000;
-
-        // The last possible occurence of the hazard is 10 bytes before the end of the block
-        DWORD dwLastHazardPos = (dwPaddedPos + size) - 10;
-
-        for (DWORD dwHazardPos = dwFirstHazardPos; dwHazardPos <= dwLastHazardPos; dwHazardPos += 0x1000)
-        {
-            int offset = dwHazardPos - dwPaddedPos;
-
-            if (FHazardCandidate((BYTE * )pData + offset))
-            {
-                fHasHazard = TRUE;
-                break;
-            }
-        }
-
-        if (!fHasHazard)
-        {
-            SetRVA(dwPaddedPos);
-
-            return dwPaddedPos + size;
-        }
-    }
-
-    // There is a theoretical chance that we may not be able to find a suitable padding
-    // to workaround the bug. In this case don't attempt to workaround the bug,
-    // and simply place the code at the next natural RVM. It should happen
-    // very rarely for very large methods only, and there should be no retail devices
-    // with this processor bug.
-    SetRVA(dwPos);
-
-    return dwPos + size;
-#endif
 }
 
 template <DWORD alignment>
@@ -1169,7 +983,7 @@ void ZapMethodEntryPoint::Resolve(ZapImage * pImage)
     {
         mdMethodDef token;
         pImage->GetCompileInfo()->GetMethodDef(GetHandle(), &token);
-        pImage->Error(token, S_OK, W("MapMethodEntryPoint failed"));
+        pImage->Error(token, S_OK, 0, W("MapMethodEntryPoint failed"));
     }
     else
 #endif
@@ -1263,10 +1077,10 @@ ZapGCInfo * ZapGCInfo::NewGCInfo(ZapWriter * pWriter, PVOID pGCInfo, SIZE_T cbGC
     memcpy(pZapGCInfo->GetGCInfo(), pGCInfo, cbGCInfo);
     memcpy(pZapGCInfo->GetUnwindInfo(), pUnwindInfo, cbUnwindInfo);
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if !defined(_TARGET_X86_)
     // Make sure the personality routine thunk is created
     pZapGCInfo->GetPersonalityRoutine(ZapImage::GetImage(pWriter));
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#endif // !defined(_TARGET_X86_)
     return pZapGCInfo;
 }
 #else
@@ -1293,7 +1107,7 @@ void ZapUnwindInfo::Save(ZapWriter * pZapWriter)
 {
     T_RUNTIME_FUNCTION runtimeFunction;
 
-#if defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
     RUNTIME_FUNCTION__SetBeginAddress(&runtimeFunction, GetStartAddress());
     runtimeFunction.UnwindData = m_pUnwindData->GetRVA();
 #elif defined(_TARGET_AMD64_)
@@ -1316,7 +1130,7 @@ void ZapUnwindInfo::Save(ZapWriter * pZapWriter)
     pZapWriter->Write(&runtimeFunction, sizeof(runtimeFunction));
 }
 
-#ifdef WIN64EXCEPTIONS
+#if defined(WIN64EXCEPTIONS)
 // Compare the unwind infos by their offset
 int __cdecl ZapUnwindInfo::CompareUnwindInfo(const void* a_, const void* b_)
 {
@@ -1388,7 +1202,29 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 #endif //REDHAWK
 }
 
-#elif defined(_TARGET_ARM_)
+#elif defined(_TARGET_X86_)
+
+UINT ZapUnwindData::GetAlignment()
+{
+    return sizeof(BYTE);
+}
+
+DWORD ZapUnwindData::GetSize()
+{
+    return ZapBlob::GetSize();
+}
+
+void ZapUnwindData::Save(ZapWriter * pZapWriter)
+{
+    ZapImage * pImage = ZapImage::GetImage(pZapWriter);
+
+    PVOID pData = GetData();
+    DWORD dwSize = GetBlobSize();
+
+    pZapWriter->Write(pData, dwSize);
+}
+
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 
 UINT ZapUnwindData::GetAlignment()
 {
@@ -1430,19 +1266,16 @@ void ZapUnwindData::Save(ZapWriter * pZapWriter)
 }
 
 #else
-
 UINT ZapUnwindData::GetAlignment()
 {
     PORTABILITY_ASSERT("ZapUnwindData::GetAlignment");
     return sizeof(ULONG);
 }
-
 DWORD ZapUnwindData::GetSize()
 {
     PORTABILITY_ASSERT("ZapUnwindData::GetSize");
     return -1;
 }
-
 void ZapUnwindData::Save(ZapWriter * pZapWriter)
 {
     PORTABILITY_ASSERT("ZapUnwindData::Save");
@@ -1475,10 +1308,10 @@ ZapUnwindData * ZapUnwindData::NewUnwindData(ZapWriter * pWriter, PVOID pData, S
 
     memcpy((void*)(pZapUnwindData + 1), pData, cbSize);
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#if !defined(_TARGET_X86_)
     // Make sure the personality routine thunk is created
     pZapUnwindData->GetPersonalityRoutine(ZapImage::GetImage(pWriter));
-#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
+#endif // !defined(_TARGET_X86_)
 
     return pZapUnwindData;
 }
@@ -1843,7 +1676,7 @@ void ZapColdCodeMap::Save(ZapWriter* pZapWriter)
 
 DWORD ZapHelperThunk::GetSize()
 {
-    return (m_dwHelper & CORCOMPILE_HELPER_PTR) ? sizeof(TADDR) : HELPER_TABLE_ENTRY_LEN;
+    return (m_dwHelper & CORCOMPILE_HELPER_PTR) ? TARGET_POINTER_SIZE : HELPER_TABLE_ENTRY_LEN;
 }
 
 void ZapHelperThunk::Save(ZapWriter * pZapWriter)
@@ -1939,6 +1772,18 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     if (pImage != NULL)
         pImage->WriteReloc(buffer, (int)(p - buffer), m_pTarget, 0, IMAGE_REL_BASED_THUMB_BRANCH24);
     p += 4;
+#elif defined(_TARGET_ARM64_)
+    // ldr x1, [PC+8]
+    *(DWORD *)(p) =0x58000041;
+    p += 4;
+    // b JIT_StrCns
+    *(DWORD *)(p) = 0x14000000;
+    if (pImage != NULL)
+        pImage->WriteReloc(buffer, (int)(p - buffer), m_pTarget, 0, IMAGE_REL_ARM64_BRANCH26);
+    p += 4;
+    if (pImage != NULL)
+        pImage->WriteReloc(buffer, (int)(p - buffer), m_pArg, 0, IMAGE_REL_BASED_PTR);
+    p += 8;
 #else
     PORTABILITY_ASSERT("ZapLazyHelperThunk::Save");
 #endif

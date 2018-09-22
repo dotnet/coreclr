@@ -9,21 +9,19 @@ template <class T>
 class ArrayStack
 {
     static const int builtinSize = 8;
-    
-public:
-    ArrayStack(Compiler *comp, int initialSize = builtinSize)
-    {
-        compiler = comp;
 
+public:
+    ArrayStack(CompAllocator alloc, int initialSize = builtinSize) : m_alloc(alloc)
+    {
         if (initialSize > builtinSize)
         {
             maxIndex = initialSize;
-            data = new(compiler, CMK_ArrayStack) T[initialSize];
+            data     = new (alloc) T[initialSize];
         }
         else
         {
             maxIndex = builtinSize;
-            data = builtinData;
+            data     = builtinData;
         }
 
         tosIndex = 0;
@@ -32,9 +30,23 @@ public:
     void Push(T item)
     {
         if (tosIndex == maxIndex)
+        {
             Realloc();
-        
+        }
+
         data[tosIndex] = item;
+        tosIndex++;
+    }
+
+    template <typename... Args>
+    void Emplace(Args&&... args)
+    {
+        if (tosIndex == maxIndex)
+        {
+            Realloc();
+        }
+
+        new (&data[tosIndex], jitstd::placement_t()) T(jitstd::forward<Args>(args)...);
         tosIndex++;
     }
 
@@ -43,9 +55,9 @@ public:
         // get a new chunk 2x the size of the old one
         // and copy over
         T* oldData = data;
-        noway_assert(maxIndex*2 > maxIndex);
-        data = new(compiler, CMK_ArrayStack) T[maxIndex*2];
-        for (int i=0; i<maxIndex; i++)
+        noway_assert(maxIndex * 2 > maxIndex);
+        data = new (m_alloc) T[maxIndex * 2];
+        for (int i = 0; i < maxIndex; i++)
         {
             data[i] = oldData[i];
         }
@@ -56,19 +68,21 @@ public:
     void ReverseTop(int number)
     {
         if (number < 2)
+        {
             return;
+        }
 
         assert(number <= tosIndex);
 
-        int start = tosIndex - number;
+        int start  = tosIndex - number;
         int offset = 0;
-        while (offset < number/2)
+        while (offset < number / 2)
         {
-            T temp;
-            int index = start+offset;
-            int otherIndex = tosIndex - 1 - offset;
-            temp = data[index];
-            data[index] = data[otherIndex];
+            T   temp;
+            int index        = start + offset;
+            int otherIndex   = tosIndex - 1 - offset;
+            temp             = data[index];
+            data[index]      = data[otherIndex];
             data[otherIndex] = temp;
 
             offset++;
@@ -85,17 +99,24 @@ public:
     T Top()
     {
         assert(tosIndex > 0);
-        return data[tosIndex-1];
+        return data[tosIndex - 1];
     }
 
     T& TopRef()
     {
         assert(tosIndex > 0);
-        return data[tosIndex-1];
+        return data[tosIndex - 1];
     }
 
     // return the i'th from the top
     T Index(int idx)
+    {
+        assert(tosIndex > idx);
+        return data[tosIndex - 1 - idx];
+    }
+
+    // return a reference to the i'th from the top
+    T& IndexRef(int idx)
     {
         assert(tosIndex > idx);
         return data[tosIndex - 1 - idx];
@@ -126,13 +147,10 @@ public:
     }
 
 private:
-    Compiler *compiler; // needed for allocation
-    int tosIndex; // first free location
-    int maxIndex;
-    T* data;
+    CompAllocator m_alloc;
+    int           tosIndex; // first free location
+    int           maxIndex;
+    T*            data;
     // initial allocation
-    T builtinData[builtinSize]; 
+    T builtinData[builtinSize];
 };
-    
-
-

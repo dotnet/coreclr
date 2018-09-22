@@ -602,14 +602,10 @@ typedef struct _DacGlobals
 #ifdef FEATURE_PAL
     static void Initialize();
     void InitializeEntries(TADDR baseAddress);
-#ifdef FEATURE_SVR_GC
-    void InitializeSVREntries(TADDR baseAddress);
-#endif // FEATURE_SVR_GC
 #endif // FEATURE_PAL
 
 // These will define all of the dac related mscorwks static and global variables    
 #define DEFINE_DACVAR(id_type, size, id, var)                 id_type id;
-#define DEFINE_DACVAR_SVR(id_type, size, id, var)             id_type id;
 #define DEFINE_DACVAR_NO_DUMP(id_type, size, id, var)         id_type id;
 #include "dacvars.h"
 
@@ -617,6 +613,11 @@ typedef struct _DacGlobals
     ULONG fn__ThreadpoolMgr__AsyncTimerCallbackCompletion;
     ULONG fn__DACNotifyCompilationFinished;
     ULONG fn__ThePreStub;
+
+#ifdef _TARGET_ARM_
+    ULONG fn__ThePreStubCompactARM;
+#endif // _TARGET_ARM_
+
     ULONG fn__ThePreStubPatchLabel;
     ULONG fn__PrecodeFixupThunk;
     ULONG fn__StubDispatchFixupStub;
@@ -774,18 +775,18 @@ interface IMDInternalImport* DacGetMDImport(const ReflectionModule* reflectionMo
 
 int DacGetIlMethodSize(TADDR methAddr);
 struct COR_ILMETHOD* DacGetIlMethod(TADDR methAddr);
-#if defined(WIN64EXCEPTIONS)
+#ifdef WIN64EXCEPTIONS
 struct _UNWIND_INFO * DacGetUnwindInfo(TADDR taUnwindInfo);
 
 // virtually unwind a CONTEXT out-of-process
 struct _KNONVOLATILE_CONTEXT_POINTERS;
 BOOL DacUnwindStackFrame(T_CONTEXT * pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers);
+#endif // WIN64EXCEPTIONS
 
 #if defined(FEATURE_PAL)
 // call back through data target to unwind out-of-process
-HRESULT DacVirtualUnwind(ULONG32 threadId, PCONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
+HRESULT DacVirtualUnwind(ULONG32 threadId, PT_CONTEXT context, PT_KNONVOLATILE_CONTEXT_POINTERS contextPointers);
 #endif // FEATURE_PAL
-#endif // _WIN64
 
 #ifdef FEATURE_MINIMETADATA_IN_TRIAGEDUMPS
 class SString;
@@ -2345,6 +2346,7 @@ typedef ArrayDPTR(signed char) PTR_SBYTE;
 typedef ArrayDPTR(const BYTE) PTR_CBYTE;
 typedef DPTR(INT8)    PTR_INT8;
 typedef DPTR(INT16)   PTR_INT16;
+typedef DPTR(UINT16)  PTR_UINT16;
 typedef DPTR(WORD)    PTR_WORD;
 typedef DPTR(USHORT)  PTR_USHORT;
 typedef DPTR(DWORD)   PTR_DWORD;
@@ -2393,22 +2395,26 @@ typedef DPTR(IMAGE_TLS_DIRECTORY)   PTR_IMAGE_TLS_DIRECTORY;
 #include <xclrdata.h>
 #endif
 
-#ifdef _WIN64
+#if defined(_TARGET_X86_) && defined(FEATURE_PAL)
+typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
+#endif
+
+#ifdef _TARGET_64BIT_
 typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 typedef DPTR(struct _UNWIND_INFO)      PTR_UNWIND_INFO;
 #if defined(_TARGET_AMD64_)
 typedef DPTR(union _UNWIND_CODE)       PTR_UNWIND_CODE;
 #endif // _TARGET_AMD64_
-#endif // _WIN64
+#endif // _TARGET_64BIT_
 
 #ifdef _TARGET_ARM_
-typedef DPTR(RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
+typedef DPTR(T_RUNTIME_FUNCTION) PTR_RUNTIME_FUNCTION;
 #endif
 
 //----------------------------------------------------------------------------
 //
 // A PCODE is a valid PC/IP value -- a pointer to an instruction, possibly including some processor mode bits.
-// (On ARM, for example, a PCODE value should should have the low-order THUMB_CODE bit set if the code should
+// (On ARM, for example, a PCODE value should have the low-order THUMB_CODE bit set if the code should
 // be executed in that mode.)
 //
 typedef TADDR PCODE;
@@ -2445,13 +2451,8 @@ typedef DPTR(PTR_PCODE) PTR_PTR_PCODE;
 #endif
 
 // Macros like MAIN_CLR_MODULE_NAME* for the DAC module
-#ifdef FEATURE_MAIN_CLR_MODULE_USES_CORE_NAME
 #define MAIN_DAC_MODULE_NAME_W  W("mscordaccore")
 #define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordaccore.dll")
-#else
-#define MAIN_DAC_MODULE_NAME_W  W("mscordacwks")
-#define MAIN_DAC_MODULE_DLL_NAME_W  W("mscordacwks.dll")
-#endif
 
 // TARGET_CONSISTENCY_CHECK represents a condition that should not fail unless the DAC target is corrupt. 
 // This is in contrast to ASSERTs in DAC infrastructure code which shouldn't fail regardless of the memory

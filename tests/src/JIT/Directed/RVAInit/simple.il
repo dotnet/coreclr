@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -23,6 +24,7 @@
   .field public int64 _long
   .field public unsigned int64 _ulong
   .field public float32 _float
+  .field public unsigned int32 _pad
   .field public float64 _double
   .field public static valuetype Test static_test at D_1
   .method private hidebysig static char  hex(unsigned int8 v) cil managed
@@ -206,7 +208,7 @@
     IL_007c:  ldc.r8     80.001999999999995
     IL_0085:  beq.s      IL_008d
 
-    IL_0087:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+    IL_0087:  newobj     instance void [mscorlib]System.Exception::.ctor()
     IL_008c:  throw
 
     IL_008d:  ret

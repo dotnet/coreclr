@@ -38,22 +38,30 @@ HRESULT STDMETHODCALLTYPE CreateICeeGen(REFIID riid, void **pCeeGen)
 
 HRESULT CCeeGen::CreateNewInstance(CCeeGen* & pGen) // static, public
 {
-    pGen = new CCeeGen();
-    _ASSERTE(pGen != NULL);
-    TESTANDRETURNMEMORY(pGen);
+    NewHolder<CCeeGen> pGenHolder(new CCeeGen());
+    _ASSERTE(pGenHolder != NULL);
+    TESTANDRETURNMEMORY(pGenHolder);
     
-    pGen->m_peSectionMan = new PESectionMan;    
-    _ASSERTE(pGen->m_peSectionMan != NULL);
-    TESTANDRETURNMEMORY(pGen->m_peSectionMan);
+    pGenHolder->m_peSectionMan = new PESectionMan;    
+    _ASSERTE(pGenHolder->m_peSectionMan != NULL);
+    TESTANDRETURNMEMORY(pGenHolder->m_peSectionMan);
 
-    HRESULT hr = pGen->m_peSectionMan->Init();
-    TESTANDRETURNHR(hr);
+    HRESULT hr = pGenHolder->m_peSectionMan->Init();
+    if (FAILED(hr))
+    {
+        pGenHolder->Cleanup();
+        return hr;
+    }
 
-    hr = pGen->Init();
-    TESTANDRETURNHR(hr);
+    hr = pGenHolder->Init();
+    if (FAILED(hr))
+    {
+        // Init() calls Cleanup() on failure
+        return hr;
+    }
 
+    pGen = pGenHolder.Extract();
     return hr;
-
 }
 
 STDMETHODIMP CCeeGen::QueryInterface(REFIID riid, void** ppv)
@@ -572,18 +580,20 @@ HRESULT CCeeGen::emitMetaData(IMetaDataEmit *emitter, CeeSection* section, DWORD
     _ASSERTE(metaDataLen <= buffLen);
 
 #ifdef ENC_DELTA_HACK
-    extern int __cdecl fclose(FILE *);
-    WCHAR szFileName[256];
-    DWORD len = GetEnvironmentVariable(W("COMP_ENC_EMIT"), szFileName, ARRAYSIZE(szFileName));
-    _ASSERTE(len < (ARRAYSIZE(szFileName) + 6)); // +6 for the .dmeta
-    if (len > 0 && len < (ARRAYSIZE(szFileName) + 6)) 
     {
-        wcscat_s(szFileName, ARRAYSIZE(szFileName), W(".dmeta"));
-        FILE *pDelta;
-        int ec = _wfopen_s(&pDelta, szFileName, W("wb"));
-        if (FAILED(ec)) { return HRESULT_FROM_WIN32(ERROR_OPEN_FAILED); }
-        fwrite(buffer, 1, metaDataLen, pDelta);
-        fclose(pDelta);
+        extern int __cdecl fclose(FILE *);
+        WCHAR szFileName[256];
+        DWORD len = GetEnvironmentVariable(W("COMP_ENC_EMIT"), szFileName, ARRAYSIZE(szFileName));
+        _ASSERTE(len < (ARRAYSIZE(szFileName) + 6)); // +6 for the .dmeta
+        if (len > 0 && len < (ARRAYSIZE(szFileName) + 6)) 
+        {
+            wcscat_s(szFileName, ARRAYSIZE(szFileName), W(".dmeta"));
+            FILE *pDelta;
+            int ec = _wfopen_s(&pDelta, szFileName, W("wb"));
+            if (FAILED(ec)) { return HRESULT_FROM_WIN32(ERROR_OPEN_FAILED); }
+            fwrite(buffer, 1, metaDataLen, pDelta);
+            fclose(pDelta);
+        }
     }
 #endif
 

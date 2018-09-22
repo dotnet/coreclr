@@ -8,6 +8,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 // the class that holds the HandleCollectors
@@ -46,6 +47,7 @@ public class Usage
     private int _numInstances = 100;
     private const int deltaPercent = 10;
 
+
     // ensures GC Collections occur when handle count exceeds maximum
     private bool Case1()
     {
@@ -56,14 +58,16 @@ public class Usage
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
-        HandleCollectorTest h;
         int original = GC.CollectionCount(0);
+
+        HandleCollectorTest h;
 
         // create objects and let them go out of scope
         for (int i = 0; i < _numInstances; i++)
             h = new HandleCollectorTest();
 
         h = null;
+
         GC.WaitForPendingFinalizers();
 
         // Collection should not have occurred
@@ -96,7 +100,9 @@ public class Usage
         for (int i = 0; i < _numInstances; i++)
         {
             new HandleCollectorTest();
+
             GC.WaitForPendingFinalizers();
+
             handleCount = HandleCollectorTest.Count;
             //Note that the GC should occur when handle count is 101 but it will happen at anytime after a creation and we stick to the previous
             //count to avoid error
@@ -146,8 +152,16 @@ public class Usage
             // ensure threshold is increasing
             if (!CheckPercentageIncrease(handleCount, prevHandleCount))
             {
-                Console.WriteLine("Case 3 failed: threshold not increasing!");
-                return false;
+                Console.WriteLine("Percentage not increasing, performing Collect/WFPF/Collect cycle");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                if (handleCount == HandleCollectorTest.Count)
+                {
+                    Console.WriteLine("No handles finalized in Collect/WFPF/Collect cycle");
+                    return false;
+                }
             }
             prevHandleCount = handleCount;
         }

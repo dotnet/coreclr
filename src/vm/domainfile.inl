@@ -105,21 +105,9 @@ inline void DomainAssembly::UpdatePEFile(PTR_PEFile pFile)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_HOSTED_BINDER
     GetAppDomain()->UpdatePublishHostedAssembly(this, pFile);
-#else
-    this->UpdatePEFileWorker(pFile);
-#endif
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-inline void DomainModule::UpdatePEFile(PTR_PEFile pFile)
-{
-    LIMITED_METHOD_CONTRACT;
-    
-    this->UpdatePEFileWorker(pFile);
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 #endif // DACCESS_COMPILE
 
 inline ULONG DomainAssembly::HashIdentity()

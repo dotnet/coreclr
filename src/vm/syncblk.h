@@ -16,8 +16,8 @@
 #include "util.hpp"
 #include "slist.h"
 #include "crst.h"
-#include "handletable.h"
 #include "vars.hpp"
+#include "yieldprocessornormalized.h"
 
 // #SyncBlockOverview
 // 
@@ -84,7 +84,6 @@ typedef DPTR(EnCSyncBlockInfo) PTR_EnCSyncBlockInfo;
 #include "eventstore.hpp"
 
 #include "synch.h"
-
 
 // At a negative offset from each Object is an ObjHeader.  The 'size' of the
 // object includes these bytes.  However, we rely on the previous object allocation
@@ -166,6 +165,7 @@ inline void InitializeSpinConstants()
     g_SpinConstants.dwMaximumDuration = min(g_pConfig->SpinLimitProcCap(), g_SystemInfo.dwNumberOfProcessors) * g_pConfig->SpinLimitProcFactor() + g_pConfig->SpinLimitConstant();
     g_SpinConstants.dwBackoffFactor   = g_pConfig->SpinBackoffFactor();
     g_SpinConstants.dwRepetitions     = g_pConfig->SpinRetryCount();
+    g_SpinConstants.dwMonitorSpinCount = g_SpinConstants.dwMaximumDuration == 0 ? 0 : g_pConfig->MonitorSpinCount();
 #endif
 }
 
@@ -185,11 +185,273 @@ class AwareLock
     friend class SyncBlock;
 
 public:
-    Volatile<LONG>  m_MonitorHeld;
+    enum EnterHelperResult {
+        EnterHelperResult_Entered,
+        EnterHelperResult_Contention,
+        EnterHelperResult_UseSlowPath
+    };
+
+    enum LeaveHelperAction {
+        LeaveHelperAction_None,
+        LeaveHelperAction_Signal,
+        LeaveHelperAction_Yield,
+        LeaveHelperAction_Contention,
+        LeaveHelperAction_Error,
+    };
+
+private:
+    class LockState
+    {
+    private:
+        // Layout constants for m_state
+        static const UINT32 IsLockedMask = (UINT32)1 << 0; // bit 0
+        static const UINT32 ShouldNotPreemptWaitersMask = (UINT32)1 << 1; // bit 1
+        static const UINT32 SpinnerCountIncrement = (UINT32)1 << 2;
+        static const UINT32 SpinnerCountMask = (UINT32)0x7 << 2; // bits 2-4
+        static const UINT32 IsWaiterSignaledToWakeMask = (UINT32)1 << 5; // bit 5
+        static const UINT8 WaiterCountShift = 6;
+        static const UINT32 WaiterCountIncrement = (UINT32)1 << WaiterCountShift;
+        static const UINT32 WaiterCountMask = (UINT32)-1 >> WaiterCountShift << WaiterCountShift; // bits 6-31
+
+    private:
+        UINT32 m_state;
+
+    public:
+        LockState(UINT32 state = 0) : m_state(state)
+        {
+            LIMITED_METHOD_CONTRACT;
+        }
+
+    public:
+        UINT32 GetState() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state;
+        }
+
+        UINT32 GetMonitorHeldState() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            static_assert_no_msg(IsLockedMask == 1);
+            static_assert_no_msg(WaiterCountShift >= 1);
+
+            // Return only the locked state and waiter count in the previous (m_MonitorHeld) layout for the debugger:
+            //   bit 0: 1 if locked, 0 otherwise
+            //   bits 1-31: waiter count
+            UINT32 state = m_state;
+            return (state & IsLockedMask) + (state >> WaiterCountShift << 1);
+        }
+
+    public:
+        bool IsUnlockedWithNoWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !(m_state & (IsLockedMask + WaiterCountMask));
+        }
+
+        void InitializeToLockedWithNoWaiters()
+        {
+            LIMITED_METHOD_CONTRACT;
+            _ASSERTE(!m_state);
+
+            m_state = IsLockedMask;
+        }
+
+    public:
+        bool IsLocked() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & IsLockedMask);
+        }
+
+    private:
+        void InvertIsLocked()
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_state ^= IsLockedMask;
+        }
+
+    public:
+        bool ShouldNotPreemptWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & ShouldNotPreemptWaitersMask);
+        }
+
+    private:
+        void InvertShouldNotPreemptWaiters()
+        {
+            WRAPPER_NO_CONTRACT;
+
+            m_state ^= ShouldNotPreemptWaitersMask;
+            _ASSERTE(!ShouldNotPreemptWaiters() || HasAnyWaiters());
+        }
+
+        bool ShouldNonWaiterAttemptToAcquireLock() const
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(!ShouldNotPreemptWaiters() || HasAnyWaiters());
+
+            return !(m_state & (IsLockedMask + ShouldNotPreemptWaitersMask));
+        }
+
+    public:
+        bool HasAnySpinners() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & SpinnerCountMask);
+        }
+
+    private:
+        bool TryIncrementSpinnerCount()
+        {
+            WRAPPER_NO_CONTRACT;
+
+            LockState newState = m_state + SpinnerCountIncrement;
+            if (newState.HasAnySpinners()) // overflow check
+            {
+                m_state = newState;
+                return true;
+            }
+            return false;
+        }
+
+        void DecrementSpinnerCount()
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(HasAnySpinners());
+
+            m_state -= SpinnerCountIncrement;
+        }
+
+    public:
+        bool IsWaiterSignaledToWake() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return !!(m_state & IsWaiterSignaledToWakeMask);
+        }
+
+    private:
+        void InvertIsWaiterSignaledToWake()
+        {
+            LIMITED_METHOD_CONTRACT;
+            m_state ^= IsWaiterSignaledToWakeMask;
+        }
+
+    public:
+        bool HasAnyWaiters() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state >= WaiterCountIncrement;
+        }
+
+    private:
+        void IncrementWaiterCount()
+        {
+            LIMITED_METHOD_CONTRACT;
+            _ASSERTE(m_state + WaiterCountIncrement >= WaiterCountIncrement);
+
+            m_state += WaiterCountIncrement;
+        }
+
+        void DecrementWaiterCount()
+        {
+            WRAPPER_NO_CONTRACT;
+            _ASSERTE(HasAnyWaiters());
+
+            m_state -= WaiterCountIncrement;
+        }
+
+    private:
+        bool NeedToSignalWaiter() const
+        {
+            WRAPPER_NO_CONTRACT;
+            return HasAnyWaiters() && !(m_state & (SpinnerCountMask + IsWaiterSignaledToWakeMask));
+        }
+
+    private:
+        operator UINT32() const
+        {
+            LIMITED_METHOD_CONTRACT;
+            return m_state;
+        }
+
+        LockState &operator =(UINT32 state)
+        {
+            LIMITED_METHOD_CONTRACT;
+
+            m_state = state;
+            return *this;
+        }
+
+    public:
+        LockState VolatileLoadWithoutBarrier() const
+        {
+            WRAPPER_NO_CONTRACT;
+            return ::VolatileLoadWithoutBarrier(&m_state);
+        }
+
+        LockState VolatileLoad() const
+        {
+            WRAPPER_NO_CONTRACT;
+            return ::VolatileLoad(&m_state);
+        }
+
+    private:
+        LockState CompareExchange(LockState toState, LockState fromState)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT32)InterlockedCompareExchange((LONG *)&m_state, (LONG)toState, (LONG)fromState);
+        }
+
+        LockState CompareExchangeAcquire(LockState toState, LockState fromState)
+        {
+            LIMITED_METHOD_CONTRACT;
+            return (UINT32)InterlockedCompareExchangeAcquire((LONG *)&m_state, (LONG)toState, (LONG)fromState);
+        }
+
+    public:
+        bool InterlockedTryLock();
+        bool InterlockedTryLock(LockState state);
+        bool InterlockedUnlock();
+        bool InterlockedTrySetShouldNotPreemptWaitersIfNecessary(AwareLock *awareLock);
+        bool InterlockedTrySetShouldNotPreemptWaitersIfNecessary(AwareLock *awareLock, LockState state);
+        EnterHelperResult InterlockedTry_LockOrRegisterSpinner(LockState state);
+        EnterHelperResult InterlockedTry_LockAndUnregisterSpinner();
+        bool InterlockedUnregisterSpinner_TryLock();
+        bool InterlockedTryLock_Or_RegisterWaiter(AwareLock *awareLock, LockState state);
+        void InterlockedUnregisterWaiter();
+        bool InterlockedTry_LockAndUnregisterWaiterAndObserveWakeSignal(AwareLock *awareLock);
+        bool InterlockedObserveWakeSignal_Try_LockAndUnregisterWaiter(AwareLock *awareLock);
+    };
+
+    friend class LockState;
+
+private:
+    // Take care to use 'm_lockState.VolatileLoadWithoutBarrier()` when loading this value into a local variable that will be
+    // reused. That prevents an optimization in the compiler that avoids stack-spilling a value loaded from memory and instead
+    // reloads the value from the original memory location under the assumption that it would not be changed by another thread,
+    // which can result in the local variable's value changing between reads if the memory location is modifed by another
+    // thread. This is important for patterns such as:
+    //
+    //     T x = m_x; // no barrier
+    //     if (meetsCondition(x))
+    //     {
+    //         assert(meetsCondition(x)); // This may fail!
+    //     }
+    //
+    // The code should be written like this instead:
+    //
+    //     T x = VolatileLoadWithoutBarrier(&m_x); // compile-time barrier, no run-time barrier
+    //     if (meetsCondition(x))
+    //     {
+    //         assert(meetsCondition(x)); // This will not fail
+    //     }
+    LockState m_lockState;
+
     ULONG           m_Recursion;
     PTR_Thread      m_HoldingThread;
-    
-  private:
+
     LONG            m_TransientPrecious;
 
 
@@ -199,16 +461,20 @@ public:
 
     CLREvent        m_SemEvent;
 
+    DWORD m_waiterStarvationStartTimeMs;
+
+    static const DWORD WaiterStarvationDurationMsBeforeStoppingPreemptingWaiters = 100;
+
     // Only SyncBlocks can create AwareLocks.  Hence this private constructor.
     AwareLock(DWORD indx)
-        : m_MonitorHeld(0),
-          m_Recursion(0),
+        : m_Recursion(0),
 #ifndef DACCESS_COMPILE          
 // PreFAST has trouble with intializing a NULL PTR_Thread.
           m_HoldingThread(NULL),
 #endif // DACCESS_COMPILE          
           m_TransientPrecious(0),
-          m_dwSyncIndex(indx)
+          m_dwSyncIndex(indx),
+          m_waiterStarvationStartTimeMs(0)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -238,23 +504,60 @@ public:
 #endif // defined(ENABLE_CONTRACTS_IMPL)
 
 public:
-    enum EnterHelperResult {
-        EnterHelperResult_Entered,
-        EnterHelperResult_Contention,
-        EnterHelperResult_UseSlowPath
-    };
+    UINT32 GetLockState() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.VolatileLoadWithoutBarrier().GetState();
+    }
 
-    enum LeaveHelperAction {
-        LeaveHelperAction_None,
-        LeaveHelperAction_Signal,
-        LeaveHelperAction_Yield,
-        LeaveHelperAction_Contention,
-        LeaveHelperAction_Error,
-    };
+    bool IsUnlockedWithNoWaiters() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.VolatileLoadWithoutBarrier().IsUnlockedWithNoWaiters();
+    }
+
+    UINT32 GetMonitorHeldStateVolatile() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_lockState.VolatileLoad().GetMonitorHeldState();
+    }
+
+    ULONG GetRecursionLevel() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_Recursion;
+    }
+
+    PTR_Thread GetHoldingThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_HoldingThread;
+    }
+
+private:
+    void ResetWaiterStarvationStartTime();
+    void RecordWaiterStarvationStartTime();
+    bool ShouldStopPreemptingWaiters() const;
+
+private: // friend access is required for this unsafe function
+    void InitializeToLockedWithNoWaiters(ULONG recursionLevel, PTR_Thread holdingThread)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_lockState.InitializeToLockedWithNoWaiters();
+        m_Recursion = recursionLevel;
+        m_HoldingThread = holdingThread;
+    }
+
+public:
+    static void SpinWait(const YieldProcessorNormalizationInfo &normalizationInfo, DWORD spinIteration);
 
     // Helper encapsulating the fast path entering monitor. Returns what kind of result was achieved.
-    AwareLock::EnterHelperResult EnterHelper(Thread* pCurThread);
-    AwareLock::EnterHelperResult EnterHelperSpin(Thread* pCurThread, INT32 timeOut = -1);
+    bool TryEnterHelper(Thread* pCurThread);
+
+    EnterHelperResult TryEnterBeforeSpinLoopHelper(Thread *pCurThread);
+    EnterHelperResult TryEnterInsideSpinLoopHelper(Thread *pCurThread);
+    bool TryEnterAfterSpinLoopHelper(Thread *pCurThread);
 
     // Helper encapsulating the core logic for leaving monitor. Returns what kind of 
     // follow up action is necessary
@@ -272,9 +575,10 @@ public:
         
         // CLREvent::SetMonitorEvent works even if the event has not been intialized yet
         m_SemEvent.SetMonitorEvent();
+
+        m_lockState.InterlockedTrySetShouldNotPreemptWaitersIfNecessary(this);
     }
 
-    bool    Contention(INT32 timeOut = INFINITE);
     void    AllocLockSemEvent();
     LONG    LeaveCompletely();
     BOOL    OwnedByCurrentThread();
@@ -307,13 +611,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_HoldingThread;
-    }
-
-    // Do we have waiters?
-    inline BOOL HasWaiters()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_MonitorHeld >> 1) > 0;
     }
 };
 
@@ -489,9 +786,9 @@ private:
     // to the thunk generated for unmanaged code to call back on.
     // If this is a delegate representing an unmanaged function pointer,
     // this may point to a stub that intercepts calls to the unmng target.
-    // It is currently used for pInvokeStackImbalance MDA and host hook.
-    // We differentiate between the two by setting the lowest bit if it's
-    // an intercept stub.
+    // An example of an intercept call is pInvokeStackImbalance MDA.
+    // We differentiate between a thunk or intercept stub by setting the lowest
+    // bit if it is an intercept stub.
     void*               m_pUMEntryThunkOrInterceptStub;
 
 #ifdef FEATURE_COMINTEROP
@@ -572,14 +869,6 @@ class SyncBlock
     // can never be 0. ObjectNative::GetHashCode in COMObject.cpp makes sure to enforce this.
     DWORD m_dwHashCode;
 
-#if CHECK_APP_DOMAIN_LEAKS 
-    DWORD m_dwFlags;
-
-    enum {
-        IsObjectAppDomainAgile = 1,
-        IsObjectCheckedForAppDomainAgile = 2,
-    };
-#endif
     // In some early version of VB when there were no arrays developers used to use BSTR as arrays
     // The way this was done was by adding a trail byte at the end of the BSTR
     // To support this scenario, we need to use the sync block for this special case and
@@ -594,9 +883,6 @@ class SyncBlock
         , m_pEnCInfo(PTR_NULL)
 #endif // EnC_SUPPORTED
         , m_dwHashCode(0)
-#if CHECK_APP_DOMAIN_LEAKS 
-        , m_dwFlags(0)
-#endif
         , m_BSTRTrailByte(0)
     {
         LIMITED_METHOD_CONTRACT;
@@ -636,7 +922,7 @@ class SyncBlock
     {
         WRAPPER_NO_CONTRACT;
         return (!IsPrecious() &&
-                m_Monitor.m_MonitorHeld.RawValue() == (LONG)0 &&
+                m_Monitor.IsUnlockedWithNoWaiters() &&
                 m_Monitor.m_TransientPrecious == 0);
     }
 
@@ -719,16 +1005,6 @@ class SyncBlock
         WRAPPER_NO_CONTRACT;
         SetPrecious();
         m_dwAppDomainIndex = dwAppDomainIndex;
-    }
-
-    void SetAwareLock(Thread *holdingThread, DWORD recursionLevel)
-    {
-        LIMITED_METHOD_CONTRACT;
-        // <NOTE>
-        // DO NOT SET m_MonitorHeld HERE!  THIS IS NOT PROTECTED BY ANY LOCK!!
-        // </NOTE>
-        m_Monitor.m_HoldingThread = PTR_Thread(holdingThread);
-        m_Monitor.m_Recursion = recursionLevel;
     }
 
     DWORD GetHashCode()
@@ -826,34 +1102,6 @@ class SyncBlock
         SyncBlockPrecious   = 0x80000000,
     };
 
-#if CHECK_APP_DOMAIN_LEAKS 
-    BOOL IsAppDomainAgile() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwFlags & IsObjectAppDomainAgile;
-    }
-    void SetIsAppDomainAgile() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_dwFlags |= IsObjectAppDomainAgile;
-    }
-    void UnsetIsAppDomainAgile()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_dwFlags = m_dwFlags & ~IsObjectAppDomainAgile;
-    }
-    BOOL IsCheckedForAppDomainAgile() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwFlags & IsObjectCheckedForAppDomainAgile;
-    }
-    void SetIsCheckedForAppDomainAgile() 
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_dwFlags |= IsObjectCheckedForAppDomainAgile;
-    }
-#endif //CHECK_APP_DOMAIN_LEAKS
-
     BOOL HasCOMBstrTrailByte()
     {
         LIMITED_METHOD_CONTRACT;
@@ -875,10 +1123,10 @@ class SyncBlock
     // This should ONLY be called when initializing a SyncBlock (i.e. ONLY from
     // ObjHeader::GetSyncBlock()), otherwise we'll have a race condition.
     // </NOTE>
-    void InitState()
+    void InitState(ULONG recursionLevel, PTR_Thread holdingThread)
     {
-        LIMITED_METHOD_CONTRACT;
-        m_Monitor.m_MonitorHeld.RawValue() = 1;
+        WRAPPER_NO_CONTRACT;
+        m_Monitor.InitializeToLockedWithNoWaiters(recursionLevel, holdingThread);
     }
 
 #if defined(ENABLE_CONTRACTS_IMPL)
@@ -1028,6 +1276,11 @@ class SyncBlockCache
         return m_bSyncBlockCleanupInProgress;
     }
 
+    DWORD GetActiveCount()
+    {
+        return m_ActiveCount;
+    }
+
     // Encapsulate a CrstHolder, so that clients of our lock don't have to know
     // the details of our implementation.
     class LockHolder : public CrstHolder
@@ -1048,9 +1301,6 @@ class SyncBlockCache
     };
     friend class LockHolder;
 
-#if CHECK_APP_DOMAIN_LEAKS 
-    void CheckForUnloadedInstances(ADIndex unloadingIndex);
-#endif
 #ifdef _DEBUG
     friend void DumpSyncBlockCache();
 #endif
@@ -1261,8 +1511,11 @@ class ObjHeader
     // non-blocking version of above
     BOOL TryEnterObjMonitor(INT32 timeOut = 0);
 
-    // Inlineable fast path of EnterObjMonitor/TryEnterObjMonitor
+    // Inlineable fast path of EnterObjMonitor/TryEnterObjMonitor. Must be called before EnterObjMonitorHelperSpin.
     AwareLock::EnterHelperResult EnterObjMonitorHelper(Thread* pCurThread);
+
+    // Typically non-inlined spin loop for some fast paths of EnterObjMonitor/TryEnterObjMonitor. EnterObjMonitorHelper must be
+    // called before this function.
     AwareLock::EnterHelperResult EnterObjMonitorHelperSpin(Thread* pCurThread);
 
     // leaves the monitor of an object
@@ -1355,13 +1608,6 @@ struct ThreadQueue
                                           void* pUserData);
 #endif
 };
-
-
-// The true size of an object is whatever C++ thinks, plus the ObjHeader we
-// allocate before it.
-
-#define ObjSizeOf(c)    (sizeof(c) + sizeof(ObjHeader))
-
 
 inline void AwareLock::SetPrecious()
 {

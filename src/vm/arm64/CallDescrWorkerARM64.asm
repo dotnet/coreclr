@@ -52,29 +52,32 @@ Lstackloop
         bne     Lstackloop
 Ldonestack
 
-        ;; If FP arguments are supplied in registers (x8 != NULL) then initialize all of them from the pointer
-        ;; given in x8. 
-        ldr     x8, [x19,#CallDescrData__pFloatArgumentRegisters]
-        cbz     x8, LNoFloatingPoint
-        ldp     d0, d1, [x8]
-        ldp     d2, d3, [x8, #16]
-        ldp     d4, d5, [x8, #32]
-        ldp     d6, d7, [x8, #48]
+        ;; If FP arguments are supplied in registers (x9 != NULL) then initialize all of them from the pointer
+        ;; given in x9. 
+        ldr     x9, [x19,#CallDescrData__pFloatArgumentRegisters]
+        cbz     x9, LNoFloatingPoint
+        ldp     d0, d1, [x9]
+        ldp     d2, d3, [x9, #16]
+        ldp     d4, d5, [x9, #32]
+        ldp     d6, d7, [x9, #48]
 LNoFloatingPoint
 
         ;; Copy [pArgumentRegisters, ..., pArgumentRegisters + 56]
         ;; into x0, ..., x7
 
-        ldr     x8, [x19,#CallDescrData__pArgumentRegisters]
-        ldp     x0, x1, [x8]
-        ldp     x2, x3, [x8, #16]
-        ldp     x4, x5, [x8, #32]
-        ldp     x6, x7, [x8, #48]
+        ldr     x9, [x19,#CallDescrData__pArgumentRegisters]
+        ldp     x0, x1, [x9]
+        ldp     x2, x3, [x9, #16]
+        ldp     x4, x5, [x9, #32]
+        ldp     x6, x7, [x9, #48]
 
-        ;; ARM64TODO: => see if anything special needs to be done for remoting
+        ;; Copy pRetBuffArg into x8
+        ldr     x9, [x19,#CallDescrData__pRetBuffArg]
+        ldr     x8, [x9]
+
         ;; call pTarget
-        ldr     x8, [x19,#CallDescrData__pTarget]
-        blr     x8
+        ldr     x9, [x19,#CallDescrData__pTarget]
+        blr     x9
 
         ldr     w3, [x19,#CallDescrData__fpReturnSize]
 
@@ -117,8 +120,8 @@ LNoDoubleHFAReturn
         EMIT_BREAKPOINT ; Unreachable
 
 LIntReturn
-        ;; Save return value into retbuf for int
-        str     x0, [x19, #(CallDescrData__returnValue + 0)]
+        ;; Save return value(s) into retbuf for int
+        stp     x0,x1, [x19, #(CallDescrData__returnValue + 0)]
 
 LReturnDone
 

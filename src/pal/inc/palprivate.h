@@ -61,13 +61,6 @@ DeleteFileA(
 PALIMPORT
 BOOL
 PALAPI
-MoveFileA(
-     IN LPCSTR lpExistingFileName,
-     IN LPCSTR lpNewFileName);
-
-PALIMPORT
-BOOL
-PALAPI
 MoveFileExA(
         IN LPCSTR lpExistingFileName,
         IN LPCSTR lpNewFileName,
@@ -246,22 +239,6 @@ GetModuleFileNameA(
     OUT LPSTR lpFileName,
     IN DWORD nSize);
 
-#if ENABLE_DOWNLEVEL_FOR_NLS
-
-
-PALIMPORT
-int
-PALAPI
-CompareStringA(
-    IN LCID     Locale,
-    IN DWORD    dwCmpFlags,
-    IN LPCSTR   lpString1,
-    IN int      cchCount1,
-    IN LPCSTR   lpString2,
-    IN int      cchCount2);
-
-#endif // ENABLE_DOWNLEVEL_FOR_NLS
-
 
 PALIMPORT
 LPSTR
@@ -289,12 +266,6 @@ BOOL
 PALAPI
 FreeEnvironmentStringsA(
             IN LPSTR);
-
-PALIMPORT
-BOOL
-PALAPI
-GetVersionExA(
-          IN OUT LPOSVERSIONINFOA lpVersionInformation);
 
 PALIMPORT
 BOOL

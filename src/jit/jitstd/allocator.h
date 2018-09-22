@@ -2,26 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// ==++==
-//
-
-//
-
-//
-// ==--==
-
-/*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XX                                                                           XX
-XX                            allocator<T>                                   XX
-XX                                                                           XX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-*/
-
 #pragma once
 
-#include "iallocator.h"
 #include "new.h"
 
 namespace jitstd
@@ -50,7 +32,7 @@ private:
     allocator();
 
 public:
-    inline allocator(IAllocator* pAlloc);
+    inline allocator(CompAllocator alloc);
 
     template <typename U>
     inline allocator(const allocator<U>& alloc);
@@ -61,31 +43,31 @@ public:
     inline allocator& operator=(const allocator<U>& alloc);
 
 private:
-    IAllocator* m_pAlloc;
+    CompAllocator m_alloc;
     template <typename U>
     friend class allocator;
 };
 
-allocator<void>::allocator(IAllocator* pAlloc)
-    : m_pAlloc(pAlloc)
+allocator<void>::allocator(CompAllocator alloc)
+    : m_alloc(alloc)
 {
 }
 
 allocator<void>::allocator(const allocator& alloc)
-    : m_pAlloc(alloc.m_pAlloc)
+    : m_alloc(alloc.m_alloc)
 {
 }
 
 template <typename U>
 allocator<void>::allocator(const allocator<U>& alloc)
-    : m_pAlloc(alloc.m_pAlloc)
+    : m_alloc(alloc.m_alloc)
 {
 }
 
 template <typename U>
 allocator<void>& allocator<void>::operator=(const allocator<U>& alloc)
 {
-    m_pAlloc = alloc.m_pAlloc;
+    m_alloc = alloc.m_alloc;
     return *this;
 }
 
@@ -104,7 +86,7 @@ public:
 private:
     allocator();
 public:
-    allocator(IAllocator* pAlloc);
+    allocator(CompAllocator alloc);
 
     template <typename U>
     allocator(const allocator<U>& alloc);
@@ -116,7 +98,7 @@ public:
 
     pointer address(reference val);
     const_pointer address(const_reference val) const;
-    pointer allocate(size_type count, allocator<void>::const_pointer hint = 0);
+    pointer allocate(size_type count, allocator<void>::const_pointer hint = nullptr);
     void construct(pointer ptr, const_reference val);
     void deallocate(pointer ptr, size_type size);
     void destroy(pointer ptr);
@@ -128,7 +110,7 @@ public:
     };
 
 private:
-    IAllocator* m_pAlloc;
+    CompAllocator m_alloc;
     template <typename U>
     friend class allocator;
 };
@@ -140,21 +122,21 @@ namespace jitstd
 {
 
 template <typename T>
-allocator<T>::allocator(IAllocator* pAlloc)
-    : m_pAlloc(pAlloc)
+allocator<T>::allocator(CompAllocator alloc)
+    : m_alloc(alloc)
 {
 }
 
 template <typename T>
 template <typename U>
 allocator<T>::allocator(const allocator<U>& alloc)
-    : m_pAlloc(alloc.m_pAlloc)
+    : m_alloc(alloc.m_alloc)
 {
 }
 
 template <typename T>
 allocator<T>::allocator(const allocator<T>& alloc)
-    : m_pAlloc(alloc.m_pAlloc)
+    : m_alloc(alloc.m_alloc)
 {
 }
 
@@ -162,7 +144,7 @@ template <typename T>
 template <typename U>
 allocator<T>& allocator<T>::operator=(const allocator<U>& alloc)
 {
-    m_pAlloc = alloc.m_pAlloc;
+    m_alloc = alloc.m_alloc;
     return *this;
 }
 
@@ -181,7 +163,7 @@ typename allocator<T>::const_pointer allocator<T>::address(const_reference val) 
 template <typename T>
 T* allocator<T>::allocate(size_type count, allocator<void>::const_pointer hint)
 {
-    return (pointer) m_pAlloc->Alloc(sizeof(value_type) * count);
+    return m_alloc.allocate<value_type>(count);
 }
 
 template <typename T>
@@ -193,7 +175,7 @@ void allocator<T>::construct(pointer ptr, const_reference val)
 template <typename T>
 void allocator<T>::deallocate(pointer ptr, size_type size)
 {
-    // m_pAlloc->Free(ptr);
+    m_alloc.deallocate(ptr);
 }
 
 template <typename T>

@@ -890,7 +890,6 @@ DebuggerJitInfo::~DebuggerJitInfo()
     LOG((LF_CORDB,LL_EVERYTHING, "DJI::~DJI : deleted at 0x%p\n", this));
 }
 
-
 // Lazy initialize the Debugger-Jit-Info
 void DebuggerJitInfo::LazyInitBounds()
 {
@@ -903,31 +902,28 @@ void DebuggerJitInfo::LazyInitBounds()
         PRECONDITION(!g_pDebugger->HasDebuggerDataLock());
     } CONTRACTL_END;
 
-    //@todo: this method is not synchronized. Mei-chin's recent work should cover this one
+    LOG((LF_CORDB, LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x m_fAttemptInit %s\n", this, m_fAttemptInit == true ? "true": "false"));
+
     // Only attempt lazy-init once
-    // new LOG message
-    LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x m_fAttemptInit %s\n", this, m_fAttemptInit == true? "true": "false"));
     if (m_fAttemptInit)
     {
         return;
     }
-    m_fAttemptInit = true;
 
     EX_TRY
     {
-        LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x Initing\n", this));
+        LOG((LF_CORDB, LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x Initing\n", this));
+
         // Should have already been jitted
         _ASSERTE(this->m_jitComplete);
 
         MethodDesc * mdesc = this->m_fd;
-
         DebugInfoRequest request;
 
         _ASSERTE(this->m_addrOfCode != NULL); // must have address to disambguate the Enc cases.
         // Caller already resolved generics when they craeted the DJI, so we don't need to repeat.
         // Note the MethodDesc may not yet have the jitted info, so we'll also use the starting address we got in the jit complete callback.
         request.InitFromStartingAddr(mdesc, (PCODE)this->m_addrOfCode);
-
 
         // Bounds info.
         ULONG32 cMap = 0;
@@ -940,12 +936,26 @@ void DebuggerJitInfo::LazyInitBounds()
             InteropSafeNew, NULL, // allocator
             &cMap, &pMap,
             &cVars, &pVars);
+
         LOG((LF_CORDB,LL_EVERYTHING, "DJI::LazyInitBounds: this=0x%x GetBoundariesAndVars success=0x%x\n", this, fSuccess));
-        if (fSuccess)
+
+        Debugger::DebuggerDataLockHolder debuggerDataLockHolder(g_pDebugger);
+
+        if (!m_fAttemptInit)
         {
-            this->SetBoundaries(cMap, pMap);
-            this->SetVars(cVars, pVars);
+            if (fSuccess)
+            {
+                this->SetBoundaries(cMap, pMap);
+                this->SetVars(cVars, pVars);
+            }
+            m_fAttemptInit = true;
         }
+        else
+        {
+            DeleteInteropSafe(pMap);
+            DeleteInteropSafe(pVars);
+        }
+        // DebuggerDataLockHolder out of scope - release implied
     }
     EX_CATCH
     {
@@ -963,10 +973,7 @@ void DebuggerJitInfo::SetVars(ULONG32 cVars, ICorDebugInfo::NativeVarInfo *pVars
 {
     LIMITED_METHOD_CONTRACT;
 
-    if (m_varNativeInfo)
-    {
-        return;
-    }
+    _ASSERTE(m_varNativeInfo == NULL);
 
     m_varNativeInfo = pVars;
     m_varNativeInfoCount = cVars;
@@ -1020,14 +1027,10 @@ void DebuggerJitInfo::SetBoundaries(ULONG32 cMap, ICorDebugInfo::OffsetMapping *
 
     LOG((LF_CORDB,LL_EVERYTHING, "DJI::SetBoundaries: this=0x%x cMap=0x%x pMap=0x%x\n", this, cMap, pMap));
     _ASSERTE((cMap == 0) == (pMap == NULL));
+    _ASSERTE(m_sequenceMap == NULL);
 
     if (cMap == 0)
         return;
-
-    if (m_sequenceMap)
-    {
-        return;
-    }
 
     ULONG ilLast = 0;
 #ifdef _DEBUG
@@ -1225,7 +1228,7 @@ void DebuggerJitInfo::Init(TADDR newAddress)
     this->m_addrOfCode = (ULONG_PTR)PTR_TO_CORDB_ADDRESS((BYTE*) newAddress);
     this->m_jitComplete = true;
 
-    this->m_codeRegionInfo.InitializeFromStartAddress((PCODE)this->m_addrOfCode);
+    this->m_codeRegionInfo.InitializeFromStartAddress(PINSTRToPCODE((TADDR)this->m_addrOfCode));
     this->m_sizeOfCode =  this->m_codeRegionInfo.getSizeOfTotalCode();
 
     this->m_encVersion = this->m_methodInfo->GetCurrentEnCVersion();
@@ -1533,17 +1536,19 @@ DebuggerJitInfo * DebuggerMethodInfo::FindJitInfo(MethodDesc * pMD,
 /*
  * FindOrCreateInitAndAddJitInfo
  *
- * This routine allocates a new DJI, adding it to the DMI.
+ * This routine tries to find an existing DJI based on the method desc and start address, or allocates a new DJI, adding it to
+ * the DMI.
  *
  * Parameters:
- *   fd - the method desc to create a DJI for.
+ *   fd - the method desc to find or create a DJI for.
+ *   startAddr - the start address to find or create the DJI for.
  *
  * Returns
- *   A pointer to the created DJI, or NULL.
+ *   A pointer to the found or created DJI, or NULL.
  *
  */
 
-DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* fd)
+DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* fd, PCODE startAddr)
 {
     CONTRACTL
     {
@@ -1555,11 +1560,25 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
 
     _ASSERTE(fd != NULL);
 
-    // This will grab the latest EnC version.
-    TADDR addr = (TADDR) g_pEEInterface->GetFunctionAddress(fd);
-
-    if (addr == NULL)
+    // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
+    if (fd->IsDynamicMethod())
+    {
         return NULL;
+    }
+
+    if (startAddr == NULL)
+    {
+        // This will grab the start address for the current code version.
+        startAddr = g_pEEInterface->GetFunctionAddress(fd);
+        if (startAddr == NULL)
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        _ASSERTE(g_pEEInterface->GetNativeCodeMethodDesc(startAddr) == fd);
+    }
 
     // Check the lsit to see if we've already populated an entry for this JitInfo.
     // If we didn't have a JitInfo before, lazily create it now.
@@ -1567,24 +1586,24 @@ DebuggerJitInfo *DebuggerMethodInfo::FindOrCreateInitAndAddJitInfo(MethodDesc* f
     //
     // We haven't got the lock yet so we'll repeat this lookup once
     // we've taken the lock.
-    DebuggerJitInfo * pResult = FindJitInfo(fd, addr);
+    ARM_ONLY(_ASSERTE((startAddr & THUMB_CODE) == 1));
+    DebuggerJitInfo * pResult = FindJitInfo(fd, startAddr);
     if (pResult != NULL)
     {
-        // Found!
         return pResult;
     }
 
-
-    // CreateInitAndAddJitInfo takes a lock and checks the list again, which
-    // makes this  thread-safe.
-    return CreateInitAndAddJitInfo(fd, addr);
+    // The DJI may already be populated in the cache, if so CreateInitAndAddJitInfo is a no-op and that is fine.
+    // CreateInitAndAddJitInfo takes a lock and checks the list again, which makes this thread-safe.
+    BOOL jitInfoWasCreated;
+    return CreateInitAndAddJitInfo(fd, startAddr, &jitInfoWasCreated);
 }
 
 // Create a DJI around a method-desc. The EE already has all the information we need for a DJI,
 // the DJI just serves as a cache of the information for the debugger.
 // Caller makes no guarantees about whether the DJI is already in the table. (Caller should avoid this if
 // it knows it's in the table, but b/c we can't expect caller to synchronize w/ the other threads).
-DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr)
+DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated)
 {
     CONTRACTL
     {
@@ -1600,6 +1619,7 @@ DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TAD
     // May or may-not be jitted, that's why we passed in the start addr & size explicitly.
     _ASSERTE(startAddr != NULL);
 
+    *jitInfoWasCreated = FALSE;
 
     // No support for light-weight codegen methods.
     if (fd->IsDynamicMethod())
@@ -1638,6 +1658,10 @@ DebuggerJitInfo *DebuggerMethodInfo::CreateInitAndAddJitInfo(MethodDesc* fd, TAD
                 _ASSERTE(pResult->m_sizeOfCode == dji->m_sizeOfCode);
                 DeleteInteropSafe(dji);
                 return pResult;
+            }
+            else
+            {
+                *jitInfoWasCreated = TRUE;
             }
         }
 
@@ -1811,6 +1835,10 @@ void DebuggerMethodInfo::DJIIterator::Next(BOOL fFirst /*=FALSE*/)
         if ((m_pLoaderModuleFilter != NULL) && (m_pLoaderModuleFilter != pLoaderModule))
             continue;
 
+        //Obey the methodDesc filter if it is provided
+        if ((m_pMethodDescFilter != NULL) && (m_pMethodDescFilter != m_pCurrent->m_fd))
+            continue;
+
         // Skip modules that are unloaded, but still hanging around. Note that we can't use DebuggerModule for this check 
         // because of it is deleted pretty early during unloading, and we do not want to recreate it.
         if (pLoaderModule->GetLoaderAllocator()->IsUnloaded())
@@ -1920,7 +1948,7 @@ void DebuggerMethodInfo::SetJMCStatus(bool fStatus)
 // Get an iterator that will go through ALL native code-blobs (DJI) in the specified
 // AppDomain, optionally filtered by loader module (if pLoaderModuleFilter != NULL).
 // This is EnC/ Generics / Prejit aware.
-void DebuggerMethodInfo::IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, DebuggerMethodInfo::DJIIterator * pEnum)
+void DebuggerMethodInfo::IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, MethodDesc * pMethodDescFilter, DebuggerMethodInfo::DJIIterator * pEnum)
 {
     CONTRACTL
     {
@@ -1931,13 +1959,14 @@ void DebuggerMethodInfo::IterateAllDJIs(AppDomain * pAppDomain, Module * pLoader
     CONTRACTL_END;
 
     _ASSERTE(pEnum != NULL);
-    _ASSERTE(pAppDomain != NULL);
+    _ASSERTE(pAppDomain != NULL || pMethodDescFilter != NULL);
 
     // Esnure we have DJIs for everything.
-    CreateDJIsForNativeBlobs(pAppDomain, pLoaderModuleFilter);
+    CreateDJIsForNativeBlobs(pAppDomain, pLoaderModuleFilter, pMethodDescFilter);
 
     pEnum->m_pCurrent = m_latestJitInfo;
     pEnum->m_pLoaderModuleFilter = pLoaderModuleFilter;
+    pEnum->m_pMethodDescFilter = pMethodDescFilter;
 
     // Advance to the first DJI that passes the filter
     pEnum->Next(TRUE);
@@ -1953,9 +1982,10 @@ void DebuggerMethodInfo::IterateAllDJIs(AppDomain * pAppDomain, Module * pLoader
 //          loader module matches this one. (This can be different from m_module in the
 //          case of generics defined in one module and instantiated in another). If
 //          non-NULL, create DJIs for all modules in pAppDomain.
+//      * pMethodDescFilter - If non-NULL, create DJIs only for this single MethodDesc.
 //
 
-void DebuggerMethodInfo::CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pLoaderModuleFilter /* = NULL */)
+void DebuggerMethodInfo::CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, MethodDesc* pMethodDescFilter)
 {
     CONTRACTL
     {
@@ -1967,46 +1997,104 @@ void DebuggerMethodInfo::CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module
 
     // If we're not stopped and the module we're iterating over allows types to load,
     // then it's possible new native blobs are being created underneath us.
-    _ASSERTE(g_pDebugger->IsStopped() || ((pLoaderModuleFilter != NULL) && !pLoaderModuleFilter->IsReadyForTypeLoad()));
+    _ASSERTE(g_pDebugger->IsStopped() ||
+             ((pLoaderModuleFilter != NULL) && !pLoaderModuleFilter->IsReadyForTypeLoad()) ||
+             pMethodDescFilter != NULL);
 
-    // @todo - we really only need to do this if the stop-counter goes up (else we know nothing new is added).
-    // B/c of generics, it's possible that new instantiations of a method may have been jitted.
-    // So just loop through all known instantiations and ensure that we have all the DJIs.
-    // Note that this iterator won't show previous EnC versions, but we're already guaranteed to
-    // have DJIs for every verision of a method that was EnCed.
-    // This also handles the possibility of getting the same methoddesc back from the iterator.
-    // It also lets EnC + generics play nice together (including if an generic method was EnC-ed)
-    LoadedMethodDescIterator it(pAppDomain, m_module, m_token);
-    CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-    while (it.Next(pDomainAssembly.This()))
+    if (pMethodDescFilter != NULL)
     {
-        MethodDesc * pDesc = it.Current();
-        if (!pDesc->HasNativeCode())
+        CreateDJIsForMethodDesc(pMethodDescFilter);
+    }
+    else
+    {
+        // @todo - we really only need to do this if the stop-counter goes up (else we know nothing new is added).
+        // B/c of generics, it's possible that new instantiations of a method may have been jitted.
+        // So just loop through all known instantiations and ensure that we have all the DJIs.
+        // Note that this iterator won't show previous EnC versions, but we're already guaranteed to
+        // have DJIs for every verision of a method that was EnCed.
+        // This also handles the possibility of getting the same methoddesc back from the iterator.
+        // It also lets EnC + generics play nice together (including if an generic method was EnC-ed)
+        LoadedMethodDescIterator it(pAppDomain, m_module, m_token);
+        CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
+        while (it.Next(pDomainAssembly.This()))
         {
-            continue;
-        }
+            MethodDesc * pDesc = it.Current();
+            if (!pDesc->HasNativeCode())
+            {
+                continue;
+            }
 
-        Module * pLoaderModule = pDesc->GetLoaderModule();
+            Module * pLoaderModule = pDesc->GetLoaderModule();
 
-        // Obey the module filter if it's provided
-        if ((pLoaderModuleFilter != NULL) && (pLoaderModuleFilter != pLoaderModule))
-            continue;
+            // Obey the module filter if it's provided
+            if ((pLoaderModuleFilter != NULL) && (pLoaderModuleFilter != pLoaderModule))
+                continue;
 
-        // Skip modules that are unloaded, but still hanging around. Note that we can't use DebuggerModule for this check 
-        // because of it is deleted pretty early during unloading, and we do not want to recreate it.
-        if (pLoaderModule->GetLoaderAllocator()->IsUnloaded())
-            continue;
+            // Skip modules that are unloaded, but still hanging around. Note that we can't use DebuggerModule for this check 
+            // because of it is deleted pretty early during unloading, and we do not want to recreate it.
+            if (pLoaderModule->GetLoaderAllocator()->IsUnloaded())
+                continue;
 
-        // We just ask for the DJI to ensure that it's lazily created.
-        // This should only fail in an oom scenario.
-        DebuggerJitInfo * djiTest = g_pDebugger->GetLatestJitInfoFromMethodDesc(pDesc);
-        if (djiTest == NULL)
-        {
-            // We're oom. Give up.
-            ThrowOutOfMemory();
-            return;
+            CreateDJIsForMethodDesc(pDesc);
         }
     }
+}
+
+
+//---------------------------------------------------------------------------------------
+//
+// Bring the DJI cache up to date for jitted code instances of a particular MethodDesc.
+//
+//
+void DebuggerMethodInfo::CreateDJIsForMethodDesc(MethodDesc * pMethodDesc)
+{
+    CONTRACTL
+    {
+        SO_NOT_MAINLINE;
+        THROWS;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+
+    // The debugger doesn't track Lightweight-codegen methods b/c they have no metadata.
+    if (pMethodDesc->IsDynamicMethod())
+    {
+        return;
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager* pCodeVersionManager = pMethodDesc->GetCodeVersionManager();
+    // grab the code version lock to iterate available versions of the code
+    {
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+        NativeCodeVersionCollection nativeCodeVersions = pCodeVersionManager->GetNativeCodeVersions(pMethodDesc);
+
+        for (NativeCodeVersionIterator itr = nativeCodeVersions.Begin(), end = nativeCodeVersions.End(); itr != end; itr++)
+        {
+            // Some versions may not be compiled yet - skip those for now
+            // if they compile later the JitCompiled callback will add a DJI to our cache at that time
+            PCODE codeAddr = itr->GetNativeCode();
+            if (codeAddr)
+            {
+                // The DJI may already be populated in the cache, if so CreateInitAndAdd is
+                // a no-op and that is fine.
+                BOOL unusedDjiWasCreated;
+                CreateInitAndAddJitInfo(pMethodDesc, codeAddr, &unusedDjiWasCreated);
+            }
+        }
+    }
+#else
+    // We just ask for the DJI to ensure that it's lazily created.
+    // This should only fail in an oom scenario.
+    DebuggerJitInfo * djiTest = g_pDebugger->GetLatestJitInfoFromMethodDesc(pDesc);
+    if (djiTest == NULL)
+    {
+        // We're oom. Give up.
+        ThrowOutOfMemory();
+        return;
+    }
+#endif
 }
 
 /*
@@ -2280,7 +2368,7 @@ PTR_DebuggerJitInfo DebuggerMethodInfo::GetLatestJitInfo(MethodDesc *mdesc)
 
     // This ensures that there is an entry in the DJI list for this particular MethodDesc.
     // in the case of generic code it may not be the first entry in the list.
-    FindOrCreateInitAndAddJitInfo(mdesc);
+    FindOrCreateInitAndAddJitInfo(mdesc, NULL /* startAddr */);
 
 #endif // #ifndef DACCESS_COMPILE
 

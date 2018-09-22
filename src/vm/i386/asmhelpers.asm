@@ -30,9 +30,6 @@ EXTERN __imp__RtlUnwind@16:DWORD
 ifdef _DEBUG
 EXTERN _HelperMethodFrameConfirmState@20:PROC
 endif
-ifdef FEATURE_MIXEDMODE
-EXTERN _IJWNOADThunkJumpTargetHelper@4:PROC
-endif
 EXTERN _StubRareEnableWorker@4:PROC
 ifdef FEATURE_COMINTEROP
 EXTERN _StubRareDisableHRWorker@4:PROC
@@ -41,11 +38,8 @@ EXTERN _StubRareDisableTHROWWorker@4:PROC
 EXTERN __imp__TlsGetValue@4:DWORD
 TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
-EXTERN _OnHijackObjectWorker@4:PROC
-EXTERN _OnHijackInteriorPointerWorker@4:PROC
-EXTERN _OnHijackScalarWorker@4:PROC
+EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
-EXTERN _COMPlusEndCatch@20:PROC
 EXTERN _COMPlusFrameHandler:PROC
 ifdef FEATURE_COMINTEROP
 EXTERN _COMPlusFrameHandlerRevCom:PROC
@@ -53,27 +47,9 @@ endif ; FEATURE_COMINTEROP
 EXTERN __alloca_probe:PROC
 EXTERN _NDirectImportWorker@4:PROC
 EXTERN _UMThunkStubRareDisableWorker@8:PROC
-ifndef FEATURE_IMPLICIT_TLS
-ifdef ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-; This is defined in C (threads.cpp) and enforces EE_THREAD_NOT_REQUIRED contracts
-GetThreadGenericFullCheck EQU ?GetThreadGenericFullCheck@@YGPAVThread@@XZ
-EXTERN  GetThreadGenericFullCheck:PROC
-endif ; ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-
-EXTERN _gThreadTLSIndex:DWORD
-EXTERN _gAppDomainTLSIndex:DWORD
-endif ; FEATURE_IMPLICIT_TLS
 
 EXTERN _VarargPInvokeStubWorker@12:PROC
 EXTERN _GenericPInvokeCalliStubWorker@12:PROC
-
-; To debug that LastThrownObjectException really is EXCEPTION_COMPLUS
-ifdef TRACK_CXX_EXCEPTION_CODE_HACK	
-EXTERN __imp____CxxFrameHandler:PROC
-endif
-
-EXTERN _GetThread@0:PROC
-EXTERN _GetAppDomain@0:PROC
 
 ifdef MDA_SUPPORTED
 EXTERN _PInvokeStackImbalanceWorker@8:PROC
@@ -89,10 +65,6 @@ ifdef FEATURE_COMINTEROP
 EXTERN _CLRToCOMWorker@8:PROC
 endif
 
-ifdef FEATURE_REMOTING
-EXTERN _TransparentProxyStubWorker@8:PROC
-endif
-
 ifdef FEATURE_PREJIT
 EXTERN _ExternalMethodFixupWorker@16:PROC
 EXTERN _VirtualMethodFixupWorker@8:PROC
@@ -105,10 +77,6 @@ endif
 
 ifdef FEATURE_READYTORUN
 EXTERN _DynamicHelperWorker@20:PROC
-endif
-
-ifdef FEATURE_REMOTING
-EXTERN _InContextTPQuickDispatchAsmStub@0:PROC
 endif
 
 EXTERN @JIT_InternalThrow@4:PROC
@@ -284,52 +252,6 @@ _RestoreFPUContext@4 PROC public
         retn 4
 
 _RestoreFPUContext@4 ENDP
-
-ifndef FEATURE_CORECLR
-ifdef _DEBUG
-; For C++ exceptions, we desperately need to know the SEH code.  This allows us to properly
-; distinguish managed exceptions from C++ exceptions from standard SEH like hard stack overflow.
-; We do this by providing our own handler that squirrels away the exception code and then
-; defers to the C++ service.  Fortunately, two symbols exist for the C++ symbol.
-___CxxFrameHandler3 PROC public
-
-        ; We don't know what arguments are passed to us (except for the first arg on stack)
-        ; It turns out that EAX is part of the non-standard calling convention of this
-        ; function.
-
-        push            eax
-        push            edx
-
-        cmp             dword ptr [_gThreadTLSIndex], -1
-        je              Chain                   ; CLR is not initialized yet
-
-        call            _GetThread@0
-
-        test            eax, eax                ; not a managed thread
-        jz              Chain
-
-        mov             edx, [esp + 0ch]        ; grab the first argument
-        mov             edx, [edx]              ; grab the SEH exception code
-        
-        mov             dword ptr [eax + Thread_m_LastCxxSEHExceptionCode], edx
-
-Chain:        
-
-        pop             edx
-
-        ; [esp] contains the value of EAX we must restore.  We would like
-        ; [esp] to contain the address of the real imported CxxFrameHandler
-        ; so we can chain to it.
-        
-        mov             eax, [__imp____CxxFrameHandler]
-        mov             eax, [eax]
-        xchg            [esp], eax
-        
-        ret
-        
-___CxxFrameHandler3 ENDP
-endif ; _DEBUG
-endif ; FEATURE_CORECLR
 
 ; Register CLR exception handlers defined on the C++ side with SAFESEH.
 ; Note that these directives must be in a file that defines symbols that will be used during linking,
@@ -611,105 +533,6 @@ _StubRareDisableTHROW proc public
 _StubRareDisableTHROW endp
 
 
-ifdef FEATURE_MIXEDMODE
-; VOID __stdcall IJWNOADThunkJumpTarget(void);
-; This routine is used by the IJWNOADThunk to determine the callsite of the domain-specific stub to call.
-_IJWNOADThunkJumpTarget@0 proc public
-
-        push ebp
-        mov ebp, esp
-
-        ; EAX contains IJWNOADThunk*
-        ; Must retain ebx, ecx, edx, esi, edi.
-
-        ; save ebx - holds the IJWNOADThunk*
-        ; save ecx - holds the current AppDomain ID.
-        ; save edx - holds the cached AppDomain ID.
-        push ebx
-        push ecx
-
-        ; put the IJWNOADThunk into ebx for safe keeping
-        mov ebx, eax
-
-        ; get thread - assumes registers are preserved
-        call _GetThread@0
-
-        ; if thread is null, go down un-optimized path
-        test eax,eax
-        jz cachemiss
-
-        ; get current domain - assumes registers are preserved
-        call _GetAppDomain@0
-
-        ; if domain is null, go down un-optimized path
-        test eax,eax
-        jz cachemiss
-
-        ; get the current appdomain id
-        mov ecx, [eax + AppDomain__m_dwId]
-
-        ; test it against each cache location
-        mov eax, ebx
-        add eax, IJWNOADThunk__m_cache
-        cmp ecx, [eax]
-        je cachehit
-
-        add eax, IJWNOADThunk__NextCacheOffset
-        cmp ecx, [eax]
-        je cachehit
-
-        add eax, IJWNOADThunk__NextCacheOffset
-        cmp ecx, [eax]
-        je cachehit
-
-        add eax, IJWNOADThunk__NextCacheOffset
-        cmp ecx, [eax]
-        je cachehit
-
-cachemiss:
-        ; save extra registers
-        push edx
-        push esi
-        push edi
-
-        ; call unoptimized path
-        push ebx                ; only arg is IJWNOADThunk*
-        call _IJWNOADThunkJumpTargetHelper@4
-
-        ; restore extra registers
-        pop edi
-        pop esi
-        pop edx
-        
-        ; jump back up to the epilog
-        jmp complete
-
-cachehit:
-        ; found a matching ADID, get the code addr.
-        mov eax, [eax + IJWNOADThunk__CodeAddrOffsetFromADID]
-
-        ; if the callsite is null, go down the un-optimized path
-        test eax, eax
-        jz cachemiss
-
-complete:
-        ; restore regs
-        pop ecx
-        pop ebx
-
-        mov esp, ebp
-        pop ebp
-
-        ; Jump to callsite
-        jmp eax
-        
-        ; This will never be executed. It is just to help out stack-walking logic
-        ; which disassembles the epilog to unwind the stack.
-        ret
-_IJWNOADThunkJumpTarget@0 endp
-
-endif
-
 InternalExceptionWorker proc public
         pop     edx             ; recover RETADDR
         add     esp, eax        ; release caller's args
@@ -880,64 +703,11 @@ doRet:
 FASTCALL_ENDFUNC HelperMethodFrameRestoreState
 
 
-ifndef FEATURE_IMPLICIT_TLS
-;---------------------------------------------------------------------------
-; Portable GetThread() function: used if no platform-specific optimizations apply.
-; This is in assembly code because we count on edx not getting trashed on calls
-; to this function.
-;---------------------------------------------------------------------------
-; Thread* __stdcall GetThreadGeneric(void);
-GetThreadGeneric PROC stdcall public USES ecx edx
-
-ifdef _DEBUG
-    cmp         dword ptr [_gThreadTLSIndex], -1
-    jnz         @F
-    int         3
-@@:
-endif
-ifdef ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-    ; non-PAL, debug-only GetThreadGeneric should defer to GetThreadGenericFullCheck
-    ; to do extra contract enforcement.  (See GetThreadGenericFullCheck for details.)
-    ; This code is intentionally not added to asmhelper.s, as this enforcement is only
-    ; implemented for non-PAL builds.
-    call        GetThreadGenericFullCheck
-else
-    push        dword ptr [_gThreadTLSIndex]
-    call        dword ptr [__imp__TlsGetValue@4]
-endif
-    ret
-GetThreadGeneric ENDP
-
-;---------------------------------------------------------------------------
-; Portable GetAppdomain() function: used if no platform-specific optimizations apply.
-; This is in assembly code because we count on edx not getting trashed on calls
-; to this function.
-;---------------------------------------------------------------------------
-; Appdomain* __stdcall GetAppDomainGeneric(void);
-GetAppDomainGeneric PROC stdcall public USES ecx edx
-
-ifdef _DEBUG
-    cmp         dword ptr [_gAppDomainTLSIndex], -1
-    jnz         @F
-    int         3
-@@:
-endif
-
-    push        dword ptr [_gAppDomainTLSIndex]
-    call        dword ptr [__imp__TlsGetValue@4]
-    ret
-GetAppDomainGeneric ENDP
-endif
-
-
 ifdef FEATURE_HIJACK
 
-; A JITted method's return address was hijacked to return to us here.  What we do
-; is make a __cdecl call with 2 ints.  One is the return value we wish to preserve.
-; The other is space for our real return address.
-;
-;VOID __stdcall OnHijackObjectTripThread();
-OnHijackObjectTripThread PROC stdcall public
+; A JITted method's return address was hijacked to return to us here.  
+; VOID OnHijackTripThread()
+OnHijackTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -954,41 +724,7 @@ OnHijackObjectTripThread PROC stdcall public
     sub     esp,12
 
     push    esp
-    call    _OnHijackObjectWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                 ; return to the correct place, adjusted by our caller
-OnHijackObjectTripThread ENDP
-
-
-; VOID OnHijackInteriorPointerTripThread()
-OnHijackInteriorPointerTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackInteriorPointerWorker@4
+    call    _OnHijackWorker@4
 
     ; unused space for floating point state
     add     esp,12
@@ -1001,43 +737,10 @@ OnHijackInteriorPointerTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackInteriorPointerTripThread ENDP
+OnHijackTripThread ENDP
 
-; VOID OnHijackScalarTripThread()
-OnHijackScalarTripThread PROC stdcall public
-
-    ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
-    ; and HijackArgs
-    push    eax         ; make room for the real return address (Eip)
-    push    ebp
-    push    eax
-    push    ecx
-    push    edx
-    push    ebx
-    push    esi
-    push    edi
-
-    ; unused space for floating point state
-    sub     esp,12
-
-    push    esp
-    call    _OnHijackScalarWorker@4
-
-    ; unused space for floating point state
-    add     esp,12
-
-    pop     edi
-    pop     esi
-    pop     ebx
-    pop     edx
-    pop     ecx
-    pop     eax
-    pop     ebp
-    retn                ; return to the correct place, adjusted by our caller
-OnHijackScalarTripThread ENDP
-
-; VOID OnHijackFloatingPointTripThread()
-OnHijackFloatingPointTripThread PROC stdcall public
+; VOID OnHijackFPTripThread()
+OnHijackFPTripThread PROC stdcall public
 
     ; Don't fiddle with this unless you change HijackFrame::UpdateRegDisplay
     ; and HijackArgs
@@ -1057,7 +760,7 @@ OnHijackFloatingPointTripThread PROC stdcall public
     fstp    tbyte ptr [esp]
 
     push    esp
-    call    _OnHijackScalarWorker@4
+    call    _OnHijackWorker@4
 
     ; restore top of the floating point stack
     fld     tbyte ptr [esp]
@@ -1072,38 +775,11 @@ OnHijackFloatingPointTripThread PROC stdcall public
     pop     eax
     pop     ebp
     retn                ; return to the correct place, adjusted by our caller
-OnHijackFloatingPointTripThread ENDP
+OnHijackFPTripThread ENDP
 
 endif ; FEATURE_HIJACK
 
 
-; Note that the debugger skips this entirely when doing SetIP,
-; since COMPlusCheckForAbort should always return 0.  Excep.cpp:LeaveCatch
-; asserts that to be true.  If this ends up doing more work, then the
-; debugger may need additional support.
-; void __stdcall JIT_EndCatch();
-JIT_EndCatch PROC stdcall public
-
-    ; make temp storage for return address, and push the address of that 
-    ; as the last arg to COMPlusEndCatch	
-    mov     ecx, [esp]
-    push    ecx;
-    push    esp;
-
-    ; push the rest of COMPlusEndCatch's args, right-to-left
-    push    esi
-    push    edi
-    push    ebx
-    push    ebp
-
-    call    _COMPlusEndCatch@20 ; returns old esp value in eax, stores jump address 
-    ; now eax = new esp, [esp] = new eip
-
-    pop     edx         ; edx = new eip
-    mov     esp, eax    ; esp = new esp
-    jmp     edx         ; eip = new eip
-
-JIT_EndCatch ENDP
 
 ;==========================================================================
 ; This function is reached only via the embedded ImportThunkGlue code inside
@@ -1291,182 +967,6 @@ _UMThunkStubRareDisable proc public
     pop     eax
     retn
 _UMThunkStubRareDisable endp
-
-
-;+----------------------------------------------------------------------------
-;
-;  Method:     CRemotingServices::CheckForContextMatch   public
-;
-;  Synopsis:   This code generates a check to see if the current context and
-;              the context of the proxy match.
-;
-;+----------------------------------------------------------------------------
-;
-; returns zero if contexts match
-; returns non-zero if contexts do not match
-;
-; UINT_PTR __stdcall CRemotingServices__CheckForContextMatch(Object* pStubData)
-ifdef FEATURE_REMOTING
-_CRemotingServices__CheckForContextMatch@4 proc public
-    push    ebx                  ; spill ebx
-    mov     ebx, [eax+4]         ; Get the internal context id by unboxing
-                                 ; the stub data
-    call    _GetThread@0         ; Get the current thread, assumes that the
-                                 ; registers are preserved
-    mov     eax, [eax+Thread_m_Context] ; Get the current context from the
-                                 ; thread
-    sub     eax, ebx             ; Get the pointer to the context from the
-                                 ; proxy and compare with the current context
-    pop     ebx                  ; restore the value of ebx
-    retn
-_CRemotingServices__CheckForContextMatch@4 endp
-endif ; FEATURE_REMOTING
-
-;+----------------------------------------------------------------------------
-;
-;  Method:     CRemotingServices::DispatchInterfaceCall   public
-;
-;  Synopsis:
-;              Push that method desc on the stack and jump to the
-;              transparent proxy stub to execute the call.
-;              WARNING!! This MethodDesc is not the methoddesc in the vtable
-;              of the object instead it is the methoddesc in the vtable of
-;              the interface class. Since we use the MethodDesc only to probe
-;              the stack via the signature of the method call we are safe.
-;              If we want to get any object vtable/class specific
-;              information this is not safe.
-;
-;
-;+----------------------------------------------------------------------------
-; void __stdcall CRemotingServices__DispatchInterfaceCall()
-ifdef FEATURE_REMOTING
-_CRemotingServices__DispatchInterfaceCall@0 proc public
-    ; push MethodDesc* passed in eax by precode and forward to the worker
-    push        eax
-    
-    ; NOTE: At this point the stack looks like
-    ;
-    ; esp--->  saved MethodDesc of Interface method
-    ;          return addr of calling function
-    ;
-    mov      eax, [ecx + TransparentProxyObject___stubData]
-    call    [ecx + TransparentProxyObject___stub]
-ifdef _DEBUG
-    nop     ; Mark this as a special call site that can directly
-            ; call managed code
-endif
-    test    eax, eax
-    jnz     CtxMismatch
-    jmp     _InContextTPQuickDispatchAsmStub@0
-
-CtxMismatch:
-    pop     eax                                  ; restore MethodDesc *
-    jmp     _TransparentProxyStub_CrossContext@0 ; jump to slow TP stub
-_CRemotingServices__DispatchInterfaceCall@0 endp
-endif ; FEATURE_REMOTING
-
-
-;+----------------------------------------------------------------------------
-;
-;  Method:     CRemotingServices::CallFieldGetter   private
-;
-;  Synopsis:   Calls the field getter function (Object::__FieldGetter) in
-;              managed code by setting up the stack and calling the target
-;
-;
-;+----------------------------------------------------------------------------
-; void __stdcall CRemotingServices__CallFieldGetter(
-;    MethodDesc *pMD,
-;    LPVOID pThis,
-;    LPVOID pFirst,
-;    LPVOID pSecond,
-;    LPVOID pThird)
-ifdef FEATURE_REMOTING
-CRemotingServices__CallFieldGetter proc stdcall public,
-                                   pMD : DWORD,
-                                   pThis : DWORD,
-                                   pFirst : DWORD,
-                                   pSecond : DWORD,
-                                   pThird : DWORD
-
-    push    [pSecond]           ; push the second argument on the stack
-    push    [pThird]            ; push the third argument on the stack
-
-    mov     ecx, [pThis]        ; enregister pThis, the 'this' pointer
-    mov     edx, [pFirst]       ; enregister pFirst, the first argument
-
-    mov     eax, [pMD]          ; load MethodDesc of object::__FieldGetter
-    call    _TransparentProxyStub_CrossContext@0 ; call the TP stub
-
-    ret
-CRemotingServices__CallFieldGetter endp
-endif ;  FEATURE_REMOTING
-
-;+----------------------------------------------------------------------------
-;
-;  Method:     CRemotingServices::CallFieldSetter   private
-;
-;  Synopsis:   Calls the field setter function (Object::__FieldSetter) in
-;              managed code by setting up the stack and calling the target
-;
-;
-;+----------------------------------------------------------------------------
-; void __stdcall CRemotingServices__CallFieldSetter(
-;    MethodDesc *pMD,
-;    LPVOID pThis,
-;    LPVOID pFirst,
-;    LPVOID pSecond,
-;    LPVOID pThird)
-ifdef FEATURE_REMOTING
-CRemotingServices__CallFieldSetter proc stdcall public,
-                                   pMD : DWORD,
-                                   pThis : DWORD,
-                                   pFirst : DWORD,
-                                   pSecond : DWORD,
-                                   pThird : DWORD
-
-    push    [pSecond]           ; push the field name (second arg)
-    push    [pThird]            ; push the object (third arg) on the stack
-
-    mov     ecx, [pThis]        ; enregister pThis, the 'this' pointer
-    mov     edx, [pFirst]       ; enregister the first argument
-
-    mov     eax, [pMD]          ; load MethodDesc of object::__FieldGetter
-    call    _TransparentProxyStub_CrossContext@0 ; call the TP stub
-
-    ret
-CRemotingServices__CallFieldSetter endp
-endif ;  FEATURE_REMOTING
-
-;+----------------------------------------------------------------------------
-;
-;  Method:     CTPMethodTable::GenericCheckForContextMatch private
-;
-;  Synopsis:   Calls the stub in the TP & returns TRUE if the contexts
-;              match, FALSE otherwise.
-;
-;  Note:       1. Called during FieldSet/Get, used for proxy extensibility
-;
-;+----------------------------------------------------------------------------
-; BOOL __stdcall CTPMethodTable__GenericCheckForContextMatch(Object* orTP)
-ifdef FEATURE_REMOTING
-CTPMethodTable__GenericCheckForContextMatch proc stdcall public uses ecx, tp : DWORD
-
-    mov     ecx, [tp]
-    mov     eax, [ecx + TransparentProxyObject___stubData]
-    call    [ecx + TransparentProxyObject___stub]
-ifdef _DEBUG
-    nop     ; Mark this as a special call site that can directly
-            ; call managed code
-endif
-    test    eax, eax
-    mov     eax, 0
-    setz    al
-    ; NOTE: In the CheckForXXXMatch stubs (for URT ctx/ Ole32 ctx) eax is
-    ; non-zero if contexts *do not* match & zero if they do.
-    ret
-CTPMethodTable__GenericCheckForContextMatch endp
-endif ;  FEATURE_REMOTING
 
 
 ; void __stdcall JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
@@ -2255,98 +1755,6 @@ _GenericComPlusCallStub@0 proc public
 _GenericComPlusCallStub@0 endp
 endif ; FEATURE_COMINTEROP
 
-ifdef FEATURE_REMOTING
-_TransparentProxyStub@0 proc public
-    ; push slot passed in eax
-    push eax
-
-    ; Move into eax the stub data and call the stub
-    mov     eax, [ecx + TransparentProxyObject___stubData]
-    call    [ecx + TransparentProxyObject___stub]
-ifdef _DEBUG
-    nop     ; Mark this as a special call site that can directly
-            ; call managed code
-endif
-    test    eax, eax
-    jnz     CtxMismatch2
-
-    mov eax,            [ecx + TransparentProxyObject___pMT]
-
-    push ebx            ; spill EBX
-
-    ; Convert the slot number into the code address
-    ; See MethodTable.h for details on vtable layout
-
-    mov ebx, [esp + 4]  ; Reload the slot
-    shr ebx, ASM__VTABLE_SLOTS_PER_CHUNK_LOG2   ; indirectionSlotNumber
-
-    mov eax,[eax + ebx*4 + SIZEOF_MethodTable]
-
-    mov ebx, [esp + 4]                      ; use unchanged slot from above
-    and ebx, ASM__VTABLE_SLOTS_PER_CHUNK-1  ; offsetInChunk
-    mov eax, [eax + ebx*4]
-
-    ; At this point, eax contains the code address
-
-    ; Restore EBX
-    pop ebx
-
-    ; Remove the slot number from the stack
-    lea esp, [esp+4]
-
-    jmp eax
-
-    ; CONTEXT MISMATCH CASE, call out to the real proxy to dispatch
-
-CtxMismatch2:
-    pop     eax                                  ; restore MethodDesc *
-    jmp     _TransparentProxyStub_CrossContext@0 ; jump to slow TP stub
-
-_TransparentProxyStub@0 endp
-
-_TransparentProxyStub_CrossContext@0 proc public
-
-    STUB_PROLOG
-
-    ; pTransitionBlock
-    mov         esi, esp
-
-    ; return value
-    sub         esp, 3*4            ; 64-bit return value + cb stack pop
-
-    push        eax                 ; pMD
-    push        esi                 ; pTransitionBlock
-    call        _TransparentProxyStubWorker@8
-
-    pop         ebx                 ; cbStackPop
-
-    push        eax
-    call        _setFPReturn@12     ; pop & set the return value
-
-    ; From here on, mustn't trash eax:edx
-    mov         ecx, ebx            ; cbStackPop
-    
-    mov         ebx, [esp+6*4]      ; get retaddr
-    mov         [esp+6*4+ecx], ebx  ; put it where it belongs
-
-    STUB_EPILOG_RETURN
-
-    add     esp, ecx                ; pop all the args
-    ret
-
-_TransparentProxyStub_CrossContext@0 endp
-
-; This method does nothing.  It's just a fixed function for the debugger to put a breakpoint
-; on so that it can trace a call target.
-_TransparentProxyStubPatch@0 proc public
-    ; make sure that the basic block is unique
-    test eax,12
-_TransparentProxyStubPatchLabel@0:
-public _TransparentProxyStubPatchLabel@0
-    ret
-_TransparentProxyStubPatch@0 endp
-
-endif ; FEATURE_REMOTING
 
 ifdef FEATURE_COMINTEROP
 ;--------------------------------------------------------------------------

@@ -60,6 +60,10 @@ cpp_quote("#endif")
 typedef const BYTE *LPCBYTE;
 typedef BYTE *LPBYTE;
 
+typedef BYTE COR_SIGNATURE;
+typedef COR_SIGNATURE* PCOR_SIGNATURE;
+typedef const COR_SIGNATURE* PCCOR_SIGNATURE;
+
 #endif
 
 
@@ -120,6 +124,8 @@ cpp_quote("#endif // _COR_FIELD_OFFSET_")
 import "wtypes.idl";
 import "unknwn.idl";
 #endif
+
+#define STDMETHODCALLTYPE
 
 typedef UINT_PTR ProcessID;
 typedef UINT_PTR AssemblyID;
@@ -299,13 +305,13 @@ typedef struct _COR_PRF_METHOD
  * bits cleared for COR_PRF_ENABLE_FRAME_INFO, COR_PRF_ENABLE_FUNCTION_RETVAL
  * and COR_PRF_ENABLE_FUNCTION_ARGS.
  */
-typedef void __stdcall FunctionEnter(
+typedef void STDMETHODCALLTYPE FunctionEnter(
                 FunctionID funcID);
                 
-typedef void __stdcall FunctionLeave(
+typedef void STDMETHODCALLTYPE FunctionLeave(
                 FunctionID funcID);
                 
-typedef void __stdcall FunctionTailcall(
+typedef void STDMETHODCALLTYPE FunctionTailcall(
                 FunctionID funcID);
 
 /*
@@ -316,19 +322,19 @@ typedef void __stdcall FunctionTailcall(
  * functionality, use the FunctionEnter3/Leave3/Tailcall3 callbacks.
  */
 
-typedef void __stdcall FunctionEnter2(
+typedef void STDMETHODCALLTYPE FunctionEnter2(
                 FunctionID funcId, 
                 UINT_PTR clientData, 
                 COR_PRF_FRAME_INFO func, 
                 COR_PRF_FUNCTION_ARGUMENT_INFO *argumentInfo);
                 
-typedef void __stdcall FunctionLeave2(
+typedef void STDMETHODCALLTYPE FunctionLeave2(
                 FunctionID funcId, 
                 UINT_PTR clientData, 
                 COR_PRF_FRAME_INFO func, 
                 COR_PRF_FUNCTION_ARGUMENT_RANGE *retvalRange);
                 
-typedef void __stdcall FunctionTailcall2(
+typedef void STDMETHODCALLTYPE FunctionTailcall2(
                 FunctionID funcId, 
                 UINT_PTR clientData, 
                 COR_PRF_FRAME_INFO func);
@@ -344,13 +350,13 @@ typedef void __stdcall FunctionTailcall2(
  * true FunctionID of the function.
  */
 
-typedef void __stdcall FunctionEnter3(
+typedef void STDMETHODCALLTYPE FunctionEnter3(
                 FunctionIDOrClientID functionIDOrClientID);
  
-typedef void __stdcall FunctionLeave3(
+typedef void STDMETHODCALLTYPE FunctionLeave3(
                 FunctionIDOrClientID functionIDOrClientID);
  
-typedef void __stdcall FunctionTailcall3(
+typedef void STDMETHODCALLTYPE FunctionTailcall3(
                 FunctionIDOrClientID functionIDOrClientID);
 
 /*
@@ -367,15 +373,15 @@ typedef void __stdcall FunctionTailcall3(
  * It is only valid during the callback to which it is passed.
  */
 
-typedef void __stdcall FunctionEnter3WithInfo(
+typedef void STDMETHODCALLTYPE FunctionEnter3WithInfo(
                 FunctionIDOrClientID functionIDOrClientID,
                 COR_PRF_ELT_INFO eltInfo);
  
-typedef void __stdcall FunctionLeave3WithInfo(
+typedef void STDMETHODCALLTYPE FunctionLeave3WithInfo(
                 FunctionIDOrClientID functionIDOrClientID,
                 COR_PRF_ELT_INFO eltInfo);
  
-typedef void __stdcall FunctionTailcall3WithInfo(
+typedef void STDMETHODCALLTYPE FunctionTailcall3WithInfo(
                 FunctionIDOrClientID functionIDOrClientID,
                 COR_PRF_ELT_INFO eltInfo);
 
@@ -583,7 +589,8 @@ typedef enum
                                           COR_PRF_MONITOR_SUSPENDS |
                                           COR_PRF_MONITOR_CLASS_LOADS |
                                           COR_PRF_MONITOR_EXCEPTIONS |
-                                          COR_PRF_MONITOR_JIT_COMPILATION,
+                                          COR_PRF_MONITOR_JIT_COMPILATION |
+                                          COR_PRF_ENABLE_REJIT,
 
     // MONITOR_IMMUTABLE represents all flags that may only be set during initialization.
     // Trying to change any of these flags elsewhere will result in a
@@ -592,7 +599,6 @@ typedef enum
                                           COR_PRF_MONITOR_REMOTING |
                                           COR_PRF_MONITOR_REMOTING_COOKIE |
                                           COR_PRF_MONITOR_REMOTING_ASYNC |
-                                          COR_PRF_ENABLE_REJIT |
                                           COR_PRF_ENABLE_INPROC_DEBUGGING |
                                           COR_PRF_ENABLE_JIT_MAPS |
                                           COR_PRF_DISABLE_OPTIMIZATIONS |
@@ -617,14 +623,18 @@ typedef enum
 
     COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED          = 0x00000002,
 
+    COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS   = 0x00000004,
+
+    COR_PRF_HIGH_DISABLE_TIERED_COMPILATION         = 0x00000008,
+
     COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE              = 0,
 
-    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED,
+    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS,
 
     // MONITOR_IMMUTABLE represents all flags that may only be set during initialization.
     // Trying to change any of these flags elsewhere will result in a
     // failed HRESULT.
-    COR_PRF_HIGH_MONITOR_IMMUTABLE                  = 0,
+    COR_PRF_HIGH_MONITOR_IMMUTABLE                  = COR_PRF_HIGH_DISABLE_TIERED_COMPILATION,
 
 } COR_PRF_HIGH_MONITOR;
 
@@ -2375,6 +2385,50 @@ interface ICorProfilerCallback7 : ICorProfilerCallback6
 }
 
 
+[
+    object,
+    uuid(5BED9B15-C079-4D47-BFE2-215A140C07E0),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerCallback8 : ICorProfilerCallback7
+{
+    // This event is triggered whenever a dynamic method is jit compiled.
+    // These include various IL Stubs and LCG Methods.
+    // The goal is to provide profiler writers with enough information to identify
+    // it to users as beyond unknown code addresses.
+    // Note: FunctionID's provided here cannot be used to resolve to their metadata
+    //       tokens since dynamic methods have no metadata.
+    //
+    // Documentation Note: pILHeader is only valid during the callback
+
+    HRESULT DynamicMethodJITCompilationStarted(
+        [in] FunctionID functionId,
+        [in] BOOL       fIsSafeToBlock,
+        [in] LPCBYTE    pILHeader,
+        [in] ULONG      cbILHeader);
+
+    HRESULT DynamicMethodJITCompilationFinished(
+        [in] FunctionID functionId,
+        [in] HRESULT    hrStatus,
+        [in] BOOL       fIsSafeToBlock);
+}
+
+[
+    object,
+    uuid(27583EC3-C8F5-482F-8052-194B8CE4705A),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerCallback9 : ICorProfilerCallback8
+{
+    // This event is triggered whenever a dynamic method is garbage collected
+    // and subsequently unloaded.
+
+    HRESULT DynamicMethodUnloaded([in] FunctionID functionId);
+}
+
+
 /*
  * COR_PRF_CODEGEN_FLAGS controls various flags and hooks for a specific
  * method.  A combination of COR_PRF_CODEGEN_FLAGS is provided by the
@@ -3706,15 +3760,20 @@ interface ICorProfilerInfo6 : ICorProfilerInfo5
 {
     /*
     * Returns an enumerator for all methods that 
-    * - belong to a given NGen module (inlinersModuleId) and 
+    * - belong to a given NGen or R2R module (inlinersModuleId) and 
     * - inlined a body of a given method (inlineeModuleId / inlineeMethodId). 
     *
     * If incompleteData is set to TRUE after function is called, it means that the methods enumerator 
     * doesn't contain all methods inlining a given method. 
     * It can happen when one or more direct or indirect dependencies of inliners module haven't been loaded yet.
-    * If profiler needs accurate data it should retry later when more modules are loaded (preferable on each module load).
+    * If profiler needs accurate data it should retry later when more modules are loaded (preferably on each module load).
     *
     * It can be used to lift limitation on inlining for ReJIT.
+    *
+    * NOTE: If the inlinee method is decorated with the System.Runtime.Versioning.NonVersionable attribute then
+    * then some inliners may not ever be reported. If you need to get a full accounting you can avoid the issue
+    * by disabling the use of all native images.
+    * 
     */
     HRESULT EnumNgenModuleMethodsInliningThisMethod(
         [in] ModuleID    inlinersModuleId,
@@ -3780,6 +3839,77 @@ interface ICorProfilerInfo7 : ICorProfilerInfo6
         [out] DWORD* pCountSymbolBytesRead);
 
 };
+
+[
+    object,
+    uuid(C5AC80A6-782E-4716-8044-39598C60CFBF),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo8 : ICorProfilerInfo7
+{
+    /*
+    * Determines if a function has associated metadata 
+    *
+    * Certain methods like IL Stubs or LCG Methods do not have
+    * associated metadata that can be retrieved using the IMetaDataImport APIs.
+    *
+    * Such methods can be encountered by profilers through instruction pointers
+    * or by listening to ICorProfilerCallback::DynamicMethodJITCompilationStarted
+    *
+    * This API can be used to determine whether a FunctionID is dynamic.
+    */
+    HRESULT IsFunctionDynamic( [in]  FunctionID  functionId,
+                               [out] BOOL        *isDynamic);
+
+    /*
+    * Maps a managed code instruction pointer to a FunctionID.
+    *
+    * GetFunctionFromIP2 fails for dynamic methods, this method works for
+    * both dynamic and non-dynamic methods. It is a superset of GetFunctionFromIP2
+    */
+    HRESULT GetFunctionFromIP3([in] LPCBYTE ip,
+                               [out] FunctionID *functionId,
+                               [out] ReJITID * pReJitId);
+
+    /*
+    * Retrieves informaiton about dynamic methods
+    *
+    * Certain methods like IL Stubs or LCG do not have
+    * associated metadata that can be retrieved using the IMetaDataImport APIs.
+    *
+    * Such methods can be encountered by profilers through instruction pointers
+    * or by listening to ICorProfilerCallback::DynamicMethodJITCompilationStarted
+    *
+    * This API can be used to retrieve information about dynamic methods
+    * including a friendly name if available.
+    */
+    HRESULT GetDynamicFunctionInfo( [in]  FunctionID              functionId,
+                                    [out] ModuleID                *moduleId,
+                                    [out] PCCOR_SIGNATURE         *ppvSig,
+                                    [out] ULONG                   *pbSig,
+                                    [in]  ULONG                   cchName,
+                                    [out] ULONG                   *pcchName,
+                                    [out] WCHAR                    wszName[]);
+};
+
+[
+    object,
+    uuid(008170DB-F8CC-4796-9A51-DC8AA0B47012),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo9 : ICorProfilerInfo8
+{
+    //Given functionId + rejitId, enumerate the native code start address of all jitted versions of this code that currently exist
+    HRESULT GetNativeCodeStartAddresses(FunctionID functionID, ReJITID reJitId, ULONG32 cCodeStartAddresses, ULONG32 *pcCodeStartAddresses, UINT_PTR codeStartAddresses[]);
+
+    //Given the native code start address, return the native->IL mapping information for this jitted version of the code
+    HRESULT GetILToNativeMapping3(UINT_PTR pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[]);
+
+    //Given the native code start address, return the the blocks of virtual memory that store this code (method code is not necessarily stored in a single contiguous memory region)
+    HRESULT GetCodeInfo4(UINT_PTR pNativeCodeStartAddress, ULONG32 cCodeInfos, ULONG32* pcCodeInfos, COR_PRF_CODE_INFO codeInfos[]);
+}
 
 /*
 * This interface lets you iterate over methods in the runtime.
@@ -3855,3 +3985,25 @@ interface ICorProfilerAssemblyReferenceProvider : IUnknown
     // assembly specified in the wszAssemblyPath argument of the GetAssemblyReferences callback.
     HRESULT AddAssemblyReference(const COR_PRF_ASSEMBLY_REFERENCE_INFO * pAssemblyRefInfo);
 };
+
+
+/***************************************************************************************
+** ICLRProfiling                                                                     **
+** Activated using mscoree!CLRCreateInstance. Export AttachProfiler API to profilers **
+***************************************************************************************/
+[
+    uuid(B349ABE3-B56F-4689-BFCD-76BF39D888EA),
+    version(1.0),
+    helpstring("CoreCLR profiling interface for profiler attach"),
+    local
+]
+interface ICLRProfiling : IUnknown
+{
+    HRESULT AttachProfiler(
+        [in] DWORD dwProfileeProcessID,
+        [in] DWORD dwMillisecondsMax,                        // optional
+        [in] const CLSID * pClsidProfiler,
+        [in] LPCWSTR wszProfilerPath,                        // optional
+        [in, size_is(cbClientData)] void * pvClientData,     // optional
+        [in] UINT cbClientData);                             // optional
+}

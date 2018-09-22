@@ -225,58 +225,6 @@ public:
         return m_hndSystemPCEventArgsType;
     }
 
-    ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory *GetNCCEventArgsFactory()
-    {
-        CONTRACTL
-        {
-            THROWS;
-            GC_TRIGGERS;    // For potential COOP->PREEMP->COOP switch
-            MODE_ANY;
-            PRECONDITION(!GetAppDomain()->IsCompilationDomain()); 
-        }
-        CONTRACTL_END;   
-
-        if (m_pNCCEventArgsFactory.Load() == NULL)
-        {
-            GCX_PREEMP();
-            SafeComHolderPreemp<ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory> pNCCEventArgsFactory;
-
-            IfFailThrow(clr::winrt::GetActivationFactory(g_WinRTNotifyCollectionChangedEventArgsNameW, (ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory **)&pNCCEventArgsFactory));
-            _ASSERTE_MSG(pNCCEventArgsFactory, "Got NULL NCCEventArgs factory!");
-
-            if (InterlockedCompareExchangeT(&m_pNCCEventArgsFactory, (ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory *)pNCCEventArgsFactory, NULL) == NULL)
-                pNCCEventArgsFactory.SuppressRelease();            
-        }
-
-        return m_pNCCEventArgsFactory;
-    }
-
-    ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory *GetPCEventArgsFactory()
-    {
-        CONTRACTL
-        {
-            THROWS;
-            GC_TRIGGERS;    // For potential COOP->PREEMP->COOP switch
-            MODE_ANY;
-            PRECONDITION(!GetAppDomain()->IsCompilationDomain()); 
-        }
-        CONTRACTL_END;   
-
-        if (m_pPCEventArgsFactory.Load() == NULL)
-        {
-            GCX_PREEMP();
-            SafeComHolderPreemp<ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory> pPCEventArgsFactory;
-
-            IfFailThrow(clr::winrt::GetActivationFactory(g_WinRTPropertyChangedEventArgsNameW, (ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory **)&pPCEventArgsFactory));
-            _ASSERTE_MSG(pPCEventArgsFactory, "Got NULL PCEventArgs factory!");
-
-            if (InterlockedCompareExchangeT(&m_pPCEventArgsFactory, (ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory *)pPCEventArgsFactory, NULL) == NULL)
-                pPCEventArgsFactory.SuppressRelease();            
-        }
-
-        return m_pPCEventArgsFactory;
-    }
-
     MethodDesc *GetSystemNCCEventArgsToWinRTNCCEventArgsMD()
     {
         LIMITED_METHOD_CONTRACT;
@@ -301,14 +249,6 @@ public:
         return m_pWinRTPCEventArgsToSystemPCEventArgsMD;
     }
 
-#if defined(_DEBUG) && !defined(FEATURE_CORECLR)
-    BOOL IsEventArgsHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (pMD == m_pSystemNCCEventArgsToWinRTNCCEventArgsMD || pMD == m_pWinRTNCCEventArgsToSystemNCCEventArgsMD ||
-                pMD == m_pSystemPCEventArgsToWinRTPCEventArgsMD   || pMD == m_pWinRTPCEventArgsToSystemPCEventArgsMD);
-    }
-#endif // #if defined(_DEBUG) && !defined(FEATURE_CORECLR)
 
 private:
     TypeHandle m_hndSystemNCCEventArgsType;
@@ -318,9 +258,6 @@ private:
     MethodDesc *m_pWinRTNCCEventArgsToSystemNCCEventArgsMD;
     MethodDesc *m_pSystemPCEventArgsToWinRTPCEventArgsMD;
     MethodDesc *m_pWinRTPCEventArgsToSystemPCEventArgsMD;
-
-    VolatilePtr<ABI::Windows::UI::Xaml::Interop::INotifyCollectionChangedEventArgsFactory> m_pNCCEventArgsFactory;
-    VolatilePtr<ABI::Windows::UI::Xaml::Data::IPropertyChangedEventArgsFactory> m_pPCEventArgsFactory;
 };
 
 class UriMarshalingInfo
@@ -384,13 +321,6 @@ public:
         return m_SystemUriOriginalStringGetterMD;
     }
 
-#if defined(_DEBUG) && !defined(FEATURE_CORECLR)
-    BOOL IsUriHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return pMD == m_SystemUriCtorMD || pMD == m_SystemUriOriginalStringGetterMD;
-    }
-#endif // #if defined(_DEBUG) && !defined(FEATURE_CORECLR)
 
 private:
     TypeHandle m_hndSystemUriType;
@@ -429,13 +359,6 @@ public:
         return m_SystemColorToOleColorMD;
     }
 
-#if defined(_DEBUG) && !defined(FEATURE_CORECLR)
-    BOOL IsOleColorHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return pMD == m_OleColorToSystemColorMD || pMD == m_SystemColorToOleColorMD;
-    }
-#endif // #if defined(_DEBUG) && !defined(FEATURE_CORECLR)
 
 private:
     TypeHandle  m_hndColorType;
@@ -470,25 +393,6 @@ public:
     UriMarshalingInfo *GetUriMarshalingInfo();
     EventArgsMarshalingInfo *GetEventArgsMarshalingInfo();
 
-#if defined(_DEBUG) && !defined(FEATURE_CORECLR)
-    BOOL IsOleColorHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pOleColorInfo != NULL && m_pOleColorInfo->IsOleColorHelperMethod(pMD);
-    }
-
-    BOOL IsUriHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pUriInfo != NULL && m_pUriInfo->IsUriHelperMethod(pMD);
-    }
-
-    BOOL IsEventArgsHelperMethod(MethodDesc *pMD)
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pEventArgsInfo != NULL && m_pEventArgsInfo->IsEventArgsHelperMethod(pMD);
-    }
-#endif // #if defined(_DEBUG) && !defined(FEATURE_CORECLR)
 
 #endif // FEATURE_COMINTEROP
 

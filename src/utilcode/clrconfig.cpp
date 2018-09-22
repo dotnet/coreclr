@@ -24,17 +24,6 @@
 //
 CLRConfig::GetConfigValueFunction CLRConfig::s_GetConfigValueCallback = NULL;
 
-//
-// Initialize the PerformanceDefaults::LookupConfigValue function pointer to NULL. If not initialized, CLRConfig
-// will ignore LookupOptions::MayHavePerformanceDefault.
-//
-CLRConfig::GetPerformanceDefaultValueFunction CLRConfig::s_GetPerformanceDefaultValueCallback = NULL;
-
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-PFN_CptQuirkIsEnabled3 CLRConfig::s_IsQuirkEnabledCallback = NULL;
-PFN_CptQuirkGetData2 CLRConfig::s_GetQuirkValueCallback    = NULL;
-#endif
-
 // 
 // Creating structs using the macro table in CLRConfigValues.h
 // 
@@ -100,79 +89,6 @@ PFN_CptQuirkGetData2 CLRConfig::s_GetQuirkValueCallback    = NULL;
 #undef CONFIG_STRING_INFO_DIRECT_ACCESS
 
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-
-#define MAX_QUIRK_LENGTH 60
-#define WIN_DB_COMPONENT_NAME W("NETFX.")
-#define WIN_DB_COMPONENT_NAME_LENGTH 6
-
-// queries the DB if the quirk is enabled. If the quirk is enabled then it also gets the value associated with the quirk.
-// pass in quirkData as NULL if the value is not required and only enabled/disabled is needed.
-// Length of quirk cannot be greater than 60. If it is greater than 60 then this api returns E_FAIL.
-HRESULT CLRConfig::getQuirkEnabledAndValueFromWinDB(LPCWSTR wszQuirkName, BOOL* isEnabled, CPT_QUIRK_DATA* quirkData)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(isEnabled, NULL_NOT_OK));
-    }
-    CONTRACTL_END;
-
-    if(wszQuirkName == NULL)
-        return E_FAIL;
-
-    WCHAR wszCompleteQuirkName[MAX_QUIRK_LENGTH + WIN_DB_COMPONENT_NAME_LENGTH + 1];
-    WCHAR wszComponentName[] = WIN_DB_COMPONENT_NAME;
-    size_t cchCompleteQuirkName = MAX_QUIRK_LENGTH + WIN_DB_COMPONENT_NAME_LENGTH + 1;
-
-    _ASSERT(wcslen(wszComponentName) == WIN_DB_COMPONENT_NAME_LENGTH);
-    
-    size_t cchOrig = wcslen(wszQuirkName);
-    if(cchOrig > MAX_QUIRK_LENGTH)
-    {
-        return E_FAIL;
-    }
-    
-    // Create comlete name of the quirk. Windows expects complete quirkName i.e. componentName.quirkName
-    // eg. ETWEnabled will become NETFX.ETWEnabled
-    errno_t err = wcsncpy_s(wszCompleteQuirkName, cchCompleteQuirkName, wszComponentName, WIN_DB_COMPONENT_NAME_LENGTH);
-    if (err != 0)
-    {
-        return E_FAIL;
-    }
-    
-    err = wcscat_s(wszCompleteQuirkName, cchCompleteQuirkName, wszQuirkName);
-    if (err != 0)
-    {
-        return E_FAIL;
-    }
-
-
-    UINT32 version = 0xFFFFFFFF;
-    BOOL fIsEnabled;
-    //call windows api
-    // Version passed must be 0xFFFFFFFF for NETFX. Passing any other version requires more 
-    // understanding of the windows API. 
-    fIsEnabled = s_IsQuirkEnabledCallback(wszCompleteQuirkName,version);
-
-    if(fIsEnabled && quirkData != NULL)
-    {
-        quirkData->Size = sizeof(CPT_QUIRK_DATA);
-        // Query for quirkData 
-        if(!SUCCEEDED(s_GetQuirkValueCallback(wszCompleteQuirkName, quirkData)))
-        {
-            return E_FAIL;
-        }
-    }
-
-    *isEnabled = fIsEnabled;
-
-    return S_OK;
-}
-
-#endif
 
 
 // Return if a quirk is a enabled.
@@ -190,22 +106,6 @@ BOOL CLRConfig::IsConfigEnabled(const ConfigDWORDInfo & info)
 
     DWORD result = info.defaultValue;
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    // Windows Shim DB should be the first place to look as it applies microsoft enforced policy
-    // and overrides setting at any other place like config or registry
-    if(CheckLookupOption(info, IgnoreWindowsQuirkDB) == FALSE && 
-       s_IsQuirkEnabledCallback != NULL )// Check that IsQuirkEnabledCallback function has been registered.
-    {
-        BOOL enabledInDB = FALSE;
-        if(SUCCEEDED(getQuirkEnabledAndValueFromWinDB(info.name, &enabledInDB, NULL)))
-        {
-            if(enabledInDB)
-            {
-                return TRUE;
-            }
-        }
-    }
-#endif
     //
     // Set up REGUTIL options.
     // 
@@ -275,22 +175,6 @@ BOOL CLRConfig::IsConfigEnabled(const ConfigDWORDInfo & info)
         }
     }
 
-    //
-    // If we get here, the option was not listed in REGUTIL or EEConfig; check whether the option
-    // has a PerformanceDefault-specified value before falling back to the built-in default
-    //
-    DWORD performanceDefaultValue;
-    if (CheckLookupOption(info, MayHavePerformanceDefault) &&
-        s_GetPerformanceDefaultValueCallback != NULL &&
-        s_GetPerformanceDefaultValueCallback(info.name, &performanceDefaultValue))
-    {
-        if (!SUCCEEDED(REGUTIL::GetConfigDWORD_DontUse_(info.name, info.defaultValue, &result, level, prependCOMPlus)))
-        {
-            if(performanceDefaultValue>0)
-                return TRUE;
-        }
-    }
-
     if(info.defaultValue>0)
         return TRUE;
     else
@@ -328,40 +212,6 @@ DWORD CLRConfig::GetConfigValue(const ConfigDWORDInfo & info, bool acceptExplici
 
     _ASSERTE (isDefault != nullptr);
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    // Windows Shim DB should be the first place to look as it applies microsoft enforced policy
-    // and overrides setting at any other place like config or registry
-    if(CheckLookupOption(info, IgnoreWindowsQuirkDB) == FALSE && 
-       s_IsQuirkEnabledCallback != NULL )// Check that IsQuirkEnabledCallback function has been registered.
-    {
-        BOOL isEnabledInDB = FALSE;
-        CPT_QUIRK_DATA quirkData;
-        if(SUCCEEDED(getQuirkEnabledAndValueFromWinDB(info.name, &isEnabledInDB, &quirkData)))
-        {
-            if(isEnabledInDB)
-            {
-                WCHAR *end;
-                errno = 0;
-                DWORD resultMaybe = wcstoul(quirkData.CommandLine, &end, 0);
-
-                // errno is ERANGE if the number is out of range, and end is set to pvalue if
-                // no valid conversion exists.
-                if (errno != ERANGE && end != quirkData.CommandLine)
-                {
-                    *isDefault = false;
-                    return resultMaybe;
-                }
-                else
-                {
-                    // If an invalid value is defined we treat it as the default value.
-                    // i.e. we don't look further.
-                    *isDefault = true;
-                    return info.defaultValue;
-                }
-            }
-        }
-    }
-#endif // FEATURE_WIN_DB_APPCOMPAT
 
     //
     // Set up REGUTIL options.
@@ -464,25 +314,6 @@ DWORD CLRConfig::GetConfigValue(const ConfigDWORDInfo & info, bool acceptExplici
         }
     }
 
-    //
-    // If we get here, the option was not listed in REGUTIL or EEConfig; check whether the option
-    // has a PerformanceDefault-specified value before falling back to the built-in default
-    //
-    DWORD performanceDefaultValue;
-    if (CheckLookupOption(info, MayHavePerformanceDefault) &&
-        s_GetPerformanceDefaultValueCallback != NULL &&
-        s_GetPerformanceDefaultValueCallback(info.name, &performanceDefaultValue))
-    {
-        // TODO: We ignore explicitly defined default values above, but we do not want to let performance defaults override these.
-        // TODO: Ideally, the above would use hresult for success and this check would be removed.
-        DWORD resultMaybe;
-        if (!SUCCEEDED(REGUTIL::GetConfigDWORD_DontUse_(info.name, info.defaultValue, &resultMaybe, level, prependCOMPlus)))
-        {
-            *isDefault = true;
-            return performanceDefaultValue;
-        }
-    }
-
     *isDefault = true;
     return info.defaultValue;
 }
@@ -557,30 +388,6 @@ HRESULT CLRConfig::GetConfigValue(const ConfigStringInfo & info, __deref_out_z L
 
     LPWSTR result = NULL;
 
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    // Windows Shim DB should be the first place to look as it applies microsoft enforced policy
-    // and overrides setting at any other place like config or registry
-    if(CheckLookupOption(info, IgnoreWindowsQuirkDB) == FALSE && 
-       s_IsQuirkEnabledCallback != NULL )// Check that IsQuirkEnabledCallback function has been registered.
-    {
-
-        BOOL isEnabledInDB = FALSE;
-        CPT_QUIRK_DATA quirkData;
-        if(SUCCEEDED(getQuirkEnabledAndValueFromWinDB(info.name, &isEnabledInDB, &quirkData)))
-        {
-            if(isEnabledInDB)
-            {
-                size_t len = wcslen(quirkData.CommandLine) + 1;
-                result = new (nothrow) WCHAR[len];
-                if (result == NULL)
-                {            
-                    RETURN E_OUTOFMEMORY;
-                }
-                wcscpy_s(result, len, quirkData.CommandLine);
-            }
-        }
-    }
-#endif // FEATURE_WIN_DB_APPCOMPAT
 
     //
     // Set up REGUTIL options.
@@ -644,10 +451,6 @@ HRESULT CLRConfig::GetConfigValue(const ConfigStringInfo & info, __deref_out_z L
             result = wszTrimmedResult;
         }
     }
-
-    // If we ever want a PerformanceDefault for a string value, you can replace this assert
-    // with code that follows the pattern for DWORD values above.
-    _ASSERTE(!CheckLookupOption(info, MayHavePerformanceDefault));
 
     *outVal = result;
     RETURN S_OK;
@@ -797,25 +600,6 @@ void CLRConfig::RegisterGetConfigValueCallback(GetConfigValueFunction func)
     LIMITED_METHOD_CONTRACT;
     s_GetConfigValueCallback = func;
 }
-
-// 
-// Register PerformanceDefaults' LookupConfigValue so CLRConfig can support 'MayHavePerformanceDefault' values
-// 
-//static 
-void CLRConfig::RegisterGetPerformanceDefaultValueCallback(GetPerformanceDefaultValueFunction func)
-{
-    LIMITED_METHOD_CONTRACT;
-    s_GetPerformanceDefaultValueCallback = func;
-}
-
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-void CLRConfig::RegisterWinDbQuirkApis(PFN_CptQuirkIsEnabled3 func1, PFN_CptQuirkGetData2 func2)
-{
-    LIMITED_METHOD_CONTRACT;
-    s_IsQuirkEnabledCallback = func1;
-    s_GetQuirkValueCallback = func2;
-}
-#endif // FEATURE_WIN_DB_APPCOMPAT
 
 // 
 // Helper method to translate LookupOptions to REGUTIL::CORConfigLevel.

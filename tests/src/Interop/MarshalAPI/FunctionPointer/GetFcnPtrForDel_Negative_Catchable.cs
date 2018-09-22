@@ -6,23 +6,23 @@ using System.Security;
 using System.Threading;
 using System.Globalization;
 using System.Runtime.InteropServices;
-
+#pragma warning disable 618
 public partial class FunctionPtr
 {
     delegate void VoidDelegate();
 
     public static int Main()
     {
-        RunGetFncSecTest();
+        int retVal1 = RunGetFncSecTest();
 
-        int retVal = 100;
+        int retVal2 = 100;
         VoidDelegate md = new VoidDelegate(FunctionPtr.Method);
         Console.WriteLine("\r\nTesting Marshal.GetFunctionPointerForDelegate().");
 
         try
         {
             Marshal.GetFunctionPointerForDelegate<Object>(null);
-            retVal = 0;
+            retVal2 = 0;
             Console.WriteLine("Failure - did not receive an exception while passing null as the delegate");
         }
         catch (ArgumentNullException e)
@@ -31,12 +31,19 @@ public partial class FunctionPtr
         }
         catch (Exception e)
         {
-            retVal = 0;
+            retVal2 = 0;
             Console.WriteLine("Failure - receive an incorrect exception while passing null as the delegate");
             Console.WriteLine(e);
         }
-        RunGetDelForFcnPtrTest();
-        return retVal;
+
+        int retVal3 = RunGetDelForFcnPtrTest();
+
+        if (retVal1 != 100)
+            return retVal1;
+        if (retVal2 != 100)
+            return retVal2;
+        return retVal3;
     }
   
 }
+#pragma warning restore 618

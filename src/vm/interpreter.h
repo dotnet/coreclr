@@ -10,7 +10,6 @@
 #include "corinfo.h"
 #include "codeman.h"
 #include "jitinterface.h"
-#include "simplerhash.h"
 #include "stack.h"
 #include "crst.h"
 #include "callhelpers.h"
@@ -35,11 +34,7 @@ typedef SIZE_T NativePtr;
 #error INTERP_ILCYCLE_PROFILE may only be set if INTERP_ILINSTR_PROFILE is also set.
 #endif
 #endif
-#if defined(_DEBUG)
-#define INTERPLOG(...) if (s_TraceInterpreterVerboseFlag.val(CLRConfig::INTERNAL_TraceInterpreterVerbose)) { fprintf(GetLogFile(), __VA_ARGS__); }
-#else
-#define INTERPLOG(...)
-#endif
+
 #if defined(_DEBUG) || INTERP_ILINSTR_PROFILE
 // I define "INTERP_TRACING", rather than just using _DEBUG, so that I can easily make a build
 // in which tracing is enabled in retail.
@@ -47,6 +42,12 @@ typedef SIZE_T NativePtr;
 #else
 #define INTERP_TRACING 0
 #endif // defined(_DEBUG) || defined(INTERP_ILINSTR_PROFILE)
+
+#if INTERP_TRACING
+#define INTERPLOG(...) if (s_TraceInterpreterVerboseFlag.val(CLRConfig::INTERNAL_TraceInterpreterVerbose)) { fprintf(GetLogFile(), __VA_ARGS__); }
+#else
+#define INTERPLOG(...)
+#endif
 
 #if INTERP_TRACING
 #define InterpTracingArg(x) ,x
@@ -551,9 +552,6 @@ struct InterpreterMethodInfo
     // The module containing the method.
     CORINFO_MODULE_HANDLE       m_module;
 
-    // If the method has been JITted, it's JITted code (for indirection).
-    PCODE                       m_jittedCode;
-
     // Code pointer, size, and max stack usage.
     BYTE*                       m_ILCode;
     BYTE*                       m_ILCodeEnd;        // One byte past the last byte of IL. IL Code Size = m_ILCodeEnd - m_ILCode.
@@ -719,7 +717,7 @@ class InterpreterCEEInfo: public CEEInfo
 {
     CEEJitInfo m_jitInfo;
 public:
-    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CorJitFlag(0)) { m_pOverride = this; }
+    InterpreterCEEInfo(CORINFO_METHOD_HANDLE meth): CEEInfo((MethodDesc*)meth), m_jitInfo((MethodDesc*)meth, NULL, NULL, CORJIT_FLAGS::CORJIT_FLAG_SPEED_OPT) { m_pOverride = this; }
     
     // Certain methods are unimplemented by CEEInfo (they hit an assert).  They are implemented by CEEJitInfo, yet
     // don't seem to require any of the CEEJitInfo state we can't provide.  For those case, delegate to the "partial"
@@ -1017,7 +1015,7 @@ private:
 #endif
     };
 
-    typedef SimplerHashTable<void*, PtrKeyFuncs<void>, CORINFO_METHOD_HANDLE, DefaultSimplerHashBehavior> AddrToMDMap;
+    typedef MapSHash<void*, CORINFO_METHOD_HANDLE> AddrToMDMap;
     static AddrToMDMap* s_addrToMDMap;
     static AddrToMDMap* GetAddrToMdMap();
 
@@ -1030,7 +1028,7 @@ private:
         Thread* m_thread;
 #endif // _DEBUG
     };
-    typedef SimplerHashTable<CORINFO_METHOD_HANDLE, PtrKeyFuncs<CORINFO_METHOD_STRUCT_>, MethInfo, DefaultSimplerHashBehavior> MethodHandleToInterpMethInfoPtrMap;
+    typedef MapSHash<CORINFO_METHOD_HANDLE, MethInfo> MethodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* s_methodHandleToInterpMethInfoPtrMap;
     static MethodHandleToInterpMethInfoPtrMap* GetMethodHandleToInterpMethInfoPtrMap();
 
@@ -1766,6 +1764,9 @@ private:
     void DoStringLength();
     void DoStringGetChar();
     void DoGetTypeFromHandle();
+    void DoByReferenceCtor();
+    void DoByReferenceValue();
+    void DoSIMDHwAccelerated();
 
     // Returns the proper generics context for use in resolving tokens ("precise" in the sense of including generic instantiation
     // information).

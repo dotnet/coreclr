@@ -105,7 +105,6 @@ extern DWORD g_fEEShutDown;
 // Total count of Crst lock  of the type (Shutdown) that are currently in use
 extern Volatile<LONG> g_ShutdownCrstUsageCount;
 extern Volatile<LONG> g_fForbidEnterEE;
-extern bool g_fFinalizerRunOnShutDown;
 
 // The CRST.
 class CrstBase
@@ -116,14 +115,15 @@ class CrstBase
 friend class Thread;
 friend class ThreadStore;
 friend class ThreadSuspend;
-friend class ListLock;
-friend class ListLockEntry;
+template <typename ELEMENT>
+friend class ListLockBase;
+template <typename ELEMENT>
+friend class ListLockEntryBase;
 //friend class CExecutionEngine;
 friend struct SavedExceptionInfo;
 friend void EEEnterCriticalSection(CRITSEC_COOKIE cookie);
 friend void EELeaveCriticalSection(CRITSEC_COOKIE cookie);
-friend class ReJitPublishMethodHolder;
-friend class ReJitPublishMethodTableHolder;
+friend class CodeVersionManager;
 
 friend class Debugger;
 friend class Crst;
@@ -298,9 +298,6 @@ protected:
 
     union {
         CRITICAL_SECTION    m_criticalsection;
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        IHostCrst          *m_pHostCrst;
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     };
 
     typedef enum

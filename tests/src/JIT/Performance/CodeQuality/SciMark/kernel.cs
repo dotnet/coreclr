@@ -4,9 +4,9 @@
 /// <license>
 /// This is a port of the SciMark2a Java Benchmark to C# by
 /// Chris Re (cmr28@cornell.edu) and Werner Vogels (vogels@cs.cornell.edu)
-/// 
+///
 /// For details on the original authors see http://math.nist.gov/scimark2
-/// 
+///
 /// This software is likely to burn your processor, bitflip your memory chips
 /// anihilate your screen and corrupt all your disks, so you it at your
 /// own risk.
@@ -15,6 +15,8 @@
 
 using Microsoft.Xunit.Performance;
 using System;
+
+[assembly: OptimizeForBenchmarks]
 
 namespace SciMark2
 {
@@ -214,7 +216,7 @@ namespace SciMark2
             //             +**  *   *        +
             //             +* *   *   *      +
             //             +*  *   *    *    +
-            //             +*   *    *    *  + 
+            //             +*   *    *    *  +
             //             +-----------------+
             //
             // (as best reproducible with integer artihmetic)

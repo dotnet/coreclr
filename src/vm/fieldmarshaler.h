@@ -84,8 +84,11 @@ enum NStructFieldType
 
 //=======================================================================
 // Magic number for default struct packing size.
+//
+// Currently we set this to the packing size of the largest supported
+// fundamental type and let the field marshaller downsize where needed.
 //=======================================================================
-#define DEFAULT_PACKING_SIZE 8
+#define DEFAULT_PACKING_SIZE 32
 
 
 //=======================================================================
@@ -248,6 +251,28 @@ VOID FmtValueTypeUpdateCLR(LPVOID pProtectedManagedData, MethodTable *pMT, BYTE 
     }                                                   \
     ELEMENT_SIZE_IMPL(NativeSize, AlignmentReq)
 
+#define COPY_TO_IMPL_BASE_STRUCT_ONLY() \
+    VOID CopyToImpl(VOID *pDest, SIZE_T destSize) \
+    { \
+        static_assert(sizeof(*this) == sizeof(FieldMarshaler), \
+                      "Please, implement CopyToImpl for correct copy of field values"); \
+        \
+        FieldMarshaler::CopyToImpl(pDest, destSize); \
+    }
+
+#define START_COPY_TO_IMPL(CLASS_NAME) \
+    VOID CopyToImpl(VOID *pDest, SIZE_T destSize) const \
+    { \
+        FieldMarshaler::CopyToImpl(pDest, destSize); \
+    \
+        CLASS_NAME *pDestFieldMarshaller = (std::remove_const<std::remove_pointer<decltype(this)>::type>::type *) pDest; \
+        _ASSERTE(sizeof(*pDestFieldMarshaller) <= destSize); \
+
+#define END_COPY_TO_IMPL(CLASS_NAME) \
+        static_assert(std::is_same<CLASS_NAME *, decltype(pDestFieldMarshaller)>::value, \
+                      "Structure's name is required"); \
+    }
+
 
 //=======================================================================
 //
@@ -273,6 +298,7 @@ public:
     VOID ScalarUpdateCLR(const VOID *pNative, LPVOID pCLR) const;
     VOID NestedValueClassUpdateNative(const VOID **ppProtectedCLR, SIZE_T startoffset, LPVOID pNative, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID NestedValueClassUpdateCLR(const VOID *pNative, LPVOID *ppProtectedCLR, SIZE_T startoffset) const;
+    VOID CopyTo(VOID *pDest, SIZE_T destSize) const;
 #ifdef FEATURE_PREJIT
     void Save(DataImage *image);
     void Fixup(DataImage *image);
@@ -346,10 +372,21 @@ public:
 #endif // FEATURE_PREJIT
     }
 
+    void CopyToImpl(VOID *pDest, SIZE_T destSize) const
+    {
+        FieldMarshaler *pDestFieldMarshaller = (FieldMarshaler *) pDest;
+
+        _ASSERTE(sizeof(*pDestFieldMarshaller) <= destSize);
+
+        pDestFieldMarshaller->SetFieldDesc(GetFieldDesc());
+        pDestFieldMarshaller->SetExternalOffset(GetExternalOffset());
+        pDestFieldMarshaller->SetNStructFieldType(GetNStructFieldType());
+    }
+
     void SetFieldDesc(FieldDesc* pFD)
     {
         LIMITED_METHOD_CONTRACT;
-        m_pFD.SetValue(pFD);
+        m_pFD.SetValueMaybeNull(pFD);
     }
 
     FieldDesc* GetFieldDesc() const
@@ -364,7 +401,7 @@ public:
         }
         CONTRACT_END;
 
-        RETURN m_pFD.GetValue();
+        RETURN m_pFD.GetValueMaybeNull();
     }
 
     void SetExternalOffset(UINT32 dwExternalOffset)
@@ -389,7 +426,7 @@ protected:
 #endif
     }
 
-    static inline void RestoreHelper(FixupPointer<PTR_MethodTable> *ppMT)
+    static inline void RestoreHelper(RelativeFixupPointer<PTR_MethodTable> *ppMT)
     {
         CONTRACTL
         {
@@ -409,7 +446,7 @@ protected:
     }
 
 #ifdef _DEBUG
-    static inline BOOL IsRestoredHelper(FixupPointer<PTR_MethodTable> pMT)
+    static inline BOOL IsRestoredHelper(const RelativeFixupPointer<PTR_MethodTable> &pMT)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -423,7 +460,7 @@ protected:
 #endif // _DEBUG
 
 
-    FixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
+    RelativeFixupPointer<PTR_FieldDesc> m_pFD;      // FieldDesc
     UINT32           m_dwExternalOffset;    // offset of field in the fixed portion
     NStructFieldType m_nft;
 };
@@ -444,6 +481,7 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(BSTR), sizeof(BSTR))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 //=======================================================================
@@ -457,6 +495,7 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(HSTRING), sizeof(HSTRING))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 //=======================================================================
@@ -468,7 +507,7 @@ public:
 
     FieldMarshaler_Nullable(MethodTable* pMT)
     {
-        m_pNullableTypeMT.SetValue(pMT);
+        m_pNullableTypeMT.SetValueMaybeNull(pMT);
     }
 
     BOOL IsNullableMarshalerImpl() const
@@ -521,6 +560,12 @@ public:
         FieldMarshaler::RestoreImpl();
     }
 
+    START_COPY_TO_IMPL(FieldMarshaler_Nullable)
+    {
+        pDestFieldMarshaller->m_pNullableTypeMT.SetValueMaybeNull(GetMethodTable());
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_Nullable)
+
 #ifdef _DEBUG
     BOOL IsRestored() const
     {
@@ -545,7 +590,7 @@ public:
     }
 
 private:
-    FixupPointer<PTR_MethodTable> m_pNullableTypeMT;
+    RelativeFixupPointer<PTR_MethodTable> m_pNullableTypeMT;
 };
 
 
@@ -560,6 +605,7 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
     
     ELEMENT_SIZE_IMPL(sizeof(HSTRING), sizeof(HSTRING))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 //=======================================================================
@@ -573,6 +619,7 @@ public:
     VOID UpdateCLRImpl(const VOID * pNativeValue, OBJECTREF * ppProtectedCLRValue, OBJECTREF * ppProtectedOldCLRValue) const;
     
     ELEMENT_SIZE_IMPL(sizeof(HRESULT), sizeof(HRESULT))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 #endif // FEATURE_COMINTEROP
@@ -588,7 +635,7 @@ public:
     FieldMarshaler_NestedLayoutClass(MethodTable *pMT)
     {
         WRAPPER_NO_CONTRACT;
-        m_pNestedMethodTable.SetValue(pMT);
+        m_pNestedMethodTable.SetValueMaybeNull(pMT);
     }
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
@@ -624,6 +671,12 @@ public:
         FieldMarshaler::RestoreImpl();
     }
 
+    START_COPY_TO_IMPL(FieldMarshaler_NestedLayoutClass)
+    {
+        pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_NestedLayoutClass)
+
 #ifdef _DEBUG
     BOOL IsRestored() const
     {
@@ -644,12 +697,12 @@ public:
         }
         CONTRACTL_END;
 
-        return m_pNestedMethodTable.GetValue();
+        return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
 private:
     // MethodTable of nested FieldMarshaler.
-    FixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+    RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
 };
 
 
@@ -662,7 +715,7 @@ public:
     FieldMarshaler_NestedValueClass(MethodTable *pMT)
     {
         WRAPPER_NO_CONTRACT;
-        m_pNestedMethodTable.SetValue(pMT);
+        m_pNestedMethodTable.SetValueMaybeNull(pMT);
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
@@ -707,6 +760,12 @@ public:
         FieldMarshaler::RestoreImpl();
     }
 
+    START_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
+    {
+        pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
+
 #ifdef _DEBUG
     BOOL IsRestored() const
     {
@@ -733,13 +792,13 @@ public:
         }
         CONTRACTL_END;
 
-        return m_pNestedMethodTable.GetValue();
+        return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
 
 private:
     // MethodTable of nested NStruct.
-    FixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+    RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
 };
 
 
@@ -755,8 +814,23 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(LPWSTR), sizeof(LPWSTR))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
+//=======================================================================
+// LPUTF8STR <--> System.String
+//=======================================================================
+class FieldMarshaler_StringUtf8 : public FieldMarshaler
+{
+public:
+
+	VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
+	VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
+	VOID DestroyNativeImpl(LPVOID pNativeValue) const;
+
+	ELEMENT_SIZE_IMPL(sizeof(LPSTR), sizeof(LPSTR))
+        COPY_TO_IMPL_BASE_STRUCT_ONLY()
+};
 
 //=======================================================================
 // LPSTR <--> System.String
@@ -788,6 +862,13 @@ public:
         return m_ThrowOnUnmappableChar;
     }
     
+    START_COPY_TO_IMPL(FieldMarshaler_StringAnsi)
+    {
+        pDestFieldMarshaller->m_BestFitMap = m_BestFitMap;
+        pDestFieldMarshaller->m_ThrowOnUnmappableChar = m_ThrowOnUnmappableChar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_StringAnsi)
+
 private:
     bool m_BestFitMap:1;
     bool m_ThrowOnUnmappableChar:1;
@@ -811,6 +892,12 @@ public:
         m_numchar = numChar;
     }
     
+    START_COPY_TO_IMPL(FieldMarshaler_FixedStringUni)
+    {
+        pDestFieldMarshaller->m_numchar = m_numchar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_FixedStringUni)
+
 private:
     // # of characters for fixed strings
     UINT32           m_numchar;
@@ -846,6 +933,14 @@ public:
         return m_ThrowOnUnmappableChar;
     }
     
+    START_COPY_TO_IMPL(FieldMarshaler_FixedStringAnsi)
+    {
+        pDestFieldMarshaller->m_numchar = m_numchar;
+        pDestFieldMarshaller->m_BestFitMap = m_BestFitMap;
+        pDestFieldMarshaller->m_ThrowOnUnmappableChar = m_ThrowOnUnmappableChar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_FixedStringAnsi)
+
 private:
     // # of characters for fixed strings
     UINT32           m_numchar;
@@ -883,6 +978,14 @@ public:
         return m_ThrowOnUnmappableChar;
     }
     
+    START_COPY_TO_IMPL(FieldMarshaler_FixedCharArrayAnsi)
+    {
+        pDestFieldMarshaller->m_numElems = m_numElems;
+        pDestFieldMarshaller->m_BestFitMap = m_BestFitMap;
+        pDestFieldMarshaller->m_ThrowOnUnmappableChar = m_ThrowOnUnmappableChar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_FixedCharArrayAnsi)
+
 private:
     // # of elements for fixedchararray
     UINT32           m_numElems;
@@ -962,6 +1065,16 @@ public:
         FieldMarshaler::RestoreImpl();
     }
 
+    START_COPY_TO_IMPL(FieldMarshaler_FixedArray)
+    {
+        pDestFieldMarshaller->m_arrayType.SetValueMaybeNull(m_arrayType.GetValueMaybeNull());
+        pDestFieldMarshaller->m_numElems = m_numElems;
+        pDestFieldMarshaller->m_vt = m_vt;
+        pDestFieldMarshaller->m_BestFitMap = m_BestFitMap;
+        pDestFieldMarshaller->m_ThrowOnUnmappableChar = m_ThrowOnUnmappableChar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_FixedArray)
+
 #ifdef _DEBUG
     BOOL IsRestored() const
     {
@@ -976,7 +1089,7 @@ public:
 #endif
    
 private:
-    FixupPointer<TypeHandle> m_arrayType;
+    RelativeFixupPointer<TypeHandle> m_arrayType;
     UINT32           m_numElems;
     VARTYPE          m_vt;
     bool             m_BestFitMap:1; // Note: deliberately use small bools to save on working set - this is the largest FieldMarshaler and dominates the cost of the FieldMarshaler array
@@ -1002,7 +1115,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         m_vt = vt;
-        m_pMT.SetValue(pMT);
+        m_pMT.SetValueMaybeNull(pMT);
     }
 
 #ifdef FEATURE_PREJIT
@@ -1030,6 +1143,13 @@ public:
 
         FieldMarshaler::RestoreImpl();
     }
+
+    START_COPY_TO_IMPL(FieldMarshaler_SafeArray)
+    {
+        pDestFieldMarshaller->m_pMT.SetValueMaybeNull(m_pMT.GetValueMaybeNull());
+        pDestFieldMarshaller->m_vt = m_vt;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_SafeArray)
 
 #ifdef _DEBUG
     BOOL IsRestored() const
@@ -1061,7 +1181,7 @@ public:
     }
 
 private:
-    FixupPointer<PTR_MethodTable> m_pMT;
+    RelativeFixupPointer<PTR_MethodTable> m_pMT;
     VARTYPE          m_vt;
 };
 #endif //FEATURE_CLASSIC_COMINTEROP
@@ -1076,7 +1196,7 @@ public:
     FieldMarshaler_Delegate(MethodTable* pMT)
     {
         WRAPPER_NO_CONTRACT;
-        m_pNestedMethodTable.SetValue(pMT);
+        m_pNestedMethodTable.SetValueMaybeNull(pMT);
     }
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
@@ -1110,6 +1230,12 @@ public:
         FieldMarshaler::RestoreImpl();
     }
 
+    START_COPY_TO_IMPL(FieldMarshaler_Delegate)
+    {
+        pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(m_pNestedMethodTable.GetValueMaybeNull());
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_Delegate)
+
 #ifdef _DEBUG
     BOOL IsRestored() const
     {
@@ -1130,10 +1256,10 @@ public:
         }
         CONTRACTL_END;
 
-        return m_pNestedMethodTable.GetValue();
+        return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
-    FixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+    RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
 };
 
 
@@ -1150,6 +1276,7 @@ public:
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(LPVOID), sizeof(LPVOID))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 
@@ -1166,6 +1293,7 @@ public:
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(LPVOID), sizeof(LPVOID))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 #ifdef FEATURE_COMINTEROP
@@ -1186,8 +1314,8 @@ public:
     FieldMarshaler_Interface(MethodTable *pClassMT, MethodTable *pItfMT, DWORD dwFlags)
     {
         WRAPPER_NO_CONTRACT;
-        m_pClassMT.SetValue(pClassMT);
-        m_pItfMT.SetValue(pItfMT);
+        m_pClassMT.SetValueMaybeNull(pClassMT);
+        m_pItfMT.SetValueMaybeNull(pItfMT);
         m_dwFlags = dwFlags;
     }
 
@@ -1218,6 +1346,14 @@ public:
 
         FieldMarshaler::RestoreImpl();
     }
+
+    START_COPY_TO_IMPL(FieldMarshaler_Interface)
+    {
+        pDestFieldMarshaller->m_pClassMT.SetValueMaybeNull(m_pClassMT.GetValueMaybeNull());
+        pDestFieldMarshaller->m_pItfMT.SetValueMaybeNull(m_pItfMT.GetValueMaybeNull());
+        pDestFieldMarshaller->m_dwFlags = m_dwFlags;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_Interface)
 
 #ifdef _DEBUG
     BOOL IsRestored() const
@@ -1257,7 +1393,7 @@ public:
         }
         CONTRACTL_END;
 
-        return m_pClassMT.GetValue();
+        return m_pClassMT.GetValueMaybeNull();
     }
 
     MethodTable *GetInterfaceMethodTable() const
@@ -1271,12 +1407,12 @@ public:
         }
         CONTRACTL_END;
 
-        return m_pItfMT.GetValue();
+        return m_pItfMT.GetValueMaybeNull();
     }
 
 private:
-    FixupPointer<PTR_MethodTable> m_pClassMT;
-    FixupPointer<PTR_MethodTable> m_pItfMT;
+    RelativeFixupPointer<PTR_MethodTable> m_pClassMT;
+    RelativeFixupPointer<PTR_MethodTable> m_pItfMT;
     DWORD           m_dwFlags;
 };
 
@@ -1310,6 +1446,7 @@ public:
     VOID DestroyNativeImpl(LPVOID pNativeValue) const;
 
     ELEMENT_SIZE_IMPL(sizeof(VARIANT), 8)
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
 #endif // FEATURE_COMINTEROP
@@ -1334,7 +1471,13 @@ public:
     VOID ScalarUpdateCLRImpl(const VOID *pNative, LPVOID pCLR) const;
 
     SCALAR_MARSHALER_IMPL(1, 1)
-    
+
+    START_COPY_TO_IMPL(FieldMarshaler_Illegal)
+    {
+        pDestFieldMarshaller->m_resIDWhy = m_resIDWhy;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_Illegal)
+
 private:
     UINT m_resIDWhy;
 };
@@ -1351,6 +1494,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(1, 1)
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1395,6 +1539,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(2, 2)
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1438,6 +1583,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(4, 4)
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1480,7 +1626,14 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const)
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
+#if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
+    // The System V ABI for i386 defines 4-byte alignment for 64-bit types.
+    SCALAR_MARSHALER_IMPL(8, 4)
+#else
     SCALAR_MARSHALER_IMPL(8, 8)
+#endif // _TARGET_X86_
+
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1581,6 +1734,13 @@ public:
         return m_ThrowOnUnmappableChar;
     }
     
+    START_COPY_TO_IMPL(FieldMarshaler_Ansi)
+    {
+        pDestFieldMarshaller->m_BestFitMap = m_BestFitMap;
+        pDestFieldMarshaller->m_ThrowOnUnmappableChar = m_ThrowOnUnmappableChar;
+    }
+    END_COPY_TO_IMPL(FieldMarshaler_Ansi)
+
 private:
     bool             m_BestFitMap:1;
     bool             m_ThrowOnUnmappableChar:1;
@@ -1596,6 +1756,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(BOOL), sizeof(BOOL))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1643,6 +1804,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(VARIANT_BOOL), sizeof(VARIANT_BOOL))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1693,6 +1855,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(1, 1)
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1734,6 +1897,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(DECIMAL), 8);
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const
     {
@@ -1775,6 +1939,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(DATE), sizeof(DATE))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const;
     VOID ScalarUpdateCLRImpl(const VOID *pNative, LPVOID pCLR) const;
@@ -1793,6 +1958,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(CURRENCY), sizeof(CURRENCY))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const;
     VOID ScalarUpdateCLRImpl(const VOID *pNative, LPVOID pCLR) const;
@@ -1807,6 +1973,7 @@ public:
     UNUSED_METHOD_IMPL(VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const)
 
     SCALAR_MARSHALER_IMPL(sizeof(INT64), sizeof(INT64))
+    COPY_TO_IMPL_BASE_STRUCT_ONLY()
 
     VOID ScalarUpdateNativeImpl(LPVOID pCLR, LPVOID pNative) const;
     VOID ScalarUpdateCLRImpl(const VOID *pNative, LPVOID pCLR) const;

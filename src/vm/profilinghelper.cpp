@@ -138,9 +138,6 @@
 #include "profilinghelper.inl"
 #include "eemessagebox.h"
 
-#if defined(FEATURE_PROFAPI_EVENT_LOGGING) && !defined(FEATURE_CORECLR)
-#include <eventmsg.h>
-#endif // FEATURE_PROFAPI_EVENT_LOGGING) && !FEATURE_CORECLR
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH 
 #include "profattach.h"
@@ -398,30 +395,8 @@ void ProfilingAPIUtility::LogProfEventVA(
 
     AppendSupplementaryInformation(iStringResourceID, &messageToLog);
 
-#if defined(FEATURE_CORECLR)
     // CoreCLR on Windows ouputs debug strings for diagnostic messages.
     WszOutputDebugString(messageToLog);
-#else
-    // Get the user SID for the current process, so it can be provided to the event
-    // logging API, which will then fill out the "User" field in the event log entry. If
-    // this fails, that's not fatal. We can just pass NULL for the PSID, and the "User"
-    // field will be left blank.
-    PSID psid = NULL;
-    HRESULT hr = GetCurrentProcessUserSid(&psid);
-    if (FAILED(hr))
-    {
-        // No biggie.  Just pass in a NULL psid, and the User field will be empty
-        _ASSERTE(psid == NULL);
-    }
-
-    // On desktop CLR builds, the profiling API uses the event log for end-user-friendly
-    // diagnostic messages.
-    ReportEventCLR(wEventType,             // wType
-                   0,                      // wCategory
-                   COR_Profiler,           // dwEventID
-                   psid,                   // lpUserSid
-                   &messageToLog);         // uh duh
-#endif // FEATURE_CORECLR
 
 #endif // FEATURE_PROFAPI_EVENT_LOGGING
 }
@@ -485,9 +460,9 @@ void ProfilingAPIUtility::LogProfInfo(int iStringResourceID, ...)
 // InitializeProfiling() below solely for the debug-only, test-only code to allow
 // enter/leave/tailcall to be turned on at startup without a profiler. See
 // code:ProfControlBlock#TestOnlyELT
-EXTERN_C void __stdcall ProfileEnterNaked(UINT_PTR clientData);
-EXTERN_C void __stdcall ProfileLeaveNaked(UINT_PTR clientData);
-EXTERN_C void __stdcall ProfileTailcallNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileEnterNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileLeaveNaked(UINT_PTR clientData);
+EXTERN_C void STDMETHODCALLTYPE ProfileTailcallNaked(UINT_PTR clientData);
 #endif //PROF_TEST_ONLY_FORCE_ELT
 
 // ----------------------------------------------------------------------------
@@ -732,11 +707,7 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
     // Find out if profiling is enabled
     DWORD fProfEnabled = 0;
 
-#ifdef FEATURE_CORECLR
     fProfEnabled = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_ENABLE_PROFILING);
-#else //FEATURE_CORECLR
-    fProfEnabled = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_COR_ENABLE_PROFILING);
-#endif //FEATURE_CORECLR
 
     // If profiling is not enabled, return.
     if (fProfEnabled == 0)
@@ -751,7 +722,6 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
     NewArrayHolder<WCHAR> wszClsid(NULL);
     NewArrayHolder<WCHAR> wszProfilerDLL(NULL);
 
-#ifdef FEATURE_CORECLR
     IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_PROFILER, &wszClsid));
 
 #if defined(_TARGET_X86_)
@@ -763,19 +733,6 @@ HRESULT ProfilingAPIUtility::AttemptLoadProfilerForStartup()
     {
         IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_CORECLR_PROFILER_PATH, &wszProfilerDLL));
     }
-#else // FEATURE_CORECLR
-    IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_COR_PROFILER, &wszClsid));
-    
-#if defined(_TARGET_X86_)
-    IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_COR_PROFILER_PATH_32, &wszProfilerDLL));
-#elif defined(_TARGET_AMD64_)
-    IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_COR_PROFILER_PATH_64, &wszProfilerDLL));
-#endif 
-    if(wszProfilerDLL == NULL)
-    {    
-        IfFailRet(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_COR_PROFILER_PATH, &wszProfilerDLL));
-    }
-#endif // FEATURE_CORECLR
     
     // If the environment variable doesn't exist, profiling is not enabled.
     if (wszClsid == NULL)
@@ -1092,14 +1049,6 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
 
         _ASSERTE(profilerCompatibilityFlag == kEnableV2Profiler);
 
-        // To prevent V2 profilers from AV, once a V2 profiler is already loaded by a V2 rutnime in the process, 
-        // V4 runtime will not try to load the V2 profiler again.
-        if (IsV2RuntimeLoaded())
-        {
-            LogProfInfo(IDS_PROF_V2PROFILER_ALREADY_LOADED, wszClsid);
-            return S_OK;
-        }
-
         LOG((LF_CORPROF, LL_INFO10, "**PROF: COMPlus_ProfAPI_ProfilerCompatibilitySetting is set to EnableV2Profiler. "
              "The configured V2 profiler is going to be initialized.\n"));
 
@@ -1236,9 +1185,15 @@ HRESULT ProfilingAPIUtility::LoadProfiler(
         // and kill objects without relocating and thus not doing a heap walk.
         if (CORProfilerTrackGC())
         {
-            LOG((LF_CORPROF, LL_INFO10, "**PROF: Turning off concurrent GC at startup.\n"));       
-            g_pConfig->SetGCconcurrent(0);
-            LOG((LF_CORPROF, LL_INFO10, "**PROF: Concurrent GC has been turned off at startup.\n"));       
+            LOG((LF_CORPROF, LL_INFO10, "**PROF: Turning off concurrent GC at startup.\n"));
+            // Previously we would use SetGCConcurrent(0) to indicate to the GC that it shouldn't even
+            // attempt to use concurrent GC. The standalone GC feature create a cycle during startup,
+            // where the profiler couldn't set startup flags for the GC. To overcome this, we call
+            // TempraryDisableConcurrentGC and never enable it again. This has a perf cost, since the
+            // GC will create concurrent GC data structures, but it is acceptable in the context of
+            // this kind of profiling.
+            GCHeapUtilities::GetGCHeap()->TemporaryDisableConcurrentGC();
+            LOG((LF_CORPROF, LL_INFO10, "**PROF: Concurrent GC has been turned off at startup.\n"));
         }
     }
 
@@ -1413,7 +1368,7 @@ void ProfilingAPIUtility::TerminateProfiling()
         {
             // We know for sure GC has been fully initialized as we've turned off concurrent GC before
             _ASSERTE(IsGarbageCollectorFullyInitialized());
-            GCHeap::GetGCHeap()->TemporaryEnableConcurrentGC();
+            GCHeapUtilities::GetGCHeap()->TemporaryEnableConcurrentGC();
             g_profControlBlock.fConcurrentGCDisabledForAttach = FALSE;
         }
 

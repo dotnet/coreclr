@@ -16,7 +16,6 @@ set(VM_CROSSGEN_SOURCES
     ../comdelegate.cpp
     ../codeman.cpp
     ../compile.cpp
-    ../constrainedexecutionregion.cpp
     ../custommarshalerinfo.cpp
     ../domainfile.cpp
     ../baseassemblyspec.cpp
@@ -37,6 +36,7 @@ set(VM_CROSSGEN_SOURCES
     ../generics.cpp
     ../genmeth.cpp
     ../hash.cpp
+    ../ilinstrumentation.cpp
     ../ilmarshalers.cpp
     ../ilstubcache.cpp
     ../ilstubresolver.cpp
@@ -45,9 +45,9 @@ set(VM_CROSSGEN_SOURCES
     ../invokeutil.cpp
     ../inlinetracking.cpp
     ../contractimpl.cpp
+    ../jithost.cpp
     ../jitinterface.cpp
     ../loaderallocator.cpp
-    ../listlock.cpp
     ../memberload.cpp
     ../method.cpp
     ../methodimpl.cpp
@@ -59,22 +59,11 @@ set(VM_CROSSGEN_SOURCES
     ../dllimport.cpp
     ../dllimportcallback.cpp
     ../pefile.cpp
-    ../pefingerprint.cpp
     ../peimage.cpp
     ../peimagelayout.cpp
     ../pendingload.cpp
     ../precode.cpp
     ../olevariant.cpp
-    ../security.cpp
-    ../securitypolicy.cpp
-    ../securityattributes.cpp
-    ../securitydeclarative.cpp
-    ../securitydeclarativecache.cpp
-    ../securitydescriptor.cpp
-    ../securitydescriptorappdomain.cpp
-    ../securitydescriptorassembly.cpp
-    ../securitymeta.cpp
-    ../securitytransparentassembly.cpp
     ../siginfo.cpp
     ../sigformat.cpp
     ../simplerwlock.cpp
@@ -90,8 +79,8 @@ set(VM_CROSSGEN_SOURCES
     ../typestring.cpp
     ../util.cpp
     ../vars.cpp
+    ../versionresilienthashcode.cpp
     ../zapsig.cpp
-    ../dbggcinfodecoder.cpp
     ../gcinfodecoder.cpp
     ../sha1.cpp
     ../crossgencompile.cpp
@@ -107,20 +96,20 @@ include_directories(BEFORE ..)
 include_directories(${CLR_DIR}/src/gc)
 include_directories(../${ARCH_SOURCES_DIR})
 
-if(CLR_CMAKE_PLATFORM_ARCH_AMD64)
+if(CLR_CMAKE_TARGET_ARCH_AMD64)
   list(APPEND VM_CROSSGEN_SOURCES 
     ../${ARCH_SOURCES_DIR}/stublinkeramd64.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_I386)
+elseif(CLR_CMAKE_TARGET_ARCH_I386)
   list(APPEND VM_CROSSGEN_SOURCES 
     ../${ARCH_SOURCES_DIR}/stublinkerx86.cpp
     ../gcdecode.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_ARM)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM)
   list(APPEND VM_CROSSGEN_SOURCES 
     ../${ARCH_SOURCES_DIR}/stubs.cpp
   )
-elseif(CLR_CMAKE_PLATFORM_ARCH_ARM64)
+elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
   list(APPEND VM_CROSSGEN_SOURCES 
     ../${ARCH_SOURCES_DIR}/stubs.cpp
   )
@@ -150,6 +139,7 @@ endif (WIN32)
 if (CLR_CMAKE_PLATFORM_LINUX)
   list(APPEND VM_CROSSGEN_SOURCES
     ../perfmap.cpp
+    ../perfinfo.cpp
   )
 endif (CLR_CMAKE_PLATFORM_LINUX)
 

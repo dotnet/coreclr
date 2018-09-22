@@ -18,16 +18,14 @@
 
 #include "common.h"
 
-//define function pointer type: EncodeModuleCallback
-//
+typedef DWORD(*ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle);
 typedef DWORD (*EncodeModuleCallback)(void* pModuleContext, Module *pReferencedModule);
 enum {
     // return value when EncodeModule fails
     ENCODE_MODULE_FAILED         = 0xffffffff,
 };
 
-//define function pointer type: TokenDefinitionCallback
-//
+typedef void(*DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
 typedef void (*TokenDefinitionCallback)(void* pModuleContext, Module *pReferencedModule, DWORD index, mdToken* refToken);
 
 class ZapSig
@@ -154,20 +152,39 @@ public:
     // fromModule is the module in which the type is defined.
     // pBuffer contains the signature encoding for the type.
     // level is the class load level (see classloadlevel.h) to which the type should be loaded
-    static TypeHandle DecodeType(Module *referencingModule,
-        Module *fromModule,
-        PCCOR_SIGNATURE pBuffer,
-        ClassLoadLevel level = CLASS_LOADED);
+    static TypeHandle DecodeType(
+        Module              *referencingModule,
+        Module              *fromModule,
+        PCCOR_SIGNATURE     pBuffer,
+        ClassLoadLevel      level = CLASS_LOADED);
 
-    static MethodDesc *DecodeMethod(Module *referencingModule,
-        Module *fromModule,
-        PCCOR_SIGNATURE pBuffer,
-        TypeHandle * ppTH = NULL);
+    static MethodDesc *DecodeMethod(
+        Module              *referencingModule,
+        Module              *fromModule,
+        PCCOR_SIGNATURE     pBuffer,
+        TypeHandle          *ppTH = NULL);
 
-    static FieldDesc *DecodeField(Module *referencingModule,
-        Module *fromModule,
-        PCCOR_SIGNATURE pBuffer,
-        TypeHandle * ppTH = NULL);
+    static MethodDesc *DecodeMethod(
+        Module              *referencingModule,
+        Module              *fromModule,
+        PCCOR_SIGNATURE     pBuffer,
+        SigTypeContext      *pContext,
+        TypeHandle          *ppTH = NULL,
+        PCCOR_SIGNATURE     *ppOwnerTypeSpecWithVars = NULL,
+        PCCOR_SIGNATURE     *ppMethodSpecWithVars = NULL);
+
+    static FieldDesc *DecodeField(
+        Module              *referencingModule,
+        Module              *fromModule,
+        PCCOR_SIGNATURE     pBuffer,
+        TypeHandle          *ppTH = NULL);
+
+    static FieldDesc *DecodeField(
+        Module              *pReferencingModule,
+        Module              *pInfoModule,
+        PCCOR_SIGNATURE     pBuffer,
+        SigTypeContext      *pContext,
+        TypeHandle          *ppTH = NULL);
 
     static BOOL EncodeMethod(
         MethodDesc             *pMethod,
@@ -176,8 +193,9 @@ public:
         LPVOID                 pReferencingModule,
         ENCODEMODULE_CALLBACK  pfnEncodeModule,
         DEFINETOKEN_CALLBACK   pfnDefineToken,
-        CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL,
-        CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken = NULL);
+        CORINFO_RESOLVED_TOKEN *pResolvedToken = NULL,
+        CORINFO_RESOLVED_TOKEN *pConstrainedResolvedToken = NULL,
+        BOOL                   fEncodeUsingResolvedTokenSpecStreams = FALSE);
 
     static void EncodeField(
         FieldDesc              *pField,
@@ -185,7 +203,8 @@ public:
         SigBuilder             *pSigBuilder,
         LPVOID                 pReferencingModule,
         ENCODEMODULE_CALLBACK  pfnEncodeModule,
-        CORINFO_RESOLVED_TOKEN * pResolvedToken = NULL);
+        CORINFO_RESOLVED_TOKEN *pResolvedToken = NULL,
+        BOOL                   fEncodeUsingResolvedTokenSpecStreams = FALSE);
 
 };
 

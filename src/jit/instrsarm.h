@@ -23,36 +23,36 @@
 ******************************************************************************/
 
 #if !defined(_TARGET_ARM_)
-  #error Unexpected target type
+#error Unexpected target type
 #endif
 
 #ifndef INST1
-#error  INST1 must be defined before including this file.
+#error INST1 must be defined before including this file.
 #endif
 #ifndef INST2
-#error  INST2 must be defined before including this file.
+#error INST2 must be defined before including this file.
 #endif
 #ifndef INST3
-#error  INST3 must be defined before including this file.
+#error INST3 must be defined before including this file.
 #endif
 #ifndef INST4
-#error  INST4 must be defined before including this file.
+#error INST4 must be defined before including this file.
 #endif
 #ifndef INST5
-#error  INST5 must be defined before including this file.
+#error INST5 must be defined before including this file.
 #endif
 #ifndef INST6
-#error  INST6 must be defined before including this file.
+#error INST6 must be defined before including this file.
 #endif
 // No INST7
 // #ifndef INST7
 // #error  INST7 must be defined before including this file.
 // #endif
 #ifndef INST8
-#error  INST8 must be defined before including this file.
+#error INST8 must be defined before including this file.
 #endif
 #ifndef INST9
-#error  INST9 must be defined before including this file.
+#error INST9 must be defined before including this file.
 #endif
 
 /*****************************************************************************/
@@ -64,6 +64,7 @@
 //   * If the instruction writes to more than one destination register, update the function
 //     emitInsMayWriteMultipleRegs in emitArm.cpp.
 
+// clang-format off
 INST9(invalid, "INVALID", 0, 0, IF_NONE,   BAD_CODE,  BAD_CODE,    BAD_CODE,     BAD_CODE,   BAD_CODE,     BAD_CODE,      BAD_CODE, BAD_CODE,   BAD_CODE)
 
 //    enum     name      FP LD/ST         Rdn,Rm     Rd,Rn,Rm     Rdn,i8        Rd,Rn,i3    Rd,Rn,+i8<<i4 Rd,Rn,Rm{,sh}  SP,i9     Rd,SP,i10   Rd,PC,i10
@@ -204,6 +205,19 @@ INST4(pli,     "pli",    0,LD, IF_EN4B,  0xF990F000, 0xF910FC00,  0xF910F000,  0
                                    //  pli     [PC+-i12]         T2_K3     11111001U0011111 1111iiiiiiiiiiii   F91F F000           imm(+-4095)                          
 #endif // FEATURE_PLI_INSTRUCTION
 
+//    enum     name      FP LD/ST         Rd,i16     Rd,i16     Rd,i16     Rd,i16
+//                                        T2_N       T2_N1      T2_N2      T2_N3
+INST4(movt,    "movt",   0, 0, IF_EN4C,   0xF2C00000,0xF2C00000,0xF2C00000,0xF2C00000)
+                                           //  Rd,i16            T2_N      11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
+                                           //  Rd,i16            T2_N1     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
+                                           //  Rd,i16            T2_N2     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
+                                           //  Rd,i16            T2_N3     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)
+INST4(movw,    "movw",   0, 0, IF_EN4C,   0xF2400000,0xF2400000,0xF2400000,0xF2400000)
+                                           //  Rd,+i16           T2_N      11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
+                                           //  Rd,+i16           T2_N1     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
+                                           //  Rd,+i16           T2_N2     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
+                                           //  Rd,+i16           T2_N3     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)
+
 //    enum     name      FP LD/ST          Rdn, Rm    Rd,Rn,Rm,sh  Rd,Rn,i12 
 //                                          T1_E       T2_C0        T2_L0
 INST3(and,     "and",    0, 0, IF_EN3A,   0x4000,    0xEA000000,   0xF0000000)
@@ -270,20 +284,9 @@ INST3(pop,     "pop",    0, 0, IF_EN3D,   0xBC00,    0xF85D0B04,   0xE8BD0000)
                                    //  pop     rT                T2_E2     1111100001011101 tttt101100000100   F85D 0B04                              
                                    //  pop     <reglist16>       T2_I1     1110100010111101 PM0rrrrrrrrrrrrr   E8BD 0000                              
 
-//    enum     name      FP LD/ST         Rd,i16     Rd,i16     Rd,i16   
-//                                        T2_N       T2_N1      T2_N2
-INST3(movt,    "movt",   0, 0, IF_EN3E,   0xF2C00000,0xF2C00000,0xF2C00000)
-                                           //  Rd,i16            T2_N      11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)                          
-                                           //  Rd,i16            T2_N1     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)                          
-                                           //  Rd,i16            T2_N2     11110i101100iiii 0iiiddddiiiiiiii   F2C0 0000           imm(0-65535)                          
-INST3(movw,    "movw",   0, 0, IF_EN3E,   0xF2400000,0xF2400000,0xF2400000)
-                                           //  Rd,+i16           T2_N      11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)                          
-                                           //  Rd,+i16           T2_N1     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)                          
-                                           //  Rd,+i16           T2_N2     11110i100100iiii 0iiiddddiiiiiiii   F240 0000           imm(0-65535)                          
-
 //    enum     name      FP LD/ST         PC+-imm11 PC+-imm24   PC+-imm24
 //                                          T1_M      T2_J2       T2_J3
-INST3(b,       "b",      0, 0, IF_EN3F,   0xE000,   0xF0009000, 0xF0009000)
+INST3(b,       "b",      0, 0, IF_EN3E,   0xE000,   0xF0009000, 0xF0009000)
                                    //  b       PC+-i11            T1_M      11100iiiiiiiiiii                    E000                imm(-2048..2046)                          
                                    //  b       PC+-i24            T2_J2     11110Siiiiiiiiii 10j1jiiiiiiiiiii   F000 9000           imm(-16777216..16777214) (intra-procedure offset)
                                    //  b       PC+-i24            T2_J3     11110Siiiiiiiiii 10j1jiiiiiiiiiii   F000 9000           imm(-16777216..16777214) (inter-procedure offset)
@@ -449,7 +452,7 @@ INST1(tbb,     "tbb",    0, 0, IF_T2_C9,  0xE8D0F000)
                                            //  Rn,Rm             T2_C9     111010001101nnnn 111100000000mmmm   E8D0 F000                
 INST1(tbh,     "tbh",    0, 0, IF_T2_C9,  0xE8D0F010)
                                            //  Rn,Rm,LSL #1      T2_C9     111010001101nnnn 111100000001mmmm   E8D0 F010                       
-INST1(ubfx,    "ubfx",   0, 0, IF_T2_D0,  0xF2C00000)
+INST1(ubfx,    "ubfx",   0, 0, IF_T2_D0,  0xF3C00000)
                                            //  Rd,Rn,#b,#w       T2_D0     111100111100nnnn 0iiiddddii0wwwww   F3C0 0000           imm(0-31),imm(0-31)                          
 INST1(udiv,    "udiv",   0, 0, IF_T2_C5,  0xFBB0F0F0) 
                                            //  Rd,Rn,Rm          T2_C5     111110111011nnnn 1111dddd1111mmmm   FBB0 F0F0                   
@@ -541,15 +544,16 @@ INST1(vmov_i2d,  "vmov.i2d",   1, 0,   IF_T2_VMOVD, 0xEC400B10) // A8.6.332 VMOV
 INST1(vmov_d2i,  "vmov.d2i",   1, 0,   IF_T2_VMOVD, 0xEC500B10) // A8.6.332 VMOV from a double to 2 int regs
 INST1(vmov_i2f,  "vmov.i2f",   1, 0,   IF_T2_VMOVS, 0xEE000A10) // A8.6.330 VMOV (between ARM core register and single-precision register)
 INST1(vmov_f2i,  "vmov.f2i",   1, 0,   IF_T2_VMOVS, 0xEE100A10) // A8.6.330 VMOV (between ARM core register and single-precision register)
+// clang-format on
 
 /*****************************************************************************/
-#undef  INST1
-#undef  INST2
-#undef  INST3
-#undef  INST4
-#undef  INST5
-#undef  INST6
-#undef  INST7
-#undef  INST8
-#undef  INST9
+#undef INST1
+#undef INST2
+#undef INST3
+#undef INST4
+#undef INST5
+#undef INST6
+#undef INST7
+#undef INST8
+#undef INST9
 /*****************************************************************************/

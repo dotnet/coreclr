@@ -8,7 +8,11 @@
 
 #pragma once
 
-#if defined(_X86_) && defined(_TARGET_ARM_)      // Host X86 managing ARM related code
+#if (!defined(_WIN64) && defined(_TARGET_64BIT_)) || (defined(_WIN64) && !defined(_TARGET_64BIT_))
+#define CROSSBITNESS_COMPILE
+#endif
+
+#if !defined(_ARM_) && defined(_TARGET_ARM_) // Non-ARM Host managing ARM related code
 
 #ifndef CROSS_COMPILE
 #define CROSS_COMPILE
@@ -68,7 +72,7 @@ typedef struct DECLSPEC_ALIGN(8) _T_CONTEXT {
         NEON128 Q[16];
         ULONGLONG D[32];
         DWORD S[32];
-    } DUMMYUNIONNAME;
+    };
 
     //
     // Debug registers
@@ -88,6 +92,8 @@ typedef struct DECLSPEC_ALIGN(8) _T_CONTEXT {
 // each frame function.
 //
 
+#ifndef FEATURE_PAL
+#ifdef _X86_
 typedef struct _RUNTIME_FUNCTION {
     DWORD BeginAddress;
     DWORD UnwindData;
@@ -114,6 +120,8 @@ typedef struct _UNWIND_HISTORY_TABLE {
     DWORD HighAddress;
     UNWIND_HISTORY_TABLE_ENTRY Entry[UNWIND_HISTORY_TABLE_SIZE];
 } UNWIND_HISTORY_TABLE, *PUNWIND_HISTORY_TABLE;
+#endif // _X86_
+#endif // !FEATURE_PAL
 
 
 //
@@ -169,8 +177,15 @@ typedef struct _T_DISPATCHER_CONTEXT {
     PUCHAR NonVolatileRegisters;
 } T_DISPATCHER_CONTEXT, *PT_DISPATCHER_CONTEXT;
 
+#if defined(FEATURE_PAL) || defined(_X86_)
 #define T_RUNTIME_FUNCTION RUNTIME_FUNCTION
 #define PT_RUNTIME_FUNCTION PRUNTIME_FUNCTION
+#else
+typedef struct _T_RUNTIME_FUNCTION {
+    DWORD BeginAddress;
+    DWORD UnwindData;
+} T_RUNTIME_FUNCTION, *PT_RUNTIME_FUNCTION;
+#endif
 
 #elif defined(_AMD64_) && defined(_TARGET_ARM64_)  // Host amd64 managing ARM64 related code
 
@@ -193,7 +208,7 @@ typedef union _NEON128 {
     struct {
         ULONGLONG Low;
         LONGLONG High;
-    } DUMMYSTRUCTNAME;
+    };
     double D[2];
     float S[4];
     WORD   H[8];
@@ -286,7 +301,7 @@ typedef struct _T_RUNTIME_FUNCTION {
             DWORD CR : 2;
             DWORD FrameSize : 9;
         } PackedUnwindData;
-    } DUMMYUNIONNAME;
+    };
 } T_RUNTIME_FUNCTION, *PT_RUNTIME_FUNCTION;
 
 
@@ -341,7 +356,7 @@ typedef struct _T_KNONVOLATILE_CONTEXT_POINTERS {
 
 } T_KNONVOLATILE_CONTEXT_POINTERS, *PT_KNONVOLATILE_CONTEXT_POINTERS;
 
-#else  // !(defined(_X86_) && defined(_TARGET_ARM_)) && !(defined(_AMD64_) && defined(_TARGET_ARM64_))
+#else
 
 #define T_CONTEXT CONTEXT
 #define PT_CONTEXT PCONTEXT

@@ -25,6 +25,7 @@ Abstract:
 
 #include <stdarg.h>
 #include <stdlib.h>
+#include <new>
 
 extern "C"
 {
@@ -54,9 +55,6 @@ extern "C"
         );
 }
 
-inline void* operator new(size_t, void* p) throw () { return p; }
-inline void* operator new[](size_t, void* p) throw () { return p; }
-
 namespace CorUnix{
 
     void *
@@ -68,11 +66,6 @@ namespace CorUnix{
     void *
     InternalMalloc(
         size_t szSize
-        );
-
-    void
-    InternalFree(
-        void *pvMem
         );
 
     // Define common code for "new" style allocators below.
@@ -92,12 +85,28 @@ namespace CorUnix{
         return new (pMem) T();
     }
 
+    // 1 arg case.
+    template<class T, class A1>
+    T* InternalNew(A1 arg1)
+    {
+        INTERNAL_NEW_COMMON();
+        return new (pMem) T(arg1);
+    }
+
     // 2 args case.
     template<class T, class A1, class A2>
     T* InternalNew(A1 arg1, A2 arg2)
     {
         INTERNAL_NEW_COMMON();
         return new (pMem) T(arg1, arg2);
+    }
+
+    // 3 args case.
+    template<class T, class A1, class A2, class A3>
+    T* InternalNew(A1 arg1, A2 arg2, A3 arg3)
+    {
+        INTERNAL_NEW_COMMON();
+        return new (pMem) T(arg1, arg2, arg3);
     }
 
     // 4 args case.
@@ -137,7 +146,7 @@ namespace CorUnix{
         if (p)
         {
             p->~T();
-            InternalFree(p);
+            free(p);
         }
     }
 
@@ -149,7 +158,7 @@ namespace CorUnix{
             size_t cElements = *pRealMem;
             for (size_t i = 0; i < cElements; i++)
                 p[i].~T();
-            InternalFree(pRealMem);
+            free(pRealMem);
         }
     }
 }

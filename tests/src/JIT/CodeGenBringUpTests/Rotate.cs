@@ -102,9 +102,35 @@ public class Test
     [MethodImpl(MethodImplOptions.NoInlining)]
     static ulong rol64const()
     {
-        ulong value = flag() ? (ulong)0x123456789abcdef : (ulong)0x123456789abcdef;
+        ulong value = flag() ? (ulong)0x123456789abcdef : (ulong)0xabcdef123456789;
         int amount = 16;
         return (value >> (64 - amount)) | (value << amount);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong rol64_16(ulong value)
+    {
+        return (value >> (64 - 16)) | (value << 16);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong rol64_32(ulong value)
+    {
+        return (value >> (64 - 32)) | (value << 32);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong rol64_32_inplace(ulong value, ulong added)
+    {
+        ulong x = value + added;
+        x = (x >> (64 - 32)) | (x << 32);
+        return x;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong rol64_33(ulong value)
+    {
+        return (value >> (64 - 33)) | (value << 33);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -128,9 +154,35 @@ public class Test
     [MethodImpl(MethodImplOptions.NoInlining)]
     static ulong ror64const()
     {
-        ulong value = flag() ? (ulong)0x123456789abcdef : (ulong)0x123456789abcdef;
+        ulong value = flag() ? (ulong)0x123456789abcdef : (ulong)0xabcdef123456789;
         int amount = flag() ? 5 : 5;
         return (value << (64 - amount)) | (value >> amount);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong ror64_5(ulong value)
+    {
+        return (value << (64 - 5)) | (value >> 5);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong ror64_32(ulong value)
+    {
+        return (value << (64 - 32)) | (value >> 32);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong ror64_33(ulong value)
+    {
+        return (value << (64 - 33)) | (value >> 33);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static ulong ror64_32_inplace(ulong value, ulong added)
+    {
+        ulong x = value + added;
+        x = (x << (64 - 32)) | (x >> 32);
+        return x;
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -244,6 +296,26 @@ public class Test
             return Fail;
         }
 
+        if (rol64_16(0x123456789abcdef) != 0x456789abcdef0123)
+        {
+            return Fail;
+        }
+
+        if (rol64_32(0x123456789abcdef) != rol64(0x123456789abcdef, 32))
+        {
+            return Fail;
+        }
+
+        if (rol64_33(0x123456789abcdef) != rol64(0x123456789abcdef, 33))
+        {
+            return Fail;
+        }
+
+        if (rol64_32_inplace(0x123456789abcdef, 0) != rol64(0x123456789abcdef, 32))
+        {
+            return Fail;
+        }
+
         if (ror64(0x123456789abcdef, 0) != 0x123456789abcdef)
         {
             return Fail;
@@ -255,6 +327,26 @@ public class Test
         }
 
         if (ror64const() != 0x78091a2b3c4d5e6f)
+        {
+            return Fail;
+        }
+
+        if (ror64_5(0x123456789abcdef) != 0x78091a2b3c4d5e6f)
+        {
+            return Fail;
+        }
+
+        if (ror64_32(0x123456789abcdef) != ror64(0x123456789abcdef, 32))
+        {
+            return Fail;
+        }
+
+        if (ror64_33(0x123456789abcdef) != ror64(0x123456789abcdef, 33))
+        {
+            return Fail;
+        }
+
+        if (ror64_32_inplace(0x123456789abcdef, 0) != ror64(0x123456789abcdef, 32))
         {
             return Fail;
         }

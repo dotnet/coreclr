@@ -281,7 +281,7 @@ size_t iterator_difference(InputIterator first, const InputIterator& last)
 template <typename T, typename Allocator>
 vector<T, Allocator>::vector(const Allocator& allocator)
     : m_allocator(allocator)
-    , m_pArray(NULL)
+    , m_pArray(nullptr)
     , m_nSize(0)
     , m_nCapacity(0)
 {
@@ -439,10 +439,7 @@ void vector<T, Allocator>::clear()
     {
         m_pArray[i].~T();
     }
-    m_allocator.deallocate(m_pArray, m_nCapacity);
-    m_pArray = NULL;
     m_nSize = 0;
-    m_nCapacity = 0;
 }
 
 template <typename T, typename Allocator>

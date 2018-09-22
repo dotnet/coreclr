@@ -18,67 +18,6 @@
 
 #include <specstrings.h>    // for IN, etc.
 
-
-#if defined(_AMD64_)
-#ifdef __cplusplus
-extern "C" {
-#endif
-#define UnsignedMultiply128 _umul128
-ULONG64
-UnsignedMultiply128 (
-    IN ULONG64  Multiplier,
-    IN ULONG64  Multiplicand,
-    OUT ULONG64 *HighProduct
-    );
-#ifdef _MSC_VER
-#pragma intrinsic(_umul128)
-#endif // _MSC_VER
-#ifdef __cplusplus
-}
-#endif
-#endif // _AMD64_
-
-#ifndef FEATURE_PAL
-
-#ifdef  _WIN64
-typedef unsigned __int64    size_t;
-typedef unsigned __int64    UINT_PTR;
-typedef unsigned __int64    ULONG_PTR;
-typedef unsigned __int64    DWORD_PTR;
-typedef unsigned __int64    SIZE_T;
-#else
-typedef __w64 unsigned int  size_t;
-typedef __w64 unsigned int  UINT_PTR;
-typedef __w64 unsigned long ULONG_PTR;
-typedef __w64 unsigned long DWORD_PTR;
-typedef __w64 unsigned long SIZE_T;
-#endif
-typedef          char       CHAR;
-typedef          int        INT;
-typedef          long       LONG;
-typedef unsigned char       UCHAR;
-typedef unsigned short      USHORT;
-typedef unsigned short      WORD;
-typedef unsigned int        UINT;
-typedef unsigned long       ULONG;
-typedef unsigned long       DWORD;
-typedef unsigned __int64    ULONGLONG;
-
-
-typedef LONG HRESULT;
-
-#ifndef SUCCEEDED
-#define SUCCEEDED(hr) (((HRESULT)(hr)) >= 0)
-#endif
-
-#ifndef FAILED
-#define FAILED(hr) (((HRESULT)(hr)) < 0)
-#endif
-
-#define S_OK ((HRESULT)0x00000000L)
-
-#endif // !FEATURE_PAL
-
 #define INTSAFE_E_ARITHMETIC_OVERFLOW       ((HRESULT)0x80070216L)  // 0x216 = 534 = ERROR_ARITHMETIC_OVERFLOW
 
 #ifndef LOWORD
@@ -93,8 +32,7 @@ typedef LONG HRESULT;
 #define LODWORD(_qw)    ((ULONG)(_qw))
 
 #if defined(MIDL_PASS) || defined(RC_INVOKED) || defined(_M_CEE_PURE) \
-    || defined(_68K_) || defined(_MPPC_) || defined(_PPC_)            \
-    || defined(_M_IA64) || defined(_M_AMD64) || defined(__ARM_ARCH)
+    || defined(_M_AMD64) || defined(__ARM_ARCH)
 
 #ifndef UInt32x32To64
 #define UInt32x32To64(a, b) ((unsigned __int64)((ULONG)(a)) * (unsigned __int64)((ULONG)(b)))
@@ -1444,23 +1382,6 @@ UIntMult(
 }
 
 //
-// UINT_PTR multiplication
-//
-#ifdef _WIN64
-#define UIntPtrMult     ULongLongMult
-#else
-__inline
-HRESULT
-UIntPtrMult(
-    IN UINT_PTR ulMultiplicand,
-    IN UINT_PTR ulMultiplier,
-    OUT UINT_PTR* pulResult)
-{
-	return UIntMult((UINT)ulMultiplicand, (UINT)ulMultiplier, (UINT*)pulResult);
-}
-#endif // _WIN64
-
-//
 // ULONG multiplication
 //
 __inline
@@ -1476,24 +1397,6 @@ ULongMult(
 }
 
 //
-// ULONG_PTR multiplication
-//
-#ifdef _WIN64
-#define ULongPtrMult    ULongLongMult
-#else
-__inline
-HRESULT
-ULongPtrMult(
-    IN ULONG_PTR ulMultiplicand,
-    IN ULONG_PTR ulMultiplier,
-    OUT ULONG_PTR* pulResult)
-{
-	return ULongMult((ULONG)ulMultiplicand, (ULONG)ulMultiplier, (ULONG*)pulResult);
-}
-#endif // _WIN64
-
-
-//
 // DWORD multiplication
 //
 #define DWordMult       ULongMult
@@ -1502,115 +1405,5 @@ ULongPtrMult(
 // DWORD_PTR multiplication
 //
 #define DWordPtrMult	ULongPtrMult
-
-//
-// size_t multiplication
-//
-#define SizeTMult		UIntPtrMult
-
-//
-// SIZE_T multiplication
-//
-#define SIZETMult		ULongPtrMult
-
-//
-// ULONGLONG multiplication
-//
-__inline
-HRESULT
-ULongLongMult(
-    IN ULONGLONG ullMultiplicand,
-    IN ULONGLONG ullMultiplier,
-    OUT ULONGLONG* pullResult)
-{
-    HRESULT hr = INTSAFE_E_ARITHMETIC_OVERFLOW;
-#ifdef _AMD64_
-    ULONGLONG u64ResultHigh;
-    ULONGLONG u64ResultLow;
-    
-    *pullResult = ULONGLONG_ERROR;
-    
-    u64ResultLow = UnsignedMultiply128(ullMultiplicand, ullMultiplier, &u64ResultHigh);
-    if (u64ResultHigh == 0)
-    {
-        *pullResult = u64ResultLow;
-        hr = S_OK;
-    }
-#else
-    // 64x64 into 128 is like 32.32 x 32.32.
-    //
-    // a.b * c.d = a*(c.d) + .b*(c.d) = a*c + a*.d + .b*c + .b*.d
-    // back in non-decimal notation where A=a*2^32 and C=c*2^32:  
-    // A*C + A*d + b*C + b*d
-    // So there are four components to add together.
-    //   result = (a*c*2^64) + (a*d*2^32) + (b*c*2^32) + (b*d)
-    //
-    // a * c must be 0 or there would be bits in the high 64-bits
-    // a * d must be less than 2^32 or there would be bits in the high 64-bits
-    // b * c must be less than 2^32 or there would be bits in the high 64-bits
-    // then there must be no overflow of the resulting values summed up.
-    
-    ULONG dw_a;
-    ULONG dw_b;
-    ULONG dw_c;
-    ULONG dw_d;
-    ULONGLONG ad = 0;
-    ULONGLONG bc = 0;
-    ULONGLONG bd = 0;
-    ULONGLONG ullResult = 0;
-    
-    *pullResult = ULONGLONG_ERROR;
-
-    dw_a = (ULONG)(ullMultiplicand >> 32);
-    dw_c = (ULONG)(ullMultiplier >> 32);
-
-    // common case -- if high dwords are both zero, no chance for overflow
-    if ((dw_a == 0) && (dw_c == 0))
-    {
-        dw_b = (DWORD)ullMultiplicand;
-        dw_d = (DWORD)ullMultiplier;
-
-        *pullResult = (((ULONGLONG)dw_b) * (ULONGLONG)dw_d);
-        hr = S_OK;
-    }
-    else
-    {
-        // a * c must be 0 or there would be bits set in the high 64-bits
-        if ((dw_a == 0) ||
-            (dw_c == 0))
-        {
-            dw_d = (DWORD)ullMultiplier;
-
-            // a * d must be less than 2^32 or there would be bits set in the high 64-bits
-            ad = (((ULONGLONG)dw_a) * (ULONGLONG)dw_d);
-            if ((ad & HIDWORD_MASK) == 0)
-            {
-                dw_b = (DWORD)ullMultiplicand;
-
-                // b * c must be less than 2^32 or there would be bits set in the high 64-bits
-                bc = (((ULONGLONG)dw_b) * (ULONGLONG)dw_c);
-                if ((bc & HIDWORD_MASK) == 0)
-                {
-                    // now sum them all up checking for overflow.
-                    // shifting is safe because we already checked for overflow above
-                    if (SUCCEEDED(ULongLongAdd(bc << 32, ad << 32, &ullResult)))                        
-                    {
-                        // b * d
-                        bd = (((ULONGLONG)dw_b) * (ULONGLONG)dw_d);
-                    
-                        if (SUCCEEDED(ULongLongAdd(ullResult, bd, &ullResult)))
-                        {
-                            *pullResult = ullResult;
-                            hr = S_OK;
-                        }
-                    }
-                }
-            }
-        }
-    }
-#endif // _AMD64_  
-    
-    return hr;
-}
 
 #endif // _INTSAFE_H_INCLUDED_

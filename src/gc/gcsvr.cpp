@@ -13,6 +13,11 @@
 #include "gc.h"
 #include "gcscan.h"
 #include "gcdesc.h"
+#include "softwarewritewatch.h"
+#include "handletable.h"
+#include "handletable.inl"
+#include "gcenv.inl"
+#include "gceventstatus.h"
 
 #define SERVER_GC 1
 

@@ -9,9 +9,6 @@
 #include "dllimportcallback.h"
 #include "stubhelpers.h"
 #include "asmconstants.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #ifdef FEATURE_COMINTEROP
 #include "olecontexthelpers.h"
 #endif
@@ -1525,6 +1522,7 @@ BOOL RangeSectionStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinati
     case STUB_CODE_BLOCK_STUBLINK:
         return StubLinkStubManager::g_pManager->DoTraceStub(stubStartAddress, trace);
 
+#ifdef FEATURE_PREJIT
     case STUB_CODE_BLOCK_VIRTUAL_METHOD_THUNK:
         {
             PCODE pTarget = GetMethodThunkTarget(stubStartAddress);
@@ -1543,6 +1541,7 @@ BOOL RangeSectionStubManager::DoTraceStub(PCODE stubStartAddress, TraceDestinati
             }
             return TRUE;
         }
+#endif
 
     case STUB_CODE_BLOCK_EXTERNAL_METHOD_THUNK:
         {
@@ -1709,14 +1708,14 @@ BOOL ILStubManager::DoTraceStub(PCODE stubStartAddress,
 
     PCODE traceDestination = NULL;
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     MethodDesc* pStubMD = ExecutionManager::GetCodeMethodDesc(stubStartAddress);
     if (pStubMD != NULL && pStubMD->AsDynamicMethodDesc()->IsMulticastStub())
     {
         traceDestination = GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper);
     }
     else
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_MULTICASTSTUB_AS_IL
     {
         // This call is going out to unmanaged code, either through pinvoke or COM interop.
         traceDestination = stubStartAddress;
@@ -1816,7 +1815,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
     PCODE stubIP = GetIP(pContext);
     *pRetAddr = (BYTE *)StubManagerHelpers::GetReturnAddress(pContext);
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     if (stubIP == GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper))
     {
         stubIP = (PCODE)*pRetAddr;
@@ -1833,7 +1832,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
     // See code:ILStubCache.CreateNewMethodDesc for the code that sets flags on stub MDs
     PCODE target;
 
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     if(pStubMD->IsMulticastStub())
     {
         _ASSERTE(GetIP(pContext) == GetEEFuncEntryPoint(StubHelpers::MulticastDebuggerTraceHelper));
@@ -1862,7 +1861,7 @@ BOOL ILStubManager::TraceManager(Thread *thread,
 
     }
     else 
-#endif // FEATURE_STUBS_AS_IL
+#endif // FEATURE_MULTICASTSTUB_AS_IL
     if (pStubMD->IsReverseStub())
     {
         if (pStubMD->IsStatic())
@@ -2000,7 +1999,7 @@ static BOOL IsVarargPInvokeStub(PCODE stubStartAddress)
     if (stubStartAddress == GetEEFuncEntryPoint(VarargPInvokeStub))
         return TRUE;
 
-#ifndef _TARGET_X86_
+#if !defined(_TARGET_X86_) && !defined(_TARGET_ARM64_)
     if (stubStartAddress == GetEEFuncEntryPoint(VarargPInvokeStub_RetBuffArg))
         return TRUE;
 #endif
@@ -2102,18 +2101,6 @@ BOOL InteropDispatchStubManager::TraceManager(Thread *thread,
 
         Object * pThis = StubManagerHelpers::GetThisPtr(pContext);
 
-#ifdef FEATURE_REMOTING
-        if (pThis != NULL && pThis->IsTransparentProxy())
-        {
-            // We have remoting proxy in the way
-#ifdef DACCESS_COMPILE
-            DacNotImpl();
-#else
-            trace->InitForFramePush(GetEEFuncEntryPoint(TransparentProxyStubPatchLabel));
-#endif
-        }
-        else
-#endif // FEATURE_REMOTING
         {
             if (!pCMD->m_pComPlusCallInfo->m_pInterfaceMT->IsComEventItfType() && (pCMD->m_pComPlusCallInfo->m_pILStub != NULL))
             {
@@ -2304,6 +2291,18 @@ BOOL DelegateInvokeStubManager::TraceManager(Thread *thread, TraceDestination *t
 #elif defined(_TARGET_ARM_)
     (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
     pThis = (BYTE*)(size_t)(pContext->R0);
+
+    // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
+    // shuffle thunk (destination in _methodPtrAux).
+    int offsetOfNextDest;
+    if (pc == GetEEFuncEntryPoint(SinglecastDelegateInvokeStub))
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtr();
+    else
+        offsetOfNextDest = DelegateObject::GetOffsetOfMethodPtrAux();
+    destAddr = *(PCODE*)(pThis + offsetOfNextDest);
+#elif defined(_TARGET_ARM64_)
+    (*pRetAddr) = (BYTE *)(size_t)(pContext->Lr);
+    pThis = (BYTE*)(size_t)(pContext->X0);
 
     // Could be in the singlecast invoke stub (in which case the next destination is in _methodPtr) or a
     // shuffle thunk (destination in _methodPtrAux).

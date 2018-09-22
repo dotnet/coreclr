@@ -14,7 +14,6 @@
 #include "hostimpl.h"
 #include "clrnt.h"
 #include "contract.h"
-#include "tls.h"
 
 #if defined __llvm__
 #  if defined(__has_feature) && __has_feature(address_sanitizer)
@@ -201,7 +200,7 @@ ClrDebugState *CLRInitDebugState()
         pNewClrDebugState = (ClrDebugState*)::HeapAlloc(GetProcessHeap(), 0, sizeof(ClrDebugState));
         if (pNewClrDebugState != NULL)
         {
-            // Only allocate a DbgStateLockData if its owning ClrDebugState was successfully alloctaed
+            // Only allocate a DbgStateLockData if its owning ClrDebugState was successfully allocated
             pNewLockData  = (DbgStateLockData *)::HeapAlloc(GetProcessHeap(), 0, sizeof(DbgStateLockData));
         }
 #define GetProcessHeap() Dont_Use_GetProcessHeap()
@@ -441,7 +440,7 @@ operator new[](size_t n)
 
 #endif // HAS_ADDRESS_SANITIZER
 
-void * __cdecl operator new(size_t n, const NoThrow&)
+void * __cdecl operator new(size_t n, const NoThrow&) NOEXCEPT
 {
 #ifdef HAS_ADDRESS_SANITIZER
     // use standard heap functions for address santizier (which doesn't provide for NoThrow)
@@ -461,7 +460,7 @@ void * __cdecl operator new(size_t n, const NoThrow&)
     return result;
 }
 
-void * __cdecl operator new[](size_t n, const NoThrow&)
+void * __cdecl operator new[](size_t n, const NoThrow&) NOEXCEPT
 {
 #ifdef HAS_ADDRESS_SANITIZER
     // use standard heap functions for address santizier (which doesn't provide for NoThrow)
@@ -616,8 +615,8 @@ BOOL DbgIsExecutable(LPVOID lpMem, SIZE_T length)
     // No NX support on PAL or for crossgen compilations.
     return TRUE;
 #else // !(CROSSGEN_COMPILE || FEATURE_PAL) 
-    BYTE *regionStart = (BYTE*) ALIGN_DOWN((BYTE*)lpMem, OS_PAGE_SIZE);
-    BYTE *regionEnd = (BYTE*) ALIGN_UP((BYTE*)lpMem+length, OS_PAGE_SIZE);
+    BYTE *regionStart = (BYTE*) ALIGN_DOWN((BYTE*)lpMem, GetOsPageSize());
+    BYTE *regionEnd = (BYTE*) ALIGN_UP((BYTE*)lpMem+length, GetOsPageSize());
     _ASSERTE(length > 0);
     _ASSERTE(regionStart < regionEnd);
 
@@ -745,12 +744,12 @@ void ClrFlsAssociateCallback(DWORD slot, PTLS_CALLBACK_FUNCTION callback)
     GetExecutionEngine()->TLS_AssociateCallback(slot, callback);
 }
 
-void ** __stdcall ClrFlsGetBlockGeneric()
+LPVOID *ClrFlsGetBlockGeneric()
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
 
-    return (void **) GetExecutionEngine()->TLS_GetDataBlock();
+    return (LPVOID *) GetExecutionEngine()->TLS_GetDataBlock();
 }
 
 CLRFLSGETBLOCK __ClrFlsGetBlock = ClrFlsGetBlockGeneric;

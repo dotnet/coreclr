@@ -17,7 +17,6 @@
 #include <aclapi.h>
 #include <hosting.h>
 
-#include "ipcmanagerinterface.h"
 #include "eemessagebox.h"
 #include "genericstackprobe.h"
 
@@ -196,46 +195,6 @@ HANDLE OpenWin32EventOrThrow(
     RETURN h;
 }
 
-//-----------------------------------------------------------------------------
-// Holder for IPC SecurityAttribute
-//-----------------------------------------------------------------------------
-IPCHostSecurityAttributeHolder::IPCHostSecurityAttributeHolder(DWORD pid)
-{
-    CONTRACTL
-    {
-        SO_INTOLERANT;
-        THROWS;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    m_pSA = NULL;
-
-#ifdef FEATURE_IPCMAN
-    HRESULT hr = CCLRSecurityAttributeManager::GetHostSecurityAttributes(&m_pSA);
-    IfFailThrow(hr);
-
-    _ASSERTE(m_pSA != NULL);
-#endif // FEATURE_IPCMAN
-}
-
-SECURITY_ATTRIBUTES * IPCHostSecurityAttributeHolder::GetHostSA()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_pSA;
-}
-
-
-IPCHostSecurityAttributeHolder::~IPCHostSecurityAttributeHolder()
-{
-    LIMITED_METHOD_CONTRACT;
-
-#ifdef FEATURE_IPCMAN
-    CCLRSecurityAttributeManager::DestroyHostSecurityAttributes(m_pSA);
-#endif // FEATURE_IPCMAN
-}
-
-
 //---------------------------------------------------------------------------------------
 //
 // Init
@@ -286,8 +245,8 @@ HRESULT DebuggerIPCControlBlock::Init(
     memset( this, 0, sizeof( DebuggerIPCControlBlock) );
 
     // Setup version checking info.
-    m_verMajor = VER_PRODUCTBUILD;
-    m_verMinor = VER_PRODUCTBUILD_QFE;
+    m_verMajor = CLR_BUILD_VERSION;
+    m_verMinor = CLR_BUILD_VERSION_QFE;
 
 #ifdef _DEBUG
     m_checkedBuild = true;
@@ -332,11 +291,6 @@ HRESULT DebuggerIPCControlBlock::Init(
 
     return S_OK;
 }
-
-#ifdef FEATURE_IPCMAN
-extern CCLRSecurityAttributeManager s_CLRSecurityAttributeManager;
-#endif // FEATURE_IPCMAN
-
 
 void DebuggerRCThread::WatchForStragglers(void)
 {
@@ -421,14 +375,12 @@ HRESULT DebuggerRCThread::Init(void)
     }
 #else //FEATURE_DBGIPC_TRANSPORT_VM 
 
-    IPCHostSecurityAttributeHolder sa(GetCurrentProcessId());
-
     // Create the events that the thread will need to receive events
     // from the out of process piece on the right side.
     // We will not fail out if CreateEvent fails for RSEA or RSER. Because
     // the worst case is that debugger cannot attach to debuggee.
     //
-    HandleHolder rightSideEventAvailable(WszCreateEvent(sa.GetHostSA(), (BOOL) kAutoResetEvent, FALSE, NULL));
+    HandleHolder rightSideEventAvailable(WszCreateEvent(NULL, (BOOL) kAutoResetEvent, FALSE, NULL));
 
     // Security fix:
     // We need to check the last error to see if the event was precreated or not
@@ -441,7 +393,7 @@ HRESULT DebuggerRCThread::Init(void)
         rightSideEventAvailable.Clear();
     }
 
-    HandleHolder rightSideEventRead(WszCreateEvent(sa.GetHostSA(), (BOOL) kAutoResetEvent, FALSE, NULL));
+    HandleHolder rightSideEventRead(WszCreateEvent(NULL, (BOOL) kAutoResetEvent, FALSE, NULL));
 
     // Security fix:
     // We need to check the last error to see if the event was precreated or not
@@ -733,6 +685,7 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
     pDebuggerRuntimeOffsets->m_signalHijackCompleteBPAddr = (void*) SignalHijackCompleteFlare;
     pDebuggerRuntimeOffsets->m_excepNotForRuntimeBPAddr = (void*) ExceptionNotForRuntimeFlare;
     pDebuggerRuntimeOffsets->m_notifyRSOfSyncCompleteBPAddr = (void*) NotifyRightSideOfSyncCompleteFlare;
+    pDebuggerRuntimeOffsets->m_debuggerWordTLSIndex = g_debuggerWordTLSIndex;
 
 #if !defined(FEATURE_CORESYSTEM)
     // Grab the address of RaiseException in kernel32 because we have to play some games with exceptions
@@ -763,12 +716,10 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
     g_pEEInterface->GetRuntimeOffsets(&pDebuggerRuntimeOffsets->m_TLSIndex,
                                       &pDebuggerRuntimeOffsets->m_TLSIsSpecialIndex,
                                       &pDebuggerRuntimeOffsets->m_TLSCantStopIndex,
-                                      &pDebuggerRuntimeOffsets->m_TLSIndexOfPredefs,
                                       &pDebuggerRuntimeOffsets->m_EEThreadStateOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadStateNCOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadPGCDisabledOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadPGCDisabledValue,
-                                      &pDebuggerRuntimeOffsets->m_EEThreadDebuggerWordOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadFrameOffset,
                                       &pDebuggerRuntimeOffsets->m_EEThreadMaxNeededSize,
                                       &pDebuggerRuntimeOffsets->m_EEThreadSteppingStateMask,
@@ -777,10 +728,6 @@ HRESULT DebuggerRCThread::SetupRuntimeOffsets(DebuggerIPCControlBlock * pDebugge
                                       &pDebuggerRuntimeOffsets->m_EEThreadCantStopOffset,
                                       &pDebuggerRuntimeOffsets->m_EEFrameNextOffset,
                                       &pDebuggerRuntimeOffsets->m_EEIsManagedExceptionStateMask);
-
-#ifndef FEATURE_IMPLICIT_TLS
-    _ASSERTE((pDebuggerRuntimeOffsets->m_TLSIndexOfPredefs != 0) || !"CExecutionEngine::TlsIndex is not initialized yet");
-#endif
 
     // Remember the struct in the control block.
     pDebuggerIPCControlBlock->m_pRuntimeOffsets = pDebuggerRuntimeOffsets;
@@ -1178,7 +1125,7 @@ void DebuggerRCThread::MainLoop()
 
     LOG((LF_CORDB, LL_INFO1000, "DRCT::ML:: running main loop\n"));
 
-    // Anbody doing helper duty is in a can't-stop range, period.
+    // Anybody doing helper duty is in a can't-stop range, period.
     // Our helper thread is already in a can't-stop range, so this is particularly useful for
     // threads doing helper duty.
     CantStopHolder cantStopHolder;
@@ -1424,7 +1371,7 @@ void DebuggerRCThread::TemporaryHelperThreadMainLoop()
     CONTRACTL_END;
 
     STRESS_LOG0(LF_CORDB, LL_INFO1000, "DRCT::THTML:: Doing helper thread duty, running main loop.\n");
-    // Anbody doing helper duty is in a can't-stop range, period.
+    // Anybody doing helper duty is in a can't-stop range, period.
     // Our helper thread is already in a can't-stop range, so this is particularly useful for
     // threads doing helper duty.
     CantStopHolder cantStopHolder;

@@ -20,10 +20,8 @@
 #include "stresslog.h"
 
 
-#ifndef FEATURE_PAL
 void GcHistClear();
 void GcHistAddLog(LPCSTR msg, StressMsg* stressMsg);
-#endif
 
 
 /*********************************************************************************/
@@ -36,7 +34,7 @@ static const WCHAR* getTime(const FILETIME* time, __out_ecount (buffLen) WCHAR* 
         return badTime;
 
 #ifdef FEATURE_PAL
-    int length = _snwprintf(buff, buffLen, W("%02d:%02d:%02d"), systemTime.wHour, systemTime.wMinute, systemTime.wSecond);
+    int length = _snwprintf_s(buff, buffLen, _TRUNCATE, W("%02d:%02d:%02d"), systemTime.wHour, systemTime.wMinute, systemTime.wSecond);
     if (length <= 0)
         return badTime;
 #else // FEATURE_PAL
@@ -317,7 +315,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
     BOOL    bDoGcHist = (fileName == NULL);
     FILE*   file = NULL;
 
-    // Fetch the circular buffer bookeeping data 
+    // Fetch the circular buffer bookkeeping data 
     StressLog inProcLog;
     HRESULT hr = memCallBack->ReadVirtual(UL64_TO_CDA(outProcLog), &inProcLog, sizeof(StressLog), 0);
     if (hr != S_OK) 
@@ -334,12 +332,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
 
     if (bDoGcHist)
     {
-#ifdef FEATURE_PAL
-        ExtOut ("GC history not supported\n");
-        return S_FALSE;
-#else
         GcHistClear();
-#endif
     }
     else
     {
@@ -496,13 +489,11 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
             double deltaTime = ((double) (latestMsg->timeStamp - inProcLog.startTimeStamp)) / inProcLog.tickFrequency;
             if (bDoGcHist)
             {
-#ifndef FEATURE_PAL
                 if (strcmp(format, ThreadStressLog::TaskSwitchMsg()) == 0)
                 {
                     latestLog->threadId = (unsigned)(size_t)latestMsg->args[0];
                 }
                 GcHistAddLog(format, latestMsg);                                
-#endif // FEATURE_PAL
             }
             else
             {
@@ -514,7 +505,7 @@ HRESULT StressLog::Dump(ULONG64 outProcLog, const char* fileName, struct IDebugD
                 else 
                 {
                     args = latestMsg->args;
-                    formatOutput(memCallBack, file, format, latestLog->threadId, deltaTime, latestMsg->facility, args);
+                    formatOutput(memCallBack, file, format, (unsigned)latestLog->threadId, deltaTime, latestMsg->facility, args);
                 }
             }
             msgCtr++;

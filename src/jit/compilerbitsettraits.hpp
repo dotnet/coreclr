@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 #ifndef CompilerBitSetTraits_HPP_DEFINED
 #define CompilerBitSetTraits_HPP_DEFINED 1
 
@@ -10,29 +9,29 @@
 #include "compiler.h"
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
+//
 // CompAllocBitSetTraits
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 
-// static 
-IAllocator* CompAllocBitSetTraits::GetAllocator(Compiler* comp)
+// static
+void* CompAllocBitSetTraits::Alloc(Compiler* comp, size_t byteSize)
 {
-    return comp->getAllocatorBitset();
+    return comp->getAllocator(CMK_bitset).allocate<char>(byteSize);
 }
 
 #ifdef DEBUG
-// static 
-IAllocator* CompAllocBitSetTraits::GetDebugOnlyAllocator(Compiler* comp)
+// static
+void* CompAllocBitSetTraits::DebugAlloc(Compiler* comp, size_t byteSize)
 {
-    return comp->getAllocatorDebugOnly();
+    return comp->getAllocator(CMK_DebugOnly).allocate<char>(byteSize);
 }
 #endif // DEBUG
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
+//
 // TrackedVarBitSetTraits
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 // static
@@ -48,7 +47,7 @@ unsigned TrackedVarBitSetTraits::GetArrSize(Compiler* comp, unsigned elemSize)
     return comp->lvaTrackedCountInSizeTUnits;
 }
 
-// static 
+// static
 unsigned TrackedVarBitSetTraits::GetEpoch(Compiler* comp)
 {
     return comp->GetCurLVEpoch();
@@ -60,14 +59,14 @@ BitSetSupport::BitSetOpCounter* TrackedVarBitSetTraits::GetOpCounter(Compiler* c
 #if VARSET_COUNTOPS
     return &Compiler::m_varsetOpCounter;
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
+//
 // AllVarBitSetTraits
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 // static
@@ -79,10 +78,10 @@ unsigned AllVarBitSetTraits::GetSize(Compiler* comp)
 // static
 unsigned AllVarBitSetTraits::GetArrSize(Compiler* comp, unsigned elemSize)
 {
-    return unsigned(roundUp(GetSize(comp), elemSize));
+    return roundUp(GetSize(comp), elemSize);
 }
 
-// static 
+// static
 unsigned AllVarBitSetTraits::GetEpoch(Compiler* comp)
 {
     return GetSize(comp);
@@ -94,14 +93,14 @@ BitSetSupport::BitSetOpCounter* AllVarBitSetTraits::GetOpCounter(Compiler* comp)
 #if ALLVARSET_COUNTOPS
     return &Compiler::m_allvarsetOpCounter;
 #else
-    return NULL;
+    return nullptr;
 #endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
+//
 // BasicBlockBitSetTraits
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 // static
@@ -118,10 +117,10 @@ unsigned BasicBlockBitSetTraits::GetArrSize(Compiler* comp, unsigned elemSize)
     assert(GetEpoch(comp) != 0);
 
     assert(elemSize == sizeof(size_t));
-    return comp->fgBBSetCountInSizeTUnits;      // This is precomputed to avoid doing math every time this function is called
+    return comp->fgBBSetCountInSizeTUnits; // This is precomputed to avoid doing math every time this function is called
 }
 
-// static 
+// static
 unsigned BasicBlockBitSetTraits::GetEpoch(Compiler* comp)
 {
     return comp->GetCurBasicBlockEpoch();
@@ -130,26 +129,26 @@ unsigned BasicBlockBitSetTraits::GetEpoch(Compiler* comp)
 // static
 BitSetSupport::BitSetOpCounter* BasicBlockBitSetTraits::GetOpCounter(Compiler* comp)
 {
-    return NULL;
+    return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// 
+//
 // BitVecTraits
-// 
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 // static
-IAllocator* BitVecTraits::GetAllocator(BitVecTraits* b)
+void* BitVecTraits::Alloc(BitVecTraits* b, size_t byteSize)
 {
-    return b->comp->getAllocatorBitset();
+    return b->comp->getAllocator(CMK_bitset).allocate<char>(byteSize);
 }
 
 #ifdef DEBUG
 // static
-IAllocator* BitVecTraits::GetDebugOnlyAllocator(BitVecTraits* b)
+void* BitVecTraits::DebugAlloc(BitVecTraits* b, size_t byteSize)
 {
-    return b->comp->getAllocatorDebugOnly();
+    return b->comp->getAllocator(CMK_DebugOnly).allocate<char>(byteSize);
 }
 #endif // DEBUG
 
@@ -164,7 +163,7 @@ unsigned BitVecTraits::GetArrSize(BitVecTraits* b, unsigned elemSize)
 {
     assert(elemSize == sizeof(size_t));
     unsigned elemBits = 8 * elemSize;
-    return (unsigned) roundUp(b->size, elemBits)/elemBits;
+    return roundUp(b->size, elemBits) / elemBits;
 }
 
 // static
@@ -176,7 +175,7 @@ unsigned BitVecTraits::GetEpoch(BitVecTraits* b)
 // static
 BitSetSupport::BitSetOpCounter* BitVecTraits::GetOpCounter(BitVecTraits* b)
 {
-    return NULL;
+    return nullptr;
 }
 
 #endif // CompilerBitSetTraits_HPP_DEFINED

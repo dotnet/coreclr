@@ -69,7 +69,7 @@ HRESULT ExpressionNode::CreateExpressionNode(__in_z WCHAR* pExpression, Expressi
 }
 
 // Performs recursive expansion within the tree for nodes that are along the path to varToExpand.
-// Expansion involves calulating a set of child expressions from the current expression via
+// Expansion involves calculating a set of child expressions from the current expression via
 // field dereferencing, array index dereferencing, or casting to a base type.
 // For example if a tree was rooted with expression 'foo.bar' and varToExpand is '(Baz)foo.bar[9]'
 // then 'foo.bar', 'foo.bar[9]', and '(Baz)foo.bar[9]' nodes would all be expanded.
@@ -129,7 +129,7 @@ VOID ExpressionNode::DFSVisit(ExpressionNodeVisitorCallback pFunc, VOID* pUserDa
 
 
 // Creates a new expression with a given debuggee value and frame
-ExpressionNode::ExpressionNode(__in_z WCHAR* pExpression, ICorDebugValue* pValue, ICorDebugILFrame* pFrame)
+ExpressionNode::ExpressionNode(__in_z const WCHAR* pExpression, ICorDebugValue* pValue, ICorDebugILFrame* pFrame)
 {
     Init(pValue, NULL, pFrame);
     _snwprintf_s(pAbsoluteExpression, MAX_EXPRESSION, _TRUNCATE, L"%s", pExpression);
@@ -137,7 +137,7 @@ ExpressionNode::ExpressionNode(__in_z WCHAR* pExpression, ICorDebugValue* pValue
 }
 
 // Creates a new expression that has an error and no value
-ExpressionNode::ExpressionNode(__in_z WCHAR* pExpression, __in_z WCHAR* pErrorMessage)
+ExpressionNode::ExpressionNode(__in_z const WCHAR* pExpression, __in_z const WCHAR* pErrorMessage)
 {
     Init(NULL, NULL, NULL);
     _snwprintf_s(pAbsoluteExpression, MAX_EXPRESSION, _TRUNCATE, L"%s", pExpression);
@@ -146,7 +146,7 @@ ExpressionNode::ExpressionNode(__in_z WCHAR* pExpression, __in_z WCHAR* pErrorMe
 }
 
 // Creates a new child expression
-ExpressionNode::ExpressionNode(__in_z WCHAR* pParentExpression, ChildKind ck, __in_z WCHAR* pRelativeExpression, ICorDebugValue* pValue, ICorDebugType* pType, ICorDebugILFrame* pFrame, UVCP_CONSTANT pDefaultValue, ULONG cchDefaultValue)
+ExpressionNode::ExpressionNode(__in_z const WCHAR* pParentExpression, ChildKind ck, __in_z const WCHAR* pRelativeExpression, ICorDebugValue* pValue, ICorDebugType* pType, ICorDebugILFrame* pFrame, UVCP_CONSTANT pDefaultValue, ULONG cchDefaultValue)
 {
     Init(pValue, pType, pFrame);
     if(ck == ChildKind_BaseClass)
@@ -577,7 +577,6 @@ HRESULT ExpressionNode::ExpandFields(ICorDebugValue* pInnerValue, __in_z WCHAR* 
         ULONG             nameLen = 0;
         DWORD             fieldAttr = 0;
         WCHAR             mdName[mdNameLen];
-        WCHAR             typeName[mdNameLen];
         CorElementType    fieldDefaultValueEt;
         UVCP_CONSTANT     pDefaultValue;
         ULONG             cchDefaultValue;
@@ -771,7 +770,6 @@ HRESULT ExpressionNode::PopulateEnumValue(ICorDebugValue* pEnumValue, BYTE* enum
         ULONG             nameLen = 0;
         DWORD             fieldAttr = 0;
         WCHAR             mdName[mdNameLen];
-        WCHAR             typeName[mdNameLen];
         UVCP_CONSTANT     pRawValue = NULL;
         ULONG             rawValueLength = 0;
         if(SUCCEEDED(pMD->GetFieldProps(fieldDef, NULL, mdName, mdNameLen, &nameLen, &fieldAttr, NULL, NULL, NULL, &pRawValue, &rawValueLength)))
@@ -1228,14 +1226,14 @@ VOID ExpressionNode::EvaluateExpressionVariableScanCallback(ICorDebugValue* pVal
 //  pParsedType          - A debuggee type that should be used as the context for interpreting
 //                         pExpressionRemainder. 
 //  pParsedDefaultValue  - A fixed value from metadata that should be used as context for
-//                         interpretting pExpressionRemainder
+//                         interpreting pExpressionRemainder
 //  cchParsedDefaultValue- Size of pParsedDefaultValue
 //  pFrame               - A debuggee IL frame that disambiguates the thread and context needed
 //                         to evaluate a thread-static or context-static value
 //  ppExpressionNode     - OUT - the resulting expression node
 //
 //
-//  Valid combinations of state comming into this method:
+//  Valid combinations of state coming into this method:
 //      The expression up to charactersParsed isn't recognized yet:
 //           pParsedValue = pParsedType = pParsedDefaultValue = NULL
 //           cchParsedDefaultValue = 0
@@ -1478,7 +1476,6 @@ HRESULT ExpressionNode::CreateExpressionNodeHelper(__in_z WCHAR* pExpression,
                 ULONG             nameLen = 0;
                 DWORD             fieldAttr = 0;
                 WCHAR             mdName[mdNameLen];
-                WCHAR             typeName[mdNameLen];
                 CorElementType    fieldDefaultValueEt;
                 UVCP_CONSTANT     pDefaultValue;
                 ULONG             cchDefaultValue;
@@ -1979,7 +1976,7 @@ HRESULT ExpressionNode::GetCanonicalElementTypeForTypeName(__in_z WCHAR* pTypeNa
 
 // Searches the debuggee for any ICorDebugType that matches the given fully qualified name
 // This will search across all AppDomains and Assemblies
-HRESULT ExpressionNode::FindTypeByName(__in_z  WCHAR* pTypeName, ICorDebugType** ppType)
+HRESULT ExpressionNode::FindTypeByName(__in_z const WCHAR* pTypeName, ICorDebugType** ppType)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugAppDomainEnum> pAppDomainEnum;
@@ -2001,7 +1998,7 @@ HRESULT ExpressionNode::FindTypeByName(__in_z  WCHAR* pTypeName, ICorDebugType**
 
 // Searches the debuggee for any ICorDebugType that matches the given fully qualified name
 // This will search across all Assemblies in the given AppDomain
-HRESULT ExpressionNode::FindTypeByName(ICorDebugAppDomain* pAppDomain, __in_z WCHAR* pTypeName, ICorDebugType** ppType)
+HRESULT ExpressionNode::FindTypeByName(ICorDebugAppDomain* pAppDomain, __in_z const WCHAR* pTypeName, ICorDebugType** ppType)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugAssemblyEnum> pAssemblyEnum;
@@ -2022,7 +2019,7 @@ HRESULT ExpressionNode::FindTypeByName(ICorDebugAppDomain* pAppDomain, __in_z WC
 }
 
 // Searches the assembly for any ICorDebugType that matches the given fully qualified name
-HRESULT ExpressionNode::FindTypeByName(ICorDebugAssembly* pAssembly, __in_z WCHAR* pTypeName, ICorDebugType** ppType)
+HRESULT ExpressionNode::FindTypeByName(ICorDebugAssembly* pAssembly, __in_z const WCHAR* pTypeName, ICorDebugType** ppType)
 {
     HRESULT Status = S_OK;
     ToRelease<ICorDebugModuleEnum> pModuleEnum;
@@ -2043,7 +2040,7 @@ HRESULT ExpressionNode::FindTypeByName(ICorDebugAssembly* pAssembly, __in_z WCHA
 }
 
 // Searches a given module for any ICorDebugType that matches the given fully qualified type name
-HRESULT ExpressionNode::FindTypeByName(ICorDebugModule* pModule, __in_z WCHAR* pTypeName, ICorDebugType** ppType)
+HRESULT ExpressionNode::FindTypeByName(ICorDebugModule* pModule, __in_z const WCHAR* pTypeName, ICorDebugType** ppType)
 {
     HRESULT Status = S_OK;
     ToRelease<IUnknown> pMDUnknown;
@@ -2054,7 +2051,7 @@ HRESULT ExpressionNode::FindTypeByName(ICorDebugModule* pModule, __in_z WCHAR* p
     // If the name contains a generic argument list, extract the type name from
     // before the list
     WCHAR rootName[mdNameLen];
-    WCHAR* pRootName = NULL;
+    const WCHAR* pRootName = NULL;
     int typeNameLen = (int) _wcslen(pTypeName);
     int genericParamListStart = (int) _wcscspn(pTypeName, L"<");
     if(genericParamListStart != typeNameLen)
@@ -2107,11 +2104,11 @@ HRESULT ExpressionNode::FindTypeByName(ICorDebugModule* pModule, __in_z WCHAR* p
         }
         typeParams = new ToRelease<ICorDebugType>[countTypeParams];
 
-        WCHAR* pCurName = pTypeName + genericParamListStart+1;
+        const WCHAR* pCurName = pTypeName + genericParamListStart+1;
         for(int i = 0; i < countTypeParams; i++)
         {
             WCHAR typeParamName[mdNameLen];
-            WCHAR* pNextComma = _wcschr(pCurName, L',');
+            const WCHAR* pNextComma = _wcschr(pCurName, L',');
             int len = (pNextComma != NULL) ? (int)(pNextComma - pCurName) : (int)_wcslen(pCurName)-1;
             if(len > mdNameLen)
                 return E_FAIL;

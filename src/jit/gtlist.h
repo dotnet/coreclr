@@ -2,245 +2,304 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// clang-format off
 /*****************************************************************************/
 #ifndef GTNODE
 #error  Define GTNODE before including this file.
 #endif
 /*****************************************************************************/
 //
-//    Node enum
-//                   , "Node name"
-//                                  ,commutative
-//                                    ,operKind
+//     Node enum
+//                       , GenTree struct flavor
+//                                           ,commutative
+//                                             ,operKind
 
-GTNODE(NONE       , "<none>"     ,0,GTK_SPECIAL)
+GTNODE(NONE             , char               ,0,GTK_SPECIAL)
 
 //-----------------------------------------------------------------------------
 //  Leaf nodes (i.e. these nodes have no sub-operands):
 //-----------------------------------------------------------------------------
 
-GTNODE(LCL_VAR       , "lclVar"     ,0,GTK_LEAF|GTK_LOCAL) // local variable
-GTNODE(LCL_FLD       , "lclFld"     ,0,GTK_LEAF|GTK_LOCAL) // field in a non-primitive variable
-GTNODE(LCL_VAR_ADDR  , "&lclVar"    ,0,GTK_LEAF)           // address of local variable
-GTNODE(LCL_FLD_ADDR  , "&lclFld"    ,0,GTK_LEAF)           // address of field in a non-primitive variable
-GTNODE(STORE_LCL_VAR , "st.lclVar"  ,0,GTK_UNOP|GTK_LOCAL) // store to local variable
-GTNODE(STORE_LCL_FLD , "st.lclFld"  ,0,GTK_UNOP|GTK_LOCAL) // store to field in a non-primitive variable
-GTNODE(CATCH_ARG     , "catchArg"   ,0,GTK_LEAF)           // Exception object in a catch block
-GTNODE(LABEL         , "codeLabel"  ,0,GTK_LEAF)           // Jump-target
-GTNODE(FTN_ADDR      , "ftnAddr"    ,0,GTK_LEAF)           // Address of a function
-GTNODE(RET_EXPR      , "retExpr"    ,0,GTK_LEAF)           // Place holder for the return expression from an inline candidate
+GTNODE(LCL_VAR          , GenTreeLclVar      ,0,GTK_LEAF|GTK_LOCAL)     // local variable
+GTNODE(LCL_FLD          , GenTreeLclFld      ,0,GTK_LEAF|GTK_LOCAL)     // field in a non-primitive variable
+GTNODE(LCL_VAR_ADDR     , GenTreeLclVar      ,0,GTK_LEAF)               // address of local variable
+GTNODE(LCL_FLD_ADDR     , GenTreeLclFld      ,0,GTK_LEAF)               // address of field in a non-primitive variable
+GTNODE(STORE_LCL_VAR    , GenTreeLclVar      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to local variable
+GTNODE(STORE_LCL_FLD    , GenTreeLclFld      ,0,GTK_UNOP|GTK_LOCAL|GTK_NOVALUE) // store to field in a non-primitive variable
+GTNODE(CATCH_ARG        , GenTree            ,0,GTK_LEAF)               // Exception object in a catch block
+GTNODE(LABEL            , GenTreeLabel       ,0,GTK_LEAF)               // Jump-target
+GTNODE(FTN_ADDR         , GenTreeFptrVal     ,0,GTK_LEAF)               // Address of a function
+GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF)               // Place holder for the return expression from an inline candidate
 
 //-----------------------------------------------------------------------------
 //  Constant nodes:
 //-----------------------------------------------------------------------------
 
-GTNODE(CNS_INT    , "const"       ,0,GTK_LEAF|GTK_CONST)
-GTNODE(CNS_LNG    , "lconst"      ,0,GTK_LEAF|GTK_CONST)
-GTNODE(CNS_DBL    , "dconst"      ,0,GTK_LEAF|GTK_CONST)
-GTNODE(CNS_STR    , "sconst"      ,0,GTK_LEAF|GTK_CONST)
+GTNODE(CNS_INT          , GenTreeIntCon      ,0,GTK_LEAF|GTK_CONST)
+GTNODE(CNS_LNG          , GenTreeLngCon      ,0,GTK_LEAF|GTK_CONST)
+GTNODE(CNS_DBL          , GenTreeDblCon      ,0,GTK_LEAF|GTK_CONST)
+GTNODE(CNS_STR          , GenTreeStrCon      ,0,GTK_LEAF|GTK_CONST)
 
 //-----------------------------------------------------------------------------
 //  Unary  operators (1 operand):
 //-----------------------------------------------------------------------------
 
-GTNODE(NOT        , "~"             ,0,GTK_UNOP)
-GTNODE(NOP        , "nop"           ,0,GTK_UNOP)
-GTNODE(NEG        , "unary -"       ,0,GTK_UNOP)
-GTNODE(COPY       , "copy"          ,0,GTK_UNOP)             // Copies a variable from its current location to a register that satisfies
-                                                                // code generation constraints.  The child is the actual lclVar node.
-GTNODE(RELOAD     , "reload"        ,0,GTK_UNOP)
-GTNODE(CHS        , "flipsign"      ,0,GTK_BINOP|GTK_ASGOP)  // GT_CHS is actually unary -- op2 is ignored.
-                                                                // Changing to unary presently causes problems, though -- take a little work to fix.
+GTNODE(NOT              , GenTreeOp          ,0,GTK_UNOP)
+GTNODE(NOP              , GenTree            ,0,GTK_UNOP|GTK_NOCONTAIN)
+GTNODE(NEG              , GenTreeOp          ,0,GTK_UNOP)
+GTNODE(COPY             , GenTreeCopyOrReload,0,GTK_UNOP)               // Copies a variable from its current location to a register that satisfies
+                                                                        // code generation constraints.  The child is the actual lclVar node.
+GTNODE(RELOAD           , GenTreeCopyOrReload,0,GTK_UNOP)
+GTNODE(ARR_LENGTH       , GenTreeArrLen      ,0,GTK_UNOP|GTK_EXOP)      // array-length
+GTNODE(INTRINSIC        , GenTreeIntrinsic   ,0,GTK_BINOP|GTK_EXOP)     // intrinsics
 
-GTNODE(ARR_LENGTH , "arrLen"        ,0,GTK_UNOP|GTK_EXOP)    // array-length
+GTNODE(LOCKADD          , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)
+GTNODE(XADD             , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(XCHG             , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(CMPXCHG          , GenTreeCmpXchg     ,0,GTK_SPECIAL)
+GTNODE(MEMORYBARRIER    , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)
 
-GTNODE(INTRINSIC  , "intrinsic"     ,0,GTK_BINOP|GTK_EXOP)   // intrinsics
+GTNODE(CAST             , GenTreeCast        ,0,GTK_UNOP|GTK_EXOP)      // conversion to another type
+#if defined(_TARGET_ARM_)
+GTNODE(BITCAST          , GenTreeMultiRegOp  ,0,GTK_UNOP)               // reinterpretation of bits as another type
+#else
+GTNODE(BITCAST          , GenTreeOp          ,0,GTK_UNOP)               // reinterpretation of bits as another type
+#endif
+GTNODE(CKFINITE         , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // Check for NaN
+GTNODE(LCLHEAP          , GenTreeOp          ,0,GTK_UNOP|GTK_NOCONTAIN) // alloca()
+GTNODE(JMP              , GenTreeVal         ,0,GTK_LEAF|GTK_NOVALUE)   // Jump to another function
 
-GTNODE(LOCKADD          , "lockAdd"       ,0,GTK_BINOP)
-GTNODE(XADD             , "XAdd"          ,0,GTK_BINOP)
-GTNODE(XCHG             , "Xchg"          ,0,GTK_BINOP)
-GTNODE(CMPXCHG          , "cmpxchg"       ,0,GTK_SPECIAL)
-GTNODE(MEMORYBARRIER    , "memoryBarrier" ,0,GTK_LEAF)
+GTNODE(ADDR             , GenTreeOp          ,0,GTK_UNOP)               // address of
+GTNODE(IND              , GenTreeOp          ,0,GTK_UNOP)               // load indirection
+GTNODE(STOREIND         , GenTreeStoreInd    ,0,GTK_BINOP|GTK_NOVALUE)  // store indirection
 
-GTNODE(CAST             , "cast"          ,0,GTK_UNOP|GTK_EXOP) // conversion to another type
-GTNODE(CKFINITE         , "ckfinite"      ,0,GTK_UNOP)          // Check for NaN
-GTNODE(LCLHEAP          , "lclHeap"       ,0,GTK_UNOP)          // alloca()
-GTNODE(JMP              , "jump"          ,0,GTK_LEAF)          // Jump to another function
-
-
-GTNODE(ADDR             , "addr"          ,0,GTK_UNOP)          // address of
-GTNODE(IND              , "indir"         ,0,GTK_UNOP)          // load indirection
-GTNODE(STOREIND         , "storeIndir"    ,0,GTK_BINOP)         // store indirection
-                                                                   // TODO-Cleanup: GT_ARR_BOUNDS_CHECK should be made a GTK_BINOP now that it has only two child nodes
-GTNODE(ARR_BOUNDS_CHECK , "arrBndsChk"    ,0,GTK_SPECIAL)       // array bounds check
-GTNODE(OBJ              , "obj"           ,0,GTK_UNOP|GTK_EXOP)
-GTNODE(BOX              , "box"           ,0,GTK_UNOP|GTK_EXOP)
+                                                                        // TODO-Cleanup: GT_ARR_BOUNDS_CHECK should be made a GTK_BINOP now that it has only two child nodes
+GTNODE(ARR_BOUNDS_CHECK , GenTreeBoundsChk   ,0,GTK_SPECIAL|GTK_NOVALUE)// array bounds check
+GTNODE(OBJ              , GenTreeObj         ,0,GTK_UNOP|GTK_EXOP)      // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
+GTNODE(STORE_OBJ        , GenTreeBlk         ,0,GTK_BINOP|GTK_EXOP|GTK_NOVALUE) // Object that MAY have gc pointers, and thus includes the relevant gc layout info.
+GTNODE(BLK              , GenTreeBlk         ,0,GTK_UNOP)               // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
+GTNODE(STORE_BLK        , GenTreeBlk         ,0,GTK_BINOP|GTK_NOVALUE)  // Block/object with no gc pointers, and with a known size (e.g. a struct with no gc fields)
+GTNODE(DYN_BLK          , GenTreeBlk         ,0,GTK_SPECIAL)            // Dynamically sized block object
+GTNODE(STORE_DYN_BLK    , GenTreeBlk         ,0,GTK_SPECIAL|GTK_NOVALUE)// Dynamically sized block object
+GTNODE(BOX              , GenTreeBox         ,0,GTK_UNOP|GTK_EXOP|GTK_NOTLIR)
 
 #ifdef FEATURE_SIMD
-GTNODE(SIMD_CHK         , "simdChk"       ,0,GTK_SPECIAL)       // Compare whether an index is less than the given SIMD vector length, and call CORINFO_HELP_RNGCHKFAIL if not.
-                                                                   // TODO-CQ: In future may want to add a field that specifies different exceptions but we'll
-                                                                   // need VM assistance for that.
-                                                                   // TODO-CQ: It would actually be very nice to make this an unconditional throw, and expose the control flow that
-                                                                   // does the compare, so that it can be more easily optimized.  But that involves generating qmarks at import time...
+GTNODE(SIMD_CHK         , GenTreeBoundsChk   ,0,GTK_SPECIAL|GTK_NOVALUE)// Compare whether an index is less than the given SIMD vector length, and call CORINFO_HELP_RNGCHKFAIL if not.
+                                                                        // TODO-CQ: In future may want to add a field that specifies different exceptions but we'll
+                                                                        // need VM assistance for that.
+                                                                        // TODO-CQ: It would actually be very nice to make this an unconditional throw, and expose the control flow that
+                                                                        // does the compare, so that it can be more easily optimized.  But that involves generating qmarks at import time...
 #endif // FEATURE_SIMD
+
+#ifdef FEATURE_HW_INTRINSICS
+GTNODE(HW_INTRINSIC_CHK  , GenTreeBoundsChk   ,0,GTK_SPECIAL|GTK_NOVALUE)// Compare whether an imm8 argument is in the valid range, and throw ArgumentOutOfRangeException if not.
+#endif
+
+GTNODE(ALLOCOBJ         , GenTreeAllocObj    ,0,GTK_UNOP|GTK_EXOP)      // object allocator
+
+GTNODE(INIT_VAL         , GenTreeOp          ,0,GTK_UNOP)               // Initialization value for an initBlk
+
+GTNODE(RUNTIMELOOKUP    , GenTreeRuntimeLookup, 0,GTK_UNOP|GTK_EXOP)    // Runtime handle lookup
 
 //-----------------------------------------------------------------------------
 //  Binary operators (2 operands):
 //-----------------------------------------------------------------------------
 
-GTNODE(ADD        , "+"          ,1,GTK_BINOP)
-GTNODE(SUB        , "-"          ,0,GTK_BINOP)
-GTNODE(MUL        , "*"          ,1,GTK_BINOP)
-GTNODE(DIV        , "/"          ,0,GTK_BINOP)
-GTNODE(MOD        , "%"          ,0,GTK_BINOP)
+GTNODE(ADD              , GenTreeOp          ,1,GTK_BINOP)
+GTNODE(SUB              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(MUL              , GenTreeOp          ,1,GTK_BINOP)
+GTNODE(DIV              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(MOD              , GenTreeOp          ,0,GTK_BINOP)
 
-GTNODE(UDIV       , "un-/"       ,0,GTK_BINOP)
-GTNODE(UMOD       , "un-%"       ,0,GTK_BINOP)
+GTNODE(UDIV             , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(UMOD             , GenTreeOp          ,0,GTK_BINOP)
 
-GTNODE(OR         , "|"          ,1,GTK_BINOP|GTK_LOGOP)
-GTNODE(XOR        , "^"          ,1,GTK_BINOP|GTK_LOGOP)
-GTNODE(AND        , "&"          ,1,GTK_BINOP|GTK_LOGOP)
+GTNODE(OR               , GenTreeOp          ,1,GTK_BINOP|GTK_LOGOP)
+GTNODE(XOR              , GenTreeOp          ,1,GTK_BINOP|GTK_LOGOP)
+GTNODE(AND              , GenTreeOp          ,1,GTK_BINOP|GTK_LOGOP)
 
-GTNODE(LSH        , "<<"         ,0,GTK_BINOP)
-GTNODE(RSH        , ">>"         ,0,GTK_BINOP)
-GTNODE(RSZ        , ">>>"        ,0,GTK_BINOP)
-GTNODE(ROL        , "rol"        ,0,GTK_BINOP)
-GTNODE(ROR        , "ror"        ,0,GTK_BINOP)
-GTNODE(MULHI      , "mulhi"      ,1,GTK_BINOP) // returns high bits (top N bits of the 2N bit result of an NxN multiply)
+GTNODE(LSH              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(RSH              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(RSZ              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(ROL              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(ROR              , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(MULHI            , GenTreeOp          ,1,GTK_BINOP) // returns high bits (top N bits of the 2N bit result of an NxN multiply)
+                                                           // GT_MULHI is used in division by a constant (fgMorphDivByConst). We turn
+                                                           // the div into a MULHI + some adjustments. In codegen, we only use the
+                                                           // results of the high register, and we drop the low results.
 
-GTNODE(ASG        , "="          ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_ADD    , "+="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_SUB    , "-="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_MUL    , "*="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_DIV    , "/="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_MOD    , "%="         ,0,GTK_BINOP|GTK_ASGOP)
+GTNODE(ASG              , GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
+GTNODE(EQ               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(NE               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(LT               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(LE               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(GE               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(GT               , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
 
-GTNODE(ASG_UDIV   , "/="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_UMOD   , "%="         ,0,GTK_BINOP|GTK_ASGOP)
+// These are similar to GT_EQ/GT_NE but they generate "test" instead of "cmp" instructions.
+// Currently these are generated during lowering for code like ((x & y) eq|ne 0) only on 
+// XArch but ARM could too use these for the same purpose as there is a "tst" instruction.
+// Note that the general case of comparing a register against 0 is handled directly by 
+// codegen which emits a "test reg, reg" instruction, that would be more difficult to do
+// during lowering because the source operand is used twice so it has to be a lclvar. 
+// Because of this there is no need to also add GT_TEST_LT/LE/GE/GT opers.
+GTNODE(TEST_EQ          , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(TEST_NE          , GenTreeOp          ,0,GTK_BINOP|GTK_RELOP)
 
-GTNODE(ASG_OR     , "|="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_XOR    , "^="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_AND    , "&="         ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_LSH    , "<<="        ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_RSH    , ">>="        ,0,GTK_BINOP|GTK_ASGOP)
-GTNODE(ASG_RSZ    , ">>>="       ,0,GTK_BINOP|GTK_ASGOP)
+GTNODE(COMMA            , GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
 
-GTNODE(EQ         , "=="         ,0,GTK_BINOP|GTK_RELOP)
-GTNODE(NE         , "!="         ,0,GTK_BINOP|GTK_RELOP)
-GTNODE(LT         , "<"          ,0,GTK_BINOP|GTK_RELOP)
-GTNODE(LE         , "<="         ,0,GTK_BINOP|GTK_RELOP)
-GTNODE(GE         , ">="         ,0,GTK_BINOP|GTK_RELOP)
-GTNODE(GT         , ">"          ,0,GTK_BINOP|GTK_RELOP)
+GTNODE(QMARK            , GenTreeQmark       ,0,GTK_BINOP|GTK_EXOP|GTK_NOTLIR)
+GTNODE(COLON            , GenTreeColon       ,0,GTK_BINOP|GTK_NOTLIR)
 
-GTNODE(COMMA      , "comma"      ,0,GTK_BINOP)
+GTNODE(INDEX            , GenTreeIndex       ,0,GTK_BINOP|GTK_EXOP|GTK_NOTLIR)   // SZ-array-element
+GTNODE(INDEX_ADDR       , GenTreeIndex       ,0,GTK_BINOP|GTK_EXOP)              // addr of SZ-array-element; used when
+                                                                                 // aiming to minimize compile times.
 
-GTNODE(QMARK      , "qmark"      ,0,GTK_BINOP|GTK_EXOP)
-GTNODE(COLON      , "colon"      ,0,GTK_BINOP)
+GTNODE(MKREFANY         , GenTreeOp          ,0,GTK_BINOP)
 
-GTNODE(INDEX      , "[]"         ,0,GTK_BINOP|GTK_EXOP)   // SZ-array-element
+GTNODE(LEA              , GenTreeAddrMode    ,0,GTK_BINOP|GTK_EXOP)
 
-GTNODE(MKREFANY   , "mkrefany"   ,0,GTK_BINOP)
-
-GTNODE(LEA        , "lea"        ,0,GTK_BINOP|GTK_EXOP)
-
-#if !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+#if !defined(_TARGET_64BIT_)
 // A GT_LONG node simply represents the long value produced by the concatenation
 // of its two (lower and upper half) operands.  Some GT_LONG nodes are transient,
 // during the decomposing of longs; others are handled by codegen as operands of
 // nodes such as calls, returns and stores of long lclVars.
-GTNODE(LONG       , "long"       ,0,GTK_BINOP)
+GTNODE(LONG             , GenTreeOp          ,0,GTK_BINOP)
 
-// The following are nodes representing the upper half of a 64-bit operation
-// that requires a carry/borrow.  However, they are all named GT_XXX_HI for
-// consistency.
-GTNODE(ADD_HI     , "+Hi"          ,1,GTK_BINOP|GTK_EXOP)
-GTNODE(SUB_HI     , "-Hi"          ,0,GTK_BINOP|GTK_EXOP)
-GTNODE(MUL_HI     , "*Hi"          ,1,GTK_BINOP|GTK_EXOP)
-GTNODE(DIV_HI     , "/Hi"          ,0,GTK_BINOP|GTK_EXOP)
-GTNODE(MOD_HI     , "%Hi"          ,0,GTK_BINOP|GTK_EXOP)
-#endif // !defined(LEGACY_BACKEND) && !defined(_TARGET_64BIT_)
+// The following are nodes representing x86/arm32 specific long operators, including
+// high operators of a 64-bit operations that requires a carry/borrow, which are
+// named GT_XXX_HI for consistency, low operators of 64-bit operations that need
+// to not be modified in phases post-decompose, and operators that return 64-bit
+// results in one instruction.
+GTNODE(ADD_LO           , GenTreeOp          ,1,GTK_BINOP)
+GTNODE(ADD_HI           , GenTreeOp          ,1,GTK_BINOP)
+GTNODE(SUB_LO           , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(SUB_HI           , GenTreeOp          ,0,GTK_BINOP)
+
+// A mul that returns the 2N bit result of an NxN multiply. This op is used for
+// multiplies that take two ints and return a long result. All other multiplies
+// with long results are morphed into helper calls. It is similar to GT_MULHI,
+// the difference being that GT_MULHI drops the lo part of the result, whereas
+// GT_MUL_LONG keeps both parts of the result.
+#if !defined(_TARGET_64BIT_)
+GTNODE(MUL_LONG         , GenTreeMultiRegOp  ,1,GTK_BINOP)
+#endif
+
+// The following are nodes that specify shifts that take a GT_LONG op1. The GT_LONG
+// contains the hi and lo parts of three operand shift form where one op will be
+// shifted into the other op as part of the operation (LSH_HI will shift
+// the high bits of the lo operand into the high operand as it shifts left. RSH_LO
+// will shift the lo bits of the high operand into the lo operand). LSH_HI
+// represents the high operation of a 64-bit left shift by a constant int, and
+// RSH_LO represents the lo operation of a 64-bit right shift by a constant int.
+GTNODE(LSH_HI           , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(RSH_LO           , GenTreeOp          ,0,GTK_BINOP)
+#endif // !defined(_TARGET_64BIT_)
 
 #ifdef FEATURE_SIMD
-GTNODE(SIMD       , "simd"       ,0,GTK_BINOP|GTK_EXOP)   // SIMD functions/operators/intrinsics
+GTNODE(SIMD             , GenTreeSIMD        ,0,GTK_BINOP|GTK_EXOP)     // SIMD functions/operators/intrinsics
 #endif // FEATURE_SIMD
 
+#ifdef FEATURE_HW_INTRINSICS
+GTNODE(HWIntrinsic      , GenTreeHWIntrinsic ,0,GTK_BINOP|GTK_EXOP)               // hardware intrinsics
+#endif // FEATURE_HW_INTRINSICS
+
+//-----------------------------------------------------------------------------
+//  LIR specific compare and conditional branch/set nodes:
+//-----------------------------------------------------------------------------
+
+GTNODE(CMP              , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // Sets the condition flags according to the compare result. 
+                                                                        // N.B. Not a relop, it does not produce a value and it cannot be reversed.
+GTNODE(JCMP             , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // Makes a comparison and jump if the condition specified.  Does not set flags
+GTNODE(JCC              , GenTreeCC          ,0,GTK_LEAF|GTK_NOVALUE)   // Checks the condition flags and branch if the condition specified
+                                                                        // by GenTreeCC::gtCondition is true.
+GTNODE(SETCC            , GenTreeCC          ,0,GTK_LEAF)               // Checks the condition flags and produces 1 if the condition specified 
+                                                                        // by GenTreeCC::gtCondition is true and 0 otherwise.
+#ifdef _TARGET_XARCH_
+GTNODE(BT               , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)  // The XARCH BT instruction. Like CMP, this sets the condition flags (CF
+                                                                        // to be precise) and does not produce a value.
+#endif
 //-----------------------------------------------------------------------------
 //  Other nodes that look like unary/binary operators:
 //-----------------------------------------------------------------------------
 
-GTNODE(JTRUE      , "jmpTrue"    ,0,GTK_UNOP)
+GTNODE(JTRUE            , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)
 
-GTNODE(LIST       , "<list>"     ,0,GTK_BINOP)
+GTNODE(LIST             , GenTreeArgList     ,0,GTK_BINOP|GTK_NOVALUE)
+GTNODE(FIELD_LIST       , GenTreeFieldList   ,0,GTK_BINOP) // List of fields of a struct, when passed as an argument
 
 //-----------------------------------------------------------------------------
 //  Other nodes that have special structure:
 //-----------------------------------------------------------------------------
 
-GTNODE(FIELD      , "field"      ,0,GTK_SPECIAL)        // Member-field
-GTNODE(ARR_ELEM   , "arrMD&"     ,0,GTK_SPECIAL)        // Multi-dimensional array-element address
-GTNODE(ARR_INDEX  , "arrMDIdx"   ,0,GTK_BINOP|GTK_EXOP) // Effective, bounds-checked index for one dimension of a multi-dimensional array element
-GTNODE(ARR_OFFSET , "arrMDOffs"  ,0,GTK_SPECIAL)        // Flattened offset of multi-dimensional array element
-GTNODE(CALL       , "call()"     ,0,GTK_SPECIAL)
+GTNODE(FIELD            , GenTreeField       ,0,GTK_SPECIAL)            // Member-field
+GTNODE(ARR_ELEM         , GenTreeArrElem     ,0,GTK_SPECIAL)            // Multi-dimensional array-element address
+GTNODE(ARR_INDEX        , GenTreeArrIndex    ,0,GTK_BINOP|GTK_EXOP)     // Effective, bounds-checked index for one dimension of a multi-dimensional array element
+GTNODE(ARR_OFFSET       , GenTreeArrOffs     ,0,GTK_SPECIAL)            // Flattened offset of multi-dimensional array element
+GTNODE(CALL             , GenTreeCall        ,0,GTK_SPECIAL|GTK_NOCONTAIN)
 
 //-----------------------------------------------------------------------------
 //  Statement operator nodes:
 //-----------------------------------------------------------------------------
 
-GTNODE(BEG_STMTS  , "begStmts"   ,0,GTK_SPECIAL) // used only temporarily in importer by impBegin/EndTreeList()
-GTNODE(STMT       , "stmtExpr"   ,0,GTK_SPECIAL) // top-level list nodes in bbTreeList
+GTNODE(BEG_STMTS        , GenTree            ,0,GTK_SPECIAL|GTK_NOVALUE)// used only temporarily in importer by impBegin/EndTreeList()
+GTNODE(STMT             , GenTreeStmt        ,0,GTK_SPECIAL|GTK_NOVALUE)// top-level list nodes in bbTreeList
 
-GTNODE(RETURN     , "return"     ,0,GTK_UNOP)    // return from current function
-GTNODE(SWITCH     , "switch"     ,0,GTK_UNOP)    // switch
+GTNODE(RETURN           , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // return from current function
+GTNODE(SWITCH           , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // switch
 
-GTNODE(NO_OP      , "no_op"      ,0,GTK_LEAF)    // nop!
+GTNODE(NO_OP            , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // nop!
 
-GTNODE(START_NONGC, "start_nongc",0,GTK_LEAF)    // starts a new instruction group that will be non-gc interruptible
+GTNODE(START_NONGC      , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // starts a new instruction group that will be non-gc interruptible
 
-GTNODE(PROF_HOOK  , "prof_hook"  ,0,GTK_LEAF)    // profiler Enter/Leave/TailCall hook
+GTNODE(PROF_HOOK        , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)   // profiler Enter/Leave/TailCall hook
 
-GTNODE(RETFILT    , "retfilt",    0,GTK_UNOP)    // end filter with TYP_I_IMPL return value
+GTNODE(RETFILT          , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)   // end filter with TYP_I_IMPL return value
 #if !FEATURE_EH_FUNCLETS
-GTNODE(END_LFIN   , "endLFin"    ,0,GTK_LEAF)    // end locally-invoked finally
+GTNODE(END_LFIN         , GenTreeVal         ,0,GTK_LEAF|GTK_NOVALUE)   // end locally-invoked finally
 #endif // !FEATURE_EH_FUNCLETS
-
-GTNODE(INITBLK    , "initBlk"    ,0,GTK_BINOP)
-GTNODE(COPYBLK    , "copyBlk"    ,0,GTK_BINOP)
-GTNODE(COPYOBJ    , "copyObj"    ,0,GTK_BINOP)
 
 //-----------------------------------------------------------------------------
 //  Nodes used for optimizations.
 //-----------------------------------------------------------------------------
 
-GTNODE(PHI        , "phi"        ,0,GTK_UNOP)              // phi node for ssa.
-GTNODE(PHI_ARG    , "phiArg"     ,0,GTK_LEAF|GTK_LOCAL)    // phi(phiarg, phiarg, phiarg)
+GTNODE(PHI              , GenTreeOp          ,0,GTK_UNOP)               // phi node for ssa.
+GTNODE(PHI_ARG          , GenTreePhiArg      ,0,GTK_LEAF|GTK_LOCAL)     // phi(phiarg, phiarg, phiarg)
 
 //-----------------------------------------------------------------------------
 //  Nodes used by Lower to generate a closer CPU representation of other nodes
 //-----------------------------------------------------------------------------
 
-GTNODE(JMPTABLE    , "jumpTable"  , 0, GTK_LEAF)   // Generates the jump table for switches
-GTNODE(SWITCH_TABLE, "tableSwitch", 0, GTK_BINOP)  // Jump Table based switch construct
+GTNODE(JMPTABLE         , GenTreeJumpTable   ,0, GTK_LEAF|GTK_NOCONTAIN) // Generates the jump table for switches
+GTNODE(SWITCH_TABLE     , GenTreeOp          ,0, GTK_BINOP|GTK_NOVALUE)  // Jump Table based switch construct
 
 //-----------------------------------------------------------------------------
 //  Nodes used only within the code generator:
 //-----------------------------------------------------------------------------
 
-GTNODE(REG_VAR      , "regVar"        ,0,GTK_LEAF|GTK_LOCAL) // register variable
-GTNODE(CLS_VAR      , "clsVar"        ,0,GTK_LEAF)           // static data member
-GTNODE(CLS_VAR_ADDR , "&clsVar"       ,0,GTK_LEAF)           // static data member address
-GTNODE(STORE_CLS_VAR, "st.clsVar"     ,0,GTK_LEAF)           // store to static data member
-GTNODE(ARGPLACE     , "argPlace"      ,0,GTK_LEAF)           // placeholder for a register arg
-GTNODE(NULLCHECK    , "nullcheck"     ,0,GTK_UNOP)           // null checks the source
-GTNODE(PHYSREG      , "physregSrc"    ,0,GTK_LEAF)           // read from a physical register
-GTNODE(PHYSREGDST   , "physregDst"    ,0,GTK_UNOP)           // write to a physical register
-GTNODE(EMITNOP      , "emitnop"       ,0,GTK_LEAF)           // emitter-placed nop
-GTNODE(PINVOKE_PROLOG,"pinvoke_prolog",0,GTK_LEAF)           // pinvoke prolog seq
-GTNODE(PINVOKE_EPILOG,"pinvoke_epilog",0,GTK_LEAF)           // pinvoke epilog seq
-GTNODE(PUTARG_REG   , "putarg_reg"    ,0,GTK_UNOP)           // operator that places outgoing arg in register
-GTNODE(PUTARG_STK   , "putarg_stk"    ,0,GTK_UNOP)           // operator that places outgoing arg in stack
-GTNODE(RETURNTRAP   , "returnTrap"    ,0,GTK_UNOP)           // a conditional call to wait on gc
-GTNODE(SWAP         , "swap"          ,0,GTK_BINOP)          // op1 and op2 swap (registers)
+GTNODE(REG_VAR          , GenTreeLclVar      ,0,GTK_LEAF|GTK_LOCAL)              // register variable
+GTNODE(CLS_VAR          , GenTreeClsVar      ,0,GTK_LEAF)                        // static data member
+GTNODE(CLS_VAR_ADDR     , GenTreeClsVar      ,0,GTK_LEAF)                        // static data member address
+GTNODE(ARGPLACE         , GenTreeArgPlace    ,0,GTK_LEAF|GTK_NOVALUE|GTK_NOTLIR) // placeholder for a register arg
+GTNODE(NULLCHECK        , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)            // null checks the source
+GTNODE(PHYSREG          , GenTreePhysReg     ,0,GTK_LEAF)                        // read from a physical register
+GTNODE(EMITNOP          , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)            // emitter-placed nop
+GTNODE(PINVOKE_PROLOG   , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)            // pinvoke prolog seq
+GTNODE(PINVOKE_EPILOG   , GenTree            ,0,GTK_LEAF|GTK_NOVALUE)            // pinvoke epilog seq
+#if defined(_TARGET_ARM_)
+GTNODE(PUTARG_REG       , GenTreeMultiRegOp  ,0,GTK_UNOP)                        // operator that places outgoing arg in register
+#else
+GTNODE(PUTARG_REG       , GenTreeOp          ,0,GTK_UNOP)                        // operator that places outgoing arg in register
+#endif
+GTNODE(PUTARG_STK       , GenTreePutArgStk   ,0,GTK_UNOP|GTK_NOVALUE)            // operator that places outgoing arg in stack
+#if FEATURE_ARG_SPLIT
+GTNODE(PUTARG_SPLIT     , GenTreePutArgSplit ,0,GTK_UNOP)                        // operator that places outgoing arg in registers with stack (split struct in ARM32)
+#endif // FEATURE_ARG_SPLIT
+GTNODE(RETURNTRAP       , GenTreeOp          ,0,GTK_UNOP|GTK_NOVALUE)            // a conditional call to wait on gc
+GTNODE(SWAP             , GenTreeOp          ,0,GTK_BINOP|GTK_NOVALUE)           // op1 and op2 swap (registers)
+GTNODE(IL_OFFSET        , GenTreeStmt        ,0,GTK_LEAF|GTK_NOVALUE)            // marks an IL offset for debugging purposes
 
 /*****************************************************************************/
 #undef  GTNODE
 /*****************************************************************************/
+// clang-format on

@@ -20,7 +20,7 @@
 
 #include <rwutil.h>
 
-#if defined(FEATURE_METADATA_IN_VM) || defined(FEATURE_METADATA_STANDALONE_WINRT)
+#if defined(FEATURE_METADATA_IN_VM)
 
 LOADEDMODULES * LOADEDMODULES::s_pLoadedModules = NULL;
 UTSemReadWrite * LOADEDMODULES::m_pSemReadWrite = NULL;
@@ -363,7 +363,7 @@ ErrExit:
 
 #endif //_DEBUG
 
-#endif //FEATURE_METADATA_IN_VM || FEATURE_METADATA_STANDALONE_WINRT
+#endif //FEATURE_METADATA_IN_VM 
 
 #ifdef FEATURE_METADATA_IN_VM
 
@@ -656,7 +656,7 @@ HRESULT CORPATHService::GetClassFromDir(
 
 //*************************************************************
 //
-// Open the file with anme wzModule and check to see if there is a type 
+// Open the file with name wzModule and check to see if there is a type 
 // with namespace/class of wzNamespace/wzType. If so, return the RegMeta
 // corresponding to the file and the mdTypeDef of the typedef
 //

@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -10,31 +13,31 @@
 ldsfld int8 [b410474]A::a0100
 ldc.i4 0
 beq a0101
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0101:
 ldsfld int8 [b410474]A::a0101
 ldc.i4 1
 beq a0102
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0102:
 ldsfld float32 [b410474]A::a0102
 ldc.r4 2.0
 beq a0103
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0103:
 ldsfld int16 [b410474]A::a0103
 ldc.i4 3
 beq a0104
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0104:
 ldsfld float32 [b410474]A::a0104
 ldc.r4 4.0
 beq a0105
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0105:
 ret}
@@ -43,35 +46,35 @@ ldsflda int8 [b410474]A::a0100
 ldind.i1
 ldc.i4 0
 beq a0100
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0100:
 ldsflda int8 [b410474]A::a0101
 ldind.i1
 ldc.i4 1
 beq a0101
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0101:
 ldsflda float32 [b410474]A::a0102
 ldind.r4
 ldc.r4 2.0
 beq a0102
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0102:
 ldsflda int16 [b410474]A::a0103
 ldind.i2
 ldc.i4 3
 beq a0103
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0103:
 ldsflda float32 [b410474]A::a0104
 ldind.r4
 ldc.r4 4.0
 beq a0104
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0104:
 ret}
@@ -79,31 +82,31 @@ ret}
 ldsfld float32 [b410474]A::a0102
 ldc.r4 2.0
 beq a0106
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0106:
 ldsfld int8 [b410474]A::a0101
 ldc.i4 1
 beq a0107
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0107:
 ldsfld float32 [b410474]A::a0104
 ldc.r4 4.0
 beq a0108
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0108:
 ldsfld int16 [b410474]A::a0103
 ldc.i4 3
 beq a0109
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0109:
 ldsfld int16 [b410474]A::a0103
 ldc.i4 3
 beq a01010
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a01010:
 ret}
@@ -124,7 +127,7 @@ ldind.i1
 ldc.i4 0
 beq a0100
 ldstr "a0100"
-newobj instance void [mscorlib]System.ApplicationException::.ctor(string)
+newobj instance void [mscorlib]System.Exception::.ctor(string)
 throw
 a0100:
 ldsflda int8 [b410474]A::a0101
@@ -139,7 +142,7 @@ ldind.i1
 ldc.i4 1
 beq a0101
 ldstr "a0101"
-newobj instance void [mscorlib]System.ApplicationException::.ctor(string)
+newobj instance void [mscorlib]System.Exception::.ctor(string)
 throw
 a0101:
 ldsflda float32 [b410474]A::a0102
@@ -153,7 +156,7 @@ ldind.r4
 ldc.r4 2.0
 beq a0102
 ldstr "a0102"
-newobj instance void [mscorlib]System.ApplicationException::.ctor(string)
+newobj instance void [mscorlib]System.Exception::.ctor(string)
 throw
 a0102:
 ldsflda int16 [b410474]A::a0103
@@ -168,7 +171,7 @@ ldind.i2
 ldc.i4 3
 beq a0103
 ldstr "a0103"
-newobj instance void [mscorlib]System.ApplicationException::.ctor(string)
+newobj instance void [mscorlib]System.Exception::.ctor(string)
 throw
 a0103:
 ldsflda float32 [b410474]A::a0104
@@ -182,7 +185,7 @@ ldind.r4
 ldc.r4 4.0
 beq a0104
 ldstr "a0104"
-newobj instance void [mscorlib]System.ApplicationException::.ctor(string)
+newobj instance void [mscorlib]System.Exception::.ctor(string)
 throw
 a0104:
 ret}
@@ -194,7 +197,7 @@ stsfld int8 [b410474]A::a0100
 ldsfld int8 [b410474]A::a0100
 ldc.i4 1
 beq a0100
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0100:
 ldsfld int8 [b410474]A::a0101
@@ -204,7 +207,7 @@ stsfld int8 [b410474]A::a0101
 ldsfld int8 [b410474]A::a0101
 ldc.i4 2
 beq a0101
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0101:
 ldsfld float32 [b410474]A::a0102
@@ -214,7 +217,7 @@ stsfld float32 [b410474]A::a0102
 ldsfld float32 [b410474]A::a0102
 ldc.r4 3.0
 beq a0102
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0102:
 ldsfld int16 [b410474]A::a0103
@@ -224,7 +227,7 @@ stsfld int16 [b410474]A::a0103
 ldsfld int16 [b410474]A::a0103
 ldc.i4 4
 beq a0103
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0103:
 ldsfld float32 [b410474]A::a0104
@@ -234,7 +237,7 @@ stsfld float32 [b410474]A::a0104
 ldsfld float32 [b410474]A::a0104
 ldc.r4 5.0
 beq a0104
-newobj instance void [mscorlib]System.ApplicationException::.ctor()
+newobj instance void [mscorlib]System.Exception::.ctor()
 throw
 a0104:
 ret}

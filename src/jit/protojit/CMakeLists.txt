@@ -1,12 +1,28 @@
 project(protojit)
 
-remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
 add_definitions(-DALT_JIT)
+add_definitions(-DFEATURE_NO_HOST)
+add_definitions(-DSELF_NO_HOST)
+remove_definitions(-DFEATURE_MERGE_JIT_AND_ENGINE)
+
+if(FEATURE_READYTORUN)
+  add_definitions(-DFEATURE_READYTORUN_COMPILER)
+endif(FEATURE_READYTORUN)
+
+if(WIN32)
+  add_definitions(-DFX_VER_INTERNALNAME_STR=protojit.dll)
+endif(WIN32)
 
 add_library_clr(protojit
    SHARED
    ${SHARED_LIB_SOURCES}
+   ${JIT_ARCH_SOURCES}
 )
+
+add_dependencies(protojit jit_exports)
+
+set_property(TARGET protojit APPEND_STRING PROPERTY LINK_FLAGS ${JIT_EXPORTS_LINKER_OPTION})
+set_property(TARGET protojit APPEND_STRING PROPERTY LINK_DEPENDS ${JIT_EXPORTS_FILE})
 
 set(RYUJIT_LINK_LIBRARIES
    utilcodestaticnohost
@@ -21,7 +37,8 @@ if(CLR_CMAKE_PLATFORM_UNIX)
     )
 else()
     list(APPEND RYUJIT_LINK_LIBRARIES
-       msvcrt.lib
+       ${STATIC_MT_CRT_LIB}
+       ${STATIC_MT_VCRT_LIB}
        kernel32.lib
        advapi32.lib
        ole32.lib
@@ -41,7 +58,4 @@ target_link_libraries(protojit
 )
 
 # add the install targets
-install (TARGETS protojit DESTINATION .)
-if(WIN32)
-    install (FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/protojit.pdb DESTINATION PDB)
-endif(WIN32)
+install_clr(protojit)

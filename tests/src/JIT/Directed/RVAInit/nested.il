@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -34,6 +35,7 @@
   .field public int64 _long
   .field public unsigned int64 _ulong
   .field public float32 _float
+  .field public unsigned int32 _pad
   .field public float64 _double
 } // end of class Internal
 
@@ -41,6 +43,7 @@
        extends [mscorlib]System.ValueType
 {
   .field public unsigned int8 _byte
+  .field public unsigned int32 _pad
   .field public valuetype Internal intern
   .field public int8 _sbyte
   .field public int16 _short
@@ -221,7 +224,7 @@
     IL_00f7:  ldc.i4     0xc822
     IL_00fc:  beq.s      IL_0104
 
-    IL_00fe:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+    IL_00fe:  newobj     instance void [mscorlib]System.Exception::.ctor()
     IL_0103:  throw
 
     IL_0104:  ret

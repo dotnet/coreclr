@@ -38,15 +38,27 @@ int LoadNativeStringResource(const NativeStringResourceTable &nativeStringResour
         if (resourceEntry != NULL)
         {
             len = PAL_GetResourceString(NULL, resourceEntry->resourceString, szBuffer, iMax);
+            if (len == 0)
+            {
+                int hr = HRESULT_FROM_GetLastError();
+
+                // Tell the caller if the buffer isn't big enough
+                if (hr == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) && pcwchUsed)
+                    *pcwchUsed = iMax;
+                    
+                return hr;
+            }
         }
         else
         {
             // The resource ID wasn't found in our array. Fall back on returning the ID as a string.
-            len = _snwprintf(szBuffer, iMax - 1, W("[Undefined resource string ID:0x%X]"), iResourceID);
-            if ((len < 0) || (len == (iMax - 1)))
-            {
-                // Add string terminator if the result of _snwprintf didn't fit the buffer.
-                szBuffer[iMax - 1] = W('\0');
+            len = _snwprintf_s(szBuffer, iMax, _TRUNCATE, W("[Undefined resource string ID:0x%X]"), iResourceID);
+            if (len < 0)
+            {   
+                // The only possible failure is that that string didn't fit the buffer. So the buffer contains 
+                // partial string terminated by '\0'
+                // We could return ERROR_INSUFFICIENT_BUFFER, but we'll error on the side of caution here and
+                // actually show something (given that this is likely a scenario involving a bug/deployment issue)
                 len = iMax - 1;
             }
         }

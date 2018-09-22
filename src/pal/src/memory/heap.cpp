@@ -63,28 +63,6 @@ RtlMoveMemory(
 
 /*++
 Function:
-  RtlZeroMemory
-
-See MSDN doc.
---*/
-VOID
-PALAPI
-RtlZeroMemory(
-    PVOID Destination,
-    SIZE_T Length
-)
-{
-    PERF_ENTRY(RtlZeroMemory);
-    ENTRY("RtlZeroMemory(Destination:%p, Length:%x)\n", Destination, Length);
-    
-    memset(Destination, 0, Length);
-    
-    LOGEXIT("RtlZeroMemory returning.\n");
-    PERF_EXIT(RtlZeroMemory);
-}
-
-/*++
-Function:
   HeapCreate
 
 See MSDN doc.
@@ -285,7 +263,6 @@ HeapFree(
 
     bRetVal = TRUE;
 #ifdef __APPLE__
-    // This is patterned off of InternalFree in malloc.cpp.
     {
         malloc_zone_free((malloc_zone_t *)hHeap, lpMem);
     }

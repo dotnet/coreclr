@@ -66,32 +66,25 @@ typedef unsigned short wchar_t;
 #include <corpriv.h>
 #include <cordbpriv.h>
 
-#ifndef FEATURE_CORECLR
-#include <metahost.h>
-#endif // !FEATURE_CORECLR
 
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 
-#ifdef FEATURE_CAS_POLICY
-#include "certificatecache.h"
-#endif
-
 #include "profilepriv.h"
+
+#include "gcinterface.h"
 
 class ClassLoader;
 class LoaderHeap;
-class GCHeap;
+class IGCHeap;
 class Object;
 class StringObject;
-class TransparentProxyObject;
 class ArrayClass;
 class MethodTable;
 class MethodDesc;
 class SyncBlockCache;
 class SyncTableEntry;
 class ThreadStore;
-class IPCWriterInterface;
 namespace ETW { class CEtwTracer; };
 class DebugInterface;
 class DebugInfoManager;
@@ -102,24 +95,6 @@ class Crst;
 class RCWCleanupList;
 #endif // FEATURE_COMINTEROP
 class BBSweep;
-struct IAssemblyUsageLog;
-
-//
-// object handles are opaque types that track object pointers
-//
-#ifndef DACCESS_COMPILE
-
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-
-#else
-
-typedef TADDR OBJECTHANDLE;
-
-#endif
 
 //
 // loader handles are opaque types that track object pointers that have a lifetime
@@ -181,15 +156,8 @@ class OBJECTREF {
         class ArrayBase* m_asArray;
         class PtrArray* m_asPtrArray;
         class DelegateObject* m_asDelegate;
-        class TransparentProxyObject* m_asTP;
 
         class ReflectClassBaseObject* m_asReflectClass;
-#ifdef FEATURE_COMPRESSEDSTACK        
-        class CompressedStackObject* m_asCompressedStack;
-#endif // #ifdef FEATURE_COMPRESSEDSTACK
-#if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
-        class SecurityContextObject* m_asSecurityContext;
-#endif // #if defined(FEATURE_IMPERSONATION) || defined(FEATURE_COMPRESSEDSTACK)
         class ExecutionContextObject* m_asExecutionContext;
         class AppDomainBaseObject* m_asAppDomainBase;
         class PermissionSetObject* m_asPermissionSetObject;
@@ -345,8 +313,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref)  ((objref).operator-> ())
 #define ObjectToSTRINGREF(obj)     (STRINGREF(obj))
 #define STRINGREFToObject(objref)  (*( (StringObject**) &(objref) ))
-#define ObjectToSTRINGBUFFERREF(obj)    (STRINGBUFFERREF(obj))
-#define STRINGBUFFERREFToObject(objref) (*( (StringBufferObject**) &(objref) ))
 
 #else   // _DEBUG_IMPL
 
@@ -357,8 +323,6 @@ class REF : public OBJECTREF
 #define OBJECTREFToObject(objref) ((PTR_Object) (objref))
 #define ObjectToSTRINGREF(obj)    ((PTR_StringObject) (obj))
 #define STRINGREFToObject(objref) ((PTR_StringObject) (objref))
-#define ObjectToSTRINGBUFFERREF(obj)    ((Ptr_StringBufferObject) (obj))
-#define STRINGBUFFERREFToObject(objref) ((Ptr_StringBufferObject) (objref))
 
 #endif // _DEBUG_IMPL
 
@@ -402,6 +366,7 @@ GPTR_DECL(MethodTable,      g_pStringClass);
 GPTR_DECL(MethodTable,      g_pArrayClass);
 GPTR_DECL(MethodTable,      g_pSZArrayHelperClass);
 GPTR_DECL(MethodTable,      g_pNullableClass);
+GPTR_DECL(MethodTable,      g_pByReferenceClass);
 GPTR_DECL(MethodTable,      g_pExceptionClass);
 GPTR_DECL(MethodTable,      g_pThreadAbortExceptionClass);
 GPTR_DECL(MethodTable,      g_pOutOfMemoryExceptionClass);
@@ -414,12 +379,8 @@ GPTR_DECL(MethodTable,      g_pFreeObjectMethodTable);
 GPTR_DECL(MethodTable,      g_pValueTypeClass);
 GPTR_DECL(MethodTable,      g_pEnumClass);
 GPTR_DECL(MethodTable,      g_pThreadClass);
-GPTR_DECL(MethodTable,      g_pCriticalFinalizerObjectClass);
-GPTR_DECL(MethodTable,      g_pAsyncFileStream_AsyncResultClass);
 GPTR_DECL(MethodTable,      g_pOverlappedDataClass);
 
-GPTR_DECL(MethodTable,      g_ArgumentHandleMT);
-GPTR_DECL(MethodTable,      g_ArgIteratorMT);
 GPTR_DECL(MethodTable,      g_TypedReferenceMT);
 
 GPTR_DECL(MethodTable,      g_pByteArrayMT);
@@ -433,18 +394,14 @@ GPTR_DECL(MethodTable,      g_pBaseRuntimeClass);
 GPTR_DECL(MethodTable,      g_pICastableInterface);
 #endif // FEATURE_ICASTABLE
 
-GPTR_DECL(MethodDesc,       g_pPrepareConstrainedRegionsMethod);
 GPTR_DECL(MethodDesc,       g_pExecuteBackoutCodeHelperMethod);
 
-GPTR_DECL(MethodDesc,       g_pObjectCtorMD);
 GPTR_DECL(MethodDesc,       g_pObjectFinalizerMD);
 
-//<TODO> @TODO Remove eventually - determines whether the verifier throws an exception when something fails</TODO>
-EXTERN bool                 g_fVerifierOff;
-
-#ifndef FEATURE_CORECLR
-EXTERN IAssemblyUsageLog   *g_pIAssemblyUsageLogGac;
+#ifdef FEATURE_INTEROP_DEBUGGING
+GVAL_DECL(DWORD,            g_debuggerWordTLSIndex);
 #endif
+GVAL_DECL(DWORD,            g_TlsIndex);
 
 // Global System Information
 extern SYSTEM_INFO g_SystemInfo;
@@ -479,16 +436,6 @@ GPTR_DECL(SyncTableEntry, g_pSyncTable);
 typedef DPTR(RCWCleanupList) PTR_RCWCleanupList;
 GPTR_DECL(RCWCleanupList,g_pRCWCleanupList);
 #endif // FEATURE_COMINTEROP
-
-#ifdef FEATURE_CAS_POLICY
-EXTERN CertificateCache *g_pCertificateCache;
-#endif 
-
-#ifdef FEATURE_IPCMAN
-// support for IPCManager
-typedef DPTR(IPCWriterInterface) PTR_IPCWriterInterface;
-GPTR_DECL(IPCWriterInterface,  g_pIPCManagerInterface);
-#endif // FEATURE_IPCMAN
 
 // support for Event Tracing for Windows (ETW)
 EXTERN ETW::CEtwTracer* g_pEtwTracer;
@@ -562,24 +509,18 @@ EXTERN Volatile<BOOL> g_fEEStarted;
 EXTERN BOOL g_fComStarted;
 #endif
 
-#if !defined(FEATURE_CORECLR) && !defined(CROSSGEN_COMPILE)
-//
-// Pointer to the activated CLR interface provided by the shim.
-//
-EXTERN ICLRRuntimeInfo *g_pCLRRuntime;
-#endif
 
 //
 // Global state variables indicating which stage of shutdown we are in
 //
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
+EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
 #ifndef DACCESS_COMPILE
 EXTERN BOOL g_fSuspendOnShutdown;
 EXTERN BOOL g_fSuspendFinalizerOnShutdown;
 #endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
-EXTERN bool g_fFinalizerRunOnShutDown;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
 EXTERN bool g_fNoExceptions;
@@ -605,6 +546,10 @@ extern ULONGLONG g_ObjFinalizeStartTime;
 extern Volatile<BOOL> g_FinalizerIsRunning;
 extern Volatile<ULONG> g_FinalizerLoopCount;
 
+#if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
+extern Volatile<BOOL> g_TriggerHeapDump;
+#endif // FEATURE_PAL
+
 extern LONG GetProcessedExitProcessEventCount();
 
 #ifndef DACCESS_COMPILE
@@ -622,19 +567,7 @@ EXTERN const char g_psBaseLibrary[];
 EXTERN const char g_psBaseLibraryName[];
 EXTERN const char g_psBaseLibrarySatelliteAssemblyName[];
 
-#ifdef FEATURE_COMINTEROP
-EXTERN const WCHAR g_pwBaseLibraryTLB[];
-EXTERN const char g_psBaseLibraryTLB[];
-#endif  // FEATURE_COMINTEROP
 #endif // DACCESS_COMPILE
-
-EXTERN const WCHAR g_pwzClickOnceEnv_FullName[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Manifest[];
-EXTERN const WCHAR g_pwzClickOnceEnv_Parameter[];
-
-#ifdef FEATURE_LOADER_OPTIMIZATION
-EXTERN DWORD g_dwGlobalSharePolicy;
-#endif
 
 //
 // Do we own the lifetime of the process, ie. is it an EXE?
@@ -655,17 +588,6 @@ extern const DWORD g_rgPrimes[71];
 //
 extern LPWSTR g_pCachedCommandLine;
 extern LPWSTR g_pCachedModuleFileName;
-
-//
-// Host configuration file. One per process.
-//
-extern LPCWSTR g_pszHostConfigFile;
-extern SIZE_T  g_dwHostConfigFile;
-
-// AppDomainManager type
-extern LPWSTR g_wszAppDomainManagerAsm;
-extern LPWSTR g_wszAppDomainManagerType;
-extern bool g_fDomainManagerInitialized;
 
 //
 // Macros to check debugger and profiler settings.
@@ -901,10 +823,24 @@ extern bool g_fReadyToRunCompilation;
 // Returns true if this is NGen compilation process.
 // This is a superset of CompilationDomain::IsCompilationDomain() as there is more
 // than one AppDomain in ngen (the DefaultDomain)
-BOOL IsCompilationProcess();
+inline BOOL IsCompilationProcess()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Flag for cross-platform ngen: Removes all execution of managed or third-party code in the ngen compilation process.
-BOOL NingenEnabled();
+inline BOOL NingenEnabled()
+{
+#ifdef CROSSGEN_COMPILE
+    return TRUE;
+#else
+    return FALSE;
+#endif
+}
 
 // Passed to JitManager APIs to determine whether to avoid calling into the host. 
 // The profiling API stackwalking uses this to ensure to avoid re-entering the host 

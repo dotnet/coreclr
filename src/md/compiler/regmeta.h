@@ -16,20 +16,13 @@
 #define __RegMeta__h__
 
 #include <metamodelrw.h>
-#include <corperm.h>
 #include "../inc/mdlog.h"
 #include "utsem.h"
 
-#include "newmerger.h"
-
 #include "rwutil.h"
 #include "mdperf.h"
-#include <ivehandler.h>
 
 #include "sigparser.h"
-#ifdef FEATURE_FUSION
-#include "fusion.h"
-#endif
 
 #include "winmdinterfaces.h"
 
@@ -155,17 +148,11 @@ class RegMeta :
     public IMetaDataAssemblyImport, 
     public IMetaDataTables2
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
     , public IMetaDataInfo 
-#endif
 
 #ifdef FEATURE_METADATA_EMIT
     , public IMetaDataEmit2 
     , public IMetaDataAssemblyEmit 
-#endif
-
-#ifdef FEATURE_METADATA_VALIDATOR
-    , public IMetaDataValidate 
 #endif
 
 #ifdef FEATURE_METADATA_EMIT_ALL
@@ -188,7 +175,6 @@ class RegMeta :
 #endif
     , public IMDCommon
 {
-    friend class NEWMERGER;
     friend class CImportTlb;
     friend class MDInternalRW;
     friend class MDInternalRO;
@@ -1203,18 +1189,6 @@ public:
 
 #endif //FEATURE_METADATA_EMIT
 
-#ifdef FEATURE_METADATA_VALIDATOR
-//*****************************************************************************
-// IMetaDataValidator
-//*****************************************************************************
-
-    STDMETHODIMP ValidatorInit(
-        DWORD      dwModuleType,    // [IN] Specifies whether the module is a PE file or an obj.
-        IUnknown * pUnk);           // [IN] Validation error handler.
-
-    STDMETHODIMP ValidateMetaData();
-#endif //FEATURE_METADATA_VALIDATOR
-
 #ifdef FEATURE_METADATA_EMIT_ALL
 //*****************************************************************************
 // IMetaDataFilter
@@ -1492,7 +1466,6 @@ public:
         const void **ppv,                       // [OUT] put pointer to MD stream here.
         ULONG       *pcb);                      // [OUT] put size of the stream here.
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
 
 //*****************************************************************************
 // IMetaDataInfo
@@ -1511,7 +1484,6 @@ public:
         ULONGLONG *   pcbData,          // [out] Size of the mapped memory region..
         DWORD *       pdwMappingType);  // [out] Type of file mapping (code:CorFileMapping).
 
-#endif //!FEATURE_METADATA_STANDALONE_WINRT
 
 #if defined(FEATURE_METADATA_IN_VM) && defined(FEATURE_PREJIT)
 
@@ -1633,8 +1605,6 @@ protected:
     }
 
     HRESULT PreSave();
-    HRESULT ProcessFilter();
-    HRESULT ProcessFilterWorker();
 
     // Initialize the EE
     HRESULT StartupEE();
@@ -2026,18 +1996,12 @@ protected:
     bool        m_fIsTypeDefDirty;          // This flag is set when the TypeRef to TypeDef map is not valid
     bool        m_fIsMemberDefDirty;        // This flag is set when the MemberRef to MemberDef map is not valid
     bool        m_fStartedEE;               // Set when EE runtime has been started up.
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    ICorRuntimeHost *m_pCorHost;            // Hosting environment for EE runtime.
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     IUnknown    *m_pAppDomain;              // AppDomain in which managed security code will be run. 
 
 private:
     ULONG       m_OpenFlags;                // Open time flags.
 
     LONG        m_cRef;                     // Ref count.
-#ifdef FEATURE_METADATA_EMIT_ALL
-    NEWMERGER   m_newMerger;                // class for handling merge 
-#endif //FEATURE_METADATA_EMIT_ALL
     IUnknown    *m_pFreeThreadedMarshaler;   // FreeThreadedMarshaler
     
 #ifdef FEATURE_METADATA_PERF_STATS
@@ -2058,10 +2022,6 @@ private:
     SetAPICallerType m_SetAPICaller;
 
     CorValidatorModuleType      m_ModuleType;
-    IVEHandler                  *m_pVEHandler;
-#ifndef FEATURE_CORECLR
-    ValidateRecordFunction      m_ValidateRecordFunctionTable[TBL_COUNT];
-#endif
     CCustAttrHash               m_caHash;   // Hashed list of custom attribute types seen.
     
     bool        m_bKeepKnownCa;             // Should all known CA's be kept?
@@ -2076,28 +2036,6 @@ private:
                               // There is an equivalent state in MiniMD, and both must be
                               // TRUE in order to delete safely.
 #endif
-
-    HRESULT _ValidateErrorHelper(
-        HRESULT     VECode,
-        VEContext   Context);
-
-    HRESULT _ValidateErrorHelper(
-        HRESULT     VECode,
-        VEContext   Context,
-        ULONG       ulVal1);
-
-    HRESULT _ValidateErrorHelper(
-        HRESULT     VECode,
-        VEContext   Context,
-        ULONG       ulVal1,
-        ULONG       ulVal2);
-    
-    HRESULT _ValidateErrorHelper(
-        HRESULT     VECode,
-        VEContext   Context,
-        ULONG       ulVal1,
-        ULONG       ulVal2,
-        ULONG       ulVal3);
     
 private:
     // Returns pointer to zeros of size (cbSize).

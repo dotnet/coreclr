@@ -98,7 +98,6 @@ NESTED_END RedirectedHandledJITCaseFor&reason&_Stub, _TEXT
 GenerateRedirectedHandledJITCaseStub GCThreadControl
 GenerateRedirectedHandledJITCaseStub DbgThreadControl
 GenerateRedirectedHandledJITCaseStub UserSuspend
-GenerateRedirectedHandledJITCaseStub YieldTask
 
 ifdef _DEBUG
 ifdef HAVE_GCCOVER
@@ -195,9 +194,8 @@ NESTED_ENTRY RedirectForThrowControl2, _TEXT
         END_PROLOGUE
 
         ; Fetch rip from a CONTEXT, and store it as our return address.
-        CALL_GETTHREAD
+        INLINE_GETTHREAD rcx
 
-        mov             rcx, rax
         call            Thread__GetAbortContext
 
         mov             rax, [rax + OFFSETOF__CONTEXT__Rip]

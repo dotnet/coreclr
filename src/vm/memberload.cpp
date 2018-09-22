@@ -24,20 +24,15 @@
 #include "stublink.h"
 #include "ecall.h"
 #include "dllimport.h"
-#include "verifier.hpp"
 #include "jitinterface.h"
 #include "eeconfig.h"
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
-#include "security.h"
+#include "gcheaputilities.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
 #include "sigformat.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeprofinterfaces.h"
 #include "dllimportcallback.h"
 #include "listlock.h"
@@ -49,10 +44,6 @@
 #include "virtualcallstub.h"
 #include "eeconfig.h"
 #include "contractimpl.h"
-#ifdef FEATURE_REMOTING
-#include "objectclone.h"
-#endif
-#include "listlock.inl"
 #include "generics.h"
 #include "instmethhash.h"
 #include "typestring.h"

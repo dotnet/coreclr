@@ -383,7 +383,7 @@ void HandleCall(TADDR callee, Register *reg)
         if (MethodDescData.Request(g_sos, TO_CDADDR(methodDesc)) == S_OK)
         {
             NameForMD_s(methodDesc, g_mdName,mdNameLen);                    
-            ExtOut(" (%S, mdToken: %p)", g_mdName, (UINT64)MethodDescData.MDToken);
+            ExtOut(" (%S, mdToken: %p)", g_mdName, SOS_PTR(MethodDescData.MDToken));
             return;
         }
     }
@@ -414,7 +414,7 @@ void HandleCall(TADDR callee, Register *reg)
             if (MethodDescData.Request(g_sos, md) == S_OK)
             {
                 NameForMD_s(md, g_mdName,mdNameLen);
-                ExtOut(" (%S, mdToken: %p)", g_mdName, (UINT64)MethodDescData.MDToken);
+                ExtOut(" (%S, mdToken: %p)", g_mdName, SOS_PTR(MethodDescData.MDToken));
                 return;
             }
         }
@@ -522,7 +522,7 @@ void
     char *ptr;
 
     ULONG curLine = -1;
-    char  filename[MAX_PATH_FNAME+1];
+    WCHAR filename[MAX_LONGPATH];
     ULONG linenum;
 
     while (IP < IPEnd)
@@ -532,13 +532,12 @@ void
 
         // Print out line numbers if needed
         if (!bSuppressLines
-            && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), 
-                           &linenum, filename, MAX_PATH_FNAME+1)))
+            && SUCCEEDED(GetLineByOffset(TO_CDADDR(IP), &linenum, filename, MAX_LONGPATH)))
         {
             if (linenum != curLine)
             {
                 curLine = linenum;
-                ExtOut("\n%s @ %d:\n", filename, linenum);
+                ExtOut("\n%S @ %d:\n", filename, linenum);
             }
         }
 
@@ -1045,7 +1044,7 @@ void
         move_xp (offs, retAddr-4);
         *whereCalled = retAddr + (ULONG64)(LONG)(offs);
         //*whereCalled = *((int*) (retAddr-4)) + retAddr;
-        // on WOW64 the range valid for code is almost the whole 4GB adddress space
+        // on WOW64 the range valid for code is almost the whole 4GB address space
         if (g_ExtData->ReadVirtual(TO_CDADDR(*whereCalled), &addr, sizeof(addr), NULL) == S_OK)
         {
             TADDR callee;
@@ -1071,7 +1070,7 @@ void
         if (g_ExtData->ReadVirtual(TO_CDADDR(addr), whereCalled, sizeof(*whereCalled), NULL) == S_OK) {
             move_xp (*whereCalled, addr);
             //*whereCalled = **((unsigned**) (retAddr-4));
-            // on WOW64 the range valid for code is almost the whole 4GB adddress space
+            // on WOW64 the range valid for code is almost the whole 4GB address space
             if (g_ExtData->ReadVirtual(TO_CDADDR(*whereCalled), &addr, sizeof(addr), NULL) == S_OK) 
             {
                 TADDR callee;

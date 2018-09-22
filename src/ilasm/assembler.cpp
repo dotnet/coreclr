@@ -99,17 +99,6 @@ mdToken Assembler::ResolveClassRef(mdToken tkResScope, __in __nullterminated con
     mdToken *ptkSpecial = NULL;
 
     if(pszFullClassName == NULL) return mdTokenNil;
-#if (0)
-    if (m_fInitialisedMetaData == FALSE)
-    {
-        if (FAILED(InitMetaData())) // impl. see WRITER.CPP
-        {
-            _ASSERTE(0);
-            if(ppClass) *ppClass = NULL;
-            return mdTokenNil;
-        }
-    }
-#endif
 
     switch(strlen(pszFullClassName))
     {
@@ -287,9 +276,22 @@ mdToken Assembler::GetAsmRef(__in __nullterminated const char* szName)
 
 mdToken Assembler::GetBaseAsmRef()
 {
-    if(RidFromToken(m_pManifest->GetAsmRefTokByName("System.Runtime")) != 0)
+    AsmManAssembly* sysRuntime = m_pManifest->GetAsmRefByAsmName("System.Runtime");
+    if(sysRuntime != NULL)
     {
-        return GetAsmRef("System.Runtime");
+        return GetAsmRef(sysRuntime->szAlias ? sysRuntime->szAlias : sysRuntime->szName);
+    }
+
+    AsmManAssembly* mscorlibAsm = m_pManifest->GetAsmRefByAsmName("mscorlib");
+    if(mscorlibAsm != NULL)
+    {
+        return GetAsmRef(mscorlibAsm->szAlias ? mscorlibAsm->szAlias : mscorlibAsm->szName);
+    }
+
+    AsmManAssembly* netstandardAsm = m_pManifest->GetAsmRefByAsmName("netstandard");
+    if (netstandardAsm != NULL)
+    {
+        return GetAsmRef(netstandardAsm->szAlias ? netstandardAsm->szAlias : netstandardAsm->szName);
     }
 
     return GetAsmRef("mscorlib");
@@ -703,24 +705,6 @@ void Assembler::StartMethod(__in __nullterminated char* name, BinStr* sig, CorMe
             {
                 flags = (CorMethodAttr)(flags | mdSpecialName);
                 if(IsTdInterface(m_pCurClass->m_Attr)) report->error("Instance constructor in interface\n");
-
-            }
-            if(!IsMdStatic(flags))
-            {
-                if(IsTdInterface(m_pCurClass->m_Attr))
-                {
-                    if(!IsMdPublic(flags)) report->error("Non-public instance method in interface\n");
-                    if((!(IsMdVirtual(flags) && IsMdAbstract(flags))))
-                    {
-                        if(OnErrGo) report->error("Non-virtual, non-abstract instance method in interface\n");
-                        else
-                        {
-                            report->warn("Non-virtual, non-abstract instance method in interface, set to such\n");
-                            flags = (CorMethodAttr)(flags |mdVirtual | mdAbstract);
-                        }
-                    }
-    
-                }
             }
             m_pCurMethod = new Method(this, m_pCurClass, name, sig, flags);
         }
@@ -1725,7 +1709,7 @@ void Assembler::EmitInstrBrOffset(Instr* instr, int offset)
     unsigned opc=instr->opcode;
     if(m_fOptimize)
     {
-        if((-128 >= offset)&&(offset <= 127))
+        if((-128 <= offset)&&(offset <= 127))
         {
             opc = instr->opcode = ShortOf(opc);
         }
@@ -2213,26 +2197,6 @@ void Assembler::EmitBytes(BYTE *p, unsigned len)
 BinStr* Assembler::EncodeSecAttr(__in __nullterminated char* szReflName, BinStr* pbsSecAttrBlob, unsigned nProps)
 {
     unsigned cnt;
-#if (0)
-    // Emit MemberRef for .ctor
-    mdToken tkMscorlib = m_fIsMscorlib ? 1 : GetAsmRef("mscorlib");
-    char buffer[64];
-    BinStr  *pbsSig = new BinStr();
-
-    strcpy(buffer,"System.Security.Permissions.SecurityAction");
-    mdToken tkSecAction = ResolveClassRef(tkMscorlib,buffer, NULL);
-
-    pbsSig->appendInt8(IMAGE_CEE_CS_CALLCONV_HASTHIS);
-    pbsSig->appendInt8(1); //corEmitInt(pbsSig,1);
-    pbsSig->appendInt8(ELEMENT_TYPE_VOID);
-    pbsSig->appendInt8(ELEMENT_TYPE_VALUETYPE);
-    cnt = CorSigCompressToken(tkSecAction, pbsSig->getBuff(5));
-    pbsSig->remove(5 - cnt);
-    
-    char* szName = new char[16];
-    strcpy(szName,".ctor");
-    MakeMemberRef(tkSecAttr,szName,pbsSig);
-#endif
 
     // build the blob As BinStr
     unsigned L = (unsigned) strlen(szReflName);

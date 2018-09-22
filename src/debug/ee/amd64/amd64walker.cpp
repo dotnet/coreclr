@@ -131,10 +131,11 @@ void NativeWalker::Decode()
     {
         case 0xff:
         {
-
             BYTE modrm = *ip++;
 
-            _ASSERT(modrm != NULL);
+            // Ignore "inc dword ptr [reg]" instructions
+            if (modrm == 0)
+                break;
             
             BYTE mod = (modrm & 0xC0) >> 6;
             BYTE reg = (modrm & 0x38) >> 3;
@@ -744,7 +745,7 @@ LLegacyPrefix:
             }
 
             // RET
-            if ((lowNibble == 0x2) && (lowNibble == 0x3))
+            if ((lowNibble == 0x2) || (lowNibble == 0x3))
             {
                 break;
             }

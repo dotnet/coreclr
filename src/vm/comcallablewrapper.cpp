@@ -16,9 +16,6 @@
 #include "clrtypes.h"
 
 #include "comcallablewrapper.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #include "object.h"
 #include "field.h"
@@ -34,14 +31,12 @@
 #include "cgensys.h"
 #include "comtoclrcall.h"
 #include "clrtocomcall.h"
-#include "objecthandle.h"
 #include "comutilnative.h"
 #include "eeconfig.h"
 #include "interoputil.h"
 #include "dispex.h"
 #include "perfcounters.h"
 #include "guidfromname.h"
-#include "security.h"
 #include "comconnectionpoints.h"
 #include <objsafe.h>    // IID_IObjctSafe
 #include "virtualcallstub.h"
@@ -49,8 +44,8 @@
 #include "caparser.h"
 #include "appdomain.inl"
 #include "rcwwalker.h"
-#include "windowsruntimebufferhelper.h"
 #include "winrttypenameconverter.h"
+#include "typestring.h"
 
 #ifdef MDA_SUPPORTED
 const int DEBUG_AssertSlots = 50;
@@ -409,17 +404,6 @@ MethodTable* RefineProxy(OBJECTREF pServer)
     
     MethodTable* pRefinedClass = NULL;
     
-#ifdef FEATURE_REMOTING
-    GCPROTECT_BEGIN(pServer);
-    if (pServer->IsTransparentProxy())
-    {
-        // if we have a transparent proxy let us refine it fully 
-        // before giving it out to unmanaged code
-        REFLECTCLASSBASEREF refClass= CRemotingServices::GetClass(pServer);
-        pRefinedClass = refClass->GetType().GetMethodTable();
-    }
-    GCPROTECT_END();
-#endif
 
     RETURN pRefinedClass;
 }
@@ -959,43 +943,56 @@ void SimpleComCallWrapper::BuildRefCountLogMessage(LPCWSTR wszOperation, StackSS
     }
     CONTRACTL_END;
 
-    GCX_COOP();
-
-    // There's no way how to get the class name if the AD is unloaded. We will just skip it if it
-    // is the case. Note that we do log the AD unload event in SimpleComCallWrapper::Neuter so there
-    // should still be enough useful information in the log.
-    AppDomainFromIDHolder ad(GetRawDomainID(), TRUE);
-    if (!ad.IsUnloaded())
+    // Don't worry about domain unloading in CoreCLR
+    LPCUTF8 pszClassName;
+    LPCUTF8 pszNamespace;
+    if (SUCCEEDED(m_pMT->GetMDImport()->GetNameOfTypeDef(m_pMT->GetCl(), &pszClassName, &pszNamespace)))
     {
-        LPCUTF8 pszClassName;
-        LPCUTF8 pszNamespace;
-        if (SUCCEEDED(m_pMT->GetMDImport()->GetNameOfTypeDef(m_pMT->GetCl(), &pszClassName, &pszNamespace)))
+        OBJECTHANDLE handle = GetMainWrapper()->GetRawObjectHandle();
+        _UNCHECKED_OBJECTREF obj = NULL;
+
+        // Force retriving the handle without using OBJECTREF and under cooperative mode
+        // We only need the value in ETW events and it doesn't matter if it is super accurate
+        if (handle != NULL)
+            obj = *((_UNCHECKED_OBJECTREF *)(handle));
+
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, CCWRefCountChange)) 
         {
-            OBJECTHANDLE handle = GetMainWrapper()->GetRawObjectHandle();
-            Object* obj = NULL;
-            if (handle != NULL)
-                obj = OBJECTREFToObject(ObjectFromHandle(handle));
-
-            if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, CCWRefCountChange)) 
-                FireEtwCCWRefCountChange(handle, obj, this, dwEstimatedRefCount, (LONGLONG) ad.GetAddress(),
-                    pszClassName, pszNamespace, wszOperation, GetClrInstanceId());
-            
-            if (g_pConfig->ShouldLogCCWRefCountChange(pszClassName, pszNamespace))
+            EX_TRY
             {
-                EX_TRY
-                {
-                    StackSString ssClassName;
-                    TypeString::AppendType(ssClassName, TypeHandle(m_pMT));
+                SString className;
+                className.SetUTF8(pszClassName);
+                SString nameSpace;
+                nameSpace.SetUTF8(pszNamespace);
 
-                    ssMessage.Printf(W("LogCCWRefCountChange[%s]: '%s', Object=poi(%p)"),
-                        wszOperation,                                          // %s operation
-                        ssClassName.GetUnicode(),                              // %s type name
-                        handle);               // %p Object
-                }
-                EX_CATCH
-                { }
-                EX_END_CATCH(SwallowAllExceptions);
+                FireEtwCCWRefCountChange(
+                    handle, 
+                    (Object *)obj, 
+                    this, 
+                    dwEstimatedRefCount, 
+                    NULL,                   // domain value is not interesting in CoreCLR
+                    className.GetUnicode(), nameSpace.GetUnicode(), wszOperation, GetClrInstanceId());
             }
+            EX_CATCH
+            { }
+            EX_END_CATCH(SwallowAllExceptions);
+        }
+        
+        if (g_pConfig->ShouldLogCCWRefCountChange(pszClassName, pszNamespace))
+        {
+            EX_TRY
+            {
+                StackSString ssClassName;
+                TypeString::AppendType(ssClassName, TypeHandle(m_pMT));
+
+                ssMessage.Printf(W("LogCCWRefCountChange[%s]: '%s', Object=poi(%p)"),
+                    wszOperation,                                          // %s operation
+                    ssClassName.GetUnicode(),                              // %s type name
+                    handle);               // %p Object
+            }
+            EX_CATCH
+            { }
+            EX_END_CATCH(SwallowAllExceptions);
         }
     }
 }
@@ -1093,25 +1090,13 @@ VOID SimpleComCallWrapper::Cleanup()
     m_pWrap = NULL;
     m_pMT = NULL;
 
-    if (HasOverlappedRef())
+    if (m_pCPList)
     {
-        if (m_operlappedPtr)
-        {
-            WindowsRuntimeBufferHelper::ReleaseOverlapped(m_operlappedPtr);
-            m_operlappedPtr = NULL;            
-        }
-        UnMarkOverlappedRef();
-    }
-    else
-    {         
-        if (m_pCPList)  // enum_HasOverlappedRef
-        {
-            for (UINT i = 0; i < m_pCPList->Size(); i++)
-                delete (*m_pCPList)[i];
+        for (UINT i = 0; i < m_pCPList->Size(); i++)
+            delete (*m_pCPList)[i];
 
-            delete m_pCPList;
-            m_pCPList = NULL;
-        }
+        delete m_pCPList;
+        m_pCPList = NULL;
     }
     
     // if this object was made agile, then we will have stashed away the original handle
@@ -1286,10 +1271,6 @@ void SimpleComCallWrapper::InitNew(OBJECTREF oref, ComCallWrapperCache *pWrapper
     MethodTable* pMT = pTemplate->GetClassType().GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
 
-#ifdef FEATURE_REMOTING
-    if (CRemotingServices::IsTransparentProxy(OBJECTREFToObject(oref)))
-        m_flags |= enum_IsObjectTP;
-#endif
     
     m_pMT = pMT;
     m_pWrap = pWrap; 
@@ -1438,8 +1419,6 @@ void SimpleComCallWrapper::SetUpCPList()
     
     CQuickArray<MethodTable *> SrcItfList;
         
-    _ASSERTE(!HasOverlappedRef());
-
     // If the list has already been set up, then return.
     if (m_pCPList)
         return;
@@ -1462,8 +1441,6 @@ void SimpleComCallWrapper::SetUpCPListHelper(MethodTable **apSrcItfMTs, int cSrc
         PRECONDITION(CheckPointer(apSrcItfMTs));
     }
     CONTRACTL_END;
-
-    _ASSERTE(!HasOverlappedRef());
         
     CPListHolder pCPList = NULL;
     ComCallWrapper *pWrap = GetMainWrapper();
@@ -1625,9 +1602,6 @@ BOOL SimpleComCallWrapper::SupportsIReflect(MethodTable *pClass)
     if (pClass == g_pRuntimeTypeClass)
         return FALSE;
 
-    if (MscorlibBinder::IsClass(pClass, CLASS__CLASS_INTROSPECTION_ONLY))
-        return FALSE;
-
     if (MscorlibBinder::IsClass(pClass, CLASS__TYPE_BUILDER))
         return FALSE;
 
@@ -1774,12 +1748,10 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(Enum_StdInterfaces index)
 
     else if (index == enum_IDispatchEx)
     {
-#ifdef FEATURE_CORECLR
         if (AppX::IsAppXProcess())
         { 
             RETURN NULL;
         }
-#endif // FEATURE_CORECLR
 
         if (SupportsIReflect(m_pMT))
         {
@@ -1953,45 +1925,11 @@ IUnknown* SimpleComCallWrapper::QIStandardInterface(REFIID riid)
         }
         break;
 
-    CASE_IID_INLINE(  enum_IObjectSafety            ,0xCB5BDC81,0x93C1,0x11cf,0x8F,0x20,0x00,0x80,0x5F,0x2C,0xD0,0x64)
-        {
-            // Don't implement IObjectSafety by default.
-            // Use IObjectSafety only for IE Hosting or similar hosts
-            // which create sandboxed AppDomains.
-            // Unconditionally implementing IObjectSafety would allow
-            // Untrusted scripts to use managed components.
-            // Managed components could implement their own IObjectSafety to
-            // override this.
-            BOOL bShouldProvideIObjectSafety=FALSE;
-            {
-                GCX_COOP();
-                AppDomainFromIDHolder pDomain(GetDomainID(), FALSE);
-                if (!pDomain.IsUnloaded()) 
-                    bShouldProvideIObjectSafety=!pDomain->GetSecurityDescriptor()->IsFullyTrusted();
-            }
-
-            if(bShouldProvideIObjectSafety)
-                RETURN QIStandardInterface(enum_IObjectSafety);
-        }
-        break;
-
     CASE_IID_INLINE(  enum_IAgileObject            ,0x94ea2b94,0xe9cc,0x49e0,0xc0,0xff,0xee,0x64,0xca,0x8f,0x5b,0x90)
         {
-            // Don't implement IAgileObject if we are aggregated, if we are in a non AppX process, if the object explicitly implements IMarshal,
-            // or if its ICustomQI returns Failed or Handled for IID_IMarshal (compat).
-            //
-            // The AppX check was primarily done to ensure that we dont break VS in classic mode when it loads the desktop CLR since it needs
-            // objects to be non-Agile. In Apollo, we had objects agile in CoreCLR and even though we introduced AppX support in PhoneBlue,
-            // we should not constrain object agility using the desktop constraint, especially since VS does not rely on CoreCLR for its 
-            // desktop execution. 
-            //
-            // Keeping the Apollo behaviour also ensures that we allow SL 8.1 scenarios (which do not pass the AppX flag like the modern host) 
-            // to use CorDispatcher for async, in the expected manner, as the OS implementation for CoreDispatcher expects objects to be Agile.
-            if (!IsAggregated() 
-#if !defined(FEATURE_CORECLR)
-            && AppX::IsAppXProcess()
-#endif // !defined(FEATURE_CORECLR)
-            )
+            // Don't implement IAgileObject if we are aggregated, if the object explicitly implements IMarshal, or if its ICustomQI returns
+            // Failed or Handled for IID_IMarshal (compat).
+            if (!IsAggregated())
             {
                 ComCallWrapperTemplate *pTemplate = GetComCallWrapperTemplate();
                 if (!pTemplate->ImplementsIMarshal())
@@ -2085,9 +2023,7 @@ BOOL SimpleComCallWrapper::FindConnectionPoint(REFIID riid, IConnectionPoint **p
         PRECONDITION(CheckPointer(ppCP));
     }
     CONTRACTL_END;
-    
-    _ASSERTE(!HasOverlappedRef());
-
+ 
     // If the connection point list hasn't been set up yet, then set it up now.
     if (!m_pCPList)
         SetUpCPList();
@@ -2123,8 +2059,6 @@ void SimpleComCallWrapper::EnumConnectionPoints(IEnumConnectionPoints **ppEnumCP
         PRECONDITION(CheckPointer(ppEnumCP));
     }
     CONTRACTL_END;
-
-    _ASSERTE(!HasOverlappedRef());
 
     // If the connection point list hasn't been set up yet, then set it up now.
     if (!m_pCPList)
@@ -2172,9 +2106,9 @@ void SimpleComCallWrapper::EnumConnectionPoints(IEnumConnectionPoints **ppEnumCP
 //  VTable and Stubs: can share stub code, we need to have different vtables
 //                    for different interfaces, so the stub can jump to different
 //                    marshalling code.
-//  Stubs : adjust this pointer and jump to the approp. address,
+//  Stubs : adjust this pointer and jump to the appropriate address,
 //  Marshalling params and results, based on the method signature the stub jumps to
-//  approp. code to handle marshalling and unmarshalling.
+//  appropriate code to handle marshalling and unmarshalling.
 //  
 //--------------------------------------------------------------------------
 
@@ -2385,7 +2319,7 @@ ComCallWrapper* ComCallWrapper::CopyFromTemplate(ComCallWrapperTemplate* pTempla
     if (pStartWrapper == NULL)
         COMPlusThrowOM();
 
-    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, pStartWrapper));
+    LOG((LF_INTEROP, LL_INFO100, "ComCallWrapper::CopyFromTemplate on Object %8.8x, Wrapper %8.8x\n", oh, static_cast<ComCallWrapperPtr>(pStartWrapper)));
 
     // addref commgr
     pWrapperCache->AddRef();
@@ -2688,32 +2622,6 @@ void ComCallWrapper::FreeWrapper(ComCallWrapperCache *pWrapperCache)
     pWrapperCache->Release();
 }
 
-void ComCallWrapper::DoScriptingSecurityCheck()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // If the object is shared or agile, and the current domain doesn't have
-    //  UmgdCodePermission, we fail the call.
-    AppDomain* pCurrDomain = GetThread()->GetDomain();
-    ADID currID = pCurrDomain->GetId();
-
-    ADID ccwID = m_pSimpleWrapper->GetRawDomainID();
-    
-    if (currID != ccwID)
-    {
-        IApplicationSecurityDescriptor* pASD = pCurrDomain->GetSecurityDescriptor();
-
-        if (!pASD->CanCallUnmanagedCode())
-            Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSUNMANAGEDCODE);
-    }
-}
-
 //--------------------------------------------------------------------------
 //ComCallWrapper* ComCallWrapper::CreateWrapper(OBJECTREF* ppObj, ComCallWrapperTemplate *pTemplate, ComCallWrapper *pClassCCW)
 // this function should be called only with pre-emptive GC disabled
@@ -2741,11 +2649,7 @@ ComCallWrapper* ComCallWrapper::CreateWrapper(OBJECTREF* ppObj, ComCallWrapperTe
 
     pServer = *ppObj;
 
-#ifdef FEATURE_REMOTING
-    Context *pContext = Context::GetExecutionContext(pServer);
-#else
     Context *pContext = GetAppDomain()->GetDefaultContext();
-#endif
 
     // Force Refine the object if it is a transparent proxy
     RefineProxy(pServer);
@@ -3349,9 +3253,7 @@ inline IUnknown * ComCallWrapper::GetComIPFromCCW_VisibilityCheck(
     }
     CONTRACT_END;
 
-        // Ensure that the interface we are passing out was defined in trusted code.
-    if ((!(flags & GetComIPFromCCW::SuppressSecurityCheck) && pIntfComMT->IsDefinedInUntrustedCode()) ||
-        // Do a visibility check if needed.
+    if (// Do a visibility check if needed.
         ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
     {
         //  If not, fail to return the interface.
@@ -3614,12 +3516,10 @@ IUnknown* ComCallWrapper::GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, Me
     }                    
     if (IsIDispatch(riid))
     {
-#ifdef FEATURE_CORECLR
         if (AppX::IsAppXProcess())
         { 
             RETURN NULL;
         }
-#endif // FEATURE_CORECLR
 
         // We don't do visibility checks on IUnknown.
         RETURN pWrap->GetIDispatchIP();
@@ -3775,10 +3675,8 @@ IUnknown* ComCallWrapper::GetComIPFromCCW(ComCallWrapper *pWrap, REFIID riid, Me
     ComMethodTable * pIntfComMT = ComMethodTable::ComMethodTableFromIP(pIntf);
 
     // Manual inlining of GetComIPFromCCW_VisibilityCheck() for common case.
-    if (// Ensure that the interface we are passing out was defined in trusted code.
-        (!(flags & GetComIPFromCCW::SuppressSecurityCheck) && pIntfComMT->IsDefinedInUntrustedCode())
-        // Do a visibility check if needed.
-        || ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
+    if (// Do a visibility check if needed.
+        ((flags & GetComIPFromCCW::CheckVisibility) && (!pIntfComMT->IsComVisible())))
     {
         //  If not, fail to return the interface.
         SafeRelease(pIntf);
@@ -4735,11 +4633,6 @@ BOOL ComMethodTable::LayOutInterfaceMethodTable(MethodTable* pClsMT)
     SLOT *pComVtable;
     unsigned i;
 
-#ifndef FEATURE_CORECLR
-    // Skip this unnecessary expensive check for CoreCLR
-    if (!CheckSigTypesCanBeLoaded(pItfClass))
-        return FALSE;
-#endif
 
     LOG((LF_INTEROP, LL_INFO1000, "LayOutInterfaceMethodTable: %s, this: %p\n", pItfClass->GetDebugClassName(), this));
 
@@ -5078,7 +4971,7 @@ void ComMethodTable::LayOutDelegateMethodTable()
 
     // Some space for a CALL xx xx xx xx stub is reserved before the beginning of the MethodDesc
     ComCallMethodDescHolder NewMDHolder = (ComCallMethodDesc *) (pMethodDescMemory + COMMETHOD_PREPAD);
-    MethodDesc* pInvokeMD = ((DelegateEEClass *)(pDelegateMT->GetClass()))->m_pInvokeMethod;
+    MethodDesc* pInvokeMD = ((DelegateEEClass *)(pDelegateMT->GetClass()))->GetInvokeMethod();
     
     if (pInvokeMD->IsSharedByGenericInstantiations())
     {
@@ -5485,7 +5378,7 @@ void ComCallWrapperTemplate::Cleanup()
     if (m_pIIDToInterfaceTemplateCache)
         delete m_pIIDToInterfaceTemplateCache;
 
-    delete[] this;
+    delete[] (BYTE*)this;
 }
 
 
@@ -5533,12 +5426,6 @@ ComMethodTable* ComCallWrapperTemplate::GetClassComMT()
         RETURN m_pClassComMT;
 
     MethodTable *pMT = m_thClass.GetMethodTable();
-
-    // Preload the policy for these classes before we take the lock.
-    for (MethodTable* pMethodTable = pMT; pMethodTable != NULL; pMethodTable = pMethodTable->GetParentMethodTable())
-    {
-        Security::CanCallUnmanagedCode(pMethodTable->GetModule());
-    }
 
     // We haven't set it up yet, generate one.
     ComMethodTable* pClassComMT; 
@@ -5640,13 +5527,6 @@ SLOT* ComCallWrapperTemplate::GetVTableSlot(ULONG index)
     RETURN m_rgpIPtr[index];
 }
 
-BOOL ComCallWrapperTemplate::HasInvisibleParent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (m_flags & enum_InvisibleParent);
-}
-
 // Determines whether the template is for a type that cannot be safely marshalled to 
 // an out of proc COM client
 BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
@@ -5681,7 +5561,7 @@ BOOL ComCallWrapperTemplate::IsSafeTypeForMarshalling()
         if (pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__ASSEMBLYBASE)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MEMBER)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__MODULEBASE)) ||
-        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__METHOD_BODY)) ||
+        pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__RUNTIME_METHOD_BODY)) ||
         pMt->CanCastToClass(MscorlibBinder::GetClass(CLASS__PARAMETER)))
         {
             isSafe = FALSE;
@@ -5768,7 +5648,7 @@ DefaultInterfaceType ComCallWrapperTemplate::GetDefaultInterface(MethodTable **p
     }
 
     *ppDefaultItf = m_pDefaultItf;
-    return (DefaultInterfaceType)(m_flags & enum_DefaultInterfaceType);
+    return (DefaultInterfaceType)(m_flags & enum_DefaultInterfaceTypeMask);
 }
 
 //--------------------------------------------------------------------------
@@ -5969,12 +5849,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForClass(MethodTable
     if (IsTypeVisibleFromCom(TypeHandle(pComMT->m_pMT)))
         pComMT->m_Flags |= enum_ComVisible;
 
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
-
-
 #if _DEBUG
     {
         // In debug set all the vtable slots to 0xDEADCA11.
@@ -6055,11 +5929,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForInterface(MethodT
     // Determine if the interface is a COM imported class interface.
     if (pItfClass->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
-
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
 
 #ifdef _DEBUG
     {
@@ -6146,11 +6015,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     if (pMT->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
 
-    if (!Security::CanCallUnmanagedCode(pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
-
 #ifdef MDA_SUPPORTED
 #ifdef _DEBUG
     {
@@ -6231,11 +6095,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForDelegate(MethodTa
     pMTForIID->GetGuid(&pComMT->m_IID, TRUE);
 
     pComMT->m_Flags |= enum_GuidGenerated;
-
-    if (!Security::CanCallUnmanagedCode(pComMT->m_pMT->GetModule()))
-    {
-        pComMT->m_Flags |= enum_IsUntrusted;
-    }
 
 #if _DEBUG
     {
@@ -6369,11 +6228,6 @@ ComCallWrapperTemplate* ComCallWrapperTemplate::CreateTemplate(TypeHandle thClas
 
     // Preload the policy for this interface
     CCWInterfaceMapIterator it(thClass, pClsFact, true);
-    while (it.Next())
-    {
-        Module *pModule = it.GetInterface()->GetModule();
-        Security::CanCallUnmanagedCode(pModule);
-    }
 
     // Num interfaces in the template.
     unsigned numInterfaces = it.GetCount();

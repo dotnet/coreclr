@@ -76,7 +76,7 @@
 #if defined(__GNUC__)
 #if defined(_ARM_) || defined(_ARM64_)
 // This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
-#define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb sy" : : : "memory")
+#define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb ish" : : : "memory")
 #else
 //
 // For GCC, we prevent reordering by the compiler by inserting the following after a volatile
@@ -90,9 +90,9 @@
 // notice.
 //
 #define VOLATILE_MEMORY_BARRIER() asm volatile ("" : : : "memory")
-#endif // !_ARM_
-#elif defined(_ARM_) && _ISO_VOLATILE
-// ARM has a very weak memory model and very few tools to control that model. We're forced to perform a full
+#endif // _ARM_ || _ARM64_
+#elif (defined(_ARM_) || defined(_ARM64_)) && _ISO_VOLATILE
+// ARM & ARM64 have a very weak memory model and very few tools to control that model. We're forced to perform a full
 // memory barrier to preserve the volatile semantics. Technically this is only necessary on MP systems but we
 // currently don't have a cheap way to determine the number of CPUs from this header file. Revisit this if it
 // turns out to be a performance issue for the uni-proc case.
@@ -104,7 +104,20 @@
 // targeted by VC++ with /iso_volatile-.
 //
 #define VOLATILE_MEMORY_BARRIER()
-#endif
+#endif // __GNUC__
+
+template<typename T>
+struct RemoveVolatile
+{
+   typedef T type;
+};
+
+template<typename T>
+struct RemoveVolatile<volatile T>
+{
+   typedef T type;
+};
+
 
 //
 // VolatileLoad loads a T from a pointer to T.  It is guaranteed that this load will not be optimized
@@ -113,6 +126,10 @@
 // this is the case for most aligned scalar data types.  If you need atomic loads or stores, you need
 // to consult the compiler and CPU manuals to find which circumstances allow atomicity.
 //
+// Starting at version 3.8, clang errors out on initializing of type int * to volatile int *. To fix this, we add two templates to cast away volatility
+// Helper structures for casting away volatileness
+
+
 template<typename T>
 inline
 T VolatileLoad(T const * pt)
@@ -120,8 +137,22 @@ T VolatileLoad(T const * pt)
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 
 #ifndef DACCESS_COMPILE
+#if defined(_ARM64_) && defined(__GNUC__)
+    T val;
+    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
+    if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
+    {
+        __atomic_load((T const *)pt, const_cast<typename RemoveVolatile<T>::type *>(&val), __ATOMIC_ACQUIRE);
+    }
+    else
+    {
+        val = *(T volatile const *)pt;
+        asm volatile ("dmb ishld" : : : "memory");
+    }
+#else
     T val = *(T volatile const *)pt;
     VOLATILE_MEMORY_BARRIER();
+#endif
 #else
     T val = *pt;
 #endif
@@ -166,8 +197,21 @@ void VolatileStore(T* pt, T val)
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 
 #ifndef DACCESS_COMPILE
+#if defined(_ARM64_) && defined(__GNUC__)
+    static const unsigned lockFreeAtomicSizeMask = (1 << 1) | (1 << 2) | (1 << 4) | (1 << 8);
+    if((1 << sizeof(T)) & lockFreeAtomicSizeMask)
+    {
+        __atomic_store((T volatile *)pt, &val, __ATOMIC_RELEASE);
+    }
+    else
+    {
+        VOLATILE_MEMORY_BARRIER();
+        *(T volatile *)pt = val;
+    }
+#else
     VOLATILE_MEMORY_BARRIER();
     *(T volatile *)pt = val;
+#endif
 #else
     *pt = val;
 #endif
@@ -430,32 +474,6 @@ public:
     }
 };
 
-
-//
-// Warning: workaround
-// 
-// At the bottom of this file, we are going to #define the "volatile" keyword such that it is illegal
-// to use it.  Unfortunately, VC++ uses the volatile keyword in stddef.h, in the definition of "offsetof".
-// GCC does not use volatile in its definition.
-// 
-// To get around this, we include stddef.h here (even if we're on GCC, for consistency).  We then need
-// to redefine offsetof such that it does not use volatile, if we're building with VC++.
-//
-#include <stddef.h>
-#ifdef _MSC_VER
-#undef offsetof
-#ifdef  _WIN64
-#define offsetof(s,m)   (size_t)( (ptrdiff_t)&reinterpret_cast<const char&>((((s *)0)->m)) )
-#else
-#define offsetof(s,m)   (size_t)&reinterpret_cast<const char&>((((s *)0)->m))
-#endif //_WIN64
-
-// These also use volatile, so we'll include them here.
-//#include <intrin.h>
-//#include <memory>
-
-#endif //_MSC_VER
-
 //
 // From here on out, we ban the use of the "volatile" keyword.  If you found this while trying to define
 // a volatile variable, go to the top of this file and start reading.
@@ -479,7 +497,7 @@ public:
 #else
 
 // Disable use of Volatile<T> for GC/HandleTable code except on platforms where it's absolutely necessary.
-#if defined(_MSC_VER) && !defined(_ARM_)
+#if defined(_MSC_VER) && !defined(_ARM_) && !defined(_ARM64_)
 #define VOLATILE(T) T RAW_KEYWORD(volatile)
 #else
 #define VOLATILE(T) Volatile<T>

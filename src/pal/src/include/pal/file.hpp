@@ -37,14 +37,12 @@ namespace CorUnix
     class CFileProcessLocalData
     {
     public:
-        IFileLockController *pLockController;
-
         int  unix_fd;
         DWORD dwDesiredAccess; /* Unix assumes files are always opened for reading.
                                   In Windows we can open a file for writing only */
         int  open_flags;       /* stores Unix file creation flags */
         BOOL open_flags_deviceaccessonly;
-        char unix_filename[MAXPATHLEN];
+        CHAR *unix_filename;
         BOOL inheritable;
     };
 
@@ -102,39 +100,12 @@ namespace CorUnix
         );
 
     PAL_ERROR
-    InternalGetFileType(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD *pdwFileType
-        );
-
-    PAL_ERROR
     InternalCreatePipe(
         CPalThread *pThread,
         HANDLE *phReadPipe,
         HANDLE *phWritePipe,
         LPSECURITY_ATTRIBUTES lpPipeAttributes,
         DWORD nSize
-        );
-
-    PAL_ERROR
-    InternalLockFile(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD dwFileOffsetLow,
-        DWORD dwFileOffsetHigh,
-        DWORD nNumberOfBytesToLockLow,
-        DWORD nNumberOfBytesToLockHigh
-        );
-
-    PAL_ERROR
-    InternalUnlockFile(
-        CPalThread *pThread,
-        HANDLE hFile,
-        DWORD dwFileOffsetLow,
-        DWORD dwFileOffsetHigh,
-        DWORD nNumberOfBytesToUnlockLow,
-        DWORD nNumberOfBytesToUnlockHigh
         );
 
     PAL_ERROR
@@ -145,24 +116,6 @@ namespace CorUnix
         PLONG lpDistanceToMoveHigh,
         DWORD dwMoveMethod,
         PLONG lpNewFilePointerLow
-        );
-
-    PAL_ERROR
-    InternalSetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        IN CONST FILETIME *lpCreationTime,
-        IN CONST FILETIME *lpLastAccessTime,
-        IN CONST FILETIME *lpLastWriteTime
-        );
-
-    PAL_ERROR
-    InternalGetFileTime(
-        CPalThread *pThread,
-        IN HANDLE hFile,
-        OUT LPFILETIME lpCreationTime,
-        OUT LPFILETIME lpLastAccessTime,
-        OUT LPFILETIME lpLastWriteTime
         );
 
     BOOL
@@ -189,15 +142,6 @@ namespace CorUnix
     int 
     InternalMkstemp(
         char *szNameTemplate
-        );
-
-    /*++
-    InternalDeleteFile
-    Wraps SYS_delete
-    --*/
-    int 
-    InternalDeleteFile(
-        const char *szPath
         );
 
     /*++
@@ -354,20 +298,6 @@ Close primary handles for stdin, stdout and stderr
 (no parameters, no return value)
 --*/
 void FILECleanupStdHandles(void);
-
-/*++
-FILEGetFileNameFromSymLink
-
-Input paramters:
-
-source  = path to the file on input, path to the file with all 
-          symbolic links traversed on return
-
-
-Return value:
-    TRUE on success, FALSE on failure
-BOOL FILEGetFileNameFromSymLink(PathCharString& source);
---*/
 
 /*++
 

@@ -217,7 +217,7 @@ private:
 
     size_t *             m_pPrivatePerfCounter_LoaderBytes;
 
-    DWORD                m_flProtect;
+    DWORD                m_Options;
 
     LoaderHeapFreeBlock *m_pFirstFreeBlock;
 
@@ -274,8 +274,8 @@ public:
 #endif
 
 public:
-    typedef void EnumPageRegionsCallback (PTR_VOID pvAllocationBase, SIZE_T cbReserved);
-    void EnumPageRegions (EnumPageRegionsCallback *pCallback);
+    typedef bool EnumPageRegionsCallback (PTR_VOID pvArgs, PTR_VOID pvAllocationBase, SIZE_T cbReserved);
+    void EnumPageRegions (EnumPageRegionsCallback *pCallback, PTR_VOID pvArgs);
 
 #ifndef DACCESS_COMPILE
 protected:
@@ -398,11 +398,7 @@ public:
         return m_dwTotalAlloc;
     }
 
-    BOOL IsExecutable()
-    {
-        return (PAGE_EXECUTE_READWRITE == m_flProtect);
-    }
-
+    BOOL IsExecutable();
 
 public:
 #ifdef _DEBUG
@@ -418,7 +414,7 @@ public:
 #endif
 
 protected:
-    void *UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment);
+    void *UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment, size_t dwReserveForJumpStubs);
 
     void UnlockedSetReservedRegion(BYTE* dwReservedRegionAddress, SIZE_T dwReservedRegionSize, BOOL fReleaseMemory);
 };
@@ -835,10 +831,10 @@ public:
 
 
 public:
-    void *AllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment)
+    void *AllocMemForCode_NoThrow(size_t dwHeaderSize, size_t dwCodeSize, DWORD dwCodeAlignment, size_t dwReserveForJumpStubs)
     {
         WRAPPER_NO_CONTRACT;
-        return UnlockedAllocMemForCode_NoThrow(dwHeaderSize, dwCodeSize, dwCodeAlignment);
+        return UnlockedAllocMemForCode_NoThrow(dwHeaderSize, dwCodeSize, dwCodeAlignment, dwReserveForJumpStubs);
     }
 
     void SetReservedRegion(BYTE* dwReservedRegionAddress, SIZE_T dwReservedRegionSize, BOOL fReleaseMemory)

@@ -2,11 +2,6 @@
 ; The .NET Foundation licenses this file to you under the MIT license.
 ; See the LICENSE file in the project root for more information.
 
-; ==++==
-; 
-
-; 
-; ==--==
 ; ***********************************************************************
 ; File: JIThelp.asm
 ;
@@ -70,13 +65,11 @@ endif
 EXTERN _g_TailCallFrameVptr:DWORD
 EXTERN @JIT_FailFast@0:PROC
 EXTERN _s_gsCookie:DWORD
+EXTERN _GetThread@0:PROC
 EXTERN @JITutil_IsInstanceOfInterface@8:PROC
 EXTERN @JITutil_ChkCastInterface@8:PROC
 EXTERN @JITutil_IsInstanceOfAny@8:PROC
 EXTERN @JITutil_ChkCastAny@8:PROC
-ifdef FEATURE_IMPLICIT_TLS
-EXTERN _GetThread@0:PROC
-endif
 
 ifdef WRITE_BARRIER_CHECK 
 ; Those global variables are always defined, but should be 0 for Server GC
@@ -87,10 +80,7 @@ EXTERN  g_GCShadowEnd:DWORD
 INVALIDGCVALUE equ 0CCCCCCCDh
 endif
 
-ifdef FEATURE_REMOTING
-EXTERN _TransparentProxyStub_CrossContext@0:PROC
-EXTERN _InContextTPQuickDispatchAsmStub@0:PROC
-endif
+EXTERN _COMPlusEndCatch@20:PROC
 
 .686P
 .XMM
@@ -437,10 +427,10 @@ ENDM
 ; WriteBarrierStart and WriteBarrierEnd are used to determine bounds of
 ; WriteBarrier functions so can determine if got AV in them. 
 ; 
-PUBLIC _JIT_WriteBarrierStart@0
-_JIT_WriteBarrierStart@0 PROC
+PUBLIC _JIT_WriteBarrierGroup@0
+_JIT_WriteBarrierGroup@0 PROC
 ret
-_JIT_WriteBarrierStart@0 ENDP
+_JIT_WriteBarrierGroup@0 ENDP
 
 ifdef FEATURE_USE_ASM_GC_WRITE_BARRIERS
 ; Only define these if we're using the ASM GC write barriers; if this flag is not defined,
@@ -458,16 +448,11 @@ WriteBarrierHelper <EBP>
 
 ByRefWriteBarrierHelper
 
-PUBLIC _JIT_WriteBarrierLast@0
-_JIT_WriteBarrierLast@0 PROC
-ret
-_JIT_WriteBarrierLast@0 ENDP
-
 ; This is the first function outside the "keep together range". Used by BBT scripts.
-PUBLIC _JIT_WriteBarrierEnd@0
-_JIT_WriteBarrierEnd@0 PROC
+PUBLIC _JIT_WriteBarrierGroup_End@0
+_JIT_WriteBarrierGroup_End@0 PROC
 ret
-_JIT_WriteBarrierEnd@0 ENDP
+_JIT_WriteBarrierGroup_End@0 ENDP
 
 ;*********************************************************************/
 ; In cases where we support it we have an optimized GC Poll callback.  Normall (when we're not trying to
@@ -498,6 +483,8 @@ ret
         ALIGN 16
 PUBLIC JIT_LLsh
 JIT_LLsh PROC
+; Reduce shift amount mod 64
+        and     ecx, 63
 ; Handle shifts of between bits 0 and 31
         cmp     ecx, 32
         jae     short LLshMORE32
@@ -533,6 +520,8 @@ JIT_LLsh ENDP
         ALIGN 16
 PUBLIC JIT_LRsh
 JIT_LRsh PROC
+; Reduce shift amount mod 64
+        and     ecx, 63
 ; Handle shifts of between bits 0 and 31
         cmp     ecx, 32
         jae     short LRshMORE32
@@ -567,6 +556,8 @@ JIT_LRsh ENDP
         ALIGN 16
 PUBLIC JIT_LRsz
 JIT_LRsz PROC
+; Reduce shift amount mod 64
+        and     ecx, 63
 ; Handle shifts of between bits 0 and 31
         cmp     ecx, 32
         jae     short LRszMORE32
@@ -971,12 +962,14 @@ NewArgs         equ 20
 ; extra space is incremented as we push things on the stack along the way
 ExtraSpace      = 0
 
-        call    _GetThread@0; eax = Thread*
-        push    eax         ; Thread*
+        push    0           ; Thread*
 
         ; save ArgumentRegisters
         push    ecx
         push    edx
+
+        call    _GetThread@0; eax = Thread*
+        mov     [esp + 8], eax
 
 ExtraSpace      = 12    ; pThread, ecx, edx
 
@@ -1248,1058 +1241,6 @@ fremloopd:
 
 ;------------------------------------------------------------------------------
 
-g_SystemInfo            TEXTEQU <?g_SystemInfo@@3U_SYSTEM_INFO@@A>
-g_SpinConstants         TEXTEQU <?g_SpinConstants@@3USpinConstants@@A>
-g_pSyncTable            TEXTEQU <?g_pSyncTable@@3PAVSyncTableEntry@@A>
-JITutil_MonEnterWorker  TEXTEQU <@JITutil_MonEnterWorker@4>
-JITutil_MonReliableEnter TEXTEQU <@JITutil_MonReliableEnter@8>
-JITutil_MonTryEnter     TEXTEQU <@JITutil_MonTryEnter@12>
-JITutil_MonExitWorker   TEXTEQU <@JITutil_MonExitWorker@4>
-JITutil_MonContention   TEXTEQU <@JITutil_MonContention@4>       
-JITutil_MonReliableContention   TEXTEQU <@JITutil_MonReliableContention@8>       
-JITutil_MonSignal       TEXTEQU <@JITutil_MonSignal@4>
-JIT_InternalThrow       TEXTEQU <@JIT_InternalThrow@4>
-EXTRN	g_SystemInfo:BYTE
-EXTRN	g_SpinConstants:BYTE
-EXTRN	g_pSyncTable:DWORD
-EXTRN	JITutil_MonEnterWorker:PROC
-EXTRN	JITutil_MonReliableEnter:PROC
-EXTRN	JITutil_MonTryEnter:PROC
-EXTRN	JITutil_MonExitWorker:PROC
-EXTRN	JITutil_MonContention:PROC
-EXTRN	JITutil_MonReliableContention:PROC
-EXTRN	JITutil_MonSignal:PROC
-EXTRN	JIT_InternalThrow:PROC
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-EnterSyncHelper TEXTEQU <_EnterSyncHelper@8>
-LeaveSyncHelper TEXTEQU <_LeaveSyncHelper@8>          
-EXTRN	EnterSyncHelper:PROC
-EXTRN	LeaveSyncHelper:PROC
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-
-; The following macro is needed because MASM returns
-; "instruction prefix not allowed" error message for
-; rep nop mnemonic
-$repnop MACRO
-    db 0F3h
-    db 090h
-ENDM
-
-; Safe ThreadAbort does not abort a thread if it is running finally or has lock counts.
-; At the time we call Monitor.Enter, we initiate the abort if we can.
-; We do not need to do the same for Monitor.Leave, since most of time, Monitor.Leave is called
-; during finally.
-
-;**********************************************************************
-; This is a frameless helper for entering a monitor on a object.
-; The object is in ARGUMENT_REG1.  This tries the normal case (no
-; blocking or object allocation) in line and calls a framed helper
-; for the other cases.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonEnterWorker@4 proc public
-        ; Initialize delay value for retry with exponential backoff
-        push    ebx
-        mov     ebx, dword ptr g_SpinConstants+SpinConstants_dwInitialDuration
-
-        ; We need yet another register to avoid refetching the thread object
-        push    esi
-        
-        ; Check if the instance is NULL.
-        test    ARGUMENT_REG1, ARGUMENT_REG1
-        jz      MonEnterFramedLockHelper
-
-        call    _GetThread@0
-        mov     esi,eax
-        
-        ; Check if we can abort here
-        mov     eax, [esi+Thread_m_State]
-        and     eax, TS_CatchAtSafePoint_ASM
-        jz      MonEnterRetryThinLock
-        ; go through the slow code path to initiate ThreadAbort.
-        jmp     MonEnterFramedLockHelper
-
-MonEnterRetryThinLock: 
-        ; Fetch the object header dword
-        mov     eax, [ARGUMENT_REG1-SyncBlockIndexOffset_ASM]
-
-        ; Check whether we have the "thin lock" layout, the lock is free and the spin lock bit not set
-        ; SBLK_COMBINED_MASK_ASM = BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX + BIT_SBLK_SPIN_LOCK + SBLK_MASK_LOCK_THREADID + SBLK_MASK_LOCK_RECLEVEL
-        test    eax, SBLK_COMBINED_MASK_ASM
-        jnz     MonEnterNeedMoreTests
-
-        ; Everything is fine - get the thread id to store in the lock
-        mov     edx, [esi+Thread_m_ThreadId]
-
-        ; If the thread id is too large, we need a syncblock for sure
-        cmp     edx, SBLK_MASK_LOCK_THREADID_ASM
-        ja      MonEnterFramedLockHelper
-
-        ; We want to store a new value with the current thread id set in the low 10 bits
-        or      edx,eax
-        lock cmpxchg dword ptr [ARGUMENT_REG1-SyncBlockIndexOffset_ASM], edx
-        jnz     MonEnterPrepareToWaitThinLock
-
-        ; Everything went fine and we're done
-        add     [esi+Thread_m_dwLockCount],1
-        pop     esi
-        pop     ebx
-        ret
-
-MonEnterNeedMoreTests: 
-        ; Ok, it's not the simple case - find out which case it is
-        test    eax, BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX_ASM
-        jnz     MonEnterHaveHashOrSyncBlockIndex
-
-        ; The header is transitioning or the lock - treat this as if the lock was taken
-        test    eax, BIT_SBLK_SPIN_LOCK_ASM
-        jnz     MonEnterPrepareToWaitThinLock
-
-        ; Here we know we have the "thin lock" layout, but the lock is not free.
-        ; It could still be the recursion case - compare the thread id to check
-        mov     edx,eax
-        and     edx, SBLK_MASK_LOCK_THREADID_ASM
-        cmp     edx, [esi+Thread_m_ThreadId]
-        jne     MonEnterPrepareToWaitThinLock
-
-        ; Ok, the thread id matches, it's the recursion case.
-        ; Bump up the recursion level and check for overflow
-        lea     edx, [eax+SBLK_LOCK_RECLEVEL_INC_ASM]
-        test    edx, SBLK_MASK_LOCK_RECLEVEL_ASM
-        jz      MonEnterFramedLockHelper
-
-        ; Try to put the new recursion level back. If the header was changed in the meantime,
-        ; we need a full retry, because the layout could have changed.
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM], edx
-        jnz     MonEnterRetryHelperThinLock
-
-        ; Everything went fine and we're done
-        pop     esi
-        pop     ebx
-        ret
-
-MonEnterPrepareToWaitThinLock: 
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonEnterFramedLockHelper
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax, ebx
-MonEnterdelayLoopThinLock:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonEnterdelayLoopThinLock
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonEnterRetryHelperThinLock
-
-        jmp     MonEnterFramedLockHelper
-
-MonEnterRetryHelperThinLock: 
-        jmp     MonEnterRetryThinLock
-
-MonEnterHaveHashOrSyncBlockIndex: 
-        ; If we have a hash code already, we need to create a sync block
-        test    eax, BIT_SBLK_IS_HASHCODE_ASM
-        jnz     MonEnterFramedLockHelper
-
-        ; Ok, we have a sync block index - just and out the top bits and grab the syncblock index
-        and     eax, MASK_SYNCBLOCKINDEX_ASM
-
-        ; Get the sync block pointer.
-        mov     ARGUMENT_REG2, dword ptr g_pSyncTable
-        mov     ARGUMENT_REG2, [ARGUMENT_REG2+eax*SizeOfSyncTableEntry_ASM+SyncTableEntry_m_SyncBlock]
-
-        ; Check if the sync block has been allocated.
-        test    ARGUMENT_REG2, ARGUMENT_REG2
-        jz      MonEnterFramedLockHelper
-
-        ; Get a pointer to the lock object.
-        lea     ARGUMENT_REG2, [ARGUMENT_REG2+SyncBlock_m_Monitor]
-
-        ; Attempt to acquire the lock.
-MonEnterRetrySyncBlock: 
-        mov     eax, [ARGUMENT_REG2+AwareLock_m_MonitorHeld]
-        test    eax,eax
-        jne     MonEnterHaveWaiters
-
-        ; Common case, lock isn't held and there are no waiters. Attempt to
-        ; gain ownership ourselves.
-        mov     ARGUMENT_REG1,1
-        lock cmpxchg [ARGUMENT_REG2+AwareLock_m_MonitorHeld], ARGUMENT_REG1
-        jnz     MonEnterRetryHelperSyncBlock
-
-        ; Success. Save the thread object in the lock and increment the use count.
-        mov     dword ptr [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        inc     dword ptr [esi+Thread_m_dwLockCount]
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-        pop     esi
-        pop     ebx
-        ret
-
-        ; It's possible to get here with waiters but no lock held, but in this
-        ; case a signal is about to be fired which will wake up a waiter. So
-        ; for fairness sake we should wait too.
-        ; Check first for recursive lock attempts on the same thread.
-MonEnterHaveWaiters: 
-        ; Is mutex already owned by current thread?
-        cmp     [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        jne     MonEnterPrepareToWait
-
-        ; Yes, bump our use count.
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC        
-endif ;MON_DEBUG
-        pop     esi
-        pop     ebx
-        ret
-
-MonEnterPrepareToWait: 
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonEnterHaveWaiters1
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax,ebx
-MonEnterdelayLoop:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonEnterdelayLoop
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonEnterRetrySyncBlock
-
-MonEnterHaveWaiters1: 
-
-        pop     esi
-        pop     ebx
-
-        ; Place AwareLock in arg1 then call contention helper.
-        mov     ARGUMENT_REG1, ARGUMENT_REG2
-        jmp     JITutil_MonContention
-
-MonEnterRetryHelperSyncBlock: 
-        jmp     MonEnterRetrySyncBlock
-
-        ; ECX has the object to synchronize on
-MonEnterFramedLockHelper: 
-        pop     esi
-        pop     ebx
-        jmp     JITutil_MonEnterWorker
-
-@JIT_MonEnterWorker@4 endp
-
-;**********************************************************************
-; This is a frameless helper for entering a monitor on a object, and
-; setting a flag to indicate that the lock was taken.
-; The object is in ARGUMENT_REG1.  The flag is in ARGUMENT_REG2.
-; This tries the normal case (no blocking or object allocation) in line 
-; and calls a framed helper for the other cases.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonReliableEnter@8 proc public
-        ; Initialize delay value for retry with exponential backoff
-        push    ebx
-        mov     ebx, dword ptr g_SpinConstants+SpinConstants_dwInitialDuration
-        
-        ; Put pbLockTaken in edi
-        push	edi
-        mov		edi, ARGUMENT_REG2
-
-        ; We need yet another register to avoid refetching the thread object
-        push    esi
-        
-        ; Check if the instance is NULL.
-        test    ARGUMENT_REG1, ARGUMENT_REG1
-        jz      MonReliableEnterFramedLockHelper
-
-        call    _GetThread@0
-        mov     esi,eax
-        
-        ; Check if we can abort here
-        mov     eax, [esi+Thread_m_State]
-        and     eax, TS_CatchAtSafePoint_ASM
-        jz      MonReliableEnterRetryThinLock
-        ; go through the slow code path to initiate ThreadAbort.
-        jmp     MonReliableEnterFramedLockHelper
-
-MonReliableEnterRetryThinLock: 
-        ; Fetch the object header dword
-        mov     eax, [ARGUMENT_REG1-SyncBlockIndexOffset_ASM]
-
-        ; Check whether we have the "thin lock" layout, the lock is free and the spin lock bit not set
-        ; SBLK_COMBINED_MASK_ASM = BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX + BIT_SBLK_SPIN_LOCK + SBLK_MASK_LOCK_THREADID + SBLK_MASK_LOCK_RECLEVEL
-        test    eax, SBLK_COMBINED_MASK_ASM
-        jnz     MonReliableEnterNeedMoreTests
-
-        ; Everything is fine - get the thread id to store in the lock
-        mov     edx, [esi+Thread_m_ThreadId]
-
-        ; If the thread id is too large, we need a syncblock for sure
-        cmp     edx, SBLK_MASK_LOCK_THREADID_ASM
-        ja      MonReliableEnterFramedLockHelper
-
-        ; We want to store a new value with the current thread id set in the low 10 bits
-        or      edx,eax
-        lock cmpxchg dword ptr [ARGUMENT_REG1-SyncBlockIndexOffset_ASM], edx
-        jnz     MonReliableEnterPrepareToWaitThinLock
-
-        ; Everything went fine and we're done
-        add     [esi+Thread_m_dwLockCount],1
-        ; Set *pbLockTaken=true
-        mov		byte ptr [edi],1
-        pop     esi
-        pop		edi
-        pop     ebx
-        ret
-
-MonReliableEnterNeedMoreTests: 
-        ; Ok, it's not the simple case - find out which case it is
-        test    eax, BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX_ASM
-        jnz     MonReliableEnterHaveHashOrSyncBlockIndex
-
-        ; The header is transitioning or the lock - treat this as if the lock was taken
-        test    eax, BIT_SBLK_SPIN_LOCK_ASM
-        jnz     MonReliableEnterPrepareToWaitThinLock
-
-        ; Here we know we have the "thin lock" layout, but the lock is not free.
-        ; It could still be the recursion case - compare the thread id to check
-        mov     edx,eax
-        and     edx, SBLK_MASK_LOCK_THREADID_ASM
-        cmp     edx, [esi+Thread_m_ThreadId]
-        jne     MonReliableEnterPrepareToWaitThinLock
-
-        ; Ok, the thread id matches, it's the recursion case.
-        ; Bump up the recursion level and check for overflow
-        lea     edx, [eax+SBLK_LOCK_RECLEVEL_INC_ASM]
-        test    edx, SBLK_MASK_LOCK_RECLEVEL_ASM
-        jz      MonReliableEnterFramedLockHelper
-
-        ; Try to put the new recursion level back. If the header was changed in the meantime,
-        ; we need a full retry, because the layout could have changed.
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM], edx
-        jnz     MonReliableEnterRetryHelperThinLock
-
-        ; Everything went fine and we're done
-        ; Set *pbLockTaken=true
-        mov		byte ptr [edi],1
-        pop     esi
-        pop		edi
-        pop     ebx
-        ret
-
-MonReliableEnterPrepareToWaitThinLock: 
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonReliableEnterFramedLockHelper
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax, ebx
-MonReliableEnterdelayLoopThinLock:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonReliableEnterdelayLoopThinLock
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonReliableEnterRetryHelperThinLock
-
-        jmp     MonReliableEnterFramedLockHelper
-
-MonReliableEnterRetryHelperThinLock: 
-        jmp     MonReliableEnterRetryThinLock
-
-MonReliableEnterHaveHashOrSyncBlockIndex: 
-        ; If we have a hash code already, we need to create a sync block
-        test    eax, BIT_SBLK_IS_HASHCODE_ASM
-        jnz     MonReliableEnterFramedLockHelper
-
-        ; Ok, we have a sync block index - just and out the top bits and grab the syncblock index
-        and     eax, MASK_SYNCBLOCKINDEX_ASM
-
-        ; Get the sync block pointer.
-        mov     ARGUMENT_REG2, dword ptr g_pSyncTable
-        mov     ARGUMENT_REG2, [ARGUMENT_REG2+eax*SizeOfSyncTableEntry_ASM+SyncTableEntry_m_SyncBlock]
-
-        ; Check if the sync block has been allocated.
-        test    ARGUMENT_REG2, ARGUMENT_REG2
-        jz      MonReliableEnterFramedLockHelper
-
-        ; Get a pointer to the lock object.
-        lea     ARGUMENT_REG2, [ARGUMENT_REG2+SyncBlock_m_Monitor]
-
-        ; Attempt to acquire the lock.
-MonReliableEnterRetrySyncBlock: 
-        mov     eax, [ARGUMENT_REG2+AwareLock_m_MonitorHeld]
-        test    eax,eax
-        jne     MonReliableEnterHaveWaiters
-
-        ; Common case, lock isn't held and there are no waiters. Attempt to
-        ; gain ownership ourselves.
-        mov     ARGUMENT_REG1,1
-        lock cmpxchg [ARGUMENT_REG2+AwareLock_m_MonitorHeld], ARGUMENT_REG1
-        jnz     MonReliableEnterRetryHelperSyncBlock
-
-        ; Success. Save the thread object in the lock and increment the use count.
-        mov     dword ptr [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        inc     dword ptr [esi+Thread_m_dwLockCount]
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-        ; Set *pbLockTaken=true
-        mov		byte ptr [edi],1
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-        pop     esi
-        pop		edi
-        pop     ebx
-        ret
-
-        ; It's possible to get here with waiters but no lock held, but in this
-        ; case a signal is about to be fired which will wake up a waiter. So
-        ; for fairness sake we should wait too.
-        ; Check first for recursive lock attempts on the same thread.
-MonReliableEnterHaveWaiters: 
-        ; Is mutex already owned by current thread?
-        cmp     [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        jne     MonReliableEnterPrepareToWait
-
-        ; Yes, bump our use count.
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-        ; Set *pbLockTaken=true
-        mov		byte ptr [edi],1
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC        
-endif ;MON_DEBUG
-        pop     esi
-        pop		edi
-        pop     ebx
-        ret
-
-MonReliableEnterPrepareToWait: 
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonReliableEnterHaveWaiters1
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax,ebx
-MonReliableEnterdelayLoop:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonReliableEnterdelayLoop
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonReliableEnterRetrySyncBlock
-
-MonReliableEnterHaveWaiters1: 
-
-        ; Place AwareLock in arg1, pbLockTaken in arg2, then call contention helper.
-        mov     ARGUMENT_REG1, ARGUMENT_REG2
-        mov		ARGUMENT_REG2, edi
-
-        pop     esi
-        pop		edi
-        pop     ebx
-
-        jmp     JITutil_MonReliableContention
-
-MonReliableEnterRetryHelperSyncBlock: 
-        jmp     MonReliableEnterRetrySyncBlock
-
-        ; ECX has the object to synchronize on
-MonReliableEnterFramedLockHelper: 
-	    mov		ARGUMENT_REG2, edi
-        pop     esi
-        pop		edi
-        pop     ebx
-        jmp     JITutil_MonReliableEnter
-
-@JIT_MonReliableEnter@8 endp
-
-;************************************************************************
-; This is a frameless helper for trying to enter a monitor on a object.
-; The object is in ARGUMENT_REG1 and a timeout in ARGUMENT_REG2. This tries the
-; normal case (no object allocation) in line and calls a framed helper for the
-; other cases.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonTryEnter@12 proc public
-        ; Save the timeout parameter.
-        push    ARGUMENT_REG2
-
-        ; Initialize delay value for retry with exponential backoff
-        push    ebx
-        mov     ebx, dword ptr g_SpinConstants+SpinConstants_dwInitialDuration
-
-        ; The thin lock logic needs another register to store the thread
-        push    esi
-        
-        ; Check if the instance is NULL.
-        test    ARGUMENT_REG1, ARGUMENT_REG1
-        jz      MonTryEnterFramedLockHelper
-
-        ; Check if the timeout looks valid
-        cmp     ARGUMENT_REG2,-1
-        jl      MonTryEnterFramedLockHelper
-
-        ; Get the thread right away, we'll need it in any case
-        call    _GetThread@0
-        mov     esi,eax
-
-        ; Check if we can abort here
-        mov     eax, [esi+Thread_m_State]
-        and     eax, TS_CatchAtSafePoint_ASM
-        jz      MonTryEnterRetryThinLock
-        ; go through the slow code path to initiate ThreadAbort.
-        jmp     MonTryEnterFramedLockHelper
-
-MonTryEnterRetryThinLock: 
-        ; Get the header dword and check its layout
-        mov     eax, [ARGUMENT_REG1-SyncBlockIndexOffset_ASM]
-
-        ; Check whether we have the "thin lock" layout, the lock is free and the spin lock bit not set
-        ; SBLK_COMBINED_MASK_ASM = BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX + BIT_SBLK_SPIN_LOCK + SBLK_MASK_LOCK_THREADID + SBLK_MASK_LOCK_RECLEVEL
-        test    eax, SBLK_COMBINED_MASK_ASM
-        jnz     MonTryEnterNeedMoreTests
-
-        ; Ok, everything is fine. Fetch the thread id and make sure it's small enough for thin locks
-        mov     edx, [esi+Thread_m_ThreadId]
-        cmp     edx, SBLK_MASK_LOCK_THREADID_ASM
-        ja      MonTryEnterFramedLockHelper
-
-        ; Try to put our thread id in there
-        or      edx,eax
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM],edx
-        jnz     MonTryEnterRetryHelperThinLock
-
-        ; Got the lock - everything is fine"
-        add     [esi+Thread_m_dwLockCount],1
-        pop     esi
-
-        ; Delay value no longer needed
-        pop     ebx
-
-        ; Timeout parameter not needed, ditch it from the stack.
-        add     esp,4
-
-		mov		eax, [esp+4]
-        mov     byte ptr [eax], 1
-        ret		4
-
-MonTryEnterNeedMoreTests: 
-        ; Ok, it's not the simple case - find out which case it is
-        test    eax, BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX_ASM
-        jnz     MonTryEnterHaveSyncBlockIndexOrHash
-
-        ; The header is transitioning or the lock is taken
-        test    eax, BIT_SBLK_SPIN_LOCK_ASM
-        jnz     MonTryEnterRetryHelperThinLock
-
-        mov     edx, eax
-        and     edx, SBLK_MASK_LOCK_THREADID_ASM
-        cmp     edx, [esi+Thread_m_ThreadId]
-        jne     MonTryEnterPrepareToWaitThinLock
-
-        ; Ok, the thread id matches, it's the recursion case.
-        ; Bump up the recursion level and check for overflow
-        lea     edx, [eax+SBLK_LOCK_RECLEVEL_INC_ASM]
-        test    edx, SBLK_MASK_LOCK_RECLEVEL_ASM
-        jz      MonTryEnterFramedLockHelper
-
-        ; Try to put the new recursion level back. If the header was changed in the meantime,
-        ; we need a full retry, because the layout could have changed.
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM],edx
-        jnz     MonTryEnterRetryHelperThinLock
-
-        ; Everything went fine and we're done
-        pop     esi
-        pop     ebx
-
-        ; Timeout parameter not needed, ditch it from the stack.
-        add     esp, 4
-		mov		eax, [esp+4]
-        mov     byte ptr [eax], 1
-        ret		4
-
-MonTryEnterPrepareToWaitThinLock:
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonTryEnterFramedLockHelper
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax, ebx
-MonTryEnterdelayLoopThinLock:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonTryEnterdelayLoopThinLock
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonTryEnterRetryHelperThinLock
-
-        jmp     MonTryEnterWouldBlock
-
-MonTryEnterRetryHelperThinLock: 
-        jmp     MonTryEnterRetryThinLock
-
-
-MonTryEnterHaveSyncBlockIndexOrHash: 
-        ; If we have a hash code already, we need to create a sync block
-        test    eax, BIT_SBLK_IS_HASHCODE_ASM
-        jnz     MonTryEnterFramedLockHelper
-
-        ; Just and out the top bits and grab the syncblock index
-        and     eax, MASK_SYNCBLOCKINDEX_ASM
-
-        ; Get the sync block pointer.
-        mov     ARGUMENT_REG2, dword ptr g_pSyncTable
-        mov     ARGUMENT_REG2, [ARGUMENT_REG2+eax*SizeOfSyncTableEntry_ASM+SyncTableEntry_m_SyncBlock]
-
-        ; Check if the sync block has been allocated.
-        test    ARGUMENT_REG2, ARGUMENT_REG2
-        jz      MonTryEnterFramedLockHelper
-
-        ; Get a pointer to the lock object.
-        lea     ARGUMENT_REG2, [ARGUMENT_REG2+SyncBlock_m_Monitor]        
-
-MonTryEnterRetrySyncBlock: 
-        ; Attempt to acquire the lock.
-        mov     eax, [ARGUMENT_REG2+AwareLock_m_MonitorHeld]
-        test    eax,eax
-        jne     MonTryEnterHaveWaiters
-
-        ; We need another scratch register for what follows, so save EBX now so"
-        ; we can use it for that purpose."
-        push    ebx
-
-        ; Common case, lock isn't held and there are no waiters. Attempt to
-        ; gain ownership ourselves.
-        mov     ebx,1
-        lock cmpxchg [ARGUMENT_REG2+AwareLock_m_MonitorHeld],ebx
-
-        pop     ebx
-        
-        jnz     MonTryEnterRetryHelperSyncBlock
-
-        ; Success. Save the thread object in the lock and increment the use count.
-        mov     dword ptr [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]        
-        inc     dword ptr [esi+Thread_m_dwLockCount]
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC        
-endif ;MON_DEBUG
-
-        pop     esi
-        pop     ebx
-
-        ; Timeout parameter not needed, ditch it from the stack."
-        add     esp,4
-
-		mov		eax, [esp+4]
-        mov     byte ptr [eax], 1
-        ret		4
-
-        ; It's possible to get here with waiters but no lock held, but in this
-        ; case a signal is about to be fired which will wake up a waiter. So
-        ; for fairness sake we should wait too.
-        ; Check first for recursive lock attempts on the same thread.
-MonTryEnterHaveWaiters: 
-        ; Is mutex already owned by current thread?
-        cmp     [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        jne     MonTryEnterPrepareToWait
-
-        ; Yes, bump our use count.
-        inc     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+4]   ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC        
-endif ;MON_DEBUG
-        pop     esi
-        pop     ebx
-
-        ; Timeout parameter not needed, ditch it from the stack.
-        add     esp,4
-
-		mov		eax, [esp+4]
-        mov     byte ptr [eax], 1
-        ret		4
-
-MonTryEnterPrepareToWait:
-        ; If we are on an MP system, we try spinning for a certain number of iterations
-        cmp     dword ptr g_SystemInfo+SYSTEM_INFO_dwNumberOfProcessors,1
-        jle     MonTryEnterWouldBlock
-
-        ; exponential backoff: delay by approximately 2*ebx clock cycles (on a PIII)
-        mov     eax, ebx
-MonTryEnterdelayLoop:
-        $repnop ; indicate to the CPU that we are spin waiting (useful for some Intel P4 multiprocs)
-        dec     eax
-        jnz     MonTryEnterdelayLoop
-
-        ; next time, wait a factor longer
-        imul    ebx, dword ptr g_SpinConstants+SpinConstants_dwBackoffFactor
-
-        cmp     ebx, dword ptr g_SpinConstants+SpinConstants_dwMaximumDuration
-        jle     MonTryEnterRetrySyncBlock
-
-        ; We would need to block to enter the section. Return failure if
-        ; timeout is zero, else call the framed helper to do the blocking
-        ; form of TryEnter."
-MonTryEnterWouldBlock: 
-        pop     esi
-        pop     ebx
-        pop     ARGUMENT_REG2
-        test    ARGUMENT_REG2, ARGUMENT_REG2
-        jnz     MonTryEnterBlock
-		mov		eax, [esp+4]
-        mov     byte ptr [eax], 0
-        ret		4
-
-MonTryEnterRetryHelperSyncBlock: 
-        jmp     MonTryEnterRetrySyncBlock
-
-MonTryEnterFramedLockHelper: 
-        ; ARGUMENT_REG1 has the object to synchronize on, must retrieve the
-        ; timeout parameter from the stack.
-        pop     esi
-        pop     ebx
-        pop     ARGUMENT_REG2
-MonTryEnterBlock:        
-        jmp     JITutil_MonTryEnter
-
-@JIT_MonTryEnter@12 endp
-
-;**********************************************************************
-; This is a frameless helper for exiting a monitor on a object.
-; The object is in ARGUMENT_REG1.  This tries the normal case (no
-; blocking or object allocation) in line and calls a framed helper
-; for the other cases.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonExitWorker@4 proc public
-        ; The thin lock logic needs an additional register to hold the thread, unfortunately
-        push    esi
-        
-        ; Check if the instance is NULL.
-        test    ARGUMENT_REG1, ARGUMENT_REG1
-        jz      MonExitFramedLockHelper
-        
-        call    _GetThread@0
-        mov     esi,eax
-
-MonExitRetryThinLock: 
-        ; Fetch the header dword and check its layout and the spin lock bit
-        mov     eax, [ARGUMENT_REG1-SyncBlockIndexOffset_ASM]
-        ;BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX_SPIN_LOCK_ASM = BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX + BIT_SBLK_SPIN_LOCK
-        test    eax, BIT_SBLK_IS_HASH_OR_SYNCBLKINDEX_SPIN_LOCK_ASM
-        jnz     MonExitNeedMoreTests
-
-        ; Ok, we have a "thin lock" layout - check whether the thread id matches
-        mov     edx,eax
-        and     edx, SBLK_MASK_LOCK_THREADID_ASM
-        cmp     edx, [esi+Thread_m_ThreadId]
-        jne     MonExitFramedLockHelper
-
-        ; Check the recursion level
-        test    eax, SBLK_MASK_LOCK_RECLEVEL_ASM
-        jne     MonExitDecRecursionLevel
-
-        ; It's zero - we're leaving the lock.
-        ; So try to put back a zero thread id.
-        ; edx and eax match in the thread id bits, and edx is zero elsewhere, so the xor is sufficient
-        xor     edx,eax
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM],edx
-        jnz     MonExitRetryHelperThinLock
-
-        ; We're done
-        sub     [esi+Thread_m_dwLockCount],1
-        pop     esi
-        ret
-
-MonExitDecRecursionLevel: 
-        lea     edx, [eax-SBLK_LOCK_RECLEVEL_INC_ASM]
-        lock cmpxchg [ARGUMENT_REG1-SyncBlockIndexOffset_ASM],edx
-        jnz     MonExitRetryHelperThinLock
-
-        ; We're done
-        pop     esi
-        ret
-
-MonExitNeedMoreTests:
-        ;Forward all special cases to the slow helper
-        ;BIT_SBLK_IS_HASHCODE_OR_SPIN_LOCK_ASM = BIT_SBLK_IS_HASHCODE + BIT_SBLK_SPIN_LOCK
-        test    eax, BIT_SBLK_IS_HASHCODE_OR_SPIN_LOCK_ASM
-        jnz     MonExitFramedLockHelper
-
-        ; Get the sync block index and use it to compute the sync block pointer
-        mov     ARGUMENT_REG2, dword ptr g_pSyncTable
-        and     eax, MASK_SYNCBLOCKINDEX_ASM
-        mov     ARGUMENT_REG2, [ARGUMENT_REG2+eax*SizeOfSyncTableEntry_ASM+SyncTableEntry_m_SyncBlock]        
-
-        ; was there a sync block?
-        test    ARGUMENT_REG2, ARGUMENT_REG2
-        jz      MonExitFramedLockHelper
-
-        ; Get a pointer to the lock object.
-        lea     ARGUMENT_REG2, [ARGUMENT_REG2+SyncBlock_m_Monitor]
-
-        ; Check if lock is held.
-        cmp     [ARGUMENT_REG2+AwareLock_m_HoldingThread],esi
-        jne     MonExitFramedLockHelper
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG1 ; preserve regs
-        push    ARGUMENT_REG2
-
-        push    ARGUMENT_REG2 ; AwareLock
-        push    [esp+8]       ; return address
-        call    LeaveSyncHelper
-
-        pop     ARGUMENT_REG2 ; restore regs
-        pop     ARGUMENT_REG1
-endif ;TRACK_SYNC        
-endif ;MON_DEBUG
-        ; Reduce our recursion count.
-        dec     dword ptr [ARGUMENT_REG2+AwareLock_m_Recursion]
-        jz      MonExitLastRecursion
-
-        pop     esi
-        ret
-
-MonExitRetryHelperThinLock: 
-        jmp     MonExitRetryThinLock
-
-MonExitFramedLockHelper: 
-        pop     esi
-        jmp     JITutil_MonExitWorker
-
-        ; This is the last count we held on this lock, so release the lock.
-MonExitLastRecursion: 
-        dec     dword ptr [esi+Thread_m_dwLockCount]
-        mov     dword ptr [ARGUMENT_REG2+AwareLock_m_HoldingThread],0
-
-MonExitRetry: 
-        mov     eax, [ARGUMENT_REG2+AwareLock_m_MonitorHeld]
-        lea     esi, [eax-1]
-        lock cmpxchg [ARGUMENT_REG2+AwareLock_m_MonitorHeld], esi
-        jne     MonExitRetryHelper        
-        pop     esi        
-        test    eax,0FFFFFFFEh
-        jne     MonExitMustSignal
-
-        ret
-
-MonExitMustSignal:
-        mov     ARGUMENT_REG1, ARGUMENT_REG2
-        jmp     JITutil_MonSignal
-
-MonExitRetryHelper: 
-        jmp     MonExitRetry
-
-@JIT_MonExitWorker@4 endp
-
-;**********************************************************************
-; This is a frameless helper for entering a static monitor on a class.
-; The methoddesc is in ARGUMENT_REG1.  This tries the normal case (no
-; blocking or object allocation) in line and calls a framed helper
-; for the other cases.
-; Note we are changing the methoddesc parameter to a pointer to the
-; AwareLock.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonEnterStatic@4 proc public
-        ; We need another scratch register for what follows, so save EBX now so
-        ; we can use it for that purpose.
-        push    ebx
-
-        ; Attempt to acquire the lock
-MonEnterStaticRetry: 
-        mov     eax, [ARGUMENT_REG1+AwareLock_m_MonitorHeld]
-        test    eax,eax
-        jne     MonEnterStaticHaveWaiters
-
-        ; Common case, lock isn't held and there are no waiters. Attempt to
-        ; gain ownership ourselves.
-        mov     ebx,1
-        lock cmpxchg [ARGUMENT_REG1+AwareLock_m_MonitorHeld],ebx
-        jnz     MonEnterStaticRetryHelper
-
-        pop     ebx
-
-        ; Success. Save the thread object in the lock and increment the use count.
-        call    _GetThread@0
-        mov     [ARGUMENT_REG1+AwareLock_m_HoldingThread], eax
-        inc     dword ptr [ARGUMENT_REG1+AwareLock_m_Recursion]
-        inc     dword ptr [eax+Thread_m_dwLockCount]
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG1   ; AwareLock
-        push    [esp+4]         ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-        ret
-
-        ; It's possible to get here with waiters but no lock held, but in this
-        ; case a signal is about to be fired which will wake up a waiter. So
-        ; for fairness sake we should wait too.
-        ; Check first for recursive lock attempts on the same thread.
-MonEnterStaticHaveWaiters: 
-        ; Get thread but preserve EAX (contains cached contents of m_MonitorHeld).
-        push    eax
-        call    _GetThread@0
-        mov     ebx,eax
-        pop     eax
-
-        ; Is mutex already owned by current thread?
-        cmp     [ARGUMENT_REG1+AwareLock_m_HoldingThread],ebx
-        jne     MonEnterStaticPrepareToWait
-
-        ; Yes, bump our use count.
-        inc     dword ptr [ARGUMENT_REG1+AwareLock_m_Recursion]
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG1   ; AwareLock
-        push    [esp+4]         ; return address
-        call    EnterSyncHelper
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-        pop     ebx
-        ret
-
-MonEnterStaticPrepareToWait: 
-        pop     ebx
-
-        ; ARGUMENT_REG1 should have AwareLock. Call contention helper.
-        jmp     JITutil_MonContention
-
-MonEnterStaticRetryHelper: 
-        jmp     MonEnterStaticRetry
-@JIT_MonEnterStatic@4 endp
-
-;**********************************************************************
-; A frameless helper for exiting a static monitor on a class.
-; The methoddesc is in ARGUMENT_REG1.  This tries the normal case (no
-; blocking or object allocation) in line and calls a framed helper
-; for the other cases.
-; Note we are changing the methoddesc parameter to a pointer to the
-; AwareLock.
-; ***** NOTE: if you make any changes to this routine, build with MON_DEBUG undefined
-; to make sure you don't break the non-debug build. This is very fragile code.
-; Also, propagate the changes to jithelp.s which contains the same helper and assembly code
-; (in AT&T syntax) for gnu assembler.
-@JIT_MonExitStatic@4 proc public
-
-ifdef MON_DEBUG
-ifdef TRACK_SYNC
-        push    ARGUMENT_REG1   ; preserve regs
-
-        push    ARGUMENT_REG1   ; AwareLock
-        push    [esp+8]         ; return address
-        call    LeaveSyncHelper
-
-        pop     [ARGUMENT_REG1] ; restore regs
-endif ;TRACK_SYNC
-endif ;MON_DEBUG
-
-        ; Check if lock is held.
-        call    _GetThread@0
-        cmp     [ARGUMENT_REG1+AwareLock_m_HoldingThread],eax
-        jne     MonExitStaticLockError
-
-        ; Reduce our recursion count.
-        dec     dword ptr [ARGUMENT_REG1+AwareLock_m_Recursion]
-        jz      MonExitStaticLastRecursion
-
-        ret
-
-        ; This is the last count we held on this lock, so release the lock.
-MonExitStaticLastRecursion: 
-        ; eax must have the thread object
-        dec     dword ptr [eax+Thread_m_dwLockCount]
-        mov     dword ptr [ARGUMENT_REG1+AwareLock_m_HoldingThread],0
-        push    ebx
-
-MonExitStaticRetry: 
-        mov     eax, [ARGUMENT_REG1+AwareLock_m_MonitorHeld]
-        lea     ebx, [eax-1]
-        lock cmpxchg [ARGUMENT_REG1+AwareLock_m_MonitorHeld],ebx
-        jne     MonExitStaticRetryHelper
-        pop     ebx
-        test    eax,0FFFFFFFEh
-        jne     MonExitStaticMustSignal
-
-        ret
-
-MonExitStaticMustSignal: 
-        jmp     JITutil_MonSignal
-
-MonExitStaticRetryHelper: 
-        jmp     MonExitStaticRetry
-        ; Throw a synchronization lock exception.
-MonExitStaticLockError: 
-        mov     ARGUMENT_REG1, CORINFO_SynchronizationLockException_ASM
-        jmp     JIT_InternalThrow
-
-@JIT_MonExitStatic@4 endp
-
 ; PatchedCodeStart and PatchedCodeEnd are used to determine bounds of patched code.
 ; 
 
@@ -2307,51 +1248,15 @@ _JIT_PatchedCodeStart@0 proc public
 ret
 _JIT_PatchedCodeStart@0 endp
 
-;
-; Optimized TLS getters
-;
-
             ALIGN 4
-            
-ifndef FEATURE_IMPLICIT_TLS
-_GetThread@0 proc public
-            ; This will be overwritten at runtime with optimized GetThread implementation
-            jmp short _GetTLSDummy@0
-            ; Just allocate space that will be filled in at runtime
-            db (TLS_GETTER_MAX_SIZE_ASM - 2) DUP (0CCh)
-_GetThread@0 endp
-
-            ALIGN 4
-
-_GetAppDomain@0 proc public
-            ; This will be overwritten at runtime with optimized GetAppDomain implementation
-            jmp short _GetTLSDummy@0
-            ; Just allocate space that will be filled in at runtime
-            db (TLS_GETTER_MAX_SIZE_ASM - 2) DUP (0CCh)
-_GetAppDomain@0 endp
-
-_GetTLSDummy@0 proc public
-            xor eax,eax
-            ret
-_GetTLSDummy@0 endp
-
-            ALIGN 4
-
-_ClrFlsGetBlock@0 proc public
-            ; This will be overwritten at runtime with optimized ClrFlsGetBlock implementation
-            jmp short _GetTLSDummy@0
-            ; Just allocate space that will be filled in at runtime
-            db (TLS_GETTER_MAX_SIZE_ASM - 2) DUP (0CCh)
-_ClrFlsGetBlock@0 endp
-endif
 
 ;**********************************************************************
 ; Write barriers generated at runtime
 
-PUBLIC _JIT_PatchedWriteBarrierStart@0
-_JIT_PatchedWriteBarrierStart@0 PROC
+PUBLIC _JIT_PatchedWriteBarrierGroup@0
+_JIT_PatchedWriteBarrierGroup@0 PROC
 ret
-_JIT_PatchedWriteBarrierStart@0 ENDP
+_JIT_PatchedWriteBarrierGroup@0 ENDP
 
 PatchedWriteBarrierHelper MACRO rg
         ALIGN 8
@@ -2370,54 +1275,10 @@ PatchedWriteBarrierHelper <ESI>
 PatchedWriteBarrierHelper <EDI>
 PatchedWriteBarrierHelper <EBP>
 
-PUBLIC _JIT_PatchedWriteBarrierLast@0
-_JIT_PatchedWriteBarrierLast@0 PROC
+PUBLIC _JIT_PatchedWriteBarrierGroup_End@0
+_JIT_PatchedWriteBarrierGroup_End@0 PROC
 ret
-_JIT_PatchedWriteBarrierLast@0 ENDP
-
-;**********************************************************************
-; PrecodeRemotingThunk is patched at runtime to activate it
-ifdef FEATURE_REMOTING
-        ALIGN 16
-_PrecodeRemotingThunk@0 proc public
-
-        ret                             ; This is going to be patched to "test ecx,ecx"
-        nop
-
-        jz      RemotingDone            ; predicted not taken
-
-        cmp     dword ptr [ecx],11111111h ; This is going to be patched to address of the transparent proxy
-        je      RemotingCheck           ; predicted not taken
-
-RemotingDone:
-        ret
-
-RemotingCheck:
-        push     eax            ; save method desc
-        mov      eax, dword ptr [ecx + TransparentProxyObject___stubData]
-        call     [ecx + TransparentProxyObject___stub]
-        test     eax, eax
-        jnz      RemotingCtxMismatch
-        mov      eax, [esp]
-        mov      ax, [eax + MethodDesc_m_wFlags]
-        and      ax, MethodDesc_mdcClassification
-        cmp      ax, MethodDesc_mcComInterop
-        je       ComPlusCall
-        pop      eax            ; throw away method desc
-        jmp      RemotingDone
-
-RemotingCtxMismatch:
-        pop      eax            ; restore method desc
-        add      esp, 4         ; pop return address into the precode
-        jmp      _TransparentProxyStub_CrossContext@0
-        
-ComPlusCall:
-        pop      eax            ; restore method desc
-        mov      [esp],eax      ; replace return address into the precode with method desc (argument for TP stub)
-        jmp      _InContextTPQuickDispatchAsmStub@0        
-
-_PrecodeRemotingThunk@0 endp
-endif ;  FEATURE_REMOTING
+_JIT_PatchedWriteBarrierGroup_End@0 ENDP
 
 _JIT_PatchedCodeLast@0 proc public
 ret
@@ -2570,5 +1431,33 @@ ChkCastInterfaceIsNullInst:
         ret
 
 @JIT_ChkCastInterface@8 endp
+
+; Note that the debugger skips this entirely when doing SetIP,
+; since COMPlusCheckForAbort should always return 0.  Excep.cpp:LeaveCatch
+; asserts that to be true.  If this ends up doing more work, then the
+; debugger may need additional support.
+; void __stdcall JIT_EndCatch();
+JIT_EndCatch PROC stdcall public
+
+    ; make temp storage for return address, and push the address of that
+    ; as the last arg to COMPlusEndCatch
+    mov     ecx, [esp]
+    push    ecx;
+    push    esp;
+
+    ; push the rest of COMPlusEndCatch's args, right-to-left
+    push    esi
+    push    edi
+    push    ebx
+    push    ebp
+
+    call    _COMPlusEndCatch@20 ; returns old esp value in eax, stores jump address
+    ; now eax = new esp, [esp] = new eip
+
+    pop     edx         ; edx = new eip
+    mov     esp, eax    ; esp = new esp
+    jmp     edx         ; eip = new eip
+
+JIT_EndCatch ENDP
 
     end

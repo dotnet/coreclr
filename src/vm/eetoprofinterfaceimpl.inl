@@ -65,6 +65,12 @@ inline BOOL EEToProfInterfaceImpl::IsCallback7Supported()
     return (m_pCallback7 != NULL);
 }
 
+inline BOOL EEToProfInterfaceImpl::IsCallback8Supported()
+{
+    LIMITED_METHOD_CONTRACT;
+    return (m_pCallback8 != NULL);
+}
+
 inline FunctionIDMapper * EEToProfInterfaceImpl::GetFunctionIDMapper()
 {
     LIMITED_METHOD_CONTRACT;
@@ -100,6 +106,12 @@ inline void EEToProfInterfaceImpl::SetUnrevertiblyModifiedILFlag()
 {
     LIMITED_METHOD_CONTRACT;
     m_fUnrevertiblyModifiedIL = TRUE;
+}
+
+inline void EEToProfInterfaceImpl::SetModifiedRejitState()
+{
+    LIMITED_METHOD_CONTRACT;
+    m_fModifiedRejitState = TRUE;
 }
 
 inline FunctionEnter * EEToProfInterfaceImpl::GetEnterHook()

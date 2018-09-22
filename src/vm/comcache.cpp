@@ -91,11 +91,7 @@ static IErrorInfo *CheckForFuncEvalAbortNoThrow(HRESULT hr)
             else
             {
                 // QI failed, put the IErrorInfo back
-                LeaveRuntimeHolderNoThrow lrh((size_t)SetErrorInfo);
-                if (SUCCEEDED(lrh.GetHR()))
-                {
-                    SetErrorInfo(0, pErrorInfo);
-                }
+                SetErrorInfo(0, pErrorInfo);
             }
         }
     }
@@ -807,7 +803,7 @@ void IUnkEntry::ReleaseStream()
     }
 }
 
-// Indicates if the COM component being wrapped by the IUnkEntry aggreates the FTM
+// Indicates if the COM component being wrapped by the IUnkEntry aggregates the FTM
 bool IUnkEntry::IsFreeThreaded()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1067,7 +1063,7 @@ bool IUnkEntry::IsComponentFreeThreaded(IUnknown *pUnk)
     {
         SafeComHolderPreemp<IMarshal> pMarshal = NULL;
 
-        // If not, then we can try to determine if the component agregates the FTM via IMarshal.
+        // If not, then we can try to determine if the component aggregates the FTM via IMarshal.
         hr = SafeQueryInterfacePreemp(pUnk, IID_IMarshal, (IUnknown **)&pMarshal);
         LogInteropQI(pUnk, IID_IMarshal, hr, "IUnkEntry::IsComponentFreeThreaded: QI for IMarshal");
         if (SUCCEEDED(hr))
@@ -1230,7 +1226,7 @@ DWORD WINAPI MDAContextSwitchDeadlockThreadProc(LPVOID lpParameter)
 
     if (retval == WAIT_TIMEOUT)
     {
-        // We didn't transition into the context within the alloted timeout period.
+        // We didn't transition into the context within the allotted timeout period.
         // We'll fire the mda and close the event, but we can't delete is as the
         //  thread may still complete the transition and attempt to signal the event.
         //  So we'll just leak it and let the transition thread recognize that the
@@ -1512,7 +1508,6 @@ HRESULT CtxEntry::EnterContext(PFNCTXCALLBACK pCallbackFunc, LPVOID pData)
 
     EX_TRY
     {
-        LeaveRuntimeHolder lrHolder(**(size_t**)(IContextCallback*)pCallback);
         hr = ((IContextCallback*)pCallback)->ContextCallback(EnterContextCallback, &callBackData, IID_IEnterActivityWithNoLock, 2, NULL);
     }
     EX_CATCH
@@ -1531,13 +1526,7 @@ HRESULT CtxEntry::EnterContext(PFNCTXCALLBACK pCallbackFunc, LPVOID pData)
             LOG((LF_INTEROP, LL_INFO100, "Entering into context 0x08X has failed since the debugger is blocking it\n", m_pCtxCookie)); 
 
             // put the IErrorInfo back 
-            {
-                LeaveRuntimeHolderNoThrow lrh((size_t)SetErrorInfo);
-                if (SUCCEEDED(lrh.GetHR()))
-                {
-                    SetErrorInfo(0, pErrorInfo);
-                }
-            }
+            SetErrorInfo(0, pErrorInfo);
         }
         else
         {

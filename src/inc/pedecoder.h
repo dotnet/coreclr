@@ -182,10 +182,12 @@ class PEDecoder
     UINT32 GetWin32VersionValue() const;
     COUNT_T GetNumberOfRvaAndSizes() const;
     COUNT_T GetNumberOfSections() const;
-    IMAGE_SECTION_HEADER *FindFirstSection() const;
+    PTR_IMAGE_SECTION_HEADER FindFirstSection() const;
     IMAGE_SECTION_HEADER *FindSection(LPCSTR sectionName) const;
 
     DWORD GetImageIdentity() const;
+
+    BOOL HasWriteableSections() const;
 
     // Directory entry access
 

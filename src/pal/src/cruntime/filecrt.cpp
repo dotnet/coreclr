@@ -93,7 +93,7 @@ _open_osfhandle( INT_PTR osfhandle, int flags )
 
     if (NO_ERROR == palError)
     {
-        if ('\0' != pLocalData->unix_filename[0])
+        if (NULL != pLocalData->unix_filename)
         {
             nRetVal = InternalOpen(pLocalData->unix_filename, openFlags);
         }
@@ -307,34 +307,6 @@ CorUnix::InternalOpen(
 #else
         nRet = open(szPath, nFlags, mode);
 #endif
-    return nRet;
-}
-
-
-/*++
-InternalDeleteFile
-
-Wrapper that does the same thing as unlink, except that
-it uses the SYS_Delete system call present on Apple instead of unlink.
-
-Input parameters:
-
-szPath = a symbolic link or a hard link to a file
-
-Return value:
-    Returns 0 on success and -1 on failure
---*/
-int
-CorUnix::InternalDeleteFile(
-    const char *szPath
-    )
-{
-    int nRet = -1;
-#if defined(__APPLE__) && defined(SYS_delete)
-    nRet = syscall(SYS_delete, szPath);
-#else
-    nRet = unlink(szPath);
-#endif // defined(__APPLE__) && defined(SYS_delete)
     return nRet;
 }
 

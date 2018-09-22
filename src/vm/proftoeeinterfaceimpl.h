@@ -133,7 +133,7 @@ typedef struct _PROFILER_STACK_WALK_DATA PROFILER_STACK_WALK_DATA;
 // from the profiler implementation.  The profiler will call back on the v-table
 // to get at EE internals as required.
 
-class ProfToEEInterfaceImpl : public ICorProfilerInfo7
+class ProfToEEInterfaceImpl : public ICorProfilerInfo9
 {
 public:
 
@@ -554,6 +554,51 @@ public:
         DWORD* pCountSymbolBytesRead);
 
     // end ICorProfilerInfo7
+
+    // begin ICorProfilerInfo8
+
+    COM_METHOD IsFunctionDynamic(
+        FunctionID functionId,
+        BOOL *isDynamic);
+
+    COM_METHOD GetFunctionFromIP3(
+        LPCBYTE      ip,          // in
+        FunctionID * pFunctionId, // out
+        ReJITID *    pReJitId);   // out
+
+    COM_METHOD GetDynamicFunctionInfo(
+        FunctionID functionId,
+        ModuleID* moduleId,
+        PCCOR_SIGNATURE* ppvSig,
+        ULONG* pbSig,
+        ULONG cchName,
+        ULONG *pcchName,
+        WCHAR wszName[]);
+
+    // end ICorProfilerInfo8
+
+    // beging ICorProfilerInfo9
+
+    COM_METHOD GetNativeCodeStartAddresses(
+        FunctionID functionID, 
+        ReJITID reJitId, 
+        ULONG32 cCodeStartAddresses, 
+        ULONG32 *pcCodeStartAddresses, 
+        UINT_PTR codeStartAddresses[]);
+
+    COM_METHOD GetILToNativeMapping3(
+        UINT_PTR pNativeCodeStartAddress, 
+        ULONG32 cMap, 
+        ULONG32 *pcMap, 
+        COR_DEBUG_IL_TO_NATIVE_MAP map[]);
+
+    COM_METHOD GetCodeInfo4(
+        UINT_PTR pNativeCodeStartAddress, 
+        ULONG32 cCodeInfos, 
+        ULONG32* pcCodeInfos, 
+        COR_PRF_CODE_INFO codeInfos[]);
+
+    // end ICorProfilerInfo9
 
 protected:
 

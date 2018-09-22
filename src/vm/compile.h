@@ -180,6 +180,11 @@ typedef  SHash<ZapperLoaderModuleTableTraits> ZapperLoaderModuleTable;
 class CEECompileInfo : public ICorCompileInfo
 {
   public:
+    CEECompileInfo()
+       : m_fGeneratingNgenPDB(FALSE)
+    {
+    }
+
     virtual ~CEECompileInfo()
     {
         WRAPPER_NO_CONTRACT;
@@ -193,8 +198,7 @@ class CEECompileInfo : public ICorCompileInfo
                          IMetaDataAssemblyEmit    *pEmitter,
                          BOOL                     fForceDebug,
                          BOOL                     fForceProfiling,
-                         BOOL                     fForceInstrument,
-                         BOOL                     fForceFulltrustDomain);
+                         BOOL                     fForceInstrument);
 
     HRESULT MakeCrossDomainCallback(
                                     ICorCompilationDomain*  pDomain,
@@ -207,21 +211,6 @@ class CEECompileInfo : public ICorCompileInfo
                                BOOL                     fExplicitBindToNativeImage,
                                CORINFO_ASSEMBLY_HANDLE *pHandle);
 
-#ifdef FEATURE_FUSION
-    HRESULT LoadAssemblyByName(LPCWSTR                  wzName,
-                               CORINFO_ASSEMBLY_HANDLE *pHandle);
-
-    HRESULT LoadAssemblyRef(IMDInternalImport     *pAssemblyImport,
-                            mdAssemblyRef           ref,
-                            CORINFO_ASSEMBLY_HANDLE *pHandle,
-                            IAssemblyName           **refAssemblyName = NULL);
-
-    HRESULT LoadAssemblyByIAssemblyName(
-            IAssemblyName           *pAssemblyName,
-            CORINFO_ASSEMBLY_HANDLE *pHandle
-            );
-
-#endif //FEATURE_FUSION
 
 #ifdef FEATURE_COMINTEROP
     HRESULT LoadTypeRefWinRT(IMDInternalImport       *pAssemblyImport,
@@ -235,12 +224,6 @@ class CEECompileInfo : public ICorCompileInfo
                                mdFile                  file,
                                CORINFO_MODULE_HANDLE   *pHandle);
 
-#ifndef FEATURE_CORECLR
-    // Check if the assembly supports automatic NGen
-    BOOL SupportsAutoNGen(CORINFO_ASSEMBLY_HANDLE assembly);
-
-    HRESULT SetCachedSigningLevel(HANDLE hNI, HANDLE *pModules, COUNT_T nModules);
-#endif
 
     BOOL CheckAssemblyZap(
         CORINFO_ASSEMBLY_HANDLE assembly, 
@@ -281,8 +264,9 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken,
-                       CORINFO_RESOLVED_TOKEN * pConstrainedResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       CORINFO_RESOLVED_TOKEN  *pConstrainedResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     virtual mdToken TryEncodeMethodAsToken(CORINFO_METHOD_HANDLE handle, 
                                            CORINFO_RESOLVED_TOKEN * pResolvedToken,
@@ -295,7 +279,8 @@ class CEECompileInfo : public ICorCompileInfo
                        SigBuilder              *pSigBuilder,
                        LPVOID                  encodeContext,
                        ENCODEMODULE_CALLBACK   pfnEncodeModule,
-                       CORINFO_RESOLVED_TOKEN * pResolvedToken);
+                       CORINFO_RESOLVED_TOKEN  *pResolvedToken,
+                       BOOL                    fEncodeUsingResolvedTokenSpecStreams);
 
     // Encode generic dictionary signature
     virtual void EncodeGenericSignature(
@@ -341,13 +326,6 @@ class CEECompileInfo : public ICorCompileInfo
                                     ICorCompileDataStore    *pData,
                                     CorProfileData          *profileData);
 
-#ifdef FEATURE_FUSION
-    HRESULT GetAssemblyName(
-            CORINFO_ASSEMBLY_HANDLE hAssembly,
-            DWORD                   dwFlags,
-            __out_z LPWSTR          wzAssemblyName, 
-            LPDWORD                 cchAssemblyName);
-#endif //FEATURE_FUSION
     
     HRESULT GetLoadHint(CORINFO_ASSEMBLY_HANDLE   hAssembly,
                         CORINFO_ASSEMBLY_HANDLE hAssemblyDependency,
@@ -375,11 +353,9 @@ class CEECompileInfo : public ICorCompileInfo
 
     HRESULT GetBaseJitFlags(
             IN  CORINFO_METHOD_HANDLE    hMethod,
-            OUT DWORD                   *pFlags);
+            OUT CORJIT_FLAGS            *pFlags);
 
-#ifdef _WIN64
-    SIZE_T  getPersonalityValue();
-#endif
+    ICorJitHost* GetJitHost();
 
     void* GetStubSize(void *pStubAddress, DWORD *pSizeToCopy);
 
@@ -397,6 +373,10 @@ class CEECompileInfo : public ICorCompileInfo
     void EncodeTypeLayout(CORINFO_CLASS_HANDLE classHandle, SigBuilder * pSigBuilder);
 
     BOOL AreAllClassesFullyLoaded(CORINFO_MODULE_HANDLE moduleHandle);
+
+    int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token);
+
+    int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle);
 #endif
 
     BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName);
@@ -521,6 +501,18 @@ class CEEPreloader : public ICorCompilePreloader
 
     // Array of methods that we need to compile.
     SArray<MethodDesc*> m_uncompiledMethods;
+
+    int m_methodCompileLimit;
+
+    void AppendUncompiledMethod(MethodDesc *pMD)
+    {
+        STANDARD_VM_CONTRACT;
+        if (m_methodCompileLimit > 0)
+        {
+            m_uncompiledMethods.Append(pMD);
+            m_methodCompileLimit--;
+        }
+    }
 
     struct DuplicateMethodEntry
     {
@@ -647,10 +639,10 @@ public:
     void NoteDeduplicatedCode(CORINFO_METHOD_HANDLE method, CORINFO_METHOD_HANDLE duplicateMethod);
 
     CORINFO_METHOD_HANDLE LookupMethodDef(mdMethodDef token);
+    bool GetMethodInfo(mdMethodDef token, CORINFO_METHOD_HANDLE ftnHnd, CORINFO_METHOD_INFO * methInfo);
 
     CorCompileILRegion GetILRegion(mdMethodDef token);
 
-    CORINFO_CLASS_HANDLE  FindTypeForProfileEntry(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * profileBlobEntry);
     CORINFO_METHOD_HANDLE FindMethodForProfileEntry(CORBBTPROF_BLOB_PARAM_SIG_ENTRY * profileBlobEntry);
 
     void ReportInlining(CORINFO_METHOD_HANDLE inliner, CORINFO_METHOD_HANDLE inlinee);
@@ -663,6 +655,10 @@ public:
     void GetRVAFieldData(mdFieldDef fd, PVOID * ppData, DWORD * pcbSize, DWORD * pcbAlignment);
 
     ULONG Release();
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    void GetSerializedInlineTrackingMap(SBuffer* pBuffer);
+#endif
 
     void Error(mdToken token, Exception * pException);
 };
@@ -739,9 +735,6 @@ typedef SHash<AssemblySpecDefRefMapTraits> AssemblySpecMapDefRefMapTable;
 class CompilationDomain : public AppDomain, 
                           public ICorCompilationDomain
 {
-#ifndef FEATURE_CORECLR
-    VPTR_MULTI_VTABLE_CLASS(CompilationDomain, AppDomain);
-#endif
 
  public:
     BOOL                    m_fForceDebug; 
@@ -778,14 +771,6 @@ class CompilationDomain : public AppDomain,
     HRESULT AddDependencyEntry(PEAssembly *pFile, mdAssemblyRef ref,mdAssemblyRef def);
     void ReleaseDependencyEmitter();
 
-#ifndef FEATURE_CORECLR // hardbinding
-    PtrHashMap              m_hardBoundModules;     // Hard dependency on native image of these dependency modules
-    PtrHashMap              m_cantHardBindModules;
-    void UpdateDependencyEntryForHardBind(PEAssembly * pDependencyAssembly);
-    void IncludeHardBindClosure(PEAssembly * pDependencyAssembly);
-    void CheckHardBindToZapFile(SString dependencyNameFromCustomAttribute);
-    void CheckLoadHints();
-#endif
 
   public:
 
@@ -806,35 +791,12 @@ class CompilationDomain : public AppDomain,
     PEAssembly *BindAssemblySpec(
         AssemblySpec *pSpec,
         BOOL fThrowOnFileNotFound,
-        BOOL fRaisePrebindEvents,
         StackCrawlMark *pCallerStackMark = NULL,
-        AssemblyLoadSecurity *pLoadSecurity = NULL,
         BOOL fUseHostBinderIfAvailable = TRUE) DAC_EMPTY_RET(NULL);
 
     BOOL CanEagerBindToZapFile(Module *targetModule, BOOL limitToHardBindList = TRUE);
 
-#ifndef FEATURE_CORECLR // hardbinding
-    PtrHashMap::PtrIterator IterateHardBoundModules();
 
-    // List of full display names of assemblies to hard-bind to
-    SArray<SString,FALSE> m_assemblyHardBindList;
-    BOOL                  m_useHardBindList;
-    BOOL IsInHardBindRequestList(Assembly * pAssembly);
-    BOOL IsInHardBindRequestList(PEAssembly * pAssembly);
-    BOOL IsSafeToHardBindTo(PEAssembly * pAssembly);
-
-    void SetAssemblyHardBindList(
-                        __in_ecount( cHardBindList )
-                            LPWSTR *pHardBindList,
-                        DWORD  cHardBindList);
-#endif
-
-#if defined(CROSSGEN_COMPILE) && !defined(FEATURE_CORECLR)
-    void ComputeAssemblyHardBindList(IMDInternalImport * pImport);
-    BOOL IsInHardBindList(SString& simpleName);
-
-    static BOOL FindImage(const SString& fileName, MDInternalImportFlags flags, PEImage ** ppImage);
-#endif
 
     // Returns NULL on out-of-memory
     RefCache *GetRefCache(Module *pModule)
@@ -880,9 +842,6 @@ class CompilationDomain : public AppDomain,
     HRESULT SetContextInfo(LPCWSTR exePath, BOOL isExe) DAC_EMPTY_RET(E_FAIL);
     HRESULT GetDependencies(CORCOMPILE_DEPENDENCY **ppDependencies,
                             DWORD *cDependencies) DAC_EMPTY_RET(E_FAIL);
-#ifdef FEATURE_FUSION
-    HRESULT GetIBindContext(IBindContext **ppBindCtx) DAC_EMPTY_RET(E_FAIL);
-#endif
 
 #ifdef CROSSGEN_COMPILE
     HRESULT SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths) DAC_EMPTY_RET(E_FAIL);

@@ -9,148 +9,249 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 using System.Threading;
+using TestLibrary;
+
+using Console = Internal.Console;
 
 public class Program
 {
     public static class NativeMethods
     {
-        [DllImport("user32.dll")]
-        public static extern int EnumWindows(IntPtr enumProc, IntPtr lParam);
+        [DllImport("NativeCallableDll")]
+        public static extern int CallManagedProc(IntPtr callbackProc, int n);
     }
 
+    private delegate int IntNativeMethodInvoker();
     private delegate void NativeMethodInvoker();
-    static EventWaitHandle waitHandle = new AutoResetEvent(false);
 
-    public static int Main()
+    public static int Main(string[] args)
     {
-        //NegativeTest_NonBlittable();
-        TestNativeCallableValid();
-        //NegativeTest_ViaDelegate();
-        //NegativeTest_ViaLdftn();
+        try
+        {
+            TestNativeCallableValid();
+            NegativeTest_ViaDelegate();
+            NegativeTest_NonBlittable();
+            NegativeTest_GenericArguments();
+
+            if (args.Length != 0 && args[0].Equals("calli"))
+            {
+                NegativeTest_ViaCalli();
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Test Failure: {e}");
+            return 101;
+        }
+
         return 100;
+    }
+
+    [NativeCallable]
+    public static int ManagedDoubleCallback(int n)
+    {
+        return DoubleImpl(n);
+    }
+
+    private static int DoubleImpl(int n)
+    {
+        return 2 * n;
     }
 
     public static void TestNativeCallableValid()
     {
+        Console.WriteLine($"{nameof(NativeCallableAttribute)} function");
+
         /*
            void TestNativeCallable()
            {
-                   .locals init ([0] native int ptr)
-                   IL_0000:  nop  
-                   IL_0002:  ldftn      int32 CallbackMethod(native int,native int)
+                .locals init ([0] native int ptr)
+                IL_0000:  nop
+                IL_0001:  ldftn      int32 ManagedDoubleCallback(int32)
+                IL_0007:  stloc.0
 
-                   IL_0012:  stloc.0
-                   IL_0013:  ldloc.0
-                   IL_0014:  ldsfld     native int [mscorlib]System.IntPtr::Zero
-                   IL_0019:  call       bool NativeMethods::EnumWindows(native int,
-                                                                                      native int)
-                   IL_001e:  pop
-                   IL_001f:  ret
+                IL_0008:  ldloc.0
+                IL_0009:  ldc.i4     <n> local
+                IL_000e:  call       bool NativeMethods::CallManagedProc(native int, int)
+
+                IL_0013:  ret
              }
-           */
-        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallable", null, null, typeof(Program).Module);
+        */
+        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallable", typeof(int), null, typeof(Program).Module);
         ILGenerator il = testNativeCallable.GetILGenerator();
         il.DeclareLocal(typeof(IntPtr));
         il.Emit(OpCodes.Nop);
-        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod("CallbackMethod"));
+
+        // Get native function pointer of the callback
+        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod(nameof(ManagedDoubleCallback)));
         il.Emit(OpCodes.Stloc_0);
         il.Emit(OpCodes.Ldloc_0);
-        il.Emit(OpCodes.Ldsfld, typeof(IntPtr).GetField("Zero"));
-        il.Emit(OpCodes.Call, typeof(NativeMethods).GetMethod("EnumWindows"));
-        il.Emit(OpCodes.Pop);
+
+        int n = 12345;
+        il.Emit(OpCodes.Ldc_I4, n);
+        il.Emit(OpCodes.Call, typeof(NativeMethods).GetMethod("CallManagedProc"));
         il.Emit(OpCodes.Ret);
-        NativeMethodInvoker testNativeMethod = (NativeMethodInvoker)testNativeCallable.CreateDelegate(typeof(NativeMethodInvoker));
-        testNativeMethod();
+        var testNativeMethod = (IntNativeMethodInvoker)testNativeCallable.CreateDelegate(typeof(IntNativeMethodInvoker));
+
+        int expected = DoubleImpl(n);
+        Assert.AreEqual(expected, testNativeMethod());
     }
 
     public static void NegativeTest_ViaDelegate()
     {
-        // Try invoking method directly 
+        Console.WriteLine($"{nameof(NativeCallableAttribute)} function as delegate");
+
+        // Try invoking method directly
         try
         {
-            Func<IntPtr, IntPtr, int> invoker = CallbackMethod;
-            invoker(IntPtr.Zero, IntPtr.Zero);
+            CallAsDelegate();
+            Assert.Fail($"Invalid to call {nameof(ManagedDoubleCallback)} as delegate");
         }
-        catch (Exception)
+        catch (NotSupportedException)
         {
-
         }
+
+        // Local function to delay exception thrown during JIT
+        void CallAsDelegate()
+        {
+            Func<int, int> invoker = ManagedDoubleCallback;
+            invoker(0);
+        }
+    }
+
+    [NativeCallable]
+    public static int CallbackMethodNonBlittable(bool x1)
+    {
+        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have non-blittable arguments");
+        return -1;
     }
 
     public static void NegativeTest_NonBlittable()
     {
-        // Try invoking method directly 
-        try
-        {
-            Func<bool, int> invoker = CallbackMethodNonBlitabble;
-            invoker(true);
-        }
-        catch (Exception)
-        {
-            Console.WriteLine(":bla");
-        }
-    }
+        Console.WriteLine($"{nameof(NativeCallableAttribute)} function with non-blittable arguments");
 
-
-    public static void NegativeTest_ViaLdftn()
-    {
         /*
-           .locals init (native int V_0)
-           IL_0000:  nop
-           IL_0001:  ldftn      void ConsoleApplication1.Program::callback(int32)
-           IL_0007:  stloc.0
-           IL_0008:  ldc.i4.s   12
-           IL_000a:  ldloc.0
-           IL_000b:  calli      void(int32)
-           IL_0010:  nop
-           IL_0011:  ret
-       */
-        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallableLdftn", null, null, typeof(Program).Module);
+           void TestNativeCallableNonBlittable()
+           {
+                .locals init ([0] native int ptr)
+                IL_0000:  nop
+                IL_0001:  ldftn      int32 CallbackMethodNonBlittable(bool)
+                IL_0007:  stloc.0
+                IL_0008:  ret
+             }
+        */
+        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallableNonBlittable", null, null, typeof(Program).Module);
         ILGenerator il = testNativeCallable.GetILGenerator();
         il.DeclareLocal(typeof(IntPtr));
         il.Emit(OpCodes.Nop);
-        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod("LdftnCallback"));
+
+        // Get native function pointer of the callback
+        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod(nameof(CallbackMethodNonBlittable)));
         il.Emit(OpCodes.Stloc_0);
-        il.Emit(OpCodes.Ldc_I4,12);
+
+        il.Emit(OpCodes.Ret);
+        var testNativeMethod = (NativeMethodInvoker)testNativeCallable.CreateDelegate(typeof(NativeMethodInvoker));
+
+        // Try invoking method
+        try
+        {
+            testNativeMethod();
+            Assert.Fail($"Function {nameof(CallbackMethodNonBlittable)} has non-blittable types");
+        }
+        catch (NotSupportedException)
+        {
+        }
+    }
+
+    [NativeCallable]
+    public static int CallbackMethodGeneric<T>(T arg)
+    {
+        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot have generic arguments");
+        return -1;
+    }
+
+    public static void NegativeTest_GenericArguments()
+    {
+        /*
+           void TestNativeCallableGenericArguments()
+           {
+                .locals init ([0] native int ptr)
+                IL_0000:  nop
+                IL_0001:  ldftn      int32 CallbackMethodGeneric(T)
+                IL_0007:  stloc.0
+                IL_0008:  ret
+             }
+        */
+        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallableGenericArguments", null, null, typeof(Program).Module);
+        ILGenerator il = testNativeCallable.GetILGenerator();
+        il.DeclareLocal(typeof(IntPtr));
+        il.Emit(OpCodes.Nop);
+
+        // Get native function pointer of the callback
+        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod(nameof(CallbackMethodGeneric)));
+        il.Emit(OpCodes.Stloc_0);
+
+        il.Emit(OpCodes.Ret);
+        var testNativeMethod = (NativeMethodInvoker)testNativeCallable.CreateDelegate(typeof(NativeMethodInvoker));
+
+        // Try invoking method
+        try
+        {
+            testNativeMethod();
+            Assert.Fail($"Function {nameof(CallbackMethodGeneric)} has generic types");
+        }
+        catch (InvalidProgramException)
+        {
+        }
+    }
+
+    [NativeCallable]
+    public static void CallbackViaCalli(int val)
+    {
+        Assert.Fail($"Functions with attribute {nameof(NativeCallableAttribute)} cannot be called via calli");
+    }
+
+    public static void NegativeTest_ViaCalli()
+    {
+        Console.WriteLine($"{nameof(NativeCallableAttribute)} function via calli instruction. The CLR _will_ crash.");
+
+        /*
+           void TestNativeCallableViaCalli()
+           {
+                .locals init (native int V_0)
+                IL_0000:  nop
+                IL_0001:  ldftn      void CallbackViaCalli(int32)
+                IL_0007:  stloc.0
+
+                IL_0008:  ldc.i4     1234
+                IL_000d:  ldloc.0
+                IL_000e:  calli      void(int32)
+
+                IL_0013:  nop
+                IL_0014:  ret
+           }
+        */
+        DynamicMethod testNativeCallable = new DynamicMethod("TestNativeCallableViaCalli", null, null, typeof(Program).Module);
+        ILGenerator il = testNativeCallable.GetILGenerator();
+        il.DeclareLocal(typeof(IntPtr));
+        il.Emit(OpCodes.Nop);
+
+        // Get native function pointer of the callback
+        il.Emit(OpCodes.Ldftn, typeof(Program).GetMethod(nameof(CallbackViaCalli)));
+        il.Emit(OpCodes.Stloc_0);
+
+        il.Emit(OpCodes.Ldc_I4, 1234);
         il.Emit(OpCodes.Ldloc_0);
+        il.EmitCalli(OpCodes.Calli, CallingConventions.Standard, null, new Type[] { typeof(int) }, null);
 
-        SignatureHelper sig =  SignatureHelper.GetMethodSigHelper(typeof(Program).Module, null, new Type[] { typeof(int) });
-        sig.AddArgument(typeof(int));
-
-        // il.EmitCalli is not available  and the below is not correct
-        il.Emit(OpCodes.Calli,sig);
         il.Emit(OpCodes.Nop);
         il.Emit(OpCodes.Ret);
 
         NativeMethodInvoker testNativeMethod = (NativeMethodInvoker)testNativeCallable.CreateDelegate(typeof(NativeMethodInvoker));
+
+        // It is not possible to catch the resulting ExecutionEngineException exception.
+        // To observe the crashing behavior set a breakpoint in the ReversePInvokeBadTransition() function
+        // located in src/vm/dllimportcallback.cpp.
         testNativeMethod();
-
     }
-
-    #region callbacks
-    [NativeCallable]
-    public static void LdftnCallback(int val)
-    {
-    }
-
-    [NativeCallable]
-    public static int CallbackMethod(IntPtr hWnd, IntPtr lParam)
-    {
-        waitHandle.Set();
-        return 1;
-    }
-
-    [NativeCallable]
-    public static int CallbackMethodGeneric<T>(IntPtr hWnd, IntPtr lParam)
-    {
-        return 1;
-    }
-
-    [NativeCallable]
-    public static int CallbackMethodNonBlitabble(bool x1)
-    {
-        return 1;
-    }
-    #endregion //callbacks
-
 }

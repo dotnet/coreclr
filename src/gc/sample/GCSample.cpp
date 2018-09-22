@@ -68,7 +68,7 @@ Object * AllocateObject(MethodTable * pMT)
     }
     else
     {
-        pObject = GCHeap::GetGCHeap()->Alloc(acontext, size, 0);
+        pObject = g_theGCHeap->Alloc(acontext, size, 0);
         if (pObject == NULL)
             return NULL;
     }
@@ -91,17 +91,14 @@ inline void ErectWriteBarrier(Object ** dst, Object * ref)
 {
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
-    if (((uint8_t*)dst < g_lowest_address) || ((uint8_t*)dst >= g_highest_address))
+    if (((uint8_t*)dst < g_gc_lowest_address) || ((uint8_t*)dst >= g_gc_highest_address))
         return;
         
-    if((uint8_t*)ref >= g_ephemeral_low && (uint8_t*)ref < g_ephemeral_high)
-    {
-        // volatile is used here to prevent fetch of g_card_table from being reordered 
-        // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
-        uint8_t* pCardByte = (uint8_t *)*(volatile uint8_t **)(&g_card_table) + card_byte((uint8_t *)dst);
-        if(*pCardByte != 0xFF)
-            *pCardByte = 0xFF;
-    }
+    // volatile is used here to prevent fetch of g_card_table from being reordered 
+    // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
+    uint8_t* pCardByte = (uint8_t *)*(volatile uint8_t **)(&g_gc_card_table) + card_byte((uint8_t *)dst);
+    if(*pCardByte != 0xFF)
+        *pCardByte = 0xFF;
 }
 
 void WriteBarrier(Object ** dst, Object * ref)
@@ -109,6 +106,8 @@ void WriteBarrier(Object ** dst, Object * ref)
     *dst = ref;
     ErectWriteBarrier(dst, ref);
 }
+
+extern "C" HRESULT GC_Initialize(IGCToCLR* clrToGC, IGCHeap** gcHeap, IGCHandleManager** gcHandleManager, GcDacVars* gcDacVars);
 
 int __cdecl main(int argc, char* argv[])
 {
@@ -126,22 +125,26 @@ int __cdecl main(int argc, char* argv[])
     //
     static MethodTable freeObjectMT;
     freeObjectMT.InitializeFreeObject();
-    g_pFreeObjectMethodTable = &freeObjectMT;
-
-    //
-    // Initialize handle table
-    //
-    if (!Ref_Initialize())
-        return -1;
+    g_gc_pFreeObjectMethodTable = &freeObjectMT;
 
     //
     // Initialize GC heap
     //
-    GCHeap *pGCHeap = GCHeap::CreateGCHeap();
-    if (!pGCHeap)
+    GcDacVars dacVars;
+    IGCHeap *pGCHeap;
+    IGCHandleManager *pGCHandleManager;
+    if (GC_Initialize(nullptr, &pGCHeap, &pGCHandleManager, &dacVars) != S_OK)
+    {
         return -1;
+    }
 
     if (FAILED(pGCHeap->Initialize()))
+        return -1;
+
+    //
+    // Initialize handle manager
+    //
+    if (!pGCHandleManager->Initialize())
         return -1;
 
     //
@@ -200,41 +203,41 @@ int __cdecl main(int argc, char* argv[])
         return -1;
 
     // Create strong handle and store the object into it
-    OBJECTHANDLE oh = CreateGlobalHandle(pObj);
+    OBJECTHANDLE oh = HndCreateHandle(g_HandleTableMap.pBuckets[0]->pTable[GetCurrentThreadHomeHeapNumber()], HNDTYPE_DEFAULT, pObj);
     if (oh == NULL)
         return -1;
 
     for (int i = 0; i < 1000000; i++)
     {
-        Object * pBefore = ((My *)ObjectFromHandle(oh))->m_pOther1;
+        Object * pBefore = ((My *)HndFetchHandle(oh))->m_pOther1;
 
         // Allocate more instances of the same object
         Object * p = AllocateObject(pMyMethodTable);
         if (p == NULL)
             return -1;
 
-        Object * pAfter = ((My *)ObjectFromHandle(oh))->m_pOther1;
+        Object * pAfter = ((My *)HndFetchHandle(oh))->m_pOther1;
 
         // Uncomment this assert to see how GC triggered inside AllocateObject moved objects around
         // assert(pBefore == pAfter);
 
         // Store the newly allocated object into a field using WriteBarrier
-        WriteBarrier(&(((My *)ObjectFromHandle(oh))->m_pOther1), p);
+        WriteBarrier(&(((My *)HndFetchHandle(oh))->m_pOther1), p);
     }
 
     // Create weak handle that points to our object
-    OBJECTHANDLE ohWeak = CreateGlobalWeakHandle(ObjectFromHandle(oh));
+    OBJECTHANDLE ohWeak = HndCreateHandle(g_HandleTableMap.pBuckets[0]->pTable[GetCurrentThreadHomeHeapNumber()], HNDTYPE_WEAK_DEFAULT, HndFetchHandle(oh));
     if (ohWeak == NULL)
         return -1;
 
     // Destroy the strong handle so that nothing will be keeping out object alive
-    DestroyGlobalHandle(oh);
+    HndDestroyHandle(HndGetHandleTable(oh), HNDTYPE_DEFAULT, oh);
 
     // Explicitly trigger full GC
     pGCHeap->GarbageCollect();
 
     // Verify that the weak handle got cleared by the GC
-    assert(ObjectFromHandle(ohWeak) == NULL);
+    assert(HndFetchHandle(ohWeak) == NULL);
 
     printf("Done\n");
 

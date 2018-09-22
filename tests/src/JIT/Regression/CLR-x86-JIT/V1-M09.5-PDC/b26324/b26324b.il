@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 .module 'gcindir.exe'
 
 .assembly extern System.Console
@@ -13,14 +16,14 @@
 }
 .namespace Test
 {
-  .class public auto ansi FormatSpecException extends [mscorlib]System.ApplicationException
+  .class public auto ansi FormatSpecException extends [mscorlib]System.Exception
   {
     .method public specialname rtspecialname instance void .ctor() il managed
     {
       .maxstack  8
       IL_0000:  ldarg.0
       IL_0001:  ldstr      "Invalid format spec"
-      IL_0006:  call       instance void [mscorlib]System.ApplicationException::.ctor(class [mscorlib]System.String)
+      IL_0006:  call       instance void [mscorlib]System.Exception::.ctor(class [mscorlib]System.String)
       IL_000b:  ret
     } 
 

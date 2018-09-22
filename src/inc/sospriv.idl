@@ -357,3 +357,23 @@ interface ISOSDacInterface4 : IUnknown
 {
     HRESULT GetClrNotification(CLRDATA_ADDRESS arguments[], int count, int *pNeeded);
 };
+
+[
+    object,
+    local,
+    uuid(127d6abe-6c86-4e48-8e7b-220781c58101)
+]
+interface ISOSDacInterface5 : IUnknown
+{
+    HRESULT GetTieredVersions(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpTieredVersionData *nativeCodeAddrs, int cNativeCodeAddrs, int *pcNativeCodeAddrs);
+};
+
+[
+    object,
+    local,
+    uuid(11206399-4B66-4EDB-98EA-85654E59AD45)
+]
+interface ISOSDacInterface6 : IUnknown
+{
+    HRESULT GetMethodTableFieldData(CLRDATA_ADDRESS mt, struct DacpMethodTableFieldData *data);
+};

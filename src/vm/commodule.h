@@ -18,12 +18,6 @@ public:
     // Attaches an unmanaged symwriter to a newly created dynamic module.
     static FCDECL2(LPVOID, nCreateISymWriterForDynamicModule, ReflectModuleBaseObject* reflectionModuleUNSAFE, StringObject* filenameUNSAFE);
 
-#ifdef  FEATURE_MULTIMODULE_ASSEMBLIES
-    // DefineDynamicModule
-    // This method will create a dynamic module given an assembly
-    static
-    void QCALLTYPE DefineDynamicModule(QCall::AssemblyHandle pContainingAssembly, BOOL emitSymbolInfo, LPCWSTR pModuleName, LPCWSTR pFilename, QCall::StackCrawlMarkHandle stackMark, LPVOID* ppInternalSymWriter, QCall::ObjectHandleOnStack retModule, BOOL fIsTransient, INT32* ptkFile);
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
     // IsTransient
     // Determine if a Module is transient
@@ -91,7 +85,7 @@ public:
     // Given a class type, this method will look for that type
     //  with in the module.
     static
-    void QCALLTYPE GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType);
+    void QCALLTYPE GetType(QCall::ModuleHandle pModule, LPCWSTR wszName, BOOL bThrowOnError, BOOL bIgnoreCase, QCall::ObjectHandleOnStack retType, QCall::ObjectHandleOnStack keepAlive);
 
     // Get class will return an array contain all of the classes
     //  that are defined within this Module.
@@ -103,11 +97,6 @@ public:
     static
     mdString QCALLTYPE GetStringConstant(QCall::ModuleHandle pModule, LPCWSTR pwzValue, INT32 iLength);
 
-#if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
-    /*X509Certificate*/
-    static
-    void QCALLTYPE GetSignerCertificate(QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retData);
-#endif // #if defined(FEATURE_X509) && defined(FEATURE_CAS_POLICY)
 
     static
     void QCALLTYPE SetModuleName(QCall::ModuleHandle pModule, LPCWSTR wszModuleName);
@@ -135,9 +124,7 @@ public:
 class COMPunkSafeHandle
 {
   public:
-#ifdef FEATURE_CORECLR
     static FCDECL0(void*, nGetDReleaseTarget);
-#endif
 };
 
 #endif

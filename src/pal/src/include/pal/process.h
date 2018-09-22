@@ -37,8 +37,10 @@ extern "C"
 */
 extern Volatile<LONG> terminator;
 
-// The process ID of this process, so we can avoid excessive calls to getpid().
+// The process and session ID of this process, so we can avoid excessive calls to getpid() and getsid().
 extern DWORD gPID;
+extern DWORD gSID;
+
 extern LPWSTR pAppDir;
 
 /*++
@@ -119,6 +121,21 @@ Abstract
 VOID PROCProcessUnlock(VOID);
 
 /*++
+Function
+  PROCAbortInitialize()
+  
+Abstract
+  Initialize the process abort crash dump program file path and
+  name. Doing all of this ahead of time so nothing is allocated
+  or copied in PROCAbort/signal handler.
+  
+Return
+  TRUE - succeeds, FALSE - fails
+  
+--*/
+BOOL PROCAbortInitialize();
+
+/*++
 Function:
   PROCAbort()
 
@@ -128,7 +145,7 @@ Function:
   Does not return
 --*/
 PAL_NORETURN 
-void PROCAbort();
+VOID PROCAbort();
 
 /*++
 Function:
@@ -139,7 +156,18 @@ Function:
 
 (no return value)
 --*/
-void PROCNotifyProcessShutdown();
+VOID PROCNotifyProcessShutdown();
+
+/*++
+Function:
+  PROCCreateCrashDumpIfEnabled
+
+  Creates crash dump of the process (if enabled). Can be
+  called from the unhandled native exception handler.
+
+(no return value)
+--*/
+VOID PROCCreateCrashDumpIfEnabled();
 
 /*++
 Function:

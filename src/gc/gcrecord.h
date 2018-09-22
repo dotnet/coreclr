@@ -13,7 +13,7 @@ Module Name:
 #ifndef __gc_record_h__
 #define __gc_record_h__
 
-#define max_generation 2
+//#define max_generation 2
 
 // We pack the dynamic tuning for deciding which gen to condemn in a uint32_t.
 // We assume that 2 bits are enough to represent the generation. 
@@ -270,7 +270,7 @@ static BOOL gc_expand_mechanism_mandatory_p[] =
 static char* str_heap_compact_reasons[] = 
 {
     "low on ephemeral space",
-    "high fragmetation",
+    "high fragmentation",
     "couldn't allocate gaps",
     "user specfied compact LOH",
     "last GC before OOM",

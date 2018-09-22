@@ -112,15 +112,19 @@
 #define NOT_ARM64_ARG(x)    , x
 #endif
 
+#ifdef _TARGET_64BIT_
+#define LOG2_PTRSIZE 3
+#else
+#define LOG2_PTRSIZE 2
+#endif
+
 #ifdef _WIN64
-    #define LOG2_PTRSIZE       3
     #define INVALID_POINTER_CC 0xcccccccccccccccc
     #define INVALID_POINTER_CD 0xcdcdcdcdcdcdcdcd
     #define FMT_ADDR           " %08x`%08x "
     #define LFMT_ADDR          W(" %08x`%08x ")
     #define DBG_ADDR(ptr)      (((UINT_PTR) (ptr)) >> 32), (((UINT_PTR) (ptr)) & 0xffffffff)
 #else // _WIN64
-    #define LOG2_PTRSIZE       2
     #define INVALID_POINTER_CC 0xcccccccc
     #define INVALID_POINTER_CD 0xcdcdcdcd
     #define FMT_ADDR           " %08x "
@@ -134,7 +138,7 @@
 
 
 #ifndef ALLOC_ALIGN_CONSTANT
-#define ALLOC_ALIGN_CONSTANT ((1<<LOG2_PTRSIZE)-1)
+#define ALLOC_ALIGN_CONSTANT (sizeof(void*)-1)
 #endif
 
 
@@ -188,6 +192,12 @@ inline void* ALIGN_UP( void* val, size_t alignment )
     
     return (void*) ALIGN_UP( (size_t)val, alignment );
 }
+inline uint8_t* ALIGN_UP( uint8_t* val, size_t alignment )
+{
+    WRAPPER_NO_CONTRACT;
+    
+    return (uint8_t*) ALIGN_UP( (size_t)val, alignment );
+}
 
 inline size_t ALIGN_DOWN( size_t val, size_t alignment )
 {
@@ -202,6 +212,11 @@ inline void* ALIGN_DOWN( void* val, size_t alignment )
 {
     WRAPPER_NO_CONTRACT;
     return (void*) ALIGN_DOWN( (size_t)val, alignment );
+}
+inline uint8_t* ALIGN_DOWN( uint8_t* val, size_t alignment )
+{
+    WRAPPER_NO_CONTRACT;
+    return (uint8_t*) ALIGN_DOWN( (size_t)val, alignment );
 }
 
 inline BOOL IS_ALIGNED( size_t val, size_t alignment )
@@ -266,7 +281,7 @@ inline ULONG RoundUpToPower2(ULONG x)
 
 
 #define DBG_GET_CLASS_NAME(pMT)        \
-        (pMT)->GetClass()->GetDebugClassName()
+        (((pMT) == NULL)  ? NULL : (pMT)->GetClass()->GetDebugClassName())
 
 #define DBG_CLASS_NAME_MT(pMT)         \
         (DBG_GET_CLASS_NAME(pMT) == NULL) ? "<null-class>" : DBG_GET_CLASS_NAME(pMT) 

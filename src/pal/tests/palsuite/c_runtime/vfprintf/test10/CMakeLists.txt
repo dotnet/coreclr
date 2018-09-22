@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 2.8.12.2)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 set(SOURCES
-  test10.c
+  test10.cpp
 )
 
 add_executable(paltest_vfprintf_test10
@@ -13,7 +13,5 @@ add_executable(paltest_vfprintf_test10
 add_dependencies(paltest_vfprintf_test10 coreclrpal)
 
 target_link_libraries(paltest_vfprintf_test10
-  pthread
-  m
-  coreclrpal
+  ${COMMON_TEST_LIBRARIES}
 )

@@ -19,6 +19,8 @@
 #include "finalizerthread.h"
 #include "threadsuspend.h"
 
+#include "typestring.h"
+
 #ifndef FEATURE_PAL
 #include "dwreport.h"
 #endif // !FEATURE_PAL
@@ -70,12 +72,10 @@ EEPolicy::EEPolicy ()
     m_ActionOnFailure[FAIL_NonCriticalResource] = eThrowException;
     m_ActionOnFailure[FAIL_OrphanedLock] = eNoAction;
     m_ActionOnFailure[FAIL_FatalRuntime] = eRudeExitProcess;
-#ifdef FEATURE_CORECLR
     // For CoreCLR, initialize the default action for AV processing to all
     // all kind of code to catch AV exception. If the host wants, they can
     // specify a different action for this.
     m_ActionOnFailure[FAIL_AccessViolation] = eNoAction;
-#endif // FEATURE_CORECLR    
     m_ActionOnFailure[FAIL_StackOverflow] = eRudeExitProcess;
     m_ActionOnFailure[FAIL_CodeContract] = eThrowException;
     m_unhandledExceptionPolicy = eRuntimeDeterminedPolicy;
@@ -178,22 +178,10 @@ BOOL EEPolicy::IsValidActionForFailure(EClrFailure failure, EPolicyAction action
         return action >= eUnloadAppDomain &&
             action < MaxPolicyAction;
     case FAIL_AccessViolation:
-#ifdef FEATURE_CORECLR
         // Allowed actions on failure are:
         // 
         // eNoAction or eRudeExitProcess.
         return ((action == eNoAction) || (action == eRudeExitProcess));
-#else // !FEATURE_CORECLR
-        // FAIL_AccessViolation is defined for the desktop so that
-        // if any more definitions are added after it, their value
-        // should remain constant irrespective of whether its the
-        // desktop CLR or CoreCLR.
-        //
-        // That said, currently, Desktop CLR does not support
-        // FAIL_AccessViolation. Thus, any calls which use
-        // this failure are not allowed.
-        return FALSE;
-#endif // FEATURE_CORECLR         
     case FAIL_StackOverflow:
         return action >= eRudeUnloadAppDomain &&
             action < MaxPolicyAction;
@@ -424,22 +412,6 @@ EPolicyAction EEPolicy::GetActionOnFailure(EClrFailure failure)
     }
 
     EPolicyAction finalAction = GetActionOnFailureNoHostNotification(failure);
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnFailure(failure, finalAction);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     return finalAction;
 }
 
@@ -455,22 +427,6 @@ void EEPolicy::NotifyHostOnTimeout(EClrOperation operation, EPolicyAction action
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnTimeout(operation, action);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 
@@ -485,22 +441,6 @@ void EEPolicy::NotifyHostOnDefaultAction(EClrOperation operation, EPolicyAction 
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostPolicyManager *pHostPolicyManager = CorHost2::GetHostPolicyManager();
-    if (pHostPolicyManager)
-    {
-#ifdef _DEBUG
-        Thread* pThread = GetThread();
-        if (pThread)
-        {
-            pThread->AddFiberInfo(Thread::ThreadTrackInfo_Escalation);
-        }
-#endif
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        pHostPolicyManager->OnDefaultAction(operation, action);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 }
 
 void SafeExitProcess(UINT exitCode, BOOL fAbort = FALSE, ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete)
@@ -602,21 +542,6 @@ void EEPolicy::ExitProcessViaShim(UINT exitCode)
     // runtime in a process with many. We need to give the other runtimes a chance to exit
     // cleanly. If we can't make the call, or if the call fails for some reason, then we
     // simply exit the process here, which is rude to the others, but the best we can do.
-#if !defined(FEATURE_CORECLR)
-    {
-        ReleaseHolder<ICLRRuntimeHostInternal> pRuntimeHostInternal;
-
-        HRESULT hr = g_pCLRRuntime->GetInterface(CLSID_CLRRuntimeHostInternal,
-            IID_ICLRRuntimeHostInternal,
-            &pRuntimeHostInternal);
-
-        if (SUCCEEDED(hr))
-        {
-            pRuntimeHostInternal->ShutdownAllRuntimesThenExit(exitCode);
-            LOG((LF_EH, LL_INFO10, "ExitProcessViaShim: shim returned... exiting now.\n"));
-        }
-    }
-#endif // !FEATURE_CORECLR
 
     ExitProcess(exitCode);
 }
@@ -1001,13 +926,7 @@ void EEPolicy::HandleStackOverflow(StackOverflowDetector detector, void * pLimit
     switch (detector)
     {
     case SOD_ManagedFrameHandler:
-            if (!pThread->PreemptiveGCDisabled() && !fInCLR && fInSoTolerant
-            &&
-            // Before we call managed code, we probe inside ReverseEnterRuntime for BACKOUT_CODE_STACK_LIMIT pages
-            // If we hit hard so here, we are still in our stub
-            (!CLRTaskHosted() || (UINT_PTR)pThread->m_pFrame - pThread->GetLastAllowableStackAddress() >= 
-             ADJUST_PROBE(BACKOUT_CODE_STACK_LIMIT) * OS_PAGE_SIZE)
-            )
+            if (!pThread->PreemptiveGCDisabled() && !fInCLR && fInSoTolerant)
         {
             // Managed exception handler detects SO, but the thread is in preemptive GC mode,
             // and the IP is outside CLR.  This means we are inside a PINVOKE call.
@@ -1188,17 +1107,134 @@ void EEPolicy::HandleExitProcess(ShutdownCompleteAction sca)
     HandleExitProcessHelper(action, 0, sca);
 }
 
+StackWalkAction LogCallstackForLogCallback(
+    CrawlFrame       *pCF,      //
+    VOID*             pData     // Caller's private data
+)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        SO_INTOLERANT;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    SmallStackSString *pWordAt = ((SmallStackSString*)pData);
+
+    MethodDesc *pMD = pCF->GetFunction();
+    _ASSERTE(pMD != NULL);
+
+    StackSString str;
+    str = *pWordAt;
+
+    TypeString::AppendMethodInternal(str, pMD, TypeString::FormatNamespace|TypeString::FormatFullInst|TypeString::FormatSignature); 
+    PrintToStdErrW(str.GetUnicode());
+    PrintToStdErrA("\n");
+
+    return SWA_CONTINUE;
+}
+
+//---------------------------------------------------------------------------------------
+//
+// A worker to save managed stack trace.
+//
+// Arguments:
+//    None
+//
+// Return Value:
+//    None
+//
+inline void LogCallstackForLogWorker()
+{
+    Thread* pThread = GetThread();
+    _ASSERTE (pThread);
+
+    SmallStackSString WordAt;
+
+    if (!WordAt.LoadResource(CCompRC::Optional, IDS_ER_WORDAT))
+    {
+        WordAt.Set(W("   at"));
+    }
+    else
+    {
+        WordAt.Insert(WordAt.Begin(), W("   "));
+    }
+    WordAt += W(" ");
+
+    pThread->StackWalkFrames(&LogCallstackForLogCallback, &WordAt, QUICKUNWIND | FUNCTIONSONLY);
+}
+
+//---------------------------------------------------------------------------------------
+//
+// Generate an EventLog entry for unhandled exception.
+//
+// Arguments:
+//    pExceptionInfo - Exception information
+//
+// Return Value:
+//    None
+//
+inline void DoLogForFailFastException(LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
+{
+    WRAPPER_NO_CONTRACT;
+
+    Thread *pThread = GetThread();
+    EX_TRY
+    {
+        if (errorSource == NULL)
+        {
+            PrintToStdErrA("FailFast:");
+        }
+        else 
+        {
+            PrintToStdErrW((WCHAR*)errorSource);
+        }
+
+        PrintToStdErrA("\n");
+        PrintToStdErrW((WCHAR*)pszMessage);
+        PrintToStdErrA("\n");
+
+        if (pThread && errorSource == NULL)
+        {
+            PrintToStdErrA("\n");
+            LogCallstackForLogWorker();
+
+            if (argExceptionString != NULL) {
+                PrintToStdErrA("\n");
+                PrintToStdErrA("Exception details:");
+                PrintToStdErrA("\n");
+                PrintToStdErrW((WCHAR*)argExceptionString);
+                PrintToStdErrA("\n");
+            }
+        }
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions)
+}
+
+//This starts FALSE and then converts to true if HandleFatalError has ever been called by a GC thread
+BOOL g_fFatalErrorOccuredOnGCThread = FALSE;
 //
 // Log an error to the event log if possible, then throw up a dialog box.
 //
 
-void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo)
+void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_ANY;
 
     _ASSERTE(pExceptionInfo != NULL);
+
+    // Log FailFast exception to StdErr
+    if (exitCode == (UINT)COR_E_FAILFAST)
+    {
+        DoLogForFailFastException(pszMessage, pExceptionInfo, errorSource, argExceptionString);
+    }
 
     if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
     {
@@ -1228,13 +1264,18 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
             else if (exitCode == (UINT)COR_E_CODECONTRACTFAILED)
                 failureType = EventReporter::ERT_CodeContractFailed;
             EventReporter reporter(failureType);
-
+            StackSString s(argExceptionString);
 
             if ((exitCode == (UINT)COR_E_FAILFAST) || (exitCode == (UINT)COR_E_CODECONTRACTFAILED) || (exitCode == (UINT)CLR_E_GC_OOM))
             {
                 if (pszMessage)
                 {
                     reporter.AddDescription((WCHAR*)pszMessage);
+                }
+
+                if (argExceptionString)
+                {
+                    reporter.AddFailFastStackTrace(s);
                 }
 
                 if (exitCode != (UINT)CLR_E_GC_OOM)
@@ -1310,7 +1351,7 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
         //Give a managed debugger a chance if this fatal error is on a managed thread.
         Thread *pThread = GetThread();
 
-        if (pThread)
+        if (pThread && !g_fFatalErrorOccuredOnGCThread)
         {
             GCX_COOP();
 
@@ -1368,7 +1409,7 @@ void DisplayStackOverflowException()
     LIMITED_METHOD_CONTRACT;
     PrintToStdErrA("\n");
 
-    PrintToStdErrA("Process is terminated due to StackOverflowException.\n");
+    PrintToStdErrA("Process is terminating due to StackOverflowException.\n");
 }
 
 void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pExceptionInfo, BOOL fSkipDebugger)
@@ -1433,7 +1474,7 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
         }
 
 #ifndef FEATURE_PAL        
-        if (RunningOnWin7() && IsWatsonEnabled() && (g_pDebugInterface != NULL))
+        if (IsWatsonEnabled() && (g_pDebugInterface != NULL))
         {
             _ASSERTE(pExceptionInfo != NULL);
 
@@ -1452,7 +1493,10 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pE
     UNREACHABLE();
 }
 
-void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */)
+
+
+
+void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage /* = NULL */, PEXCEPTION_POINTERS pExceptionInfo /* = NULL */, LPCWSTR errorSource /* = NULL */, LPCWSTR argExceptionString /* = NULL */)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1487,6 +1531,14 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         // All of the code from here on out is robust to any failures in any API's that are called.
         CONTRACT_VIOLATION(GCViolation | ModeViolation | SOToleranceViolation | FaultNotFatal | TakesLockViolation);
 
+
+        // Setting g_fFatalErrorOccuredOnGCThread allows code to avoid attempting to make GC mode transitions which could
+        // block indefinately if the fatal error occured during the GC.
+        if (IsGCSpecialThread() && GCHeapUtilities::IsGCInProgress())
+        {
+            g_fFatalErrorOccuredOnGCThread = TRUE;
+        }
+
         // ThreadStore lock needs to be released before continuing with the FatalError handling should 
         // because debugger is going to take CrstDebuggerMutex, whose lock level is higher than that of 
         // CrstThreadStore.  It should be safe to release the lock since execution will not be resumed 
@@ -1502,11 +1554,11 @@ void DECLSPEC_NORETURN EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR addres
         switch (GetEEPolicy()->GetActionOnFailure(FAIL_FatalRuntime))
         {
         case eRudeExitProcess:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
 	        SafeExitProcess(exitCode, TRUE);
             break;
         case eDisableRuntime:
-            LogFatalError(exitCode, address, pszMessage, pExceptionInfo);
+            LogFatalError(exitCode, address, pszMessage, pExceptionInfo, errorSource, argExceptionString);
             DisableRuntime(SCA_ExitProcessWhenShutdownComplete);
             break;
         default:

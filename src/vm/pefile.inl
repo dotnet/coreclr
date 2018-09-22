@@ -12,9 +12,6 @@
 
 #include "strongname.h"
 #include "strongnameholders.h"
-#ifdef FEATURE_FUSION
-#include "fusionbind.h"
-#endif
 #include "check.h"
 #include "simplerwlock.hpp"
 #include "eventtrace.h"
@@ -106,19 +103,7 @@ inline ULONG PEAssembly::HashIdentity()
         GC_TRIGGERS;
     }
     CONTRACTL_END;
-#ifdef FEATURE_VERSIONING
     return BINDER_SPACE::GetAssemblyFromPrivAssemblyFast(m_pHostAssembly)->GetAssemblyName()->Hash(BINDER_SPACE::AssemblyName::INCLUDE_VERSION);
-#else
-    if (!m_identity->HasID())
-    {
-        if (!IsLoaded())
-            return 0;
-        else
-            return (ULONG) dac_cast<TADDR>(GetLoaded()->GetBase());
-    }
-    else
-        return m_identity->GetIDHash();
-#endif
 }
 
 inline void PEFile::ValidateForExecution()
@@ -133,7 +118,7 @@ inline void PEFile::ValidateForExecution()
 
     // We do not need to check NGen images; if it had the attribute, it would have failed to load
     // at NGen time and so there would be no NGen image.
-    if (HasNativeImage() || IsIntrospectionOnly())
+    if (HasNativeImage())
         return;
 
     //
@@ -179,23 +164,6 @@ inline BOOL PEFile::IsMarkedAsContentTypeWindowsRuntime()
     return (IsAfContentType_WindowsRuntime(GetFlags()));
 }
 
-#ifndef FEATURE_CORECLR
-inline BOOL PEFile::IsShareable()
-{
-    CONTRACTL
-    {
-        PRECONDITION(CheckPointer(m_identity));
-        MODE_ANY;
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACTL_END;
-
-    if (!m_identity->HasID())
-        return FALSE;
-    return TRUE ;
-}
-#endif
 
 inline void PEFile::GetMVID(GUID *pMvid)
 {
@@ -215,24 +183,6 @@ inline BOOL PEFile::PassiveDomainOnly()
 {
     WRAPPER_NO_CONTRACT;
     return HasOpenedILimage() && GetOpenedILimage()->PassiveDomainOnly();
-}
-
-// ------------------------------------------------------------
-// Loader support routines
-// ------------------------------------------------------------
-
-inline void PEFile::SetSkipVerification()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    m_flags |= PEFILE_SKIP_VERIFICATION; 
-}
-
-inline BOOL PEFile::HasSkipVerification()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return (m_flags & (PEFILE_SKIP_VERIFICATION | PEFILE_SYSTEM)) != 0; 
 }
 
 // ------------------------------------------------------------
@@ -368,119 +318,23 @@ inline BOOL PEFile::IsResource() const
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    return IsModule() && dac_cast<PTR_PEModule>(this)->IsResource();
-#else
     return FALSE;
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 }
 
 inline BOOL PEFile::IsIStream() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return (m_flags & PEFILE_ISTREAM) != 0;
+    return FALSE;
 }
-
-inline BOOL PEFile::IsIntrospectionOnly() const
-{
-    WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    if (IsModule())
-    {
-        return dac_cast<PTR_PEModule>(this)->GetAssembly()->IsIntrospectionOnly();
-    }
-    else
-#endif //  FEATURE_MULTIMODULE_ASSEMBLIES
-    {
-        return (m_flags & PEFILE_INTROSPECTIONONLY) != 0;
-    }
-}
-
 
 inline PEAssembly *PEFile::GetAssembly() const
 {
     WRAPPER_NO_CONTRACT;
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    if (IsAssembly())
-        return dac_cast<PTR_PEAssembly>(this);
-    else
-        return dac_cast<PTR_PEModule>(this)->GetAssembly();
-#else
     _ASSERTE(IsAssembly());
     return dac_cast<PTR_PEAssembly>(this);
 
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 }
-
-// ------------------------------------------------------------
-// Hash support
-// ------------------------------------------------------------
-
-#ifndef DACCESS_COMPILE
-inline void PEFile::GetImageBits(SBuffer &result)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(CheckValue(result));
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    EnsureImageOpened();
-    // We don't cache any other hashes right now.
-    if (!IsDynamic())
-        GetILimage()->GetImageBits(PEImageLayout::LAYOUT_FLAT,result);
-}
-
-inline void PEFile::GetHash(ALG_ID algorithm, SBuffer &result)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(CheckValue(result));
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (algorithm == CALG_SHA1)
-    {
-        GetSHA1Hash(result);
-    }
-    else
-    {
-        EnsureImageOpened();
-        // We don't cache any other hashes right now.
-        GetILimage()->ComputeHash(algorithm, result);
-    }
-}
-    
-inline CHECK PEFile::CheckHash(ALG_ID algorithm, const void *hash, COUNT_T size)
-{
-    CONTRACT_CHECK
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(CheckPointer(hash));
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACT_CHECK_END;
-
-    StackSBuffer hashBuffer;
-    GetHash(algorithm, hashBuffer);
-
-    CHECK(hashBuffer.Equals((const BYTE *)hash, size));
-
-    CHECK_OK;
-}
-#endif // DACCESS_COMPILE
 
 // ------------------------------------------------------------
 // Metadata access
@@ -525,9 +379,6 @@ inline IMDInternalImport* PEFile::GetPersistentMDImport()
     CONTRACT_END;
 */
     SUPPORTS_DAC;
-#ifndef FEATURE_CORECLR
-_ASSERTE(m_bHasPersistentMDImport);
-#endif
 #if !defined(__GNUC__)
 
     _ASSERTE(!IsResource());
@@ -624,46 +475,6 @@ inline IMetaDataEmit *PEFile::GetEmitter()
     RETURN m_pEmitter;
 }
 
-#ifndef FEATURE_CORECLR
-inline IMetaDataAssemblyImport *PEFile::GetAssemblyImporter()
-{
-    CONTRACT(IMetaDataAssemblyImport *) 
-    {
-        INSTANCE_CHECK;
-        MODE_ANY;
-        GC_NOTRIGGER;
-        PRECONDITION(!IsResource());
-        POSTCONDITION(CheckPointer(RETVAL));
-        PRECONDITION(m_bHasPersistentMDImport);
-        THROWS;
-    }
-    CONTRACT_END;
-
-    if (m_pAssemblyImporter == NULL)
-        OpenAssemblyImporter();
-
-    RETURN m_pAssemblyImporter;
-}
-
-inline IMetaDataAssemblyEmit *PEFile::GetAssemblyEmitter()
-{
-    CONTRACT(IMetaDataAssemblyEmit *) 
-    {
-        INSTANCE_CHECK;
-        MODE_ANY;
-        GC_NOTRIGGER;
-        PRECONDITION(!IsResource());
-        POSTCONDITION(CheckPointer(RETVAL));
-        PRECONDITION(m_bHasPersistentMDImport);
-    }
-    CONTRACT_END;
-
-    if (m_pAssemblyEmitter == NULL)
-        OpenAssemblyEmitter();
-
-    RETURN m_pAssemblyEmitter;
-}
-#endif // FEATURE_CORECLR
 
 #endif // DACCESS_COMPILE
 
@@ -685,10 +496,6 @@ inline LPCUTF8 PEFile::GetSimpleName()
 
     if (IsAssembly())
         RETURN dac_cast<PTR_PEAssembly>(this)->GetSimpleName();
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    else if (IsModule())
-        RETURN dac_cast<PTR_PEModule>(this)->GetSimpleName();
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
     else 
     {
         LPCUTF8 szScopeName;
@@ -723,37 +530,6 @@ inline HRESULT PEFile::GetScopeName(LPCUTF8 * pszName)
 // ------------------------------------------------------------
 // PE file access
 // ------------------------------------------------------------
-
-inline BOOL PEFile::HasSecurityDirectory()
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (IsResource() || IsDynamic())
-        return FALSE;
-
-#ifdef FEATURE_PREJIT
-    if (IsNativeLoaded())
-    {
-        CONSISTENCY_CHECK(HasNativeImage());
-
-        return m_nativeImage->GetNativeILHasSecurityDirectory();
-    }
-#ifndef DACCESS_COMPILE
-    if (!HasOpenedILimage())
-    {
-        //don't want to touch the IL image unless we already have
-        ReleaseHolder<PEImage> pNativeImage = GetNativeImageWithRef();
-        if (pNativeImage)
-            return pNativeImage->GetNativeILHasSecurityDirectory();
-    }
-#endif // DACCESS_COMPILE
-#endif // FEATURE_PREJIT
-
-    if (!GetILimage()->HasNTHeaders())
-        return FALSE;
-
-    return GetOpenedILimage()->HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_SECURITY);
-}
 
 inline BOOL PEFile::IsIbcOptimized()
 {
@@ -1143,87 +919,6 @@ inline CHECK PEFile::CheckInternalPInvokeTarget(RVA target)
     
     CHECK_OK;
 }
-    
-inline PCCOR_SIGNATURE  PEFile::GetSignature(RVA signature)
-{
-    CONTRACT(PCCOR_SIGNATURE)
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(!IsDynamic() || signature == 0);
-        PRECONDITION(!IsResource());
-        PRECONDITION(CheckSignatureRva(signature));
-        POSTCONDITION(CheckSignature(RETVAL));
-        PRECONDITION(CheckLoaded());
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACT_END;
-
-    if (signature == 0)
-        RETURN NULL;
-    else
-        RETURN (PCCOR_SIGNATURE) GetLoadedIL()->GetRvaData(signature);
-}
-
-inline RVA PEFile::GetSignatureRva(PCCOR_SIGNATURE signature)
-{
-    CONTRACT(RVA)
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(!IsDynamic() || signature == NULL);
-        PRECONDITION(!IsResource());
-        PRECONDITION(CheckSignature(signature));
-        POSTCONDITION(CheckSignatureRva(RETVAL));
-        PRECONDITION(CheckLoaded());
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACT_END;
-
-    if (signature == NULL)
-        RETURN 0;
-    else
-        RETURN GetLoadedIL()->GetDataRva(
-            dac_cast<TADDR>(signature));
-}
-
-inline CHECK PEFile::CheckSignature(PCCOR_SIGNATURE signature)
-{
-    CONTRACT_CHECK
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(!IsDynamic() || signature == NULL);
-        PRECONDITION(!IsResource());
-        PRECONDITION(CheckLoaded());
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACT_CHECK_END;
-        
-    CHECK(GetLoadedIL()->CheckData(signature,NULL_OK));
-    CHECK_OK;
-}
-
-inline CHECK PEFile::CheckSignatureRva(RVA signature)
-{
-    CONTRACT_CHECK
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(!IsDynamic() || signature == NULL);
-        PRECONDITION(!IsResource());
-        PRECONDITION(CheckLoaded());
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACT_CHECK_END;
-        
-    CHECK(GetLoadedIL()->CheckRva(signature,NULL_OK));
-    CHECK_OK;
-}
 
 inline IMAGE_COR_VTABLEFIXUP *PEFile::GetVTableFixups(COUNT_T *pCount/*=NULL*/)
 {
@@ -1391,7 +1086,7 @@ inline BOOL PEFile::IsPtrInILImage(PTR_CVOID data)
 
     if (HasOpenedILimage())
     {
-#if defined(FEATURE_PREJIT) && defined(FEATURE_CORECLR)
+#if defined(FEATURE_PREJIT)
         if (m_openedILimage == m_nativeImage)
         {
             // On Apollo builds, we sometimes open the native image into the slot
@@ -1405,7 +1100,7 @@ inline BOOL PEFile::IsPtrInILImage(PTR_CVOID data)
             TADDR taddrILMetadata = dac_cast<TADDR>(pDecoder->GetMetadata(&cbILMetadata));
             return ((taddrILMetadata <= taddrData) && (taddrData < taddrILMetadata + cbILMetadata));
         }
-#endif // defined(FEATURE_PREJIT) && defined(FEATURE_CORECLR)
+#endif // defined(FEATURE_PREJIT)
         return GetOpenedILimage()->IsPtrInImage(data);
     }
     else
@@ -1435,15 +1130,30 @@ inline BOOL PEFile::HasNativeImage()
 #endif
 }
 
+inline BOOL PEFile::HasNativeOrReadyToRunImage()
+{
+    CONTRACTL
+    {
+        INSTANCE_CHECK;
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        SO_TOLERANT;
+        CANNOT_TAKE_LOCK;
+        SUPPORTS_DAC;
+    }
+    CONTRACTL_END;
+
+    return (HasNativeImage() || IsILImageReadyToRun());
+}
+
 inline PTR_PEImageLayout PEFile::GetLoadedIL() 
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
 
     _ASSERTE(HasOpenedILimage());
-    if(IsIntrospectionOnly())
-        return GetOpenedILimage()->GetLoadedIntrospectionLayout();
-    
+
     return GetOpenedILimage()->GetLoadedLayout();
 };
 
@@ -1466,10 +1176,6 @@ inline BOOL PEFile::IsLoaded(BOOL bAllowNative/*=TRUE*/)
     CONTRACTL_END;
     if(IsDynamic())
         return TRUE;
-    if(IsIntrospectionOnly())
-    {
-        return HasOpenedILimage() && GetOpenedILimage()->HasLoadedIntrospectionLayout();
-    }
 #ifdef FEATURE_PREJIT
     if (bAllowNative && HasNativeImage())
     {
@@ -1704,9 +1410,6 @@ inline void PEAssembly::GetDisplayName(SString &result, DWORD flags)
  
 #ifndef DACCESS_COMPILE
 
-#ifdef FEATURE_FUSION
-    FusionBind::GetAssemblyNameDisplayName(GetFusionAssemblyName(), result, flags);
-#else
     if ((flags == (ASM_DISPLAYF_VERSION | ASM_DISPLAYF_CULTURE | ASM_DISPLAYF_PUBLIC_KEY_TOKEN)) &&
         !m_sTextualIdentity.IsEmpty())
     {
@@ -1718,7 +1421,6 @@ inline void PEAssembly::GetDisplayName(SString &result, DWORD flags)
         spec.InitializeSpec(this);
         spec.GetFileOrDisplayName(flags, result);
     }
-#endif // FEATURE_FUSION
 
 #else
     IMDInternalImport *pImport = GetMDImport();
@@ -1774,12 +1476,6 @@ inline BOOL PEFile::IsStrongNamed()
 //
 // Check to see if this assembly has had its strong name signature verified yet.
 //
-
-inline BOOL PEFile::IsStrongNameVerified()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fStrongNameVerified;
-}
 
 inline const void *PEFile::GetPublicKey(DWORD *pcbPK)
 {
@@ -1868,25 +1564,6 @@ inline HRESULT PEFile::GetFlagsNoTrigger(DWORD * pdwFlags)
     return GetPersistentMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, NULL, NULL, NULL, pdwFlags);
 }
 
-#ifdef FEATURE_CAS_POLICY
-inline COR_TRUST *PEFile::GetAuthenticodeSignature()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-    }
-    CONTRACTL_END;
-
-    if (!m_fCheckedCertificate && HasSecurityDirectory())
-    {
-        CheckAuthenticodeSignature();
-    }
-
-    return m_certificate;
-}
-#endif
 
 // ------------------------------------------------------------
 // Hash support
@@ -1912,193 +1589,9 @@ inline BOOL PEAssembly::HasStrongNameSignature()
     return GetILimage()->HasStrongNameSignature();
 }
 
-//---------------------------------------------------------------------------------------
-//
-// Check to see that an assembly is not delay or test signed
-//
-
-inline BOOL PEAssembly::IsFullySigned()
-{
-    WRAPPER_NO_CONTRACT;
-
-#ifdef FEATURE_PREJIT
-    if (IsNativeLoaded())
-    {
-        CONSISTENCY_CHECK(HasNativeImage());
-
-        // If we are strongly named and successfully strong named, then we consider ourselves fully
-        // signed since either our signature verified at ngen time, or skip verification was in effect
-        // The only code that differentiates between skip verification and fully signed is in the strong
-        // name verification path itself, and therefore we abstract that away at this level.
-        //
-        // Note that this is consistent with other abstractions at the PEFile level such as
-        // HasStrongNameSignature()
-        return IsStrongNamed();
-    } else
-#endif // FEATURE_PREJIT
-    if (HasOpenedILimage())
-    {
-        return GetOpenedILimage()->IsStrongNameSigned();
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-#ifndef FEATURE_CORECLR
-//---------------------------------------------------------------------------------------
-//
-// Mark that an assembly has had its strong name verification bypassed
-//
-
-inline void PEAssembly::SetStrongNameBypassed()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_fStrongNameBypassed = TRUE;
-}
-
-inline BOOL PEAssembly::NeedsModuleHashChecks()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return ((m_flags & PEFILE_SKIP_MODULE_HASH_CHECKS) == 0) && !m_fStrongNameBypassed;
-}
-#endif // FEATURE_CORECLR
-
-#ifdef FEATURE_CAS_POLICY
-//---------------------------------------------------------------------------------------
-//
-// Verify the Authenticode and strong name signatures of an assembly during the assembly
-// load code path.  To verify the strong name signature outside of assembly load, use the
-// VefifyStrongName method instead.
-// 
-// If the applicaiton is using strong name bypass, then this method may not cause a real
-// strong name verification, delaying the assembly's strong name load until we know that
-// the verification is required.  If the assembly must be forced to have its strong name
-// verified, then the VerifyStrongName method should also be chosen.
-// 
-// See code:AssemblySecurityDescriptor::ResolveWorker#StrongNameBypass
-//
-
-inline void PEAssembly::DoLoadSignatureChecks()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS; // Fusion uses crsts on AddRef/Release
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    ETWOnStartup(SecurityCatchCall_V1, SecurityCatchCallEnd_V1);
-
-    // If this isn't mscorlib or a dynamic assembly, verify the Authenticode signature.
-    if (IsSystem() || IsDynamic())
-    {
-        // If it was a dynamic module (or mscorlib), then we don't want to be doing module hash checks on it
-        m_flags |= PEFILE_SKIP_MODULE_HASH_CHECKS;
-    }
-
-    // Check strong name signature. We only want to do this now if the application is not using the strong
-    // name bypass feature.  Otherwise we'll delay strong name verification until we figure out how trusted
-    // the assembly is.
-    // 
-    // For more information see code:AssemblySecurityDescriptor::ResolveWorker#StrongNameBypass
-
-    // Make sure m_pMDImport is initialized as we need to call VerifyStrongName which calls GetFlags
-    // BypassTrustedAppStrongNames = false is a relatively uncommon scenario so we need to make sure 
-    // the initialization order is always correct and we don't miss this uncommon case
-    _ASSERTE(GetMDImport());
-
-    if (!g_pConfig->BypassTrustedAppStrongNames())
-    { 
-        VerifyStrongName();
-    }
-}
-#endif // FEATURE_CAS_POLICY
-
 // ------------------------------------------------------------
 // Metadata access
 // ------------------------------------------------------------
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-inline PEAssembly *PEModule::GetAssembly()
-{
-    CONTRACT(PEAssembly *)
-    {
-        POSTCONDITION(CheckPointer(RETVAL));
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
-        SUPPORTS_DAC;
-    }
-    CONTRACT_END;
-
-    RETURN m_assembly;
-}
-
-inline BOOL PEModule::IsResource()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        SUPPORTS_DAC;
-    }
-    CONTRACTL_END;
-#ifdef DACCESS_COMPILE
-    _ASSERTE(m_bIsResource!=-1);
-#else
-    if (m_bIsResource==-1)
-    {
-        DWORD flags;
-        if (FAILED(m_assembly->GetPersistentMDImport()->GetFileProps(m_token, NULL, NULL, NULL, &flags)))
-        {
-            _ASSERTE(!"If this fires, then we have to throw for corrupted images");
-            flags = 0;
-        }
-        m_bIsResource=((flags & ffContainsNoMetaData) != 0);
-    }
-#endif
-    
-    return m_bIsResource;
-}
-
-inline LPCUTF8 PEModule::GetSimpleName()
-{
-    CONTRACT(LPCUTF8)
-    {
-        POSTCONDITION(CheckPointer(RETVAL));
-        POSTCONDITION(strlen(RETVAL) > 0);
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_TOLERANT;
-        SUPPORTS_DAC;
-    }
-    CONTRACT_END;
-    
-    LPCUTF8 name;
-    
-    if (FAILED(m_assembly->GetPersistentMDImport()->GetFileProps(m_token, &name, NULL, NULL, NULL)))
-    {
-        _ASSERTE(!"If this fires, then we have to throw for corrupted images");
-        name = "";
-    }
-    
-    RETURN name;
-}
-
-inline mdFile PEModule::GetToken()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_token;
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 #ifndef DACCESS_COMPILE
 inline void PEFile::RestoreMDImport(IMDInternalImport* pImport)

@@ -8,24 +8,17 @@ Intro to .NET Core
 
 .NET Core is a self-contained .NET runtime and framework that implements [ECMA 335](project-docs/dotnet-standards.md). It can be (and has been) ported to multiple architectures and platforms. It supports a variety of installation options, having no specific deployment requirements itself.
 
-Learn about .NET Core
-====================
+Getting Started
+===============
 
-- [[WIP] Official .NET Core Docs](http://dotnet.github.io/docs/)
-
-Get .NET Core
-=============
-
-- [Get .NET Core DNX SDK on Windows](install/get-dotnetcore-dnx-windows.md)
-- [Get .NET Core DNX SDK on OS X](install/get-dotnetcore-dnx-osx.md)
-- [Get .NET Core DNX SDK on Linux](install/get-dotnetcore-dnx-linux.md)
-- [Get .NET Core (Raw) on Windows](install/get-dotnetcore-windows.md)
+- [Installing the .NET Core SDK](https://www.microsoft.com/net/core)
+- [Official .NET Core Docs](https://docs.microsoft.com/dotnet/core/)
 
 Project Docs
 ============
 
+- [Project Roadmap](https://github.com/dotnet/core/blob/master/roadmap.md)
 - [Developer Guide](project-docs/developer-guide.md)
-- [Project priorities](project-docs/project-priorities.md)
 - [Contributing to .NET Core](project-docs/contributing.md)
 - [Contributing Workflow](project-docs/contributing-workflow.md)
 - [Performance Guidelines](project-docs/performance-guidelines.md)
@@ -56,28 +49,25 @@ Testing and Debugging CoreCLR
 - [Testing Changes on Windows](building/windows-test-instructions.md)
 - [Testing Changes on Linux, OS X, and FreeBSD](building/unix-test-instructions.md)
 - [Testing with CoreFX](building/testing-with-corefx.md)
-- [.NET Performance Data Collection Script](https://raw.githubusercontent.com/dotnet/corefx-tools/master/src/performance/perfcollect/perfcollect)
+- [Performance Tracing on Windows](project-docs/windows-performance-tracing.md)
+- [Performance Tracing on Linux](project-docs/linux-performance-tracing.md)
 - [Creating native images](building/crossgen.md)
 
 Book of the Runtime
 ===================
 
-- [Book of the Runtime FAQ](botr/botr-faq.md)
+The Book of the Runtime is a set of chapters that go in depth into various 
+interesting aspects of the design of the .NET Framework.  
+
+- [Book of the Runtime](botr/README.md)
+
+For your convenience, here are a few quick links to popular chapters:
+
 - [Introduction to the Common Language Runtime](botr/intro-to-clr.md)
 - [Garbage Collection Design](botr/garbage-collection.md)
-- [Threading](botr/threading.md)
-- [RyuJIT Overview](botr/ryujit-overview.md)
 - [Type System](botr/type-system.md)
-- [Type Loader](botr/type-loader.md)
-- [Method Descriptor](botr/method-descriptor.md)
-- [Virtual Stub Dispatch](botr/virtual-stub-dispatch.md)
-- [Stack Walking](botr/stackwalking.md)
-- [Mscorlib and Calling Into the Runtime](botr/mscorlib.md)
-- [Data Access Component (DAC) Notes](botr/dac-notes.md)
-- [Profiling](botr/profiling.md)
-- [Implementing Profilability](botr/profilability.md)
-- [What Every Dev needs to Know About Exceptions in the Runtime](botr/exceptions.md)
-- [ReadyToRun Overview](botr/readytorun-overview.md)
+
+For additional information, see this list of blog posts that provide a ['deep-dive' into the CoreCLR source code](deep-dive-blog-posts.md)
 
 Decoder Rings
 =============

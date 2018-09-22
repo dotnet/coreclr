@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -51,7 +54,7 @@
       IL_000b:  ldc.i4.s   123
       IL_000d:  beq.s      IL_0015
 
-      IL_000f:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      IL_000f:  newobj     instance void [mscorlib]System.Exception::.ctor()
       IL_0014:  throw
 
       IL_0015:  ldc.i4.0
@@ -100,7 +103,7 @@
       IL_000c:  conv.u1
       IL_000d:  beq.s      IL_0015
 
-      IL_000f:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      IL_000f:  newobj     instance void [mscorlib]System.Exception::.ctor()
       IL_0014:  throw
 
       IL_0015:  ldloc.1
@@ -127,7 +130,7 @@
       IL_0005:  ldc.i4.s   11
       IL_0007:  beq.s      IL_000f
 
-      IL_0009:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      IL_0009:  newobj     instance void [mscorlib]System.Exception::.ctor()
       IL_000e:  throw
 
       IL_000f:  ldsflda    unsigned int8 JitTest.Test::buffer

@@ -26,10 +26,6 @@ struct ExceptionInstance;
 //  inside reflection.  
 class COMDynamicWrite
 {
-private:
-
-    static void UpdateMethodRVAs(IMetaDataEmit*, IMetaDataImport*, ICeeFileGen *, HCEEFILE, mdTypeDef td, HCEESECTION sdataSection);
-
 public:
     // This function will create the class's metadata definition  
     static
@@ -85,41 +81,6 @@ public:
     mdFieldDef QCALLTYPE DefineField(QCall::ModuleHandle pModule, INT32 tkParent, LPCWSTR wszName, LPCBYTE pSignature, INT32 sigLength, INT32 attr);
 
     static
-    void QCALLTYPE PreSavePEFile(QCall::ModuleHandle pModule, INT32 portableExecutableKind, INT32 imageFileMachine);
-    
-    static
-    void QCALLTYPE SavePEFile(QCall::ModuleHandle pModule, LPCWSTR wszPeName, UINT32 entryPoint, UINT32 fileKind, BOOL isManifestFile);
-
-#ifndef FEATURE_CORECLR
-    static 
-    void QCALLTYPE DefineNativeResourceFile(QCall::ModuleHandle pModule, LPCWSTR pwzFileName, INT32 portableExecutableKind, INT32 imageFileMachine);
-
-    static 
-    void QCALLTYPE DefineNativeResourceBytes(QCall::ModuleHandle pModule, LPCBYTE pbResource, INT32 cbResource, INT32 portableExecutableKind, INT32 imageFileMachine);
-
-    static
-    void QCALLTYPE AddResource(QCall::ModuleHandle pModule, LPCWSTR pName, LPCBYTE pResBytes, INT32 resByteCount, UINT32 uFileTk, UINT32 iAttribute, INT32 portableExecutableKind, INT32 imageFileMachine);
-#endif // !FEATURE_CORECLR
-
-    // not an ecall!
-    static HRESULT EmitDebugInfoBegin(
-        Module *pModule,
-        ICeeFileGen *pCeeFileGen,
-        HCEEFILE ceeFile,
-        HCEESECTION pILSection,
-        const WCHAR *filename,
-        ISymUnmanagedWriter *pWriter);
-
-    // not an ecall!
-    static HRESULT EmitDebugInfoEnd(
-        Module *pModule,
-        ICeeFileGen *pCeeFileGen,
-        HCEEFILE ceeFile,
-        HCEESECTION pILSection,
-        const WCHAR *filename,
-        ISymUnmanagedWriter *pWriter);
-
-    static
     void QCALLTYPE SetPInvokeData(QCall::ModuleHandle pModule, LPCWSTR wszDllName, LPCWSTR wszFunctionName, INT32 token, INT32 linkFlags);
 
     static
@@ -160,42 +121,9 @@ public:
     static
     INT32 QCALLTYPE SetParamInfo(QCall::ModuleHandle pModule, UINT32 tkMethod, UINT32 iSequence, UINT32 iAttributes, LPCWSTR wszParamName);
 
-#ifndef FEATURE_CORECLR
-    // functions to set FieldMarshal
-    static
-    void QCALLTYPE SetFieldMarshal(QCall::ModuleHandle pModule, UINT32 tk, LPCBYTE pMarshal, INT32 cbMarshal);
-#endif
     // functions to set default value
     static
     void QCALLTYPE SetConstantValue(QCall::ModuleHandle pModule, UINT32 tk, DWORD valueType, LPVOID pValue);
-
-    // functions to add declarative security
-    static 
-    void QCALLTYPE AddDeclarativeSecurity(QCall::ModuleHandle pModule, INT32 tk, DWORD action, LPCBYTE pBlob, INT32 cbBlob);
-};
-
-
-
-//*********************************************************************
-//
-// This CSymMapToken class implemented the IMapToken. It is used in catching
-// token remap information from Merge and send the notifcation to CeeFileGen
-// and SymbolWriter
-//
-//*********************************************************************
-class CSymMapToken : public IMapToken
-{
-public:
-    STDMETHODIMP QueryInterface(REFIID riid, PVOID *pp);
-    STDMETHODIMP_(ULONG) AddRef();
-    STDMETHODIMP_(ULONG) Release();
-    STDMETHODIMP Map(mdToken tkImp, mdToken tkEmit);
-    CSymMapToken(ISymUnmanagedWriter *pWriter, IMapToken *pMapToken);
-    virtual ~CSymMapToken();
-private:
-    LONG        m_cRef;
-    ISymUnmanagedWriter *m_pWriter;
-    IMapToken   *m_pMapToken;
 };
 
 #endif  // _COMDYNAMIC_H_   

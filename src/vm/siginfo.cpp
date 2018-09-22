@@ -14,11 +14,10 @@
 #include "clsload.hpp"
 #include "vars.hpp"
 #include "excep.h"
-#include "gc.h"
+#include "gcheaputilities.h"
 #include "field.h"
 #include "eeconfig.h"
 #include "runtimehandles.h" // for SignatureNative
-#include "security.h" // for CanSkipVerification
 #include "winwrap.h"
 #include <formattype.h>
 #include "sigbuilder.h"
@@ -79,54 +78,54 @@ const ElementTypeInfo gElementTypeInfo[] = {
 // 
 // Note: This table is very similar to the one in file:corTypeInfo.h with these exceptions:
 //  reg column is missing in corTypeInfo.h
-//  ELEMENT_TYPE_VAR, ELEMENT_TYPE_GENERICINST, ELEMENT_TYPE_MVAR ... size -1 vs. sizeof(void*) in corTypeInfo.h
+//  ELEMENT_TYPE_VAR, ELEMENT_TYPE_GENERICINST, ELEMENT_TYPE_MVAR ... size -1 vs. TARGET_POINTER_SIZE in corTypeInfo.h
 //  ELEMENT_TYPE_CMOD_REQD, ELEMENT_TYPE_CMOD_OPT, ELEMENT_TYPE_INTERNAL ... size -1 vs. 0 in corTypeInfo.h
 //  ELEMENT_TYPE_INTERNAL ... GC type is TYPE_GC_NONE vs. TYPE_GC_OTHER in corTypeInfo.h
 // 
-//                    name                         cbsize           gc             reg
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_END,            -1,              TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VOID,           0,               TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_BOOLEAN,        1,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CHAR,           2,               TYPE_GC_NONE,  1)
+//                    name                         cbsize                gc             reg
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_END,            -1,                   TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VOID,           0,                    TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_BOOLEAN,        1,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CHAR,           2,                    TYPE_GC_NONE,  1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I1,             1,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U1,             1,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I2,             2,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U2,             2,               TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I1,             1,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U1,             1,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I2,             2,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U2,             2,                    TYPE_GC_NONE,  1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I4,             4,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U4,             4,               TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I8,             8,               TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U8,             8,               TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I4,             4,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U4,             4,                    TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I8,             8,                    TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U8,             8,                    TYPE_GC_NONE,  0)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R4,             4,               TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R8,             8,               TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_STRING,         sizeof(LPVOID),  TYPE_GC_REF,   1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_PTR,            sizeof(LPVOID),  TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R4,             4,                    TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R8,             8,                    TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_STRING,         TARGET_POINTER_SIZE,  TYPE_GC_REF,   1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_PTR,            TARGET_POINTER_SIZE,  TYPE_GC_NONE,  1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_BYREF,          sizeof(LPVOID),  TYPE_GC_BYREF, 1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VALUETYPE,      -1,              TYPE_GC_OTHER, 0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CLASS,          sizeof(LPVOID),  TYPE_GC_REF,   1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VAR,            -1,              TYPE_GC_OTHER, 1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_BYREF,          TARGET_POINTER_SIZE,  TYPE_GC_BYREF, 1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VALUETYPE,      -1,                   TYPE_GC_OTHER, 0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CLASS,          TARGET_POINTER_SIZE,  TYPE_GC_REF,   1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VAR,            -1,                   TYPE_GC_OTHER, 1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_ARRAY,          sizeof(LPVOID),  TYPE_GC_REF,   1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_ARRAY,          TARGET_POINTER_SIZE,  TYPE_GC_REF,   1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_GENERICINST,    -1,              TYPE_GC_OTHER, 0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_GENERICINST,    -1,                   TYPE_GC_OTHER, 0)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_TYPEDBYREF,     sizeof(LPVOID)*2,TYPE_GC_BYREF, 0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VALUEARRAY_UNSUPPORTED, -1,      TYPE_GC_NONE,  0)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I,              sizeof(LPVOID),  TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U,              sizeof(LPVOID),  TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R_UNSUPPORTED,  -1,              TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_TYPEDBYREF,     TARGET_POINTER_SIZE*2,TYPE_GC_BYREF, 0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_VALUEARRAY_UNSUPPORTED, -1,           TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_I,              TARGET_POINTER_SIZE,  TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_U,              TARGET_POINTER_SIZE,  TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_R_UNSUPPORTED,  -1,                   TYPE_GC_NONE,  0)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_FNPTR,          sizeof(LPVOID),  TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_OBJECT,         sizeof(LPVOID),  TYPE_GC_REF,   1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_SZARRAY,        sizeof(LPVOID),  TYPE_GC_REF,   1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_FNPTR,          TARGET_POINTER_SIZE,  TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_OBJECT,         TARGET_POINTER_SIZE,  TYPE_GC_REF,   1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_SZARRAY,        TARGET_POINTER_SIZE,  TYPE_GC_REF,   1)
 
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_MVAR,           -1,              TYPE_GC_OTHER, 1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CMOD_REQD,      -1,              TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CMOD_OPT,       -1,              TYPE_GC_NONE,  1)
-DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_INTERNAL,       -1,              TYPE_GC_NONE,  0)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_MVAR,           -1,                   TYPE_GC_OTHER, 1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CMOD_REQD,      -1,                   TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_CMOD_OPT,       -1,                   TYPE_GC_NONE,  1)
+DEFINEELEMENTTYPEINFO(ELEMENT_TYPE_INTERNAL,       -1,                   TYPE_GC_NONE,  0)
 };
 
 unsigned GetSizeForCorElementType(CorElementType etyp)
@@ -1199,7 +1198,8 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
             
             PREFIX_ASSUME(pZapSigContext != NULL);
             pModule = pZapSigContext->GetZapSigModule()->GetModuleFromIndex(ix);
-            if (pModule != NULL)
+
+            if ((pModule != NULL) && pModule->IsInCurrentVersionBubble())
             {
                 thRet = psig.GetTypeHandleThrowing(pModule, 
                                                    pTypeContext, 
@@ -1208,6 +1208,12 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
                                                    dropGenericArgumentLevel,
                                                    pSubst, 
                                                    pZapSigContext);
+            }
+            else
+            {
+                // For ReadyToRunCompilation we return a null TypeHandle when we reference a non-local module
+                //
+                thRet = TypeHandle();
             }
 #else
             DacNotImpl();
@@ -1345,9 +1351,9 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
             if (!ClrSafeInt<DWORD>::multiply(ntypars, sizeof(TypeHandle), dwAllocaSize))
                 ThrowHR(COR_E_OVERFLOW);
 
-            if ((dwAllocaSize/PAGE_SIZE+1) >= 2)
+            if ((dwAllocaSize/GetOsPageSize()+1) >= 2)
             {
-                DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+dwAllocaSize/PAGE_SIZE+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
+                DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+dwAllocaSize/GetOsPageSize()+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
             }
             TypeHandle *thisinst = (TypeHandle*) _alloca(dwAllocaSize);
 
@@ -1463,11 +1469,7 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
                
                 if (IsNilToken(typeToken))
                 {
-                    SString * fullTypeName = pOrigModule->IBCErrorNameString();
-                    fullTypeName->Clear();
-                    pOrigModule->LookupIbcTypeToken(pModule, ibcToken, fullTypeName);
-
-                    THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_TYPE, pOrigModule);
+                    COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
                 }
             }
 #endif
@@ -1528,12 +1530,11 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
                 
                     if (typFromSigIsClass != typLoadedIsClass)
                     {
-                        if((pModule->GetMDImport()->GetMetadataStreamVersion() != MD_STREAM_VER_1X)
-                            || !Security::CanSkipVerification(pModule->GetDomainAssembly()))
+                        if (pModule->GetMDImport()->GetMetadataStreamVersion() != MD_STREAM_VER_1X)
                         {
-                                pOrigModule->GetAssembly()->ThrowTypeLoadException(pModule->GetMDImport(),
-                                                                                   typeToken, 
-                                                                                   BFA_CLASSLOAD_VALUETYPEMISMATCH);
+                            pOrigModule->GetAssembly()->ThrowTypeLoadException(pModule->GetMDImport(),
+                                                                                typeToken, 
+                                                                                BFA_CLASSLOAD_VALUETYPEMISMATCH);
                         }
                     }
                 }
@@ -1631,9 +1632,9 @@ TypeHandle SigPointer::GetTypeHandleThrowing(
                     ThrowHR(COR_E_OVERFLOW);
                 }
                 
-                if ((cAllocaSize/PAGE_SIZE+1) >= 2)
+                if ((cAllocaSize/GetOsPageSize()+1) >= 2)
                 {
-                    DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+cAllocaSize/PAGE_SIZE+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
+                    DO_INTERIOR_STACK_PROBE_FOR_NOTHROW_CHECK_THREAD((10+cAllocaSize/GetOsPageSize()+1), NO_FORBIDGC_LOADER_USE_ThrowSO(););
                 }
 
                 TypeHandle *retAndArgTypes = (TypeHandle*) _alloca(cAllocaSize);
@@ -1769,11 +1770,7 @@ TypeHandle SigPointer::GetGenericInstType(Module *        pModule,
 
             if (IsNilToken(typeToken))
             {
-                SString * fullTypeName = pOrigModule->IBCErrorNameString();
-                fullTypeName->Clear();
-                pOrigModule->LookupIbcTypeToken(pModule, ibcToken, fullTypeName);
-
-                THROW_BAD_FORMAT(BFA_MISSING_IBC_EXTERNAL_TYPE, pOrigModule);
+                COMPlusThrow(kTypeLoadException, IDS_IBC_MISSING_EXTERNAL_TYPE);
             }
         }
 #endif
@@ -3242,10 +3239,6 @@ BOOL IsTypeDefEquivalent(mdToken tk, Module *pModule)
         // take care of that possibility
         pModule->EnsureAllocated();
 
-        // 5. Type is in a fully trusted assembly
-        if (!pModule->GetSecurityDescriptor()->IsFullyTrusted())
-            return FALSE;
-
         // 6. If type is nested, nesting type must be equivalent.
         if (IsTdNested(dwAttrType))
         {
@@ -3368,14 +3361,6 @@ BOOL CompareTypeDefsForEquivalence(mdToken tk1, mdToken tk2, Module *pModule1, M
                 return FALSE;
             }
         }
-    }
-
-    // *************************************************************************
-    // 2c. the two types cannot be equivalent across IntrospectionOnly/Non-introspection boundaries
-    // *************************************************************************
-    if (!!pModule1->GetAssembly()->IsIntrospectionOnly() != !!pModule2->GetAssembly()->IsIntrospectionOnly())
-    {
-        return FALSE;
     }
 
     // *************************************************************************
@@ -3823,12 +3808,6 @@ MetaSig::CompareElementType(
                     return FALSE;
                 }
             }
-
-#ifdef _DEBUG
-            // Shouldn't get here.
-            _ASSERTE(FALSE);
-            return FALSE;
-#endif
         }
         else
         {
@@ -4962,7 +4941,19 @@ void PromoteCarefully(promote_func   fn,
 void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, PTR_VOID pSrc)
 {
     WRAPPER_NO_CONTRACT;
-    
+
+    if (pMT->IsByRefLike())
+    {
+        FindByRefPointerOffsetsInByRefLikeObject(
+            pMT,
+            0 /* baseOffset */,
+            [&](SIZE_T pointerOffset)
+            {
+                PTR_PTR_Object fieldRef = dac_cast<PTR_PTR_Object>(PTR_BYTE(pSrc) + pointerOffset);
+                (*fn)(fieldRef, sc, GC_CALL_INTERIOR);
+            });
+    }
+
     if (!pMT->ContainsPointers())
         return;
     
@@ -4976,13 +4967,13 @@ void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTa
     {
         // offset to embedded references in this series must be
         // adjusted by the VTable pointer, when in the unboxed state.
-        size_t offset = cur->GetSeriesOffset() - sizeof(void*);
+        size_t offset = cur->GetSeriesOffset() - TARGET_POINTER_SIZE;
         PTR_OBJECTREF srcPtr = dac_cast<PTR_OBJECTREF>(PTR_BYTE(pSrc) + offset);
         PTR_OBJECTREF srcPtrStop = dac_cast<PTR_OBJECTREF>(PTR_BYTE(srcPtr) + cur->GetSeriesSize() + size);         
         while (srcPtr < srcPtrStop)                                         
         {   
             (*fn)(dac_cast<PTR_PTR_Object>(srcPtr), sc, 0);
-            srcPtr++;
+            srcPtr = (PTR_OBJECTREF)(PTR_BYTE(srcPtr) + TARGET_POINTER_SIZE);
         }                                                               
         cur--;                                                              
     } while (cur >= last);
@@ -4991,16 +4982,19 @@ void ReportPointersFromValueType(promote_func *fn, ScanContext *sc, PTR_MethodTa
 void ReportPointersFromValueTypeArg(promote_func *fn, ScanContext *sc, PTR_MethodTable pMT, ArgDestination *pSrc)
 {
     WRAPPER_NO_CONTRACT;
-    
-    if (!pMT->ContainsPointers())
+
+    if (!pMT->ContainsPointers() && !pMT->IsByRefLike())
+    {
         return;
-#if defined(UNIX_AMD64_ABI) && defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)    
+    }
+
+#if defined(UNIX_AMD64_ABI)    
     if (pSrc->IsStructPassedInRegs())
     {
         pSrc->ReportPointersFromStructInRegisters(fn, sc, pMT->GetNumInstanceFieldBytes());
         return;
     }
-#endif // UNIX_AMD64_ABI && FEATURE_UNIX_AMD64_STRUCT_PASSING
+#endif // UNIX_AMD64_ABI
 
     ReportPointersFromValueType(fn, sc, pMT, pSrc->GetDestinationAddress());
 }

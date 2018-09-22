@@ -1,15 +1,12 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
 
-.assembly extern mscorlib
-{
-}
+.assembly extern System.Console { auto }
+.assembly extern System.Threading.Thread { auto }
+.assembly extern mscorlib { auto }
+
 .assembly 'concur'// as "concur"
 {
 }
@@ -25,7 +22,8 @@
       .maxstack  8
       IL_0002:  call       void [mscorlib]System.GC::Collect()
                 ldc.i4 100
-                call       void [mscorlib]System.Threading.Thread::Sleep(int32)
+                call       void [System.Threading.Thread]System.Threading.Thread::Sleep(int32)
+                volatile.
                 ldsfld     bool Test.App::signal
                 brfalse.s  IL_0002
                 ret
@@ -37,8 +35,8 @@
       .entrypoint
       .maxstack  3
       .locals ([0] class Test.App app,
-               [1] class [mscorlib]System.Threading.ThreadStart ts,
-               [2] class [mscorlib]System.Threading.Thread th,
+               [1] class [System.Threading.Thread]System.Threading.ThreadStart ts,
+               [2] class [System.Threading.Thread]System.Threading.Thread th,
                [3] class System.Object obj,
                [4] class System.Object I,
                [5] float64 V_5,
@@ -47,15 +45,16 @@
       IL_0005:  stloc.0
       IL_0006:  ldloc.0
       IL_0007:  ldftn      instance void Test.App::Func()
-      IL_000d:  newobj     instance void [mscorlib]System.Threading.ThreadStart::.ctor(class System.Object,native int)
+      IL_000d:  newobj     instance void [System.Threading.Thread]System.Threading.ThreadStart::.ctor(class System.Object,native int)
       IL_0012:  stloc.1
       IL_0013:  ldloc.1
-      IL_0014:  newobj     instance void [mscorlib]System.Threading.Thread::.ctor(class [mscorlib]System.Threading.ThreadStart)
+      IL_0014:  newobj     instance void [System.Threading.Thread]System.Threading.Thread::.ctor(class [System.Threading.Thread]System.Threading.ThreadStart)
       IL_0019:  stloc.2
                 ldc.i4.0
+                volatile.
                 stsfld     bool  Test.App::signal
-      IL_001a:  ldloc.2     
-      IL_001b:  call       instance void [mscorlib]System.Threading.Thread::Start()
+      IL_001a:  ldloc.2
+      IL_001b:  call       instance void [System.Threading.Thread]System.Threading.Thread::Start()
       IL_0020:  ldc.r8     11.
       IL_0029:  stloc.s    V_5
       IL_002b:  ldloc.s   V_5
@@ -136,6 +135,7 @@
       IL_00bf:  blt      IL_0041
 
       IL_00c1:  ldc.i4.1
+                volatile.
       IL_00c2:  stsfld     bool  Test.App::signal
       IL_00c7:  ldstr      "**** PASSED ****"
       IL_00cc:  call       void [System.Console]System.Console::WriteLine(class System.String)
@@ -143,7 +143,7 @@
       IL_00d2:  ret
     } // end of method 'App::Main'
 
-    .method public hidebysig specialname rtspecialname 
+    .method public hidebysig specialname rtspecialname
             instance void .ctor() il managed
     {
       .maxstack  8

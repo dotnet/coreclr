@@ -62,9 +62,6 @@ void SafeHandle::AddRef()
     // Cannot use "this" after Release, which toggles the GC mode.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     // To prevent handle recycling security attacks we must enforce the
@@ -137,9 +134,6 @@ void SafeHandle::Release(bool fDispose)
     // Cannot use "this" after RunReleaseMethod, which toggles the GC mode.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     // See AddRef above for the design of the synchronization here. Basically we
@@ -215,7 +209,7 @@ void SafeHandle::Release(bool fDispose)
 
     } while (InterlockedCompareExchange((LONG*)&sh->m_state, newState, oldState) != oldState);
 
-    // If we get here we successfully decremented the ref count. Additonally we
+    // If we get here we successfully decremented the ref count. Additionally we
     // may have decremented it to zero and set the handle state as closed. In
     // this case (providng we own the handle) we will call the ReleaseHandle
     // method on the SafeHandle subclass.
@@ -236,9 +230,6 @@ void SafeHandle::Dispose()
     // Release may trigger a GC.
     SAFEHANDLEREF sh(this);
 
-#ifdef _DEBUG
-    VALIDATEOBJECTREF(sh->m_debugStackTrace);
-#endif
     _ASSERTE(sh->IsFullyInitialized());
 
     GCPROTECT_BEGIN(sh);
@@ -246,7 +237,7 @@ void SafeHandle::Dispose()
     // Suppress finalization on this object (we may be racing here but the
     // operation below is idempotent and a dispose should never race a
     // finalization).
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
     GCPROTECT_END();
 }
 
@@ -394,7 +385,7 @@ FCIMPL1(void, SafeHandle::SetHandleAsInvalid, SafeHandle* refThisUNSAFE)
 
     } while (InterlockedCompareExchange((LONG*)&sh->m_state, newState, oldState) != oldState);
 
-    GCHeap::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
+    GCHeapUtilities::GetGCHeap()->SetFinalizationRun(OBJECTREFToObject(sh));
 }
 FCIMPLEND
 
@@ -445,62 +436,5 @@ FCIMPL1(void, CriticalHandle::FireCustomerDebugProbe, CriticalHandle* refThisUNS
 #endif
 
     HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
-
-FCIMPL1(UINT, SafeBuffer::SizeOfType, ReflectClassBaseObject* typeUNSAFE)
-{
-	FCALL_CONTRACT;
-
-	REFLECTCLASSBASEREF type(typeUNSAFE);
-
-	MethodTable* pMT = type->GetType().AsMethodTable();
-
-	if (!pMT->IsValueType() || pMT->ContainsPointers())
-		FCThrowArgument(W("type"), W("Argument_NeedStructWithNoRefs"));
-
-	FC_GC_POLL_RET();
-
-	return pMT->GetNumInstanceFieldBytes();
-}
-FCIMPLEND
-
-FCIMPL1(UINT, SafeBuffer::AlignedSizeOfType, ReflectClassBaseObject* typeUNSAFE)
-{
-	FCALL_CONTRACT;
-
-	REFLECTCLASSBASEREF type(typeUNSAFE);
-
-	MethodTable* pMT = type->GetType().AsMethodTable();
-
-	if (!pMT->IsValueType() || pMT->ContainsPointers())
-		FCThrowArgument(W("type"), W("Argument_NeedStructWithNoRefs"));
-
-	FC_GC_POLL_RET();
-
-	return pMT->GetAlignedNumInstanceFieldBytes();
-}
-FCIMPLEND
-
-FCIMPL3(void, SafeBuffer::PtrToStructure, BYTE* ptr, FC_TypedByRef structure, UINT32 sizeofT)
-{
-	FCALL_CONTRACT;
-
-	LPVOID structData = structure.data;
-	_ASSERTE(ptr != NULL && structData != NULL);
-	memcpyNoGCRefs(structData, ptr, sizeofT);
-	FC_GC_POLL();
-}
-FCIMPLEND
-
-FCIMPL3(void, SafeBuffer::StructureToPtr, FC_TypedByRef structure, BYTE* ptr, UINT32 sizeofT)
-{
-	FCALL_CONTRACT;
-
-	LPVOID structData = structure.data;
-	_ASSERTE(ptr != NULL && structData != NULL);
-	memcpyNoGCRefs(ptr, structData, sizeofT);
-	FC_GC_POLL();
 }
 FCIMPLEND

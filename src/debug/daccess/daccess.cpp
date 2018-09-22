@@ -29,6 +29,7 @@
 #endif
 
 #include "dwbucketmanager.hpp"
+#include "gcinterface.dac.h"
 
 // To include definiton of IsThrowableThreadAbortException
 // #include <exstatecommon.h>
@@ -2339,7 +2340,7 @@ namespace serialization { namespace bin {
     };
 
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
+    struct is_blittable<_Ty, typename std::enable_if<std::is_arithmetic<_Ty>::value>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -2347,7 +2348,7 @@ namespace serialization { namespace bin {
     // allow types to declare themselves blittable by including a static bool 
     // member "is_blittable".
     template <typename _Ty>
-    class is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
+    struct is_blittable<_Ty, typename std::enable_if<_Ty::is_blittable>::type>
         : std::true_type
     { // determines whether _Ty is blittable
     };
@@ -2816,7 +2817,6 @@ public:
     {
         StreamHeader hdr;
 
-        DWORD _sig;
         in >> hdr; // in >> hdr.sig >> hdr.cnt;
 
         if (hdr.sig != sig)
@@ -3273,6 +3273,14 @@ ClrDataAccess::QueryInterface(THIS_
     else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface4)))
     {
         ifaceRet = static_cast<ISOSDacInterface4*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface5)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface5*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface6)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface6*>(this);
     }
     else
     {
@@ -4384,6 +4392,7 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
     GcEvtArgs pubGcEvtArgs;
     ULONG32 notifyType = 0;
     DWORD catcherNativeOffset = 0;
+    TADDR nativeCodeLocation = NULL;
 
     DAC_ENTER();
 
@@ -4446,11 +4455,11 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             break;
         }
 
-        case DACNotify::JIT_NOTIFICATION:
+        case DACNotify::JIT_NOTIFICATION2:
         {
             TADDR methodDescPtr;
 
-            if (DACNotify::ParseJITNotification(exInfo, methodDescPtr))
+            if(DACNotify::ParseJITNotification(exInfo, methodDescPtr, nativeCodeLocation))
             {
                 // Try and find the right appdomain
                 MethodDesc* methodDesc = PTR_MethodDesc(methodDescPtr);
@@ -4483,7 +4492,7 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             }
             break;
         }
-
+        
         case DACNotify::EXCEPTION_NOTIFICATION:
         {
             TADDR threadPtr;
@@ -4589,6 +4598,13 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             notify4 = NULL;
         }
 
+        IXCLRDataExceptionNotification5* notify5;
+        if (notify->QueryInterface(__uuidof(IXCLRDataExceptionNotification5),
+                                   (void**)&notify5) != S_OK)
+        {
+            notify5 = NULL;
+        }
+
         switch(notifyType)
         {
         case DACNotify::MODULE_LOAD_NOTIFICATION:
@@ -4599,8 +4615,13 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
             notify->OnModuleUnloaded(pubModule);
             break;
 
-        case DACNotify::JIT_NOTIFICATION:
+        case DACNotify::JIT_NOTIFICATION2:
             notify->OnCodeGenerated(pubMethodInst);
+
+            if (notify5)
+            {
+                notify5->OnCodeGenerated2(pubMethodInst, TO_CDADDR(nativeCodeLocation));
+            }
             break;
 
         case DACNotify::EXCEPTION_NOTIFICATION:
@@ -4641,6 +4662,14 @@ ClrDataAccess::TranslateExceptionRecordToNotification(
         if (notify3)
         {
             notify3->Release();
+        }
+        if (notify4)
+        {
+            notify4->Release();
+        }
+        if (notify5)
+        {
+            notify5->Release();
         }
     }
 
@@ -5235,7 +5264,7 @@ ClrDataAccess::FollowStubStep(
         // this and redirect to the actual code.
         methodDesc = trace.GetMethodDesc();
         if (methodDesc->IsPreImplemented() &&
-            !methodDesc->IsPointingToNativeCode() &&
+            !methodDesc->IsPointingToStableNativeCode() &&
             !methodDesc->IsGenericMethodDefinition() &&
             methodDesc->HasNativeCode())
         {
@@ -5815,7 +5844,9 @@ ClrDataAccess::RawGetMethodName(
 #endif
         if (pStubManager == PrecodeStubManager::g_pManager)
         {
+#ifdef FEATURE_PREJIT
         PrecodeStub:
+#endif
             PCODE alignedAddress = AlignDown(TO_TADDR(address), PRECODE_ALIGNMENT);
 
 #ifdef _TARGET_ARM_
@@ -5863,7 +5894,9 @@ ClrDataAccess::RawGetMethodName(
         else
         if (pStubManager == JumpStubStubManager::g_pManager)
         {
+#ifdef FEATURE_PREJIT
         JumpStub:
+#endif
             PCODE pTarget = decodeBackToBackJump(TO_TADDR(address));
 
             HRESULT hr = GetRuntimeNameByAddress(pTarget, flags, bufLen, symbolLen, symbolBuf, NULL);
@@ -5888,14 +5921,15 @@ ClrDataAccess::RawGetMethodName(
         LPCWSTR wszStubManagerName = pStubManager->GetStubManagerName(TO_TADDR(address));
         _ASSERTE(wszStubManagerName != NULL);
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen, 
+            _TRUNCATE,
             s_wszFormatNameWithStubManager,
             wszStubManagerName,                                         // Arg 1 = stub name
             TO_TADDR(address));                                         // Arg 2 = stub hex address
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -5951,13 +5985,14 @@ NameFromMethodDesc:
         // XXX Microsoft - Should this case have a more specific name?
         static WCHAR s_wszFormatNameAddressOnly[] = W("CLRStub@%I64x");
 
-        HRESULT hr = StringCchPrintfW(
+        int result = _snwprintf_s(
             symbolBuf, 
             bufLen,
+            _TRUNCATE,
             s_wszFormatNameAddressOnly,
             TO_TADDR(address));
 
-        if (hr == S_OK)
+        if (result != -1)
         {
             // Printf succeeded, so we have an exact char count to return
             if (symbolLen)
@@ -6012,7 +6047,7 @@ ClrDataAccess::GetMethodExtents(MethodDesc* methodDesc,
         EECodeInfo codeInfo(methodStart);
         _ASSERTE(codeInfo.IsValid());
 
-        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfo());
+        TADDR codeSize = codeInfo.GetCodeManager()->GetFunctionSize(codeInfo.GetGCInfoToken());
 
         *extents = new (nothrow) METH_EXTENTS;
         if (!*extents)
@@ -6303,8 +6338,6 @@ bool ClrDataAccess::ReportMem(TADDR addr, TSIZE_T size, bool fExpectSuccess /*= 
         status = m_enumMemCb->EnumMemoryRegion(TO_CDADDR(addr), enumSize);
         if (status != S_OK)
         {
-            m_memStatus = status;
-
             // If dump generation was cancelled, allow us to throw upstack so we'll actually quit.
             if ((fExpectSuccess) && (status != COR_E_OPERATIONCANCELED))
                 return false;
@@ -7243,9 +7276,6 @@ ClrDataAccess::GetDacGlobals()
     LPVOID rsrcData = NULL;
     DWORD rsrcSize = 0;
 
-    HRSRC rsrcFound;
-    HGLOBAL rsrc;
-
     DWORD resourceSectionRVA = 0;
 
     if (FAILED(status = GetMachineAndResourceSectionRVA(m_pTarget, m_globalBase, NULL, &resourceSectionRVA)))
@@ -7352,7 +7382,7 @@ Exit:
 
 //----------------------------------------------------------------------------
 // 
-// IsExceptionFromManagedCode - report if pExceptionRecord points to a exception belonging to the current runtime
+// IsExceptionFromManagedCode - report if pExceptionRecord points to an exception belonging to the current runtime
 // 
 // Arguments:
 //    pExceptionRecord - the exception record
@@ -7366,7 +7396,6 @@ BOOL ClrDataAccess::IsExceptionFromManagedCode(EXCEPTION_RECORD* pExceptionRecor
 {
     DAC_ENTER();
 
-    HRESULT status;
     BOOL flag = FALSE;
 
     if (::IsExceptionFromManagedCode(pExceptionRecord))
@@ -7932,7 +7961,6 @@ STDAPI OutOfProcessExceptionEventDebuggerLaunchCallback(__in PDWORD pContext,
 
 // DacHandleEnum
 
-#include "handletablepriv.h"
 #include "comcallablewrapper.h"
 
 DacHandleWalker::DacHandleWalker()
@@ -7974,7 +8002,7 @@ HRESULT DacHandleWalker::Init(ClrDataAccess *dac, UINT types[], UINT typeCount, 
 {
     SUPPORTS_DAC;
     
-    if (gen < 0 || gen > (int)GCHeap::GetMaxGeneration())
+    if (gen < 0 || gen > (int)*g_gcDacGlobals->max_gen)
         return E_INVALIDARG;
         
     mGenerationFilter = gen;
@@ -7986,7 +8014,7 @@ HRESULT DacHandleWalker::Init(UINT32 typemask)
 {
     SUPPORTS_DAC;
     
-    mMap = &g_HandleTableMap;
+    mMap = g_gcDacGlobals->handle_table_map;
     mTypeMask = typemask;
     
     return S_OK;
@@ -8033,7 +8061,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
     int max_slots = 1;
     
 #ifdef FEATURE_SVR_GC
-    if (GCHeap::IsServerHeap())
+    if (GCHeapUtilities::IsServerHeap())
         max_slots = GCHeapCount();
 #endif // FEATURE_SVR_GC
 
@@ -8064,7 +8092,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
         {
             for (int i = 0; i < max_slots; ++i)
             {
-                HHANDLETABLE hTable = mMap->pBuckets[mIndex]->pTable[i];
+                DPTR(dac_handle_table) hTable = mMap->pBuckets[mIndex]->pTable[i];
                 if (hTable)
                 {
                     // Yikes!  The handle table callbacks don't produce the handle type or 
@@ -8078,8 +8106,8 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                     {
                         if (mask & 1)
                         {
-                            HandleTable *pTable = (HandleTable *)hTable;
-                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(pTable->uADIndex);
+                            dac_handle_table *pTable = hTable;
+                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(ADIndex(pTable->uADIndex));
                             param.AppDomain = TO_CDADDR(pDomain.GetAddr());
                             param.Type = handleType;
                             
@@ -8089,7 +8117,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                                 HndScanHandlesForGC(hTable, callback, 
                                                     (LPARAM)&param, 0, 
                                                      &handleType, 1, 
-                                                     mGenerationFilter, GCHeap::GetMaxGeneration(), 0);
+                                                     mGenerationFilter, *g_gcDacGlobals->max_gen, 0);
                             else
                                 HndEnumHandles(hTable, &handleType, 1, callback, (LPARAM)&param, 0, FALSE);
                         }

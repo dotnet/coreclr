@@ -50,11 +50,7 @@ using namespace CorUnix;
 /* append mode file I/O is safer */
 #define _PAL_APPEND_DBG_OUTPUT_
 
-#if defined(_PAL_APPEND_DBG_OUTPUT_)
 static const char FOPEN_FLAGS[] = "at";
-#else
-static const char FOPEN_FLAGS[] = "wt";
-#endif
 
 /* number of ENTRY nesting levels to indicate with a '.' */
 #define MAX_NESTING 50
@@ -528,8 +524,8 @@ int DBG_printf_gcc(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
 
     va_start(args, format);
 
-    output_size+=Silent_PAL_vsnprintf(buffer_ptr, DBG_BUFFER_SIZE-output_size,
-                                      format, args);
+    output_size+=_vsnprintf_s(buffer_ptr, DBG_BUFFER_SIZE-output_size, _TRUNCATE,
+                              format, args);
     va_end(args);
 
     if( output_size > DBG_BUFFER_SIZE )
@@ -633,8 +629,8 @@ int DBG_printf_c99(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
     }
 
     va_start(args, format);
-    output_size+=Silent_PAL_vsnprintf(buffer_ptr, DBG_BUFFER_SIZE-output_size, 
-                                      format, args);
+    output_size+=_vsnprintf_s(buffer_ptr, DBG_BUFFER_SIZE-output_size, _TRUNCATE,
+                              format, args);
     va_end(args);
 
     if(output_size>DBG_BUFFER_SIZE)
@@ -837,7 +833,7 @@ bool DBG_ShouldCheckStackAlignment()
 
         if (checkAlignmentSettings && shouldFreeCheckAlignmentSettings)
         {
-            InternalFree(checkAlignmentSettings);
+            free(checkAlignmentSettings);
         }
     }
     
@@ -880,7 +876,7 @@ void PAL_DisplayDialog(const char *szTitle, const char *szText)
         if (displayDialog)
         {
             int i = atoi(displayDialog);
-            InternalFree(displayDialog);
+            free(displayDialog);
 
             switch (i)
             {
@@ -960,7 +956,7 @@ void PAL_DisplayDialogFormatted(const char *szTitle, const char *szTextFormat, .
 
     const int cchBuffer = 4096;
     char *szBuffer = (char*)alloca(cchBuffer);
-    PAL__vsnprintf(szBuffer, cchBuffer, szTextFormat, args);
+    _vsnprintf_s(szBuffer, cchBuffer, _TRUNCATE, szTextFormat, args);
     PAL_DisplayDialog(szTitle, szBuffer);
 
     va_end(args);

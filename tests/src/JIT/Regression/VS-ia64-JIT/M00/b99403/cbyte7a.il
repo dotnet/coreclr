@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -10,28 +13,6 @@
 }
 .assembly extern mscorlib
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .ver 1:0:2411:0
-}
-.assembly extern Microsoft.VisualBasic
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                         
-  .ver 7:0:0:0
-}
-.assembly extern System
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .ver 1:0:2411:0
-}
-.assembly extern System.Data
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .ver 1:0:2411:0
-}
-.assembly extern System.Xml
-{
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .ver 1:0:2411:0
 }
 .assembly CByte7a
 {
@@ -63,7 +44,6 @@
   .class private auto ansi sealed Module1
          extends [mscorlib]System.Object
   {
-    .custom instance void [Microsoft.VisualBasic]Microsoft.VisualBasic.Globals/StandardModuleAttribute::.ctor() = ( 01 00 00 00 ) 
     .method public static int32 Main() cil managed
     {
       .entrypoint
@@ -86,12 +66,9 @@
       IL_0012:  nop
       IL_0013:  nop
       IL_0014:  ldc.i4 100
-		ret
+                ret
     } 
 
   } 
 
 } 
-
-
-

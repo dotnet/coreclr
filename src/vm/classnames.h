@@ -16,6 +16,7 @@
 #define g_ArrayClassName "System.Array"
 
 #define g_NullableName "Nullable`1"
+#define g_ByReferenceName "ByReference`1"
 
 #define g_CollectionsEnumerableItfName "System.Collections.IEnumerable"
 #define g_CollectionsEnumeratorClassName "System.Collections.IEnumerator"
@@ -41,12 +42,10 @@
 #define g_NotifyCollectionChangedEventHandlerName "System.Collections.Specialized.NotifyCollectionChangedEventHandler"
 #define g_NotifyCollectionChangedEventArgsName "System.Collections.Specialized.NotifyCollectionChangedEventArgs"
 #define g_NotifyCollectionChangedEventArgsMarshalerName "System.Runtime.InteropServices.WindowsRuntime.NotifyCollectionChangedEventArgsMarshaler"
-#define g_WinRTNotifyCollectionChangedEventArgsNameW W("Windows.UI.Xaml.Interop.NotifyCollectionChangedEventArgs")
 #define g_INotifyPropertyChangedName "System.ComponentModel.INotifyPropertyChanged"
 #define g_PropertyChangedEventHandlerName "System.ComponentModel.PropertyChangedEventHandler"
 #define g_PropertyChangedEventArgsName "System.ComponentModel.PropertyChangedEventArgs"
 #define g_PropertyChangedEventArgsMarshalerName "System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventArgsMarshaler"
-#define g_WinRTPropertyChangedEventArgsNameW W("Windows.UI.Xaml.Data.PropertyChangedEventArgs")
 #define g_WinRTIIteratorClassName   "Windows.Foundation.Collections.IIterator`1"
 #define g_WinRTIIteratorClassNameW W("Windows.Foundation.Collections.IIterator`1")
 #define g_ICommandName "System.Windows.Input.ICommand"
@@ -65,14 +64,20 @@
 #define g_PropertyChangedEventHandler_WinRT_Name "System.Runtime.InteropServices.WindowsRuntime.PropertyChangedEventHandler_WinRT"
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_REMOTING
-#define g_ContextBoundObjectClassName "System.ContextBoundObject"
-#endif
 
 #define g_DateClassName "System.DateTime"
 #define g_DateTimeOffsetClassName "System.DateTimeOffset"
 #define g_DecimalClassName "System.Decimal"
 #define g_DecimalName "Decimal"
+
+#define g_Vector64ClassName "System.Runtime.Intrinsics.Vector64`1"
+#define g_Vector64Name "Vector64`1"
+
+#define g_Vector128ClassName "System.Runtime.Intrinsics.Vector128`1"
+#define g_Vector128Name "Vector128`1"
+
+#define g_Vector256ClassName "System.Runtime.Intrinsics.Vector256`1"
+#define g_Vector256Name "Vector256`1"
 
 #ifdef FEATURE_COMINTEROP
 
@@ -147,6 +152,8 @@
 
 #define g_CompilerServicesFixedAddressValueTypeAttribute "System.Runtime.CompilerServices.FixedAddressValueTypeAttribute"
 #define g_CompilerServicesUnsafeValueTypeAttribute "System.Runtime.CompilerServices.UnsafeValueTypeAttribute"
+#define g_CompilerServicesIsByRefLikeAttribute "System.Runtime.CompilerServices.IsByRefLikeAttribute"
+#define g_CompilerServicesIntrinsicAttribute "System.Runtime.CompilerServices.IntrinsicAttribute"
 #define g_UnmanagedFunctionPointerAttribute "System.Runtime.InteropServices.UnmanagedFunctionPointerAttribute"
 #define g_DefaultDllImportSearchPathsAttribute "System.Runtime.InteropServices.DefaultDllImportSearchPathsAttribute"
 #define g_NativeCallableAttribute "System.Runtime.InteropServices.NativeCallableAttribute"
@@ -155,26 +162,18 @@
 
 #define g_SecurityCriticalAttribute "System.Security.SecurityCriticalAttribute"
 #define g_SecurityTransparentAttribute "System.Security.SecurityTransparentAttribute"
-#ifndef FEATURE_CORECLR
-#define g_SecurityTreatAsSafeAttribute "System.Security.SecurityTreatAsSafeAttribute"
-#define g_SecurityRulesAttribute "System.Security.SecurityRulesAttribute"
-#endif //FEATURE_CORECLR
 
 #define g_SecuritySafeCriticalAttribute "System.Security.SecuritySafeCriticalAttribute"
 
-#if defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#if defined(FEATURE_CORESYSTEM)
 #define g_SecurityAPTCA "System.Security.AllowPartiallyTrustedCallersAttribute"
 #define g_SecurityPartialTrustVisibilityLevel "System.Security.PartialTrustVisibilityLevel"
 #define g_PartialTrustVisibilityLevel "PartialTrustVisibilityLevel"
-#endif // defined(FEATURE_APTCA) || defined(FEATURE_CORESYSTEM)
+#endif // defined(FEATURE_CORESYSTEM)
 
 #define g_ReferenceAssemblyAttribute "System.Runtime.CompilerServices.ReferenceAssemblyAttribute"
 
 #define g_CriticalFinalizerObjectName "CriticalFinalizerObject"
-
-#ifdef FEATURE_SERIALIZATION
-#define g_StreamingContextName "StreamingContext"
-#endif
 
 #define g_AssemblySignatureKeyAttribute "System.Reflection.AssemblySignatureKeyAttribute"
 

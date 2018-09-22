@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -52,7 +53,7 @@
       IL_001d:  call       class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(value class [mscorlib]System.RuntimeTypeHandle)
       IL_0022:  beq.s      IL_002a
 
-      IL_0024:  newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      IL_0024:  newobj     instance void [mscorlib]System.Exception::.ctor()
       IL_0029:  throw
 
       IL_002a:  ldarg.0

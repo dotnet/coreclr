@@ -25,20 +25,15 @@
 #include "threads.h"
 #include "stublink.h"
 #include "dllimport.h"
-#include "verifier.hpp"
 #include "jitinterface.h"
 #include "eeconfig.h"
 #include "log.h"
 #include "fieldmarshaler.h"
 #include "cgensys.h"
-#include "gc.h"
-#include "security.h"
+#include "gcheaputilities.h"
 #include "dbginterface.h"
 #include "comdelegate.h"
 #include "sigformat.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "eeprofinterfaces.h"
 #include "dllimportcallback.h"
 #include "listlock.h"
@@ -58,7 +53,6 @@
 #include "clrtocomcall.h"
 #include "runtimecallablewrapper.h"
 
-#include "listlock.inl"
 #include "generics.h"
 #include "contractimpl.h"
 
@@ -969,7 +963,6 @@ VOID MethodTableBuilder::BuildInteropVTable_PlaceMembers(
                 if(tokMember == bmtMethodImpl->rgMethodImplTokens[m].methodBody)
                 {
                     MethodDesc* desc = NULL;
-                    BOOL fIsMethod;
                     mdToken mdDecl = bmtMethodImpl->rgMethodImplTokens[m].methodDecl;
                     Substitution *pDeclSubst = &bmtMethodImpl->pMethodDeclSubsts[m];
 
@@ -1311,11 +1304,6 @@ VOID MethodTableBuilder::BuildInteropVTable_PlaceVtableMethods(
         InterfaceInfo_t *pCurItfInfo = &(bmtInterface->pInterfaceMap[wCurInterface]);
         // The interface we are attempting to place
         MethodTable *pInterface = pCurItfInfo->m_pMethodTable;
-
-        _ASSERTE(!(pCurItfInfo->IsDeclaredOnClass() &&
-           !pInterface->IsExternallyVisible() &&
-                 pInterface->GetAssembly() != bmtType->pModule->GetAssembly() &&
-           !Security::CanSkipVerification(GetAssembly()->GetDomainAssembly())));
 
         // Did we place this interface already due to the parent class's interface placement?
         if (pCurItfInfo->GetInteropStartSlot() != MethodTable::NO_SLOT)
@@ -2623,8 +2611,9 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
             }
         }
 
+#ifndef FEATURE_DEFAULT_INTERFACES
         // Some interface checks.
-        if (IsInterface())
+        if (fIsClassInterface)
         {
             if (IsMdVirtual(dwMemberAttrs))
             {
@@ -2632,7 +2621,7 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
                 {
                     BuildMethodTableThrowException(BFA_VIRTUAL_NONAB_INT_METHOD);
                 }
-            }
+            } 
             else
             {
                 // Instance field/method
@@ -2642,6 +2631,7 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
                 }
             }
         }
+#endif
 
         // No synchronized methods in ValueTypes
         if(fIsClassValueType && IsMiSynchronized(dwImplFlags))
@@ -2808,48 +2798,25 @@ VOID    MethodTableBuilder::EnumerateClassMethods()
                 // If the interface is a standard managed interface then allocate space for an FCall method desc.
                 Classification = mcFCall;
             }
-            else
+            else if (IsMdAbstract(dwMemberAttrs))
             {
                 // If COM interop is supported then all other interface MDs may be
                 // accessed via COM interop <TODO> mcComInterop MDs are BIG -
                 // this is very often a waste of space </TODO>
+                // @DIM_TODO - What if default interface method is called through COM interop?
                 Classification = mcComInterop;
             }
-#else // !FEATURE_COMINTEROP
-            // This codepath is used by remoting
-            Classification = mcIL;
+            else
 #endif // !FEATURE_COMINTEROP
+            {
+                // This codepath is used by remoting and default interface methods
+                Classification = mcIL;
+            }
         }
         else
         {
             Classification = mcIL;
         }
-
-
-#ifdef _DEBUG
-        // We don't allow stack based declarative security on ecalls, fcalls and
-        // other special purpose methods implemented by the EE (the interceptor
-        // we use doesn't play well with non-jitted stubs).
-        if ((Classification == mcFCall || Classification == mcEEImpl) &&
-            (IsMdHasSecurity(dwMemberAttrs) || IsTdHasSecurity(GetAttrClass())))
-        {
-            DWORD dwSecFlags;
-            DWORD dwNullDeclFlags;
-
-            if (IsTdHasSecurity(GetAttrClass()) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, GetCl(), &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to a class containing an ecall/fcall/special method.");
-            }
-            if (IsMdHasSecurity(dwMemberAttrs) &&
-                SUCCEEDED(Security::GetDeclarationFlags(pMDInternalImport, tok, &dwSecFlags, &dwNullDeclFlags)))
-            {
-                CONSISTENCY_CHECK_MSG(!(dwSecFlags & ~dwNullDeclFlags & DECLSEC_RUNTIME_ACTIONS),
-                                      "Cannot add stack based declarative security to an ecall/fcall/special method.");
-            }
-        }
-#endif // _DEBUG
 
         // Generic methods should always be mcInstantiated
         if (!((numGenericMethodArgs == 0) || ((Classification & mdcClassification) == mcInstantiated)))

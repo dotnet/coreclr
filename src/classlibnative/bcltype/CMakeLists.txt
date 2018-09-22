@@ -7,15 +7,9 @@ endif(PerfCountersSupportedBuild)
 set(BCLTYPE_SOURCES
     arraynative.cpp
     arrayhelpers.cpp
-    console.cpp
-    currency.cpp
-    decimal.cpp
-    windowsruntimebufferhelper.cpp
-    number.cpp
     oavariant.cpp
     objectnative.cpp
     stringnative.cpp
-    stringbuffer.cpp
     system.cpp
     varargsnative.cpp
     variant.cpp

@@ -15,15 +15,11 @@
 
 #include "stdafx.h"
 #include "debugdebugger.h"
-#include "ipcmanagerinterface.h"
 #include "../inc/common.h"
 #include "perflog.h"
 #include "eeconfig.h" // This is here even for retail & free builds...
 #include "../../dlls/mscorrc/resource.h"
 
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 
 #include "context.h"
 #include "vars.hpp"
@@ -1562,22 +1558,7 @@ void ResolveFuncEvalGenericArgInfo(DebuggerEval *pDE)
     
     // We better have a MethodDesc at this point.
     _ASSERTE(pDE->m_md != NULL);
-    
-    IMDInternalImport *pInternalImport = pDE->m_md->GetMDImport();
-    DWORD dwAttr;
-    if (FAILED(pInternalImport->GetMethodDefProps(pDE->m_methodToken, &dwAttr)))
-    {
-        COMPlusThrow(kArgumentException, W("Argument_InvalidGenericArg"));
-    }
-    
-    if (dwAttr & mdRequireSecObject)
-    {
-        // command window cannot evaluate a function with mdRequireSecObject is turned on because
-        // this is expecting to put a security object into caller's frame which we don't have.
-        //
-        COMPlusThrow(kArgumentException,W("Argument_CantCallSecObjFunc"));
-    }
-    
+
     ValidateFuncEvalReturnType(pDE->m_evalType , pDE->m_md->GetMethodTable());
     
     // If this is a new object operation, then we should have a .ctor.
@@ -2775,7 +2756,7 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
     {
         // We purposely do not morph nullables to be boxed Ts here because debugger EE's otherwise
         // have no way of creating true nullables that they need for their own purposes. 
-        pDE->m_result = ObjToArgSlot(newObj);
+        pDE->m_result[0] = ObjToArgSlot(newObj);
         pDE->m_retValueBoxing = Debugger::AllBoxed;
     }
     else if (!RetValueType.IsNull())
@@ -2803,12 +2784,12 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
         {
             // box the primitive returned, retObject is a true nullable for nullabes, It will be Normalized later
             CopyValueClass(retObject->GetData(),
-                           &(pDE->m_result),
+                           pDE->m_result,
                            RetValueType.GetMethodTable(),
                            retObject->GetAppDomain());
         }
 
-        pDE->m_result = ObjToArgSlot(retObject);
+        pDE->m_result[0] = ObjToArgSlot(retObject);
         pDE->m_retValueBoxing = Debugger::AllBoxed;
     }
     else
@@ -2833,8 +2814,8 @@ void UnpackFuncEvalResult(DebuggerEval *pDE,
         IsElementTypeSpecial(retClassET))
     {
         LOG((LF_CORDB, LL_EVERYTHING, "Creating strong handle for boxed DoNormalFuncEval result.\n"));
-        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-        pDE->m_result = (INT64)(LONG_PTR)oh;
+        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+        pDE->m_result[0] = (INT64)(LONG_PTR)oh;
         pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
     }
 }
@@ -2930,13 +2911,13 @@ void UnpackFuncEvalArguments(DebuggerEval *pDE,
  *    None.
  *
  */
-void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pArguments, BYTE *pCatcherStackAddr)
+void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, const ARG_SLOT *pArguments, BYTE *pCatcherStackAddr)
 {
     struct Param : NotifyOfCHFFilterWrapperParam
     {
         MethodDescCallSite* pMDCS;
         DebuggerEval *pDE;
-        ARG_SLOT *pArguments;
+        const ARG_SLOT *pArguments;
     }; 
     
     Param param;
@@ -2947,7 +2928,7 @@ void FuncEvalWrapper(MethodDescCallSite* pMDCS, DebuggerEval *pDE, ARG_SLOT *pAr
 
     PAL_TRY(Param *, pParam, &param)
     {
-        pParam->pDE->m_result = pParam->pMDCS->CallWithValueTypes_RetArgSlot(pParam->pArguments);
+        pParam->pMDCS->CallWithValueTypes_RetArgSlot(pParam->pArguments, pParam->pDE->m_result, sizeof(pParam->pDE->m_result));
     }
     PAL_EXCEPT_FILTER(NotifyOfCHFFilterWrapper)
     {
@@ -3003,13 +2984,12 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
             //
             // This is the abort we sent down.
             //
-            pDE->m_result = NULL;
+            memset(pDE->m_result, 0, sizeof(pDE->m_result));
             pDE->m_resultType = TypeHandle();
             pDE->m_aborted = true;
             pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
 
             LOG((LF_CORDB, LL_EVERYTHING, "D::FEHW - funceval abort exception.\n"));
-
         }
         else
         {
@@ -3022,11 +3002,11 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
             //
             // The result is the exception object.
             //
-            pDE->m_result = ObjToArgSlot(ppException);
+            pDE->m_result[0] = ObjToArgSlot(ppException);
 
             pDE->m_resultType = ppException->GetTypeHandle();
-            OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-            pDE->m_result = (INT64)PTR_TO_CORDB_ADDRESS(oh);
+            OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+            pDE->m_result[0] = (ARG_SLOT)PTR_TO_CORDB_ADDRESS(oh);
             pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
             pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
 
@@ -3035,15 +3015,14 @@ static void RecordFuncEvalException(DebuggerEval *pDE,
     }
     else
     {
-
         //
         // The result is the exception object.
         //
-        pDE->m_result = ObjToArgSlot(ppException);
+        pDE->m_result[0] = ObjToArgSlot(ppException);
 
         pDE->m_resultType = ppException->GetTypeHandle();
-        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result));
-        pDE->m_result = (INT64)(LONG_PTR)oh;
+        OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(ArgSlotToObj(pDE->m_result[0]));
+        pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
         pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
         pDE->m_retValueBoxing = Debugger::NoValueTypeBoxing;
@@ -3597,7 +3576,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Make a strong handle for the result.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3627,7 +3606,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Place the result in a strong handle to protect it from a collection.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3673,7 +3652,7 @@ void FuncEvalHijackRealWorker(DebuggerEval *pDE, Thread* pThread, FuncEvalFrame*
 
                 // Place the result in a strong handle to protect it from a collection.
                 OBJECTHANDLE oh = pDE->m_thread->GetDomain()->CreateStrongHandle(newObj);
-                pDE->m_result = (INT64)(LONG_PTR)oh;
+                pDE->m_result[0] = (ARG_SLOT)(LONG_PTR)oh;
                 pDE->m_vmObjectHandle = VMPTR_OBJECTHANDLE::MakePtr(oh);
 
                 break;
@@ -3962,6 +3941,12 @@ FuncEvalHijackPersonalityRoutine(IN     PEXCEPTION_RECORD   pExceptionRecord
     // in FuncEvalHijack we allocate 8 bytes of stack space and then store R0 at the current SP, so if we subtract 8 from
     // the establisher frame we can get the stack location where R0 was stored.
     pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame - 8);
+
+#elif defined(_TARGET_ARM64_)
+    // on ARM64 the establisher frame is the SP of the caller of FuncEvalHijack.
+    // in FuncEvalHijack we allocate 32 bytes of stack space and then store R0 at the current SP + 16, so if we subtract 16 from
+    // the establisher frame we can get the stack location where R0 was stored.
+    pDE = *(DebuggerEval**)(pDispatcherContext->EstablisherFrame - 16);
 #else
     _ASSERTE(!"NYI - FuncEvalHijackPersonalityRoutine()");
 #endif

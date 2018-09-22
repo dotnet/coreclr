@@ -24,9 +24,11 @@
 
 inline void FATAL_GC_ERROR()
 {
+#ifndef DACCESS_COMPILE
     GCToOSInterface::DebugBreak();
+#endif // DACCESS_COMPILE
     _ASSERTE(!"Fatal Error in GC.");
-    EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+    GCToEEInterface::HandleFatalError(COR_E_EXECUTIONENGINE);
 }
 
 #ifdef _MSC_VER
@@ -106,7 +108,7 @@ inline void FATAL_GC_ERROR()
 #define MARK_ARRAY      //Mark bit in an array
 #endif //BACKGROUND_GC
 
-#if defined(BACKGROUND_GC) || defined (CARD_BUNDLE)
+#if defined(BACKGROUND_GC) || defined (CARD_BUNDLE) || defined(FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP)
 #define WRITE_WATCH     //Write Watch feature
 #endif //BACKGROUND_GC || CARD_BUNDLE
 
@@ -119,16 +121,12 @@ inline void FATAL_GC_ERROR()
 #define FFIND_OBJECT        //faster find_object, slower allocation
 #define FFIND_DECAY  7      //Number of GC for which fast find will be active
 
-//#define NO_WRITE_BARRIER  //no write barrier, use Write Watch feature
-
 //#define DEBUG_WRITE_WATCH //Additional debug for write watch
 
 //#define STRESS_PINNING    //Stress pinning by pinning randomly
 
 //#define TRACE_GC          //debug trace gc operation
 //#define SIMPLE_DPRINTF
-
-//#define CATCH_GC          //catches exception during GC
 
 //#define TIME_GC           //time allocation and garbage collection
 //#define TIME_WRITE_WATCH  //time GetWriteWatch and ResetWriteWatch calls
@@ -156,8 +154,6 @@ inline void FATAL_GC_ERROR()
 #define END_TIMING_CYCLES(x)
 #endif //SYNCHRONIZATION_STATS || STAGE_STATS
 
-#define NO_CATCH_HANDLERS  //to debug gc1, remove the catch handlers
-
 /* End of optional features */
 
 #ifdef GC_CONFIG_DRIVEN
@@ -168,8 +164,6 @@ void GCLogConfig (const char *fmt, ... );
 #ifdef _DEBUG
 #define TRACE_GC
 #endif
-
-#define NUMBERGENERATIONS   4               //Max number of generations
 
 // For the bestfit algorithm when we relocate ephemeral generations into an 
 // existing gen2 segment.
@@ -200,8 +194,6 @@ void GCLogConfig (const char *fmt, ... );
 #define MIN_NUM_FREE_SPACES 5 
 
 //Please leave these definitions intact.
-
-#define CLREvent CLREventStatic
 
 // hosted api
 #ifdef memcpy
@@ -242,46 +234,6 @@ const int policy_compact = 1;
 const int policy_expand  = 2;
 
 #ifdef TRACE_GC
-
-
-extern int     print_level;
-extern BOOL    trace_gc;
-extern int    gc_trace_fac;
-
-
-class hlet
-{
-    static hlet* bindings;
-    int prev_val;
-    int* pval;
-    hlet* prev_let;
-public:
-    hlet (int& place, int value)
-    {
-        prev_val = place;
-        pval = &place;
-        place = value;
-        prev_let = bindings;
-        bindings = this;
-    }
-    ~hlet ()
-    {
-        *pval = prev_val;
-        bindings = prev_let;
-    }
-};
-
-
-#define let(p,v) hlet __x = hlet (p, v);
-
-#else //TRACE_GC
-
-#define gc_count    -1
-#define let(s,v)
-
-#endif //TRACE_GC
-
-#ifdef TRACE_GC
 #define SEG_REUSE_LOG_0 7
 #define SEG_REUSE_LOG_1 (SEG_REUSE_LOG_0 + 1)
 #define DT_LOG_0 (SEG_REUSE_LOG_1 + 1)
@@ -307,15 +259,12 @@ void GCLog (const char *fmt, ... );
 //#define dprintf(l,x) {if ((l==GTC_LOG) || (l <= 1)) {GCLog x;}}
 //#define dprintf(l,x) {if (trace_gc && ((l <= print_level) || (l==GTC_LOG))) {GCLog x;}}
 //#define dprintf(l,x) {if (l==GTC_LOG) {printf ("\n");printf x ; fflush(stdout);}}
-#else //SIMPLE_DPRINTF
+#else
 
-// The GCTrace output goes to stdout by default but can get sent to the stress log or the logfile if the
-// reg key GCTraceFacility is set.  THe stress log can only take a format string and 4 numbers or
-// string literals.
-#define dprintf(l,x) {if (trace_gc && (l<=print_level)) { \
-      if ( !gc_trace_fac) {printf ("\n");printf x ; fflush(stdout);} \
-      else if ( gc_trace_fac == 2) {LogSpewAlways x;LogSpewAlways ("\n");} \
-      else if ( gc_trace_fac == 1) {STRESS_LOG_VA(x);}}}
+// Nobody used the logging mechanism that used to be here. If we find ourselves
+// wanting to inspect GC logs on unmodified builds, we can use this define here
+// to do so.
+#define dprintf(l, x)
 
 #endif //SIMPLE_DPRINTF
 
@@ -326,31 +275,20 @@ void GCLog (const char *fmt, ... );
 #define dprintf(l,x)
 #endif //TRACE_GC
 
-#ifndef FEATURE_REDHAWK
+#if !defined(FEATURE_REDHAWK) && !defined(BUILD_AS_STANDALONE)
 #undef  assert
 #define assert _ASSERTE
 #undef  ASSERT
 #define ASSERT _ASSERTE
 #endif // FEATURE_REDHAWK
 
-#ifdef _DEBUG
-
 struct GCDebugSpinLock {
     VOLATILE(int32_t) lock;                   // -1 if free, 0 if held
+#ifdef _DEBUG
     VOLATILE(Thread *) holding_thread;     // -1 if no thread holds the lock.
     VOLATILE(BOOL) released_by_gc_p;       // a GC thread released the lock.
-
-    GCDebugSpinLock()
-        : lock(-1), holding_thread((Thread*) -1)
-    {
-    }
-};
-typedef GCDebugSpinLock GCSpinLock;
-
-#elif defined (SYNCHRONIZATION_STATS)
-
-struct GCSpinLockInstru {
-    VOLATILE(int32_t) lock;
+#endif
+#if defined (SYNCHRONIZATION_STATS)
     // number of times we went into SwitchToThread in enter_spin_lock.
     unsigned int num_switch_thread;
     // number of times we went into WaitLonger.
@@ -359,12 +297,20 @@ struct GCSpinLockInstru {
     unsigned int num_switch_thread_w;
     // number of times we went to calling DisablePreemptiveGC in WaitLonger.
     unsigned int num_disable_preemptive_w;
+#endif
 
-    GCSpinLockInstru()
-        : lock(-1), num_switch_thread(0), num_wait_longer(0), num_switch_thread_w(0), num_disable_preemptive_w(0)
+    GCDebugSpinLock()
+        : lock(-1)
+#ifdef _DEBUG
+        , holding_thread((Thread*) -1)
+#endif
+#if defined (SYNCHRONIZATION_STATS)
+        , num_switch_thread(0), num_wait_longer(0), num_switch_thread_w(0), num_disable_preemptive_w(0)
+#endif
     {
     }
 
+#if defined (SYNCHRONIZATION_STATS)
     void init()
     {
         num_switch_thread = 0;
@@ -372,23 +318,9 @@ struct GCSpinLockInstru {
         num_switch_thread_w = 0;
         num_disable_preemptive_w = 0;
     }
-};
-
-typedef GCSpinLockInstru GCSpinLock;
-
-#else
-
-struct GCDebugSpinLock {
-    VOLATILE(int32_t) lock;                   // -1 if free, 0 if held
-
-    GCDebugSpinLock()
-        : lock(-1)
-    {
-    }
+#endif
 };
 typedef GCDebugSpinLock GCSpinLock;
-
-#endif
 
 class mark;
 class heap_segment;
@@ -427,6 +359,39 @@ enum set_pause_mode_status
 {
     set_pause_mode_success = 0,
     set_pause_mode_no_gc = 1 // NoGCRegion is in progress, can't change pause mode.
+};
+
+/*
+ Latency modes required user to have specific GC knowledge (eg, budget, full blocking GC).
+ We are trying to move away from them as it makes a lot more sense for users to tell 
+ us what's the most important out of the perf aspects that make sense to them. 
+
+ In general there are 3 such aspects:
+
+ + memory footprint
+ + throughput
+ + pause predictibility
+
+ Currently the following levels are supported. We may (and will likely) add more
+ in the future.
+
+ +----------+--------------------+---------------------------------------+
+ | Level    | Optimization Goals | Latency Charactaristics               |
+ +==========+====================+=======================================+
+ | 0        | memory footprint   | pauses can be long and more frequent  |
+ +----------+--------------------+---------------------------------------+
+ | 1        | balanced           | pauses are more predictable and more  |
+ |          |                    | frequent. the longest pauses are      |
+ |          |                    | shorter than 1.                       |
+ +----------+--------------------+---------------------------------------+
+*/
+enum gc_latency_level
+{
+    latency_level_first = 0,
+    latency_level_memory_footprint = latency_level_first,
+    latency_level_balanced = 1,
+    latency_level_last = latency_level_balanced,
+    latency_level_default = latency_level_balanced
 };
 
 enum gc_tuning_point
@@ -524,7 +489,9 @@ public:
     BOOL stress_induced;
 #endif // STRESS_HEAP
 
+    // These are opportunistically set
     uint32_t entry_memory_load;
+    uint32_t exit_memory_load;
 
     void init_mechanisms(); //for each GC
     void first_init(); // for the life of the EE
@@ -610,7 +577,7 @@ struct GCStatistics
     : public StatisticsBase
 {
     // initialized to the contents of COMPlus_GcMixLog, or NULL, if not present
-    static TCHAR* logFileName;
+    static char* logFileName;
     static FILE*  logFile;
 
     // number of times we executed a background GC, a foreground GC, or a
@@ -761,10 +728,10 @@ public:
     // Don't move these first two fields without adjusting the references
     // from the __asm in jitinterface.cpp.
     alloc_context   allocation_context;
-    heap_segment*   allocation_segment;
     PTR_heap_segment start_segment;
-    uint8_t*        allocation_context_start_region;
     uint8_t*        allocation_start;
+    heap_segment*   allocation_segment;
+    uint8_t*        allocation_context_start_region;
     allocator       free_list_allocator;
     size_t          free_list_allocated;
     size_t          end_seg_allocated;
@@ -794,11 +761,30 @@ public:
 #endif //FREE_USAGE_STATS
 };
 
+static_assert(offsetof(dac_generation, allocation_context) == offsetof(generation, allocation_context), "DAC generation offset mismatch");
+static_assert(offsetof(dac_generation, start_segment) == offsetof(generation, start_segment), "DAC generation offset mismatch");
+static_assert(offsetof(dac_generation, allocation_start) == offsetof(generation, allocation_start), "DAC generation offset mismatch");
+
+// static data remains the same after it's initialized.
+// It's per generation.
+// TODO: for gen_time_tuning, we should put the multipliers in static data.
+struct static_data
+{
+    size_t min_size;
+    size_t max_size;
+    size_t fragmentation_limit;
+    float fragmentation_burden_limit;
+    float limit;
+    float max_limit;
+    size_t time_clock; // time after which to collect generation, in performance counts (see QueryPerformanceCounter)
+    size_t gc_clock; // nubmer of gcs after which to collect generation
+};
+
 // The dynamic data fields are grouped into 3 categories:
 //
 // calculated logical data (like desired_allocation)
 // physical data (like fragmentation)
-// const data (like min_gc_size), initialized at the beginning
+// const data (sdata), initialized at the beginning
 class dynamic_data
 {
 public:
@@ -835,15 +821,9 @@ public:
     size_t    gc_elapsed_time;  // Time it took for the gc to complete
     float     gc_speed;         //  speed in bytes/msec for the gc to complete
 
-    // min_size is always the same as min_gc_size..
-    size_t    min_gc_size;
-    size_t    max_size;
     size_t    min_size;
-    size_t    default_new_allocation;
-    size_t    fragmentation_limit;
-    float     fragmentation_burden_limit;
-    float     limit;
-    float     max_limit;
+
+    static_data* sdata;
 };
 
 #define ro_in_entry 0x1
@@ -1077,17 +1057,8 @@ enum interesting_data_point
 };
 
 //class definition of the internal class
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-extern void GCProfileWalkHeapWorker(BOOL fProfilerPinned, BOOL fShouldWalkHeapRootsForEtw, BOOL fShouldWalkHeapObjectsForEtw);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 class gc_heap
 {
-    friend struct ::_DacGlobals;
-#ifdef DACCESS_COMPILE
-    friend class ::ClrDataAccess;
-    friend class ::DacHeapWalker;
-#endif //DACCESS_COMPILE
-
     friend class GCHeap;
 #ifdef FEATURE_PREMORTEM_FINALIZATION
     friend class CFinalize;
@@ -1108,6 +1079,8 @@ class gc_heap
     friend void checkGCWriteBarrier();
     friend void initGCShadow();
 #endif //defined (WRITE_BARRIER_CHECK) && !defined (SERVER_GC)
+
+    friend void PopulateDacVars(GcDacVars *gcDacVars);
 
 #ifdef MULTIPLE_HEAPS
     typedef void (gc_heap::* card_fn) (uint8_t**, int);
@@ -1229,7 +1202,7 @@ public:
     static 
     gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
     static
-    void __stdcall gc_thread_stub (void* arg);
+    void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
 
     CObjectHeader* try_fast_alloc (size_t jsize);
@@ -1287,34 +1260,47 @@ public:
 
 protected:
 
-    PER_HEAP
+    PER_HEAP_ISOLATED
     void walk_heap (walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p);
+
+    PER_HEAP
+    void walk_heap_per_heap (walk_fn fn, void* context, int gen_number, BOOL walk_large_object_heap_p);
 
     struct walk_relocate_args
     {
         uint8_t* last_plug;
         BOOL is_shortened;
         mark* pinned_plug_entry;
+        void* profiling_context;
+        record_surv_fn fn;
     };
 
     PER_HEAP
+    void walk_survivors (record_surv_fn fn, void* context, walk_surv_type type);
+
+    PER_HEAP
     void walk_plug (uint8_t* plug, size_t size, BOOL check_last_object_p,
-                    walk_relocate_args* args, size_t profiling_context);
+                    walk_relocate_args* args);
 
     PER_HEAP
-    void walk_relocation (int condemned_gen_number,
-                          uint8_t* first_condemned_address, size_t profiling_context);
+    void walk_relocation (void* profiling_context, record_surv_fn fn);
 
     PER_HEAP
-    void walk_relocation_in_brick (uint8_t* tree, walk_relocate_args* args, size_t profiling_context);
+    void walk_relocation_in_brick (uint8_t* tree, walk_relocate_args* args);
+
+    PER_HEAP
+    void walk_finalize_queue (fq_walk_fn fn);
 
 #if defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
     PER_HEAP
-    void walk_relocation_for_bgc(size_t profiling_context);
-
-    PER_HEAP
-    void make_free_lists_for_profiler_for_bgc();
+    void walk_survivors_for_bgc (void* profiling_context, record_surv_fn fn);
 #endif // defined(BACKGROUND_GC) && defined(FEATURE_EVENT_TRACE)
+
+    // used in blocking GCs after plan phase so this walks the plugs.
+    PER_HEAP
+    void walk_survivors_relocation (void* profiling_context, record_surv_fn fn);
+    PER_HEAP
+    void walk_survivors_for_loh (void* profiling_context, record_surv_fn fn);
 
     PER_HEAP
     int generation_to_condemn (int n, 
@@ -1380,6 +1366,9 @@ protected:
 
     PER_HEAP_ISOLATED
     void thread_no_gc_loh_segments();
+
+    PER_HEAP
+    void check_and_set_no_gc_oom();
 
     PER_HEAP
     void allocate_for_no_gc_after_gc();
@@ -1542,13 +1531,6 @@ protected:
                          alloc_context* acontext,
                          int align_const);
 
-    enum c_gc_state
-    {
-        c_gc_state_marking,
-        c_gc_state_planning,
-        c_gc_state_free
-    };
-
 #ifdef RECORD_LOH_STATE
     #define max_saved_loh_states 12
     PER_HEAP
@@ -1648,6 +1630,12 @@ protected:
     void rearrange_large_heap_segments();
     PER_HEAP
     void rearrange_heap_segments(BOOL compacting);
+
+    PER_HEAP_ISOLATED
+    void reset_write_watch_for_gc_heap(void* base_address, size_t region_size);
+    PER_HEAP_ISOLATED
+    void get_write_watch_for_gc_heap(bool reset, void *base_address, size_t region_size, void** dirty_pages, uintptr_t* dirty_page_count_ref, bool is_runtime_suspended);
+
     PER_HEAP
     void switch_one_quantum();
     PER_HEAP
@@ -1704,7 +1692,13 @@ protected:
     PER_HEAP
     void card_bundle_clear(size_t cardb);
     PER_HEAP
+    void card_bundle_set (size_t cardb);
+    PER_HEAP
     void card_bundles_set (size_t start_cardb, size_t end_cardb);
+    PER_HEAP
+    void verify_card_bundle_bits_set(size_t first_card_word, size_t last_card_word);
+    PER_HEAP
+    void verify_card_bundles();
     PER_HEAP
     BOOL card_bundle_set_p (size_t cardb);
     PER_HEAP
@@ -1739,7 +1733,7 @@ protected:
     PER_HEAP
     void set_brick (size_t index, ptrdiff_t val);
     PER_HEAP
-    int brick_entry (size_t index);
+    int get_brick_entry (size_t index);
 #ifdef MARK_ARRAY
     PER_HEAP
     unsigned int mark_array_marked (uint8_t* add);
@@ -2037,8 +2031,6 @@ protected:
     PER_HEAP
     uint8_t* next_end (heap_segment* seg, uint8_t* f);
     PER_HEAP
-    void fix_card_table ();
-    PER_HEAP
     void mark_through_object (uint8_t* oo, BOOL mark_class_object_p THREAD_NUMBER_DCL);
     PER_HEAP
     BOOL process_mark_overflow (int condemned_gen_number);
@@ -2066,6 +2058,12 @@ protected:
 
     PER_HEAP
     void pin_object (uint8_t* o, uint8_t** ppObject, uint8_t* low, uint8_t* high);
+
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    PER_HEAP_ISOLATED
+    size_t get_total_pinned_objects();
+#endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
+
     PER_HEAP
     void reset_mark_stack ();
     PER_HEAP
@@ -2140,10 +2138,8 @@ protected:
     PER_HEAP
     void relocate_in_loh_compact();
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     PER_HEAP
-    void walk_relocation_loh (size_t profiling_context);
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+    void walk_relocation_for_loh (void* profiling_context, record_surv_fn fn);
 
     PER_HEAP
     BOOL loh_enque_pinned_plug (uint8_t* plug, size_t len);
@@ -2454,6 +2450,12 @@ protected:
     void save_ephemeral_generation_starts();
 
     PER_HEAP
+    void set_static_data();
+
+    PER_HEAP_ISOLATED
+    void init_static_data();
+
+    PER_HEAP
     bool init_dynamic_data ();
     PER_HEAP
     float surv_to_growth (float cst, float limit, float max_limit);
@@ -2479,6 +2481,8 @@ protected:
     size_t get_total_heap_size ();
     PER_HEAP_ISOLATED
     size_t get_total_committed_size();
+    PER_HEAP_ISOLATED
+    size_t get_total_fragmentation();
 
     PER_HEAP_ISOLATED
     void get_memory_info (uint32_t* memory_load, 
@@ -2539,14 +2543,8 @@ protected:
     PER_HEAP
     void descr_generations (BOOL begin_gc_p);
 
-#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
     PER_HEAP_ISOLATED
     void descr_generations_to_profiler (gen_walk_fn fn, void *context);
-    PER_HEAP
-    void record_survived_for_profiler(int condemned_gen_number, uint8_t * first_condemned_address);
-    PER_HEAP
-    void notify_profiler_of_surviving_large_objects ();
-#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
     /*------------ Multiple non isolated heaps ----------------*/
 #ifdef MULTIPLE_HEAPS
@@ -2646,6 +2644,7 @@ protected:
     PER_HEAP_ISOLATED
     BOOL commit_mark_array_new_seg (gc_heap* hp, 
                                     heap_segment* seg,
+                                    uint32_t* new_card_table = 0,
                                     uint8_t* new_lowest_address = 0);
 
     PER_HEAP_ISOLATED
@@ -2723,24 +2722,11 @@ protected:
     PER_HEAP
     void kill_gc_thread();
     PER_HEAP
-    uint32_t bgc_thread_function();
+    void bgc_thread_function();
     PER_HEAP_ISOLATED
     void do_background_gc();
     static
-    uint32_t __stdcall bgc_thread_stub (void* arg);
-
-#ifdef FEATURE_REDHAWK
-    // Helper used to wrap the start routine of background GC threads so we can do things like initialize the
-    // Redhawk thread state which requires running in the new thread's context.
-    static uint32_t WINAPI rh_bgc_thread_stub(void * pContext);
-
-    // Context passed to the above.
-    struct rh_bgc_thread_ctx
-    {
-        PTHREAD_START_ROUTINE   m_pRealStartRoutine;
-        gc_heap *               m_pRealContext;
-    };
-#endif //FEATURE_REDHAWK
+    void bgc_thread_stub (void* arg);
 
 #endif //BACKGROUND_GC
  
@@ -2753,35 +2739,82 @@ public:
     PER_HEAP_ISOLATED
     uint32_t cm_in_progress;
 
-    PER_HEAP
-    BOOL expanded_in_fgc;
-
     // normally this is FALSE; we set it to TRUE at the end of the gen1 GC
     // we do right before the bgc starts.
     PER_HEAP_ISOLATED
     BOOL     dont_restart_ee_p;
 
     PER_HEAP_ISOLATED
-    CLREvent bgc_start_event;
+    GCEvent bgc_start_event;
 #endif //BACKGROUND_GC
+
+    // The variables in this block are known to the DAC and must come first
+    // in the gc_heap class.
+
+    // Keeps track of the highest address allocated by Alloc
+    PER_HEAP
+    uint8_t* alloc_allocated;
+
+    // The ephemeral heap segment
+    PER_HEAP
+    heap_segment* ephemeral_heap_segment;
+
+    // The finalize queue.
+    PER_HEAP
+    CFinalize* finalize_queue;
+
+    // OOM info.
+    PER_HEAP
+    oom_history oom_info;
+
+    // Interesting data, recorded per-heap.
+    PER_HEAP
+    size_t interesting_data_per_heap[max_idp_count];
+
+    PER_HEAP
+    size_t compact_reasons_per_heap[max_compact_reasons_count];
+
+    PER_HEAP
+    size_t expand_mechanisms_per_heap[max_expand_mechanisms_count];
+
+    PER_HEAP
+    size_t interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_count];
+
+    PER_HEAP
+    uint8_t** internal_root_array;
+
+    PER_HEAP
+    size_t internal_root_array_index;
+
+    PER_HEAP
+    BOOL heap_analyze_success;
+
+    // The generation table. Must always be last.
+    PER_HEAP
+    generation generation_table [NUMBERGENERATIONS + 1];
+
+    // End DAC zone
+
+    PER_HEAP
+    BOOL expanded_in_fgc;
 
     PER_HEAP_ISOLATED
     uint32_t wait_for_gc_done(int32_t timeOut = INFINITE);
 
-    // Returns TRUE if the thread used to be in cooperative mode 
+    // Returns TRUE if the current thread used to be in cooperative mode 
     // before calling this function.
     PER_HEAP_ISOLATED
-    BOOL enable_preemptive (Thread* current_thread);
+    bool enable_preemptive ();
     PER_HEAP_ISOLATED
-    void disable_preemptive (Thread* current_thread, BOOL restore_cooperative);
+    void disable_preemptive (bool restore_cooperative);
 
     /* ------------------- per heap members --------------------------*/
 
     PER_HEAP
 #ifndef MULTIPLE_HEAPS
-    CLREvent gc_done_event;
+    GCEvent gc_done_event;
 #else // MULTIPLE_HEAPS
-    CLREvent gc_done_event;
+    GCEvent gc_done_event;
 #endif // MULTIPLE_HEAPS
 
     PER_HEAP
@@ -2802,13 +2835,11 @@ public:
     PER_HEAP
     void exit_gc_done_event_lock();
 
-#ifdef MULTIPLE_HEAPS
     PER_HEAP
     uint8_t*  ephemeral_low;      //lowest ephemeral address
 
     PER_HEAP
     uint8_t*  ephemeral_high;     //highest ephemeral address
-#endif //MULTIPLE_HEAPS
 
     PER_HEAP
     uint32_t* card_table;
@@ -2817,12 +2848,8 @@ public:
     short* brick_table;
 
 #ifdef MARK_ARRAY
-#ifdef MULTIPLE_HEAPS
     PER_HEAP
     uint32_t* mark_array;
-#else
-    SPTR_DECL(uint32_t, mark_array);
-#endif //MULTIPLE_HEAPS
 #endif //MARK_ARRAY
 
 #ifdef CARD_BUNDLE
@@ -2842,10 +2869,10 @@ public:
     // notification feature which is only enabled if concurrent
     // GC is disabled.
     PER_HEAP_ISOLATED
-    CLREvent full_gc_approach_event;
+    GCEvent full_gc_approach_event;
 
     PER_HEAP_ISOLATED
-    CLREvent full_gc_end_event;
+    GCEvent full_gc_end_event;
 
     // Full GC Notification percentages.
     PER_HEAP_ISOLATED
@@ -2865,9 +2892,9 @@ public:
     PER_HEAP
     size_t fgn_last_alloc;
 
-    static uint32_t user_thread_wait (CLREvent *event, BOOL no_mode_change, int time_out_ms=INFINITE);
+    static uint32_t user_thread_wait (GCEvent *event, BOOL no_mode_change, int time_out_ms=INFINITE);
 
-    static wait_full_gc_status full_gc_wait (CLREvent *event, int time_out_ms);
+    static wait_full_gc_status full_gc_wait (GCEvent *event, int time_out_ms);
 
     PER_HEAP
     uint8_t* demotion_low;
@@ -2892,10 +2919,13 @@ public:
 
 #ifdef MULTIPLE_HEAPS
     PER_HEAP_ISOLATED
-    CLREvent gc_start_event;
+    bool gc_thread_no_affinitize_p;
 
     PER_HEAP_ISOLATED
-    CLREvent ee_suspend_event;
+    GCEvent gc_start_event;
+
+    PER_HEAP_ISOLATED
+    GCEvent ee_suspend_event;
 
     PER_HEAP
     heap_segment* new_heap_segment;
@@ -2913,6 +2943,9 @@ public:
     size_t allocation_running_amount;
 
 #endif //MULTIPLE_HEAPS
+
+    PER_HEAP_ISOLATED
+    gc_latency_level latency_level;
 
     PER_HEAP_ISOLATED
     gc_mechanisms settings;
@@ -2940,6 +2973,15 @@ public:
 #endif //BIT64
 
     PER_HEAP_ISOLATED
+    uint32_t last_gc_memory_load;
+
+    PER_HEAP_ISOLATED
+    size_t last_gc_heap_size;
+
+    PER_HEAP_ISOLATED
+    size_t last_gc_fragmentation;
+
+    PER_HEAP_ISOLATED
     uint32_t high_memory_load_th;
 
     PER_HEAP_ISOLATED
@@ -2952,13 +2994,26 @@ public:
     uint64_t entry_available_physical_mem;
 
     PER_HEAP_ISOLATED
-    bool restricted_physical_memory_p;
-
-    PER_HEAP_ISOLATED
     size_t last_gc_index;
 
+#ifdef SEG_MAPPING_TABLE
     PER_HEAP_ISOLATED
     size_t min_segment_size;
+
+    PER_HEAP_ISOLATED
+    size_t min_segment_size_shr;
+#endif //SEG_MAPPING_TABLE
+
+    // For SOH we always allocate segments of the same
+    // size unless no_gc_region requires larger ones.
+    PER_HEAP_ISOLATED
+    size_t soh_segment_size;
+
+    PER_HEAP_ISOLATED
+    size_t min_loh_segment_size;
+
+    PER_HEAP_ISOLATED
+    size_t segment_info_size;
 
     PER_HEAP
     uint8_t* lowest_address;
@@ -2982,16 +3037,9 @@ protected:
     PER_HEAP
     VOLATILE(int) alloc_context_count;
 #else //MULTIPLE_HEAPS
-#define vm_heap ((GCHeap*) g_pGCHeap)
+#define vm_heap ((GCHeap*) g_theGCHeap)
 #define heap_number (0)
 #endif //MULTIPLE_HEAPS
-
-#ifndef MULTIPLE_HEAPS
-    SPTR_DECL(heap_segment,ephemeral_heap_segment);
-#else
-    PER_HEAP
-    heap_segment* ephemeral_heap_segment;
-#endif // !MULTIPLE_HEAPS
 
     PER_HEAP
     size_t time_bgc_last;
@@ -3015,10 +3063,15 @@ protected:
     mark*       mark_stack_array;
 
     PER_HEAP
-    BOOL       verify_pinned_queue_p;
+    BOOL        verify_pinned_queue_p;
 
     PER_HEAP
-    uint8_t*       oldest_pinned_plug;
+    uint8_t*    oldest_pinned_plug;
+
+#if defined(ENABLE_PERF_COUNTERS) || defined(FEATURE_EVENT_TRACE)
+    PER_HEAP
+    size_t      num_pinned_objects;
+#endif //ENABLE_PERF_COUNTERS || FEATURE_EVENT_TRACE
 
 #ifdef FEATURE_LOH_COMPACTION
     PER_HEAP
@@ -3062,14 +3115,9 @@ protected:
     uint8_t* background_written_addresses [array_size+2];
 #endif //WRITE_WATCH
 
-#if defined (DACCESS_COMPILE) && !defined (MULTIPLE_HEAPS)
-    // doesn't need to be volatile for DAC.
-    SVAL_DECL(c_gc_state, current_c_gc_state);
-#else
     PER_HEAP_ISOLATED
     VOLATILE(c_gc_state) current_c_gc_state;     //tells the large object allocator to
     //mark the object as new since the start of gc.
-#endif //DACCESS_COMPILE && !MULTIPLE_HEAPS
 
     PER_HEAP_ISOLATED
     gc_mechanisms saved_bgc_settings;
@@ -3092,7 +3140,7 @@ protected:
     // we need to create them on the thread that called 
     // SuspendEE which is heap 0.
     PER_HEAP_ISOLATED
-    CLREvent bgc_threads_sync_event;
+    GCEvent bgc_threads_sync_event;
 
     PER_HEAP
     Thread* bgc_thread;
@@ -3101,16 +3149,13 @@ protected:
     CLRCriticalSection bgc_threads_timeout_cs;
 
     PER_HEAP_ISOLATED
-    CLREvent background_gc_done_event;
-
-    PER_HEAP
-    CLREvent background_gc_create_event;
+    GCEvent background_gc_done_event;
 
     PER_HEAP_ISOLATED
-    CLREvent ee_proceed_event;
+    GCEvent ee_proceed_event;
 
     PER_HEAP
-    CLREvent gc_lh_block_event;
+    GCEvent gc_lh_block_event;
 
     PER_HEAP_ISOLATED
     bool gc_can_use_concurrent;
@@ -3229,16 +3274,6 @@ protected:
     PER_HEAP
     heap_segment* saved_overflow_ephemeral_seg;
 
-#ifndef MULTIPLE_HEAPS
-    SPTR_DECL(heap_segment, saved_sweep_ephemeral_seg);
-
-    SPTR_DECL(uint8_t, saved_sweep_ephemeral_start);
-
-    SPTR_DECL(uint8_t, background_saved_lowest_address);
-
-    SPTR_DECL(uint8_t, background_saved_highest_address);
-#else
-
     PER_HEAP
     heap_segment* saved_sweep_ephemeral_seg;
 
@@ -3250,7 +3285,6 @@ protected:
 
     PER_HEAP
     uint8_t* background_saved_highest_address;
-#endif //!MULTIPLE_HEAPS
 
     // This is used for synchronization between the bgc thread
     // for this heap and the user threads allocating on this
@@ -3326,6 +3360,9 @@ protected:
     size_t loh_allocation_no_gc;
 
     PER_HEAP
+    bool no_gc_oom_p;
+
+    PER_HEAP
     heap_segment* saved_loh_segment_no_gc;
 
     PER_HEAP_ISOLATED
@@ -3333,14 +3370,6 @@ protected:
 
 #define youngest_generation (generation_of (0))
 #define large_object_generation (generation_of (max_generation+1))
-
-#ifndef MULTIPLE_HEAPS
-    SPTR_DECL(uint8_t,alloc_allocated);
-#else
-    PER_HEAP
-    uint8_t* alloc_allocated; //keeps track of the highest
-    //address allocated by alloc
-#endif // !MULTIPLE_HEAPS
 
     // The more_space_lock and gc_lock is used for 3 purposes:
     //
@@ -3410,12 +3439,6 @@ protected:
     }
 
 #endif //SYNCHRONIZATION_STATS
-
-#ifdef MULTIPLE_HEAPS
-    PER_HEAP
-    generation generation_table [NUMBERGENERATIONS+1];
-#endif
-
 
 #define NUM_LOH_ALIST (7)
 #define BASE_LOH_ALIST (64*1024)
@@ -3493,33 +3516,13 @@ protected:
     PER_HEAP_ISOLATED
     BOOL alloc_wait_event_p;
 
-#ifndef MULTIPLE_HEAPS
-    SPTR_DECL(uint8_t, next_sweep_obj);
-#else
     PER_HEAP
     uint8_t* next_sweep_obj;
-#endif //MULTIPLE_HEAPS
 
     PER_HEAP
     uint8_t* current_sweep_pos;
 
 #endif //BACKGROUND_GC
-
-#ifndef MULTIPLE_HEAPS
-    SVAL_DECL(oom_history, oom_info);
-#ifdef FEATURE_PREMORTEM_FINALIZATION
-    SPTR_DECL(CFinalize,finalize_queue);
-#endif //FEATURE_PREMORTEM_FINALIZATION
-#else
-
-    PER_HEAP
-    oom_history oom_info;
-
-#ifdef FEATURE_PREMORTEM_FINALIZATION
-    PER_HEAP
-    PTR_CFinalize finalize_queue;
-#endif //FEATURE_PREMORTEM_FINALIZATION
-#endif // !MULTIPLE_HEAPS
 
     PER_HEAP
     fgm_history fgm_result;
@@ -3542,19 +3545,6 @@ protected:
     PER_HEAP
     size_t interesting_data_per_gc[max_idp_count];
 
-#ifdef MULTIPLE_HEAPS
-    PER_HEAP
-    size_t interesting_data_per_heap[max_idp_count];
-
-    PER_HEAP
-    size_t compact_reasons_per_heap[max_compact_reasons_count];
-
-    PER_HEAP
-    size_t expand_mechanisms_per_heap[max_expand_mechanisms_count];
-
-    PER_HEAP
-    size_t interesting_mechanism_bits_per_heap[max_gc_mechanism_bits_count];
-#endif //MULTIPLE_HEAPS
 #endif //GC_CONFIG_DRIVEN
 
     PER_HEAP
@@ -3635,21 +3625,6 @@ public:
     PER_HEAP
     size_t internal_root_array_length;
 
-#ifndef MULTIPLE_HEAPS
-    SPTR_DECL(PTR_uint8_t, internal_root_array);
-    SVAL_DECL(size_t, internal_root_array_index);
-    SVAL_DECL(BOOL,   heap_analyze_success);
-#else
-    PER_HEAP
-    uint8_t** internal_root_array;
-
-    PER_HEAP
-    size_t internal_root_array_index;
-
-    PER_HEAP
-    BOOL   heap_analyze_success;
-#endif // !MULTIPLE_HEAPS
-
     // next two fields are used to optimize the search for the object 
     // enclosing the current reference handled by ha_mark_object_simple.
     PER_HEAP
@@ -3670,8 +3645,11 @@ public:
     BOOL        blocking_collection;
 
 #ifdef MULTIPLE_HEAPS
-    SVAL_DECL(int, n_heaps);
-    SPTR_DECL(PTR_gc_heap, g_heaps);
+    static
+    int n_heaps;
+
+    static
+    gc_heap** g_heaps;
 
     static
     size_t*   g_promoted;
@@ -3705,6 +3683,23 @@ protected:
 
 }; // class gc_heap
 
+#define ASSERT_OFFSETS_MATCH(field) \
+  static_assert(offsetof(dac_gc_heap, field) == offsetof(gc_heap, field), #field " offset mismatch")
+
+#ifdef MULTIPLE_HEAPS
+ASSERT_OFFSETS_MATCH(alloc_allocated);
+ASSERT_OFFSETS_MATCH(ephemeral_heap_segment);
+ASSERT_OFFSETS_MATCH(finalize_queue);
+ASSERT_OFFSETS_MATCH(oom_info);
+ASSERT_OFFSETS_MATCH(interesting_data_per_heap);
+ASSERT_OFFSETS_MATCH(compact_reasons_per_heap);
+ASSERT_OFFSETS_MATCH(expand_mechanisms_per_heap);
+ASSERT_OFFSETS_MATCH(interesting_mechanism_bits_per_heap);
+ASSERT_OFFSETS_MATCH(internal_root_array);
+ASSERT_OFFSETS_MATCH(internal_root_array_index);
+ASSERT_OFFSETS_MATCH(heap_analyze_success);
+ASSERT_OFFSETS_MATCH(generation_table);
+#endif // MULTIPLE_HEAPS
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 class CFinalize
@@ -3712,6 +3707,9 @@ class CFinalize
 #ifdef DACCESS_COMPILE
     friend class ::ClrDataAccess;
 #endif // DACCESS_COMPILE
+
+    friend class CFinalizeStaticAsserts;
+
 private:
 
     //adjust the count and add a constant to add a segment
@@ -3721,8 +3719,8 @@ private:
     //Does not correspond to a segment
     static const int FreeList = NUMBERGENERATIONS+ExtraSegCount;
 
-    PTR_PTR_Object m_Array;
     PTR_PTR_Object m_FillPointers[NUMBERGENERATIONS+ExtraSegCount];
+    PTR_PTR_Object m_Array;
     PTR_PTR_Object m_EndArray;
     size_t   m_PromotedCount;
     
@@ -3752,7 +3750,7 @@ private:
 
     }
 
-    BOOL FinalizeSegForAppDomain (AppDomain *pDomain, 
+    BOOL FinalizeSegForAppDomain (void *pDomain, 
                                   BOOL fRunFinalizers, 
                                   unsigned int Seg);
 
@@ -3765,9 +3763,7 @@ public:
     Object* GetNextFinalizableObject (BOOL only_non_critical=FALSE);
     BOOL ScanForFinalization (promote_func* fn, int gen,BOOL mark_only_p, gc_heap* hp);
     void RelocateFinalizationData (int gen, gc_heap* hp);
-#ifdef GC_PROFILING
-    void WalkFReachableObjects (gc_heap* hp);
-#endif //GC_PROFILING
+    void WalkFReachableObjects (fq_walk_fn fn);
     void GcScanRoots (promote_func* fn, int hn, ScanContext *pSC);
     void UpdatePromotedGenerations (int gen, BOOL gen_0_empty_p);
     size_t GetPromotedCount();
@@ -3778,10 +3774,18 @@ public:
     void DiscardNonCriticalObjects();
 
     //Methods used by the app domain unloading call to finalize objects in an app domain
-    BOOL FinalizeAppDomain (AppDomain *pDomain, BOOL fRunFinalizers);
+    bool FinalizeAppDomain (void *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
+
 };
+
+class CFinalizeStaticAsserts {
+    static_assert(dac_finalize_queue::ExtraSegCount == CFinalize::ExtraSegCount, "ExtraSegCount mismatch");
+    static_assert(offsetof(dac_finalize_queue, m_FillPointers) == offsetof(CFinalize, m_FillPointers), "CFinalize layout mismatch");
+};
+
+
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
 inline
@@ -3856,22 +3860,17 @@ size_t& dd_promoted_size (dynamic_data* inst)
 inline
 float& dd_limit (dynamic_data* inst)
 {
-  return inst->limit;
+  return inst->sdata->limit;
 }
 inline
 float& dd_max_limit (dynamic_data* inst)
 {
-  return inst->max_limit;
-}
-inline
-size_t& dd_min_gc_size (dynamic_data* inst)
-{
-  return inst->min_gc_size;
+  return inst->sdata->max_limit;
 }
 inline
 size_t& dd_max_size (dynamic_data* inst)
 {
-  return inst->max_size;
+  return inst->sdata->max_size;
 }
 inline
 size_t& dd_min_size (dynamic_data* inst)
@@ -3889,19 +3888,14 @@ ptrdiff_t& dd_gc_new_allocation (dynamic_data* inst)
   return inst->gc_new_allocation;
 }
 inline
-size_t& dd_default_new_allocation (dynamic_data* inst)
-{
-  return inst->default_new_allocation;
-}
-inline
 size_t& dd_fragmentation_limit (dynamic_data* inst)
 {
-  return inst->fragmentation_limit;
+  return inst->sdata->fragmentation_limit;
 }
 inline
 float& dd_fragmentation_burden_limit (dynamic_data* inst)
 {
-  return inst->fragmentation_burden_limit;
+  return inst->sdata->fragmentation_burden_limit;
 }
 inline
 float dd_v_fragmentation_burden_limit (dynamic_data* inst)
@@ -3923,6 +3917,17 @@ inline
 size_t& dd_time_clock (dynamic_data* inst)
 {
   return inst->time_clock;
+}
+
+inline
+size_t& dd_gc_clock_interval (dynamic_data* inst)
+{
+  return inst->sdata->gc_clock;
+}
+inline
+size_t& dd_time_clock_interval (dynamic_data* inst)
+{
+  return inst->sdata->time_clock;
 }
 
 inline
@@ -4075,8 +4080,6 @@ size_t generation_unusable_fragmentation (generation* inst)
 }
 
 #define plug_skew           sizeof(ObjHeader)
-#define min_obj_size        (sizeof(uint8_t*)+plug_skew+sizeof(size_t))//syncblock + vtable+ first field
-//Note that this encodes the fact that plug_skew is a multiple of uint8_t*.
 // We always use USE_PADDING_TAIL when fitting so items on the free list should be
 // twice the min_obj_size.
 #define min_free_list       (2*min_obj_size)
@@ -4175,15 +4178,12 @@ public:
     uint8_t*        mem;
     size_t          flags;
     PTR_heap_segment next;
-    uint8_t*        plan_allocated;
-#ifdef BACKGROUND_GC
     uint8_t*        background_allocated;
-    uint8_t*        saved_bg_allocated;
-#endif //BACKGROUND_GC
-
 #ifdef MULTIPLE_HEAPS
     gc_heap*        heap;
 #endif //MULTIPLE_HEAPS
+    uint8_t*        plan_allocated;
+    uint8_t*        saved_bg_allocated;
 
 #ifdef _MSC_VER
 // Disable this warning - we intentionally want __declspec(align()) to insert padding for us
@@ -4194,6 +4194,18 @@ public:
 #pragma warning(default:4324)  // structure was padded due to __declspec(align())
 #endif
 };
+
+static_assert(offsetof(dac_heap_segment, allocated) == offsetof(heap_segment, allocated), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, committed) == offsetof(heap_segment, committed), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, reserved) == offsetof(heap_segment, reserved), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, used) == offsetof(heap_segment, used), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, mem) == offsetof(heap_segment, mem), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, flags) == offsetof(heap_segment, flags), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, next) == offsetof(heap_segment, next), "DAC heap segment layout mismatch");
+static_assert(offsetof(dac_heap_segment, background_allocated) == offsetof(heap_segment, background_allocated), "DAC heap segment layout mismatch");
+#ifdef MULTIPLE_HEAPS
+static_assert(offsetof(dac_heap_segment, heap) == offsetof(heap_segment, heap), "DAC heap segment layout mismatch");
+#endif // MULTIPLE_HEAPS
 
 inline
 uint8_t*& heap_segment_reserved (heap_segment* inst)
@@ -4287,27 +4299,6 @@ gc_heap*& heap_segment_heap (heap_segment* inst)
 }
 #endif //MULTIPLE_HEAPS
 
-#ifndef MULTIPLE_HEAPS
-
-#ifndef DACCESS_COMPILE
-extern "C" {
-#endif //!DACCESS_COMPILE
-
-GARY_DECL(generation,generation_table,NUMBERGENERATIONS+1);
-
-#ifdef GC_CONFIG_DRIVEN
-GARY_DECL(size_t, interesting_data_per_heap, max_idp_count);
-GARY_DECL(size_t, compact_reasons_per_heap, max_compact_reasons_count);
-GARY_DECL(size_t, expand_mechanisms_per_heap, max_expand_mechanisms_count);
-GARY_DECL(size_t, interesting_mechanism_bits_per_heap, max_gc_mechanism_bits_count);
-#endif //GC_CONFIG_DRIVEN
-
-#ifndef DACCESS_COMPILE
-}
-#endif //!DACCESS_COMPILE
-
-#endif //MULTIPLE_HEAPS
-
 inline
 generation* gc_heap::generation_of (int  n)
 {
@@ -4321,8 +4312,7 @@ dynamic_data* gc_heap::dynamic_data_of (int gen_number)
     return &dynamic_data_table [ gen_number ];
 }
 
-extern "C" uint8_t* g_ephemeral_low;
-extern "C" uint8_t* g_ephemeral_high;
+#define GC_PAGE_SIZE 0x1000
 
 #define card_word_width ((size_t)32)
 
@@ -4331,17 +4321,19 @@ extern "C" uint8_t* g_ephemeral_high;
 // In the code we also rely on the assumption that one card_table entry (uint32_t) covers an entire os page
 //
 #if defined (BIT64)
-#define card_size ((size_t)(2*OS_PAGE_SIZE/card_word_width))
+#define card_size ((size_t)(2*GC_PAGE_SIZE/card_word_width))
 #else
-#define card_size ((size_t)(OS_PAGE_SIZE/card_word_width))
+#define card_size ((size_t)(GC_PAGE_SIZE/card_word_width))
 #endif // BIT64
 
+// Returns the index of the card word a card is in
 inline
 size_t card_word (size_t card)
 {
     return card / card_word_width;
 }
 
+// Returns the index of a card within its card word
 inline
 unsigned card_bit (size_t card)
 {
@@ -4354,3 +4346,13 @@ size_t gcard_of (uint8_t* object)
     return (size_t)(object) / card_size;
 }
 
+inline
+void YieldProcessorScalingFactor()
+{
+    unsigned int n = g_yieldProcessorScalingFactor;
+    _ASSERTE(n != 0);
+    do
+    {
+        YieldProcessor();
+    } while (--n != 0);
+}

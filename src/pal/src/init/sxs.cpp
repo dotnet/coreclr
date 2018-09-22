@@ -16,6 +16,7 @@
 #include "pal/module.h"
 #include "pal/process.h"
 #include "pal/seh.hpp"
+#include "pal/signal.hpp"
 
 using namespace CorUnix;
 
@@ -106,12 +107,24 @@ PAL_ERROR
 AllocatePalThread(CPalThread **ppThread)
 {
     CPalThread *pThread = NULL;
+    PAL_ERROR palError;
 
-    PAL_ERROR palError = CreateThreadData(&pThread);
+    palError = CreateThreadData(&pThread);
     if (NO_ERROR != palError)
     {
         goto exit;
     }
+
+#if !HAVE_MACH_EXCEPTIONS
+    // Ensure alternate stack for SIGSEGV handling. Our SIGSEGV handler is set to
+    // run on an alternate stack and the stack needs to be allocated per thread.
+    if (!pThread->EnsureSignalAlternateStack())
+    {
+        ERROR("Cannot allocate alternate stack for SIGSEGV handler!\n");
+        palError = ERROR_NOT_ENOUGH_MEMORY;
+        goto exit;
+    }
+#endif // !HAVE_MACH_EXCEPTIONS
 
     HANDLE hThread;
     palError = CreateThreadObject(pThread, pThread, &hThread);

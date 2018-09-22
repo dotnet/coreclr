@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{C949CB07-60B2-420A-B3CA-59847ED4700B}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <NuGetTargetMoniker>.NETCoreApp,Version=v3.0</NuGetTargetMoniker>
+    <NuGetTargetMonikerShort>netcoreapp3.0</NuGetTargetMonikerShort>
+  </PropertyGroup>
+  <!-- Default configurations to help VS understand the configurations -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
+      <Visible>False</Visible>
+    </CodeAnalysisDependentAssemblyPaths>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Functions.cs" />
+    <Compile Include="MathTests.cs" />
+    <Compile Include="Double\AbsDouble.cs" />
+    <Compile Include="Double\AcosDouble.cs" />
+    <Compile Include="Double\AsinDouble.cs" />
+    <Compile Include="Double\AtanDouble.cs" />
+    <Compile Include="Double\Atan2Double.cs" />
+    <Compile Include="Double\CeilingDouble.cs" />
+    <Compile Include="Double\CosDouble.cs" />
+    <Compile Include="Double\CoshDouble.cs" />
+    <Compile Include="Double\ExpDouble.cs" />
+    <Compile Include="Double\FloorDouble.cs" />
+    <Compile Include="Double\LogDouble.cs" />
+    <Compile Include="Double\Log10Double.cs" />
+    <Compile Include="Double\PowDouble.cs" />
+    <Compile Include="Double\RoundDouble.cs" />
+    <Compile Include="Double\SinDouble.cs" />
+    <Compile Include="Double\SinhDouble.cs" />
+    <Compile Include="Double\SqrtDouble.cs" />
+    <Compile Include="Double\TanDouble.cs" />
+    <Compile Include="Double\TanhDouble.cs" />
+    <Compile Include="Single\AbsSingle.cs" />
+    <Compile Include="Single\AcosSingle.cs" />
+    <Compile Include="Single\AsinSingle.cs" />
+    <Compile Include="Single\AtanSingle.cs" />
+    <Compile Include="Single\Atan2Single.cs" />
+    <Compile Include="Single\CeilingSingle.cs" />
+    <Compile Include="Single\CosSingle.cs" />
+    <Compile Include="Single\CoshSingle.cs" />
+    <Compile Include="Single\ExpSingle.cs" />
+    <Compile Include="Single\FloorSingle.cs" />
+    <Compile Include="Single\LogSingle.cs" />
+    <Compile Include="Single\Log10Single.cs" />
+    <Compile Include="Single\PowSingle.cs" />
+    <Compile Include="Single\RoundSingle.cs" />
+    <Compile Include="Single\SinSingle.cs" />
+    <Compile Include="Single\SinhSingle.cs" />
+    <Compile Include="Single\SqrtSingle.cs" />
+    <Compile Include="Single\TanSingle.cs" />
+    <Compile Include="Single\TanhSingle.cs" />
+  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
+</Project>

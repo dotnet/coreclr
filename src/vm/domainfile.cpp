@@ -16,8 +16,6 @@
 
 #include <shlwapi.h>
 
-#include "security.h"
-#include "securitymeta.h"
 #include "invokeutil.h"
 #include "eeconfig.h"
 #include "dynamicmethod.h"
@@ -30,12 +28,9 @@
 #include "compile.h"
 #endif  // FEATURE_PREJIT
 
-#include "umthunkhash.h"
+#include "dllimportcallback.h"
 #include "peimagelayout.inl"
 
-#if !defined(FEATURE_CORECLR) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-#include "policy.h" // for fusion::util::isanyframeworkassembly
-#endif
 #include "winrthelpers.h"
 
 #ifdef FEATURE_PERFMAP
@@ -105,10 +100,6 @@ DomainFile::~DomainFile()
         m_pOriginalFile->Release();
     if (m_pDynamicMethodTable)
         m_pDynamicMethodTable->Destroy();
-#if defined(FEATURE_MIXEDMODE) && !defined(CROSSGEN_COMPILE)
-    if (m_pUMThunkHash)
-        delete m_pUMThunkHash;
-#endif
     delete m_pError;
 }
 
@@ -414,25 +405,8 @@ DomainAssembly *DomainFile::GetDomainAssembly()
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-    if (IsAssembly())
-    {
-        return dac_cast<PTR_DomainAssembly>(this);
-    }
-    else
-    {
-        return dac_cast<PTR_DomainModule>(this)->GetDomainAssembly();
-    }
-#else
     _ASSERTE(IsAssembly());
     return (DomainAssembly *) this;
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
-}
-
-BOOL DomainFile::IsIntrospectionOnly()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetFile()->IsIntrospectionOnly();
 }
 
 // Return true iff the debugger should get notifications about this assembly.
@@ -451,7 +425,6 @@ BOOL DomainAssembly::IsVisibleToDebugger()
     SUPPORTS_DAC;
 
     // If you can't run an assembly, then don't send notifications to the debugger.
-    // This check includeds IsIntrospectionOnly().
     return ((GetAssembly() != NULL) ? GetAssembly()->HasRunAccess() : FALSE);
 }
 
@@ -743,7 +716,6 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
         if (pDependency->signNativeImage == INVALID_NGEN_SIGNATURE)
             continue;
 
-#ifdef FEATURE_CORECLR // hardbinding
 
         //
         // CoreCLR hard binds to mscorlib.dll only. Avoid going through the full load.
@@ -759,51 +731,6 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
 
         PEAssembly * pDependencyFile = SystemDomain::SystemFile();
  
-#else // FEATURE_CORECLR
-
-        //
-        // Load the manifest file for the given name assembly spec.
-        //
-
-        AssemblySpec name;
-        name.InitializeSpec(pDependency->dwAssemblyRef,
-                            ((pManifestNativeImage != NULL) ? pManifestNativeImage : pNativeImage)->GetNativeMDImport(),
-                            GetDomainAssembly());
-
-        if (this->GetAppDomain()->IsCompilationDomain())
-        {
-            //
-            // Allow transitive closure of hardbound dependecies to be loaded during ngen.
-            //
-
-            DomainAssembly * pDependencyAssembly = name.LoadDomainAssembly(FILE_LOAD_FIND_NATIVE_IMAGE);
-            pDependencyAssembly->GetFile()->SetSafeToHardBindTo();
-        }
-
-        DomainAssembly * pDependencyAssembly = NULL;
-        {
-            // We are about to validate the hard-bound dependencies of the assembly being loaded. The invariant of being hard-bound states
-            // that each hard-bound dependency must have its NI image to be valid and available for loading and this is done recursively for each
-            // hard-bound dependency.
-            //
-            // The validity (and presence) of the NI image happens in FILE_LOAD_ALLOCATE stage of assembly load, which is the next stage in assembly loading,
-            // and not the current stage (FILE_LOAD_VERIFY_NATIVE_DEPENDENCIES). In FILE_LOAD_ALLOCATE, we do sharing checks, closure validation, redirection policy application, etc
-            // before computing if a NI is available and if it is, whether it is valid or not.
-            //
-            // However, we need to know about validity of NI in the current(and earlier) stage. As a result, we will temporarily set the assembly load limit (defined as the maximum
-            // load level till which recursive assembly load can execute) to be FILE_LOAD_ALLOCATE if we have been invoked to validate the NI dependencies for the first time. 
-            //
-            // A valid concern at this point is that we would allow to load a dependency at a load stage higher than its dependent assembly as it could crete cycles. This concern is
-            // alleviated since we are doing this override (of the load stage) only for hard-bound dependencies and NGEN is responsible for ensuring that there are no cycles.
-            //
-            // As a result, once the dependency load returns, we will know for sure if the dependency has a valid NI or not. 
-            OVERRIDE_LOAD_LEVEL_LIMIT(verifyOnly ? FILE_LOADED : FILE_LOAD_ALLOCATE);
-            pDependencyAssembly = name.LoadDomainAssembly(FILE_LOADED);
-        }
-
-        PEAssembly * pDependencyFile = pDependencyAssembly->GetFile();
-
-#endif // FEATURE_CORECLR
 
         ReleaseHolder<PEImage> pDependencyNativeImage = pDependencyFile->GetNativeImageWithRef();
         if (pDependencyNativeImage == NULL)
@@ -815,17 +742,14 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
             goto NativeImageRejected;
         }
 
-#ifndef FEATURE_FUSION // Fusion does this verification at native binding time.
         PTR_PEImageLayout pDependencyNativeLayout = pDependencyNativeImage->GetLoadedLayout();
         // Assert that the native image signature is as expected
         // Fusion will ensure this
         CORCOMPILE_VERSION_INFO * pDependencyNativeVersion =
                 pDependencyNativeLayout->GetNativeVersionInfo();
 
-        LoggablePEAssembly logAsm(pDependencyFile);
-        if (!RuntimeVerifyNativeImageDependency(pDependency, pDependencyNativeVersion, &logAsm))
+        if (!RuntimeVerifyNativeImageDependency(pDependency, pDependencyNativeVersion, pDependencyFile))
             goto NativeImageRejected;
-#endif
     }
     LOG((LF_ZAP, LL_INFO100, "ZAP: Native image dependencies for %S OK.\n",
             pNativeImage->GetPath().GetUnicode()));
@@ -1039,73 +963,6 @@ void DomainFile::PreLoadLibrary()
     }
     CONTRACTL_END;
 
-    // Check skip verification for loading if required
-    if (!GetFile()->CanLoadLibrary())
-    {
-        DomainAssembly* pDomainAssembly = GetDomainAssembly();
-        if (pDomainAssembly->GetSecurityDescriptor()->IsResolved())
-        {
-            if (Security::CanSkipVerification(pDomainAssembly))
-                GetFile()->SetSkipVerification();
-        }
-        else
-        {
-            AppDomain *pAppDomain = this->GetAppDomain();
-            PEFile *pFile = GetFile();
-            _ASSERTE(pFile != NULL);
-            PEImage *pImage = pFile->GetILimage();
-            _ASSERTE(pImage != NULL);
-            _ASSERTE(!pImage->IsFile());
-            if (pImage->HasV1Metadata())
-            {
-                // In V1 case, try to derive SkipVerification status from parents
-                do
-                {
-                    PEAssembly * pAssembly = pFile->GetAssembly();
-                    if (pAssembly == NULL)
-                        break;
-                    pFile = pAssembly->GetCreator();
-                    if (pFile != NULL)
-                    {
-                        pAssembly = pFile->GetAssembly();
-                        // Find matching DomainAssembly for the given PEAsssembly
-                        // Perf: This does not scale
-                        AssemblyIterationFlags flags =
-                            (AssemblyIterationFlags) (kIncludeLoaded | kIncludeLoading | kIncludeExecution);
-                        AppDomain::AssemblyIterator i = pAppDomain->IterateAssembliesEx(flags);
-                        CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
-
-                        while (i.Next(pDomainAssembly.This()))
-                        {
-                            if ((pDomainAssembly != NULL) && (pDomainAssembly->GetFile() == pAssembly))
-                            {
-                                break;
-                            }
-                        }
-                        if (pDomainAssembly != NULL)
-                        {
-                            if (pDomainAssembly->GetSecurityDescriptor()->IsResolved())
-                            {
-                                if (Security::CanSkipVerification(pDomainAssembly))
-                                {
-                                    GetFile()->SetSkipVerification();
-                                    break;
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // Potential Bug: Unable to find DomainAssembly for given PEAssembly
-                            // In retail build gracefully exit loop
-                            _ASSERTE(pDomainAssembly != NULL);
-                            break;
-                        }
-                    }
-                }
-                while (pFile != NULL);
-            }
-        }
-    }
 } // DomainFile::PreLoadLibrary
 
 // Note that this is the sole loading function which must be called OUTSIDE THE LOCK, since
@@ -1175,52 +1032,9 @@ void DomainFile::AddDependencies()
 
 #ifdef FEATURE_PREJIT
 
-#ifdef FEATURE_CORECLR // hardbinding
     //
     // CoreCLR hard binds to mscorlib.dll only. No need to track hardbound dependencies.
     //
-#else
-    // Add hard bindings as unconditional dependencies
-    if (GetFile()->HasNativeImage() && GetCurrentModule()->HasNativeImage() && IsAssembly())
-    {
-        PEImage *pNativeImage = GetFile()->GetPersistentNativeImage();
-        PEImageLayout *pNativeLayout = pNativeImage->GetLoadedLayout();
-
-        COUNT_T cDependencies;
-        CORCOMPILE_DEPENDENCY *pDependencies = pNativeLayout->GetNativeDependencies(&cDependencies);
-        CORCOMPILE_DEPENDENCY *pDependenciesEnd = pDependencies + cDependencies;
-
-        while (pDependencies < pDependenciesEnd)
-        {
-            if (pDependencies->signNativeImage != INVALID_NGEN_SIGNATURE)
-            {
-
-                //
-                // Load the manifest file for the given name assembly spec.
-                //
-
-                AssemblySpec name;
-                name.InitializeSpec(pDependencies->dwAssemblyRef,
-                                    pNativeImage->GetNativeMDImport(),
-                                    GetDomainAssembly());
-
-                DomainAssembly *pDependency = name.LoadDomainAssembly(FILE_LOADED);
-
-                // Right now we only support hard binding to other manifest modules so we don't
-                // need to consider the other module cases
-                Module *pModule = pDependency->GetModule();
-
-                // Add hard binding as an unconditional active dependency
-                STRESS_LOG4(LF_CODESHARING,LL_INFO100,"unconditional dependency %p %p %i %i\n",
-                    GetFile(),GetCurrentModule(),GetFile()->HasNativeImage(),GetCurrentModule()->HasNativeImage());
-                if(!pModule->IsSystem())
-                    GetCurrentModule()->AddActiveDependency(pModule, TRUE);
-            }
-
-            pDependencies++;
-        }
-    }
-#endif // FEATURE_CORECLR
 
 #endif // FEATURE_PREJIT
 }
@@ -1230,9 +1044,6 @@ void DomainFile::EagerFixups()
     WRAPPER_NO_CONTRACT;
 
 #ifdef FEATURE_PREJIT
-    if (IsIntrospectionOnly())
-        return; 
-    
     if (GetCurrentModule()->HasNativeImage())
     {
         GetCurrentModule()->RunEagerFixups();
@@ -1263,10 +1074,10 @@ void DomainFile::VtableFixups()
 {
     WRAPPER_NO_CONTRACT;
 
-#if defined(FEATURE_MIXEDMODE) && !defined(CROSSGEN_COMPILE)
+#if !defined(CROSSGEN_COMPILE)
     if (!GetCurrentModule()->IsResource())
         GetCurrentModule()->FixupVTables();
-#endif
+#endif // !CROSSGEN_COMPILE
 }
 
 void DomainFile::FinishLoad()
@@ -1282,27 +1093,6 @@ void DomainFile::FinishLoad()
 
     if (m_pFile->HasNativeImage())
     {
-#ifdef FEATURE_FUSION
-        // <REVISIT_TODO>Because of bug 112034, we may commit to a native image even though
-        // we should not have.</REVISIT_TODO>
-
-// #ifdef _DEBUG
-
-        // Verify that the native image dependencies are still valid
-        // Since we had already committed to using a native image, they cannot
-        // be invalidated
-        VerifyNativeImageDependencies(true);
-        _ASSERTE(m_pFile->HasNativeImage());
-
-        if (!m_pFile->HasNativeImage())
-        {
-            STRESS_LOG1(LF_CODESHARING, LL_FATALERROR, "Incorrectly committed to using native image for %S",
-                                                       m_pFile->GetPath().GetUnicode());
-            EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
-        }
-// #endif
-
-#endif // FEATURE_FUSION
 
         LOG((LF_ZAP, LL_INFO10, "Using native image %S.\n", m_pFile->GetPersistentNativeImage()->GetPath().GetUnicode()));
         ExternalLog(LL_INFO10, "Native image successfully used.");
@@ -1310,17 +1100,12 @@ void DomainFile::FinishLoad()
         // Inform metadata that it has been loaded from a native image
         // (and so there was an opportunity to check for or fix inconsistencies in the original IL metadata)
         m_pFile->GetMDImport()->SetVerifiedByTrustedSource(TRUE);
-
-#ifdef FEATURE_PERFMAP
-        // Notify the perfmap of the native image load.
-        PerfMap::LogNativeImageLoad(m_pFile);
-#endif
     }
 
     // Are we absolutely required to use a native image?
     CheckZapRequired();
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_COMINTEROP)
+#if defined(FEATURE_COMINTEROP)
     // If this is a winmd file, ensure that the ngen reference namespace is loadable.
     // This is necessary as on the phone we don't check ngen image dependencies, and thus we can get in a situation 
     // where a winmd is loaded as a dependency of an ngen image, but the type used to build cross module references 
@@ -1355,7 +1140,7 @@ void DomainFile::FinishLoad()
             }
         }
     }
-#endif // defined(FEATURE_CORECLR) && defined(FEATURE_COMINTEROP)
+#endif //defined(FEATURE_COMINTEROP)
 #endif // FEATURE_PREJIT
 
     // Flush any log messages
@@ -1382,6 +1167,11 @@ void DomainFile::FinishLoad()
     // Set a bit to indicate that the module has been loaded in some domain, and therefore
     // typeloads can involve types from this module. (Used for candidate instantiations.)
     GetModule()->SetIsReadyForTypeLoad();
+
+#ifdef FEATURE_PERFMAP
+    // Notify the perfmap of the IL image load.
+    PerfMap::LogImageLoad(m_pFile);
+#endif
 }
 
 void DomainFile::VerifyExecution()
@@ -1393,18 +1183,6 @@ void DomainFile::VerifyExecution()
         STANDARD_VM_CHECK;
     }
     CONTRACT_END;
-
-    if (GetModule()->IsIntrospectionOnly())
-    {
-        // Throw an exception
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_IN_INTROSPECTIVE_ASSEMBLY);
-    }
-
-    if (GetModule()->GetAssembly()->IsSIMDVectorAssembly() && 
-        !GetModule()->GetAssembly()->GetSecurityDescriptor()->IsFullyTrusted())
-    {
-        COMPlusThrow(kFileLoadException, IDS_EE_SIMD_PARTIAL_TRUST_DISALLOWED);
-    }
 
     if(GetFile()->PassiveDomainOnly())
     {
@@ -1499,12 +1277,6 @@ void DomainFile::Activate()
             m_bDisableActivationCheck=TRUE;
             pMT->CheckRunClassInitThrowing();
         }
-#ifdef FEATURE_CORECLR
-        if (g_pConfig->VerifyModulesOnLoad())
-        {
-            m_pModule->VerifyAllMethods();
-        }
-#endif //FEATURE_CORECLR
 #ifdef _DEBUG
         if (g_pConfig->ExpandModulesOnLoad())
         {
@@ -1695,20 +1467,18 @@ void DomainFile::InsertIntoDomainFileWithNativeImageList()
 // DomainAssembly
 //--------------------------------------------------------------------------------
 
-DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSecurity *pLoadSecurity, LoaderAllocator *pLoaderAllocator)
+DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, LoaderAllocator *pLoaderAllocator)
   : DomainFile(pDomain, pFile),
     m_pAssembly(NULL),
     m_debuggerFlags(DACF_NONE),
-#ifdef FEATURE_FUSION
-    m_pAssemblyBindingClosure(NULL),
-#endif
     m_MissingDependenciesCheckStatus(CMD_Unknown),
-    m_fSkipPolicyResolution(pLoadSecurity != NULL && !pLoadSecurity->ShouldResolvePolicy()),
     m_fDebuggerUnloadStarted(FALSE),
     m_fCollectible(pLoaderAllocator->IsCollectible()),
     m_fHostAssemblyPublished(false),
     m_fCalculatedShouldLoadDomainNeutral(false),
-    m_fShouldLoadDomainNeutral(false)
+    m_fShouldLoadDomainNeutral(false),
+    m_pLoaderAllocator(pLoaderAllocator),
+    m_NextDomainAssemblyInSameALC(NULL)
 {
     CONTRACTL
     {
@@ -1720,173 +1490,14 @@ DomainAssembly::DomainAssembly(AppDomain *pDomain, PEFile *pFile, AssemblyLoadSe
 
     pFile->ValidateForExecution();
 
-#ifndef CROSSGEN_COMPILE
-    if (m_fCollectible)
-    {
-        ((AssemblyLoaderAllocator *)pLoaderAllocator)->SetDomainAssembly(this);
-    }
-#endif
-
     // !!! backout
 
     m_hExposedAssemblyObject = NULL;
-
-    NewHolder<IAssemblySecurityDescriptor> pSecurityDescriptorHolder(Security::CreateAssemblySecurityDescriptor(pDomain, this, pLoaderAllocator));
-
-    if (pLoadSecurity != NULL)
-    {
-#ifdef FEATURE_CAS_POLICY
-        // If this assembly had a file name specified, we aren't allowed to load from remote sources and we
-        // aren't in CAS policy mode (which sandboxes remote assemblies automatically), then we need to do a
-        // check on this assembly's zone of origin when creating it.
-        if (pLoadSecurity->m_fCheckLoadFromRemoteSource &&
-            !pLoadSecurity->m_fSuppressSecurityChecks &&
-            !m_pDomain->GetSecurityDescriptor()->AllowsLoadsFromRemoteSources() &&
-            !pFile->IsIntrospectionOnly())
-        {
-            SString strCodeBase;
-            BYTE pbUniqueID[MAX_SIZE_SECURITY_ID];
-            DWORD cbUniqueID = COUNTOF(pbUniqueID);
-            SecZone dwZone = NoZone;
-
-            GetSecurityIdentity(strCodeBase,
-                                &dwZone,
-                                0,
-                                pbUniqueID,
-                                &cbUniqueID);
-
-            // Since loads from remote sources are not enabled for this assembly, we only want to allow the
-            // load if any of the following conditions apply:
-            //
-            //  * The load is coming off the local machine
-            //  * The load is coming from the intranet or a trusted site, and the code base is UNC.  (ie,
-            //    don't allow HTTP loads off the local intranet
-
-            bool safeLoad = false;
-            if (dwZone == LocalMachine)
-            {
-                safeLoad = true;
-            }
-            else if (dwZone == Intranet || dwZone == Trusted)
-            {
-                if (UrlIsFileUrl(strCodeBase.GetUnicode()))
-                {
-                    safeLoad = true;
-                }
-                else if (PathIsUNC(strCodeBase.GetUnicode()))
-                {
-                    safeLoad = true;
-                }
-            }
-
-            if (!safeLoad)
-            {
-                // We've tried to load an assembly from a location where it would have been sandboxed in legacy
-                // CAS situations, but the application hasn't indicated that this is a safe thing to do. In
-                // order to prevent accidental security holes by silently loading assemblies in full trust that
-                // an application expected to be sandboxed, we'll throw an exception instead.
-                //
-                // Since this exception can commonly occur with if the file is physically located on the
-                // hard drive, but has the mark of the web on it we'll also try to detect this mark and
-                // provide a customized error message if we find it.   We do that by re-evaluating the
-                // assembly's zone with the NOSAVEDFILECHECK flag, which ignores the mark of the web, and if
-                // that comes back as MyComputer we flag the assembly as having the mark of the web on it.
-                SecZone dwNoMotwZone = NoZone;
-                GetSecurityIdentity(strCodeBase, &dwNoMotwZone, MUTZ_NOSAVEDFILECHECK, pbUniqueID, &cbUniqueID);
-
-                if (dwNoMotwZone == LocalMachine)
-                {
-                    COMPlusThrow(kNotSupportedException, IDS_E_LOADFROM_REMOTE_SOURCE_MOTW);
-                }
-                else
-                {
-                    COMPlusThrow(kNotSupportedException, IDS_E_LOADFROM_REMOTE_SOURCE);
-                }
-            }
-        }
-#endif // FEATURE_CAS_POLICY
-
-        if (GetFile()->IsSourceGAC())
-        {
-            // Assemblies in the GAC are not allowed to
-            // specify additional evidence.  They must always follow default machine policy rules.
-
-            // So, we just ignore the evidence. (Ideally we would throw an error, but it would introduce app
-            // compat issues.)
-        }
-        else
-        {
-#ifdef FEATURE_FUSION
-            // We do not support sharing behavior of ALWAYS when using evidence to load assemblies
-            if (pDomain->GetSharePolicy() == AppDomain::SHARE_POLICY_ALWAYS
-                && ShouldLoadDomainNeutral())
-            {
-                // Just because we have information about the loaded assembly's security doesn't mean that
-                // we're trying to override evidence, make sure we're not just trying to push a grant set
-                if (((pLoadSecurity->m_pEvidence != NULL) && (*pLoadSecurity->m_pEvidence != NULL)) ||
-                    ((pLoadSecurity->m_pAdditionalEvidence != NULL) && (*pLoadSecurity->m_pAdditionalEvidence != NULL)))
-                {
-                    // We may not be able to reduce sharing policy at this point, if we have already loaded
-                    // some non-GAC assemblies as domain neutral.  For this case we must regrettably fail
-                    // the whole operation.
-                    if (!pDomain->ReduceSharePolicyFromAlways())
-                    {
-                        ThrowHR(COR_E_CANNOT_SPECIFY_EVIDENCE);
-                    }
-                }
-            }
-#endif
-            {
-                GCX_COOP();
-
-#ifdef FEATURE_CAS_POLICY
-                if (pLoadSecurity->m_pAdditionalEvidence != NULL)
-                {
-                    if(*pLoadSecurity->m_pAdditionalEvidence != NULL)
-                    {
-                        pSecurityDescriptorHolder->SetAdditionalEvidence(*pLoadSecurity->m_pAdditionalEvidence);
-                    }
-                }
-                else if (pLoadSecurity->m_pEvidence != NULL)
-                {
-                    if (*pLoadSecurity->m_pEvidence != NULL)
-                    {
-                        pSecurityDescriptorHolder->SetEvidence(*pLoadSecurity->m_pEvidence);
-                    }
-                }
-#endif // FEATURE_CAS_POLICY
-
-                // If the assembly being loaded already knows its grant set (for instnace, it's being pushed
-                // from the loading assembly), then we can set that up now as well
-                if (!pLoadSecurity->ShouldResolvePolicy())
-                {
-                    _ASSERTE(pLoadSecurity->m_pGrantSet != NULL);
-
-#ifdef FEATURE_CAS_POLICY
-                    // The permissions from an anonymously hosted dynamic method are fulltrust/transparent,
-                    // so ensure we have full trust to pass that on to the new assembly
-                    if(pLoadSecurity->m_fPropagatingAnonymouslyHostedDynamicMethodGrant &&
-                       !CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_Security_DisableAnonymouslyHostedDynamicMethodCreatorSecurityCheck))
-                    {
-                        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_FULL_TRUST);
-                    }
-#endif // FEATURE_CAS_POLICY
-
-                    pSecurityDescriptorHolder->PropagatePermissionSet(
-                                                      *pLoadSecurity->m_pGrantSet,
-                                                      pLoadSecurity->m_pRefusedSet == NULL ? NULL : *pLoadSecurity->m_pRefusedSet,
-                                                      pLoadSecurity->m_dwSpecialFlags);
-                }
-            }
-        }
-    }
 
     SetupDebuggingConfig();
 
     // Add a Module iterator entry for this assembly.
     IfFailThrow(m_Modules.Append(this));
-
-    m_pSecurityDescriptor = pSecurityDescriptorHolder.Extract();
 }
 
 DomainAssembly::~DomainAssembly()
@@ -1901,13 +1512,11 @@ DomainAssembly::~DomainAssembly()
     }
     CONTRACTL_END;
 
-    #ifdef FEATURE_HOSTED_BINDER
     if (m_fHostAssemblyPublished)
     {
         // Remove association first.
         GetAppDomain()->UnPublishHostedAssembly(this);
     }
-    #endif
 
     ModuleIterator i = IterateModules(kModIterIncludeLoading);
     while (i.Next())
@@ -1920,8 +1529,6 @@ DomainAssembly::~DomainAssembly()
     {
         delete m_pAssembly;
     }
-
-    delete m_pSecurityDescriptor;
 }
 
 void DomainAssembly::ReleaseFiles()
@@ -1930,10 +1537,6 @@ void DomainAssembly::ReleaseFiles()
 
     if(m_pAssembly)
         m_pAssembly->StartUnload();
-#ifdef FEATURE_FUSION
-    // release the old closure from the holder
-    m_pAssemblyBindingClosure=NULL;
-#endif
     ModuleIterator i = IterateModules(kModIterIncludeLoading);
     while (i.Next())
     {
@@ -1956,26 +1559,6 @@ void DomainAssembly::SetAssembly(Assembly* pAssembly)
     pAssembly->SetDomainAssembly(this);
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-void DomainAssembly::AddModule(DomainModule *pModule)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    DWORD index = RidFromToken(pModule->GetToken());
-
-    while (index >= m_Modules.GetCount())
-        IfFailThrow(m_Modules.Append(NULL));
-
-    m_Modules.Set(index, pModule);
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 #ifndef CROSSGEN_COMPILE
 //---------------------------------------------------------------------------------------
@@ -2072,169 +1655,20 @@ OBJECTREF DomainAssembly::GetExposedAssemblyObject()
 
 #ifdef FEATURE_LOADER_OPTIMIZATION
 
-#ifdef FEATURE_FUSION
-// This inner method exists to avoid EX_TRY calling _alloca repeatedly in the for loop below.
-DomainAssembly::CMDI_Result DomainAssembly::CheckMissingDependencyInner(IAssemblyBindingClosure* pClosure, DWORD idx)
-{
-    CONTRACTL {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-    } CONTRACTL_END;
-
-    SafeComHolder<IAssemblyName>  pAssemblyName;
-    HRESULT hrBindFailure = S_OK;
-    HRESULT hr = pClosure->GetNextFailureAssembly(idx, &pAssemblyName, &hrBindFailure);
-    if (hr == HRESULT_FROM_WIN32(ERROR_NO_MORE_ITEMS))
-    {
-        return CMDI_End;
-    }
-
-    IfFailThrow(hr);
-
-    CMDI_Result ret = CMDI_AssemblyResolveFailed;
-    AssemblySpec spec;
-    PEAssemblyHolder result;
-
-    EX_TRY
-    {
-        spec.InitializeSpec(pAssemblyName, this, FALSE);
-        result = this->GetAppDomain()->TryResolveAssembly(&spec,FALSE);
-
-        if (result && result->CanUseWithBindingCache())
-        {
-            this->GetAppDomain()->AddFileToCache(&spec, result);
-            ret = CMDI_AssemblyResolveSucceeded;
-        }
-        else
-        {
-            _ASSERTE(FAILED(hrBindFailure));
-
-            StackSString name;
-            spec.GetFileOrDisplayName(0, name);
-            NewHolder<EEFileLoadException> pEx(new EEFileLoadException(name, hrBindFailure));
-            this->GetAppDomain()->AddExceptionToCache(&spec, pEx);
-        }
-    }
-    EX_CATCH
-    {
-        // For compat reasons, we don't want to throw right now but make sure that we
-        // cache the exception so that it can be thrown if/when we try to load the
-        // further down the road. See VSW 528532 for more details.
-    }
-    EX_END_CATCH(RethrowTransientExceptions);
-
-    return ret;
-}
-
-
-// CheckMissingDependencies returns FALSE if any missing dependency would
-// successfully bind with an AssemblyResolve event. When this is the case, we
-// want to avoid sharing this assembly, since AssemblyResolve events are not
-// under our control, and therefore not predictable.
-CMD_State DomainAssembly::CheckMissingDependencies()
-{
-    CONTRACTL {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-    } CONTRACTL_END;
-
-    if (MissingDependenciesCheckDone())
-        return m_MissingDependenciesCheckStatus;
-
-    if (this->GetAppDomain()->IsCompilationDomain())
-    {
-        // Compilation domains will never have resolve events.  Plus, this path
-        // will sidestep the compilation domain's bind override, which will make
-        // us skip over some dependencies.
-        m_MissingDependenciesCheckStatus = CMD_NotNeeded;
-        return m_MissingDependenciesCheckStatus;
-    }
-
-    if (IsSystem())
-    {
-        m_MissingDependenciesCheckStatus = CMD_NotNeeded;
-        return m_MissingDependenciesCheckStatus;
-    }
-
-    GCX_PREEMP();
-    IAssemblyBindingClosure * pClosure = GetAssemblyBindingClosure(LEVEL_COMPLETE);
-
-    if(pClosure == NULL)
-    {
-        // If the closure is empty, no need to iterate them.
-        m_MissingDependenciesCheckStatus = CMD_NotNeeded;
-        return m_MissingDependenciesCheckStatus;
-    }
-
-    for (DWORD idx = 0;;idx++)
-    {
-        switch (CheckMissingDependencyInner(pClosure, idx))
-        {
-          case CMDI_AssemblyResolveSucceeded:
-          {
-            STRESS_LOG1(LF_CODESHARING,LL_INFO100,"Missing dependencies check FAILED, DomainAssembly=%p",this);
-            m_MissingDependenciesCheckStatus = CMD_Resolved;
-            return m_MissingDependenciesCheckStatus;
-            break;
-          }
-
-          case CMDI_End:
-          {
-            STRESS_LOG1(LF_CODESHARING,LL_INFO100,"Missing dependencies check SUCCESSFUL, DomainAssembly=%p",this);
-            m_MissingDependenciesCheckStatus = CMD_IndeedMissing;
-            return m_MissingDependenciesCheckStatus;
-            break;
-          }
-
-          case CMDI_AssemblyResolveFailed:
-          {
-            // Don't take any action, just continue the loop.
-            break;
-          }
-        }
-    }
-}
-#endif // FEATURE_FUSION
 
 BOOL DomainAssembly::MissingDependenciesCheckDone()
 {
     return m_MissingDependenciesCheckStatus != CMD_Unknown;
 }
 
-#ifdef FEATURE_CORECLR
 CMD_State DomainAssembly::CheckMissingDependencies()
 {
     //CoreCLR simply doesn't share if dependencies are missing
     return CMD_NotNeeded;
 }
-#endif // FEATURE_CORECLR
 
 #endif // FEATURE_LOADER_OPTIMIZATION
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-DomainFile* DomainAssembly::FindModule(PEFile *pFile, BOOL includeLoading)
-{
-    CONTRACT (DomainFile*)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-    }
-    CONTRACT_END;
-
-    ModuleIterator i = IterateModules(includeLoading ? kModIterIncludeLoading : kModIterIncludeLoaded);
-    while (i.Next())
-    {
-        if (i.GetDomainFile()->Equals(pFile))
-            RETURN i.GetDomainFile();
-    }
-    RETURN NULL;
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 DomainFile* DomainAssembly::FindIJWModule(HMODULE hMod)
 {
@@ -2273,11 +1707,9 @@ void DomainAssembly::Begin()
         AppDomain::LoadLockHolder lock(m_pDomain);
         m_pDomain->AddAssembly(this);
     }
-#ifdef FEATURE_HOSTED_BINDER
     // Make it possible to find this DomainAssembly object from associated ICLRPrivAssembly.
     GetAppDomain()->PublishHostedAssembly(this);
     m_fHostAssemblyPublished = true;
-#endif
 }
 
 #ifdef FEATURE_PREJIT
@@ -2309,37 +1741,7 @@ void DomainAssembly::FindNativeImage()
     }
 #endif // FEATURE_TREAT_NI_AS_MSIL_DURING_DIAGNOSTICS
 
-#ifndef FEATURE_CORECLR // hardbinding
-    // The IsSafeToHardBindTo() check is only for use during the ngen compilation phase. It discards ngen images for
-    // assemblies that aren't hard-bound to (as this would cause all such assemblies be loaded eagerly.)
-    if (!IsSystem() && this->GetAppDomain()->IsCompilationDomain() && !GetFile()->IsSafeToHardBindTo())
-    {
-        if (!this->GetAppDomain()->ToCompilationDomain()->IsSafeToHardBindTo(GetFile()))
-        {
-            GetFile()->SetCannotUseNativeImage();
 
-            if (GetFile()->HasNativeImage())
-                GetFile()->ClearNativeImage();
-
-            return;
-        }
-
-        GetFile()->SetSafeToHardBindTo();
-    }
-#endif
-
-#ifdef FEATURE_FUSION
-    DomainAssembly * pDomainAssembly = GetDomainAssembly();
-    if (pDomainAssembly->GetSecurityDescriptor()->HasAdditionalEvidence() ||
-        !(pDomainAssembly->GetFile()->IsContextLoad()
-#ifdef FEATURE_HOSTED_BINDER
-        || pDomainAssembly->GetFile()->HasHostAssembly()
-#endif
-        ))
-    {
-        m_pFile->SetCannotUseNativeImage();
-    }
-#endif //FEATURE_FUSION
 
     ClearNativeImageStress();
 
@@ -2347,7 +1749,7 @@ void DomainAssembly::FindNativeImage()
 
     if (GetFile()->HasNativeImage())
     {
-#if defined(_DEBUG) && defined(FEATURE_CORECLR)
+#if defined(_DEBUG)
         if (g_pConfig->ForbidZap(GetSimpleName()))
         {
             SString sbuf;
@@ -2364,16 +1766,10 @@ void DomainAssembly::FindNativeImage()
             m_dwReasonForRejectingNativeImage = ReasonForRejectingNativeImage_MscorlibNotNative;
             STRESS_LOG2(LF_ZAP,LL_INFO100,"Rejecting native file %p, because mscolib has not NI - reason 0x%x\n",pNativeImage.GetValue(),m_dwReasonForRejectingNativeImage);
             ExternalLog(LL_ERROR, "Rejecting native image because mscorlib does not have native image");
-#ifdef FEATURE_FUSION
-            if(GetFile())
-                GetFile()->ETWTraceLogMessage(ETW::BinderLog::BinderStructs::NGEN_BIND_SYSTEM_ASSEMBLY_NATIVEIMAGE_NOT_AVAILABLE, NULL);
-#endif
             GetFile()->ClearNativeImage();
 
-#ifdef FEATURE_WINDOWSPHONE
-            // On Phone, always through exceptions when we throw the NI out
+            // Always throw exceptions when we throw the NI out
             ThrowHR(CLR_E_BIND_SYS_ASM_NI_MISSING);
-#endif
         }
         else
         if (!CheckZapSecurity(pNativeImage))
@@ -2384,17 +1780,10 @@ void DomainAssembly::FindNativeImage()
                 "The assembly's permissions must have changed since the time it was ngenned, "
                 "or it is running with a different security context.");
 
-#ifdef FEATURE_FUSION
-            if(GetFile())
-                GetFile()->ETWTraceLogMessage(ETW::BinderLog::BinderStructs::NGEN_BIND_ASSEMBLY_HAS_DIFFERENT_GRANT, NULL);
-#endif
             GetFile()->ClearNativeImage();
 
-#ifdef FEATURE_WINDOWSPHONE
-            // On Phone, always through exceptions when we throw the NI out
+            // Always throw exceptions when we throw the NI out
             ThrowHR(CLR_E_BIND_NI_SECURITY_FAILURE);
-#endif
-
         }
         else if (!CheckZapDependencyIdentities(pNativeImage))
         {
@@ -2404,17 +1793,10 @@ void DomainAssembly::FindNativeImage()
                 "with one or more of its assembly dependencies. The assembly needs "
                 "to be ngenned again");
 
-#ifdef FEATURE_FUSION
-            if(GetFile())
-                GetFile()->ETWTraceLogMessage(ETW::BinderLog::BinderStructs::NGEN_BIND_DEPENDENCY_HAS_DIFFERENT_IDENTITY, NULL);
-#endif
             GetFile()->ClearNativeImage();
 
-#ifdef FEATURE_WINDOWSPHONE
-            // On Phone, always through exceptions when we throw the NI out
+            // Always throw exceptions when we throw the NI out
             ThrowHR(CLR_E_BIND_NI_DEP_IDENTITY_MISMATCH);
-#endif
-
         }
         else
         {
@@ -2436,15 +1818,6 @@ void DomainAssembly::FindNativeImage()
             {
                 GetFile()->SetNativeImageUsedExclusively();
             }
-#ifdef FEATURE_FUSION
-            else
-            {
-                if (!IsSystem())
-                {
-                    GetFile()->SetNativeImageClosure(GetAssemblyBindingClosure(LEVEL_STARTING));
-                }
-            }
-#endif //FEATURE_FUSION
 
             PEAssembly * pFile = (PEAssembly *)FastInterlockCompareExchangePointer((void **)ppNativeFile, (void *)GetFile(), (void *)NULL);
             STRESS_LOG3(LF_ZAP,LL_INFO100,"Attempted to set  new native file %p, old file was %p, location in the image=%p\n",GetFile(),pFile,ppNativeFile);
@@ -2453,9 +1826,6 @@ void DomainAssembly::FindNativeImage()
                     ( !bExpectedToBeShared ||
                        pFile == PEFile::Dummy() ||
                        pFile->IsNativeImageUsedExclusively() ||
-#ifdef FEATURE_FUSION
-                       !pFile->HasEqualNativeClosure(this) ||
-#endif //FEATURE_FUSION
                        !(GetFile()->GetPath().Equals(pFile->GetPath())))
 
                 )
@@ -2472,10 +1842,6 @@ void DomainAssembly::FindNativeImage()
                     "- abandoning ngen image. The assembly will be JIT-compiled in "
                     "the second appdomain. See System.LoaderOptimization.MultiDomain "
                     "for information about domain-neutral loading.");
-#ifdef FEATURE_FUSION
-                if(GetFile())
-                    GetFile()->ETWTraceLogMessage(ETW::BinderLog::BinderStructs::NGEN_BIND_ASSEMBLY_NOT_DOMAIN_NEUTRAL, NULL);
-#endif
                 GetFile()->ClearNativeImage();
 
                 // We only support a (non-shared) native image to be used from a single
@@ -2496,7 +1862,6 @@ void DomainAssembly::FindNativeImage()
         }
     }
 
-#if defined(FEATURE_CORECLR)
     if (!GetFile()->HasNativeImage())
     {
         //
@@ -2511,7 +1876,6 @@ void DomainAssembly::FindNativeImage()
 
         GetAppDomain()->CheckForMismatchedNativeImages(&spec, &mvid);
     }
-#endif
 
     CheckZapRequired();
 }
@@ -2536,65 +1900,6 @@ BOOL DomainAssembly::ShouldLoadDomainNeutralHelper()
 
 #ifdef FEATURE_LOADER_OPTIMIZATION
 
-#ifndef FEATURE_CORECLR
-
-    BOOL fIsShareableHostAssembly = FALSE;
-    if (GetFile()->HasHostAssembly())
-    {
-        IfFailThrow(GetFile()->GetHostAssembly()->IsShareable(&fIsShareableHostAssembly));
-    }
-    
-#ifdef FEATURE_FUSION
-    // Only use domain neutral code for normal assembly loads
-    if ((GetFile()->GetFusionAssembly() == NULL) && !fIsShareableHostAssembly)
-    {
-        return FALSE;
-    }
-#endif
-
-#ifdef FEATURE_REFLECTION_ONLY_LOAD
-    // Introspection only does not use domain neutral code
-    if (IsIntrospectionOnly())
-        return FALSE;
-#endif
-
-#ifdef FEATURE_FUSION
-    // use domain neutral code only for Load context, as the
-    // required eager binding interferes with LoadFrom binding semantics
-    if (!GetFile()->IsContextLoad() && !fIsShareableHostAssembly)
-        return FALSE;
-#endif
-
-    // Check app domain policy...
-    if (this->GetAppDomain()->ApplySharePolicy(this))
-    {
-        if (IsSystem())
-            return TRUE;
-
-        // if not the default AD, ensure that the closure is filled in
-        if (this->GetAppDomain() != SystemDomain::System()->DefaultDomain())
-            GetAssemblyBindingClosure(LEVEL_COMPLETE);
-
-
-        // Can be domain neutral only if we aren't binding any missing dependencies with
-        // the assembly resolve event
-        if ((this->GetAppDomain() != SystemDomain::System()->DefaultDomain()) &&
-            (CheckMissingDependencies() == CMD_Resolved))
-        {
-            return FALSE;
-        }
-
-        // Ensure that all security conditions are met for code sharing
-        if (!Security::CanShareAssembly(this))
-        {
-            return FALSE;
-        }
-
-        return TRUE;
-    }
-    return FALSE;
-
-#else // FEATURE_CORECLR
 
     if (IsSystem())
         return TRUE;
@@ -2627,69 +1932,11 @@ BOOL DomainAssembly::ShouldLoadDomainNeutralHelper()
     
     return FALSE; // No meaning in doing costly closure walk for CoreCLR.
 
-#endif // FEATURE_CORECLR
 
 #else // FEATURE_LOADER_OPTIMIZATION
     return IsSystem();
 #endif // FEATURE_LOADER_OPTIMIZATION
 }
-
-BOOL DomainAssembly::ShouldSkipPolicyResolution()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fSkipPolicyResolution;
-}
-
-
-#if defined(FEATURE_LOADER_OPTIMIZATION) && defined(FEATURE_FUSION)
-//
-// Returns TRUE if the attempt to steal ownership of the native image succeeded, or if there are other
-// reasons for retrying load of the native image in the current appdomain.
-//
-// Returns FALSE if the native image should be rejected in the current appdomain.
-//
-static BOOL TryToStealSharedNativeImageOwnership(PEFile ** ppNativeImage, PEFile * pNativeFile, PEFile * pFile)
-{
-    STANDARD_VM_CONTRACT;
-
-    if (pNativeFile == PEFile::Dummy())
-    {
-        // Nothing to steal anymore. Loading of the native image failed elsewhere.
-        return FALSE;
-    }
-
-    _ASSERTE(!pNativeFile->IsNativeImageUsedExclusively());
-    _ASSERTE(!pFile->IsNativeImageUsedExclusively());
-
-    SharedDomain * pSharedDomain = SharedDomain::GetDomain();
-
-    // Take the lock so that nobody steals or creates Assembly object for this native image while we are stealing it
-    SharedFileLockHolder pNativeFileLock(pSharedDomain, pNativeFile, TRUE);
-
-    if (pNativeFile != VolatileLoad(ppNativeImage))
-    {
-        // The ownership changed before we got a chance. Retry.
-        return TRUE;
-    }
-
-    SharedAssemblyLocator locator(pNativeFile->AsAssembly(), SharedAssemblyLocator::PEASSEMBLYEXACT);
-    if (pSharedDomain->FindShareableAssembly(&locator))
-    {
-        // Another shared assembly (with different binding closure) uses this image, therefore we cannot use it
-        return FALSE;
-    }
-
-    BOOL success = InterlockedCompareExchangeT(ppNativeImage, pFile, pNativeFile) == pNativeFile;
-
-    // If others can reuse us, we cannot go away
-    if (success)
-        pFile->AddRef();
-
-    STRESS_LOG3(LF_ZAP,LL_INFO100,"Attempt to steal ownership from native file %p by %p success %d\n", pNativeFile, pFile, success);
-
-    return TRUE;
-}
-#endif // FEATURE_LOADER_OPTIMIZATION && FEATURE_FUSION
 
 // This is where the decision whether an assembly is DomainNeutral (shared) nor not is made.
 void DomainAssembly::Allocate()
@@ -2701,9 +1948,6 @@ void DomainAssembly::Allocate()
         INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
-
-    // Make sure the security system is happy with this assembly being loaded into the domain
-    GetSecurityDescriptor()->CheckAllowAssemblyLoad();
 
     AllocMemTracker   amTracker;
     AllocMemTracker * pamTracker = &amTracker;
@@ -2724,9 +1968,6 @@ void DomainAssembly::Allocate()
 
 #ifdef FEATURE_LOADER_OPTIMIZATION
 
-#ifdef FEATURE_FUSION
-Retry:
-#endif
 
             // Try to find an existing shared version of the assembly which
             // is compatible with our domain.
@@ -2756,61 +1997,13 @@ Retry:
 
             if (pAssembly == NULL)
             {
-#ifdef FEATURE_FUSION
-                // Final verification that we can use the ngen image.
-                //
-                // code:DomainAssembly::FindNativeImage checks the binding closures before declaring the native image as shareable candidate, 
-                // but the ultimate decisions about sharing happens inside code:Assembly::CanBeShared called from FindShareableAssembly above. 
-                // code:Assembly::CanBeShared checks more conditions than just binding closures. In particular, it also checks whether AssemblyResolve 
-                // event resolves any missing dependencies found in the binding closure - the assembly cannot be shared if it is the case.
-                // The end result is that same ngen image can get here in multiple domains in parallel, but it may not be shareable between all of them.
-                //
-                // We reconcile this conflict by checking whether there is somebody else conflicting with us. If it is, we will try to steal
-                // the ownership of the native image from the other guy and retry. The retry logic is required to prevent a perfectly valid
-                // native image being dropped on the floor just because of multiple appdomains raced to load it.
-                {
-                    ReleaseHolder<PEImage> pNativeImage = GetFile()->GetNativeImageWithRef();
-                    if ((pNativeImage != NULL) && (pNativeImage->GetLoadedLayout() != NULL))
-                    {
-                        Module * pNativeModule = pNativeImage->GetLoadedLayout()->GetPersistedModuleImage();
-                        if (pNativeModule != NULL)
-                        {
-                            // The owner of the native module was set thread-safe in code:DomainAssembly::FindNativeImage
-                            // However the final decision if we can share the native image is done in this function (see usage of code:FindShareableAssembly above)
-                            PEFile ** ppNativeFile = (PEFile **) (PBYTE(pNativeModule) + Module::GetFileOffset());
-                            PEFile * pNativeFile = VolatileLoad(ppNativeFile);
-                            if (pNativeFile != GetFile())
-                            {
-                                pFileLock.Release();
-
-                                // Ensures that multiple threads won't fight with each other indefinitely
-                                __SwitchToThread(0, ++dwSwitchCount);
-
-                                if (!TryToStealSharedNativeImageOwnership(ppNativeFile, pNativeFile, GetFile()))
-                                {
-                                    // If a shared assembly got loaded in the mean time, retry all lookups again
-                                    if (pSharedDomain->GetShareableAssemblyCount() != nInitialShareableAssemblyCount)
-                                        goto Retry;
-
-                                    m_dwReasonForRejectingNativeImage = ReasonForRejectingNativeImage_NiAlreadyUsedInAnotherSharedAssembly;
-                                    STRESS_LOG3(LF_ZAP,LL_INFO100,"Rejecting native file %p, because it is already used by shared file %p - reason 0x%x\n",GetFile(),pNativeFile,m_dwReasonForRejectingNativeImage);
-                                    GetFile()->ClearNativeImage();
-                                    GetFile()->SetCannotUseNativeImage();
-                                }
-
-                                goto Retry;
-                            }
-                        }
-                    }
-                }
-#endif // FEATURE_FUSION
 
                 // We can now rely on the fact that our MDImport will not change so we can stop refcounting it.
                 GetFile()->MakeMDImportPersistent();
 
                 // Go ahead and create new shared version of the assembly if possible
                 // <TODO> We will need to pass a valid OBJECREF* here in the future when we implement SCU </TODO>
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
 
                 if (MissingDependenciesCheckDone())
                     pAssembly->SetMissingDependenciesCheckDone();
@@ -2829,13 +2022,6 @@ Retry:
                 // This is because the resulting shared assembly that we will depend on
                 // DOES have those dependencies, but we won't be able to validly share that
                 // assembly unless we match all of ITS dependencies, too.
-#ifdef FEATURE_FUSION
-                if ((this->GetAppDomain()->GetFusionContext() != NULL) && !IsSystem())
-                {
-                    IAssemblyBindingClosure* pClosure = GetAssemblyBindingClosure(LEVEL_STARTING);
-                    pAssembly->SetBindingClosure(pClosure);
-                }
-#endif // FEATURE_FUSION
                 // Sets the tenured bit atomically with the hash insert.
                 pSharedDomain->AddShareableAssembly(pAssembly);
             }
@@ -2852,7 +2038,7 @@ Retry:
 
                 // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
                 SharedDomain * pSharedDomain = SharedDomain::GetDomain();
-                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+                assemblyHolder = pAssembly = Assembly::Create(pSharedDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
                 pAssembly->SetIsTenured();
             }
 #endif  // FEATURE_LOADER_OPTIMIZATION
@@ -2863,7 +2049,7 @@ Retry:
             GetFile()->MakeMDImportPersistent();
             
             // <TODO> We will need to pass a valid OBJECTREF* here in the future when we implement SCU </TODO>
-            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), FALSE, pamTracker, NULL);
+            assemblyHolder = pAssembly = Assembly::Create(m_pDomain, GetFile(), GetDebuggerInfoBits(), this->IsCollectible(), pamTracker, this->IsCollectible() ? this->GetLoaderAllocator() : NULL);
             assemblyHolder->SetIsTenured();
         }
 
@@ -2891,17 +2077,8 @@ Retry:
 
     // Insert AssemblyDef details into AssemblySpecBindingCache if appropriate
 
-#ifdef FEATURE_FUSION
-    fInsertIntoAssemblySpecBindingCache = GetFile()->GetLoadContext() == LOADCTX_TYPE_DEFAULT;
-#endif
     
-#if defined(FEATURE_HOSTED_BINDER)
-#if defined(FEATURE_APPX_BINDER)
-    fInsertIntoAssemblySpecBindingCache = fInsertIntoAssemblySpecBindingCache && !GetFile()->HasHostAssembly();
-#else
     fInsertIntoAssemblySpecBindingCache = fInsertIntoAssemblySpecBindingCache && GetFile()->CanUseWithBindingCache();
-#endif
-#endif
 
     if (fInsertIntoAssemblySpecBindingCache)
     {
@@ -3015,138 +2192,6 @@ BOOL DomainAssembly::GetResource(LPCSTR szName, DWORD *cbResource,
                                    this->m_pDomain );
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-BOOL DomainAssembly::GetModuleResource(mdFile mdResFile, LPCSTR szResName,
-                                       DWORD *cbResource, PBYTE *pbInMemoryResource,
-                                       LPCSTR *szFileName, DWORD *dwLocation,
-                                       BOOL fIsPublic, StackCrawlMark *pStackMark,
-                                       BOOL fSkipSecurityCheck)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    const char     *szName;
-    DWORD           dwFlags;
-    DomainFile     *pModule = NULL;
-    DWORD           dwOffset = 0;
-
-    if (! ((TypeFromToken(mdResFile) == mdtFile) &&
-           GetMDImport()->IsValidToken(mdResFile)) )
-    {
-        ThrowHR(COR_E_BADIMAGEFORMAT, BFA_INVALID_FILE_TOKEN);
-    }
-
-    IfFailThrow(GetMDImport()->GetFileProps(
-        mdResFile,
-        &szName,
-        NULL,
-        NULL,
-        &dwFlags));
-
-    if (IsFfContainsMetaData(dwFlags))
-    {
-        // The resource is embedded in a manifest-containing file.
-        mdManifestResource mdResource;
-        mdToken mdLinkRef;
-        DWORD dwResourceFlags;
-
-        Module *pContainerModule = GetCurrentModule();
-        // Use the real assembly with a rid map if possible
-        if (pContainerModule != NULL)
-            pModule = pContainerModule->LoadModule(m_pDomain, mdResFile, FALSE);
-        else
-        {
-            PEModuleHolder pFile(GetAssembly()->LoadModule_AddRef(mdResFile, FALSE));
-            pModule = m_pDomain->LoadDomainModule(this, pFile, FILE_LOADED);
-        }
-
-        if (FAILED(pModule->GetMDImport()->FindManifestResourceByName(szResName,
-                                                                      &mdResource)))
-            return FALSE;
-
-        IfFailThrow(pModule->GetMDImport()->GetManifestResourceProps(
-            mdResource,
-            NULL, //&szName,
-            &mdLinkRef,
-            &dwOffset,
-            &dwResourceFlags));
-
-        if (mdLinkRef != mdFileNil)
-        {
-            ThrowHR(COR_E_BADIMAGEFORMAT, BFA_CANT_GET_LINKREF);
-        }
-        fIsPublic = IsMrPublic(dwResourceFlags);
-    }
-
-#ifndef CROSSGEN_COMPILE
-    if (!fIsPublic && pStackMark && !fSkipSecurityCheck)
-    {
-        Assembly *pCallersAssembly = SystemDomain::GetCallersAssembly(pStackMark);
-        if (pCallersAssembly && // full trust for interop
-            (!pCallersAssembly->GetManifestFile()->Equals(GetFile())))
-        {
-            RefSecContext sCtx(AccessCheckOptions::kMemberAccess);
-
-            AccessCheckOptions accessCheckOptions(
-                AccessCheckOptions::kMemberAccess,  /*accessCheckType*/
-                NULL,                               /*pAccessContext*/
-                FALSE,                              /*throwIfTargetIsInaccessible*/
-                (MethodTable *) NULL                /*pTargetMT*/
-                );
-
-            // SL: return TRUE only if the caller is critical
-            // Desktop: return TRUE only if demanding MemberAccess succeeds
-            if (!accessCheckOptions.DemandMemberAccessOrFail(&sCtx, NULL, TRUE /*visibilityCheck*/))
-                return FALSE;
-        }
-    }
-#endif // CROSSGEN_COMPILE
-
-    if (IsFfContainsMetaData(dwFlags)) {
-        if (dwLocation) {
-            *dwLocation = *dwLocation | 1; // ResourceLocation.embedded
-            *szFileName = szName;
-            return TRUE;
-        }
-
-        pModule->GetFile()->GetEmbeddedResource(dwOffset, cbResource,
-                                                pbInMemoryResource);
-
-        return TRUE;
-    }
-
-    // The resource is linked (it's in its own file)
-    if (szFileName) {
-        *szFileName = szName;
-        return TRUE;
-    }
-
-    Module *pContainerModule = GetCurrentModule();
-
-    // Use the real assembly with a rid map if possible
-    if (pContainerModule != NULL)
-        pModule = pContainerModule->LoadModule(m_pDomain, mdResFile);
-    else
-    {
-        PEModuleHolder pFile(GetAssembly()->LoadModule_AddRef(mdResFile, TRUE));
-        pModule = m_pDomain->LoadDomainModule(this, pFile, FILE_LOADED);
-    }
-
-    COUNT_T size;
-    const void *contents = pModule->GetFile()->GetManagedFileContents(&size);
-
-    *pbInMemoryResource = (BYTE *) contents;
-    *cbResource = size;
-
-    return TRUE;
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 #ifdef FEATURE_PREJIT
 
@@ -3164,52 +2209,7 @@ void GetTimeStampsForNativeImage(CORCOMPILE_VERSION_INFO * pNativeVersionInfo)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
     // Do not store runtime timestamps into NGen image for cross-platform NGen determinism
-#else
-    // fill in pRuntimeDllInfo
-    CORCOMPILE_RUNTIME_DLL_INFO *pRuntimeDllInfo = pNativeVersionInfo->runtimeDllInfo;
-
-    for (DWORD index = 0; index < NUM_RUNTIME_DLLS; index++)
-    {
-#ifdef CROSSGEN_COMPILE
-        SString sFileName(SString::Utf8, CorCompileGetRuntimeDllName((CorCompileRuntimeDlls)index));
-
-        PEImageHolder pImage;
-        if (!GetAppDomain()->ToCompilationDomain()->FindImage(sFileName, MDInternalImport_NoCache, &pImage))
-        {
-            EEFileLoadException::Throw(sFileName, COR_E_FILENOTFOUND);
-        }
-
-        PEImageLayoutHolder pLayout(pImage->GetLayout(PEImageLayout::LAYOUT_FLAT,PEImage::LAYOUT_CREATEIFNEEDED));
-        pRuntimeDllInfo[index].timeStamp = pLayout->GetTimeDateStamp();
-        pRuntimeDllInfo[index].virtualSize = pLayout->GetVirtualSize();
-
-#else // CROSSGEN_COMPILE
-
-        HMODULE hMod = CorCompileGetRuntimeDll((CorCompileRuntimeDlls)index);
-
-        if (hMod == NULL)
-        {
-            _ASSERTE((CorCompileRuntimeDlls)index == NGEN_COMPILER_INFO);
-
-            LPCWSTR wszDllName = CorCompileGetRuntimeDllName((CorCompileRuntimeDlls)index);
-            if (FAILED(g_pCLRRuntime->LoadLibrary(wszDllName, &hMod)))
-            {
-                EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_EXECUTIONENGINE, W("Unable to load CLR DLL during ngen"));
-            }
-        }
-
-        _ASSERTE(hMod != NULL);
-
-        PEDecoder pe(hMod);
-
-        pRuntimeDllInfo[index].timeStamp = pe.GetTimeDateStamp();
-        pRuntimeDllInfo[index].virtualSize = pe.GetVirtualSize();
-#endif // CROSSGEN_COMPILE
-
-    }
-#endif // FEATURE_CORECLR
 }
 
 //
@@ -3224,7 +2224,6 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
 
 #ifdef _TARGET_X86_
 
-#ifdef FEATURE_CORECLR
     static CORINFO_CPU ngenCpuInfo =
         {
             (CPU_X86_PENTIUM_PRO << 8), // dwCPUType
@@ -3234,26 +2233,6 @@ void GetNGenCpuInfo(CORINFO_CPU * cpuInfo)
 
     // We always generate P3-compatible code on CoreCLR
     *cpuInfo = ngenCpuInfo;
-#else // FEATURE_CORECLR
-    static CORINFO_CPU ngenCpuInfo =
-        {
-            (CPU_X86_PENTIUM_4 << 8),   // dwCPUType
-            0x00008001,                 // dwFeatures
-            0                           // dwExtendedFeatures
-        };
-
-#ifndef CROSSGEN_COMPILE
-    GetSpecificCpuInfo(cpuInfo);
-    if (!IsCompatibleCpuInfo(cpuInfo, &ngenCpuInfo))
-    {
-        // Use the actual cpuInfo if the platform is not compatible 
-        // with the "recommended" processor. We expect most platforms to be compatible
-        return;
-    }
-#endif
-
-    *cpuInfo = ngenCpuInfo;
-#endif // FEATURE_CORECLR
 
 #else // _TARGET_X86_
     cpuInfo->dwCPUType = 0;
@@ -3283,14 +2262,11 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
                                           &fForceProfiling,
                                           &fForceInstrument);
 
-    OSVERSIONINFOW osInfo;
-    osInfo.dwOSVersionInfoSize = sizeof(osInfo);
-    if (!GetOSVersion(&osInfo))
-        _ASSERTE(!"GetOSVersion failed");
-
-    _ASSERTE(osInfo.dwMajorVersion < 999);
-    _ASSERTE(osInfo.dwMinorVersion < 999);
-    pNativeVersionInfo->wOSPlatformID = (WORD) osInfo.dwPlatformId;
+#ifndef FEATURE_PAL 
+    pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_WIN32_NT;
+#else
+    pNativeVersionInfo->wOSPlatformID = VER_PLATFORM_UNIX;
+#endif    
 
     // The native images should be OS-version agnostic. Do not store the actual OS version for determinism.
     // pNativeVersionInfo->wOSMajorVersion = (WORD) osInfo.dwMajorVersion;
@@ -3298,10 +2274,10 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
 
     pNativeVersionInfo->wMachine = IMAGE_FILE_MACHINE_NATIVE_NI;
 
-    pNativeVersionInfo->wVersionMajor = VER_MAJORVERSION;
-    pNativeVersionInfo->wVersionMinor = VER_MINORVERSION;
-    pNativeVersionInfo->wVersionBuildNumber = VER_PRODUCTBUILD;
-    pNativeVersionInfo->wVersionPrivateBuildNumber = VER_PRODUCTBUILD_QFE;
+    pNativeVersionInfo->wVersionMajor = CLR_MAJOR_VERSION;
+    pNativeVersionInfo->wVersionMinor = CLR_MINOR_VERSION;
+    pNativeVersionInfo->wVersionBuildNumber = CLR_BUILD_VERSION;
+    pNativeVersionInfo->wVersionPrivateBuildNumber = CLR_BUILD_VERSION_QFE;
 
     GetNGenCpuInfo(&pNativeVersionInfo->cpuInfo);
 
@@ -3382,12 +2358,6 @@ void DomainAssembly::GetCurrentVersionInfo(CORCOMPILE_VERSION_INFO *pNativeVersi
         pNativeVersionInfo->wConfigFlags |= CORCOMPILE_CONFIG_INSTRUMENTATION_NONE;
     }
 
-#if defined(_TARGET_AMD64_) && !defined(FEATURE_CORECLR)
-    if (UseRyuJit())
-    {
-        pNativeVersionInfo->wCodegenFlags |= CORCOMPILE_CODEGEN_USE_RYUJIT;
-    }
-#endif
 
     GetTimeStampsForNativeImage(pNativeVersionInfo);
 
@@ -3458,7 +2428,6 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
     AssemblySpec spec;
     spec.InitializeSpec(this->GetFile());
 
@@ -3488,7 +2457,6 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
             AssemblySpec name;
             name.InitializeSpec(pDependencies->dwAssemblyDef, pNativeImage->GetNativeMDImport(), this);
             
-#if defined(FEATURE_HOST_ASSEMBLY_RESOLVER)            
             if (!name.IsAssemblySpecForMscorlib())
             {
                 // We just initialized the assembly spec for the NI dependency. This will not have binding context
@@ -3498,14 +2466,12 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
                 _ASSERTE(pParentAssemblyBindingContext);
                 name.SetBindingContext(pParentAssemblyBindingContext);
             }
-#endif // defined(FEATURE_HOST_ASSEMBLY_RESOLVER)
             
             GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependencies->signAssemblyDef.mvid);
         }
 
         pDependencies++;
     }
-#endif
 
     return TRUE;
 }
@@ -3519,250 +2485,12 @@ BOOL DomainAssembly::CheckZapSecurity(PEImage *pNativeImage)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
     return TRUE;
-#else
-
-    //
-    // System libraries are a special case, the security info's always OK.
-    //
-
-    if (IsSystem())
-        return TRUE;
-
-#ifdef FEATURE_NATIVE_IMAGE_GENERATION
-    //
-    // If we're just loading files as part of PDB generation, we're not executing code,
-    // so no need to do security checks
-    //
-    
-    if (IsNgenPDBCompilationProcess())
-        return TRUE;
-#endif
-
-    ETWOnStartup (SecurityCatchCall_V1, SecurityCatchCallEnd_V1);
-
-#ifdef CROSSGEN_COMPILE
-    return TRUE;
-#else
-
-#ifdef FEATURE_APTCA
-    if (!Security::NativeImageHasValidAptcaDependencies(pNativeImage, this))
-    {
-        return FALSE;
-    }
-#endif // !FEATURE_APTCA
-
-    GCX_COOP();
-
-    BOOL fHostProtectionOK = FALSE;
-    BOOL fImageAndDependenciesAreFullTrust = FALSE;
-
-    EX_TRY
-    {
-        // Check the HostProtection settings.
-        EApiCategories eRequestedProtectedCategories = GetHostProtectionManager()->GetProtectedCategories();
-        if (eRequestedProtectedCategories == eNoChecks)
-            fHostProtectionOK = TRUE;
-
-        // Due to native code generated for one IL image being more agressively put into another
-        // assembly's native image, we're disabling partial trust NGEN images.  If the current
-        // domain can only have fully trusted assemblies, then we can load this image, or if the current
-        // assembly and its closure are all in the GAC we can also use it.  Otherwise, we'll conservatively
-        // disable the use of this image.
-        IApplicationSecurityDescriptor *pAppDomainSecurity = this->GetAppDomain()->GetSecurityDescriptor();
-        if (pAppDomainSecurity->IsFullyTrusted() && pAppDomainSecurity->IsHomogeneous())
-        {
-            // A fully trusted homogenous domain can only have full trust assemblies, therefore this assembly
-            // and all its dependencies must be full trust
-            fImageAndDependenciesAreFullTrust = TRUE;
-        }
-        else if (IsClosedInGAC())
-        {
-            // The domain allows partial trust assemblies to be loaded into it.  However, this assembly and
-            // all of its dependencies came from the GAC, so we know that they must all be trusted even if
-            // other code in this domain is not.
-            fImageAndDependenciesAreFullTrust = TRUE;
-        }
-        else
-        {
-            // The domain allows partial trust assemblies and we cannot prove that the closure of
-            // dependencies of this assembly will all be fully trusted.  Conservatively throw away this NGEN
-            // image.
-            fImageAndDependenciesAreFullTrust = FALSE;
-        }
-    }
-    EX_CATCH
-    {
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-
-    return fHostProtectionOK && fImageAndDependenciesAreFullTrust;
-#endif // CROSSGEN_COMPILE
-
-#endif // FEATURE_CORECLR
 }
 #endif // FEATURE_PREJIT
 
-#ifdef FEATURE_CAS_POLICY
-void DomainAssembly::InitializeSecurityManager()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
 
-    GetFile()->InitializeSecurityManager();
-}
-#endif // FEATURE_CAS_POLICY
 
-#ifdef FEATURE_CAS_POLICY
-// Returns security information for the assembly based on the codebase
-void DomainAssembly::GetSecurityIdentity(SString &codebase,
-                                         SecZone *pdwZone,
-                                         DWORD dwFlags,
-                                         BYTE *pbUniqueID,
-                                         DWORD *pcbUniqueID)
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(pdwZone));
-        PRECONDITION(CheckPointer(pbUniqueID));
-        PRECONDITION(CheckPointer(pcbUniqueID));
-    }
-    CONTRACTL_END;
-
-    GetFile()->GetSecurityIdentity(codebase, pdwZone, dwFlags, pbUniqueID, pcbUniqueID);
-}
-#endif // FEATURE_CAS_POLICY
-
-#ifdef FEATURE_FUSION
-IAssemblyBindingClosure* DomainAssembly::GetAssemblyBindingClosure(WALK_LEVEL level)
-{
-    CONTRACT(IAssemblyBindingClosure *)
-    {
-        INSTANCE_CHECK;
-        POSTCONDITION(CheckPointer(RETVAL,NULL_OK));
-        //we could  return NULL instead of asserting but hitting code paths that call this for mscorlib is just wasting of cycles anyhow
-        PRECONDITION(!IsSystem());
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACT_END;
-
-    if (m_pAssemblyBindingClosure == NULL || m_pAssemblyBindingClosure->HasBeenWalked(level) == S_FALSE)
-    {
-        SafeComHolder<IAssemblyBindingClosure> pClosure;
-        if (this->GetAppDomain()->GetFusionContext() == NULL)
-        {
-            _ASSERTE(IsSystem());
-            RETURN NULL;
-        }
-        
-        GCX_PREEMP();
-
-        ReleaseHolder<IBindResult> pWinRTBindResult;
-        IUnknown * pUnk;
-        
-        if (GetFile()->IsIStream())
-        {
-            pUnk = GetFile()->GetIHostAssembly();
-        }
-        else if (GetFile()->IsWindowsRuntime())
-        {   // It is .winmd file (WinRT assembly)
-            IfFailThrow(CLRPrivAssemblyWinRT::GetIBindResult(GetFile()->GetHostAssembly(), &pWinRTBindResult));
-            pUnk = pWinRTBindResult;
-        }
-        else
-        {
-            pUnk = GetFile()->GetFusionAssembly();
-        }
-
-        if (m_pAssemblyBindingClosure == NULL)
-        {
-            IfFailThrow(this->GetAppDomain()->GetFusionContext()->GetAssemblyBindingClosure(pUnk, NULL, &pClosure));
-            if (FastInterlockCompareExchangePointer<IAssemblyBindingClosure*>(&m_pAssemblyBindingClosure, pClosure.GetValue(), NULL) == NULL)
-            {
-                pClosure.SuppressRelease();
-            }
-        }
-        IfFailThrow(m_pAssemblyBindingClosure->EnsureWalked(pUnk, this->GetAppDomain()->GetFusionContext(), level));
-    }
-    RETURN m_pAssemblyBindingClosure;
-}
-
-// This is used to determine if the binding closure of the assembly in question is in the GAC. Amongst other uses,
-// this is the MULTI_DOMAIN_HOST scenario.
-BOOL DomainAssembly::IsClosedInGAC()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    if (IsSystem())
-        return TRUE;
-
-    BOOL fIsWindowsRuntime = GetFile()->IsWindowsRuntime();
-
-    if (!GetFile()->IsSourceGAC() && !fIsWindowsRuntime)
-        return FALSE;
-
-    // Do a binding closure that will help us determine if all the dependencies are in the GAC or not.
-    IAssemblyBindingClosure * pClosure = GetAssemblyBindingClosure(LEVEL_GACCHECK);
-    if (pClosure == NULL)
-        return FALSE;
-    
-    // Once the closure is complete, determine if the dependencies are closed in the GAC (or not).
-    HRESULT hr = pClosure->IsAllAssembliesInGAC();
-    IfFailThrow(hr);
-    
-    return (hr == S_OK);
-}
-
-BOOL DomainAssembly::MayHaveUnknownDependencies()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END;
-
-    if (IsSystem())
-        return FALSE;
-    
-    // Perform the binding closure walk to initialize state that will help us
-    // determine if we have dependencies that could prevent code-sharing.
-    IAssemblyBindingClosure * pClosure = GetAssemblyBindingClosure(LEVEL_WINRTCHECK);
-    if (pClosure == NULL)
-        return FALSE;
-    
-    HRESULT hr = pClosure->MayHaveUnknownDependencies();
-    IfFailThrow(hr);
-
-    return (hr == S_OK);
-}
-
-#endif // FEATURE_FUSION
 
 
 // <TODO>@todo Find a better place for these</TODO>
@@ -4149,8 +2877,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
     }
     CONTRACT_END;
 
-    _ASSERTE(GCHeap::IsGCInProgress() &&
-         GCHeap::IsServerHeap()   &&
+    _ASSERTE(GCHeapUtilities::IsGCInProgress() &&
+         GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);
@@ -4175,220 +2903,6 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
 
 
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-//--------------------------------------------------------------------------------
-// DomainModule
-//--------------------------------------------------------------------------------
-
-DomainModule::DomainModule(AppDomain *pDomain, DomainAssembly *pAssembly, PEFile *pFile)
-  : DomainFile(pDomain, pFile),
-    m_pDomainAssembly(pAssembly)
-{
-    STANDARD_VM_CONTRACT;
-}
-
-DomainModule::~DomainModule()
-{
-    WRAPPER_NO_CONTRACT;
-}
-
-void DomainModule::SetModule(Module* pModule)
-{
-    STANDARD_VM_CONTRACT;
-
-    UpdatePEFile(pModule->GetFile());
-    pModule->SetDomainFile(this);
-    // SetDomainFile can throw and will unwind to DomainModule::Allocate at which
-    // point pModule->Destruct will be called in the catch handler.  if we set
-    // m_pModule = pModule before the call to SetDomainFile then we can end up with
-    // a bad m_pModule pointer when SetDomainFile throws.  so we set m_pModule IIF
-    // the call to SetDomainFile succeeds.
-    m_pModule = pModule;
-}
-
-void DomainModule::Begin()
-{
-    STANDARD_VM_CONTRACT;
-    m_pDomainAssembly->AddModule(this);
-}
-
-#ifdef FEATURE_PREJIT
-
-void DomainModule::FindNativeImage()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // Resource files are never prejitted.
-}
-
-#endif // FEATURE_PREJIT
-
-
-void DomainModule::Allocate()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        STANDARD_VM_CHECK;
-    }
-    CONTRACTL_END;
-
-    // We can now rely on the fact that our MDImport will not change so we can stop refcounting it.
-    GetFile()->MakeMDImportPersistent();
-
-    AllocMemTracker amTracker;
-    AllocMemTracker *pamTracker = &amTracker;
-
-    Assembly *pAssembly = m_pDomainAssembly->GetCurrentAssembly();
-    Module *pModule = NULL;
-
-    if (pAssembly->IsDomainNeutral())
-    {
-        // For shared assemblies, the module may be already in the assembly list, even
-        // though we haven't loaded it here yet.
-
-        pModule = pAssembly->GetManifestModule()->GetModuleIfLoaded(GetToken(),FALSE, TRUE);
-        if (pModule != NULL)
-        {
-            SetModule(pModule);
-            return;
-        }
-        else
-        {
-#ifdef FEATURE_LOADER_OPTIMIZATION
-            SharedDomain *pSharedDomain = SharedDomain::GetDomain();
-            SharedFileLockHolder pFileLock(pSharedDomain, GetFile());
-#else // FEATURE_LOADER_OPTIMIZATION
-            _ASSERTE(IsSystem());
-#endif // FEATURE_LOADER_OPTIMIZATION
-
-            pModule = pAssembly->GetManifestModule()->GetModuleIfLoaded(GetToken(), FALSE, TRUE);
-            if (pModule != NULL)
-            {
-                SetModule(pModule);
-                return;
-            }
-            else
-            {
-                pModule = Module::Create(pAssembly, GetToken(), m_pFile, pamTracker);
-
-                EX_TRY
-                {
-                    pAssembly->PrepareModuleForAssembly(pModule, pamTracker);
-                    SetModule(pModule); //@todo: This innocent-looking call looks like a mixture of allocations and publishing code - it probably needs to be split.
-                }
-                EX_HOOK
-                {
-                    //! It's critical we destruct the manifest Module prior to the AllocMemTracker used to initialize it.
-                    //! Otherwise, we will leave dangling pointers inside the Module that Module::Destruct will attempt
-                    //! to dereference.
-                    pModule->Destruct();
-                }
-                EX_END_HOOK
-
-                {
-                    CANNOTTHROWCOMPLUSEXCEPTION();
-                    FAULT_FORBID();
-
-                    //Cannot fail after this point.
-                    pamTracker->SuppressRelease();
-                    pModule->SetIsTenured();
-
-                    pAssembly->PublishModuleIntoAssembly(pModule);
-
-
-
-                    return;  // Explicit return to let you know you are NOT welcome to add code after the CANNOTTHROW/FAULT_FORBID expires
-                }
-
-
-
-            }
-        }
-
-    }
-    else
-    {
-        pModule = Module::Create(pAssembly, GetToken(), m_pFile, pamTracker);
-        EX_TRY
-        {
-            pAssembly->PrepareModuleForAssembly(pModule, pamTracker);
-            SetModule(pModule); //@todo: This innocent-looking call looks like a mixture of allocations and publishing code - it probably needs to be split.
-        }
-        EX_HOOK
-        {
-            //! It's critical we destruct the manifest Module prior to the AllocMemTracker used to initialize it.
-            //! Otherwise, we will leave dangling pointers inside the Module that Module::Destruct will attempt
-            //! to dereference.
-            pModule->Destruct();
-        }
-        EX_END_HOOK
-
-
-        {
-            CANNOTTHROWCOMPLUSEXCEPTION();
-            FAULT_FORBID();
-
-            //Cannot fail after this point.
-            pamTracker->SuppressRelease();
-            pModule->SetIsTenured();
-            pAssembly->PublishModuleIntoAssembly(pModule);
-
-
-            return;  // Explicit return to let you know you are NOT welcome to add code after the CANNOTTHROW/FAULT_FORBID expires
-        }
-
-    }
-
-
-}
-
-
-
-void DomainModule::DeliverAsyncEvents()
-{
-    LIMITED_METHOD_CONTRACT;
-    return;
-}
-
-void DomainModule::DeliverSyncEvents()
-{
-    CONTRACTL
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM(););
-        SO_INTOLERANT;
-    }
-    CONTRACTL_END;
-
-    GetCurrentModule()->NotifyEtwLoadFinished(S_OK);
-
-#ifdef PROFILING_SUPPORTED
-    if (!IsProfilerNotified())
-    {
-        SetProfilerNotified();
-        GetCurrentModule()->NotifyProfilerLoadFinished(S_OK);
-    }
-#endif
-
-#ifdef DEBUGGING_SUPPORTED
-    GCX_COOP();
-    if(!IsDebuggerNotified())
-    {
-        SetShouldNotifyDebugger();
-        {
-            // Always give the module a chance to notify the debugger. If no debugger is attached, the
-            // module can skip out on the notification.
-            m_pModule->NotifyDebuggerLoad(m_pDomain, this, ATTACH_MODULE_LOAD, FALSE);
-            SetDebuggerNotified();
-        }
-    }
-#endif
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 #endif // #ifndef DACCESS_COMPILE
 
@@ -4439,44 +2953,6 @@ DomainAssembly::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
     }
 }
 
-#ifdef FEATURE_MULTIMODULE_ASSEMBLIES
-void
-DomainModule::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
-{
-    SUPPORTS_DAC;
-    DomainFile::EnumMemoryRegions(flags);
-    if (m_pDomainAssembly.IsValid())
-    {
-        m_pDomainAssembly->EnumMemoryRegions(flags);
-    }
-}
-#endif // FEATURE_MULTIMODULE_ASSEMBLIES
 
 #endif // #ifdef DACCESS_COMPILE
 
-#if defined(FEATURE_MIXEDMODE) && !defined(CROSSGEN_COMPILE)
-LPVOID DomainFile::GetUMThunk(LPVOID pManagedIp, PCCOR_SIGNATURE pSig, ULONG cSig)
-{
-    CONTRACT (LPVOID)
-    {
-        INSTANCE_CHECK;
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-    }
-    CONTRACT_END
-
-
-    if (m_pUMThunkHash == NULL)
-    {
-        UMThunkHash *pUMThunkHash = new UMThunkHash(GetModule(), this->GetAppDomain());
-        if (FastInterlockCompareExchangePointer(&m_pUMThunkHash, pUMThunkHash, NULL) != NULL)
-        {
-            delete pUMThunkHash;
-        }
-    }
-    RETURN m_pUMThunkHash->GetUMThunk(pManagedIp, pSig, cSig);
-}
-#endif // FEATURE_MIXEDMODE && !CROSSGEN_COMPILE

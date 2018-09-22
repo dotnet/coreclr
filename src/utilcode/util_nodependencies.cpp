@@ -18,11 +18,9 @@
 #if !defined(FEATURE_UTILCODE_NO_DEPENDENCIES) || defined(_DEBUG)
 
 RunningOnStatusEnum gRunningOnStatus = RUNNING_ON_STATUS_UNINITED;
-BOOL gExInfoAvailable = FALSE;
-BOOL gExInfoIsServer = TRUE;
 
 #define NON_SUPPORTED_PLATFORM_MSGBOX_TITLE             W("Platform not supported")
-#define NON_SUPPORTED_PLATFORM_MSGBOX_TEXT              W("The minimum supported platform is Windows 2000")
+#define NON_SUPPORTED_PLATFORM_MSGBOX_TEXT              W("The minimum supported platform is Windows 7")
 #define NON_SUPPORTED_PLATFORM_TERMINATE_ERROR_CODE     0xBAD1BAD1
 
 //*****************************************************************************
@@ -49,11 +47,11 @@ void InitRunningOnVersionStatus ()
 
 
     dwlConditionMask = 0;
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_PLATFORMID, VER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if(VerifyVersionInfo(&sVer, VER_MAJORVERSION | VER_PLATFORMID | VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WIN8;
         fSupportedPlatform = TRUE;
@@ -70,95 +68,17 @@ void InitRunningOnVersionStatus ()
 
 
     dwlConditionMask = 0;
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_PLATFORMID, VER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+    dwlConditionMask = VER_SET_CONDITION(dwlConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
 
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
+    if(VerifyVersionInfo(&sVer, VER_MAJORVERSION | VER_PLATFORMID | VER_MINORVERSION, dwlConditionMask))
     {
         gRunningOnStatus = RUNNING_ON_WIN7;
         fSupportedPlatform = TRUE;
         goto CHECK_SUPPORTED;
     }
 
-
-    ZeroMemory(&sVer, sizeof(OSVERSIONINFOEX));
-    sVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-    sVer.dwMajorVersion = 6;
-    sVer.dwPlatformId = VER_PLATFORM_WIN32_NT;
-
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID, dwlConditionMask))
-    {
-        gRunningOnStatus = RUNNING_ON_VISTA;
-        fSupportedPlatform = TRUE;
-        goto CHECK_SUPPORTED;
-    }
-
-
-    ZeroMemory(&sVer, sizeof(OSVERSIONINFOEX));
-    sVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-    sVer.dwMajorVersion = 5;
-    sVer.dwMinorVersion = 2;
-    sVer.dwPlatformId = VER_PLATFORM_WIN32_NT;
-
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
-
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
-    {
-        gRunningOnStatus = RUNNING_ON_WIN2003;
-        fSupportedPlatform = TRUE;
-        goto CHECK_SUPPORTED;
-    }
-
-    sVer.dwMajorVersion = 5;
-    sVer.dwMinorVersion = 1;
-    sVer.dwPlatformId = VER_PLATFORM_WIN32_NT;
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
-
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
-    {
-        gRunningOnStatus = RUNNING_ON_WINXP;
-        fSupportedPlatform = TRUE;
-        goto CHECK_SUPPORTED;
-    }
-
-
-
-    ZeroMemory(&sVer, sizeof(OSVERSIONINFOEX));
-    sVer.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-    sVer.dwMajorVersion = 5;
-    sVer.dwMinorVersion = 0;
-    sVer.dwPlatformId = VER_PLATFORM_WIN32_NT;
-
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PLATFORMID, VER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MAJORVERSION, VER_GREATER_EQUAL);
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_MINORVERSION, VER_GREATER_EQUAL);
-
-    if(VerifyVersionInfo(&sVer, CLR_VER_MAJORVERSION | CLR_VER_PLATFORMID | CLR_VER_MINORVERSION, dwlConditionMask))
-    {
-        gRunningOnStatus = RUNNING_ON_WINNT5;
-        fSupportedPlatform = TRUE;
-        goto CHECK_SUPPORTED;
-    }
-    
 CHECK_SUPPORTED:
 
     if (!fSupportedPlatform)
@@ -169,39 +89,6 @@ CHECK_SUPPORTED:
         UtilMessageBoxCatastrophicNonLocalized(NON_SUPPORTED_PLATFORM_MSGBOX_TITLE, NON_SUPPORTED_PLATFORM_MSGBOX_TEXT, MB_OK | MB_ICONERROR, TRUE);
         TerminateProcess(GetCurrentProcess(), NON_SUPPORTED_PLATFORM_TERMINATE_ERROR_CODE);
     }
-
-    gExInfoAvailable = 0;
-    gExInfoIsServer = 0;
-
-    OSVERSIONINFOEX   sVerX;
-    ZeroMemory(&sVerX, sizeof(OSVERSIONINFOEX));
-    sVerX.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-    sVerX.wProductType = VER_NT_DOMAIN_CONTROLLER;
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PRODUCT_TYPE, VER_EQUAL);
-
-    if(VerifyVersionInfo(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
-    {
-        gExInfoIsServer = 1;
-    }
-    
-
-    ZeroMemory(&sVerX, sizeof(OSVERSIONINFOEX));
-    sVerX.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-    sVerX.wProductType = VER_NT_SERVER;
-
-    dwlConditionMask = 0;
-    VER_SET_CONDITION(dwlConditionMask, CLR_VER_PRODUCT_TYPE, VER_EQUAL);
-
-    if(VerifyVersionInfo(&sVerX, CLR_VER_PRODUCT_TYPE, dwlConditionMask))
-    {
-        gExInfoIsServer = 1;
-    }
-
-    gExInfoAvailable = 1;
-#else // FEATURE_PAL
-    // UNIXTODO: Do we need version checks for Linux?
 #endif // FEATURE_PAL
 } // InitRunningOnVersionStatus
 
@@ -978,10 +865,18 @@ HighCharHelper::HighCharTable[]= {
     TRUE, /* 0x7, .*/
     TRUE, /* 0x8, .*/
     FALSE, /* 0x9,   */
+#ifdef PLATFORM_UNIX
+    TRUE, /* 0xA,  */
+#else    
     FALSE, /* 0xA,  */
+#endif // PLATFORM_UNIX
     FALSE, /* 0xB, .*/
     FALSE, /* 0xC, .*/
+#ifdef PLATFORM_UNIX
+    TRUE, /* 0xD,  */
+#else    
     FALSE, /* 0xD,  */
+#endif // PLATFORM_UNIX
     TRUE, /* 0xE, .*/
     TRUE, /* 0xF, .*/
     TRUE, /* 0x10, .*/

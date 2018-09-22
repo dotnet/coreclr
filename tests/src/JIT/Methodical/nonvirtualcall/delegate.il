@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -677,7 +678,7 @@
                                                                 object)
     IL_004c:  stloc.0
     IL_004d:  ldloc.0
-    IL_004e:  newobj     instance void [mscorlib]System.ApplicationException::.ctor(string)
+    IL_004e:  newobj     instance void [mscorlib]System.ArgumentException::.ctor(string)
     IL_0053:  throw
 
     IL_0054:  ret

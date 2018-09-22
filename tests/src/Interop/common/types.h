@@ -5,6 +5,7 @@
 #ifndef _INTEROP_TYPES__H
 #define _INTEROP_TYPES__H
 
+#undef INT_MIN
 #define INT_MIN	   (-2147483647 - 1)
 
 typedef char16_t WCHAR;
@@ -13,30 +14,22 @@ typedef int BOOL;
 typedef WCHAR *LPWSTR, *PWSTR;
 typedef const WCHAR *LPCWSTR, *PCWSTR;
 
-#ifdef UNICODE
-typedef WCHAR TCHAR;
-#else // ANSI
-typedef char TCHAR;
-#endif // UNICODE
-
 typedef char* LPSTR;
 typedef const char* LPCSTR;
-typedef TCHAR* LPTSTR;
-typedef const TCHAR* LPCTSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
 typedef void* ULONG_PTR;
 typedef unsigned error_t;
 typedef void* LPVOID;
-typedef char BYTE;
+typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
 
 typedef unsigned int UINT_PTR;
 
-typedef unsigned long ULONG64;
+typedef unsigned long long ULONG64;
 typedef double DOUBLE;
 typedef float FLOAT;
-typedef signed long LONG64, *PLONG64;
+typedef signed long long LONG64, *PLONG64;
 typedef int INT, *LPINT;
 typedef unsigned int UINT;
 typedef char CHAR, *PCHAR;

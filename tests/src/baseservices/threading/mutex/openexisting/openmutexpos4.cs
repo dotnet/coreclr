@@ -13,6 +13,7 @@ public class Test
     const string mutexName = "MySharedMutex";
     static ManualResetEvent manualEvent = new ManualResetEvent(false);
     static ManualResetEvent exitEvent = new ManualResetEvent(false);
+    static ManualResetEvent reuseBeforeReleaseEvent = new ManualResetEvent(false);
     int success = 100;
 
 
@@ -25,10 +26,11 @@ public class Test
 
         Console.WriteLine("Mutex created");
         
-		manualEvent.Set();		
+        manualEvent.Set();
+        reuseBeforeReleaseEvent.WaitOne();
         mutex.ReleaseMutex();
-		
-		exitEvent.WaitOne();
+        
+        exitEvent.WaitOne();
     }
 
     public void ReuseMutexThread()
@@ -38,18 +40,19 @@ public class Test
         bool exists;
 
         Mutex mutex = new Mutex(true, mutexName, out exists);
-		
-		if (exists)
-		{
-			Console.WriteLine("Error, created new mutex!");
-			success = 97;
-		}
-		else
-		{
-			mutex.WaitOne();
-		}
+        
+        reuseBeforeReleaseEvent.Set();
+        if (exists)
+        {
+            Console.WriteLine("Error, created new mutex!");
+            success = 97;
+        }
+        else
+        {
+            mutex.WaitOne();
+        }
 
-		
+        
         try
         {
             Console.WriteLine("Mutex reused {0}", exists);

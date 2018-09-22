@@ -26,6 +26,8 @@ TYPE LookupMap<TYPE>::GetValueAt(PTR_TADDR pValue, TADDR* pFlags, TADDR supporte
     return (TYPE)(dac_cast<TADDR>(value) & ~supportedFlags);
 }
 
+#ifndef DACCESS_COMPILE
+
 template<typename TYPE>
 inline 
 void LookupMap<TYPE>::SetValueAt(PTR_TADDR pValue, TYPE value, TADDR flags)
@@ -34,10 +36,10 @@ void LookupMap<TYPE>::SetValueAt(PTR_TADDR pValue, TYPE value, TADDR flags)
 
     value = (TYPE)(dac_cast<TADDR>(value) | flags);
 
-    RelativePointer<TYPE>::SetValueAtPtr(dac_cast<TADDR>(pValue), value);
+    RelativePointer<TYPE> *pRelPtr = (RelativePointer<TYPE> *)pValue;
+    pRelPtr->SetValue(value);
 }
 
-#ifndef DACCESS_COMPILE
 //
 // Specialization of Get/SetValueAt methods to support maps of pointer-sized value types
 //
@@ -267,10 +269,12 @@ void LookupMap<TYPE>::EnsureElementCanBeStored(Module * pModule, DWORD rid)
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_PREJIT
     // don't attempt to call GetElementPtr for rids inside the compressed portion of
     // a multi-node map
     if (MapIsCompressed() && rid < dwCount)
         return;
+#endif
     PTR_TADDR pElement = GetElementPtr(rid);
     if (pElement == NULL)
         GrowMap(pModule, rid);
@@ -654,10 +658,20 @@ inline MethodTable* Module::GetDynamicClassMT(DWORD dynamicClassID)
     return m_pDynamicStaticsInfo[dynamicClassID].pEnclosingMT;
 }
 
-inline ReJitManager * Module::GetReJitManager()
+#ifdef FEATURE_CODE_VERSIONING
+inline CodeVersionManager * Module::GetCodeVersionManager()
 {
     LIMITED_METHOD_CONTRACT;
-    return GetDomain()->GetReJitManager();
+    return GetDomain()->GetCodeVersionManager();
 }
+#endif // FEATURE_CODE_VERSIONING
+
+#ifdef FEATURE_TIERED_COMPILATION
+inline CallCounter * Module::GetCallCounter()
+{
+    LIMITED_METHOD_CONTRACT;
+    return GetDomain()->GetCallCounter();
+}
+#endif // FEATURE_TIERED_COMPILATION
 
 #endif  // CEELOAD_INL_

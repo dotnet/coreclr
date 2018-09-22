@@ -173,11 +173,21 @@ namespace CorUnix
         void *          // pProcessLocalData
         );
 
+    typedef void (*OBJECT_IMMUTABLE_DATA_COPY_ROUTINE) (
+        void *,
+        void *);
+    typedef void (*OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE) (
+        void *);
+    typedef void (*OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE) (
+        CPalThread *,   // pThread
+        IPalObject *);
+
     enum PalObjectTypeId
     {
         otiAutoResetEvent = 0,
         otiManualResetEvent,
         otiMutex,
+        otiNamedMutex,
         otiSemaphore,
         otiFile,
         otiFileMapping,
@@ -314,7 +324,10 @@ namespace CorUnix
         OBJECTCLEANUPROUTINE m_pCleanupRoutine;
         OBJECTINITROUTINE m_pInitRoutine;
         DWORD m_dwImmutableDataSize;
+        OBJECT_IMMUTABLE_DATA_COPY_ROUTINE m_pImmutableDataCopyRoutine;
+        OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE m_pImmutableDataCleanupRoutine;
         DWORD m_dwProcessLocalDataSize;
+        OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE m_pProcessLocalDataCleanupRoutine;
         DWORD m_dwSharedDataSize;
         DWORD m_dwSupportedAccessRights;
         // Generic access rights mapping
@@ -334,7 +347,10 @@ namespace CorUnix
             OBJECTCLEANUPROUTINE pCleanupRoutine,
             OBJECTINITROUTINE pInitRoutine,
             DWORD dwImmutableDataSize,
+            OBJECT_IMMUTABLE_DATA_COPY_ROUTINE pImmutableDataCopyRoutine,
+            OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE pImmutableDataCleanupRoutine,
             DWORD dwProcessLocalDataSize,
+            OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE pProcessLocalDataCleanupRoutine,
             DWORD dwSharedDataSize,
             DWORD dwSupportedAccessRights,
             SecuritySupport eSecuritySupport,
@@ -351,7 +367,10 @@ namespace CorUnix
             m_pCleanupRoutine(pCleanupRoutine),
             m_pInitRoutine(pInitRoutine),
             m_dwImmutableDataSize(dwImmutableDataSize),
+            m_pImmutableDataCopyRoutine(pImmutableDataCopyRoutine),
+            m_pImmutableDataCleanupRoutine(pImmutableDataCleanupRoutine),
             m_dwProcessLocalDataSize(dwProcessLocalDataSize),
+            m_pProcessLocalDataCleanupRoutine(pProcessLocalDataCleanupRoutine),
             m_dwSharedDataSize(dwSharedDataSize),
             m_dwSupportedAccessRights(dwSupportedAccessRights),
             m_eSecuritySupport(eSecuritySupport),
@@ -407,6 +426,38 @@ namespace CorUnix
             return  m_dwImmutableDataSize;
         };
         
+        void
+        SetImmutableDataCopyRoutine(
+            OBJECT_IMMUTABLE_DATA_COPY_ROUTINE ptr
+            )
+        {
+            m_pImmutableDataCopyRoutine = ptr;
+        };
+
+        OBJECT_IMMUTABLE_DATA_COPY_ROUTINE
+        GetImmutableDataCopyRoutine(
+            void
+            )
+        {
+            return m_pImmutableDataCopyRoutine;
+        };
+
+        void
+        SetImmutableDataCleanupRoutine(
+            OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE ptr
+            )
+        {
+            m_pImmutableDataCleanupRoutine = ptr;
+        };
+
+        OBJECT_IMMUTABLE_DATA_CLEANUP_ROUTINE
+        GetImmutableDataCleanupRoutine(
+            void
+            )
+        {
+            return m_pImmutableDataCleanupRoutine;
+        }
+
         DWORD
         GetProcessLocalDataSize(
             void
@@ -414,7 +465,15 @@ namespace CorUnix
         {
             return m_dwProcessLocalDataSize;
         };
-        
+
+        OBJECT_PROCESS_LOCAL_DATA_CLEANUP_ROUTINE
+        GetProcessLocalDataCleanupRoutine(
+            void
+            )
+        {
+            return m_pProcessLocalDataCleanupRoutine;
+        }
+
         DWORD
         GetSharedDataSize(
             void
@@ -714,7 +773,8 @@ namespace CorUnix
         RegisterWaitingThread(
             WaitType eWaitType,
             DWORD dwIndex,
-            bool fAltertable
+            bool fAltertable,
+            bool fPrioritize
             ) = 0;
 
         //
@@ -1124,6 +1184,10 @@ namespace CorUnix
             CPalThread *pThread
             ) = 0;
 
+        virtual
+        PAL_ERROR
+        SendTerminationRequestToWorkerThread() = 0;
+
         //
         // This routine is primarily meant for use by WaitForMultipleObjects[Ex].
         // The caller must individually release each of the returned controller
@@ -1224,130 +1288,6 @@ namespace CorUnix
 
     extern IPalSynchronizationManager *g_pSynchronizationManager;
 
-    class IFileTransactionLock
-    {
-    public:
-
-        //
-        // Called when the transaction completes (which includes
-        // error completions, or the outright failure to queue
-        // the transaction).
-        //
-
-        virtual
-        void
-        ReleaseLock() = 0;
-    };
-
-    class IFileLockController
-    {
-    public:
-
-        //
-        // A transaction lock is acquired before a read or write
-        // operation, and released when that operation completes.
-        // The lock is not tied to the calling thread, since w/
-        // asynch file IO the completion may occur on a different
-        // thread.
-        //
-
-        enum FileTransactionLockType
-        {
-            ReadLock,
-            WriteLock
-        };
-
-        virtual
-        PAL_ERROR
-        GetTransactionLock(
-            CPalThread *pThread,                // IN, OPTIONAL
-            FileTransactionLockType eLockType,
-            DWORD dwOffsetLow,
-            DWORD dwOffsetHigh,
-            DWORD nNumberOfBytesToLockLow,
-            DWORD nNumberOfBytesToLockHigh,
-            IFileTransactionLock **ppTransactionLock    // OUT
-            ) = 0;
-
-        enum FileLockExclusivity
-        {
-            ExclusiveFileLock,
-            SharedFileLock
-        };
-
-        enum FileLockWaitMode
-        {
-            FailImmediately,
-            WaitForLockAcquisition
-        };
-
-        virtual
-        PAL_ERROR
-        CreateFileLock(
-            CPalThread *pThread,                // IN, OPTIONAL
-            DWORD dwOffsetLow,
-            DWORD dwOffsetHigh,
-            DWORD nNumberOfBytesToLockLow,
-            DWORD nNumberOfBytesToLockHigh,
-            FileLockExclusivity eFileLockExclusivity,
-            FileLockWaitMode eFileLockWaitMode
-            ) = 0;
-
-        virtual
-        PAL_ERROR
-        ReleaseFileLock(
-            CPalThread *pThread,                // IN, OPTIONAL
-            DWORD dwOffsetLow,
-            DWORD dwOffsetHigh,
-            DWORD nNumberOfBytesToUnlockLow,
-            DWORD nNumberOfBytesToUnlockHigh
-            ) = 0;
-
-        //
-        // ReleaseController should be called from the file object's
-        // cleanup routine. It must always be called, even if fShutdown is
-        // TRUE or fCleanupSharedState is FALSE.
-        //
-
-        virtual
-        void
-        ReleaseController() = 0;
-    };
-
-    class IFileLockManager
-    {
-    public:
-
-        //
-        // GetLockControllerForFile should be called by CreateFile.
-        // It will fail if the requested access rights and share
-        // mode are not compatible with existing lock controllers
-        // for the file.
-        //
-
-        virtual
-        PAL_ERROR
-        GetLockControllerForFile(
-            CPalThread *pThread,                // IN, OPTIONAL
-            LPCSTR szFileName,
-            DWORD dwAccessRights,
-            DWORD dwShareMode,
-            IFileLockController **ppLockController  // OUT
-            ) = 0;
-
-        // 
-        // Gets the share mode for the file
-        // (returns SHARE_MODE_NOT_INITIALIZED if file lock controller 
-        // not found)
-        // 
-        virtual
-        PAL_ERROR
-        GetFileShareModeForFile(
-            LPCSTR szFileName,
-            DWORD* pdwShareMode) = 0;
-    };
-
-    extern IFileLockManager *g_pFileLockManager;
 }
 
 #endif // _CORUNIX_H

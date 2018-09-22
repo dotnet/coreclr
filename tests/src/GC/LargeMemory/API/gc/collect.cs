@@ -3,17 +3,27 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.CompilerServices;
 
 public sealed class CollectTest {
-
+    private LargeObject lo;
     private int numTests = 0;
     public uint size = 0;
+    
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    public void CreateLargeObject() {
+        lo = new LargeObject(size, true);
+    }
+    
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    public void DestroyLargeObject() {
+        lo = null;
+    }
 
     private bool collectLargeObject(int gen) {
         numTests++;
-        LargeObject lo;
         try {
-            lo = new LargeObject(size, true);
+            CreateLargeObject();
         } catch (OutOfMemoryException) {
             Console.WriteLine("Large Memory Machine required");
             return false;
@@ -22,7 +32,8 @@ public sealed class CollectTest {
             Console.WriteLine(e);
             return false;
         }
-        lo = null;
+        
+        DestroyLargeObject();
         GC.Collect(gen);
         GC.WaitForPendingFinalizers();
         GC.Collect(gen);
@@ -57,19 +68,25 @@ public sealed class CollectTest {
 
     public static int Main(string[] args) {
 
-        uint size = 0;
+        uint sizeInMB = 0;
         try {
-            size = UInt32.Parse(args[0]);
+            sizeInMB = UInt32.Parse(args[0]);
         } catch (Exception e) {
             if ( (e is IndexOutOfRangeException) || (e is FormatException) || (e is OverflowException) ) {
-                Console.WriteLine("args: uint - number of GB to allocate");
+                Console.WriteLine("args: uint - number of MB to allocate");
                 return 0;
             }
             throw;
         }
 
+        int availableMem = MemCheck.GetPhysicalMem();
+        if (availableMem != -1 && availableMem < sizeInMB){
+            sizeInMB = (uint)(availableMem > 300 ? 300 : (availableMem / 2));
+            Console.WriteLine("Not enough memory. Allocating " + sizeInMB + "MB instead.");
+        }
+
         CollectTest test = new CollectTest();
-        test.size = size;
+        test.size = sizeInMB;
 
         if (test.RunTests()) {
             Console.WriteLine("Test passed");

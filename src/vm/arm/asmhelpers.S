@@ -32,7 +32,7 @@
 //void CallDescrWorkerInternal(CallDescrData * pCallDescrData)//
         NESTED_ENTRY CallDescrWorkerInternal,_TEXT,NoHandler
         PROLOG_PUSH         "{r4,r5,r7,lr}"
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #8
 
         mov     r5,r0 // save pCallDescrData in r5
 
@@ -129,7 +129,7 @@ LOCAL_LABEL(LReturnDone):
         vldm    sp, {d0-d3}
 #endif
 
-        EPILOG_STACK_RESTORE    r7
+        EPILOG_STACK_RESTORE_OFFSET   r7, #8
         EPILOG_POP              "{r4,r5,r7,pc}"
 
         NESTED_END CallDescrWorkerInternal,_TEXT
@@ -174,7 +174,7 @@ LOCAL_LABEL(LReturnDone):
         // Spill callee saved registers and return address.
         PROLOG_PUSH         "{r4-r11,lr}"
         
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #12
 
         //
         // This is the code that would have to run to setup this frame
@@ -241,7 +241,7 @@ LOCAL_LABEL(GoodGSCookie):
         // 
         // epilog
         //
-        EPILOG_STACK_RESTORE    r7
+        EPILOG_STACK_RESTORE_OFFSET   r7, #12
         EPILOG_POP              "{r4-r11,lr}"
         bx lr
         
@@ -287,8 +287,9 @@ LOCAL_LABEL(LNullThis):
 //
         NESTED_ENTRY TheUMEntryPrestub,_TEXT,NoHandler
 
-        push {r0-r4,lr}
-        vpush {d0-d7}
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}" // add r8 to make stack aligned by 8B
+        PROLOG_STACK_SAVE_OFFSET r7, #20
+        PROLOG_VPUSH {d0-d7}
 
         CHECK_STACK_ALIGNMENT
 
@@ -299,8 +300,8 @@ LOCAL_LABEL(LNullThis):
         mov     r12, r0
 
         // Epilog
-        vpop {d0-d7}
-        pop {r0-r4,lr}
+        EPILOG_VPOP {d0-d7}
+        EPILOG_POP "{r0-r4,r7,r8,lr}"
         bx r12
 
         NESTED_END TheUMEntryPrestub,_TEXT
@@ -308,15 +309,19 @@ LOCAL_LABEL(LNullThis):
 //
 // r12 = UMEntryThunk*
 //
-        NESTED_ENTRY UMThunkStub,_TEXT,NoHandler
+        NESTED_ENTRY UMThunkStub,_TEXT,UnhandledExceptionHandlerUnix
         PROLOG_PUSH         "{r4,r5,r7,r11,lr}"
-        push                {r0-r3,r12}
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #8
 
-        //GBLA UMThunkStub_HiddenArg // offset of saved UMEntryThunk *
-        //GBLA UMThunkStub_StackArgs // offset of original stack args (total size of UMThunkStub frame)
-UMThunkStub_HiddenArg = 4*4
-UMThunkStub_StackArgs = 10*4
+        alloc_stack         4 * 5
+        stm                 sp, {r0-r3,r12}
+
+        //GBLA UMThunkStub_HiddenArgOffest // offset of saved UMEntryThunk *
+        //GBLA UMThunkStub_StackArgsOffest // offset of original stack args
+        //GBLA UMThunkStub_StackArgsSize   // total size of UMThunkStub frame
+UMThunkStub_HiddenArgOffset = (-3)*4
+UMThunkStub_StackArgsOffset = 3*4
+UMThunkStub_StackArgsSize = 10*4
 
         CHECK_STACK_ALIGNMENT
 
@@ -335,7 +340,7 @@ LOCAL_LABEL(UMThunkStub_HaveThread):
         cbnz                r3, LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads)
 
 LOCAL_LABEL(UMThunkStub_InCooperativeMode):
-        ldr                 r12, [r7, #UMThunkStub_HiddenArg]
+        ldr                 r12, [r7, #UMThunkStub_HiddenArgOffset]
 
         ldr                 r0, [r5, #Thread__m_pDomain]
         ldr                 r1, [r12, #UMEntryThunk__m_dwDomainId]
@@ -347,7 +352,7 @@ LOCAL_LABEL(UMThunkStub_InCooperativeMode):
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
-        add                 r0, r7, #UMThunkStub_StackArgs // Source pointer
+        add                 r0, r7, #UMThunkStub_StackArgsOffset // Source pointer
         add                 r0, r0, r2
         lsr                 r1, r2, #2      // Count of stack slots to copy
 
@@ -364,7 +369,8 @@ LOCAL_LABEL(UMThunkStub_ArgumentsSetup):
         ldr                 r4, [r3, #UMThunkMarshInfo__m_pILStub]
 
         // reload argument registers
-        ldm                 r7, {r0-r3}
+        sub                 r0, r7, #28
+        ldm                 r0, {r0-r3}
 
         CHECK_STACK_ALIGNMENT
 
@@ -374,8 +380,7 @@ LOCAL_LABEL(UMThunkStub_PostCall):
         mov                 r4, 0
         str                 r4, [r5, #Thread__m_fPreemptiveGCDisabled]
 
-        EPILOG_STACK_RESTORE r7
-        free_stack           4 * 5
+        EPILOG_STACK_RESTORE_OFFSET    r7, #8
         EPILOG_POP           "{r4,r5,r7,r11,pc}"
 
 LOCAL_LABEL(UMThunkStub_DoThreadSetup):
@@ -390,7 +395,7 @@ LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
         vstm                sp, {d0-d7}
         mov                 r0, r5              // Thread* pThread
-        ldr                 r1, [r7, #UMThunkStub_HiddenArg]  // UMEntryThunk* pUMEntry
+        ldr                 r1, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
         bl                  C_FUNC(UMThunkStubRareDisableWorker)
         vldm                sp, {d0-d7}
         add                 sp, #SIZEOF__FloatArgumentRegisters
@@ -400,7 +405,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         sub                 sp, #SIZEOF__FloatArgumentRegisters
         vstm                sp, {d0-d7}
 
-        ldr                 r0, [r7, #UMThunkStub_HiddenArg]  // UMEntryThunk* pUMEntry
+        ldr                 r0, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
         mov                 r2, r7              // void * pArgs
         // remaining arguments are unused
         bl                  C_FUNC(UM2MDoADCallBack)
@@ -424,7 +429,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         NESTED_ENTRY UM2MThunk_WrapperHelper, _TEXT, NoHandler
 
         PROLOG_PUSH         "{r4-r7,r11,lr}"
-        PROLOG_STACK_SAVE   r7
+        PROLOG_STACK_SAVE_OFFSET   r7, #12
 
         CHECK_STACK_ALIGNMENT
 
@@ -440,7 +445,7 @@ LOCAL_LABEL(UMThunkStub_WrongAppDomain):
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup)
 
-        add                 r0, r5, #UMThunkStub_StackArgs // Source pointer
+        add                 r0, r5, #UMThunkStub_StackArgsSize // Source pointer
         add                 r0, r0, r2
         lsr                 r1, r2, #2      // Count of stack slots to copy
 
@@ -480,7 +485,7 @@ LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup):
         vldm                sp, {d0-d3}
 #endif
 
-        EPILOG_STACK_RESTORE r7
+        EPILOG_STACK_RESTORE_OFFSET r7, #12
         EPILOG_POP          "{r4-r7,r11,pc}"
 
         NESTED_END UM2MThunk_WrapperHelper, _TEXT
@@ -504,6 +509,24 @@ LOCAL_LABEL(UM2MThunk_WrapperHelper_ArgumentsSetup):
         NESTED_END ThePreStub, _TEXT
 
 // ------------------------------------------------------------------
+        NESTED_ENTRY ThePreStubCompactARM, _TEXT, NoHandler
+
+        // r12 - address of compact entry point + PC_REG_RELATIVE_OFFSET
+
+        PROLOG_WITH_TRANSITION_BLOCK
+
+        mov         r0, r12
+
+        bl          C_FUNC(PreStubGetMethodDescForCompactEntryPoint)
+
+        mov         r12, r0                                          // pMethodDesc
+
+        EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
+
+        b           C_FUNC(ThePreStub)
+
+        NESTED_END ThePreStubCompactARM, _TEXT
+// ------------------------------------------------------------------
 // This method does nothing. It's just a fixed function for the debugger to put a breakpoint on.
         LEAF_ENTRY ThePreStubPatch, _TEXT
         nop
@@ -516,9 +539,10 @@ ThePreStubPatchLabel:
 // The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
 
-        push {r0-r4,lr}                                 // Spill general argument registers, return address and
+        PROLOG_PUSH "{r0-r4,r7,r8,lr}"                  // Spill general argument registers, return address and
+        PROLOG_STACK_SAVE_OFFSET r7, #20
                                                         // arbitrary register to keep stack aligned
-        vpush {d0-d7}                                   // Spill floating point argument registers
+        PROLOG_VPUSH {d0-d7}                                   // Spill floating point argument registers
 
         CHECK_STACK_ALIGNMENT
 
@@ -526,8 +550,8 @@ ThePreStubPatchLabel:
         bl      C_FUNC(NDirectImportWorker)
         mov     r12, r0
 
-        vpop {d0-d7}
-        pop {r0-r4,lr}
+        EPILOG_VPOP {d0-d7}
+        EPILOG_POP "{r0-r4,r7,r8,lr}"
 
         // If we got back from NDirectImportWorker, the MD has been successfully
         // linked. Proceed to execute the original DLL call.
@@ -631,6 +655,135 @@ ThePreStubPatchLabel:
 
         .endm
 
+//
+// EXTERN_C void ProfileEnterNaked(FunctionIDOrClientID functionIDOrClientID);
+//
+NESTED_ENTRY ProfileEnterNaked, _TEXT, NoHandler
+    PROLOG_PUSH "{r4, r5, r7, r11, lr}"
+    PROLOG_STACK_SAVE_OFFSET r7, #8
+
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
+
+    // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
+    // UINT32      r1;
+    // void       *r11;
+    // void       *Pc;
+    // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
+    // {
+    //     UINT32  s[16];
+    //     UINT64  d[8];
+    // };
+    // FunctionID  functionId;
+    // void       *probeSp;    // stack pointer of managed function 
+    // void       *profiledSp; // location of arguments on stack
+    // LPVOID      hiddenArg;
+    // UINT32      flags;
+    movw        r4, #1
+    push        { /* flags      */ r4 }
+    movw        r4, #0
+    push        { /* hiddenArg  */ r4 }
+    add         r5, r11, #8
+    push        { /* profiledSp */ r5 }
+    add         r5, sp, #32
+    push        { /* probeSp    */ r5 }
+    push        { /* functionId */ r0 }
+    vpush.64    { d0 - d7 }
+    push        { lr }
+    push        { r11 }
+    push        { /* return value, r4 is NULL */ r4 }
+    push        { /* return value, r4 is NULL */ r4 }
+    mov         r1, sp
+    bl          C_FUNC(ProfileEnter)
+    EPILOG_STACK_RESTORE_OFFSET r7, #8
+    EPILOG_POP "{r4, r5, r7, r11, pc}"
+NESTED_END ProfileEnterNaked, _TEXT
+
+//
+// EXTERN_C void ProfileLeaveNaked(FunctionIDOrClientID functionIDOrClientID);
+//
+NESTED_ENTRY ProfileLeaveNaked, _TEXT, NoHandler
+    PROLOG_PUSH "{r1, r2, r4, r5, r7, r11, lr}"
+    PROLOG_STACK_SAVE_OFFSET r7, #16
+
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
+
+    // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
+    // UINT32      r1;
+    // void       *r11;
+    // void       *Pc;
+    // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
+    // {
+    //     UINT32  s[16];
+    //     UINT64  d[8];
+    // };
+    // FunctionID  functionId;
+    // void       *probeSp;    // stack pointer of managed function 
+    // void       *profiledSp; // location of arguments on stack
+    // LPVOID      hiddenArg;
+    // UINT32      flags;
+    movw        r4, #2
+    push        { /* flags      */ r4 }
+    movw        r4, #0
+    push        { /* hiddenArg  */ r4 }
+    add         r5, r11, #8
+    push        { /* profiledSp */ r5 }
+    add         r5, sp, #40
+    push        { /* probeSp    */ r5 }
+    push        { /* functionId */ r0 }
+    vpush.64    { d0 - d7 }
+    push        { lr }
+    push        { r11 }
+    push        { r1 }
+    push        { r0 }
+    mov         r1, sp
+    bl          C_FUNC(ProfileLeave)
+    EPILOG_STACK_RESTORE_OFFSET r7, #16
+    EPILOG_POP "{r1, r2, r4, r5, r7, r11, pc}"
+NESTED_END ProfileLeaveNaked, _TEXT
+
+//
+// EXTERN_C void ProfileTailcallNaked(FunctionIDOrClientID functionIDOrClientID);
+//
+NESTED_ENTRY ProfileTailcallNaked, _TEXT, NoHandler
+    PROLOG_PUSH "{r1, r2, r4, r5, r7, r11, lr}"
+    PROLOG_STACK_SAVE_OFFSET r7, #16
+
+    // fields of PROFILE_PLATFORM_SPECIFIC_DATA, in reverse order
+
+    // UINT32      r0;         // Keep r0 & r1 contiguous to make returning 64-bit results easier
+    // UINT32      r1;
+    // void       *r11;
+    // void       *Pc;
+    // union                   // Float arg registers as 32-bit (s0-s15) and 64-bit (d0-d7)
+    // {
+    //     UINT32  s[16];
+    //     UINT64  d[8];
+    // };
+    // FunctionID  functionId;
+    // void       *probeSp;    // stack pointer of managed function 
+    // void       *profiledSp; // location of arguments on stack
+    // LPVOID      hiddenArg;
+    // UINT32      flags;
+    movw        r4, #2
+    push        { /* flags      */ r4 }
+    movw        r4, #0
+    push        { /* hiddenArg  */ r4 }
+    add         r5, r11, #8
+    push        { /* profiledSp */ r5 }
+    add         r5, sp, #40
+    push        { /* probeSp    */ r5 }
+    push        { /* functionId */ r0 }
+    vpush.64    { d0 - d7 }
+    push        { lr }
+    push        { r11 }
+    push        { r1 }
+    push        { r0 }
+    mov         r1, sp
+    bl          C_FUNC(ProfileTailcall)
+    EPILOG_STACK_RESTORE_OFFSET r7, #16
+    EPILOG_POP "{r1, r2, r4, r5, r7, r11, pc}"
+NESTED_END ProfileTailcallNaked, _TEXT
+
 // EXTERN_C int __fastcall HelperMethodFrameRestoreState(
 //         INDEBUG_COMMA(HelperMethodFrame *pFrame)
 //         MachState *pState
@@ -676,8 +829,8 @@ LOCAL_LABEL(Done):
         NESTED_ENTRY RedirectedHandledJITCaseFor\reason\()_Stub, _TEXT, NoHandler
 
         PROLOG_PUSH "{r7,lr}"   // return address
-        alloc_stack 4           // stack slot to save the CONTEXT *
         PROLOG_STACK_SAVE r7
+        alloc_stack 4           // stack slot to save the CONTEXT *
 
         //REDIRECTSTUB_SP_OFFSET_CONTEXT is defined in asmconstants.h
         //If CONTEXT is not saved at 0 offset from SP it must be changed as well.
@@ -727,8 +880,6 @@ RedirectedHandledJITCaseFor\reason\()_StubEnd:
         GenerateRedirectedHandledJITCaseStub DbgThreadControl
 // ------------------------------------------------------------------
         GenerateRedirectedHandledJITCaseStub UserSuspend
-// ------------------------------------------------------------------
-        GenerateRedirectedHandledJITCaseStub YieldTask
 
 #ifdef _DEBUG
 // ------------------------------------------------------------------
@@ -793,7 +944,8 @@ LOCAL_LABEL(stackProbe_loop):
     NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    push {r0-r3, lr}
+    PROLOG_PUSH "{r0-r3, r7,r8, lr}" // keep increase by 8B for alignment
+    PROLOG_STACK_SAVE_OFFSET r7, #20
 
     // Align stack
     alloc_stack  SIZEOF__FloatArgumentRegisters + 4
@@ -820,7 +972,7 @@ LOCAL_LABEL(stackProbe_loop):
     // pop the stack and restore original register state
     vldm               sp, {d0-d7}
     free_stack SIZEOF__FloatArgumentRegisters + 4
-    pop {r0-r3, lr}
+    EPILOG_POP "{r0-r3, r7,r8, lr}"
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -906,15 +1058,16 @@ LOCAL_LABEL(stackProbe_loop):
 //
     NESTED_ENTRY JIT_RareDisableHelper, _TEXT, NoHandler
 
-    PROLOG_PUSH "{r0-r1, r11, lr}" // save integer return value
-    vpush {d0-d3}                  // floating point return value
+    PROLOG_PUSH "{r0-r1, r7,r8, r11, lr}" // save integer return value
+    PROLOG_STACK_SAVE_OFFSET r7, #8
+    PROLOG_VPUSH {d0-d3}                  // floating point return value
 
     CHECK_STACK_ALIGNMENT
 
     bl          C_FUNC(JIT_RareDisableHelperWorker)
 
-    vpop {d0-d3}
-    EPILOG_POP "{r0-r1, r11, pc}"
+    EPILOG_VPOP {d0-d3}
+    EPILOG_POP "{r0-r1, r7,r8, r11, pc}"
 
     NESTED_END JIT_RareDisableHelper, _TEXT
 
@@ -1040,8 +1193,8 @@ LOCAL_LABEL(ThrowIndexOutOfRangeException):
 //   r12 = array->GetArrayElementTypeHandle()
 //
     NESTED_ENTRY JIT_Stelem_Ref_NotExactMatch, _TEXT, NoHandler
-    push   {lr}
-    push   {r0-r2}
+    PROLOG_PUSH {lr}
+    PROLOG_PUSH {r0-r2}
 
     CHECK_STACK_ALIGNMENT 
 
@@ -1060,8 +1213,8 @@ LOCAL_LABEL(NeedFrame):
     bl      C_FUNC(ArrayStoreCheck) // ArrayStoreCheck(&val, &array)
  
 LOCAL_LABEL(DoWrite):
-    pop  {r0-r2}
-    pop  {lr}
+    EPILOG_POP {r0-r2}
+    EPILOG_POP {lr}
     b C_FUNC(JIT_Stelem_DoWrite)
 
     NESTED_END JIT_Stelem_Ref_NotExactMatch, _TEXT
@@ -1152,7 +1305,7 @@ LOCAL_LABEL(DoWrite):
         UPDATE_GC_SHADOW \name, r0, r1
         UPDATE_CARD_TABLE \name, r0, r1, \mp, \post, r0
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_CHECKEDWRITEBARRIER_SP name, post
@@ -1164,7 +1317,7 @@ LOCAL_LABEL(DoWrite):
         UPDATE_CARD_TABLE \name, r0, r1, 0, \post, r0
 1:
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_CHECKEDWRITEBARRIER_MP name, post
@@ -1179,7 +1332,7 @@ LOCAL_LABEL(DoWrite):
 1:
         str r1, [r0]
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_BYREFWRITEBARRIER name, mp, post
@@ -1198,7 +1351,7 @@ LOCAL_LABEL(DoWrite):
         add r0, #4
         add r1, #4
         bx lr
-    LEAF_END \name, _TEXT
+    LEAF_END_MARKED \name, _TEXT
     .endm
     
     .macro JIT_WRITEBARRIER_DESCRIPTOR name
@@ -1257,20 +1410,20 @@ g_rgWriteBarrierDescriptors:
     NESTED_ENTRY DelayLoad_MethodCall_FakeProlog, _TEXT, NoHandler
 
     // Match what the lazy thunk has pushed. The actual method arguments will be spilled later.
-    push         {r1-r3}
+    PROLOG_PUSH  {r1-r3}
 
         // This is where execution really starts.
 DelayLoad_MethodCall:
     .global DelayLoad_MethodCall
 
-    push         {r0}
+    PROLOG_PUSH  {r0}
 
     PROLOG_WITH_TRANSITION_BLOCK 0x0, 1, DoNotPushArgRegs
 
     // Load the helper arguments
     ldr         r5, [sp,#(__PWTB_TransitionBlock+10*4)] // pModule
     ldr         r6, [sp,#(__PWTB_TransitionBlock+11*4)] // sectionIndex
-    ldr         r7, [sp,#(__PWTB_TransitionBlock+12*4)] // indirection
+    ldr         r8, [sp,#(__PWTB_TransitionBlock+12*4)] // indirection
 
     // Spill the actual method arguments
     str         r1, [sp,#(__PWTB_TransitionBlock+10*4)]
@@ -1279,7 +1432,7 @@ DelayLoad_MethodCall:
 
     add         r0, sp, #__PWTB_TransitionBlock // pTransitionBlock
 
-    mov         r1, r7          // pIndirection
+    mov         r1, r8          // pIndirection
     mov         r2, r6          // sectionIndex
     mov         r3, r5          // pModule
 
@@ -1298,25 +1451,23 @@ DelayLoad_MethodCall:
 
     .macro DynamicHelper frameFlags, suffix
 
-__FakePrologName="DelayLoad_Helper\suffix\()_FakeProlog"
-
         NESTED_ENTRY DelayLoad_Helper\suffix\()_FakeProlog, _TEXT, NoHandler
 
         // Match what the lazy thunk has pushed. The actual method arguments will be spilled later.
-        push         {r1-r3}
+        PROLOG_PUSH  {r1-r3}
 
         // This is where execution really starts.
 DelayLoad_Helper\suffix:
         .global DelayLoad_Helper\suffix
 
-        push         {r0}
+        PROLOG_PUSH  {r0}
 
         PROLOG_WITH_TRANSITION_BLOCK 0x4, 0, DoNotPushArgRegs
 
         // Load the helper arguments
         ldr         r5, [sp,#(__PWTB_TransitionBlock+10*4)] // pModule
         ldr         r6, [sp,#(__PWTB_TransitionBlock+11*4)] // sectionIndex
-        ldr         r7, [sp,#(__PWTB_TransitionBlock+12*4)] // indirection
+        ldr         r8, [sp,#(__PWTB_TransitionBlock+12*4)] // indirection
 
         // Spill the actual method arguments
         str         r1, [sp,#(__PWTB_TransitionBlock+10*4)]
@@ -1325,7 +1476,7 @@ DelayLoad_Helper\suffix:
 
         add         r0, sp, #__PWTB_TransitionBlock // pTransitionBlock
 
-        mov         r1, r7          // pIndirection
+        mov         r1, r8          // pIndirection
         mov         r2, r6          // sectionIndex
         mov         r3, r5          // pModule
 
@@ -1354,7 +1505,27 @@ DelayLoad_Helper\suffix:
 
 #endif // FEATURE_READYTORUN
 
-LEAF_ENTRY StartUnwindingNativeFrames, _TEXT
-       // TODO: Implement
-       bx lr
-LEAF_END StartUnwindingNativeFrames, _TEXT
+#ifdef FEATURE_HIJACK
+
+// ------------------------------------------------------------------
+// Hijack function for functions which return a value type
+        NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
+        PROLOG_PUSH "{r0,r4-r11,lr}"
+
+        PROLOG_VPUSH "{d0-d3}"    // saving as d0-d3 can have the floating point return value
+        PROLOG_PUSH "{r1}"        // saving as r1 can have partial return value when return is > 32 bits
+        alloc_stack 4             // 8 byte align
+
+        CHECK_STACK_ALIGNMENT
+
+        add r0, sp, #40
+        bl C_FUNC(OnHijackWorker)
+
+        free_stack 4
+        EPILOG_POP "{r1}"
+        EPILOG_VPOP "{d0-d3}"
+
+        EPILOG_POP "{r0,r4-r11,pc}"
+        NESTED_END OnHijackTripThread, _TEXT
+#endif
+

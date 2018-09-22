@@ -66,6 +66,7 @@
 
 
 #include <stdint.h>
+#include <stddef.h>
 #include <winwrap.h>
 
 
@@ -96,12 +97,6 @@
 #include <../../debug/inc/dbgtargetcontext.h>
 
 //-----------------------------------------------------------------------------------------------------------
-
-#include "compatibilityflags.h"
-extern BOOL GetCompatibilityFlag(CompatibilityFlag flag);
-#ifndef FEATURE_CORECLR
-extern DWORD* GetGlobalCompatibilityFlags();
-#endif // !FEATURE_CORECLR
 
 #include "strongname.h"
 #include "stdmacros.h"
@@ -173,11 +168,10 @@ typedef DPTR(class ReJitManager)        PTR_ReJitManager;
 typedef DPTR(struct ReJitInfo)          PTR_ReJitInfo;
 typedef DPTR(struct SharedReJitInfo)    PTR_SharedReJitInfo;
 typedef DPTR(class StringObject)        PTR_StringObject;
-typedef DPTR(class StringBufferObject)  PTR_StringBufferObject;
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
-typedef VPTR(class GCHeap)              PTR_GCHeap;
+typedef VPTR(class IGCHeap)             PTR_IGCHeap;
 
 //
 // _UNCHECKED_OBJECTREF is for code that can't deal with DEBUG OBJECTREFs
@@ -271,10 +265,6 @@ FORCEINLINE void* memcpyUnsafe(void *dest, const void *src, size_t len)
     extern "C" void *  __cdecl GCSafeMemCpy(void *, const void *, size_t);
     #define memcpy(dest, src, len) GCSafeMemCpy(dest, src, len)
     #endif // !defined(memcpy)
-
-    #if !defined(CHECK_APP_DOMAIN_LEAKS)
-    #define CHECK_APP_DOMAIN_LEAKS 1
-    #endif
 #else // !_DEBUG && !DACCESS_COMPILE && !CROSSGEN_COMPILE
     FORCEINLINE void* memcpyNoGCRefs(void * dest, const void * src, size_t len) {
             WRAPPER_NO_CONTRACT;
@@ -319,11 +309,11 @@ namespace Loader
 #include "pedecoder.h"
 #include "sstring.h"
 #include "slist.h"
+#include "yieldprocessornormalized.h"
 
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "objecthandle.h"
 #include "declsec.h"
 
 #ifdef FEATURE_COMINTEROP 
@@ -337,7 +327,6 @@ namespace Loader
 
 #include "eehash.h"
 
-#include "handletable.h"
 #include "vars.hpp"
 #include "eventstore.hpp"
 
@@ -366,7 +355,6 @@ namespace Loader
 #include "threads.h"
 #include "clrex.inl"
 #ifdef FEATURE_COMINTEROP
-    // These need to be included *after* threads.h so that they can properly use LeaveRuntimeHolder
     #include "windowsruntime.h"
     #include "windowsstring.h"
 #endif
@@ -387,7 +375,6 @@ namespace Loader
 #include "interoputil.h"
 #include "wrappers.h"
 #include "dynamicmethod.h"
-#include "mixedmode.hpp"
 
 #include "gcstress.h"
 
@@ -399,11 +386,6 @@ inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CAN_TAKE_LOCK;
 
-#ifndef FEATURE_CORECLR
-    if (CLRTaskHosted()) {
-        Thread::BeginThreadAffinity();
-    }
-#endif // !FEATURE_CORECLR
     UnsafeEnterCriticalSection(lpCriticalSection);
     INCTHREADLOCKCOUNT();
 }
@@ -415,11 +397,6 @@ inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
 
     UnsafeLeaveCriticalSection(lpCriticalSection);
     DECTHREADLOCKCOUNT();
-#ifndef FEATURE_CORECLR
-    if (CLRTaskHosted()) {
-        Thread::EndThreadAffinity();
-    }
-#endif // !FEATURE_CORECLR
 }
 
 inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
@@ -487,39 +464,15 @@ extern DummyGlobalContract ___contract;
 #include "object.inl"
 #include "clsload.inl"
 #include "domainfile.inl"
-#include "handletable.inl"
 #include "method.inl"
 #include "stackprobe.inl"
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"
-#include "mscorcfg.h"
 #ifdef FEATURE_COMINTEROP
 #include "WinRTRedirector.h"
 #include "winrtredirector.inl"
 #endif // FEATURE_COMINTEROP
-
-inline HRESULT CreateConfigStreamHelper(LPCWSTR filename, IStream** pOutStream)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END
-
-    HRESULT hr =S_OK;
-
-    EX_TRY
-    {
-        hr = CreateConfigStream( filename, pOutStream);
-    }
-    EX_CATCH_HRESULT(hr);
-
-    return hr;
-}
-
 
 #if defined(COMMON_TURNED_FPO_ON)
 #pragma optimize("", on)        // Go back to command line default optimizations

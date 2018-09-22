@@ -9,30 +9,42 @@
 #include "gcenv.h"
 #include "gc.h"
 
+MethodTable * g_pFreeObjectMethodTable;
+
 EEConfig * g_pConfig;
 
-void CLREventStatic::CreateManualEvent(bool bInitialState)
+gc_alloc_context g_global_alloc_context;
+
+bool CLREventStatic::CreateManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateAutoEvent(bool bInitialState)
+bool CLREventStatic::CreateAutoEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, FALSE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateOSManualEvent(bool bInitialState)
+bool CLREventStatic::CreateOSManualEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, TRUE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
-void CLREventStatic::CreateOSAutoEvent(bool bInitialState)
+bool CLREventStatic::CreateOSAutoEventNoThrow(bool bInitialState)
 {
     m_hEvent = CreateEventW(NULL, FALSE, bInitialState, NULL);
     m_fInitialized = true;
+
+    return IsValid();
 }
 
 void CLREventStatic::CloseEvent()
@@ -74,18 +86,14 @@ uint32_t CLREventStatic::Wait(uint32_t dwMilliseconds, bool bAlertable)
 
         if (NULL != pCurThread)
         {
-            if (GCToEEInterface::IsPreemptiveGCDisabled(pCurThread))
-            {
-                GCToEEInterface::EnablePreemptiveGC(pCurThread);
-                disablePreemptive = true;
-            }
+            disablePreemptive = GCToEEInterface::EnablePreemptiveGC();
         }
 
         result = WaitForSingleObjectEx(m_hEvent, dwMilliseconds, bAlertable);
 
         if (disablePreemptive)
         {
-            GCToEEInterface::DisablePreemptiveGC(pCurThread);
+            GCToEEInterface::DisablePreemptiveGC();
         }
     }
 
@@ -121,9 +129,9 @@ void ThreadStore::AttachCurrentThread()
     g_pThreadList = pThread;
 }
 
-void GCToEEInterface::SuspendEE(GCToEEInterface::SUSPEND_REASON reason)
+void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
 {
-    GCHeap::GetGCHeap()->SetGCInProgress(TRUE);
+    g_theGCHeap->SetGCInProgress(true);
 
     // TODO: Implement
 }
@@ -132,7 +140,7 @@ void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
-    GCHeap::GetGCHeap()->SetGCInProgress(FALSE);
+    g_theGCHeap->SetGCInProgress(false);
 }
 
 void GCToEEInterface::GcScanRoots(promote_func* fn,  int condemned, int max_gen, ScanContext* sc)
@@ -161,40 +169,44 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
     return false;
 }
 
-bool GCToEEInterface::IsPreemptiveGCDisabled(Thread * pThread)
+bool GCToEEInterface::IsPreemptiveGCDisabled()
 {
+    Thread* pThread = ::GetThread();
     return pThread->PreemptiveGCDisabled();
 }
 
-void GCToEEInterface::EnablePreemptiveGC(Thread * pThread)
+bool GCToEEInterface::EnablePreemptiveGC()
 {
-    return pThread->EnablePreemptiveGC();
+    bool bToggleGC = false;
+    Thread* pThread = ::GetThread();
+
+    if (pThread)
+    {
+        bToggleGC = !!pThread->PreemptiveGCDisabled();
+        if (bToggleGC)
+        {
+            pThread->EnablePreemptiveGC();
+        }
+    }
+
+    return bToggleGC;
 }
 
-void GCToEEInterface::DisablePreemptiveGC(Thread * pThread)
+void GCToEEInterface::DisablePreemptiveGC()
 {
+    Thread* pThread = ::GetThread();
     pThread->DisablePreemptiveGC();
 }
 
-void GCToEEInterface::SetGCSpecial(Thread * pThread)
+Thread* GCToEEInterface::GetThread()
 {
-    pThread->SetGCSpecial(true);
+    return ::GetThread();
 }
 
-alloc_context * GCToEEInterface::GetAllocContext(Thread * pThread)
+gc_alloc_context * GCToEEInterface::GetAllocContext()
 {
+    Thread* pThread = ::GetThread();
     return pThread->GetAllocContext();
-}
-
-bool GCToEEInterface::CatchAtSafePoint(Thread * pThread)
-{
-    return pThread->CatchAtSafePoint();
-}
-
-// does not acquire thread store lock
-void GCToEEInterface::AttachCurrentThread()
-{
-    ThreadStore::AttachCurrentThread();
 }
 
 void GCToEEInterface::GcEnumAllocContexts (enum_alloc_context_func* fn, void* param)
@@ -204,6 +216,11 @@ void GCToEEInterface::GcEnumAllocContexts (enum_alloc_context_func* fn, void* pa
     {
         fn(pThread->GetAllocContext(), param);
     }
+}
+
+uint8_t* GCToEEInterface::GetLoaderAllocatorObjectForGC(Object* pObject)
+{
+    return NULL;
 }
 
 void GCToEEInterface::SyncBlockCacheWeakPtrScan(HANDLESCANPROC /*scanProc*/, uintptr_t /*lp1*/, uintptr_t /*lp2*/)
@@ -218,71 +235,149 @@ void GCToEEInterface::SyncBlockCachePromotionsGranted(int /*max_gen*/)
 {
 }
 
-void FinalizerThread::EnableFinalization()
+void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
+{
+}
+
+void GCToEEInterface::DiagUpdateGenerationBounds()
+{
+}
+
+void GCToEEInterface::DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent)
+{
+}
+
+void GCToEEInterface::DiagWalkFReachableObjects(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
+{
+}
+
+void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
+{
+}
+
+void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 {
     // Signal to finalizer thread that there are objects to finalize
     // TODO: Implement for finalization
 }
 
-bool FinalizerThread::HaveExtraWorkForFinalizer()
+void GCToEEInterface::HandleFatalError(unsigned int exitCode)
+{
+    abort();
+}
+
+bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
+{
+    return true;
+}
+
+bool GCToEEInterface::ForceFullGCToBeBlocking()
 {
     return false;
 }
 
-bool REDHAWK_PALAPI PalStartBackgroundGCThread(BackgroundCallback callback, void* pCallbackContext)
+bool GCToEEInterface::EagerFinalized(Object* obj)
 {
-    // TODO: Implement for background GC
+    // The sample does not finalize anything eagerly.
     return false;
 }
 
-bool IsGCSpecialThread()
+bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
 {
-    // TODO: Implement for background GC
     return false;
 }
 
-void StompWriteBarrierEphemeral()
+bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
+{
+    return false;
+}
+
+bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
+{
+    return false;
+}
+
+void GCToEEInterface::FreeStringConfigValue(const char *value)
+{
+
+}
+
+bool GCToEEInterface::IsGCThread()
+{
+    return false;
+}
+
+bool GCToEEInterface::WasCurrentThreadCreatedByGC()
+{
+    return false;
+}
+
+MethodTable* GCToEEInterface::GetFreeObjectMethodTable()
+{
+    return g_pFreeObjectMethodTable;
+}
+
+bool GCToEEInterface::CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name)
+{
+    return false;
+}
+
+void GCToEEInterface::WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback)
 {
 }
 
-void StompWriteBarrierResize(bool /*bReqUpperBoundsCheck*/)
+void GCToEEInterface::WalkAsyncPinned(Object* object, void* context, void (*callback)(Object*, Object*, void*))
 {
 }
 
-void LogSpewAlways(const char * /*fmt*/, ...)
+uint32_t GCToEEInterface::GetDefaultDomainIndex()
 {
+    return -1;
 }
 
-uint32_t CLRConfig::GetConfigValue(ConfigDWORDInfo eType)
+void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
 {
-    switch (eType)
-    {
-    case UNSUPPORTED_BGCSpinCount:
-        return 140;
-
-    case UNSUPPORTED_BGCSpin:
-        return 2;
-
-    case UNSUPPORTED_GCLogEnabled:
-    case UNSUPPORTED_GCLogFile:
-    case UNSUPPORTED_GCLogFileSize:
-    case EXTERNAL_GCStressStart:
-    case INTERNAL_GCStressStartAtJit:
-    case INTERNAL_DbgDACSkipVerifyDlls:
-        return 0;
-
-    case Config_COUNT:
-    default:
-#ifdef _MSC_VER
-#pragma warning(suppress:4127) // Constant conditional expression in ASSERT below
-#endif
-        ASSERT(!"Unknown config value type");
-        return 0;
-    }
+    return nullptr;
 }
 
-HRESULT CLRConfig::GetConfigValue(ConfigStringInfo /*eType*/, TCHAR * * outVal)
+bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
 {
-    *outVal = NULL;
-    return 0;
+    return false;
+}
+
+uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
+{
+    return -1;
+}
+
+uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
+{
+    return -1;
+}
+
+bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
+{
+    return false;
+}
+
+inline bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
+{
+    return false;
+}
+
+inline void GCToEEInterface::AnalyzeSurvivorsFinished(int condemnedGeneration)
+{
+    
 }

@@ -32,11 +32,19 @@ Revision History:
 #error Either sysctl or sysconf is required for GetSystemInfo.
 #endif
 
+#if HAVE_SYSINFO
+#include <sys/sysinfo.h>
+#endif
+
 #include <sys/param.h>
 
 #if HAVE_SYS_VMPARAM_H
 #include <sys/vmparam.h>
 #endif  // HAVE_SYS_VMPARAM_H
+
+#if HAVE_XSWDEV
+#include <vm/vm_param.h>
+#endif // HAVE_XSWDEV
 
 #if HAVE_MACH_VM_TYPES_H
 #include <mach/vm_types.h>
@@ -73,13 +81,9 @@ Revision History:
 
 #include "pal/dbgmsg.h"
 
+#include <algorithm>
 
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
-
-#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
-#include <sys/pstat.h>
-#include <sys/vmparam.h>
-#endif
 
 #ifndef __APPLE__
 #if HAVE_SYSCONF && HAVE__SC_AVPHYS_PAGES
@@ -91,6 +95,44 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 #endif
 #endif // __APPLE__
 
+
+DWORD
+PALAPI
+PAL_GetLogicalCpuCountFromOS()
+{
+    int nrcpus = 0;
+
+#if HAVE_SYSCONF
+
+#if defined(_ARM_) || defined(_ARM64_)
+#define SYSCONF_GET_NUMPROCS       _SC_NPROCESSORS_CONF
+#define SYSCONF_GET_NUMPROCS_NAME "_SC_NPROCESSORS_CONF"
+#else
+#define SYSCONF_GET_NUMPROCS       _SC_NPROCESSORS_ONLN
+#define SYSCONF_GET_NUMPROCS_NAME "_SC_NPROCESSORS_ONLN"
+#endif
+    nrcpus = sysconf(SYSCONF_GET_NUMPROCS);
+    if (nrcpus < 1)
+    {
+        ASSERT("sysconf failed for %s (%d)\n", SYSCONF_GET_NUMPROCS_NAME, errno);
+    }
+#elif HAVE_SYSCTL
+    int rc;
+    size_t sz;
+    int mib[2];
+
+    sz = sizeof(nrcpus);
+    mib[0] = CTL_HW;
+    mib[1] = HW_NCPU;
+    rc = sysctl(mib, 2, &nrcpus, &sz, NULL, 0);
+    if (rc != 0)
+    {
+        ASSERT("sysctl failed for HW_NCPU (%d)\n", errno);
+    }
+#endif // HAVE_SYSCONF
+
+    return nrcpus;
+}
 
 /*++
 Function:
@@ -134,45 +176,14 @@ GetSystemInfo(
     lpSystemInfo->dwPageSize = pagesize;
     lpSystemInfo->dwActiveProcessorMask_PAL_Undefined = 0;
 
-#if HAVE_SYSCONF
-#if defined(_HPUX_) && ( defined (_IA64_) || defined (__hppa__) )
-    struct pst_dynamic psd;
-    if (pstat_getdynamic(&psd, sizeof(psd), (size_t)1, 0) != -1) {
-        nrcpus = psd.psd_proc_cnt;
-    }
-    else {
-        ASSERT("pstat_getdynamic failed (%d)\n", errno);
-    }
-
-#else // !__hppa__
-    nrcpus = sysconf(_SC_NPROCESSORS_ONLN);
-    if (nrcpus < 1)
-    {
-        ASSERT("sysconf failed for _SC_NPROCESSORS_ONLN (%d)\n", errno);
-    }
-#endif // __hppa__
-#elif HAVE_SYSCTL
-    int rc;
-    size_t sz;
-    int mib[2];
-
-    sz = sizeof(nrcpus);
-    mib[0] = CTL_HW;
-    mib[1] = HW_NCPU;
-    rc = sysctl(mib, 2, &nrcpus, &sz, NULL, 0);
-    if (rc != 0)
-    {
-        ASSERT("sysctl failed for HW_NCPU (%d)\n", errno);
-    }
-#endif // HAVE_SYSCONF
-
+    nrcpus = PAL_GetLogicalCpuCountFromOS();
     TRACE("dwNumberOfProcessors=%d\n", nrcpus);
     lpSystemInfo->dwNumberOfProcessors = nrcpus;
 
 #ifdef VM_MAXUSER_ADDRESS
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) VM_MAXUSER_ADDRESS;
-#elif defined(__sun__) || defined(_AIX) || defined(__hppa__) || ( defined (_IA64_) && defined (_HPUX_) ) || defined(__linux__)
-    lpSystemInfo->lpMaximumApplicationAddress = (PVOID) -1;
+#elif defined(__linux__)
+    lpSystemInfo->lpMaximumApplicationAddress = (PVOID) (1ull << 47);
 #elif defined(USERLIMIT)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) USERLIMIT;
 #elif defined(_WIN64)
@@ -232,6 +243,8 @@ GlobalMemoryStatusEx(
     lpBuffer->ullAvailExtendedVirtual = 0;
 
     BOOL fRetVal = FALSE;
+    int mib[3];
+    int rc;
 
     // Get the physical memory size
 #if HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
@@ -242,7 +255,6 @@ GlobalMemoryStatusEx(
     lpBuffer->ullTotalPhys = (DWORDLONG)physical_memory;
     fRetVal = TRUE;
 #elif HAVE_SYSCTL
-    int mib[2];
     int64_t physical_memory;
     size_t length;
 
@@ -250,7 +262,7 @@ GlobalMemoryStatusEx(
     mib[0] = CTL_HW;
     mib[1] = HW_MEMSIZE;
     length = sizeof(INT64);
-    int rc = sysctl(mib, 2, &physical_memory, &length, NULL, 0);
+    rc = sysctl(mib, 2, &physical_memory, &length, NULL, 0);
     if (rc != 0)
     {
         ASSERT("sysctl failed for HW_MEMSIZE (%d)\n", errno);
@@ -260,11 +272,65 @@ GlobalMemoryStatusEx(
         lpBuffer->ullTotalPhys = (DWORDLONG)physical_memory;
         fRetVal = TRUE;
     }
-#elif // HAVE_SYSINFO
-    // TODO: implement getting memory details via sysinfo. On Linux, it provides swap file details that
-    // we can use to fill in the xxxPageFile members.
 
-#endif // HAVE_SYSCONF
+#endif // HAVE_SYSCTL
+
+    // Get swap file size, consider the ability to get the values optional
+    // (don't return FALSE from the GlobalMemoryStatusEx)
+#if HAVE_XSW_USAGE
+    // This is available on OSX
+    struct xsw_usage xsu;
+    mib[0] = CTL_VM;
+    mib[1] = VM_SWAPUSAGE;
+    size_t length = sizeof(xsu);
+    rc = sysctl(mib, 2, &xsu, &length, NULL, 0);
+    if (rc == 0)
+    {
+        lpBuffer->ullTotalPageFile = xsu.xsu_total;
+        lpBuffer->ullAvailPageFile = xsu.xsu_avail;
+    }
+#elif HAVE_XSWDEV
+    // E.g. FreeBSD
+    struct xswdev xsw;
+
+    size_t length = 2;
+    rc = sysctlnametomib("vm.swap_info", mib, &length);
+    if (rc == 0)
+    {
+        int pagesize = getpagesize();
+        // Aggregate the information for all swap files on the system
+        for (mib[2] = 0; ; mib[2]++)
+        {
+            length = sizeof(xsw);
+            rc = sysctl(mib, 3, &xsw, &length, NULL, 0);
+            if ((rc < 0) || (xsw.xsw_version != XSWDEV_VERSION))
+            {
+                // All the swap files were processed or coreclr was built against
+                // a version of headers not compatible with the current XSWDEV_VERSION.
+                break;
+            }
+
+            DWORDLONG avail = xsw.xsw_nblks - xsw.xsw_used;
+            lpBuffer->ullTotalPageFile += (DWORDLONG)xsw.xsw_nblks * pagesize;
+            lpBuffer->ullAvailPageFile += (DWORDLONG)avail * pagesize;
+        }
+    }
+#elif HAVE_SYSINFO
+    // Linux
+    struct sysinfo info;
+    rc = sysinfo(&info);
+    if (rc == 0)
+    {
+        lpBuffer->ullTotalPageFile = info.totalswap;
+        lpBuffer->ullAvailPageFile = info.freeswap;
+#if HAVE_SYSINFO_WITH_MEM_UNIT
+        // A newer version of the sysinfo structure represents all the sizes
+        // in mem_unit instead of bytes
+        lpBuffer->ullTotalPageFile *= info.mem_unit;
+        lpBuffer->ullAvailPageFile *= info.mem_unit;
+#endif // HAVE_SYSINFO_WITH_MEM_UNIT
+    }
+#endif // HAVE_SYSINFO
 
     // Get the physical memory in use - from it, we can get the physical memory available.
     // We do this only when we have the total physical memory available.
@@ -327,17 +393,50 @@ PAL_HasGetCurrentProcessorNumber()
     return HAVE_SCHED_GETCPU;
 }
 
-DWORD
-PALAPI
-PAL_GetLogicalCpuCountFromOS()
+bool
+ReadMemoryValueFromFile(const char* filename, size_t* val)
 {
-    DWORD numLogicalCores = 0;
+    bool result = false;
+    char *line = nullptr;
+    size_t lineLen = 0;
+    char* endptr = nullptr;
+    size_t num = 0, l, multiplier;
 
-#if HAVE_SYSCONF
-    numLogicalCores = sysconf(_SC_NPROCESSORS_ONLN);
-#endif
+    if (val == nullptr)
+        return false;
 
-    return numLogicalCores;
+    FILE* file = fopen(filename, "r");
+    if (file == nullptr)
+        goto done;
+
+    if (getline(&line, &lineLen, file) == -1)
+        goto done;
+
+    errno = 0;
+    num = strtoull(line, &endptr, 0);
+    if (errno != 0)
+        goto done;
+
+    multiplier = 1;
+    switch(*endptr)
+    {
+        case 'g':
+        case 'G': multiplier = 1024;
+        case 'm':
+        case 'M': multiplier = multiplier*1024;
+        case 'k':
+        case 'K': multiplier = multiplier*1024;
+    }
+
+    *val = num * multiplier;
+    result = true;
+    if (*val/multiplier != num)
+        result = false;
+done:
+    if (file)
+        fclose(file);
+    free(line);
+    return result;
 }
 
 size_t
@@ -346,12 +445,60 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
 {
     size_t cacheSize = 0;
 
-#if HAVE_SYSCONF && defined(__linux__)
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_DCACHE_SIZE));
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL1_ICACHE_SIZE));
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL2_CACHE_SIZE));
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL3_CACHE_SIZE));
-    cacheSize = max(cacheSize, sysconf(_SC_LEVEL4_CACHE_SIZE));
+#ifdef _SC_LEVEL1_DCACHE_SIZE
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL1_DCACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL2_CACHE_SIZE
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL2_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL3_CACHE_SIZE
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL3_CACHE_SIZE));
+#endif
+#ifdef _SC_LEVEL4_CACHE_SIZE
+    cacheSize = std::max(cacheSize, (size_t)sysconf(_SC_LEVEL4_CACHE_SIZE));
+#endif
+
+#if defined(_ARM64_)
+    if(cacheSize == 0)
+    {
+        size_t size;
+
+        if(ReadMemoryValueFromFile("/sys/devices/system/cpu/cpu0/cache/index0/size", &size))
+            cacheSize = std::max(cacheSize, size);
+        if(ReadMemoryValueFromFile("/sys/devices/system/cpu/cpu0/cache/index1/size", &size))
+            cacheSize = std::max(cacheSize, size);
+        if(ReadMemoryValueFromFile("/sys/devices/system/cpu/cpu0/cache/index2/size", &size))
+            cacheSize = std::max(cacheSize, size);
+        if(ReadMemoryValueFromFile("/sys/devices/system/cpu/cpu0/cache/index3/size", &size))
+            cacheSize = std::max(cacheSize, size);
+        if(ReadMemoryValueFromFile("/sys/devices/system/cpu/cpu0/cache/index4/size", &size))
+            cacheSize = std::max(cacheSize, size);
+    }
+
+    if(cacheSize == 0)
+    {
+        // It is currently expected to be missing cache size info
+        //
+        // _SC_LEVEL*_*CACHE_SIZE is not yet present.  Work is in progress to enable this for arm64
+        //
+        // /sys/devices/system/cpu/cpu*/cache/index*/ is also not yet present in most systems.
+        // Arm64 patch is in Linux kernel tip.
+        //
+        // midr_el1 is available in "/sys/devices/system/cpu/cpu0/regs/identification/midr_el1",
+        // but without an exhaustive list of ARM64 processors any decode of midr_el1
+        // Would likely be incomplete
+
+        // Published information on ARM64 architectures is limited.
+        // If we use recent high core count chips as a guide for state of the art, we find
+        // total L3 cache to be 1-2MB/core.  As always, there are exceptions.
+
+        // Estimate cache size based on CPU count
+        // Assume lower core count are lighter weight parts which are likely to have smaller caches
+        // Assume L3$/CPU grows linearly from 256K to 1.5M/CPU as logicalCPUs grows from 2 to 12 CPUs
+        DWORD logicalCPUs = PAL_GetLogicalCpuCountFromOS();
+
+        cacheSize = logicalCPUs*std::min(1536, std::max(256, (int)logicalCPUs*128))*1024;
+    }
 #endif
 
     return cacheSize;

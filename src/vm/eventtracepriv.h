@@ -23,7 +23,10 @@
 #define _countof(_array) (sizeof(_array)/sizeof(_array[0]))
 #endif
 
-const UINT cbMaxEtwEvent = 64 * 1024;
+// ETW has a limitation of 64K for TOTAL event Size, however there is overhead associated with 
+// the event headers.   It is unclear exactly how much that is, but 1K should be sufficiently
+// far away to avoid problems without sacrificing the perf of bulk processing.  
+const UINT cbMaxEtwEvent = 63 * 1024;
 
 //---------------------------------------------------------------------------------------
 // C++ copies of ETW structures
@@ -251,6 +254,9 @@ class BulkTypeEventLogger
 {
 private:
 
+    // The maximum event size, and the size of the buffer that we allocate to hold the event contents.
+    static const size_t kSizeOfEventBuffer = 65536;
+
     // Estimate of how many bytes we can squeeze in the event data for the value struct
     // array.  (Intentionally overestimate the size of the non-array parts to keep it safe.)
     static const int kMaxBytesTypeValues = (cbMaxEtwEvent - 0x30);
@@ -291,6 +297,8 @@ private:
     // List of types we've batched.
     BulkTypeValue m_rgBulkTypeValues[kMaxCountTypeValues];
 
+    BYTE *m_pBulkTypeEventBuffer;
+
 #ifdef FEATURE_REDHAWK
     int LogSingleType(EEType * pEEType);
 #else
@@ -301,8 +309,31 @@ public:
     BulkTypeEventLogger() :
         m_nBulkTypeValueCount(0),
         m_nBulkTypeValueByteCount(0)
+        , m_pBulkTypeEventBuffer(NULL)
     {
-        LIMITED_METHOD_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        m_pBulkTypeEventBuffer = new (nothrow) BYTE[kSizeOfEventBuffer];
+    }
+
+    ~BulkTypeEventLogger()
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        delete[] m_pBulkTypeEventBuffer;
+        m_pBulkTypeEventBuffer = NULL;
     }
 
     void LogTypeAndParameters(ULONGLONG thAsAddr, ETW::TypeSystemLog::TypeLogBehavior typeLogBehavior);
@@ -408,13 +439,3 @@ private:
 
 #endif // __EVENTTRACEPRIV_H__
 
-#if defined(FEATURE_EVENTSOURCE_XPLAT)
-class XplatEventSourceLogger
-{
-public:
-    static void QCALLTYPE LogEventSource(__in_z int eventID, __in_z LPCWSTR eventName, __in_z LPCWSTR eventSourceName, __in_z LPCWSTR payload);
-
-    static BOOL QCALLTYPE IsEventSourceLoggingEnabled();
-};
-
-#endif //defined(FEATURE_EVENTSOURCE_XPLAT)

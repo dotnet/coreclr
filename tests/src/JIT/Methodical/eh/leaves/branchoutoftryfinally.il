@@ -1,3 +1,6 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 // branch out of try finally
 // with dead code after tryend
 
@@ -10,8 +13,6 @@
 }
 .assembly extern mscorlib
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .ver 1:1:3102:0
 }
 .assembly extern common{}
 .assembly testit
@@ -105,4 +106,3 @@
 
 
 } 
-

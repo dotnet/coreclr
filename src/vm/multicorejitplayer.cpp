@@ -12,12 +12,10 @@
 
 #include "common.h"
 #include "vars.hpp"
-#include "security.h"
 #include "eeconfig.h"
 #include "dllimport.h"
 #include "comdelegate.h"
 #include "dbginterface.h"
-#include "listlock.inl"
 #include "stubgen.h"
 #include "eventtrace.h"
 #include "array.h"
@@ -103,7 +101,7 @@ void MulticoreJitCodeStorage::StoreMethodCode(MethodDesc * pMD, PCODE pCode)
 
 
 // Query from MakeJitWorker: Lookup stored JITted methods
-PCODE MulticoreJitCodeStorage::QueryMethodCode(MethodDesc * pMethod)
+PCODE MulticoreJitCodeStorage::QueryMethodCode(MethodDesc * pMethod, BOOL shouldRemoveCode)
 {
     STANDARD_VM_CONTRACT;
 
@@ -113,7 +111,7 @@ PCODE MulticoreJitCodeStorage::QueryMethodCode(MethodDesc * pMethod)
     {
         CrstHolder holder(& m_crstCodeMap);
     
-        if (m_nativeCodeMap.Lookup(pMethod, & code))
+        if (m_nativeCodeMap.Lookup(pMethod, & code) && shouldRemoveCode)
         {
             m_nReturned ++;
 
@@ -373,9 +371,7 @@ MulticoreJitProfilePlayer::MulticoreJitProfilePlayer(AppDomain * pDomain, ICLRPr
     LIMITED_METHOD_CONTRACT;
 
     m_DomainID           = pDomain->GetId();
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
     m_pBinderContext     = pBinderContext;
-#endif
     m_nMySession         = nSession;
     m_moduleCount        = 0;
     m_headerModuleCount  = 0;
@@ -464,12 +460,10 @@ bool MulticoreJitManager::IsSupportedModule(Module * pModule, bool fMethodJit, b
         return false;
     }
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
     if (pFile->GetPath().IsEmpty()) // Ignore in-memory modules
     {
         return false;
     }
-#endif
 
 
     if (! fMethodJit)
@@ -482,29 +476,9 @@ bool MulticoreJitManager::IsSupportedModule(Module * pModule, bool fMethodJit, b
     
     Assembly * pAssembly = pModule->GetAssembly();
     
-#ifdef FEATURE_FUSION
-    
-    LOADCTX_TYPE context = pAssembly->GetManifestFile()->GetLoadContext();
-
-#if defined(FEATURE_APPX_BINDER)
-
-    if (fAppx)
-    {
-        if (context == LOADCTX_TYPE_HOSTED)
-        {
-            return true;
-        }
-    }
-
-#endif
-
-    return ((context == LOADCTX_TYPE_DEFAULT) || (context == LOADCTX_TYPE_LOADFROM));
-
-#else
 
     return true;
 
-#endif
 }
 
 
@@ -531,6 +505,23 @@ HRESULT MulticoreJitProfilePlayer::HandleModuleRecord(const ModuleRecord * pMod)
 }
 
 
+#ifndef DACCESS_COMPILE
+class MulticoreJitPrepareCodeConfig : public PrepareCodeConfig
+{
+public:
+    MulticoreJitPrepareCodeConfig(MethodDesc* pMethod) :
+        PrepareCodeConfig(NativeCodeVersion(pMethod), FALSE, FALSE)
+    {}
+    
+    virtual BOOL SetNativeCode(PCODE pCode, PCODE * ppAlternateCodeToUse)
+    {
+        MulticoreJitManager & mcJitManager = GetAppDomain()->GetMulticoreJitManager();
+        mcJitManager.GetMulticoreJitCodeStorage().StoreMethodCode(GetMethodDesc(), pCode);
+        return TRUE;
+    }
+};
+#endif
+
 // Call JIT to compile a method
 
 bool MulticoreJitProfilePlayer::CompileMethodDesc(Module * pModule, MethodDesc * pMD)
@@ -550,13 +541,12 @@ bool MulticoreJitProfilePlayer::CompileMethodDesc(Module * pModule, MethodDesc *
 
         m_stats.m_nTryCompiling ++;
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
         // Reset the flag to allow managed code to be called in multicore JIT background thread from this routine
         ThreadStateNCStackHolder holder(-1, Thread::TSNC_CallingManagedCodeDisabled);
-#endif
 
-        // MakeJitWorker calls back to MulticoreJitCodeStorage::StoreMethodCode under MethodDesc lock
-        pMD->MakeJitWorker(& header, CORJIT_FLG_MCJIT_BACKGROUND, 0);
+        // PrepareCode calls back to MulticoreJitCodeStorage::StoreMethodCode under MethodDesc lock
+        MulticoreJitPrepareCodeConfig config(pMD);
+        pMD->PrepareCode(&config);
 
         return true;
     }
@@ -886,7 +876,6 @@ bool MulticoreJitProfilePlayer::HandleModuleDependency(unsigned jitInfo)
 
         PlayerModuleInfo & mod = m_pModules[moduleTo];
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
         // Load the module if necessary.
         if (!mod.m_pModule)
         {
@@ -899,8 +888,6 @@ bool MulticoreJitProfilePlayer::HandleModuleDependency(unsigned jitInfo)
 
             if (!mod.m_pModule)
             {
-                HRESULT hr;
-
                 // Get the assembly name.
                 SString assemblyName;
                 assemblyName.SetASCII(mod.m_pRecord->GetAssemblyName(), mod.m_pRecord->AssemblyNameLen());
@@ -927,7 +914,6 @@ bool MulticoreJitProfilePlayer::HandleModuleDependency(unsigned jitInfo)
                 }
             }
         }
-#endif
 
         if (mod.UpdateNeedLevel((FileLoadLevel) level))
         {
@@ -941,7 +927,6 @@ bool MulticoreJitProfilePlayer::HandleModuleDependency(unsigned jitInfo)
     return true;
 }
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
 DomainAssembly * MulticoreJitProfilePlayer::LoadAssembly(SString & assemblyName)
 {
     STANDARD_VM_CONTRACT;
@@ -965,34 +950,11 @@ DomainAssembly * MulticoreJitProfilePlayer::LoadAssembly(SString & assemblyName)
         spec.SetBindingContext(m_pBinderContext);
     }
 
-    DomainAssembly *pDomainAssembly = NULL;
-
-    // Setup the AssemblyLoadSecurity to perform the assembly load
-    GCX_COOP();
-
-    PTR_AppDomain pCurDomain = GetAppDomain();
-    IApplicationSecurityDescriptor *pDomainSecDesc = pCurDomain->GetSecurityDescriptor();
-
-    OBJECTREF refGrantedPermissionSet = NULL;
-    AssemblyLoadSecurity loadSecurity;
-
-    GCPROTECT_BEGIN(refGrantedPermissionSet);
-
-    loadSecurity.m_dwSpecialFlags = pDomainSecDesc->GetSpecialFlags();
-    refGrantedPermissionSet = pDomainSecDesc->GetGrantedPermissionSet();
-    loadSecurity.m_pGrantSet = &refGrantedPermissionSet;
-
     // Bind and load the assembly.
-    pDomainAssembly = spec.LoadDomainAssembly(
+    return spec.LoadDomainAssembly(
         FILE_LOADED,
-        &loadSecurity,
         FALSE); // Don't throw on FileNotFound.
-
-    GCPROTECT_END();
-
-    return pDomainAssembly;
 }
-#endif
 
 
 inline bool MethodJifInfo(unsigned inst)
@@ -1052,17 +1014,6 @@ HRESULT MulticoreJitProfilePlayer::HandleMethodRecord(unsigned * buffer, int cou
                 }
                 else
                 {
-#if !defined(FEATURE_CORECLR)
-                    if (m_nBlockingCount != 0)
-                    {
-                        if (! GroupWaitForModuleLoad(m_stats.m_nTotalMethod + pos)) // wait for blocking modules
-                        { 
-                            goto Abort;
-                        }
-
-                        _ASSERTE(m_nBlockingCount == 0);
-                    }
-#endif
 
                     //  To reduce contention with foreground thread, walk backward within the group of methods Jittable methods, not broken apart by dependency
                     {
@@ -1093,11 +1044,7 @@ HRESULT MulticoreJitProfilePlayer::HandleMethodRecord(unsigned * buffer, int cou
 
                             PlayerModuleInfo & mod = m_pModules[inst >> 24];
 
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
                             _ASSERTE(mod.IsModuleLoaded());
-#else
-                            _ASSERTE(mod.IsModuleLoaded() && ! mod.IsLowerLevel());
-#endif
 
                             if (mod.m_enableJit)
                             {
@@ -1313,9 +1260,7 @@ HRESULT MulticoreJitProfilePlayer::PlayProfile()
                 const ModuleRecord * pRec = (const ModuleRecord * ) pBuffer;
 
                 if (((unsigned)(pRec->lenModuleName
-#if defined(FEATURE_CORECLR) && defined(FEATURE_HOSTED_BINDER)
                     + pRec->lenAssemblyName
-#endif
                     ) > (rcdLen - sizeof(ModuleRecord))) || 
                     (m_moduleCount >= m_headerModuleCount))
                 {

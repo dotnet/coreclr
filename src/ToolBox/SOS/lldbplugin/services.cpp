@@ -8,6 +8,8 @@
 #include <string.h>
 #include <string>
 
+#define CONVERT_FROM_SIGN_EXTENDED(offset) ((ULONG_PTR)(offset))
+
 ULONG g_currentThreadIndex = -1;
 ULONG g_currentThreadSystemId = -1;
 char *g_coreclrDirectory;
@@ -132,7 +134,7 @@ LLDBServices::GetExpression(
 }
 
 //
-// lldb doesn't have a way or API to unwind an arbitary context (IP, SP)
+// lldb doesn't have a way or API to unwind an arbitrary context (IP, SP)
 // and return the next frame so we have to stick with the native frames
 // lldb has found and find the closest frame to the incoming context SP.
 //
@@ -167,8 +169,14 @@ LLDBServices::VirtualUnwind(
 
 #ifdef DBG_TARGET_AMD64
     DWORD64 spToFind = dtcontext->Rsp;
+#elif DBG_TARGET_X86
+    DWORD spToFind = dtcontext->Esp;
 #elif DBG_TARGET_ARM
     DWORD spToFind = dtcontext->Sp;
+#elif DBG_TARGET_ARM64
+    DWORD64 spToFind = dtcontext->Sp;
+#else
+#error "spToFind undefined for this platform"
 #endif
     
     int numFrames = thread.GetNumFrames();
@@ -401,7 +409,17 @@ HRESULT
 LLDBServices::GetExecutingProcessorType(
     PULONG type)
 {
+#ifdef DBG_TARGET_AMD64
     *type = IMAGE_FILE_MACHINE_AMD64;
+#elif DBG_TARGET_ARM
+    *type = IMAGE_FILE_MACHINE_ARMNT;
+#elif DBG_TARGET_ARM64
+    *type = IMAGE_FILE_MACHINE_ARM64;
+#elif DBG_TARGET_X86
+    *type = IMAGE_FILE_MACHINE_I386;
+#else
+#error "Unsupported target"
+#endif
     return S_OK;
 }
 
@@ -528,6 +546,9 @@ LLDBServices::Disassemble(
     ULONG size = 0;
     uint8_t byte;
     int cch;
+
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
 
     if (buffer == NULL)
     {
@@ -734,6 +755,9 @@ LLDBServices::ReadVirtual(
     lldb::SBError error;
     size_t read = 0;
 
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
+
     lldb::SBProcess process = GetCurrentProcess();
     if (!process.IsValid())
     {
@@ -747,7 +771,7 @@ exit:
     {
         *bytesRead = read;
     }
-    return error.Success() ? S_OK : E_FAIL;
+    return error.Success() || (read != 0) ? S_OK : E_FAIL;
 }
 
 HRESULT 
@@ -759,6 +783,9 @@ LLDBServices::WriteVirtual(
 {
     lldb::SBError error;
     size_t written = 0;
+
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
 
     lldb::SBProcess process = GetCurrentProcess();
     if (!process.IsValid())
@@ -773,7 +800,7 @@ exit:
     {
         *bytesWritten = written;
     }
-    return error.Success() ? S_OK : E_FAIL;
+    return error.Success() || (written != 0) ? S_OK : E_FAIL;
 }
 
 //----------------------------------------------------------------------------
@@ -805,6 +832,9 @@ LLDBServices::GetNameByOffset(
     lldb::SBFileSpec file;
     lldb::SBSymbol symbol;
     std::string str;
+
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
 
     target = m_debugger.GetSelectedTarget();
     if (!target.IsValid())
@@ -996,6 +1026,9 @@ LLDBServices::GetModuleByOffset(
     lldb::SBTarget target;
     int numModules;
 
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
+
     target = m_debugger.GetSelectedTarget();
     if (!target.IsValid())
     {
@@ -1059,6 +1092,9 @@ LLDBServices::GetModuleNames(
     lldb::SBTarget target;
     lldb::SBFileSpec fileSpec;
     HRESULT hr = S_OK;
+
+    // lldb doesn't expect sign-extended address
+    base = CONVERT_FROM_SIGN_EXTENDED(base);
 
     target = m_debugger.GetSelectedTarget();
     if (!target.IsValid())
@@ -1150,6 +1186,9 @@ LLDBServices::GetLineByOffset(
     lldb::SBFileSpec file;
     lldb::SBLineEntry lineEntry;
     std::string str;
+
+    // lldb doesn't expect sign-extended address
+    offset = CONVERT_FROM_SIGN_EXTENDED(offset);
 
     target = m_debugger.GetSelectedTarget();
     if (!target.IsValid())
@@ -1538,6 +1577,25 @@ LLDBServices::GetContextFromFrame(
     dtcontext->R10 = GetRegister(frame, "r10");
     dtcontext->R11 = GetRegister(frame, "r11");
     dtcontext->R12 = GetRegister(frame, "r12");
+#elif DBG_TARGET_X86
+    dtcontext->Eip = frame.GetPC();
+    dtcontext->Esp = frame.GetSP();
+    dtcontext->Ebp = frame.GetFP();
+    dtcontext->EFlags = GetRegister(frame, "eflags");
+
+    dtcontext->Edi = GetRegister(frame, "edi");
+    dtcontext->Esi = GetRegister(frame, "esi");
+    dtcontext->Ebx = GetRegister(frame, "ebx");
+    dtcontext->Edx = GetRegister(frame, "edx");
+    dtcontext->Ecx = GetRegister(frame, "ecx");
+    dtcontext->Eax = GetRegister(frame, "eax");
+
+    dtcontext->SegCs = GetRegister(frame, "cs");
+    dtcontext->SegSs = GetRegister(frame, "ss");
+    dtcontext->SegDs = GetRegister(frame, "ds");
+    dtcontext->SegEs = GetRegister(frame, "es");
+    dtcontext->SegFs = GetRegister(frame, "fs");
+    dtcontext->SegGs = GetRegister(frame, "gs");
 #endif
 }
 

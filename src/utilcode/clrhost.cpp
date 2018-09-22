@@ -14,11 +14,8 @@
 #include "hostimpl.h"
 #include "clrnt.h"
 #include "contract.h"
-#include "tls.h"
 
-#if defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE) || defined(CROSSGEN_COMPILE)
 CoreClrCallbacks g_CoreClrCallbacks;
-#endif
 
 
 // In some cirumstance (e.g, the thread suspecd another thread), allocation on heap
@@ -206,7 +203,6 @@ int RFS_HashStack ()
 #endif // FAILPOINTS_ENABLED
 
 
-#if defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
 
 //-----------------------------------------------------------------------------------
 // This is the approved way to get a module handle to mscorwks.dll (or coreclr.dll).
@@ -264,7 +260,6 @@ HMODULE GetCLRModule ()
     return g_CoreClrCallbacks.m_hmodCoreCLR;
 }
 
-#endif // defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
 
 
 #if defined(SELF_NO_HOST)
@@ -318,7 +313,7 @@ BOOL CLRFreeLibrary(HMODULE hModule)
 //     The holder withholds the assert if a LoadsTypeViolation suppress is in effect (but
 //     still sets up the new limit.)
 //
-//     As with other contract annoations, however, the violation suppression is *lifted*
+//     As with other contract annotations, however, the violation suppression is *lifted*
 //     within the scope guarded by the holder itself.
 //-----------------------------------------------------------------------------------------------
 LoadsTypeHolder::LoadsTypeHolder(BOOL       fConditional,
@@ -402,7 +397,6 @@ LoadsTypeHolder::~LoadsTypeHolder()
 // versions in the same process.
 //--------------------------------------------------------------------------
 
-#if defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)
 
 //--------------------------------------------------------------------------
 // One-time initialized called by coreclr.dll in its dllmain.
@@ -435,7 +429,7 @@ void OnUninitializedCoreClrCallbacks()
     // (other than coreclr.dll) that links to utilcode.lib, or that you're using a nohost
     // variant of utilcode.lib but hitting code that assumes there is a CLR in the process.
     //
-    // Under FEATURE_CORECLR (and not SELF_NO_HOST), it is expected that coreclr.dll 
+    // It is expected that coreclr.dll 
     // is the ONLY dll that links to utilcode libraries.
     //
     // If you must introduce a new dll that links to utilcode.lib, it is your responsibility
@@ -456,4 +450,3 @@ void OnUninitializedCoreClrCallbacks()
 }
 #endif // _DEBUG
 
-#endif // defined(FEATURE_CORECLR) || !defined(SELF_NO_HOST) || defined(DACCESS_COMPILE)

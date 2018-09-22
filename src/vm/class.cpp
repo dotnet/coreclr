@@ -5,20 +5,14 @@
 // File: CLASS.CPP
 //
 
-
-//
-
-//
-// ============================================================================
-
 #include "common.h"
 
 #include "dllimport.h"
 #include "dllimportcallback.h"
 #include "fieldmarshaler.h"
-#include "constrainedexecutionregion.h"
 #include "customattribute.h"
 #include "encee.h"
+#include "typestring.h"
 
 #ifdef FEATURE_COMINTEROP 
 #include "comcallablewrapper.h"
@@ -184,15 +178,6 @@ void EEClass::Destruct(MethodTable * pOwningMT)
     // default appdomain and mscorlib.dll module during shutdown
     _ASSERTE(!pOwningMT->IsTransparentProxy());
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // Destruct the method descs by walking the chunks.
-    MethodTable::IntroducedMethodIterator it(pOwningMT);
-    for (; it.IsValid(); it.Next())
-    {
-        MethodDesc * pMD = it.GetMethodDesc();
-        pMD->Destruct();
-    }
-#endif
   
 #ifdef FEATURE_COMINTEROP 
     if (GetSparseCOMInteropVTableMap() != NULL && !pOwningMT->IsZapped())
@@ -898,7 +883,15 @@ ClassLoader::LoadExactParentAndInterfacesTransitively(MethodTable *pMT)
             LOG((LF_CLASSLOADER, LL_INFO1000, "GENERICS: Replaced approximate parent %s with exact parent %s from token %x\n", pParentMT->GetDebugClassName(), pNewParentMT->GetDebugClassName(), crExtends));
 
             // SetParentMethodTable is not used here since we want to update the indirection cell in the NGen case
-            *EnsureWritablePages(pMT->GetParentMethodTablePtr()) = pNewParentMT;
+            if (pMT->IsParentMethodTableIndirectPointerMaybeNull())
+            {
+                *EnsureWritablePages(pMT->GetParentMethodTableValuePtr()) = pNewParentMT;
+            }
+            else
+            {
+                EnsureWritablePages(pMT->GetParentMethodTablePointerPtr());
+                pMT->GetParentMethodTablePointerPtr()->SetValueMaybeNull(pNewParentMT);
+            }
 
             pParentMT = pNewParentMT;
         }
@@ -917,8 +910,11 @@ ClassLoader::LoadExactParentAndInterfacesTransitively(MethodTable *pMT)
         DWORD nDicts = pParentMT->GetNumDicts();
         for (DWORD iDict = 0; iDict < nDicts; iDict++)
         {
-            if (pMT->GetPerInstInfo()[iDict] != pParentMT->GetPerInstInfo()[iDict])
-                *EnsureWritablePages(&pMT->GetPerInstInfo()[iDict]) = pParentMT->GetPerInstInfo()[iDict];
+            if (pMT->GetPerInstInfo()[iDict].GetValueMaybeNull() != pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull())
+            {
+                EnsureWritablePages(&pMT->GetPerInstInfo()[iDict]);
+                pMT->GetPerInstInfo()[iDict].SetValueMaybeNull(pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull());
+            }
         }
     }
 
@@ -995,9 +991,9 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
 
     if (pMT->GetNumInstanceFields() == 1 && (!pMT->HasLayout()
         || pMT->GetNumInstanceFieldBytes() == 4
-#ifdef _WIN64
+#ifdef _TARGET_64BIT_
         || pMT->GetNumInstanceFieldBytes() == 8
-#endif // _WIN64
+#endif // _TARGET_64BIT_
         )) // Don't do the optimization if we're getting specified anything but the trivial layout.
     {
         FieldDesc * pFD = pMT->GetApproxFieldDescListRaw();
@@ -1029,10 +1025,10 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
             case ELEMENT_TYPE_U:
             case ELEMENT_TYPE_I4:
             case ELEMENT_TYPE_U4:
-#ifdef _WIN64 
+#ifdef _TARGET_64BIT_
             case ELEMENT_TYPE_I8:
             case ELEMENT_TYPE_U8:
-#endif // _WIN64
+#endif // _TARGET_64BIT_
             
             {
                 return type;
@@ -1045,480 +1041,6 @@ CorElementType EEClass::ComputeInternalCorElementTypeForValueType(MethodTable * 
 
     return ELEMENT_TYPE_VALUETYPE;
 }
-
-#if defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
-//*******************************************************************************
-void EEClass::GetPredefinedAgility(Module *pModule, mdTypeDef td,
-                                   BOOL *pfIsAgile, BOOL *pfCheckAgile)
-{
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-    }
-    CONTRACTL_END
-
-    //
-    // There are 4 settings possible:
-    // IsAgile  CheckAgile
-    // F        F               (default)   Use normal type logic to determine agility
-    // T        F               "Proxy"     Treated as agile even though may not be.
-    // F        T               "Maybe"     Not agile, but specific instances can be made agile.
-    // T        T               "Force"     All instances are forced agile, even though not typesafe.
-    //
-    // Also, note that object arrays of agile or maybe agile types are made maybe agile.
-    //
-
-    static const struct PredefinedAgility
-    {
-        const char  *name;
-        BOOL        isAgile;
-        BOOL        checkAgile;
-    }
-
-    // Matches based on name with the first records having higher precedence than subsequent ones
-    // so that when there is an ambiguity, the first one will be used:
-    // System.Globalization.CultureNotFoundException
-    // comes before
-    // System.Globalization.*
-    //
-    // although System.Globalization.CultureNotFoundException matches both records, the first
-    // is the one that will be used
-    agility[] =
-    {
-        // The Thread leak across context boundaries.
-        // We manage the leaks manually
-        { g_ThreadClassName,                    TRUE,   FALSE },
-
-        // The SharedStatics class is a container for process-wide data
-        { g_SharedStaticsClassName,             FALSE,  TRUE },
-
-        // The extra dot at the start is to accomodate the string comparison logic below 
-        // when there is no namespace for a type
-        {".StringMaker",                        FALSE, TRUE },
-
-        {g_StringBufferClassName,               FALSE, TRUE },
-
-        { "System.ActivationArguments",         FALSE,  TRUE },
-        { "System.AppDomainSetup" ,             FALSE,  TRUE },
-        { "System.AppDomainInitializerInfo",    FALSE,  TRUE },
-
-        // Make all containers maybe agile
-        { "System.Collections.*",               FALSE,  TRUE },
-        { "System.Collections.Generic.*",               FALSE,  TRUE },
-
-        // Make all globalization objects agile except for System.Globalization.CultureNotFoundException
-        // The exception inherits from ArgumentException so needs the same agility
-        // this must come before the more general declaration below so that it will match first
-        { "System.Globalization.CultureNotFoundException",             FALSE,  FALSE },
-        // We have CultureInfo objects on thread.  Because threads leak across
-        // app domains, we have to be prepared for CultureInfo to leak across.
-        // CultureInfo exposes all of the other globalization objects, so we
-        // just make the entire namespace app domain agile.
-        { "System.Globalization.*",             FALSE,  TRUE },
-
-        // Remoting structures for legally smuggling messages across app domains
-        { "System.Runtime.Remoting.Messaging.SmuggledMethodCallMessage", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Messaging.SmuggledMethodReturnMessage", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Messaging.SmuggledObjRef", FALSE, TRUE},
-        { "System.Runtime.Remoting.ObjRef", FALSE,  TRUE },
-        { "System.Runtime.Remoting.ChannelInfo", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Channels.CrossAppDomainData", FALSE,  TRUE },
-
-        // Remoting cached data structures are all in mscorlib
-        { "System.Runtime.Remoting.Metadata.RemotingCachedData",       FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.RemotingFieldCachedData", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.RemotingParameterCachedData", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.RemotingMethodCachedData", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.RemotingTypeCachedData", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.SoapAttribute",      FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.SoapFieldAttribute", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.SoapMethodAttribute",FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.SoapParameterAttribute", FALSE,  TRUE },
-        { "System.Runtime.Remoting.Metadata.SoapTypeAttribute",  FALSE,  TRUE },
-
-        // Reflection types
-        { g_ReflectionMemberInfoName,                            FALSE,  TRUE },
-        { g_TypeClassName,                                       FALSE,  TRUE },
-        { g_ReflectionClassName,                                 FALSE,  TRUE },
-        { g_ReflectionConstructorInfoName,                       FALSE,  TRUE },
-        { g_ReflectionConstructorName,                           FALSE,  TRUE },
-        { g_ReflectionEventInfoName,                             FALSE,  TRUE },
-        { g_ReflectionEventName,                                 FALSE,  TRUE },
-        { g_ReflectionFieldInfoName,                             FALSE,  TRUE },
-        { g_ReflectionFieldName,                                 FALSE,  TRUE },
-        { g_MethodBaseName,                                      FALSE,  TRUE },
-        { g_ReflectionMethodInfoName,                            FALSE,  TRUE },
-        { g_ReflectionMethodName,                                FALSE,  TRUE },
-        { g_ReflectionPropertyInfoName,                          FALSE,  TRUE },
-        { g_ReflectionPropInfoName,                              FALSE,  TRUE },
-        { g_ReflectionParamInfoName,                             FALSE,  TRUE },
-        { g_ReflectionParamName,                                 FALSE,  TRUE },
-
-        { "System.RuntimeType+RuntimeTypeCache",                 FALSE,  TRUE },
-        { "System.RuntimeType+RuntimeTypeCache+MemberInfoCache`1", FALSE,  TRUE },
-        { "System.RuntimeType+RuntimeTypeCache+MemberInfoCache`1+Filter", FALSE,  TRUE },
-        { "System.Reflection.CerHashtable`2",                    FALSE,  TRUE },
-        { "System.Reflection.CerHashtable`2+Table",              FALSE,  TRUE },
-        { "System.Reflection.RtFieldInfo",                       FALSE,  TRUE },
-        { "System.Reflection.MdFieldInfo",                       FALSE,  TRUE },
-        { "System.Signature",                                    FALSE,  TRUE },
-        { "System.Reflection.MetadataImport",                    FALSE,  TRUE },
-
-        // LogSwitches are agile even though we can't prove it
-        // <TODO>@todo: do they need really to be?</TODO>
-        { "System.Diagnostics.LogSwitch",       FALSE,  TRUE },
-
-        // There is a process global PermissionTokenFactory
-        { "System.Security.PermissionToken",    FALSE,  TRUE },
-        { g_PermissionTokenFactoryName,         FALSE,  TRUE },
-
-        // Mark all the exceptions we throw agile.  This makes
-        // most BVTs pass even though exceptions leak
-        //
-        // Note that making exception checked automatically
-        // makes a bunch of subclasses checked as well.
-        //
-        // Pre-allocated exceptions
-        { g_ExceptionClassName,                 FALSE,  TRUE },
-        { g_OutOfMemoryExceptionClassName,      FALSE,  TRUE },
-        { g_StackOverflowExceptionClassName,    FALSE,  TRUE },
-        { g_ExecutionEngineExceptionClassName,  FALSE,  TRUE },
-
-        // SecurityDocument contains pointers and other agile types
-        { "System.Security.SecurityDocument",    TRUE, TRUE },
-
-        // BinaryFormatter smuggles these across appdomains.
-        { "System.Runtime.Serialization.Formatters.Binary.BinaryObjectWithMap", TRUE, FALSE},
-        { "System.Runtime.Serialization.Formatters.Binary.BinaryObjectWithMapTyped", TRUE, FALSE},
-
-        { NULL }
-    };
-
-    if (pModule == SystemDomain::SystemModule())
-    {
-        while (TRUE)
-        {
-            LPCUTF8 pszName;
-            LPCUTF8 pszNamespace;
-            HRESULT     hr;
-            mdTypeDef   tdEnclosing;
-            
-            if (FAILED(pModule->GetMDImport()->GetNameOfTypeDef(td, &pszName, &pszNamespace)))
-            {
-                break;
-            }
-            
-            // We rely the match algorithm matching the first items in the list before subsequent ones
-            // so that when there is an ambiguity, the first one will be used:
-            // System.Globalization.CultureNotFoundException
-            // comes before
-            // System.Globalization.*
-            //
-            // although System.Globalization.CultureNotFoundException matches both records, the first
-            // is the one that will be used
-            const PredefinedAgility *p = agility;
-            while (p->name != NULL)
-            {
-                SIZE_T length = strlen(pszNamespace);
-                if (strncmp(pszNamespace, p->name, length) == 0
-                    && (strcmp(pszName, p->name + length + 1) == 0
-                        || strcmp("*", p->name + length + 1) == 0))
-                {
-                    *pfIsAgile = p->isAgile;
-                    *pfCheckAgile = p->checkAgile;
-                    return;
-                }
-
-                p++;
-            }
-
-            // Perhaps we have a nested type like 'bucket' that is supposed to be
-            // agile or checked agile by virtue of being enclosed in a type like
-            // hashtable, which is itself inside "System.Collections".
-            tdEnclosing = mdTypeDefNil;
-            hr = pModule->GetMDImport()->GetNestedClassProps(td, &tdEnclosing);
-            if (SUCCEEDED(hr))
-            {
-                BAD_FORMAT_NOTHROW_ASSERT(tdEnclosing != td && TypeFromToken(tdEnclosing) == mdtTypeDef);
-                td = tdEnclosing;
-            }
-            else
-                break;
-        }
-    }
-
-    *pfIsAgile = FALSE;
-    *pfCheckAgile = FALSE;
-}
-
-//*******************************************************************************
-void EEClass::SetAppDomainAgileAttribute(MethodTable * pMT)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM());
-        //        PRECONDITION(!IsAppDomainAgilityDone());
-    }
-    CONTRACTL_END
-
-    EEClass * pClass = pMT->GetClass();
-
-    //
-    // The most general case for provably a agile class is
-    // (1) No instance fields of non-sealed or non-agile types
-    // (2) Class is in system domain (its type must be not unloadable
-    //      & loaded in all app domains)
-    // (3) The class can't have a finalizer
-    // (4) The class can't be a COMClass
-    //
-
-    _ASSERTE(!pClass->IsAppDomainAgilityDone());
-
-    BOOL    fCheckAgile     = FALSE;
-    BOOL    fAgile          = FALSE;
-    BOOL    fFieldsAgile    = TRUE;
-    WORD        nFields         = 0;
-
-    if (!pMT->GetModule()->IsSystem())
-    {
-        //
-        // No types outside of the system domain can even think about
-        // being agile
-        //
-
-        goto exit;
-    }
-
-    if (pMT->IsComObjectType())
-    {
-        //
-        // No COM type is agile, as there is domain specific stuff in the sync block
-        //
-
-        goto exit;
-    }
-
-    if (pMT->IsInterface())
-    {
-        //
-        // Don't mark interfaces agile
-        //
-
-        goto exit;
-    }
-
-    if (pMT->ContainsGenericVariables())
-    {
-        // Types containing formal type parameters aren't agile
-        goto exit;
-    }
-
-    //
-    // See if we need agile checking in the class
-    //
-
-    GetPredefinedAgility(pMT->GetModule(), pMT->GetCl(),
-                         &fAgile, &fCheckAgile);
-
-    if (pMT->HasFinalizer())
-    {
-        if (!fAgile && !fCheckAgile)
-        {
-            //
-            // If we're finalizable, we need domain affinity.  Otherwise, we may appear
-            // to a particular app domain not to call the finalizer (since it may run
-            // in a different domain.)
-            //
-            // Note: do not change this assumption. The eager finalizaton code for
-            // appdomain unloading assumes that no obects other than those in mscorlib
-            // can be agile and finalizable  
-            //
-            goto exit;
-        }
-        else
-        {
-
-            // Note that a finalizable object will be considered potentially agile if it has one of the two
-            // predefined agility bits set. This will cause an assert in the eager finalization code if you add
-            // a finalizer to such a class - we don't want to have them as we can't run them eagerly and running
-            // them after we've cleared the roots/handles means it can't do much safely. Right now thread is the
-            // only one we allow.  
-            _ASSERTE(g_pThreadClass == NULL || pMT->IsAgileAndFinalizable());
-        }
-    }
-
-    //
-    // Now see if the type is "naturally agile" - that is, it's type structure
-    // guarantees agility.
-    //
-
-    if (pMT->GetParentMethodTable() != NULL)
-    {
-        EEClass * pParentClass = pMT->GetParentMethodTable()->GetClass();
-
-        //
-        // Make sure our parent was computed.  This should only happen
-        // when we are prejitting - otherwise it is computed for each
-        // class as its loaded.
-        //
-
-        _ASSERTE(pParentClass->IsAppDomainAgilityDone());
-
-        if (!pParentClass->IsAppDomainAgile())
-        {
-            fFieldsAgile = FALSE;
-            if (fCheckAgile)
-                _ASSERTE(pParentClass->IsCheckAppDomainAgile());
-        }
-
-        //
-        // To save having to list a lot of trivial (layout-wise) subclasses,
-        // automatically check a subclass if its parent is checked and
-        // it introduces no new fields.
-        //
-
-        if (!fCheckAgile
-            && pParentClass->IsCheckAppDomainAgile()
-            && pClass->GetNumInstanceFields() == pParentClass->GetNumInstanceFields())
-            fCheckAgile = TRUE;
-    }
-
-    nFields = pMT->GetNumInstanceFields()
-        - (pMT->GetParentMethodTable() == NULL ? 0 : pMT->GetParentMethodTable()->GetNumInstanceFields());
-
-    if (fFieldsAgile || fCheckAgile)
-    {
-        FieldDesc *pFD = pClass->GetFieldDescList();
-        FieldDesc *pFDEnd = pFD + nFields;
-        while (pFD < pFDEnd)
-        {
-            switch (pFD->GetFieldType())
-            {
-            case ELEMENT_TYPE_CLASS:
-                {
-                    //
-                    // There is a bit of a problem in computing the classes which are naturally agile -
-                    // we don't want to load types of non-value type fields.  So for now we'll
-                    // err on the side of conservatism and not allow any non-value type fields other than
-                    // the forced agile types listed above.
-                    //
-
-                    MetaSig sig(pFD);
-                    CorElementType type = sig.NextArg();
-                    SigPointer sigPtr = sig.GetArgProps();
-
-                    //
-                    // Don't worry about strings
-                    //
-
-                    if (type == ELEMENT_TYPE_STRING)
-                        break;
-
-                    // Find our field's token so we can proceed cautiously
-                    mdToken token = mdTokenNil;
-
-                    if (type == ELEMENT_TYPE_CLASS)
-                        IfFailThrow(sigPtr.GetToken(&token));
-
-                    //
-                    // First, a special check to see if the field is of our own type.
-                    //
-
-                    if (token == pMT->GetCl() && pMT->IsSealed())
-                        break;
-
-                    //
-                    // Now, look for the field's TypeHandle.
-                    //
-                    // <TODO>@todo: there is some ifdef'd code here to to load the type if it's
-                    // not already loading.  This code has synchronization problems, as well
-                    // as triggering more aggressive loading than normal.  So it's disabled
-                    // for now.
-                    // </TODO>
-
-                    TypeHandle th;
-#if 0 
-                    if (TypeFromToken(token) == mdTypeDef
-                        && GetClassLoader()->FindUnresolvedClass(GetModule, token) == NULL)
-                        th = pFD->GetFieldTypeHandleThrowing();
-                    else
-#endif // 0
-                        th = pFD->LookupFieldTypeHandle();
-
-                    //
-                    // See if the referenced type is agile.  Note that there is a reasonable
-                    // chance that the type hasn't been loaded yet.  If this is the case,
-                    // we just have to assume that it's not agile, since we can't trigger
-                    // extra loads here (for fear of circular recursion.)
-                    //
-                    // If you have an agile class which runs into this problem, you can solve it by
-                    // setting the type manually to be agile.
-                    //
-
-                    if (th.IsNull()
-                        || !th.IsAppDomainAgile()
-                        || (!th.IsTypeDesc()
-                            && !th.AsMethodTable()->IsSealed()))
-                    {
-                        //
-                        // Treat the field as non-agile.
-                        //
-
-                        fFieldsAgile = FALSE;
-                        if (fCheckAgile)
-                            pFD->SetDangerousAppDomainAgileField();
-                    }
-                }
-
-                break;
-
-            case ELEMENT_TYPE_VALUETYPE:
-                {
-                    TypeHandle th;
-
-                    {
-                        // Loading a non-self-ref valuetype field.
-                        OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
-
-                        th = pFD->GetApproxFieldTypeHandleThrowing();
-                    }
-
-                    _ASSERTE(!th.IsNull());
-
-                    if (!th.IsAppDomainAgile())
-                    {
-                        fFieldsAgile = FALSE;
-                        if (fCheckAgile)
-                            pFD->SetDangerousAppDomainAgileField();
-                    }
-                }
-
-                break;
-
-            default:
-                break;
-            }
-
-            pFD++;
-        }
-    }
-
-    if (fFieldsAgile || fAgile)
-        pClass->SetAppDomainAgile();
-
-    if (fCheckAgile && !fFieldsAgile)
-        pClass->SetCheckAppDomainAgile();
-
-exit:
-    LOG((LF_CLASSLOADER, LL_INFO1000, "CLASSLOADER: AppDomainAgileAttribute for %s is %d\n", pClass->GetDebugClassName(), pClass->IsAppDomainAgile()));
-    pClass->SetAppDomainAgilityDone();
-}
-#endif // defined(CHECK_APP_DOMAIN_LEAKS) || defined(_DEBUG)
 
 //*******************************************************************************
 //
@@ -1635,9 +1157,28 @@ MethodDesc* MethodTable::GetExistingUnboxedEntryPointMD(MethodDesc *pMD)
                                                        );
 }
 
-#endif // !DACCESS_COMPILE
+#endif // !DACCESS_COMPILE 
 
-#ifdef FEATURE_HFA
+//*******************************************************************************
+#if !defined(FEATURE_HFA)
+bool MethodTable::IsHFA()
+{
+    LIMITED_METHOD_CONTRACT;
+#ifdef DACCESS_COMPILE
+    return false;
+#else
+    if (GetClass()->GetMethodTable()->IsValueType())
+    {
+        return GetClass()->CheckForHFA();
+    }
+    else
+    {
+        return false;
+    }
+#endif
+}
+#endif // !FEATURE_HFA
+
 //*******************************************************************************
 CorElementType MethodTable::GetHFAType()
 {
@@ -1691,6 +1232,228 @@ CorElementType MethodTable::GetNativeHFAType()
 {
     LIMITED_METHOD_CONTRACT;
     return HasLayout() ? GetLayoutInfo()->GetNativeHFAType() : GetHFAType();
+}
+
+//---------------------------------------------------------------------------------------
+//
+// When FEATURE_HFA is defined, we cache the value; otherwise we recompute it with each
+// call. The latter is only for the armaltjit and the arm64altjit.
+bool
+#if defined(FEATURE_HFA)
+EEClass::CheckForHFA(MethodTable ** pByValueClassCache)
+#else
+EEClass::CheckForHFA()
+#endif
+{
+    STANDARD_VM_CONTRACT;
+
+    // This method should be called for valuetypes only
+    _ASSERTE(GetMethodTable()->IsValueType());
+
+    // No HFAs with explicit layout. There may be cases where explicit layout may be still
+    // eligible for HFA, but it is hard to tell the real intent. Make it simple and just 
+    // unconditionally disable HFAs for explicit layout.
+    if (HasExplicitFieldOffsetLayout())
+        return false;
+
+    // The SIMD Intrinsic types are meant to be handled specially and should not be treated as HFA
+    if (GetMethodTable()->IsIntrinsicType())
+    {
+        LPCUTF8 namespaceName;
+        LPCUTF8 className = GetMethodTable()->GetFullyQualifiedNameInfo(&namespaceName);
+
+        if ((strcmp(className, "Vector256`1") == 0) || (strcmp(className, "Vector128`1") == 0) ||
+            (strcmp(className, "Vector64`1") == 0))
+        {
+            assert(strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+            return false;
+        }
+    }
+
+    CorElementType hfaType = ELEMENT_TYPE_END;
+
+    FieldDesc *pFieldDescList = GetFieldDescList();
+    for (UINT i = 0; i < GetNumInstanceFields(); i++)
+    {
+        FieldDesc *pFD = &pFieldDescList[i];
+        CorElementType fieldType = pFD->GetFieldType();
+
+        switch (fieldType)
+        {
+        case ELEMENT_TYPE_VALUETYPE:
+#if defined(FEATURE_HFA)
+            fieldType = pByValueClassCache[i]->GetHFAType();
+#else
+            fieldType = pFD->LookupApproxFieldTypeHandle().AsMethodTable()->GetHFAType();
+#endif
+            break;
+
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+            break;
+
+        default:
+            // Not HFA
+            return false;
+        }
+
+        // Field type should be a valid HFA type.
+        if (fieldType == ELEMENT_TYPE_END)
+        {
+            return false;
+        }
+
+        // Initialize with a valid HFA type.
+        if (hfaType == ELEMENT_TYPE_END)
+        {
+            hfaType = fieldType;
+        }
+        // All field types should be equal.
+        else if (fieldType != hfaType)
+        {
+            return false;
+        }
+    }
+
+    if (hfaType == ELEMENT_TYPE_END)
+        return false;
+
+    int elemSize = (hfaType == ELEMENT_TYPE_R8) ? sizeof(double) : sizeof(float);
+
+    // Note that we check the total size, but do not perform any checks on number of fields:
+    // - Type of fields can be HFA valuetype itself
+    // - Managed C++ HFA valuetypes have just one <alignment member> of type float to signal that 
+    //   the valuetype is HFA and explicitly specified size
+
+    DWORD totalSize = GetMethodTable()->GetNumInstanceFieldBytes();
+
+    if (totalSize % elemSize != 0)
+        return false;
+
+    // On ARM, HFAs can have a maximum of four fields regardless of whether those are float or double.
+    if (totalSize / elemSize > 4)
+        return false;
+
+    // All the above tests passed. It's HFA!
+#if defined(FEATURE_HFA)
+    GetMethodTable()->SetIsHFA();
+#endif
+    return true;
+}
+
+CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
+{
+    UINT  numReferenceFields = GetNumCTMFields();
+
+    CorElementType hfaType = ELEMENT_TYPE_END;
+
+#ifndef DACCESS_COMPILE
+    const FieldMarshaler *pFieldMarshaler = GetFieldMarshalers();
+    while (numReferenceFields--)
+    {
+        CorElementType fieldType = ELEMENT_TYPE_END;
+
+        switch (pFieldMarshaler->GetNStructFieldType())
+        {
+        case NFT_COPY4:
+        case NFT_COPY8:
+            fieldType = pFieldMarshaler->GetFieldDesc()->GetFieldType();
+            if (fieldType != ELEMENT_TYPE_R4 && fieldType != ELEMENT_TYPE_R8)
+                return ELEMENT_TYPE_END;
+            break;
+
+        case NFT_NESTEDLAYOUTCLASS:
+            fieldType = ((FieldMarshaler_NestedLayoutClass *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
+            break;
+
+        case NFT_NESTEDVALUECLASS:
+            fieldType = ((FieldMarshaler_NestedValueClass *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
+            break;
+
+        case NFT_FIXEDARRAY:
+            fieldType = ((FieldMarshaler_FixedArray *)pFieldMarshaler)->GetElementTypeHandle().GetMethodTable()->GetNativeHFAType();
+            break;
+
+        case NFT_DATE:
+            fieldType = ELEMENT_TYPE_R8;
+            break;
+
+        default:
+            // Not HFA
+            return ELEMENT_TYPE_END;
+        }
+
+        // Field type should be a valid HFA type.
+        if (fieldType == ELEMENT_TYPE_END)
+        {
+            return ELEMENT_TYPE_END;
+        }
+
+        // Initialize with a valid HFA type.
+        if (hfaType == ELEMENT_TYPE_END)
+        {
+            hfaType = fieldType;
+        }
+        // All field types should be equal.
+        else if (fieldType != hfaType)
+        {
+            return ELEMENT_TYPE_END;
+        }
+
+        ((BYTE*&)pFieldMarshaler) += MAXFIELDMARSHALERSIZE;
+    }
+
+    if (hfaType == ELEMENT_TYPE_END)
+        return ELEMENT_TYPE_END;
+
+    int elemSize = (hfaType == ELEMENT_TYPE_R8) ? sizeof(double) : sizeof(float);
+
+    // Note that we check the total size, but do not perform any checks on number of fields:
+    // - Type of fields can be HFA valuetype itself
+    // - Managed C++ HFA valuetypes have just one <alignment member> of type float to signal that 
+    //   the valuetype is HFA and explicitly specified size
+
+    DWORD totalSize = GetNativeSize();
+
+    if (totalSize % elemSize != 0)
+        return ELEMENT_TYPE_END;
+
+    // On ARM, HFAs can have a maximum of four fields regardless of whether those are float or double.
+    if (totalSize / elemSize > 4)
+        return ELEMENT_TYPE_END;
+
+#endif // !DACCESS_COMPILE
+
+    return hfaType;
+}
+
+#ifdef FEATURE_HFA
+//
+// The managed and unmanaged views of the types can differ for non-blitable types. This method
+// mirrors the HFA type computation for the unmanaged view.
+//
+VOID EEClass::CheckForNativeHFA()
+{
+    STANDARD_VM_CONTRACT;
+
+    // No HFAs with inheritance
+    if (!(GetMethodTable()->IsValueType() || (GetMethodTable()->GetParentMethodTable() == g_pObjectClass)))
+        return;
+
+    // No HFAs with explicit layout. There may be cases where explicit layout may be still
+    // eligible for HFA, but it is hard to tell the real intent. Make it simple and just 
+    // unconditionally disable HFAs for explicit layout.
+    if (HasExplicitFieldOffsetLayout())
+        return;
+
+    CorElementType hfaType = GetLayoutInfo()->GetNativeHFATypeRaw();
+    if (hfaType == ELEMENT_TYPE_END)
+    {
+        return;
+    }
+
+    // All the above tests passed. It's HFA!
+    GetLayoutInfo()->SetNativeHFAType(hfaType);
 }
 #endif // FEATURE_HFA
 
@@ -2382,7 +2145,7 @@ MethodTable::DebugDumpGCDesc(
                 {
                     ssBuff.Printf(W("   offset %5d (%d w/o Object), size %5d (%5d w/o BaseSize subtr)\n"),
                         pSeries->GetSeriesOffset(),
-                        pSeries->GetSeriesOffset() - sizeof(Object),
+                        pSeries->GetSeriesOffset() - OBJECT_SIZE,
                         pSeries->GetSeriesSize(),
                         pSeries->GetSeriesSize() + GetBaseSize() );
                     WszOutputDebugString(ssBuff.GetUnicode());
@@ -2392,7 +2155,7 @@ MethodTable::DebugDumpGCDesc(
                     //LF_ALWAYS allowed here because this is controlled by special env var ShouldDumpOnClassLoad
                     LOG((LF_ALWAYS, LL_ALWAYS, "   offset %5d (%d w/o Object), size %5d (%5d w/o BaseSize subtr)\n",
                          pSeries->GetSeriesOffset(),
-                         pSeries->GetSeriesOffset() - sizeof(Object),
+                         pSeries->GetSeriesOffset() - OBJECT_SIZE,
                          pSeries->GetSeriesSize(),
                          pSeries->GetSeriesSize() + GetBaseSize()
                          ));
@@ -2490,12 +2253,6 @@ MethodTable::GetSubstitutionForParent(
 
 #endif //!DACCESS_COMPILE
 
-//*******************************************************************************
-DWORD EEClass::GetReliabilityContract()
-{
-    LIMITED_METHOD_CONTRACT;
-    return HasOptionalFields() ? GetOptionalFields()->m_dwReliabilityContract : RC_NULL;
-}
 
 //*******************************************************************************
 #ifdef FEATURE_PREJIT
@@ -2712,21 +2469,7 @@ void EEClass::Save(DataImage *image, MethodTable *pMT)
 
     LOG((LF_ZAP, LL_INFO10000, "EEClass::Save %s (%p)\n", m_szDebugClassName, this));
 
-    // Optimize packable fields before saving into ngen image (the packable fields are located at the end of
-    // the EEClass or sub-type instance and packing will transform them into a space-efficient format which
-    // should reduce the result returned by the GetSize() call below). Packing will fail if the compression
-    // algorithm would result in an increase in size. We track this in the m_fFieldsArePacked data member
-    // which we use to determine whether to access the fields in their packed or unpacked format.
-    // Special case: we don't attempt to pack fields for the System.Threading.OverlappedData class since a
-    // host can change the size of this at runtime. This requires modifying one of the packable fields and we
-    // don't support updates to such fields if they were successfully packed.
-    if (g_pOverlappedDataClass == NULL)
-    {
-        g_pOverlappedDataClass = MscorlibBinder::GetClass(CLASS__OVERLAPPEDDATA);
-        _ASSERTE(g_pOverlappedDataClass);
-    }
-    if (this != g_pOverlappedDataClass->GetClass())
-        m_fFieldsArePacked = GetPackedFields()->PackFields();
+    m_fFieldsArePacked = GetPackedFields()->PackFields();
 
     DWORD cbSize = GetSize();
 
@@ -2833,13 +2576,13 @@ void EEClass::Save(DataImage *image, MethodTable *pMT)
 
         if (pInfo->m_numCTMFields > 0)
         {
-            ZapStoredStructure * pNode = image->StoreStructure(pInfo->m_pFieldMarshalers,
+            ZapStoredStructure * pNode = image->StoreStructure(pInfo->GetFieldMarshalers(),
                                             pInfo->m_numCTMFields * MAXFIELDMARSHALERSIZE,
                                             DataImage::ITEM_FIELD_MARSHALERS);
 
             for (UINT iField = 0; iField < pInfo->m_numCTMFields; iField++)
             {
-                FieldMarshaler *pFM = (FieldMarshaler*)((BYTE *)pInfo->m_pFieldMarshalers + iField * MAXFIELDMARSHALERSIZE);
+                FieldMarshaler *pFM = (FieldMarshaler*)((BYTE *)pInfo->GetFieldMarshalers() + iField * MAXFIELDMARSHALERSIZE);
                 pFM->Save(image);
 
                 if (iField > 0)
@@ -2899,7 +2642,7 @@ void EEClass::Save(DataImage *image, MethodTable *pMT)
             {
                 // make sure we don't store a GUID_NULL guid in the NGEN image
                 // instead we'll compute the GUID at runtime, and throw, if appropriate
-                m_pGuidInfo = NULL;
+                m_pGuidInfo.SetValueMaybeNull(NULL);
             }
         }
     }
@@ -2976,14 +2719,14 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
     }
 
     if (HasOptionalFields())
-        image->FixupPointerField(GetOptionalFields(), offsetof(EEClassOptionalFields, m_pVarianceInfo));
+        image->FixupRelativePointerField(GetOptionalFields(), offsetof(EEClassOptionalFields, m_pVarianceInfo));
 
     //
     // We pass in the method table, because some classes (e.g. remoting proxy)
     // have fake method tables set up in them & we want to restore the regular
     // one.
     //
-    image->FixupField(this, offsetof(EEClass, m_pMethodTable), pMT);
+    image->FixupField(this, offsetof(EEClass, m_pMethodTable), pMT, 0, IMAGE_REL_BASED_RelativePointer);
 
     //
     // Fixup MethodDescChunk and MethodDescs
@@ -3044,11 +2787,11 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
 
     if (HasLayout())
     {
-        image->FixupPointerField(this, offsetof(LayoutEEClass, m_LayoutInfo.m_pFieldMarshalers));
+        image->FixupRelativePointerField(this, offsetof(LayoutEEClass, m_LayoutInfo.m_pFieldMarshalers));
 
         EEClassLayoutInfo *pInfo = &((LayoutEEClass*)this)->m_LayoutInfo;
 
-        FieldMarshaler *pFM = pInfo->m_pFieldMarshalers;
+        FieldMarshaler *pFM = pInfo->GetFieldMarshalers();
         FieldMarshaler *pFMEnd = (FieldMarshaler*) ((BYTE *)pFM + pInfo->m_numCTMFields*MAXFIELDMARSHALERSIZE);
         while (pFM < pFMEnd)
         {
@@ -3058,13 +2801,14 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
     }
     else if (IsDelegate())
     {
-        image->FixupPointerField(this, offsetof(DelegateEEClass, m_pInvokeMethod));
-        image->FixupPointerField(this, offsetof(DelegateEEClass, m_pBeginInvokeMethod));
-        image->FixupPointerField(this, offsetof(DelegateEEClass, m_pEndInvokeMethod));
+        image->FixupRelativePointerField(this, offsetof(DelegateEEClass, m_pInvokeMethod));
+        image->FixupRelativePointerField(this, offsetof(DelegateEEClass, m_pBeginInvokeMethod));
+        image->FixupRelativePointerField(this, offsetof(DelegateEEClass, m_pEndInvokeMethod));
 
         image->ZeroPointerField(this, offsetof(DelegateEEClass, m_pUMThunkMarshInfo));
         image->ZeroPointerField(this, offsetof(DelegateEEClass, m_pStaticCallStub));
         image->ZeroPointerField(this, offsetof(DelegateEEClass, m_pMultiCastInvokeStub));
+        image->ZeroPointerField(this, offsetof(DelegateEEClass, m_pSecureDelegateInvokeStub));
         image->ZeroPointerField(this, offsetof(DelegateEEClass, m_pMarshalStub));
 
 #ifdef FEATURE_COMINTEROP
@@ -3092,7 +2836,7 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
     //
 
     if (IsInterface() && GetGuidInfo() != NULL)
-        image->FixupPointerField(this, offsetof(EEClass, m_pGuidInfo));
+        image->FixupRelativePointerField(this, offsetof(EEClass, m_pGuidInfo));
     else
         image->ZeroPointerField(this, offsetof(EEClass, m_pGuidInfo));
 

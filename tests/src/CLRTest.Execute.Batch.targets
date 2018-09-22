@@ -1,6 +1,6 @@
 <!--
 ***********************************************************************************************
-CLRTest.Execute.targets
+CLRTest.Execute.Batch.targets
 
 WARNING:  DO NOT MODIFY this file unless you are knowledgeable about MSBuild and have
           created a backup copy.  Incorrect changes to this file will make it
@@ -18,71 +18,13 @@ WARNING:   When setting properties based on their current state (for example:
 -->
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <ItemGroup>
-    <CLRTestBatchEnvironmentVariable Condition="'$(CrossGen)' == 'true'" Include="set complus_zaprequire=2" />
-    <CLRTestBatchEnvironmentVariable Condition="'$(CrossGen)' == 'true'" Include="set complus_zaprequireexcludelist=corerun" />
-    <CLRTestBatchEnvironmentVariable Condition="'$(GCStressLevel)' != '' and '$(GCStressLevel)' != '0'" Include="set complus_gcstress=$(GCStressLevel)" />
-  </ItemGroup>
-  <!--
-    Target: GetBatchCrossgenScript
-    This returns the portion of the execution script that generates the required lines to crossgen the test executable.
-  -->
-  <Target
-    Condition="'$(CrossGen)'=='true'"
-    Name="GetCrossgenBatchScript"
-    Returns="$(CrossgenBatchScript)">
-    
-    <PropertyGroup>
-<!-- CrossGen will create output if it needs to crossgen. Otherwise there will be silence. -->
-      <CrossgenBatchScript Condition="'$(CLRTestKind)' == 'RunOnly'">
-        <![CDATA[
-if not exist "$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace(".exe", ".ni.exe"))""%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B. $([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))        
-        ]]>
-      </CrossgenBatchScript>
-      <CrossgenBatchScript Condition="'$(CLRTestKind)' == 'BuildAndRun'">
-        <![CDATA[
-if not exist "$(MSBuildProjectName).ni.exe" "%CORE_ROOT%\crossgen.exe" /Platform_Assemblies_Paths %CORE_ROOT%%3B%~dp0 $(MSBuildProjectName).exe      
-        ]]>
-      </CrossgenBatchScript>
-    </PropertyGroup>
-  </Target>
-
-  <Target
-    Name="GetIlasmRoundTripBatchScript"
-    Returns="$(IlasmRoundTripBatchScript)">
-    <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
-      <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
-      <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
-
-      <!-- If a test is built against mscorlib instead of dotnet Core, permission attributes can be embedded, which CoreCLR does not support. -->
-      <IlasmRoundTrip Condition="'$(ReferenceLocalMscorlib)'!=''">false</IlasmRoundTrip>
-
-       <!-- https://github.com/dotnet/coreclr/issues/2481. Delete /raweh to ildasm once it is resolved.-->
-      <IlasmRoundTripBatchScript Condition="'$(IlasmRoundTrip)'=='true'">
-      <![CDATA[
-ECHO %CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
-%CORE_ROOT%\ildasm.exe /raweh /out=$(DisassemblyName) $(InputAssemblyName)
-IF NOT "!ERRORLEVEL!"=="0" (
-  ECHO EXECUTION OF ILDASM - FAILED !ERRORLEVEL!
-  Exit /b 1
-)
-ECHO %CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-%CORE_ROOT%\ilasm.exe /output=$(TargetAssemblyName) $(_IlasmSwitches) $(DisassemblyName)
-IF NOT "!ERRORLEVEL!"=="0" (
-  ECHO EXECUTION OF ILASM - FAILED !ERRORLEVEL!
-  Exit /b 1
-)
-      ]]>
-      </IlasmRoundTripBatchScript>
-    </PropertyGroup>
-  </Target>
-
   <!-- This is here because of this bug: http://blogs.msdn.com/b/msbuild/archive/2006/01/03/508629.aspx-->
   <Target Name="FetchExternalProperties">
-    <!--Call GetExecuteShFullPath to get ToRunProject cmd file Path  -->
-    <MSBuild Projects="$(CLRTestProjectToRun)" Targets="GetExecuteShFullPath" Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'">
+    <!--Call GetExecuteCmdFullPath to get ToRunProject cmd file Path  -->
+    <MSBuild Projects="$(CLRTestProjectToRun)" 
+             Targets="GetExecuteCmdFullPath"
+             Properties="GenerateRunScript=True"
+             Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'">
       <Output TaskParameter="TargetOutputs" PropertyName="_CLRTestToRunFileFullPath"/>
     </MSBuild>
   </Target>
@@ -121,7 +63,7 @@ IF NOT "!ERRORLEVEL!"=="0" (
   <Target Name="GenerateBatchExecutionScript"
     Inputs="$(MSBuildProjectFullPath)"
     Outputs="$(OutputPath)\$(MSBuildProjectName).cmd"
-    DependsOnTargets="FetchExternalProperties;GetCrossgenBatchScript;GetIlasmRoundTripBatchScript">
+    DependsOnTargets="FetchExternalProperties;$(BatchScriptSnippetGen);GetJitDisasmBatchScript;GetIlasmRoundTripBatchScript">
 
     <Message Text="Project depends on $(_CLRTestToRunFileFullPath)." Condition="'$(_CLRTestNeedsProjectToRun)' == 'True'" />
 
@@ -130,26 +72,42 @@ IF NOT "!ERRORLEVEL!"=="0" (
 $(BatchCLRTestEnvironmentCompatibilityCheck)
 IF NOT "%COMPlus_GCStress%"=="" (
   ECHO SKIPPING EXECUTION BECAUSE COMPlus_GCStress IS SET
+  popd
   Exit /b 0
 )
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
-      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'"><![CDATA[
+      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(JitOptimizationSensitive)' == 'true'">
+    <![CDATA[
 $(BatchCLRTestEnvironmentCompatibilityCheck)
-IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" goto :Compatible1
-  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts) IS SET
+IF "%COMPlus_JitStress%"=="" IF "%COMPlus_JitStressRegs%"=="" IF "%COMPlus_JITMinOpts%"=="" IF "%COMPlus_TailcallStress%"=="" IF "%COMPlus_TieredCompilation%"=="" goto :Compatible1
+  ECHO SKIPPING EXECUTION BECAUSE ONE OR MORE OF (COMPlus_JitStress, COMPlus_JitStressRegs, COMPlus_JITMinOpts, COMPlus_TailcallStress, COMPlus_TieredCompilation) IS SET
+  popd
   Exit /b 0
 :Compatible1
+IF "%COMPlus_TieredCompilation%"=="0" goto :Compatible2
+  ECHO SKIPPING EXECUTION BECAUSE COMPlus_TieredCompilation has not been disabled and this test is marked JitOptimizationSensitive
+  popd
+  Exit /b 0
+:Compatible2
       ]]></BatchCLRTestEnvironmentCompatibilityCheck>
-
+      <BatchCLRTestEnvironmentCompatibilityCheck Condition="'$(HeapVerifyIncompatible)' == 'true'"><![CDATA[
+$(BatchCLRTestEnvironmentCompatibilityCheck)
+IF NOT "%COMPlus_HeapVerify%"=="" (
+  ECHO SKIPPING EXECUTION BECAUSE COMPlus_HeapVerify IS SET
+  popd
+  Exit /b 0
+)
+      ]]></BatchCLRTestEnvironmentCompatibilityCheck>
+      
       <BatchCLRTestExitCodePrep Condition="$(_CLRTestNeedsToRun)">
         <![CDATA[
-set CLRTestExpectedExitCode=$(CLRTestExitCode)
+if not defined CLRTestExpectedExitCode (set CLRTestExpectedExitCode=$(CLRTestExitCode))
 ECHO BEGIN EXECUTION
       ]]>
       </BatchCLRTestExitCodePrep>
 
       <BatchCLRTestArgPrep Condition=" '$(CLRTestExecutionArguments)'!='' "><![CDATA[
-set CLRTestExecutionArguments=$(CLRTestExecutionArguments) 
+if not defined CLRTestExecutionArguments (set CLRTestExecutionArguments=$(CLRTestExecutionArguments) )
       ]]></BatchCLRTestArgPrep>
     
       <!-- By default, be prepared to do a full check -->
@@ -159,12 +117,27 @@ ECHO Actual: %CLRTestExitCode%
 IF NOT "%CLRTestExitCode%"=="%CLRTestExpectedExitCode%" (
   ECHO END EXECUTION - FAILED
   ECHO FAILED
+  popd
   Exit /b 1
 ) ELSE (
   ECHO END EXECUTION - PASSED
   ECHO PASSED
+  popd
   Exit /b 0
 )
+
+:TakeLock
+md %lockFolder%
+IF NOT "!ERRORLEVEL!"=="0" (
+timeout /t 10 /nobreak
+goto :TakeLock
+)
+Exit /b 2
+
+
+:ReleaseLock
+if exist %lockFolder% rd /s /q %lockFolder%
+Exit /b 0
       ]]></BatchCLRTestExitCodeCheck>
     </PropertyGroup>
   
@@ -208,28 +181,114 @@ IF NOT "%CLRTestExitCode%"=="%CLRTestExpectedExitCode%" (
         <Description>Set CORE_ROOT to the specified value before running the test.</Description>
       </BatchCLRTestExecutionScriptArgument>
     </ItemGroup>
-      
-    <ItemGroup>
-      <CLRTestBatchEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'true'" Include="set complus_zaprequirelist=$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))" />
-      <CLRTestBatchEnvironmentVariable Condition="'$(CrossGen)' == 'true' AND '$(_CLRTestNeedsProjectToRun)' == 'false'" Include="set complus_zaprequirelist=$(MSBuildProjectName)" />
-    </ItemGroup>
 
-    <PropertyGroup> 
-      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
-      <BatchCLRTestLaunchCmds Condition=" '$(IlasmRoundTrip)'=='true' "><![CDATA[
-ECHO $(_CLRTestRunFile) $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-$(_CLRTestRunFile) $(TargetAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+      <PropertyGroup>
+          <ReflectionRootsXml>$(MSBuildProjectName).reflect.xml</ReflectionRootsXml>
+          <BatchLinkerTestLaunchCmds><![CDATA[
+REM Linker commands
 
-IF NOT "!ERRORLEVEL!"=="%CLRTestExpectedExitCode%" (
-  ECHO END EXECUTION OF IL{D}ASM BINARY - FAILED !ERRORLEVEL! vs %CLRTestExpectedExitCode%
-  ECHO FAILED
-  Exit /b 1
+set LinkBin=__Link
+set Assemblies=-a System.Private.CoreLib
+
+IF defined DoLink ( 
+    IF NOT EXIST !ILLINK! (
+      ECHO ILLink executable [%ILLINK%] Invalid
+      popd
+      Exit /b 1
+    )
+    
+    REM Clean up old Linked binaries, if any
+    IF EXIST %LinkBin% rmdir /s /q %LinkBin%
+    
+    REM Remove Native images, since the goal is to run from Linked binaries
+    del /q /f *.ni.* 2> nul
+
+    REM Use hints for reflection roots, if provided in $(ReflectionRootsXml)
+    IF EXIST $(ReflectionRootsXml) set ReflectionRoots=-x $(ReflectionRootsXml)
+
+    REM Include all .exe files in this directory as entry points (some tests had multiple .exe file modules)
+    FOR /F "delims=" %%E IN ('dir /b *.exe *.dll') DO SET Assemblies=!Assemblies! -a %%~nE
+
+    REM Run dotnet-linker
+    REM Run the Linker such that all assemblies except System.Private.Corlib.dll are linked
+    REM Debug symbol generation needs some fixes, and is currently omitted.
+    REM Once this is fixed, add -b true option.
+    ECHO %ILLINK% -out %LinkBin% -d %CORE_ROOT% -c link -l none -t !Assemblies! !ReflectionRoots!
+    %ILLINK% -out %LinkBin% -d %CORE_ROOT% -c link -l none -t !Assemblies! !ReflectionRoots!
+    IF NOT "!ERRORLEVEL!"=="0" (
+      ECHO ILLINK FAILED !ERRORLEVEL!
+      IF NOT defined KeepLinkedBinaries (
+          IF EXIST %LinkBin% rmdir /s /q %LinkBin%
+      )
+      popd
+      Exit /b 1
+    )
+
+    REM Copy CORECLR native binaries to %LinkBin%, so that we can run the test based on that directory
+    copy %CORE_ROOT%\clrjit.dll %LinkBin% > nul 2> nul
+    copy %CORE_ROOT%\coreclr.dll %LinkBin% > nul 2> nul
+    copy %CORE_ROOT%\mscorrc.dll %LinkBin% > nul 2> nul
+    copy %CORE_ROOT%\CoreRun.exe %LinkBin% > nul 2> nul
+
+    REM Copy some files that may be arguments
+    copy *.txt %LinkBin% > nul 2> nul
+
+    set ExePath=%LinkBin%\$(InputAssemblyName)
+    set CORE_ROOT=%~dp0%LinkBin%
 )
-      ]]></BatchCLRTestLaunchCmds>
+]]>
+          </BatchLinkerTestLaunchCmds>
+          <BatchLinkerTestCleanupCmds>
+              <![CDATA[
+REM Clean up the LinkBin directories after test execution.
+REM Otherwise, RunTests may run out of disk space.
+
+if defined DoLink (
+    if not defined KeepLinkedBinaries (
+        IF EXIST %LinkBin% rmdir /s /q %LinkBin%
+    )
+)              
+]]>
+          </BatchLinkerTestCleanupCmds>
+      </PropertyGroup>
+      <PropertyGroup>      
+      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+      <BatchCopyCoreShimLocalCmds Condition="'$(CLRTestScriptLocalCoreShim)' == 'true'"><![CDATA[
+REM Local CoreShim requested - see MSBuild property 'CLRTestScriptLocalCoreShim'
+ECHO Copying '%CORE_ROOT%\CoreShim.dll'...
+COPY /y %CORE_ROOT%\CoreShim.dll .
+      ]]></BatchCopyCoreShimLocalCmds>
       <BatchCLRTestLaunchCmds><![CDATA[
+IF NOT "%CLRCustomTestLauncher%"=="" (
+  set LAUNCHER=call %CLRCustomTestLauncher% %~dp0
+) ELSE (
+  set LAUNCHER=%_DebuggerFullPath% $(_CLRTestRunFile)
+)
+$(BatchIlrtTestLaunchCmds)
+$(BatchCopyCoreShimLocalCmds)
+      ]]></BatchCLRTestLaunchCmds>
+      <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'BuildAndRun'">
+    <![CDATA[
+$(BatchLinkerTestLaunchCmds)
 $(BatchCLRTestLaunchCmds)
-ECHO %_DebuggerFullPath% $(_CLRTestRunFile) $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
-%_DebuggerFullPath% $(_CLRTestRunFile) $(InputAssemblyName) %CLRTestExecutionArguments% %Host_Args%
+
+if defined RunCrossGen (
+  call :TakeLock
+)
+ECHO %LAUNCHER% %ExePath% %CLRTestExecutionArguments%
+%LAUNCHER% %ExePath% %CLRTestExecutionArguments%
+set CLRTestExitCode=!ERRORLEVEL!
+if defined RunCrossGen (
+  call :ReleaseLock
+)
+$(BatchLinkerTestCleanupCmds)
+      ]]></BatchCLRTestLaunchCmds>
+
+      <BatchCLRTestLaunchCmds Condition="'$(CLRTestKind)' == 'RunOnly'"><![CDATA[
+$(BatchCLRTestLaunchCmds)
+ECHO  cmd /c $(InputAssemblyName)
+cmd /c $(InputAssemblyName)
+set CLRTestExpectedExitCode=0
 set CLRTestExitCode=!ERRORLEVEL!
       ]]></BatchCLRTestLaunchCmds>
     </PropertyGroup>
@@ -252,11 +311,6 @@ set CLRTestExitCode=!ERRORLEVEL!
     <!-- Raise an error if any value in _RequiredProperties is missing  -->
     <Error Condition=" '%(_RequiredProperties.Value)'=='' "
       Text="Missing required test property [%(_RequiredProperties.Identity)]. Something isn't plumbed through correctly.  Contact $(_CLRTestBuildSystemOwner)." />
-      <!-- TODO: this is weird.  Consider eliminating it. -->
-    <GenerateParamList ArgumentItems="@(BatchCLRTestExecutionScriptArgument)">
-      <Output TaskParameter="ParamList" PropertyName="_CLRTestParamList"/>
-    </GenerateParamList>
-    
     <PropertyGroup>
       <!--
       This generates the script portion to parse all of the command line arguments.
@@ -292,12 +346,13 @@ goto ArgsDone
 
 :USAGE
 ECHO.Usage
-ECHO %0 $(_CLRTestParamList)
+ECHO %0 @(BatchCLRTestExecutionScriptArgument -> '[-%(Identity) %(ParamName)]', ' ')
 ECHO.
 ECHO                         - OPTIONS -
 @(BatchCLRTestExecutionScriptArgument -> 'ECHO -%(Identity) %(ParamName)
 ECHO      %(Description)', '
 ')
+popd
 Exit /b 1
 
 :ArgsDone
@@ -308,7 +363,9 @@ $(BatchCLRTestArgPrep)
   <![CDATA[
 @ECHO OFF
 setlocal ENABLEDELAYEDEXPANSION
+set "lockFolder=%~dp0\lock"
 pushd %~dp0
+
 $(BatchCLRTestArgPrep)
 $(BatchCLRTestExitCodePrep)
 
@@ -320,11 +377,12 @@ $(BatchEnvironmentVariables)
 
 $(BatchCLRTestEnvironmentCompatibilityCheck)
 
-REM CrossGen Script (when /p:CrossGen=true)
-$(CrossgenBatchScript)
+$(JitDisasmBatchScript)
 
-REM IlasmRoundTrip Script
 $(IlasmRoundTripBatchScript)
+
+REM Allow precommands to override the ExePath
+set ExePath=$(InputAssemblyName)
 
 REM Precommands
 $(CLRTestBatchPreCommands)

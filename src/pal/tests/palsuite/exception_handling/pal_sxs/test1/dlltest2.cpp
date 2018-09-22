@@ -17,7 +17,19 @@
 extern "C"
 int InitializeDllTest2()
 {
+    PAL_SetInitializeDLLFlags(PAL_INITIALIZE_DLL | PAL_INITIALIZE_REGISTER_SIGNALS);
     return PAL_InitializeDLL();
+}
+
+__attribute__((noinline,optnone))
+static void FailingFunction(volatile int *p)
+{
+    if (p == NULL)
+    {
+        throw PAL_SEHException();
+    }
+
+    *p = 1;          // Causes an access violation exception
 }
 
 BOOL bTry    = FALSE;
@@ -33,7 +45,8 @@ int DllTest2()
         volatile int* p = (volatile int *)0x22; // Invalid pointer
 
         bTry = TRUE;                            // Indicate we hit the PAL_TRY block
-        *p = 2;                                 // Causes an access violation exception
+        FailingFunction(p);  // Throw in function to fool C++ runtime into handling
+                             // h/w exception
 
         Fail("ERROR: code was executed after the access violation.\n");
     }
@@ -45,7 +58,7 @@ int DllTest2()
         }
 
         // Validate that the faulting address is correct; the contents of "p" (0x22).
-        if (ex.ExceptionRecord.ExceptionInformation[1] != 0x22)
+        if (ex.GetExceptionRecord()->ExceptionInformation[1] != 0x22)
         {
             Fail("ERROR: PAL_EXCEPT ExceptionInformation[1] != 0x22\n");
         }

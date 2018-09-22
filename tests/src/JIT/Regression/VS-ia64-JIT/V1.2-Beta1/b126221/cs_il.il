@@ -1,13 +1,12 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
 
 .assembly extern legacy library mscorlib
 {
-  .publickeytoken = (B7 7A 5C 56 19 34 E0 89 )                         
-  .hash = (CA 05 4F 87 FF A4 18 D8 3E 2E 6B D2 6E 73 FE 65   
-           5F E5 6E 66 )                                     
-  .ver 1:2:3400:0
 }
 .assembly legacy library cs_test_01
 {
@@ -122,6 +121,3 @@
   } 
 
 } 
-
-
-

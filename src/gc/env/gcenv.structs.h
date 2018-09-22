@@ -9,23 +9,9 @@
 
 struct GCSystemInfo
 {
-    uint32_t dwNumberOfProcessors;
-    uint32_t dwPageSize;
-    uint32_t dwAllocationGranularity;
-};
-
-// An 'abstract' definition of Windows MEMORYSTATUSEX.  In practice, the only difference is the missing struct size
-// field and one field that Windows documents to always be 0.  If additional information is available on other OSes,
-// this information should be surfaced through this structure as additional fields that the GC may optionally depend on.
-struct GCMemoryStatus
-{
-    uint32_t dwMemoryLoad;
-    uint64_t ullTotalPhys;
-    uint64_t ullAvailPhys;
-    uint64_t ullTotalPageFile;
-    uint64_t ullAvailPageFile;
-    uint64_t ullTotalVirtual;
-    uint64_t ullAvailVirtual;
+    uint32_t        dwNumberOfProcessors;
+    uint32_t        dwPageSize;
+    uint32_t        dwAllocationGranularity;
 };
 
 typedef void * HANDLE;
@@ -79,7 +65,7 @@ extern "C" uint32_t __stdcall GetCurrentThreadId();
 
 class EEThreadId
 {
-    uint32_t m_uiId;
+    uint64_t m_uiId;
 public:
 
     bool IsCurrentThread()

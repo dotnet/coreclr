@@ -16,6 +16,7 @@
  */
 
 using System;
+using System.Runtime.CompilerServices;
 
 public class Test
 {
@@ -47,28 +48,43 @@ public class Test
     }
 
 
-    public static void RunTest()
+    [MethodImplAttribute(MethodImplOptions.NoInlining)]
+    public static void RunTest2()
     {
-        Dummy obj = new Dummy();
         Dummy2 obj2 = new Dummy2();
+        obj2 = null;
+    }
+
+
+    public static bool RunTest()
+    {
+        bool success = false;
+
+        Dummy obj = new Dummy();
+
+        RunTest2();
 
         // *uncomment the for loop to make test fail with complus_jitminops set
         // by design as per briansul
 
         //for (int i=0; i<5; i++) {
-        obj2 = null;
         GC.Collect();
         GC.WaitForPendingFinalizers();
+        GC.Collect();
         //}
 
+        success = (visited1 == false) && (visited2 == true);
+
         GC.KeepAlive(obj);  // will keep obj alive until this point
+
+        return success;
     }
 
     public static int Main()
     {
-        RunTest();
+        bool success = RunTest();
 
-        if ((visited1 == false) && (visited2 == true))
+        if (success)
         {
             Console.WriteLine("Test for KeepAlive() passed!");
             return 100;
@@ -76,8 +92,6 @@ public class Test
         else
         {
             Console.WriteLine("Test for KeepAlive() failed!");
-
-
             return 1;
         }
     }

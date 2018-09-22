@@ -7,19 +7,20 @@
 #define _INSTR_H_
 /*****************************************************************************/
 
-#define BAD_CODE    0x0BADC0DE        // better not match a real encoding!
+#define BAD_CODE 0x0BADC0DE // better not match a real encoding!
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(instruction,unsigned)
+// clang-format off
+enum instruction : unsigned
 {
 #if defined(_TARGET_XARCH_)
-    #define INST0(id, nm, fp, um, rf, wf, mr                ) INS_##id,
-    #define INST1(id, nm, fp, um, rf, wf, mr                ) INS_##id,
-    #define INST2(id, nm, fp, um, rf, wf, mr, mi            ) INS_##id,
-    #define INST3(id, nm, fp, um, rf, wf, mr, mi, rm        ) INS_##id,
-    #define INST4(id, nm, fp, um, rf, wf, mr, mi, rm, a4    ) INS_##id,
-    #define INST5(id, nm, fp, um, rf, wf, mr, mi, rm, a4, rr) INS_##id,
+    #define INST0(id, nm, um, mr,                 flags) INS_##id,
+    #define INST1(id, nm, um, mr,                 flags) INS_##id,
+    #define INST2(id, nm, um, mr, mi,             flags) INS_##id,
+    #define INST3(id, nm, um, mr, mi, rm,         flags) INS_##id,
+    #define INST4(id, nm, um, mr, mi, rm, a4,     flags) INS_##id,
+    #define INST5(id, nm, um, mr, mi, rm, a4, rr, flags) INS_##id,
     #include "instrs.h"
 
 #elif defined(_TARGET_ARM_)
@@ -32,7 +33,8 @@ DECLARE_TYPED_ENUM(instruction,unsigned)
     #define INST8(id, nm, fp, ldst, fmt, e1, e2, e3, e4, e5, e6, e7, e8    ) INS_##id,
     #define INST9(id, nm, fp, ldst, fmt, e1, e2, e3, e4, e5, e6, e7, e8, e9) INS_##id,
     #include "instrs.h"
-    #include "x86_instrs.h"
+
+    INS_lea,   // Not a real instruction. It is used for load the address of stack locals
 
 #elif defined(_TARGET_ARM64_)
     #define INST1(id, nm, fp, ldst, fmt, e1                                ) INS_##id,
@@ -52,8 +54,7 @@ DECLARE_TYPED_ENUM(instruction,unsigned)
 
     INS_none,
     INS_count = INS_none
-}
-END_DECLARE_TYPED_ENUM(instruction,unsigned)
+};
 
 /*****************************************************************************/
 
@@ -78,25 +79,40 @@ enum emitJumpKind
 
 /*****************************************************************************/
 
-DECLARE_TYPED_ENUM(GCtype,unsigned)
+enum GCtype : unsigned
 {
     GCT_NONE,
     GCT_GCREF,
     GCT_BYREF
-}
-END_DECLARE_TYPED_ENUM(GCtype,unsigned)
-
-// TODO-Cleanup:  Move 'insFlags' under _TARGET_ARM_ 
-DECLARE_TYPED_ENUM(insFlags,unsigned)
-{
-    INS_FLAGS_NOT_SET,
-    INS_FLAGS_SET,
-    INS_FLAGS_DONT_CARE
 };
-END_DECLARE_TYPED_ENUM(insFlags,unsigned)
+
+#if defined(_TARGET_XARCH_)
+enum insFlags: uint8_t
+{
+    INS_FLAGS_None = 0x00,
+    INS_FLAGS_ReadsFlags = 0x01,
+    INS_FLAGS_WritesFlags = 0x02,
+    INS_FLAGS_x87Instr = 0x04,
+    INS_Flags_IsDstDstSrcAVXInstruction = 0x08,
+    INS_Flags_IsDstSrcSrcAVXInstruction = 0x10,
+
+    //  TODO-Cleanup:  Remove this flag and its usage from _TARGET_XARCH_
+    INS_FLAGS_DONT_CARE = 0x00,
+};
+#elif defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+// TODO-Cleanup: Move 'insFlags' under _TARGET_ARM_
+enum insFlags: unsigned
+{
+    INS_FLAGS_NOT_SET = 0x00,
+    INS_FLAGS_SET = 0x01,
+    INS_FLAGS_DONT_CARE = 0x02,
+};
+#else
+#error Unsupported target architecture
+#endif
 
 #if defined(_TARGET_ARM_)
-DECLARE_TYPED_ENUM(insOpts,unsigned)
+enum insOpts: unsigned
 {
     INS_OPTS_NONE,
     INS_OPTS_LDST_PRE_DEC,
@@ -107,10 +123,9 @@ DECLARE_TYPED_ENUM(insOpts,unsigned)
     INS_OPTS_LSR,
     INS_OPTS_ASR,
     INS_OPTS_ROR
-}
-END_DECLARE_TYPED_ENUM(insOpts,unsigned)
+};
 #elif defined(_TARGET_ARM64_)
-DECLARE_TYPED_ENUM(insOpts,unsigned)
+enum insOpts : unsigned
 {
     INS_OPTS_NONE,
 
@@ -145,13 +160,13 @@ DECLARE_TYPED_ENUM(insOpts,unsigned)
     INS_OPTS_MSL,     // Vector Immediate (shifting ones variant)
 
     INS_OPTS_S_TO_4BYTE,  // Single to INT32
-    INS_OPTS_D_TO_4BYTE,  // Double to INT32  
+    INS_OPTS_D_TO_4BYTE,  // Double to INT32
 
     INS_OPTS_S_TO_8BYTE,  // Single to INT64
     INS_OPTS_D_TO_8BYTE,  // Double to INT64
 
     INS_OPTS_4BYTE_TO_S,  // INT32 to Single
-    INS_OPTS_4BYTE_TO_D,  // INT32 to Double  
+    INS_OPTS_4BYTE_TO_D,  // INT32 to Double
 
     INS_OPTS_8BYTE_TO_S,  // INT64 to Single
     INS_OPTS_8BYTE_TO_D,  // INT64 to Double
@@ -164,10 +179,9 @@ DECLARE_TYPED_ENUM(insOpts,unsigned)
 
     INS_OPTS_S_TO_H,      // Single to Half
     INS_OPTS_D_TO_H,      // Double to Half
-}
-END_DECLARE_TYPED_ENUM(insOpts,unsigned)
+};
 
-DECLARE_TYPED_ENUM(insCond,unsigned)
+enum insCond : unsigned
 {
     INS_COND_EQ,
     INS_COND_NE,
@@ -186,10 +200,9 @@ DECLARE_TYPED_ENUM(insCond,unsigned)
 
     INS_COND_GT,
     INS_COND_LE,
-}
-END_DECLARE_TYPED_ENUM(insCond,unsigned)
+};
 
-DECLARE_TYPED_ENUM(insCflags,unsigned)
+enum insCflags : unsigned
 {
     INS_FLAGS_NONE,
     INS_FLAGS_V,
@@ -210,10 +223,9 @@ DECLARE_TYPED_ENUM(insCflags,unsigned)
     INS_FLAGS_NZV,
     INS_FLAGS_NZC,
     INS_FLAGS_NZCV,
-}
-END_DECLARE_TYPED_ENUM(insCFlags,unsigned)
+};
 
-DECLARE_TYPED_ENUM(insBarrier,unsigned)
+enum insBarrier : unsigned
 {
     INS_BARRIER_OSHLD =  1,
     INS_BARRIER_OSHST =  2,
@@ -230,12 +242,11 @@ DECLARE_TYPED_ENUM(insBarrier,unsigned)
     INS_BARRIER_LD    = 13,
     INS_BARRIER_ST    = 14,
     INS_BARRIER_SY    = 15,
-}
-END_DECLARE_TYPED_ENUM(insBarrier,unsigned)
+};
 #endif
 
 #undef EA_UNKNOWN
-DECLARE_TYPED_ENUM(emitAttr,unsigned)
+enum emitAttr : unsigned
 {
                 EA_UNKNOWN       = 0x000,
                 EA_1BYTE         = 0x001,
@@ -260,8 +271,7 @@ DECLARE_TYPED_ENUM(emitAttr,unsigned)
                 EA_BYREF         = EA_BYREF_FLG |  EA_PTRSIZE,       /* size == -2 */
                 EA_DSP_RELOC_FLG = 0x200,
                 EA_CNS_RELOC_FLG = 0x400,
-}
-END_DECLARE_TYPED_ENUM(emitAttr,unsigned)
+};
 
 #define EA_ATTR(x)                  ((emitAttr)(x))
 #define EA_SIZE(x)                  ((emitAttr)(((unsigned)(x)) &  EA_SIZE_MASK))
@@ -282,18 +292,60 @@ END_DECLARE_TYPED_ENUM(emitAttr,unsigned)
 
 #define EmitSize(x)                 (EA_ATTR(genTypeSize(TypeGet(x))))
 
-// Enum specifying the instruction set for generating floating point or SIMD code.
 enum InstructionSet
 {
+    InstructionSet_ILLEGAL = 0,
 #ifdef _TARGET_XARCH_
-    InstructionSet_SSE2,
-    InstructionSet_AVX,
+    // Start linear order SIMD instruction sets
+    // These ISAs have strictly generation to generation order.
+    InstructionSet_SSE     = 1,
+    InstructionSet_SSE2    = 2,
+    InstructionSet_SSE3    = 3,
+    InstructionSet_SSSE3   = 4,
+    InstructionSet_SSE41   = 5,
+    InstructionSet_SSE42   = 6,
+    InstructionSet_AVX     = 7,
+    InstructionSet_AVX2    = 8,
+    // Reserve values <32 for future SIMD instruction sets (i.e., AVX512),
+    // End linear order SIMD instruction sets.
+
+    InstructionSet_AES     = 32,
+    InstructionSet_BMI1    = 33,
+    InstructionSet_BMI2    = 34,
+    InstructionSet_FMA     = 35,
+    InstructionSet_LZCNT   = 36,
+    InstructionSet_PCLMULQDQ  = 37,
+    InstructionSet_POPCNT  = 38,
 #elif defined(_TARGET_ARM_)
     InstructionSet_NEON,
+#elif defined(_TARGET_ARM64_)
+    InstructionSet_Base,      // Base instructions available on all Arm64 platforms
+    InstructionSet_Aes,       // ID_AA64ISAR0_EL1.AES is 1 or better
+    InstructionSet_Atomics,   // ID_AA64ISAR0_EL1.Atomic is 2 or better
+    InstructionSet_Crc32,     // ID_AA64ISAR0_EL1.CRC32 is 1 or better
+    InstructionSet_Dcpop,     // ID_AA64ISAR1_EL1.DPB is 1 or better
+    InstructionSet_Dp,        // ID_AA64ISAR0_EL1.DP is 1 or better
+    InstructionSet_Fcma,      // ID_AA64ISAR1_EL1.FCMA is 1 or better
+    InstructionSet_Fp,        // ID_AA64PFR0_EL1.FP is 0 or better
+    InstructionSet_Fp16,      // ID_AA64PFR0_EL1.FP is 1 or better
+    InstructionSet_Jscvt,     // ID_AA64ISAR1_EL1.JSCVT is 1 or better
+    InstructionSet_Lrcpc,     // ID_AA64ISAR1_EL1.LRCPC is 1 or better
+    InstructionSet_Pmull,     // ID_AA64ISAR0_EL1.AES is 2 or better
+    InstructionSet_Sha1,      // ID_AA64ISAR0_EL1.SHA1 is 1 or better
+    InstructionSet_Sha256,    // ID_AA64ISAR0_EL1.SHA2 is 1 or better
+    InstructionSet_Sha512,    // ID_AA64ISAR0_EL1.SHA2 is 2 or better
+    InstructionSet_Sha3,      // ID_AA64ISAR0_EL1.SHA3 is 1 or better
+    InstructionSet_Simd,      // ID_AA64PFR0_EL1.AdvSIMD is 0 or better
+    InstructionSet_Simd_v81,  // ID_AA64ISAR0_EL1.RDM is 1 or better
+    InstructionSet_Simd_fp16, // ID_AA64PFR0_EL1.AdvSIMD is 1 or better
+    InstructionSet_Sm3,       // ID_AA64ISAR0_EL1.SM3 is 1 or better
+    InstructionSet_Sm4,       // ID_AA64ISAR0_EL1.SM4 is 1 or better
+    InstructionSet_Sve,       // ID_AA64PFR0_EL1.SVE is 1 or better
 #endif
-    InstructionSet_NONE
+    InstructionSet_NONE       // No instruction set is available indicating an invalid value
 };
+// clang-format on
 
 /*****************************************************************************/
-#endif//_INSTR_H_
+#endif //_INSTR_H_
 /*****************************************************************************/

@@ -23,7 +23,6 @@ class EHClauseInfo;
 #define PRESERVE_WATSON_ACROSS_CONTEXTS 1
 #endif
 
-extern LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
 extern StackWalkAction COMPlusUnwindCallback(CrawlFrame *pCf, ThrowCallbackType *pData);
 
 //
@@ -56,7 +55,7 @@ class ThreadExceptionState
 public:
     
     void FreeAllStackTraces();
-    void ClearThrowablesForUnload(HandleTableBucket* pHndTblBucket);
+    void ClearThrowablesForUnload(IGCHandleStore* handleStore);
 
 #ifdef _DEBUG
     typedef enum 
@@ -116,16 +115,13 @@ public:
         // to start a funclet-skipping stackwalk in this time window.
         TEF_InconsistentExceptionState    = 0x00000001,
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
         TEF_ForeignExceptionRaise         = 0x00000002,
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
     };
 
     void SetThreadExceptionFlag(ThreadExceptionFlag flag);
     void ResetThreadExceptionFlag(ThreadExceptionFlag flag);
     BOOL HasThreadExceptionFlag(ThreadExceptionFlag flag);
 
-#if defined(FEATURE_EXCEPTIONDISPATCHINFO)
     inline void SetRaisingForeignException()
     {
         LIMITED_METHOD_CONTRACT;
@@ -143,7 +139,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         ResetThreadExceptionFlag(TEF_ForeignExceptionRaise);
     }
-#endif // defined(FEATURE_EXCEPTIONDISPATCHINFO)
 
 #if defined(_DEBUG)
     void AssertStackTraceInfo(StackTraceInfo *pSTI);
@@ -296,8 +291,6 @@ private:
                         CONTEXT*                        pContext,
                         EXCEPTION_REGISTRATION_RECORD*  pEstablisherFrame,
                         Thread*                         pThread);
-
-    friend LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo);
 
     friend class Thread;
     // It it the following method that needs to be a friend.  But the prototype pulls in a lot more stuff,

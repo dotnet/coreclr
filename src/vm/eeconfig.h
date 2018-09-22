@@ -243,25 +243,10 @@ enum { OPT_BLENDED,
     OPT_RANDOM,
     OPT_DEFAULT = OPT_BLENDED };
 
-/* Control of impersonation flow:
-    FASTFLOW means that impersonation is flowed only if it has been achieved through managed means. This is the default and avoids a kernel call.
-    NOFLOW is the Everett default where we don't flow the impersonation at all
-    ALWAYSFLOW is the (potentially) slow mode where we will always flow the impersonation, regardless of how it was achieved (managed or p/invoke). Includes
-    a kernel call.
-    Keep in sync with values in SecurityContext.cs
-    */
-enum { 
-    IMP_FASTFLOW = 0,
-    IMP_NOFLOW = 1,
-    IMP_ALWAYSFLOW = 2,
-    IMP_DEFAULT = IMP_FASTFLOW };
-
 enum ParseCtl {
     parseAll,               // parse entire config file
     stopAfterRuntimeSection // stop after <runtime>...</runtime> section
 };
-
-extern CorHostProtectionManager s_CorHostProtectionManager;
 
 class EEConfig
 {
@@ -287,6 +272,7 @@ public:
     DWORD         SpinLimitProcFactor(void)       const {LIMITED_METHOD_CONTRACT;  return dwSpinLimitProcFactor; }
     DWORD         SpinLimitConstant(void)         const {LIMITED_METHOD_CONTRACT;  return dwSpinLimitConstant; }
     DWORD         SpinRetryCount(void)            const {LIMITED_METHOD_CONTRACT;  return dwSpinRetryCount; }
+    DWORD         MonitorSpinCount(void)          const {LIMITED_METHOD_CONTRACT;  return dwMonitorSpinCount; }
 
     // Jit-config
     
@@ -296,6 +282,30 @@ public:
     bool          AddRejitNops(void)                const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
     bool          JitMinOpts(void)                  const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
     
+    // Tiered Compilation config
+#if defined(FEATURE_TIERED_COMPILATION)
+    bool          TieredCompilation(void)           const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
+    bool          TieredCompilation_CallCounting()  const {LIMITED_METHOD_CONTRACT;  return fTieredCompilation_CallCounting; }
+    bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
+    DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
+    DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
+#endif
+
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    inline bool ShouldDumpElfOnMethod(LPCUTF8 methodName) const
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_NOTRIGGER;
+            PRECONDITION(CheckPointer(methodName, NULL_OK));
+        } CONTRACTL_END
+        return RegexOrExactMatch(pszGDBJitElfDump, methodName);
+    }
+#endif // FEATURE_GDBJIT && _DEBUG
+
+#if defined(FEATURE_GDBJIT_FRAME)
+    inline bool ShouldEmitDebugFrame(void) const {LIMITED_METHOD_CONTRACT; return fGDBJitEmitDebugFrame;}
+#endif // FEATURE_GDBJIT_FRAME
     BOOL PInvokeRestoreEsp(BOOL fDefault) const
     {
         LIMITED_METHOD_CONTRACT;
@@ -310,9 +320,7 @@ public:
 
     bool LegacyNullReferenceExceptionPolicy(void)   const {LIMITED_METHOD_CONTRACT;  return fLegacyNullReferenceExceptionPolicy; }
     bool LegacyUnhandledExceptionPolicy(void)       const {LIMITED_METHOD_CONTRACT;  return fLegacyUnhandledExceptionPolicy; }
-    bool LegacyVirtualMethodCallVerification(void)  const {LIMITED_METHOD_CONTRACT;  return fLegacyVirtualMethodCallVerification; }
 
-    bool LegacyApartmentInitPolicy(void)            const {LIMITED_METHOD_CONTRACT;  return fLegacyApartmentInitPolicy; }
     bool LegacyComHierarchyVisibility(void)         const {LIMITED_METHOD_CONTRACT;  return fLegacyComHierarchyVisibility; }
     bool LegacyComVTableLayout(void)                const {LIMITED_METHOD_CONTRACT;  return fLegacyComVTableLayout; }
     bool NewComVTableLayout(void)                   const {LIMITED_METHOD_CONTRACT;  return fNewComVTableLayout; }
@@ -321,33 +329,6 @@ public:
     // Returns a bool to indicate if the legacy CSE (pre-v4) behaviour is enabled or not
     bool LegacyCorruptedStateExceptionsPolicy(void) const {LIMITED_METHOD_CONTRACT;  return fLegacyCorruptedStateExceptionsPolicy; }
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
-    
-    // SECURITY
-    unsigned    ImpersonationMode(void)           const 
-    { 
-        CONTRACTL 
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            // MODE_ANY;
-            SO_TOLERANT;
-        } CONTRACTL_END;
-        return iImpersonationPolicy ; 
-    }
-    void    SetLegacyImpersonationPolicy()              { LIMITED_METHOD_CONTRACT; iImpersonationPolicy = IMP_NOFLOW; }
-    void    SetAlwaysFlowImpersonationPolicy()              { LIMITED_METHOD_CONTRACT; iImpersonationPolicy = IMP_ALWAYSFLOW; }
-
-#ifdef _DEBUG
-    bool LogTransparencyErrors() const { LIMITED_METHOD_CONTRACT; return fLogTransparencyErrors; }
-    bool DisableTransparencyEnforcement() const { LIMITED_METHOD_CONTRACT; return fLogTransparencyErrors; }
-#endif // _DEBUG
-
-    void SetLegacyLoadMscorsnOnStartup(bool val) { LIMITED_METHOD_CONTRACT; fLegacyLoadMscorsnOnStartup = val; }
-    bool LegacyLoadMscorsnOnStartup(void) const { LIMITED_METHOD_CONTRACT; return fLegacyLoadMscorsnOnStartup; }
-    bool BypassTrustedAppStrongNames() const { LIMITED_METHOD_CONTRACT; return fBypassStrongNameVerification; } // See code:AssemblySecurityDescriptor::ResolveWorker#StrongNameBypass
-    bool GeneratePublisherEvidence(void) const { LIMITED_METHOD_CONTRACT; return fGeneratePublisherEvidence; }
-    bool EnforceFIPSPolicy() const { LIMITED_METHOD_CONTRACT; return fEnforceFIPSPolicy; }
-    bool LegacyHMACMode() const { LIMITED_METHOD_CONTRACT; return fLegacyHMACMode; }
 
 #ifdef FEATURE_COMINTEROP
     bool ComInsteadOfManagedRemoting()              const {LIMITED_METHOD_CONTRACT;  return m_fComInsteadOfManagedRemoting; } 
@@ -359,7 +340,6 @@ public:
     bool GenDebuggableCode(void)                    const {LIMITED_METHOD_CONTRACT;  return fDebuggable; }
     bool IsStressOn(void)                           const {LIMITED_METHOD_CONTRACT;  return fStressOn; }
     int GetAPIThreadStressCount(void)               const {LIMITED_METHOD_CONTRACT;  return apiThreadStressCount; }
-    bool TlbImpSkipLoading()                        const {LIMITED_METHOD_CONTRACT;  return fTlbImpSkipLoading; }
 
     bool ShouldExposeExceptionsInCOMToConsole()     const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 1) != 0; }
     bool ShouldExposeExceptionsInCOMToMsgBox()      const {LIMITED_METHOD_CONTRACT;  return (iExposeExceptionsInCOM & 2) != 0; }
@@ -512,9 +492,6 @@ public:
     }
 #endif // FEATURE_COMINTEROP
 
-#ifdef FEATURE_CORECLR
-    bool VerifyModulesOnLoad(void) const { LIMITED_METHOD_CONTRACT; return fVerifyAllOnLoad; }
-#endif
 #ifdef _DEBUG
     bool ExpandModulesOnLoad(void) const { LIMITED_METHOD_CONTRACT; return fExpandAllOnLoad; }
 #endif //_DEBUG
@@ -547,12 +524,6 @@ public:
         return fUseLegacyIdentityFormat;
     }
 
-    inline bool DisableFusionUpdatesFromADManager() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return fDisableFusionUpdatesFromADManager;
-    }
-
     inline void SetDisableCommitThreadStack(bool val)
     {
         LIMITED_METHOD_CONTRACT; 
@@ -580,7 +551,12 @@ public:
 
 #ifdef _DEBUG
     inline bool AppDomainLeaks() const
-    {LIMITED_METHOD_DAC_CONTRACT;  return fAppDomainLeaks; }
+    {
+        // Workaround for CoreCLR bug #12075, until this configuration option is removed
+        // (CoreCLR Bug #12094)
+        LIMITED_METHOD_DAC_CONTRACT;
+        return false;
+    }
 #endif
 
     inline bool DeveloperInstallation() const
@@ -662,15 +638,6 @@ public:
     GCStressFlags GetGCStressLevel()        const { WRAPPER_NO_CONTRACT; SUPPORTS_DAC; return GCStressFlags(iGCStress); }
 #endif
 
-#ifdef _DEBUG // TRACE_GC
-
-    int     GetGCtraceStart()               const {LIMITED_METHOD_CONTRACT; return iGCtraceStart;  }
-    int     GetGCtraceEnd  ()               const {LIMITED_METHOD_CONTRACT;  return iGCtraceEnd;   }
-    int     GetGCtraceFac  ()               const {LIMITED_METHOD_CONTRACT;  return iGCtraceFac;   }
-    int     GetGCprnLvl    ()               const {LIMITED_METHOD_CONTRACT;  return iGCprnLvl;     }
-    
-#endif
-
 #ifdef STRESS_HEAP
 
     bool    IsGCStressMix  ()               const {LIMITED_METHOD_CONTRACT;  return iGCStressMix != 0;}
@@ -692,6 +659,8 @@ public:
     int     GetGCForceCompact()             const {LIMITED_METHOD_CONTRACT; return iGCForceCompact; }
     int     GetGCRetainVM ()                const {LIMITED_METHOD_CONTRACT; return iGCHoardVM;}
     int     GetGCLOHCompactionMode()        const {LIMITED_METHOD_CONTRACT; return iGCLOHCompactionMode;}
+    int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
+    int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -708,12 +677,6 @@ public:
 #ifdef _DEBUG
     bool    SkipGCCoverage(LPCUTF8 assemblyName) const {WRAPPER_NO_CONTRACT; return (pSkipGCCoverageList != NULL 
                                                                                     && pSkipGCCoverageList->IsInList(assemblyName));}
-#endif
-
-
-    // thread stress: number of threads to run
-#ifdef STRESS_THREAD
-    DWORD GetStressThreadCount ()           const {LIMITED_METHOD_CONTRACT; return dwStressThreadCount;}
 #endif
 
 #ifdef _DEBUG
@@ -760,11 +723,7 @@ public:
 #ifdef _DEBUG
     bool    ForbidZap(LPCUTF8 assemblyName) const;
 #endif
-
-#ifdef _TARGET_AMD64_
-    bool    DisableNativeImageLoad(LPCUTF8 assemblyName) const;
-    bool    IsDisableNativeImageLoadListNonEmpty() const { LIMITED_METHOD_CONTRACT; return (pDisableNativeImageLoadList != NULL); }
-#endif
+    bool    ExcludeReadyToRun(LPCUTF8 assemblyName) const;
     
     LPCWSTR ZapSet()                        const { LIMITED_METHOD_CONTRACT; return pZapSet; }
 
@@ -863,15 +822,11 @@ public:
     GCPollType GetGCPollType() { LIMITED_METHOD_CONTRACT; return iGCPollType; }
 
 #ifdef _DEBUG
-    BOOL ShouldGenerateStubForHost() const {LIMITED_METHOD_CONTRACT; return fGenerateStubForHost;}
-    void DisableGenerateStubForHost() {LIMITED_METHOD_CONTRACT; fGenerateStubForHost = FALSE;}
-
     DWORD GetHostTestADUnload() const {LIMITED_METHOD_CONTRACT; return testADUnload;}
 
     DWORD GetHostTestThreadAbort() const {LIMITED_METHOD_CONTRACT; return testThreadAbort;}
 
 #define INJECTFAULT_LOADERHEAP      0x1
-#define INJECTFAULT_HANDLETABLE     0x1
 #define INJECTFAULT_GCHEAP          0x2
 #define INJECTFAULT_SO              0x4
 #define INJECTFAULT_GMHEAP          0x8
@@ -891,7 +846,6 @@ private: //----------------------------------------------------------------
     // will come as a result won't matter.
     bool fCacheBindingFailures;
     bool fUseLegacyIdentityFormat;
-    bool fDisableFusionUpdatesFromADManager;
     bool fInited;                   // have we synced to the registry at least once?
 
     // Jit-config
@@ -907,27 +861,14 @@ private: //----------------------------------------------------------------
 
     bool fLegacyNullReferenceExceptionPolicy; // Old AV's as NullRef behavior
     bool fLegacyUnhandledExceptionPolicy;     // Old unhandled exception policy (many are swallowed)
-    bool fLegacyVirtualMethodCallVerification;  // Old (pre-whidbey) policy for call (nonvirt) of virtual function
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     bool fLegacyCorruptedStateExceptionsPolicy;
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
 
-    bool fLegacyApartmentInitPolicy;          // Old nondeterministic COM apartment initialization switch
     bool fLegacyComHierarchyVisibility;       // Old behavior allowing QIs for classes with invisible parents
     bool fLegacyComVTableLayout;              // Old behavior passing out IClassX interface for IUnknown and IDispatch.
     bool fNewComVTableLayout;                 // New behavior passing out Basic interface for IUnknown and IDispatch.
-    
-    // SECURITY
-    unsigned  iImpersonationPolicy; //control flow of impersonation in the SecurityContext. 0=FASTFLOW 1=
-#ifdef _DEBUG
-    bool fLogTransparencyErrors;            // don't throw on transparency errors, instead log to the CLR log file
-#endif // _DEBUG
-    bool fLegacyLoadMscorsnOnStartup; // load mscorsn.dll when starting up the runtime.
-    bool fBypassStrongNameVerification;     // bypass strong name verification of trusted app assemblies
-    bool fGeneratePublisherEvidence;        // verify Authenticode signatures of assemblies during load, generating publisher evidence for them
-    bool fEnforceFIPSPolicy;                // enforce that only FIPS certified crypto algorithms are created if the FIPS machine settting is enabled
-    bool fLegacyHMACMode;                   // HMACSHA384 and HMACSHA512 should default to the Whidbey block size
 
     LPUTF8 pszBreakOnClassLoad;         // Halt just before loading this class
 
@@ -968,8 +909,6 @@ private: //----------------------------------------------------------------
     LPUTF8 pszBreakOnComToClrNativeInfoInit; // Halt before we init the native info for a COM to CLR call
     LPUTF8 pszBreakOnStructMarshalSetup; // Halt before the field marshallers are set up for a struct
 
-    bool   fAppDomainLeaks;             // Enable appdomain leak detection for object refs
-
     bool   m_fAssertOnBadImageFormat;   // If false, don't assert on invalid IL (for testing)
     bool   m_fAssertOnFailFast;         // If false, don't assert if we detect a stack corruption
 
@@ -977,9 +916,6 @@ private: //----------------------------------------------------------------
     bool   fSuppressChecks;             // Disable checks (including contracts)
 
     DWORD  iExposeExceptionsInCOM;      // Should we exposed exceptions that will be transformed into HRs?
-
-    // Tlb Tools
-    bool fTlbImpSkipLoading;
 
     unsigned m_SuspendThreadDeadlockTimeoutMs;  // Used in Thread::SuspendThread()
     unsigned m_SuspendDeadlockTimeout; // Used in Thread::SuspendRuntime. 
@@ -1007,10 +943,6 @@ private: //----------------------------------------------------------------
     bool   m_fDeveloperInstallation;      // We are on a developers machine
     bool   fAppDomainUnload;            // Enable appdomain unloading
     
-#ifdef FEATURE_CORECLR
-    bool fVerifyAllOnLoad;              // True if we want to verify all methods in an assembly at load time.
-#endif //FEATURE_CORECLR
-
     DWORD  dwADURetryCount;
 
 #ifdef _DEBUG
@@ -1043,18 +975,10 @@ private: //----------------------------------------------------------------
     DWORD dwSpinLimitProcFactor;
     DWORD dwSpinLimitConstant;
     DWORD dwSpinRetryCount;
+    DWORD dwMonitorSpinCount;
 
 #ifdef VERIFY_HEAP
     int  iGCHeapVerify;
-#endif
-
-#ifdef _DEBUG // TRACE_GC
-
-    int  iGCtraceStart;
-    int  iGCtraceEnd;
-    int  iGCtraceFac;
-    int  iGCprnLvl;
-    
 #endif
 
 #if defined(STRESS_HEAP) || defined(_DEBUG)
@@ -1076,6 +1000,8 @@ private: //----------------------------------------------------------------
     int  iGCForceCompact;
     int  iGCHoardVM;
     int  iGCLOHCompactionMode;
+    int  iGCHeapCount;
+    int  iGCNoAffinitize;
 
 #ifdef GCTRIMCOMMIT
 
@@ -1091,10 +1017,6 @@ private: //----------------------------------------------------------------
 #endif // _WIN64
 
     bool fGCBreakOnOOM;
-
-#ifdef  STRESS_THREAD
-    DWORD dwStressThreadCount;
-#endif
 
 #ifdef _DEBUG
     DWORD iFastGCStress;
@@ -1118,21 +1040,14 @@ private: //----------------------------------------------------------------
     // This overrides pRequireZapsList.
     AssemblyNamesList * pRequireZapsExcludeList;
 
+    // Assemblies which cannot use Ready to Run images.
+    AssemblyNamesList * pReadyToRunExcludeList;
+
 #ifdef _DEBUG
     // Exact opposite of require zaps
     BOOL iForbidZaps;
     AssemblyNamesList * pForbidZapsList;
     AssemblyNamesList * pForbidZapsExcludeList;
-#endif
-
-#ifdef _TARGET_AMD64_
-    // Assemblies for which we will not load a native image. This is from the COMPlus_DisableNativeImageLoadList
-    // variable / reg key. It performs the same function as the config file key "<disableNativeImageLoad>" (except
-    // that is it just a list of assembly names, which the config file key can specify full assembly identities).
-    // This was added to support COMPlus_UseLegacyJit, to support the rollout of RyuJIT to replace JIT64, where
-    // the user can cause the CLR to fall back to JIT64 for JITting but not for NGEN. This allows the user to
-    // force JITting for a specified list of NGEN assemblies.
-    AssemblyNamesList * pDisableNativeImageLoadList;
 #endif
 
     LPCWSTR pZapSet;
@@ -1184,31 +1099,29 @@ private: //----------------------------------------------------------------
     GCPollType iGCPollType;
 
 #ifdef _DEBUG
-    BOOL fGenerateStubForHost;
     DWORD fShouldInjectFault;
     DWORD testADUnload;
     DWORD testThreadAbort;
 #endif
 
+#if defined(FEATURE_TIERED_COMPILATION)
+    bool fTieredCompilation;
+    bool fTieredCompilation_CallCounting;
+    bool fTieredCompilation_OptimizeTier0;
+    DWORD tieredCompilation_tier1CallCountThreshold;
+    DWORD tieredCompilation_tier1CallCountingDelayMs;
+#endif
+
+#if defined(FEATURE_GDBJIT) && defined(_DEBUG)
+    LPCUTF8 pszGDBJitElfDump;
+#endif // FEATURE_GDBJIT && _DEBUG
+
+#if defined(FEATURE_GDBJIT_FRAME)
+    bool fGDBJitEmitDebugFrame;
+#endif
 public:
-#ifndef FEATURE_CORECLR // unimpactful install --> no config files
-    HRESULT ImportConfigurationFile(
-        ConfigStringHashtable* pTable,
-        LPCWSTR pszFileName,
-        LPCWSTR version,
-        ParseCtl parseCtl = parseAll);
-
-    HRESULT AppendConfigurationFile(
-        LPCWSTR pszFileName,
-        LPCWSTR version,
-        ParseCtl parseCtl = parseAll); 
-
-    HRESULT SetupConfiguration();
-#endif // FEATURE_CORECLR
 
     HRESULT GetConfiguration_DontUse_(__in_z LPCWSTR pKey, ConfigSearch direction, __deref_out_opt LPCWSTR* value);
-    LPCWSTR  GetProcessBindingFile();  // All flavors must support this method
-    SIZE_T  GetSizeOfProcessBindingFile();  // All flavors must support this method
 
     DWORD GetConfigDWORDInternal_DontUse_ (__in_z LPCWSTR name, DWORD defValue,    //for getting data in the constructor of EEConfig
                                     DWORD level=(DWORD) REGUTIL::COR_CONFIG_ALL,
@@ -1274,14 +1187,6 @@ private:
 public:
     DWORD GetSleepOnExit()
     { return dwSleepOnExit; }
-
-#if FEATURE_APPX
-private:
-    DWORD dwWindows8ProfileAPICheckFlag;
-
-public:
-    DWORD GetWindows8ProfileAPICheckFlag() { return dwWindows8ProfileAPICheckFlag; }
-#endif
 };
 
 
@@ -1323,24 +1228,6 @@ public:
 #define FILE_FORMAT_CHECK(_condition)
 
 #endif
-
-void InitHostProtectionManager();
-
-extern BYTE g_CorHostProtectionManagerInstance[];
-
-inline CorHostProtectionManager* GetHostProtectionManager()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-//        MODE_ANY;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    return (CorHostProtectionManager*)g_CorHostProtectionManagerInstance;
-}
 
 extern BOOL g_CLRPolicyRequested;
 

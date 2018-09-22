@@ -9,7 +9,6 @@
 
 #include "corhost.h"
 #include "synch.h"
-#include "rwlock.h"
 
 void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial state is signalled
                                 )
@@ -28,28 +27,6 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
 
     SetAutoEvent();
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager != NULL) {
-        IHostAutoEvent *pEvent;
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateAutoEvent(&pEvent);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE (hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        if (bInitialState) 
-        {
-            BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-            pEvent->Set();
-            END_SO_TOLERANT_CODE_CALLING_HOST;
-        }
-        m_handle = (HANDLE)pEvent;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
         if (h == NULL) {
@@ -58,6 +35,33 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
         m_handle = h;
     }
     
+}
+
+BOOL CLREventBase::CreateAutoEventNoThrow (BOOL bInitialState  // If TRUE, initial state is signalled
+                                )
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        // disallow creation of Crst before EE starts
+        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE)); 
+        PRECONDITION((!IsOSEvent()));
+    }
+    CONTRACTL_END;
+
+    EX_TRY
+    {
+        CreateAutoEvent(bInitialState);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return IsValid();
 }
 
 void CLREventBase::CreateManualEvent (BOOL bInitialState  // If TRUE, initial state is signalled
@@ -75,22 +79,6 @@ void CLREventBase::CreateManualEvent (BOOL bInitialState  // If TRUE, initial st
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager != NULL){
-        IHostManualEvent *pEvent;
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateManualEvent(bInitialState, &pEvent);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE (hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        m_handle = (HANDLE)pEvent;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
         if (h == NULL) {
@@ -100,6 +88,32 @@ void CLREventBase::CreateManualEvent (BOOL bInitialState  // If TRUE, initial st
     }
 }
 
+BOOL CLREventBase::CreateManualEventNoThrow (BOOL bInitialState  // If TRUE, initial state is signalled
+                                )
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+        // disallow creation of Crst before EE starts
+        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
+        PRECONDITION((!IsOSEvent()));
+    }
+    CONTRACTL_END;
+
+    EX_TRY
+    {
+        CreateManualEvent(bInitialState);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return IsValid();
+}
 
 void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
 {
@@ -117,28 +131,6 @@ void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
     // thread-safe SetAutoEvent
     FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_AUTO_EVENT);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager != NULL){
-        IHostAutoEvent *pEvent;
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateMonitorEvent(Cookie,&pEvent);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE (hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        if (FastInterlockCompareExchangePointer(&m_handle,
-                                                reinterpret_cast<HANDLE>(pEvent),
-                                                INVALID_HANDLE_VALUE) != INVALID_HANDLE_VALUE)
-        {
-            // We lost the race
-            pEvent->Release();
-        }
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         HANDLE h = UnsafeCreateEvent(NULL,FALSE,FALSE,NULL);
         if (h == NULL) {
@@ -218,101 +210,6 @@ void CLREventBase::SetMonitorEvent()
     }
 }
 
-#ifdef FEATURE_RWLOCK
-void CLREventBase::CreateRWLockWriterEvent (BOOL bInitialState,  // If TRUE, initial state is signalled
-                                        CRWLock *pRWLock
-                                )
-{
-    CONTRACTL
-    {
-        THROWS;           
-        GC_NOTRIGGER;
-        // disallow creation of Crst before EE starts
-        PRECONDITION((g_fEEStarted));        
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
-        PRECONDITION((GetThread() != NULL));        
-        PRECONDITION((!IsOSEvent()));
-    }
-    CONTRACTL_END;
-
-    SetAutoEvent();
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager != NULL){
-        // Need to have a fixed cookie.  Use a weak handle for this purpose.
-        IHostAutoEvent *pEvent;
-        HRESULT hr;
-        SIZE_T cookie = (SIZE_T)pRWLock->GetObjectHandle();
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateRWLockWriterEvent(cookie, &pEvent);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE (hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        if (bInitialState) 
-        {
-            BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-            pEvent->Set();
-            END_SO_TOLERANT_CODE_CALLING_HOST;
-        }
-        m_handle = (HANDLE)pEvent;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
-        if (h == NULL) {
-            ThrowOutOfMemory();
-        }
-        m_handle = h;
-    }
-
-    SetInDeadlockDetection();
-}
-
-void CLREventBase::CreateRWLockReaderEvent (BOOL bInitialState,  // If TRUE, initial state is signalled
-                                        CRWLock *pRWLock
-                                )
-{
-    CONTRACTL
-    {
-        THROWS;           
-        GC_NOTRIGGER;
-        // disallow creation of Crst before EE starts
-        PRECONDITION((g_fEEStarted));        
-        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
-        PRECONDITION((GetThread() != NULL));        
-        PRECONDITION((!IsOSEvent()));
-    }
-    CONTRACTL_END;
-
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager == NULL) {
-        HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
-        if (h == NULL) {
-            ThrowOutOfMemory();
-        }
-        m_handle = h;
-    }
-    else {
-        IHostManualEvent *pEvent;
-        HRESULT hr;
-        SIZE_T cookie = (SIZE_T)pRWLock->GetObjectHandle();
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateRWLockReaderEvent(bInitialState, cookie, &pEvent);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE (hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        m_handle = (HANDLE)pEvent;
-    }
-
-    SetInDeadlockDetection();
-}
-#endif // FEATURE_RWLOCK
 
 
 void CLREventBase::CreateOSAutoEvent (BOOL bInitialState  // If TRUE, initial state is signalled
@@ -340,6 +237,29 @@ void CLREventBase::CreateOSAutoEvent (BOOL bInitialState  // If TRUE, initial st
     m_handle = h;
 }
 
+BOOL CLREventBase::CreateOSAutoEventNoThrow (BOOL bInitialState  // If TRUE, initial state is signalled
+                                )
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        // disallow creation of Crst before EE starts
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
+    }
+    CONTRACTL_END;
+
+    EX_TRY
+    {
+        CreateOSAutoEvent(bInitialState);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return IsValid();
+}
 
 void CLREventBase::CreateOSManualEvent (BOOL bInitialState  // If TRUE, initial state is signalled
                                 )
@@ -365,6 +285,29 @@ void CLREventBase::CreateOSManualEvent (BOOL bInitialState  // If TRUE, initial 
     m_handle = h;
 }
 
+BOOL CLREventBase::CreateOSManualEventNoThrow (BOOL bInitialState  // If TRUE, initial state is signalled
+                                )
+{
+    CONTRACTL
+    {
+        NOTHROW; 
+        GC_NOTRIGGER;
+        // disallow creation of Crst before EE starts
+        PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
+    }
+    CONTRACTL_END;
+
+    EX_TRY
+    {
+        CreateOSManualEvent(bInitialState);
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    return IsValid();
+}
 
 void CLREventBase::CloseEvent()
 {
@@ -381,22 +324,6 @@ void CLREventBase::CloseEvent()
     _ASSERTE(Thread::Debug_AllowCallout());
 
     if (m_handle != INVALID_HANDLE_VALUE) {
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        if (!IsOSEvent() && CLRSyncHosted())
-        {
-            BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-
-            if (IsAutoEvent()) {
-                ((IHostAutoEvent*)m_handle)->Release();
-            }
-            else {
-                ((IHostManualEvent*)m_handle)->Release();
-            }
-
-            END_SO_TOLERANT_CODE_CALLING_HOST;
-        }
-        else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
         {
             CloseHandle(m_handle);
         }
@@ -420,26 +347,6 @@ BOOL CLREventBase::Set()
 
     _ASSERTE(Thread::Debug_AllowCallout());
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSEvent() && CLRSyncHosted())
-    {
-        if (IsAutoEvent()) {
-            HRESULT hr;
-            BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-            hr = ((IHostAutoEvent*)m_handle)->Set();
-            END_SO_TOLERANT_CODE_CALLING_HOST;
-            return hr == S_OK;
-        }
-        else {
-            HRESULT hr;
-            BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-            hr = ((IHostManualEvent*)m_handle)->Set();
-            END_SO_TOLERANT_CODE_CALLING_HOST;
-            return hr == S_OK;
-        }
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {    
         return UnsafeSetEvent(m_handle);
     }
@@ -464,170 +371,17 @@ BOOL CLREventBase::Reset()
     _ASSERTE (!IsAutoEvent() ||
               !"Can not call Reset on AutoEvent");
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSEvent() && CLRSyncHosted())
-    {
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = ((IHostManualEvent*)m_handle)->Reset();
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        return hr == S_OK;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         return UnsafeResetEvent(m_handle);
     }
 }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-static DWORD HostAutoEventWait (void *args, DWORD timeout, DWORD option)
-{
-    BOOL alertable = (option & WAIT_ALERTABLE);
-    CONTRACTL
-    {
-      if (alertable)
-      {
-          THROWS;
-      }
-      else
-      {
-          NOTHROW;
-      }
-      if (GetThread())
-      {
-          if (alertable)
-              GC_TRIGGERS;
-          else 
-              GC_NOTRIGGER;
-      }
-      else
-      {
-          DISABLED(GC_TRIGGERS);        
-      }
-      SO_TOLERANT;
-      PRECONDITION(CheckPointer(args));
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    HRESULT hr;
-    BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-    hr = ((IHostAutoEvent*)args)->Wait(timeout,option);
-    END_SO_TOLERANT_CODE_CALLING_HOST;
-#ifdef _DEBUG
-    if (FAILED(hr) && timeout == INFINITE) {
-        _ASSERTE (option & WAIT_ALERTABLE);
-    }
-#endif
-    if (hr == S_OK) {
-        return WAIT_OBJECT_0;
-    }
-    else if (hr == HOST_E_DEADLOCK) {
-        RaiseDeadLockException();
-    }
-    else if (hr == HOST_E_INTERRUPTED) {
-        _ASSERTE (option & WAIT_ALERTABLE);
-        Thread *pThread = GetThread();
-        if (pThread)
-        {
-            Thread::UserInterruptAPC(APC_Code);
-        }
-        return WAIT_IO_COMPLETION;
-    }
-    else if (hr == HOST_E_TIMEOUT) {
-        return WAIT_TIMEOUT;
-    }
-    else if (hr == HOST_E_ABANDONED) {
-        return WAIT_ABANDONED;
-    }
-    else if (hr == E_FAIL) {
-        _ASSERTE (!"Unknown host wait failure");
-    }
-    else 
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        _ASSERTE (!"Unknown host wait return");
-    }
-    return 0;
-}
-
-static DWORD HostManualEventWait (void *args, DWORD timeout, DWORD option)
-{
-    CONTRACTL
-    {
-        if (option & WAIT_ALERTABLE)
-        {
-            THROWS;
-        }
-        else
-        {
-            NOTHROW;
-        }
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(args));
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    HRESULT hr;
-    BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-    hr = ((IHostManualEvent*)args)->Wait(timeout,option);
-    END_SO_TOLERANT_CODE_CALLING_HOST;
-
-    if (hr == COR_E_STACKOVERFLOW)
-    {
-        Thread *pThread = GetThread();
-        if (pThread && pThread->HasThreadStateNC(Thread::TSNC_WaitUntilGCFinished))
-        {
-            return hr;
-        }
-    }
-#ifdef _DEBUG
-    if (FAILED(hr) && timeout == INFINITE) {
-        _ASSERTE (option & WAIT_ALERTABLE);
-    }
-#endif
-    if (hr == S_OK) {
-        return WAIT_OBJECT_0;
-    }
-    else if (hr == HOST_E_DEADLOCK) {
-        RaiseDeadLockException();
-    }
-    else if (hr == HOST_E_INTERRUPTED) {
-        _ASSERTE (option & WAIT_ALERTABLE);
-        Thread *pThread = GetThread();
-        if (pThread)
-        {
-            Thread::UserInterruptAPC(APC_Code);
-        }
-        return WAIT_IO_COMPLETION;
-    }
-    else if (hr == HOST_E_TIMEOUT) {
-        return WAIT_TIMEOUT;
-    }
-    else if (hr == HOST_E_ABANDONED) {
-        return WAIT_ABANDONED;
-    }
-    else if (hr == E_FAIL) {
-        _ASSERTE (!"Unknown host wait failure");
-    }
-    else 
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        _ASSERTE (!"Unknown host wait return");
-    }
-    return 0;
-}
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 static DWORD CLREventWaitHelper2(HANDLE handle, DWORD dwMilliseconds, BOOL alertable)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_SO_TOLERANT;
     
-    LeaveRuntimeHolder holder((size_t)WaitForSingleObjectEx);
     return WaitForSingleObjectEx(handle,dwMilliseconds,alertable);
 }
 
@@ -714,35 +468,6 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
 #endif
     _ASSERTE((pThread != NULL) || !g_fEEStarted || dbgOnly_IsSpecialEEThread());
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSEvent() && CLRSyncHosted())
-    {
-       if ((pThread != NULL) && alertable) {
-            DWORD dwRet = WAIT_FAILED;
-            BEGIN_SO_INTOLERANT_CODE_NOTHROW (pThread, return WAIT_FAILED;);
-            dwRet = pThread->DoAppropriateWait(IsAutoEvent()?HostAutoEventWait:HostManualEventWait,
-                                              m_handle,dwMilliseconds,
-                                              mode,
-                                              syncState);
-            END_SO_INTOLERANT_CODE;
-            return dwRet;
-        }
-        else {
-            _ASSERTE (syncState == NULL);
-            DWORD option = 0;
-            if (alertable) {
-                option |= WAIT_ALERTABLE;
-            }
-            if (IsAutoEvent()) {
-                return HostAutoEventWait((IHostAutoEvent*)m_handle,dwMilliseconds, option);
-            }
-            else {
-                return HostManualEventWait((IHostManualEvent*)m_handle,dwMilliseconds, option);
-            }
-        }
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         if (pThread && alertable) {
             DWORD dwRet = WAIT_FAILED;
@@ -771,25 +496,6 @@ void CLRSemaphore::Create (DWORD dwInitial, DWORD dwMax)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pManager = CorHost2::GetHostSyncManager();
-    if (pManager != NULL) {
-        IHostSemaphore *pSemaphore;
-        #undef CreateSemaphore
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pManager->CreateSemaphore(dwInitial,dwMax,&pSemaphore);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        #define CreateSemaphore(lpSemaphoreAttributes, lInitialCount, lMaximumCount, lpName) \
-                Dont_Use_CreateSemaphore(lpSemaphoreAttributes, lInitialCount, lMaximumCount, lpName)
-        if (hr != S_OK) {
-            _ASSERTE(hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        m_handle = (HANDLE)pSemaphore;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         HANDLE h = UnsafeCreateSemaphore(NULL,dwInitial,dwMax,NULL);
         if (h == NULL) {
@@ -805,14 +511,7 @@ void CLRSemaphore::Close()
     LIMITED_METHOD_CONTRACT;
 
     if (m_handle != INVALID_HANDLE_VALUE) {
-        if (!CLRSyncHosted()) {
-            CloseHandle(m_handle);
-        }
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        else {
-            ((IHostSemaphore*)m_handle)->Release();
-        }
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
+        CloseHandle(m_handle);
         m_handle = INVALID_HANDLE_VALUE;
     }
 }
@@ -828,75 +527,11 @@ BOOL CLRSemaphore::Release(LONG lReleaseCount, LONG *lpPreviousCount)
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (CLRSyncHosted())
-    {
-        #undef ReleaseSemaphore
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = ((IHostSemaphore*)m_handle)->ReleaseSemaphore(lReleaseCount,lpPreviousCount);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        #define ReleaseSemaphore(hSemaphore, lReleaseCount, lpPreviousCount) \
-                Dont_Use_ReleaseSemaphore(hSemaphore, lReleaseCount, lpPreviousCount)
-        return hr == S_OK;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         return ::UnsafeReleaseSemaphore(m_handle, lReleaseCount, lpPreviousCount);
     }
 }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-static DWORD HostSemaphoreWait (void *args, DWORD timeout, DWORD option)
-{
-    CONTRACTL
-    {
-        if ((option & WAIT_ALERTABLE))
-        {
-            THROWS;               // Thread::DoAppropriateWait can throw   
-        }
-        else
-        {
-            NOTHROW;
-        }
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(args));
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    HRESULT hr;
-    BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-    hr = ((IHostSemaphore*)args)->Wait(timeout,option);
-    END_SO_TOLERANT_CODE_CALLING_HOST;
-    if (hr == S_OK) {
-        return WAIT_OBJECT_0;
-    }
-    else if (hr == HOST_E_INTERRUPTED) {
-        _ASSERTE (option & WAIT_ALERTABLE);
-        Thread *pThread = GetThread();
-        if (pThread)
-        {
-            Thread::UserInterruptAPC(APC_Code);
-        }
-        return WAIT_IO_COMPLETION;
-    }
-    else if (hr == HOST_E_TIMEOUT) {
-        return WAIT_TIMEOUT;
-    }
-    else if (hr == E_FAIL) {
-        _ASSERTE (!"Unknown host wait failure");
-    }
-    else 
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        _ASSERTE (!"Unknown host wait return");
-    }
-    return 0;
-}
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
 
 DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
 {
@@ -930,25 +565,6 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
     Thread *pThread = GetThread();
     _ASSERTE (pThread || !g_fEEStarted || dbgOnly_IsSpecialEEThread());
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (CLRSyncHosted())
-    {
-        if (pThread && alertable) {
-            return pThread->DoAppropriateWait(HostSemaphoreWait,
-                                              m_handle,dwMilliseconds,
-                                              alertable?WaitMode_Alertable:WaitMode_None,
-                                              NULL);
-        }
-        else {
-            DWORD option = 0;
-            if (alertable) {
-                option |= WAIT_ALERTABLE;
-            }
-            return HostSemaphoreWait((IHostSemaphore*)m_handle,dwMilliseconds,option);
-        }
-    }
-    else
-#endif // !FEATURE_INCLUDE_ALL_INTERFACES
     {
         // TODO wwl: if alertable is FALSE, do we support a host to break a deadlock?
         // Currently we can not call through DoAppropriateWait because of CannotThrowComplusException.
@@ -962,7 +578,6 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
             DWORD result = WAIT_FAILED;
             EX_TRY
             {
-                LeaveRuntimeHolder holder((size_t)WaitForSingleObjectEx);
                 result = WaitForSingleObjectEx(m_handle,dwMilliseconds,alertable);
             }
             EX_CATCH
@@ -973,6 +588,415 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
             return result;
         }
     }
+}
+
+void CLRLifoSemaphore::Create(INT32 initialSignalCount, INT32 maximumSignalCount)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(maximumSignalCount > 0);
+    _ASSERTE(initialSignalCount <= maximumSignalCount);
+    _ASSERTE(m_handle == nullptr);
+
+#ifdef FEATURE_PAL
+    HANDLE h = UnsafeCreateSemaphore(nullptr, initialSignalCount, maximumSignalCount, nullptr);
+#else // !FEATURE_PAL
+    HANDLE h = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maximumSignalCount);
+#endif // FEATURE_PAL
+    if (h == nullptr)
+    {
+        ThrowOutOfMemory();
+    }
+
+    m_handle = h;
+    m_counts.signalCount = initialSignalCount;
+    INDEBUG(m_maximumSignalCount = maximumSignalCount);
+}
+
+void CLRLifoSemaphore::Close()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (m_handle == nullptr)
+    {
+        return;
+    }
+
+    CloseHandle(m_handle);
+    m_handle = nullptr;
+}
+
+bool CLRLifoSemaphore::WaitForSignal(DWORD timeoutMs)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(timeoutMs != 0);
+    _ASSERTE(m_handle != nullptr);
+    _ASSERTE(m_counts.VolatileLoadWithoutBarrier().waiterCount != (UINT16)0);
+
+    while (true)
+    {
+        // Wait for a signal
+        BOOL waitSuccessful;
+        {
+#ifdef FEATURE_PAL
+            // Do a prioritized wait to get LIFO waiter release order
+            DWORD waitResult = PAL_WaitForSingleObjectPrioritized(m_handle, timeoutMs);
+            _ASSERTE(waitResult == WAIT_OBJECT_0 || waitResult == WAIT_TIMEOUT);
+            waitSuccessful = waitResult == WAIT_OBJECT_0;
+#else // !FEATURE_PAL
+            // I/O completion ports release waiters in LIFO order, see
+            // https://msdn.microsoft.com/en-us/library/windows/desktop/aa365198(v=vs.85).aspx
+            DWORD numberOfBytes;
+            ULONG_PTR completionKey;
+            LPOVERLAPPED overlapped;
+            waitSuccessful = GetQueuedCompletionStatus(m_handle, &numberOfBytes, &completionKey, &overlapped, timeoutMs);
+            _ASSERTE(waitSuccessful || GetLastError() == WAIT_TIMEOUT);
+            _ASSERTE(overlapped == nullptr);
+#endif // FEATURE_PAL
+        }
+
+        if (!waitSuccessful)
+        {
+            // Unregister the waiter. The wait subsystem used above guarantees that a thread that wakes due to a timeout does
+            // not observe a signal to the object being waited upon.
+            Counts toSubtract;
+            ++toSubtract.waiterCount;
+            Counts countsBeforeUpdate = m_counts.ExchangeAdd(-toSubtract);
+            _ASSERTE(countsBeforeUpdate.waiterCount != (UINT16)0);
+            return false;
+        }
+
+        // Unregister the waiter if this thread will not be waiting anymore, and try to acquire the semaphore
+        Counts counts = m_counts.VolatileLoadWithoutBarrier();
+        while (true)
+        {
+            _ASSERTE(counts.waiterCount != (UINT16)0);
+            Counts newCounts = counts;
+            if (counts.signalCount != 0)
+            {
+                --newCounts.signalCount;
+                --newCounts.waiterCount;
+            }
+
+            // This waiter has woken up and this needs to be reflected in the count of waiters signaled to wake
+            if (counts.countOfWaitersSignaledToWake != (UINT8)0)
+            {
+                --newCounts.countOfWaitersSignaledToWake;
+            }
+
+            Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+            if (countsBeforeUpdate == counts)
+            {
+                if (counts.signalCount != 0)
+                {
+                    return true;
+                }
+                break;
+            }
+
+            counts = countsBeforeUpdate;
+        }
+    }
+}
+
+bool CLRLifoSemaphore::Wait(DWORD timeoutMs)
+{
+    WRAPPER_NO_CONTRACT;
+
+    _ASSERTE(m_handle != nullptr);
+
+    // Acquire the semaphore or register as a waiter
+    Counts counts = m_counts.VolatileLoadWithoutBarrier();
+    while (true)
+    {
+        _ASSERTE(counts.signalCount <= m_maximumSignalCount);
+        Counts newCounts = counts;
+        if (counts.signalCount != 0)
+        {
+            --newCounts.signalCount;
+        }
+        else if (timeoutMs != 0)
+        {
+            ++newCounts.waiterCount;
+            _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
+        }
+
+        Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+        if (countsBeforeUpdate == counts)
+        {
+            return counts.signalCount != 0 || (timeoutMs != 0 && WaitForSignal(timeoutMs));
+        }
+
+        counts = countsBeforeUpdate;
+    }
+}
+
+bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorCount)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(m_handle != nullptr);
+
+    if (timeoutMs == 0 || spinCount == 0)
+    {
+        return Wait(timeoutMs);
+    }
+
+    // Try to acquire the semaphore or register as a spinner
+    Counts counts = m_counts.VolatileLoadWithoutBarrier();
+    while (true)
+    {
+        Counts newCounts = counts;
+        if (counts.signalCount != 0)
+        {
+            --newCounts.signalCount;
+        }
+        else
+        {
+            ++newCounts.spinnerCount;
+            if (newCounts.spinnerCount == (UINT8)0)
+            {
+                // Maximum number of spinners reached, register as a waiter instead
+                --newCounts.spinnerCount;
+                ++newCounts.waiterCount;
+                _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
+            }
+        }
+
+        Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+        if (countsBeforeUpdate == counts)
+        {
+            if (counts.signalCount != 0)
+            {
+                return true;
+            }
+            if (newCounts.waiterCount != counts.waiterCount)
+            {
+                return WaitForSignal(timeoutMs);
+            }
+            break;
+        }
+
+        counts = countsBeforeUpdate;
+    }
+
+#ifdef _TARGET_ARM64_
+    // For now, the spinning changes are disabled on ARM64. The spin loop below replicates how UnfairSemaphore used to spin.
+    // Once more tuning is done on ARM64, it should be possible to come up with a spinning scheme that works well everywhere.
+    int spinCountPerProcessor = spinCount;
+    for (UINT32 i = 1; ; ++i)
+    {
+        // Wait
+        ClrSleepEx(0, false);
+
+        // Try to acquire the semaphore and unregister as a spinner
+        counts = m_counts.VolatileLoadWithoutBarrier();
+        while (true)
+        {
+            _ASSERTE(counts.spinnerCount != (UINT8)0);
+            if (counts.signalCount == 0)
+            {
+                break;
+            }
+
+            Counts newCounts = counts;
+            --newCounts.signalCount;
+            --newCounts.spinnerCount;
+
+            Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+            if (countsBeforeUpdate == counts)
+            {
+                return true;
+            }
+
+            counts = countsBeforeUpdate;
+        }
+
+        // Determine whether to spin further
+        double spinnersPerProcessor = (double)counts.spinnerCount / processorCount;
+        UINT32 spinLimit = (UINT32)(spinCountPerProcessor / spinnersPerProcessor + 0.5);
+        if (i >= spinLimit)
+        {
+            break;
+        }
+    }
+#else // !_TARGET_ARM64_
+    const UINT32 Sleep0Threshold = 10;
+    YieldProcessorNormalizationInfo normalizationInfo;
+#ifdef FEATURE_PAL
+    // The PAL's wait subsystem is quite slow, spin more to compensate for the more expensive wait
+    spinCount *= 2;
+#endif // FEATURE_PAL
+    for (UINT32 i = 0; i < spinCount; ++i)
+    {
+        // Wait
+        //
+        // (i - Sleep0Threshold) % 2 != 0: The purpose of this check is to interleave Thread.Yield/Sleep(0) with
+        // Thread.SpinWait. Otherwise, the following issues occur:
+        //   - When there are no threads to switch to, Yield and Sleep(0) become no-op and it turns the spin loop into a
+        //     busy-spin that may quickly reach the max spin count and cause the thread to enter a wait state. Completing the
+        //     spin loop too early can cause excessive context switcing from the wait.
+        //   - If there are multiple threads doing Yield and Sleep(0) (typically from the same spin loop due to contention),
+        //     they may switch between one another, delaying work that can make progress.
+        if (i < Sleep0Threshold || (i - Sleep0Threshold) % 2 != 0)
+        {
+            YieldProcessorWithBackOffNormalized(normalizationInfo, i);
+        }
+        else
+        {
+            // Not doing SwitchToThread(), it does not seem to have any benefit over Sleep(0)
+            ClrSleepEx(0, false);
+        }
+
+        // Try to acquire the semaphore and unregister as a spinner
+        counts = m_counts.VolatileLoadWithoutBarrier();
+        while (true)
+        {
+            _ASSERTE(counts.spinnerCount != (UINT8)0);
+            if (counts.signalCount == 0)
+            {
+                break;
+            }
+
+            Counts newCounts = counts;
+            --newCounts.signalCount;
+            --newCounts.spinnerCount;
+
+            Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+            if (countsBeforeUpdate == counts)
+            {
+                return true;
+            }
+
+            counts = countsBeforeUpdate;
+        }
+    }
+#endif // _TARGET_ARM64_
+
+    // Unregister as a spinner, and acquire the semaphore or register as a waiter
+    counts = m_counts.VolatileLoadWithoutBarrier();
+    while (true)
+    {
+        _ASSERTE(counts.spinnerCount != (UINT8)0);
+        Counts newCounts = counts;
+        --newCounts.spinnerCount;
+        if (counts.signalCount != 0)
+        {
+            --newCounts.signalCount;
+        }
+        else
+        {
+            ++newCounts.waiterCount;
+            _ASSERTE(newCounts.waiterCount != (UINT16)0); // overflow check, this many waiters is currently not supported
+        }
+
+        Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+        if (countsBeforeUpdate == counts)
+        {
+            return counts.signalCount != 0 || WaitForSignal(timeoutMs);
+        }
+
+        counts = countsBeforeUpdate;
+    }
+}
+
+void CLRLifoSemaphore::Release(INT32 releaseCount)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        SO_TOLERANT;
+    }
+    CONTRACTL_END;
+
+    _ASSERTE(releaseCount > 0);
+    _ASSERTE((UINT32)releaseCount <= m_maximumSignalCount);
+    _ASSERTE(m_handle != INVALID_HANDLE_VALUE);
+
+    INT32 countOfWaitersToWake;
+    Counts counts = m_counts.VolatileLoadWithoutBarrier();
+    while (true)
+    {
+        Counts newCounts = counts;
+
+        // Increase the signal count. The addition doesn't overflow because of the limit on the max signal count in Create.
+        newCounts.signalCount += releaseCount;
+        _ASSERTE(newCounts.signalCount > counts.signalCount);
+
+        // Determine how many waiters to wake, taking into account how many spinners and waiters there are and how many waiters
+        // have previously been signaled to wake but have not yet woken
+        countOfWaitersToWake =
+            (INT32)min(newCounts.signalCount, (UINT32)newCounts.waiterCount + newCounts.spinnerCount) -
+            newCounts.spinnerCount -
+            newCounts.countOfWaitersSignaledToWake;
+        if (countOfWaitersToWake > 0)
+        {
+            // Ideally, limiting to a maximum of releaseCount would not be necessary and could be an assert instead, but since
+            // WaitForSignal() does not have enough information to tell whether a woken thread was signaled, and due to the cap
+            // below, it's possible for countOfWaitersSignaledToWake to be less than the number of threads that have actually
+            // been signaled to wake.
+            if (countOfWaitersToWake > releaseCount)
+            {
+                countOfWaitersToWake = releaseCount;
+            }
+
+            // Cap countOfWaitersSignaledToWake to its max value. It's ok to ignore some woken threads in this count, it just
+            // means some more threads will be woken next time. Typically, it won't reach the max anyway.
+            newCounts.countOfWaitersSignaledToWake += (UINT8)min(countOfWaitersToWake, (INT32)UINT8_MAX);
+            if (newCounts.countOfWaitersSignaledToWake <= counts.countOfWaitersSignaledToWake)
+            {
+                newCounts.countOfWaitersSignaledToWake = UINT8_MAX;
+            }
+        }
+
+        Counts countsBeforeUpdate = m_counts.CompareExchange(newCounts, counts);
+        if (countsBeforeUpdate == counts)
+        {
+            _ASSERTE((UINT32)releaseCount <= m_maximumSignalCount - counts.signalCount);
+            if (countOfWaitersToWake <= 0)
+            {
+                return;
+            }
+            break;
+        }
+
+        counts = countsBeforeUpdate;
+    }
+
+    // Wake waiters
+#ifdef FEATURE_PAL
+    BOOL released = UnsafeReleaseSemaphore(m_handle, countOfWaitersToWake, nullptr);
+    _ASSERTE(released);
+#else // !FEATURE_PAL
+    while (--countOfWaitersToWake >= 0)
+    {
+        while (!PostQueuedCompletionStatus(m_handle, 0, 0, nullptr))
+        {
+            // Probably out of memory. It's not valid to stop and throw here, so try again after a delay.
+            ClrSleepEx(1, false);
+        }
+    }
+#endif // FEATURE_PAL
 }
 
 void CLRMutex::Create(LPSECURITY_ATTRIBUTES lpMutexAttributes, BOOL bInitialOwner, LPCTSTR lpName)
@@ -986,17 +1010,9 @@ void CLRMutex::Create(LPSECURITY_ATTRIBUTES lpMutexAttributes, BOOL bInitialOwne
     }
     CONTRACTL_END;
 
-    if (bInitialOwner)
-    {
-        Thread::BeginThreadAffinity();
-    }
     m_handle = WszCreateMutex(lpMutexAttributes,bInitialOwner,lpName);
     if (m_handle == NULL)
     {
-        if (bInitialOwner)
-        {
-            Thread::EndThreadAffinity();
-        }
         ThrowOutOfMemory();
     }
 }
@@ -1026,7 +1042,6 @@ BOOL CLRMutex::Release()
     BOOL fRet = ReleaseMutex(m_handle);
     if (fRet)
     {
-        Thread::EndThreadAffinity();
         EE_LOCK_RELEASED(this);
     }
     return fRet;
@@ -1042,12 +1057,7 @@ DWORD CLRMutex::Wait(DWORD dwMilliseconds, BOOL bAlertable)
     }
     CONTRACTL_END;
 
-    Thread::BeginThreadAffinity();
     DWORD fRet = WaitForSingleObjectEx(m_handle, dwMilliseconds, bAlertable);
-    if ((fRet != WAIT_OBJECT_0) && (fRet != WAIT_ABANDONED))
-    {
-        Thread::EndThreadAffinity();
-    }
 
     if (fRet == WAIT_OBJECT_0)
     {

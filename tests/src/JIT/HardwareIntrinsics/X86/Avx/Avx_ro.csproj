@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <!-- Default configurations to help VS understand the configurations -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' " />
+  <ItemGroup>
+    <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
+      <Visible>False</Visible>
+    </CodeAnalysisDependentAssemblyPaths>
+  </ItemGroup>
+  <PropertyGroup>
+    <DebugType>Embedded</DebugType>
+    <Optimize>True</Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Add.Double.cs" />
+    <Compile Include="Add.Single.cs" />
+    <Compile Include="AddSubtract.Double.cs" />
+    <Compile Include="AddSubtract.Single.cs" />
+    <Compile Include="And.Double.cs" />
+    <Compile Include="And.Single.cs" />
+    <Compile Include="AndNot.Double.cs" />
+    <Compile Include="AndNot.Single.cs" />
+    <Compile Include="BlendVariable.Double.cs" />
+    <Compile Include="BlendVariable.Single.cs" />
+    <Compile Include="Ceiling.Double.cs" />
+    <Compile Include="Ceiling.Single.cs" />
+    <Compile Include="Divide.Double.cs" />
+    <Compile Include="Divide.Single.cs" />
+    <Compile Include="DuplicateEvenIndexed.Double.cs" />
+    <Compile Include="DuplicateEvenIndexed.Single.cs" />
+    <Compile Include="DuplicateOddIndexed.Single.cs" />
+    <Compile Include="Extract.Byte.1.cs" />
+    <Compile Include="Extract.Byte.20.cs" />
+    <Compile Include="Extract.UInt16.1.cs" />
+    <Compile Include="Extract.UInt16.11.cs" />
+    <Compile Include="Extract.Int32.1.cs" />
+    <Compile Include="Extract.UInt32.1.cs" />
+    <Compile Include="Extract.Int32.6.cs" />
+    <Compile Include="Extract.UInt32.6.cs" />
+    <Compile Include="Extract.Int64.1.cs" />
+    <Compile Include="Extract.UInt64.1.cs" />
+    <Compile Include="Extract.Int64.3.cs" />
+    <Compile Include="Extract.UInt64.3.cs" />
+    <Compile Include="Extract.Byte.52.cs" />
+    <Compile Include="Extract.UInt16.27.cs" />
+    <Compile Include="Extract.Int32.22.cs" />
+    <Compile Include="Extract.UInt32.22.cs" />
+    <Compile Include="Extract.Int64.19.cs" />
+    <Compile Include="Extract.UInt64.19.cs" />
+    <Compile Include="ExtendToVector256.Byte.cs" />
+    <Compile Include="ExtendToVector256.Double.cs" />
+    <Compile Include="ExtendToVector256.Int16.cs" />
+    <Compile Include="ExtendToVector256.Int32.cs" />
+    <Compile Include="ExtendToVector256.Int64.cs" />
+    <Compile Include="ExtendToVector256.SByte.cs" />
+    <Compile Include="ExtendToVector256.Single.cs" />
+    <Compile Include="ExtendToVector256.UInt16.cs" />
+    <Compile Include="ExtendToVector256.UInt32.cs" />
+    <Compile Include="ExtendToVector256.UInt64.cs" />
+    <Compile Include="ExtractVector128.Byte.1.Store.cs" />
+    <Compile Include="ExtractVector128.SByte.1.Store.cs" />
+    <Compile Include="ExtractVector128.Int16.1.Store.cs" />
+    <Compile Include="ExtractVector128.UInt16.1.Store.cs" />
+    <Compile Include="ExtractVector128.Int32.1.Store.cs" />
+    <Compile Include="ExtractVector128.UInt32.1.Store.cs" />
+    <Compile Include="ExtractVector128.Int64.1.Store.cs" />
+    <Compile Include="ExtractVector128.UInt64.1.Store.cs" />
+    <Compile Include="ExtractVector128.Single.1.Store.cs" />
+    <Compile Include="ExtractVector128.Double.1.Store.cs" />
+    <Compile Include="Insert.Byte.1.cs" />
+    <Compile Include="Insert.SByte.1.cs" />
+    <Compile Include="Insert.Byte.20.cs" />
+    <Compile Include="Insert.SByte.20.cs" />
+    <Compile Include="Insert.Int16.1.cs" />
+    <Compile Include="Insert.UInt16.1.cs" />
+    <Compile Include="Insert.Int16.11.cs" />
+    <Compile Include="Insert.UInt16.11.cs" />
+    <Compile Include="Insert.Int32.1.cs" />
+    <Compile Include="Insert.UInt32.1.cs" />
+    <Compile Include="Insert.Int32.6.cs" />
+    <Compile Include="Insert.UInt32.6.cs" />
+    <Compile Include="Insert.Int64.1.cs" />
+    <Compile Include="Insert.UInt64.1.cs" />
+    <Compile Include="Insert.Int64.3.cs" />
+    <Compile Include="Insert.UInt64.3.cs" />
+    <Compile Include="Insert.Byte.52.cs" />
+    <Compile Include="Insert.SByte.52.cs" />
+    <Compile Include="Insert.Int16.27.cs" />
+    <Compile Include="Insert.UInt16.27.cs" />
+    <Compile Include="Insert.Int32.22.cs" />
+    <Compile Include="Insert.UInt32.22.cs" />
+    <Compile Include="Insert.Int64.19.cs" />
+    <Compile Include="Insert.UInt64.19.cs" />
+    <Compile Include="InsertVector128.Byte.1.Load.cs" />
+    <Compile Include="InsertVector128.SByte.1.Load.cs" />
+    <Compile Include="InsertVector128.Int16.1.Load.cs" />
+    <Compile Include="InsertVector128.UInt16.1.Load.cs" />
+    <Compile Include="InsertVector128.Int32.1.Load.cs" />
+    <Compile Include="InsertVector128.UInt32.1.Load.cs" />
+    <Compile Include="InsertVector128.Int64.1.Load.cs" />
+    <Compile Include="InsertVector128.UInt64.1.Load.cs" />
+    <Compile Include="InsertVector128.Single.1.Load.cs" />
+    <Compile Include="InsertVector128.Double.1.Load.cs" />
+    <Compile Include="Floor.Double.cs" />
+    <Compile Include="Floor.Single.cs" />
+    <Compile Include="GetLowerHalf.Byte.cs" />
+    <Compile Include="GetLowerHalf.Double.cs" />
+    <Compile Include="GetLowerHalf.Int16.cs" />
+    <Compile Include="GetLowerHalf.Int32.cs" />
+    <Compile Include="GetLowerHalf.Int64.cs" />
+    <Compile Include="GetLowerHalf.SByte.cs" />
+    <Compile Include="GetLowerHalf.Single.cs" />
+    <Compile Include="GetLowerHalf.UInt16.cs" />
+    <Compile Include="GetLowerHalf.UInt32.cs" />
+    <Compile Include="GetLowerHalf.UInt64.cs" />
+    <Compile Include="MaskLoad.Double.cs" />
+    <Compile Include="MaskLoad.Single.cs" />
+    <Compile Include="MaskStore.Double.cs" />
+    <Compile Include="MaskStore.Single.cs" />
+    <Compile Include="Max.Double.cs" />
+    <Compile Include="Max.Single.cs" />
+    <Compile Include="Min.Double.cs" />
+    <Compile Include="Min.Single.cs" />
+    <Compile Include="Multiply.Double.cs" />
+    <Compile Include="Multiply.Single.cs" />
+    <Compile Include="Or.Double.cs" />
+    <Compile Include="Or.Single.cs" />
+    <Compile Include="Permute.Single.1.cs" />
+    <Compile Include="Permute.Double.1.cs" />
+    <Compile Include="Permute.Single.2.cs" />
+    <Compile Include="Permute.Double.2.cs" />
+    <Compile Include="RoundCurrentDirection.Double.cs" />
+    <Compile Include="RoundCurrentDirection.Single.cs" />
+    <Compile Include="RoundToNearestInteger.Double.cs" />
+    <Compile Include="RoundToNearestInteger.Single.cs" />
+    <Compile Include="RoundToNegativeInfinity.Double.cs" />
+    <Compile Include="RoundToNegativeInfinity.Single.cs" />
+    <Compile Include="RoundToPositiveInfinity.Double.cs" />
+    <Compile Include="RoundToPositiveInfinity.Single.cs" />
+    <Compile Include="RoundToZero.Double.cs" />
+    <Compile Include="RoundToZero.Single.cs" />
+    <Compile Include="Shuffle.Single.1.cs" />
+    <Compile Include="Shuffle.Double.1.cs" />
+    <Compile Include="Subtract.Double.cs" />
+    <Compile Include="Subtract.Single.cs" />
+    <Compile Include="TestC.Byte.cs" />
+    <Compile Include="TestC.Int16.cs" />
+    <Compile Include="TestC.Int32.cs" />
+    <Compile Include="TestC.Int64.cs" />
+    <Compile Include="TestC.SByte.cs" />
+    <Compile Include="TestC.UInt16.cs" />
+    <Compile Include="TestC.UInt32.cs" />
+    <Compile Include="TestC.UInt64.cs" />
+    <Compile Include="TestNotZAndNotC.Byte.cs" />
+    <Compile Include="TestNotZAndNotC.Int16.cs" />
+    <Compile Include="TestNotZAndNotC.Int32.cs" />
+    <Compile Include="TestNotZAndNotC.Int64.cs" />
+    <Compile Include="TestNotZAndNotC.SByte.cs" />
+    <Compile Include="TestNotZAndNotC.UInt16.cs" />
+    <Compile Include="TestNotZAndNotC.UInt32.cs" />
+    <Compile Include="TestNotZAndNotC.UInt64.cs" />
+    <Compile Include="TestZ.Byte.cs" />
+    <Compile Include="TestZ.Int16.cs" />
+    <Compile Include="TestZ.Int32.cs" />
+    <Compile Include="TestZ.Int64.cs" />
+    <Compile Include="TestZ.SByte.cs" />
+    <Compile Include="TestZ.UInt16.cs" />
+    <Compile Include="TestZ.UInt32.cs" />
+    <Compile Include="TestZ.UInt64.cs" />
+    <Compile Include="Xor.Double.cs" />
+    <Compile Include="Xor.Single.cs" />
+    <Compile Include="Program.Avx.cs" />
+    <Compile Include="..\Shared\BooleanBinOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\BooleanTwoCmpOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\Program.cs" />
+    <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\SimpleTernOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\SimpleUnOpTest_DataTable.cs" />
+  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
+</Project>

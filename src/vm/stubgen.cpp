@@ -631,15 +631,7 @@ ILStubLinker::LogILStubWorker(
     }
 }
 
-static inline void LogOneFlag(DWORD flags, DWORD flag, LPCSTR str, DWORD facility, DWORD level)
-{
-    if (flags & flag)
-    {
-        LOG((facility, level, str));
-    }
-}
-
-static void LogJitFlags(DWORD facility, DWORD level, DWORD dwJitFlags)
+static void LogJitFlags(DWORD facility, DWORD level, CORJIT_FLAGS jitFlags)
 {
     CONTRACTL
     {
@@ -647,29 +639,28 @@ static void LogJitFlags(DWORD facility, DWORD level, DWORD dwJitFlags)
     }
     CONTRACTL_END;
 
-    LOG((facility, level, "dwJitFlags: 0x%08x\n", dwJitFlags));
+    LOG((facility, level, "jitFlags:\n"));
 
-#define LOG_FLAG(name)    LogOneFlag(dwJitFlags, name, "   " #name "\n", facility, level);
+#define LOG_FLAG(name) \
+    if (jitFlags.IsSet(name)) \
+    { \
+        LOG((facility, level, "   " #name "\n")); \
+        jitFlags.Clear(name); \
+    }
 
     // these are all we care about at the moment
-    LOG_FLAG(CORJIT_FLG_IL_STUB);
-    LOG_FLAG(CORJIT_FLG_PUBLISH_SECRET_PARAM);
+    LOG_FLAG(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB);
+    LOG_FLAG(CORJIT_FLAGS::CORJIT_FLAG_PUBLISH_SECRET_PARAM);
 
 #undef LOG_FLAGS
 
-    DWORD dwKnownMask = 
-        CORJIT_FLG_IL_STUB                      |
-        CORJIT_FLG_PUBLISH_SECRET_PARAM         |
-        NULL;
-
-    DWORD dwUnknownFlags = dwJitFlags & ~dwKnownMask;
-    if (0 != dwUnknownFlags)
+    if (!jitFlags.IsEmpty())
     {
-        LOG((facility, level, "UNKNOWN FLAGS: 0x%08x\n", dwUnknownFlags));
+        LOG((facility, level, "UNKNOWN FLAGS also set\n"));
     }
 }
 
-void ILStubLinker::LogILStub(DWORD dwJitFlags, SString *pDumpILStubCode)
+void ILStubLinker::LogILStub(CORJIT_FLAGS jitFlags, SString *pDumpILStubCode)
 {
     CONTRACTL
     {
@@ -683,7 +674,7 @@ void ILStubLinker::LogILStub(DWORD dwJitFlags, SString *pDumpILStubCode)
     INT             iCurStack = 0;
 
     if (pDumpILStubCode == NULL)
-        LogJitFlags(LF_STUBS, LL_INFO1000, dwJitFlags);
+        LogJitFlags(LF_STUBS, LL_INFO1000, jitFlags);
 
     while (pCurrentStream)
     {
@@ -841,7 +832,7 @@ size_t ILStubLinker::Link(UINT* puMaxStack)
 #ifdef _DEBUG
     if (fStackUnderflow)
     {
-        LogILStub(NULL);
+        LogILStub(CORJIT_FLAGS());
         CONSISTENCY_CHECK_MSG(false, "IL stack underflow! -- see logging output");
     }
 #endif // _DEBUG
@@ -1405,7 +1396,8 @@ void ILCodeStream::EmitLDIND_T(LocalDesc* pType)
         case ELEMENT_TYPE_U8:       EmitLDIND_I8(); break;
         case ELEMENT_TYPE_R4:       EmitLDIND_R4(); break;
         case ELEMENT_TYPE_R8:       EmitLDIND_R8(); break;
-        case ELEMENT_TYPE_FNPTR: // same as ELEMENT_TYPE_I
+        case ELEMENT_TYPE_PTR:      // same as ELEMENT_TYPE_I
+        case ELEMENT_TYPE_FNPTR:    // same as ELEMENT_TYPE_I
         case ELEMENT_TYPE_I:        EmitLDIND_I();  break;
         case ELEMENT_TYPE_U:        EmitLDIND_I();  break;
         case ELEMENT_TYPE_STRING:   // fall through
@@ -1603,7 +1595,8 @@ void ILCodeStream::EmitSTIND_T(LocalDesc* pType)
         case ELEMENT_TYPE_U8:       EmitSTIND_I8(); break;
         case ELEMENT_TYPE_R4:       EmitSTIND_R4(); break;
         case ELEMENT_TYPE_R8:       EmitSTIND_R8(); break;
-        case ELEMENT_TYPE_FNPTR: // same as ELEMENT_TYPE_I
+        case ELEMENT_TYPE_PTR:      // same as ELEMENT_TYPE_I
+        case ELEMENT_TYPE_FNPTR:    // same as ELEMENT_TYPE_I
         case ELEMENT_TYPE_I:        EmitSTIND_I();  break;
         case ELEMENT_TYPE_U:        EmitSTIND_I();  break;
         case ELEMENT_TYPE_STRING:   // fall through

@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int LEN = 10;
-extern "C" BOOL DLL_EXPORT _cdecl MarshalRefCharArray_Cdecl(char ** pstr)
+const int LEN = 10;
+extern "C" BOOL DLL_EXPORT __cdecl MarshalRefCharArray_Cdecl(char ** pstr)
 {
     //Check the Input
     for(int i = 0; i < LEN; i++)
@@ -46,10 +46,10 @@ extern "C" BOOL DLL_EXPORT __stdcall MarshalRefCharArray_Stdcall(char ** pstr)
     return TRUE;
 }
 
-typedef BOOL(_cdecl *CdeclCallBack)(char ** pstr);
-extern "C" BOOL DLL_EXPORT DoCallBack_MarshalRefCharArray_Cdecl(CdeclCallBack caller)
+typedef BOOL(__cdecl *CdeclCallBack)(char ** pstr);
+extern "C" BOOL DLL_EXPORT __cdecl DoCallBack_MarshalRefCharArray_Cdecl(CdeclCallBack caller)
 {
-    char * str = (char*)CoTaskMemAlloc(LEN);
+    char * str = (char*)CoreClrAlloc(LEN);
     for(int i = 0;i<LEN;i++)
     {
         str[i] = 'z';
@@ -61,16 +61,16 @@ extern "C" BOOL DLL_EXPORT DoCallBack_MarshalRefCharArray_Cdecl(CdeclCallBack ca
     }
     if(str[0]!='a')
     {
-        CoTaskMemFree(str);
+        CoreClrFree(str);
         return FALSE;
     }
     return TRUE;
 }
 
 typedef BOOL(__stdcall *StdCallBack)(char ** pstr);
-extern "C" BOOL DLL_EXPORT DoCallBack_MarshalRefCharArray_Stdcall(StdCallBack caller)
+extern "C" BOOL DLL_EXPORT __stdcall DoCallBack_MarshalRefCharArray_Stdcall(StdCallBack caller)
 {
-    char * str = (char*)CoTaskMemAlloc(LEN);
+    char * str = (char*)CoreClrAlloc(LEN);
     for(int i = 0;i<LEN;i++)
     {
         str[i] = 'z';
@@ -83,20 +83,20 @@ extern "C" BOOL DLL_EXPORT DoCallBack_MarshalRefCharArray_Stdcall(StdCallBack ca
     if(str[0]!='a')
     {
 
-        CoTaskMemFree(str);
+        CoreClrFree(str);
         return FALSE;
     }
     return TRUE;
 }
 
-typedef BOOL (_cdecl * DelegatePInvoke_Cdecl)(char **pstr);
-extern "C" DLL_EXPORT DelegatePInvoke_Cdecl DelegatePinvoke_Cdecl()
+typedef BOOL (__cdecl * DelegatePInvoke_Cdecl)(char **pstr);
+extern "C" DLL_EXPORT DelegatePInvoke_Cdecl __cdecl DelegatePinvoke_Cdecl()
 {
     return MarshalRefCharArray_Cdecl;
 }
 
 typedef BOOL (__stdcall * DelegatePInvoke_Stdcall)(char **pstr);
-extern "C" DLL_EXPORT DelegatePInvoke_Stdcall DelegatePinvoke_Stdcall()
+extern "C" DLL_EXPORT DelegatePInvoke_Stdcall __stdcall DelegatePinvoke_Stdcall()
 {
     return MarshalRefCharArray_Stdcall;
 }

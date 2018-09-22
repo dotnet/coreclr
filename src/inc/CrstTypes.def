@@ -352,6 +352,10 @@ Crst NativeImageCache
     Unordered
 End
 
+Crst GCCover
+    AcquiredBefore LoaderHeap ReJITSharedDomainTable
+End
+
 Crst GCMemoryPressure
 End
 
@@ -752,9 +756,6 @@ End
 Crst PinnedByrefValidation
 End
 
-Crst AssemblyUsageLog
-End
-
 Crst VSDIndirectionCellLock
     AcquiredBefore LoaderHeap
 End
@@ -778,4 +779,19 @@ End
 
 Crst InlineTrackingMap
     AcquiredBefore IbcProfile
+End
+
+Crst EventPipe
+    AcquiredBefore ThreadIdDispenser ThreadStore DomainLocalBlock InstMethodHashTable
+End
+
+Crst NotifyGdb
+End
+
+Crst ReadyToRunEntryPointToMethodDescMap
+    AcquiredBefore ExecuteManRangeLock UniqueStack
+End
+
+Crst TieredCompilation
+    AcquiredBefore ThreadpoolTimerQueue
 End

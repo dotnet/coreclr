@@ -205,7 +205,7 @@ static LPWSTR FMTMSG_ProcessPrintf( wchar_t c ,
     UINT nFormatLength = 0;
     int nBufferLength = 0;
 
-    TRACE( "FMTMSG_ProcessPrintf( %C, %S, %S )\n", c, 
+    TRACE( "FMTMSG_ProcessPrintf( %C, %S, %p )\n", c,
            lpPrintfString, lpInsertString );
 
     switch ( c )
@@ -299,7 +299,6 @@ FormatMessageW(
     LPWSTR lpReturnString = NULL;
     LPWSTR lpWorkingString = NULL; 
     
-
     PERF_ENTRY(FormatMessageW);
     ENTRY( "FormatMessageW(dwFlags=%#x, lpSource=%p, dwMessageId=%#x, "
            "dwLanguageId=%#x, lpBuffer=%p, nSize=%u, va_list=%p)\n", 
@@ -337,11 +336,7 @@ FormatMessageW(
     }
     
     if ( !( dwFlags & FORMAT_MESSAGE_FROM_STRING ) && 
-         ( dwLanguageId != 0
-#if ENABLE_DOWNLEVEL_FOR_NLS         
-         && dwLanguageId != MAKELANGID( LANG_NEUTRAL, SUBLANG_DEFAULT ) 
-#endif
-         ) )
+         ( dwLanguageId != 0) )
     {
         ERROR( "Invalid language indentifier.\n" );
         SetLastError( ERROR_RESOURCE_LANG_NOT_FOUND );

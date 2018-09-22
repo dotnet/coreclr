@@ -124,18 +124,18 @@ GetLongPathNameWrapper(
     SString& lpszLongPath
     );
 
-UINT GetTempFileNameWrapper(
+UINT WINAPI GetTempFileNameWrapper(
     _In_  LPCTSTR lpPathName,
     _In_  LPCTSTR lpPrefixString,
     _In_  UINT    uUnique,
     SString&  lpTempFileName
     );
 
-DWORD GetTempPathWrapper(
+DWORD WINAPI GetTempPathWrapper(
     SString& lpBuffer
     );
 
-DWORD GetCurrentDirectoryWrapper(
+DWORD WINAPI GetCurrentDirectoryWrapper(
     SString&  lpBuffer
     );
 
@@ -145,127 +145,12 @@ GetModuleFileNameWrapper(
     SString& buffer
     );
 
-DWORD GetEnvironmentVariableWrapper(
+DWORD WINAPI GetEnvironmentVariableWrapper(
     _In_opt_  LPCTSTR lpName,
     _Out_opt_ SString&  lpBuffer
     );
 
 BOOL PAL_GetPALDirectoryWrapper(SString& pbuffer);
 
-#ifndef FEATURE_CORECLR
-//Temporarily providing direct OS Calls Till All of the Desktop CLR start using the above format
-inline DWORD
-SearchPathWrapper(
-    _In_opt_ LPCWSTR lpPath,
-    _In_ LPCWSTR lpFileName,
-    _In_opt_ LPCWSTR lpExtension,
-    _In_ BOOL getPath,
-    _Out_     LPWSTR  lpBuffer,
-    _Out_opt_ LPWSTR * lpFilePart
-    )
-{
-    return SearchPathW(
-        lpPath,
-        lpFileName,
-        lpExtension,
-        getPath,
-        lpBuffer,
-        lpFilePart
-        );
-}
-
-
-inline DWORD
-GetShortPathNameWrapper(
-    _In_ LPCWSTR lpszLongPath,
-    _Out_ LPWSTR  lpszShortPath,
-    _In_  DWORD   cchBuffer
-    )
-{
-    return GetShortPathNameW(
-        lpszLongPath,
-        lpszShortPath,
-        cchBuffer
-        );
-}
-
-inline DWORD
-GetLongPathNameWrapper(
-    _In_ LPCWSTR lpszShortPath,
-    _Out_ LPWSTR  lpszLongPath,
-    _In_  DWORD   cchBuffer
-    )
-{
-    return GetLongPathNameW(
-        lpszShortPath,
-        lpszLongPath,
-        cchBuffer
-        );
-}
-
-inline UINT GetTempFileNameWrapper(
-    _In_  LPCWSTR lpPathName,
-    _In_  LPCWSTR lpPrefixString,
-    _In_  UINT    uUnique,
-    _Out_ LPWSTR  lpTempFileName
-    )
-{
-    return GetTempFileNameW(
-        lpPathName,
-        lpPrefixString,
-        uUnique,
-        lpTempFileName
-        );
-}
-
-inline DWORD GetTempPathWrapper(
-    _In_  DWORD  nBufferLength,
-    _Out_ LPWSTR lpBuffer
-    )
-{
-    return GetTempPathW(
-        nBufferLength,
-        lpBuffer
-        );
-}
-
-inline DWORD GetCurrentDirectoryWrapper(
-    _In_  DWORD  nBufferLength,
-    _Out_ LPWSTR lpBuffer
-    )
-{
-    return GetCurrentDirectoryW(
-        nBufferLength,
-        lpBuffer
-        );
-}
-
-inline DWORD
-GetModuleFileNameWrapper(
-    _In_opt_ HMODULE hModule,
-    _Out_    LPWSTR  lpFilename,
-    _In_     DWORD   nSize
-    )
-{
-    return GetModuleFileNameW(
-        hModule,
-        lpFilename,
-        nSize
-        );
-}
-
-inline DWORD GetEnvironmentVariableWrapper(
-    _In_opt_  LPCWSTR lpName,
-    _Out_opt_ LPWSTR  lpBuffer,
-    _In_      DWORD   nSize
-    )
-{
-    return GetEnvironmentVariableW(
-       lpName,
-       lpBuffer,
-       nSize
-        );
-}
-#endif //FEATURE_CORECLR
 #endif //_WIN_PATH_APIS_WRAPPER_
 

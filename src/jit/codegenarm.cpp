@@ -15,1011 +15,138 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #ifdef _TARGET_ARM_
 #include "codegen.h"
 #include "lower.h"
 #include "gcinfo.h"
 #include "emit.h"
 
-#ifndef JIT32_GCENCODER
-#include "gcinfoencoder.h"
-#endif
-
-
-// Get the register assigned to the given node
-
-regNumber CodeGenInterface::genGetAssignedReg(GenTreePtr tree)
+//------------------------------------------------------------------------
+// genCallFinally: Generate a call to the finally block.
+//
+BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 {
-    return tree->gtRegNum;
-}
+    BasicBlock* bbFinallyRet = nullptr;
 
+    // We don't have retless calls, since we use the BBJ_ALWAYS to point at a NOP pad where
+    // we would have otherwise created retless calls.
+    assert(block->isBBCallAlwaysPair());
+
+    assert(block->bbNext != NULL);
+    assert(block->bbNext->bbJumpKind == BBJ_ALWAYS);
+    assert(block->bbNext->bbJumpDest != NULL);
+    assert(block->bbNext->bbJumpDest->bbFlags & BBF_FINALLY_TARGET);
+
+    bbFinallyRet = block->bbNext->bbJumpDest;
+    bbFinallyRet->bbFlags |= BBF_JMP_TARGET;
+
+    // Load the address where the finally funclet should return into LR.
+    // The funclet prolog/epilog will do "push {lr}" / "pop {pc}" to do the return.
+    genMov32RelocatableDisplacement(bbFinallyRet, REG_LR);
+
+    // Jump to the finally BB
+    inst_JMP(EJ_jmp, block->bbJumpDest);
+
+    // The BBJ_ALWAYS is used because the BBJ_CALLFINALLY can't point to the
+    // jump target using bbJumpDest - that is already used to point
+    // to the finally block. So just skip past the BBJ_ALWAYS unless the
+    // block is RETLESS.
+    assert(!(block->bbFlags & BBF_RETLESS_CALL));
+    assert(block->isBBCallAlwaysPair());
+    return block->bbNext;
+}
 
 //------------------------------------------------------------------------
-// genSpillVar: Spill a local variable
+// genEHCatchRet:
+void CodeGen::genEHCatchRet(BasicBlock* block)
+{
+    genMov32RelocatableDisplacement(block->bbJumpDest, REG_INTRET);
+}
+
+//------------------------------------------------------------------------
+// instGen_Set_Reg_To_Imm: Move an immediate value into an integer register.
 //
-// Arguments:
-//    tree      - the lclVar node for the variable being spilled
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    The lclVar must be a register candidate (lvRegCandidate)
-
-void                CodeGen::genSpillVar(GenTreePtr tree)
-{
-    regMaskTP regMask;
-    unsigned varNum = tree->gtLclVarCommon.gtLclNum;
-    LclVarDsc * varDsc = &(compiler->lvaTable[varNum]);
-
-    // We don't actually need to spill if it is already living in memory
-    bool needsSpill = ((tree->gtFlags & GTF_VAR_DEF) == 0 && varDsc->lvIsInReg());
-    if (needsSpill)
-    {
-        bool restoreRegVar = false;
-        if  (tree->gtOper == GT_REG_VAR)
-        {
-            tree->SetOper(GT_LCL_VAR);
-            restoreRegVar = true;
-        }
-
-        // mask off the flag to generate the right spill code, then bring it back
-        tree->gtFlags   &= ~GTF_REG_VAL;
-
-        instruction storeIns = ins_Store(tree->TypeGet());
-
-        if (varTypeIsMultiReg(tree))
-        {
-            assert(varDsc->lvRegNum   == genRegPairLo(tree->gtRegPair));
-            assert(varDsc->lvOtherReg == genRegPairHi(tree->gtRegPair));
-            regNumber regLo = genRegPairLo(tree->gtRegPair);
-            regNumber regHi = genRegPairHi(tree->gtRegPair);
-            inst_TT_RV(storeIns, tree, regLo);
-            inst_TT_RV(storeIns, tree, regHi, 4);
-        }
-        else
-        {
-            assert(varDsc->lvRegNum == tree->gtRegNum);
-            inst_TT_RV(storeIns, tree, tree->gtRegNum);
-        }
-        tree->gtFlags    |= GTF_REG_VAL;
-
-        if (restoreRegVar)
-        {
-            tree->SetOper(GT_REG_VAR);
-        }
-
-        genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(tree));
-        gcInfo.gcMarkRegSetNpt(varDsc->lvRegMask());
-
-        if (VarSetOps::IsMember(compiler, gcInfo.gcTrkStkPtrLcls, varDsc->lvVarIndex))
-        {
-#ifdef DEBUG
-            if (!VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
-            {
-                JITDUMP("\t\t\t\t\t\t\tVar V%02u becoming live\n", varNum);
-            }
-            else
-            {
-                JITDUMP("\t\t\t\t\t\t\tVar V%02u continuing live\n", varNum);
-            }
-#endif
-            VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
-        }
-
-    }
-
-    tree->gtFlags    &= ~GTF_SPILL;
-    varDsc->lvRegNum = REG_STK;
-    if (varTypeIsMultiReg(tree))
-    {
-        varDsc->lvOtherReg = REG_STK;
-    }
-}
-
-// inline
-void                CodeGenInterface::genUpdateVarReg(LclVarDsc * varDsc, GenTreePtr tree)
-{
-    assert(tree->OperIsScalarLocal() || (tree->gtOper == GT_COPY));
-    varDsc->lvRegNum = tree->gtRegNum;
-}
-
-
-/*****************************************************************************
- *
- *  Generate code that will set the given register to the integer constant.
- */
-
-void                CodeGen::genSetRegToIcon(regNumber     reg,
-                                             ssize_t       val,
-                                             var_types     type,
-                                             insFlags      flags)
-{
-    // Reg cannot be a FP reg
-    assert(!genIsValidFloatReg(reg));
-
-    // The only TYP_REF constant that can come this path is a managed 'null' since it is not
-    // relocatable.  Other ref type constants (e.g. string objects) go through a different
-    // code path.
-    noway_assert(type != TYP_REF || val == 0);
-
-    if (val == 0)
-    {
-        instGen_Set_Reg_To_Zero(emitActualTypeSize(type), reg, flags);
-    }
-    else
-    {
-        // TODO-CQ: needs all the optimized cases
-        getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(type), reg, val);
-    }
-}
-
-
-/*****************************************************************************
- *
- *   Generate code to check that the GS cookie wasn't thrashed by a buffer
- *   overrun.  If pushReg is true, preserve all registers around code sequence.
- *   Otherwise, ECX maybe modified.
- */
-void                CodeGen::genEmitGSCookieCheck(bool pushReg)
-{
-    NYI("ARM genEmitGSCookieCheck is not yet implemented for protojit");
-}
-
-/*****************************************************************************
- *
- *  Generate code for all the basic blocks in the function.
- */
-
-void                CodeGen::genCodeForBBlist()
-{
-    unsigned        varNum;
-    LclVarDsc   *   varDsc;
-
-    unsigned        savedStkLvl;
-
-#ifdef  DEBUG
-    genInterruptibleUsed        = true;
-    unsigned        stmtNum     = 0;
-    unsigned        totalCostEx = 0;
-    unsigned        totalCostSz = 0;
-
-    // You have to be careful if you create basic blocks from now on
-    compiler->fgSafeBasicBlockCreation = false;
-
-    // This stress mode is not comptible with fully interruptible GC
-    if (genInterruptible && compiler->opts.compStackCheckOnCall)
-    {
-        compiler->opts.compStackCheckOnCall = false;
-    }
-
-    // This stress mode is not comptible with fully interruptible GC
-    if (genInterruptible && compiler->opts.compStackCheckOnRet)
-    {
-        compiler->opts.compStackCheckOnRet = false;
-    }
-#endif
-
-    // Prepare the blocks for exception handling codegen: mark the blocks that needs labels.
-    genPrepForEHCodegen();
-
-    assert(!compiler->fgFirstBBScratch || compiler->fgFirstBB == compiler->fgFirstBBScratch); // compiler->fgFirstBBScratch has to be first.
-
-    /* Initialize the spill tracking logic */
-
-    regSet.rsSpillBeg();
-
-    /* Initialize the line# tracking logic */
-
-#ifdef DEBUGGING_SUPPORT
-    if (compiler->opts.compScopeInfo)
-    {
-        siInit();
-    }
-#endif
-
-    if (compiler->opts.compDbgEnC)
-    {
-        noway_assert(isFramePointerUsed());
-        regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
-    }
-
-#if INLINE_NDIRECT
-    /* If we have any pinvoke calls, we might potentially trash everything */
-    if  (compiler->info.compCallUnmanaged)
-    {
-        noway_assert(isFramePointerUsed());  // Setup of Pinvoke frame currently requires an EBP style frame
-        regSet.rsSetRegsModified(RBM_INT_CALLEE_SAVED & ~RBM_FPBASE);
-    }
-
-#endif // INLINE_NDIRECT
-
-    genPendingCallLabel = nullptr;
-
-    /* Initialize the pointer tracking code */
-
-    gcInfo.gcRegPtrSetInit();
-    gcInfo.gcVarPtrSetInit();
-
-    /* If any arguments live in registers, mark those regs as such */
-
-    for (varNum = 0, varDsc = compiler->lvaTable;
-         varNum < compiler->lvaCount;
-         varNum++  , varDsc++)
-    {
-        /* Is this variable a parameter assigned to a register? */
-
-        if  (!varDsc->lvIsParam || !varDsc->lvRegister)
-            continue;
-
-        /* Is the argument live on entry to the method? */
-
-        if  (!VarSetOps::IsMember(compiler, compiler->fgFirstBB->bbLiveIn, varDsc->lvVarIndex))
-            continue;
-
-        /* Is this a floating-point argument? */
-
-        if (varDsc->IsFloatRegType())
-            continue;
-
-        noway_assert(!varTypeIsFloating(varDsc->TypeGet()));
-
-        /* Mark the register as holding the variable */
-
-        regTracker.rsTrackRegLclVar(varDsc->lvRegNum, varNum);
-    }
-
-    unsigned finallyNesting = 0;
-
-    // Make sure a set is allocated for compiler->compCurLife (in the long case), so we can set it to empty without
-    // allocation at the start of each basic block.
-    VarSetOps::AssignNoCopy(compiler, compiler->compCurLife, VarSetOps::MakeEmpty(compiler));
-
-    /*-------------------------------------------------------------------------
-     *
-     *  Walk the basic blocks and generate code for each one
-     *
-     */
-
-    BasicBlock *    block;
-    BasicBlock *    lblk;  /* previous block */
-
-    for (lblk =  NULL, block  = compiler->fgFirstBB;
-                       block != NULL;
-         lblk = block, block  = block->bbNext)
-    {
-#ifdef DEBUG
-        if (compiler->verbose)
-        {
-            printf("\n=============== Generating ");
-            block->dspBlockHeader(compiler, true, true);
-            compiler->fgDispBBLiveness(block);
-        }
-#endif // DEBUG
-
-        /* Figure out which registers hold variables on entry to this block */
-
-        regSet.ClearMaskVars();
-        gcInfo.gcRegGCrefSetCur = RBM_NONE;
-        gcInfo.gcRegByrefSetCur = RBM_NONE;
-
-        compiler->m_pLinearScan->recordVarLocationsAtStartOfBB(block);
-
-        genUpdateLife(block->bbLiveIn);
-
-        // Even if liveness didn't change, we need to update the registers containing GC references.
-        // genUpdateLife will update the registers live due to liveness changes. But what about registers that didn't change?
-        // We cleared them out above. Maybe we should just not clear them out, but update the ones that change here.
-        // That would require handling the changes in recordVarLocationsAtStartOfBB().
-
-        regMaskTP newLiveRegSet = RBM_NONE;
-        regMaskTP newRegGCrefSet = RBM_NONE;
-        regMaskTP newRegByrefSet = RBM_NONE;
-        VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
-        {
-            unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-            LclVarDsc*           varDsc  = &(compiler->lvaTable[varNum]);
-
-            if (varDsc->lvIsInReg())
-            {
-                newLiveRegSet |= varDsc->lvRegMask();
-                if (varDsc->lvType == TYP_REF)
-                {
-                    newRegGCrefSet |= varDsc->lvRegMask();
-                }
-                else if (varDsc->lvType == TYP_BYREF)
-                {
-                    newRegByrefSet |= varDsc->lvRegMask();
-                }
-            }
-            else if (varDsc->lvType == TYP_REF || varDsc->lvType == TYP_BYREF)
-            {
-                VarSetOps::AddElemD(compiler, gcInfo.gcVarPtrSetCur, varIndex);
-            }
-        }
-
-        regSet.rsMaskVars = newLiveRegSet;
-        gcInfo.gcMarkRegSetGCref(newRegGCrefSet DEBUG_ARG(true));
-        gcInfo.gcMarkRegSetByref(newRegByrefSet DEBUG_ARG(true));
-
-        /* Blocks with handlerGetsXcptnObj()==true use GT_CATCH_ARG to
-           represent the exception object (TYP_REF).
-           We mark REG_EXCEPTION_OBJECT as holding a GC object on entry
-           to the block,  it will be the first thing evaluated
-           (thanks to GTF_ORDER_SIDEEFF).
-         */
-
-        if (handlerGetsXcptnObj(block->bbCatchTyp))
-        {
-#if JIT_FEATURE_SSA_SKIP_DEFS
-            GenTreePtr firstStmt = block->FirstNonPhiDef();
-#else
-            GenTreePtr firstStmt = block->bbTreeList;
-#endif
-            if (firstStmt != NULL)
-            {
-                GenTreePtr firstTree = firstStmt->gtStmt.gtStmtExpr;
-                if (compiler->gtHasCatchArg(firstTree))
-                {
-                    gcInfo.gcMarkRegSetGCref(RBM_EXCEPTION_OBJECT);
-                }
-            }
-        }
-
-        /* Start a new code output block */
-
-#if FEATURE_EH_FUNCLETS
-#if defined(_TARGET_ARM_)
-        // If this block is the target of a finally return, we need to add a preceding NOP, in the same EH region,
-        // so the unwinder doesn't get confused by our "movw lr, xxx; movt lr, xxx; b Lyyy" calling convention that
-        // calls the funclet during non-exceptional control flow.
-        if (block->bbFlags & BBF_FINALLY_TARGET)
-        {
-            assert(block->bbFlags & BBF_JMP_TARGET);
-
-            // Create a label that we'll use for computing the start of an EH region, if this block is
-            // at the beginning of such a region. If we used the existing bbEmitCookie as is for
-            // determining the EH regions, then this NOP would end up outside of the region, if this
-            // block starts an EH region. If we pointed the existing bbEmitCookie here, then the NOP
-            // would be executed, which we would prefer not to do.
-
-#ifdef  DEBUG
-            if (compiler->verbose)
-            {
-                printf("\nEmitting finally target NOP predecessor for BB%02u\n", block->bbNum);
-            }
-#endif
-
-            block->bbUnwindNopEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur,
-                                                                      gcInfo.gcRegGCrefSetCur,
-                                                                      gcInfo.gcRegByrefSetCur);
-            
-            instGen(INS_nop);
-        }
-#endif // defined(_TARGET_ARM_)
-
-        genUpdateCurrentFunclet(block);
-#endif // FEATURE_EH_FUNCLETS
-
-#ifdef _TARGET_XARCH_
-        if (genAlignLoops && block->bbFlags & BBF_LOOP_HEAD)
-        {
-            getEmitter()->emitLoopAlign();
-        }
-#endif
-
-#ifdef  DEBUG
-        if  (compiler->opts.dspCode)
-            printf("\n      L_M%03u_BB%02u:\n", Compiler::s_compMethodsCount, block->bbNum);
-#endif
-
-        block->bbEmitCookie = NULL;
-
-        if  (block->bbFlags & (BBF_JMP_TARGET|BBF_HAS_LABEL))
-        {
-            /* Mark a label and update the current set of live GC refs */
-
-            block->bbEmitCookie = getEmitter()->emitAddLabel(
-                gcInfo.gcVarPtrSetCur,
-                gcInfo.gcRegGCrefSetCur,
-                gcInfo.gcRegByrefSetCur,
-                /*isFinally*/block->bbFlags & BBF_FINALLY_TARGET);
-        }
-
-        if (block == compiler->fgFirstColdBlock)
-        {
-#ifdef DEBUG
-            if (compiler->verbose)
-            {
-                printf("\nThis is the start of the cold region of the method\n");
-            }
-#endif
-            // We should never have a block that falls through into the Cold section
-            noway_assert(!lblk->bbFallsThrough());
-
-            // We require the block that starts the Cold section to have a label
-            noway_assert(block->bbEmitCookie);
-            getEmitter()->emitSetFirstColdIGCookie(block->bbEmitCookie);
-        }
-
-        /* Both stacks are always empty on entry to a basic block */
-
-        genStackLevel = 0;
-
-#if !FEATURE_FIXED_OUT_ARGS
-        /* Check for inserted throw blocks and adjust genStackLevel */
-
-        if  (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block))
-        {
-            noway_assert(block->bbFlags & BBF_JMP_TARGET);
-
-            genStackLevel = compiler->fgThrowHlpBlkStkLevel(block) * sizeof(int);
-
-            if  (genStackLevel)
-            {
-                NYI("Need emitMarkStackLvl()");
-            }
-        }
-#endif // !FEATURE_FIXED_OUT_ARGS
-
-        savedStkLvl = genStackLevel;
-
-        /* Tell everyone which basic block we're working on */
-
-        compiler->compCurBB = block;
-
-#ifdef DEBUGGING_SUPPORT
-        siBeginBlock(block);
-
-        // BBF_INTERNAL blocks don't correspond to any single IL instruction.
-        if (compiler->opts.compDbgInfo && (block->bbFlags & BBF_INTERNAL) && block != compiler->fgFirstBB)
-            genIPmappingAdd((IL_OFFSETX) ICorDebugInfo::NO_MAPPING, true);
-
-        bool    firstMapping = true;
-#endif // DEBUGGING_SUPPORT
-
-        /*---------------------------------------------------------------------
-         *
-         *  Generate code for each statement-tree in the block
-         *
-         */
-
-#if FEATURE_EH_FUNCLETS
-        if (block->bbFlags & BBF_FUNCLET_BEG)
-        {
-            genReserveFuncletProlog(block);
-        }
-#endif // FEATURE_EH_FUNCLETS
-
-#if JIT_FEATURE_SSA_SKIP_DEFS
-        for (GenTreePtr stmt = block->FirstNonPhiDef(); stmt; stmt = stmt->gtNext)
-#else
-        for (GenTreePtr stmt = block->bbTreeList; stmt; stmt = stmt->gtNext)
-#endif
-        {
-            noway_assert(stmt->gtOper == GT_STMT);
-
-            if (stmt->AsStmt()->gtStmtIsEmbedded())
-                continue;
-
-            /* Get hold of the statement tree */
-            GenTreePtr  tree = stmt->gtStmt.gtStmtExpr;
-
-#if defined(DEBUGGING_SUPPORT)
-
-            /* Do we have a new IL-offset ? */
-
-            if (stmt->gtStmt.gtStmtILoffsx != BAD_IL_OFFSET)
-            {
-                /* Create and append a new IP-mapping entry */
-                genIPmappingAdd(stmt->gtStmt.gtStmt.gtStmtILoffsx, firstMapping);
-                firstMapping = false;
-            }
-
-#endif // DEBUGGING_SUPPORT
-
-#ifdef DEBUG
-            noway_assert(stmt->gtStmt.gtStmtLastILoffs <= compiler->info.compILCodeSize ||
-                         stmt->gtStmt.gtStmtLastILoffs == BAD_IL_OFFSET);
-
-            if (compiler->opts.dspCode && compiler->opts.dspInstrs &&
-                stmt->gtStmt.gtStmtLastILoffs != BAD_IL_OFFSET)
-            {
-                while (genCurDispOffset <= stmt->gtStmt.gtStmtLastILoffs)
-                {
-                    genCurDispOffset +=
-                        dumpSingleInstr(compiler->info.compCode, genCurDispOffset, ">    ");
-                }
-            }
-
-            stmtNum++;
-            if (compiler->verbose)
-            {
-                printf("\nGenerating BB%02u, stmt %u\t\t", block->bbNum, stmtNum);
-                printf("Holding variables: ");
-                dspRegMask(regSet.rsMaskVars); printf("\n\n");
-                compiler->gtDispTree(compiler->opts.compDbgInfo ? stmt : tree);
-                printf("\n");
-            }
-            totalCostEx += (stmt->gtCostEx * block->getBBWeight(compiler));
-            totalCostSz +=  stmt->gtCostSz;
-#endif // DEBUG
-
-            // Traverse the tree in linear order, generating code for each node in the
-            // tree as we encounter it
-
-            // If we have embedded statements, we need to keep track of the next top-level
-            // node in order, because if it produces a register, we need to consume it
-
-            GenTreeStmt* curPossiblyEmbeddedStmt = stmt->gtStmt.gtStmtNextIfEmbedded();
-            if (curPossiblyEmbeddedStmt == nullptr)
-                curPossiblyEmbeddedStmt = stmt->AsStmt();
-
-            compiler->compCurLifeTree = NULL;
-            compiler->compCurStmt = stmt;
-            for (GenTreePtr treeNode = stmt->gtStmt.gtStmtList;
-                 treeNode != NULL;
-                 treeNode = treeNode->gtNext)
-            {
-                genCodeForTreeNode(treeNode);
-
-                if (treeNode == curPossiblyEmbeddedStmt->gtStmtExpr)
-                {
-                    // It is possible that the last top-level node may generate a result
-                    // that is not used (but may still require a register, e.g. an indir
-                    // that is evaluated only for the side-effect of a null check).
-                    // In that case, we must "consume" the register now.
-                    if (treeNode->gtHasReg())
-                    {
-                        genConsumeReg(treeNode);
-                    }
-                    if (curPossiblyEmbeddedStmt != stmt)
-                    {
-                        curPossiblyEmbeddedStmt = curPossiblyEmbeddedStmt->gtStmt.gtStmtNextIfEmbedded();
-                        if (curPossiblyEmbeddedStmt == nullptr)
-                            curPossiblyEmbeddedStmt = stmt->AsStmt();
-                    }
-                }
-            }
-
-            regSet.rsSpillChk();
-
-#ifdef DEBUG
-            /* Make sure we didn't bungle pointer register tracking */
-
-            regMaskTP ptrRegs       = (gcInfo.gcRegGCrefSetCur|gcInfo.gcRegByrefSetCur);
-            regMaskTP nonVarPtrRegs = ptrRegs & ~regSet.rsMaskVars;
-
-            // If return is a GC-type, clear it.  Note that if a common
-            // epilog is generated (genReturnBB) it has a void return
-            // even though we might return a ref.  We can't use the compRetType
-            // as the determiner because something we are tracking as a byref
-            // might be used as a return value of a int function (which is legal)
-            if  (tree->gtOper == GT_RETURN &&
-                (varTypeIsGC(compiler->info.compRetType) ||
-                    (tree->gtOp.gtOp1 != 0 && varTypeIsGC(tree->gtOp.gtOp1->TypeGet()))))
-            {
-                nonVarPtrRegs &= ~RBM_INTRET;
-            }
-
-            // When profiling, the first statement in a catch block will be the
-            // harmless "inc" instruction (does not interfere with the exception
-            // object).
-
-            if ((compiler->opts.eeFlags & CORJIT_FLG_BBINSTR) &&
-                (stmt == block->bbTreeList) &&
-                handlerGetsXcptnObj(block->bbCatchTyp))
-            {
-                nonVarPtrRegs &= ~RBM_EXCEPTION_OBJECT;
-            }
-
-            if  (nonVarPtrRegs)
-            {
-                printf("Regset after tree=");
-                Compiler::printTreeID(tree);
-                printf(" BB%02u gcr=", block->bbNum);
-                printRegMaskInt(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
-                compiler->getEmitter()->emitDispRegSet(gcInfo.gcRegGCrefSetCur & ~regSet.rsMaskVars);
-                printf(", byr=");
-                printRegMaskInt(gcInfo.gcRegByrefSetCur & ~regSet.rsMaskVars);
-                compiler->getEmitter()->emitDispRegSet(gcInfo.gcRegByrefSetCur & ~regSet.rsMaskVars);
-                printf(", regVars=");
-                printRegMaskInt(regSet.rsMaskVars);
-                compiler->getEmitter()->emitDispRegSet(regSet.rsMaskVars);
-                printf("\n");
-            }
-
-            noway_assert(nonVarPtrRegs == 0);
-
-            for (GenTree * node = stmt->gtStmt.gtStmtList; node; node=node->gtNext)
-            {
-                assert(!(node->gtFlags & GTF_SPILL));
-            }
-
-#endif // DEBUG
-
-            noway_assert(stmt->gtOper == GT_STMT);
-
-#ifdef DEBUGGING_SUPPORT
-            genEnsureCodeEmitted(stmt->gtStmt.gtStmtILoffsx);
-#endif
-
-        } //-------- END-FOR each statement-tree of the current block ---------
-
-#ifdef  DEBUGGING_SUPPORT
-
-        if (compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0))
-        {
-            siEndBlock(block);
-
-            /* Is this the last block, and are there any open scopes left ? */
-
-            bool isLastBlockProcessed = (block->bbNext == NULL);
-            if (block->isBBCallAlwaysPair())
-            {
-                isLastBlockProcessed = (block->bbNext->bbNext == NULL);
-            }
-
-            if (isLastBlockProcessed && siOpenScopeList.scNext)
-            {
-                /* This assert no longer holds, because we may insert a throw
-                   block to demarcate the end of a try or finally region when they
-                   are at the end of the method.  It would be nice if we could fix
-                   our code so that this throw block will no longer be necessary. */
-
-                //noway_assert(block->bbCodeOffsEnd != compiler->info.compILCodeSize);
-
-                siCloseAllOpenScopes();
-            }
-        }
-
-#endif // DEBUGGING_SUPPORT
-
-        genStackLevel -= savedStkLvl;
-
-#ifdef DEBUG
-        // compCurLife should be equal to the liveOut set, except that we don't keep
-        // it up to date for vars that are not register candidates
-        // (it would be nice to have a xor set function)
-
-        VARSET_TP VARSET_INIT_NOCOPY(extraLiveVars, VarSetOps::Diff(compiler, block->bbLiveOut, compiler->compCurLife));
-        VarSetOps::UnionD(compiler, extraLiveVars, VarSetOps::Diff(compiler, compiler->compCurLife, block->bbLiveOut));
-        VARSET_ITER_INIT(compiler, extraLiveVarIter, extraLiveVars, extraLiveVarIndex);
-        while (extraLiveVarIter.NextElem(compiler, &extraLiveVarIndex))
-        {
-            unsigned varNum = compiler->lvaTrackedToVarNum[extraLiveVarIndex];
-            LclVarDsc * varDsc = compiler->lvaTable + varNum;
-            assert(!varDsc->lvIsRegCandidate());
-        }
-#endif
-
-        /* Both stacks should always be empty on exit from a basic block */
-
-        noway_assert(genStackLevel == 0);
-
-#ifdef _TARGET_AMD64_
-        // On AMD64, we need to generate a NOP after a call that is the last instruction of the block, in several
-        // situations, to support proper exception handling semantics. This is mostly to ensure that when the stack
-        // walker computes an instruction pointer for a frame, that instruction pointer is in the correct EH region.
-        // The document "X64 and ARM ABIs.docx" has more details. The situations:
-        // 1. If the call instruction is in a different EH region as the instruction that follows it.
-        // 2. If the call immediately precedes an OS epilog. (Note that what the JIT or VM consider an epilog might
-        //    be slightly different from what the OS considers an epilog, and it is the OS-reported epilog that matters here.)
-        // We handle case #1 here, and case #2 in the emitter.
-        if (getEmitter()->emitIsLastInsCall())
-        {
-            // Ok, the last instruction generated is a call instruction. Do any of the other conditions hold?
-            // Note: we may be generating a few too many NOPs for the case of call preceding an epilog. Technically,
-            // if the next block is a BBJ_RETURN, an epilog will be generated, but there may be some instructions
-            // generated before the OS epilog starts, such as a GS cookie check.
-            if ((block->bbNext == nullptr) ||
-                !BasicBlock::sameEHRegion(block, block->bbNext))
-            {
-                // We only need the NOP if we're not going to generate any more code as part of the block end.
-
-                switch (block->bbJumpKind)
-                {
-                case BBJ_ALWAYS:
-                case BBJ_THROW:
-                case BBJ_CALLFINALLY:
-                case BBJ_EHCATCHRET:
-                    // We're going to generate more code below anyway, so no need for the NOP.
-
-                case BBJ_RETURN:
-                case BBJ_EHFINALLYRET:
-                case BBJ_EHFILTERRET:
-                    // These are the "epilog follows" case, handled in the emitter.
-
-                    break;
-
-                case BBJ_NONE:
-                    if (block->bbNext == nullptr)
-                    {
-                        // Call immediately before the end of the code; we should never get here    .
-                        instGen(INS_BREAKPOINT); // This should never get executed
-                    }
-                    else
-                    {
-                        // We need the NOP
-                        instGen(INS_nop);
-                    }
-                    break;
-
-                case BBJ_COND:
-                case BBJ_SWITCH:
-                    // These can't have a call as the last instruction!
-
-                default:
-                    noway_assert(!"Unexpected bbJumpKind");
-                    break;
-                }
-            }
-        }
-#endif //_TARGET_AMD64_
-
-        /* Do we need to generate a jump or return? */
-
-        switch (block->bbJumpKind)
-        {
-        case BBJ_ALWAYS:
-            inst_JMP(EJ_jmp, block->bbJumpDest);
-            break;
-
-        case BBJ_RETURN:
-            genExitCode(block);
-            break;
-
-        case BBJ_THROW:
-            // If we have a throw at the end of a function or funclet, we need to emit another instruction
-            // afterwards to help the OS unwinder determine the correct context during unwind.
-            // We insert an unexecuted breakpoint instruction in several situations
-            // following a throw instruction:
-            // 1. If the throw is the last instruction of the function or funclet. This helps
-            //    the OS unwinder determine the correct context during an unwind from the
-            //    thrown exception.
-            // 2. If this is this is the last block of the hot section.
-            // 3. If the subsequent block is a special throw block.
-            // 4. On AMD64, if the next block is in a different EH region.
-            if ((block->bbNext == NULL)
-#if FEATURE_EH_FUNCLETS
-                || (block->bbNext->bbFlags & BBF_FUNCLET_BEG)
-#endif // FEATURE_EH_FUNCLETS
-#ifdef _TARGET_AMD64_
-                || !BasicBlock::sameEHRegion(block, block->bbNext)
-#endif // _TARGET_AMD64_
-                || (!isFramePointerUsed() && compiler->fgIsThrowHlpBlk(block->bbNext))
-                || block->bbNext == compiler->fgFirstColdBlock
-                )
-            {
-                instGen(INS_BREAKPOINT); // This should never get executed
-            }
-
-            break;
-
-        case BBJ_CALLFINALLY:
-
-            // Now set REG_LR to the address of where the finally funclet should
-            // return to directly.
-
-            BasicBlock * bbFinallyRet; bbFinallyRet = NULL;
-
-            // We don't have retless calls, since we use the BBJ_ALWAYS to point at a NOP pad where
-            // we would have otherwise created retless calls.
-            assert(block->isBBCallAlwaysPair());
-
-            assert(block->bbNext                     != NULL);
-            assert(block->bbNext->bbJumpKind         == BBJ_ALWAYS);
-            assert(block->bbNext->bbJumpDest         != NULL);
-            assert(block->bbNext->bbJumpDest->bbFlags & BBF_FINALLY_TARGET);
-
-            bbFinallyRet = block->bbNext->bbJumpDest;
-            bbFinallyRet->bbFlags |= BBF_JMP_TARGET;
-
-#if 0
-            // TODO-ARM-CQ:
-            // We don't know the address of finally funclet yet.  But adr requires the offset
-            // to finally funclet from current IP is within 4095 bytes. So this code is disabled
-            // for now.
-            getEmitter()->emitIns_J_R (INS_adr,
-                                     EA_4BYTE,
-                                     bbFinallyRet,
-                                     REG_LR);
-#else // !0
-            // Load the address where the finally funclet should return into LR.
-            // The funclet prolog/epilog will do "push {lr}" / "pop {pc}" to do
-            // the return.
-            getEmitter()->emitIns_R_L (INS_movw,
-                                     EA_4BYTE_DSP_RELOC,
-                                     bbFinallyRet,
-                                     REG_LR);
-            getEmitter()->emitIns_R_L (INS_movt,
-                                     EA_4BYTE_DSP_RELOC,
-                                     bbFinallyRet,
-                                     REG_LR);
-#endif // !0
-
-            // Jump to the finally BB
-            inst_JMP(EJ_jmp, block->bbJumpDest);
-
-            // The BBJ_ALWAYS is used because the BBJ_CALLFINALLY can't point to the
-            // jump target using bbJumpDest - that is already used to point
-            // to the finally block. So just skip past the BBJ_ALWAYS unless the
-            // block is RETLESS.
-            if ( !(block->bbFlags & BBF_RETLESS_CALL) )
-            {
-                assert(block->isBBCallAlwaysPair());
-
-                lblk = block;
-                block = block->bbNext;
-            }
-            break;
-
-#ifdef _TARGET_ARM_
-
-        case BBJ_EHCATCHRET:
-            // set r0 to the address the VM should return to after the catch
-            getEmitter()->emitIns_R_L (INS_movw,
-                                     EA_4BYTE_DSP_RELOC,
-                                     block->bbJumpDest,
-                                     REG_R0);
-            getEmitter()->emitIns_R_L (INS_movt,
-                                     EA_4BYTE_DSP_RELOC,
-                                     block->bbJumpDest,
-                                     REG_R0);
-
-            __fallthrough;
-
-        case BBJ_EHFINALLYRET:
-        case BBJ_EHFILTERRET:
-            genReserveFuncletEpilog(block);
-            break;
-
-#elif defined(_TARGET_AMD64_)
-
-        case BBJ_EHCATCHRET:
-            // Set EAX to the address the VM should return to after the catch.
-            // Generate a RIP-relative
-            //         lea reg, [rip + disp32] ; the RIP is implicit
-            // which will be position-indepenent.
-            // TODO-ARM-Bug?: For ngen, we need to generate a reloc for the displacement (maybe EA_PTR_DSP_RELOC).
-            getEmitter()->emitIns_R_L(INS_lea, EA_PTRSIZE, block->bbJumpDest, REG_INTRET);
-            __fallthrough;
-
-        case BBJ_EHFINALLYRET:
-        case BBJ_EHFILTERRET:
-            genReserveFuncletEpilog(block);
-            break;
-
-#endif // _TARGET_AMD64_
-
-        case BBJ_NONE:
-        case BBJ_COND:
-        case BBJ_SWITCH:
-            break;
-
-        default:
-            noway_assert(!"Unexpected bbJumpKind");
-            break;
-        }
-
-#ifdef  DEBUG
-        compiler->compCurBB = 0;
-#endif
-
-    } //------------------ END-FOR each block of the method -------------------
-
-    /* Nothing is live at this point */
-    genUpdateLife(VarSetOps::MakeEmpty(compiler));
-
-    /* Finalize the spill  tracking logic */
-
-    regSet.rsSpillEnd();
-
-    /* Finalize the temp   tracking logic */
-
-    compiler->tmpEnd();
-
-#ifdef  DEBUG
-    if (compiler->verbose)
-    {
-        printf("\n# ");
-        printf("totalCostEx = %6d, totalCostSz = %5d ",
-               totalCostEx, totalCostSz);
-        printf("%s\n", compiler->info.compFullName);
-    }
-#endif
-}
-
-// return the child that has the same reg as the dst (if any)
-// other child returned (out param) in 'other'
-GenTree *
-sameRegAsDst(GenTree *tree, GenTree *&other /*out*/)
-{
-    if (tree->gtRegNum == REG_NA)
-    {
-        other = nullptr;
-        return NULL;
-    }
-
-    GenTreePtr op1 = tree->gtOp.gtOp1->gtEffectiveVal();
-    GenTreePtr op2 = tree->gtOp.gtOp2->gtEffectiveVal();
-    if (op1->gtRegNum == tree->gtRegNum)
-    {
-        other = op2;
-        return op1;
-    }
-    if (op2->gtRegNum == tree->gtRegNum)
-    {
-        other = op1;
-        return op2;
-    }
-    else
-    {
-        other = nullptr;
-        return NULL;
-    }
-}
-
-//  move an immediate value into an integer register
-
-void                CodeGen::instGen_Set_Reg_To_Imm(emitAttr    size,
-                                                    regNumber   reg,
-                                                    ssize_t     imm,
-                                                    insFlags    flags)
+void CodeGen::instGen_Set_Reg_To_Imm(emitAttr size, regNumber reg, ssize_t imm, insFlags flags)
 {
     // reg cannot be a FP register
     assert(!genIsValidFloatReg(reg));
 
     if (!compiler->opts.compReloc)
     {
-        size = EA_SIZE(size);  // Strip any Reloc flags from size if we aren't doing relocs
+        size = EA_SIZE(size); // Strip any Reloc flags from size if we aren't doing relocs
     }
 
-    if ((imm == 0) && !EA_IS_RELOC(size))
+    if (EA_IS_RELOC(size))
+    {
+        // TODO-CrossBitness: we wouldn't need the cast below if we had CodeGen::instGen_Set_Reg_To_Reloc_Imm.
+        genMov32RelocatableImmediate(size, (BYTE*)imm, reg);
+    }
+    else if (imm == 0)
     {
         instGen_Set_Reg_To_Zero(size, reg, flags);
     }
     else
     {
-#ifdef _TARGET_AMD64_
-        if (AddrShouldUsePCRel(imm))
+        // TODO-CrossBitness: we wouldn't need the cast below if we had CodeGen::instGen_Set_Reg_To_Reloc_Imm.
+        const int val32 = (int)imm;
+        if (arm_Valid_Imm_For_Mov(val32))
         {
-            getEmitter()->emitIns_R_AI(INS_lea, EA_PTR_DSP_RELOC, reg, imm);
+            getEmitter()->emitIns_R_I(INS_mov, size, reg, val32, flags);
         }
-        else
-#endif // _TARGET_AMD64_
+        else // We have to use a movw/movt pair of instructions
         {
-            getEmitter()->emitIns_R_I(INS_mov, size, reg, imm);
+            const int imm_lo16 = val32 & 0xffff;
+            const int imm_hi16 = (val32 >> 16) & 0xffff;
+
+            assert(arm_Valid_Imm_For_Mov(imm_lo16));
+            assert(imm_hi16 != 0);
+
+            getEmitter()->emitIns_R_I(INS_movw, size, reg, imm_lo16);
+
+            // If we've got a low register, the high word is all bits set,
+            // and the high bit of the low word is set, we can sign extend
+            // halfword and save two bytes of encoding. This can happen for
+            // small magnitude negative numbers 'n' for -32768 <= n <= -1.
+
+            if (getEmitter()->isLowRegister(reg) && (imm_hi16 == 0xffff) && ((imm_lo16 & 0x8000) == 0x8000))
+            {
+                getEmitter()->emitIns_R_R(INS_sxth, EA_4BYTE, reg, reg);
+            }
+            else
+            {
+                getEmitter()->emitIns_R_I(INS_movt, size, reg, imm_hi16);
+            }
+
+            if (flags == INS_FLAGS_SET)
+                getEmitter()->emitIns_R_R(INS_mov, size, reg, reg, INS_FLAGS_SET);
         }
     }
-    regTracker.rsTrackRegIntCns(reg, imm);
+
+    regSet.verifyRegUsed(reg);
 }
 
-/*****************************************************************************
- *
- * Generate code to set a register 'targetReg' of type 'targetType' to the constant
- * specified by the constant (GT_CNS_INT or GT_CNS_DBL) in 'tree'. This does not call
- * genProduceReg() on the target register.
- */
-void                CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTreePtr tree)
+//------------------------------------------------------------------------
+// genSetRegToConst: Generate code to set a register 'targetReg' of type 'targetType'
+//    to the constant specified by the constant (GT_CNS_INT or GT_CNS_DBL) in 'tree'.
+//
+// Notes:
+//    This does not call genProduceReg() on the target register.
+//
+void CodeGen::genSetRegToConst(regNumber targetReg, var_types targetType, GenTree* tree)
 {
     switch (tree->gtOper)
     {
-    case GT_CNS_INT:
+        case GT_CNS_INT:
         {
             // relocatable values tend to come down as a CNS_INT of native int type
             // so the line between these two opcodes is kind of blurry
-            GenTreeIntConCommon* con = tree->AsIntConCommon();
-            ssize_t cnsVal = con->IconValue();
+            GenTreeIntConCommon* con    = tree->AsIntConCommon();
+            ssize_t              cnsVal = con->IconValue();
 
-            bool needReloc = compiler->opts.compReloc && tree->IsIconHandle();
-            if (needReloc)
+            if (con->ImmedValNeedsReloc(compiler))
             {
                 instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, targetReg, cnsVal);
-                regTracker.rsTrackRegTrash(targetReg);
+                regSet.verifyRegUsed(targetReg);
             }
             else
             {
@@ -1028,698 +155,453 @@ void                CodeGen::genSetRegToConst(regNumber targetReg, var_types tar
         }
         break;
 
-    case GT_CNS_DBL:
+        case GT_CNS_DBL:
         {
-            NYI("GT_CNS_DBL");
-        }
-        break;
-
-    default:
-        unreached();
-    }
-}
-
-/*****************************************************************************
- *
- * Generate code for a single node in the tree.
- * Preconditions: All operands have been evaluated
- *
- */
-void
-CodeGen::genCodeForTreeNode(GenTreePtr treeNode)
-{
-    regNumber targetReg  = treeNode->gtRegNum;
-    var_types targetType = treeNode->TypeGet();
-    emitter *emit = getEmitter();
-
-    JITDUMP("Generating: ");
-    DISPNODE(treeNode);
-
-    // contained nodes are part of their parents for codegen purposes
-    // ex : immediates, most LEAs
-    if (treeNode->isContained())
-    {
-        return;
-    }
-
-    switch (treeNode->gtOper)
-    {
-    case GT_CNS_INT:
-    case GT_CNS_DBL:
-        genSetRegToConst(targetReg, targetType, treeNode);
-        genProduceReg(treeNode);
-        break;
-
-    case GT_NEG:
-    case GT_NOT:
-        {
-            NYI("GT_NEG and GT_NOT");
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_OR:
-    case GT_XOR:
-    case GT_AND:
-        assert(varTypeIsIntegralOrI(treeNode));
-        __fallthrough;
-
-    case GT_ADD:
-    case GT_SUB:
-        {
-            const genTreeOps oper = treeNode->OperGet();
-            if ((oper == GT_ADD || oper == GT_SUB) &&
-                treeNode->gtOverflow())
+            GenTreeDblCon* dblConst   = tree->AsDblCon();
+            double         constValue = dblConst->gtDblCon.gtDconVal;
+            // TODO-ARM-CQ: Do we have a faster/smaller way to generate 0.0 in thumb2 ISA ?
+            if (targetType == TYP_FLOAT)
             {
-                // This is also checked in the importer.
-                NYI("Overflow not yet implemented");
-            }
+                // Get a temp integer register
+                regNumber tmpReg = tree->GetSingleTempReg();
 
-            GenTreePtr op1 = treeNode->gtGetOp1();
-            GenTreePtr op2 = treeNode->gtGetOp2();
-            instruction ins = genGetInsForOper(treeNode->OperGet(), targetType);
-
-            // The arithmetic node must be sitting in a register (since it's not contained)
-            noway_assert(targetReg != REG_NA);
-
-            regNumber op1reg = op1->gtRegNum;
-            regNumber op2reg = op2->gtRegNum;
-
-            GenTreePtr dst;
-            GenTreePtr src;
-
-            genConsumeIfReg(op1);
-            genConsumeIfReg(op2);
-
-            // This is the case of reg1 = reg1 op reg2
-            // We're ready to emit the instruction without any moves
-            if (op1reg == targetReg)
-            {
-                dst = op1;
-                src = op2;
-            }
-            // We have reg1 = reg2 op reg1
-            // In order for this operation to be correct
-            // we need that op is a commutative operation so
-            // we can convert it into reg1 = reg1 op reg2 and emit
-            // the same code as above
-            else if (op2reg == targetReg)
-            {
-                noway_assert(GenTree::OperIsCommutative(treeNode->OperGet()));
-                dst = op2;
-                src = op1;
-            }
-            // dest, op1 and op2 registers are different:
-            // reg3 = reg1 op reg2
-            // We can implement this by issuing a mov:
-            // reg3 = reg1
-            // reg3 = reg3 op reg2
-            else
-            {
-                inst_RV_RV(ins_Move_Extend(targetType, true), targetReg, op1reg, op1->gtType);
-                regTracker.rsTrackRegCopy(targetReg, op1reg);
-                gcInfo.gcMarkRegPtrVal(targetReg, targetType);
-                dst = treeNode;
-                src = op2;
-            }
-
-            regNumber r = emit->emitInsBinary(ins, emitTypeSize(treeNode), dst, src);
-            noway_assert(r == targetReg);
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_LSH:
-    case GT_RSH:
-    case GT_RSZ:
-        genCodeForShift(treeNode->gtGetOp1(), treeNode->gtGetOp2(), treeNode);
-        // genCodeForShift() calls genProduceReg()
-        break;
-
-    case GT_CAST:
-        // Cast is never contained (?)
-        noway_assert(targetReg != REG_NA);
-
-        // Overflow conversions from float/double --> int types go through helper calls.
-        if (treeNode->gtOverflow() && !varTypeIsFloating(treeNode->gtOp.gtOp1))
-            NYI("Unimplmented GT_CAST:int <--> int with overflow");
-
-        if (varTypeIsFloating(targetType) && varTypeIsFloating(treeNode->gtOp.gtOp1))
-        {
-            // Casts float/double <--> double/float
-            genFloatToFloatCast(treeNode);
-        }
-        else if (varTypeIsFloating(treeNode->gtOp.gtOp1))
-        {
-            // Casts float/double --> int32/int64
-            genFloatToIntCast(treeNode);
-        }
-        else if (varTypeIsFloating(targetType))
-        {
-            // Casts int32/uint32/int64/uint64 --> float/double
-            genIntToFloatCast(treeNode);
-        }
-        else
-        {
-            // Casts int <--> int
-            genIntToIntCast(treeNode);
-        }
-        // The per-case functions call genProduceReg()
-        break;
-
-    case GT_LCL_VAR:
-        {
-            GenTreeLclVarCommon *lcl = treeNode->AsLclVarCommon();
-            // lcl_vars are not defs
-            assert((treeNode->gtFlags & GTF_VAR_DEF) == 0);
-
-            bool isRegCandidate = compiler->lvaTable[lcl->gtLclNum].lvIsRegCandidate();
-
-            if (isRegCandidate && !(treeNode->gtFlags & GTF_VAR_DEATH))
-            {
-                assert((treeNode->InReg()) || (treeNode->gtFlags & GTF_SPILLED));
-            }
-
-            // If this is a register candidate that has been spilled, genConsumeReg() will
-            // reload it at the point of use.  Otherwise, if it's not in a register, we load it here.
-
-            if (!treeNode->InReg() && !(treeNode->gtFlags & GTF_SPILLED))
-            {
-                assert(!isRegCandidate);
-                emit->emitIns_R_S(ins_Load(treeNode->TypeGet()), emitTypeSize(treeNode), treeNode->gtRegNum, lcl->gtLclNum, 0);
-                genProduceReg(treeNode);
-            }
-        }
-        break;
-
-    case GT_LCL_FLD_ADDR:
-    case GT_LCL_VAR_ADDR:
-        {
-            // Address of a local var.  This by itself should never be allocated a register.
-            // If it is worth storing the address in a register then it should be cse'ed into
-            // a temp and that would be allocated a register.
-            noway_assert(targetType == TYP_BYREF);
-            noway_assert(!treeNode->InReg());
-
-            inst_RV_TT(INS_lea, targetReg, treeNode, 0, EA_BYREF);
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_LCL_FLD:
-        {
-            NYI_IF(targetType == TYP_STRUCT, "GT_LCL_FLD: struct load local field not supported");
-            NYI_IF(treeNode->gtRegNum == REG_NA, "GT_LCL_FLD: load local field not into a register is not supported");
-
-            emitAttr size = emitTypeSize(targetType);
-            unsigned offs = treeNode->gtLclFld.gtLclOffs;
-            unsigned varNum = treeNode->gtLclVarCommon.gtLclNum;
-            assert(varNum < compiler->lvaCount);
-
-            emit->emitIns_R_S(ins_Move_Extend(targetType, treeNode->InReg()), size, targetReg, varNum, offs);
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_STORE_LCL_FLD:
-        {
-            NYI_IF(targetType == TYP_STRUCT, "GT_STORE_LCL_FLD: struct store local field not supported");
-            noway_assert(!treeNode->InReg());
-
-            GenTreePtr op1 = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            genConsumeIfReg(op1);
-            emit->emitInsBinary(ins_Store(targetType), emitTypeSize(treeNode), treeNode, op1);
-        }
-        break;
-
-    case GT_STORE_LCL_VAR:
-        {
-            NYI_IF(targetType == TYP_STRUCT, "struct store local not supported");
-
-            GenTreePtr op1 = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            genConsumeIfReg(op1);
-            if (treeNode->gtRegNum == REG_NA)
-            {
-                // stack store
-                emit->emitInsMov(ins_Store(targetType), emitTypeSize(treeNode), treeNode);
-                compiler->lvaTable[treeNode->AsLclVarCommon()->gtLclNum].lvRegNum = REG_STK;
-            }
-            else if (op1->isContained())
-            {
-                // Currently, we assume that the contained source of a GT_STORE_LCL_VAR writing to a register
-                // must be a constant. However, in the future we might want to support a contained memory op.
-                // This is a bit tricky because we have to decide it's contained before register allocation,
-                // and this would be a case where, once that's done, we need to mark that node as always
-                // requiring a register - which we always assume now anyway, but once we "optimize" that
-                // we'll have to take cases like this into account.
-                assert((op1->gtRegNum == REG_NA) && op1->OperIsConst());
-                genSetRegToConst(treeNode->gtRegNum, targetType, op1);
-            }
-            else if (op1->gtRegNum != treeNode->gtRegNum)
-            {
-                assert(op1->gtRegNum != REG_NA);
-                emit->emitInsBinary(ins_Move_Extend(targetType, true), emitTypeSize(treeNode), treeNode, op1);
-            }
-            if (treeNode->gtRegNum != REG_NA)
-                genProduceReg(treeNode);
-        }
-        break;
-
-    case GT_RETFILT:
-        // A void GT_RETFILT is the end of a finally. For non-void filter returns we need to load the result in
-        // the return register, if it's not already there. The processing is the same as GT_RETURN.
-        if (targetType != TYP_VOID)
-        {
-            // For filters, the IL spec says the result is type int32. Further, the only specified legal values
-            // are 0 or 1, with the use of other values "undefined".
-            assert(targetType == TYP_INT);
-        }
-
-        __fallthrough;
-
-    case GT_RETURN:
-        {
-            GenTreePtr op1 = treeNode->gtOp.gtOp1;
-            if (targetType == TYP_VOID)
-            {
-                assert(op1 == nullptr);
-                break;
-            }
-            assert(op1 != nullptr);
-            op1 = op1->gtEffectiveVal();
-
-            NYI_IF(op1->gtRegNum == REG_NA, "GT_RETURN: return of a value not in register");
-            genConsumeReg(op1);
-
-            regNumber retReg = varTypeIsFloating(op1) ? REG_FLOATRET : REG_INTRET;
-            if (op1->gtRegNum != retReg)
-            {
-                inst_RV_RV(ins_Move_Extend(targetType, true), retReg, op1->gtRegNum, targetType);
-            }
-        }
-        break;
-
-    case GT_LEA:
-        {
-            // if we are here, it is the case where there is an LEA that cannot
-            // be folded into a parent instruction
-            GenTreeAddrMode *lea = treeNode->AsAddrMode();
-            genLeaInstruction(lea);
-        }
-        // genLeaInstruction calls genProduceReg()
-        break;
-
-    case GT_IND:
-        emit->emitInsMov(ins_Load(treeNode->TypeGet()), emitTypeSize(treeNode), treeNode);
-        genProduceReg(treeNode);
-        break;
-
-    case GT_MUL:
-        {
-            NYI("GT_MUL");
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_MOD:
-    case GT_UDIV:
-    case GT_UMOD:
-        // We shouldn't be seeing GT_MOD on float/double args as it should get morphed into a
-        // helper call by front-end.  Similarly we shouldn't be seeing GT_UDIV and GT_UMOD
-        // on float/double args.
-        noway_assert(!varTypeIsFloating(treeNode));
-        __fallthrough;
-
-    case GT_DIV:
-        {
-            NYI("GT_DIV");
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_INTRINSIC:
-        {
-            NYI("GT_INTRINSIC");
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_EQ:
-    case GT_NE:
-    case GT_LT:
-    case GT_LE:
-    case GT_GE:
-    case GT_GT:
-        {
-            // TODO-ARM-CQ: Check if we can use the currently set flags.
-            // TODO-ARM-CQ: Check for the case where we can simply transfer the carry bit to a register
-            //         (signed < or >= where targetReg != REG_NA)
-
-            GenTreeOp *tree = treeNode->AsOp();
-            GenTreePtr op1 = tree->gtOp1->gtEffectiveVal();
-            GenTreePtr op2 = tree->gtOp2->gtEffectiveVal();
-
-            genConsumeIfReg(op1);
-            genConsumeIfReg(op2);
-
-            instruction ins = INS_cmp;
-            emitAttr cmpAttr;
-            if (varTypeIsFloating(op1))
-            {
-                NYI("Floating point compare");
-
-                bool isUnordered = ((treeNode->gtFlags & GTF_RELOP_NAN_UN) != 0);
-                switch (tree->OperGet())
-                {
-                case GT_EQ:
-                    ins = INS_beq;
-                case GT_NE:
-                    ins =  INS_bne;
-                case GT_LT:
-                    ins =  isUnordered ? INS_blt : INS_blo;
-                case GT_LE:
-                    ins =  isUnordered ? INS_ble : INS_bls;
-                case GT_GE:
-                    ins =  isUnordered ? INS_bpl : INS_bge;
-                case GT_GT:
-                    ins =  isUnordered ? INS_bhi : INS_bgt;
-                default:
-                    unreached();
-                }
+                float f = forceCastToFloat(constValue);
+                genSetRegToIcon(tmpReg, *((int*)(&f)));
+                getEmitter()->emitIns_R_R(INS_vmov_i2f, EA_4BYTE, targetReg, tmpReg);
             }
             else
             {
-                var_types op1Type = op1->TypeGet();
-                var_types op2Type = op2->TypeGet();
-                assert(!varTypeIsFloating(op2Type));
-                ins = INS_cmp;
-                if (op1Type == op2Type)
-                {
-                    cmpAttr = emitTypeSize(op1Type);
-                }
-                else
-                {
-                    var_types cmpType = TYP_INT;
-                    bool op1Is64Bit = (varTypeIsLong(op1Type) || op1Type == TYP_REF);
-                    bool op2Is64Bit = (varTypeIsLong(op2Type) || op2Type == TYP_REF);
-                    NYI_IF(op1Is64Bit || op2Is64Bit, "Long compare");
-                    assert(!op1->isContainedMemoryOp() || op1Type == op2Type);
-                    assert(!op2->isContainedMemoryOp() || op1Type == op2Type);
-                    cmpAttr = emitTypeSize(cmpType);
-                }
-            }
-            emit->emitInsBinary(ins, cmpAttr, op1, op2);
+                assert(targetType == TYP_DOUBLE);
 
-            // Are we evaluating this into a register?
-            if (targetReg != REG_NA)
-            {
-                genSetRegToCond(targetReg, tree);
-                genProduceReg(tree);
+                unsigned* cv = (unsigned*)&constValue;
+
+                // Get two temp integer registers
+                regNumber tmpReg1 = tree->ExtractTempReg();
+                regNumber tmpReg2 = tree->GetSingleTempReg();
+
+                genSetRegToIcon(tmpReg1, cv[0]);
+                genSetRegToIcon(tmpReg2, cv[1]);
+
+                getEmitter()->emitIns_R_R_R(INS_vmov_i2d, EA_8BYTE, targetReg, tmpReg1, tmpReg2);
             }
         }
         break;
 
-    case GT_JTRUE:
-        {
-            GenTree *cmp = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            assert(cmp->OperIsCompare());
-            assert(compiler->compCurBB->bbJumpKind == BBJ_COND);
-
-            // Get the "kind" and type of the comparison.  Note that whether it is an unsigned cmp
-            // is governed by a flag NOT by the inherent type of the node
-            // TODO-ARM-CQ: Check if we can use the currently set flags.
-            CompareKind compareKind = ((cmp->gtFlags & GTF_UNSIGNED) != 0) ? CK_UNSIGNED : CK_SIGNED;
-
-            emitJumpKind jmpKind   = genJumpKindForOper(cmp->gtOper, compareKind);
-            BasicBlock * jmpTarget = compiler->compCurBB->bbJumpDest;
-
-            inst_JMP(jmpKind, jmpTarget);
-        }
-        break;
-
-    case GT_RETURNTRAP:
-        {
-            // this is nothing but a conditional call to CORINFO_HELP_STOP_FOR_GC
-            // based on the contents of 'data'
-
-            GenTree *data = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            genConsumeIfReg(data);
-            GenTreeIntCon cns = intForm(TYP_INT, 0);
-            emit->emitInsBinary(INS_cmp, emitTypeSize(TYP_INT), data, &cns);
-
-            BasicBlock* skipLabel = genCreateTempLabel();
-
-            emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
-            inst_JMP(jmpEqual, skipLabel);
-            // emit the call to the EE-helper that stops for GC (or other reasons)
-
-            genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, EA_UNKNOWN);
-            genDefineTempLabel(skipLabel);
-        }
-        break;
-
-    case GT_STOREIND:
-        {
-            NYI("GT_STOREIND");
-        }
-        break;
-
-    case GT_COPY:
-        {
-            assert(treeNode->gtOp.gtOp1->IsLocal());
-            GenTreeLclVarCommon* lcl = treeNode->gtOp.gtOp1->AsLclVarCommon();
-            LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
-            inst_RV_RV(ins_Move_Extend(targetType, true), targetReg, genConsumeReg(treeNode->gtOp.gtOp1), targetType, emitTypeSize(targetType));
-
-            // The old location is dying
-            genUpdateRegLife(varDsc, /*isBorn*/ false, /*isDying*/ true DEBUGARG(treeNode->gtOp.gtOp1));
-
-            gcInfo.gcMarkRegSetNpt(genRegMask(treeNode->gtOp.gtOp1->gtRegNum));
-
-            genUpdateVarReg(varDsc, treeNode);
-
-            // The new location is going live
-            genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(treeNode));
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_LIST:
-    case GT_ARGPLACE:
-        // Nothing to do
-        break;
-
-    case GT_PUTARG_STK:
-        {
-            NYI_IF(targetType == TYP_STRUCT, "GT_PUTARG_STK: struct support not implemented");
-
-            // Get argument offset on stack.
-            // Here we cross check that argument offset hasn't changed from lowering to codegen since
-            // we are storing arg slot number in GT_PUTARG_STK node in lowering phase.
-            int argOffset = treeNode->AsPutArgStk()->gtSlotNum * TARGET_POINTER_SIZE;
-#ifdef DEBUG
-            fgArgTabEntryPtr curArgTabEntry = compiler->gtArgEntryByNode(treeNode->AsPutArgStk()->gtCall, treeNode);
-            assert(curArgTabEntry);
-            assert(argOffset == (int)curArgTabEntry->slotNum * TARGET_POINTER_SIZE);
-#endif
-
-            GenTreePtr data = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            if (data->isContained())
-            {
-                emit->emitIns_S_I(ins_Store(targetType), emitTypeSize(targetType), compiler->lvaOutgoingArgSpaceVar,
-                            argOffset,
-                            (int) data->AsIntConCommon()->IconValue());
-            }
-            else
-            {
-                genConsumeReg(data);
-                emit->emitIns_S_R(ins_Store(targetType), emitTypeSize(targetType), data->gtRegNum, compiler->lvaOutgoingArgSpaceVar, argOffset);
-            }
-        }
-        break;
-
-    case GT_PUTARG_REG:
-        {
-            NYI_IF(targetType == TYP_STRUCT, "GT_PUTARG_REG: struct support not implemented");
-
-            // commas show up here commonly, as part of a nullchk operation
-            GenTree *op1 = treeNode->gtOp.gtOp1->gtEffectiveVal();
-            // If child node is not already in the register we need, move it
-            genConsumeReg(op1);
-            if (treeNode->gtRegNum != op1->gtRegNum)
-            {
-                inst_RV_RV(ins_Move_Extend(targetType, true), treeNode->gtRegNum, op1->gtRegNum, targetType);
-            }
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_CALL:
-        genCallInstruction(treeNode);
-        break;
-
-    case GT_LOCKADD:
-    case GT_XCHG:
-    case GT_XADD:
-        genLockedInstructions(treeNode);
-        break;
-
-    case GT_CMPXCHG:
-        {
-            NYI("GT_CMPXCHG");
-        }
-        genProduceReg(treeNode);
-        break;
-
-    case GT_RELOAD:
-        // do nothing - reload is just a marker.
-        // The parent node will call genConsumeReg on this which will trigger the unspill of this node's child
-        // into the register specified in this node.
-        break;
-
-    case GT_NOP:
-        break;
-
-    case GT_NO_OP:
-        NYI("GT_NO_OP");
-        break;
-
-    case GT_ARR_BOUNDS_CHECK:
-        genRangeCheck(treeNode);
-        break;
-
-    case GT_PHYSREG:
-        if (treeNode->gtRegNum != treeNode->AsPhysReg()->gtSrcReg)
-        {
-            inst_RV_RV(INS_mov, treeNode->gtRegNum, treeNode->AsPhysReg()->gtSrcReg, targetType);
-
-            genTransferRegGCState(treeNode->gtRegNum, treeNode->AsPhysReg()->gtSrcReg);
-        }
-        break;
-
-    case GT_PHYSREGDST:
-        break;
-
-    case GT_NULLCHECK:
-        {
-            assert(!treeNode->gtOp.gtOp1->isContained());
-            regNumber reg = genConsumeReg(treeNode->gtOp.gtOp1);
-            emit->emitIns_AR_R(INS_cmp, EA_4BYTE, reg, reg, 0);
-        }
-        break;
-
-    case GT_CATCH_ARG:
-
-        noway_assert(handlerGetsXcptnObj(compiler->compCurBB->bbCatchTyp));
-
-        /* Catch arguments get passed in a register. genCodeForBBlist()
-           would have marked it as holding a GC object, but not used. */
-
-        noway_assert(gcInfo.gcRegGCrefSetCur & RBM_EXCEPTION_OBJECT);
-        genConsumeReg(treeNode);
-        break;
-
-    case GT_PINVOKE_PROLOG:
-        noway_assert(((gcInfo.gcRegGCrefSetCur|gcInfo.gcRegByrefSetCur) & ~RBM_ARG_REGS) == 0);
-
-        // the runtime side requires the codegen here to be consistent
-        emit->emitDisableRandomNops();
-        break;
-
-    case GT_LABEL:
-        genPendingCallLabel = genCreateTempLabel();
-        treeNode->gtLabel.gtLabBB = genPendingCallLabel;
-        emit->emitIns_R_L(INS_lea, EA_PTRSIZE, genPendingCallLabel, treeNode->gtRegNum);
-        break;
-
-    default:
-        {
-#ifdef  DEBUG
-            char message[256];
-            sprintf(message, "NYI: Unimplemented node type %s\n", GenTree::NodeName(treeNode->OperGet()));
-            notYetImplemented(message, __FILE__, __LINE__);
-#else
-            NYI("unimplemented node");
-#endif
-        }
-        break;
+        default:
+            unreached();
     }
 }
 
-// generate code for the locked operations:
-// GT_LOCKADD, GT_XCHG, GT_XADD
-void
-CodeGen::genLockedInstructions(GenTree* treeNode)
+//------------------------------------------------------------------------
+// genCodeForBinary: Generate code for many binary arithmetic operators
+// This method is expected to have called genConsumeOperands() before calling it.
+//
+// Arguments:
+//    treeNode - The binary operation for which we are generating code.
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    Mul and div are not handled here.
+//    See the assert below for the operators that are handled.
+
+void CodeGen::genCodeForBinary(GenTreeOp* treeNode)
 {
-    NYI("genLockedInstructions");
-}
+    const genTreeOps oper       = treeNode->OperGet();
+    regNumber        targetReg  = treeNode->gtRegNum;
+    var_types        targetType = treeNode->TypeGet();
+    emitter*         emit       = getEmitter();
 
+    assert(oper == GT_ADD || oper == GT_SUB || oper == GT_MUL || oper == GT_ADD_LO || oper == GT_ADD_HI ||
+           oper == GT_SUB_LO || oper == GT_SUB_HI || oper == GT_OR || oper == GT_XOR || oper == GT_AND);
 
-// generate code for GT_ARR_BOUNDS_CHECK node
-void
-CodeGen::genRangeCheck(GenTreePtr  oper)
-{
-    noway_assert(oper->OperGet() == GT_ARR_BOUNDS_CHECK);
-    GenTreeBoundsChk* bndsChk = oper->AsBoundsChk();
+    GenTree* op1 = treeNode->gtGetOp1();
+    GenTree* op2 = treeNode->gtGetOp2();
 
-    GenTreePtr arrLen = bndsChk->gtArrLen->gtEffectiveVal();
-    GenTreePtr arrIdx = bndsChk->gtIndex->gtEffectiveVal();
-    GenTreePtr arrRef = NULL;
-    int lenOffset = 0;
+    instruction ins = genGetInsForOper(oper, targetType);
 
-    GenTree *src1, *src2;
-    emitJumpKind jmpKind;
+    // The arithmetic node must be sitting in a register (since it's not contained)
+    noway_assert(targetReg != REG_NA);
 
-    if (arrIdx->isContainedIntOrIImmed())
+    if ((oper == GT_ADD_LO || oper == GT_SUB_LO))
     {
-        // To encode using a cmp immediate, we place the 
-        //  constant operand in the second position
-        src1 = arrLen;
-        src2 = arrIdx;
-        jmpKind = genJumpKindForOper(GT_LE, CK_UNSIGNED); 
+        // During decomposition, all operands become reg
+        assert(!op1->isContained() && !op2->isContained());
+        emit->emitIns_R_R_R(ins, emitTypeSize(treeNode), treeNode->gtRegNum, op1->gtRegNum, op2->gtRegNum,
+                            INS_FLAGS_SET);
     }
     else
     {
-        src1 = arrIdx;
-        src2 = arrLen;
-        jmpKind = genJumpKindForOper(GT_GE, CK_UNSIGNED); 
+        regNumber r = emit->emitInsTernary(ins, emitTypeSize(treeNode), treeNode, op1, op2);
+        assert(r == targetReg);
     }
 
-    genConsumeIfReg(src1);
-    genConsumeIfReg(src2);
-
-    getEmitter()->emitInsBinary(INS_cmp, emitAttr(TYP_INT), src1, src2);
-    genJumpToThrowHlpBlk(jmpKind, SCK_RNGCHK_FAIL, bndsChk->gtIndRngFailBB);
-
+    genProduceReg(treeNode);
 }
 
-// make a temporary indir we can feed to pattern matching routines
-// in cases where we don't want to instantiate all the indirs that happen
+//--------------------------------------------------------------------------------------
+// genLclHeap: Generate code for localloc
 //
-GenTreeIndir CodeGen::indirForm(var_types type, GenTree *base)
-{
-    GenTreeIndir i(GT_IND, type, base, nullptr);
-    i.gtRegNum = REG_NA;
-    // has to be nonnull (because contained nodes can't be the last in block)
-    // but don't want it to be a valid pointer
-    i.gtNext = (GenTree *)(-1);
-    return i;
-}
-
-// make a temporary int we can feed to pattern matching routines
-// in cases where we don't want to instantiate
+// Description:
+//      There are 2 ways depending from build version to generate code for localloc:
+//          1) For debug build where memory should be initialized we generate loop
+//             which invoke push {tmpReg} N times.
+//          2) For non-debug build, we tickle the pages to ensure that SP is always
+//             valid and is in sync with the "stack guard page". Amount of iteration
+//             is N/eeGetPageSize().
 //
-GenTreeIntCon CodeGen::intForm(var_types type, ssize_t value)
+// Comments:
+//      There can be some optimization:
+//          1) It's not needed to generate loop for zero size allocation
+//          2) For small allocation (less than 4 store) we unroll loop
+//          3) For allocation less than eeGetPageSize() and when it's not needed to initialize
+//             memory to zero, we can just decrement SP.
+//
+// Notes: Size N should be aligned to STACK_ALIGN before any allocation
+//
+void CodeGen::genLclHeap(GenTree* tree)
 {
-    GenTreeIntCon i(type, value);
-    i.gtRegNum = REG_NA;
-    // has to be nonnull (because contained nodes can't be the last in block)
-    // but don't want it to be a valid pointer
-    i.gtNext = (GenTree *)(-1);
-    return i;
+    assert(tree->OperGet() == GT_LCLHEAP);
+
+    GenTree* size = tree->gtOp.gtOp1;
+    noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
+
+    // Result of localloc will be returned in regCnt.
+    // Also it used as temporary register in code generation
+    // for storing allocation size
+    regNumber   regCnt          = tree->gtRegNum;
+    regNumber   pspSymReg       = REG_NA;
+    var_types   type            = genActualType(size->gtType);
+    emitAttr    easz            = emitTypeSize(type);
+    BasicBlock* endLabel        = nullptr;
+    BasicBlock* loop            = nullptr;
+    unsigned    stackAdjustment = 0;
+
+#ifdef DEBUG
+    // Verify ESP
+    if (compiler->opts.compStackCheckOnRet)
+    {
+        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(INS_cmp, EA_PTRSIZE, REG_SPBASE, compiler->lvaReturnEspCheck, 0);
+
+        BasicBlock*  esp_check = genCreateTempLabel();
+        emitJumpKind jmpEqual  = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, esp_check);
+        getEmitter()->emitIns(INS_BREAKPOINT);
+        genDefineTempLabel(esp_check);
+    }
+#endif
+
+    noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
+    noway_assert(genStackLevel == 0);   // Can't have anything on the stack
+
+    // Whether method has PSPSym.
+    bool hasPspSym;
+#if FEATURE_EH_FUNCLETS
+    hasPspSym = (compiler->lvaPSPSym != BAD_VAR_NUM);
+#else
+    hasPspSym = false;
+#endif
+
+    // Check to 0 size allocations
+    // size_t amount = 0;
+    if (size->IsCnsIntOrI())
+    {
+        // If size is a constant, then it must be contained.
+        assert(size->isContained());
+
+        // If amount is zero then return null in regCnt
+        size_t amount = size->gtIntCon.gtIconVal;
+        if (amount == 0)
+        {
+            instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+            goto BAILOUT;
+        }
+    }
+    else
+    {
+        // If 0 bail out by returning null in regCnt
+        genConsumeRegAndCopy(size, regCnt);
+        endLabel = genCreateTempLabel();
+        getEmitter()->emitIns_R_R(INS_TEST, easz, regCnt, regCnt);
+        emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+        inst_JMP(jmpEqual, endLabel);
+    }
+
+    stackAdjustment = 0;
+#if FEATURE_EH_FUNCLETS
+    // If we have PSPsym, then need to re-locate it after localloc.
+    if (hasPspSym)
+    {
+        stackAdjustment += STACK_ALIGN;
+
+        // Save a copy of PSPSym
+        pspSymReg = tree->ExtractTempReg();
+        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+    }
+#endif
+
+#if FEATURE_FIXED_OUT_ARGS
+    // If we have an outgoing arg area then we must adjust the SP by popping off the
+    // outgoing arg area. We will restore it right before we return from this method.
+    if (compiler->lvaOutgoingArgSpaceSize > 0)
+    {
+        assert((compiler->lvaOutgoingArgSpaceSize % STACK_ALIGN) == 0); // This must be true for the stack to remain
+                                                                        // aligned
+        inst_RV_IV(INS_add, REG_SPBASE, compiler->lvaOutgoingArgSpaceSize, EA_PTRSIZE);
+        stackAdjustment += compiler->lvaOutgoingArgSpaceSize;
+    }
+#endif
+
+    // Put aligned allocation size to regCnt
+    if (size->IsCnsIntOrI())
+    {
+        // 'amount' is the total number of bytes to localloc to properly STACK_ALIGN
+        target_size_t amount = (target_size_t)size->gtIntCon.gtIconVal;
+        amount               = AlignUp(amount, STACK_ALIGN);
+
+        // For small allocations we will generate up to four push instructions (either 2 or 4, exactly,
+        // since STACK_ALIGN is 8, and REGSIZE_BYTES is 4).
+        static_assert_no_msg(STACK_ALIGN == (REGSIZE_BYTES * 2));
+        assert(amount % REGSIZE_BYTES == 0);
+        target_size_t pushCount = amount / REGSIZE_BYTES;
+        if (pushCount <= 4)
+        {
+            instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+
+            while (pushCount != 0)
+            {
+                inst_IV(INS_push, (unsigned)genRegMask(regCnt));
+                pushCount -= 1;
+            }
+
+            goto ALLOC_DONE;
+        }
+        else if (!compiler->info.compInitMem && (amount < compiler->eeGetPageSize())) // must be < not <=
+        {
+            // Since the size is a page or less, simply adjust the SP value
+            // The SP might already be in the guard page, must touch it BEFORE
+            // the alloc, not after.
+            getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regCnt, REG_SP, 0);
+            inst_RV_IV(INS_sub, REG_SP, amount, EA_PTRSIZE);
+            goto ALLOC_DONE;
+        }
+
+        // regCnt will be the total number of bytes to locAlloc
+        genSetRegToIcon(regCnt, amount, ((int)amount == amount) ? TYP_INT : TYP_LONG);
+    }
+    else
+    {
+        // Round up the number of bytes to allocate to a STACK_ALIGN boundary.
+        inst_RV_IV(INS_add, regCnt, (STACK_ALIGN - 1), emitActualTypeSize(type));
+        inst_RV_IV(INS_AND, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
+    }
+
+    // Allocation
+    if (compiler->info.compInitMem)
+    {
+        // At this point 'regCnt' is set to the total number of bytes to locAlloc.
+        // Since we have to zero out the allocated memory AND ensure that RSP is always valid
+        // by tickling the pages, we will just push 0's on the stack.
+
+        regNumber regTmp = tree->ExtractTempReg();
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, regTmp);
+
+        // Loop:
+        BasicBlock* loop = genCreateTempLabel();
+        genDefineTempLabel(loop);
+
+        noway_assert(STACK_ALIGN == 8);
+        inst_IV(INS_push, (unsigned)genRegMask(regTmp));
+        inst_IV(INS_push, (unsigned)genRegMask(regTmp));
+
+        // If not done, loop
+        // Note that regCnt is the number of bytes to stack allocate.
+        assert(genIsValidIntReg(regCnt));
+        getEmitter()->emitIns_R_I(INS_sub, EA_PTRSIZE, regCnt, STACK_ALIGN, INS_FLAGS_SET);
+        emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_SIGNED);
+        inst_JMP(jmpNotEqual, loop);
+    }
+    else
+    {
+        // At this point 'regCnt' is set to the total number of bytes to locAlloc.
+        //
+        // We don't need to zero out the allocated memory. However, we do have
+        // to tickle the pages to ensure that SP is always valid and is
+        // in sync with the "stack guard page".  Note that in the worst
+        // case SP is on the last byte of the guard page.  Thus you must
+        // touch SP-0 first not SP-0x1000.
+        //
+        // Another subtlety is that you don't want SP to be exactly on the
+        // boundary of the guard page because PUSH is predecrement, thus
+        // call setup would not touch the guard page but just beyond it
+        //
+        // Note that we go through a few hoops so that SP never points to
+        // illegal pages at any time during the tickling process
+        //
+        //       subs  regCnt, SP, regCnt      // regCnt now holds ultimate SP
+        //       bvc   Loop                    // result is smaller than original SP (no wrap around)
+        //       mov   regCnt, #0              // Overflow, pick lowest possible value
+        //
+        //  Loop:
+        //       ldr   regTmp, [SP + 0]        // tickle the page - read from the page
+        //       sub   regTmp, SP, PAGE_SIZE   // decrement SP by eeGetPageSize()
+        //       cmp   regTmp, regCnt
+        //       jb    Done
+        //       mov   SP, regTmp
+        //       j     Loop
+        //
+        //  Done:
+        //       mov   SP, regCnt
+        //
+
+        // Setup the regTmp
+        regNumber regTmp = tree->ExtractTempReg();
+
+        BasicBlock* loop = genCreateTempLabel();
+        BasicBlock* done = genCreateTempLabel();
+
+        //       subs  regCnt, SP, regCnt      // regCnt now holds ultimate SP
+        getEmitter()->emitIns_R_R_R(INS_sub, EA_PTRSIZE, regCnt, REG_SPBASE, regCnt, INS_FLAGS_SET);
+
+        inst_JMP(EJ_vc, loop); // branch if the V flag is not set
+
+        // Overflow, set regCnt to lowest possible value
+        instGen_Set_Reg_To_Zero(EA_PTRSIZE, regCnt);
+
+        genDefineTempLabel(loop);
+
+        // tickle the page - Read from the updated SP - this triggers a page fault when on the guard page
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, regTmp, REG_SPBASE, 0);
+
+        // decrement SP by eeGetPageSize()
+        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, regTmp, REG_SPBASE, compiler->eeGetPageSize());
+
+        getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regTmp, regCnt);
+        emitJumpKind jmpLTU = genJumpKindForOper(GT_LT, CK_UNSIGNED);
+        inst_JMP(jmpLTU, done);
+
+        // Update SP to be at the next page of stack that we will tickle
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regTmp);
+
+        // Jump to loop and tickle new stack address
+        inst_JMP(EJ_jmp, loop);
+
+        // Done with stack tickle loop
+        genDefineTempLabel(done);
+
+        // Now just move the final value to SP
+        getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+    }
+
+ALLOC_DONE:
+    // Re-adjust SP to allocate PSPSym and out-going arg area
+    if (stackAdjustment != 0)
+    {
+        assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
+        assert(stackAdjustment > 0);
+        getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, (int)stackAdjustment);
+
+#if FEATURE_EH_FUNCLETS
+        // Write PSPSym to its new location.
+        if (hasPspSym)
+        {
+            assert(genIsValidIntReg(pspSymReg));
+            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+        }
+#endif
+        // Return the stackalloc'ed address in result register.
+        // regCnt = RSP + stackAdjustment.
+        getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regCnt, REG_SPBASE, (int)stackAdjustment);
+    }
+    else // stackAdjustment == 0
+    {
+        // Move the final value of SP to regCnt
+        inst_RV_RV(INS_mov, regCnt, REG_SPBASE);
+    }
+
+BAILOUT:
+    if (endLabel != nullptr)
+        genDefineTempLabel(endLabel);
+
+    // Write the lvaLocAllocSPvar stack frame slot
+    if (compiler->lvaLocAllocSPvar != BAD_VAR_NUM)
+    {
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regCnt, compiler->lvaLocAllocSPvar, 0);
+    }
+
+#if STACK_PROBES
+    if (compiler->opts.compNeedStackProbes)
+    {
+        genGenerateStackProbe();
+    }
+#endif
+
+#ifdef DEBUG
+    // Update new ESP
+    if (compiler->opts.compStackCheckOnRet)
+    {
+        noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
+                     compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
+        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regCnt, compiler->lvaReturnEspCheck, 0);
+    }
+#endif
+
+    genProduceReg(tree);
 }
 
+//------------------------------------------------------------------------
+// genTableBasedSwitch: generate code for a switch statement based on a table of ip-relative offsets
+//
+void CodeGen::genTableBasedSwitch(GenTree* treeNode)
+{
+    genConsumeOperands(treeNode->AsOp());
+    regNumber idxReg  = treeNode->gtOp.gtOp1->gtRegNum;
+    regNumber baseReg = treeNode->gtOp.gtOp2->gtRegNum;
 
+    getEmitter()->emitIns_R_ARX(INS_ldr, EA_4BYTE, REG_PC, baseReg, idxReg, TARGET_POINTER_SIZE, 0);
+}
+
+//------------------------------------------------------------------------
+// genJumpTable: emits the table and an instruction to get the address of the first element
+//
+void CodeGen::genJumpTable(GenTree* treeNode)
+{
+    noway_assert(compiler->compCurBB->bbJumpKind == BBJ_SWITCH);
+    assert(treeNode->OperGet() == GT_JMPTABLE);
+
+    unsigned     jumpCount = compiler->compCurBB->bbJumpSwt->bbsCount;
+    BasicBlock** jumpTable = compiler->compCurBB->bbJumpSwt->bbsDstTab;
+    unsigned     jmpTabBase;
+
+    jmpTabBase = getEmitter()->emitBBTableDataGenBeg(jumpCount, false);
+
+    JITDUMP("\n      J_M%03u_DS%02u LABEL   DWORD\n", Compiler::s_compMethodsCount, jmpTabBase);
+
+    for (unsigned i = 0; i < jumpCount; i++)
+    {
+        BasicBlock* target = *jumpTable++;
+        noway_assert(target->bbFlags & BBF_JMP_TARGET);
+
+        JITDUMP("            DD      L_M%03u_" FMT_BB "\n", Compiler::s_compMethodsCount, target->bbNum);
+
+        getEmitter()->emitDataGenData(i, target);
+    }
+
+    getEmitter()->emitDataGenEnd();
+
+    genMov32RelocatableDataLabel(jmpTabBase, treeNode->gtRegNum);
+
+    genProduceReg(treeNode);
+}
+
+//------------------------------------------------------------------------
+// genGetInsForOper: Return instruction encoding of the operation tree.
+//
 instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
 {
     instruction ins;
@@ -1729,306 +611,834 @@ instruction CodeGen::genGetInsForOper(genTreeOps oper, var_types type)
 
     switch (oper)
     {
-    case GT_ADD: ins = INS_add; break;
-    case GT_AND: ins = INS_AND; break;
-    case GT_MUL: ins = INS_MUL; break;
-    case GT_LSH: ins = INS_SHIFT_LEFT_LOGICAL; break;
-    case GT_NEG: ins = INS_rsb; break;
-    case GT_NOT: ins = INS_NOT; break;
-    case GT_OR:  ins = INS_OR;  break;
-    case GT_RSH: ins = INS_SHIFT_RIGHT_ARITHM; break;
-    case GT_RSZ: ins = INS_SHIFT_RIGHT_LOGICAL; break;
-    case GT_SUB: ins = INS_sub; break;
-    case GT_XOR: ins = INS_XOR; break;
-    default: unreached();
-        break;
+        case GT_ADD:
+            ins = INS_add;
+            break;
+        case GT_AND:
+            ins = INS_AND;
+            break;
+        case GT_MUL:
+            ins = INS_MUL;
+            break;
+#if !defined(USE_HELPERS_FOR_INT_DIV)
+        case GT_DIV:
+            ins = INS_sdiv;
+            break;
+#endif // !USE_HELPERS_FOR_INT_DIV
+        case GT_LSH:
+            ins = INS_SHIFT_LEFT_LOGICAL;
+            break;
+        case GT_NEG:
+            ins = INS_rsb;
+            break;
+        case GT_NOT:
+            ins = INS_NOT;
+            break;
+        case GT_OR:
+            ins = INS_OR;
+            break;
+        case GT_RSH:
+            ins = INS_SHIFT_RIGHT_ARITHM;
+            break;
+        case GT_RSZ:
+            ins = INS_SHIFT_RIGHT_LOGICAL;
+            break;
+        case GT_SUB:
+            ins = INS_sub;
+            break;
+        case GT_XOR:
+            ins = INS_XOR;
+            break;
+        case GT_ROR:
+            ins = INS_ror;
+            break;
+        case GT_ADD_LO:
+            ins = INS_add;
+            break;
+        case GT_ADD_HI:
+            ins = INS_adc;
+            break;
+        case GT_SUB_LO:
+            ins = INS_sub;
+            break;
+        case GT_SUB_HI:
+            ins = INS_sbc;
+            break;
+        case GT_LSH_HI:
+            ins = INS_SHIFT_LEFT_LOGICAL;
+            break;
+        case GT_RSH_LO:
+            ins = INS_SHIFT_RIGHT_LOGICAL;
+            break;
+        default:
+            unreached();
+            break;
     }
     return ins;
 }
 
-/** Generates the code sequence for a GenTree node that
- * represents a bit shift operation (<<, >>, >>>).
- *
- * Arguments: operand:  the value to be shifted by shiftBy bits.
- *            shiftBy:  the number of bits to shift the operand.
- *            parent:   the actual bitshift node (that specifies the
- *                      type of bitshift to perform.
- *
- * Preconditions:    a) All GenTrees are register allocated.
- *                   b) Either shiftBy is a contained constant or
- *                      it's an expression sitting in RCX.
- *                   c) The actual bit shift node is not stack allocated
- *                      nor contained (not yet supported).
- */
-void CodeGen::genCodeForShift(GenTreePtr operand, GenTreePtr shiftBy,
-                              GenTreePtr parent)
+// Generate code for InitBlk by performing a loop unroll
+// Preconditions:
+//   a) Both the size and fill byte value are integer constants.
+//   b) The size of the struct to initialize is smaller than INITBLK_UNROLL_LIMIT bytes.
+void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
 {
-    NYI("genCodeForShift");
+    // TODO: Generate memory barrier instructions for GTF_BLK_VOLATILE flag
+    NYI_ARM("genCodeForInitBlkUnroll");
 }
 
-void CodeGen::genUnspillRegIfNeeded(GenTree *tree)
+//------------------------------------------------------------------------
+// genCodeForNegNot: Produce code for a GT_NEG/GT_NOT node.
+//
+// Arguments:
+//    tree - the node
+//
+void CodeGen::genCodeForNegNot(GenTree* tree)
 {
-    regNumber dstReg = tree->gtRegNum;
+    assert(tree->OperIs(GT_NEG, GT_NOT));
 
-    GenTree* unspillTree = tree;
-    if (tree->gtOper == GT_RELOAD)
+    var_types targetType = tree->TypeGet();
+
+    assert(!tree->OperIs(GT_NOT) || !varTypeIsFloating(targetType));
+
+    regNumber   targetReg = tree->gtRegNum;
+    instruction ins       = genGetInsForOper(tree->OperGet(), targetType);
+
+    // The arithmetic node must be sitting in a register (since it's not contained)
+    assert(!tree->isContained());
+    // The dst can only be a register.
+    assert(targetReg != REG_NA);
+
+    GenTree* operand = tree->gtGetOp1();
+    assert(!operand->isContained());
+    // The src must be a register.
+    regNumber operandReg = genConsumeReg(operand);
+
+    if (ins == INS_vneg)
     {
-        unspillTree = tree->gtOp.gtOp1;
+        getEmitter()->emitIns_R_R(ins, emitTypeSize(tree), targetReg, operandReg);
     }
-    if (unspillTree->gtFlags & GTF_SPILLED)
+    else
     {
-        if (genIsRegCandidateLocal(unspillTree))
-        {
-            // Reset spilled flag, since we are going to load a local variable from its home location.
-            unspillTree->gtFlags &= ~GTF_SPILLED;
+        getEmitter()->emitIns_R_R_I(ins, emitTypeSize(tree), targetReg, operandReg, 0, INS_FLAGS_SET);
+    }
 
-            // Load local variable from its home location.
-            inst_RV_TT(ins_Load(unspillTree->gtType), dstReg, unspillTree);
+    genProduceReg(tree);
+}
 
-            unspillTree->SetInReg();
+// Generate code for CpObj nodes wich copy structs that have interleaved
+// GC pointers.
+// For this case we'll generate a sequence of loads/stores in the case of struct
+// slots that don't contain GC pointers.  The generated code will look like:
+// ldr tempReg, [R13, #8]
+// str tempReg, [R14, #8]
+//
+// In the case of a GC-Pointer we'll call the ByRef write barrier helper
+// who happens to use the same registers as the previous call to maintain
+// the same register requirements and register killsets:
+// bl CORINFO_HELP_ASSIGN_BYREF
+//
+// So finally an example would look like this:
+// ldr tempReg, [R13, #8]
+// str tempReg, [R14, #8]
+// bl CORINFO_HELP_ASSIGN_BYREF
+// ldr tempReg, [R13, #8]
+// str tempReg, [R14, #8]
+// bl CORINFO_HELP_ASSIGN_BYREF
+// ldr tempReg, [R13, #8]
+// str tempReg, [R14, #8]
+void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
+{
+    GenTree*  dstAddr       = cpObjNode->Addr();
+    GenTree*  source        = cpObjNode->Data();
+    var_types srcAddrType   = TYP_BYREF;
+    bool      sourceIsLocal = false;
+    regNumber dstReg        = REG_NA;
+    regNumber srcReg        = REG_NA;
 
-            GenTreeLclVarCommon* lcl = unspillTree->AsLclVarCommon();
-            LclVarDsc* varDsc = &compiler->lvaTable[lcl->gtLclNum];
+    assert(source->isContained());
+    if (source->gtOper == GT_IND)
+    {
+        GenTree* srcAddr = source->gtGetOp1();
+        assert(!srcAddr->isContained());
+        srcAddrType = srcAddr->TypeGet();
+    }
+    else
+    {
+        noway_assert(source->IsLocal());
+        sourceIsLocal = true;
+    }
 
-            // TODO-Review: We would like to call:
-            //      genUpdateRegLife(varDsc, /*isBorn*/ true, /*isDying*/ false DEBUGARG(tree));
-            // instead of the following code, but this ends up hitting this assert:
-            //      assert((regSet.rsMaskVars & regMask) == 0);
-            // due to issues with LSRA resolution moves.
-            // So, just force it for now. This probably indicates a condition that creates a GC hole!
-            //
-            // Extra note: I think we really want to call something like gcInfo.gcUpdateForRegVarMove,
-            // because the variable is not really going live or dead, but that method is somewhat poorly
-            // factored because it, in turn, updates rsMaskVars which is part of RegSet not GCInfo.
-            // TODO-Cleanup: This code exists in other CodeGen*.cpp files, and should be moved to CodeGenCommon.cpp.
+    bool dstOnStack = dstAddr->gtSkipReloadOrCopy()->OperIsLocalAddr();
 
-            genUpdateVarReg(varDsc, tree);
 #ifdef DEBUG
-            if (VarSetOps::IsMember(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex))
-            {
-                JITDUMP("\t\t\t\t\t\t\tRemoving V%02u from gcVarPtrSetCur\n", lcl->gtLclNum);
-            }
-#endif // DEBUG
-            VarSetOps::RemoveElemD(compiler, gcInfo.gcVarPtrSetCur, varDsc->lvVarIndex);
+    assert(!dstAddr->isContained());
 
-#ifdef  DEBUG
-            if (compiler->verbose)
-            {
-                printf("\t\t\t\t\t\t\tV%02u in reg ", lcl->gtLclNum);
-                varDsc->PrintVarReg();
-                printf(" is becoming live  ");
-                Compiler::printTreeID(unspillTree);
-                printf("\n");
-            }
+    // This GenTree node has data about GC pointers, this means we're dealing
+    // with CpObj.
+    assert(cpObjNode->gtGcPtrCount > 0);
 #endif // DEBUG
 
-            regSet.AddMaskVars(genGetRegMask(varDsc));
-        }
-        else
-        {
-            TempDsc* t = regSet.rsUnspillInPlace(unspillTree);
-            compiler->tmpRlsTemp(t);
-            getEmitter()->emitIns_R_S(ins_Load(unspillTree->gtType),
-                            emitActualTypeSize(unspillTree->gtType),
-                            dstReg,
-                            t->tdTempNum(),
-                            0);
+    // Consume the operands and get them into the right registers.
+    // They may now contain gc pointers (depending on their type; gcMarkRegPtrVal will "do the right thing").
+    genConsumeBlockOp(cpObjNode, REG_WRITE_BARRIER_DST_BYREF, REG_WRITE_BARRIER_SRC_BYREF, REG_NA);
+    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_SRC_BYREF, srcAddrType);
+    gcInfo.gcMarkRegPtrVal(REG_WRITE_BARRIER_DST_BYREF, dstAddr->TypeGet());
 
-            unspillTree->SetInReg();
-        }
+    // Temp register used to perform the sequence of loads and stores.
+    regNumber tmpReg = cpObjNode->ExtractTempReg();
+    assert(genIsValidIntReg(tmpReg));
 
-        gcInfo.gcMarkRegPtrVal(dstReg, unspillTree->TypeGet());
-    }
-}
-
-
-// do liveness update for a subnode that is being consumed by codegen
-regNumber CodeGen::genConsumeReg(GenTree *tree)
-{
-    genUnspillRegIfNeeded(tree);
-
-    // genUpdateLife() will also spill local var if marked as GTF_SPILL by calling CodeGen::genSpillVar
-    genUpdateLife(tree);
-    assert(tree->gtRegNum != REG_NA);
-
-    // there are three cases where consuming a reg means clearing the bit in the live mask
-    // 1. it was not produced by a local
-    // 2. it was produced by a local that is going dead
-    // 3. it was produced by a local that does not live in that reg (like one allocated on the stack)
-
-    if (genIsRegCandidateLocal(tree))
+    if (cpObjNode->gtFlags & GTF_BLK_VOLATILE)
     {
-        GenTreeLclVarCommon *lcl = tree->AsLclVarCommon();
-        LclVarDsc* varDsc = &compiler->lvaTable[lcl->GetLclNum()];
+        // issue a full memory barrier before & after a volatile CpObj operation
+        instGen_MemoryBarrier();
+    }
 
-        if (varDsc->lvRegNum == tree->gtRegNum && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
+    unsigned slots = cpObjNode->gtSlots;
+    emitter* emit  = getEmitter();
+
+    BYTE* gcPtrs = cpObjNode->gtGcPtrs;
+
+    // If we can prove it's on the stack we don't need to use the write barrier.
+    emitAttr attr = EA_PTRSIZE;
+    if (dstOnStack)
+    {
+        for (unsigned i = 0; i < slots; ++i)
         {
-            gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
-        }
-        else if (!varDsc->lvLRACandidate)
-        {
-            gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
+            if (gcPtrs[i] == GCT_GCREF)
+            {
+                attr = EA_GCREF;
+            }
+            else if (gcPtrs[i] == GCT_BYREF)
+            {
+                attr = EA_BYREF;
+            }
+            else
+            {
+                attr = EA_PTRSIZE;
+            }
+
+            emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
+                                INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
+            emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
+                                INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
         }
     }
     else
     {
-        gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
-    }
+        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
 
-    return tree->gtRegNum;
-}
-
-// Do liveness update for an address tree: one of GT_LEA, GT_LCL_VAR, or GT_CNS_INT (for call indirect).
-void CodeGen::genConsumeAddress(GenTree* addr)
-{
-    if (addr->OperGet() == GT_LEA)
-    {
-        genConsumeAddrMode(addr->AsAddrMode());
-    }
-    else
-    {
-        assert(!addr->isContained());
-        genConsumeReg(addr);
-    }
-}
-
-// do liveness update for a subnode that is being consumed by codegen
-void CodeGen::genConsumeAddrMode(GenTreeAddrMode *addr)
-{
-    if (addr->Base())
-        genConsumeReg(addr->Base());
-    if (addr->Index())
-        genConsumeReg(addr->Index());
-}
-
-
-// do liveness update for register produced by the current node in codegen
-void CodeGen::genProduceReg(GenTree *tree)
-{
-    if (tree->gtFlags & GTF_SPILL)
-    {
-        if (genIsRegCandidateLocal(tree))
+        unsigned i = 0;
+        while (i < slots)
         {
-            // Store local variable to its home location.
-            tree->gtFlags &= ~GTF_REG_VAL;
-            inst_TT_RV(ins_Store(tree->gtType), tree, tree->gtRegNum);
+            switch (gcPtrs[i])
+            {
+                case TYPE_GC_NONE:
+                    emit->emitIns_R_R_I(INS_ldr, attr, tmpReg, REG_WRITE_BARRIER_SRC_BYREF, TARGET_POINTER_SIZE,
+                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
+                    emit->emitIns_R_R_I(INS_str, attr, tmpReg, REG_WRITE_BARRIER_DST_BYREF, TARGET_POINTER_SIZE,
+                                        INS_FLAGS_DONT_CARE, INS_OPTS_LDST_POST_INC);
+                    break;
+
+                default:
+                    // In the case of a GC-Pointer we'll call the ByRef write barrier helper
+                    genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+
+                    gcPtrCount--;
+                    break;
+            }
+            ++i;
         }
-        else
-        {
-            tree->SetInReg();
-            regSet.rsSpillTree(tree->gtRegNum, tree);
-            tree->gtFlags |= GTF_SPILLED;
-            tree->gtFlags &= ~GTF_SPILL;
-            gcInfo.gcMarkRegSetNpt(genRegMask(tree->gtRegNum));
-            return;
-        }
+        assert(gcPtrCount == 0);
     }
 
-    genUpdateLife(tree);
-
-    // If we've produced a register, mark it as a pointer, as needed.
-    // Except in the case of a dead definition of a lclVar.
-    if (tree->gtHasReg() &&
-        (!tree->IsLocal() || (tree->gtFlags & GTF_VAR_DEATH) == 0))
+    if (cpObjNode->gtFlags & GTF_BLK_VOLATILE)
     {
-        gcInfo.gcMarkRegPtrVal(tree->gtRegNum, tree->TypeGet());
-    }
-    tree->SetInReg();
-}
-
-// transfer gc/byref status of src reg to dst reg
-void CodeGen::genTransferRegGCState(regNumber dst, regNumber src)
-{
-   regMaskTP srcMask = genRegMask(src);
-   regMaskTP dstMask = genRegMask(dst);
-
-   if (gcInfo.gcRegGCrefSetCur & srcMask)
-   {
-       gcInfo.gcMarkRegSetGCref(dstMask);
-   }
-   else if (gcInfo.gcRegByrefSetCur & srcMask)
-   {
-       gcInfo.gcMarkRegSetByref(dstMask);
-   }
-   else
-   {
-       gcInfo.gcMarkRegSetNpt(dstMask);
-   }
-}
-
-// Produce code for a GT_CALL node
-void CodeGen::genCallInstruction(GenTreePtr node)
-{
-    NYI("Call not implemented");
-}
-
-// produce code for a GT_LEA subnode
-void CodeGen::genLeaInstruction(GenTreeAddrMode *lea)
-{
-    if (lea->Base() && lea->Index())
-    {
-        regNumber baseReg = genConsumeReg(lea->Base());
-        regNumber indexReg = genConsumeReg(lea->Index());
-        getEmitter()->emitIns_R_ARX (INS_lea, EA_BYREF, lea->gtRegNum, baseReg, indexReg, lea->gtScale, lea->gtOffset);
-    }
-    else if (lea->Base())
-    {
-        getEmitter()->emitIns_R_AR (INS_lea, EA_BYREF, lea->gtRegNum, genConsumeReg(lea->Base()), lea->gtOffset);
+        // issue a full memory barrier before & after a volatile CpObj operation
+        instGen_MemoryBarrier();
     }
 
-    genProduceReg(lea);
-}
-
-// Generate code to materialize a condition into a register
-// (the condition codes must already have been appropriately set)
-
-void CodeGen::genSetRegToCond(regNumber dstReg, GenTreePtr tree)
-{
-    NYI("genSetRegToCond");
+    // Clear the gcInfo for registers of source and dest.
+    // While we normally update GC info prior to the last instruction that uses them,
+    // these actually live into the helper call.
+    gcInfo.gcMarkRegSetNpt(RBM_WRITE_BARRIER_SRC_BYREF | RBM_WRITE_BARRIER_DST_BYREF);
 }
 
 //------------------------------------------------------------------------
-// genIntToIntCast: Generate code for an integer cast
+// genCodeForShiftLong: Generates the code sequence for a GenTree node that
+// represents a three operand bit shift or rotate operation (<<Hi, >>Lo).
 //
 // Arguments:
-//    treeNode - The GT_CAST node
+//    tree - the bit shift node (that specifies the type of bit shift to perform).
+//
+// Assumptions:
+//    a) All GenTrees are register allocated.
+//    b) The shift-by-amount in tree->gtOp.gtOp2 is a contained constant
+//
+void CodeGen::genCodeForShiftLong(GenTree* tree)
+{
+    // Only the non-RMW case here.
+    genTreeOps oper = tree->OperGet();
+    assert(oper == GT_LSH_HI || oper == GT_RSH_LO);
+
+    GenTree* operand = tree->gtOp.gtOp1;
+    assert(operand->OperGet() == GT_LONG);
+    assert(operand->gtOp.gtOp1->isUsedFromReg());
+    assert(operand->gtOp.gtOp2->isUsedFromReg());
+
+    GenTree* operandLo = operand->gtGetOp1();
+    GenTree* operandHi = operand->gtGetOp2();
+
+    regNumber regLo = operandLo->gtRegNum;
+    regNumber regHi = operandHi->gtRegNum;
+
+    genConsumeOperands(tree->AsOp());
+
+    var_types   targetType = tree->TypeGet();
+    instruction ins        = genGetInsForOper(oper, targetType);
+
+    GenTree* shiftBy = tree->gtGetOp2();
+
+    assert(shiftBy->isContainedIntOrIImmed());
+
+    unsigned count = (unsigned)shiftBy->AsIntConCommon()->IconValue();
+
+    regNumber regResult = (oper == GT_LSH_HI) ? regHi : regLo;
+
+    if (regResult != tree->gtRegNum)
+    {
+        inst_RV_RV(INS_mov, tree->gtRegNum, regResult, targetType);
+    }
+
+    if (oper == GT_LSH_HI)
+    {
+        inst_RV_SH(ins, EA_4BYTE, tree->gtRegNum, count);
+        getEmitter()->emitIns_R_R_R_I(INS_OR, EA_4BYTE, tree->gtRegNum, tree->gtRegNum, regLo, 32 - count,
+                                      INS_FLAGS_DONT_CARE, INS_OPTS_LSR);
+    }
+    else
+    {
+        assert(oper == GT_RSH_LO);
+        inst_RV_SH(INS_SHIFT_RIGHT_LOGICAL, EA_4BYTE, tree->gtRegNum, count);
+        getEmitter()->emitIns_R_R_R_I(INS_OR, EA_4BYTE, tree->gtRegNum, tree->gtRegNum, regHi, 32 - count,
+                                      INS_FLAGS_DONT_CARE, INS_OPTS_LSL);
+    }
+
+    genProduceReg(tree);
+}
+
+//------------------------------------------------------------------------
+// genCodeForLclVar: Produce code for a GT_LCL_VAR node.
+//
+// Arguments:
+//    tree - the GT_LCL_VAR node
+//
+void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
+{
+    // lcl_vars are not defs
+    assert((tree->gtFlags & GTF_VAR_DEF) == 0);
+
+    bool isRegCandidate = compiler->lvaTable[tree->gtLclNum].lvIsRegCandidate();
+
+    // If this is a register candidate that has been spilled, genConsumeReg() will
+    // reload it at the point of use.  Otherwise, if it's not in a register, we load it here.
+
+    if (!isRegCandidate && !(tree->gtFlags & GTF_SPILLED))
+    {
+        getEmitter()->emitIns_R_S(ins_Load(tree->TypeGet()), emitTypeSize(tree), tree->gtRegNum, tree->gtLclNum, 0);
+        genProduceReg(tree);
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForStoreLclFld: Produce code for a GT_STORE_LCL_FLD node.
+//
+// Arguments:
+//    tree - the GT_STORE_LCL_FLD node
+//
+void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
+{
+    var_types targetType = tree->TypeGet();
+    regNumber targetReg  = tree->gtRegNum;
+    emitter*  emit       = getEmitter();
+
+    noway_assert(targetType != TYP_STRUCT);
+
+    // record the offset
+    unsigned offset = tree->gtLclOffs;
+
+    // We must have a stack store with GT_STORE_LCL_FLD
+    noway_assert(targetReg == REG_NA);
+
+    unsigned varNum = tree->gtLclNum;
+    assert(varNum < compiler->lvaCount);
+    LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
+
+    // Ensure that lclVar nodes are typed correctly.
+    assert(!varDsc->lvNormalizeOnStore() || targetType == genActualType(varDsc->TypeGet()));
+
+    GenTree*    data = tree->gtOp1;
+    instruction ins  = ins_Store(targetType);
+    emitAttr    attr = emitTypeSize(targetType);
+
+    assert(!data->isContained());
+    genConsumeReg(data);
+    emit->emitIns_S_R(ins, attr, data->gtRegNum, varNum, offset);
+
+    genUpdateLife(tree);
+    varDsc->lvRegNum = REG_STK;
+}
+
+//------------------------------------------------------------------------
+// genCodeForStoreLclVar: Produce code for a GT_STORE_LCL_VAR node.
+//
+// Arguments:
+//    tree - the GT_STORE_LCL_VAR node
+//
+void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
+{
+    var_types targetType = tree->TypeGet();
+    regNumber targetReg  = tree->gtRegNum;
+    emitter*  emit       = getEmitter();
+
+    unsigned varNum = tree->gtLclNum;
+    assert(varNum < compiler->lvaCount);
+    LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
+
+    // Ensure that lclVar nodes are typed correctly.
+    assert(!varDsc->lvNormalizeOnStore() || targetType == genActualType(varDsc->TypeGet()));
+
+    GenTree* data = tree->gtOp1;
+
+    // var = call, where call returns a multi-reg return value
+    // case is handled separately.
+    if (data->gtSkipReloadOrCopy()->IsMultiRegCall())
+    {
+        genMultiRegCallStoreToLocal(tree);
+    }
+    else if (tree->TypeGet() == TYP_LONG)
+    {
+        genStoreLongLclVar(tree);
+    }
+    else
+    {
+        genConsumeRegs(data);
+
+        assert(!data->isContained());
+        regNumber dataReg = data->gtRegNum;
+        assert(dataReg != REG_NA);
+
+        if (targetReg == REG_NA) // store into stack based LclVar
+        {
+            inst_set_SV_var(tree);
+
+            instruction ins  = ins_Store(targetType);
+            emitAttr    attr = emitTypeSize(targetType);
+
+            emit->emitIns_S_R(ins, attr, dataReg, varNum, /* offset */ 0);
+
+            genUpdateLife(tree);
+
+            varDsc->lvRegNum = REG_STK;
+        }
+        else // store into register (i.e move into register)
+        {
+            if (dataReg != targetReg)
+            {
+                // Assign into targetReg when dataReg (from op1) is not the same register
+                inst_RV_RV(ins_Copy(targetType), targetReg, dataReg, targetType);
+            }
+            genProduceReg(tree);
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForDivMod: Produce code for a GT_DIV/GT_UDIV/GT_MOD/GT_UMOD node.
+//
+// Arguments:
+//    tree - the node
+//
+void CodeGen::genCodeForDivMod(GenTreeOp* tree)
+{
+    assert(tree->OperIs(GT_DIV, GT_UDIV, GT_MOD, GT_UMOD));
+
+    // We shouldn't be seeing GT_MOD on float/double args as it should get morphed into a
+    // helper call by front-end. Similarly we shouldn't be seeing GT_UDIV and GT_UMOD
+    // on float/double args.
+    noway_assert(tree->OperIs(GT_DIV) || !varTypeIsFloating(tree));
+
+#if defined(USE_HELPERS_FOR_INT_DIV)
+    noway_assert(!varTypeIsIntOrI(tree));
+#endif // USE_HELPERS_FOR_INT_DIV
+
+    var_types targetType = tree->TypeGet();
+    regNumber targetReg  = tree->gtRegNum;
+    emitter*  emit       = getEmitter();
+
+    genConsumeOperands(tree);
+
+    noway_assert(targetReg != REG_NA);
+
+    GenTree*    dst    = tree;
+    GenTree*    src1   = tree->gtGetOp1();
+    GenTree*    src2   = tree->gtGetOp2();
+    instruction ins    = genGetInsForOper(tree->OperGet(), targetType);
+    emitAttr    attr   = emitTypeSize(tree);
+    regNumber   result = REG_NA;
+
+    // dst can only be a reg
+    assert(!dst->isContained());
+
+    // src can be only reg
+    assert(!src1->isContained() || !src2->isContained());
+
+    if (varTypeIsFloating(targetType))
+    {
+        // Floating point divide never raises an exception
+
+        emit->emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+    }
+    else // an signed integer divide operation
+    {
+        // TODO-ARM-Bug: handle zero division exception.
+
+        emit->emitIns_R_R_R(ins, attr, dst->gtRegNum, src1->gtRegNum, src2->gtRegNum);
+    }
+
+    genProduceReg(tree);
+}
+
+//------------------------------------------------------------------------
+// genCkfinite: Generate code for ckfinite opcode.
+//
+// Arguments:
+//    treeNode - The GT_CKFINITE node
 //
 // Return Value:
 //    None.
 //
 // Assumptions:
-//    The treeNode must have an assigned register.
-//    For a signed convert from byte, the source must be in a byte-addressable register.
-//    Neither the source nor target type can be a floating point type.
+//    GT_CKFINITE node has reserved an internal register.
 //
-void
-CodeGen::genIntToIntCast(GenTreePtr treeNode)
+void CodeGen::genCkfinite(GenTree* treeNode)
 {
-    NYI("Cast");
+    assert(treeNode->OperGet() == GT_CKFINITE);
+
+    emitter*  emit       = getEmitter();
+    var_types targetType = treeNode->TypeGet();
+    regNumber intReg     = treeNode->GetSingleTempReg();
+    regNumber fpReg      = genConsumeReg(treeNode->gtOp.gtOp1);
+    regNumber targetReg  = treeNode->gtRegNum;
+
+    // Extract and sign-extend the exponent into an integer register
+    if (targetType == TYP_FLOAT)
+    {
+        emit->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, intReg, fpReg);
+        emit->emitIns_R_R_I_I(INS_sbfx, EA_4BYTE, intReg, intReg, 23, 8);
+    }
+    else
+    {
+        assert(targetType == TYP_DOUBLE);
+        emit->emitIns_R_R(INS_vmov_f2i, EA_4BYTE, intReg, REG_NEXT(fpReg));
+        emit->emitIns_R_R_I_I(INS_sbfx, EA_4BYTE, intReg, intReg, 20, 11);
+    }
+
+    // If exponent is all 1's, throw ArithmeticException
+    emit->emitIns_R_I(INS_add, EA_4BYTE, intReg, 1, INS_FLAGS_SET);
+    genJumpToThrowHlpBlk(EJ_eq, SCK_ARITH_EXCPN);
+
+    // If it's a finite value, copy it to targetReg
+    if (targetReg != fpReg)
+    {
+        emit->emitIns_R_R(ins_Copy(targetType), emitTypeSize(treeNode), targetReg, fpReg);
+    }
+    genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
-// genFloatToFloatCast: Generate code for a cast between float and double
+// genCodeForCompare: Produce code for a GT_EQ/GT_NE/GT_LT/GT_LE/GT_GE/GT_GT/GT_CMP node.
 //
 // Arguments:
-//    treeNode - The GT_CAST node
+//    tree - the node
+//
+void CodeGen::genCodeForCompare(GenTreeOp* tree)
+{
+    // TODO-ARM-CQ: Check if we can use the currently set flags.
+    // TODO-ARM-CQ: Check for the case where we can simply transfer the carry bit to a register
+    //         (signed < or >= where targetReg != REG_NA)
+
+    GenTree*  op1     = tree->gtOp1;
+    GenTree*  op2     = tree->gtOp2;
+    var_types op1Type = op1->TypeGet();
+    var_types op2Type = op2->TypeGet();
+
+    assert(!varTypeIsLong(op1Type));
+    assert(!varTypeIsLong(op2Type));
+
+    regNumber targetReg = tree->gtRegNum;
+    emitter*  emit      = getEmitter();
+
+    genConsumeIfReg(op1);
+    genConsumeIfReg(op2);
+
+    if (varTypeIsFloating(op1Type))
+    {
+        assert(op1Type == op2Type);
+        assert(!tree->OperIs(GT_CMP));
+        emit->emitInsBinary(INS_vcmp, emitTypeSize(op1Type), op1, op2);
+        // vmrs with register 0xf has special meaning of transferring flags
+        emit->emitIns_R(INS_vmrs, EA_4BYTE, REG_R15);
+    }
+    else
+    {
+        assert(!varTypeIsFloating(op2Type));
+        var_types cmpType = (op1Type == op2Type) ? op1Type : TYP_INT;
+        emit->emitInsBinary(INS_cmp, emitTypeSize(cmpType), op1, op2);
+    }
+
+    // Are we evaluating this into a register?
+    if (targetReg != REG_NA)
+    {
+        genSetRegToCond(targetReg, tree);
+        genProduceReg(tree);
+    }
+}
+
+//------------------------------------------------------------------------
+// genCodeForReturnTrap: Produce code for a GT_RETURNTRAP node.
+//
+// Arguments:
+//    tree - the GT_RETURNTRAP node
+//
+void CodeGen::genCodeForReturnTrap(GenTreeOp* tree)
+{
+    assert(tree->OperGet() == GT_RETURNTRAP);
+
+    // this is nothing but a conditional call to CORINFO_HELP_STOP_FOR_GC
+    // based on the contents of 'data'
+
+    GenTree* data = tree->gtOp1;
+    genConsumeIfReg(data);
+    GenTreeIntCon cns = intForm(TYP_INT, 0);
+    cns.SetContained();
+    getEmitter()->emitInsBinary(INS_cmp, emitTypeSize(TYP_INT), data, &cns);
+
+    BasicBlock* skipLabel = genCreateTempLabel();
+
+    emitJumpKind jmpEqual = genJumpKindForOper(GT_EQ, CK_SIGNED);
+    inst_JMP(jmpEqual, skipLabel);
+
+    // emit the call to the EE-helper that stops for GC (or other reasons)
+
+    genEmitHelperCall(CORINFO_HELP_STOP_FOR_GC, 0, EA_UNKNOWN);
+    genDefineTempLabel(skipLabel);
+}
+
+//------------------------------------------------------------------------
+// genCodeForStoreInd: Produce code for a GT_STOREIND node.
+//
+// Arguments:
+//    tree - the GT_STOREIND node
+//
+void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
+{
+    GenTree*  data       = tree->Data();
+    GenTree*  addr       = tree->Addr();
+    var_types targetType = tree->TypeGet();
+    emitter*  emit       = getEmitter();
+
+    assert(!varTypeIsFloating(targetType) || (targetType == data->TypeGet()));
+
+    GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(tree, data);
+    if (writeBarrierForm != GCInfo::WBF_NoBarrier)
+    {
+        // data and addr must be in registers.
+        // Consume both registers so that any copies of interfering
+        // registers are taken care of.
+        genConsumeOperands(tree);
+
+        // At this point, we should not have any interference.
+        // That is, 'data' must not be in REG_ARG_0,
+        //  as that is where 'addr' must go.
+        noway_assert(data->gtRegNum != REG_ARG_0);
+
+        // addr goes in REG_ARG_0
+        if (addr->gtRegNum != REG_ARG_0)
+        {
+            inst_RV_RV(INS_mov, REG_ARG_0, addr->gtRegNum, addr->TypeGet());
+        }
+
+        // data goes in REG_ARG_1
+        if (data->gtRegNum != REG_ARG_1)
+        {
+            inst_RV_RV(INS_mov, REG_ARG_1, data->gtRegNum, data->TypeGet());
+        }
+
+        genGCWriteBarrier(tree, writeBarrierForm);
+    }
+    else // A normal store, not a WriteBarrier store
+    {
+        bool dataIsUnary = false;
+
+        // We must consume the operands in the proper execution order,
+        // so that liveness is updated appropriately.
+        genConsumeAddress(addr);
+
+        if (!data->isContained())
+        {
+            genConsumeRegs(data);
+        }
+
+        if (tree->gtFlags & GTF_IND_VOLATILE)
+        {
+            // issue a full memory barrier a before volatile StInd
+            instGen_MemoryBarrier();
+        }
+
+        emit->emitInsLoadStoreOp(ins_Store(targetType), emitTypeSize(tree), data->gtRegNum, tree);
+    }
+}
+
+//------------------------------------------------------------------------
+// genSetRegToCond: Generate code to materialize a condition into a register.
+//
+// Arguments:
+//   dstReg - The target register to set to 1 or 0
+//   tree - The GenTree Relop node that was used to set the Condition codes
+//
+// Return Value: none
+//
+// Preconditions:
+//    The condition codes must already have been appropriately set.
+//
+void CodeGen::genSetRegToCond(regNumber dstReg, GenTree* tree)
+{
+    // Emit code like that:
+    //   ...
+    //   beq True
+    //   bvs True    ; this second branch is typically absent
+    //   movs rD, #0
+    //   b Next
+    // True:
+    //   movs rD, #1
+    // Next:
+    //   ...
+
+    emitJumpKind jumpKind[2];
+    bool         branchToTrueLabel[2];
+    genJumpKindsForTree(tree, jumpKind, branchToTrueLabel);
+
+    BasicBlock* labelTrue = genCreateTempLabel();
+    getEmitter()->emitIns_J(emitter::emitJumpKindToIns(jumpKind[0]), labelTrue);
+
+    if (jumpKind[1] != EJ_NONE)
+    {
+        getEmitter()->emitIns_J(emitter::emitJumpKindToIns(jumpKind[1]), labelTrue);
+    }
+
+    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(tree->gtType), dstReg, 0);
+
+    BasicBlock* labelNext = genCreateTempLabel();
+    getEmitter()->emitIns_J(INS_b, labelNext);
+
+    genDefineTempLabel(labelTrue);
+    getEmitter()->emitIns_R_I(INS_mov, emitActualTypeSize(tree->gtType), dstReg, 1);
+    genDefineTempLabel(labelNext);
+}
+
+//------------------------------------------------------------------------
+// genLongToIntCast: Generate code for long to int casts.
+//
+// Arguments:
+//    cast - The GT_CAST node
 //
 // Return Value:
 //    None.
 //
 // Assumptions:
-//    Cast is a non-overflow conversion.
-//    The treeNode must have an assigned register.
-//    The cast is between float and double.
+//    The cast node and its sources (via GT_LONG) must have been assigned registers.
+//    The destination cannot be a floating point type or a small integer type.
 //
-void
-CodeGen::genFloatToFloatCast(GenTreePtr treeNode)
+void CodeGen::genLongToIntCast(GenTree* cast)
 {
-    NYI("Cast");
+    assert(cast->OperGet() == GT_CAST);
+
+    GenTree* src = cast->gtGetOp1();
+    noway_assert(src->OperGet() == GT_LONG);
+
+    genConsumeRegs(src);
+
+    var_types srcType  = ((cast->gtFlags & GTF_UNSIGNED) != 0) ? TYP_ULONG : TYP_LONG;
+    var_types dstType  = cast->CastToType();
+    regNumber loSrcReg = src->gtGetOp1()->gtRegNum;
+    regNumber hiSrcReg = src->gtGetOp2()->gtRegNum;
+    regNumber dstReg   = cast->gtRegNum;
+
+    assert((dstType == TYP_INT) || (dstType == TYP_UINT));
+    assert(genIsValidIntReg(loSrcReg));
+    assert(genIsValidIntReg(hiSrcReg));
+    assert(genIsValidIntReg(dstReg));
+
+    if (cast->gtOverflow())
+    {
+        //
+        // Generate an overflow check for [u]long to [u]int casts:
+        //
+        // long  -> int  - check if the upper 33 bits are all 0 or all 1
+        //
+        // ulong -> int  - check if the upper 33 bits are all 0
+        //
+        // long  -> uint - check if the upper 32 bits are all 0
+        // ulong -> uint - check if the upper 32 bits are all 0
+        //
+
+        if ((srcType == TYP_LONG) && (dstType == TYP_INT))
+        {
+            BasicBlock* allOne  = genCreateTempLabel();
+            BasicBlock* success = genCreateTempLabel();
+
+            inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+            inst_JMP(JmpNegative, allOne);
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqualL = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqualL, SCK_OVERFLOW);
+            inst_JMP(EJ_jmp, success);
+
+            genDefineTempLabel(allOne);
+            inst_RV_IV(INS_cmp, hiSrcReg, -1, EA_4BYTE);
+            emitJumpKind jmpNotEqualS = genJumpKindForOper(GT_NE, CK_SIGNED);
+            genJumpToThrowHlpBlk(jmpNotEqualS, SCK_OVERFLOW);
+
+            genDefineTempLabel(success);
+        }
+        else
+        {
+            if ((srcType == TYP_ULONG) && (dstType == TYP_INT))
+            {
+                inst_RV_RV(INS_tst, loSrcReg, loSrcReg, TYP_INT, EA_4BYTE);
+                emitJumpKind JmpNegative = genJumpKindForOper(GT_LT, CK_LOGICAL);
+                genJumpToThrowHlpBlk(JmpNegative, SCK_OVERFLOW);
+            }
+
+            inst_RV_RV(INS_tst, hiSrcReg, hiSrcReg, TYP_INT, EA_4BYTE);
+            emitJumpKind jmpNotEqual = genJumpKindForOper(GT_NE, CK_LOGICAL);
+            genJumpToThrowHlpBlk(jmpNotEqual, SCK_OVERFLOW);
+        }
+    }
+
+    if (dstReg != loSrcReg)
+    {
+        inst_RV_RV(INS_mov, dstReg, loSrcReg, TYP_INT, EA_4BYTE);
+    }
+
+    genProduceReg(cast);
 }
 
 //------------------------------------------------------------------------
-// genIntToFloatCast: Generate code to cast an int/long to float/double
+// genIntToFloatCast: Generate code to cast an int to float/double
 //
 // Arguments:
 //    treeNode - The GT_CAST node
@@ -2041,14 +1451,58 @@ CodeGen::genFloatToFloatCast(GenTreePtr treeNode)
 //    The treeNode must have an assigned register.
 //    SrcType= int32/uint32/int64/uint64 and DstType=float/double.
 //
-void
-CodeGen::genIntToFloatCast(GenTreePtr treeNode)
+void CodeGen::genIntToFloatCast(GenTree* treeNode)
 {
-    NYI("Cast");
+    // int --> float/double conversions are always non-overflow ones
+    assert(treeNode->OperGet() == GT_CAST);
+    assert(!treeNode->gtOverflow());
+
+    regNumber targetReg = treeNode->gtRegNum;
+    assert(genIsValidFloatReg(targetReg));
+
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+    assert(!op1->isContained());             // Cannot be contained
+    assert(genIsValidIntReg(op1->gtRegNum)); // Must be a valid int reg.
+
+    var_types dstType = treeNode->CastToType();
+    var_types srcType = genActualType(op1->TypeGet());
+    assert(!varTypeIsFloating(srcType) && varTypeIsFloating(dstType));
+
+    // force the srcType to unsigned if GT_UNSIGNED flag is set
+    if (treeNode->gtFlags & GTF_UNSIGNED)
+    {
+        srcType = genUnsignedType(srcType);
+    }
+
+    // We only expect a srcType whose size is EA_4BYTE.
+    emitAttr srcSize = EA_ATTR(genTypeSize(srcType));
+    noway_assert(srcSize == EA_4BYTE);
+
+    instruction insVcvt = INS_invalid;
+
+    if (dstType == TYP_DOUBLE)
+    {
+        insVcvt = (varTypeIsUnsigned(srcType)) ? INS_vcvt_u2d : INS_vcvt_i2d;
+    }
+    else
+    {
+        assert(dstType == TYP_FLOAT);
+        insVcvt = (varTypeIsUnsigned(srcType)) ? INS_vcvt_u2f : INS_vcvt_i2f;
+    }
+    // All other cast are implemented by different CORINFO_HELP_XX2XX
+    // Look to Compiler::fgMorphCast()
+
+    genConsumeOperands(treeNode->AsOp());
+
+    assert(insVcvt != INS_invalid);
+    getEmitter()->emitIns_R_R(INS_vmov_i2f, srcSize, treeNode->gtRegNum, op1->gtRegNum);
+    getEmitter()->emitIns_R_R(insVcvt, srcSize, treeNode->gtRegNum, treeNode->gtRegNum);
+
+    genProduceReg(treeNode);
 }
 
 //------------------------------------------------------------------------
-// genFloatToIntCast: Generate code to cast float/double to int/long
+// genFloatToIntCast: Generate code to cast float/double to int
 //
 // Arguments:
 //    treeNode - The GT_CAST node
@@ -2061,122 +1515,140 @@ CodeGen::genIntToFloatCast(GenTreePtr treeNode)
 //    The treeNode must have an assigned register.
 //    SrcType=float/double and DstType= int32/uint32/int64/uint64
 //
-void
-CodeGen::genFloatToIntCast(GenTreePtr treeNode)
+void CodeGen::genFloatToIntCast(GenTree* treeNode)
 {
-    NYI("Cast");
-}
+    // we don't expect to see overflow detecting float/double --> int type conversions here
+    // as they should have been converted into helper calls by front-end.
+    assert(treeNode->OperGet() == GT_CAST);
+    assert(!treeNode->gtOverflow());
 
-/*****************************************************************************
- *
- *  Create and record GC Info for the function.
- */
-#ifdef JIT32_GCENCODER
-void*
-#else
-void
-#endif
-CodeGen::genCreateAndStoreGCInfo(unsigned codeSize, unsigned prologSize, unsigned epilogSize DEBUG_ARG(void* codePtr))
-{
-#ifdef JIT32_GCENCODER
-    return genCreateAndStoreGCInfoJIT32(codeSize, prologSize, epilogSize DEBUG_ARG(codePtr));
-#else
-    genCreateAndStoreGCInfoX64(codeSize, prologSize DEBUG_ARG(codePtr));
-#endif
-}
+    regNumber targetReg = treeNode->gtRegNum;
+    assert(genIsValidIntReg(targetReg)); // Must be a valid int reg.
 
-// TODO-ARM-Cleanup: It seems that the ARM JIT (classic and otherwise) uses this method, so it seems to be inappropriately named?
+    GenTree* op1 = treeNode->gtOp.gtOp1;
+    assert(!op1->isContained());               // Cannot be contained
+    assert(genIsValidFloatReg(op1->gtRegNum)); // Must be a valid float reg.
 
-void                CodeGen::genCreateAndStoreGCInfoX64(unsigned codeSize, unsigned prologSize DEBUG_ARG(void* codePtr))
-{
-    IAllocator* allowZeroAlloc = new (compiler, CMK_GC) AllowZeroAllocator(compiler->getAllocatorGC());
-    GcInfoEncoder* gcInfoEncoder = new (compiler, CMK_GC) GcInfoEncoder(compiler->info.compCompHnd, compiler->info.compMethodInfo, allowZeroAlloc);
-    assert(gcInfoEncoder);
+    var_types dstType = treeNode->CastToType();
+    var_types srcType = op1->TypeGet();
+    assert(varTypeIsFloating(srcType) && !varTypeIsFloating(dstType));
 
-    // Follow the code pattern of the x86 gc info encoder (genCreateAndStoreGCInfoJIT32).
-    gcInfo.gcInfoBlockHdrSave(gcInfoEncoder, codeSize, prologSize);
+    // We only expect a dstType whose size is EA_4BYTE.
+    // For conversions to small types (byte/sbyte/int16/uint16) from float/double,
+    // we expect the front-end or lowering phase to have generated two levels of cast.
+    //
+    emitAttr dstSize = EA_ATTR(genTypeSize(dstType));
+    noway_assert(dstSize == EA_4BYTE);
 
-    // First we figure out the encoder ID's for the stack slots and registers.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_ASSIGN_SLOTS);
-    // Now we've requested all the slots we'll need; "finalize" these (make more compact data structures for them).
-    gcInfoEncoder->FinalizeSlotIds();
-    // Now we can actually use those slot ID's to declare live ranges.
-    gcInfo.gcMakeRegPtrTable(gcInfoEncoder, codeSize, prologSize, GCInfo::MAKE_REG_PTR_MODE_DO_WORK);
+    instruction insVcvt = INS_invalid;
 
-    gcInfoEncoder->Build();
-
-    //GC Encoder automatically puts the GC info in the right spot using ICorJitInfo::allocGCInfo(size_t)
-    //let's save the values anyway for debugging purposes
-    compiler->compInfoBlkAddr = gcInfoEncoder->Emit();
-    compiler->compInfoBlkSize = 0; //not exposed by the GCEncoder interface
-}
-
-/*****************************************************************************
- *  Emit a call to a helper function.
- */
-
-void        CodeGen::genEmitHelperCall(unsigned    helper,
-                                       int         argSize,
-                                       emitAttr    retSize
-#ifndef LEGACY_BACKEND
-                                       ,regNumber   callTargetReg /*= REG_NA */
-#endif // !LEGACY_BACKEND
-                                       )
-{
-    NYI("Helper call");
-}
-
-/*****************************************************************************/
-#ifdef DEBUGGING_SUPPORT
-/*****************************************************************************
- *                          genSetScopeInfo
- *
- * Called for every scope info piece to record by the main genSetScopeInfo()
- */
-
-void        CodeGen::genSetScopeInfo  (unsigned             which,
-                                       UNATIVE_OFFSET       startOffs,
-                                       UNATIVE_OFFSET       length,
-                                       unsigned             varNum,
-                                       unsigned             LVnum,
-                                       bool                 avail,
-                                       Compiler::siVarLoc&  varLoc)
-{
-    /* We need to do some mapping while reporting back these variables */
-
-    unsigned ilVarNum = compiler->compMap2ILvarNum(varNum);
-    noway_assert((int)ilVarNum != ICorDebugInfo::UNKNOWN_ILNUM);
-
-    VarName name = nullptr;
-
-#ifdef DEBUG
-
-    for (unsigned scopeNum = 0; scopeNum < compiler->info.compVarScopesCount; scopeNum++)
+    if (srcType == TYP_DOUBLE)
     {
-        if (LVnum == compiler->info.compVarScopes[scopeNum].vsdLVnum)
-        {
-            name = compiler->info.compVarScopes[scopeNum].vsdName;
-        }
+        insVcvt = (varTypeIsUnsigned(dstType)) ? INS_vcvt_d2u : INS_vcvt_d2i;
+    }
+    else
+    {
+        assert(srcType == TYP_FLOAT);
+        insVcvt = (varTypeIsUnsigned(dstType)) ? INS_vcvt_f2u : INS_vcvt_f2i;
+    }
+    // All other cast are implemented by different CORINFO_HELP_XX2XX
+    // Look to Compiler::fgMorphCast()
+
+    genConsumeOperands(treeNode->AsOp());
+
+    regNumber tmpReg = treeNode->GetSingleTempReg();
+
+    assert(insVcvt != INS_invalid);
+    getEmitter()->emitIns_R_R(insVcvt, dstSize, tmpReg, op1->gtRegNum);
+    getEmitter()->emitIns_R_R(INS_vmov_f2i, dstSize, treeNode->gtRegNum, tmpReg);
+
+    genProduceReg(treeNode);
+}
+
+//------------------------------------------------------------------------
+// genEmitHelperCall: Emit a call to a helper function.
+//
+void CodeGen::genEmitHelperCall(unsigned helper, int argSize, emitAttr retSize, regNumber callTargetReg /*= REG_NA */)
+{
+    // Can we call the helper function directly
+
+    void *addr = NULL, **pAddr = NULL;
+
+#if defined(DEBUG) && defined(PROFILING_SUPPORTED)
+    // Don't ask VM if it hasn't requested ELT hooks
+    if (!compiler->compProfilerHookNeeded && compiler->opts.compJitELTHookEnabled &&
+        (helper == CORINFO_HELP_PROF_FCN_ENTER || helper == CORINFO_HELP_PROF_FCN_LEAVE ||
+         helper == CORINFO_HELP_PROF_FCN_TAILCALL))
+    {
+        addr = compiler->compProfilerMethHnd;
+    }
+    else
+#endif
+    {
+        addr = compiler->compGetHelperFtn((CorInfoHelpFunc)helper, (void**)&pAddr);
     }
 
-    // Hang on to this compiler->info.
+    if (!addr || !arm_Valid_Imm_For_BL((ssize_t)addr))
+    {
+        if (callTargetReg == REG_NA)
+        {
+            // If a callTargetReg has not been explicitly provided, we will use REG_DEFAULT_HELPER_CALL_TARGET, but
+            // this is only a valid assumption if the helper call is known to kill REG_DEFAULT_HELPER_CALL_TARGET.
+            callTargetReg = REG_DEFAULT_HELPER_CALL_TARGET;
+        }
 
-    TrnslLocalVarInfo &tlvi = genTrnslLocalVarInfo[which];
+        // Load the address into a register and call through a register
+        if (addr)
+        {
+            instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, callTargetReg, (ssize_t)addr);
+        }
+        else
+        {
+            getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, callTargetReg, (ssize_t)pAddr);
+            regSet.verifyRegUsed(callTargetReg);
+        }
 
-    tlvi.tlviVarNum         = ilVarNum;
-    tlvi.tlviLVnum          = LVnum;
-    tlvi.tlviName           = name;
-    tlvi.tlviStartPC        = startOffs;
-    tlvi.tlviLength         = length;
-    tlvi.tlviAvailable      = avail;
-    tlvi.tlviVarLoc         = varLoc;
+        getEmitter()->emitIns_Call(emitter::EC_INDIR_R, compiler->eeFindHelper(helper),
+                                   INDEBUG_LDISASM_COMMA(nullptr) NULL, // addr
+                                   argSize, retSize, gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
+                                   gcInfo.gcRegByrefSetCur,
+                                   BAD_IL_OFFSET, // ilOffset
+                                   callTargetReg, // ireg
+                                   REG_NA, 0, 0,  // xreg, xmul, disp
+                                   false          // isJump
+                                   );
+    }
+    else
+    {
+        getEmitter()->emitIns_Call(emitter::EC_FUNC_TOKEN, compiler->eeFindHelper(helper),
+                                   INDEBUG_LDISASM_COMMA(nullptr) addr, argSize, retSize, gcInfo.gcVarPtrSetCur,
+                                   gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur, BAD_IL_OFFSET, REG_NA, REG_NA, 0,
+                                   0,    /* ilOffset, ireg, xreg, xmul, disp */
+                                   false /* isJump */
+                                   );
+    }
 
-#endif // DEBUG
-
-    compiler->eeSetLVinfo(which, startOffs, length, ilVarNum, LVnum, name, avail, varLoc);
+    regSet.verifyRegistersUsed(RBM_CALLEE_TRASH);
 }
-#endif // DEBUGGING_SUPPORT
 
-#endif // _TARGET_AMD64_
+//------------------------------------------------------------------------
+// genCodeForMulLong: Generates code for int*int->long multiplication
+//
+// Arguments:
+//    node - the GT_MUL_LONG node
+//
+// Return Value:
+//    None.
+//
+void CodeGen::genCodeForMulLong(GenTreeMultiRegOp* node)
+{
+    assert(node->OperGet() == GT_MUL_LONG);
+    genConsumeOperands(node);
+    GenTree*    src1 = node->gtOp1;
+    GenTree*    src2 = node->gtOp2;
+    instruction ins  = node->IsUnsigned() ? INS_umull : INS_smull;
+    getEmitter()->emitIns_R_R_R_R(ins, EA_4BYTE, node->gtRegNum, node->gtOtherReg, src1->gtRegNum, src2->gtRegNum);
+    genProduceReg(node);
+}
 
-#endif // !LEGACY_BACKEND
+#endif // _TARGET_ARM_

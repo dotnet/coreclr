@@ -177,6 +177,8 @@ public:
 
     reference back();
     const_reference back() const;
+    iterator backPosition();
+    const_iterator backPosition() const;
 
     iterator begin();
     const_iterator begin() const;
@@ -293,8 +295,8 @@ namespace jitstd
 {
 template <typename T, typename Allocator>
 list<T, Allocator>::list(const Allocator& allocator)
-    : m_pHead(NULL)
-    , m_pTail(NULL)
+    : m_pHead(nullptr)
+    , m_pTail(nullptr)
     , m_nSize(0)
     , m_allocator(allocator)
     , m_nodeAllocator(allocator)
@@ -367,6 +369,18 @@ typename list<T, Allocator>::const_reference list<T, Allocator>::back() const
 }
 
 template <typename T, typename Allocator>
+typename list<T, Allocator>::iterator list<T, Allocator>::backPosition()
+{
+    return iterator(m_pTail);
+}
+
+template <typename T, typename Allocator>
+typename list<T, Allocator>::const_iterator list<T, Allocator>::backPosition() const
+{
+    return const_iterator(m_pTail);
+}
+
+template <typename T, typename Allocator>
 typename list<T, Allocator>::iterator list<T, Allocator>::begin()
 {
     return iterator(m_pHead);
@@ -393,7 +407,7 @@ bool list<T, Allocator>::empty() const
 template <typename T, typename Allocator>
 typename list<T, Allocator>::iterator list<T, Allocator>::end()
 {
-    return iterator(NULL);
+    return iterator(nullptr);
 }
 
 template <typename T, typename Allocator>
@@ -406,7 +420,7 @@ template <typename T, typename Allocator>
 typename list<T, Allocator>::iterator list<T, Allocator>::erase(iterator position)
 {
     // Nothing to erase.
-    assert(position.m_pNode != NULL);
+    assert(position.m_pNode != nullptr);
 
     --m_nSize;
 
@@ -414,7 +428,7 @@ typename list<T, Allocator>::iterator list<T, Allocator>::erase(iterator positio
     Node* pPrev = pNode->m_pPrev;
     Node* pNext = pNode->m_pNext;
 
-    if (pPrev != NULL)
+    if (pPrev != nullptr)
     {
         pPrev->m_pNext = pNext;
     }
@@ -423,7 +437,7 @@ typename list<T, Allocator>::iterator list<T, Allocator>::erase(iterator positio
         m_pHead = pNext;
     }
 
-    if (pNext != NULL)
+    if (pNext != nullptr)
     {
         pNext->m_pPrev = pPrev;
     }
@@ -563,12 +577,12 @@ void list<T, Allocator>::pop_back()
     if (m_pHead != m_pTail)
     {
         m_pTail = m_pTail->m_pPrev;
-        m_pTail->m_pNext = NULL;
+        m_pTail->m_pNext = nullptr;
     }
     else
     {
-        m_pHead = NULL;
-        m_pTail = NULL;
+        m_pHead = nullptr;
+        m_pTail = nullptr;
     }
     pDelete->~Node();
     m_nodeAllocator.deallocate(pDelete, 1);
@@ -639,11 +653,15 @@ typename list<T, Allocator>::const_reverse_iterator
 template <typename T, typename Allocator>
 void list<T, Allocator>::remove(const T& val)
 {
-    for (iterator i = begin(); i != end(); ++i)
+    for (iterator i = begin(); i != end();)
     {
         if (*i == val)
         {
             i = erase(i);
+        }
+        else
+        {
+            ++i;
         }
     }
 }
@@ -652,11 +670,15 @@ template <typename T, typename Allocator>
 template <class Predicate>
 void list<T, Allocator>::remove_if(Predicate pred)
 {
-    for (iterator i = begin(); i != end(); ++i)
+    for (iterator i = begin(); i != end();)
     {
         if (pred(*i))
         {
             i = erase(i);
+        }
+        else
+        {
+            ++i;
         }
     }
 }
@@ -664,7 +686,7 @@ void list<T, Allocator>::remove_if(Predicate pred)
 template <typename T, typename Allocator>
 typename list<T, Allocator>::reverse_iterator list<T, Allocator>::rend()
 {
-    return reverse_iterator(NULL);
+    return reverse_iterator(nullptr);
 }
 
 template <typename T, typename Allocator>
@@ -768,14 +790,14 @@ void list<T, Allocator>::unique(const BinaryPredicate& binary_pred)
 template <typename T, typename Allocator>
 void list<T, Allocator>::destroy_helper()
 {
-    while (m_pTail != NULL)
+    while (m_pTail != nullptr)
     {
         Node* prev = m_pTail->m_pPrev;
         m_pTail->~Node();
         m_nodeAllocator.deallocate(m_pTail, 1);
         m_pTail = prev;
     }
-    m_pHead = NULL;
+    m_pHead = nullptr;
     m_nSize = 0;
 }
 

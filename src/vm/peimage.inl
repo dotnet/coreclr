@@ -94,16 +94,6 @@ inline PTR_PEImageLayout PEImage::GetLoadedLayout()
     return m_pLayouts[IMAGE_LOADED]; //no addref
 }
 
-inline PTR_PEImageLayout PEImage::GetLoadedIntrospectionLayout()
-{
-    LIMITED_METHOD_CONTRACT;
-    SUPPORTS_DAC;
-
-    _ASSERTE(m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL);
-    return m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]; //no addref
-}
-
-
 //
 // GetExistingLayout - get an layout corresponding to the specified mask, or null if none.
 // Does not take any locks or call AddRef.
@@ -125,8 +115,6 @@ inline PTR_PEImageLayout PEImage::GetExistingLayoutInternal(DWORD imageLayoutMas
 
     if (imageLayoutMask&PEImageLayout::LAYOUT_LOADED)
         pRetVal=m_pLayouts[IMAGE_LOADED];
-    if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_LOADED_FOR_INTROSPECTION)) 
-        pRetVal=m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION];
     if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_MAPPED))
         pRetVal=m_pLayouts[IMAGE_MAPPED];
     if (pRetVal==NULL && (imageLayoutMask & PEImageLayout::LAYOUT_FLAT))
@@ -146,14 +134,7 @@ inline BOOL PEImage::HasLoadedLayout()
 inline BOOL PEImage::IsOpened()
 {
     LIMITED_METHOD_CONTRACT;
-    return m_pLayouts[IMAGE_LOADED]!=NULL ||m_pLayouts[IMAGE_MAPPED]!=NULL || m_pLayouts[IMAGE_FLAT] !=NULL || m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL;
-}
-
-
-inline BOOL PEImage::HasLoadedIntrospectionLayout() //introspection only!!!
-{
-    LIMITED_METHOD_DAC_CONTRACT;
-    return m_pLayouts[IMAGE_LOADED_FOR_INTROSPECTION]!=NULL;
+    return m_pLayouts[IMAGE_LOADED]!=NULL ||m_pLayouts[IMAGE_MAPPED]!=NULL || m_pLayouts[IMAGE_FLAT] !=NULL;
 }
 
 
@@ -241,21 +222,6 @@ inline BOOL PEImage::PassiveDomainOnly()
     LIMITED_METHOD_CONTRACT;
     return m_bPassiveDomainOnly;
 }
-
-#ifdef FEATURE_PREJIT    
-
-inline const BOOL PEImage::GetNativeILHasSecurityDirectory()   
-{
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->GetNativeILHasSecurityDirectory();
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->GetNativeILHasSecurityDirectory();
-    }
-}
-#endif
 
 inline const BOOL PEImage::HasDirectoryEntry(int entry)   
 {
@@ -405,64 +371,12 @@ inline const BOOL PEImage::HasStrongNameSignature()
 
 #ifndef DACCESS_COMPILE
 
-#if !defined(FEATURE_CORECLR)
-inline const HRESULT PEImage::VerifyStrongName(DWORD* verifyOutputFlags)  
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(verifyOutputFlags);
-    if (m_bSignatureInfoCached)
-    {
-        if (SUCCEEDED(m_hrSignatureInfoStatus))
-            *verifyOutputFlags=m_dwSignatureInfo;
-        return m_hrSignatureInfoStatus;
-    }
-
-    BOOL result = FALSE;
-
-    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_FLAT,0));
-    if(pLayout!=NULL)
-    {
-        result = StrongNameSignatureVerificationFromImage((BYTE *) pLayout->GetBase(), pLayout->GetSize(), 
-                                                            SN_INFLAG_INSTALL|SN_INFLAG_ALL_ACCESS, 
-                                                            verifyOutputFlags);
-    }
-    else
-    {
-        CONSISTENCY_CHECK(!GetPath().IsEmpty());
-        _ASSERTE(IsFileLocked());
-        result = StrongNameSignatureVerification(GetPath(),
-                                                    SN_INFLAG_INSTALL|SN_INFLAG_ALL_ACCESS|SN_INFLAG_RUNTIME,
-                                                    verifyOutputFlags);
-    }
-
-    HRESULT hr=result?S_OK: StrongNameErrorInfo();
-
-    if (SUCCEEDED(hr) || !Exception::IsTransient(hr))
-    {
-        m_hrSignatureInfoStatus=hr;
-        m_dwSignatureInfo=*verifyOutputFlags;
-        m_bSignatureInfoCached=TRUE;
-    }
-    return hr;
-}    
-#endif // !FEATURE_CORECLR
 
 #endif // !DACCESS_COMPILE
 
-inline BOOL PEImage::IsStrongNameSigned()   
-{
-    WRAPPER_NO_CONTRACT;
-    if (HasLoadedLayout())
-        return GetLoadedLayout()->IsStrongNameSigned();
-    else
-    {
-        PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
-        return pLayout->IsStrongNameSigned();
-    }
-}
-
 inline BOOL PEImage::IsIbcOptimized()   
 {
+#ifdef FEATURE_PREJIT 
     WRAPPER_NO_CONTRACT;
     if (HasLoadedLayout())
         return GetLoadedLayout()->GetNativeILIsIbcOptimized();
@@ -471,23 +385,10 @@ inline BOOL PEImage::IsIbcOptimized()
         PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,LAYOUT_CREATEIFNEEDED));
         return pLayout->GetNativeILIsIbcOptimized();
     }
-}
-
-#ifndef DACCESS_COMPILE
-
-inline void PEImage::GetImageBits(DWORD layout, SBuffer &result)
-{
-    WRAPPER_NO_CONTRACT;
-    PEImageLayoutHolder pLayout(GetLayout(layout,LAYOUT_CREATEIFNEEDED));
-    BYTE* buffer=result.OpenRawBuffer(pLayout->GetSize());
-    PREFIX_ASSUME(buffer != NULL);
-    memcpyNoGCRefs(buffer,pLayout->GetBase(),pLayout->GetSize());
-    result.CloseRawBuffer(pLayout->GetSize());
-}
-
+#else
+    return false;
 #endif
-
-
+}
 
 #ifdef FEATURE_PREJIT 
 inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize) 
@@ -579,59 +480,6 @@ inline void  PEImage::Init(LPCWSTR pPath)
 }
 #ifndef DACCESS_COMPILE
 
-#if !defined(FEATURE_CORECLR)
-/*static*/
-inline PTR_PEImage PEImage::FindByLongPath(LPCWSTR pPath)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(s_hashLock.OwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    PathString sLongPath;
-    COUNT_T nLen = WszGetLongPathName(pPath, sLongPath);
-   
-    // Check for any kind of error other than an insufficient buffer result.
-    if (nLen == 0)
-    {
-        HRESULT hr=HRESULT_FROM_WIN32(GetLastError());
-        if(Exception::IsTransient(hr))
-            ThrowHR(hr);
-        return (PEImage*)INVALIDENTRY;
-    }
-    return FindByPath(sLongPath.GetUnicode());
-}
-
-/*static*/
-inline PTR_PEImage PEImage::FindByShortPath(LPCWSTR pPath)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(s_hashLock.OwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    PathString sShortPath;
-    COUNT_T nLen = WszGetShortPathName(pPath, sShortPath);
-
-    // Check for any kind of error other than an insufficient buffer result.
-    if (nLen == 0)
-    {
-        HRESULT hr=HRESULT_FROM_WIN32(GetLastError());
-        if(Exception::IsTransient(hr))
-            ThrowHR(hr);
-        return (PEImage*)INVALIDENTRY;
-    }
-    return FindByPath(sShortPath.GetUnicode());
-}
-#endif // !FEATURE_CORECLR
 
 /*static*/
 inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
@@ -673,13 +521,6 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
     
     PEImage* found = FindByPath(pPath);
 
-#if !defined(FEATURE_CORECLR)
-    if(found == (PEImage*) INVALIDENTRY && (flags & MDInternalImport_CheckLongPath))
-         found=FindByLongPath(pPath);
-
-    if(found == (PEImage*) INVALIDENTRY && (flags & MDInternalImport_CheckShortPath))
-         found=FindByShortPath(pPath);
-#endif
 
     if (found == (PEImage*) INVALIDENTRY)
     {
@@ -716,49 +557,6 @@ inline BOOL PEImage::IsFileLocked()
 
 #ifndef DACCESS_COMPILE
 
-#ifdef FEATURE_FUSION
-/* static */
-inline PTR_PEImage PEImage::FindById(UINT64 uStreamAsmId, DWORD dwModuleId)
-{
-    PEImageLocator locator(uStreamAsmId, dwModuleId);
-    CrstHolder holder(&s_hashLock);
-    PEImage* found = (PEImage *) s_Images->LookupValue(HashStreamIds(uStreamAsmId, dwModuleId), &locator);
-    if (found == (PEImage*) INVALIDENTRY)
-        return NULL;
-    found->AddRef();
-    return dac_cast<PTR_PEImage>(found);
-}
-
-/* static */
-inline PTR_PEImage PEImage::OpenImage(IStream *pIStream, UINT64 uStreamAsmId,
-                                      DWORD dwModuleId, BOOL resourceFile, MDInternalImportFlags flags /* = MDInternalImport_Default */)  
-{
-    BOOL fUseCache = !((flags & MDInternalImport_NoCache) == MDInternalImport_NoCache);
-
-    if (!fUseCache)
-    {
-        PEImageHolder pImage(new PEImage());
-        pImage->Init(pIStream, uStreamAsmId, dwModuleId, resourceFile);
-        return dac_cast<PTR_PEImage>(pImage.Extract());
-    }
-
-    
-    DWORD hash = HashStreamIds(uStreamAsmId, dwModuleId);
-    PEImageLocator locator(uStreamAsmId,dwModuleId);
-    CrstHolder holder(&s_hashLock);
-    PEImage* found = (PEImage *) s_Images->LookupValue(hash, &locator);
-    if (found != (PEImage*) INVALIDENTRY)
-    {
-        found->AddRef();
-        return dac_cast<PTR_PEImage>(found);
-    }
-    PEImageHolder pImage(new PEImage());
-    pImage->Init(pIStream, uStreamAsmId, dwModuleId, resourceFile);
-
-    pImage->AddToHashMap();
-    return dac_cast<PTR_PEImage>(pImage.Extract());
-}
-#endif // FEATURE_FUSION
 
 inline void PEImage::AddToHashMap()
 {
@@ -796,10 +594,6 @@ inline BOOL PEImage::HasID()
 {
     LIMITED_METHOD_CONTRACT;
 
-#ifdef FEATURE_FUSION
-    if (m_fIsIStream)
-        return TRUE;
-#endif
 
     return !GetPath().IsEmpty();
 }
@@ -815,10 +609,6 @@ inline ULONG PEImage::GetIDHash()
     }
     CONTRACT_END;
 
-#ifdef FEATURE_FUSION
-    if (m_fIsIStream)
-        RETURN HashStreamIds(m_StreamAsmId, m_dwStreamModuleId);
-#endif
 
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     RETURN m_path.Hash();
@@ -873,33 +663,7 @@ inline void  PEImage::GetPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine)
         *pdwMachine = m_dwMachine;
 }
 
-#ifdef FEATURE_APTCA
-inline BOOL PEImage::MayBeConditionalAptca()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fMayBeConditionalAptca;
-}
 
-inline void PEImage::SetIsNotConditionalAptca()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_fMayBeConditionalAptca = FALSE;
-}
-#endif // FEATURE_APTCA
-
-#ifndef FEATURE_CORECLR
-inline BOOL PEImage::IsReportedToUsageLog()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fReportedToUsageLog;
-}
-
-inline void PEImage::SetReportedToUsageLog()
-{
-    LIMITED_METHOD_CONTRACT;
-    m_fReportedToUsageLog = TRUE;
-}
-#endif // !FEATURE_CORECLR
 
 #ifndef DACCESS_COMPILE
 inline void PEImage::AllocateLazyCOWPages()

@@ -21,18 +21,26 @@ C_FUNC(\Name):
         LEAF_END \Name, \Section
 .endm
 
+.macro NESTED_END_MARKED Name, Section
+        LEAF_END_MARKED \Name, \Section
+.endm
+
 .macro PATCH_LABEL Name
         .thumb_func
         .global C_FUNC(\Name)
 C_FUNC(\Name):
 .endm
 
+.macro LEAF_END Name, Section
+        .size \Name, .-\Name
+        .fnend
+.endm
+
 .macro LEAF_END_MARKED Name, Section
         .thumb_func
         .global C_FUNC(\Name\()_End)
 C_FUNC(\Name\()_End):
-        .size \Name, .-\Name
-        .fnend
+        LEAF_END \Name, \Section
 .endm
 
 .macro PREPARE_EXTERNAL_VAR Name, HelperReg
@@ -58,13 +66,12 @@ C_FUNC(\Name\()_End):
 .endm
 
 .macro alloc_stack Size
-        sub sp, sp, \Size
-        .pad #\Size
+        sub sp, sp, (\Size)
+        .pad #(\Size)
 .endm
 
 .macro free_stack Size
-        add sp, sp, \Size
-        .pad #-\Size
+        add sp, sp, (\Size)
 .endm
 
 .macro POP_CALLEE_SAVED_REGISTERS
@@ -85,6 +92,7 @@ C_FUNC(\Name\()_End):
 
 .macro PUSH_ARGUMENT_REGISTERS
         push {r0-r3}
+        .save {r0-r3}
 .endm
 
 .macro pop_register Reg
@@ -112,7 +120,7 @@ C_FUNC(\Name\()_End):
 // CalleeSavedRegisters::r10
 // CalleeSavedRegisters::r9
 // CalleeSavedRegisters::r8
-// CalleeSavedRegisters::r7
+// CalleeSavedRegisters::r7    <- r7
 // CalleeSavedRegisters::r6
 // CalleeSavedRegisters::r5
 // CalleeSavedRegisters::r4    <- __PWTB_StackAlloc, __PWTB_TransitionBlock
@@ -151,7 +159,9 @@ C_FUNC(\Name\()_End):
         .endif
 
         PUSH_CALLEE_SAVED_REGISTERS
-        
+        PROLOG_STACK_SAVE_OFFSET r7, #12
+        // let r7 point the saved r7 in the stack (clang FP style)
+
         alloc_stack     __PWTB_StackAlloc
 
         .if (__PWTB_SaveFPArgs == 1)
@@ -184,7 +194,7 @@ C_FUNC(\Name\()_End):
         free_stack __PWTB_StackAlloc
         POP_CALLEE_SAVED_REGISTERS
         POP_ARGUMENT_REGISTERS
-        
+
 .endm
 
 .macro EMIT_BREAKPOINT
@@ -204,11 +214,21 @@ C_FUNC(\Name\()_End):
         mov \Register, sp
 .endm
 
+.macro PROLOG_STACK_SAVE_OFFSET Register, Offset
+        .setfp \Register, sp, \Offset
+        add \Register, sp, \Offset
+.endm
+
 .macro EPILOG_STACK_FREE Size
         add sp, sp, \Size
 .endm
 
 .macro EPILOG_STACK_RESTORE Register
+        mov sp, \Register
+.endm
+
+.macro EPILOG_STACK_RESTORE_OFFSET Register, Offset
+        sub \Register, \Offset
         mov sp, \Register
 .endm
 

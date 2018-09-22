@@ -10,11 +10,11 @@ set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 
 find_path(UTYPES_H "unicode/utypes.h" PATHS ${ICU_HOMEBREW_INC_PATH})
 if(UTYPES_H STREQUAL UTYPES_H-NOTFOUND)
-    message(FATAL_ERROR "Cannont find utypes.h, try installing libicu-dev (or the appropriate package for your platform)")
+    message(FATAL_ERROR "Cannot find utypes.h, try installing libicu-dev (or the appropriate package for your platform)")
     return()
 endif()
 
-if(NOT CLR_CMAKE_PLATFORM_DARWIN)
+if (NOT CLR_CMAKE_PLATFORM_DARWIN)
     find_library(ICUUC icuuc)
     if(ICUUC STREQUAL ICUUC-NOTFOUND)
         message(FATAL_ERROR "Cannot find libicuuc, try installing libicu-dev (or the appropriate package for your platform)")
@@ -32,6 +32,8 @@ else()
         message(FATAL_ERROR "Cannot find libicucore, skipping build for System.Globalization.Native. .NET globalization is not expected to function.")
         return()
     endif()
+
+    add_definitions(-DOSX_ICU_LIBRARY_PATH=\"${ICUCORE}\")
 endif()
 
 include(configure.cmake)
@@ -48,30 +50,51 @@ set(NATIVEGLOBALIZATION_SOURCES
     localeStringData.cpp
     normalization.cpp
     timeZoneInfo.cpp
+    icushim.cpp
 )
 
 include_directories(${UTYPES_H})
 
-add_library(System.Globalization.Native
+_add_library(System.Globalization.Native
     SHARED
+    ${NATIVEGLOBALIZATION_SOURCES}
+)
+
+_add_library(System.Globalization.Native_Static
+    STATIC
     ${NATIVEGLOBALIZATION_SOURCES}
 )
 
 # Disable the "lib" prefix.
 set_target_properties(System.Globalization.Native PROPERTIES PREFIX "")
 
+# Disable the "lib" prefix and override default name
+set_target_properties(System.Globalization.Native_Static PROPERTIES PREFIX "")
+set_target_properties(System.Globalization.Native_Static PROPERTIES OUTPUT_NAME System.Globalization.Native)
+
 if(NOT CLR_CMAKE_PLATFORM_DARWIN)
-    target_link_libraries(System.Globalization.Native
-        ${ICUUC}
-        ${ICUI18N}
-    )
+    if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+        target_link_libraries(System.Globalization.Native
+            dl
+        )
+        target_link_libraries(System.Globalization.Native_Static
+            dl
+        )
+    endif()
 else()
     target_link_libraries(System.Globalization.Native
-        ${ICUCORE}
+        dl
     )
 
     add_definitions(-DU_DISABLE_RENAMING=1)
 endif()
 
+verify_dependencies(
+    System.Globalization.Native
+    "Verification failed. System.Globalization.Native.so has undefined dependencies. These are likely ICU APIs that need to be added to icushim.h."
+)
+
 # add the install targets
 install_clr(System.Globalization.Native)
+install(TARGETS System.Globalization.Native_Static DESTINATION .)
+

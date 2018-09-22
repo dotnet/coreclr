@@ -218,7 +218,13 @@ GetEnvironmentVariableW(
     }
     else if (size == 0)
     {
-        // handle error in GetEnvironmentVariableA
+        // If size is 0, it either means GetEnvironmentVariableA failed, or that
+        // it succeeded and the value of the variable is empty. Check GetLastError
+        // to determine which. If the call failed, we won't touch the buffer.
+        if (GetLastError() == ERROR_SUCCESS)
+        {
+            *lpBuffer = '\0';
+        }
     }
     else
     {
@@ -749,7 +755,7 @@ void EnvironUnsetenv(const char *name)
             if (memcmp(name, palEnvironment[i], nameLength) == 0)
             {
                 // Free the string we're removing.
-                InternalFree(palEnvironment[i]);
+                free(palEnvironment[i]);
 
                 // Move the last environment variable pointer here.
                 palEnvironment[i] = palEnvironment[palEnvironmentCount - 1];
@@ -818,7 +824,7 @@ BOOL EnvironPutenv(const char* entry, BOOL deleteIfEmpty)
         copy[nameLength] = '\0';
 
         EnvironUnsetenv(copy);
-        InternalFree(copy);
+        free(copy);
 
         result = TRUE;
     }
@@ -845,7 +851,7 @@ BOOL EnvironPutenv(const char* entry, BOOL deleteIfEmpty)
             {
                 if (memcmp(entry, palEnvironment[i], nameLength) == 0)
                 {
-                    InternalFree(palEnvironment[i]);
+                    free(palEnvironment[i]);
                     palEnvironment[i] = copy;
 
                     result = TRUE;
@@ -864,7 +870,7 @@ BOOL EnvironPutenv(const char* entry, BOOL deleteIfEmpty)
                 int resizeRet = ResizeEnvironment(palEnvironmentCapacity * 2);
                 if (resizeRet != TRUE)
                 {
-                    InternalFree(copy);
+                    free(copy);
                     goto done;
                 }
             }

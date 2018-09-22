@@ -8,6 +8,7 @@
 
 #include "common.h"
 #include "frameworkexceptionloader.h"
+#include "typeparse.h"
 
 
 struct ExceptionLocationData
@@ -65,7 +66,7 @@ MethodTable* FrameworkExceptionLoader::GetException(RuntimeExceptionKind kind)
     // Loading will either succeed or throw a FileLoadException.  Catch & swallow that exception.
     EX_TRY
     {
-        pMT = TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedName.GetUnicode(), FALSE).GetMethodTable();
+        pMT = TypeName::GetTypeFromAsmQualifiedName(assemblyQualifiedName.GetUnicode()).GetMethodTable();
 
         // Since this type is from another assembly, we must ensure that assembly has been sufficiently loaded.
         pMT->EnsureActive();
@@ -74,7 +75,7 @@ MethodTable* FrameworkExceptionLoader::GetException(RuntimeExceptionKind kind)
     {
         Exception *ex = GET_EXCEPTION();
 
-        // Let non-file-not-found execeptions propagate
+        // Let non-file-not-found exceptions propagate
         if (EEFileLoadException::GetFileLoadKind(ex->GetHR()) != kFileNotFoundException)
             EX_RETHROW;
 

@@ -426,97 +426,44 @@ lExit:
     
 }
 
+typedef HRESULT(WINAPI *pfnSetThreadDescription)(HANDLE hThread, PCWSTR lpThreadDescription);
+extern pfnSetThreadDescription g_pfnSetThreadDescription;
 
-DWORD
-WszGetWorkingSet()
+// Dummy method if windows version does not support it
+HRESULT SetThreadDescriptionDummy(HANDLE hThread, PCWSTR lpThreadDescription)
 {
-    WINWRAPPER_NO_CONTRACT(SetLastError(ERROR_OUTOFMEMORY); return 0;);
-
-    DWORD dwMemUsage = 0;
-
-    // Consider also calling GetProcessWorkingSetSize to get the min & max working
-    // set size.  I don't know how to get the current working set though...
-    PROCESS_MEMORY_COUNTERS pmc;
-
-    HINSTANCE hPSapi;
-    typedef BOOL (GET_PROCESS_MEMORY_INFO)(HANDLE, PROCESS_MEMORY_COUNTERS*, DWORD);
-    GET_PROCESS_MEMORY_INFO* pGetProcessMemoryInfo;
-
-    hPSapi = WszLoadLibrary(W("psapi.dll"));
-    if (hPSapi == NULL) {
-        _ASSERTE(0);
-        return 0;
-    }
-
-    pGetProcessMemoryInfo =
-        (GET_PROCESS_MEMORY_INFO*)GetProcAddress(hPSapi, "GetProcessMemoryInfo");
-    // 403746: Prefix correctly complained about
-    // pGetProcessMemoryInfo != NULL assertion.
-    if (pGetProcessMemoryInfo == NULL) {
-        _ASSERTE(0);
-        FreeLibrary(hPSapi);
-        return 0;
-    }
-    PREFIX_ASSUME(pGetProcessMemoryInfo != NULL);
-
-    BOOL r = pGetProcessMemoryInfo(GetCurrentProcess(), &pmc, (DWORD) sizeof(PROCESS_MEMORY_COUNTERS));
-    FreeLibrary(hPSapi);
-    _ASSERTE(r);
-
-    dwMemUsage = (DWORD)pmc.WorkingSetSize;
-
-    return dwMemUsage;
+    return NOERROR;
 }
 
-
-SIZE_T
-WszGetPagefileUsage()
+HRESULT WINAPI InitializeSetThreadDescription(HANDLE hThread, PCWSTR lpThreadDescription)
 {
-    WINWRAPPER_NO_CONTRACT(SetLastError(ERROR_OUTOFMEMORY); return 0;);
+    HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
 
-    SIZE_T dwPagefileUsage = 0;
-
-    typedef BOOL (WINAPI FnGetProcessMemoryInfo)(HANDLE, PROCESS_MEMORY_COUNTERS *, DWORD);
-
-    HMODULE hPSApi = WszLoadLibrary(W("Psapi.dll"));
-    if (hPSApi== NULL)
+    pfnSetThreadDescription pLocal = NULL; 
+    if (hKernel32 != NULL)
     {
-        return 0;
+        // store to thread local variable to prevent data race
+        pLocal = (pfnSetThreadDescription)GetProcAddress(hKernel32, "SetThreadDescription");
     }
 
-    FnGetProcessMemoryInfo *pfnGetProcessMemoryInfo = reinterpret_cast<FnGetProcessMemoryInfo *>(
-        GetProcAddress(hPSApi, "GetProcessMemoryInfo"));
-
-    if (pfnGetProcessMemoryInfo != NULL)
+    if (pLocal == NULL) // method is only available with Windows 10 Creators Update or later
     {
-        PROCESS_MEMORY_COUNTERS pmc;
-        ZeroMemory(&pmc, sizeof(pmc));
-
-        if (pfnGetProcessMemoryInfo(GetCurrentProcess(), &pmc, sizeof(pmc)))
-        {
-            dwPagefileUsage = pmc.PagefileUsage;
-        }
+        g_pfnSetThreadDescription = SetThreadDescriptionDummy;
+    }
+    else
+    {
+        g_pfnSetThreadDescription = pLocal;
     }
 
-    FreeLibrary(hPSApi);
-    hPSApi = NULL;
-
-    return dwPagefileUsage;
+    return g_pfnSetThreadDescription(hThread, lpThreadDescription);
 }
 
-DWORD
-WszGetProcessHandleCount()
+pfnSetThreadDescription g_pfnSetThreadDescription = &InitializeSetThreadDescription;
+
+// Set unmanaged thread name which will show up in ETW and Debuggers which know how to read this data.
+HRESULT SetThreadName(HANDLE hThread, PCWSTR lpThreadDescription)
 {
-    WINWRAPPER_NO_CONTRACT(SetLastError(ERROR_OUTOFMEMORY); return 0;);
-
-    DWORD dwHandleCount = 0;
-
-    if (!GetProcessHandleCount(GetCurrentProcess(), &dwHandleCount))
-    {
-        dwHandleCount = 0;
-    }
-
-    return dwHandleCount;
+    return g_pfnSetThreadDescription(hThread, lpThreadDescription);
 }
 
 #endif //!FEATURE_PAL

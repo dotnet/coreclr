@@ -9,6 +9,7 @@
 // ==--==
 
 #include "strike.h"
+#include "gcinfo.h"
 #include "util.h"
 #include <dbghelp.h>
 #include <limits.h>
@@ -44,7 +45,6 @@ namespace X86GCDump
 #endif // SOS_TARGET_X86
 
 #ifdef SOS_TARGET_AMD64 
-#ifndef FEATURE_PAL
 #include "gcdump.h"
 #define DAC_ARG(x)
 #define SUPPORTS_DAC
@@ -60,7 +60,6 @@ namespace X86GCDump
     #endif
     #define LOG_PIPTR(pObjRef, gcFlags, hCallBack) ((void)0)
 #include "gcdumpnonx86.cpp"
-#endif // FEATURE_PAL
 #endif // SOS_TARGET_AMD64
 
 #include "disasm.h"
@@ -874,8 +873,6 @@ void PrintNativeStack(DWORD_PTR ip, BOOL bSuppressLines)
 // Return TRUE if we have printed something.
 BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSymbolOnly)
 {
-    char Symbol[1024];
-    char filename[MAX_PATH_FNAME+1];
     ULONG64 Displacement;
     BOOL bOutput = FALSE;
 
@@ -890,7 +887,7 @@ BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSy
     {
         bOutput = TRUE;
         if (!bSymbolOnly)
-            DMLOut("%p %s ", (ULONG64)vEBP, DMLIP(IP));
+            DMLOut("%p %s ", SOS_PTR(vEBP), DMLIP(IP));
         DMLOut("(MethodDesc %s ", DMLMethodDesc(methodDesc));    
         
         // TODO: Microsoft, more checks to make sure method is not eeimpl, etc. Add this field to MethodDesc
@@ -920,11 +917,11 @@ BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSy
             bOutput = TRUE;
             const char *name;
             if (!bSymbolOnly)
-                DMLOut("%p %s ", (ULONG64)vEBP, DMLIP(IP));
+                DMLOut("%p %s ", SOS_PTR(vEBP), DMLIP(IP));
 
             // if AMD64 ever becomes a cross platform target this must be resolved through
             // virtual dispatch rather than conditional compilation
-#ifdef _TARGET_AMD64_ 
+#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
             // degrade gracefully for debuggees that don't have a runtime loaded, or a DAC available
             eTargetType ett = ettUnk;
             if (!g_bDacBroken)
@@ -941,7 +938,7 @@ BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSy
                     methodDesc = finalMDorIP;
                 }
             }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_X86_
             if (methodDesc == 0) 
             {
                 PrintNativeStack(IP, DSFlag.fSuppressSrcInfo);
@@ -963,14 +960,14 @@ BOOL PrintCallInfo(DWORD_PTR vEBP, DWORD_PTR IP, DumpStackFlag& DSFlag, BOOL bSy
             else if ((name = HelperFuncName(IP)) != NULL) {
                 ExtOut(" (JitHelp: %s)", name);
             }
-#ifdef _TARGET_AMD64_
+#if defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
             else if (ett == ettMD || ett == ettStub)
             {
                 NameForMD_s(methodDesc, g_mdName,mdNameLen);                    
                 DMLOut("%s (stub for %S)", DMLIP(IP), g_mdName);
                 // fallthrough to return
             }
-#endif // _TARGET_AMD64_
+#endif // _TARGET_AMD64_ || _TARGET_X86_
             else
             {
                 DMLOut(DMLIP(IP));
@@ -1032,9 +1029,9 @@ void DumpStackWorker (DumpStackFlag &DSFlag)
                     ExtOut(" ====> Exception ");
                     if (exrAddr)
                         ExtOut("Code %x ", exr.ExceptionCode);
-                    ExtOut ("cxr@%p", (ULONG64)cxrAddr);
+                    ExtOut ("cxr@%p", SOS_PTR(cxrAddr));
                     if (exrAddr)
-                        ExtOut(" exr@%p", (ULONG64)exrAddr);
+                        ExtOut(" exr@%p", SOS_PTR(exrAddr));
                     ExtOut("\n");
                 }
             }
@@ -1060,10 +1057,11 @@ void PrintNothing (const char *fmt, ...)
 ///
 /// Dump X86 GCInfo header and table
 ///
-void X86Machine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
+void X86Machine::DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
 {
     X86GCDump::InfoHdr header;
-    X86GCDump::GCDump gcDump(encBytes, 5, true);
+    X86GCDump::GCDump gcDump(gcInfoToken.Version, encBytes, 5, true);
+    BYTE* pTable = dac_cast<PTR_BYTE>(gcInfoToken.Info);
     if (bPrintHeader)
     {
         gcDump.gcPrintf = gcPrintf;
@@ -1109,21 +1107,17 @@ LPCSTR AMD64Machine::s_SPName           = "RSP";
 ///
 /// Dump AMD64 GCInfo table
 ///
-void AMD64Machine::DumpGCInfo(BYTE* pTable, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
+void AMD64Machine::DumpGCInfo(GCInfoToken gcInfoToken, unsigned methodSize, printfFtn gcPrintf, bool encBytes, bool bPrintHeader) const
 {
-#ifdef FEATURE_PAL
-    ExtErr("AMD64Machine::DumpGCInfo not implemented\n");
-#else
     if (bPrintHeader)
     {
         ExtOut("Pointer table:\n");
     }
 
-    GCDump gcDump(encBytes, 5, true);
+    GCDump gcDump(gcInfoToken.Version, encBytes, 5, true);
     gcDump.gcPrintf = gcPrintf;
 
-    gcDump.DumpGCTable(pTable, methodSize, 0);
-#endif // FEATURE_PAL
+    gcDump.DumpGCTable(dac_cast<PTR_BYTE>(gcInfoToken.Info), methodSize, 0);
 }
 
 #endif // SOS_TARGET_AMD64

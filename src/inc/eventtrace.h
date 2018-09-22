@@ -34,7 +34,29 @@
 #define _VMEVENTTRACE_H_
 
 #include "eventtracebase.h"
+#include "gcinterface.h"
 
+#if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
+struct ProfilingScanContext : ScanContext
+{
+    BOOL fProfilerPinned;
+    void * pvEtwContext;
+    void *pHeapId;
+    
+    ProfilingScanContext(BOOL fProfilerPinnedParam) : ScanContext()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        pHeapId = NULL;
+        fProfilerPinned = fProfilerPinnedParam;
+        pvEtwContext = NULL;
+#ifdef FEATURE_CONSERVATIVE_GC
+        // To not confuse GCScan::GcScanRoots
+        promotion = g_pConfig->GetGCConservative();
+#endif
+    }
+};
+#endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
 
 #ifndef FEATURE_REDHAWK
 
@@ -303,14 +325,7 @@ namespace ETW
         static BOOL ShouldTrackMovementForEtw();
         static HRESULT ForceGCForDiagnostics();
         static VOID ForceGC(LONGLONG l64ClientSequenceNumber);
-        static VOID FireGcStartAndGenerationRanges(ETW_GC_INFO * pGcInfo);
-        static VOID FireGcEndAndGenerationRanges(ULONG Count, ULONG Depth);
-        static VOID FireSingleGenerationRangeEvent(
-            void * /* context */,
-            int generation, 
-            BYTE * rangeStart, 
-            BYTE * rangeEnd,
-            BYTE * rangeEndReserved);
+        static VOID FireGcStart(ETW_GC_INFO * pGcInfo);
         static VOID RootReference(
             LPVOID pvHandle,
             Object * pRootedNode,

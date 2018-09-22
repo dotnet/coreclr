@@ -5,6 +5,7 @@
 namespace DefaultNamespace {
     using System;
     using System.Collections.Generic;
+    using System.Runtime.CompilerServices;
 
     internal class CreateObj
     {
@@ -22,10 +23,16 @@ namespace DefaultNamespace {
         public bool RunTest(int iObj,int iSwitch)
         {
             DeleteObj(iObj,iSwitch);
+
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             bool result = CheckResult(iObj,iSwitch);
             return result;
         }
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void DeleteObj(int iObj,int iSwitch)
         {
             for( int i= 0; i< iObj; i++ )
@@ -48,11 +55,6 @@ namespace DefaultNamespace {
             {
                 rgNode[i] = null;
             }
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-
         }
 
         public bool CheckResult(int iObj,int iSwitch)

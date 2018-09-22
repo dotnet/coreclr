@@ -13,6 +13,7 @@
 namespace DoubLink {
 
     using System;
+    using System.Runtime.CompilerServices;
 
     public class DLStack
     {
@@ -63,31 +64,60 @@ namespace DoubLink {
 
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public bool DrainFinalizerQueue(int iRep, int iObj)
+        {
+            int lastValue = DLinkNode.FinalCount;
+            while (true)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+
+                if (DLinkNode.FinalCount == iRep * iObj * 10)
+                {
+                    return true;
+                }
+
+                if (DLinkNode.FinalCount != lastValue)
+                {
+                    Console.WriteLine(" Performing Collect/Wait/Collect cycle again");
+                    lastValue = DLinkNode.FinalCount;
+                    continue;
+                }
+
+                Console.WriteLine(" Finalized number stable at " + lastValue);
+                return false;
+            }
+        }
+
 
         public bool runTest(int iRep, int iObj)
         {
+            CreateDLinkListsWithLeak(iRep, iObj, 10);
 
-            for(int i=0; i <10; i++)
+            bool success = false;
+            if (DrainFinalizerQueue(iRep, iObj))
+            {
+                success = true;
+            }
+
+            Console.WriteLine("{0} DLinkNodes finalized", DLinkNode.FinalCount);
+            return success;
+
+        }
+
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        // Do not inline the method that creates GC objects, because it could 
+        // extend their live intervals until the end of the parent method.
+        public void CreateDLinkListsWithLeak(int iRep, int iObj, int iters)
+        {
+            for(int i = 0; i < iters; i++)
             {
                 SetLink(iRep, iObj);
                 MakeLeak(iRep);
             }
-
-			long lastTotalMemory = long.MaxValue;
-			long curTotalMemory = GC.GetTotalMemory(false);
-			
-			while (lastTotalMemory != curTotalMemory)
-			{
-				GC.Collect();
-				GC.WaitForPendingFinalizers();
-
-				lastTotalMemory = curTotalMemory;
-				curTotalMemory = GC.GetTotalMemory(false);
-			}
-
-            Console.WriteLine("{0} DLinkNodes finalized", DLinkNode.FinalCount);
-            return (DLinkNode.FinalCount==iRep*iObj*10);
-
         }
 
 

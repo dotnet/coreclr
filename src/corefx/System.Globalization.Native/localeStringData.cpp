@@ -7,6 +7,7 @@
 #include <string.h>
 #include <vector>
 
+#include "icushim.h"
 #include "locale.hpp"
 #include "holders.h"
 
@@ -27,6 +28,8 @@ enum LocaleStringData : int32_t
     ThousandSeparator = 0x0000000F,
     Digits = 0x00000013,
     MonetarySymbol = 0x00000014,
+    CurrencyEnglishName = 0x00001007,
+    CurrencyNativeName = 0x00001008,
     Iso4217MonetarySymbol = 0x00000015,
     MonetaryDecimalSeparator = 0x00000016,
     MonetaryThousandSeparator = 0x00000017,
@@ -34,8 +37,10 @@ enum LocaleStringData : int32_t
     PMDesignator = 0x00000029,
     PositiveSign = 0x00000050,
     NegativeSign = 0x00000051,
-    Iso639LanguageName = 0x00000059,
+    Iso639LanguageTwoLetterName = 0x00000059,
+    Iso639LanguageThreeLetterName = 0x00000067,
     Iso3166CountryName = 0x0000005A,
+    Iso3166CountryName2= 0x00000068,
     NaNSymbol = 0x00000069,
     PositiveInfinitySymbol = 0x0000006a,
     ParentName = 0x0000006d,
@@ -111,11 +116,11 @@ UErrorCode GetLocaleInfoAmPm(const char* locale, bool am, UChar* value, int32_t 
 
 /*
 Function:
-GetLocaleIso639LanguageName
+GetLocaleIso639LanguageTwoLetterName
 
 Gets the language name for a locale (via uloc_getLanguage) and converts the result to UChars
 */
-UErrorCode GetLocaleIso639LanguageName(const char* locale, UChar* value, int32_t valueLength)
+UErrorCode GetLocaleIso639LanguageTwoLetterName(const char* locale, UChar* value, int32_t valueLength)
 {
     UErrorCode status = U_ZERO_ERROR;
     int32_t length = uloc_getLanguage(locale, nullptr, 0, &status);
@@ -131,6 +136,23 @@ UErrorCode GetLocaleIso639LanguageName(const char* locale, UChar* value, int32_t
     }
 
     return status;
+}
+
+/*
+Function:
+GetLocaleIso639LanguageThreeLetterName
+
+Gets the language name for a locale (via uloc_getISO3Language) and converts the result to UChars
+*/
+UErrorCode GetLocaleIso639LanguageThreeLetterName(const char* locale, UChar* value, int32_t valueLength)
+{
+    const char *isoLanguage = uloc_getISO3Language(locale);
+    if (isoLanguage[0] == 0)
+    {
+        return U_ILLEGAL_ARGUMENT_ERROR;
+    }
+    
+    return u_charsToUChars_safe(isoLanguage, value, valueLength);
 }
 
 /*
@@ -158,6 +180,66 @@ UErrorCode GetLocaleIso3166CountryName(const char* locale, UChar* value, int32_t
 }
 
 /*
+Function:
+GetLocaleIso3166CountryCode
+
+Gets the 3 letter country code for a locale (via uloc_getISO3Country) and converts the result to UChars
+*/
+UErrorCode GetLocaleIso3166CountryCode(const char* locale, UChar* value, int32_t valueLength)
+{
+    const char *pIsoCountryName = uloc_getISO3Country(locale);
+    int len = strlen(pIsoCountryName);
+
+    if (len == 0)
+    {
+        return U_ILLEGAL_ARGUMENT_ERROR;
+    }
+
+    return u_charsToUChars_safe(pIsoCountryName, value, valueLength);
+}
+
+/*
+Function:
+GetLocaleCurrencyName
+
+Gets the locale currency English or native name and convert the result to UChars
+*/
+UErrorCode GetLocaleCurrencyName(const char* locale, bool nativeName, UChar* value, int32_t valueLength)
+{
+    UErrorCode status = U_ZERO_ERROR;
+    
+    UChar currencyThreeLettersName[4]; // 3 letters currency iso name + NULL
+    ucurr_forLocale(locale, currencyThreeLettersName, 4, &status);
+    if (!U_SUCCESS(status))
+    {
+        return status;
+    }
+    
+    int32_t len;
+    UBool formatChoice;
+    const UChar *pCurrencyLongName = ucurr_getName(
+                                        currencyThreeLettersName, 
+                                        nativeName ? locale : ULOC_US, 
+                                        UCURR_LONG_NAME, 
+                                        &formatChoice, 
+                                        &len, 
+                                        &status);
+    if (!U_SUCCESS(status))
+    {
+        return status;
+    }
+    
+    if (len >= valueLength) // we need to have room for NULL too
+    {
+        return U_BUFFER_OVERFLOW_ERROR;
+    }
+    u_strncpy(value, pCurrencyLongName, len);
+    value[len] = 0;
+    
+    return status;
+}
+
+/*
 PAL Function:
 GetLocaleInfoString
 
@@ -179,7 +261,7 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
     switch (localeStringData)
     {
         case LocalizedDisplayName:
-            uloc_getDisplayName(locale, uloc_getDefault(), value, valueLength, &status);
+            uloc_getDisplayName(locale, DetectDefaultLocaleName(), value, valueLength, &status);
             break;
         case EnglishDisplayName:
             uloc_getDisplayName(locale, ULOC_ENGLISH, value, valueLength, &status);
@@ -188,7 +270,7 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
             uloc_getDisplayName(locale, locale, value, valueLength, &status);
             break;
         case LocalizedLanguageName:
-            uloc_getDisplayLanguage(locale, uloc_getDefault(), value, valueLength, &status);
+            uloc_getDisplayLanguage(locale, DetectDefaultLocaleName(), value, valueLength, &status);
             break;
         case EnglishLanguageName:
             uloc_getDisplayLanguage(locale, ULOC_ENGLISH, value, valueLength, &status);
@@ -226,6 +308,12 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
         case Iso4217MonetarySymbol:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_INTL_CURRENCY_SYMBOL, value, valueLength);
             break;
+        case CurrencyEnglishName:
+            status = GetLocaleCurrencyName(locale, false, value, valueLength);
+            break;
+        case CurrencyNativeName:
+            status = GetLocaleCurrencyName(locale, true, value, valueLength);
+            break;
         case MonetaryDecimalSeparator:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_MONETARY_SEPARATOR_SYMBOL, value, valueLength);
             break;
@@ -245,11 +333,17 @@ extern "C" int32_t GlobalizationNative_GetLocaleInfoString(
         case NegativeSign:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_MINUS_SIGN_SYMBOL, value, valueLength);
             break;
-        case Iso639LanguageName:
-            status = GetLocaleIso639LanguageName(locale, value, valueLength);
+        case Iso639LanguageTwoLetterName:
+            status = GetLocaleIso639LanguageTwoLetterName(locale, value, valueLength);
+            break;
+        case Iso639LanguageThreeLetterName:
+            status = GetLocaleIso639LanguageThreeLetterName(locale, value, valueLength);
             break;
         case Iso3166CountryName:
             status = GetLocaleIso3166CountryName(locale, value, valueLength);
+            break;
+        case Iso3166CountryName2:
+            status = GetLocaleIso3166CountryCode(locale, value, valueLength);
             break;
         case NaNSymbol:
             status = GetLocaleInfoDecimalFormatSymbol(locale, UNUM_NAN_SYMBOL, value, valueLength);

@@ -7,10 +7,9 @@
 // Sets up basic environment for CLR GC
 //
 
-#define FEATURE_REDHAWK 1
-#define FEATURE_CONSERVATIVE_GC 1
-
-#define GCENV_INCLUDED
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif // _MSC_VER
 
 #define REDHAWK_PALIMPORT extern "C"
 #define REDHAWK_PALAPI __stdcall
@@ -22,10 +21,18 @@
 #else // __clang__
 #define __forceinline inline
 #endif // __clang__
-#endif // !_MSC_VER
+// [LOCALGC TODO] is there a better place for this?
+#define NOINLINE __attribute__((noinline))
+#else // !_MSC_VER
+#define NOINLINE __declspec(noinline)
+#endif // _MSC_VER
 
+#ifndef SIZE_T_MAX
 #define SIZE_T_MAX ((size_t)-1)
+#endif
+#ifndef SSIZE_T_MAX
 #define SSIZE_T_MAX ((ptrdiff_t)(SIZE_T_MAX / 2))
+#endif
 
 #ifndef _INC_WINDOWS
 // -----------------------------------------------------------------------------------------------------------
@@ -33,8 +40,10 @@
 // Aliases for Win32 types
 //
 
-typedef uint32_t BOOL;
+typedef int BOOL;
 typedef uint32_t DWORD;
+typedef uint64_t DWORD64;
+typedef uint32_t ULONG;
 
 // -----------------------------------------------------------------------------------------------------------
 // HRESULT subset.
@@ -55,12 +64,9 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 }
 
 #define S_OK                    0x0
-#define S_FALSE                 0x1
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
-#define E_UNEXPECTED            0x8000FFFF
-#define E_NOTIMPL               0x80004001
-#define E_INVALIDARG            0x80070057
+#define COR_E_EXECUTIONENGINE   0x80131506
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -69,7 +75,7 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define FALSE false
 
 #define CALLBACK __stdcall
-#define FORCEINLINE inline
+#define FORCEINLINE __forceinline
 
 #define INFINITE 0xFFFFFFFF
 
@@ -92,9 +98,11 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define UNREFERENCED_PARAMETER(P)          (void)(P)
 
 #ifdef PLATFORM_UNIX
-#define  _vsnprintf vsnprintf
+#define _vsnprintf_s(string, sizeInBytes, count, format, args) vsnprintf(string, sizeInBytes, format, args)
 #define sprintf_s snprintf
 #define swprintf_s swprintf
+#define _snprintf_s(string, sizeInBytes, count, format, ...) \
+  snprintf(string, sizeInBytes, format, ## __VA_ARGS__)
 #endif
 
 #ifdef UNICODE
@@ -156,8 +164,8 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #elif defined(_X86_)
   
   #define YieldProcessor() __asm { rep nop }
-
-  __forceinline void MemoryBarrier()
+  #define MemoryBarrier() MemoryBarrierImpl()
+  __forceinline void MemoryBarrierImpl()
   {
       int32_t Barrier;
       __asm {
@@ -170,7 +178,164 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #endif
 #else // _MSC_VER
 
+// Only clang defines __has_builtin, so we first test for a GCC define
+// before using __has_builtin.
+
+#if defined(__i386__) || defined(__x86_64__)
+
+#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || __has_builtin(__builtin_ia32_pause)
+ // clang added this intrinsic in 3.8
+ // gcc added this intrinsic by 4.7.1
+ #define YieldProcessor __builtin_ia32_pause
+#endif // __has_builtin(__builtin_ia32_pause)
+
+#if defined(__GNUC__) || __has_builtin(__builtin_ia32_mfence)
+ // clang has had this intrinsic since at least 3.0
+ // gcc has had this intrinsic since forever
+ #define MemoryBarrier __builtin_ia32_mfence
+#endif // __has_builtin(__builtin_ia32_mfence)
+
+// If we don't have intrinsics, we can do some inline asm instead.
+#ifndef YieldProcessor
+ #define YieldProcessor() asm volatile ("pause")
+#endif // YieldProcessor
+
+#ifndef MemoryBarrier
+ #define MemoryBarrier() asm volatile ("mfence")
+#endif // MemoryBarrier
+
+#endif // defined(__i386__) || defined(__x86_64__)
+
+#ifdef __aarch64__
+ #define YieldProcessor() asm volatile ("yield")
+ #define MemoryBarrier __sync_synchronize
+#endif // __aarch64__
+
+#ifdef __arm__
+ #define YieldProcessor()
+ #define MemoryBarrier __sync_synchronize
+#endif // __arm__
+
 #endif // _MSC_VER
+
+#ifdef _MSC_VER
+#pragma intrinsic(_BitScanForward)
+#if WIN64
+ #pragma intrinsic(_BitScanForward64)
+#endif
+#endif // _MSC_VER
+
+// Cross-platform wrapper for the _BitScanForward compiler intrinsic.
+inline uint8_t BitScanForward(uint32_t *bitIndex, uint32_t mask)
+{
+#ifdef _MSC_VER
+    return _BitScanForward((unsigned long*)bitIndex, mask);
+#else // _MSC_VER
+    unsigned char ret = FALSE;
+    int iIndex = __builtin_ffsl(mask);
+    if (iIndex != 0)
+    {
+        *bitIndex = (uint32_t)(iIndex - 1);
+        ret = TRUE;
+    }
+
+    return ret;
+#endif // _MSC_VER
+}
+
+// Cross-platform wrapper for the _BitScanForward64 compiler intrinsic.
+inline uint8_t BitScanForward64(uint32_t *bitIndex, uint64_t mask)
+{
+#ifdef _MSC_VER
+ #if _WIN32
+    // MSVC targeting a 32-bit target does not support this intrinsic.
+    // We can fake it using two successive invocations of _BitScanForward.
+    uint32_t hi = (mask >> 32) & 0xFFFFFFFF;
+    uint32_t lo = mask & 0xFFFFFFFF;
+    uint32_t fakeBitIndex = 0;
+    
+    uint8_t result = BitScanForward(bitIndex, lo);
+    if (result == 0)
+    {
+        result = BitScanForward(&fakeBitIndex, hi);
+        if (result != 0)
+        {
+            *bitIndex = fakeBitIndex + 32;
+        }
+    }
+
+    return result;
+ #else
+    return _BitScanForward64((unsigned long*)bitIndex, mask);
+ #endif // _WIN32
+#else
+    unsigned char ret = FALSE;
+    int iIndex = __builtin_ffsll(mask);
+    if (iIndex != 0)
+    {
+        *bitIndex = (uint32_t)(iIndex - 1);
+        ret = TRUE;
+    }
+
+    return ret;
+#endif // _MSC_VER
+}
+
+// Aligns a size_t to the specified alignment. Alignment must be a power
+// of two.
+inline size_t ALIGN_UP(size_t val, size_t alignment)
+{
+    // alignment factor must be power of two
+    assert((alignment & (alignment - 1)) == 0);
+    size_t result = (val + (alignment - 1)) & ~(alignment - 1);
+    assert(result >= val);
+    return result;
+}
+
+// Aligns a pointer to the specified alignment. Alignment must be a power
+// of two.
+inline uint8_t* ALIGN_UP(uint8_t* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<uint8_t*>(ALIGN_UP(as_size_t, alignment));
+}
+
+// Aligns a size_t to the specified alignment by rounding down. Alignment must
+// be a power of two.
+inline size_t ALIGN_DOWN(size_t val, size_t alignment)
+{
+    // alignment factor must be power of two.
+    assert((alignment & (alignment - 1)) == 0);
+    size_t result = val & ~(alignment - 1);
+    return result;
+}
+
+// Aligns a pointer to the specified alignment by rounding down. Alignment
+// must be a power of two.
+inline uint8_t* ALIGN_DOWN(uint8_t* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<uint8_t*>(ALIGN_DOWN(as_size_t, alignment));
+}
+
+// Aligns a void pointer to the specified alignment by rounding down. Alignment
+// must be a power of two.
+inline void* ALIGN_DOWN(void* ptr, size_t alignment)
+{
+    size_t as_size_t = reinterpret_cast<size_t>(ptr);
+    return reinterpret_cast<void*>(ALIGN_DOWN(as_size_t, alignment));
+}
+
+inline int GetRandomInt(int max)
+{
+    return rand() % max;
+}
+
+typedef struct _PROCESSOR_NUMBER {
+    uint16_t Group;
+    uint8_t Number;
+    uint8_t Reserved;
+} PROCESSOR_NUMBER, *PPROCESSOR_NUMBER;
 
 #endif // _INC_WINDOWS
 
@@ -213,7 +378,6 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 #define WRAPPER(_contract)
 #define DISABLED(_contract)
 #define INJECT_FAULT(_expr)
-#define INJECTFAULT_HANDLETABLE 0x1
 #define INJECTFAULT_GCHEAP 0x2
 #define FAULT_NOT_FATAL()
 #define BEGIN_DEBUG_ONLY_CODE
@@ -230,75 +394,25 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
 //
 // Data access macros
 //
-#ifdef DACCESS_COMPILE
-#include "daccess.h"
-#else // DACCESS_COMPILE
 typedef uintptr_t TADDR;
-
 #define PTR_TO_TADDR(ptr) ((TADDR)(ptr))
 
 #define DPTR(type) type*
 #define SPTR(type) type*
-
-#define GVAL_DECL(type, var) \
-    extern type var
-#define GVAL_IMPL(type, var) \
-    type var
-
-#define GPTR_DECL(type, var) \
-    extern type* var
-#define GPTR_IMPL(type, var) \
-    type* var
-#define GPTR_IMPL_INIT(type, var, init) \
-    type* var = init
-
-#define SPTR_DECL(type, var) \
-    static type* var
-#define SPTR_IMPL(type, cls, var) \
-    type * cls::var
-#define SPTR_IMPL_NS(type, ns, cls, var) \
-    type * cls::var
-#define SPTR_IMPL_NS_INIT(type, ns, cls, var, init) \
-    type * cls::var = init
-
-#define SVAL_DECL(type, var) \
-    static type var
-#define SVAL_IMPL_NS(type, ns, cls, var) \
-    type cls::var
-#define SVAL_IMPL_NS_INIT(type, ns, cls, var, init) \
-    type cls::var = init
-
-#define GARY_DECL(type, var, size) \
-    extern type var[size]
-#define GARY_IMPL(type, var, size) \
-    type var[size]
-
-struct _DacGlobals;
-#endif // DACCESS_COMPILE
-
 typedef DPTR(size_t)    PTR_size_t;
 typedef DPTR(uint8_t)   PTR_uint8_t;
 
 // -----------------------------------------------------------------------------------------------------------
 
 #define DATA_ALIGNMENT sizeof(uintptr_t)
-
 #define RAW_KEYWORD(x) x
-
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
-
-#define OS_PAGE_SIZE 4096
-
 #ifndef _ASSERTE
 #define _ASSERTE(_expr) ASSERT(_expr)
 #endif
-
 #define CONSISTENCY_CHECK(_expr) ASSERT(_expr)
-
 #define PREFIX_ASSUME(cond) ASSERT(cond)
-
 #define EEPOLICY_HANDLE_FATAL_ERROR(error) ASSERT(!"EEPOLICY_HANDLE_FATAL_ERROR")
-
 #define UI64(_literal) _literal##ULL
 
 class ObjHeader;
@@ -316,156 +430,13 @@ typedef PTR_PTR_Object PTR_OBJECTREF;
 typedef PTR_Object _UNCHECKED_OBJECTREF;
 typedef PTR_PTR_Object PTR_UNCHECKED_OBJECTREF;
 
-#ifndef DACCESS_COMPILE
-struct OBJECTHANDLE__
-{
-    void* unused;
-};
-typedef struct OBJECTHANDLE__* OBJECTHANDLE;
-#else
-typedef TADDR OBJECTHANDLE;
-#endif
-
 // With no object reference wrapping the following macros are very simple.
 #define ObjectToOBJECTREF(_obj) (OBJECTREF)(_obj)
 #define OBJECTREFToObject(_obj) (Object*)(_obj)
 
-#define VALIDATEOBJECTREF(_objref) _objref;
+#define VALIDATEOBJECTREF(_objref) (void)_objref;
 
-#define VOLATILE(T) T volatile
-
-//
-// This code is extremely compiler- and CPU-specific, and will need to be altered to 
-// support new compilers and/or CPUs.  Here we enforce that we can only compile using
-// VC++, or Clang on x86, AMD64, ARM and ARM64.
-// 
-#if !defined(_MSC_VER) && !defined(__clang__)
-#error The Volatile type is currently only defined for Visual C++ and Clang
-#endif
-
-#if defined(__clang__) && !defined(_X86_) && !defined(_AMD64_) && !defined(_ARM_) && !defined(_ARM64_)
-#error The Volatile type is currently only defined for Clang when targeting x86, AMD64, ARM or ARM64 CPUs
-#endif
-
-#if defined(__clang__)
-#if defined(_ARM_) || defined(_ARM64_)
-// This is functionally equivalent to the MemoryBarrier() macro used on ARM on Windows.
-#define VOLATILE_MEMORY_BARRIER() asm volatile ("dmb sy" : : : "memory")
-#else
-//
-// For Clang, we prevent reordering by the compiler by inserting the following after a volatile
-// load (to prevent subsequent operations from moving before the read), and before a volatile 
-// write (to prevent prior operations from moving past the write).  We don't need to do anything
-// special to prevent CPU reorderings, because the x86 and AMD64 architectures are already
-// sufficiently constrained for our purposes.  If we ever need to run on weaker CPU architectures
-// (such as PowerPC), then we will need to do more work.
-// 
-// Please do not use this macro outside of this file.  It is subject to change or removal without
-// notice.
-//
-#define VOLATILE_MEMORY_BARRIER() asm volatile ("" : : : "memory")
-#endif // !_ARM_
-#elif defined(_ARM_) && _ISO_VOLATILE
-// ARM has a very weak memory model and very few tools to control that model. We're forced to perform a full
-// memory barrier to preserve the volatile semantics. Technically this is only necessary on MP systems but we
-// currently don't have a cheap way to determine the number of CPUs from this header file. Revisit this if it
-// turns out to be a performance issue for the uni-proc case.
-#define VOLATILE_MEMORY_BARRIER() MemoryBarrier()
-#else
-//
-// On VC++, reorderings at the compiler and machine level are prevented by the use of the 
-// "volatile" keyword in VolatileLoad and VolatileStore.  This should work on any CPU architecture
-// targeted by VC++ with /iso_volatile-.
-//
-#define VOLATILE_MEMORY_BARRIER()
-#endif
-
-//
-// VolatileLoad loads a T from a pointer to T.  It is guaranteed that this load will not be optimized
-// away by the compiler, and that any operation that occurs after this load, in program order, will
-// not be moved before this load.  In general it is not guaranteed that the load will be atomic, though
-// this is the case for most aligned scalar data types.  If you need atomic loads or stores, you need
-// to consult the compiler and CPU manuals to find which circumstances allow atomicity.
-//
-template<typename T>
-inline
-T VolatileLoad(T const * pt)
-{
-    T val = *(T volatile const *)pt;
-    VOLATILE_MEMORY_BARRIER();
-    return val;
-}
-
-template<typename T>
-inline
-T VolatileLoadWithoutBarrier(T const * pt)
-{
-#ifndef DACCESS_COMPILE
-    T val = *(T volatile const *)pt;
-#else
-    T val = *pt;
-#endif
-    return val;
-}
-
-//
-// VolatileStore stores a T into the target of a pointer to T.  Is is guaranteed that this store will
-// not be optimized away by the compiler, and that any operation that occurs before this store, in program
-// order, will not be moved after this store.  In general, it is not guaranteed that the store will be
-// atomic, though this is the case for most aligned scalar data types.  If you need atomic loads or stores,
-// you need to consult the compiler and CPU manuals to find which circumstances allow atomicity.
-//
-template<typename T>
-inline
-void VolatileStore(T* pt, T val)
-{
-    VOLATILE_MEMORY_BARRIER();
-    *(T volatile *)pt = val;
-}
-
-extern GCSystemInfo g_SystemInfo;
-
-extern MethodTable * g_pFreeObjectMethodTable;
-
-extern int32_t g_TrapReturningThreads;
-
-extern bool g_fFinalizerRunOnShutDown;
-
-//
-// Locks
-//
-
-struct alloc_context;
 class Thread;
-
-Thread * GetThread();
-
-typedef void (CALLBACK *HANDLESCANPROC)(PTR_UNCHECKED_OBJECTREF pref, uintptr_t *pExtraInfo, uintptr_t param1, uintptr_t param2);
-
-class FinalizerThread
-{
-public:
-    static bool Initialize();
-    static void EnableFinalization();
-
-    static bool HaveExtraWorkForFinalizer();
-
-    static bool IsCurrentThreadFinalizer();
-    static void Wait(DWORD timeout, bool allowReentrantWait = false);
-    static bool WatchDog();
-    static void SignalFinalizationDone(bool fFinalizer);
-    static void SetFinalizerThread(Thread * pThread);
-    static HANDLE GetFinalizerEvent();
-};
-
-#ifdef FEATURE_REDHAWK
-typedef uint32_t (__stdcall *BackgroundCallback)(void* pCallbackContext);
-REDHAWK_PALIMPORT bool REDHAWK_PALAPI PalStartBackgroundGCThread(BackgroundCallback callback, void* pCallbackContext);
-#endif // FEATURE_REDHAWK
-
-void DestroyThread(Thread * pThread);
-
-bool IsGCSpecialThread();
 
 inline bool dbgOnly_IsSpecialEEThread()
 {
@@ -495,82 +466,6 @@ namespace ETW
     } GC_ROOT_KIND;
 };
 
-//
-// Logging
-//
-
-#ifdef _MSC_VER
-#define SUPPRESS_WARNING_4127   \
-    __pragma(warning(push))     \
-    __pragma(warning(disable:4127)) /* conditional expression is constant*/
-#define POP_WARNING_STATE       \
-    __pragma(warning(pop))
-#else // _MSC_VER
-#define SUPPRESS_WARNING_4127
-#define POP_WARNING_STATE
-#endif // _MSC_VER
-
-#define WHILE_0             \
-    SUPPRESS_WARNING_4127   \
-    while(0)                \
-    POP_WARNING_STATE       \
-
-#define LOG(x)
-
-void LogSpewAlways(const char *fmt, ...);
-
-#define LL_INFO10 4
-
-#define STRESS_LOG_VA(msg)                                              do { } WHILE_0
-#define STRESS_LOG0(facility, level, msg)                               do { } WHILE_0
-#define STRESS_LOG1(facility, level, msg, data1)                        do { } WHILE_0
-#define STRESS_LOG2(facility, level, msg, data1, data2)                 do { } WHILE_0
-#define STRESS_LOG3(facility, level, msg, data1, data2, data3)          do { } WHILE_0
-#define STRESS_LOG4(facility, level, msg, data1, data2, data3, data4)   do { } WHILE_0
-#define STRESS_LOG5(facility, level, msg, data1, data2, data3, data4, data5)   do { } WHILE_0
-#define STRESS_LOG6(facility, level, msg, data1, data2, data3, data4, data5, data6)   do { } WHILE_0
-#define STRESS_LOG7(facility, level, msg, data1, data2, data3, data4, data5, data6, data7)   do { } WHILE_0
-#define STRESS_LOG_PLUG_MOVE(plug_start, plug_end, plug_delta)          do { } WHILE_0
-#define STRESS_LOG_ROOT_PROMOTE(root_addr, objPtr, methodTable)         do { } WHILE_0
-#define STRESS_LOG_ROOT_RELOCATE(root_addr, old_value, new_value, methodTable) do { } WHILE_0
-#define STRESS_LOG_GC_START(gcCount, Gen, collectClasses)               do { } WHILE_0
-#define STRESS_LOG_GC_END(gcCount, Gen, collectClasses)                 do { } WHILE_0
-#define STRESS_LOG_OOM_STACK(size)   do { } while(0)
-#define STRESS_LOG_RESERVE_MEM(numChunks) do {} while (0)
-#define STRESS_LOG_GC_STACK
-
-#define DEFAULT_GC_PRN_LVL 3
-
-// -----------------------------------------------------------------------------------------------------------
-
-void StompWriteBarrierEphemeral();
-void StompWriteBarrierResize(bool bReqUpperBoundsCheck);
-
-class CLRConfig
-{
-public:
-    enum CLRConfigTypes
-    {
-        UNSUPPORTED_GCLogEnabled,
-        UNSUPPORTED_GCLogFile,
-        UNSUPPORTED_GCLogFileSize,
-        UNSUPPORTED_GCConfigLogEnabled,
-        UNSUPPORTED_GCConfigLogFile,
-        UNSUPPORTED_BGCSpinCount,
-        UNSUPPORTED_BGCSpin,
-        EXTERNAL_GCStressStart,
-        INTERNAL_GCStressStartAtJit,
-        INTERNAL_DbgDACSkipVerifyDlls,
-        Config_COUNT
-    };
-
-    typedef CLRConfigTypes ConfigDWORDInfo;
-    typedef CLRConfigTypes ConfigStringInfo;
-
-    static uint32_t GetConfigValue(ConfigDWORDInfo eType);
-    static HRESULT GetConfigValue(ConfigStringInfo /*eType*/, TCHAR * * outVal);
-};
-
 inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
@@ -593,50 +488,5 @@ struct ADIndex
     BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
     BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
 };
-
-class AppDomain
-{
-public:
-    ADIndex GetIndex() { return ADIndex(RH_DEFAULT_DOMAIN_ID); }
-    BOOL IsRudeUnload() { return FALSE; }
-    BOOL NoAccessToHandleTable() { return FALSE; }
-    void DecNumSizedRefHandles() {}
-};
-
-class SystemDomain
-{
-public:
-    static SystemDomain *System() { return NULL; }
-    static AppDomain *GetAppDomainAtIndex(ADIndex /*index*/) { return (AppDomain *)-1; }
-    static AppDomain *AppDomainBeingUnloaded() { return NULL; }
-    AppDomain *DefaultDomain() { return NULL; }
-    DWORD GetTotalNumSizedRefHandles() { return 0; }
-};
-
-#ifdef STRESS_HEAP
-namespace GCStressPolicy
-{
-    static volatile int32_t s_cGcStressDisables;
-
-    inline bool IsEnabled() { return s_cGcStressDisables == 0; }
-    inline void GlobalDisable() { Interlocked::Increment(&s_cGcStressDisables); }
-    inline void GlobalEnable() { Interlocked::Decrement(&s_cGcStressDisables); }
-}
-
-enum gcs_trigger_points
-{
-    cfg_any,
-};
-
-template <enum gcs_trigger_points tp>
-class GCStress
-{
-public:
-    static inline bool IsEnabled()
-    {
-        return g_pConfig->GetGCStressLevel() != 0;
-    }
-};
-#endif // STRESS_HEAP
 
 #endif // __GCENV_BASE_INCLUDED__

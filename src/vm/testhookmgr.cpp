@@ -621,7 +621,7 @@ HRESULT CLRTestHookManager::UnloadAppDomain(DWORD adid,DWORD flags)
     return hr;
 }
 
-VOID CLRTestHookManager::DoApproriateWait( int cObjs, HANDLE *pObjs, INT32 iTimeout, BOOL bWaitAll, int* res)
+VOID CLRTestHookManager::DoAppropriateWait( int cObjs, HANDLE *pObjs, INT32 iTimeout, BOOL bWaitAll, int* res)
 {
     CONTRACTL
     {
@@ -638,7 +638,6 @@ VOID CLRTestHookManager::DoApproriateWait( int cObjs, HANDLE *pObjs, INT32 iTime
         result=thread->DoAppropriateWait(cObjs,pObjs,bWaitAll,iTimeout,WaitMode_Alertable,NULL);
     else
     {
-        LeaveRuntimeHolder holder((size_t)WaitForSingleObjectEx);
         result = WaitForMultipleObjectsEx(cObjs,pObjs,bWaitAll,iTimeout,TRUE);
     }
 }
@@ -655,7 +654,7 @@ HRESULT CLRTestHookManager::GC(int generation)
     CONTRACTL_END;
 
     _ASSERTE(GetThread()==NULL || !GetThread()->PreemptiveGCDisabled());
-    GCHeap::GetGCHeap()->GarbageCollect(generation);
+    GCHeapUtilities::GetGCHeap()->GarbageCollect(generation);
     FinalizerThread::FinalizerThreadWait();
     return S_OK;
 }

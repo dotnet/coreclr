@@ -12,23 +12,15 @@
 
 #include "gc.h"
 #include "gcscan.h"
+#include "gchandletableimpl.h"
+#include "gceventstatus.h"
 
 #define SERVER_GC 1
+
 
 namespace SVR { 
 #include "gcimpl.h"
 #include "gcee.cpp"
 }
-
-#if defined(FEATURE_PAL) && !defined(DACCESS_COMPILE)
- 
-// Initializes the SVR DAC table entries
-void DacGlobals::InitializeSVREntries(TADDR baseAddress)
-{
-#define DEFINE_DACVAR_SVR(id_type, size, id, var)   id = PTR_TO_TADDR(&var) - baseAddress;
-#include "dacvars.h"
-}
-
-#endif // FEATURE_PAL && !DACCESS_COMPILE
 
 #endif // FEATURE_SVR_GC

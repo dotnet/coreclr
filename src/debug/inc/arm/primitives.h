@@ -17,6 +17,7 @@
 #define THUMB_CODE 1
 #endif
 
+typedef ULONGLONG                   FPRegister64;
 typedef const BYTE                  CORDB_ADDRESS_TYPE;
 typedef DPTR(CORDB_ADDRESS_TYPE)    PTR_CORDB_ADDRESS_TYPE;
 
@@ -30,7 +31,11 @@ typedef DPTR(CORDB_ADDRESS_TYPE)    PTR_CORDB_ADDRESS_TYPE;
 #define STACKWALK_CONTROLPC_ADJUST_OFFSET 2
 
 #define CORDbg_BREAK_INSTRUCTION_SIZE 2
+#ifdef __linux__
+#define CORDbg_BREAK_INSTRUCTION (USHORT)0xde01
+#else
 #define CORDbg_BREAK_INSTRUCTION (USHORT)0xdefe
+#endif
 
 inline CORDB_ADDRESS GetPatchEndAddr(CORDB_ADDRESS patchAddr)
 {
@@ -45,7 +50,7 @@ inline CORDB_ADDRESS GetPatchEndAddr(CORDB_ADDRESS patchAddr)
 template <class T>
 inline T _ClearThumbBit(T addr)
 {
-    return (T)(((DWORD)addr) & ~THUMB_CODE);
+    return (T)(((CORDB_ADDRESS)addr) & ~THUMB_CODE);
 }
 
 
@@ -143,7 +148,7 @@ inline PRD_TYPE CORDbgGetInstruction(UNALIGNED CORDB_ADDRESS_TYPE* address)
 {
     LIMITED_METHOD_CONTRACT;
 
-    ULONG ptraddr = dac_cast<ULONG>(address);
+    CORDB_ADDRESS ptraddr = (CORDB_ADDRESS)address;
     _ASSERTE(ptraddr & THUMB_CODE);
     ptraddr &= ~THUMB_CODE;
     return *(PRD_TYPE *)ptraddr;
@@ -155,13 +160,13 @@ inline void CORDbgSetInstruction(CORDB_ADDRESS_TYPE* address,
     // In a DAC build, this function assumes the input is an host address.
     LIMITED_METHOD_DAC_CONTRACT;
 
-    ULONG ptraddr = dac_cast<ULONG>(address);
+    CORDB_ADDRESS ptraddr = (CORDB_ADDRESS)address;
     _ASSERTE(ptraddr & THUMB_CODE);
     ptraddr &= ~THUMB_CODE;
 
     *(PRD_TYPE *)ptraddr = instruction;
     FlushInstructionCache(GetCurrentProcess(),
-                          address,
+                          _ClearThumbBit(address),
                           sizeof(PRD_TYPE));
 }
 

@@ -15,12 +15,11 @@ using System;
 using System.Collections.Generic;
 
 [assembly: OptimizeForBenchmarks]
-[assembly: MeasureInstructionsRetired]
 
 // using System.Diagnostics;
 // using System.Text.RegularExpressions;
 
-namespace Richards
+namespace V8.Richards
 {
     /// <summary>
     /// Support is used for a place to generate any 'miscellaneous' methods generated as part
@@ -501,7 +500,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-            override 
+            override
 #endif
             TaskControlBlock run(Packet packet)
         {
@@ -521,7 +520,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-            override 
+            override
 #endif
             String toString()
         {
@@ -548,7 +547,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              TaskControlBlock run(Packet packet)
         {
@@ -568,7 +567,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              String toString()
         {
@@ -598,7 +597,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              TaskControlBlock run(Packet packet)
         {
@@ -630,7 +629,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              String toString()
         {
@@ -658,7 +657,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              TaskControlBlock run(Packet packet)
         {
@@ -700,7 +699,7 @@ namespace Richards
 
         public
 #if !INTF_FOR_TASK
-             override 
+             override
 #endif
              String toString()
         {

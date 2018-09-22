@@ -110,6 +110,7 @@ typedef DPTR(struct DebuggerIPCControlBlock) PTR_DebuggerIPCControlBlock;
 
 GPTR_DECL(Debugger,         g_pDebugger);
 GPTR_DECL(EEDebugInterface, g_pEEInterface);
+GVAL_DECL(ULONG,            CLRJitAttachState);
 #ifndef FEATURE_PAL
 GVAL_DECL(HANDLE,           g_hContinueStartupEvent);
 #endif
@@ -397,9 +398,9 @@ inline LPVOID PushedRegAddr(REGDISPLAY* pRD, LPVOID pAddr)
 {
     LIMITED_METHOD_CONTRACT;
 
-#if defined(_TARGET_AMD64_)
+#ifdef WIN64EXCEPTIONS
     if ( ((UINT_PTR)(pAddr) >= (UINT_PTR)pRD->pCurrentContextPointers) &&
-         ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pCurrentContextPointers + sizeof(_KNONVOLATILE_CONTEXT_POINTERS))) )
+         ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pCurrentContextPointers + sizeof(T_KNONVOLATILE_CONTEXT_POINTERS))) )
 #else
     if ( ((UINT_PTR)(pAddr) >= (UINT_PTR)pRD->pContext) &&
          ((UINT_PTR)(pAddr) <= ((UINT_PTR)pRD->pContext + sizeof(T_CONTEXT))) )
@@ -955,6 +956,7 @@ public:
 
         DebuggerJitInfo* m_pCurrent;
         Module* m_pLoaderModuleFilter;
+        MethodDesc* m_pMethodDescFilter;
     public:
         DJIIterator();
 
@@ -964,8 +966,12 @@ public:
 
     };
 
-    // Ensure the DJI cache is completely up to date. (This is heavy weight).
-    void CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pModuleFilter = NULL);
+    // Ensure the DJI cache is completely up to date. (This can be an expensive call, but
+    // much less so if pMethodDescFilter is used).
+    void CreateDJIsForNativeBlobs(AppDomain * pAppDomain, Module * pModuleFilter, MethodDesc * pMethodDescFilter);
+
+    // Ensure the DJI cache is up to date for a particular closed method desc
+    void CreateDJIsForMethodDesc(MethodDesc * pMethodDesc);
 
     // Get an iterator for all native blobs (accounts for Generics, Enc, + Prejiiting).
     // Must be stopped when we do this. This could be heavy weight.
@@ -973,7 +979,9 @@ public:
     // You may optionally pass pLoaderModuleFilter to restrict the DJIs iterated to
     // exist only on MethodDescs whose loader module matches the filter (pass NULL not
     // to filter by loader module).
-    void IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, DJIIterator * pEnum);
+    // You may optionally pass pMethodDescFilter to restrict the DJIs iterated to only
+    // a single generic instantiation.
+    void IterateAllDJIs(AppDomain * pAppDomain, Module * pLoaderModuleFilter, MethodDesc * pMethodDescFilter, DJIIterator * pEnum);
 
 private:
     // The linked list of JIT's of this version of the method.   This will ALWAYS
@@ -1002,8 +1010,8 @@ public:
     DebuggerJitInfo * FindJitInfo(MethodDesc * pMD, TADDR addrNativeStartAddr);
 
     // Creating the Jit-infos.
-    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd);
-    DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr);
+    DebuggerJitInfo *FindOrCreateInitAndAddJitInfo(MethodDesc* fd, PCODE startAddr);
+    DebuggerJitInfo *CreateInitAndAddJitInfo(MethodDesc* fd, TADDR startAddr, BOOL* jitInfoWasCreated);
 
 
     void DeleteJitInfo(DebuggerJitInfo *dji);
@@ -1338,7 +1346,7 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
 
-        PCODE address = (PCODE)addr;
+        PCODE address = PINSTRToPCODE((TADDR)addr);
         return (((address >= m_addrOfHotCode) &&
                  (address <  m_addrOfHotCode + m_sizeOfHotCode)) ||
                 ((address >= m_addrOfColdCode) &&
@@ -2018,11 +2026,12 @@ public:
     DebuggerJitInfo *GetLatestJitInfoFromMethodDesc(MethodDesc * pMethodDesc);
 
 
-    HRESULT GetILToNativeMapping(MethodDesc *pMD, ULONG32 cMap, ULONG32 *pcMap,
+    HRESULT GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap,
                                  COR_DEBUG_IL_TO_NATIVE_MAP map[]);
 
     HRESULT GetILToNativeMappingIntoArrays(
-        MethodDesc * pMD, 
+        MethodDesc * pMethodDesc,
+        PCODE pCode, 
         USHORT cMapMax, 
         USHORT * pcMap,
         UINT ** prguiILOffset, 
@@ -2670,6 +2679,7 @@ private:
         ipce->hr = S_OK;
 
         ipce->processId = m_processId;
+        ipce->threadId = 0;
         // AppDomain, Thread, are already initialized
     }
 
@@ -2700,6 +2710,7 @@ private:
         ipce->type = type;
         ipce->hr = S_OK;
         ipce->processId = m_processId;
+        ipce->threadId = pThread ? pThread->GetOSThreadId() : 0;
         ipce->vmAppDomain = vmAppDomain;
         ipce->vmThread.SetRawPtr(pThread);
     }
@@ -2772,8 +2783,6 @@ public:
 
     bool ResumeThreads(AppDomain* pAppDomain);
 
-    static DWORD WaitForSingleObjectHelper(HANDLE handle, DWORD dwMilliseconds);
-
     void ProcessAnyPendingEvals(Thread *pThread);
 
     bool HasLazyData();
@@ -2843,13 +2852,7 @@ private:
 #endif
     LONG                  m_threadsAtUnsafePlaces;
     Volatile<BOOL>        m_jitAttachInProgress;
-
-    // True if after the jit attach we plan to send a managed non-catchup
-    // debug event
-    BOOL                  m_attachingForManagedEvent;
     BOOL                  m_launchingDebugger;
-    BOOL                  m_userRequestedDebuggerLaunch;
-
     BOOL                  m_LoggingEnabled;
     AppDomainEnumerationIPCBlock    *m_pAppDomainCB;
 
@@ -2967,8 +2970,6 @@ void RedirectedHandledJITCaseForDbgThreadControl_StubEnd();
 void RedirectedHandledJITCaseForUserSuspend_Stub();
 void RedirectedHandledJITCaseForUserSuspend_StubEnd();
 
-void RedirectedHandledJITCaseForYieldTask_Stub();
-void RedirectedHandledJITCaseForYieldTask_StubEnd();
 #if defined(HAVE_GCCOVER) && defined(_TARGET_AMD64_)
 void RedirectedHandledJITCaseForGCStress_Stub();
 void RedirectedHandledJITCaseForGCStress_StubEnd();
@@ -3431,7 +3432,7 @@ public:
     BYTE                              *m_argData;
     MethodDesc                        *m_md;
     PCODE                              m_targetCodeAddr;
-    INT64                              m_result;
+    ARG_SLOT                           m_result[NUMBER_RETURNVALUE_SLOTS];
     TypeHandle                         m_resultType;
     SIZE_T                             m_arrayRank;
     FUNC_EVAL_ABORT_TYPE               m_aborting;          // Has an abort been requested, and what type.
@@ -3512,10 +3513,10 @@ public:
  * ------------------------------------------------------------------------ */
 
 class InteropSafe {};
-#define interopsafe (*(InteropSafe*)NULL)
+extern InteropSafe interopsafe;
 
 class InteropSafeExecutable {};
-#define interopsafeEXEC (*(InteropSafeExecutable*)NULL)
+extern InteropSafeExecutable interopsafeEXEC;
 
 #ifndef DACCESS_COMPILE
 inline void * __cdecl operator new(size_t n, const InteropSafe&)
@@ -3782,30 +3783,6 @@ HANDLE OpenWin32EventOrThrow(
     LPCWSTR lpName
 );
 
-// @todo - should this be moved into where we defined IPCWriterInterface?
-// Holder for security Attribute
-// Old code:
-// hr = g_pIPCManagerInterface->GetSecurityAttributes(GetCurrentProcessId(), &pSA);
-// .... foo(pSa)...
-// g_pIPCManagerInterface->DestroySecurityAttributes(pSA);
-//
-// new code:
-// {
-//  SAHolder x(g_pIPCManagerInterface, GetCurrentProcessId());
-//  .... foo(x.GetSA()) ..
-// } // calls dtor
-class IPCHostSecurityAttributeHolder
-{
-public:
-    IPCHostSecurityAttributeHolder(DWORD pid);
-    ~IPCHostSecurityAttributeHolder();
-
-    SECURITY_ATTRIBUTES * GetHostSA();
-
-protected:
-    SECURITY_ATTRIBUTES *m_pSA; // the resource we're protecting.
-};
-
 #define SENDIPCEVENT_RAW_BEGIN_EX(pDbgLockHolder, gcxStmt)      \
   {                                                             \
     Debugger::DebuggerLockHolder *__pDbgLockHolder = pDbgLockHolder; \
@@ -3946,10 +3923,10 @@ protected:
 #if _DEBUG
 
 #define MAY_DO_HELPER_THREAD_DUTY_THROWS_CONTRACT \
-      if (!m_pRCThread->IsRCThreadReady()) { THROWS; } else { NOTHROW; }
+      if ((m_pRCThread == NULL) || !m_pRCThread->IsRCThreadReady()) { THROWS; } else { NOTHROW; }
 
 #define MAY_DO_HELPER_THREAD_DUTY_GC_TRIGGERS_CONTRACT \
-      if (!m_pRCThread->IsRCThreadReady() || (GetThread() != NULL)) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
+      if ((m_pRCThread == NULL) || !m_pRCThread->IsRCThreadReady() || (GetThread() != NULL)) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
 
 #define GC_TRIGGERS_FROM_GETJITINFO if (GetThreadNULLOk() != NULL) { GC_TRIGGERS; } else { GC_NOTRIGGER; }
 

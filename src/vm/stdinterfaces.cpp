@@ -27,9 +27,6 @@
 #include "threads.h"
 #include "interoputil.h"
 #include "tlbexport.h"
-#ifdef FEATURE_COMINTEROP_TLB_SUPPORT
-#include "comtypelibconverter.h"
-#endif
 #include "comdelegate.h"
 #include "olevariant.h"
 #include "eeconfig.h"
@@ -37,9 +34,6 @@
 #include "posterror.h"
 #include <corerror.h>
 #include <mscoree.h>
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
 #include "mtx.h"
 #include "cgencpu.h"
 #include "interopconverter.h"
@@ -245,30 +239,7 @@ Unknown_QueryInterface_Internal(ComCallWrapper* pWrap, IUnknown* pUnk, REFIID ri
         // If we haven't found the IP or if we haven't looked yet (because we aren't
         // being aggregated), now look on the managed object to see if it supports the interface.
         if (pDestItf == NULL)
-        {
             pDestItf = ComCallWrapper::GetComIPFromCCW(pWrap, riid, NULL, GetComIPFromCCW::CheckVisibility);
-            if (pDestItf == NULL)
-            {
-#ifdef FEATURE_REMOTING
-                // Check if the wrapper is a transparent proxy if so delegate the QI to the real proxy
-                if (pWrap->IsObjectTP())
-                {
-                    ARG_SLOT ret = 0;
-                    {
-                        GCX_COOP_THREAD_EXISTS(GET_THREAD());
-                        OBJECTREF oref = pWrap->GetObjectRef();
-                        OBJECTREF realProxy = ObjectToOBJECTREF(CRemotingServices::GetRealProxy(OBJECTREFToObject(oref)));                
-                        _ASSERTE(realProxy != NULL);            
-                    
-                        if (!CRemotingServices::CallSupportsInterface(realProxy, riid, &ret))
-                            goto ErrExit;
-                    } // end GCX_COOP scope, pDestItf must be assigned to in preemptive mode
-
-                    pDestItf = (IUnknown*)ret;
-                }
-#endif // FEATURE_REMOTING
-            }
-        }
 
 ErrExit:
         // If we succeeded in obtaining the requested IP then return S_OK.
@@ -626,219 +597,8 @@ HRESULT GetITypeLibForAssembly(Assembly *pAssembly, ITypeLib **ppTLB, int bAutoC
     }
     CONTRACTL_END;
     
-#ifdef FEATURE_CORECLR
     //@CORESYSTODO: what to do?
     return E_FAIL;
-#else
-
-    HRESULT     hr = S_OK;              // A result.
-    CQuickWSTRBase  rName;              // Library (scope) or file name.
-    int         bResize=false;          // If true, had to resize the buffer to hold the name.
-    LPCWSTR     szModule=0;             // The module name.
-    GUID        guid;                   // A GUID.
-    ITypeLib    *pITLB=0;               // The TypeLib.
-    Module      *pModule;               // The assembly's module.
-    WCHAR       rcDrive[_MAX_DRIVE];    // Module's drive letter.
-    WCHAR       rcDir[_MAX_DIR];        // Module's directory.
-    WCHAR       rcFname[_MAX_FNAME];    // Module's file name.
-    USHORT      wMajor;                 // Major version number.
-    USHORT      wMinor;                 // Minor version number.
-
-    rName.Init();
-
-    // Check to see if we have a cached copy.
-    pITLB = pAssembly->GetTypeLib();
-    if (pITLB)
-    {
-        // Check to see if the cached value is -1. This indicate that we tried
-        // to export the typelib but that the export failed.
-        if (pITLB == (ITypeLib*)-1)
-        {
-            hr = E_FAIL;
-            goto ReturnHR;
-        }
-
-        // We have a cached copy so return it.
-        *ppTLB = pITLB;
-        hr = S_OK;
-        goto ReturnHR;
-    }
-
-    // Retrieve the name of the module.
-    pModule = pAssembly->GetManifestModule();
-
-    EX_TRY
-    {
-        // SString::ConvertToUnicode is THROW_UNLESS_NORMALIZED
-        szModule = pModule->GetPath();
-    }
-    EX_CATCH_HRESULT(hr);
-    IfFailGo(hr);
-
-    // Retrieve the guid for typelib that would be generated from the assembly.
-    IfFailGo(GetTypeLibGuidForAssembly(pAssembly, &guid));
-
-    // If the typelib is for the runtime library, we'd better know where it is.
-    if (guid == LIBID_ComPlusRuntime)
-    {
-        ULONG dwSize = (ULONG)rName.MaxSize();
-        while (FAILED(GetInternalSystemDirectory(rName.Ptr(), &dwSize)))
-        {
-            IfFailGo(rName.ReSizeNoThrow(dwSize=(ULONG)rName.MaxSize()*2));
-        }
-
-        IfFailGo(rName.ReSizeNoThrow(dwSize + wcslen(g_pwBaseLibraryTLB) + 3));
-        wcscat_s(rName.Ptr(), rName.Size(), g_pwBaseLibraryTLB);
-        hr = LoadTypeLibExWithFlags(rName.Ptr(), flags, &pITLB);
-        goto ErrExit;       
-    }
-
-    // Retrieve the major and minor version number.
-    IfFailGo(GetTypeLibVersionForAssembly(pAssembly, &wMajor, &wMinor));
-
-    // Maybe the module was imported from COM, and we can get the libid of the existing typelib.
-    if (pAssembly->IsImportedFromTypeLib())
-    {
-        hr = LoadRegTypeLibWithFlags(guid, wMajor, wMinor, flags, &pITLB);
-        if (SUCCEEDED(hr))
-            goto ErrExit;
-
-        // Try just the Assembly version
-        pAssembly->GetVersion(&wMajor, &wMinor, NULL, NULL);
-        hr = LoadRegTypeLibWithFlags(guid, wMajor, wMinor, flags, &pITLB);
-        if (SUCCEEDED(hr))
-            goto ErrExit;
-
-        // Try loading the highest registered version.
-        hr = LoadRegTypeLibWithFlags(guid, -1, -1, flags, &pITLB);
-        if (SUCCEEDED(hr))
-            goto ErrExit;
-
-        // The module is known to be imported, so no need to try conversion.
-
-        // Set the error info for most callers.
-        VMPostError(TLBX_E_CIRCULAR_EXPORT2, szModule);
-
-        // Set the hr for the case where we're trying to load a type library to
-        // resolve a type reference from another library.  The error message will
-        // be posted where more information is available.
-        if (hr == TYPE_E_LIBNOTREGISTERED)
-            hr = TLBX_W_LIBNOTREGISTERED;
-        else
-            hr = TLBX_E_CANTLOADLIBRARY;
-
-        IfFailGo(hr);
-    }
-
-    // Try to load the registered typelib.
-    hr = LoadRegTypeLibWithFlags(guid, wMajor, wMinor, flags, &pITLB);
-    if(hr == S_OK)
-        goto ErrExit;
-
-    // Try just the Assembly version
-    pAssembly->GetVersion(&wMajor, &wMinor, NULL, NULL);
-    hr = LoadRegTypeLibWithFlags(guid, wMajor, wMinor, flags, &pITLB);
-    if (SUCCEEDED(hr))
-        goto ErrExit;
-
-    // If that fails, try loading the highest registered version.
-    hr = LoadRegTypeLibWithFlags(guid, -1, -1, flags, &pITLB);
-    if(hr == S_OK)
-        goto ErrExit;
-
-    // If caller only wants registered typelibs, exit now, with error from prior call.
-    if (flags & TlbExporter_OnlyReferenceRegistered)
-        goto ErrExit;
-    
-    // If we haven't managed to find the typelib so far try and load the typelib by name.
-    hr = LoadTypeLibExWithFlags(szModule, flags, &pITLB);
-    if(hr == S_OK)
-    {
-        // Check libid.
-        TLIBATTR *pTlibAttr;
-        int     bMatch;
-        
-        IfFailGo(pITLB->GetLibAttr(&pTlibAttr));
-        bMatch = pTlibAttr->guid == guid;
-        pITLB->ReleaseTLibAttr(pTlibAttr);
-        
-        if (bMatch)
-        {
-            goto ErrExit;
-        }
-        else
-        {
-            SafeReleasePreemp(pITLB);
-            pITLB = NULL;
-            hr = TLBX_E_CANTLOADLIBRARY;
-        }
-    }
-
-    // Add a ".tlb" extension and try again.
-    IfFailGo(rName.ReSizeNoThrow((int)(wcslen(szModule) + 5)));
-    // Check if szModule already has an extension.
-    LPCWSTR ext;
-    size_t extSize;
-    SplitPathInterior(szModule, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, &ext, &extSize);
-    if (ext != nullptr)
-    {
-        // szModule already has an extension. Make a copy without the extension.
-        wcsncpy_s(rName.Ptr(), rName.Size(), szModule, ext - szModule);
-    }
-    else
-    {
-        // szModule does not have an extension. Copy the whole string.
-        wcscpy_s(rName.Ptr(), rName.Size(), szModule);
-    }
-    wcscat_s(rName.Ptr(), rName.Size(), W(".tlb"));
-    
-    hr = LoadTypeLibExWithFlags(rName.Ptr(), flags, &pITLB);
-    if(hr == S_OK)
-    {   
-        // Check libid.
-        TLIBATTR *pTlibAttr;
-        int     bMatch;
-        IfFailGo(pITLB->GetLibAttr(&pTlibAttr));
-        bMatch = pTlibAttr->guid == guid;
-        pITLB->ReleaseTLibAttr(pTlibAttr);
-        if (bMatch)
-        {
-            goto ErrExit;
-        }
-        else
-        {
-            SafeReleasePreemp(pITLB);
-            pITLB = NULL;
-            hr = TLBX_E_CANTLOADLIBRARY;
-        }
-    }
-
-    // If the auto create flag is set then try and export the typelib from the module.
-    if (bAutoCreate)
-    {
-        // Try to export the typelib right now.
-        // This is FTL export (Fractionally Too Late).
-        hr = ExportTypeLibFromLoadedAssemblyNoThrow(pAssembly, 0, &pITLB, 0, flags);
-        if (FAILED(hr))
-        {
-            // If the export failed then remember it failed by setting the typelib
-            // to -1 on the assembly.
-            pAssembly->SetTypeLib((ITypeLib *)-1);
-            IfFailGo(hr);
-        }
-    }   
-
-ErrExit:
-    // If we successfully opened (or created) the typelib, cache a pointer, and return it to caller.
-    if (pITLB)
-    {
-        pAssembly->SetTypeLib(pITLB);
-        *ppTLB = pITLB;
-    }
-ReturnHR:
-    rName.Destroy();
-    return hr;
-#endif //FEATURE_CORECLR
 } // HRESULT GetITypeLibForAssembly()
 
 
@@ -1497,15 +1257,12 @@ Dispatch_GetIDsOfNames(IDispatch* pDisp, REFIID riid, __in_ecount(cNames) OLECHA
         if (pCMT->HasInvisibleParent())
             return E_NOTIMPL;
 
-    // Use the right implementation based on the flags in the ComMethodTable and ComCallWrapperTemplate
-    if (!pCMT->IsDefinedInUntrustedCode())
+    ComCallWrapperTemplate *pTemplate = MapIUnknownToWrapper(pDisp)->GetComCallWrapperTemplate();
+    if (pTemplate->IsUseOleAutDispatchImpl())
     {
-        ComCallWrapperTemplate *pTemplate = MapIUnknownToWrapper(pDisp)->GetComCallWrapperTemplate();
-        if (pTemplate->IsUseOleAutDispatchImpl())
-        {
-            return OleAutDispatchImpl_GetIDsOfNames(pDisp, riid, rgszNames, cNames, lcid, rgdispid);
-        }
+        return OleAutDispatchImpl_GetIDsOfNames(pDisp, riid, rgszNames, cNames, lcid, rgdispid);
     }
+
     return InternalDispatchImpl_GetIDsOfNames(pDisp, riid, rgszNames, cNames, lcid, rgdispid);
 }
 
@@ -1540,14 +1297,10 @@ Dispatch_Invoke
         if (pCMT->HasInvisibleParent())
             return E_NOTIMPL;
 
-    // Use the right implementation based on the flags in the ComMethodTable.
-    if (!pCMT->IsDefinedInUntrustedCode())
+    ComCallWrapperTemplate *pTemplate = MapIUnknownToWrapper(pDisp)->GetComCallWrapperTemplate();
+    if (pTemplate->IsUseOleAutDispatchImpl())
     {
-        ComCallWrapperTemplate *pTemplate = MapIUnknownToWrapper(pDisp)->GetComCallWrapperTemplate();
-        if (pTemplate->IsUseOleAutDispatchImpl())
-        {
-            return OleAutDispatchImpl_Invoke(pDisp, dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
-        }
+        return OleAutDispatchImpl_Invoke(pDisp, dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
     }
 
     return InternalDispatchImpl_Invoke(pDisp, dispidMember, riid, lcid, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
@@ -1650,8 +1403,6 @@ OleAutDispatchImpl_Invoke
             CCWHolder pCCW = ComCallWrapper::GetWrapperFromIP(pDisp);
             pDisp = (IDispatch*)pCCW->GetIClassXIP();
         }
-
-        LeaveRuntimeHolder holder(**(size_t**)pTI);
 
         hr = pTI->Invoke(pDisp, dispidMember, wFlags, pdispparams, pvarResult, pexcepinfo, puArgErr);
     }
@@ -2681,44 +2432,6 @@ HRESULT __stdcall WeakReferenceSource_GetWeakReference (
     return hr;
 }
 
-#ifdef FEATURE_REMOTING
-// HELPER to call RealProxy::GetIUnknown to get the iunknown to give out
-// for this transparent proxy for calls to IMarshal
-IUnknown* GetIUnknownForTransparentProxyHelper(SimpleComCallWrapper *pSimpleWrap)
-{
-    CONTRACT (IUnknown*)
-    {
-        DISABLED(NOTHROW);
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(CheckPointer(pSimpleWrap));
-        POSTCONDITION(CheckPointer(RETVAL));
-    }
-    CONTRACT_END;
-
-    IUnknown* pMarshalerObj = NULL;
-
-    GCX_COOP();
-
-    EX_TRY
-    {
-        OBJECTREF oref = pSimpleWrap->GetObjectRef();
-        GCPROTECT_BEGIN(oref)
-        {
-            pMarshalerObj = GetIUnknownForTransparentProxy(&oref, TRUE);  
-            oref = NULL;
-        }
-        GCPROTECT_END();
-    }
-    EX_CATCH
-    {
-     // ignore
-    }
-    EX_END_CATCH(SwallowAllExceptions)
-   
-    RETURN pMarshalerObj;
-}
-#endif // FEATURE_REMOTING
 
 // Helper to setup IMarshal 
 HRESULT GetSpecialMarshaler(IMarshal* pMarsh, SimpleComCallWrapper* pSimpleWrap, ULONG dwDestContext, IMarshal **ppMarshalRet)
@@ -2735,42 +2448,10 @@ HRESULT GetSpecialMarshaler(IMarshal* pMarsh, SimpleComCallWrapper* pSimpleWrap,
 
     HRESULT hr = S_OK;
 
-#ifdef FEATURE_REMOTING
-    // transparent proxies are special
-    if (pSimpleWrap->IsObjectTP())
-    {
-        SafeComHolderPreemp<IUnknown> pMarshalerObj = NULL;
-
-        pMarshalerObj = GetIUnknownForTransparentProxyHelper(pSimpleWrap);
-        // QI for the IMarshal Interface and verify that we don't get back
-        // a pointer to us (GetIUnknownForTransparentProxyHelper could return
-        // a pointer back to the same object if realproxy::GetCOMIUnknown 
-        // is not overriden
-        if (pMarshalerObj != NULL)
-        {
-            SafeComHolderPreemp<IMarshal> pMsh = NULL;
-            hr = SafeQueryInterfacePreemp(pMarshalerObj, IID_IMarshal, (IUnknown**)&pMsh);
-
-            // make sure we don't recurse
-            if(SUCCEEDED(hr) && pMsh != pMarsh) 
-            {
-                *ppMarshalRet = pMsh.Extract();
-                return S_OK;
-            }
-        }
-    }
-#endif // FEATURE_REMOTING
 
     // In case of APPX process we always use the standard marshaller.
     // In Non-APPX process use standard marshalling for everything except in-proc servers.
     // In case of CoreCLR, we always use the standard marshaller as well.
-#if !defined(FEATURE_CORECLR)
-    if (!AppX::IsAppXProcess() && (dwDestContext == MSHCTX_INPROC))
-    {
-        *ppMarshalRet = NULL;
-        return S_OK;
-    }
-#endif // !FEATURE_CORECLR
     
     SafeComHolderPreemp<IUnknown> pMarshalerObj = NULL;
     IfFailRet(CoCreateFreeThreadedMarshaler(NULL, &pMarshalerObj));
@@ -3084,49 +2765,8 @@ HRESULT __stdcall ManagedObject_GetSerializedBuffer(IManagedObject *pManaged,
     }
     CONTRACTL_END;
 
-#ifdef FEATURE_CORECLR
     _ASSERTE(!"NYI");
     return E_NOTIMPL;
-#else // FEATURE_CORECLR
-
-    HRESULT hr = S_OK;
-    if (pBStr == NULL)
-        return E_POINTER;
-
-    *pBStr = NULL;
-
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-    {
-        GCX_COOP_THREAD_EXISTS(GET_THREAD());
-
-        SimpleComCallWrapper *pSimpleWrap = SimpleComCallWrapper::GetWrapperFromIP( pManaged );
-        ComCallWrapper *pComCallWrap = pSimpleWrap->GetMainWrapper();
-        
-        _ASSERTE(pComCallWrap != NULL);
-        
-         //@todo don't allow serialization of Configured objects through DCOM
-        _ASSERTE(GetThread()->GetDomain()->GetId() == pSimpleWrap->GetDomainID());
-
-        BOOL fLegacyMode = (GetAppDomain()->GetComOrRemotingFlag() == COMorRemoting_LegacyMode);
-        
-        OBJECTREF oref = pComCallWrap->GetObjectRef();
-        GCPROTECT_BEGIN(oref)
-        {
-            // GetSerializedBuffer is only called in cross-runtime/cross-process scenarios so we pass
-            // fCrossRuntime=TRUE unless we are in legacy mode
-            if (!ConvertObjectToBSTR(&oref, !fLegacyMode, pBStr))
-            {
-                // ConvertObjectToBSTR returning FALSE is equivalent to throwing SerializationException
-                hr = COR_E_SERIALIZATION;
-            }
-        }
-        GCPROTECT_END();
-    }
-    END_EXTERNAL_ENTRYPOINT;    
-
-    return hr;
-
-#endif // FEATURE_CORECLR
 }
 
 //------------------------------------------------------------------------------------------

@@ -11,6 +11,10 @@ class FinalizerThread
     static BOOL fRunFinalizersOnUnload;
     static BOOL fQuitFinalizer;
     static AppDomain *UnloadingAppDomain;
+    
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
+    static ULONGLONG LastHeapDumpTime;
+#endif
 
     static CLREvent *hEventFinalizer;
     static CLREvent *hEventFinalizerDone;
@@ -85,9 +89,9 @@ public:
 
     static VOID FinalizerThreadWorker(void *args);
     static void FinalizeObjectsOnShutdown(LPVOID args);
-    static DWORD __stdcall FinalizerThreadStart(void *args);
+    static DWORD WINAPI FinalizerThreadStart(void *args);
 
-    static DWORD FinalizerThreadCreate();
+    static void FinalizerThreadCreate();
     static BOOL FinalizerThreadWatchDog();
 };
 

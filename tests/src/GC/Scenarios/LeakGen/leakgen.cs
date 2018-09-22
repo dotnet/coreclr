@@ -5,6 +5,7 @@
 
 namespace LGen {
     using System;
+    using System.Runtime.CompilerServices;
 
     public class LeakGen
     {
@@ -52,7 +53,6 @@ namespace LGen {
             }
         }
 
-
         public bool runTest(int iRep, int iObj)
         {
 
@@ -62,11 +62,16 @@ namespace LGen {
                 MakeLeak(iObj);
             }
 
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
             Console.WriteLine("~LeakObject() was called {0} times.", LeakObject.icFinal);
             return (LeakObject.icFinal == iObj*iRep);
         }
 
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void MakeLeak(int iObj)
         {
             int [] mem;
@@ -79,12 +84,6 @@ namespace LGen {
                 mem[0] = 1;
                 mem[mem.Length-1] = 1;
             }
-
-            Mv_Obj = null;
-
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
 
         }
 

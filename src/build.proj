@@ -3,25 +3,58 @@
   
   <!-- List the projects that need to be built -->
   <ItemGroup>
-    <Project Include="mscorlib\mscorlib.csproj" />
+    <Project Condition="$(SkipSOS) != 'true'" Include="ToolBox\SOS\NETCore\SOS.NETCore.csproj" />
+    <Project Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
 
   <Import Project="..\dir.targets" />
 
   <Import Project="..\dir.traversal.targets" />
 
+  <Target Name="MovePostBuildBinaries" AfterTargets="Build">
+    <Move SourceFiles="@(BinariesToMove)"
+        DestinationFolder="$(BinDir)" />
+  </Target>
+
   <ItemGroup>
-    <PDBSToMove Include="$(BinDir)mscorlib.pdb"/>
+    <ILToCopy Include="$(BinDir)System.Private.CoreLib.dll"/>
+    <PDBSToMove Include="$(BinDir)System.Private.CoreLib.pdb"/>
   </ItemGroup>
 
   <PropertyGroup>
-    <MscorlibPDBPath>$(BinDir)mscorlib.pdb</MscorlibPDBPath>
+    <CoreLibPath>$(BinDir)System.Private.CoreLib.dll</CoreLibPath>
+    <CoreLibPDBPath>$(BinDir)System.Private.CoreLib.pdb</CoreLibPDBPath>
   </PropertyGroup>
 
+  <Target Name="BuildR2RDumpPackages" Condition="'$(DotNetBuildFromSource)' != 'true' AND '$(BuildManagedTools)' == 'true'" BeforeTargets="Build">
+    <Exec Command="$(DotnetToolCommand) build /p:__BuildArch=$(BuildArch) /p:__BuildOS=$(BuildOS) /p:__BuildType=$(BuildType) tools/r2rdump/R2RDump.csproj"
+          StandardOutputImportance="Low" />
+  </Target>
+
+  <Target Name="CopyCoreLib" AfterTargets="Build">
+    <Copy Condition="Exists($(CoreLibPath))"
+        SourceFiles="@(ILToCopy)"
+        DestinationFolder="$(BinDir)IL" />
+  </Target>
+
   <Target Name="MovePDB" AfterTargets="Build">
-    <Move Condition="Exists($(MscorlibPDBPath))"
+    <Move Condition="Exists($(CoreLibPDBPath))"
         SourceFiles="@(PDBSToMove)"
-        DestinationFolder="$(BinDir)PDB"
-    />
+        DestinationFolder="$(BinDir)PDB" />
+  </Target>
+
+  <PropertyGroup>
+    <RunEnforcePGO Condition="$(__EnforcePgo) == '1'">true</RunEnforcePGO>
+    <RunEnforcePGO Condition="$(__BuildArch) == 'arm' OR $(__BuildArch) == 'arm64'">false</RunEnforcePGO>
+  </PropertyGroup>
+
+  <Target Name="EnforcePGO" Condition="$(RunEnforcePGO) == 'true'" AfterTargets="Build">
+    <ItemGroup>
+      <PGOEnforcedFiles Include="$(BinDir)coreclr.dll" />
+      <PGOEnforcedFiles Include="$(BinDir)clrjit.dll" />
+    </ItemGroup>
+
+    <Message Text="Checking if the following DLLs are properly compiled with PGO" Importance="High" />
+    <Exec Command="python $(MSBuildThisFileDirectory)scripts\pgocheck.py @(PGOEnforcedFiles)" />
   </Target>
 </Project>

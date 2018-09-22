@@ -80,10 +80,8 @@
 #define __field_ecount(EHCount)
 #endif
 
-#ifdef FEATURE_CORECLR
 #undef _Ret_bytecap_
 #define _Ret_bytecap_(_Size) 
-#endif
 
 #ifndef NT_SUCCESS
 #define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
@@ -798,94 +796,7 @@ typedef struct _DYNAMIC_FUNCTION_TABLE {
 #define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf,address) do { (prf)->UnwindData = (address); } while (0)
 #define OFFSETOF__RUNTIME_FUNCTION__UnwindInfoAddress offsetof(T_RUNTIME_FUNCTION, UnwindData)
 
-
-//
-// Define AMD64 exception handling structures and function prototypes.
-//
-// Define unwind operation codes.
-//
-
-typedef enum _UNWIND_OP_CODES {
-    UWOP_PUSH_NONVOL = 0,
-    UWOP_ALLOC_LARGE,
-    UWOP_ALLOC_SMALL,
-    UWOP_SET_FPREG,
-    UWOP_SAVE_NONVOL,
-    UWOP_SAVE_NONVOL_FAR,
-    UWOP_EPILOG,
-    UWOP_SPARE_CODE,
-    UWOP_SAVE_XMM128,
-    UWOP_SAVE_XMM128_FAR,
-    UWOP_PUSH_MACHFRAME
-} UNWIND_OP_CODES, *PUNWIND_OP_CODES;
-
-static const UCHAR UnwindOpExtraSlotTable[] = {
-    0,          // UWOP_PUSH_NONVOL
-    1,          // UWOP_ALLOC_LARGE (or 3, special cased in lookup code)
-    0,          // UWOP_ALLOC_SMALL
-    0,          // UWOP_SET_FPREG
-    1,          // UWOP_SAVE_NONVOL
-    2,          // UWOP_SAVE_NONVOL_FAR
-    1,          // UWOP_EPILOG
-    2,          // UWOP_SPARE_CODE      // previously 64-bit UWOP_SAVE_XMM_FAR
-    1,          // UWOP_SAVE_XMM128
-    2,          // UWOP_SAVE_XMM128_FAR
-    0           // UWOP_PUSH_MACHFRAME
-};
-
-//
-// Define unwind code structure.
-//
-
-typedef union _UNWIND_CODE {
-    struct {
-        UCHAR CodeOffset;
-        UCHAR UnwindOp : 4;
-        UCHAR OpInfo : 4;
-    };
-
-    struct {
-        UCHAR OffsetLow;
-        UCHAR UnwindOp : 4;
-        UCHAR OffsetHigh : 4;
-    } EpilogueCode;
-
-    USHORT FrameOffset;
-} UNWIND_CODE, *PUNWIND_CODE;
-
-//
-// Define unwind information flags.
-//
-
-#define UNW_FLAG_NHANDLER 0x0
-#define UNW_FLAG_EHANDLER 0x1
-#define UNW_FLAG_UHANDLER 0x2
-#define UNW_FLAG_CHAININFO 0x4
-
-typedef struct _UNWIND_INFO {
-    UCHAR Version : 3;
-    UCHAR Flags : 5;
-    UCHAR SizeOfProlog;
-    UCHAR CountOfUnwindCodes;
-    UCHAR FrameRegister : 4;
-    UCHAR FrameOffset : 4;
-    UNWIND_CODE UnwindCode[1];
-
-//
-// The unwind codes are followed by an optional DWORD aligned field that
-// contains the exception handler address or the address of chained unwind
-// information. If an exception handler address is specified, then it is
-// followed by the language specified exception handler data.
-//
-//  union {
-//      ULONG ExceptionHandler;
-//      ULONG FunctionEntry;
-//  };
-//
-//  ULONG ExceptionData[];
-//
-
-} UNWIND_INFO, *PUNWIND_INFO;
+#include "win64unwind.h"
 
 typedef
 PEXCEPTION_ROUTINE
@@ -922,16 +833,60 @@ RtlVirtualUnwind_Unsafe(
 //  X86
 //
 
-#if defined(_TARGET_X86_)
-
-#pragma warning(push)
-#pragma warning (disable:4035)        // disable 4035 (function must return something)
-#define PcTeb 0x18
-#pragma warning(pop)
+#ifdef _TARGET_X86_
+#ifndef FEATURE_PAL
+//
+// x86 ABI does not define RUNTIME_FUNCTION. Define our own to allow unification between x86 and other platforms.
+//
+typedef struct _RUNTIME_FUNCTION {
+    DWORD BeginAddress;
+    DWORD UnwindData;
+} RUNTIME_FUNCTION, *PRUNTIME_FUNCTION;
 
 typedef struct _DISPATCHER_CONTEXT {
     _EXCEPTION_REGISTRATION_RECORD* RegistrationPointer;
 } DISPATCHER_CONTEXT, *PDISPATCHER_CONTEXT;
+
+#endif // !FEATURE_PAL
+
+#define RUNTIME_FUNCTION__BeginAddress(prf)             (prf)->BeginAddress
+#define RUNTIME_FUNCTION__SetBeginAddress(prf,addr)     ((prf)->BeginAddress = (addr))
+
+#ifdef WIN64EXCEPTIONS
+#include "win64unwind.h"
+
+FORCEINLINE
+DWORD
+RtlpGetFunctionEndAddress (
+    __in PT_RUNTIME_FUNCTION FunctionEntry,
+    __in TADDR ImageBase
+    )
+{
+    PTR_UNWIND_INFO pUnwindInfo = (PTR_UNWIND_INFO)(ImageBase + FunctionEntry->UnwindData);
+
+    return FunctionEntry->BeginAddress + pUnwindInfo->FunctionLength;
+}
+
+#define RUNTIME_FUNCTION__EndAddress(prf, ImageBase)   RtlpGetFunctionEndAddress(prf, ImageBase)
+
+#define RUNTIME_FUNCTION__GetUnwindInfoAddress(prf)    (prf)->UnwindData
+#define RUNTIME_FUNCTION__SetUnwindInfoAddress(prf, addr) do { (prf)->UnwindData = (addr); } while(0)
+
+EXTERN_C
+NTSYSAPI
+PEXCEPTION_ROUTINE
+NTAPI
+RtlVirtualUnwind (
+    __in DWORD HandlerType,
+    __in DWORD ImageBase,
+    __in DWORD ControlPc,
+    __in PRUNTIME_FUNCTION FunctionEntry,
+    __inout PT_CONTEXT ContextRecord,
+    __out PVOID *HandlerData,
+    __out PDWORD EstablisherFrame,
+    __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
+    );
+#endif // WIN64EXCEPTIONS
 
 #endif // _TARGET_X86_
 
@@ -952,7 +907,7 @@ FORCEINLINE
 ULONG
 RtlpGetFunctionEndAddress (
     __in PT_RUNTIME_FUNCTION FunctionEntry,
-    __in ULONG ImageBase
+    __in TADDR ImageBase
     )
 {
     ULONG FunctionLength;
@@ -978,6 +933,7 @@ typedef struct _UNWIND_INFO {
     // dummy
 } UNWIND_INFO, *PUNWIND_INFO;
 
+#if defined(FEATURE_PAL) || defined(_X86_)
 EXTERN_C
 NTSYSAPI
 VOID
@@ -1005,6 +961,7 @@ RtlVirtualUnwind (
     __out PDWORD EstablisherFrame,
     __inout_opt PT_KNONVOLATILE_CONTEXT_POINTERS ContextPointers
     );
+#endif // FEATURE_PAL || _X86_
 
 #define UNW_FLAG_NHANDLER 0x0
 
@@ -1063,6 +1020,22 @@ RtlVirtualUnwind(
     OUT PULONG64 EstablisherFrame,
     IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL
     );
+
+#ifndef IMAGE_FILE_MACHINE_ARM64
+#define IMAGE_FILE_MACHINE_ARM64             0xAA64  // ARM64 Little-Endian
+#endif
+
+#ifndef IMAGE_REL_ARM64_BRANCH26
+#define IMAGE_REL_ARM64_BRANCH26        0x0003  // 26 bit offset << 2 & sign ext. for B & BL
+#endif
+
+#ifndef IMAGE_REL_ARM64_PAGEBASE_REL21
+#define IMAGE_REL_ARM64_PAGEBASE_REL21  0x0004  // ADRP 21 bit PC-relative page address
+#endif
+
+#ifndef IMAGE_REL_ARM64_PAGEOFFSET_12A
+#define IMAGE_REL_ARM64_PAGEOFFSET_12A  0x0006  // ADD 12 bit page offset
+#endif
 
 #endif
 

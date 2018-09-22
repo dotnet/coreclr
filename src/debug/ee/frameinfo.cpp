@@ -1424,7 +1424,7 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
 
         d->info.fp = GetFramePointerForDebugger(d, pCF);
 
-#if defined(_DEBUG) && !defined(_TARGET_ARM_)
+#if defined(_DEBUG) && !defined(_TARGET_ARM_) && !defined(_TARGET_ARM64_)
         // Make sure the stackwalk is making progress.
 		// On ARM this is invalid as the stack pointer does necessarily have to move when unwinding a frame.
         _ASSERTE(IsCloserToLeaf(d->previousFP, d->info.fp));
@@ -1563,7 +1563,7 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
     // The only exception is dynamic methods.  We want to report them when SIS is turned on.
     if ((md != NULL) && md->IsILStub() && pCF->IsFrameless())
     {
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
         if(md->AsDynamicMethodDesc()->IsMulticastStub())
         {
             use = true;
@@ -1778,29 +1778,6 @@ StackWalkAction DebuggerWalkStackProc(CrawlFrame *pCF, void *data)
             }
             break;
 
-#ifdef FEATURE_REMOTING
-        case Frame::TYPE_TP_METHOD_FRAME:
-            LOG((LF_CORDB, LL_INFO100000, "DWSP: Frame type is TYPE_TP_METHOD_FRAME.\n"));
-            if (d->ShouldIgnoreNonmethodFrames())
-            {
-                // Transparant Proxies push a frame onto the stack that they
-                // use to figure out where they're really going; this frame
-                // doesn't actually contain any code, although it does have
-                // enough info into fooling our routines into thinking it does:
-                // Just ignore these.
-                LOG((LF_CORDB, LL_INFO100000, "DWSP: Skipping frame 0x%x b/c it's "
-                    "a transparant proxy frame!\n", frame));
-                use = false;
-            }
-            else
-            {
-                // Otherwise do the same thing as for internal frames
-                LOG((LF_CORDB, LL_INFO100000, "DWSP: NOT Skipping frame 0x%x even though it's "
-                    "a transparant proxy frame!\n", frame));
-                INTERNAL_FRAME_ACTION(d, use);
-            }
-            break;
-#endif
         default:
             _ASSERTE(!"Invalid frame type!");
             break;
@@ -2164,7 +2141,9 @@ StackWalkAction DebuggerWalkStack(Thread *thread,
 
         result = g_pEEInterface->StackWalkFramesEx(thread, &data.regDisplay,
                                                    DebuggerWalkStackProc,
-                                                   &data, flags | HANDLESKIPPEDFRAMES | NOTIFY_ON_U2M_TRANSITIONS | ALLOW_ASYNC_STACK_WALK);
+                                                   &data,
+                                                   flags | HANDLESKIPPEDFRAMES | NOTIFY_ON_U2M_TRANSITIONS |
+                                                   ALLOW_ASYNC_STACK_WALK | SKIP_GSCOOKIE_CHECK);
     }
     else
     {

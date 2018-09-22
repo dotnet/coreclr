@@ -133,9 +133,9 @@ inline ULONG   VAL32(ULONG x)
 #define th_htons(w)  (((w) >> 8) | ((w) << 8))
 #endif  // BIGENDIAN
 
+#define _countof(_array) (sizeof(_array)/sizeof(_array[0]))
 
-
-WCHAR* convert(char * aString) 
+WCHAR* convert(const char * aString) 
 {
     int size;
     WCHAR* wideBuffer;
@@ -150,7 +150,7 @@ WCHAR* convert(char * aString)
     return wideBuffer;
 }
 
-char* convertC(WCHAR * wString) 
+char* convertC(const WCHAR * wString) 
 {
     int size;
     char * MultiBuffer = NULL;

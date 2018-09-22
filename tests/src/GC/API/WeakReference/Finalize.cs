@@ -6,12 +6,13 @@
 
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 public class Test {
 
-    public class Dummy {
-
+    public class Dummy 
+    {
         public static bool visited=false;
         ~Dummy() {
             Console.WriteLine("In Finalize() of Dummy");    
@@ -20,17 +21,20 @@ public class Test {
         }
     }
 
-    public class CreateObj {
+    public class CreateObj 
+    {
         Dummy dummy1;
         Dummy dummy2;
 
-        public CreateObj() {
+        public CreateObj() 
+        {
             dummy1 = new Dummy();
             dummy2 = new Dummy();
         }
 
-        public bool RunTest() {
-            
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public GCHandle RunTest()
+        {
             WeakReference weak1 = new WeakReference(dummy1);
             GCHandle handle = GCHandle.Alloc(dummy1,GCHandleType.Normal); // Strong Reference
 
@@ -40,26 +44,30 @@ public class Test {
             dummy1=null;
             dummy2=null;
 
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
-
-            if(Dummy.visited == true) 
-                return true;
-            else 
-                return false;
+            return handle;
         }    
     }
 
-    public static int Main() {
-        
+    public static int Main() 
+    {
         CreateObj temp = new CreateObj();
-        bool passed = temp.RunTest();
+        GCHandle handle = temp.RunTest();
 
-        if(passed) {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        bool success = Dummy.visited;
+
+        handle.Free();
+
+        if (success)
+        {
             Console.WriteLine("Test for WeakReference.Finalize() passed!");
             return 100;
         }
-        else {
+        else 
+        {
             Console.WriteLine("Test for WeakReference.Finalize() failed!");
             return 1;
         }

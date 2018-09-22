@@ -13,18 +13,19 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
   Preconditions
     - All register requirements are expressed in the code stream, either as destination
       registers of tree nodes, or as internal registers.  These requirements are
-      expressed in the TreeNodeInfo (gtLsraInfo) on each node, which includes:
-      - The number of register sources and destinations.
+      expressed in the RefPositions built for each node by BuildNode(), which includes:
+      - The register uses and definitions.
       - The register restrictions (candidates) of the target register, both from itself,
         as producer of the value (dstCandidates), and from its consuming node (srcCandidates).
-        Note that the srcCandidates field of TreeNodeInfo refers to the destination register
+        Note that when we talk about srcCandidates we are referring to the destination register
         (not any of its sources).
       - The number (internalCount) of registers required, and their register restrictions (internalCandidates).
         These are neither inputs nor outputs of the node, but used in the sequence of code generated for the tree.
     "Internal registers" are registers used during the code sequence generated for the node.
     The register lifetimes must obey the following lifetime model:
     - First, any internal registers are defined.
-    - Next, any source registers are used (and are then freed if they are last use and are not identified as "delayRegFree").
+    - Next, any source registers are used (and are then freed if they are last use and are not identified as
+      "delayRegFree").
     - Next, the internal registers are used (and are then freed).
     - Next, any registers in the kill set for the instruction are killed.
     - Next, the destination register(s) are defined (multiple destination registers are only supported on ARM)
@@ -38,9 +39,6 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
   Overview (doLinearScan):
     - Walk all blocks, building intervals and RefPositions (buildIntervals)
-    - Traverse the RefPositions, marking last uses (setLastUses)
-      - Note that this is necessary because the execution order doesn't accurately reflect use order.
-        There is a "TODO-Throughput" to eliminate this.
     - Allocate registers (allocateRegisters)
     - Annotate nodes with register assignments (resolveRegisters)
     - Add move nodes as needed to resolve conflicting register
@@ -51,32 +49,34 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     Tree nodes (GenTree):
     - GenTree::gtRegNum (and gtRegPair for ARM) is annotated with the register
       assignment for a node. If the node does not require a register, it is
-      annotated as such (for single registers, gtRegNum = REG_NA; for register
-      pair type, gtRegPair = REG_PAIR_NONE). For a variable definition or interior
+      annotated as such (gtRegNum = REG_NA). For a variable definition or interior
       tree node (an "implicit" definition), this is the register to put the result.
       For an expression use, this is the place to find the value that has previously
       been computed.
-      - In most cases, this register must satisfy the constraints specified by the TreeNodeInfo.
+      - In most cases, this register must satisfy the constraints specified for the RefPosition.
       - In some cases, this is difficult:
         - If a lclVar node currently lives in some register, it may not be desirable to move it
           (i.e. its current location may be desirable for future uses, e.g. if it's a callee save register,
           but needs to be in a specific arg register for a call).
-        - In other cases there may be conflicts on the restrictions placed by the defining node and the node which consumes it
+        - In other cases there may be conflicts on the restrictions placed by the defining node and the node which
+          consumes it
       - If such a node is constrained to a single fixed register (e.g. an arg register, or a return from a call),
-        then LSRA is free to annotate the node with a different register.  The code generator must issue the appropriate move.
-      - However, if such a node is constrained to a set of registers, and its current location does not satisfy that requirement,
-        LSRA must insert a GT_COPY node between the node and its parent.  The gtRegNum on the GT_COPY node must satisfy the
-        register requirement of the parent.
+        then LSRA is free to annotate the node with a different register.  The code generator must issue the appropriate
+        move.
+      - However, if such a node is constrained to a set of registers, and its current location does not satisfy that
+        requirement, LSRA must insert a GT_COPY node between the node and its parent.  The gtRegNum on the GT_COPY node
+        must satisfy the register requirement of the parent.
     - GenTree::gtRsvdRegs has a set of registers used for internal temps.
-    - A tree node is marked GTF_SPILL if the tree node must be spilled by the code generator after it has been evaluated.
+    - A tree node is marked GTF_SPILL if the tree node must be spilled by the code generator after it has been
+      evaluated.
       - LSRA currently does not set GTF_SPILLED on such nodes, because it caused problems in the old code generator.
         In the new backend perhaps this should change (see also the note below under CodeGen).
     - A tree node is marked GTF_SPILLED if it is a lclVar that must be reloaded prior to use.
       - The register (gtRegNum) on the node indicates the register to which it must be reloaded.
       - For lclVar nodes, since the uses and defs are distinct tree nodes, it is always possible to annotate the node
         with the register to which the variable must be reloaded.
-      - For other nodes, since they represent both the def and use, if the value must be reloaded to a different register,
-        LSRA must insert a GT_RELOAD node in order to specify the register to which it should be reloaded.
+      - For other nodes, since they represent both the def and use, if the value must be reloaded to a different
+        register, LSRA must insert a GT_RELOAD node in order to specify the register to which it should be reloaded.
 
     Local variable table (LclVarDsc):
     - LclVarDsc::lvRegister is set to true if a local variable has the
@@ -96,12 +96,10 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #pragma hdrstop
 #endif
 
-#ifndef LEGACY_BACKEND // This file is ONLY used for the RyuJIT backend that uses the linear scan register allocator
-
 #include "lsra.h"
 
 #ifdef DEBUG
-const char* LinearScan::resolveTypeName[] = { "Split", "Join", "Critical", "SharedCritical" };
+const char* LinearScan::resolveTypeName[] = {"Split", "Join", "Critical", "SharedCritical"};
 #endif // DEBUG
 
 /*XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -114,9 +112,106 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 */
 
-void lsraAssignRegToTree(GenTreePtr tree, regNumber reg)
+//--------------------------------------------------------------
+// lsraAssignRegToTree: Assign the given reg to tree node.
+//
+// Arguments:
+//    tree    -    Gentree node
+//    reg     -    register to be assigned
+//    regIdx  -    register idx, if tree is a multi-reg call node.
+//                 regIdx will be zero for single-reg result producing tree nodes.
+//
+// Return Value:
+//    None
+//
+void lsraAssignRegToTree(GenTree* tree, regNumber reg, unsigned regIdx)
 {
-    tree->gtRegNum  = reg;
+    if (regIdx == 0)
+    {
+        tree->gtRegNum = reg;
+    }
+#if !defined(_TARGET_64BIT_)
+    else if (tree->OperIsMultiRegOp())
+    {
+        assert(regIdx == 1);
+        GenTreeMultiRegOp* mul = tree->AsMultiRegOp();
+        mul->gtOtherReg        = reg;
+    }
+#endif // _TARGET_64BIT_
+#if FEATURE_MULTIREG_RET
+    else if (tree->OperGet() == GT_COPY)
+    {
+        assert(regIdx == 1);
+        GenTreeCopyOrReload* copy = tree->AsCopyOrReload();
+        copy->gtOtherRegs[0]      = (regNumberSmall)reg;
+    }
+#endif // FEATURE_MULTIREG_RET
+#if FEATURE_ARG_SPLIT
+    else if (tree->OperIsPutArgSplit())
+    {
+        GenTreePutArgSplit* putArg = tree->AsPutArgSplit();
+        putArg->SetRegNumByIdx(reg, regIdx);
+    }
+#endif // FEATURE_ARG_SPLIT
+    else
+    {
+        assert(tree->IsMultiRegCall());
+        GenTreeCall* call = tree->AsCall();
+        call->SetRegNumByIdx(reg, regIdx);
+    }
+}
+
+//-------------------------------------------------------------
+// getWeight: Returns the weight of the RefPosition.
+//
+// Arguments:
+//    refPos   -   ref position
+//
+// Returns:
+//    Weight of ref position.
+unsigned LinearScan::getWeight(RefPosition* refPos)
+{
+    unsigned weight;
+    GenTree* treeNode = refPos->treeNode;
+
+    if (treeNode != nullptr)
+    {
+        if (isCandidateLocalRef(treeNode))
+        {
+            // Tracked locals: use weighted ref cnt as the weight of the
+            // ref position.
+            GenTreeLclVarCommon* lclCommon = treeNode->AsLclVarCommon();
+            LclVarDsc*           varDsc    = &(compiler->lvaTable[lclCommon->gtLclNum]);
+            weight                         = varDsc->lvRefCntWtd();
+            if (refPos->getInterval()->isSpilled)
+            {
+                // Decrease the weight if the interval has already been spilled.
+                weight -= BB_UNITY_WEIGHT;
+            }
+        }
+        else
+        {
+            // Non-candidate local ref or non-lcl tree node.
+            // These are considered to have two references in the basic block:
+            // a def and a use and hence weighted ref count would be 2 times
+            // the basic block weight in which they appear.
+            // However, it is generally more harmful to spill tree temps, so we
+            // double that.
+            const unsigned TREE_TEMP_REF_COUNT    = 2;
+            const unsigned TREE_TEMP_BOOST_FACTOR = 2;
+            weight = TREE_TEMP_REF_COUNT * TREE_TEMP_BOOST_FACTOR * blockInfo[refPos->bbNum].weight;
+        }
+    }
+    else
+    {
+        // Non-tree node ref positions.  These will have a single
+        // reference in the basic block and hence their weighted
+        // refcount is equal to the block weight in which they
+        // appear.
+        weight = blockInfo[refPos->bbNum].weight;
+    }
+
+    return weight;
 }
 
 // allRegs represents a set of registers that can
@@ -125,16 +220,33 @@ void lsraAssignRegToTree(GenTreePtr tree, regNumber reg)
 regMaskTP LinearScan::allRegs(RegisterType rt)
 {
     if (rt == TYP_FLOAT)
+    {
         return availableFloatRegs;
+    }
     else if (rt == TYP_DOUBLE)
+    {
         return availableDoubleRegs;
 #ifdef FEATURE_SIMD
-    // TODO-Cleanup: Add an RBM_ALLSIMD
+        // TODO-Cleanup: Add an RBM_ALLSIMD
+    }
     else if (varTypeIsSIMD(rt))
+    {
         return availableDoubleRegs;
 #endif // FEATURE_SIMD
-    else 
+    }
+    else
+    {
         return availableIntRegs;
+    }
+}
+
+regMaskTP LinearScan::allByteRegs()
+{
+#ifdef _TARGET_X86_
+    return availableIntRegs & RBM_BYTE_REGS;
+#else
+    return availableIntRegs;
+#endif
 }
 
 regMaskTP LinearScan::allSIMDRegs()
@@ -156,8 +268,7 @@ regMaskTP LinearScan::allSIMDRegs()
 //    that it will select a callee-save register.  But to be safe, we restrict
 //    the set of candidates if compFloatingPointUsed is not already set.
 
-regMaskTP
-LinearScan::internalFloatRegCandidates()
+regMaskTP LinearScan::internalFloatRegCandidates()
 {
     if (compiler->compFloatingPointUsed)
     {
@@ -170,91 +281,51 @@ LinearScan::internalFloatRegCandidates()
 }
 
 /*****************************************************************************
- * Register types
- *****************************************************************************/
-template <class T>
-RegisterType regType(T type)
-{
-#ifdef FEATURE_SIMD
-    if (varTypeIsSIMD(type)) return FloatRegisterType;
-#endif // FEATURE_SIMD
-    return varTypeIsFloating(TypeGet(type)) ? FloatRegisterType : IntRegisterType;
-}
-
-bool
-useFloatReg(var_types type)
-{
-    return (regType(type) == FloatRegisterType);
-}
-  
-bool registerTypesEquivalent(RegisterType a, RegisterType b)
-{
-    return varTypeIsIntegralOrI(a) == varTypeIsIntegralOrI(b);
-}
-
-bool isSingleRegister(regMaskTP regMask)
-{
-    return (regMask != RBM_NONE && genMaxOneBit(regMask));
-}
-
-#ifdef DEBUG
-// TODO-Cleanup: Consider using a #include file with custom #defines for both defining
-// the enum as well as the string array
-const char * refTypeNames [RefTypeBound];
-const char* shortRefTypeNames[RefTypeBound];
-void initRefTypeNames()
-{
-    refTypeNames[RefTypeInvalid]  = "RefTypeInvalid";
-    refTypeNames[RefTypeDef]      = "RefTypeDef";
-    refTypeNames[RefTypeUse]      = "RefTypeUse";
-    refTypeNames[RefTypeKill]     = "RefTypeKill";
-    refTypeNames[RefTypeBB]       = "RefTypeBB";
-    refTypeNames[RefTypeFixedReg] = "RefTypeFixedReg";
-    refTypeNames[RefTypeParamDef] = "RefTypeParamDef";
-    refTypeNames[RefTypeDummyDef] = "RefTypeDummyDef";
-    refTypeNames[RefTypeExpUse]   = "RefTypeExpUse";
-    refTypeNames[RefTypeZeroInit] = "RefTypeZeroInit";
-    refTypeNames[RefTypeUpperVectorSaveDef] = "RefTypeUpperVectorSaveDef";
-    refTypeNames[RefTypeUpperVectorSaveUse] = "RefTypeUpperVectorSaveUse";
-    refTypeNames[RefTypeKillGCRefs] = "RefTypeKillGCRefs";
-
-    shortRefTypeNames[RefTypeInvalid]  = "Invl";
-    shortRefTypeNames[RefTypeDef]      = "Def ";
-    shortRefTypeNames[RefTypeUse]      = "Use ";
-    shortRefTypeNames[RefTypeKill]     = "Kill";
-    shortRefTypeNames[RefTypeBB]       = "BB  ";
-    shortRefTypeNames[RefTypeFixedReg] = "Fixd";
-    shortRefTypeNames[RefTypeParamDef] = "Parm";
-    shortRefTypeNames[RefTypeDummyDef] = "DDef";
-    shortRefTypeNames[RefTypeExpUse]   = "ExpU";
-    shortRefTypeNames[RefTypeZeroInit] = "Zero";
-    shortRefTypeNames[RefTypeUpperVectorSaveDef] = "UVSv";
-    shortRefTypeNames[RefTypeUpperVectorSaveUse] = "UVRs";
-    shortRefTypeNames[RefTypeKillGCRefs] = "KlGC";
-}
-#endif // DEBUG
-
-/*****************************************************************************
  * Inline functions for RegRecord
  *****************************************************************************/
 
-bool
-RegRecord::isFree()
+bool RegRecord::isFree()
 {
-    return ((assignedInterval == nullptr || !assignedInterval->isActive) &&
-            !isBusyUntilNextKill);
+    return ((assignedInterval == nullptr || !assignedInterval->isActive) && !isBusyUntilNextKill);
 }
 
 /*****************************************************************************
  * Inline functions for LinearScan
  *****************************************************************************/
-RegRecord *
-LinearScan::getRegisterRecord(regNumber regNum)
+RegRecord* LinearScan::getRegisterRecord(regNumber regNum)
 {
+    assert((unsigned)regNum < ArrLen(physRegs));
     return &physRegs[regNum];
 }
 
 #ifdef DEBUG
+
+//----------------------------------------------------------------------------
+// getConstrainedRegMask: Returns new regMask which is the intersection of
+// regMaskActual and regMaskConstraint if the new regMask has at least
+// minRegCount registers, otherwise returns regMaskActual.
+//
+// Arguments:
+//     regMaskActual      -  regMask that needs to be constrained
+//     regMaskConstraint  -  regMask constraint that needs to be
+//                           applied to regMaskActual
+//     minRegCount        -  Minimum number of regs that should be
+//                           be present in new regMask.
+//
+// Return Value:
+//     New regMask that has minRegCount registers after instersection.
+//     Otherwise returns regMaskActual.
+regMaskTP LinearScan::getConstrainedRegMask(regMaskTP regMaskActual, regMaskTP regMaskConstraint, unsigned minRegCount)
+{
+    regMaskTP newMask = regMaskActual & regMaskConstraint;
+    if (genCountBits(newMask) >= minRegCount)
+    {
+        return newMask;
+    }
+
+    return regMaskActual;
+}
+
 //------------------------------------------------------------------------
 // stressLimitRegs: Given a set of registers, expressed as a register mask, reduce
 //            them based on the current stress options.
@@ -269,238 +340,53 @@ LinearScan::getRegisterRecord(regNumber regNum)
 //    This is the method used to implement the stress options that limit
 //    the set of registers considered for allocation.
 
-regMaskTP
-LinearScan::stressLimitRegs(RefPosition* refPosition, regMaskTP mask)
+regMaskTP LinearScan::stressLimitRegs(RefPosition* refPosition, regMaskTP mask)
 {
     if (getStressLimitRegs() != LSRA_LIMIT_NONE)
     {
-        switch(getStressLimitRegs())
+        // The refPosition could be null, for example when called
+        // by getTempRegForResolution().
+        int minRegCount = (refPosition != nullptr) ? refPosition->minRegCandidateCount : 1;
+
+        switch (getStressLimitRegs())
         {
-        case LSRA_LIMIT_CALLEE:
-            if (!compiler->opts.compDbgEnC && (mask & RBM_CALLEE_SAVED) != RBM_NONE)
-                mask &= RBM_CALLEE_SAVED;
-            break;
-        case LSRA_LIMIT_CALLER:
-            if ((mask & RBM_CALLEE_TRASH) != RBM_NONE)
-                mask &= RBM_CALLEE_TRASH;
-            break;
-        case LSRA_LIMIT_SMALL_SET:
-            if ((mask & LsraLimitSmallIntSet) != RBM_NONE)
+            case LSRA_LIMIT_CALLEE:
+                if (!compiler->opts.compDbgEnC)
+                {
+                    mask = getConstrainedRegMask(mask, RBM_CALLEE_SAVED, minRegCount);
+                }
+                break;
+
+            case LSRA_LIMIT_CALLER:
             {
-                mask &= LsraLimitSmallIntSet;
-            }
-            else if ((mask & LsraLimitSmallFPSet) != RBM_NONE)
-            {
-                mask &= LsraLimitSmallFPSet;
+                mask = getConstrainedRegMask(mask, RBM_CALLEE_TRASH, minRegCount);
             }
             break;
-        default:
-            unreached();
+
+            case LSRA_LIMIT_SMALL_SET:
+                if ((mask & LsraLimitSmallIntSet) != RBM_NONE)
+                {
+                    mask = getConstrainedRegMask(mask, LsraLimitSmallIntSet, minRegCount);
+                }
+                else if ((mask & LsraLimitSmallFPSet) != RBM_NONE)
+                {
+                    mask = getConstrainedRegMask(mask, LsraLimitSmallFPSet, minRegCount);
+                }
+                break;
+
+            default:
+                unreached();
         }
+
         if (refPosition != nullptr && refPosition->isFixedRegRef)
         {
             mask |= refPosition->registerAssignment;
         }
     }
+
     return mask;
 }
 #endif // DEBUG
-
-
-// TODO-Cleanup: Consider adding an overload that takes a varDsc, and can appropriately
-// set such fields as isStructField
-
-Interval *
-LinearScan::newInterval(RegisterType theRegisterType)
-{
-    intervals.emplace_back(theRegisterType, allRegs(theRegisterType));
-    Interval *newInt = &intervals.back();
-
-#ifdef DEBUG
-    newInt->intervalIndex = intervalCount;
-    intervalCount++;
-#endif // DEBUG
-
-    DBEXEC(VERBOSE, newInt->dump());
-    return newInt;
-}
-
-RefPosition *
-LinearScan::newRefPositionRaw(LsraLocation nodeLocation, GenTree* treeNode, RefType refType)
-{
-    refPositions.emplace_back(curBBNum, nodeLocation, treeNode, refType);
-    RefPosition *newRP = &refPositions.back();
-#ifdef DEBUG
-    newRP->rpNum = refPositionCount;
-#endif // DEBUG
-    refPositionCount++;
-    return newRP;
-}
-
-//------------------------------------------------------------------------
-// resolveConflictingDefAndUse: Resolve the situation where we have conflicting def and use
-//    register requirements on a single-def, single-use interval.
-//
-// Arguments:
-//    defRefPosition - The interval definition
-//    useRefPosition - The (sole) interval use
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    The two RefPositions are for the same interval, which is a tree-temp.
-//
-// Notes:
-//    We require some special handling for the case where the use is a "delayRegFree" case of a fixedReg.
-//    In that case, if we change the registerAssignment on the useRefPosition, we will lose the fact that,
-//    even if we assign a different register (and rely on codegen to do the copy), that fixedReg also needs
-//    to remain busy until the Def register has been allocated.  In that case, we don't allow Case 1 or Case 4
-//    below.
-//    Here are the cases we consider (in this order):
-//    1. If The defRefPosition specifies a single register, and there are no conflicting
-//       FixedReg uses of it between the def and use, we use that register, and the code generator
-//       will insert the copy.  Note that it cannot be in use because there is a FixedRegRef for the def.
-//    2. If the useRefPosition specifies a single register, and it is not in use, and there are no
-//       conflicting FixedReg uses of it between the def and use, we use that register, and the code generator
-//       will insert the copy.
-//    3. If the defRefPosition specifies a single register (but there are conflicts, as determined
-//       in 1.), and there are no conflicts with the useRefPosition register (if it's a single register),
-///      we set the register requirements on the defRefPosition to the use registers, and the
-//       code generator will insert a copy on the def.  We can't rely on the code generator to put a copy
-//       on the use if it has multiple possible candidates, as it won't know which one has been allocated.
-//    4. If the useRefPosition specifies a single register, and there are no conflicts with the register
-//       on the defRefPosition, we leave the register requirements on the defRefPosition as-is, and set
-//       the useRefPosition to the def registers, for similar reasons to case #3.
-//    5. If both the defRefPosition and the useRefPosition specify single registers, but both have conflicts,
-//       We set the candiates on defRefPosition to be all regs of the appropriate type, and since they are
-//       single registers, codegen can insert the copy.
-//    6. Finally, if the RefPositions specify disjoint subsets of the registers (or the use is fixed but
-//       has a conflict), we must insert a copy.  The copy will be inserted before the use if the
-//       use is not fixed (in the fixed case, the code generator will insert the use).
-//
-// TODO-CQ: We get bad register allocation in case #3 in the situation where no register is
-// available for the lifetime.  We end up allocating a register that must be spilled, and it probably
-// won't be the register that is actually defined by the target instruction.  So, we have to copy it
-// and THEN spill it.  In this case, we should be using the def requirement.  But we need to change
-// the interface to this method a bit to make that work (e.g. returning a candidate set to use, but
-// leaving the registerAssignment as-is on the def, so that if we find that we need to spill anyway
-// we can use the fixed-reg on the def.
-//
-
-void
-LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* defRefPosition)
-{
-    assert(!interval->isLocalVar);
-
-    RefPosition* useRefPosition  = defRefPosition->nextRefPosition;
-    regMaskTP   defRegAssignment = defRefPosition->registerAssignment;
-    regMaskTP   useRegAssignment = useRefPosition->registerAssignment;
-    RegRecord*  defRegRecord     = nullptr;
-    RegRecord*  useRegRecord     = nullptr;
-    regNumber   defReg           = REG_NA;
-    regNumber   useReg           = REG_NA;
-    bool        defRegConflict   = false;
-    bool        useRegConflict   = false;
-
-    // If the useRefPosition is a "delayRegFree", we can't change the registerAssignment
-    // on it, or we will fail to ensure that the fixedReg is busy at the time the target
-    // (of the node that uses this interval) is allocated.
-    bool canChangeUseAssignment = !useRefPosition->isFixedRegRef || !useRefPosition->delayRegFree;
-
-    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CONFLICT));
-    if (!canChangeUseAssignment)
-    {
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_FIXED_DELAY_USE));
-    }
-    if (defRefPosition->isFixedRegRef)
-    {
-        defReg = defRefPosition->assignedReg();
-        defRegRecord = getRegisterRecord(defReg);
-        if (canChangeUseAssignment)
-        {
-            RefPosition* currFixedRegRefPosition = defRegRecord->recentRefPosition;
-            assert(currFixedRegRefPosition != nullptr &&
-                   currFixedRegRefPosition->nodeLocation == defRefPosition->nodeLocation);
-
-            if (currFixedRegRefPosition->nextRefPosition == nullptr ||
-                currFixedRegRefPosition->nextRefPosition->nodeLocation > useRefPosition->getRefEndLocation())
-            {
-                // This is case #1.  Use the defRegAssignment
-                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE1));
-                useRefPosition->registerAssignment = defRegAssignment;
-                return;
-            }
-            else
-            {
-                defRegConflict = true;
-            }
-        }
-    }
-    if (useRefPosition->isFixedRegRef)
-    {
-        useReg = useRefPosition->assignedReg();
-        useRegRecord = getRegisterRecord(useReg);
-        RefPosition* currFixedRegRefPosition = useRegRecord->recentRefPosition;
-
-        // We know that useRefPosition is a fixed use, so the nextRefPosition must not be null.
-        RefPosition* nextFixedRegRefPosition = useRegRecord->getNextRefPosition();
-        assert(nextFixedRegRefPosition != nullptr && nextFixedRegRefPosition->nodeLocation <= useRefPosition->nodeLocation);
-
-        // First, check to see if there are any conflicting FixedReg references between the def and use.
-        if (nextFixedRegRefPosition->nodeLocation == useRefPosition->nodeLocation)
-        {
-            // OK, no conflicting FixedReg references.
-            // Now, check to see whether it is currently in use.
-            if (useRegRecord->assignedInterval != nullptr)
-            {
-                RefPosition* possiblyConflictingRef = useRegRecord->assignedInterval->recentRefPosition;
-                LsraLocation possiblyConflictingRefLocation = possiblyConflictingRef->getRefEndLocation();
-                if (possiblyConflictingRefLocation >= defRefPosition->nodeLocation)
-                {
-                    useRegConflict = true;
-                }
-            }
-            if (!useRegConflict)
-            {
-                // This is case #2.  Use the useRegAssignment
-                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE2));
-                defRefPosition->registerAssignment = useRegAssignment;
-                return;
-            }
-        }
-        else
-        {
-            useRegConflict = true;
-        }
-    }
-    if (defRegRecord != nullptr && !useRegConflict)
-    {
-        // This is case #3.  
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE3));
-        defRefPosition->registerAssignment = useRegAssignment;
-        return;
-    }
-    if (useRegRecord != nullptr && !defRegConflict && canChangeUseAssignment)
-    {
-        // This is case #4.
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE4));
-        useRefPosition->registerAssignment = defRegAssignment;
-        return;
-    }
-    if (defRegRecord != nullptr && useRegRecord != nullptr)
-    {
-        // This is case #5.
-        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE5));
-        RegisterType regType = interval->registerType;
-        assert((getRegisterType(interval, defRefPosition) == regType) && (getRegisterType(interval, useRefPosition) == regType));
-        regMaskTP candidates = allRegs(regType);
-        defRefPosition->registerAssignment = candidates;
-        return;
-    }
-    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_DEFUSE_CASE6));
-    return;
-}
 
 //------------------------------------------------------------------------
 // conflictingFixedRegReference: Determine whether the current RegRecord has a
@@ -519,8 +405,7 @@ LinearScan::resolveConflictingDefAndUse(Interval* interval, RefPosition* defRefP
 // Assumptions:
 //    'refPosition is non-null.
 
-bool
-RegRecord::conflictingFixedRegReference(RefPosition* refPosition)
+bool RegRecord::conflictingFixedRegReference(RefPosition* refPosition)
 {
     // Is this a fixed reference of this register?  If so, there is no conflict.
     if (refPosition->isFixedRefOfRegMask(genRegMask(regNum)))
@@ -535,194 +420,24 @@ RegRecord::conflictingFixedRegReference(RefPosition* refPosition)
     //    if refPosition is a delayed use (i.e. must be kept live through the next/def location).
 
     LsraLocation refLocation = refPosition->nodeLocation;
-    if (recentRefPosition != nullptr &&
-        recentRefPosition->refType != RefTypeKill &&
+    if (recentRefPosition != nullptr && recentRefPosition->refType != RefTypeKill &&
         recentRefPosition->nodeLocation == refLocation &&
         (!isBusyUntilNextKill || assignedInterval != refPosition->getInterval()))
     {
         return true;
     }
     LsraLocation nextPhysRefLocation = getNextRefLocation();
-    if ( nextPhysRefLocation == refLocation ||
-        (refPosition->delayRegFree && nextPhysRefLocation == (refLocation + 1)))
+    if (nextPhysRefLocation == refLocation || (refPosition->delayRegFree && nextPhysRefLocation == (refLocation + 1)))
     {
         return true;
     }
     return false;
 }
 
-void
-LinearScan::applyCalleeSaveHeuristics(RefPosition* rp)
-{
-#ifdef _TARGET_AMD64_
-    if (compiler->opts.compDbgEnC)
-    {
-        // We only use RSI and RDI for EnC code, so we don't want to favor callee-save regs.
-        return;
-    }
-#endif // _TARGET_AMD64_
-
-    Interval * theInterval = rp->getInterval();
-#ifdef DEBUG
-    regMaskTP  calleeSaveMask = calleeSaveRegs(getRegisterType(theInterval, rp));
-    if (doReverseCallerCallee())
-    {
-        regMaskTP newAssignment = rp->registerAssignment;
-        newAssignment &= calleeSaveMask;
-        if (newAssignment != RBM_NONE)
-        {
-            rp->registerAssignment = newAssignment;
-        }        
-    }
-    else
-#endif // DEBUG
-    // Set preferences so that this register set will be preferred for earlier refs
-    theInterval->updateRegisterPreferences(rp->registerAssignment);
-}
-
-void
-LinearScan::associateRefPosWithInterval(RefPosition *rp)
-{
-    Referenceable *theReferent = rp->referent;
-
-    if (theReferent != nullptr)
-    {
-        // All RefPositions except the dummy ones at the beginning of blocks
-
-        if (rp->isIntervalRef())
-        {
-            Interval * theInterval = rp->getInterval();
-
-            applyCalleeSaveHeuristics(rp);
-
-            // Ensure that we have consistent def/use on SDSU temps.
-            // However, in the case of a non-commutative rmw def, we must avoid over-constraining
-            // the def, so don't propagate a single-register restriction from the consumer to the producer
-
-            if (RefTypeIsUse(rp->refType) && !theInterval->isLocalVar)
-            {
-                RefPosition * prevRefPosition = theInterval->recentRefPosition;
-                assert(prevRefPosition != nullptr && theInterval->firstRefPosition == prevRefPosition);
-                regMaskTP prevAssignment = prevRefPosition->registerAssignment;
-                regMaskTP newAssignment = (prevAssignment & rp->registerAssignment);
-                if (newAssignment != RBM_NONE)
-                {
-                    if (!theInterval->hasNonCommutativeRMWDef || !isSingleRegister(newAssignment))
-                        prevRefPosition->registerAssignment = newAssignment;
-                }
-                else
-                {
-                    theInterval->hasConflictingDefUse = true;
-                }
-            }
-        }
-
-        RefPosition * prevRP = theReferent->recentRefPosition;
-        if (prevRP != nullptr)
-        {
-            prevRP->nextRefPosition = rp;
-        }
-        else
-        {
-            theReferent->firstRefPosition = rp;
-        }
-        theReferent->recentRefPosition = rp;
-        theReferent->lastRefPosition = rp;
-    } 
-    else
-    {
-        assert((rp->refType == RefTypeBB) || (rp->refType == RefTypeKillGCRefs));
-    }
-}
-
-RefPosition *
-LinearScan::newRefPosition(
-    regNumber reg, LsraLocation theLocation,
-    RefType theRefType, GenTree * theTreeNode,
-    regMaskTP mask)
-{
-    RefPosition *newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
-
-    newRP->setReg(getRegisterRecord(reg));
-
-    newRP->registerAssignment = mask;
-    associateRefPosWithInterval(newRP);
-
-    DBEXEC(VERBOSE, newRP->dump());
-    return newRP;
-}
-
-
-
-RefPosition *
-LinearScan::newRefPosition(
-    Interval * theInterval, LsraLocation theLocation,
-    RefType theRefType, GenTree * theTreeNode,
-    regMaskTP mask)
-{
-#ifdef DEBUG
-    if (theInterval != nullptr && regType(theInterval->registerType) == FloatRegisterType)
-    {
-        // In the case we're using floating point registers we must make sure
-        // this flag was set previously in the compiler since this will mandate
-        // whether LSRA will take into consideration FP reg killsets.
-        assert(compiler->compFloatingPointUsed ||
-               ((mask & RBM_FLT_CALLEE_SAVED) == 0));
-    }
-#endif // DEBUG
-
-    // If this reference is constrained to a single register (and it's not a dummy
-    // or Kill reftype already), add a RefTypeFixedReg at this location so that its
-    // availability can be more accurately determined
-
-    bool isFixedRegister = isSingleRegister(mask);
-    bool insertFixedRef = false;
-    if (isFixedRegister)
-    {
-        // Insert a RefTypeFixedReg for any normal def or use (not ParamDef or BB)
-        if (theRefType == RefTypeUse || theRefType == RefTypeDef) insertFixedRef = true;
-    }
-
-    if (insertFixedRef)
-    {
-        regNumber physicalReg = genRegNumFromMask(mask);
-        RefPosition *pos = newRefPosition (physicalReg, theLocation,  RefTypeFixedReg, nullptr, mask);
-        assert(theInterval != nullptr);
-        assert((allRegs(theInterval->registerType) & mask) != 0);
-    }
-
-    RefPosition *newRP = newRefPositionRaw(theLocation, theTreeNode, theRefType);
-
-    newRP->setInterval(theInterval);
-
-    // Spill info
-    newRP->isFixedRegRef = isFixedRegister;
-
-    // We don't need this for AMD because the PInvoke method epilog code is explicit
-    // at register allocation time.
-#ifndef _TARGET_AMD64_
-    if (theInterval != nullptr &&
-        theInterval->isLocalVar &&
-        compiler->info.compCallUnmanaged &&
-        theInterval->varNum == compiler->genReturnLocal)
-    {
-        mask &= ~(RBM_PINVOKE_TCB | RBM_PINVOKE_FRAME);
-        noway_assert(mask != RBM_NONE);
-    }
-#endif // !_TARGET_AMD64_
-    newRP->registerAssignment = mask;
-
-    associateRefPosWithInterval(newRP);
-
-    DBEXEC(VERBOSE, newRP->dump());
-    return newRP;
-}
-
 /*****************************************************************************
  * Inline functions for Interval
  *****************************************************************************/
-RefPosition *
-Referenceable::getNextRefPosition()
+RefPosition* Referenceable::getNextRefPosition()
 {
     if (recentRefPosition == nullptr)
     {
@@ -734,10 +449,9 @@ Referenceable::getNextRefPosition()
     }
 }
 
-LsraLocation
-Referenceable::getNextRefLocation()
+LsraLocation Referenceable::getNextRefLocation()
 {
-    RefPosition * nextRefPosition = getNextRefPosition();
+    RefPosition* nextRefPosition = getNextRefPosition();
     if (nextRefPosition == nullptr)
     {
         return MaxLocation;
@@ -757,10 +471,15 @@ public:
     RegisterIterator(RegisterType type) : regType(type)
     {
         if (useFloatReg(regType))
+        {
             currentRegNum = REG_FP_FIRST;
+        }
         else
+        {
             currentRegNum = REG_INT_FIRST;
+        }
     }
+
 protected:
     static RegisterIterator Begin(RegisterType regType)
     {
@@ -773,30 +492,43 @@ protected:
         // if we target a processor with additional register types,
         // this would have to change
         if (useFloatReg(regType))
+        {
             // This just happens to work for both double & float
             endIter.currentRegNum = REG_NEXT(REG_FP_LAST);
+        }
         else
+        {
             endIter.currentRegNum = REG_NEXT(REG_INT_LAST);
+        }
         return endIter;
     }
+
 public:
-    void operator++(int dummy) //int dummy is c++ for "this is postfix ++"
+    void operator++(int dummy) // int dummy is c++ for "this is postfix ++"
     {
         currentRegNum = REG_NEXT(currentRegNum);
 #ifdef _TARGET_ARM_
-        if (regType == TYP_DOUBLE) currentRegNum = REG_NEXT(currentRegNum);
+        if (regType == TYP_DOUBLE)
+            currentRegNum = REG_NEXT(currentRegNum);
 #endif
     }
-    void operator++()   // prefix operator++
+    void operator++() // prefix operator++
     {
         currentRegNum = REG_NEXT(currentRegNum);
 #ifdef _TARGET_ARM_
-        if (regType == TYP_DOUBLE) currentRegNum = REG_NEXT(currentRegNum);
+        if (regType == TYP_DOUBLE)
+            currentRegNum = REG_NEXT(currentRegNum);
 #endif
     }
-    regNumber operator*() { return currentRegNum; }
-    bool operator!=(const RegisterIterator &other) { return other.currentRegNum != currentRegNum; } 
-        
+    regNumber operator*()
+    {
+        return currentRegNum;
+    }
+    bool operator!=(const RegisterIterator& other)
+    {
+        return other.currentRegNum != currentRegNum;
+    }
+
 private:
     regNumber    currentRegNum;
     RegisterType regType;
@@ -807,14 +539,22 @@ class Registers
 public:
     friend class RegisterIterator;
     RegisterType type;
-    Registers(RegisterType t){ type = t; }
-    RegisterIterator begin() { return RegisterIterator::Begin(type); }
-    RegisterIterator end()   { return RegisterIterator::End(type); }
+    Registers(RegisterType t)
+    {
+        type = t;
+    }
+    RegisterIterator begin()
+    {
+        return RegisterIterator::Begin(type);
+    }
+    RegisterIterator end()
+    {
+        return RegisterIterator::End(type);
+    }
 };
 
 #ifdef DEBUG
-void
-LinearScan::dumpVarToRegMap(VarToRegMap map)
+void LinearScan::dumpVarToRegMap(VarToRegMap map)
 {
     bool anyPrinted = false;
     for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
@@ -833,30 +573,26 @@ LinearScan::dumpVarToRegMap(VarToRegMap map)
     printf("\n");
 }
 
-void
-LinearScan::dumpInVarToRegMap(BasicBlock * block)
+void LinearScan::dumpInVarToRegMap(BasicBlock* block)
 {
-    printf("Var=Reg beg of BB%02u: ", block->bbNum);
+    printf("Var=Reg beg of " FMT_BB ": ", block->bbNum);
     VarToRegMap map = getInVarToRegMap(block->bbNum);
     dumpVarToRegMap(map);
 }
 
-void
-LinearScan::dumpOutVarToRegMap(BasicBlock * block)
+void LinearScan::dumpOutVarToRegMap(BasicBlock* block)
 {
-    printf("Var=Reg end of BB%02u: ", block->bbNum);
+    printf("Var=Reg end of " FMT_BB ": ", block->bbNum);
     VarToRegMap map = getOutVarToRegMap(block->bbNum);
     dumpVarToRegMap(map);
 }
 
 #endif // DEBUG
 
-
-LinearScanInterface *getLinearScanAllocator(Compiler *comp)
+LinearScanInterface* getLinearScanAllocator(Compiler* comp)
 {
     return new (comp, CMK_LSRA) LinearScan(comp);
 }
-
 
 //------------------------------------------------------------------------
 // LSRA constructor
@@ -869,25 +605,19 @@ LinearScanInterface *getLinearScanAllocator(Compiler *comp)
 //    during Lowering, including (in DEBUG) getting the stress environment variables,
 //    as they may affect the block ordering.
 
-LinearScan::LinearScan(Compiler * theCompiler)
-    :
-    compiler(theCompiler)
-#if MEASURE_MEM_ALLOC
-    , lsraIAllocator(nullptr)
-#endif // MEASURE_MEM_ALLOC
-    , intervals(LinearScanMemoryAllocatorInterval(theCompiler))
-    , refPositions(LinearScanMemoryAllocatorRefPosition(theCompiler))
+LinearScan::LinearScan(Compiler* theCompiler)
+    : compiler(theCompiler)
+    , intervals(theCompiler->getAllocator(CMK_LSRA_Interval))
+    , refPositions(theCompiler->getAllocator(CMK_LSRA_RefPosition))
+    , listNodePool(theCompiler)
 {
 #ifdef DEBUG
-    intervalCount = 0;
-    maxNodeLocation = 0;
+    maxNodeLocation   = 0;
     activeRefPosition = nullptr;
-    initRefTypeNames();
 
     // Get the value of the environment variable that controls stress for register allocation
     lsraStressMask = JitConfig.JitStressRegs();
 #if 0
-#ifdef DEBUG
     if (lsraStressMask != 0)
     {
         // The code in this #if can be used to debug JitStressRegs issues according to
@@ -915,22 +645,30 @@ LinearScan::LinearScan(Compiler * theCompiler)
         else if (dump == true)
         {
             printf("JitStressRegs = %x for method %s, hash = 0x%x.\n",
-                   lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
+                lsraStressMask, compiler->info.compFullName, compiler->info.compMethodHash());
             printf("");         // in our logic this causes a flush
         }
     }
+#endif // 0
 #endif // DEBUG
+
+    // Assume that we will enregister local variables if it's not disabled. We'll reset it if we
+    // have no tracked locals when we start allocating. Note that new tracked lclVars may be added
+    // after the first liveness analysis - either by optimizations or by Lowering, and the tracked
+    // set won't be recomputed until after Lowering (and this constructor is called prior to Lowering),
+    // so we don't want to check that yet.
+    enregisterLocalVars = ((compiler->opts.compFlags & CLFLG_REGVAR) != 0);
+#ifdef _TARGET_ARM64_
+    availableIntRegs = (RBM_ALLINT & ~(RBM_PR | RBM_FP | RBM_LR) & ~compiler->codeGen->regSet.rsMaskResvd);
+#else
+    availableIntRegs = (RBM_ALLINT & ~compiler->codeGen->regSet.rsMaskResvd);
 #endif
 
-    dumpTerse = (JitConfig.JitDumpTerseLsra() != 0);
-
-#endif // DEBUG
-    refPositionCount = 0;
-    availableIntRegs = (RBM_ALLINT & ~compiler->codeGen->regSet.rsMaskResvd);
 #if ETW_EBP_FRAMED
     availableIntRegs &= ~RBM_FPBASE;
 #endif // ETW_EBP_FRAMED
-    availableFloatRegs = RBM_ALLFLOAT;
+
+    availableFloatRegs  = RBM_ALLFLOAT;
     availableDoubleRegs = RBM_ALLDOUBLE;
 
 #ifdef _TARGET_AMD64_
@@ -939,125 +677,33 @@ LinearScan::LinearScan(Compiler * theCompiler)
         // On x64 when the EnC option is set, we always save exactly RBP, RSI and RDI.
         // RBP is not available to the register allocator, so RSI and RDI are the only
         // callee-save registers available.
-        availableIntRegs    &= ~RBM_CALLEE_SAVED | RBM_RSI | RBM_RDI;
-        availableFloatRegs  &= ~RBM_CALLEE_SAVED;
+        availableIntRegs &= ~RBM_CALLEE_SAVED | RBM_RSI | RBM_RDI;
+        availableFloatRegs &= ~RBM_CALLEE_SAVED;
         availableDoubleRegs &= ~RBM_CALLEE_SAVED;
     }
 #endif // _TARGET_AMD64_
-    compiler->rpFrameType = FT_NOT_SET;
+    compiler->rpFrameType           = FT_NOT_SET;
     compiler->rpMustCreateEBPCalled = false;
 
     compiler->codeGen->intRegState.rsIsFloat   = false;
     compiler->codeGen->floatRegState.rsIsFloat = true;
-    compiler->codeGen->intRegState.rsMaxRegArgNum   = MAX_REG_ARG;
-    compiler->codeGen->floatRegState.rsMaxRegArgNum = MAX_FLOAT_REG_ARG;
 
     // Block sequencing (the order in which we schedule).
     // Note that we don't initialize the bbVisitedSet until we do the first traversal
-    // (currently during Lowering's second phase, where it sets the TreeNodeInfo).
-    // This is so that any blocks that are added during the first phase of Lowering
+    // This is so that any blocks that are added during the first traversal
     // are accounted for (and we don't have BasicBlockEpoch issues).
-    blockSequencingDone = false;
-    blockSequence = nullptr;
+    blockSequencingDone   = false;
+    blockSequence         = nullptr;
     blockSequenceWorkList = nullptr;
-    curBBSeqNum = 0;
-    bbSeqCount = 0;
+    curBBSeqNum           = 0;
+    bbSeqCount            = 0;
 
     // Information about each block, including predecessor blocks used for variable locations at block entry.
     blockInfo = nullptr;
 
-    // Populate the register mask table.
-    // The first two masks in the table are allint/allfloat
-    // The next N are the masks for each single register.
-    // After that are the dynamically added ones.
-    regMaskTable = new (compiler, CMK_LSRA) regMaskTP[numMasks];
-    regMaskTable[ALLINT_IDX]   = allRegs(TYP_INT);
-    regMaskTable[ALLFLOAT_IDX] = allRegs(TYP_DOUBLE);
-
-    regNumber reg;
-    for (reg = REG_FIRST; reg < REG_COUNT; reg = REG_NEXT(reg))
-    {
-        regMaskTable[FIRST_SINGLE_REG_IDX + reg - REG_FIRST] = (reg == REG_STK) ? RBM_NONE : genRegMask(reg);
-    }
-    nextFreeMask = FIRST_SINGLE_REG_IDX + REG_COUNT;
-    noway_assert(nextFreeMask <= numMasks);
+    pendingDelayFree = false;
+    tgtPrefUse       = nullptr;
 }
-
-// Return the reg mask corresponding to the given index.
-regMaskTP LinearScan::GetRegMaskForIndex(RegMaskIndex index)
-{
-    assert(index < numMasks);
-    assert(index < nextFreeMask);
-    return regMaskTable[index];
-}
-
-// Given a reg mask, return the index it corresponds to. If it is not a 'well known' reg mask,
-// add it at the end. This method has linear behavior in the worst cases but that is fairly rare.
-// Most methods never use any but the well-known masks, and when they do use more
-// it is only one or two more.
-LinearScan::RegMaskIndex LinearScan::GetIndexForRegMask(regMaskTP mask)
-{
-    RegMaskIndex result;
-    if (isSingleRegister(mask))
-    {
-        result = genRegNumFromMask(mask) + FIRST_SINGLE_REG_IDX;
-    }
-    else if (mask == allRegs(TYP_INT))
-    {
-        result = ALLINT_IDX;
-    }
-    else if (mask == allRegs(TYP_DOUBLE))
-    {
-        result = ALLFLOAT_IDX;
-    }
-    else
-    {
-        for (int i = FIRST_SINGLE_REG_IDX + REG_COUNT; i < nextFreeMask; i++)
-        {
-            if (regMaskTable[i] == mask)
-                return i;
-        } 
-
-        // We only allocate a fixed number of masks. Since we don't reallocate, we will throw a
-        // noway_assert if we exceed this limit.
-        noway_assert(nextFreeMask < numMasks);
-
-        regMaskTable[nextFreeMask] = mask;
-        result = nextFreeMask;
-        nextFreeMask++;
-    }
-    assert(mask == regMaskTable[result]);
-    return result;
-}
-
-// We've decided that we can't use a register during register allocation (probably FPBASE),
-// but we've already added it to the register masks. Go through the masks and remove it.
-void LinearScan::RemoveRegisterFromMasks(regNumber reg)
-{
-    JITDUMP("Removing register %s from LSRA register masks\n", getRegName(reg));
-
-    regMaskTP mask = ~genRegMask(reg);
-    for (int i = 0; i < nextFreeMask; i++)
-    {
-        regMaskTable[i] &= mask;
-    }
-
-    JITDUMP("After removing register:\n");
-    DBEXEC(VERBOSE, dspRegisterMaskTable());
-}
-
-#ifdef DEBUG
-void LinearScan::dspRegisterMaskTable()
-{
-    printf("LSRA register masks. Total allocated: %d, total used: %d\n", numMasks, nextFreeMask);
-    for (int i = 0; i < nextFreeMask; i++)
-    {
-        printf("%2u: ", i);
-        dspRegMask(regMaskTable[i]);
-        printf("\n");
-    }
-}
-#endif // DEBUG
 
 //------------------------------------------------------------------------
 // getNextCandidateFromWorkList: Get the next candidate for block sequencing
@@ -1076,15 +722,12 @@ void LinearScan::dspRegisterMaskTable()
 //    encountered as both a flow and layout successor of the most recently selected
 //    block.
 
-BasicBlock*
-LinearScan::getNextCandidateFromWorkList()
+BasicBlock* LinearScan::getNextCandidateFromWorkList()
 {
     BasicBlockList* nextWorkList = nullptr;
-    for (BasicBlockList* workList = blockSequenceWorkList;
-         workList != nullptr;
-         workList = nextWorkList)
+    for (BasicBlockList* workList = blockSequenceWorkList; workList != nullptr; workList = nextWorkList)
     {
-        nextWorkList = workList->next;
+        nextWorkList          = workList->next;
         BasicBlock* candBlock = workList->block;
         removeFromBlockSequenceWorkList(workList, nullptr);
         if (!isBlockVisited(candBlock))
@@ -1109,30 +752,30 @@ LinearScan::getNextCandidateFromWorkList()
 //    will be allocated.
 //    This method clears the bbVisitedSet on LinearScan, and when it returns the set
 //    contains all the bbNums for the block.
-//    This requires a traversal of the BasicBlocks, and could potentially be
-//    combined with the first traversal (currently the one in Lowering that sets the
-//    TreeNodeInfo).
 
-void 
-LinearScan::setBlockSequence()
+void LinearScan::setBlockSequence()
 {
     // Reset the "visited" flag on each block.
     compiler->EnsureBasicBlockEpoch();
     bbVisitedSet = BlockSetOps::MakeEmpty(compiler);
-    BlockSet BLOCKSET_INIT_NOCOPY(readySet, BlockSetOps::MakeEmpty(compiler));
+    BlockSet readySet(BlockSetOps::MakeEmpty(compiler));
+    BlockSet predSet(BlockSetOps::MakeEmpty(compiler));
+
     assert(blockSequence == nullptr && bbSeqCount == 0);
-    blockSequence = new (compiler, CMK_LSRA) BasicBlock*[compiler->fgBBcount];
-    bbNumMaxBeforeResolution   = compiler->fgBBNumMax;
-    blockInfo = new(compiler, CMK_LSRA) LsraBlockInfo[bbNumMaxBeforeResolution + 1];
+    blockSequence            = new (compiler, CMK_LSRA) BasicBlock*[compiler->fgBBcount];
+    bbNumMaxBeforeResolution = compiler->fgBBNumMax;
+    blockInfo                = new (compiler, CMK_LSRA) LsraBlockInfo[bbNumMaxBeforeResolution + 1];
 
     assert(blockSequenceWorkList == nullptr);
 
     bool addedInternalBlocks = false;
-    verifiedAllBBs = false;
+    verifiedAllBBs           = false;
+    hasCriticalEdges         = false;
     BasicBlock* nextBlock;
-    for (BasicBlock* block = compiler->fgFirstBB;
-         block != nullptr;
-         block = nextBlock)
+    // We use a bbNum of 0 for entry RefPositions.
+    // The other information in blockInfo[0] will never be used.
+    blockInfo[0].weight = BB_UNITY_WEIGHT;
+    for (BasicBlock* block = compiler->fgFirstBB; block != nullptr; block = nextBlock)
     {
         blockSequence[bbSeqCount] = block;
         markBlockVisited(block);
@@ -1141,22 +784,29 @@ LinearScan::setBlockSequence()
 
         // Initialize the blockInfo.
         // predBBNum will be set later.  0 is never used as a bbNum.
+        assert(block->bbNum != 0);
         blockInfo[block->bbNum].predBBNum = 0;
         // We check for critical edges below, but initialize to false.
-        blockInfo[block->bbNum].hasCriticalInEdge = false;
+        blockInfo[block->bbNum].hasCriticalInEdge  = false;
         blockInfo[block->bbNum].hasCriticalOutEdge = false;
-        blockInfo[block->bbNum].weight = block->bbWeight;
+        blockInfo[block->bbNum].weight             = block->getBBWeight(compiler);
+
+#if TRACK_LSRA_STATS
+        blockInfo[block->bbNum].spillCount         = 0;
+        blockInfo[block->bbNum].copyRegCount       = 0;
+        blockInfo[block->bbNum].resolutionMovCount = 0;
+        blockInfo[block->bbNum].splitEdgeCount     = 0;
+#endif // TRACK_LSRA_STATS
 
         if (block->GetUniquePred(compiler) == nullptr)
         {
-            for (flowList* pred = block->bbPreds;
-                 pred != nullptr;
-                 pred = pred->flNext)
+            for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
             {
-                BasicBlock * predBlock = pred->flBlock;
+                BasicBlock* predBlock = pred->flBlock;
                 if (predBlock->NumSucc(compiler) > 1)
                 {
                     blockInfo[block->bbNum].hasCriticalInEdge = true;
+                    hasCriticalEdges                          = true;
                     break;
                 }
                 else if (predBlock->bbJumpKind == BBJ_SWITCH)
@@ -1176,12 +826,14 @@ LinearScan::setBlockSequence()
             assert(!"Switch with single successor");
         }
 
-        for (unsigned succIndex = 0; succIndex < block->NumSucc(compiler); succIndex++)
+        const unsigned numSuccs = block->NumSucc(compiler);
+        for (unsigned succIndex = 0; succIndex < numSuccs; succIndex++)
         {
             BasicBlock* succ = block->GetSucc(succIndex, compiler);
             if (checkForCriticalOutEdge && succ->GetUniquePred(compiler) == nullptr)
             {
                 blockInfo[block->bbNum].hasCriticalOutEdge = true;
+                hasCriticalEdges                           = true;
                 // We can stop checking now.
                 checkForCriticalOutEdge = false;
             }
@@ -1196,7 +848,7 @@ LinearScan::setBlockSequence()
             // (i.e. pred-first or random, since layout order is handled above).
             if (!BlockSetOps::IsMember(compiler, readySet, succ->bbNum))
             {
-                addToBlockSequenceWorkList(readySet, succ);
+                addToBlockSequenceWorkList(readySet, succ, predSet);
                 BlockSetOps::AddElemD(compiler, readySet, succ->bbNum);
             }
         }
@@ -1216,7 +868,7 @@ LinearScan::setBlockSequence()
             // the blocks - but fgBBcount does not appear to be updated when blocks are removed.
             if (nextBlock == nullptr /* && bbSeqCount != compiler->fgBBcount*/ && !verifiedAllBBs)
             {
-                // If we don't encounter all blocks by traversing the regular sucessor links, do a full
+                // If we don't encounter all blocks by traversing the regular successor links, do a full
                 // traversal of all the blocks, and add them in layout order.
                 // This may include:
                 //   - internal-only blocks (in the fgAddCodeList) which may not be in the flow graph
@@ -1229,7 +881,7 @@ LinearScan::setBlockSequence()
                 {
                     if (!isBlockVisited(block))
                     {
-                        addToBlockSequenceWorkList(readySet, block);
+                        addToBlockSequenceWorkList(readySet, block, predSet);
                         BlockSetOps::AddElemD(compiler, readySet, block->bbNum);
                     }
                 }
@@ -1238,7 +890,7 @@ LinearScan::setBlockSequence()
                 {
                     if (!isBlockVisited(block))
                     {
-                        addToBlockSequenceWorkList(readySet, block);
+                        addToBlockSequenceWorkList(readySet, block, predSet);
                         BlockSetOps::AddElemD(compiler, readySet, block->bbNum);
                     }
                 }
@@ -1254,20 +906,16 @@ LinearScan::setBlockSequence()
 
 #ifdef DEBUG
     // Make sure that we've visited all the blocks.
-    for( BasicBlock* block = compiler->fgFirstBB;
-         block != nullptr;
-         block = block->bbNext)
+    for (BasicBlock* block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
         assert(isBlockVisited(block));
     }
 
     JITDUMP("LSRA Block Sequence: ");
     int i = 1;
-    for (BasicBlock* block = startBlockSequence();
-         block != nullptr;
-         ++i, block = moveToNextBlock())
+    for (BasicBlock *block = startBlockSequence(); block != nullptr; ++i, block = moveToNextBlock())
     {
-        JITDUMP("BB%02u", block->bbNum);
+        JITDUMP(FMT_BB, block->bbNum);
 
         if (block->isMaxBBWeight())
         {
@@ -1302,9 +950,8 @@ LinearScan::setBlockSequence()
 //
 // Notes:
 //    See addToBlockSequenceWorkList.
-int
-LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights)
-{     
+int LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, bool useBlockWeights)
+{
     if (useBlockWeights)
     {
         unsigned weight1 = block1->getBBWeight(compiler);
@@ -1341,6 +988,9 @@ LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, b
 // Arguments:
 //    sequencedBlockSet - the set of blocks that are already sequenced
 //    block             - the new block to be added
+//    predSet           - the buffer to save predecessors set. A block set allocated by the caller used here as a
+//    temporary block set for constructing a predecessor set. Allocated by the caller to avoid reallocating a new block
+//    set with every call to this function
 //
 // Return Value:
 //    None.
@@ -1356,20 +1006,19 @@ LinearScan::compareBlocksForSequencing(BasicBlock* block1, BasicBlock* block2, b
 //    A block at the time of insertion may not have all its predecessors sequenced, in
 //    which case it will be sequenced based on its block number. Once a block is inserted,
 //    its priority\order will not be changed later once its remaining predecessors are
-//    sequenced.  This would mean that work list may not be sorted entirely based on 
+//    sequenced.  This would mean that work list may not be sorted entirely based on
 //    block weights alone.
 //
 //    Note also that, when random traversal order is implemented, this method
 //    should insert the blocks into the list in random order, so that we can always
 //    simply select the first block in the list.
-void
-LinearScan::addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block)
+void LinearScan::addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* block, BlockSet& predSet)
 {
     // The block that is being added is not already sequenced
     assert(!BlockSetOps::IsMember(compiler, sequencedBlockSet, block->bbNum));
 
     // Get predSet of block
-    BlockSet BLOCKSET_INIT_NOCOPY(predSet, BlockSetOps::MakeEmpty(compiler));
+    BlockSetOps::ClearD(compiler, predSet);
     flowList* pred;
     for (pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
     {
@@ -1421,8 +1070,7 @@ LinearScan::addToBlockSequenceWorkList(BlockSet sequencedBlockSet, BasicBlock* b
     }
 }
 
-void
-LinearScan::removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode)
+void LinearScan::removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlockList* prevNode)
 {
     if (listNode == blockSequenceWorkList)
     {
@@ -1439,16 +1087,15 @@ LinearScan::removeFromBlockSequenceWorkList(BasicBlockList* listNode, BasicBlock
 }
 
 // Initialize the block order for allocation (called each time a new traversal begins).
-BasicBlock*
-LinearScan::startBlockSequence()
+BasicBlock* LinearScan::startBlockSequence()
 {
     if (!blockSequencingDone)
     {
         setBlockSequence();
     }
     BasicBlock* curBB = compiler->fgFirstBB;
-    curBBSeqNum = 0;
-    curBBNum = curBB->bbNum;
+    curBBSeqNum       = 0;
+    curBBNum          = curBB->bbNum;
     clearVisitedBlocks();
     assert(blockSequence[0] == compiler->fgFirstBB);
     markBlockVisited(curBB);
@@ -1468,8 +1115,7 @@ LinearScan::startBlockSequence()
 //    This method is used when the next block is actually going to be handled.
 //    It changes curBBNum.
 
-BasicBlock*
-LinearScan::moveToNextBlock()
+BasicBlock* LinearScan::moveToNextBlock()
 {
     BasicBlock* nextBlock = getNextBlock();
     curBBSeqNum++;
@@ -1493,8 +1139,7 @@ LinearScan::moveToNextBlock()
 //    This method does not actually change the current block - it is used simply
 //    to determine which block will be next.
 
-BasicBlock*
-LinearScan::getNextBlock()
+BasicBlock* LinearScan::getNextBlock()
 {
     assert(blockSequencingDone);
     unsigned int nextBBSeqNum = curBBSeqNum + 1;
@@ -1514,21 +1159,19 @@ LinearScan::getNextBlock()
 // Return Value:
 //    None.
 //
-// Assumptions:
-//    Lowering must have set the NodeInfo (gtLsraInfo) on each node to communicate
-//    the register requirements.
 
-void 
-LinearScan::doLinearScan()
+void LinearScan::doLinearScan()
 {
-#ifdef DEBUG
-    if (VERBOSE)
+    // Check to see whether we have any local variables to enregister.
+    // We initialize this in the constructor based on opt settings,
+    // but we don't want to spend time on the lclVar parts of LinearScan
+    // if we have no tracked locals.
+    if (enregisterLocalVars && (compiler->lvaTrackedCount == 0))
     {
-        printf("*************** In doLinearScan\n");
-        printf("Trees before linear scan register allocator (LSRA)\n");
-        compiler->fgDispBasicBlocks(true);
+        enregisterLocalVars = false;
     }
-#endif // DEBUG
+
+    unsigned lsraBlockEpoch = compiler->GetCurBasicBlockEpoch();
 
     splitBBNumToTargetBBNumMap = nullptr;
 
@@ -1538,11 +1181,6 @@ LinearScan::doLinearScan()
 
     compiler->codeGen->regSet.rsClearRegsModified();
 
-    // Figure out if we're going to use an RSP frame or an RBP frame. We need to do this
-    // before building the intervals and ref positions, because those objects will embed
-    // RBP in various register masks (like preferences) if RBP is allowed to be allocated.
-    setFrameType();
-
     initMaxSpill();
     buildIntervals();
     DBEXEC(VERBOSE, TupleStyleDump(LSRA_DUMP_REFPOS));
@@ -1550,16 +1188,28 @@ LinearScan::doLinearScan()
 
     DBEXEC(VERBOSE, lsraDumpIntervals("after buildIntervals"));
 
-    BlockSetOps::ClearD(compiler, bbVisitedSet);
+    clearVisitedBlocks();
     initVarRegMaps();
     allocateRegisters();
     compiler->EndPhase(PHASE_LINEAR_SCAN_ALLOC);
     resolveRegisters();
     compiler->EndPhase(PHASE_LINEAR_SCAN_RESOLVE);
 
+#if TRACK_LSRA_STATS
+    if ((JitConfig.DisplayLsraStats() != 0)
+#ifdef DEBUG
+        || VERBOSE
+#endif
+        )
+    {
+        dumpLsraStats(jitstdout);
+    }
+#endif // TRACK_LSRA_STATS
+
     DBEXEC(VERBOSE, TupleStyleDump(LSRA_DUMP_POST));
 
     compiler->compLSRADone = true;
+    noway_assert(lsraBlockEpoch = compiler->GetCurBasicBlockEpoch());
 }
 
 //------------------------------------------------------------------------
@@ -1577,26 +1227,33 @@ LinearScan::doLinearScan()
 //    after calling this method.
 //    This is because we need to kill off the dead registers before setting the newly live ones.
 
-void
-LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
+void LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
 {
-    JITDUMP("Recording Var Locations at start of BB%02u\n", bb->bbNum);
-    VarToRegMap          map     = getInVarToRegMap(bb->bbNum);
-    unsigned count = 0;
-
-    VARSET_ITER_INIT(compiler, iter, bb->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    if (!enregisterLocalVars)
     {
-        unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc*           varDsc  = &(compiler->lvaTable[varNum]);
-        regNumber            regNum = getVarReg(map, varNum);
+        return;
+    }
+    JITDUMP("Recording Var Locations at start of " FMT_BB "\n", bb->bbNum);
+    VarToRegMap map   = getInVarToRegMap(bb->bbNum);
+    unsigned    count = 0;
+
+    VarSetOps::AssignNoCopy(compiler, currentLiveVars,
+                            VarSetOps::Intersection(compiler, registerCandidateVars, bb->bbLiveIn));
+    VarSetOps::Iter iter(compiler, currentLiveVars);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
+    {
+        unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
+        LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
+        regNumber  regNum = getVarReg(map, varIndex);
 
         regNumber oldRegNum = varDsc->lvRegNum;
         regNumber newRegNum = regNum;
 
         if (oldRegNum != newRegNum)
         {
-            JITDUMP("  V%02u(%s->%s)", varNum, compiler->compRegVarName(oldRegNum), compiler->compRegVarName(newRegNum));
+            JITDUMP("  V%02u(%s->%s)", varNum, compiler->compRegVarName(oldRegNum),
+                    compiler->compRegVarName(newRegNum));
             varDsc->lvRegNum = newRegNum;
             count++;
         }
@@ -1615,36 +1272,38 @@ LinearScan::recordVarLocationsAtStartOfBB(BasicBlock* bb)
     JITDUMP("\n");
 }
 
-void 
-Interval::setLocalNumber(unsigned lclNum, LinearScan *linScan)
+void Interval::setLocalNumber(Compiler* compiler, unsigned lclNum, LinearScan* linScan)
 {
-    linScan->localVarIntervals[lclNum] = this;
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
+    assert(varDsc->lvTracked);
+    assert(varDsc->lvVarIndex < compiler->lvaTrackedCount);
 
-    assert(linScan->getIntervalForLocalVar(lclNum) == this);
+    linScan->localVarIntervals[varDsc->lvVarIndex] = this;
+
+    assert(linScan->getIntervalForLocalVar(varDsc->lvVarIndex) == this);
     this->isLocalVar = true;
-    this->varNum = lclNum;
+    this->varNum     = lclNum;
 }
 
-// identify the candidates which we are not going to enregister due to 
+// identify the candidates which we are not going to enregister due to
 // being used in EH in a way we don't want to deal with
 // this logic cloned from fgInterBlockLocalVarLiveness
-void 
-LinearScan::identifyCandidatesExceptionDataflow()
+void LinearScan::identifyCandidatesExceptionDataflow()
 {
-    VARSET_TP VARSET_INIT_NOCOPY(exceptVars,  VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(filterVars,  VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(finallyVars, VarSetOps::MakeEmpty(compiler));
-    BasicBlock *block;
+    VARSET_TP   exceptVars(VarSetOps::MakeEmpty(compiler));
+    VARSET_TP   filterVars(VarSetOps::MakeEmpty(compiler));
+    VARSET_TP   finallyVars(VarSetOps::MakeEmpty(compiler));
+    BasicBlock* block;
 
     foreach_block(compiler, block)
     {
-        if  (block->bbCatchTyp != BBCT_NONE)
+        if (block->bbCatchTyp != BBCT_NONE)
         {
             // live on entry to handler
             VarSetOps::UnionD(compiler, exceptVars, block->bbLiveIn);
         }
 
-        if  (block->bbJumpKind == BBJ_EHFILTERRET)
+        if (block->bbJumpKind == BBJ_EHFILTERRET)
         {
             // live on exit from filter
             VarSetOps::UnionD(compiler, filterVars, block->bbLiveOut);
@@ -1662,9 +1321,8 @@ LinearScan::identifyCandidatesExceptionDataflow()
         {
             VarSetOps::UnionD(compiler, exceptVars, block->bbLiveIn);
         }
-        if  ((block->bbJumpKind == BBJ_EHFINALLYRET) ||
-             (block->bbJumpKind == BBJ_EHFILTERRET)  ||
-             (block->bbJumpKind == BBJ_EHCATCHRET)    )
+        if ((block->bbJumpKind == BBJ_EHFINALLYRET) || (block->bbJumpKind == BBJ_EHFILTERRET) ||
+            (block->bbJumpKind == BBJ_EHCATCHRET))
         {
             VarSetOps::UnionD(compiler, exceptVars, block->bbLiveOut);
         }
@@ -1679,38 +1337,50 @@ LinearScan::identifyCandidatesExceptionDataflow()
         block as either volatile for non-GC ref types or as
         'explicitly initialized' (volatile and must-init) for GC-ref types */
 
-    VARSET_ITER_INIT(compiler, iter, exceptVars, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    VarSetOps::Iter iter(compiler, exceptVars);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
+        unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
         LclVarDsc* varDsc = compiler->lvaTable + varNum;
 
-        compiler->lvaSetVarDoNotEnregister(varNum DEBUG_ARG(Compiler::DNER_LiveInOutOfHandler));
+        compiler->lvaSetVarDoNotEnregister(varNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
 
         if (varTypeIsGC(varDsc))
         {
             if (VarSetOps::IsMember(compiler, finallyVars, varIndex) && !varDsc->lvIsParam)
+            {
                 varDsc->lvMustInit = true;
+            }
         }
     }
 }
 
 bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 {
-    // Check to see if opt settings permit register variables
-    if ((compiler->opts.compFlags & CLFLG_REGVAR) == 0)
+    if (!enregisterLocalVars)
     {
         return false;
     }
+    assert((compiler->opts.compFlags & CLFLG_REGVAR) != 0);
+
+    if (!varDsc->lvTracked)
+    {
+        return false;
+    }
+
+#if !defined(_TARGET_64BIT_)
+    if (varDsc->lvType == TYP_LONG)
+    {
+        // Long variables should not be register candidates.
+        // Lowering will have split any candidate lclVars into lo/hi vars.
+        return false;
+    }
+#endif // !defined(_TARGET_64BIT)
 
     // If we have JMP, reg args must be put on the stack
 
-    if  (compiler->compJmpOpUsed && varDsc->lvIsRegArg)
-    {
-        return false;
-    }
-
-    if (!varDsc->lvTracked)
+    if (compiler->compJmpOpUsed && varDsc->lvIsRegArg)
     {
         return false;
     }
@@ -1720,6 +1390,95 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
     {
         return false;
     }
+
+    // Don't enregister if the ref count is zero.
+    if (varDsc->lvRefCnt() == 0)
+    {
+        varDsc->setLvRefCntWtd(0);
+        return false;
+    }
+
+    // Variables that are address-exposed are never enregistered, or tracked.
+    // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
+    // Pinned variables may not be tracked (a condition of the GCInfo representation)
+    // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
+    // references when using the general GC encoding.
+    unsigned lclNum = (unsigned)(varDsc - compiler->lvaTable);
+    if (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
+    {
+#ifdef DEBUG
+        Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
+        if (!varDsc->lvAddrExposed)
+        {
+            dner = Compiler::DNER_IsStruct;
+        }
+#endif // DEBUG
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(dner));
+        return false;
+    }
+    else if (varDsc->lvPinned)
+    {
+        varDsc->lvTracked = 0;
+#ifdef JIT32_GCENCODER
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_PinningRef));
+#endif // JIT32_GCENCODER
+        return false;
+    }
+
+    //  Are we not optimizing and we have exception handlers?
+    //   if so mark all args and locals as volatile, so that they
+    //   won't ever get enregistered.
+    //
+    if (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
+    {
+        compiler->lvaSetVarDoNotEnregister(lclNum DEBUGARG(Compiler::DNER_LiveInOutOfHandler));
+    }
+
+    if (varDsc->lvDoNotEnregister)
+    {
+        return false;
+    }
+
+    switch (genActualType(varDsc->TypeGet()))
+    {
+#if CPU_HAS_FP_SUPPORT
+        case TYP_FLOAT:
+        case TYP_DOUBLE:
+            return !compiler->opts.compDbgCode;
+
+#endif // CPU_HAS_FP_SUPPORT
+
+        case TYP_INT:
+        case TYP_LONG:
+        case TYP_REF:
+        case TYP_BYREF:
+            break;
+
+#ifdef FEATURE_SIMD
+        case TYP_SIMD12:
+        case TYP_SIMD16:
+        case TYP_SIMD32:
+            return !varDsc->lvPromoted;
+
+        // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
+        // (passing & returning as TYP_LONG).
+        case TYP_SIMD8:
+            return false;
+#endif // FEATURE_SIMD
+
+        case TYP_STRUCT:
+            return false;
+
+        case TYP_UNDEF:
+        case TYP_UNKNOWN:
+            noway_assert(!"lvType not set correctly");
+            varDsc->lvType = TYP_INT;
+            return false;
+
+        default:
+            return false;
+    }
+
     return true;
 }
 
@@ -1729,17 +1488,35 @@ bool LinearScan::isRegCandidate(LclVarDsc* varDsc)
 
 void LinearScan::identifyCandidates()
 {
-    if (compiler->lvaCount == 0)
+    if (enregisterLocalVars)
+    {
+        // Initialize the set of lclVars that are candidates for register allocation.
+        VarSetOps::AssignNoCopy(compiler, registerCandidateVars, VarSetOps::MakeEmpty(compiler));
+
+        // Initialize the sets of lclVars that are used to determine whether, and for which lclVars,
+        // we need to perform resolution across basic blocks.
+        // Note that we can't do this in the constructor because the number of tracked lclVars may
+        // change between the constructor and the actual allocation.
+        VarSetOps::AssignNoCopy(compiler, resolutionCandidateVars, VarSetOps::MakeEmpty(compiler));
+        VarSetOps::AssignNoCopy(compiler, splitOrSpilledVars, VarSetOps::MakeEmpty(compiler));
+
+        // We set enregisterLocalVars to true only if there are tracked lclVars
+        assert(compiler->lvaCount != 0);
+    }
+    else if (compiler->lvaCount == 0)
+    {
+        // Nothing to do. Note that even if enregisterLocalVars is false, we still need to set the
+        // lvLRACandidate field on all the lclVars to false if we have any.
         return;
+    }
 
     if (compiler->compHndBBtabCount > 0)
+    {
         identifyCandidatesExceptionDataflow();
+    }
 
-    // initialize mapping from local to interval
-    localVarIntervals = new(compiler, CMK_LSRA) Interval*[compiler->lvaCount];
-
-    unsigned lclNum;
-    LclVarDsc *varDsc;
+    unsigned   lclNum;
+    LclVarDsc* varDsc;
 
     // While we build intervals for the candidate lclVars, we will determine the floating point
     // lclVars, if any, to consider for callee-save register preferencing.
@@ -1760,214 +1537,216 @@ void LinearScan::identifyCandidates()
     // This is defined as thresholdLargeVectorRefCntWtd, as we are likely to use the same mechanism
     // for vectors on Arm64, though the actual value may differ.
 
-    VarSetOps::AssignNoCopy(compiler, fpCalleeSaveCandidateVars, VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(fpMaybeCandidateVars, VarSetOps::MakeEmpty(compiler));
-    unsigned int floatVarCount = 0;
+    unsigned int floatVarCount        = 0;
     unsigned int thresholdFPRefCntWtd = 4 * BB_UNITY_WEIGHT;
-    unsigned int maybeFPRefCntWtd = 2 * BB_UNITY_WEIGHT;
+    unsigned int maybeFPRefCntWtd     = 2 * BB_UNITY_WEIGHT;
+    VARSET_TP    fpMaybeCandidateVars(VarSetOps::UninitVal());
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    VarSetOps::AssignNoCopy(compiler, largeVectorVars, VarSetOps::MakeEmpty(compiler));
-    VarSetOps::AssignNoCopy(compiler, largeVectorCalleeSaveCandidateVars, VarSetOps::MakeEmpty(compiler));
-    unsigned int largeVectorVarCount = 0;
+    unsigned int largeVectorVarCount           = 0;
     unsigned int thresholdLargeVectorRefCntWtd = 4 * BB_UNITY_WEIGHT;
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-
-    for (lclNum = 0, varDsc = compiler->lvaTable;
-         lclNum < compiler->lvaCount;
-         lclNum++  , varDsc++)
+    if (enregisterLocalVars)
     {
-        // Assign intervals to all the variables - this makes it easier to map
-        // them back
-        var_types intervalType = (var_types) varDsc->lvType;
-        Interval *newInt = newInterval(intervalType);
-
-        newInt->setLocalNumber(lclNum, this);
-        if (varDsc->lvIsStructField)
+        VarSetOps::AssignNoCopy(compiler, fpCalleeSaveCandidateVars, VarSetOps::MakeEmpty(compiler));
+        VarSetOps::AssignNoCopy(compiler, fpMaybeCandidateVars, VarSetOps::MakeEmpty(compiler));
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        VarSetOps::AssignNoCopy(compiler, largeVectorVars, VarSetOps::MakeEmpty(compiler));
+        VarSetOps::AssignNoCopy(compiler, largeVectorCalleeSaveCandidateVars, VarSetOps::MakeEmpty(compiler));
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+    }
+#if DOUBLE_ALIGN
+    unsigned refCntStk       = 0;
+    unsigned refCntReg       = 0;
+    unsigned refCntWtdReg    = 0;
+    unsigned refCntStkParam  = 0; // sum of     ref counts for all stack based parameters
+    unsigned refCntWtdStkDbl = 0; // sum of wtd ref counts for stack based doubles
+    doDoubleAlign            = false;
+    bool checkDoubleAlign    = true;
+    if (compiler->codeGen->isFramePointerRequired() || compiler->opts.MinOpts())
+    {
+        checkDoubleAlign = false;
+    }
+    else
+    {
+        switch (compiler->getCanDoubleAlign())
         {
-            newInt->isStructField = true;
+            case MUST_DOUBLE_ALIGN:
+                doDoubleAlign    = true;
+                checkDoubleAlign = false;
+                break;
+            case CAN_DOUBLE_ALIGN:
+                break;
+            case CANT_DOUBLE_ALIGN:
+                doDoubleAlign    = false;
+                checkDoubleAlign = false;
+                break;
+            default:
+                unreached();
         }
+    }
+#endif // DOUBLE_ALIGN
 
+    // Check whether register variables are permitted.
+    if (!enregisterLocalVars)
+    {
+        localVarIntervals = nullptr;
+    }
+    else if (compiler->lvaTrackedCount > 0)
+    {
+        // initialize mapping from tracked local to interval
+        localVarIntervals = new (compiler, CMK_LSRA) Interval*[compiler->lvaTrackedCount];
+    }
+
+    INTRACK_STATS(regCandidateVarCount = 0);
+    for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
+    {
         // Initialize all variables to REG_STK
-        varDsc->lvRegNum   = REG_STK;
+        varDsc->lvRegNum = REG_STK;
 #ifndef _TARGET_64BIT_
         varDsc->lvOtherReg = REG_STK;
 #endif // _TARGET_64BIT_
 
-#if !defined(_TARGET_64BIT_)
-        if(intervalType == TYP_LONG)
+        if (!enregisterLocalVars)
         {
-            // Long variables should not be register candidates.
-            // Lowering will have split any candidate lclVars into lo/hi vars.
-            varDsc->lvLRACandidate = 0;
+            varDsc->lvLRACandidate = false;
             continue;
         }
-#endif // !defined(_TARGET_64BIT)
 
-        /* Track all locals that can be enregistered */
+#if DOUBLE_ALIGN
+        if (checkDoubleAlign)
+        {
+            if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+            {
+                refCntStkParam += varDsc->lvRefCnt();
+            }
+            else if (!isRegCandidate(varDsc) || varDsc->lvDoNotEnregister)
+            {
+                refCntStk += varDsc->lvRefCnt();
+                if ((varDsc->lvType == TYP_DOUBLE) ||
+                    ((varTypeIsStruct(varDsc) && varDsc->lvStructDoubleAlign &&
+                      (compiler->lvaGetPromotionType(varDsc) != Compiler::PROMOTION_TYPE_INDEPENDENT))))
+                {
+                    refCntWtdStkDbl += varDsc->lvRefCntWtd();
+                }
+            }
+            else
+            {
+                refCntReg += varDsc->lvRefCnt();
+                refCntWtdReg += varDsc->lvRefCntWtd();
+            }
+        }
+#endif // DOUBLE_ALIGN
+
+        // Start with the assumption that it's a candidate.
 
         varDsc->lvLRACandidate = 1;
-
-        if (!isRegCandidate(varDsc))
-        {
-            varDsc->lvLRACandidate = 0;
-            continue;
-        }
 
         // Start with lvRegister as false - set it true only if the variable gets
         // the same register assignment throughout
         varDsc->lvRegister = false;
 
-        /* If the ref count is zero */
-        if  (varDsc->lvRefCnt == 0)
+        if (!isRegCandidate(varDsc))
         {
-            /* Zero ref count, make this untracked */
-            varDsc->lvRefCntWtd    = 0;
             varDsc->lvLRACandidate = 0;
-        }
-
-        // Variables that are address-exposed are never enregistered, or tracked.
-        // A struct may be promoted, and a struct that fits in a register may be fully enregistered.
-        // Pinned variables may not be tracked (a condition of the GCInfo representation)
-        // or enregistered, on x86 -- it is believed that we can enregister pinned (more properly, "pinning")
-        // references when using the general GC encoding.
-
-        if  (varDsc->lvAddrExposed || !varTypeIsEnregisterableStruct(varDsc))
-        {
-            varDsc->lvLRACandidate  = 0;
-#ifdef DEBUG
-            Compiler::DoNotEnregisterReason dner = Compiler::DNER_AddrExposed;
-            if (!varDsc->lvAddrExposed)
+            if (varDsc->lvTracked)
             {
-                dner = Compiler::DNER_IsStruct;
+                localVarIntervals[varDsc->lvVarIndex] = nullptr;
             }
-#endif // DEBUG
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUG_ARG(dner));
-        }
-        else if (varDsc->lvPinned)
-        {
-            varDsc->lvTracked  = 0;
-#ifdef JIT32_GCENCODER
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUG_ARG(Compiler::DNER_PinningRef));
-#endif // JIT32_GCENCODER
-        }
-
-        //  Are we not optimizing and we have exception handlers?
-        //   if so mark all args and locals as volatile, so that they
-        //   won't ever get enregistered.
-        //
-        if  (compiler->opts.MinOpts() && compiler->compHndBBtabCount > 0)
-        {
-            compiler->lvaSetVarDoNotEnregister(lclNum DEBUG_ARG(Compiler::DNER_LiveInOutOfHandler));
-            varDsc->lvLRACandidate = 0;
             continue;
         }
 
-        if (varDsc->lvDoNotEnregister)
-        {
-            varDsc->lvLRACandidate = 0;
-            continue;
-        }
-
-        var_types type = genActualType(varDsc->TypeGet());
-
-        switch (type)
-        {
-#if CPU_HAS_FP_SUPPORT
-        case TYP_FLOAT:
-        case TYP_DOUBLE:
-            if (compiler->opts.compDbgCode) varDsc->lvLRACandidate = 0;
-            break;
-#endif // CPU_HAS_FP_SUPPORT
-
-        case TYP_INT:
-        case TYP_LONG:
-        case TYP_REF:
-        case TYP_BYREF:
-            break;
-
-#ifdef FEATURE_SIMD
-        case TYP_SIMD12:
-        case TYP_SIMD16:
-        case TYP_SIMD32:
-            if (varDsc->lvPromoted)
-            {
-                varDsc->lvLRACandidate = 0;
-            }
-            break;
-        // TODO-1stClassStructs: Move TYP_SIMD8 up with the other SIMD types, after handling the param issue
-        // (passing & returning as TYP_LONG).
-        case TYP_SIMD8:
-#endif // FEATURE_SIMD
-
-        case TYP_STRUCT:
-            {
-                varDsc->lvLRACandidate = 0;
-            }
-            break;
-
-        case TYP_UNDEF:
-        case TYP_UNKNOWN:
-            noway_assert(!"lvType not set correctly");
-            varDsc->lvType = TYP_INT;
-
-            __fallthrough;
-
-        default:
-            varDsc->lvLRACandidate = 0;
-        }
-
-        // we will set this later when we have determined liveness
         if (varDsc->lvLRACandidate)
+        {
+            var_types type   = genActualType(varDsc->TypeGet());
+            Interval* newInt = newInterval(type);
+            newInt->setLocalNumber(compiler, lclNum, this);
+            VarSetOps::AddElemD(compiler, registerCandidateVars, varDsc->lvVarIndex);
+
+            // we will set this later when we have determined liveness
             varDsc->lvMustInit = false;
 
-        // We maintain two sets of FP vars - those that meet the first threshold of weighted ref Count,
-        // and those that meet the second (see the definitions of thresholdFPRefCntWtd and maybeFPRefCntWtd
-        // above).
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        // Additionally, when we are generating AVX on non-UNIX amd64, we keep a separate set of the LargeVectorType vars.
-        if (varDsc->lvType == LargeVectorType)
-        {
-            largeVectorVarCount++;
-            VarSetOps::AddElemD(compiler, largeVectorVars, varDsc->lvVarIndex);
-            unsigned refCntWtd = varDsc->lvRefCntWtd;
-            if (refCntWtd >= thresholdLargeVectorRefCntWtd)
+            if (varDsc->lvIsStructField)
             {
-                VarSetOps::AddElemD(compiler, largeVectorCalleeSaveCandidateVars, varDsc->lvVarIndex);
+                newInt->isStructField = true;
+            }
+
+            INTRACK_STATS(regCandidateVarCount++);
+
+            // We maintain two sets of FP vars - those that meet the first threshold of weighted ref Count,
+            // and those that meet the second (see the definitions of thresholdFPRefCntWtd and maybeFPRefCntWtd
+            // above).
+            CLANG_FORMAT_COMMENT_ANCHOR;
+
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+            // Additionally, when we are generating AVX on non-UNIX amd64, we keep a separate set of the LargeVectorType
+            // vars.
+            if (varTypeNeedsPartialCalleeSave(varDsc->lvType))
+            {
+                largeVectorVarCount++;
+                VarSetOps::AddElemD(compiler, largeVectorVars, varDsc->lvVarIndex);
+                unsigned refCntWtd = varDsc->lvRefCntWtd();
+                if (refCntWtd >= thresholdLargeVectorRefCntWtd)
+                {
+                    VarSetOps::AddElemD(compiler, largeVectorCalleeSaveCandidateVars, varDsc->lvVarIndex);
+                }
+            }
+            else
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+                if (regType(type) == FloatRegisterType)
+            {
+                floatVarCount++;
+                unsigned refCntWtd = varDsc->lvRefCntWtd();
+                if (varDsc->lvIsRegArg)
+                {
+                    // Don't count the initial reference for register params.  In those cases,
+                    // using a callee-save causes an extra copy.
+                    refCntWtd -= BB_UNITY_WEIGHT;
+                }
+                if (refCntWtd >= thresholdFPRefCntWtd)
+                {
+                    VarSetOps::AddElemD(compiler, fpCalleeSaveCandidateVars, varDsc->lvVarIndex);
+                }
+                else if (refCntWtd >= maybeFPRefCntWtd)
+                {
+                    VarSetOps::AddElemD(compiler, fpMaybeCandidateVars, varDsc->lvVarIndex);
+                }
             }
         }
         else
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (regType(newInt->registerType) == FloatRegisterType)
         {
-            floatVarCount++;
-            unsigned refCntWtd = varDsc->lvRefCntWtd;
-            if (varDsc->lvIsRegArg)
-            {
-                // Don't count the initial reference for register params.  In those cases,
-                // using a callee-save causes an extra copy.
-                refCntWtd -= BB_UNITY_WEIGHT;
-            }
-            if (refCntWtd >= thresholdFPRefCntWtd)
-            {
-                VarSetOps::AddElemD(compiler, fpCalleeSaveCandidateVars, varDsc->lvVarIndex);
-            }
-            else if (refCntWtd >= maybeFPRefCntWtd)
-            {
-                VarSetOps::AddElemD(compiler, fpMaybeCandidateVars, varDsc->lvVarIndex);
-            }
+            localVarIntervals[varDsc->lvVarIndex] = nullptr;
         }
     }
+
+#if DOUBLE_ALIGN
+    if (checkDoubleAlign)
+    {
+        // TODO-CQ: Fine-tune this:
+        // In the legacy reg predictor, this runs after allocation, and then demotes any lclVars
+        // allocated to the frame pointer, which is probably the wrong order.
+        // However, because it runs after allocation, it can determine the impact of demoting
+        // the lclVars allocated to the frame pointer.
+        // => Here, estimate of the EBP refCnt and weighted refCnt is a wild guess.
+        //
+        unsigned refCntEBP    = refCntReg / 8;
+        unsigned refCntWtdEBP = refCntWtdReg / 8;
+
+        doDoubleAlign =
+            compiler->shouldDoubleAlign(refCntStk, refCntEBP, refCntWtdEBP, refCntStkParam, refCntWtdStkDbl);
+    }
+#endif // DOUBLE_ALIGN
 
     // The factors we consider to determine which set of fp vars to use as candidates for callee save
     // registers current include the number of fp vars, whether there are loops, and whether there are
     // multiple exits.  These have been selected somewhat empirically, but there is probably room for
     // more tuning.
+    CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
     if (VERBOSE)
     {
         printf("\nFP callee save candidate vars: ");
-        if (!VarSetOps::IsEmpty(compiler, fpCalleeSaveCandidateVars))
+        if (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, fpCalleeSaveCandidateVars))
         {
             dumpConvertedVarSet(compiler, fpCalleeSaveCandidateVars);
             printf("\n");
@@ -1978,17 +1757,15 @@ void LinearScan::identifyCandidates()
         }
     }
 #endif
-    JITDUMP("floatVarCount = %d; hasLoops = %d, singleExit = %d\n",
-            floatVarCount,
-            compiler->fgHasLoops,
+
+    JITDUMP("floatVarCount = %d; hasLoops = %d, singleExit = %d\n", floatVarCount, compiler->fgHasLoops,
             (compiler->fgReturnBlocks == nullptr || compiler->fgReturnBlocks->next == nullptr));
 
     // Determine whether to use the 2nd, more aggressive, threshold for fp callee saves.
-    if (floatVarCount > 6
-        && compiler->fgHasLoops
-        && (compiler->fgReturnBlocks == nullptr || compiler->fgReturnBlocks->next == nullptr)
-        )
+    if (floatVarCount > 6 && compiler->fgHasLoops &&
+        (compiler->fgReturnBlocks == nullptr || compiler->fgReturnBlocks->next == nullptr))
     {
+        assert(enregisterLocalVars);
 #ifdef DEBUG
         if (VERBOSE)
         {
@@ -2013,42 +1790,47 @@ void LinearScan::identifyCandidates()
     {
         // Frame layout is only pre-computed for ARM
         printf("\nlvaTable after IdentifyCandidates\n");
-        compiler->lvaTableDump();
+        compiler->lvaTableDump(Compiler::FrameLayoutState::PRE_REGALLOC_FRAME_LAYOUT);
     }
 #endif // DEBUG
 #endif // _TARGET_ARM_
 }
 
-
 // TODO-Throughput: This mapping can surely be more efficiently done
-void
-LinearScan::initVarRegMaps()
+void LinearScan::initVarRegMaps()
 {
-    assert(compiler->lvaTrackedFixed);   // We should have already set this to prevent us from adding any new tracked variables.
+    if (!enregisterLocalVars)
+    {
+        inVarToRegMaps  = nullptr;
+        outVarToRegMaps = nullptr;
+        return;
+    }
+    assert(compiler->lvaTrackedFixed); // We should have already set this to prevent us from adding any new tracked
+                                       // variables.
 
     // The compiler memory allocator requires that the allocation be an
     // even multiple of int-sized objects
     unsigned int varCount = compiler->lvaTrackedCount;
-    regMapCount = (unsigned int) roundUp(varCount, sizeof(int));
+    regMapCount           = roundUp(varCount, (unsigned)sizeof(int));
 
     // Not sure why blocks aren't numbered from zero, but they don't appear to be.
     // So, if we want to index by bbNum we have to know the maximum value.
     unsigned int bbCount = compiler->fgBBNumMax + 1;
-    
-    inVarToRegMaps = new (compiler, CMK_LSRA) regNumber *[bbCount];
-    outVarToRegMaps = new (compiler, CMK_LSRA) regNumber *[bbCount];
+
+    inVarToRegMaps  = new (compiler, CMK_LSRA) regNumberSmall*[bbCount];
+    outVarToRegMaps = new (compiler, CMK_LSRA) regNumberSmall*[bbCount];
 
     if (varCount > 0)
     {
         // This VarToRegMap is used during the resolution of critical edges.
-        sharedCriticalVarToRegMap = new (compiler, CMK_LSRA) regNumber[regMapCount];
+        sharedCriticalVarToRegMap = new (compiler, CMK_LSRA) regNumberSmall[regMapCount];
 
         for (unsigned int i = 0; i < bbCount; i++)
         {
-            regNumber * inVarToRegMap = new (compiler, CMK_LSRA) regNumber[regMapCount];
-            regNumber * outVarToRegMap = new (compiler, CMK_LSRA) regNumber[regMapCount];
+            VarToRegMap inVarToRegMap  = new (compiler, CMK_LSRA) regNumberSmall[regMapCount];
+            VarToRegMap outVarToRegMap = new (compiler, CMK_LSRA) regNumberSmall[regMapCount];
 
-            for(unsigned int j = 0; j < regMapCount; j++)
+            for (unsigned int j = 0; j < regMapCount; j++)
             {
                 inVarToRegMap[j]  = REG_STK;
                 outVarToRegMap[j] = REG_STK;
@@ -2062,29 +1844,29 @@ LinearScan::initVarRegMaps()
         sharedCriticalVarToRegMap = nullptr;
         for (unsigned int i = 0; i < bbCount; i++)
         {
-            inVarToRegMaps[i] = nullptr;
+            inVarToRegMaps[i]  = nullptr;
             outVarToRegMaps[i] = nullptr;
         }
     }
 }
 
-void
-LinearScan::setInVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg)
+void LinearScan::setInVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg)
 {
+    assert(enregisterLocalVars);
     assert(reg < UCHAR_MAX && varNum < compiler->lvaCount);
-    inVarToRegMaps[bbNum][compiler->lvaTable[varNum].lvVarIndex] = reg;
+    inVarToRegMaps[bbNum][compiler->lvaTable[varNum].lvVarIndex] = (regNumberSmall)reg;
 }
 
-void
-LinearScan::setOutVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg)
+void LinearScan::setOutVarRegForBB(unsigned int bbNum, unsigned int varNum, regNumber reg)
 {
+    assert(enregisterLocalVars);
     assert(reg < UCHAR_MAX && varNum < compiler->lvaCount);
-    outVarToRegMaps[bbNum][compiler->lvaTable[varNum].lvVarIndex]  = reg;
+    outVarToRegMaps[bbNum][compiler->lvaTable[varNum].lvVarIndex] = (regNumberSmall)reg;
 }
 
-LinearScan::SplitEdgeInfo
-LinearScan::getSplitEdgeInfo(unsigned int bbNum)
+LinearScan::SplitEdgeInfo LinearScan::getSplitEdgeInfo(unsigned int bbNum)
 {
+    assert(enregisterLocalVars);
     SplitEdgeInfo splitEdgeInfo;
     assert(bbNum <= compiler->fgBBNumMax);
     assert(bbNum > bbNumMaxBeforeResolution);
@@ -2095,16 +1877,16 @@ LinearScan::getSplitEdgeInfo(unsigned int bbNum)
     return splitEdgeInfo;
 }
 
-VarToRegMap
-LinearScan::getInVarToRegMap(unsigned int bbNum)
+VarToRegMap LinearScan::getInVarToRegMap(unsigned int bbNum)
 {
+    assert(enregisterLocalVars);
     assert(bbNum <= compiler->fgBBNumMax);
     // For the blocks inserted to split critical edges, the inVarToRegMap is
     // equal to the outVarToRegMap at the "from" block.
     if (bbNum > bbNumMaxBeforeResolution)
     {
         SplitEdgeInfo splitEdgeInfo = getSplitEdgeInfo(bbNum);
-        unsigned fromBBNum = splitEdgeInfo.fromBBNum;
+        unsigned      fromBBNum     = splitEdgeInfo.fromBBNum;
         if (fromBBNum == 0)
         {
             assert(splitEdgeInfo.toBBNum != 0);
@@ -2119,9 +1901,9 @@ LinearScan::getInVarToRegMap(unsigned int bbNum)
     return inVarToRegMaps[bbNum];
 }
 
-VarToRegMap
-LinearScan::getOutVarToRegMap(unsigned int bbNum)
+VarToRegMap LinearScan::getOutVarToRegMap(unsigned int bbNum)
 {
+    assert(enregisterLocalVars);
     assert(bbNum <= compiler->fgBBNumMax);
     // For the blocks inserted to split critical edges, the outVarToRegMap is
     // equal to the inVarToRegMap at the target.
@@ -2130,7 +1912,7 @@ LinearScan::getOutVarToRegMap(unsigned int bbNum)
         // If this is an empty block, its in and out maps are both the same.
         // We identify this case by setting fromBBNum or toBBNum to 0, and using only the other.
         SplitEdgeInfo splitEdgeInfo = getSplitEdgeInfo(bbNum);
-        unsigned toBBNum = splitEdgeInfo.toBBNum;
+        unsigned      toBBNum       = splitEdgeInfo.toBBNum;
         if (toBBNum == 0)
         {
             assert(splitEdgeInfo.fromBBNum != 0);
@@ -2144,89 +1926,78 @@ LinearScan::getOutVarToRegMap(unsigned int bbNum)
     return outVarToRegMaps[bbNum];
 }
 
-regNumber
-LinearScan::getVarReg(VarToRegMap bbVarToRegMap, unsigned int varNum)
+//------------------------------------------------------------------------
+// setVarReg: Set the register associated with a variable in the given 'bbVarToRegMap'.
+//
+// Arguments:
+//    bbVarToRegMap   - the map of interest
+//    trackedVarIndex - the lvVarIndex for the variable
+//    reg             - the register to which it is being mapped
+//
+// Return Value:
+//    None
+//
+void LinearScan::setVarReg(VarToRegMap bbVarToRegMap, unsigned int trackedVarIndex, regNumber reg)
 {
-    assert(compiler->lvaTable[varNum].lvTracked);
-    return bbVarToRegMap[compiler->lvaTable[varNum].lvVarIndex];
+    assert(trackedVarIndex < compiler->lvaTrackedCount);
+    regNumberSmall regSmall = (regNumberSmall)reg;
+    assert((regNumber)regSmall == reg);
+    bbVarToRegMap[trackedVarIndex] = regSmall;
+}
+
+//------------------------------------------------------------------------
+// getVarReg: Get the register associated with a variable in the given 'bbVarToRegMap'.
+//
+// Arguments:
+//    bbVarToRegMap   - the map of interest
+//    trackedVarIndex - the lvVarIndex for the variable
+//
+// Return Value:
+//    The register to which 'trackedVarIndex' is mapped
+//
+regNumber LinearScan::getVarReg(VarToRegMap bbVarToRegMap, unsigned int trackedVarIndex)
+{
+    assert(enregisterLocalVars);
+    assert(trackedVarIndex < compiler->lvaTrackedCount);
+    return (regNumber)bbVarToRegMap[trackedVarIndex];
 }
 
 // Initialize the incoming VarToRegMap to the given map values (generally a predecessor of
 // the block)
-VarToRegMap
-LinearScan::setInVarToRegMap(unsigned int bbNum, VarToRegMap srcVarToRegMap)
+VarToRegMap LinearScan::setInVarToRegMap(unsigned int bbNum, VarToRegMap srcVarToRegMap)
 {
+    assert(enregisterLocalVars);
     VarToRegMap inVarToRegMap = inVarToRegMaps[bbNum];
     memcpy(inVarToRegMap, srcVarToRegMap, (regMapCount * sizeof(regNumber)));
     return inVarToRegMap;
 }
 
-
-// find the last node in the tree in execution order
-// TODO-Throughput: this is inefficient!
-GenTree *lastNodeInTree(GenTree *tree)
-{
-    // There is no gtprev on the top level tree node so 
-    // apparently the way to walk a tree backwards is to walk 
-    // it forward, find the last node, and walk back from there.
-
-    GenTree *last = nullptr;
-    if (tree->OperGet() == GT_STMT)
-    {
-        GenTree *statement = tree;
-
-        foreach_treenode_execution_order(tree, statement)
-        {
-            last = tree;
-        }
-        return last;
-    }
-    else
-    {
-        while (tree)
-        {
-            last = tree;
-            tree = tree->gtNext;
-        }
-        return last;
-    }
-}
-
-
-// given a tree node
-RefType refTypeForLocalRefNode(GenTree *node)
-{
-    assert(node->IsLocal());
-    
-    // We don't support updates
-    assert((node->gtFlags & GTF_VAR_USEASG) == 0);
-
-    if (node->gtFlags & GTF_VAR_DEF)
-        return RefTypeDef;
-    else
-        return RefTypeUse;
-}
-
-// This function sets RefPosition last uses by walking the RefPositions, instead of walking the
-// tree nodes in execution order (as was done in a previous version).
-// This is because the execution order isn't strictly correct, specifically for
-// references to local variables that occur in arg lists.
+//------------------------------------------------------------------------
+// checkLastUses: Check correctness of last use flags
 //
-// TODO-Throughput: This function should eventually be eliminated, as we should be able to rely on last uses
-// being set by dataflow analysis.  It is necessary to do it this way only because the execution
-// order wasn't strictly correct.
-
-void 
-LinearScan::setLastUses(BasicBlock * block)
-{
+// Arguments:
+//    The block for which we are checking last uses.
+//
+// Notes:
+//    This does a backward walk of the RefPositions, starting from the liveOut set.
+//    This method was previously used to set the last uses, which were computed by
+//    liveness, but were not create in some cases of multiple lclVar references in the
+//    same tree. However, now that last uses are computed as RefPositions are created,
+//    that is no longer necessary, and this method is simply retained as a check.
+//    The exception to the check-only behavior is when LSRA_EXTEND_LIFETIMES if set via
+//    COMPlus_JitStressRegs. In that case, this method is required, because even though
+//    the RefPositions will not be marked lastUse in that case, we still need to correclty
+//    mark the last uses on the tree nodes, which is done by this method.
+//
 #ifdef DEBUG
+void LinearScan::checkLastUses(BasicBlock* block)
+{
     if (VERBOSE)
     {
-        JITDUMP("\n\nCALCULATING LAST USES for block %u, liveout=", block->bbNum);
+        JITDUMP("\n\nCHECKING LAST USES for " FMT_BB ", liveout=", block->bbNum);
         dumpConvertedVarSet(compiler, block->bbLiveOut);
         JITDUMP("\n==============================\n");
     }
-#endif // DEBUG
 
     unsigned keepAliveVarNum = BAD_VAR_NUM;
     if (compiler->lvaKeepAliveAndReportThis())
@@ -2234,1228 +2005,112 @@ LinearScan::setLastUses(BasicBlock * block)
         keepAliveVarNum = compiler->info.compThisArg;
         assert(compiler->info.compIsStatic == false);
     }
-        
+
     // find which uses are lastUses
 
     // Work backwards starting with live out.
-    // 'temp' is updated to include any exposed use (including those in this
+    // 'computedLive' is updated to include any exposed use (including those in this
     // block that we've already seen).  When we encounter a use, if it's
     // not in that set, then it's a last use.
 
-    VARSET_TP VARSET_INIT(compiler, temp, block->bbLiveOut);
+    VARSET_TP computedLive(VarSetOps::MakeCopy(compiler, block->bbLiveOut));
 
-    auto currentRefPosition = refPositions.rbegin();
-
-    while (currentRefPosition->refType != RefTypeBB)
+    bool                       foundDiff       = false;
+    RefPositionReverseIterator reverseIterator = refPositions.rbegin();
+    RefPosition*               currentRefPosition;
+    for (currentRefPosition = &reverseIterator; currentRefPosition->refType != RefTypeBB;
+         reverseIterator++, currentRefPosition = &reverseIterator)
     {
         // We should never see ParamDefs or ZeroInits within a basic block.
-        assert (currentRefPosition->refType != RefTypeParamDef && currentRefPosition->refType != RefTypeZeroInit);
-        if (currentRefPosition->isIntervalRef() &&
-            currentRefPosition->getInterval()->isLocalVar)
+        assert(currentRefPosition->refType != RefTypeParamDef && currentRefPosition->refType != RefTypeZeroInit);
+        if (currentRefPosition->isIntervalRef() && currentRefPosition->getInterval()->isLocalVar)
         {
-            unsigned varNum = currentRefPosition->getInterval()->varNum;
+            unsigned varNum   = currentRefPosition->getInterval()->varNum;
             unsigned varIndex = currentRefPosition->getInterval()->getVarIndex(compiler);
-            // We should always have a tree node for a localVar, except for the "special" RefPositions.
-            GenTreePtr tree = currentRefPosition->treeNode;
-            assert(tree != nullptr || currentRefPosition->refType == RefTypeExpUse || currentRefPosition->refType == RefTypeDummyDef);
-            if (!VarSetOps::IsMember(compiler, temp, varIndex) && varNum != keepAliveVarNum)
-            {
-                // There was no exposed use, so this is a
-                // "last use" (and we mark it thus even if it's a def)
 
-                if (tree != nullptr)
-                {
-                    tree->gtFlags |= GTF_VAR_DEATH;
-                }
-                LsraLocation loc = currentRefPosition->nodeLocation;
-#ifdef DEBUG
-                if (getLsraExtendLifeTimes())
-                {
-                    JITDUMP("last use of V%02u @%u (not marked as last use for LSRA due to extendLifetimes stress option)\n", compiler->lvaTrackedToVarNum[varIndex], loc);
-                }
-                else
-#endif // DEBUG
-                {
-                    JITDUMP("last use of V%02u @%u\n", compiler->lvaTrackedToVarNum[varIndex], loc);
-                    currentRefPosition->lastUse = true;
-                }
-                VarSetOps::AddElemD(compiler, temp, varIndex);
-            }
-            else
+            LsraLocation loc = currentRefPosition->nodeLocation;
+
+            // We should always have a tree node for a localVar, except for the "special" RefPositions.
+            GenTree* tree = currentRefPosition->treeNode;
+            assert(tree != nullptr || currentRefPosition->refType == RefTypeExpUse ||
+                   currentRefPosition->refType == RefTypeDummyDef);
+
+            if (!VarSetOps::IsMember(compiler, computedLive, varIndex) && varNum != keepAliveVarNum)
             {
-                currentRefPosition->lastUse = false;
-                if (tree != nullptr)
+                // There was no exposed use, so this is a "last use" (and we mark it thus even if it's a def)
+
+                if (extendLifetimes())
                 {
-                    tree->gtFlags &= ~GTF_VAR_DEATH;
+                    // NOTE: this is a bit of a hack. When extending lifetimes, the "last use" bit will be clear.
+                    // This bit, however, would normally be used during resolveLocalRef to set the value of
+                    // GTF_VAR_DEATH on the node for a ref position. If this bit is not set correctly even when
+                    // extending lifetimes, the code generator will assert as it expects to have accurate last
+                    // use information. To avoid these asserts, set the GTF_VAR_DEATH bit here.
+                    // Note also that extendLifetimes() is an LSRA stress mode, so it will only be true for
+                    // Checked or Debug builds, for which this method will be executed.
+                    if (tree != nullptr)
+                    {
+                        tree->gtFlags |= GTF_VAR_DEATH;
+                    }
                 }
+                else if (!currentRefPosition->lastUse)
+                {
+                    JITDUMP("missing expected last use of V%02u @%u\n", compiler->lvaTrackedToVarNum[varIndex], loc);
+                    foundDiff = true;
+                }
+                VarSetOps::AddElemD(compiler, computedLive, varIndex);
+            }
+            else if (currentRefPosition->lastUse)
+            {
+                JITDUMP("unexpected last use of V%02u @%u\n", compiler->lvaTrackedToVarNum[varIndex], loc);
+                foundDiff = true;
+            }
+            else if (extendLifetimes() && tree != nullptr)
+            {
+                // NOTE: see the comment above re: the extendLifetimes hack.
+                tree->gtFlags &= ~GTF_VAR_DEATH;
             }
 
             if (currentRefPosition->refType == RefTypeDef || currentRefPosition->refType == RefTypeDummyDef)
             {
-                VarSetOps::RemoveElemD(compiler, temp, varIndex);
+                VarSetOps::RemoveElemD(compiler, computedLive, varIndex);
             }
         }
-        assert(currentRefPosition != refPositions.rend());
-        ++currentRefPosition;
+
+        assert(reverseIterator != refPositions.rend());
     }
 
-#ifdef DEBUG
-    VARSET_TP VARSET_INIT(compiler, temp2, block->bbLiveIn);
-    VarSetOps::DiffD(compiler, temp2, temp);
-    VarSetOps::DiffD(compiler, temp, block->bbLiveIn);
-    bool foundDiff = false;
+    VARSET_TP liveInNotComputedLive(VarSetOps::Diff(compiler, block->bbLiveIn, computedLive));
 
+    VarSetOps::Iter liveInNotComputedLiveIter(compiler, liveInNotComputedLive);
+    unsigned        liveInNotComputedLiveIndex = 0;
+    while (liveInNotComputedLiveIter.NextElem(&liveInNotComputedLiveIndex))
     {
-        VARSET_ITER_INIT(compiler, iter, temp, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        unsigned varNum = compiler->lvaTrackedToVarNum[liveInNotComputedLiveIndex];
+        if (compiler->lvaTable[varNum].lvLRACandidate)
         {
-            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-            if (compiler->lvaTable[varNum].lvLRACandidate)
-            {
-                JITDUMP("BB%02u: V%02u is computed live, but not in LiveIn set.\n", block->bbNum, varNum);
-                foundDiff = true;
-            }
+            JITDUMP(FMT_BB ": V%02u is in LiveIn set, but not computed live.\n", block->bbNum, varNum);
+            foundDiff = true;
         }
     }
 
+    VarSetOps::DiffD(compiler, computedLive, block->bbLiveIn);
+    const VARSET_TP& computedLiveNotLiveIn(computedLive); // reuse the buffer.
+    VarSetOps::Iter  computedLiveNotLiveInIter(compiler, computedLiveNotLiveIn);
+    unsigned         computedLiveNotLiveInIndex = 0;
+    while (computedLiveNotLiveInIter.NextElem(&computedLiveNotLiveInIndex))
     {
-        VARSET_ITER_INIT(compiler, iter, temp2, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
+        unsigned varNum = compiler->lvaTrackedToVarNum[computedLiveNotLiveInIndex];
+        if (compiler->lvaTable[varNum].lvLRACandidate)
         {
-            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-            if (compiler->lvaTable[varNum].lvLRACandidate)
-            {
-                JITDUMP("BB%02u: V%02u is in LiveIn set, but not computed live.\n", block->bbNum, varNum);
-                foundDiff = true;
-            }
+            JITDUMP(FMT_BB ": V%02u is computed live, but not in LiveIn set.\n", block->bbNum, varNum);
+            foundDiff = true;
         }
     }
 
     assert(!foundDiff);
+}
 #endif // DEBUG
-}
-
-
-void LinearScan::addRefsForPhysRegMask(regMaskTP mask,
-                                       LsraLocation currentLoc,
-                                       RefType refType,
-                                       bool isLastUse)
-{
-    for (regNumber reg = REG_FIRST; mask; reg = REG_NEXT(reg), mask >>= 1)
-    {
-        if (mask & 1)
-        {
-            // This assumes that these are all "special" RefTypes that
-            // don't need to be recorded on the tree (hence treeNode is nullptr)
-            RefPosition *pos = newRefPosition(reg,
-                                              currentLoc, 
-                                              refType,
-                                              nullptr,
-                                              genRegMask(reg)); // This MUST occupy the physical register (obviously)
-            
-            if (isLastUse)
-            {
-                pos->lastUse = true;
-            }
-        }
-    }
-}
-
-//------------------------------------------------------------------------ 
-// getKillSetForNode:   Return the registers killed by the given tree node.
-//
-// Arguments: 
-//    tree       - the tree for which the kill set is needed.
-//
-// Return Value:    a register mask of the registers killed
-//
-regMaskTP
-LinearScan::getKillSetForNode(GenTree* tree)
-{
-    regMaskTP killMask = RBM_NONE;
-    switch (tree->OperGet())
-    {
-#ifdef _TARGET_XARCH_
-    case GT_MUL:
-        // We use the 128-bit multiply when performing an overflow checking unsigned multiply
-        //
-        if (((tree->gtFlags & GTF_UNSIGNED) != 0) && tree->gtOverflowEx())
-        {
-            // Both RAX and RDX are killed by the operation
-            killMask = RBM_RAX|RBM_RDX;
-        }
-        break;
-        
-    case GT_MULHI:
-        killMask = RBM_RAX|RBM_RDX;
-        break;
-
-    case GT_MOD:
-    case GT_DIV:
-    case GT_UMOD:
-    case GT_UDIV:
-        if (!varTypeIsFloating(tree->TypeGet()))
-        {
-            // RDX needs to be killed early, because it must not be used as a source register
-            // (unlike most cases, where the kill happens AFTER the uses).  So for this kill,
-            // we add the RefPosition at the tree loc (where the uses are located) instead of the
-            // usual kill location which is the same as the defs at tree loc+1.
-            // Note that we don't have to add interference for the live vars, because that
-            // will be done below, and is not sensitive to the precise location.
-            LsraLocation currentLoc = tree->gtLsraInfo.loc;
-            assert(currentLoc != 0);
-            addRefsForPhysRegMask(RBM_RDX, currentLoc, RefTypeKill, true);
-            // Both RAX and RDX are killed by the operation
-            killMask = RBM_RAX|RBM_RDX;
-        }
-        break;
-#endif // _TARGET_XARCH_
-    case GT_COPYOBJ:
-        killMask = compiler->compHelperCallKillSet(CORINFO_HELP_ASSIGN_BYREF);
-        break;
-
-    case GT_COPYBLK:
-        {
-            GenTreeCpBlk* cpBlkNode = tree->AsCpBlk();
-            switch (cpBlkNode->gtBlkOpKind)
-            {
-            case GenTreeBlkOp::BlkOpKindHelper:
-                killMask = compiler->compHelperCallKillSet(CORINFO_HELP_MEMCPY);
-                break;
-#ifdef _TARGET_AMD64_
-
-            case GenTreeBlkOp::BlkOpKindRepInstr:
-                // rep movs kills RCX, RDI and RSI
-                killMask = RBM_RCX | RBM_RDI | RBM_RSI;
-                break;
-#else
-            case GenTreeBlkOp::BlkOpKindRepInstr:
-#endif
-            case GenTreeBlkOp::BlkOpKindUnroll:
-            case GenTreeBlkOp::BlkOpKindInvalid:
-                // for these 'cpBlkNode->gtBlkOpKind' kinds, we leave 'killMask' = RBM_NONE
-                break;
-            }
-        }
-        break;
-
-    case GT_INITBLK:
-        {
-            GenTreeInitBlk* initBlkNode = tree->AsInitBlk();
-            switch (initBlkNode->gtBlkOpKind)
-            {
-            case GenTreeBlkOp::BlkOpKindHelper:
-                killMask = compiler->compHelperCallKillSet(CORINFO_HELP_MEMSET);
-                break;
-#ifdef _TARGET_AMD64_
-            case GenTreeBlkOp::BlkOpKindRepInstr:
-                // rep stos kills RCX and RDI
-                killMask = RBM_RDI;
-                if (!initBlkNode->InitVal()->IsCnsIntOrI())
-                {
-                    killMask |= RBM_RCX;
-                }
-                break;
-#else
-            case GenTreeBlkOp::BlkOpKindRepInstr:
-#endif
-            case GenTreeBlkOp::BlkOpKindUnroll:
-            case GenTreeBlkOp::BlkOpKindInvalid:
-                // for these 'cpBlkNode->gtBlkOpKind' kinds, we leave 'killMask' = RBM_NONE
-                break;
-            }
-        }
-        break;
-
-    case GT_LSH:
-    case GT_RSH:
-    case GT_RSZ:
-    case GT_ROL:
-    case GT_ROR:
-        if (tree->gtLsraInfo.isHelperCallWithKills)
-        {
-            killMask = RBM_CALLEE_TRASH;
-        }
-        break;
-    case GT_RETURNTRAP:
-        // if there is no FP used, we can ignore the FP kills
-        if (compiler->compFloatingPointUsed)
-        {
-            killMask = RBM_CALLEE_TRASH;
-        }
-        else
-        {
-            killMask = RBM_INT_CALLEE_TRASH;
-        }
-#if defined(_TARGET_AMD64_) || defined (_TARGET_ARM_)
-        // AMD (and ARM) helpers for this save the return value
-        killMask &= ~(RBM_INTRET | RBM_FLOATRET);
-#endif
-        break;
-    case GT_CALL:
-        // if there is no FP used, we can ignore the FP kills
-        if (compiler->compFloatingPointUsed)
-        {
-#ifdef _TARGET_X86_
-            if (tree->TypeGet() == TYP_DOUBLE)
-            {
-                needDoubleTmpForFPCall = true;
-            }
-            else if (tree->TypeGet() == TYP_FLOAT)
-            {
-                needFloatTmpForFPCall = true;
-            }
-#endif // _TARGET_X86_
-            killMask = RBM_CALLEE_TRASH;
-        }
-        else
-        {
-            killMask = RBM_INT_CALLEE_TRASH;
-        }
-        break;
-    case GT_STOREIND:
-        if (compiler->codeGen->gcInfo.gcIsWriteBarrierAsgNode(tree))
-        {
-            killMask = RBM_CALLEE_TRASH_NOGC;
-        #if !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
-            killMask |= (RBM_ARG_0 | RBM_ARG_1);
-        #endif // !NOGC_WRITE_BARRIERS && (defined(_TARGET_ARM_) || defined(_TARGET_AMD64_))
-        }
-        break;
-
-#if defined(PROFILING_SUPPORTED) && defined(_TARGET_AMD64_)
-    // If this method requires profiler ELT hook then mark these nodes as killing 
-    // callee trash registers (excluding RAX and XMM0). The reason for this is that
-    // profiler callback would trash these registers. See vm\amd64\asmhelpers.asm for
-    // more details.        
-    case GT_RETURN:
-        if (compiler->compIsProfilerHookNeeded())
-        {
-            killMask = compiler->compHelperCallKillSet(CORINFO_HELP_PROF_FCN_LEAVE);
-        }
-        break;
-    
-    case GT_PROF_HOOK:
-        if (compiler->compIsProfilerHookNeeded())
-        {
-            killMask = compiler->compHelperCallKillSet(CORINFO_HELP_PROF_FCN_TAILCALL);;
-        }
-        break;
-#endif // PROFILING_SUPPORTED && _TARGET_AMD64_
-
-#if FEATURE_MULTIREG_ARGS
-#ifdef _TARGET_ARM64_
-    case GT_PUTARG_REG:
-        // TODO-Cleanup: Remove this code after Issue #3524 is complete
-        // 
-        // Handle the 16-byte pass-by-value TYP_STRUCT for ARM64
-        // We actually write a second register that isn't being properly tracked
-        // We can prevent anyone else from being alive at this point by adding
-        // an extra RefTypeKill for the second register.
-        //
-        if (tree->TypeGet() == TYP_STRUCT)
-        {
-            TreeNodeInfo info    = tree->gtLsraInfo;
-            regMaskTP    dstMask = info.getDstCandidates(this);
-
-            // Make sure that the dstMask represents two consecutive registers
-            regMaskTP lowRegBit  = genFindLowestBit(dstMask);
-            regMaskTP nextRegBit = lowRegBit << 1;
-            regMaskTP regPairMask = (lowRegBit | nextRegBit);
-
-            assert(dstMask == regPairMask); 
-
-            killMask = nextRegBit;  // setup killMask to be the mask for the second register.
-        }
-#endif // _TARGET_ARM64_
-#endif  // FEATURE_MULTIREG_ARGS
-
-    default:
-        // for all other 'tree->OperGet()' kinds, leave 'killMask' = RBM_NONE
-        break;
-    }
-    return killMask;
-}
-
-//------------------------------------------------------------------------ 
-// buildKillPositionsForNode:
-// Given some tree node add refpositions for all the registers this node kills
-//
-// Arguments: 
-//    tree       - the tree for which kill positions should be generated
-//    currentLoc - the location at which the kills should be added
-//
-// Return Value: 
-//    true       - kills were inserted
-//    false      - no kills were inserted
-//
-// Notes: 
-//    The return value is needed because if we have any kills, we need to make sure that
-//    all defs are located AFTER the kills.  On the other hand, if there aren't kills,
-//    the multiple defs for a regPair are in different locations.
-//    If we generate any kills, we will mark all currentLiveVars as being preferenced
-//    to avoid the killed registers.  This is somewhat conservative.
-
-bool 
-LinearScan::buildKillPositionsForNode(GenTree*     tree,
-                                      LsraLocation currentLoc)
-{
-    regMaskTP killMask = getKillSetForNode(tree);
-    bool isCallKill = ((killMask == RBM_INT_CALLEE_TRASH) || (killMask == RBM_CALLEE_TRASH));
-    if (killMask != RBM_NONE)
-    {
-        // The killMask identifies a set of registers that will be used during codegen.
-        // Mark these as modified here, so when we do final frame layout, we'll know about
-        // all these registers. This is especially important if killMask contains
-        // callee-saved registers, which affect the frame size since we need to save/restore them.
-        // In the case where we have a copyBlk with GC pointers, can need to call the
-        // CORINFO_HELP_ASSIGN_BYREF helper, which kills callee-saved RSI and RDI, if
-        // LSRA doesn't assign RSI/RDI, they wouldn't get marked as modified until codegen,
-        // which is too late.
-        compiler->codeGen->regSet.rsSetRegsModified(killMask DEBUG_ARG(dumpTerse));
-
-        addRefsForPhysRegMask(killMask, currentLoc, RefTypeKill, true);
-
-        // TODO-CQ: It appears to be valuable for both fp and int registers to avoid killing the callee
-        // save regs on infrequently exectued paths.  However, it results in a large number of asmDiffs,
-        // many of which appear to be regressions (because there is more spill on the infrequently path),
-        // but are not really because the frequent path becomes smaller.  Validating these diffs will need
-        // to be done before making this change.
-        // if (!blockSequence[curBBSeqNum]->isRunRarely())
-        {
-
-            VARSET_ITER_INIT(compiler, iter, currentLiveVars, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
-            {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc *varDsc = compiler->lvaTable + varNum;
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                if (varDsc->lvType == LargeVectorType)
-                {
-                    if (!VarSetOps::IsMember(compiler, largeVectorCalleeSaveCandidateVars, varIndex))
-                    {
-                        continue;
-                    }
-                }
-                else
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-                if (varTypeIsFloating(varDsc) && !VarSetOps::IsMember(compiler, fpCalleeSaveCandidateVars, varIndex))
-                {
-                    continue;
-                }
-                Interval * interval = getIntervalForLocalVar(varNum);
-                if (isCallKill)
-                {
-                    interval->preferCalleeSave = true;
-                }
-                regMaskTP newPreferences = allRegs(interval->registerType) & (~killMask);
-
-                if (newPreferences != RBM_NONE)
-                {
-                    interval->updateRegisterPreferences(newPreferences);
-                }
-                else
-                {
-                    // If there are no callee-saved registers, the call could kill all the registers. 
-                    // This is a valid state, so in that case assert should not trigger. The RA will spill in order to free a register later.
-                    assert(compiler->opts.compDbgEnC || (calleeSaveRegs(varDsc->lvType)) == RBM_NONE);
-                }
-            }
-        }
-
-        if (tree->IsCall() && (tree->gtFlags & GTF_CALL_UNMANAGED) != 0)
-        {
-            RefPosition * pos = newRefPosition((Interval *)nullptr, currentLoc, RefTypeKillGCRefs, tree, (allRegs(TYP_REF) & ~RBM_ARG_REGS));
-        }
-        return true;
-    }
-
-    return false;
-}
-
-RefPosition *
-LinearScan::defineNewInternalTemp(GenTree *tree, RegisterType regType, LsraLocation currentLoc, regMaskTP regMask)
-{
-    Interval * current = newInterval(regType);
-    current->isInternal = true;
-    return newRefPosition(current, currentLoc, RefTypeDef, tree, regMask);
-}
-
-int
-LinearScan::buildInternalRegisterDefsForNode(GenTree *tree,
-                                             LsraLocation currentLoc,
-                                             RefPosition* temps[]) //populates
-{
-    int count;
-    int internalIntCount = tree->gtLsraInfo.internalIntCount;
-    regMaskTP internalCands = tree->gtLsraInfo.getInternalCandidates(this);
-
-    // If the number of internal integer registers required is the same as the number of candidate integer registers in the candidate set, 
-    // then they must be handled as fixed registers.
-    // (E.g. for the integer registers that floating point arguments must be copied into for a varargs call.)
-    bool fixedRegs = false;
-    regMaskTP internalIntCandidates = (internalCands & allRegs(TYP_INT));
-    if (((int)genCountBits(internalIntCandidates)) == internalIntCount)
-    {
-        fixedRegs = true;
-    }
-
-    for (count = 0; count < internalIntCount; count++)
-    {
-        regMaskTP internalIntCands = (internalCands & allRegs(TYP_INT));
-        if (fixedRegs)
-        {
-            internalIntCands = genFindLowestBit(internalIntCands);
-            internalCands &= ~internalIntCands;
-        }
-        temps[count] = defineNewInternalTemp(tree, IntRegisterType, currentLoc, internalIntCands);
-    }
-
-    int internalFloatCount = tree->gtLsraInfo.internalFloatCount;
-    for (int i = 0; i < internalFloatCount; i++)
-    {
-        regMaskTP internalFPCands = (internalCands & internalFloatRegCandidates());
-        temps[count++] = defineNewInternalTemp(tree, FloatRegisterType, currentLoc, internalFPCands);
-    }
-
-    noway_assert(count < MaxInternalRegisters);
-    assert(count == (internalIntCount + internalFloatCount));
-    return count;
-}
-
-void LinearScan::buildInternalRegisterUsesForNode(GenTree *tree,
-                                                  LsraLocation currentLoc,
-                                                  RefPosition* defs[],
-                                                  int total)
-{
-    assert(total < MaxInternalRegisters);
-    
-    // defs[] has been populated by buildInternalRegisterDefsForNode
-    // now just add uses to the defs previously added.
-    for (int i=0; i<total; i++)
-    {
-        RefPosition * prevRefPosition = defs[i];
-        assert(prevRefPosition != nullptr);
-        regMaskTP mask = prevRefPosition->registerAssignment;
-        if (prevRefPosition->isPhysRegRef)
-        {
-            newRefPosition(defs[i]->getReg()->regNum, currentLoc, RefTypeUse, tree, mask);
-        }
-        else
-        {
-            RefPosition *newest = newRefPosition(defs[i]->getInterval(), currentLoc, RefTypeUse, tree, mask);
-            newest->lastUse = true;
-        }
-    }
-}
-
-regMaskTP
-LinearScan::getUseCandidates(GenTree *useNode)
-{
-    TreeNodeInfo info = useNode->gtLsraInfo;
-    return info.getSrcCandidates(this);
-}
-
-regMaskTP
-LinearScan::getDefCandidates(GenTree *tree)
-{
-    TreeNodeInfo info = tree->gtLsraInfo;
-    return info.getDstCandidates(this);
-}
-
-RegisterType 
-LinearScan::getDefType(GenTree *tree)
-{
-    return tree->TypeGet();
-}
-
-regMaskTP
-fixedCandidateMask(var_types type, regMaskTP candidates)
-{
-    if (genMaxOneBit(candidates))
-    {
-        return candidates;
-    }
-    return RBM_NONE;
-}
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-VARSET_VALRET_TP
-LinearScan::buildUpperVectorSaveRefPositions(GenTree *tree,
-                                             LsraLocation currentLoc)
-{
-    VARSET_TP VARSET_INIT_NOCOPY(liveLargeVectors, VarSetOps::MakeEmpty(compiler));
-    regMaskTP fpCalleeKillSet = RBM_NONE;
-    if (!VarSetOps::IsEmpty(compiler, largeVectorVars))
-    {
-        // We actually need to find any calls that kill the upper-half of the callee-save vector registers.
-        // But we will use as a proxy any node that kills floating point registers.
-        // (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
-        fpCalleeKillSet = getKillSetForNode(tree);
-        if ((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
-        {
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors, VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
-            VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
-            {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                Interval *varInterval = getIntervalForLocalVar(varNum);
-                Interval *tempInterval = newInterval(LargeVectorType);
-                tempInterval->isInternal = true;
-                RefPosition *pos = newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
-                // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
-                // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding RefTypeUpperVectorSaveUse
-                // RefPosition.  We will then restore the relatedInterval onto varInterval, and set varInterval as the relatedInterval
-                // of tempInterval.
-                tempInterval->relatedInterval = varInterval->relatedInterval;
-                varInterval->relatedInterval = tempInterval;
-            }
-        }
-    }
-    return liveLargeVectors;
-}
-
-void
-LinearScan::buildUpperVectorRestoreRefPositions(GenTree *tree,
-                                                LsraLocation currentLoc,
-                                                VARSET_VALARG_TP liveLargeVectors)
-{
-    if (!VarSetOps::IsEmpty(compiler, liveLargeVectors))
-    {
-        VARSET_ITER_INIT(compiler, iter, liveLargeVectors, varIndex);
-        while (iter.NextElem(compiler, &varIndex))
-        {
-            unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-            Interval *varInterval = getIntervalForLocalVar(varNum);
-            Interval *tempInterval = varInterval->relatedInterval;
-            assert(tempInterval->isInternal == true);
-            RefPosition *pos = newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveUse, tree, RBM_FLT_CALLEE_SAVED);
-            // Restore the relatedInterval onto varInterval, and set varInterval as the relatedInterval
-            // of tempInterval.
-            varInterval->relatedInterval = tempInterval->relatedInterval;
-            tempInterval->relatedInterval = varInterval;
-        }
-    }
-}
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-
-void 
-LinearScan::buildRefPositionsForNode(GenTree *tree,
-                                     BasicBlock *block, 
-                                     ArrayStack<LocationInfo> *stack,
-                                     LsraLocation currentLoc)
-{
-#ifdef _TARGET_ARM_
-    assert(!isRegPairType(tree->TypeGet()));
-#endif // _TARGET_ARM_
-
-    // The tree traversal doesn't visit GT_LIST or GT_ARGPLACE nodes
-    if (tree->OperGet() == GT_LIST || tree->OperGet() == GT_ARGPLACE)
-    {
-        return;
-    }
-
-    // These nodes are eliminated by the Rationalizer.
-    if (tree->OperGet() == GT_CLS_VAR)
-    {
-        JITDUMP("Unexpected node %s in LSRA.\n", GenTree::NodeName(tree->OperGet()));
-        assert(!"Unexpected node in LSRA.");
-    }
-
-    // The set of internal temporary registers used by this node are stored in the
-    // gtRsvdRegs register mask. Clear it out.
-    tree->gtRsvdRegs = RBM_NONE;
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        JITDUMP("at start of tree, stack is : [ ");
-        for (int i=0; i<stack->Height(); i++)
-        {
-            JITDUMP("%d.%s ", stack->Index(i).loc, GenTree::NodeName(stack->Index(i).treeNode->OperGet()));
-        }
-        JITDUMP("]\n");
-    }
-#endif // DEBUG
-
-    TreeNodeInfo info = tree->gtLsraInfo;
-    assert(info.IsValid(this));
-    int consume = info.srcCount;
-    int produce = info.dstCount;
-
-    if (isCandidateLocalRef(tree) && !tree->OperIsLocalStore())
-    {
-        // We handle tracked variables differently from non-tracked ones.  If it is tracked,
-        // we simply add a use or def of the tracked variable.  Otherwise, for a use we need
-        // to actually add the appropriate references for loading or storing the variable.
-        //
-        // It won't actually get used or defined until the appropriate ancestor tree node
-        // is processed, unless this is marked "isLocalDefUse" because it is a stack-based argument
-        // to a call
-
-        Interval * interval = getIntervalForLocalVar(tree->gtLclVarCommon.gtLclNum);
-        regMaskTP candidates = getUseCandidates(tree);
-        regMaskTP fixedAssignment = fixedCandidateMask(tree->TypeGet(), candidates);
-
-        // We have only approximate last-use information at this point.  This is because the
-        // execution order doesn't actually reflect the true order in which the localVars
-        // are referenced - but the order of the RefPositions will, so we recompute it after
-        // RefPositions are built.
-        // Use the old value for setting currentLiveVars - note that we do this with the
-        // not-quite-correct setting of lastUse.  However, this is OK because
-        // 1) this is only for preferencing, which doesn't require strict correctness, and
-        // 2) the cases where these out-of-order uses occur should not overlap a kill.
-        // TODO-Throughput: clean this up once we have the execution order correct.  At that point
-        // we can update currentLiveVars at the same place that we create the RefPosition.
-        if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
-        {
-            VarSetOps::RemoveElemD(compiler, currentLiveVars, compiler->lvaTable[tree->gtLclVarCommon.gtLclNum].lvVarIndex);
-        }
-
-        JITDUMP("t%u (i:%u)\n", currentLoc, interval->intervalIndex);
-
-        if (!info.isLocalDefUse)
-        {
-            if (produce != 0)
-            {
-                stack->Push(LocationInfo(currentLoc, interval, tree));
-            }
-
-            return;
-        }
-        else
-        {
-            JITDUMP("    Not pushed on stack\n");
-            regMaskTP candidates = getUseCandidates(tree);
-
-            if (fixedAssignment != RBM_NONE)
-            {
-                candidates = fixedAssignment;
-            }
-            RefPosition *pos = newRefPosition(interval, currentLoc, RefTypeUse, tree, candidates);
-            pos->isLocalDefUse = true;
-            bool isLastUse = ((tree->gtFlags & GTF_VAR_DEATH) != 0);
-            pos->lastUse = isLastUse; 
-            DBEXEC(VERBOSE, pos->dump());
-            return;
-        }
-    }
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        lsraDispNode(tree, LSRA_DUMP_REFPOS, (produce != 0));
-        JITDUMP("\n");
-        JITDUMP("  consume=%d produce=%d\n", consume, produce);
-    }
-#endif // DEBUG
-
-    // Handle the case of local variable assignment
-    Interval * varDefInterval = nullptr;
-    RefType defRefType = RefTypeDef;
-
-    GenTree * defNode = tree;
-
-    // noPush means the node creates a def but for purposes of stack
-    // management do not push it because data is not flowing up the
-    // tree but over (as in ASG nodes)
-
-    bool noPush = info.isLocalDefUse;
-    RefPosition * prevPos = nullptr;
-
-    bool isSpecialPutArg = false;
-
-    assert(!tree->OperIsAssignment());
-    if (tree->OperIsLocalStore())
-    {
-        if (isCandidateLocalRef(tree))
-        {
-            // We always push the tracked lclVar intervals
-            varDefInterval = getIntervalForLocalVar(tree->gtLclVarCommon.gtLclNum);
-            defRefType = refTypeForLocalRefNode(tree);
-            defNode = tree;
-            if (produce == 0)
-            {
-                produce = 1;
-                noPush = true;
-            }
-
-            assert(consume <= 1);
-            if (consume == 1)
-            {
-                Interval * srcInterval = stack->TopRef().interval;
-                if (srcInterval->relatedInterval == nullptr)
-                {
-                    // Preference the source to the dest, unless this is a non-last-use localVar.
-                    // Note that the last-use info is not correct, but it is a better approximation than preferencing
-                    // the source to the dest, if the source's lifetime extends beyond the dest.
-                    if (!srcInterval->isLocalVar || (stack->TopRef().treeNode->gtFlags & GTF_VAR_DEATH) != 0)
-                    {
-                        srcInterval->assignRelatedInterval(varDefInterval);
-                    }
-                }
-                else if (!srcInterval->isLocalVar)
-                {
-                    // Preference the source to dest, if src is not a local var.
-                    srcInterval->assignRelatedInterval(varDefInterval);
-                }
-
-                // We can have a case where the source of the store has a different register type,
-                // e.g. when the store is of a return value temp, and op1 is a Vector2
-                // (TYP_SIMD8).  We will need to set the
-                // src candidates accordingly on op1 so that LSRA will generate a copy.
-                // We could do this during Lowering, but at that point we don't know whether
-                // this lclVar will be a register candidate, and if not, we would prefer to leave
-                // the type alone.
-                if (regType(tree->gtGetOp1()->TypeGet()) != regType(tree->TypeGet()))
-                {
-                    tree->gtGetOp1()->gtLsraInfo.setSrcCandidates(this, allRegs(tree->TypeGet()));
-                }
-            }
-
-            if ((tree->gtFlags & GTF_VAR_DEATH) == 0)
-            {
-                VarSetOps::AddElemD(compiler, currentLiveVars, compiler->lvaTable[tree->gtLclVarCommon.gtLclNum].lvVarIndex);
-            }
-        }
-    }
-    else if (noPush && produce == 0)
-    {
-        // This is the case for dead nodes that occur after
-        // tree rationalization
-        // TODO-Cleanup: Identify and remove these dead nodes prior to register allocation.
-        produce = 1;
-    }
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        if (produce)
-        {
-            if (varDefInterval != nullptr)
-            {
-                printf("t%u (i:%u) = op ", currentLoc, varDefInterval->intervalIndex);
-            } 
-            else
-            {
-                for (int i = 0; i < produce; i++)
-                    printf("t%u ", currentLoc);
-                printf("= op ");
-            }
-        } 
-        else
-        {
-            printf("     op ");
-        }
-        printf("\n");
-    }
-#endif // DEBUG
-
-
-    // The RefPositions need to be constructed in execution order, which is the order they are pushed.
-    // So in order to pop them in execution order we need to reverse the stack.
-    stack->ReverseTop(consume);
-
-    Interval *prefSrcInterval = nullptr;
-
-    // If this is a binary operator that will be encoded with 2 operand fields
-    // (i.e. the target is read-modify-write), preference the dst to op1.
-
-    bool hasDelayFreeSrc = tree->gtLsraInfo.hasDelayFreeSrc;
-    if (tree->OperGet() == GT_PUTARG_REG && isCandidateLocalRef(tree->gtGetOp1()) && (tree->gtGetOp1()->gtFlags & GTF_VAR_DEATH) == 0)
-    {
-        // This is the case for a "pass-through" copy of a lclVar.  In the case where it is a non-last-use,
-        // we don't want the def of the copy to kill the lclVar register, if it is assigned the same register
-        // (which is actually what we hope will happen).
-        JITDUMP("Setting putarg_reg as a pass-through of a non-last use lclVar\n");
-        Interval * srcInterval = stack->TopRef().interval;
-        assert(srcInterval->isLocalVar);
-        prefSrcInterval = srcInterval;
-        isSpecialPutArg = true;
-    }
-
-    RefPosition* internalRefs[MaxInternalRegisters];
-
-    // make intervals for all the 'internal' register requirements for this node
-    // where internal means additional registers required temporarily
-    int internalCount = buildInternalRegisterDefsForNode(tree, currentLoc, internalRefs);
-
-    // pop all ref'd tree temps
-    for (int useIndex=0; useIndex < consume; useIndex++)
-    {
-        LocationInfo locInfo = stack->Pop();
-        JITDUMP("t%u ", locInfo.loc);
-
-        // for interstitial tree temps, a use is always last and end;
-        // this is  set by default in newRefPosition
-        GenTree * useNode = locInfo.treeNode;
-        assert(useNode != nullptr);
-        var_types type = useNode->TypeGet();
-        regMaskTP candidates = getUseCandidates(useNode);
-        Interval *i = locInfo.interval;
-
-#ifdef FEATURE_SIMD
-        if (tree->OperIsLocalStore() && varDefInterval == nullptr)
-        {
-            // This is a non-candidate store.  If this is a SIMD type, the use candidates
-            // may not match the type of the tree node.  If that is the case, change the
-            // type of the tree node to match, so that we do the right kind of store.
-            if ((candidates & allRegs(tree->gtType)) == RBM_NONE)
-            {
-                noway_assert((candidates & allRegs(useNode->gtType)) != RBM_NONE);
-                // Currently, the only case where this should happen is for a TYP_LONG
-                // source and a TYP_SIMD8 target.
-                assert((useNode->gtType == TYP_LONG  && tree->gtType == TYP_SIMD8) ||
-                       (useNode->gtType == TYP_SIMD8 && tree->gtType == TYP_LONG));
-                tree->gtType = useNode->gtType;
-            }
-        }
-#endif // FEATURE_SIMD
-
-        bool delayRegFree = (hasDelayFreeSrc && useNode->gtLsraInfo.isDelayFree);
-        if (useNode->gtLsraInfo.isTgtPref)
-        {
-            prefSrcInterval = i;
-        }
-
-        bool isLastUse = true;
-        if (isCandidateLocalRef(useNode))
-        {
-            isLastUse = ((useNode->gtFlags & GTF_VAR_DEATH) != 0);
-        } 
-        else
-        {
-            // For non-localVar uses we record nothing,
-            // as nothing needs to be written back to the tree)
-            useNode = nullptr;
-        }
-
-        regMaskTP fixedAssignment = fixedCandidateMask(type, candidates);
-        if (fixedAssignment != RBM_NONE)
-        {
-            candidates = fixedAssignment;
-        }
-
-        RefPosition* pos;
-        if ((candidates & allRegs(i->registerType)) == 0)
-        {
-            // This should only occur where we've got a type mismatch due to SIMD
-            // pointer-size types that are passed & returned as longs.
-            i->hasConflictingDefUse = true;
-            if (fixedAssignment != RBM_NONE)
-            {
-                // Explicitly insert a FixedRefPosition and fake the candidates, because otherwise newRefPosition
-                // will complain about the types not matching.
-                regNumber physicalReg = genRegNumFromMask(fixedAssignment);
-                RefPosition *pos = newRefPosition (physicalReg, currentLoc,  RefTypeFixedReg, nullptr, fixedAssignment);
-            }
-            pos = newRefPosition(i, currentLoc, RefTypeUse, useNode, allRegs(i->registerType));
-            pos->registerAssignment = candidates;
-        }
-        else
-        {
-            pos = newRefPosition(i, currentLoc, RefTypeUse, useNode, candidates);
-        }
-        if (delayRegFree)
-        {
-            hasDelayFreeSrc = true;
-            pos->delayRegFree = true;
-        }
-
-        if (isLastUse) pos->lastUse = true;
-    }
-    JITDUMP("\n");
-    
-    buildInternalRegisterUsesForNode(tree, currentLoc, internalRefs, internalCount);
-
-    RegisterType registerType = getDefType(tree);
-
-    regMaskTP candidates = getDefCandidates(tree);
-    regMaskTP useCandidates = getUseCandidates(tree);
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("Def candidates ");
-        dumpRegMask(candidates);
-        printf(", Use candidates ");
-        dumpRegMask(useCandidates);
-        printf("\n");
-    }
-#endif // DEBUG
-
-    int targetRegs = produce;
-
-#if defined(_TARGET_AMD64_)
-    assert(produce <= 1);
-#elif defined(_TARGET_ARM_)
-    assert(!varTypeIsMultiReg(tree->TypeGet()));
-#endif // _TARGET_xxx_
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    VARSET_TP       VARSET_INIT_NOCOPY(liveLargeVectors, VarSetOps::UninitVal());
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-
-    // push defs
-    if (produce == 0)
-    {
-        buildKillPositionsForNode(tree, currentLoc + 1);
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        if (RBM_FLT_CALLEE_SAVED != RBM_NONE)
-        {
-            // Build RefPositions for saving any live large vectors.
-            // This must be done after the kills, so that we know which large vectors are still live.
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
-        }
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    }
-
-    for (int i=0; i < produce; i++)
-    {
-        LsraLocation lastDefLocation = currentLoc + 1;
-
-        // If this is the last def add the phys reg defs
-        bool generatedKills = false;
-        if (i == produce-1) 
-        {
-            generatedKills = buildKillPositionsForNode(tree, lastDefLocation);
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-            // Build RefPositions for saving any live large vectors.
-            // This must be done after the kills, so that we know which large vectors are still live.
-            VarSetOps::AssignNoCopy(compiler, liveLargeVectors, buildUpperVectorSaveRefPositions(tree, currentLoc));
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-        }
-        regMaskTP currCandidates = candidates;
-
-        Interval *interval = varDefInterval;
-        if (interval == nullptr)
-        {
-            // Make a new interval
-            interval = newInterval(registerType);
-            if (hasDelayFreeSrc) 
-            {
-                interval->hasNonCommutativeRMWDef = true;
-            }
-            else if (tree->OperIsConst())
-            {
-                assert(!tree->IsReuseRegVal());
-                interval->isConstant = true;
-            }
-            if ((currCandidates & useCandidates) != RBM_NONE)
-            {
-                interval->updateRegisterPreferences(currCandidates & useCandidates);
-            }
-            if (isSpecialPutArg)
-            {
-                interval->isSpecialPutArg = true;
-            }
-        }
-        else
-        {
-            assert(registerTypesEquivalent(interval->registerType, registerType));
-        }
-
-        if (prefSrcInterval != nullptr)
-        {
-            interval->assignRelatedIntervalIfUnassigned(prefSrcInterval);
-        }
-        
-        // for assignments, we want to create a refposition for the def
-        // but not push it
-        if (!noPush)
-        {
-            stack->Push(LocationInfo(lastDefLocation, interval, tree));
-        }
-
-        LsraLocation defLocation = (i == produce-1) ? lastDefLocation : currentLoc;
-        RefPosition *pos = newRefPosition(interval, defLocation, defRefType, defNode, currCandidates);
-        if (info.isLocalDefUse)
-        {
-            pos->isLocalDefUse = true;
-            pos->lastUse = true;
-        }
-        DBEXEC(VERBOSE, pos->dump());
-        interval->updateRegisterPreferences(currCandidates);
-        interval->updateRegisterPreferences(useCandidates);
-    }
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectors);
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-}
-
-// make an interval for each physical register
-void 
-LinearScan::buildPhysRegRecords()
-{
-    RegisterType regType = IntRegisterType;
-    for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
-    {
-        RegRecord *curr = &physRegs[reg];
-        curr->init(reg);
-    }
-}
-
-
-BasicBlock *
-getNonEmptyBlock(BasicBlock * block)
-{
-    while (block != nullptr && block->bbTreeList == nullptr)
-    {
-        BasicBlock * nextBlock = block->bbNext;
-        // Note that here we use the version of NumSucc that does not take a compiler.
-        // That way this doesn't have to take a compiler, or be an instance method, e.g. of LinearScan.
-        // If we have an empty block, it must have jump type BBJ_NONE or BBJ_ALWAYS, in which
-        // case we don't need the version that takes a compiler.
-        assert(block->NumSucc() == 1 && ((block->bbJumpKind == BBJ_ALWAYS) || (block->bbJumpKind == BBJ_NONE)));
-        // sometimes the first block is empty and ends with an uncond branch
-        // assert( block->GetSucc(0) == nextBlock);
-        block = nextBlock;
-    }
-    assert(block != nullptr && block->bbTreeList != nullptr);
-    return block;
-}
-
-
-void 
-LinearScan::insertZeroInitRefPositions()
-{
-    // insert defs for this, then a block boundary
-
-    VARSET_ITER_INIT(compiler, iter, compiler->fgFirstBB->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
-    {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-        LclVarDsc *varDsc = compiler->lvaTable + varNum;
-        if (!varDsc->lvIsParam
-            && isCandidateVar(varDsc)
-            && (compiler->info.compInitMem || varTypeIsGC(varDsc->TypeGet())))
-        {
-            GenTree * firstStmt = getNonEmptyBlock(compiler->fgFirstBB)->bbTreeList;
-            JITDUMP("V%02u was live in\n", varNum);
-            DISPTREE(firstStmt);
-            Interval * interval = getIntervalForLocalVar(varNum);
-            RefPosition * pos = newRefPosition(interval, MinLocation, RefTypeZeroInit, firstStmt, 
-                                               allRegs(interval->registerType));
-            varDsc->lvMustInit = true;
-        }
-    }
-}
-
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-// -----------------------------------------------------------------------
-// Sets the register state for an argument of type STRUCT for System V systems.
-//     See Compiler::raUpdateRegStateForArg(RegState *regState, LclVarDsc *argDsc) in regalloc.cpp
-//         for how state for argument is updated for unix non-structs and Windows AMD64 structs.
-void
-LinearScan::unixAmd64UpdateRegStateForArg(LclVarDsc* argDsc)
-{
-    assert(varTypeIsStruct(argDsc));
-    RegState              * intRegState = &compiler->codeGen->intRegState;
-    RegState              * floatRegState = &compiler->codeGen->floatRegState;
-
-    if ((argDsc->lvArgReg != REG_STK) && (argDsc->lvArgReg != REG_NA))
-    {
-        if (genRegMask(argDsc->lvArgReg) & (RBM_ALLFLOAT))
-        {
-            assert(genRegMask(argDsc->lvArgReg) & (RBM_FLTARG_REGS));
-            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvArgReg);
-        }
-        else
-        {
-            assert(genRegMask(argDsc->lvArgReg) & (RBM_ARG_REGS));
-            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvArgReg);
-        }
-    }
-
-
-    if ((argDsc->lvOtherArgReg != REG_STK) && (argDsc->lvOtherArgReg != REG_NA))
-    {
-        if (genRegMask(argDsc->lvOtherArgReg) & (RBM_ALLFLOAT))
-        {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_FLTARG_REGS));
-            floatRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
-        }
-        else
-        {
-            assert(genRegMask(argDsc->lvOtherArgReg) & (RBM_ARG_REGS));
-            intRegState->rsCalleeRegArgMaskLiveIn |= genRegMask(argDsc->lvOtherArgReg);
-        }
-    }
-}
-
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-
-//------------------------------------------------------------------------
-// updateRegStateForArg: Updates rsCalleeRegArgMaskLiveIn for the appropriate
-//    regState (either compiler->intRegState or compiler->floatRegState),
-//    with the lvArgReg on "argDsc"
-//
-// Arguments:
-//    argDsc - the argument for which the state is to be updated.
-//
-// Return Value: None
-//
-// Assumptions:
-//    The argument is live on entry to the function
-//    (or is untracked and therefore assumed live)
-//
-// Notes:
-//    This relies on a method in regAlloc.cpp that is shared between LSRA
-//    and regAlloc.  It is further abstracted here because regState is updated
-//    separately for tracked and untracked variables in LSRA.
-//
-void
-LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
-{
-#if defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    // For System V AMD64 calls the argDsc can have 2 registers (for structs.)
-    // Handle them here.
-    if (varTypeIsStruct(argDsc))
-    {
-        unixAmd64UpdateRegStateForArg(argDsc);
-    }
-    else
-#endif // defined(FEATURE_UNIX_AMD64_STRUCT_PASSING)
-    {
-        RegState              * intRegState = &compiler->codeGen->intRegState;
-        RegState              * floatRegState = &compiler->codeGen->floatRegState;
-        // In the case of AMD64 we'll still use the floating point registers
-        // to model the register usage for argument on vararg calls, so
-        // we will ignore the varargs condition to determine whether we use 
-        // XMM registers or not for setting up the call.
-        bool isFloat = (isFloatRegType(argDsc->lvType)
-#ifndef _TARGET_AMD64_
-            && !compiler->info.compIsVarArgs
-#endif
-            );
-
-#ifdef _TARGET_ARM_
-        if (argDsc->lvIsHfaRegArg) 
-        {
-            isFloat = true;
-        }
-#endif // _TARGET_ARM_
-
-        if (isFloat)
-        {
-            JITDUMP("Float arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
-            compiler->raUpdateRegStateForArg(floatRegState, argDsc);
-        }
-        else
-        {
-            JITDUMP("Int arg V%02u in reg %s\n", (argDsc - compiler->lvaTable), getRegName(argDsc->lvArgReg));
-#if FEATURE_MULTIREG_ARGS
-            if (argDsc->lvOtherArgReg != REG_NA)
-            {
-                JITDUMP("(second half) in reg %s\n", getRegName(argDsc->lvOtherArgReg));
-            }
-#endif // FEATURE_MULTIREG_ARGS
-            compiler->raUpdateRegStateForArg(intRegState, argDsc);
-        }
-    }
-}
 
 //------------------------------------------------------------------------
 // findPredBlockForLiveIn: Determine which block should be used for the register locations of the live-in variables.
@@ -3474,16 +2129,18 @@ LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
 //    returned is in fact a predecessor.
 //
 // Notes:
-//    This will select a predecessor based on the heuristics obtained by getLsraBlockBoundaryLocations(), which can be one of:
+//    This will select a predecessor based on the heuristics obtained by getLsraBlockBoundaryLocations(), which can be
+//    one of:
 //      LSRA_BLOCK_BOUNDARY_PRED    - Use the register locations of a predecessor block (default)
 //      LSRA_BLOCK_BOUNDARY_LAYOUT  - Use the register locations of the previous block in layout order.
 //                                    This is the only case where this actually returns a different block.
 //      LSRA_BLOCK_BOUNDARY_ROTATE  - Rotate the register locations from a predecessor.
 //                                    For this case, the block returned is the same as for LSRA_BLOCK_BOUNDARY_PRED, but
-//                                    the register locations will be "rotated" to stress the resolution and allocation code.
+//                                    the register locations will be "rotated" to stress the resolution and allocation
+//                                    code.
 
-BasicBlock*
-LinearScan::findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBUG_ARG(bool* pPredBlockIsAllocated))
+BasicBlock* LinearScan::findPredBlockForLiveIn(BasicBlock* block,
+                                               BasicBlock* prevBlock DEBUGARG(bool* pPredBlockIsAllocated))
 {
     BasicBlock* predBlock = nullptr;
 #ifdef DEBUG
@@ -3497,7 +2154,7 @@ LinearScan::findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBU
     }
     else
 #endif // DEBUG
-    if (block != compiler->fgFirstBB)
+        if (block != compiler->fgFirstBB)
     {
         predBlock = block->GetUniquePred(compiler);
         if (predBlock != nullptr)
@@ -3528,7 +2185,7 @@ LinearScan::findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBU
                         //       |
                         //     block
                         //
-                        for (flowList* pred = otherBlock->bbPreds; pred != NULL; pred = pred->flNext)
+                        for (flowList* pred = otherBlock->bbPreds; pred != nullptr; pred = pred->flNext)
                         {
                             BasicBlock* otherPred = pred->flBlock;
                             if (otherPred->bbNum == blockInfo[otherBlock->bbNum].predBBNum)
@@ -3547,9 +2204,7 @@ LinearScan::findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBU
         }
         else
         {
-            for (flowList* pred = block->bbPreds;
-                    pred != NULL;
-                    pred = pred->flNext)
+            for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
             {
                 BasicBlock* candidatePredBlock = pred->flBlock;
                 if (isBlockVisited(candidatePredBlock))
@@ -3572,486 +2227,58 @@ LinearScan::findPredBlockForLiveIn(BasicBlock* block, BasicBlock* prevBlock DEBU
     return predBlock;
 }
 
-void
-LinearScan::buildIntervals()
+#ifdef DEBUG
+void LinearScan::dumpVarRefPositions(const char* title)
 {
-    BasicBlock *block;
-
-    // start numbering at 1; 0 is the entry
-    LsraLocation currentLoc = 1;
-
-    JITDUMP("\nbuildIntervals ========\n");
-
-    // Now build (empty) records for all of the physical registers
-    buildPhysRegRecords();
-
-#ifdef DEBUG
-    if (VERBOSE)
+    if (enregisterLocalVars)
     {
-        printf("\n-----------------\n");
-        printf(  "LIVENESS:\n");
-        printf(  "-----------------\n");
-        foreach_block(compiler, block)
+        printf("\nVAR REFPOSITIONS %s\n", title);
+
+        for (unsigned i = 0; i < compiler->lvaCount; i++)
         {
-            printf("BB%02u use def in out\n", block->bbNum);
-            dumpConvertedVarSet(compiler, block->bbVarUse);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbVarDef);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbLiveIn);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbLiveOut);  printf("\n");
-        }
-    }
-#endif // DEBUG
+            printf("--- V%02u\n", i);
 
-    identifyCandidates();
-
-    DBEXEC(VERBOSE, TupleStyleDump(LSRA_DUMP_PRE));
-
-    // second part: 
-    JITDUMP("\nbuildIntervals second part ========\n");
-    currentLoc = 0;
-
-    // Next, create ParamDef RefPositions for all the tracked parameters,
-    // in order of their varIndex
-
-    LclVarDsc   * argDsc;
-    unsigned int            lclNum;
-
-    RegState              * intRegState   = &compiler->codeGen->intRegState;
-    RegState              * floatRegState = &compiler->codeGen->floatRegState;
-    intRegState->rsCalleeRegArgMaskLiveIn   = RBM_NONE;
-    floatRegState->rsCalleeRegArgMaskLiveIn = RBM_NONE;
-
-    for (unsigned int varIndex = 0;
-         varIndex < compiler->lvaTrackedCount;
-         varIndex++)
-    {
-        lclNum = compiler->lvaTrackedToVarNum[varIndex];
-        argDsc = &(compiler->lvaTable[lclNum]);
-
-        if (!argDsc->lvIsParam)
-            continue;
-
-        // Only reserve a register if the argument is actually used.
-        // Is it dead on entry? If compJmpOpUsed is true, then the arguments
-        // have to be kept alive, so we have to consider it as live on entry.
-        // Use lvRefCnt instead of checking bbLiveIn because if it's volatile we
-        // won't have done dataflow on it, but it needs to be marked as live-in so
-        // it will get saved in the prolog.
-        if (!compiler->compJmpOpUsed && argDsc->lvRefCnt == 0 && !compiler->opts.compDbgCode)
-        {
-            continue;
-        }
-
-        if (argDsc->lvIsRegArg) updateRegStateForArg(argDsc);
-
-        if (isCandidateVar(argDsc))
-        {
-            Interval * interval = getIntervalForLocalVar(lclNum);
-            regMaskTP mask = allRegs(TypeGet(argDsc));
-            if (argDsc->lvIsRegArg)
+            LclVarDsc* varDsc = compiler->lvaTable + i;
+            if (varDsc->lvIsRegCandidate())
             {
-                // Set this interval as currently assigned to that register
-                regNumber inArgReg = argDsc->lvArgReg;
-                assert(inArgReg < REG_COUNT);
-                mask = genRegMask(inArgReg);
-                assignPhysReg(inArgReg, interval);
-            }
-            RefPosition * pos = newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, mask);
-        }
-        else if (varTypeIsStruct(argDsc->lvType))
-        {
-            for (unsigned fieldVarNum = argDsc->lvFieldLclStart;
-                 fieldVarNum < argDsc->lvFieldLclStart + argDsc->lvFieldCnt;
-                 ++fieldVarNum)
-            {
-                LclVarDsc * fieldVarDsc = &(compiler->lvaTable[fieldVarNum]);
-                if (fieldVarDsc->lvLRACandidate)
+                Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
+                for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
                 {
-                    Interval * interval = getIntervalForLocalVar(fieldVarNum);
-                    RefPosition * pos = newRefPosition (interval, MinLocation, RefTypeParamDef, nullptr,
-                                                        allRegs(TypeGet(fieldVarDsc)));
+                    ref->dump();
                 }
             }
         }
-        else
-        {
-            // We can overwrite the register (i.e. codegen saves it on entry)
-            assert(argDsc->lvRefCnt == 0     ||
-                   !argDsc->lvIsRegArg       ||
-                   argDsc->lvDoNotEnregister ||
-                   !argDsc->lvLRACandidate   ||
-                   (varTypeIsFloating(argDsc->TypeGet()) && compiler->opts.compDbgCode));
-        }
+        printf("\n");
     }
-
-    // Now set up the reg state for the non-tracked args
-    // (We do this here because we want to generate the ParamDef RefPositions in tracked
-    // order, so that loop doesn't hit the non-tracked args)
-
-    for (unsigned argNum = 0; argNum < compiler->info.compArgsCount; argNum++, argDsc++)
-    {
-        argDsc = &(compiler->lvaTable[argNum]);
-
-        if (argDsc->lvPromotedStruct())
-        {
-            noway_assert(argDsc->lvFieldCnt == 1);  // We only handle one field here
-
-            unsigned fieldVarNum = argDsc->lvFieldLclStart;
-            argDsc = &(compiler->lvaTable[fieldVarNum]);
-        }
-        noway_assert(argDsc->lvIsParam);
-        if (!argDsc->lvTracked && argDsc->lvIsRegArg)
-        {
-            updateRegStateForArg(argDsc);
-        }
-    }
-            
-    // If there is a secret stub param, it is also live in
-    if (compiler->info.compPublishStubParam)
-    {
-        intRegState->rsCalleeRegArgMaskLiveIn |= RBM_SECRET_STUB_PARAM;
-    }
-
-    ArrayStack<LocationInfo> stack(compiler);
-
-    BasicBlock* predBlock = nullptr;
-    BasicBlock* prevBlock = nullptr;
-
-    // Initialize currentLiveVars to the empty set.  We will set it to the current
-    // live-in at the entry to each block (this will include the incoming args on
-    // the first block).
-    VarSetOps::AssignNoCopy(compiler, currentLiveVars, VarSetOps::MakeEmpty(compiler));
-
-    for( block = startBlockSequence();
-         block != nullptr;
-         block = moveToNextBlock())
-    {
-        JITDUMP("\nNEW BLOCK BB%02u\n", block->bbNum);
-
-        bool predBlockIsAllocated = false;
-        predBlock = findPredBlockForLiveIn(block, prevBlock DEBUG_ARG(&predBlockIsAllocated));
-
-        if (block == compiler->fgFirstBB)
-        {
-            insertZeroInitRefPositions();
-        }
-
-        // Determine if we need any DummyDefs.
-        // We need DummyDefs for cases where "predBlock" isn't really a predecessor.
-        // Note that it's possible to have uses of unitialized variables, in which case even the first
-        // block may require DummyDefs, which we are not currently adding - this means that these variables
-        // will always be considered to be in memory on entry (and reloaded when the use is encountered).
-        // TODO-CQ: Consider how best to tune this.  Currently, if we create DummyDefs for uninitialized
-        // variables (which may actually be initialized along the dynamically executed paths, but not
-        // on all static paths), we wind up with excessive liveranges for some of these variables.
-        VARSET_TP VARSET_INIT(compiler, newLiveIn, block->bbLiveIn);
-        if (predBlock)
-        {
-            JITDUMP("\n\nSetting incoming variable registers of BB%02u to outVarToRegMap of BB%02u\n", block->bbNum, predBlock->bbNum);
-            assert(predBlock->bbNum <= bbNumMaxBeforeResolution);
-            blockInfo[block->bbNum].predBBNum = predBlock->bbNum;
-            // Compute set difference: newLiveIn = block->bbLiveIn - predBlock->bbLiveOut
-            VarSetOps::DiffD(compiler, newLiveIn, predBlock->bbLiveOut);
-        }
-        bool needsDummyDefs = (!VarSetOps::IsEmpty(compiler, newLiveIn) && block != compiler->fgFirstBB);
-
-        // Create dummy def RefPositions
-
-        if (needsDummyDefs)
-        {
-            // If we are using locations from a predecessor, we should never require DummyDefs.
-            assert(!predBlockIsAllocated);
-
-            JITDUMP("Creating dummy definitions\n");
-            VARSET_ITER_INIT(compiler, iter, newLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
-            {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc *varDsc = compiler->lvaTable + varNum;
-                // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
-                // If this is the entry block, don't add any incoming parameters (they're handled with ParamDefs).
-                if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
-                {
-                    Interval * interval = getIntervalForLocalVar(varNum);
-                    RefPosition * pos = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr, 
-                                                        allRegs(interval->registerType));
-                }
-            }
-            JITDUMP("Finished creating dummy definitions\n\n");
-        }
-
-        // Add a dummy RefPosition to mark the block boundary.
-        // Note that we do this AFTER adding the exposed uses above, because the
-        // register positions for those exposed uses need to be recorded at
-        // this point.
-
-        RefPosition * pos = newRefPosition((Interval *)nullptr, currentLoc, RefTypeBB, nullptr, RBM_NONE);
-
-        VarSetOps::Assign(compiler, currentLiveVars, block->bbLiveIn);
-
-        for (GenTree *statement = block->FirstNonPhiDef();
-             statement;
-             statement = statement->gtNext)
-        {
-            if (statement->gtStmt.gtStmtIsEmbedded()) 
-                continue;
-
-            GenTree *treeNode;
-            int dstCount = 0;
-            
-            GenTree * stmtExpr = statement->gtStmt.gtStmtExpr;
-
-            // If we have a dead lclVar use, we have to generate a RefPosition for it,
-            // otherwise the dataflow won't match the allocations.
-            // TODO-Cleanup: Delete these dead lclVar uses before LSRA, and remove from the
-            // live sets as appropriate.
-            //
-            // Do this for the top level statement and all of its embedded statements.
-            // The embedded statements need to be traversed because otherwise we cannot
-            // identify a dead use.  We skip them in the outer loop because we need
-            // this data for the whole statement before we build refpositions.
-            GenTree* nextStmt = statement;
-            do
-            {
-                GenTree * nextStmtExpr = nextStmt->gtStmt.gtStmtExpr;
-                if (nextStmtExpr->gtLsraInfo.dstCount > 0)
-                {
-                    nextStmtExpr->gtLsraInfo.isLocalDefUse = true;
-                    nextStmtExpr->gtLsraInfo.dstCount = 0;
-                }
-
-                nextStmt = nextStmt->gtNext;
-            }
-            while (nextStmt && nextStmt->gtStmt.gtStmtIsEmbedded());
-
-            // Go through the statement nodes in execution order, and build RefPositions
-            foreach_treenode_execution_order(treeNode, statement)
-            {
-                assert (treeNode->gtLsraInfo.loc >= currentLoc);
-                currentLoc = treeNode->gtLsraInfo.loc;
-                dstCount = treeNode->gtLsraInfo.dstCount;       
-                buildRefPositionsForNode(treeNode, block, &stack, currentLoc);
-#ifdef DEBUG
-                if (currentLoc > maxNodeLocation)
-                {
-                    maxNodeLocation = currentLoc;
-                }
-#endif // DEBUG
-            }
-            // At this point the stack should be empty, unless:
-            // 1) we've got a node that produces a result that's ignored, in which
-            //    case the stack height should match the dstCount.
-            // 2) we've got a comma node
-            JITDUMP("stack height after tree processed was %d\n", stack.Height());
-            assert(stmtExpr->OperGet() == GT_COMMA || stack.Height() == dstCount);
-            stack.Reset();
-        }
-        // Increment the LsraLocation at this point, so that the dummy RefPositions
-        // will not have the same LsraLocation as any "real" RefPosition.
-        currentLoc += 2;
-
-        // Note: the visited set is cleared in LinearScan::doLinearScan()
-        markBlockVisited(block);
-
-        // Insert exposed uses for a lclVar that is live-out of 'block' but not live-in to the
-        // next block, or any unvisited successors.
-        // This will address lclVars that are live on a backedge, as well as those that are kept
-        // live at a GT_JMP.
-        //
-        // Blocks ending with "jmp method" are marked as BBJ_HAS_JMP,
-        // and jmp call is represented using GT_JMP node which is a leaf node.
-        // Liveness phase keeps all the arguments of the method live till the end of
-        // block by adding them to liveout set of the block containing GT_JMP.          
-        //
-        // The target of a GT_JMP implicitly uses all the current method arguments, however
-        // there are no actual references to them.  This can cause LSRA to assert, because
-        // the variables are live but it sees no references.  In order to correctly model the
-        // liveness of these arguments, we add dummy exposed uses, in the same manner as for
-        // backward branches.  This will happen automatically via expUseSet.
-        //
-        // Note that a block ending with GT_JMP has no successors and hence the variables
-        // for which dummy use ref positions are added are arguments of the method.
-
-        VARSET_TP VARSET_INIT(compiler, expUseSet, block->bbLiveOut);
-        BasicBlock* nextBlock = getNextBlock();
-        if (nextBlock != nullptr)
-        {
-            VarSetOps::DiffD(compiler, expUseSet, nextBlock->bbLiveIn);
-        }
-        AllSuccessorIter succsEnd = block->GetAllSuccs(compiler).end();
-        for (AllSuccessorIter succs = block->GetAllSuccs(compiler).begin();
-             succs != succsEnd && !VarSetOps::IsEmpty(compiler, expUseSet);
-             ++succs)
-        {
-            BasicBlock* succ = (*succs);
-            if (isBlockVisited(succ))
-            {
-                continue;
-            }
-            VarSetOps::DiffD(compiler, expUseSet, succ->bbLiveIn);
-        }
-
-        if (!VarSetOps::IsEmpty(compiler, expUseSet))
-        {
-            JITDUMP("Exposed uses:");
-            VARSET_ITER_INIT(compiler, iter, expUseSet, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
-            {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                LclVarDsc *varDsc = compiler->lvaTable + varNum;
-                if (isCandidateVar(varDsc))
-                {
-                    Interval * interval = getIntervalForLocalVar(varNum);
-                    RefPosition * pos = newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, 
-                                                       allRegs(interval->registerType));
-                    JITDUMP(" V%02u", varNum);
-                }
-            }
-            JITDUMP("\n");
-        }
-
-        // Identify the last uses of each variable, except in the case of MinOpts, where all vars
-        // are kept live everywhere.
-
-        if (!compiler->opts.MinOpts()) 
-        {
-            setLastUses(block);
-        }
-
-#ifdef DEBUG
-        if (VERBOSE)
-        {
-            printf("use: ");
-            dumpConvertedVarSet(compiler, block->bbVarUse);
-            printf("\ndef: ");
-            dumpConvertedVarSet(compiler, block->bbVarDef);
-            printf("\n");
-        }
-#endif // DEBUG
-
-        prevBlock = block;
-    }
-
-    // If we need to KeepAliveAndReportThis, add a dummy exposed use of it at the end
-    if (compiler->lvaKeepAliveAndReportThis())
-    {
-        unsigned keepAliveVarNum = compiler->info.compThisArg;
-        assert(compiler->info.compIsStatic == false);
-        if (isCandidateVar(&compiler->lvaTable[keepAliveVarNum]))
-        {
-            JITDUMP("Adding exposed use of this, for lvaKeepAliveAndReportThis\n");
-            Interval * interval = getIntervalForLocalVar(keepAliveVarNum);
-            RefPosition * pos = newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
-        }
-    }
-
-#ifdef DEBUG
-    if (getLsraExtendLifeTimes())
-    {
-        LclVarDsc* varDsc;
-        for (lclNum = 0, varDsc = compiler->lvaTable;
-             lclNum < compiler->lvaCount;
-             lclNum++  , varDsc++)
-        {
-            if (varDsc->lvLRACandidate)
-            {
-                JITDUMP("Adding exposed use of V%02u for LsraExtendLifetimes\n", lclNum);
-                Interval * interval = getIntervalForLocalVar(lclNum);
-                RefPosition * pos = newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
-            }
-        }
-    }
-#endif // DEBUG
-
-    // If the last block has successors, create a RefTypeBB to record
-    // what's live
-
-    if (prevBlock->NumSucc(compiler) > 0)
-    {
-        RefPosition * pos = newRefPosition((Interval *)nullptr, currentLoc, RefTypeBB, nullptr, RBM_NONE);
-    }
-
-#ifdef DEBUG
-    // Make sure we don't have any blocks that were not visited
-    foreach_block(compiler, block)
-    {
-        assert(isBlockVisited(block));
-    }
-
-    if (VERBOSE)
-    {
-        lsraDumpIntervals("BEFORE VALIDATING INTERVALS");
-        dumpRefPositions("BEFORE VALIDATING INTERVALS");
-        validateIntervals();
-    }
-#endif // DEBUG
 }
 
-#ifdef DEBUG
-void
-LinearScan::dumpVarRefPositions(const char *title)
-{
-    printf("\nVAR REFPOSITIONS %s\n", title);
-
-    for (unsigned i = 0; i < compiler->lvaCount; i++)
-    {
-        Interval * interval = getIntervalForLocalVar(i);
-        printf("--- V%02u\n", i);
-
-        for (RefPosition * ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
-        {
-            ref->dump();
-        }
-    }
-
-    printf("\n");
-}
-
-void
-LinearScan::validateIntervals()
-{
-    for (unsigned i = 0; i < compiler->lvaCount; i++)
-    {
-        Interval * interval = getIntervalForLocalVar(i);
-
-        bool defined = false;
-        printf("-----------------\n");
-        for (RefPosition * ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
-        {
-            ref->dump();
-            RefType refType = ref->refType;
-            if (!defined && RefTypeIsUse(refType))
-            {
-                if (compiler->info.compMethodName != nullptr)
-                    printf("%s: ", compiler->info.compMethodName); 
-                printf("LocalVar V%02u: undefined use at %u\n", i, ref->nodeLocation);
-            }
-            // Note that there can be multiple last uses if they are on disjoint paths,
-            // so we can't really check the lastUse flag
-            if (ref->lastUse) defined = false;
-            if (RefTypeIsDef(refType)) defined = true;
-        }
-    }
-}
 #endif // DEBUG
 
 // Set the default rpFrameType based upon codeGen->isFramePointerRequired()
 // This was lifted from the register predictor
 //
-void
-LinearScan::setFrameType()
+void LinearScan::setFrameType()
 {
     FrameType frameType = FT_NOT_SET;
-    if (compiler->codeGen->isFramePointerRequired())
+#if DOUBLE_ALIGN
+    compiler->codeGen->setDoubleAlign(false);
+    if (doDoubleAlign)
+    {
+        frameType = FT_DOUBLE_ALIGN_FRAME;
+        compiler->codeGen->setDoubleAlign(true);
+    }
+    else
+#endif // DOUBLE_ALIGN
+        if (compiler->codeGen->isFramePointerRequired())
     {
         frameType = FT_EBP_FRAME;
     }
     else
     {
-        if (compiler->rpMustCreateEBPCalled == false) 
+        if (compiler->rpMustCreateEBPCalled == false)
         {
 #ifdef DEBUG
-            const char * reason;
+            const char* reason;
 #endif // DEBUG
             compiler->rpMustCreateEBPCalled = true;
             if (compiler->rpMustCreateEBPFrame(INDEBUG(&reason)))
@@ -4071,85 +2298,83 @@ LinearScan::setFrameType()
         }
     }
 
-#if DOUBLE_ALIGN
-    // The DOUBLE_ALIGN feature indicates whether the JIT will attempt to double-align the
-    // frame if needed.  Note that this feature isn't on for amd64, because the stack is
-    // always double-aligned by default.
-    compiler->codeGen->setDoubleAlign(false);
-
-    // TODO-CQ: Tune this (see regalloc.cpp, in which raCntWtdStkDblStackFP is used to
-    // determine whether to double-align). Note, though that there is at least one test
-    // (jit\opt\Perf\DoubleAlign\Locals.exe) that depends on double-alignment being set
-    // in certain situations.
-    if (!compiler->opts.MinOpts() && 
-        !compiler->codeGen->isFramePointerRequired() &&
-        compiler->compFloatingPointUsed)
-    {
-        frameType = FT_DOUBLE_ALIGN_FRAME;
-    }
-#endif // DOUBLE_ALIGN
-
     switch (frameType)
     {
-    case FT_ESP_FRAME:
-        noway_assert(!compiler->codeGen->isFramePointerRequired());
-        noway_assert(!compiler->codeGen->isFrameRequired());
-        compiler->codeGen->setFramePointerUsed(false);
-        break;
-    case FT_EBP_FRAME:
-        compiler->codeGen->setFramePointerUsed(true);
-        break;
+        case FT_ESP_FRAME:
+            noway_assert(!compiler->codeGen->isFramePointerRequired());
+            noway_assert(!compiler->codeGen->isFrameRequired());
+            compiler->codeGen->setFramePointerUsed(false);
+            break;
+        case FT_EBP_FRAME:
+            compiler->codeGen->setFramePointerUsed(true);
+            break;
 #if DOUBLE_ALIGN
-    case FT_DOUBLE_ALIGN_FRAME:
-        noway_assert(!compiler->codeGen->isFramePointerRequired());
-        compiler->codeGen->setFramePointerUsed(false);
-        compiler->codeGen->setDoubleAlign(true);
-        break;
+        case FT_DOUBLE_ALIGN_FRAME:
+            noway_assert(!compiler->codeGen->isFramePointerRequired());
+            compiler->codeGen->setFramePointerUsed(false);
+            break;
 #endif // DOUBLE_ALIGN
-    default:
-        noway_assert(!"rpFrameType not set correctly!");
-        break;
+        default:
+            noway_assert(!"rpFrameType not set correctly!");
+            break;
     }
 
     // If we are using FPBASE as the frame register, we cannot also use it for
-    // a local var. Note that we may have already added it to the register masks,
-    // which are computed when the LinearScan class constructor is created, and
-    // used during lowering. Luckily, the TreeNodeInfo only stores an index to
-    // the masks stored in the LinearScan class, so we only need to walk the
-    // unique masks and remove FPBASE.
+    // a local var.
+    regMaskTP removeMask = RBM_NONE;
     if (frameType == FT_EBP_FRAME)
     {
-        if ((availableIntRegs & RBM_FPBASE) != 0)
-        {
-            RemoveRegisterFromMasks(REG_FPBASE);
-
-            // We know that we're already in "read mode" for availableIntRegs. However,
-            // we need to remove the FPBASE register, so subsequent users (like callers
-            // to allRegs()) get the right thing. The RemoveRegisterFromMasks() code
-            // fixes up everything that already took a dependency on the value that was
-            // previously read, so this completes the picture.
-            availableIntRegs.OverrideAssign(availableIntRegs & ~RBM_FPBASE);
-        }
+        removeMask |= RBM_FPBASE;
     }
 
     compiler->rpFrameType = frameType;
+
+#ifdef _TARGET_ARMARCH_
+    // Determine whether we need to reserve a register for large lclVar offsets.
+    if (compiler->compRsvdRegCheck(Compiler::REGALLOC_FRAME_LAYOUT))
+    {
+        // We reserve R10/IP1 in this case to hold the offsets in load/store instructions
+        compiler->codeGen->regSet.rsMaskResvd |= RBM_OPT_RSVD;
+        assert(REG_OPT_RSVD != REG_FP);
+        JITDUMP("  Reserved REG_OPT_RSVD (%s) due to large frame\n", getRegName(REG_OPT_RSVD));
+        removeMask |= RBM_OPT_RSVD;
+    }
+#endif // _TARGET_ARMARCH_
+
+    if ((removeMask != RBM_NONE) && ((availableIntRegs & removeMask) != 0))
+    {
+        // We know that we're already in "read mode" for availableIntRegs. However,
+        // we need to remove these registers, so subsequent users (like callers
+        // to allRegs()) get the right thing. The RemoveRegistersFromMasks() code
+        // fixes up everything that already took a dependency on the value that was
+        // previously read, so this completes the picture.
+        availableIntRegs.OverrideAssign(availableIntRegs & ~removeMask);
+    }
 }
 
-// Is the copyReg given by this RefPosition still busy at the
-// given location?
-bool
-copyRegInUse(RefPosition * ref, LsraLocation loc)
+//------------------------------------------------------------------------
+// copyOrMoveRegInUse: Is 'ref' a copyReg/moveReg that is still busy at the given location?
+//
+// Arguments:
+//    ref: The RefPosition of interest
+//    loc: The LsraLocation at which we're determining whether it's busy.
+//
+// Return Value:
+//    true iff 'ref' is active at the given location
+//
+bool copyOrMoveRegInUse(RefPosition* ref, LsraLocation loc)
 {
-    assert(ref->copyReg);
+    if (!ref->copyReg && !ref->moveReg)
+    {
+        return false;
+    }
     if (ref->getRefEndLocation() >= loc)
     {
         return true;
     }
-    Interval * interval = ref->getInterval();
-    RefPosition * nextRef = interval->getNextRefPosition();
-    if (nextRef != nullptr &&
-        nextRef->treeNode == ref->treeNode &&
-        nextRef->getRefEndLocation() >= loc)
+    Interval*    interval = ref->getInterval();
+    RefPosition* nextRef  = interval->getNextRefPosition();
+    if (nextRef != nullptr && nextRef->treeNode == ref->treeNode && nextRef->getRefEndLocation() >= loc)
     {
         return true;
     }
@@ -4160,18 +2385,20 @@ copyRegInUse(RefPosition * ref, LsraLocation loc)
 // at the "currentLoc", and if so, return the next location at which it is in use in
 // "nextRefLocationPtr"
 //
-bool
-LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLoc, LsraLocation * nextRefLocationPtr, RegisterType regType)
+bool LinearScan::registerIsAvailable(RegRecord*    physRegRecord,
+                                     LsraLocation  currentLoc,
+                                     LsraLocation* nextRefLocationPtr,
+                                     RegisterType  regType)
 {
-    *nextRefLocationPtr = MaxLocation;
+    *nextRefLocationPtr          = MaxLocation;
     LsraLocation nextRefLocation = MaxLocation;
-    regMaskTP regMask = genRegMask(physRegRecord->regNum);
+    regMaskTP    regMask         = genRegMask(physRegRecord->regNum);
     if (physRegRecord->isBusyUntilNextKill)
     {
         return false;
     }
 
-    RefPosition * nextPhysReference = physRegRecord->getNextRefPosition();
+    RefPosition* nextPhysReference = physRegRecord->getNextRefPosition();
     if (nextPhysReference != nullptr)
     {
         nextRefLocation = nextPhysReference->nodeLocation;
@@ -4182,11 +2409,11 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
         nextRefLocation = MaxLocation - 1;
     }
 
-    Interval * assignedInterval = physRegRecord->assignedInterval;
+    Interval* assignedInterval = physRegRecord->assignedInterval;
 
     if (assignedInterval != nullptr)
     {
-        RefPosition * recentReference = assignedInterval->recentRefPosition;
+        RefPosition* recentReference = assignedInterval->recentRefPosition;
 
         // The only case where we have an assignedInterval, but recentReference is null
         // is where this interval is live at procedure entry (i.e. an arg register), in which
@@ -4200,17 +2427,21 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
             return false;
         }
 
-        // Is this a copyReg?  It is if the register assignment doesn't match.
-        // (the recentReference may not be a copyReg, because we could have seen another
-        // reference since the copyReg)
+        // Is this a copyReg/moveReg?  It is if the register assignment doesn't match.
+        // (the recentReference may not be a copyReg/moveReg, because we could have seen another
+        // reference since the copyReg/moveReg)
 
         if (!assignedInterval->isAssignedTo(physRegRecord->regNum))
         {
-            // Don't reassign it if it's still in use
-            if (recentReference->copyReg && copyRegInUse(recentReference, currentLoc))
+            // If the recentReference is for a different register, it can be reassigned, but
+            // otherwise don't reassign it if it's still in use.
+            // (Note that it is unlikely that we have a recent copy or move to a different register,
+            // where this physRegRecord is still pointing at an earlier copy or move, but it is possible,
+            // especially in stress modes.)
+            if ((recentReference->registerAssignment == regMask) && copyOrMoveRegInUse(recentReference, currentLoc))
             {
                 return false;
-            } 
+            }
         }
         else if (!assignedInterval->isActive && assignedInterval->isConstant)
         {
@@ -4221,13 +2452,12 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
         // If this interval isn't active, it's available if it isn't referenced
         // at this location (or the previous location, if the recent RefPosition
         // is a delayRegFree).
-        else if (!assignedInterval->isActive && 
-                 (recentReference->refType == RefTypeExpUse ||
-                  recentReference->getRefEndLocation() < currentLoc))
+        else if (!assignedInterval->isActive &&
+                 (recentReference->refType == RefTypeExpUse || recentReference->getRefEndLocation() < currentLoc))
         {
             // This interval must have a next reference (otherwise it wouldn't be assigned to this register)
-            RefPosition * nextReference = recentReference->nextRefPosition;
-            if ( nextReference != nullptr )
+            RefPosition* nextReference = recentReference->nextRefPosition;
+            if (nextReference != nullptr)
             {
                 if (nextReference->nodeLocation < nextRefLocation)
                 {
@@ -4238,7 +2468,7 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
             {
                 assert(recentReference->copyReg && recentReference->registerAssignment != regMask);
             }
-        } 
+        }
         else
         {
             return false;
@@ -4253,7 +2483,7 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
     if (regType == TYP_DOUBLE)
     {
         // Recurse, but check the other half this time (TYP_FLOAT)
-        if (!registerIsAvailable(getRegisterRecord(REG_NEXT(physRegRecord->regNum)), currentLoc, nextRefLocationPtr, TYP_FLOAT))
+        if (!registerIsAvailable(findAnotherHalfRegRec(physRegRecord), currentLoc, nextRefLocationPtr, TYP_FLOAT))
             return false;
         nextRefLocation = *nextRefLocationPtr;
     }
@@ -4281,24 +2511,76 @@ LinearScan::registerIsAvailable(RegRecord *physRegRecord, LsraLocation currentLo
 //    we are interested in the "defining" type of the interval).  This is because the situation of interest
 //    only happens at the use (where it must be copied to an integer register).
 
-RegisterType
-LinearScan::getRegisterType(Interval *currentInterval, RefPosition* refPosition)
+RegisterType LinearScan::getRegisterType(Interval* currentInterval, RefPosition* refPosition)
 {
     assert(refPosition->getInterval() == currentInterval);
-    RegisterType regType = currentInterval->registerType;
-    regMaskTP candidates = refPosition->registerAssignment;
-#if defined(FEATURE_SIMD) && defined(_TARGET_AMD64_)
-    if ((candidates & allRegs(regType)) == RBM_NONE)
-    {
-        assert((regType == TYP_SIMD8)              &&
-               (refPosition->refType == RefTypeUse) &&
-               ((candidates & allRegs(TYP_INT)) != RBM_NONE));
-        regType = TYP_INT;
-    }
-#else // !(defined(FEATURE_SIMD) && defined(_TARGET_AMD64_))
+    RegisterType regType    = currentInterval->registerType;
+    regMaskTP    candidates = refPosition->registerAssignment;
+
     assert((candidates & allRegs(regType)) != RBM_NONE);
-#endif // !(defined(FEATURE_SIMD) && defined(_TARGET_AMD64_))
     return regType;
+}
+
+//------------------------------------------------------------------------
+// isMatchingConstant: Check to see whether a given register contains the constant referenced
+//                     by the given RefPosition
+//
+// Arguments:
+//    physRegRecord:   The RegRecord for the register we're interested in.
+//    refPosition:     The RefPosition for a constant interval.
+//
+// Return Value:
+//    True iff the register was defined by an identical constant node as the current interval.
+//
+bool LinearScan::isMatchingConstant(RegRecord* physRegRecord, RefPosition* refPosition)
+{
+    if ((physRegRecord->assignedInterval == nullptr) || !physRegRecord->assignedInterval->isConstant)
+    {
+        return false;
+    }
+    noway_assert(refPosition->treeNode != nullptr);
+    GenTree* otherTreeNode = physRegRecord->assignedInterval->firstRefPosition->treeNode;
+    noway_assert(otherTreeNode != nullptr);
+
+    if (refPosition->treeNode->OperGet() == otherTreeNode->OperGet())
+    {
+        switch (otherTreeNode->OperGet())
+        {
+            case GT_CNS_INT:
+                if ((refPosition->treeNode->AsIntCon()->IconValue() == otherTreeNode->AsIntCon()->IconValue()) &&
+                    (varTypeGCtype(refPosition->treeNode) == varTypeGCtype(otherTreeNode)))
+                {
+#ifdef _TARGET_64BIT_
+                    // If the constant is negative, only reuse registers of the same type.
+                    // This is because, on a 64-bit system, we do not sign-extend immediates in registers to
+                    // 64-bits unless they are actually longs, as this requires a longer instruction.
+                    // This doesn't apply to a 32-bit system, on which long values occupy multiple registers.
+                    // (We could sign-extend, but we would have to always sign-extend, because if we reuse more
+                    // than once, we won't have access to the instruction that originally defines the constant).
+                    if ((refPosition->treeNode->TypeGet() == otherTreeNode->TypeGet()) ||
+                        (refPosition->treeNode->AsIntCon()->IconValue() >= 0))
+#endif // _TARGET_64BIT_
+                    {
+                        return true;
+                    }
+                }
+                break;
+            case GT_CNS_DBL:
+            {
+                // For floating point constants, the values must be identical, not simply compare
+                // equal.  So we compare the bits.
+                if (refPosition->treeNode->AsDblCon()->isBitwiseEqual(otherTreeNode->AsDblCon()) &&
+                    (refPosition->treeNode->TypeGet() == otherTreeNode->TypeGet()))
+                {
+                    return true;
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    return false;
 }
 
 //------------------------------------------------------------------------
@@ -4316,19 +2598,18 @@ LinearScan::getRegisterType(Interval *currentInterval, RefPosition* refPosition)
 //    TODO-CQ: Consider whether we need to use a different order for tree temps than for vars, as
 //    reg predict does
 
-static const regNumber  lsraRegOrder[]      = { REG_VAR_ORDER };
-const unsigned          lsraRegOrderSize    = ArrLen(lsraRegOrder);
-static const regNumber  lsraRegOrderFlt[]   = { REG_VAR_ORDER_FLT };
-const unsigned          lsraRegOrderFltSize = ArrLen(lsraRegOrderFlt);
+static const regNumber lsraRegOrder[]      = {REG_VAR_ORDER};
+const unsigned         lsraRegOrderSize    = ArrLen(lsraRegOrder);
+static const regNumber lsraRegOrderFlt[]   = {REG_VAR_ORDER_FLT};
+const unsigned         lsraRegOrderFltSize = ArrLen(lsraRegOrderFlt);
 
-regNumber
-LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPosition)
+regNumber LinearScan::tryAllocateFreeReg(Interval* currentInterval, RefPosition* refPosition)
 {
     regNumber foundReg = REG_NA;
 
-    RegisterType regType = getRegisterType(currentInterval, refPosition);
-    const regNumber * regOrder;
-    unsigned          regOrderSize;
+    RegisterType     regType = getRegisterType(currentInterval, refPosition);
+    const regNumber* regOrder;
+    unsigned         regOrderSize;
     if (useFloatReg(regType))
     {
         regOrder     = lsraRegOrderFlt;
@@ -4341,30 +2622,27 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     }
 
     LsraLocation currentLocation = refPosition->nodeLocation;
-    RefPosition* nextRefPos   = refPosition->nextRefPosition;
-    LsraLocation nextLocation = (nextRefPos == nullptr) ? currentLocation : nextRefPos->nodeLocation;
-    regMaskTP candidates  = refPosition->registerAssignment;
-    regMaskTP preferences = currentInterval->registerPreferences;
+    RefPosition* nextRefPos      = refPosition->nextRefPosition;
+    LsraLocation nextLocation    = (nextRefPos == nullptr) ? currentLocation : nextRefPos->nodeLocation;
+    regMaskTP    candidates      = refPosition->registerAssignment;
+    regMaskTP    preferences     = currentInterval->registerPreferences;
 
     if (RefTypeIsDef(refPosition->refType))
     {
         if (currentInterval->hasConflictingDefUse)
         {
             resolveConflictingDefAndUse(currentInterval, refPosition);
-            candidates  = refPosition->registerAssignment;
+            candidates = refPosition->registerAssignment;
         }
         // Otherwise, check for the case of a fixed-reg def of a reg that will be killed before the
         // use, or interferes at the point of use (which shouldn't happen, but Lower doesn't mark
         // the contained nodes as interfering).
         // Note that we may have a ParamDef RefPosition that is marked isFixedRegRef, but which
         // has had its registerAssignment changed to no longer be a single register.
-        else if (refPosition->isFixedRegRef &&
-                 nextRefPos != nullptr &&
-                 RefTypeIsUse(nextRefPos->refType) &&
-                 !nextRefPos->isFixedRegRef &&
-                 genMaxOneBit(refPosition->registerAssignment))
+        else if (refPosition->isFixedRegRef && nextRefPos != nullptr && RefTypeIsUse(nextRefPos->refType) &&
+                 !nextRefPos->isFixedRegRef && genMaxOneBit(refPosition->registerAssignment))
         {
-            regNumber defReg = refPosition->assignedReg();
+            regNumber  defReg       = refPosition->assignedReg();
             RegRecord* defRegRecord = getRegisterRecord(defReg);
 
             RefPosition* currFixedRegRefPosition = defRegRecord->recentRefPosition;
@@ -4386,34 +2664,38 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     }
 
     preferences &= candidates;
-    if (preferences == RBM_NONE) preferences = candidates;
+    if (preferences == RBM_NONE)
+    {
+        preferences = candidates;
+    }
     regMaskTP relatedPreferences = RBM_NONE;
 
 #ifdef DEBUG
     candidates = stressLimitRegs(refPosition, candidates);
 #endif
-    bool mustAssignARegister = true;
     assert(candidates != RBM_NONE);
 
     // If the related interval has no further references, it is possible that it is a source of the
     // node that produces this interval.  However, we don't want to use the relatedInterval for preferencing
     // if its next reference is not a new definition (as it either is or will become live).
-    Interval * relatedInterval = currentInterval->relatedInterval;
+    Interval* relatedInterval = currentInterval->relatedInterval;
     if (relatedInterval != nullptr)
     {
         RefPosition* nextRelatedRefPosition = relatedInterval->getNextRefPosition();
         if (nextRelatedRefPosition != nullptr)
         {
-            // Don't use the relatedInterval for preferencing if its next reference is not a new definition.
+            // Don't use the relatedInterval for preferencing if its next reference is not a new definition,
+            // or if it is only related because they are multi-reg targets of the same node.
             if (!RefTypeIsDef(nextRelatedRefPosition->refType))
             {
                 relatedInterval = nullptr;
             }
-            // Is the relatedInterval simply a copy to another relatedInterval?
-            else if ((relatedInterval->relatedInterval != nullptr) &&
+            // Is the relatedInterval not assigned and simply a copy to another relatedInterval?
+            else if ((relatedInterval->assignedReg == nullptr) && (relatedInterval->relatedInterval != nullptr) &&
                      (nextRelatedRefPosition->nextRefPosition != nullptr) &&
                      (nextRelatedRefPosition->nextRefPosition->nextRefPosition == nullptr) &&
-                     (nextRelatedRefPosition->nextRefPosition->nodeLocation < relatedInterval->relatedInterval->getNextRefLocation()))
+                     (nextRelatedRefPosition->nextRefPosition->nodeLocation <
+                      relatedInterval->relatedInterval->getNextRefLocation()))
             {
                 // The current relatedInterval has only two remaining RefPositions, both of which
                 // occur prior to the next RefPosition for its relatedInterval.
@@ -4430,9 +2712,13 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         // interval preferences into account in the loop over all the registers.
 
         if (relatedInterval->assignedReg != nullptr)
+        {
             relatedPreferences = genRegMask(relatedInterval->assignedReg->regNum);
+        }
         else
+        {
             relatedPreferences = relatedInterval->registerPreferences;
+        }
     }
 
     bool preferCalleeSave = currentInterval->preferCalleeSave;
@@ -4451,11 +2737,10 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         // If we have a relatedInterval that is not currently occupying a register,
         // and whose lifetime begins after this one ends,
         // we want to try to select a register that will cover its lifetime.
-        if ((relatedInterval != nullptr) &&
-            (relatedInterval->assignedReg == nullptr) &&
+        if ((relatedInterval != nullptr) && (relatedInterval->assignedReg == nullptr) &&
             (relatedInterval->getNextRefLocation() >= rangeEndRefPosition->nodeLocation))
         {
-            lastRefPosition = relatedInterval->lastRefPosition;
+            lastRefPosition  = relatedInterval->lastRefPosition;
             preferCalleeSave = relatedInterval->preferCalleeSave;
         }
     }
@@ -4464,8 +2749,8 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     // non-commutative operator), its endLocation is delayed until the "def"
     // position, which is one location past the use (getRefEndLocation() takes care of this).
     LsraLocation rangeEndLocation = rangeEndRefPosition->getRefEndLocation();
-    LsraLocation lastLocation = lastRefPosition->getRefEndLocation();
-    regNumber prevReg = REG_NA;
+    LsraLocation lastLocation     = lastRefPosition->getRefEndLocation();
+    regNumber    prevReg          = REG_NA;
 
     if (currentInterval->assignedReg)
     {
@@ -4476,8 +2761,8 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         // Use it preemptively (i.e. before checking other available regs)
         // only if it is preferred and available.
 
-        RegRecord *regRec = currentInterval->assignedReg;
-        prevReg = regRec->regNum;
+        RegRecord* regRec    = currentInterval->assignedReg;
+        prevReg              = regRec->regNum;
         regMaskTP prevRegBit = genRegMask(prevReg);
 
         // Is it in the preferred set of regs?
@@ -4504,16 +2789,18 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
             refPosition->registerAssignment = genRegMask(foundReg);
             return foundReg;
         }
-        else 
+        else
         {
             // Don't keep trying to allocate to this register
             currentInterval->assignedReg = nullptr;
         }
     }
 
+    //-------------------------------------------------------------------------
+    // Register Selection
 
-    RegRecord * availablePhysRegInterval = nullptr;
-    Interval * intervalToUnassign = nullptr;
+    RegRecord* availablePhysRegInterval = nullptr;
+    bool       unassignInterval         = false;
 
     // Each register will receive a score which is the sum of the scoring criteria below.
     // These were selected on the assumption that they will have an impact on the "goodness"
@@ -4525,14 +2812,15 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     // If the scores are equal, but one covers more of the current interval's range,
     // then it wins.  Otherwise, the one encountered earlier in the regOrder wins.
 
-    enum RegisterScore {
-        VALUE_AVAILABLE     = 0x40,     // It is a constant value that is already in an acceptable register.
-        COVERS              = 0x20,     // It is in the interval's preference set and it covers the entire lifetime.
-        OWN_PREFERENCE      = 0x10,     // It is in the preference set of this interval.
-        COVERS_RELATED      = 0x08,     // It is in the preference set of the related interval and covers the entire lifetime.
-        RELATED_PREFERENCE  = 0x04,     // It is in the preference set of the related interval.
-        CALLER_CALLEE       = 0x02,     // It is in the right "set" for the interval (caller or callee-save).
-        UNASSIGNED          = 0x01,     // It is not currently assigned to an inactive interval.
+    enum RegisterScore
+    {
+        VALUE_AVAILABLE = 0x40, // It is a constant value that is already in an acceptable register.
+        COVERS          = 0x20, // It is in the interval's preference set and it covers the entire lifetime.
+        OWN_PREFERENCE  = 0x10, // It is in the preference set of this interval.
+        COVERS_RELATED  = 0x08, // It is in the preference set of the related interval and covers the entire lifetime.
+        RELATED_PREFERENCE = 0x04, // It is in the preference set of the related interval.
+        CALLER_CALLEE      = 0x02, // It is in the right "set" for the interval (caller or callee-save).
+        UNASSIGNED         = 0x01, // It is not currently assigned to an inactive interval.
     };
 
     int bestScore = 0;
@@ -4559,76 +2847,30 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
     // An optimization for the common case where there is only one candidate -
     // avoid looping over all the other registers
 
-    regNumber singleReg   = REG_NA;
+    regNumber singleReg = REG_NA;
 
     if (genMaxOneBit(candidates))
     {
         regOrderSize = 1;
-        singleReg = genRegNumFromMask(candidates);
-        regOrder = &singleReg;
+        singleReg    = genRegNumFromMask(candidates);
+        regOrder     = &singleReg;
     }
-#if FEATURE_MULTIREG_ARGS
-#ifdef _TARGET_ARM64_
-    // TODO-Cleanup: Remove this code after Issue #3524 is complete
-    //
-    // Handle the 16-byte pass-by-value TYP_STRUCT for ARM64
-    if (regType == TYP_STRUCT)
-    {
-        // We currently use two consecutive registers:
-        //    to pass in argument registers or
-        //    to load and the store into the outgoing arg space
 
-        // TODO: revisit this and remove the limitation that we use two consecutive registers.
-
-        // Make sure that we have two consecutive registers available
-        regMaskTP lowRegBit  = genFindLowestBit(candidates);
-        regMaskTP nextRegBit = lowRegBit << 1;
-        regMaskTP regPairMask = (lowRegBit | nextRegBit);
-        
-        do {
-            // Are there two consecutive register bits available?
-            if ((candidates & regPairMask) == regPairMask)
-            {
-                // We use the same trick as above when regOrderSize, singleReg and regOrder are set 
-                regOrderSize = 1;
-                singleReg = genRegNumFromMask(lowRegBit);
-                regOrder = &singleReg;
-                break;
-            }
-            // setup the next register pair bit
-            lowRegBit  = nextRegBit;
-            nextRegBit = lowRegBit << 1;  // shift left by one bit
-            regPairMask = (lowRegBit | nextRegBit);
-
-        } while (nextRegBit != 0);  // If we shifted out all of the bits then nextRegBit will become zero
-        // Note that shifting out all of the bits is an error, and we catch it with the following noway_assert
-
-        // Make sure we took the break to exit the while loop            
-        noway_assert(singleReg != REG_NA);
-
-        // Unless we setup singleReg we have to issue an NYI error here
-        if (singleReg == REG_NA)
-        {
-            // Need support for MultiReg sized structs
-            NYI("Multireg struct - LinearScan::tryAllocateFreeReg");
-        }
-    }
-#endif  // _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_ARGS
-    
     for (unsigned i = 0; i < regOrderSize && (candidates != RBM_NONE); i++)
     {
-        regNumber regNum = regOrder[i];
+        regNumber regNum       = regOrder[i];
         regMaskTP candidateBit = genRegMask(regNum);
 
-        if (!(candidates & candidateBit)) 
+        if (!(candidates & candidateBit))
+        {
             continue;
+        }
 
         candidates &= ~candidateBit;
 
-        RegRecord * physRegRecord = getRegisterRecord(regNum);
+        RegRecord* physRegRecord = getRegisterRecord(regNum);
 
-        int score = 0;
+        int          score               = 0;
         LsraLocation nextPhysRefLocation = MaxLocation;
 
         // By chance, is this register already holding this interval, as a copyReg or having
@@ -4636,7 +2878,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         if (physRegRecord->assignedInterval == currentInterval)
         {
             availablePhysRegInterval = physRegRecord;
-            intervalToUnassign = nullptr;
+            unassignInterval         = false;
             break;
         }
 
@@ -4645,7 +2887,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         {
             continue;
         }
-                     
+
         // If the register is next referenced at this location, only use it if
         // this has a fixed reg requirement (i.e. this is the reference that caused
         // the FixedReg ref to be created)
@@ -4656,54 +2898,10 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         }
 
         // If this is a definition of a constant interval, check to see if its value is already in this register.
-        if (currentInterval->isConstant &&
-            RefTypeIsDef(refPosition->refType) &&
-            (physRegRecord->assignedInterval != nullptr) &&
-            physRegRecord->assignedInterval->isConstant)
+        if (currentInterval->isConstant && RefTypeIsDef(refPosition->refType) &&
+            isMatchingConstant(physRegRecord, refPosition))
         {
-            noway_assert(refPosition->treeNode != nullptr);
-            GenTree* otherTreeNode = physRegRecord->assignedInterval->firstRefPosition->treeNode;
-            noway_assert(otherTreeNode != nullptr);
-
-            if (refPosition->treeNode->OperGet() == otherTreeNode->OperGet())
-            {
-                switch (otherTreeNode->OperGet())
-                {
-                case GT_CNS_INT:
-                    if ((refPosition->treeNode->AsIntCon()->IconValue() == otherTreeNode->AsIntCon()->IconValue()) &&
-                        (varTypeGCtype(refPosition->treeNode) == varTypeGCtype(otherTreeNode)))
-                    {
-#ifdef _TARGET_64BIT_
-                        // If the constant is negative, only reuse registers of the same type.
-                        // This is because, on a 64-bit system, we do not sign-extend immediates in registers to
-                        // 64-bits unless they are actually longs, as this requires a longer instruction.
-                        // This doesn't apply to a 32-bit system, on which long values occupy multiple registers.
-                        // (We could sign-extend, but we would have to always sign-extend, because if we reuse more
-                        // than once, we won't have access to the instruction that originally defines the constant).
-                        if ((refPosition->treeNode->TypeGet() == otherTreeNode->TypeGet()) ||
-                            (refPosition->treeNode->AsIntCon()->IconValue() >= 0))
-#endif // _TARGET_64BIT_
-                        {
-                            score |= VALUE_AVAILABLE;
-                        }
-                    }
-                    break;
-                case GT_CNS_DBL:
-                    {
-                        // For floating point constants, the values must be identical, not simply compare
-                        // equal.  So we compare the bits.
-                        if (refPosition->treeNode->AsDblCon()->isBitwiseEqual(otherTreeNode->AsDblCon()) &&
-                            (refPosition->treeNode->TypeGet() == otherTreeNode->TypeGet()))
-                        {
-                            score |= VALUE_AVAILABLE;
-                        }
-                        break;
-                    }
-                default:
-                    // for all other 'otherTreeNode->OperGet()' kinds, we leave 'score' unchanged
-                    break;
-                }
-            }
+            score |= VALUE_AVAILABLE;
         }
 
         // If the nextPhysRefLocation is a fixedRef for the rangeEndRefPosition, increment it so that
@@ -4725,8 +2923,7 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
                 score |= COVERS;
             }
         }
-        if (relatedInterval != nullptr &&
-            (candidateBit & relatedPreferences) != RBM_NONE)
+        if (relatedInterval != nullptr && (candidateBit & relatedPreferences) != RBM_NONE)
         {
             score |= RELATED_PREFERENCE;
             if (nextPhysRefLocation > relatedInterval->lastRefPosition->nodeLocation)
@@ -4743,16 +2940,14 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
             score |= RELATED_PREFERENCE;
         }
 
-        if ((preferCalleeSave && physRegRecord->isCalleeSave) ||
-            (!preferCalleeSave && !physRegRecord->isCalleeSave))
+        if ((preferCalleeSave && physRegRecord->isCalleeSave) || (!preferCalleeSave && !physRegRecord->isCalleeSave))
         {
             score |= CALLER_CALLEE;
         }
 
         // The register is considered unassigned if it has no assignedInterval, OR
         // if its next reference is beyond the range of this interval.
-        if (physRegRecord->assignedInterval == nullptr ||
-            physRegRecord->assignedInterval->getNextRefLocation() > lastLocation)
+        if (!isAssigned(physRegRecord, lastLocation ARM_ARG(currentInterval->registerType)))
         {
             score |= UNASSIGNED;
         }
@@ -4772,10 +2967,10 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
                 {
                     foundBetterCandidate = true;
                 }
-            } 
-            // If both cover the range, prefer a register that is killed sooner (leaving the longer range register available).
-            // If both cover the range and also getting killed at the same location, prefer the one which is same as previous
-            // assignment.
+            }
+            // If both cover the range, prefer a register that is killed sooner (leaving the longer range register
+            // available). If both cover the range and also getting killed at the same location, prefer the one which
+            // is same as previous assignment.
             else if (nextPhysRefLocation > lastLocation)
             {
                 if (nextPhysRefLocation < bestLocation)
@@ -4798,10 +2993,10 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
 
         if (foundBetterCandidate)
         {
-            bestLocation = nextPhysRefLocation;
+            bestLocation             = nextPhysRefLocation;
             availablePhysRegInterval = physRegRecord;
-            intervalToUnassign = physRegRecord->assignedInterval;
-            bestScore = score;
+            unassignInterval         = true;
+            bestScore                = score;
         }
 
         // there is no way we can get a better score so break out
@@ -4811,21 +3006,23 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
         }
     }
 
-    if (availablePhysRegInterval != nullptr) {
-        if (intervalToUnassign != nullptr)
+    if (availablePhysRegInterval != nullptr)
+    {
+        if (unassignInterval && isAssigned(availablePhysRegInterval ARM_ARG(currentInterval->registerType)))
         {
-            unassignPhysReg(availablePhysRegInterval, intervalToUnassign->recentRefPosition);
-            if (bestScore & VALUE_AVAILABLE)
+            Interval* const intervalToUnassign = availablePhysRegInterval->assignedInterval;
+            unassignPhysReg(availablePhysRegInterval ARM_ARG(currentInterval->registerType));
+
+            if ((bestScore & VALUE_AVAILABLE) != 0 && intervalToUnassign != nullptr)
             {
                 assert(intervalToUnassign->isConstant);
                 refPosition->treeNode->SetReuseRegVal();
-                refPosition->treeNode->SetInReg();
             }
             // If we considered this "unassigned" because this interval's lifetime ends before
             // the next ref, remember it.
             else if ((bestScore & UNASSIGNED) != 0 && intervalToUnassign != nullptr)
             {
-                availablePhysRegInterval->previousInterval = intervalToUnassign;
+                updatePreviousInterval(availablePhysRegInterval, intervalToUnassign, intervalToUnassign->registerType);
             }
         }
         else
@@ -4833,8 +3030,8 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
             assert((bestScore & VALUE_AVAILABLE) == 0);
         }
         assignPhysReg(availablePhysRegInterval, currentInterval);
-        foundReg = availablePhysRegInterval->regNum;
-        regMaskTP foundRegMask = genRegMask(foundReg);
+        foundReg                        = availablePhysRegInterval->regNum;
+        regMaskTP foundRegMask          = genRegMask(foundReg);
         refPosition->registerAssignment = foundRegMask;
         if (relatedInterval != nullptr)
         {
@@ -4846,25 +3043,390 @@ LinearScan::tryAllocateFreeReg(Interval *currentInterval, RefPosition *refPositi
 }
 
 //------------------------------------------------------------------------
+// canSpillReg: Determine whether we can spill physRegRecord
+//
+// Arguments:
+//    physRegRecord             - reg to spill
+//    refLocation               - Location of RefPosition where this register will be spilled
+//    recentAssignedRefWeight   - Weight of recent assigned RefPosition which will be determined in this function
+//    farthestRefPosWeight      - Current farthestRefPosWeight at allocateBusyReg()
+//
+// Return Value:
+//    True  - if we can spill physRegRecord
+//    False - otherwise
+//
+// Note: This helper is designed to be used only from allocateBusyReg() and canSpillDoubleReg()
+//
+bool LinearScan::canSpillReg(RegRecord* physRegRecord, LsraLocation refLocation, unsigned* recentAssignedRefWeight)
+{
+    assert(physRegRecord->assignedInterval != nullptr);
+    RefPosition* recentAssignedRef = physRegRecord->assignedInterval->recentRefPosition;
+
+    if (recentAssignedRef != nullptr)
+    {
+        if (isRefPositionActive(recentAssignedRef, refLocation))
+        {
+            // We can't spill a register that's active at the current location
+            return false;
+        }
+
+        // We don't prefer to spill a register if the weight of recentAssignedRef > weight
+        // of the spill candidate found so far.  We would consider spilling a greater weight
+        // ref position only if the refPosition being allocated must need a reg.
+        *recentAssignedRefWeight = getWeight(recentAssignedRef);
+    }
+    return true;
+}
+
+#ifdef _TARGET_ARM_
+//------------------------------------------------------------------------
+// canSpillDoubleReg: Determine whether we can spill physRegRecord
+//
+// Arguments:
+//    physRegRecord             - reg to spill (must be a valid double register)
+//    refLocation               - Location of RefPosition where this register will be spilled
+//    recentAssignedRefWeight   - Weight of recent assigned RefPosition which will be determined in this function
+//
+// Return Value:
+//    True  - if we can spill physRegRecord
+//    False - otherwise
+//
+// Notes:
+//    This helper is designed to be used only from allocateBusyReg() and canSpillDoubleReg().
+//    The recentAssignedRefWeight is not updated if either register cannot be spilled.
+//
+bool LinearScan::canSpillDoubleReg(RegRecord*   physRegRecord,
+                                   LsraLocation refLocation,
+                                   unsigned*    recentAssignedRefWeight)
+{
+    assert(genIsValidDoubleReg(physRegRecord->regNum));
+    bool     retVal  = true;
+    unsigned weight  = BB_ZERO_WEIGHT;
+    unsigned weight2 = BB_ZERO_WEIGHT;
+
+    RegRecord* physRegRecord2 = findAnotherHalfRegRec(physRegRecord);
+
+    if ((physRegRecord->assignedInterval != nullptr) && !canSpillReg(physRegRecord, refLocation, &weight))
+    {
+        return false;
+    }
+    if (physRegRecord2->assignedInterval != nullptr)
+    {
+        if (!canSpillReg(physRegRecord2, refLocation, &weight2))
+        {
+            return false;
+        }
+        if (weight2 > weight)
+        {
+            weight = weight2;
+        }
+    }
+    *recentAssignedRefWeight = weight;
+    return true;
+}
+#endif
+
+#ifdef _TARGET_ARM_
+//------------------------------------------------------------------------
+// unassignDoublePhysReg: unassign a double register (pair)
+//
+// Arguments:
+//    doubleRegRecord - reg to unassign
+//
+// Note:
+//    The given RegRecord must be a valid (even numbered) double register.
+//
+void LinearScan::unassignDoublePhysReg(RegRecord* doubleRegRecord)
+{
+    assert(genIsValidDoubleReg(doubleRegRecord->regNum));
+
+    RegRecord* doubleRegRecordLo = doubleRegRecord;
+    RegRecord* doubleRegRecordHi = findAnotherHalfRegRec(doubleRegRecordLo);
+    // For a double register, we has following four cases.
+    // Case 1: doubleRegRecLo is assigned to TYP_DOUBLE interval
+    // Case 2: doubleRegRecLo and doubleRegRecHi are assigned to different TYP_FLOAT intervals
+    // Case 3: doubelRegRecLo is assgined to TYP_FLOAT interval and doubleRegRecHi is nullptr
+    // Case 4: doubleRegRecordLo is nullptr, and doubleRegRecordHi is assigned to a TYP_FLOAT interval
+    if (doubleRegRecordLo->assignedInterval != nullptr)
+    {
+        if (doubleRegRecordLo->assignedInterval->registerType == TYP_DOUBLE)
+        {
+            // Case 1: doubleRegRecLo is assigned to TYP_DOUBLE interval
+            unassignPhysReg(doubleRegRecordLo, doubleRegRecordLo->assignedInterval->recentRefPosition);
+        }
+        else
+        {
+            // Case 2: doubleRegRecLo and doubleRegRecHi are assigned to different TYP_FLOAT intervals
+            // Case 3: doubelRegRecLo is assgined to TYP_FLOAT interval and doubleRegRecHi is nullptr
+            assert(doubleRegRecordLo->assignedInterval->registerType == TYP_FLOAT);
+            unassignPhysReg(doubleRegRecordLo, doubleRegRecordLo->assignedInterval->recentRefPosition);
+
+            if (doubleRegRecordHi != nullptr)
+            {
+                if (doubleRegRecordHi->assignedInterval != nullptr)
+                {
+                    assert(doubleRegRecordHi->assignedInterval->registerType == TYP_FLOAT);
+                    unassignPhysReg(doubleRegRecordHi, doubleRegRecordHi->assignedInterval->recentRefPosition);
+                }
+            }
+        }
+    }
+    else
+    {
+        // Case 4: doubleRegRecordLo is nullptr, and doubleRegRecordHi is assigned to a TYP_FLOAT interval
+        assert(doubleRegRecordHi->assignedInterval != nullptr);
+        assert(doubleRegRecordHi->assignedInterval->registerType == TYP_FLOAT);
+        unassignPhysReg(doubleRegRecordHi, doubleRegRecordHi->assignedInterval->recentRefPosition);
+    }
+}
+
+#endif // _TARGET_ARM_
+
+//------------------------------------------------------------------------
+// isRefPositionActive: Determine whether a given RefPosition is active at the given location
+//
+// Arguments:
+//    refPosition - the RefPosition of interest
+//    refLocation - the LsraLocation at which we want to know if it is active
+//
+// Return Value:
+//    True  - if this RefPosition occurs at the given location, OR
+//            if it occurs at the previous location and is marked delayRegFree.
+//    False - otherwise
+//
+bool LinearScan::isRefPositionActive(RefPosition* refPosition, LsraLocation refLocation)
+{
+    return (refPosition->nodeLocation == refLocation ||
+            ((refPosition->nodeLocation + 1 == refLocation) && refPosition->delayRegFree));
+}
+
+//----------------------------------------------------------------------------------------
+// isRegInUse: Test whether regRec is being used at the refPosition
+//
+// Arguments:
+//    regRec - A register to be tested
+//    refPosition - RefPosition where regRec is tested
+//
+// Return Value:
+//    True - if regRec is being used
+//    False - otherwise
+//
+// Notes:
+//    This helper is designed to be used only from allocateBusyReg(), where:
+//    - This register was *not* found when looking for a free register, and
+//    - The caller must have already checked for the case where 'refPosition' is a fixed ref
+//      (asserted at the beginning of this method).
+//
+bool LinearScan::isRegInUse(RegRecord* regRec, RefPosition* refPosition)
+{
+    // We shouldn't reach this check if 'refPosition' is a FixedReg of this register.
+    assert(!refPosition->isFixedRefOfReg(regRec->regNum));
+    Interval* assignedInterval = regRec->assignedInterval;
+    if (assignedInterval != nullptr)
+    {
+        if (!assignedInterval->isActive)
+        {
+            // This can only happen if we have a recentRefPosition active at this location that hasn't yet been freed.
+            CLANG_FORMAT_COMMENT_ANCHOR;
+
+            if (isRefPositionActive(assignedInterval->recentRefPosition, refPosition->nodeLocation))
+            {
+                return true;
+            }
+            else
+            {
+#ifdef _TARGET_ARM_
+                // In the case of TYP_DOUBLE, we may have the case where 'assignedInterval' is inactive,
+                // but the other half register is active. If so, it must be have an active recentRefPosition,
+                // as above.
+                if (refPosition->getInterval()->registerType == TYP_DOUBLE)
+                {
+                    RegRecord* otherHalfRegRec = findAnotherHalfRegRec(regRec);
+                    if (!otherHalfRegRec->assignedInterval->isActive)
+                    {
+                        if (isRefPositionActive(otherHalfRegRec->assignedInterval->recentRefPosition,
+                                                refPosition->nodeLocation))
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            assert(!"Unexpected inactive assigned interval in isRegInUse");
+                            return true;
+                        }
+                    }
+                }
+                else
+#endif
+                {
+                    assert(!"Unexpected inactive assigned interval in isRegInUse");
+                    return true;
+                }
+            }
+        }
+        RefPosition* nextAssignedRef = assignedInterval->getNextRefPosition();
+
+        // We should never spill a register that's occupied by an Interval with its next use at the current
+        // location.
+        // Normally this won't occur (unless we actually had more uses in a single node than there are registers),
+        // because we'll always find something with a later nextLocation, but it can happen in stress when
+        // we have LSRA_SELECT_NEAREST.
+        if ((nextAssignedRef != nullptr) && isRefPositionActive(nextAssignedRef, refPosition->nodeLocation) &&
+            nextAssignedRef->RequiresRegister())
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+//------------------------------------------------------------------------
+// isSpillCandidate: Determine if a register is a spill candidate for a given RefPosition.
+//
+// Arguments:
+//    current               The interval for the current allocation
+//    refPosition           The RefPosition of the current Interval for which a register is being allocated
+//    physRegRecord         The RegRecord for the register we're considering for spill
+//    nextLocation          An out (reference) parameter in which the next use location of the
+//                          given RegRecord will be returned.
+//
+// Return Value:
+//    True iff the given register can be spilled to accommodate the given RefPosition.
+//
+bool LinearScan::isSpillCandidate(Interval*     current,
+                                  RefPosition*  refPosition,
+                                  RegRecord*    physRegRecord,
+                                  LsraLocation& nextLocation)
+{
+    regMaskTP    candidateBit = genRegMask(physRegRecord->regNum);
+    LsraLocation refLocation  = refPosition->nodeLocation;
+    if (physRegRecord->isBusyUntilNextKill)
+    {
+        return false;
+    }
+    Interval* assignedInterval = physRegRecord->assignedInterval;
+    if (assignedInterval != nullptr)
+    {
+        nextLocation = assignedInterval->getNextRefLocation();
+    }
+#ifdef _TARGET_ARM_
+    RegRecord* physRegRecord2    = nullptr;
+    Interval*  assignedInterval2 = nullptr;
+
+    // For ARM32, a double occupies a consecutive even/odd pair of float registers.
+    if (current->registerType == TYP_DOUBLE)
+    {
+        assert(genIsValidDoubleReg(physRegRecord->regNum));
+        physRegRecord2 = findAnotherHalfRegRec(physRegRecord);
+        if (physRegRecord2->isBusyUntilNextKill)
+        {
+            return false;
+        }
+        assignedInterval2 = physRegRecord2->assignedInterval;
+        if ((assignedInterval2 != nullptr) && (assignedInterval2->getNextRefLocation() > nextLocation))
+        {
+            nextLocation = assignedInterval2->getNextRefLocation();
+        }
+    }
+#endif
+
+    // If there is a fixed reference at the same location (and it's not due to this reference),
+    // don't use it.
+    if (physRegRecord->conflictingFixedRegReference(refPosition))
+    {
+        return false;
+    }
+
+    if (refPosition->isFixedRefOfRegMask(candidateBit))
+    {
+        // Either:
+        // - there is a fixed reference due to this node, OR
+        // - or there is a fixed use fed by a def at this node, OR
+        // - or we have restricted the set of registers for stress.
+        // In any case, we must use this register as it's the only candidate
+        // TODO-CQ: At the time we allocate a register to a fixed-reg def, if it's not going
+        // to remain live until the use, we should set the candidates to allRegs(regType)
+        // to avoid a spill - codegen can then insert the copy.
+        // If this is marked as allocateIfProfitable, the caller will compare the weights
+        // of this RefPosition and the RefPosition to which it is currently assigned.
+        assert(refPosition->isFixedRegRef ||
+               (refPosition->nextRefPosition != nullptr && refPosition->nextRefPosition->isFixedRegRef) ||
+               candidatesAreStressLimited());
+        return true;
+    }
+
+    // If this register is not assigned to an interval, either
+    // - it has a FixedReg reference at the current location that is not this reference, OR
+    // - this is the special case of a fixed loReg, where this interval has a use at the same location
+    // In either case, we cannot use it
+    CLANG_FORMAT_COMMENT_ANCHOR;
+
+#ifdef _TARGET_ARM_
+    if (assignedInterval == nullptr && assignedInterval2 == nullptr)
+#else
+    if (assignedInterval == nullptr)
+#endif
+    {
+        RefPosition* nextPhysRegPosition = physRegRecord->getNextRefPosition();
+        assert((nextPhysRegPosition != nullptr) && (nextPhysRegPosition->nodeLocation == refLocation) &&
+               (candidateBit != refPosition->registerAssignment));
+        return false;
+    }
+
+    if (isRegInUse(physRegRecord, refPosition))
+    {
+        return false;
+    }
+
+#ifdef _TARGET_ARM_
+    if (current->registerType == TYP_DOUBLE)
+    {
+        if (isRegInUse(physRegRecord2, refPosition))
+        {
+            return false;
+        }
+    }
+#endif
+    return true;
+}
+
+//------------------------------------------------------------------------
 // allocateBusyReg: Find a busy register that satisfies the requirements for refPosition,
 //                  and that can be spilled.
 //
 // Arguments:
-//    current:         The interval for the current allocation
-//    refPosition:     The RefPosition of the current Interval for which a register is being allocated
+//    current               The interval for the current allocation
+//    refPosition           The RefPosition of the current Interval for which a register is being allocated
+//    allocateIfProfitable  If true, a reg may not be allocated if all other ref positions currently
+//                          occupying registers are more important than the 'refPosition'.
 //
 // Return Value:
 //    The regNumber allocated to the RefPositon.  Returns REG_NA if no free register is found.
-
-regNumber
-LinearScan::allocateBusyReg(Interval *current, RefPosition *refPosition)
+//
+// Note:  Currently this routine uses weight and farthest distance of next reference
+// to select a ref position for spilling.
+// a) if allocateIfProfitable = false
+//        The ref position chosen for spilling will be the lowest weight
+//        of all and if there is is more than one ref position with the
+//        same lowest weight, among them choses the one with farthest
+//        distance to its next reference.
+//
+// b) if allocateIfProfitable = true
+//        The ref position chosen for spilling will not only be lowest weight
+//        of all but also has a weight lower than 'refPosition'.  If there is
+//        no such ref position, reg will not be allocated.
+//
+regNumber LinearScan::allocateBusyReg(Interval* current, RefPosition* refPosition, bool allocateIfProfitable)
 {
     regNumber foundReg = REG_NA;
 
-    RegisterType regType = getRegisterType(current, refPosition);
-    regMaskTP candidates = refPosition->registerAssignment;
-    regMaskTP preferences = (current->registerPreferences & candidates);
-    if (preferences == RBM_NONE) preferences = candidates;
+    RegisterType regType     = getRegisterType(current, refPosition);
+    regMaskTP    candidates  = refPosition->registerAssignment;
+    regMaskTP    preferences = (current->registerPreferences & candidates);
+    if (preferences == RBM_NONE)
+    {
+        preferences = candidates;
+    }
     if (candidates == RBM_NONE)
     {
         // This assumes only integer and floating point register types
@@ -4880,146 +3442,248 @@ LinearScan::allocateBusyReg(Interval *current, RefPosition *refPosition)
     // TODO-CQ: Determine whether/how to take preferences into account in addition to
     // prefering the one with the furthest ref position when considering
     // a candidate to spill
-    RegRecord * farthestRefPhysRegRecord = nullptr;
+    RegRecord* farthestRefPhysRegRecord = nullptr;
+#ifdef _TARGET_ARM_
+    RegRecord* farthestRefPhysRegRecord2 = nullptr;
+#endif
     LsraLocation farthestLocation = MinLocation;
-    LsraLocation refLocation = refPosition->nodeLocation;
+    LsraLocation refLocation      = refPosition->nodeLocation;
+    unsigned     farthestRefPosWeight;
+    if (allocateIfProfitable)
+    {
+        // If allocating a reg is optional, we will consider those ref positions
+        // whose weight is less than 'refPosition' for spilling.
+        farthestRefPosWeight = getWeight(refPosition);
+    }
+    else
+    {
+        // If allocating a reg is a must, we start off with max weight so
+        // that the first spill candidate will be selected based on
+        // farthest distance alone.  Since we start off with farthestLocation
+        // initialized to MinLocation, the first available ref position
+        // will be selected as spill candidate and its weight as the
+        // fathestRefPosWeight.
+        farthestRefPosWeight = BB_MAX_WEIGHT;
+    }
+
     for (regNumber regNum : Registers(regType))
     {
         regMaskTP candidateBit = genRegMask(regNum);
-        if (!(candidates & candidateBit)) continue;
-        RegRecord * physRegRecord = getRegisterRecord(regNum);
-
-        if (physRegRecord->isBusyUntilNextKill)
+        if (!(candidates & candidateBit))
         {
             continue;
         }
-        Interval * assignedInterval = physRegRecord->assignedInterval;
-
-        // If there is a fixed reference at the same location (and it's not due to this reference),
-        // don't use it.
-
-        if (physRegRecord->conflictingFixedRegReference(refPosition))
+        RegRecord*   physRegRecord  = getRegisterRecord(regNum);
+        RegRecord*   physRegRecord2 = nullptr; // only used for _TARGET_ARM_
+        LsraLocation nextLocation   = MinLocation;
+        LsraLocation physRegNextLocation;
+        if (!isSpillCandidate(current, refPosition, physRegRecord, nextLocation))
         {
             assert(candidates != candidateBit);
             continue;
         }
 
-        LsraLocation physRegNextLocation = MaxLocation;
-        if (refPosition->isFixedRefOfRegMask(candidateBit))
+        // We've passed the preliminary checks for a spill candidate.
+        // Now, if we have a recentAssignedRef, check that it is going to be OK to spill it.
+        Interval*    assignedInterval        = physRegRecord->assignedInterval;
+        unsigned     recentAssignedRefWeight = BB_ZERO_WEIGHT;
+        RefPosition* recentAssignedRef       = nullptr;
+        RefPosition* recentAssignedRef2      = nullptr;
+#ifdef _TARGET_ARM_
+        if (current->registerType == TYP_DOUBLE)
         {
-            // Either there is a fixed reference due to this node, or one associated with a
-            // fixed use fed by a def at this node.
-            // In either case, we must use this register as it's the only candidate
-            // TODO-CQ: At the time we allocate a register to a fixed-reg def, if it's not going
-            // to remain live until the use, we should set the candidates to allRegs(regType)
-            // to avoid a spill - codegen can then insert the copy.
-            assert(candidates == candidateBit);
-            physRegNextLocation = MaxLocation;
+            recentAssignedRef           = (assignedInterval == nullptr) ? nullptr : assignedInterval->recentRefPosition;
+            physRegRecord2              = findAnotherHalfRegRec(physRegRecord);
+            Interval* assignedInterval2 = physRegRecord2->assignedInterval;
+            recentAssignedRef2 = (assignedInterval2 == nullptr) ? nullptr : assignedInterval2->recentRefPosition;
+            if (!canSpillDoubleReg(physRegRecord, refLocation, &recentAssignedRefWeight))
+            {
+                continue;
+            }
         }
         else
-        {
-            physRegNextLocation = physRegRecord->getNextRefLocation();
-        }
-        if (physRegNextLocation < farthestLocation)
-            continue;
-                
-        // If this register is not assigned to an interval, either
-        // - it has a FixedReg reference at the current location that is not this reference, OR
-        // - this is the special case of a fixed loReg, where this interval has a use at the same location
-        // In either case, we cannot use it
-
-        if (assignedInterval == nullptr)
-        {
-            RefPosition* nextPhysRegPosition = physRegRecord->getNextRefPosition();
-
-#ifndef _TARGET_ARM64_
-            // TODO-Cleanup: Revisit this after Issue #3524 is complete
-            // On ARM64 the nodeLocation is not always == refLocation, Disabling this assert for now.
-            assert(nextPhysRegPosition->nodeLocation == refLocation && candidateBit != candidates);
 #endif
-            continue;
-        }
-
-        RefPosition * recentAssignedRef = assignedInterval->recentRefPosition;
-
-        if (!assignedInterval->isActive)
         {
-            // The assigned interval has a reference at this location - otherwise, we would have found
-            // this in tryAllocateFreeReg().
-            // Note that we may or may not have actually handled the reference yet, so it could either
-            // be recentAssigedRef, or the next reference.
-            assert(recentAssignedRef != nullptr);
-            if (recentAssignedRef->nodeLocation != refLocation)
-            {
-                if (recentAssignedRef->nodeLocation + 1 == refLocation)
-                {
-                    assert(recentAssignedRef->delayRegFree);
-                }
-                else
-                {
-                    RefPosition* nextAssignedRef = recentAssignedRef->nextRefPosition;
-                    assert(nextAssignedRef != nullptr);
-                    assert(nextAssignedRef->nodeLocation == refLocation ||
-                           (nextAssignedRef->nodeLocation + 1 == refLocation && nextAssignedRef->delayRegFree));
-                }
-            }
-            continue;
-        }
-            
-        // If we have a recentAssignedRef, check that it is going to be OK to spill it
-        if (recentAssignedRef != nullptr)
-        {
-            if (recentAssignedRef->nodeLocation == refLocation)
-            {
-                // We can't spill a register that's being used at the current location
-                RefPosition * physRegRef = physRegRecord->recentRefPosition;
-                continue;
-            }
-        
-            // If the current position has the candidate register marked to be delayed, 
-            // check if the previous location is using this register, if that's the case we have to skip
-            // since we can't spill this register.
-            if(recentAssignedRef->delayRegFree &&
-               (refLocation == recentAssignedRef->nodeLocation + 1))
+            recentAssignedRef = assignedInterval->recentRefPosition;
+            if (!canSpillReg(physRegRecord, refLocation, &recentAssignedRefWeight))
             {
                 continue;
             }
         }
-
-        LsraLocation nextLocation = assignedInterval->getNextRefLocation();
-
-        // We should never spill a register that's occupied by an Interval with its next use at the current location.
-        // Normally this won't occur (unless we actually had more uses in a single node than there are registers),
-        // because we'll always find something with a later nextLocation, but it can happen in stress when
-        // we have LSRA_SELECT_NEAREST.
-        if ((nextLocation == refLocation) && !refPosition->isFixedRegRef)
+        if (recentAssignedRefWeight > farthestRefPosWeight)
         {
             continue;
         }
 
+        physRegNextLocation = physRegRecord->getNextRefLocation();
         if (nextLocation > physRegNextLocation)
+        {
             nextLocation = physRegNextLocation;
+        }
 
-        bool isBetterLocation = (nextLocation > farthestLocation);
+        bool isBetterLocation;
+
 #ifdef DEBUG
         if (doSelectNearest() && farthestRefPhysRegRecord != nullptr)
         {
-            isBetterLocation = !isBetterLocation;
+            isBetterLocation = (nextLocation <= farthestLocation);
         }
-#endif // DEBUG
+        else
+#endif
+            // This if-stmt is associated with the above else
+            if (recentAssignedRefWeight < farthestRefPosWeight)
+        {
+            isBetterLocation = true;
+        }
+        else
+        {
+            // This would mean the weight of spill ref position we found so far is equal
+            // to the weight of the ref position that is being evaluated.  In this case
+            // we prefer to spill ref position whose distance to its next reference is
+            // the farthest.
+            assert(recentAssignedRefWeight == farthestRefPosWeight);
+
+            // If allocateIfProfitable=true, the first spill candidate selected
+            // will be based on weight alone. After we have found a spill
+            // candidate whose weight is less than the 'refPosition', we will
+            // consider farthest distance when there is a tie in weights.
+            // This is to ensure that we don't spill a ref position whose
+            // weight is equal to weight of 'refPosition'.
+            if (allocateIfProfitable && farthestRefPhysRegRecord == nullptr)
+            {
+                isBetterLocation = false;
+            }
+            else
+            {
+                isBetterLocation = (nextLocation > farthestLocation);
+
+                if (nextLocation > farthestLocation)
+                {
+                    isBetterLocation = true;
+                }
+                else if (nextLocation == farthestLocation)
+                {
+                    // Both weight and distance are equal.
+                    // Prefer that ref position which is marked both reload and
+                    // allocate if profitable.  These ref positions don't need
+                    // need to be spilled as they are already in memory and
+                    // codegen considers them as contained memory operands.
+                    CLANG_FORMAT_COMMENT_ANCHOR;
+#ifdef _TARGET_ARM_
+                    // TODO-CQ-ARM: Just conservatively "and" two condition. We may implement better condision later.
+                    isBetterLocation = true;
+                    if (recentAssignedRef != nullptr)
+                        isBetterLocation &= (recentAssignedRef->reload && recentAssignedRef->AllocateIfProfitable());
+
+                    if (recentAssignedRef2 != nullptr)
+                        isBetterLocation &= (recentAssignedRef2->reload && recentAssignedRef2->AllocateIfProfitable());
+#else
+                    isBetterLocation = (recentAssignedRef != nullptr) && recentAssignedRef->reload &&
+                                       recentAssignedRef->AllocateIfProfitable();
+#endif
+                }
+                else
+                {
+                    isBetterLocation = false;
+                }
+            }
+        }
+
         if (isBetterLocation)
         {
-            farthestLocation = nextLocation;
+            farthestLocation         = nextLocation;
             farthestRefPhysRegRecord = physRegRecord;
+#ifdef _TARGET_ARM_
+            farthestRefPhysRegRecord2 = physRegRecord2;
+#endif
+            farthestRefPosWeight = recentAssignedRefWeight;
         }
     }
-    assert(farthestRefPhysRegRecord != nullptr &&
-           (farthestLocation > refLocation || refPosition->isFixedRegRef));
-    foundReg = farthestRefPhysRegRecord->regNum;
-    unassignPhysReg(farthestRefPhysRegRecord, farthestRefPhysRegRecord->assignedInterval->recentRefPosition);
-    assignPhysReg(farthestRefPhysRegRecord, current);
 
-    refPosition->registerAssignment = genRegMask(foundReg);
+#if DEBUG
+    if (allocateIfProfitable)
+    {
+        // There may not be a spill candidate or if one is found
+        // its weight must be less than the weight of 'refPosition'
+        assert((farthestRefPhysRegRecord == nullptr) || (farthestRefPosWeight < getWeight(refPosition)));
+    }
+    else
+    {
+        // Must have found a spill candidate.
+        assert(farthestRefPhysRegRecord != nullptr);
+
+        if (farthestLocation == refLocation)
+        {
+            // This must be a RefPosition that is constrained to use a single register, either directly,
+            // or at the use, or by stress.
+            bool isConstrained = (refPosition->isFixedRegRef || (refPosition->nextRefPosition != nullptr &&
+                                                                 refPosition->nextRefPosition->isFixedRegRef) ||
+                                  candidatesAreStressLimited());
+            if (!isConstrained)
+            {
+#ifdef _TARGET_ARM_
+                Interval* assignedInterval =
+                    (farthestRefPhysRegRecord == nullptr) ? nullptr : farthestRefPhysRegRecord->assignedInterval;
+                Interval* assignedInterval2 =
+                    (farthestRefPhysRegRecord2 == nullptr) ? nullptr : farthestRefPhysRegRecord2->assignedInterval;
+                RefPosition* nextRefPosition =
+                    (assignedInterval == nullptr) ? nullptr : assignedInterval->getNextRefPosition();
+                RefPosition* nextRefPosition2 =
+                    (assignedInterval2 == nullptr) ? nullptr : assignedInterval2->getNextRefPosition();
+                if (nextRefPosition != nullptr)
+                {
+                    if (nextRefPosition2 != nullptr)
+                    {
+                        assert(!nextRefPosition->RequiresRegister() || !nextRefPosition2->RequiresRegister());
+                    }
+                    else
+                    {
+                        assert(!nextRefPosition->RequiresRegister());
+                    }
+                }
+                else
+                {
+                    assert(nextRefPosition2 != nullptr && !nextRefPosition2->RequiresRegister());
+                }
+#else  // !_TARGET_ARM_
+                Interval*    assignedInterval = farthestRefPhysRegRecord->assignedInterval;
+                RefPosition* nextRefPosition  = assignedInterval->getNextRefPosition();
+                assert(!nextRefPosition->RequiresRegister());
+#endif // !_TARGET_ARM_
+            }
+        }
+        else
+        {
+            assert(farthestLocation > refLocation);
+        }
+    }
+#endif // DEBUG
+
+    if (farthestRefPhysRegRecord != nullptr)
+    {
+        foundReg = farthestRefPhysRegRecord->regNum;
+
+#ifdef _TARGET_ARM_
+        if (current->registerType == TYP_DOUBLE)
+        {
+            assert(genIsValidDoubleReg(foundReg));
+            unassignDoublePhysReg(farthestRefPhysRegRecord);
+        }
+        else
+#endif
+        {
+            unassignPhysReg(farthestRefPhysRegRecord, farthestRefPhysRegRecord->assignedInterval->recentRefPosition);
+        }
+
+        assignPhysReg(farthestRefPhysRegRecord, current);
+        refPosition->registerAssignment = genRegMask(foundReg);
+    }
+    else
+    {
+        foundReg                        = REG_NA;
+        refPosition->registerAssignment = RBM_NONE;
+    }
+
     return foundReg;
 }
 
@@ -5031,52 +3695,118 @@ LinearScan::allocateBusyReg(Interval *current, RefPosition *refPosition)
 // Prefer a free register that's got the earliest next use.
 // Otherwise, spill something with the farthest next use
 //
-regNumber
-LinearScan::assignCopyReg(RefPosition * refPosition)
+regNumber LinearScan::assignCopyReg(RefPosition* refPosition)
 {
-    Interval * currentInterval = refPosition->getInterval();
+    Interval* currentInterval = refPosition->getInterval();
     assert(currentInterval != nullptr);
     assert(currentInterval->isActive);
 
-    bool foundFreeReg = false;
-    RegRecord * bestPhysReg = nullptr;
+    bool         foundFreeReg = false;
+    RegRecord*   bestPhysReg  = nullptr;
     LsraLocation bestLocation = MinLocation;
-    regMaskTP candidates = refPosition->registerAssignment;
+    regMaskTP    candidates   = refPosition->registerAssignment;
 
     // Save the relatedInterval, if any, so that it doesn't get modified during allocation.
-    Interval* savedRelatedInterval = currentInterval->relatedInterval;
+    Interval* savedRelatedInterval   = currentInterval->relatedInterval;
     currentInterval->relatedInterval = nullptr;
 
     // We don't want really want to change the default assignment,
     // so 1) pretend this isn't active, and 2) remember the old reg
-    regNumber oldPhysReg = currentInterval->physReg;
-    RegRecord * oldRegRecord = currentInterval->assignedReg;
+    regNumber  oldPhysReg   = currentInterval->physReg;
+    RegRecord* oldRegRecord = currentInterval->assignedReg;
     assert(oldRegRecord->regNum == oldPhysReg);
     currentInterval->isActive = false;
 
     regNumber allocatedReg = tryAllocateFreeReg(currentInterval, refPosition);
     if (allocatedReg == REG_NA)
     {
-        allocatedReg = allocateBusyReg(currentInterval, refPosition);
+        allocatedReg = allocateBusyReg(currentInterval, refPosition, false);
     }
 
     // Now restore the old info
     currentInterval->relatedInterval = savedRelatedInterval;
-    currentInterval->physReg = oldPhysReg;
-    currentInterval->assignedReg = oldRegRecord;
-    currentInterval->isActive = true;
+    currentInterval->physReg         = oldPhysReg;
+    currentInterval->assignedReg     = oldRegRecord;
+    currentInterval->isActive        = true;
 
     refPosition->copyReg = true;
     return allocatedReg;
 }
 
+//------------------------------------------------------------------------
+// isAssigned: This is the function to check if the given RegRecord has an assignedInterval
+//             regardless of lastLocation.
+//             So it would be call isAssigned() with Maxlocation value.
+//
+// Arguments:
+//    regRec       - The RegRecord to check that it is assigned.
+//    newRegType   - There are elements to judge according to the upcoming register type.
+//
+// Return Value:
+//    Returns true if the given RegRecord has an assignedInterval.
+//
+// Notes:
+//    There is the case to check if the RegRecord has an assignedInterval regardless of Lastlocation.
+//
+bool LinearScan::isAssigned(RegRecord* regRec ARM_ARG(RegisterType newRegType))
+{
+    return isAssigned(regRec, MaxLocation ARM_ARG(newRegType));
+}
 
-// Check if the interval is already assigned and if it is then unassign the physical record 
+//------------------------------------------------------------------------
+// isAssigned: Check whether the given RegRecord has an assignedInterval
+//             that has a reference prior to the given location.
+//
+// Arguments:
+//    regRec       - The RegRecord of interest
+//    lastLocation - The LsraLocation up to which we want to check
+//    newRegType   - The `RegisterType` of interval we want to check
+//                   (this is for the purposes of checking the other half of a TYP_DOUBLE RegRecord)
+//
+// Return value:
+//    Returns true if the given RegRecord (and its other half, if TYP_DOUBLE) has an assignedInterval
+//    that is referenced prior to the given location
+//
+// Notes:
+//    The register is not considered to be assigned if it has no assignedInterval, or that Interval's
+//    next reference is beyond lastLocation
+//
+bool LinearScan::isAssigned(RegRecord* regRec, LsraLocation lastLocation ARM_ARG(RegisterType newRegType))
+{
+    Interval* assignedInterval = regRec->assignedInterval;
+
+    if ((assignedInterval == nullptr) || assignedInterval->getNextRefLocation() > lastLocation)
+    {
+#ifdef _TARGET_ARM_
+        if (newRegType == TYP_DOUBLE)
+        {
+            RegRecord* anotherRegRec = findAnotherHalfRegRec(regRec);
+
+            if ((anotherRegRec->assignedInterval == nullptr) ||
+                (anotherRegRec->assignedInterval->getNextRefLocation() > lastLocation))
+            {
+                // In case the newRegType is a double register,
+                // the score would be set UNASSIGNED if another register is also not set.
+                return false;
+            }
+        }
+        else
+#endif
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// Check if the interval is already assigned and if it is then unassign the physical record
 // then set the assignedInterval to 'interval'
 //
-void LinearScan::checkAndAssignInterval( RegRecord * regRec, Interval * interval)
+void LinearScan::checkAndAssignInterval(RegRecord* regRec, Interval* interval)
 {
-    if (regRec->assignedInterval != nullptr && regRec->assignedInterval != interval)
+    Interval* assignedInterval = regRec->assignedInterval;
+    if (assignedInterval != nullptr && assignedInterval != interval)
     {
         // This is allocated to another interval.  Either it is inactive, or it was allocated as a
         // copyReg and is therefore not the "assignedReg" of the other interval.  In the latter case,
@@ -5086,60 +3816,116 @@ void LinearScan::checkAndAssignInterval( RegRecord * regRec, Interval * interval
         // in method SerialStream.GetDcbFlag.
         // Note that we can't check for the copyReg case, because we may have seen a more recent
         // RefPosition for the Interval that was NOT a copyReg.
-        if (regRec->assignedInterval->assignedReg == regRec)
+        if (assignedInterval->assignedReg == regRec)
         {
-            assert(regRec->assignedInterval->isActive == false);
-            regRec->assignedInterval->physReg = REG_NA;
+            assert(assignedInterval->isActive == false);
+            assignedInterval->physReg = REG_NA;
         }
         unassignPhysReg(regRec->regNum);
     }
+#ifdef _TARGET_ARM_
+    // If 'interval' and 'assignedInterval' were both TYP_DOUBLE, then we have unassigned 'assignedInterval'
+    // from both halves. Otherwise, if 'interval' is TYP_DOUBLE, we now need to unassign the other half.
+    if ((interval->registerType == TYP_DOUBLE) &&
+        ((assignedInterval == nullptr) || (assignedInterval->registerType == TYP_FLOAT)))
+    {
+        RegRecord* otherRegRecord = getSecondHalfRegRec(regRec);
+        assignedInterval          = otherRegRecord->assignedInterval;
+        if (assignedInterval != nullptr && assignedInterval != interval)
+        {
+            if (assignedInterval->assignedReg == otherRegRecord)
+            {
+                assert(assignedInterval->isActive == false);
+                assignedInterval->physReg = REG_NA;
+            }
+            unassignPhysReg(otherRegRecord->regNum);
+        }
+    }
+#endif
 
-    regRec->assignedInterval = interval;
+    updateAssignedInterval(regRec, interval, interval->registerType);
 }
 
 // Assign the given physical register interval to the given interval
-void LinearScan::assignPhysReg( RegRecord * regRec, Interval * interval)
+void LinearScan::assignPhysReg(RegRecord* regRec, Interval* interval)
 {
     regMaskTP assignedRegMask = genRegMask(regRec->regNum);
-    compiler->codeGen->regSet.rsSetRegsModified(assignedRegMask DEBUG_ARG(dumpTerse));
+    compiler->codeGen->regSet.rsSetRegsModified(assignedRegMask DEBUGARG(true));
 
     checkAndAssignInterval(regRec, interval);
     interval->assignedReg = regRec;
 
-#ifdef _TARGET_ARM_
-    if ((interval->registerType == TYP_DOUBLE) && isFloatRegType(regRec->registerType))
-    {
-        regNumber   nextRegNum = REG_NEXT(regRec->regNum);
-        RegRecord * nextRegRec = getRegisterRecord(nextRegNum);
-
-        checkAndAssignInterval(nextRegRec, interval);
-    }
-#endif // _TARGET_ARM_
-
-#if FEATURE_MULTIREG_ARGS_OR_RET
-#ifdef _TARGET_ARM64_
-    // TODO-Cleanup: Remove this code after Issue #3524 is complete
-    // Handle the 16-byte pass-by-value TYP_STRUCT for ARM64
-    if (interval->registerType == TYP_STRUCT)
-    {
-        // We use two consecutive registers:
-        //    to pass in argument registers or
-        //    to load and the store into the outgoing arg space
-        regNumber   nextRegNum = REG_NEXT(regRec->regNum);
-        RegRecord * nextRegRec = getRegisterRecord(nextRegNum);
-
-        checkAndAssignInterval(nextRegRec, interval);
-    }
-#endif //  _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_ARGS_OR_RET
-
-    interval->physReg = regRec->regNum;
+    interval->physReg  = regRec->regNum;
     interval->isActive = true;
     if (interval->isLocalVar)
     {
         // Prefer this register for future references
         interval->updateRegisterPreferences(assignedRegMask);
     }
+}
+
+//------------------------------------------------------------------------
+// setIntervalAsSplit: Set this Interval as being split
+//
+// Arguments:
+//    interval - The Interval which is being split
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    The given Interval will be marked as split, and it will be added to the
+//    set of splitOrSpilledVars.
+//
+// Assumptions:
+//    "interval" must be a lclVar interval, as tree temps are never split.
+//    This is asserted in the call to getVarIndex().
+//
+void LinearScan::setIntervalAsSplit(Interval* interval)
+{
+    if (interval->isLocalVar)
+    {
+        unsigned varIndex = interval->getVarIndex(compiler);
+        if (!interval->isSplit)
+        {
+            VarSetOps::AddElemD(compiler, splitOrSpilledVars, varIndex);
+        }
+        else
+        {
+            assert(VarSetOps::IsMember(compiler, splitOrSpilledVars, varIndex));
+        }
+    }
+    interval->isSplit = true;
+}
+
+//------------------------------------------------------------------------
+// setIntervalAsSpilled: Set this Interval as being spilled
+//
+// Arguments:
+//    interval - The Interval which is being spilled
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    The given Interval will be marked as spilled, and it will be added
+//    to the set of splitOrSpilledVars.
+//
+void LinearScan::setIntervalAsSpilled(Interval* interval)
+{
+    if (interval->isLocalVar)
+    {
+        unsigned varIndex = interval->getVarIndex(compiler);
+        if (!interval->isSpilled)
+        {
+            VarSetOps::AddElemD(compiler, splitOrSpilledVars, varIndex);
+        }
+        else
+        {
+            assert(VarSetOps::IsMember(compiler, splitOrSpilledVars, varIndex));
+        }
+    }
+    interval->isSpilled = true;
 }
 
 //------------------------------------------------------------------------
@@ -5155,8 +3941,7 @@ void LinearScan::assignPhysReg( RegRecord * regRec, Interval * interval)
 // Assumptions:
 //    fromRefPosition and toRefPosition must not be null
 //
-void
-LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition)
+void LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefPosition* toRefPosition)
 {
     assert(fromRefPosition != nullptr && toRefPosition != nullptr);
     assert(fromRefPosition->getInterval() == interval && toRefPosition->getInterval() == interval);
@@ -5164,7 +3949,9 @@ LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefP
 
     if (!fromRefPosition->lastUse)
     {
-        if (!fromRefPosition->RequiresRegister())
+        // If not allocated a register, Lcl var def/use ref positions even if reg optional
+        // should be marked as spillAfter.
+        if (!fromRefPosition->RequiresRegister() && !(interval->isLocalVar && fromRefPosition->IsActualRef()))
         {
             fromRefPosition->registerAssignment = RBM_NONE;
         }
@@ -5182,8 +3969,10 @@ LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefP
     }
 #endif // DEBUG
 
+    INTRACK_STATS(updateLsraStat(LSRA_STAT_SPILL, fromRefPosition->bbNum));
+
     interval->isActive = false;
-    interval->isSpilled = true;
+    setIntervalAsSpilled(interval);
 
     // If fromRefPosition occurs before the beginning of this block, mark this as living in the stack
     // on entry to this block.
@@ -5194,7 +3983,6 @@ LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefP
         setInVarRegForBB(curBBNum, interval->varNum, REG_STK);
     }
 }
-
 
 //------------------------------------------------------------------------
 // unassignPhysRegNoSpill: Unassign the given physical register record from
@@ -5215,7 +4003,7 @@ LinearScan::spillInterval(Interval* interval, RefPosition* fromRefPosition, RefP
 
 void LinearScan::unassignPhysRegNoSpill(RegRecord* regRec)
 {
-    Interval * assignedInterval = regRec->assignedInterval;
+    Interval* assignedInterval = regRec->assignedInterval;
     assert(assignedInterval != nullptr && assignedInterval->isActive);
     assignedInterval->isActive = false;
     unassignPhysReg(regRec, nullptr);
@@ -5223,7 +4011,7 @@ void LinearScan::unassignPhysRegNoSpill(RegRecord* regRec)
 }
 
 //------------------------------------------------------------------------
-// checkAndClearInterval: Clear the assignedInterval for the given 
+// checkAndClearInterval: Clear the assignedInterval for the given
 //                        physical register record
 //
 // Arguments:
@@ -5237,9 +4025,9 @@ void LinearScan::unassignPhysRegNoSpill(RegRecord* regRec)
 // Assumptions:
 //    see unassignPhysReg
 //
-void LinearScan::checkAndClearInterval( RegRecord * regRec, RefPosition* spillRefPosition)
+void LinearScan::checkAndClearInterval(RegRecord* regRec, RefPosition* spillRefPosition)
 {
-    Interval * assignedInterval = regRec->assignedInterval;
+    Interval* assignedInterval = regRec->assignedInterval;
     assert(assignedInterval != nullptr);
     regNumber thisRegNum = regRec->regNum;
 
@@ -5257,7 +4045,59 @@ void LinearScan::checkAndClearInterval( RegRecord * regRec, RefPosition* spillRe
         assert(spillRefPosition->getInterval() == assignedInterval);
     }
 
-    regRec->assignedInterval = nullptr;
+    updateAssignedInterval(regRec, nullptr, assignedInterval->registerType);
+}
+
+//------------------------------------------------------------------------
+// unassignPhysReg: Unassign the given physical register record, and spill the
+//                  assignedInterval at the given spillRefPosition, if any.
+//
+// Arguments:
+//    regRec           - The RegRecord to be unasssigned
+//    newRegType       - The RegisterType of interval that would be assigned
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    On ARM architecture, Intervals have to be unassigned considering
+//    with the register type of interval that would be assigned.
+//
+void LinearScan::unassignPhysReg(RegRecord* regRec ARM_ARG(RegisterType newRegType))
+{
+    RegRecord* regRecToUnassign = regRec;
+#ifdef _TARGET_ARM_
+    RegRecord* anotherRegRec = nullptr;
+
+    if ((regRecToUnassign->assignedInterval != nullptr) &&
+        (regRecToUnassign->assignedInterval->registerType == TYP_DOUBLE))
+    {
+        // If the register type of interval(being unassigned or new) is TYP_DOUBLE,
+        // It should have to be valid double register (even register)
+        if (!genIsValidDoubleReg(regRecToUnassign->regNum))
+        {
+            regRecToUnassign = findAnotherHalfRegRec(regRec);
+        }
+    }
+    else
+    {
+        if (newRegType == TYP_DOUBLE)
+        {
+            anotherRegRec = findAnotherHalfRegRec(regRecToUnassign);
+        }
+    }
+#endif
+
+    if (regRecToUnassign->assignedInterval != nullptr)
+    {
+        unassignPhysReg(regRecToUnassign, regRecToUnassign->assignedInterval->recentRefPosition);
+    }
+#ifdef _TARGET_ARM_
+    if ((anotherRegRec != nullptr) && (anotherRegRec->assignedInterval != nullptr))
+    {
+        unassignPhysReg(anotherRegRec, anotherRegRec->assignedInterval->recentRefPosition);
+    }
+#endif
 }
 
 //------------------------------------------------------------------------
@@ -5277,63 +4117,63 @@ void LinearScan::checkAndClearInterval( RegRecord * regRec, RefPosition* spillRe
 //    assigned to this register (e.g. this is a copyReg for that Interval).
 //    Otherwise, spillRefPosition must be associated with the assignedInterval.
 //
-void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosition)
+void LinearScan::unassignPhysReg(RegRecord* regRec, RefPosition* spillRefPosition)
 {
-    Interval * assignedInterval = regRec->assignedInterval;
+    Interval* assignedInterval = regRec->assignedInterval;
     assert(assignedInterval != nullptr);
-    checkAndClearInterval(regRec, spillRefPosition);
     regNumber thisRegNum = regRec->regNum;
 
+    // Is assignedInterval actually still assigned to this register?
+    bool intervalIsAssigned = (assignedInterval->physReg == thisRegNum);
+
 #ifdef _TARGET_ARM_
-    if ((assignedInterval->registerType == TYP_DOUBLE) && isFloatRegType(regRec->registerType))
+    RegRecord* anotherRegRec = nullptr;
+
+    // Prepare second half RegRecord of a double register for TYP_DOUBLE
+    if (assignedInterval->registerType == TYP_DOUBLE)
     {
-        regNumber   nextRegNum = REG_NEXT(regRec->regNum);
-        RegRecord * nextRegRec = getRegisterRecord(nextRegNum);
-        checkAndClearInterval(nextRegRec, spillRefPosition);
+        assert(isFloatRegType(regRec->registerType));
+
+        anotherRegRec = findAnotherHalfRegRec(regRec);
+
+        // Both two RegRecords should have been assigned to the same interval.
+        assert(assignedInterval == anotherRegRec->assignedInterval);
+        if (!intervalIsAssigned && (assignedInterval->physReg == anotherRegRec->regNum))
+        {
+            intervalIsAssigned = true;
+        }
     }
 #endif // _TARGET_ARM_
 
-#if FEATURE_MULTIREG_ARGS_OR_RET
-#ifdef _TARGET_ARM64_
-    // TODO-Cleanup: Remove this code after Issue #3524 is complete
-    // Handle the 16-byte pass-by-value TYP_STRUCT for ARM64
-    if (assignedInterval->registerType == TYP_STRUCT)
+    checkAndClearInterval(regRec, spillRefPosition);
+
+#ifdef _TARGET_ARM_
+    if (assignedInterval->registerType == TYP_DOUBLE)
     {
-
-        // We use two consecutive registers:
-        //    to pass in argument registers or
-        //    to load and the store into the outgoing arg space
-
-        regNumber   nextRegNum = REG_NEXT(regRec->regNum);
-        RegRecord * nextRegRec = getRegisterRecord(nextRegNum);
-        checkAndClearInterval(nextRegRec, spillRefPosition);
+        // Both two RegRecords should have been unassigned together.
+        assert(regRec->assignedInterval == nullptr);
+        assert(anotherRegRec->assignedInterval == nullptr);
     }
-#endif //  _TARGET_ARM64_
-#endif // FEATURE_MULTIREG_ARGS_OR_RET
+#endif // _TARGET_ARM_
 
-#ifdef DEBUG
-    if (VERBOSE && !dumpTerse)
+    RefPosition* nextRefPosition = nullptr;
+    if (spillRefPosition != nullptr)
     {
-        printf("unassigning %s: ", getRegName(regRec->regNum));
-        assignedInterval->dump();
-        printf("\n");
+        nextRefPosition = spillRefPosition->nextRefPosition;
     }
-#endif // DEBUG
 
-    RefPosition * nextRefPosition = nullptr;
-    if (spillRefPosition != nullptr) nextRefPosition = spillRefPosition->nextRefPosition;
-
-    if (assignedInterval->physReg != REG_NA &&
-        assignedInterval->physReg != thisRegNum)
+    if (!intervalIsAssigned && assignedInterval->physReg != REG_NA)
     {
         // This must have been a temporary copy reg, but we can't assert that because there
         // may have been intervening RefPositions that were not copyRegs.
-        regRec->assignedInterval = nullptr;
+
+        // reg->assignedInterval has already been set to nullptr by checkAndClearInterval()
+        assert(regRec->assignedInterval == nullptr);
         return;
     }
 
     regNumber victimAssignedReg = assignedInterval->physReg;
-    assignedInterval->physReg = REG_NA;
+    assignedInterval->physReg   = REG_NA;
 
     bool spill = assignedInterval->isActive && nextRefPosition != nullptr;
     if (spill)
@@ -5369,15 +4209,12 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
         // after use.  While we could conceivably add special handling for this case in codegen,
         // it would be messy and undesirably cause the "bleeding" of LSRA stress modes outside
         // of LSRA.
-        if (extendLifetimes() &&
-            assignedInterval->isLocalVar &&
-            RefTypeIsUse(spillRefPosition->refType) &&
-            spillRefPosition->treeNode != nullptr &&
-            (spillRefPosition->treeNode->gtFlags & GTF_VAR_DEATH) != 0)
+        if (extendLifetimes() && assignedInterval->isLocalVar && RefTypeIsUse(spillRefPosition->refType) &&
+            spillRefPosition->treeNode != nullptr && (spillRefPosition->treeNode->gtFlags & GTF_VAR_DEATH) != 0)
         {
             dumpLsraAllocationEvent(LSRA_EVENT_SPILL_EXTENDED_LIFETIME, assignedInterval);
             assignedInterval->isActive = false;
-            spill = false;
+            spill                      = false;
             // If the spillRefPosition occurs before the beginning of this block, it will have
             // been marked as living in this register on entry to this block, but we now need
             // to mark this as living on the stack.
@@ -5386,7 +4223,7 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
                 setInVarRegForBB(curBBNum, assignedInterval->varNum, REG_STK);
                 if (spillRefPosition->nextRefPosition != nullptr)
                 {
-                    assignedInterval->isSpilled = true;
+                    setIntervalAsSpilled(assignedInterval);
                 }
             }
             else
@@ -5401,23 +4238,38 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
         {
             spillInterval(assignedInterval, spillRefPosition, nextRefPosition);
         }
-    } 
+    }
     // Maintain the association with the interval, if it has more references.
     // Or, if we "remembered" an interval assigned to this register, restore it.
     if (nextRefPosition != nullptr)
     {
         assignedInterval->assignedReg = regRec;
     }
-    else if (regRec->previousInterval != nullptr &&
-             regRec->previousInterval->assignedReg == regRec &&
-             regRec->previousInterval->getNextRefPosition() != nullptr)
+    else if (canRestorePreviousInterval(regRec, assignedInterval))
     {
         regRec->assignedInterval = regRec->previousInterval;
         regRec->previousInterval = nullptr;
+
+#ifdef _TARGET_ARM_
+        // Note:
+        //   We can not use updateAssignedInterval() and updatePreviousInterval() here,
+        //   because regRec may not be a even-numbered float register.
+
+        // Update second half RegRecord of a double register for TYP_DOUBLE
+        if (regRec->assignedInterval->registerType == TYP_DOUBLE)
+        {
+            RegRecord* anotherHalfRegRec = findAnotherHalfRegRec(regRec);
+
+            anotherHalfRegRec->assignedInterval = regRec->assignedInterval;
+            anotherHalfRegRec->previousInterval = nullptr;
+        }
+#endif // _TARGET_ARM_
+
 #ifdef DEBUG
         if (spill)
         {
-            dumpLsraAllocationEvent(LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL_AFTER_SPILL, regRec->assignedInterval, thisRegNum);
+            dumpLsraAllocationEvent(LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL_AFTER_SPILL, regRec->assignedInterval,
+                                    thisRegNum);
         }
         else
         {
@@ -5427,8 +4279,8 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
     }
     else
     {
-        regRec->assignedInterval = nullptr;
-        regRec->previousInterval = nullptr;
+        updateAssignedInterval(regRec, nullptr, assignedInterval->registerType);
+        updatePreviousInterval(regRec, nullptr, assignedInterval->registerType);
     }
 }
 
@@ -5441,8 +4293,7 @@ void LinearScan::unassignPhysReg( RegRecord * regRec, RefPosition* spillRefPosit
 // Return Value:
 //    None.
 //
-void
-LinearScan::spillGCRefs(RefPosition* killRefPosition)
+void LinearScan::spillGCRefs(RefPosition* killRefPosition)
 {
     // For each physical register that can hold a GC type,
     // if it is occupied by an interval of a GC type, spill that interval.
@@ -5451,11 +4302,10 @@ LinearScan::spillGCRefs(RefPosition* killRefPosition)
     {
         regMaskTP nextRegBit = genFindLowestBit(candidateRegs);
         candidateRegs &= ~nextRegBit;
-        regNumber nextReg = genRegNumFromMask(nextRegBit);
-        RegRecord* regRecord = getRegisterRecord(nextReg);
-        Interval* assignedInterval = regRecord->assignedInterval;
-        if (assignedInterval == nullptr ||
-            (assignedInterval->isActive == false) ||
+        regNumber  nextReg          = genRegNumFromMask(nextRegBit);
+        RegRecord* regRecord        = getRegisterRecord(nextReg);
+        Interval*  assignedInterval = regRecord->assignedInterval;
+        if (assignedInterval == nullptr || (assignedInterval->isActive == false) ||
             !varTypeIsGC(assignedInterval->registerType))
         {
             continue;
@@ -5475,14 +4325,16 @@ LinearScan::spillGCRefs(RefPosition* killRefPosition)
 //    None
 //
 // Notes:
-//    Calls processBlockEndLocation() to set the outVarToRegMap, then gets the next block,
+//    Calls processBlockEndLocations() to set the outVarToRegMap, then gets the next block,
 //    and sets the inVarToRegMap appropriately.
 
-void
-LinearScan::processBlockEndAllocation(BasicBlock * currentBlock)
+void LinearScan::processBlockEndAllocation(BasicBlock* currentBlock)
 {
     assert(currentBlock != nullptr);
-    processBlockEndLocations(currentBlock);
+    if (enregisterLocalVars)
+    {
+        processBlockEndLocations(currentBlock);
+    }
     markBlockVisited(currentBlock);
 
     // Get the next block to allocate.
@@ -5510,16 +4362,15 @@ LinearScan::processBlockEndAllocation(BasicBlock * currentBlock)
 //    The new register to use.
 
 #ifdef DEBUG
-regNumber
-LinearScan::rotateBlockStartLocation(Interval* interval, regNumber targetReg, regMaskTP availableRegs)
+regNumber LinearScan::rotateBlockStartLocation(Interval* interval, regNumber targetReg, regMaskTP availableRegs)
 {
     if (targetReg != REG_STK && getLsraBlockBoundaryLocations() == LSRA_BLOCK_BOUNDARY_ROTATE)
     {
         // If we're rotating the register locations at block boundaries, try to use
         // the next higher register number of the appropriate register type.
         regMaskTP candidateRegs = allRegs(interval->registerType) & availableRegs;
-        regNumber firstReg = REG_NA;
-        regNumber newReg = REG_NA;
+        regNumber firstReg      = REG_NA;
+        regNumber newReg        = REG_NA;
         while (candidateRegs != RBM_NONE)
         {
             regMaskTP nextRegBit = genFindLowestBit(candidateRegs);
@@ -5546,11 +4397,187 @@ LinearScan::rotateBlockStartLocation(Interval* interval, regNumber targetReg, re
 }
 #endif // DEBUG
 
-//------------------------------------------------------------------------
-// processBlockStartLocations: Update var locations on entry to 'currentBlock'
+#ifdef _TARGET_ARM_
+//--------------------------------------------------------------------------------------
+// isSecondHalfReg: Test if recRec is second half of double register
+//                  which is assigned to an interval.
 //
 // Arguments:
-//    currentBlock   - the BasicBlock we have just finished allocating registers for
+//    regRec - a register to be tested
+//    interval - an interval which is assigned to some register
+//
+// Assumptions:
+//    None
+//
+// Return Value:
+//    True only if regRec is second half of assignedReg in interval
+//
+bool LinearScan::isSecondHalfReg(RegRecord* regRec, Interval* interval)
+{
+    RegRecord* assignedReg = interval->assignedReg;
+
+    if (assignedReg != nullptr && interval->registerType == TYP_DOUBLE)
+    {
+        // interval should have been allocated to a valid double register
+        assert(genIsValidDoubleReg(assignedReg->regNum));
+
+        // Find a second half RegRecord of double register
+        regNumber firstRegNum  = assignedReg->regNum;
+        regNumber secondRegNum = REG_NEXT(firstRegNum);
+
+        assert(genIsValidFloatReg(secondRegNum) && !genIsValidDoubleReg(secondRegNum));
+
+        RegRecord* secondRegRec = getRegisterRecord(secondRegNum);
+
+        return secondRegRec == regRec;
+    }
+
+    return false;
+}
+
+//------------------------------------------------------------------------------------------
+// getSecondHalfRegRec: Get the second (odd) half of an ARM32 double register
+//
+// Arguments:
+//    regRec - A float RegRecord
+//
+// Assumptions:
+//    regRec must be a valid double register (i.e. even)
+//
+// Return Value:
+//    The RegRecord for the second half of the double register
+//
+RegRecord* LinearScan::getSecondHalfRegRec(RegRecord* regRec)
+{
+    regNumber  secondHalfRegNum;
+    RegRecord* secondHalfRegRec;
+
+    assert(genIsValidDoubleReg(regRec->regNum));
+
+    secondHalfRegNum = REG_NEXT(regRec->regNum);
+    secondHalfRegRec = getRegisterRecord(secondHalfRegNum);
+
+    return secondHalfRegRec;
+}
+//------------------------------------------------------------------------------------------
+// findAnotherHalfRegRec: Find another half RegRecord which forms same ARM32 double register
+//
+// Arguments:
+//    regRec - A float RegRecord
+//
+// Assumptions:
+//    None
+//
+// Return Value:
+//    A RegRecord which forms same double register with regRec
+//
+RegRecord* LinearScan::findAnotherHalfRegRec(RegRecord* regRec)
+{
+    regNumber  anotherHalfRegNum;
+    RegRecord* anotherHalfRegRec;
+
+    assert(genIsValidFloatReg(regRec->regNum));
+
+    // Find another half register for TYP_DOUBLE interval,
+    // following same logic in canRestorePreviousInterval().
+    if (genIsValidDoubleReg(regRec->regNum))
+    {
+        anotherHalfRegNum = REG_NEXT(regRec->regNum);
+        assert(!genIsValidDoubleReg(anotherHalfRegNum));
+    }
+    else
+    {
+        anotherHalfRegNum = REG_PREV(regRec->regNum);
+        assert(genIsValidDoubleReg(anotherHalfRegNum));
+    }
+    anotherHalfRegRec = getRegisterRecord(anotherHalfRegNum);
+
+    return anotherHalfRegRec;
+}
+#endif
+
+//--------------------------------------------------------------------------------------
+// canRestorePreviousInterval: Test if we can restore previous interval
+//
+// Arguments:
+//    regRec - a register which contains previous interval to be restored
+//    assignedInterval - an interval just unassigned
+//
+// Assumptions:
+//    None
+//
+// Return Value:
+//    True only if previous interval of regRec can be restored
+//
+bool LinearScan::canRestorePreviousInterval(RegRecord* regRec, Interval* assignedInterval)
+{
+    bool retVal =
+        (regRec->previousInterval != nullptr && regRec->previousInterval != assignedInterval &&
+         regRec->previousInterval->assignedReg == regRec && regRec->previousInterval->getNextRefPosition() != nullptr);
+
+#ifdef _TARGET_ARM_
+    if (retVal && regRec->previousInterval->registerType == TYP_DOUBLE)
+    {
+        RegRecord* anotherHalfRegRec = findAnotherHalfRegRec(regRec);
+
+        retVal = retVal && anotherHalfRegRec->assignedInterval == nullptr;
+    }
+#endif
+
+    return retVal;
+}
+
+bool LinearScan::isAssignedToInterval(Interval* interval, RegRecord* regRec)
+{
+    bool isAssigned = (interval->assignedReg == regRec);
+#ifdef _TARGET_ARM_
+    isAssigned |= isSecondHalfReg(regRec, interval);
+#endif
+    return isAssigned;
+}
+
+void LinearScan::unassignIntervalBlockStart(RegRecord* regRecord, VarToRegMap inVarToRegMap)
+{
+    // Is there another interval currently assigned to this register?  If so unassign it.
+    Interval* assignedInterval = regRecord->assignedInterval;
+    if (assignedInterval != nullptr)
+    {
+        if (isAssignedToInterval(assignedInterval, regRecord))
+        {
+            // Only localVars or constants should be assigned to registers at block boundaries.
+            if (!assignedInterval->isLocalVar)
+            {
+                assert(assignedInterval->isConstant);
+                // Don't need to update the VarToRegMap.
+                inVarToRegMap = nullptr;
+            }
+
+            regNumber assignedRegNum = assignedInterval->assignedReg->regNum;
+
+            // If the interval is active, it will be set to active when we reach its new
+            // register assignment (which we must not yet have done, or it wouldn't still be
+            // assigned to this register).
+            assignedInterval->isActive = false;
+            unassignPhysReg(assignedInterval->assignedReg, nullptr);
+            if ((inVarToRegMap != nullptr) && inVarToRegMap[assignedInterval->getVarIndex(compiler)] == assignedRegNum)
+            {
+                inVarToRegMap[assignedInterval->getVarIndex(compiler)] = REG_STK;
+            }
+        }
+        else
+        {
+            // This interval is no longer assigned to this register.
+            updateAssignedInterval(regRecord, nullptr, assignedInterval->registerType);
+        }
+    }
+}
+
+//------------------------------------------------------------------------
+// processBlockStartLocations: Update var locations on entry to 'currentBlock' and clear constant
+//                             registers.
+//
+// Arguments:
+//    currentBlock   - the BasicBlock we are about to allocate registers for
 //    allocationPass - true if we are currently allocating registers (versus writing them back)
 //
 // Return Value:
@@ -5561,47 +4588,77 @@ LinearScan::rotateBlockStartLocation(Interval* interval, regNumber targetReg, re
 //    determine the lclVar locations for the inVarToRegMap.
 //    During the resolution (write-back) pass, we only modify the inVarToRegMap in cases where
 //    a lclVar was spilled after the block had been completed.
-void
-LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocationPass)
+void LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocationPass)
 {
-    unsigned predBBNum = blockInfo[currentBlock->bbNum].predBBNum;
-    VarToRegMap predVarToRegMap = getOutVarToRegMap(predBBNum);
-    VarToRegMap inVarToRegMap = getInVarToRegMap(currentBlock->bbNum);
-    bool hasCriticalInEdge = blockInfo[currentBlock->bbNum].hasCriticalInEdge;
+    // If we have no register candidates we should only call this method during allocation.
 
-    VARSET_TP VARSET_INIT_NOCOPY(liveIn, currentBlock->bbLiveIn);
+    assert(enregisterLocalVars || allocationPass);
+
+    if (!enregisterLocalVars)
+    {
+        // Just clear any constant registers and return.
+        for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
+        {
+            RegRecord* physRegRecord    = getRegisterRecord(reg);
+            Interval*  assignedInterval = physRegRecord->assignedInterval;
+
+            if (assignedInterval != nullptr)
+            {
+                assert(assignedInterval->isConstant);
+                physRegRecord->assignedInterval = nullptr;
+            }
+        }
+        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_START_BB, nullptr, REG_NA, currentBlock));
+        return;
+    }
+
+    unsigned    predBBNum         = blockInfo[currentBlock->bbNum].predBBNum;
+    VarToRegMap predVarToRegMap   = getOutVarToRegMap(predBBNum);
+    VarToRegMap inVarToRegMap     = getInVarToRegMap(currentBlock->bbNum);
+    bool        hasCriticalInEdge = blockInfo[currentBlock->bbNum].hasCriticalInEdge;
+
+    VarSetOps::AssignNoCopy(compiler, currentLiveVars,
+                            VarSetOps::Intersection(compiler, registerCandidateVars, currentBlock->bbLiveIn));
 #ifdef DEBUG
     if (getLsraExtendLifeTimes())
     {
-        VarSetOps::AssignNoCopy(compiler, liveIn, compiler->lvaTrackedVars);
+        VarSetOps::AssignNoCopy(compiler, currentLiveVars, registerCandidateVars);
     }
     // If we are rotating register assignments at block boundaries, we want to make the
     // inactive registers available for the rotation.
     regMaskTP inactiveRegs = RBM_NONE;
 #endif // DEBUG
-    regMaskTP liveRegs = RBM_NONE;
-    VARSET_ITER_INIT(compiler, iter, liveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    regMaskTP       liveRegs = RBM_NONE;
+    VarSetOps::Iter iter(compiler, currentLiveVars);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
     {
         unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
         if (!compiler->lvaTable[varNum].lvLRACandidate)
         {
             continue;
         }
-        regNumber targetReg;
-        Interval* interval = getIntervalForLocalVar(varNum);
+        regNumber    targetReg;
+        Interval*    interval        = getIntervalForLocalVar(varIndex);
         RefPosition* nextRefPosition = interval->getNextRefPosition();
         assert(nextRefPosition != nullptr);
 
         if (allocationPass)
         {
-            targetReg = predVarToRegMap[varIndex];
-            INDEBUG(targetReg = rotateBlockStartLocation(interval, targetReg, (~liveRegs | inactiveRegs)));
-            inVarToRegMap[varIndex] = targetReg;
+            targetReg = getVarReg(predVarToRegMap, varIndex);
+#ifdef DEBUG
+            regNumber newTargetReg = rotateBlockStartLocation(interval, targetReg, (~liveRegs | inactiveRegs));
+            if (newTargetReg != targetReg)
+            {
+                targetReg = newTargetReg;
+                setIntervalAsSplit(interval);
+            }
+#endif // DEBUG
+            setVarReg(inVarToRegMap, varIndex, targetReg);
         }
         else // !allocationPass (i.e. resolution/write-back pass)
         {
-            targetReg = inVarToRegMap[varIndex];
+            targetReg = getVarReg(inVarToRegMap, varIndex);
             // There are four cases that we need to consider during the resolution pass:
             // 1. This variable had a register allocated initially, and it was not spilled in the RefPosition
             //    that feeds this block.  In this case, both targetReg and predVarToRegMap[varIndex] will be targetReg.
@@ -5610,8 +4667,8 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
             //    In this case, we will normally change it to REG_STK.  We will update its "spilled" status when we
             //    encounter it in resolveLocalRef().
             // 2a. If the next RefPosition is marked as a copyReg, we need to retain the allocated register.  This is
-            //     because the copyReg RefPosition will not have recorded the "home" register, yet downstream RefPositions
-            //     rely on the correct "home" register.
+            //     because the copyReg RefPosition will not have recorded the "home" register, yet downstream
+            //     RefPositions rely on the correct "home" register.
             // 3. This variable was spilled before we reached the end of predBB.  In this case, both targetReg and
             //    predVarToRegMap[varIndex] will be REG_STK, and the next RefPosition will have been marked
             //    as reload during allocation time if necessary (note that by the time we actually reach the next
@@ -5621,16 +4678,16 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
             //    is not REG_STK.  We retain the REG_STK value in the inVarToRegMap.
             if (targetReg != REG_STK)
             {
-                if (predVarToRegMap[varIndex] != REG_STK)
+                if (getVarReg(predVarToRegMap, varIndex) != REG_STK)
                 {
                     // Case #1 above.
-                    assert(predVarToRegMap[varIndex] == targetReg ||
+                    assert(getVarReg(predVarToRegMap, varIndex) == targetReg ||
                            getLsraBlockBoundaryLocations() == LSRA_BLOCK_BOUNDARY_ROTATE);
                 }
                 else if (!nextRefPosition->copyReg)
                 {
                     // case #2 above.
-                    inVarToRegMap[varIndex] = REG_STK;
+                    setVarReg(inVarToRegMap, varIndex, REG_STK);
                     targetReg = REG_STK;
                 }
                 // Else case 2a. - retain targetReg.
@@ -5642,8 +4699,7 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
             if (interval->isActive)
             {
                 assert(targetReg != REG_STK);
-                assert(interval->assignedReg != nullptr &&
-                       interval->assignedReg->regNum == targetReg &&
+                assert(interval->assignedReg != nullptr && interval->assignedReg->regNum == targetReg &&
                        interval->assignedReg->assignedInterval == interval);
                 liveRegs |= genRegMask(targetReg);
                 continue;
@@ -5653,10 +4709,10 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
         {
             // This can happen if we are using the locations from a basic block other than the
             // immediately preceding one - where the variable was in a different location.
-            if(targetReg != REG_STK)
+            if (targetReg != REG_STK)
             {
                 // Unassign it from the register (it will get a new register below).
-                if(interval->assignedReg != nullptr && interval->assignedReg->assignedInterval == interval)
+                if (interval->assignedReg != nullptr && interval->assignedReg->assignedInterval == interval)
                 {
                     interval->isActive = false;
                     unassignPhysReg(getRegisterRecord(interval->physReg), nullptr);
@@ -5676,7 +4732,7 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
                 interval->isActive = true;
                 liveRegs |= genRegMask(interval->physReg);
                 INDEBUG(inactiveRegs |= genRegMask(interval->physReg));
-                inVarToRegMap[varIndex] = interval->physReg;
+                setVarReg(inVarToRegMap, varIndex, interval->physReg);
             }
             else
             {
@@ -5689,38 +4745,29 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
             liveRegs |= genRegMask(targetReg);
             if (!interval->isActive)
             {
-                interval->isActive = true;
-                interval->physReg = targetReg;
+                interval->isActive    = true;
+                interval->physReg     = targetReg;
                 interval->assignedReg = targetRegRecord;
             }
-            Interval* assignedInterval = targetRegRecord->assignedInterval;
-            if (assignedInterval != interval)
+            if (targetRegRecord->assignedInterval != interval)
             {
-                // Is there another interval currently assigned to this register?  If so unassign it.
-                if (assignedInterval != nullptr)
+#ifdef _TARGET_ARM_
+                // If this is a TYP_DOUBLE interval, and the assigned interval is either null or is TYP_FLOAT,
+                // we also need to unassign the other half of the register.
+                // Note that if the assigned interval is TYP_DOUBLE, it will be unassigned below.
+                if ((interval->registerType == TYP_DOUBLE) &&
+                    ((targetRegRecord->assignedInterval == nullptr) ||
+                     (targetRegRecord->assignedInterval->registerType == TYP_FLOAT)))
                 {
-                    if (assignedInterval->assignedReg == targetRegRecord)
-                    {
-                        // If the interval is active, it will be set to active when we reach its new
-                        // register assignment (which we must not yet have done, or it wouldn't still be
-                        // assigned to this register).
-                        assignedInterval->isActive = false;
-                        unassignPhysReg(targetRegRecord, nullptr);
-                        if (allocationPass && assignedInterval->isLocalVar && inVarToRegMap[assignedInterval->getVarIndex(compiler)] == targetReg)
-                        {
-                            inVarToRegMap[assignedInterval->getVarIndex(compiler)] = REG_STK;
-                        }
-                    }
-                    else
-                    {
-                        // This interval is no longer assigned to this register.
-                        targetRegRecord->assignedInterval = nullptr;
-                    }
+                    assert(genIsValidDoubleReg(targetReg));
+                    unassignIntervalBlockStart(findAnotherHalfRegRec(targetRegRecord),
+                                               allocationPass ? inVarToRegMap : nullptr);
                 }
+#endif // _TARGET_ARM_
+                unassignIntervalBlockStart(targetRegRecord, allocationPass ? inVarToRegMap : nullptr);
                 assignPhysReg(targetRegRecord, interval);
             }
-            if (interval->recentRefPosition != nullptr &&
-                !interval->recentRefPosition->copyReg &&
+            if (interval->recentRefPosition != nullptr && !interval->recentRefPosition->copyReg &&
                 interval->recentRefPosition->registerAssignment != genRegMask(targetReg))
             {
                 interval->getNextRefPosition()->outOfOrder = true;
@@ -5733,12 +4780,13 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
     {
         if ((liveRegs & genRegMask(reg)) == 0)
         {
-            RegRecord * physRegRecord = getRegisterRecord(reg);
-            Interval * assignedInterval = physRegRecord->assignedInterval;
+            RegRecord* physRegRecord    = getRegisterRecord(reg);
+            Interval*  assignedInterval = physRegRecord->assignedInterval;
 
             if (assignedInterval != nullptr)
             {
                 assert(assignedInterval->isLocalVar || assignedInterval->isConstant);
+
                 if (!assignedInterval->isConstant && assignedInterval->assignedReg == physRegRecord)
                 {
                     assignedInterval->isActive = false;
@@ -5752,10 +4800,39 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
                 {
                     // This interval may still be active, but was in another register in an
                     // intervening block.
-                    physRegRecord->assignedInterval = nullptr;
+                    updateAssignedInterval(physRegRecord, nullptr, assignedInterval->registerType);
                 }
+
+#ifdef _TARGET_ARM_
+                // unassignPhysReg, above, may have restored a 'previousInterval', in which case we need to
+                // get the value of 'physRegRecord->assignedInterval' rather than using 'assignedInterval'.
+                if (physRegRecord->assignedInterval != nullptr)
+                {
+                    assignedInterval = physRegRecord->assignedInterval;
+                }
+                if (assignedInterval->registerType == TYP_DOUBLE)
+                {
+                    // Skip next float register, because we already addressed a double register
+                    assert(genIsValidDoubleReg(reg));
+                    reg = REG_NEXT(reg);
+                }
+#endif // _TARGET_ARM_
             }
         }
+#ifdef _TARGET_ARM_
+        else
+        {
+            RegRecord* physRegRecord    = getRegisterRecord(reg);
+            Interval*  assignedInterval = physRegRecord->assignedInterval;
+
+            if (assignedInterval != nullptr && assignedInterval->registerType == TYP_DOUBLE)
+            {
+                // Skip next float register, because we already addressed a double register
+                assert(genIsValidDoubleReg(reg));
+                reg = REG_NEXT(reg);
+            }
+        }
+#endif // _TARGET_ARM_
     }
     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_START_BB, nullptr, REG_NA, currentBlock));
 }
@@ -5775,29 +4852,29 @@ LinearScan::processBlockStartLocations(BasicBlock* currentBlock, bool allocation
 //    at successor blocks during allocation time, but if lclVars are spilled after a block has been
 //    completed, we need to record the REG_STK location for those variables at resolution time.
 
-void
-LinearScan::processBlockEndLocations(BasicBlock * currentBlock)
+void LinearScan::processBlockEndLocations(BasicBlock* currentBlock)
 {
     assert(currentBlock != nullptr && currentBlock->bbNum == curBBNum);
     VarToRegMap outVarToRegMap = getOutVarToRegMap(curBBNum);
 
-    VARSET_TP VARSET_INIT_NOCOPY(liveOut, currentBlock->bbLiveOut);
+    VarSetOps::AssignNoCopy(compiler, currentLiveVars,
+                            VarSetOps::Intersection(compiler, registerCandidateVars, currentBlock->bbLiveOut));
 #ifdef DEBUG
     if (getLsraExtendLifeTimes())
     {
-        VarSetOps::AssignNoCopy(compiler, liveOut, compiler->lvaTrackedVars);
+        VarSetOps::Assign(compiler, currentLiveVars, registerCandidateVars);
     }
 #endif // DEBUG
-    regMaskTP liveRegs = RBM_NONE;
-    VARSET_ITER_INIT(compiler, iter, liveOut, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    regMaskTP       liveRegs = RBM_NONE;
+    VarSetOps::Iter iter(compiler, currentLiveVars);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-        Interval* interval = getIntervalForLocalVar(varNum);
+        Interval* interval = getIntervalForLocalVar(varIndex);
         if (interval->isActive)
         {
             assert(interval->physReg != REG_NA && interval->physReg != REG_STK);
-            outVarToRegMap[varIndex] = interval->physReg;
+            setVarReg(outVarToRegMap, varIndex, interval->physReg);
         }
         else
         {
@@ -5808,30 +4885,28 @@ LinearScan::processBlockEndLocations(BasicBlock * currentBlock)
 }
 
 #ifdef DEBUG
-void
-LinearScan::dumpRefPositions(const char *str)
+void LinearScan::dumpRefPositions(const char* str)
 {
     printf("------------\n");
     printf("REFPOSITIONS %s: \n", str);
     printf("------------\n");
-    for (auto& refPos : refPositions)
+    for (RefPosition& refPos : refPositions)
     {
         refPos.dump();
     }
 }
 #endif // DEBUG
 
-bool
-LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
+bool LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
 {
-    RegRecord * physRegRecord = getRegisterRecord(regNum);
+    RegRecord* physRegRecord = getRegisterRecord(regNum);
 
     bool isFree = physRegRecord->isFree();
 
 #ifdef _TARGET_ARM_
     if (isFree && regType == TYP_DOUBLE)
     {
-        isFree = getRegisterRecord(REG_NEXT(regNum))->isFree();
+        isFree = getSecondHalfRegRec(physRegRecord)->isFree();
     }
 #endif // _TARGET_ARM_
 
@@ -5858,10 +4933,9 @@ LinearScan::registerIsFree(regNumber regNum, RegisterType regType)
 //    defs remain), it will remain assigned to the physRegRecord.  However, since
 //    it is marked inactive, the register will be available, albeit less desirable
 //    to allocate.
-void
-LinearScan::freeRegister(RegRecord* physRegRecord)
+void LinearScan::freeRegister(RegRecord* physRegRecord)
 {
-    Interval * assignedInterval = physRegRecord->assignedInterval;
+    Interval* assignedInterval = physRegRecord->assignedInterval;
     // It may have already been freed by a "Kill"
     if (assignedInterval != nullptr)
     {
@@ -5870,7 +4944,7 @@ LinearScan::freeRegister(RegRecord* physRegRecord)
         // don't unassign it until we need the register.
         if (!assignedInterval->isConstant)
         {
-            RefPosition *nextRefPosition = assignedInterval->getNextRefPosition();
+            RefPosition* nextRefPosition = assignedInterval->getNextRefPosition();
             // Unassign the register only if there are no more RefPositions, or the next
             // one is a def.  Note that the latter condition doesn't actually ensure that
             // there aren't subsequent uses that could be reached by a def in the assigned
@@ -5879,18 +4953,22 @@ LinearScan::freeRegister(RegRecord* physRegRecord)
             // we wouldn't unnecessarily link separate live ranges to the same register.
             if (nextRefPosition == nullptr || RefTypeIsDef(nextRefPosition->refType))
             {
+#ifdef _TARGET_ARM_
+                assert((assignedInterval->registerType != TYP_DOUBLE) || genIsValidDoubleReg(physRegRecord->regNum));
+#endif // _TARGET_ARM_
                 unassignPhysReg(physRegRecord, nullptr);
             }
         }
     }
 }
 
-void
-LinearScan::freeRegisters(regMaskTP regsToFree)
+void LinearScan::freeRegisters(regMaskTP regsToFree)
 {
     if (regsToFree == RBM_NONE)
+    {
         return;
-    
+    }
+
     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FREE_REGS));
     while (regsToFree != RBM_NONE)
     {
@@ -5905,22 +4983,20 @@ LinearScan::freeRegisters(regMaskTP regsToFree)
 // constructed Intervals
 // Loosely based on raAssignVars()
 //
-void
-LinearScan::allocateRegisters()
+void LinearScan::allocateRegisters()
 {
     JITDUMP("*************** In LinearScan::allocateRegisters()\n");
     DBEXEC(VERBOSE, lsraDumpIntervals("before allocateRegisters"));
 
-
     // at start, nothing is active except for register args
-    for (auto& interval : intervals)
+    for (Interval& interval : intervals)
     {
-        Interval* currentInterval = &interval;
+        Interval* currentInterval          = &interval;
         currentInterval->recentRefPosition = nullptr;
-        currentInterval->isActive = false;
+        currentInterval->isActive          = false;
         if (currentInterval->isLocalVar)
         {
-            LclVarDsc * varDsc = currentInterval->getLocalVar(compiler);
+            LclVarDsc* varDsc = currentInterval->getLocalVar(compiler);
             if (varDsc->lvIsRegArg && currentInterval->firstRefPosition != nullptr)
             {
                 currentInterval->isActive = true;
@@ -5931,7 +5007,7 @@ LinearScan::allocateRegisters()
     for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
     {
         getRegisterRecord(reg)->recentRefPosition = nullptr;
-        getRegisterRecord(reg)->isActive = false;
+        getRegisterRecord(reg)->isActive          = false;
     }
 
 #ifdef DEBUG
@@ -5943,20 +5019,19 @@ LinearScan::allocateRegisters()
 
         printf("\n\nAllocating Registers\n"
                "--------------------\n");
-        if (dumpTerse)
-        {
-            dumpRegRecordHeader();
-            // Now print an empty indent
-            printf(indentFormat, "");
-        }
+        // Start with a small set of commonly used registers, so that we don't keep having to print a new title.
+        registersToDump = LsraLimitSmallIntSet | LsraLimitSmallFPSet;
+        dumpRegRecordHeader();
+        // Now print an empty "RefPosition", since we complete the dump of the regs at the beginning of the loop.
+        printf(indentFormat, "");
     }
 #endif // DEBUG
 
-    BasicBlock * currentBlock = nullptr;
+    BasicBlock* currentBlock = nullptr;
 
-    LsraLocation prevLocation = MinLocation;
-    regMaskTP regsToFree = RBM_NONE;
-    regMaskTP delayRegsToFree = RBM_NONE;
+    LsraLocation prevLocation    = MinLocation;
+    regMaskTP    regsToFree      = RBM_NONE;
+    regMaskTP    delayRegsToFree = RBM_NONE;
 
     // This is the most recent RefPosition for which a register was allocated
     // - currently only used for DEBUG but maintained in non-debug, for clarity of code
@@ -5965,44 +5040,34 @@ LinearScan::allocateRegisters()
 
     bool handledBlockEnd = false;
 
-    for (auto& refPosition : refPositions)
+    for (RefPosition& refPositionIterator : refPositions)
     {
-        RefPosition* currentRefPosition = &refPosition;
+        RefPosition* currentRefPosition = &refPositionIterator;
 
 #ifdef DEBUG
         // Set the activeRefPosition to null until we're done with any boundary handling.
         activeRefPosition = nullptr;
         if (VERBOSE)
         {
-            if (dumpTerse)
-            {
-                // We're really dumping the RegRecords "after" the previous RefPosition, but it's more convenient
-                // to do this here, since there are a number of "continue"s in this loop.
-                dumpRegRecords();
-            }
-            else
-            {
-                printf("\n");
-            }
+            // We're really dumping the RegRecords "after" the previous RefPosition, but it's more convenient
+            // to do this here, since there are a number of "continue"s in this loop.
+            dumpRegRecords();
         }
 #endif // DEBUG
 
         // This is the previousRefPosition of the current Referent, if any
-        RefPosition *previousRefPosition = nullptr;
+        RefPosition* previousRefPosition = nullptr;
 
-        Interval *currentInterval = nullptr;
-        Referenceable *currentReferent = nullptr;
-        bool isInternalRef = false;
-        RefType refType = currentRefPosition->refType;
-        
+        Interval*      currentInterval = nullptr;
+        Referenceable* currentReferent = nullptr;
+        bool           isInternalRef   = false;
+        RefType        refType         = currentRefPosition->refType;
+
         currentReferent = currentRefPosition->referent;
 
-        if (spillAlways() &&
-            lastAllocatedRefPosition != nullptr &&
-            !lastAllocatedRefPosition->isPhysRegRef &&
+        if (spillAlways() && lastAllocatedRefPosition != nullptr && !lastAllocatedRefPosition->isPhysRegRef &&
             !lastAllocatedRefPosition->getInterval()->isInternal &&
-            (RefTypeIsDef(lastAllocatedRefPosition->refType) ||
-             lastAllocatedRefPosition->getInterval()->isLocalVar))
+            (RefTypeIsDef(lastAllocatedRefPosition->refType) || lastAllocatedRefPosition->getInterval()->isLocalVar))
         {
             assert(lastAllocatedRefPosition->registerAssignment != RBM_NONE);
             RegRecord* regRecord = lastAllocatedRefPosition->getInterval()->assignedReg;
@@ -6011,7 +5076,7 @@ LinearScan::allocateRegisters()
             lastAllocatedRefPosition = nullptr;
         }
 
-        // We wait to free any registers until we've completed all the 
+        // We wait to free any registers until we've completed all the
         // uses for the current node.
         // This avoids reusing registers too soon.
         // We free before the last true def (after all the uses & internal
@@ -6024,15 +5089,24 @@ LinearScan::allocateRegisters()
 
         if ((regsToFree | delayRegsToFree) != RBM_NONE)
         {
-            bool doFreeRegs = false;
             // Free at a new location, or at a basic block boundary
-            if (currentLocation > prevLocation || refType == RefTypeBB)
-                doFreeRegs = true;
-
-            if (doFreeRegs)
+            if (refType == RefTypeBB)
+            {
+                assert(currentLocation > prevLocation);
+            }
+            if (currentLocation > prevLocation)
             {
                 freeRegisters(regsToFree);
-                regsToFree = delayRegsToFree;
+                if ((currentLocation > (prevLocation + 1)) && (delayRegsToFree != RBM_NONE))
+                {
+                    // We should never see a delayReg that is delayed until a Location that has no RefPosition
+                    // (that would be the RefPosition that it was supposed to interfere with).
+                    assert(!"Found a delayRegFree associated with Location with no reference");
+                    // However, to be cautious for the Release build case, we will free them.
+                    freeRegisters(delayRegsToFree);
+                    delayRegsToFree = RBM_NONE;
+                }
+                regsToFree      = delayRegsToFree;
                 delayRegsToFree = RBM_NONE;
             }
         }
@@ -6041,13 +5115,17 @@ LinearScan::allocateRegisters()
         // get previous refposition, then current refpos is the new previous
         if (currentReferent != nullptr)
         {
-            previousRefPosition = currentReferent->recentRefPosition;
+            previousRefPosition                = currentReferent->recentRefPosition;
             currentReferent->recentRefPosition = currentRefPosition;
-        } 
-        else 
+        }
+        else
         {
             assert((refType == RefTypeBB) || (refType == RefTypeKillGCRefs));
         }
+
+#ifdef DEBUG
+        activeRefPosition = currentRefPosition;
+#endif // DEBUG
 
         // For the purposes of register resolution, we handle the DummyDefs before
         // the block boundary - so the RefTypeBB is after all the DummyDefs.
@@ -6060,41 +5138,20 @@ LinearScan::allocateRegisters()
         {
             // Free any delayed regs (now in regsToFree) before processing the block boundary
             freeRegisters(regsToFree);
-            regsToFree = RBM_NONE;
-            handledBlockEnd = true;
+            regsToFree         = RBM_NONE;
+            handledBlockEnd    = true;
             curBBStartLocation = currentRefPosition->nodeLocation;
             if (currentBlock == nullptr)
             {
                 currentBlock = startBlockSequence();
-            } 
-            else 
+                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_START_BB, nullptr, REG_NA, compiler->fgFirstBB));
+            }
+            else
             {
                 processBlockEndAllocation(currentBlock);
                 currentBlock = moveToNextBlock();
             }
-#ifdef DEBUG
-            if (VERBOSE && currentBlock != nullptr && !dumpTerse)
-            {
-                currentBlock->dspBlockHeader(compiler);
-                printf("\n");
-            }
-#endif // DEBUG
         }
-
-#ifdef DEBUG
-        activeRefPosition = currentRefPosition;
-        if (VERBOSE)
-        {
-            if (dumpTerse)
-            {
-                dumpRefPositionShort(currentRefPosition, currentBlock);
-            }
-            else
-            {
-                currentRefPosition->dump();
-            }
-        }
-#endif // DEBUG
 
         if (refType == RefTypeBB)
         {
@@ -6112,10 +5169,22 @@ LinearScan::allocateRegisters()
         // Otherwise, do nothing.
         if (refType == RefTypeFixedReg)
         {
-            RegRecord* regRecord = currentRefPosition->getReg();
-            if (regRecord->assignedInterval != nullptr && !regRecord->assignedInterval->isActive && regRecord->assignedInterval->isConstant)
+            RegRecord* regRecord        = currentRefPosition->getReg();
+            Interval*  assignedInterval = regRecord->assignedInterval;
+
+            if (assignedInterval != nullptr && !assignedInterval->isActive && assignedInterval->isConstant)
             {
                 regRecord->assignedInterval = nullptr;
+
+#ifdef _TARGET_ARM_
+                // Update overlapping floating point register for TYP_DOUBLE
+                if (assignedInterval->registerType == TYP_DOUBLE)
+                {
+                    regRecord = findAnotherHalfRegRec(regRecord);
+                    assert(regRecord->assignedInterval == assignedInterval);
+                    regRecord->assignedInterval = nullptr;
+                }
+#endif
             }
             INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_FIXED_REG, nullptr, currentRefPosition->assignedReg()));
             continue;
@@ -6132,34 +5201,29 @@ LinearScan::allocateRegisters()
         }
 
         regNumber assignedRegister = REG_NA;
-            
+
         if (currentRefPosition->isIntervalRef())
         {
-            currentInterval = currentRefPosition->getInterval();
+            currentInterval  = currentRefPosition->getInterval();
             assignedRegister = currentInterval->physReg;
-#if DEBUG
-            if (VERBOSE && !dumpTerse)
-            {
-                currentInterval->dump();
-            }
-#endif // DEBUG
 
             // Identify the special cases where we decide up-front not to allocate
             bool allocate = true;
-            bool didDump = false;
+            bool didDump  = false;
 
             if (refType == RefTypeParamDef || refType == RefTypeZeroInit)
             {
                 // For a ParamDef with a weighted refCount less than unity, don't enregister it at entry.
                 // TODO-CQ: Consider doing this only for stack parameters, since otherwise we may be needlessly
                 // inserting a store.
-                LclVarDsc * varDsc = currentInterval->getLocalVar(compiler);
+                LclVarDsc* varDsc = currentInterval->getLocalVar(compiler);
                 assert(varDsc != nullptr);
-                if (refType == RefTypeParamDef && varDsc->lvRefCntWtd <= BB_UNITY_WEIGHT)
+                if (refType == RefTypeParamDef && varDsc->lvRefCntWtd() <= BB_UNITY_WEIGHT)
                 {
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_ENTRY_REG_ALLOCATED, currentInterval));
-                    didDump = true;
+                    didDump  = true;
                     allocate = false;
+                    setIntervalAsSpilled(currentInterval);
                 }
                 // If it has no actual references, mark it as "lastUse"; since they're not actually part
                 // of any flow they won't have been marked during dataflow.  Otherwise, if we allocate a
@@ -6200,7 +5264,7 @@ LinearScan::allocateRegisters()
             {
                 assert(!currentInterval->isLocalVar);
                 Interval* srcInterval = currentInterval->relatedInterval;
-                assert(srcInterval->isLocalVar);
+                assert(srcInterval != nullptr && srcInterval->isLocalVar);
                 if (refType == RefTypeDef)
                 {
                     assert(srcInterval->recentRefPosition->nodeLocation == currentLocation - 1);
@@ -6211,18 +5275,25 @@ LinearScan::allocateRegisters()
                     // is after the kill of fixed reg but before putarg_reg's next use, fixed reg's
                     // kill would lead to spill of source but not the putarg_reg if it were treated
                     // as special.
-                    if (srcInterval->isActive && 
+                    if (srcInterval->isActive &&
                         genRegMask(srcInterval->physReg) == currentRefPosition->registerAssignment &&
                         currentInterval->getNextRefLocation() == physRegRecord->getNextRefLocation())
                     {
-                        
                         assert(physRegRecord->regNum == srcInterval->physReg);
-                        // Is the next use of this lclVar prior to the next kill of the physReg?
-                        if (srcInterval->getNextRefLocation() <= physRegRecord->getNextRefLocation())
-                        {
-                            physRegRecord->isBusyUntilNextKill = true;
-                            assert(physRegRecord->getNextRefLocation() == currentInterval->getNextRefLocation());
-                        }
+
+                        // Special putarg_reg acts as a pass-thru since both source lcl var
+                        // and putarg_reg have the same register allocated.  Physical reg
+                        // record of reg continue to point to source lcl var's interval
+                        // instead of to putarg_reg's interval.  So if a spill of reg
+                        // allocated to source lcl var happens, to reallocate to another
+                        // tree node, before its use at call node it will lead to spill of
+                        // lcl var instead of putarg_reg since physical reg record is pointing
+                        // to lcl var's interval. As a result, arg reg would get trashed leading
+                        // to bad codegen. The assumption here is that source lcl var of a
+                        // special putarg_reg doesn't get spilled and re-allocated prior to
+                        // its use at the call node.  This is ensured by marking physical reg
+                        // record as busy until next kill.
+                        physRegRecord->isBusyUntilNextKill = true;
                     }
                     else
                     {
@@ -6232,10 +5303,12 @@ LinearScan::allocateRegisters()
                 // If this is still a SpecialPutArg, continue;
                 if (currentInterval->isSpecialPutArg)
                 {
-                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_SPECIAL_PUTARG, currentInterval, currentRefPosition->assignedReg()));
+                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_SPECIAL_PUTARG, currentInterval,
+                                                    currentRefPosition->assignedReg()));
                     continue;
                 }
             }
+
             if (assignedRegister == REG_NA && RefTypeIsUse(refType))
             {
                 currentRefPosition->reload = true;
@@ -6244,10 +5317,10 @@ LinearScan::allocateRegisters()
         }
 
         regMaskTP assignedRegBit = RBM_NONE;
-        bool isInRegister = false;
+        bool      isInRegister   = false;
         if (assignedRegister != REG_NA)
         {
-            isInRegister = true;
+            isInRegister   = true;
             assignedRegBit = genRegMask(assignedRegister);
             if (!currentInterval->isActive)
             {
@@ -6255,7 +5328,9 @@ LinearScan::allocateRegisters()
                 // was available for use so we kept the association.
                 if (RefTypeIsUse(refType))
                 {
-                    assert(inVarToRegMaps[curBBNum][currentInterval->getVarIndex(compiler)] == REG_STK && previousRefPosition->nodeLocation <= curBBStartLocation);
+                    assert(enregisterLocalVars);
+                    assert(inVarToRegMaps[curBBNum][currentInterval->getVarIndex(compiler)] == REG_STK &&
+                           previousRefPosition->nodeLocation <= curBBStartLocation);
                     isInRegister = false;
                 }
                 else
@@ -6271,32 +5346,29 @@ LinearScan::allocateRegisters()
         // If this is a physical register, we unconditionally assign it to itself!
         if (currentRefPosition->isPhysRegRef)
         {
-            RegRecord *currentReg = currentRefPosition->getReg();
-            Interval * assignedInterval = currentReg->assignedInterval;
+            RegRecord* currentReg       = currentRefPosition->getReg();
+            Interval*  assignedInterval = currentReg->assignedInterval;
 
             if (assignedInterval != nullptr)
             {
                 unassignPhysReg(currentReg, assignedInterval->recentRefPosition);
             }
             currentReg->isActive = true;
-            assignedRegister = currentReg->regNum;
-            assignedRegBit = genRegMask(assignedRegister);
+            assignedRegister     = currentReg->regNum;
+            assignedRegBit       = genRegMask(assignedRegister);
             if (refType == RefTypeKill)
             {
                 currentReg->isBusyUntilNextKill = false;
             }
-        } 
+        }
         else if (previousRefPosition != nullptr)
         {
             assert(previousRefPosition->nextRefPosition == currentRefPosition);
-            assert(assignedRegister == REG_NA ||
-                   assignedRegBit == previousRefPosition->registerAssignment ||
-                   currentRefPosition->outOfOrder ||
-                   previousRefPosition->copyReg ||
-                   previousRefPosition->refType == RefTypeExpUse ||
-                   currentRefPosition->refType == RefTypeDummyDef);
-        } 
-        else if (assignedRegister != REG_NA) 
+            assert(assignedRegister == REG_NA || assignedRegBit == previousRefPosition->registerAssignment ||
+                   currentRefPosition->outOfOrder || previousRefPosition->copyReg ||
+                   previousRefPosition->refType == RefTypeExpUse || currentRefPosition->refType == RefTypeDummyDef);
+        }
+        else if (assignedRegister != REG_NA)
         {
             // Handle the case where this is a preassigned register (i.e. parameter).
             // We don't want to actually use the preassigned register if it's not
@@ -6306,24 +5378,24 @@ LinearScan::allocateRegisters()
             // it might be beneficial to keep it in this reg for PART of the lifetime
             if (currentInterval->isLocalVar)
             {
-                regMaskTP preferences = currentInterval->registerPreferences;
-                bool keepAssignment = true;
-                bool matchesPreferences = (preferences & genRegMask(assignedRegister)) != RBM_NONE;
+                regMaskTP preferences        = currentInterval->registerPreferences;
+                bool      keepAssignment     = true;
+                bool      matchesPreferences = (preferences & genRegMask(assignedRegister)) != RBM_NONE;
 
                 // Will the assigned register cover the lifetime?  If not, does it at least
                 // meet the preferences for the next RefPosition?
-                RegRecord *physRegRecord = getRegisterRecord(currentInterval->physReg);
-                RefPosition * nextPhysRegRefPos = physRegRecord->getNextRefPosition();
+                RegRecord*   physRegRecord     = getRegisterRecord(currentInterval->physReg);
+                RefPosition* nextPhysRegRefPos = physRegRecord->getNextRefPosition();
                 if (nextPhysRegRefPos != nullptr &&
                     nextPhysRegRefPos->nodeLocation <= currentInterval->lastRefPosition->nodeLocation)
                 {
                     // Check to see if the existing assignment matches the preferences (e.g. callee save registers)
                     // and ensure that the next use of this localVar does not occur after the nextPhysRegRefPos
-                    // There must be a next RefPosition, because we know that the Interval extends beyond the nextPhysRegRefPos.
-                    RefPosition * nextLclVarRefPos = currentRefPosition->nextRefPosition;
+                    // There must be a next RefPosition, because we know that the Interval extends beyond the
+                    // nextPhysRegRefPos.
+                    RefPosition* nextLclVarRefPos = currentRefPosition->nextRefPosition;
                     assert(nextLclVarRefPos != nullptr);
-                    if (!matchesPreferences ||
-                        nextPhysRegRefPos->nodeLocation < nextLclVarRefPos->nodeLocation ||
+                    if (!matchesPreferences || nextPhysRegRefPos->nodeLocation < nextLclVarRefPos->nodeLocation ||
                         physRegRecord->conflictingFixedRegReference(nextLclVarRefPos))
                     {
                         keepAssignment = false;
@@ -6339,6 +5411,7 @@ LinearScan::allocateRegisters()
                     // code here, but otherwise we may wind up in this register anyway.
                     keepAssignment = false;
                 }
+
                 if (keepAssignment == false)
                 {
                     currentRefPosition->registerAssignment = allRegs(currentInterval->registerType);
@@ -6359,7 +5432,7 @@ LinearScan::allocateRegisters()
                     }
 
                     assignedRegister = REG_NA;
-                    assignedRegBit = RBM_NONE;
+                    assignedRegBit   = RBM_NONE;
                 }
             }
         }
@@ -6377,7 +5450,8 @@ LinearScan::allocateRegisters()
                     unassignPhysRegNoSpill(physRegRecord);
                 }
                 currentRefPosition->moveReg = true;
-                assignedRegister = REG_NA;
+                assignedRegister            = REG_NA;
+                setIntervalAsSplit(currentInterval);
                 INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_MOVE_REG, currentInterval, assignedRegister));
             }
             else if ((genRegMask(assignedRegister) & currentRefPosition->registerAssignment) != 0)
@@ -6392,112 +5466,160 @@ LinearScan::allocateRegisters()
                     {
                         currentReferent->isActive = true;
                         assert(getRegisterRecord(assignedRegister)->assignedInterval == currentInterval);
-                    } 
-                    else 
+                    }
+                    else
                     {
                         currentRefPosition->reload = true;
                     }
                 }
                 INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, currentInterval, assignedRegister));
-            } 
+            }
             else
             {
-                // This must be a localVar or a single-reg fixed use or a tree temp with conflicting def & use.
-
-                assert(currentInterval && 
-                       (currentInterval->isLocalVar ||
-                        currentRefPosition->isFixedRegRef ||
-                        currentInterval->hasConflictingDefUse));
+                assert(currentInterval != nullptr);
 
                 // It's already in a register, but not one we need.
-                // If it is a fixed use that is not marked "delayRegFree", there is already a FixedReg to ensure that the
-                // needed reg is not otherwise in use, so we can simply ignore it and codegen will do the copy.
-                // The reason we need special handling for the "delayRegFree" case is that we need to mark the
-                // fixed-reg as in-use and delayed (the FixedReg RefPosition doesn't handle the delay requirement).
-                // Otherwise, if this is a pure use localVar or tree temp, we assign a copyReg, but must free both regs
-                // if it is a last use.
-                if (!currentRefPosition->isFixedRegRef || currentRefPosition->delayRegFree)
+                if (!RefTypeIsDef(currentRefPosition->refType))
                 {
-                    if (!RefTypeIsDef(currentRefPosition->refType))
+                    regNumber copyReg = assignCopyReg(currentRefPosition);
+                    assert(copyReg != REG_NA);
+                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_COPY_REG, currentInterval, copyReg));
+                    lastAllocatedRefPosition = currentRefPosition;
+                    if (currentRefPosition->lastUse)
                     {
-                        regNumber copyReg = assignCopyReg(currentRefPosition);
-                        assert(copyReg != REG_NA);
-                        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_COPY_REG, currentInterval, copyReg));
-                        lastAllocatedRefPosition = currentRefPosition;
-                        if (currentRefPosition->lastUse)
+                        if (currentRefPosition->delayRegFree)
                         {
-                            if (currentRefPosition->delayRegFree)
-                            {
-                                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE_DELAYED, currentInterval, assignedRegister));
-                                delayRegsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
-                            }
-                            else
-                            {
-                                INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE, currentInterval, assignedRegister));
-                                regsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
-                            }
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE_DELAYED, currentInterval,
+                                                            assignedRegister));
+                            delayRegsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
                         }
-                        // If this is a tree temp (non-localVar) interval, we will need an explicit move.
-                        if (!currentInterval->isLocalVar)
+                        else
                         {
-                            currentRefPosition->moveReg = true;
-                            currentRefPosition->copyReg = false;
-                        }
-                        continue;
-                    } 
-                    else
-                    {
-                        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NEEDS_NEW_REG, nullptr, assignedRegister));
-                        regsToFree |= genRegMask(assignedRegister);
-                        // We want a new register, but we don't want this to be considered a spill.
-                        assignedRegister = REG_NA;
-                        if (physRegRecord->assignedInterval == currentInterval)
-                        {
-                            unassignPhysRegNoSpill(physRegRecord);
+                            INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE, currentInterval, assignedRegister));
+                            regsToFree |= (genRegMask(assignedRegister) | currentRefPosition->registerAssignment);
                         }
                     }
+                    // If this is a tree temp (non-localVar) interval, we will need an explicit move.
+                    if (!currentInterval->isLocalVar)
+                    {
+                        currentRefPosition->moveReg = true;
+                        currentRefPosition->copyReg = false;
+                    }
+                    continue;
                 }
                 else
                 {
-                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, assignedRegister));
+                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NEEDS_NEW_REG, nullptr, assignedRegister));
+                    regsToFree |= genRegMask(assignedRegister);
+                    // We want a new register, but we don't want this to be considered a spill.
+                    assignedRegister = REG_NA;
+                    if (physRegRecord->assignedInterval == currentInterval)
+                    {
+                        unassignPhysRegNoSpill(physRegRecord);
+                    }
                 }
             }
-        } 
+        }
+
         if (assignedRegister == REG_NA)
         {
-            // Try to allocate a register
-            assignedRegister = tryAllocateFreeReg(currentInterval, currentRefPosition);
+            bool allocateReg = true;
+
+            if (currentRefPosition->AllocateIfProfitable())
+            {
+                // We can avoid allocating a register if it is a the last use requiring a reload.
+                if (currentRefPosition->lastUse && currentRefPosition->reload)
+                {
+                    allocateReg = false;
+                }
+
+#ifdef DEBUG
+                // Under stress mode, don't attempt to allocate a reg to
+                // reg optional ref position.
+                if (allocateReg && regOptionalNoAlloc())
+                {
+                    allocateReg = false;
+                }
+#endif
+            }
+
+            if (allocateReg)
+            {
+                // Try to allocate a register
+                assignedRegister = tryAllocateFreeReg(currentInterval, currentRefPosition);
+            }
+
             // If no register was found, and if the currentRefPosition must have a register,
             // then find a register to spill
             if (assignedRegister == REG_NA)
             {
-#ifdef FEATURE_SIMD
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
                 if (refType == RefTypeUpperVectorSaveDef)
                 {
                     // TODO-CQ: Determine whether copying to two integer callee-save registers would be profitable.
-                    currentRefPosition->registerAssignment = (allRegs(TYP_FLOAT) & RBM_FLT_CALLEE_TRASH);
+                    // TODO-ARM64-CQ: Determine whether copying to one integer callee-save registers would be
+                    // profitable.
+
+                    // SaveDef position occurs after the Use of args and at the same location as Kill/Def
+                    // positions of a call node.  But SaveDef position cannot use any of the arg regs as
+                    // they are needed for call node.
+                    currentRefPosition->registerAssignment =
+                        (allRegs(TYP_FLOAT) & RBM_FLT_CALLEE_TRASH & ~RBM_FLTARG_REGS);
                     assignedRegister = tryAllocateFreeReg(currentInterval, currentRefPosition);
+
                     // There MUST be caller-save registers available, because they have all just been killed.
+                    // Amd64 Windows: xmm4-xmm5 are guaranteed to be available as xmm0-xmm3 are used for passing args.
+                    // Amd64 Unix: xmm8-xmm15 are guaranteed to be available as xmm0-xmm7 are used for passing args.
+                    // X86 RyuJIT Windows: xmm4-xmm7 are guanrateed to be available.
                     assert(assignedRegister != REG_NA);
+
                     // Now, spill it.
-                    // (These will look a bit backward in the dump, but it's a pain to dump the alloc before the spill).
+                    // Note:
+                    //   i) The reason we have to spill is that SaveDef position is allocated after the Kill positions
+                    //      of the call node are processed.  Since callee-trash registers are killed by call node
+                    //      we explicitly spill and unassign the register.
+                    //  ii) These will look a bit backward in the dump, but it's a pain to dump the alloc before the
+                    //  spill).
                     unassignPhysReg(getRegisterRecord(assignedRegister), currentRefPosition);
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, currentInterval, assignedRegister));
+
                     // Now set assignedRegister to REG_NA again so that we don't re-activate it.
                     assignedRegister = REG_NA;
                 }
                 else
-#endif // FEATURE_SIMD
-                if (currentRefPosition->RequiresRegister())
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+                    if (currentRefPosition->RequiresRegister() || currentRefPosition->AllocateIfProfitable())
                 {
-                    assignedRegister = allocateBusyReg(currentInterval, currentRefPosition);
-                    INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_SPILLED_REG, currentInterval, assignedRegister));
+                    if (allocateReg)
+                    {
+                        assignedRegister = allocateBusyReg(currentInterval, currentRefPosition,
+                                                           currentRefPosition->AllocateIfProfitable());
+                    }
+
+                    if (assignedRegister != REG_NA)
+                    {
+                        INDEBUG(
+                            dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_SPILLED_REG, currentInterval, assignedRegister));
+                    }
+                    else
+                    {
+                        // This can happen only for those ref positions that are to be allocated
+                        // only if profitable.
+                        noway_assert(currentRefPosition->AllocateIfProfitable());
+
+                        currentRefPosition->registerAssignment = RBM_NONE;
+                        currentRefPosition->reload             = false;
+                        setIntervalAsSpilled(currentInterval);
+
+                        INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, currentInterval));
+                    }
                 }
                 else
                 {
                     INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, currentInterval));
                     currentRefPosition->registerAssignment = RBM_NONE;
-                    currentInterval->isActive = false;
+                    currentInterval->isActive              = false;
+                    setIntervalAsSpilled(currentInterval);
                 }
             }
 #ifdef DEBUG
@@ -6505,19 +5627,19 @@ LinearScan::allocateRegisters()
             {
                 if (VERBOSE)
                 {
-                    if (currentInterval->isConstant &&
-                        (currentRefPosition->treeNode != nullptr) &&
+                    if (currentInterval->isConstant && (currentRefPosition->treeNode != nullptr) &&
                         currentRefPosition->treeNode->IsReuseRegVal())
                     {
-                        dumpLsraAllocationEvent(LSRA_EVENT_REUSE_REG, nullptr, assignedRegister, currentBlock);
+                        dumpLsraAllocationEvent(LSRA_EVENT_REUSE_REG, currentInterval, assignedRegister, currentBlock);
                     }
                     else
                     {
-                        dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, nullptr, assignedRegister, currentBlock);
+                        dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, currentInterval, assignedRegister, currentBlock);
                     }
                 }
             }
 #endif // DEBUG
+
             if (refType == RefTypeDummyDef && assignedRegister != REG_NA)
             {
                 setInVarRegForBB(curBBNum, currentInterval->varNum, assignedRegister);
@@ -6530,34 +5652,35 @@ LinearScan::allocateRegisters()
                 assert(currentRefPosition->reload);
             }
         }
+
         // If we allocated a register, record it
-        if (currentInterval 
-            && assignedRegister != REG_NA)
+        if (currentInterval != nullptr && assignedRegister != REG_NA)
         {
-            assignedRegBit = genRegMask(assignedRegister);
+            assignedRegBit                         = genRegMask(assignedRegister);
             currentRefPosition->registerAssignment = assignedRegBit;
-            currentInterval->physReg = assignedRegister;
+            currentInterval->physReg               = assignedRegister;
             regsToFree &= ~assignedRegBit; // we'll set it again later if it's dead
 
             // If this interval is dead, free the register.
             // The interval could be dead if this is a user variable, or if the
             // node is being evaluated for side effects, or a call whose result
             // is not used, etc.
-
             if (currentRefPosition->lastUse || currentRefPosition->nextRefPosition == nullptr)
             {
                 assert(currentRefPosition->isIntervalRef());
-                if (refType != RefTypeExpUse
-                    && currentRefPosition->nextRefPosition == nullptr)
+
+                if (refType != RefTypeExpUse && currentRefPosition->nextRefPosition == nullptr)
                 {
                     if (currentRefPosition->delayRegFree)
                     {
                         delayRegsToFree |= assignedRegBit;
+
                         INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE_DELAYED));
                     }
                     else
                     {
                         regsToFree |= assignedRegBit;
+
                         INDEBUG(dumpLsraAllocationEvent(LSRA_EVENT_LAST_USE));
                     }
                 }
@@ -6566,41 +5689,41 @@ LinearScan::allocateRegisters()
                     currentInterval->isActive = false;
                 }
             }
+
             lastAllocatedRefPosition = currentRefPosition;
         }
     }
 
     // Free registers to clear associated intervals for resolution phase
+    CLANG_FORMAT_COMMENT_ANCHOR;
+
 #ifdef DEBUG
     if (getLsraExtendLifeTimes())
     {
         // If we have extended lifetimes, we need to make sure all the registers are freed.
-        for( int regNumIndex = 0; regNumIndex <= REG_FP_LAST; regNumIndex++)
+        for (int regNumIndex = 0; regNumIndex <= REG_FP_LAST; regNumIndex++)
         {
             RegRecord& regRecord = physRegs[regNumIndex];
-            Interval* interval = regRecord.assignedInterval;
+            Interval*  interval  = regRecord.assignedInterval;
             if (interval != nullptr)
             {
                 interval->isActive = false;
-                unassignPhysReg( &regRecord, nullptr);
+                unassignPhysReg(&regRecord, nullptr);
             }
         }
     }
     else
 #endif // DEBUG
     {
-        freeRegisters(regsToFree|delayRegsToFree);
+        freeRegisters(regsToFree | delayRegsToFree);
     }
 
 #ifdef DEBUG
     if (VERBOSE)
     {
-        if (dumpTerse)
-        {
-            // Dump the RegRecords after the last RefPosition is handled.
-            dumpRegRecords();
-            printf("\n");
-        }
+        // Dump the RegRecords after the last RefPosition is handled.
+        dumpRegRecords();
+        printf("\n");
 
         dumpRefPositions("AFTER ALLOCATION");
         dumpVarRefPositions("AFTER ALLOCATION");
@@ -6611,8 +5734,8 @@ LinearScan::allocateRegisters()
         // We COULD just reuse the intervalIter from above, but ArrayListIterator doesn't
         // provide a Reset function (!) - we'll probably replace this so don't bother
         // adding it
-    
-        for (auto& interval : intervals)
+
+        for (Interval& interval : intervals)
         {
             if (interval.isActive)
             {
@@ -6626,6 +5749,80 @@ LinearScan::allocateRegisters()
 #endif // DEBUG
 }
 
+//-----------------------------------------------------------------------------
+// updateAssignedInterval: Update assigned interval of register.
+//
+// Arguments:
+//    reg      -    register to be updated
+//    interval -    interval to be assigned
+//    regType  -    register type
+//
+// Return Value:
+//    None
+//
+// Assumptions:
+//    For ARM32, when "regType" is TYP_DOUBLE, "reg" should be a even-numbered
+//    float register, i.e. lower half of double register.
+//
+// Note:
+//    For ARM32, two float registers consisting a double register are updated
+//    together when "regType" is TYP_DOUBLE.
+//
+void LinearScan::updateAssignedInterval(RegRecord* reg, Interval* interval, RegisterType regType)
+{
+#ifdef _TARGET_ARM_
+    // Update overlapping floating point register for TYP_DOUBLE.
+    Interval* oldAssignedInterval = reg->assignedInterval;
+    if (regType == TYP_DOUBLE)
+    {
+        RegRecord* anotherHalfReg = findAnotherHalfRegRec(reg);
+
+        anotherHalfReg->assignedInterval = interval;
+    }
+    else if ((oldAssignedInterval != nullptr) && (oldAssignedInterval->registerType == TYP_DOUBLE))
+    {
+        RegRecord* anotherHalfReg = findAnotherHalfRegRec(reg);
+
+        anotherHalfReg->assignedInterval = nullptr;
+    }
+#endif
+    reg->assignedInterval = interval;
+}
+
+//-----------------------------------------------------------------------------
+// updatePreviousInterval: Update previous interval of register.
+//
+// Arguments:
+//    reg      -    register to be updated
+//    interval -    interval to be assigned
+//    regType  -    register type
+//
+// Return Value:
+//    None
+//
+// Assumptions:
+//    For ARM32, when "regType" is TYP_DOUBLE, "reg" should be a even-numbered
+//    float register, i.e. lower half of double register.
+//
+// Note:
+//    For ARM32, two float registers consisting a double register are updated
+//    together when "regType" is TYP_DOUBLE.
+//
+void LinearScan::updatePreviousInterval(RegRecord* reg, Interval* interval, RegisterType regType)
+{
+    reg->previousInterval = interval;
+
+#ifdef _TARGET_ARM_
+    // Update overlapping floating point register for TYP_DOUBLE
+    if (regType == TYP_DOUBLE)
+    {
+        RegRecord* anotherHalfReg = findAnotherHalfRegRec(reg);
+
+        anotherHalfReg->previousInterval = interval;
+    }
+#endif
+}
+
 // LinearScan::resolveLocalRef
 // Description:
 //      Update the graph for a local reference.
@@ -6633,7 +5830,7 @@ LinearScan::allocateRegisters()
 // Arguments:
 //      treeNode: The lclVar that's being resolved
 //      currentRefPosition: the RefPosition associated with the treeNode
-// 
+//
 // Details:
 // This method is called for each local reference, during the resolveRegisters
 // phase of LSRA.  It is responsible for keeping the following in sync:
@@ -6642,18 +5839,15 @@ LinearScan::allocateRegisters()
 //   - interval->physReg is set to the assigned register
 //     (i.e. at the code location which is currently being handled by resolveRegisters())
 //     - interval->isActive is true iff the interval is live and occupying a register
-//     - interval->isSpilled is set to true if the interval is EVER spilled
+//     - interval->isSpilled should have already been set to true if the interval is EVER spilled
 //     - interval->isSplit is set to true if the interval does not occupy the same
 //       register throughout the method
 //   - RegRecord->assignedInterval points to the interval which currently occupies
 //     the register
 //   - For each lclVar node:
-//     - gtRegNum/gtRegPair is set to the currently allocated register(s)
-//     - GTF_REG_VAL is set if it is a use, and is in a register
-//     - GTF_SPILLED is set on a use if it must be reloaded prior to use (GTF_REG_VAL
-//       must not be set)
-//     - GTF_SPILL is set if it must be spilled after use (GTF_REG_VAL may or may not
-//       be set)
+//     - gtRegNum/gtRegPair is set to the currently allocated register(s).
+//     - GTF_SPILLED is set on a use if it must be reloaded prior to use.
+//     - GTF_SPILL is set if it must be spilled after use.
 //
 // A copyReg is an ugly case where the variable must be in a specific (fixed) register,
 // but it currently resides elsewhere.  The register allocator must track the use of the
@@ -6665,27 +5859,54 @@ LinearScan::allocateRegisters()
 // NICE: Consider tracking whether an Interval is always in the same location (register/stack)
 // in which case it will require no resolution.
 //
-void
-LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPosition)
+void LinearScan::resolveLocalRef(BasicBlock* block, GenTree* treeNode, RefPosition* currentRefPosition)
 {
+    assert((block == nullptr) == (treeNode == nullptr));
+    assert(enregisterLocalVars);
+
     // Is this a tracked local?  Or just a register allocated for loading
     // a non-tracked one?
-    Interval * interval = currentRefPosition->getInterval();
-    if (!interval->isLocalVar) return;
+    Interval* interval = currentRefPosition->getInterval();
+    if (!interval->isLocalVar)
+    {
+        return;
+    }
     interval->recentRefPosition = currentRefPosition;
-    LclVarDsc * varDsc = interval->getLocalVar(compiler);
+    LclVarDsc* varDsc           = interval->getLocalVar(compiler);
+
+    // NOTE: we set the GTF_VAR_DEATH flag here unless we are extending lifetimes, in which case we write
+    // this bit in checkLastUses. This is a bit of a hack, but is necessary because codegen requires
+    // accurate last use info that is not reflected in the lastUse bit on ref positions when we are extending
+    // lifetimes. See also the comments in checkLastUses.
+    if ((treeNode != nullptr) && !extendLifetimes())
+    {
+        if (currentRefPosition->lastUse)
+        {
+            treeNode->gtFlags |= GTF_VAR_DEATH;
+        }
+        else
+        {
+            treeNode->gtFlags &= ~GTF_VAR_DEATH;
+        }
+    }
 
     if (currentRefPosition->registerAssignment == RBM_NONE)
     {
         assert(!currentRefPosition->RequiresRegister());
-        interval->isSpilled = true;
+        assert(interval->isSpilled);
+
         varDsc->lvRegNum = REG_STK;
         if (interval->assignedReg != nullptr && interval->assignedReg->assignedInterval == interval)
         {
-            interval->assignedReg->assignedInterval = nullptr;
+            updateAssignedInterval(interval->assignedReg, nullptr, interval->registerType);
         }
         interval->assignedReg = nullptr;
-        interval->physReg = REG_NA;
+        interval->physReg     = REG_NA;
+        if (treeNode != nullptr)
+        {
+            treeNode->SetContained();
+        }
+
         return;
     }
 
@@ -6693,7 +5914,7 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
     // The exception is the copyReg case, where we've assigned a register
     // for a specific purpose, but will be keeping the register assignment
     regNumber assignedReg = currentRefPosition->assignedReg();
-    regNumber homeReg = assignedReg;
+    regNumber homeReg     = assignedReg;
 
     // Undo any previous association with a physical register, UNLESS this
     // is a copyReg
@@ -6702,10 +5923,10 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
         regNumber oldAssignedReg = interval->physReg;
         if (oldAssignedReg != REG_NA && assignedReg != oldAssignedReg)
         {
-            RegRecord * oldRegRecord = getRegisterRecord(oldAssignedReg);
+            RegRecord* oldRegRecord = getRegisterRecord(oldAssignedReg);
             if (oldRegRecord->assignedInterval == interval)
             {
-                oldRegRecord->assignedInterval = nullptr;
+                updateAssignedInterval(oldRegRecord, nullptr, interval->registerType);
             }
         }
     }
@@ -6720,43 +5941,53 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
         }
     }
 
-    bool reload = currentRefPosition->reload;
+    bool reload     = currentRefPosition->reload;
     bool spillAfter = currentRefPosition->spillAfter;
 
-    // In the reload case we simply do not set GTF_REG_VAL, and it gets
-    // referenced from the variable's home location.
-    // This is also true for a pure def which is spilled.
-    if (reload && currentRefPosition->refType != RefTypeDef)
+    // In the reload case we either:
+    // - Set the register to REG_STK if it will be referenced only from the home location, or
+    // - Set the register to the assigned register and set GTF_SPILLED if it must be loaded into a register.
+    if (reload)
     {
+        assert(currentRefPosition->refType != RefTypeDef);
+        assert(interval->isSpilled);
         varDsc->lvRegNum = REG_STK;
-        if (!spillAfter) interval->physReg = assignedReg;
+        if (!spillAfter)
+        {
+            interval->physReg = assignedReg;
+        }
 
         // If there is no treeNode, this must be a RefTypeExpUse, in
         // which case we did the reload already
         if (treeNode != nullptr)
         {
             treeNode->gtFlags |= GTF_SPILLED;
-            if (spillAfter) treeNode->gtFlags |= GTF_SPILL;
+            if (spillAfter)
+            {
+                if (currentRefPosition->AllocateIfProfitable())
+                {
+                    // This is a use of lclVar that is flagged as reg-optional
+                    // by lower/codegen and marked for both reload and spillAfter.
+                    // In this case we can avoid unnecessary reload and spill
+                    // by setting reg on lclVar to REG_STK and reg on tree node
+                    // to REG_NA.  Codegen will generate the code by considering
+                    // it as a contained memory operand.
+                    //
+                    // Note that varDsc->lvRegNum is already to REG_STK above.
+                    interval->physReg  = REG_NA;
+                    treeNode->gtRegNum = REG_NA;
+                    treeNode->gtFlags &= ~GTF_SPILLED;
+                    treeNode->SetContained();
+                }
+                else
+                {
+                    treeNode->gtFlags |= GTF_SPILL;
+                }
+            }
         }
         else
         {
             assert(currentRefPosition->refType == RefTypeExpUse);
-        }
-
-        // If we have an undefined use set it as non-reg
-        if (!interval->isSpilled)
-        {
-            if (varDsc->lvIsParam && !varDsc->lvIsRegArg && currentRefPosition == interval->firstRefPosition)
-            {
-                // Parameters are the only thing that can be used before defined
-            }
-            else
-            {
-                // if we see a use before def of something else, the zero init flag better not be set.
-                noway_assert(!compiler->info.compInitMem);
-                // if it is not set, then the behavior is undefined but we don't want to crash or assert
-                interval->isSpilled = true;
-            }
         }
     }
     else if (spillAfter && !RefTypeIsUse(currentRefPosition->refType))
@@ -6764,12 +5995,16 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
         // In the case of a pure def, don't bother spilling - just assign it to the
         // stack.  However, we need to remember that it was spilled.
 
-        interval->isSpilled = true;
-        varDsc->lvRegNum = REG_STK;
+        assert(interval->isSpilled);
+        varDsc->lvRegNum  = REG_STK;
         interval->physReg = REG_NA;
         if (treeNode != nullptr)
+        {
             treeNode->gtRegNum = REG_NA;
-    } else {
+        }
+    }
+    else
+    {
         // Not reload and Not pure-def that's spillAfter
 
         if (currentRefPosition->copyReg || currentRefPosition->moveReg)
@@ -6785,6 +6020,7 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
             // currently lives.  For moveReg, the homeReg is the new register (as assigned above).
             // But for copyReg, the homeReg remains unchanged.
 
+            assert(treeNode != nullptr);
             treeNode->gtRegNum = interval->physReg;
 
             if (currentRefPosition->copyReg)
@@ -6793,29 +6029,28 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
             }
             else
             {
+                assert(interval->isSplit);
                 interval->physReg = assignedReg;
             }
 
             if (!currentRefPosition->isFixedRegRef || currentRefPosition->moveReg)
             {
                 // This is the second case, where we need to generate a copy
-                insertCopyOrReload(treeNode, currentRefPosition); 
+                insertCopyOrReload(block, treeNode, currentRefPosition->getMultiRegIdx(), currentRefPosition);
             }
         }
         else
         {
             interval->physReg = assignedReg;
-            
+
             if (!interval->isSpilled && !interval->isSplit)
             {
                 if (varDsc->lvRegNum != REG_STK)
                 {
-                    // If the register assignments don't match, then this interval is spilt,
-                    // but not spilled (yet)
-                    // However, we don't have a single register assignment now
+                    // If the register assignments don't match, then this interval is split.
                     if (varDsc->lvRegNum != assignedReg)
                     {
-                        interval->isSplit = TRUE;
+                        setIntervalAsSplit(interval);
                         varDsc->lvRegNum = REG_STK;
                     }
                 }
@@ -6827,57 +6062,58 @@ LinearScan::resolveLocalRef(GenTreePtr treeNode, RefPosition * currentRefPositio
         }
         if (spillAfter)
         {
-            if (treeNode != nullptr) treeNode->gtFlags |= GTF_SPILL;
-            interval->isSpilled = true;
+            if (treeNode != nullptr)
+            {
+                treeNode->gtFlags |= GTF_SPILL;
+            }
+            assert(interval->isSpilled);
             interval->physReg = REG_NA;
-            varDsc->lvRegNum = REG_STK;
+            varDsc->lvRegNum  = REG_STK;
         }
-
-        // This value is in a register, UNLESS we already saw this treeNode
-        // and marked it for reload
-        if (treeNode != nullptr && !(treeNode->gtFlags & GTF_SPILLED))
-            treeNode->gtFlags |= GTF_REG_VAL;
     }
 
     // Update the physRegRecord for the register, so that we know what vars are in
     // regs at the block boundaries
-    RegRecord * physRegRecord = getRegisterRecord(homeReg);
+    RegRecord* physRegRecord = getRegisterRecord(homeReg);
     if (spillAfter || currentRefPosition->lastUse)
     {
-        physRegRecord->assignedInterval = nullptr;
+        interval->isActive    = false;
         interval->assignedReg = nullptr;
-        interval->physReg = REG_NA;
-        interval->isActive = false;
+        interval->physReg     = REG_NA;
+
+        updateAssignedInterval(physRegRecord, nullptr, interval->registerType);
     }
     else
     {
-        interval->isActive = true;
-        physRegRecord->assignedInterval = interval;
+        interval->isActive    = true;
         interval->assignedReg = physRegRecord;
+
+        updateAssignedInterval(physRegRecord, interval, interval->registerType);
     }
 }
 
-
-void
-LinearScan::writeRegisters(RefPosition *currentRefPosition, GenTree *tree)
+void LinearScan::writeRegisters(RefPosition* currentRefPosition, GenTree* tree)
 {
-    lsraAssignRegToTree(tree, currentRefPosition->assignedReg());
+    lsraAssignRegToTree(tree, currentRefPosition->assignedReg(), currentRefPosition->getMultiRegIdx());
 }
 
-//------------------------------------------------------------------------ 
+//------------------------------------------------------------------------
 // insertCopyOrReload: Insert a copy in the case where a tree node value must be moved
 //   to a different register at the point of use (GT_COPY), or it is reloaded to a different register
 //   than the one it was spilled from (GT_RELOAD).
 //
-// Arguments: 
-//    tree              - This is the node to reload. Insert the reload node between this node and its parent.
-//    spillRefPosition  - The RefPosition of the spill. spillRefPosition->nextRefPosition is the RefPosition of the reload.
+// Arguments:
+//    block             - basic block in which GT_COPY/GT_RELOAD is inserted.
+//    tree              - This is the node to copy or reload.
+//                        Insert copy or reload node between this node and its parent.
+//    multiRegIdx       - register position of tree node for which copy or reload is needed.
+//    refPosition       - The RefPosition at which copy or reload will take place.
 //
 // Notes:
 //    The GT_COPY or GT_RELOAD will be inserted in the proper spot in execution order where the reload is to occur.
 //
 // For example, for this tree (numbers are execution order, lower is earlier and higher is later):
-// 
+//
 //                                   +---------+----------+
 //                                   |       GT_ADD (3)   |
 //                                   +---------+----------+
@@ -6888,9 +6124,9 @@ LinearScan::writeRegisters(RefPosition *currentRefPosition, GenTree *tree)
 //                   +-------------------+           +----------------------+
 //                   |         x (1)     | "tree"    |         y (2)        |
 //                   +-------------------+           +----------------------+
-// 
+//
 // generate this tree:
-// 
+//
 //                                   +---------+----------+
 //                                   |       GT_ADD (4)   |
 //                                   +---------+----------+
@@ -6905,7 +6141,7 @@ LinearScan::writeRegisters(RefPosition *currentRefPosition, GenTree *tree)
 //                   +-------------------+
 //                   |         x (1)     | "tree"
 //                   +-------------------+
-// 
+//
 // Note in particular that the GT_RELOAD node gets inserted in execution order immediately before the parent of "tree",
 // which seems a bit weird since normally a node's parent (in this case, the parent of "x", GT_RELOAD in the "after"
 // picture) immediately follows all of its children (that is, normally the execution ordering is postorder).
@@ -6917,16 +6153,18 @@ LinearScan::writeRegisters(RefPosition *currentRefPosition, GenTree *tree)
 // used if we reload to the same register. Normally, though, in that case we just mark the node with GTF_SPILLED,
 // and the unspilling code automatically reuses the same register, and does the reload when it notices that flag
 // when considering a node's operands.
-
-void
-LinearScan::insertCopyOrReload(GenTreePtr tree, RefPosition* refPosition)
+//
+void LinearScan::insertCopyOrReload(BasicBlock* block, GenTree* tree, unsigned multiRegIdx, RefPosition* refPosition)
 {
-    GenTreePtr* parentChildPointer = nullptr;
-    GenTreePtr parent = tree->gtGetParent(&parentChildPointer);
-    noway_assert(parent != nullptr && parentChildPointer != nullptr);
+    LIR::Range& blockRange = LIR::AsRange(block);
 
-    // Create the new node, with "tree" as its only child.
-    genTreeOps  oper;
+    LIR::Use treeUse;
+    bool     foundUse = blockRange.TryGetUse(tree, &treeUse);
+    assert(foundUse);
+
+    GenTree* parent = treeUse.User();
+
+    genTreeOps oper;
     if (refPosition->reload)
     {
         oper = GT_RELOAD;
@@ -6934,125 +6172,117 @@ LinearScan::insertCopyOrReload(GenTreePtr tree, RefPosition* refPosition)
     else
     {
         oper = GT_COPY;
+
+#if TRACK_LSRA_STATS
+        updateLsraStat(LSRA_STAT_COPY_REG, block->bbNum);
+#endif
     }
 
-    var_types treeType = tree->TypeGet();
-
-#ifdef FEATURE_SIMD
-    // Check to see whether we need to move to a different register set.
-    // This currently only happens in the case of SIMD vector types that are small enough (pointer size)
-    // that they must be passed & returned in integer registers.
-    // 'treeType' is the type of the register we are moving FROM,
-    // and refPosition->registerAssignment is the mask for the register we are moving TO.
-    // If they don't match, we need to reverse the type for the "move" node.
-
-    if ((allRegs(treeType) & refPosition->registerAssignment) == 0)
+    // If the parent is a reload/copy node, then tree must be a multi-reg node
+    // that has already had one of its registers spilled.
+    // It is possible that one of its RefTypeDef positions got spilled and the next
+    // use of it requires it to be in a different register.
+    //
+    // In this case set the i'th position reg of reload/copy node to the reg allocated
+    // for copy/reload refPosition.  Essentially a copy/reload node will have a reg
+    // for each multi-reg position of its child. If there is a valid reg in i'th
+    // position of GT_COPY or GT_RELOAD node then the corresponding result of its
+    // child needs to be copied or reloaded to that reg.
+    if (parent->IsCopyOrReload())
     {
-        treeType = (useFloatReg(treeType)) ? TYP_I_IMPL : TYP_SIMD8;
+        noway_assert(parent->OperGet() == oper);
+        noway_assert(tree->IsMultiRegNode());
+        GenTreeCopyOrReload* copyOrReload = parent->AsCopyOrReload();
+        noway_assert(copyOrReload->GetRegNumByIdx(multiRegIdx) == REG_NA);
+        copyOrReload->SetRegNumByIdx(refPosition->assignedReg(), multiRegIdx);
     }
-#endif // FEATURE_SIMD
-
-    GenTreePtr newNode = compiler->gtNewOperNode(oper, treeType, tree);
-    assert(refPosition->registerAssignment != RBM_NONE);
-    newNode->CopyCosts(tree);
-    newNode->gtRegNum = refPosition->assignedReg();
-    newNode->gtLsraInfo.isLsraAdded = true;
-    newNode->gtLsraInfo.isLocalDefUse = false;
-    if (refPosition->copyReg)
+    else
     {
-        // This is a TEMPORARY copy
-        assert(isCandidateLocalRef(tree));
-        newNode->gtFlags |= GTF_VAR_DEATH;
+        // Create the new node, with "tree" as its only child.
+        var_types treeType = tree->TypeGet();
+
+        GenTreeCopyOrReload* newNode = new (compiler, oper) GenTreeCopyOrReload(oper, treeType, tree);
+        assert(refPosition->registerAssignment != RBM_NONE);
+        SetLsraAdded(newNode);
+        newNode->SetRegNumByIdx(refPosition->assignedReg(), multiRegIdx);
+        if (refPosition->copyReg)
+        {
+            // This is a TEMPORARY copy
+            assert(isCandidateLocalRef(tree));
+            newNode->gtFlags |= GTF_VAR_DEATH;
+        }
+
+        // Insert the copy/reload after the spilled node and replace the use of the original node with a use
+        // of the copy/reload.
+        blockRange.InsertAfter(tree, newNode);
+        treeUse.ReplaceWith(compiler, newNode);
     }
-
-    // Replace tree in the parent node.
-    *parentChildPointer = newNode;
-
-    // we insert this directly after the spilled node.  it does not reload at that point but
-    // just updates registers
-    tree->InsertAfterSelf(newNode);
 }
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-//------------------------------------------------------------------------ 
+//------------------------------------------------------------------------
 // insertUpperVectorSaveAndReload: Insert code to save and restore the upper half of a vector that lives
 //                                 in a callee-save register at the point of a kill (the upper half is
 //                                 not preserved).
 //
-// Arguments: 
+// Arguments:
 //    tree              - This is the node around which we will insert the Save & Reload.
 //                        It will be a call or some node that turns into a call.
 //    refPosition       - The RefTypeUpperVectorSaveDef RefPosition.
 //
-void
-LinearScan::insertUpperVectorSaveAndReload(GenTreePtr tree, RefPosition* refPosition, BasicBlock* block)
+void LinearScan::insertUpperVectorSaveAndReload(GenTree* tree, RefPosition* refPosition, BasicBlock* block)
 {
     Interval* lclVarInterval = refPosition->getInterval()->relatedInterval;
     assert(lclVarInterval->isLocalVar == true);
-    LclVarDsc *  varDsc = compiler->lvaTable + lclVarInterval->varNum;
-    assert(varDsc->lvType == LargeVectorType);
+    LclVarDsc* varDsc = compiler->lvaTable + lclVarInterval->varNum;
+    assert(varTypeNeedsPartialCalleeSave(varDsc->lvType));
     regNumber lclVarReg = lclVarInterval->physReg;
     if (lclVarReg == REG_NA)
     {
         return;
     }
-    
+
     assert((genRegMask(lclVarReg) & RBM_FLT_CALLEE_SAVED) != RBM_NONE);
 
-    regNumber spillReg = refPosition->assignedReg();
-    bool spillToMem = refPosition->spillAfter;
+    regNumber spillReg   = refPosition->assignedReg();
+    bool      spillToMem = refPosition->spillAfter;
 
-    // We will insert the save before the statement containing 'tree', and the restore after it.
-    // They will each be inserted as embedded statements.
-    // In order to do this, we need to find the current statement.
-    // TODO-Througput: There's got to be a better way to do this.
-    GenTree* lastNodeInCurrentStatement = tree;
-    while (lastNodeInCurrentStatement->gtNext != nullptr)
-    {
-        lastNodeInCurrentStatement = lastNodeInCurrentStatement->gtNext;
-    }
-    GenTree* stmt = block->bbTreeList;
-    while (stmt != nullptr && stmt->gtStmt.gtStmtExpr != lastNodeInCurrentStatement)
-    {
-        stmt = stmt->gtNext;
-    }
-    noway_assert(stmt != nullptr);
+    LIR::Range& blockRange = LIR::AsRange(block);
 
-    // First, insert the save as an embedded statement before the call.
+    // First, insert the save before the call.
 
-    GenTreePtr saveLcl = compiler->gtNewLclvNode(lclVarInterval->varNum, LargeVectorType);
-    saveLcl->gtLsraInfo.isLsraAdded = true;
+    GenTree* saveLcl  = compiler->gtNewLclvNode(lclVarInterval->varNum, varDsc->lvType);
     saveLcl->gtRegNum = lclVarReg;
-    saveLcl->gtFlags |= GTF_REG_VAL;
-    saveLcl->gtLsraInfo.isLocalDefUse = false;
+    SetLsraAdded(saveLcl);
 
-    GenTreeSIMD* simdNode = new (compiler, GT_SIMD) GenTreeSIMD(LargeVectorSaveType, saveLcl, nullptr, SIMDIntrinsicUpperSave, varDsc->lvBaseType, genTypeSize(LargeVectorType));
-    simdNode->gtLsraInfo.isLsraAdded = true;
+    GenTreeSIMD* simdNode =
+        new (compiler, GT_SIMD) GenTreeSIMD(LargeVectorSaveType, saveLcl, nullptr, SIMDIntrinsicUpperSave,
+                                            varDsc->lvBaseType, genTypeSize(varDsc->lvType));
+    SetLsraAdded(simdNode);
     simdNode->gtRegNum = spillReg;
     if (spillToMem)
     {
         simdNode->gtFlags |= GTF_SPILL;
     }
-    compiler->fgInsertTreeBeforeAsEmbedded(simdNode, tree, stmt->AsStmt(), block);
+
+    blockRange.InsertBefore(tree, LIR::SeqTree(compiler, simdNode));
 
     // Now insert the restore after the call.
 
-    GenTreePtr restoreLcl = compiler->gtNewLclvNode(lclVarInterval->varNum, LargeVectorType);
-    restoreLcl->gtLsraInfo.isLsraAdded = true;
+    GenTree* restoreLcl  = compiler->gtNewLclvNode(lclVarInterval->varNum, varDsc->lvType);
     restoreLcl->gtRegNum = lclVarReg;
-    restoreLcl->gtFlags |= GTF_REG_VAL;
-    restoreLcl->gtLsraInfo.isLocalDefUse = false;
+    SetLsraAdded(restoreLcl);
 
-    simdNode = new (compiler, GT_SIMD) GenTreeSIMD(LargeVectorType, restoreLcl, nullptr, SIMDIntrinsicUpperRestore, varDsc->lvBaseType, 32);
-    simdNode->gtLsraInfo.isLsraAdded = true;
+    simdNode = new (compiler, GT_SIMD) GenTreeSIMD(varDsc->lvType, restoreLcl, nullptr, SIMDIntrinsicUpperRestore,
+                                                   varDsc->lvBaseType, genTypeSize(varDsc->lvType));
     simdNode->gtRegNum = spillReg;
+    SetLsraAdded(simdNode);
     if (spillToMem)
     {
         simdNode->gtFlags |= GTF_SPILLED;
     }
 
-    compiler->fgInsertTreeAfterAsEmbedded(simdNode, tree, stmt->AsStmt(), block);
-
+    blockRange.InsertAfter(tree, LIR::SeqTree(compiler, simdNode));
 }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
@@ -7071,14 +6301,13 @@ LinearScan::insertUpperVectorSaveAndReload(GenTreePtr tree, RefPosition* refPosi
 // Assumptions:
 //    This is called before any calls to updateMaxSpill().
 
-void
-LinearScan::initMaxSpill()
+void LinearScan::initMaxSpill()
 {
     needDoubleTmpForFPCall = false;
-    needFloatTmpForFPCall = false;
-    for (int i=0; i < TYP_COUNT; i++)
+    needFloatTmpForFPCall  = false;
+    for (int i = 0; i < TYP_COUNT; i++)
     {
-        maxSpill[i] = 0;
+        maxSpill[i]     = 0;
         currentSpill[i] = 0;
     }
 }
@@ -7097,14 +6326,13 @@ LinearScan::initMaxSpill()
 //    This is called after updateMaxSpill() has been called for all "real"
 //    RefPositions.
 
-void
-LinearScan::recordMaxSpill()
+void LinearScan::recordMaxSpill()
 {
     // Note: due to the temp normalization process (see tmpNormalizeType)
     // only a few types should actually be seen here.
     JITDUMP("Recording the maximum number of concurrent spills:\n");
 #ifdef _TARGET_X86_
-    var_types returnType = compiler->tmpNormalizeType(compiler->info.compRetType);
+    var_types returnType = RegSet::tmpNormalizeType(compiler->info.compRetType);
     if (needDoubleTmpForFPCall || (returnType == TYP_DOUBLE))
     {
         JITDUMP("Adding a spill temp for moving a double call/return value between xmm reg and x87 stack.\n");
@@ -7118,19 +6346,20 @@ LinearScan::recordMaxSpill()
 #endif // _TARGET_X86_
     for (int i = 0; i < TYP_COUNT; i++)
     {
-        if (var_types(i) != compiler->tmpNormalizeType(var_types(i)))
+        if (var_types(i) != RegSet::tmpNormalizeType(var_types(i)))
         {
             // Only normalized types should have anything in the maxSpill array.
             // We assume here that if type 'i' does not normalize to itself, then
             // nothing else normalizes to 'i', either.
             assert(maxSpill[i] == 0);
         }
-        JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
         if (maxSpill[i] != 0)
         {
-            compiler->tmpPreAllocateTemps(var_types(i), maxSpill[i]);
+            JITDUMP("  %s: %d\n", varTypeName(var_types(i)), maxSpill[i]);
+            compiler->codeGen->regSet.tmpPreAllocateTemps(var_types(i), maxSpill[i]);
         }
     }
+    JITDUMP("\n");
 }
 
 //------------------------------------------------------------------------
@@ -7151,22 +6380,24 @@ LinearScan::recordMaxSpill()
 //    phase of LSRA.  It keeps track of how many concurrently-live
 //    spills there are, and the largest number seen so far.
 
-void
-LinearScan::updateMaxSpill(RefPosition* refPosition)
+void LinearScan::updateMaxSpill(RefPosition* refPosition)
 {
-    if (refPosition->spillAfter || refPosition->reload)
+    RefType refType = refPosition->refType;
+
+    if (refPosition->spillAfter || refPosition->reload ||
+        (refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA))
     {
         Interval* interval = refPosition->getInterval();
         if (!interval->isLocalVar)
         {
             // The tmp allocation logic 'normalizes' types to a small number of
-            // types that need distinct stack locations from each other.  
-            // Those types are currently gc refs, byrefs, <= 4 byte non-GC items, 
+            // types that need distinct stack locations from each other.
+            // Those types are currently gc refs, byrefs, <= 4 byte non-GC items,
             // 8-byte non-GC items, and 16-byte or 32-byte SIMD vectors.
             // LSRA is agnostic to those choices but needs
             // to know what they are here.
-            RefType refType = refPosition->refType;
             var_types typ;
+
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             if ((refType == RefTypeUpperVectorSaveDef) || (refType == RefTypeUpperVectorSaveUse))
             {
@@ -7175,14 +6406,41 @@ LinearScan::updateMaxSpill(RefPosition* refPosition)
             else
 #endif // !FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             {
-                GenTreePtr treeNode = refPosition->treeNode;
+                GenTree* treeNode = refPosition->treeNode;
                 if (treeNode == nullptr)
                 {
-                    assert(RefTypeIsUse(refPosition->refType));
+                    assert(RefTypeIsUse(refType));
                     treeNode = interval->firstRefPosition->treeNode;
                 }
                 assert(treeNode != nullptr);
-                typ = compiler->tmpNormalizeType(treeNode->TypeGet());
+
+                // In case of multi-reg call nodes, we need to use the type
+                // of the return register given by multiRegIdx of the refposition.
+                if (treeNode->IsMultiRegCall())
+                {
+                    ReturnTypeDesc* retTypeDesc = treeNode->AsCall()->GetReturnTypeDesc();
+                    typ                         = retTypeDesc->GetReturnRegType(refPosition->getMultiRegIdx());
+                }
+#if FEATURE_ARG_SPLIT
+                else if (treeNode->OperIsPutArgSplit())
+                {
+                    typ = treeNode->AsPutArgSplit()->GetRegType(refPosition->getMultiRegIdx());
+                }
+#if !defined(_TARGET_64BIT_)
+                else if (treeNode->OperIsPutArgReg())
+                {
+                    // For double arg regs, the type is changed to long since they must be passed via `r0-r3`.
+                    // However when they get spilled, they should be treated as separated int registers.
+                    var_types typNode = treeNode->TypeGet();
+                    typ               = (typNode == TYP_LONG) ? TYP_INT : typNode;
+                }
+#endif // !_TARGET_64BIT_
+#endif // FEATURE_ARG_SPLIT
+                else
+                {
+                    typ = treeNode->TypeGet();
+                }
+                typ = RegSet::tmpNormalizeType(typ);
             }
 
             if (refPosition->spillAfter && !refPosition->reload)
@@ -7198,6 +6456,16 @@ LinearScan::updateMaxSpill(RefPosition* refPosition)
                 assert(currentSpill[typ] > 0);
                 currentSpill[typ]--;
             }
+            else if (refPosition->AllocateIfProfitable() && refPosition->assignedReg() == REG_NA)
+            {
+                // A spill temp not getting reloaded into a reg because it is
+                // marked as allocate if profitable and getting used from its
+                // memory location.  To properly account max spill for typ we
+                // decrement spill count.
+                assert(RefTypeIsUse(refType));
+                assert(currentSpill[typ] > 0);
+                currentSpill[typ]--;
+            }
             JITDUMP("  Max spill for %s is %d\n", varTypeName(typ), maxSpill[typ]);
         }
     }
@@ -7206,8 +6474,7 @@ LinearScan::updateMaxSpill(RefPosition* refPosition)
 // This is the final phase of register allocation.  It writes the register assignments to
 // the tree, and performs resolution across joins and backedges.
 //
-void
-LinearScan::resolveRegisters()
+void LinearScan::resolveRegisters()
 {
     // Iterate over the tree and the RefPositions in lockstep
     //  - annotate the tree with register assignments by setting gtRegNum or gtRegPair (for longs)
@@ -7229,125 +6496,129 @@ LinearScan::resolveRegisters()
     // At each branch, we identify the location of each liveOut interval, and check
     // against the RefPositions at the target.
 
-    BasicBlock * block;
+    BasicBlock*  block;
     LsraLocation currentLocation = MinLocation;
 
     // Clear register assignments - these will be reestablished as lclVar defs (including RefTypeParamDefs)
     // are encountered.
-    for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
+    if (enregisterLocalVars)
     {
-        RegRecord * physRegRecord = getRegisterRecord(reg);
-        Interval * assignedInterval = physRegRecord->assignedInterval;
-        if (assignedInterval != nullptr)
+        for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
         {
-            assignedInterval->assignedReg = nullptr;
-            assignedInterval->physReg = REG_NA;
+            RegRecord* physRegRecord    = getRegisterRecord(reg);
+            Interval*  assignedInterval = physRegRecord->assignedInterval;
+            if (assignedInterval != nullptr)
+            {
+                assignedInterval->assignedReg = nullptr;
+                assignedInterval->physReg     = REG_NA;
+            }
+            physRegRecord->assignedInterval  = nullptr;
+            physRegRecord->recentRefPosition = nullptr;
         }
-        physRegRecord->assignedInterval = nullptr;
-        physRegRecord->recentRefPosition = nullptr;
-    }
 
-    // Clear "recentRefPosition" for lclVar intervals
-    for (unsigned lclNum = 0;
-         lclNum < compiler->lvaCount;
-         lclNum++)
-    {
-        localVarIntervals[lclNum]->recentRefPosition = nullptr;
-        localVarIntervals[lclNum]->isActive = false;
+        // Clear "recentRefPosition" for lclVar intervals
+        for (unsigned varIndex = 0; varIndex < compiler->lvaTrackedCount; varIndex++)
+        {
+            if (localVarIntervals[varIndex] != nullptr)
+            {
+                localVarIntervals[varIndex]->recentRefPosition = nullptr;
+                localVarIntervals[varIndex]->isActive          = false;
+            }
+            else
+            {
+                assert(compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate == false);
+            }
+        }
     }
 
     // handle incoming arguments and special temps
-    auto currentRefPosition = refPositions.begin();
+    RefPositionIterator refPosIterator     = refPositions.begin();
+    RefPosition*        currentRefPosition = &refPosIterator;
 
-    VarToRegMap entryVarToRegMap = inVarToRegMaps[compiler->fgFirstBB->bbNum];
-    while (currentRefPosition != refPositions.end() &&
-           (currentRefPosition->refType == RefTypeParamDef || currentRefPosition->refType == RefTypeZeroInit))
+    if (enregisterLocalVars)
     {
-        Interval * interval = currentRefPosition->getInterval();
-        assert(interval != nullptr && interval->isLocalVar);
-        resolveLocalRef(nullptr, currentRefPosition);
-        regNumber reg     = REG_STK;
-        int varIndex = interval->getVarIndex(compiler);
-
-        if (!currentRefPosition->spillAfter && currentRefPosition->registerAssignment != RBM_NONE)
+        VarToRegMap entryVarToRegMap = inVarToRegMaps[compiler->fgFirstBB->bbNum];
+        for (; refPosIterator != refPositions.end() &&
+               (currentRefPosition->refType == RefTypeParamDef || currentRefPosition->refType == RefTypeZeroInit);
+             ++refPosIterator, currentRefPosition = &refPosIterator)
         {
-            reg = currentRefPosition->assignedReg();
-        }
-        else
-        {
-            reg = REG_STK;
-            interval->isActive = false;
-        }
-        entryVarToRegMap[varIndex] = reg;
-        ++currentRefPosition;
-    }
+            Interval* interval = currentRefPosition->getInterval();
+            assert(interval != nullptr && interval->isLocalVar);
+            resolveLocalRef(nullptr, nullptr, currentRefPosition);
+            regNumber reg      = REG_STK;
+            int       varIndex = interval->getVarIndex(compiler);
 
-    JITDUMP("------------------------\n");
-    JITDUMP("WRITING BACK ASSIGNMENTS\n");
-    JITDUMP("------------------------\n");
-
-    BasicBlock * insertionBlock = compiler->fgFirstBB;
-    GenTreePtr insertionPoint = insertionBlock->FirstNonPhiDef();
-
-    // write back assignments
-    for( block = startBlockSequence();
-         block != nullptr;
-         block = moveToNextBlock())
-    {
-        assert(curBBNum == block->bbNum);
-
-#ifdef DEBUG
-        if (VERBOSE)
-        {
-            block->dspBlockHeader(compiler);
-            currentRefPosition->dump();
-        }
-#endif // DEBUG
-
-        // Record the var locations at the start of this block.
-        // (If it's fgFirstBB, we've already done that above, see entryVarToRegMap)
-
-        curBBStartLocation = currentRefPosition->nodeLocation;
-        if (block != compiler->fgFirstBB)
-        {
-            processBlockStartLocations(block, false);
-        }
-
-        // Handle the DummyDefs, updating the incoming var location.
-        for ( ;
-              currentRefPosition != refPositions.end() && currentRefPosition->refType == RefTypeDummyDef;
-              ++currentRefPosition)
-        {
-            assert(currentRefPosition->isIntervalRef());
-            // Don't mark dummy defs as reload
-            currentRefPosition->reload = false;
-            resolveLocalRef(NULL, currentRefPosition);
-            regNumber reg;
-            if (currentRefPosition->registerAssignment != RBM_NONE)
+            if (!currentRefPosition->spillAfter && currentRefPosition->registerAssignment != RBM_NONE)
             {
                 reg = currentRefPosition->assignedReg();
             }
             else
             {
-                reg = REG_STK;
-                currentRefPosition->getInterval()->isActive = false;
+                reg                = REG_STK;
+                interval->isActive = false;
             }
-            setInVarRegForBB(curBBNum, currentRefPosition->getInterval()->varNum, reg);
+            setVarReg(entryVarToRegMap, varIndex, reg);
+        }
+    }
+    else
+    {
+        assert(refPosIterator == refPositions.end() ||
+               (refPosIterator->refType != RefTypeParamDef && refPosIterator->refType != RefTypeZeroInit));
+    }
+
+    BasicBlock* insertionBlock = compiler->fgFirstBB;
+    GenTree*    insertionPoint = LIR::AsRange(insertionBlock).FirstNonPhiNode();
+
+    // write back assignments
+    for (block = startBlockSequence(); block != nullptr; block = moveToNextBlock())
+    {
+        assert(curBBNum == block->bbNum);
+
+        if (enregisterLocalVars)
+        {
+            // Record the var locations at the start of this block.
+            // (If it's fgFirstBB, we've already done that above, see entryVarToRegMap)
+
+            curBBStartLocation = currentRefPosition->nodeLocation;
+            if (block != compiler->fgFirstBB)
+            {
+                processBlockStartLocations(block, false);
+            }
+
+            // Handle the DummyDefs, updating the incoming var location.
+            for (; refPosIterator != refPositions.end() && currentRefPosition->refType == RefTypeDummyDef;
+                 ++refPosIterator, currentRefPosition = &refPosIterator)
+            {
+                assert(currentRefPosition->isIntervalRef());
+                // Don't mark dummy defs as reload
+                currentRefPosition->reload = false;
+                resolveLocalRef(nullptr, nullptr, currentRefPosition);
+                regNumber reg;
+                if (currentRefPosition->registerAssignment != RBM_NONE)
+                {
+                    reg = currentRefPosition->assignedReg();
+                }
+                else
+                {
+                    reg                                         = REG_STK;
+                    currentRefPosition->getInterval()->isActive = false;
+                }
+                setInVarRegForBB(curBBNum, currentRefPosition->getInterval()->varNum, reg);
+            }
         }
 
         // The next RefPosition should be for the block.  Move past it.
-        assert(currentRefPosition != refPositions.end());
+        assert(refPosIterator != refPositions.end());
         assert(currentRefPosition->refType == RefTypeBB);
-        ++currentRefPosition;
+        ++refPosIterator;
+        currentRefPosition = &refPosIterator;
 
         // Handle the RefPositions for the block
-        for ( ;
-              currentRefPosition != refPositions.end() && currentRefPosition->refType != RefTypeBB && currentRefPosition->refType != RefTypeDummyDef;
-              ++currentRefPosition)
+        for (; refPosIterator != refPositions.end() && currentRefPosition->refType != RefTypeBB &&
+               currentRefPosition->refType != RefTypeDummyDef;
+             ++refPosIterator, currentRefPosition = &refPosIterator)
         {
             currentLocation = currentRefPosition->nodeLocation;
-            JITDUMP("current : ");
-            DBEXEC(VERBOSE, currentRefPosition->dump());
 
             // Ensure that the spill & copy info is valid.
             // First, if it's reload, it must not be copyReg or moveReg
@@ -7358,41 +6629,42 @@ LinearScan::resolveRegisters()
             switch (currentRefPosition->refType)
             {
 #ifdef FEATURE_SIMD
-            case RefTypeUpperVectorSaveUse:
-            case RefTypeUpperVectorSaveDef:
+                case RefTypeUpperVectorSaveUse:
+                case RefTypeUpperVectorSaveDef:
 #endif // FEATURE_SIMD
-            case RefTypeUse:
-            case RefTypeDef:
-                // These are the ones we're interested in
-                break;
-            case RefTypeKill:
-            case RefTypeFixedReg:
-                // These require no handling at resolution time
-                assert(currentRefPosition->referent != nullptr);
-                currentRefPosition->referent->recentRefPosition = currentRefPosition;
-                continue;
-            case RefTypeExpUse:
-                // Ignore the ExpUse cases - a RefTypeExpUse would only exist if the
-                // variable is dead at the entry to the next block.  So we'll mark
-                // it as in its current location and resolution will take care of any
-                // mismatch.
-                assert(getNextBlock() == nullptr ||
-                       !VarSetOps::IsMember(compiler, getNextBlock()->bbLiveIn, currentRefPosition->getInterval()->getVarIndex(compiler)));
-                currentRefPosition->referent->recentRefPosition = currentRefPosition;
-                continue;
-            case RefTypeKillGCRefs:
-                // No action to take at resolution time, and no interval to update recentRefPosition for.
-                continue;
-            case RefTypeDummyDef:
-            case RefTypeParamDef:
-            case RefTypeZeroInit:
+                case RefTypeUse:
+                case RefTypeDef:
+                    // These are the ones we're interested in
+                    break;
+                case RefTypeKill:
+                case RefTypeFixedReg:
+                    // These require no handling at resolution time
+                    assert(currentRefPosition->referent != nullptr);
+                    currentRefPosition->referent->recentRefPosition = currentRefPosition;
+                    continue;
+                case RefTypeExpUse:
+                    // Ignore the ExpUse cases - a RefTypeExpUse would only exist if the
+                    // variable is dead at the entry to the next block.  So we'll mark
+                    // it as in its current location and resolution will take care of any
+                    // mismatch.
+                    assert(getNextBlock() == nullptr ||
+                           !VarSetOps::IsMember(compiler, getNextBlock()->bbLiveIn,
+                                                currentRefPosition->getInterval()->getVarIndex(compiler)));
+                    currentRefPosition->referent->recentRefPosition = currentRefPosition;
+                    continue;
+                case RefTypeKillGCRefs:
+                    // No action to take at resolution time, and no interval to update recentRefPosition for.
+                    continue;
+                case RefTypeDummyDef:
+                case RefTypeParamDef:
+                case RefTypeZeroInit:
                 // Should have handled all of these already
-            default:
-                unreached();
-                break;
+                default:
+                    unreached();
+                    break;
             }
             updateMaxSpill(currentRefPosition);
-            GenTree *treeNode = currentRefPosition->treeNode;
+            GenTree* treeNode = currentRefPosition->treeNode;
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
             if (currentRefPosition->refType == RefTypeUpperVectorSaveDef)
@@ -7416,18 +6688,18 @@ LinearScan::resolveRegisters()
             if (treeNode == nullptr)
             {
                 // This is either a use, a dead def, or a field of a struct
-                Interval * interval = currentRefPosition->getInterval();
+                Interval* interval = currentRefPosition->getInterval();
                 assert(currentRefPosition->refType == RefTypeUse ||
-                       currentRefPosition->registerAssignment == RBM_NONE ||
-                       interval->isStructField);
+                       currentRefPosition->registerAssignment == RBM_NONE || interval->isStructField);
+
                 // TODO-Review: Need to handle the case where any of the struct fields
                 // are reloaded/spilled at this use
                 assert(!interval->isStructField ||
-                        (currentRefPosition->reload == false &&
-                         currentRefPosition->spillAfter == false));
+                       (currentRefPosition->reload == false && currentRefPosition->spillAfter == false));
+
                 if (interval->isLocalVar && !interval->isStructField)
                 {
-                    LclVarDsc * varDsc = interval->getLocalVar(compiler);
+                    LclVarDsc* varDsc = interval->getLocalVar(compiler);
 
                     // This must be a dead definition.  We need to mark the lclVar
                     // so that it's not considered a candidate for lvRegister, as
@@ -7435,271 +6707,274 @@ LinearScan::resolveRegisters()
                     assert(currentRefPosition->refType == RefTypeDef);
                     varDsc->lvRegNum = REG_STK;
                 }
-                JITDUMP("No tree node to write back to\n");
                 continue;
             }
 
-            DBEXEC(VERBOSE, lsraDispNode(treeNode, LSRA_DUMP_REFPOS, true));
-            JITDUMP("\n");
-
-            LsraLocation loc = treeNode->gtLsraInfo.loc;
-            JITDUMP("curr = %u mapped = %u", currentLocation, loc);
-            assert(treeNode->IsLocal() || currentLocation == loc || currentLocation == loc+1);
-
-            if (currentRefPosition->isIntervalRef()
-                && currentRefPosition->getInterval()->isInternal)
+            if (currentRefPosition->isIntervalRef() && currentRefPosition->getInterval()->isInternal)
             {
-                JITDUMP(" internal");
-                GenTreePtr indNode = nullptr;
-                if (treeNode->OperIsIndir())
-                {
-                    indNode = treeNode;
-                    JITDUMP(" allocated at GT_IND");
-                }
-                if (indNode != nullptr)
-                {
-                    GenTreePtr addrNode = indNode->gtOp.gtOp1->gtEffectiveVal();
-                    if (addrNode->OperGet() != GT_ARR_ELEM)
-                    {
-                        addrNode->gtRsvdRegs |= currentRefPosition->registerAssignment;
-                        JITDUMP(", recorded on addr");
-                    }
-                }
-                if (treeNode->OperGet() == GT_ARR_ELEM)
-                {
-                    // TODO-Review: See WORKAROUND ALERT in buildRefPositionsForNode()
-                    GenTreePtr firstIndexTree = treeNode->gtArrElem.gtArrInds[0]->gtEffectiveVal();
-                    assert(firstIndexTree != nullptr);
-                    if (firstIndexTree->IsLocal() && (firstIndexTree->gtFlags & GTF_VAR_DEATH) == 0)
-                    {
-                        // Record the LAST internal interval
-                        // (Yes, this naively just records each one, but the next will replace it;
-                        // I'd fix this if it wasn't just a temporary fix)
-                        if (currentRefPosition->refType == RefTypeDef)
-                        {
-                            JITDUMP(" allocated at GT_ARR_ELEM, recorded on firstIndex V%02u");
-                            firstIndexTree->gtRsvdRegs = (regMaskSmall) currentRefPosition->registerAssignment;
-                        }
-                    }
-                }
                 treeNode->gtRsvdRegs |= currentRefPosition->registerAssignment;
             }
             else
             {
                 writeRegisters(currentRefPosition, treeNode);
 
-                if (treeNode->IsLocal() && currentRefPosition->getInterval()->isLocalVar) 
+                if (treeNode->IsLocal() && currentRefPosition->getInterval()->isLocalVar)
                 {
-                    resolveLocalRef(treeNode, currentRefPosition);
+                    resolveLocalRef(block, treeNode, currentRefPosition);
                 }
 
                 // Mark spill locations on temps
                 // (local vars are handled in resolveLocalRef, above)
                 // Note that the tree node will be changed from GTF_SPILL to GTF_SPILLED
                 // in codegen, taking care of the "reload" case for temps
-                else if (currentRefPosition->spillAfter || 
-                         (currentRefPosition->nextRefPosition != nullptr && currentRefPosition->nextRefPosition->moveReg))
+                else if (currentRefPosition->spillAfter || (currentRefPosition->nextRefPosition != nullptr &&
+                                                            currentRefPosition->nextRefPosition->moveReg))
                 {
-                    if (treeNode != nullptr && currentRefPosition->isIntervalRef()) 
+                    if (treeNode != nullptr && currentRefPosition->isIntervalRef())
                     {
                         if (currentRefPosition->spillAfter)
                         {
                             treeNode->gtFlags |= GTF_SPILL;
+
                             // If this is a constant interval that is reusing a pre-existing value, we actually need
                             // to generate the value at this point in order to spill it.
                             if (treeNode->IsReuseRegVal())
                             {
                                 treeNode->ResetReuseRegVal();
                             }
+
+                            // In case of multi-reg call node, also set spill flag on the
+                            // register specified by multi-reg index of current RefPosition.
+                            // Note that the spill flag on treeNode indicates that one or
+                            // more its allocated registers are in that state.
+                            if (treeNode->IsMultiRegCall())
+                            {
+                                GenTreeCall* call = treeNode->AsCall();
+                                call->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
+                            }
+#if FEATURE_ARG_SPLIT
+                            else if (treeNode->OperIsPutArgSplit())
+                            {
+                                GenTreePutArgSplit* splitArg = treeNode->AsPutArgSplit();
+                                splitArg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
+                            }
+#ifdef _TARGET_ARM_
+                            else if (treeNode->OperIsMultiRegOp())
+                            {
+                                GenTreeMultiRegOp* multiReg = treeNode->AsMultiRegOp();
+                                multiReg->SetRegSpillFlagByIdx(GTF_SPILL, currentRefPosition->getMultiRegIdx());
+                            }
+#endif // _TARGET_ARM_
+#endif // FEATURE_ARG_SPLIT
                         }
 
                         // If the value is reloaded or moved to a different register, we need to insert
                         // a node to hold the register to which it should be reloaded
-                        RefPosition * nextRefPosition = currentRefPosition->nextRefPosition;
+                        RefPosition* nextRefPosition = currentRefPosition->nextRefPosition;
                         assert(nextRefPosition != nullptr);
                         if (INDEBUG(alwaysInsertReload() ||)
-                            nextRefPosition->assignedReg() != currentRefPosition->assignedReg())
+                                nextRefPosition->assignedReg() != currentRefPosition->assignedReg())
                         {
-                            insertCopyOrReload(treeNode, nextRefPosition);
+                            if (nextRefPosition->assignedReg() != REG_NA)
+                            {
+                                insertCopyOrReload(block, treeNode, currentRefPosition->getMultiRegIdx(),
+                                                   nextRefPosition);
+                            }
+                            else
+                            {
+                                assert(nextRefPosition->AllocateIfProfitable());
+
+                                // In case of tree temps, if def is spilled and use didn't
+                                // get a register, set a flag on tree node to be treated as
+                                // contained at the point of its use.
+                                if (currentRefPosition->spillAfter && currentRefPosition->refType == RefTypeDef &&
+                                    nextRefPosition->refType == RefTypeUse)
+                                {
+                                    assert(nextRefPosition->treeNode == nullptr);
+                                    treeNode->gtFlags |= GTF_NOREG_AT_USE;
+                                }
+                            }
                         }
                     }
 
                     // We should never have to "spill after" a temp use, since
                     // they're single use
-                    else unreached();
+                    else
+                    {
+                        unreached();
+                    }
                 }
             }
-            JITDUMP("\n");
         }
 
-        processBlockEndLocations(block);
-    }
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("-----------------------\n");
-        printf("RESOLVING BB BOUNDARIES\n");
-        printf("-----------------------\n");
-
-        printf("Prior to Resolution\n");
-        foreach_block(compiler, block)
+        if (enregisterLocalVars)
         {
-            printf("\nBB%02u use def in out\n", block->bbNum);
-            dumpConvertedVarSet(compiler, block->bbVarUse);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbVarDef);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbLiveIn);   printf("\n");
-            dumpConvertedVarSet(compiler, block->bbLiveOut);  printf("\n");
-
-            dumpInVarToRegMap(block);
-            dumpOutVarToRegMap(block);
+            processBlockEndLocations(block);
         }
-
-        printf("\n\n");
     }
+
+    if (enregisterLocalVars)
+    {
+#ifdef DEBUG
+        if (VERBOSE)
+        {
+            printf("-----------------------\n");
+            printf("RESOLVING BB BOUNDARIES\n");
+            printf("-----------------------\n");
+
+            printf("Resolution Candidates: ");
+            dumpConvertedVarSet(compiler, resolutionCandidateVars);
+            printf("\n");
+            printf("Has %sCritical Edges\n\n", hasCriticalEdges ? "" : "No");
+
+            printf("Prior to Resolution\n");
+            foreach_block(compiler, block)
+            {
+                printf("\n" FMT_BB " use def in out\n", block->bbNum);
+                dumpConvertedVarSet(compiler, block->bbVarUse);
+                printf("\n");
+                dumpConvertedVarSet(compiler, block->bbVarDef);
+                printf("\n");
+                dumpConvertedVarSet(compiler, block->bbLiveIn);
+                printf("\n");
+                dumpConvertedVarSet(compiler, block->bbLiveOut);
+                printf("\n");
+
+                dumpInVarToRegMap(block);
+                dumpOutVarToRegMap(block);
+            }
+
+            printf("\n\n");
+        }
 #endif // DEBUG
 
-    resolveEdges();
+        resolveEdges();
 
-    // Verify register assignments on variables
-    unsigned        lclNum;
-    LclVarDsc   *   varDsc;
-    for (lclNum = 0, varDsc = compiler->lvaTable;
-         lclNum < compiler->lvaCount;
-         lclNum++  , varDsc++)
-    {
-        if (!isCandidateVar(varDsc))
+        // Verify register assignments on variables
+        unsigned   lclNum;
+        LclVarDsc* varDsc;
+        for (lclNum = 0, varDsc = compiler->lvaTable; lclNum < compiler->lvaCount; lclNum++, varDsc++)
         {
-            varDsc->lvRegNum = REG_STK;
-        }
-        else
-        {
-            Interval * interval = getIntervalForLocalVar(lclNum);
-
-            // Determine initial position for parameters
-
-            if (varDsc->lvIsParam)
+            if (!isCandidateVar(varDsc))
             {
-                regMaskTP initialRegMask = interval->firstRefPosition->registerAssignment;
-                regNumber initialReg = (initialRegMask == RBM_NONE || interval->firstRefPosition->spillAfter) ?
-                                        REG_STK : genRegNumFromMask(initialRegMask);
-                regNumber sourceReg = (varDsc->lvIsRegArg) ? varDsc->lvArgReg : REG_STK;
-
-#ifdef _TARGET_ARM_
-                if (varTypeIsMultiReg(varDsc))
-                {
-                    // TODO-ARM-NYI: Map the hi/lo intervals back to lvRegNum and lvOtherReg (these should NYI before this)
-                    assert(!"Multi-reg types not yet supported");
-                }
-                else
-#endif // _TARGET_ARM_
-                {
-                    varDsc->lvArgInitReg = initialReg;
-                    JITDUMP("  Set V%02u argument initial register to %s\n", lclNum, getRegName(initialReg));
-                }
-                if (!varDsc->lvIsRegArg)
-                {
-                    // stack arg
-                    if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
-                    {
-                        if (sourceReg != initialReg)
-                        {
-                            // The code generator won't initialize struct
-                            // fields, so we have to do that if it's not already
-                            // where it belongs.
-                            assert(interval->isStructField);
-                            JITDUMP("  Move struct field param V%02u from %s to %s\n", lclNum,
-                                    getRegName(sourceReg), getRegName(initialReg));
-                            insertMove (insertionBlock, insertionPoint, lclNum,
-                                        sourceReg, initialReg);
-                        }
-                    }
-                }
-            }
-                
-            // If lvRegNum is REG_STK, that means that either no register
-            // was assigned, or (more likely) that the same register was not
-            // used for all references.  In that case, codegen gets the register
-            // from the tree node.
-            if (varDsc->lvRegNum == REG_STK || interval->isSpilled || interval->isSplit)
-            {
-                // For codegen purposes, we'll set lvRegNum to whatever register
-                // it's currently in as we go.
-                // However, we never mark an interval as lvRegister if it has either been spilled
-                // or split.
-                varDsc->lvRegister = false;
-
-                // Skip any dead defs or exposed uses
-                // (first use exposed will only occur when there is no explicit initialization)
-                RefPosition * firstRefPosition = interval->firstRefPosition;
-                while ((firstRefPosition != nullptr) && (firstRefPosition->refType == RefTypeExpUse))
-                {
-                    firstRefPosition = firstRefPosition->nextRefPosition;
-                }
-                if (firstRefPosition == nullptr)
-                {
-                    // Dead interval
-                    varDsc->lvLRACandidate = false;
-                    if (varDsc->lvRefCnt == 0)
-                    {
-                        varDsc->lvOnFrame = false;
-                    }
-                    else
-                    {
-                        // We may encounter cases where a lclVar actually has no references, but
-                        // a non-zero refCnt.  For safety (in case this is some "hidden" lclVar that we're
-                        // not correctly recognizing), we'll mark those as needing a stack location.
-                        // TODO-Cleanup: Make this an assert if/when we correct the refCnt
-                        // updating.
-                        varDsc->lvOnFrame = true;
-                    }
-                }
-                else
-                {
-                    // If the interval was not spilled, it doesn't need a stack location.
-                    if (!interval->isSpilled)
-                    {
-                        varDsc->lvOnFrame = false;
-                    }
-                    if (firstRefPosition->registerAssignment == RBM_NONE || firstRefPosition->spillAfter)
-                    {
-                        // Either this RefPosition is spilled, or it is not a "real" def or use
-                        assert(firstRefPosition->spillAfter ||
-                               (firstRefPosition->refType != RefTypeDef && firstRefPosition->refType != RefTypeUse));
-                        varDsc->lvRegNum = REG_STK;
-                    }
-                    else
-                    {
-                        varDsc->lvRegNum = firstRefPosition->assignedReg();
-                    }
-                }
+                varDsc->lvRegNum = REG_STK;
             }
             else
             {
-                {
-                    varDsc->lvRegister = true;
-                    varDsc->lvOnFrame = false;
-                }
-#ifdef DEBUG
-                regMaskTP registerAssignment = genRegMask(varDsc->lvRegNum);
-                assert(!interval->isSpilled && !interval->isSplit);
-                RefPosition * refPosition = interval->firstRefPosition;
-                assert(refPosition != nullptr);
+                Interval* interval = getIntervalForLocalVar(varDsc->lvVarIndex);
 
-                while (refPosition != nullptr)
+                // Determine initial position for parameters
+
+                if (varDsc->lvIsParam)
                 {
-                    // All RefPositions must match, except for dead definitions,
-                    // copyReg/moveReg and RefTypeExpUse positions
-                    if (refPosition->registerAssignment != RBM_NONE &&
-                       !refPosition->copyReg &&
-                       !refPosition->moveReg &&
-                        refPosition->refType != RefTypeExpUse)
+                    regMaskTP initialRegMask = interval->firstRefPosition->registerAssignment;
+                    regNumber initialReg     = (initialRegMask == RBM_NONE || interval->firstRefPosition->spillAfter)
+                                               ? REG_STK
+                                               : genRegNumFromMask(initialRegMask);
+                    regNumber sourceReg = (varDsc->lvIsRegArg) ? varDsc->lvArgReg : REG_STK;
+
+#ifdef _TARGET_ARM_
+                    if (varTypeIsMultiReg(varDsc))
                     {
-                        assert(refPosition->registerAssignment == registerAssignment);
+                        // TODO-ARM-NYI: Map the hi/lo intervals back to lvRegNum and lvOtherReg (these should NYI
+                        // before this)
+                        assert(!"Multi-reg types not yet supported");
                     }
-                    refPosition = refPosition->nextRefPosition;
+                    else
+#endif // _TARGET_ARM_
+                    {
+                        varDsc->lvArgInitReg = initialReg;
+                        JITDUMP("  Set V%02u argument initial register to %s\n", lclNum, getRegName(initialReg));
+                    }
+
+                    // Stack args that are part of dependently-promoted structs should never be register candidates (see
+                    // LinearScan::isRegCandidate).
+                    assert(varDsc->lvIsRegArg || !compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc));
                 }
+
+                // If lvRegNum is REG_STK, that means that either no register
+                // was assigned, or (more likely) that the same register was not
+                // used for all references.  In that case, codegen gets the register
+                // from the tree node.
+                if (varDsc->lvRegNum == REG_STK || interval->isSpilled || interval->isSplit)
+                {
+                    // For codegen purposes, we'll set lvRegNum to whatever register
+                    // it's currently in as we go.
+                    // However, we never mark an interval as lvRegister if it has either been spilled
+                    // or split.
+                    varDsc->lvRegister = false;
+
+                    // Skip any dead defs or exposed uses
+                    // (first use exposed will only occur when there is no explicit initialization)
+                    RefPosition* firstRefPosition = interval->firstRefPosition;
+                    while ((firstRefPosition != nullptr) && (firstRefPosition->refType == RefTypeExpUse))
+                    {
+                        firstRefPosition = firstRefPosition->nextRefPosition;
+                    }
+                    if (firstRefPosition == nullptr)
+                    {
+                        // Dead interval
+                        varDsc->lvLRACandidate = false;
+                        if (varDsc->lvRefCnt() == 0)
+                        {
+                            varDsc->lvOnFrame = false;
+                        }
+                        else
+                        {
+                            // We may encounter cases where a lclVar actually has no references, but
+                            // a non-zero refCnt.  For safety (in case this is some "hidden" lclVar that we're
+                            // not correctly recognizing), we'll mark those as needing a stack location.
+                            // TODO-Cleanup: Make this an assert if/when we correct the refCnt
+                            // updating.
+                            varDsc->lvOnFrame = true;
+                        }
+                    }
+                    else
+                    {
+                        // If the interval was not spilled, it doesn't need a stack location.
+                        if (!interval->isSpilled)
+                        {
+                            varDsc->lvOnFrame = false;
+                        }
+                        if (firstRefPosition->registerAssignment == RBM_NONE || firstRefPosition->spillAfter)
+                        {
+                            // Either this RefPosition is spilled, or regOptional or it is not a "real" def or use
+                            assert(
+                                firstRefPosition->spillAfter || firstRefPosition->AllocateIfProfitable() ||
+                                (firstRefPosition->refType != RefTypeDef && firstRefPosition->refType != RefTypeUse));
+                            varDsc->lvRegNum = REG_STK;
+                        }
+                        else
+                        {
+                            varDsc->lvRegNum = firstRefPosition->assignedReg();
+                        }
+                    }
+                }
+                else
+                {
+                    {
+                        varDsc->lvRegister = true;
+                        varDsc->lvOnFrame  = false;
+                    }
+#ifdef DEBUG
+                    regMaskTP registerAssignment = genRegMask(varDsc->lvRegNum);
+                    assert(!interval->isSpilled && !interval->isSplit);
+                    RefPosition* refPosition = interval->firstRefPosition;
+                    assert(refPosition != nullptr);
+
+                    while (refPosition != nullptr)
+                    {
+                        // All RefPositions must match, except for dead definitions,
+                        // copyReg/moveReg and RefTypeExpUse positions
+                        if (refPosition->registerAssignment != RBM_NONE && !refPosition->copyReg &&
+                            !refPosition->moveReg && refPosition->refType != RefTypeExpUse)
+                        {
+                            assert(refPosition->registerAssignment == registerAssignment);
+                        }
+                        refPosition = refPosition->nextRefPosition;
+                    }
 #endif // DEBUG
+                }
             }
         }
     }
@@ -7710,6 +6985,7 @@ LinearScan::resolveRegisters()
         printf("Trees after linear scan register allocator (LSRA)\n");
         compiler->fgDispBasicBlocks(true);
     }
+
     verifyFinalAllocation();
 #endif // DEBUG
 
@@ -7717,7 +6993,7 @@ LinearScan::resolveRegisters()
     recordMaxSpill();
 
     // TODO-CQ: Review this comment and address as needed.
-    // Change all unused promoted non-argument struct locals to a non-GC type (in this case TYP_INT) 
+    // Change all unused promoted non-argument struct locals to a non-GC type (in this case TYP_INT)
     // so that the gc tracking logic and lvMustInit logic will ignore them.
     // Extract the code that does this from raAssignVars, and call it here.
     // PRECONDITIONS: Ensure that lvPromoted is set on promoted structs, if and
@@ -7726,8 +7002,7 @@ LinearScan::resolveRegisters()
     // compiler->BashUnusedStructLocals();
 }
 
-
-// 
+//
 //------------------------------------------------------------------------
 // insertMove: Insert a move of a lclVar with the given lclNum into the given block.
 //
@@ -7746,14 +7021,12 @@ LinearScan::resolveRegisters()
 //    otherwise, insert "near" the end (prior to the branch, if any).
 //    If fromReg or toReg is REG_STK, then move from/to memory, respectively.
 
-void
-LinearScan::insertMove(BasicBlock * block,
-                       GenTreePtr insertionPoint,
-                       unsigned lclNum,
-                       regNumber fromReg,
-                       regNumber toReg)
+void LinearScan::insertMove(
+    BasicBlock* block, GenTree* insertionPoint, unsigned lclNum, regNumber fromReg, regNumber toReg)
 {
-    LclVarDsc *  varDsc = compiler->lvaTable + lclNum;
+    LclVarDsc* varDsc = compiler->lvaTable + lclNum;
+    // the lclVar must be a register candidate
+    assert(isRegCandidate(varDsc));
     // One or both MUST be a register
     assert(fromReg != REG_STK || toReg != REG_STK);
     // They must not be the same register.
@@ -7762,18 +7035,22 @@ LinearScan::insertMove(BasicBlock * block,
     // This var can't be marked lvRegister now
     varDsc->lvRegNum = REG_STK;
 
-    var_types lclTyp = varDsc->TypeGet();
-    if (varDsc->lvNormalizeOnStore())
-        lclTyp = genActualType(lclTyp);
-    GenTreePtr src = compiler->gtNewLclvNode(lclNum, lclTyp);
-    src->gtLsraInfo.isLsraAdded = true;
-    GenTreePtr top;
+    GenTree* src = compiler->gtNewLclvNode(lclNum, varDsc->TypeGet());
+    SetLsraAdded(src);
 
-    // If we are moving from STK to reg, mark the lclVar nodes with GTF_SPILLED
-    // Otherwise, if we are moving from reg to stack, mark it as GTF_SPILL
-    // Finally, for a reg-to-reg move, generate a GT_COPY
+    // There are three cases we need to handle:
+    // - We are loading a lclVar from the stack.
+    // - We are storing a lclVar to the stack.
+    // - We are copying a lclVar between registers.
+    //
+    // In the first and second cases, the lclVar node will be marked with GTF_SPILLED and GTF_SPILL, respectively.
+    // It is up to the code generator to ensure that any necessary normalization is done when loading or storing the
+    // lclVar's value.
+    //
+    // In the third case, we generate GT_COPY(GT_LCL_VAR) and type each node with the normalized type of the lclVar.
+    // This is safe because a lclVar is always normalized once it is in a register.
 
-    top = src;
+    GenTree* dst = src;
     if (fromReg == REG_STK)
     {
         src->gtFlags |= GTF_SPILLED;
@@ -7782,158 +7059,114 @@ LinearScan::insertMove(BasicBlock * block,
     else if (toReg == REG_STK)
     {
         src->gtFlags |= GTF_SPILL;
-        src->SetInReg();
         src->gtRegNum = fromReg;
     }
     else
     {
-        top = compiler->gtNewOperNode(GT_COPY, varDsc->TypeGet(), src);
+        var_types movType = genActualType(varDsc->TypeGet());
+        src->gtType       = movType;
+
+        dst = new (compiler, GT_COPY) GenTreeCopyOrReload(GT_COPY, movType, src);
         // This is the new home of the lclVar - indicate that by clearing the GTF_VAR_DEATH flag.
         // Note that if src is itself a lastUse, this will have no effect.
-        top->gtFlags &= ~(GTF_VAR_DEATH);
+        dst->gtFlags &= ~(GTF_VAR_DEATH);
         src->gtRegNum = fromReg;
-        src->SetInReg();
-        top->gtRegNum = toReg;
-        src->gtNext = top; top->gtPrev = src;
-        src->gtLsraInfo.isLocalDefUse = false;
-        top->gtLsraInfo.isLsraAdded = true;
+        dst->gtRegNum = toReg;
+        SetLsraAdded(dst);
     }
-    top->gtLsraInfo.isLocalDefUse = true;
-    GenTreePtr stmt = compiler->gtNewStmt(top);
-    compiler->gtSetStmtInfo(stmt);
+    dst->SetUnusedValue();
 
-    // The top-level node has no gtNext, and src has no gtPrev - they are set that way
-    // when created.
-    assert(top->gtNext == nullptr);
-    assert(src->gtPrev == nullptr);
-    stmt->gtStmt.gtStmtList = src;
+    LIR::Range  treeRange  = LIR::SeqTree(compiler, dst);
+    LIR::Range& blockRange = LIR::AsRange(block);
 
     if (insertionPoint != nullptr)
     {
-        compiler->fgInsertStmtBefore(block, insertionPoint, stmt);
+        blockRange.InsertBefore(insertionPoint, std::move(treeRange));
     }
     else
     {
         // Put the copy at the bottom
         // If there's a branch, make an embedded statement that executes just prior to the branch
-        if (block->bbJumpKind == BBJ_COND ||
-            block->bbJumpKind == BBJ_SWITCH)
+        if (block->bbJumpKind == BBJ_COND || block->bbJumpKind == BBJ_SWITCH)
         {
-            stmt->gtFlags &= ~GTF_STMT_TOP_LEVEL;
-            noway_assert(block->bbTreeList != nullptr);
-            GenTreePtr lastStmt = block->lastStmt();
-            GenTreePtr branchStmt = block->lastTopLevelStmt();
-            GenTreePtr branch = branchStmt->gtStmt.gtStmtExpr;
-            assert(branch->OperGet() == GT_JTRUE || branch->OperGet() == GT_SWITCH_TABLE || branch->OperGet() == GT_SWITCH);
+            noway_assert(!blockRange.IsEmpty());
 
-            GenTreePtr prev = branch->gtPrev;
-            prev->gtNext = src;
-            src->gtPrev = prev;
-            branch->gtPrev = top;
-            top->gtNext = branch;
+            GenTree* branch = blockRange.LastNode();
+            assert(branch->OperIsConditionalJump() || branch->OperGet() == GT_SWITCH_TABLE ||
+                   branch->OperGet() == GT_SWITCH);
 
-            stmt->gtNext = nullptr;
-            stmt->gtPrev = lastStmt;
-            lastStmt->gtNext = stmt;
-            block->bbTreeList->gtPrev = stmt;
+            blockRange.InsertBefore(branch, std::move(treeRange));
         }
         else
         {
             assert(block->bbJumpKind == BBJ_NONE || block->bbJumpKind == BBJ_ALWAYS);
-            compiler->fgInsertStmtAtEnd(block, stmt);
+            blockRange.InsertAtEnd(std::move(treeRange));
         }
     }
 }
 
-void
-LinearScan::insertSwap(BasicBlock* block,
-                       GenTreePtr insertionPoint,
-                       unsigned lclNum1,
-                       regNumber reg1,
-                       unsigned lclNum2,
-                       regNumber reg2)
+void LinearScan::insertSwap(
+    BasicBlock* block, GenTree* insertionPoint, unsigned lclNum1, regNumber reg1, unsigned lclNum2, regNumber reg2)
 {
 #ifdef DEBUG
     if (VERBOSE)
     {
-        const char * insertionPointString = "top";
+        const char* insertionPointString = "top";
         if (insertionPoint == nullptr)
         {
             insertionPointString = "bottom";
         }
-        printf("   BB%02u %s: swap V%02u in %s with V%02u in %s\n",
-        block->bbNum, insertionPointString, lclNum1, getRegName(reg1), lclNum2, getRegName(reg2));
+        printf("   " FMT_BB " %s: swap V%02u in %s with V%02u in %s\n", block->bbNum, insertionPointString, lclNum1,
+               getRegName(reg1), lclNum2, getRegName(reg2));
     }
 #endif // DEBUG
 
-    LclVarDsc *  varDsc1 = compiler->lvaTable + lclNum1;
-    LclVarDsc *  varDsc2 = compiler->lvaTable + lclNum2;
+    LclVarDsc* varDsc1 = compiler->lvaTable + lclNum1;
+    LclVarDsc* varDsc2 = compiler->lvaTable + lclNum2;
     assert(reg1 != REG_STK && reg1 != REG_NA && reg2 != REG_STK && reg2 != REG_NA);
 
-    GenTreePtr lcl1 = compiler->gtNewLclvNode(lclNum1, varDsc1->TypeGet());
-    lcl1->gtLsraInfo.isLsraAdded = true;
-    lcl1->gtLsraInfo.isLocalDefUse = false;
-    lcl1->SetInReg();
+    GenTree* lcl1  = compiler->gtNewLclvNode(lclNum1, varDsc1->TypeGet());
     lcl1->gtRegNum = reg1;
+    SetLsraAdded(lcl1);
 
-    GenTreePtr lcl2 = compiler->gtNewLclvNode(lclNum2, varDsc2->TypeGet());
-    lcl2->gtLsraInfo.isLsraAdded = true;
-    lcl2->gtLsraInfo.isLocalDefUse = false;
-    lcl2->SetInReg();
+    GenTree* lcl2  = compiler->gtNewLclvNode(lclNum2, varDsc2->TypeGet());
     lcl2->gtRegNum = reg2;
+    SetLsraAdded(lcl2);
 
-    GenTreePtr swap = compiler->gtNewOperNode(GT_SWAP, TYP_VOID, lcl1, lcl2);
-    swap->gtLsraInfo.isLsraAdded = true;
-    swap->gtLsraInfo.isLocalDefUse = false;
+    GenTree* swap  = compiler->gtNewOperNode(GT_SWAP, TYP_VOID, lcl1, lcl2);
     swap->gtRegNum = REG_NA;
+    SetLsraAdded(swap);
 
     lcl1->gtNext = lcl2;
     lcl2->gtPrev = lcl1;
     lcl2->gtNext = swap;
     swap->gtPrev = lcl2;
 
-    GenTreePtr stmt = compiler->gtNewStmt(swap);
-    compiler->gtSetStmtInfo(stmt);
-
-    // The top-level node has no gtNext, and lcl1 has no gtPrev - they are set that way
-    // when created.
-    assert(swap->gtNext == nullptr);
-    assert(lcl1->gtPrev == nullptr);
-    stmt->gtStmt.gtStmtList = lcl1;
+    LIR::Range  swapRange  = LIR::SeqTree(compiler, swap);
+    LIR::Range& blockRange = LIR::AsRange(block);
 
     if (insertionPoint != nullptr)
     {
-        compiler->fgInsertStmtBefore(block, insertionPoint, stmt);
+        blockRange.InsertBefore(insertionPoint, std::move(swapRange));
     }
     else
     {
         // Put the copy at the bottom
         // If there's a branch, make an embedded statement that executes just prior to the branch
-        if (block->bbJumpKind == BBJ_COND ||
-            block->bbJumpKind == BBJ_SWITCH)
+        if (block->bbJumpKind == BBJ_COND || block->bbJumpKind == BBJ_SWITCH)
         {
-            stmt->gtFlags &= ~GTF_STMT_TOP_LEVEL;
-            noway_assert(block->bbTreeList != nullptr);
-            GenTreePtr lastStmt = block->lastStmt();
-            GenTreePtr branchStmt = block->lastTopLevelStmt();
-            GenTreePtr branch = branchStmt->gtStmt.gtStmtExpr;
-            assert(branch->OperGet() == GT_JTRUE || branch->OperGet() == GT_SWITCH);
+            noway_assert(!blockRange.IsEmpty());
 
-            GenTreePtr prev = branch->gtPrev;
-            prev->gtNext = lcl1;
-            lcl1->gtPrev = prev;
-            branch->gtPrev = swap;
-            swap->gtNext = branch;
+            GenTree* branch = blockRange.LastNode();
+            assert(branch->OperIsConditionalJump() || branch->OperGet() == GT_SWITCH_TABLE ||
+                   branch->OperGet() == GT_SWITCH);
 
-            stmt->gtNext = nullptr;
-            stmt->gtPrev = lastStmt;
-            lastStmt->gtNext = stmt;
-            block->bbTreeList->gtPrev = stmt;
+            blockRange.InsertBefore(branch, std::move(swapRange));
         }
         else
         {
             assert(block->bbJumpKind == BBJ_NONE || block->bbJumpKind == BBJ_ALWAYS);
-            compiler->fgInsertStmtAtEnd(block, stmt);
+            blockRange.InsertAtEnd(std::move(swapRange));
         }
     }
 }
@@ -7954,15 +7187,28 @@ LinearScan::insertSwap(BasicBlock* block,
 //    available, and to handle that case appropriately.
 //    It is also up to the caller to cache the return value, as this is not cheap to compute.
 
-regNumber  
-LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock* toBlock, var_types type)
+regNumber LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock* toBlock, var_types type)
 {
     // TODO-Throughput: This would be much more efficient if we add RegToVarMaps instead of VarToRegMaps
     // and they would be more space-efficient as well.
     VarToRegMap fromVarToRegMap = getOutVarToRegMap(fromBlock->bbNum);
     VarToRegMap toVarToRegMap   = getInVarToRegMap(toBlock->bbNum);
 
+#ifdef _TARGET_ARM_
+    regMaskTP freeRegs;
+    if (type == TYP_DOUBLE)
+    {
+        // We have to consider all float registers for TYP_DOUBLE
+        freeRegs = allRegs(TYP_FLOAT);
+    }
+    else
+    {
+        freeRegs = allRegs(type);
+    }
+#else  // !_TARGET_ARM_
     regMaskTP freeRegs = allRegs(type);
+#endif // !_TARGET_ARM_
+
 #ifdef DEBUG
     if (getStressLimitRegs() == LSRA_LIMIT_SMALL_SET)
     {
@@ -7972,17 +7218,31 @@ LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock* toBlock, 
     INDEBUG(freeRegs = stressLimitRegs(nullptr, freeRegs));
 
     // We are only interested in the variables that are live-in to the "to" block.
-    VARSET_ITER_INIT(compiler, iter, toBlock->bbLiveIn, varIndex);
-    while (iter.NextElem(compiler, &varIndex) && freeRegs != RBM_NONE)
+    VarSetOps::Iter iter(compiler, toBlock->bbLiveIn);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex) && freeRegs != RBM_NONE)
     {
-        regNumber fromReg = fromVarToRegMap[varIndex];
-        regNumber toReg = toVarToRegMap[varIndex];
+        regNumber fromReg = getVarReg(fromVarToRegMap, varIndex);
+        regNumber toReg   = getVarReg(toVarToRegMap, varIndex);
         assert(fromReg != REG_NA && toReg != REG_NA);
         if (fromReg != REG_STK)
-            freeRegs &= ~genRegMask(fromReg);
+        {
+            freeRegs &= ~genRegMask(fromReg, getIntervalForLocalVar(varIndex)->registerType);
+        }
         if (toReg != REG_STK)
-            freeRegs &= ~genRegMask(toReg);
+        {
+            freeRegs &= ~genRegMask(toReg, getIntervalForLocalVar(varIndex)->registerType);
+        }
     }
+
+#ifdef _TARGET_ARM_
+    if (type == TYP_DOUBLE)
+    {
+        // Exclude any doubles for which the odd half isn't in freeRegs.
+        freeRegs = freeRegs & ((freeRegs << 1) & RBM_ALLDOUBLE);
+    }
+#endif
+
     if (freeRegs == RBM_NONE)
     {
         return REG_NA;
@@ -7994,6 +7254,72 @@ LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock* toBlock, 
     }
 }
 
+#ifdef _TARGET_ARM_
+//------------------------------------------------------------------------
+// addResolutionForDouble: Add resolution move(s) for TYP_DOUBLE interval
+//                         and update location.
+//
+// Arguments:
+//    block           - the BasicBlock into which the move will be inserted.
+//    insertionPoint  - the instruction before which to insert the move
+//    sourceIntervals - maintains sourceIntervals[reg] which each 'reg' is associated with
+//    location        - maintains location[reg] which is the location of the var that was originally in 'reg'.
+//    toReg           - the register to which the var is moving
+//    fromReg         - the register from which the var is moving
+//    resolveType     - the type of resolution to be performed
+//
+// Return Value:
+//    None.
+//
+// Notes:
+//    It inserts at least one move and updates incoming parameter 'location'.
+//
+void LinearScan::addResolutionForDouble(BasicBlock*     block,
+                                        GenTree*        insertionPoint,
+                                        Interval**      sourceIntervals,
+                                        regNumberSmall* location,
+                                        regNumber       toReg,
+                                        regNumber       fromReg,
+                                        ResolveType     resolveType)
+{
+    regNumber secondHalfTargetReg = REG_NEXT(fromReg);
+    Interval* intervalToBeMoved1  = sourceIntervals[fromReg];
+    Interval* intervalToBeMoved2  = sourceIntervals[secondHalfTargetReg];
+
+    assert(!(intervalToBeMoved1 == nullptr && intervalToBeMoved2 == nullptr));
+
+    if (intervalToBeMoved1 != nullptr)
+    {
+        if (intervalToBeMoved1->registerType == TYP_DOUBLE)
+        {
+            // TYP_DOUBLE interval occupies a double register, i.e. two float registers.
+            assert(intervalToBeMoved2 == nullptr);
+            assert(genIsValidDoubleReg(toReg));
+        }
+        else
+        {
+            // TYP_FLOAT interval occupies 1st half of double register, i.e. 1st float register
+            assert(genIsValidFloatReg(toReg));
+        }
+        addResolution(block, insertionPoint, intervalToBeMoved1, toReg, fromReg);
+        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        location[fromReg] = (regNumberSmall)toReg;
+    }
+
+    if (intervalToBeMoved2 != nullptr)
+    {
+        // TYP_FLOAT interval occupies 2nd half of double register.
+        assert(intervalToBeMoved2->registerType == TYP_FLOAT);
+        regNumber secondHalfTempReg = REG_NEXT(toReg);
+
+        addResolution(block, insertionPoint, intervalToBeMoved2, secondHalfTempReg, secondHalfTargetReg);
+        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        location[secondHalfTargetReg] = (regNumberSmall)secondHalfTempReg;
+    }
+
+    return;
+}
+#endif // _TARGET_ARM_
 
 //------------------------------------------------------------------------
 // addResolution: Add a resolution move of the given interval
@@ -8018,15 +7344,11 @@ LinearScan::getTempRegForResolution(BasicBlock* fromBlock, BasicBlock* toBlock, 
 //    The next time, we want to move from the stack to the destination (toReg),
 //    in which case fromReg will be REG_STK, and we insert at the top.
 
-void 
-LinearScan::addResolution(BasicBlock* block,
-                          GenTreePtr  insertionPoint,
-                          Interval*   interval,
-                          regNumber   toReg,
-                          regNumber   fromReg)
+void LinearScan::addResolution(
+    BasicBlock* block, GenTree* insertionPoint, Interval* interval, regNumber toReg, regNumber fromReg)
 {
 #ifdef DEBUG
-    const char * insertionPointString = "top";
+    const char* insertionPointString = "top";
 #endif // DEBUG
     if (insertionPoint == nullptr)
     {
@@ -8035,12 +7357,21 @@ LinearScan::addResolution(BasicBlock* block,
 #endif // DEBUG
     }
 
-    JITDUMP("   BB%02u %s: move V%02u from ", block->bbNum, insertionPointString, interval->varNum);
+    JITDUMP("   " FMT_BB " %s: move V%02u from ", block->bbNum, insertionPointString, interval->varNum);
     JITDUMP("%s to %s", getRegName(fromReg), getRegName(toReg));
 
     insertMove(block, insertionPoint, interval->varNum, fromReg, toReg);
-    if (fromReg == REG_STK || toReg == REG_STK) interval->isSpilled = true;
-    else interval->isSplit = true;
+    if (fromReg == REG_STK || toReg == REG_STK)
+    {
+        assert(interval->isSpilled);
+    }
+    else
+    {
+        // We should have already marked this as spilled or split.
+        assert((interval->isSpilled) || (interval->isSplit));
+    }
+
+    INTRACK_STATS(updateLsraStat(LSRA_STAT_RESOLUTION_MOV, block->bbNum));
 }
 
 //------------------------------------------------------------------------
@@ -8057,29 +7388,35 @@ LinearScan::addResolution(BasicBlock* block,
 //    a join edge), if there are any conflicts, split the edge by adding a new block,
 //    and generate the resolution code into that block.
 
-void
-LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
+void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
 {
-    VARSET_TP VARSET_INIT_NOCOPY(sameResolutionSet, VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(sameLivePathsSet, VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(singleTargetSet, VarSetOps::MakeEmpty(compiler));
-    VARSET_TP VARSET_INIT_NOCOPY(diffResolutionSet, VarSetOps::MakeEmpty(compiler));
+    VARSET_TP outResolutionSet(VarSetOps::Intersection(compiler, block->bbLiveOut, resolutionCandidateVars));
+    if (VarSetOps::IsEmpty(compiler, outResolutionSet))
+    {
+        return;
+    }
+    VARSET_TP sameResolutionSet(VarSetOps::MakeEmpty(compiler));
+    VARSET_TP sameLivePathsSet(VarSetOps::MakeEmpty(compiler));
+    VARSET_TP singleTargetSet(VarSetOps::MakeEmpty(compiler));
+    VARSET_TP diffResolutionSet(VarSetOps::MakeEmpty(compiler));
 
     // Get the outVarToRegMap for this block
     VarToRegMap outVarToRegMap = getOutVarToRegMap(block->bbNum);
-    unsigned succCount = block->NumSucc(compiler);
+    unsigned    succCount      = block->NumSucc(compiler);
     assert(succCount > 1);
     VarToRegMap firstSuccInVarToRegMap = nullptr;
-    BasicBlock* firstSucc = nullptr;
+    BasicBlock* firstSucc              = nullptr;
 
     // First, determine the live regs at the end of this block so that we know what regs are
     // available to copy into.
-    regMaskTP liveOutRegs = RBM_NONE;
-    VARSET_ITER_INIT(compiler, iter1, block->bbLiveOut, varIndex1);
-    while (iter1.NextElem(compiler, &varIndex1))
+    // Note that for this purpose we use the full live-out set, because we must ensure that
+    // even the registers that remain the same across the edge are preserved correctly.
+    regMaskTP       liveOutRegs = RBM_NONE;
+    VarSetOps::Iter liveOutIter(compiler, block->bbLiveOut);
+    unsigned        liveOutVarIndex = 0;
+    while (liveOutIter.NextElem(&liveOutVarIndex))
     {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex1];
-        regNumber fromReg  = getVarReg(outVarToRegMap,  varNum);
+        regNumber fromReg = getVarReg(outVarToRegMap, liveOutVarIndex);
         if (fromReg != REG_STK)
         {
             liveOutRegs |= genRegMask(fromReg);
@@ -8093,10 +7430,10 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
     {
         // At this point, Lowering has transformed any non-switch-table blocks into
         // cascading ifs.
-        GenTree* lastStmt = block->lastStmt();
-        assert(lastStmt != nullptr && lastStmt->gtStmt.gtStmtExpr->gtOper == GT_SWITCH_TABLE);
-        GenTree* switchTable = lastStmt->gtStmt.gtStmtExpr;
-        switchRegs = switchTable->gtRsvdRegs;
+        GenTree* switchTable = LIR::AsRange(block).LastNode();
+        assert(switchTable != nullptr && switchTable->OperGet() == GT_SWITCH_TABLE);
+
+        switchRegs   = switchTable->gtRsvdRegs;
         GenTree* op1 = switchTable->gtGetOp1();
         GenTree* op2 = switchTable->gtGetOp2();
         noway_assert(op1 != nullptr && op2 != nullptr);
@@ -8105,11 +7442,33 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
         switchRegs |= genRegMask(op2->gtRegNum);
     }
 
+#ifdef _TARGET_ARM64_
+    // Next, if this blocks ends with a JCMP, we have to make sure not to copy
+    // into the register that it uses or modify the local variable it must consume
+    LclVarDsc* jcmpLocalVarDsc = nullptr;
+    if (block->bbJumpKind == BBJ_COND)
+    {
+        GenTree* lastNode = LIR::AsRange(block).LastNode();
+
+        if (lastNode->OperIs(GT_JCMP))
+        {
+            GenTree* op1 = lastNode->gtGetOp1();
+            switchRegs |= genRegMask(op1->gtRegNum);
+
+            if (op1->IsLocal())
+            {
+                GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
+                jcmpLocalVarDsc          = &compiler->lvaTable[lcl->gtLclNum];
+            }
+        }
+    }
+#endif
+
     VarToRegMap sameVarToRegMap = sharedCriticalVarToRegMap;
     regMaskTP   sameWriteRegs   = RBM_NONE;
     regMaskTP   diffReadRegs    = RBM_NONE;
 
-    // For each var, classify them as:
+    // For each var that may require resolution, classify them as:
     // - in the same register at the end of this block and at each target (no resolution needed)
     // - in different registers at different targets (resolve separately):
     //     diffResolutionSet
@@ -8118,21 +7477,21 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
     //   write to any registers that are read by those in the diffResolutionSet:
     //     sameResolutionSet
 
-    VARSET_ITER_INIT(compiler, iter, block->bbLiveOut, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    VarSetOps::Iter outResolutionSetIter(compiler, outResolutionSet);
+    unsigned        outResolutionSetVarIndex = 0;
+    while (outResolutionSetIter.NextElem(&outResolutionSetVarIndex))
     {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-        regNumber fromReg  = getVarReg(outVarToRegMap,  varNum);
-        bool isMatch = true;
-        bool isSame = false;
-        bool maybeSingleTarget = false;
-        bool maybeSameLivePaths = false;
-        bool liveOnlyAtSplitEdge = true;
-        regNumber sameToReg = REG_NA;
+        regNumber fromReg             = getVarReg(outVarToRegMap, outResolutionSetVarIndex);
+        bool      isMatch             = true;
+        bool      isSame              = false;
+        bool      maybeSingleTarget   = false;
+        bool      maybeSameLivePaths  = false;
+        bool      liveOnlyAtSplitEdge = true;
+        regNumber sameToReg           = REG_NA;
         for (unsigned succIndex = 0; succIndex < succCount; succIndex++)
         {
             BasicBlock* succBlock = block->GetSucc(succIndex, compiler);
-            if (!VarSetOps::IsMember(compiler, succBlock->bbLiveIn, varIndex))
+            if (!VarSetOps::IsMember(compiler, succBlock->bbLiveIn, outResolutionSetVarIndex))
             {
                 maybeSameLivePaths = true;
                 continue;
@@ -8143,7 +7502,7 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
                 liveOnlyAtSplitEdge = ((succBlock->bbPreds->flNext == nullptr) && (succBlock != compiler->fgFirstBB));
             }
 
-            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), varNum);
+            regNumber toReg = getVarReg(getInVarToRegMap(succBlock->bbNum), outResolutionSetVarIndex);
             if (sameToReg == REG_NA)
             {
                 sameToReg = toReg;
@@ -8178,6 +7537,13 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
                 sameToReg = REG_NA;
             }
 
+#ifdef _TARGET_ARM64_
+            if (jcmpLocalVarDsc && (jcmpLocalVarDsc->lvVarIndex == outResolutionSetVarIndex))
+            {
+                sameToReg = REG_NA;
+            }
+#endif
+
             // If the var is live only at those blocks connected by a split edge and not live-in at some of the
             // target blocks, we will resolve it the same way as if it were in diffResolutionSet and resolution
             // will be deferred to the handling of split edges, which means copy will only be at those target(s).
@@ -8193,7 +7559,7 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
 
         if (sameToReg == REG_NA)
         {
-            VarSetOps::AddElemD(compiler, diffResolutionSet, varIndex);
+            VarSetOps::AddElemD(compiler, diffResolutionSet, outResolutionSetVarIndex);
             if (fromReg != REG_STK)
             {
                 diffReadRegs |= genRegMask(fromReg);
@@ -8201,8 +7567,8 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
         }
         else if (sameToReg != fromReg)
         {
-            VarSetOps::AddElemD(compiler, sameResolutionSet, varIndex);
-            sameVarToRegMap[varIndex] = sameToReg;
+            VarSetOps::AddElemD(compiler, sameResolutionSet, outResolutionSetVarIndex);
+            setVarReg(sameVarToRegMap, outResolutionSetVarIndex, sameToReg);
             if (sameToReg != REG_STK)
             {
                 sameWriteRegs |= genRegMask(sameToReg);
@@ -8242,16 +7608,15 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
 
             // Now collect the resolution set for just this edge, if any.
             // Check only the vars in diffResolutionSet that are live-in to this successor.
-            bool needsResolution = false;
+            bool        needsResolution   = false;
             VarToRegMap succInVarToRegMap = getInVarToRegMap(succBlock->bbNum);
-            VARSET_TP VARSET_INIT_NOCOPY(edgeResolutionSet, VarSetOps::Intersection(compiler, diffResolutionSet, succBlock->bbLiveIn));
-            VARSET_ITER_INIT(compiler, iter, edgeResolutionSet, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            VARSET_TP   edgeResolutionSet(VarSetOps::Intersection(compiler, diffResolutionSet, succBlock->bbLiveIn));
+            VarSetOps::Iter iter(compiler, edgeResolutionSet);
+            unsigned        varIndex = 0;
+            while (iter.NextElem(&varIndex))
             {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                Interval * interval = getIntervalForLocalVar(varNum);
-                regNumber fromReg  = getVarReg(outVarToRegMap,  varNum);
-                regNumber toReg = getVarReg(succInVarToRegMap, varNum);
+                regNumber fromReg = getVarReg(outVarToRegMap, varIndex);
+                regNumber toReg   = getVarReg(succInVarToRegMap, varIndex);
 
                 if (fromReg == toReg)
                 {
@@ -8285,31 +7650,43 @@ LinearScan::handleOutgoingCriticalEdges(BasicBlock*  block)
 //    Note that a block may have both 'split' or 'critical' incoming edge(s) and 'join' outgoing
 //    edges.
 
-void 
-LinearScan::resolveEdges()
+void LinearScan::resolveEdges()
 {
     JITDUMP("RESOLVING EDGES\n");
 
-    BasicBlock * block, *prevBlock = nullptr;
+    // The resolutionCandidateVars set was initialized with all the lclVars that are live-in to
+    // any block. We now intersect that set with any lclVars that ever spilled or split.
+    // If there are no candidates for resoultion, simply return.
+
+    VarSetOps::IntersectionD(compiler, resolutionCandidateVars, splitOrSpilledVars);
+    if (VarSetOps::IsEmpty(compiler, resolutionCandidateVars))
+    {
+        return;
+    }
+
+    BasicBlock *block, *prevBlock = nullptr;
 
     // Handle all the critical edges first.
     // We will try to avoid resolution across critical edges in cases where all the critical-edge
     // targets of a block have the same home.  We will then split the edges only for the
     // remaining mismatches.  We visit the out-edges, as that allows us to share the moves that are
-    // common among allt he targets.
-   
-    foreach_block(compiler, block)
+    // common among all the targets.
+
+    if (hasCriticalEdges)
     {
-        if (block->bbNum > bbNumMaxBeforeResolution)
+        foreach_block(compiler, block)
         {
-            // This is a new block added during resolution - we don't need to visit these now.
-            continue;
+            if (block->bbNum > bbNumMaxBeforeResolution)
+            {
+                // This is a new block added during resolution - we don't need to visit these now.
+                continue;
+            }
+            if (blockInfo[block->bbNum].hasCriticalOutEdge)
+            {
+                handleOutgoingCriticalEdges(block);
+            }
+            prevBlock = block;
         }
-        if (blockInfo[block->bbNum].hasCriticalOutEdge)
-        {
-            handleOutgoingCriticalEdges(block);
-        }
-        prevBlock = block;
     }
 
     prevBlock = nullptr;
@@ -8320,16 +7697,17 @@ LinearScan::resolveEdges()
             // This is a new block added during resolution - we don't need to visit these now.
             continue;
         }
-    
-        unsigned succCount = block->NumSucc(compiler);
-        flowList * preds = block->bbPreds;
-        BasicBlock * uniquePredBlock = block->GetUniquePred(compiler);
+
+        unsigned    succCount       = block->NumSucc(compiler);
+        flowList*   preds           = block->bbPreds;
+        BasicBlock* uniquePredBlock = block->GetUniquePred(compiler);
 
         // First, if this block has a single predecessor,
         // we may need resolution at the beginning of this block.
         // This may be true even if it's the block we used for starting locations,
         // if a variable was spilled.
-        if (!VarSetOps::IsEmpty(compiler, block->bbLiveIn))
+        VARSET_TP inResolutionSet(VarSetOps::Intersection(compiler, block->bbLiveIn, resolutionCandidateVars));
+        if (!VarSetOps::IsEmpty(compiler, inResolutionSet))
         {
             if (uniquePredBlock != nullptr)
             {
@@ -8342,7 +7720,7 @@ LinearScan::resolveEdges()
                     uniquePredBlock = uniquePredBlock->GetUniquePred(compiler);
                     noway_assert(uniquePredBlock != nullptr);
                 }
-                resolveEdge(uniquePredBlock, block, ResolveSplit, block->bbLiveIn);
+                resolveEdge(uniquePredBlock, block, ResolveSplit, inResolutionSet);
             }
         }
 
@@ -8357,7 +7735,12 @@ LinearScan::resolveEdges()
             BasicBlock* succBlock = block->GetSucc(0, compiler);
             if (succBlock->GetUniquePred(compiler) == nullptr)
             {
-                resolveEdge(block, succBlock, ResolveJoin, succBlock->bbLiveIn);
+                VARSET_TP outResolutionSet(
+                    VarSetOps::Intersection(compiler, succBlock->bbLiveIn, resolutionCandidateVars));
+                if (!VarSetOps::IsEmpty(compiler, outResolutionSet))
+                {
+                    resolveEdge(block, succBlock, ResolveJoin, outResolutionSet);
+                }
             }
         }
     }
@@ -8379,13 +7762,15 @@ LinearScan::resolveEdges()
                 // two non-resolution blocks. This happens when an edge is split that requires it.
 
                 BasicBlock* succBlock = block;
-                do {
+                do
+                {
                     succBlock = succBlock->GetUniqueSucc();
                     noway_assert(succBlock != nullptr);
                 } while ((succBlock->bbNum > bbNumMaxBeforeResolution) && succBlock->isEmpty());
 
                 BasicBlock* predBlock = block;
-                do {
+                do
+                {
                     predBlock = predBlock->GetUniquePred(compiler);
                     noway_assert(predBlock != nullptr);
                 } while ((predBlock->bbNum > bbNumMaxBeforeResolution) && predBlock->isEmpty());
@@ -8425,28 +7810,26 @@ LinearScan::resolveEdges()
             continue;
         }
         VarToRegMap toVarToRegMap = getInVarToRegMap(block->bbNum);
-        for (flowList* pred = block->bbPreds;
-             pred != nullptr;
-             pred = pred->flNext)
+        for (flowList* pred = block->bbPreds; pred != nullptr; pred = pred->flNext)
         {
-            BasicBlock* predBlock = pred->flBlock;
-            VarToRegMap fromVarToRegMap = getOutVarToRegMap(predBlock->bbNum);
-            VARSET_ITER_INIT(compiler, iter, block->bbLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            BasicBlock*     predBlock       = pred->flBlock;
+            VarToRegMap     fromVarToRegMap = getOutVarToRegMap(predBlock->bbNum);
+            VarSetOps::Iter iter(compiler, block->bbLiveIn);
+            unsigned        varIndex = 0;
+            while (iter.NextElem(&varIndex))
             {
-                unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-                regNumber fromReg  = getVarReg(fromVarToRegMap,  varNum);
-                regNumber toReg = getVarReg(toVarToRegMap, varNum);
+                regNumber fromReg = getVarReg(fromVarToRegMap, varIndex);
+                regNumber toReg   = getVarReg(toVarToRegMap, varIndex);
                 if (fromReg != toReg)
                 {
-                    Interval * interval = getIntervalForLocalVar(varNum);
                     if (!foundMismatch)
                     {
                         foundMismatch = true;
                         printf("Found mismatched var locations after resolution!\n");
                     }
-                    printf(" V%02u: BB%02u to BB%02u: ", varNum, predBlock->bbNum, block->bbNum);
-                    printf("%s to %s\n", getRegName(fromReg), getRegName(toReg));
+                    unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
+                    printf(" V%02u: " FMT_BB " to " FMT_BB ": %s to %s\n", varNum, predBlock->bbNum, block->bbNum,
+                           getRegName(fromReg), getRegName(toReg));
                 }
             }
         }
@@ -8479,11 +7862,10 @@ LinearScan::resolveEdges()
 //    registers), then the register to register moves, ensuring that the target register
 //    is free before the move, and then finally the stack to register moves.
 
-void 
-LinearScan::resolveEdge(BasicBlock*      fromBlock,
-                        BasicBlock*      toBlock,
-                        ResolveType      resolveType,
-                        VARSET_VALARG_TP liveSet)
+void LinearScan::resolveEdge(BasicBlock*      fromBlock,
+                             BasicBlock*      toBlock,
+                             ResolveType      resolveType,
+                             VARSET_VALARG_TP liveSet)
 {
     VarToRegMap fromVarToRegMap = getOutVarToRegMap(fromBlock->bbNum);
     VarToRegMap toVarToRegMap;
@@ -8495,49 +7877,65 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
     {
         toVarToRegMap = getInVarToRegMap(toBlock->bbNum);
     }
-    
+
     // The block to which we add the resolution moves depends on the resolveType
     BasicBlock* block;
-    switch(resolveType)
+    switch (resolveType)
     {
-    case ResolveJoin:
-    case ResolveSharedCritical:
-        block = fromBlock;
-        break;
-    case ResolveSplit:
-        block = toBlock;
-        break;
-    case ResolveCritical:
-        // fgSplitEdge may add one or two BasicBlocks.  It returns the block that splits
-        // the edge from 'fromBlock' and 'toBlock', but if it inserts that block right after
-        // a block with a fall-through it will have to create another block to handle that edge.
-        // These new blocks can be mapped to existing blocks in order to correctly handle
-        // the calls to recordVarLocationsAtStartOfBB() from codegen.  That mapping is handled
-        // in resolveEdges(), after all the edge resolution has been done (by calling this
-        // method for each edge).
-        block = compiler->fgSplitEdge(fromBlock, toBlock);
-        break;
-    default:
-        unreached();
-        break;
+        case ResolveJoin:
+        case ResolveSharedCritical:
+            block = fromBlock;
+            break;
+        case ResolveSplit:
+            block = toBlock;
+            break;
+        case ResolveCritical:
+            // fgSplitEdge may add one or two BasicBlocks.  It returns the block that splits
+            // the edge from 'fromBlock' and 'toBlock', but if it inserts that block right after
+            // a block with a fall-through it will have to create another block to handle that edge.
+            // These new blocks can be mapped to existing blocks in order to correctly handle
+            // the calls to recordVarLocationsAtStartOfBB() from codegen.  That mapping is handled
+            // in resolveEdges(), after all the edge resolution has been done (by calling this
+            // method for each edge).
+            block = compiler->fgSplitEdge(fromBlock, toBlock);
+
+            // Split edges are counted against fromBlock.
+            INTRACK_STATS(updateLsraStat(LSRA_STAT_SPLIT_EDGE, fromBlock->bbNum));
+            break;
+        default:
+            unreached();
+            break;
     }
 
+#ifndef _TARGET_XARCH_
     // We record tempregs for beginning and end of each block.
     // For amd64/x86 we only need a tempReg for float - we'll use xchg for int.
     // TODO-Throughput: It would be better to determine the tempRegs on demand, but the code below
     // modifies the varToRegMaps so we don't have all the correct registers at the time
     // we need to get the tempReg.
-#ifndef _TARGET_XARCH_
-    regNumber tempRegInt = (resolveType == ResolveSharedCritical) ? REG_NA : getTempRegForResolution(fromBlock, toBlock, TYP_INT);
+    regNumber tempRegInt =
+        (resolveType == ResolveSharedCritical) ? REG_NA : getTempRegForResolution(fromBlock, toBlock, TYP_INT);
 #endif // !_TARGET_XARCH_
     regNumber tempRegFlt = REG_NA;
+    regNumber tempRegDbl = REG_NA; // Used only for ARM
     if ((compiler->compFloatingPointUsed) && (resolveType != ResolveSharedCritical))
     {
-        tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
+#ifdef _TARGET_ARM_
+        // Try to reserve a double register for TYP_DOUBLE and use it for TYP_FLOAT too if available.
+        tempRegDbl = getTempRegForResolution(fromBlock, toBlock, TYP_DOUBLE);
+        if (tempRegDbl != REG_NA)
+        {
+            tempRegFlt = tempRegDbl;
+        }
+        else
+#endif // _TARGET_ARM_
+        {
+            tempRegFlt = getTempRegForResolution(fromBlock, toBlock, TYP_FLOAT);
+        }
     }
 
-    regMaskTP targetRegsToDo = RBM_NONE;
-    regMaskTP targetRegsReady = RBM_NONE;
+    regMaskTP targetRegsToDo      = RBM_NONE;
+    regMaskTP targetRegsReady     = RBM_NONE;
     regMaskTP targetRegsFromStack = RBM_NONE;
 
     // The following arrays capture the location of the registers as they are moved:
@@ -8561,16 +7959,18 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
 
     // What interval is this register associated with?
     // (associated with incoming reg)
-    Interval * sourceIntervals[REG_COUNT] = {nullptr};
+    Interval* sourceIntervals[REG_COUNT];
+    memset(&sourceIntervals, 0, sizeof(sourceIntervals));
 
     // Intervals for vars that need to be loaded from the stack
-    Interval * stackToRegIntervals[REG_COUNT] = {nullptr};
+    Interval* stackToRegIntervals[REG_COUNT];
+    memset(&stackToRegIntervals, 0, sizeof(stackToRegIntervals));
 
     // Get the starting insertion point for the "to" resolution
-    GenTreePtr insertionPoint = nullptr;
+    GenTree* insertionPoint = nullptr;
     if (resolveType == ResolveSplit || resolveType == ResolveCritical)
     {
-        insertionPoint = block->FirstNonPhiDef();
+        insertionPoint = LIR::AsRange(block).FirstNonPhiNode();
     }
 
     // First:
@@ -8582,51 +7982,49 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
     // TODO-Throughput: We should be looping over the liveIn and liveOut registers, since
     // that will scale better than the live variables
 
-    VARSET_ITER_INIT(compiler, iter, liveSet, varIndex);
-    while (iter.NextElem(compiler, &varIndex))
+    VarSetOps::Iter iter(compiler, liveSet);
+    unsigned        varIndex = 0;
+    while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = compiler->lvaTrackedToVarNum[varIndex];
-        bool isSpilled = false;
-        Interval * interval = getIntervalForLocalVar(varNum);
-        regNumber fromReg  = getVarReg(fromVarToRegMap,  varNum);
-        regNumber toReg = getVarReg(toVarToRegMap, varNum);
-        if (fromReg == toReg) continue;
+        regNumber fromReg = getVarReg(fromVarToRegMap, varIndex);
+        regNumber toReg   = getVarReg(toVarToRegMap, varIndex);
+        if (fromReg == toReg)
+        {
+            continue;
+        }
 
         // For Critical edges, the location will not change on either side of the edge,
         // since we'll add a new block to do the move.
         if (resolveType == ResolveSplit)
         {
-            toVarToRegMap[varIndex] = fromReg;
+            setVarReg(toVarToRegMap, varIndex, fromReg);
         }
         else if (resolveType == ResolveJoin || resolveType == ResolveSharedCritical)
         {
-            fromVarToRegMap[varIndex] = toReg;
+            setVarReg(fromVarToRegMap, varIndex, toReg);
         }
 
         assert(fromReg < UCHAR_MAX && toReg < UCHAR_MAX);
 
-        bool done = false;
+        Interval* interval = getIntervalForLocalVar(varIndex);
 
-             if (fromReg != toReg)
+        if (fromReg == REG_STK)
         {
-            if (fromReg == REG_STK)
-            {
-                stackToRegIntervals[toReg] = interval;
-                targetRegsFromStack |= genRegMask(toReg);
-            }
-            else if (toReg == REG_STK)
-            {
-                // Do the reg to stack moves now
-                addResolution(block, insertionPoint, interval, REG_STK, fromReg);
-                JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
-            }
-            else
-            {
-                location[fromReg] = (regNumberSmall) fromReg;
-                source[toReg]  = (regNumberSmall) fromReg;
-                sourceIntervals[fromReg] = interval;
-                targetRegsToDo |= genRegMask(toReg);
-            }
+            stackToRegIntervals[toReg] = interval;
+            targetRegsFromStack |= genRegMask(toReg);
+        }
+        else if (toReg == REG_STK)
+        {
+            // Do the reg to stack moves now
+            addResolution(block, insertionPoint, interval, REG_STK, fromReg);
+            JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+        }
+        else
+        {
+            location[fromReg]        = (regNumberSmall)fromReg;
+            source[toReg]            = (regNumberSmall)fromReg;
+            sourceIntervals[fromReg] = interval;
+            targetRegsToDo |= genRegMask(toReg);
         }
     }
 
@@ -8641,7 +8039,24 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
         regNumber targetReg = genRegNumFromMask(targetRegMask);
         if (location[targetReg] == REG_NA)
         {
-            targetRegsReady |= targetRegMask;
+#ifdef _TARGET_ARM_
+            regNumber sourceReg = (regNumber)source[targetReg];
+            Interval* interval  = sourceIntervals[sourceReg];
+            if (interval->registerType == TYP_DOUBLE)
+            {
+                // For ARM32, make sure that both of the float halves of the double register are available.
+                assert(genIsValidDoubleReg(targetReg));
+                regNumber anotherHalfRegNum = REG_NEXT(targetReg);
+                if (location[anotherHalfRegNum] == REG_NA)
+                {
+                    targetRegsReady |= targetRegMask;
+                }
+            }
+            else
+#endif // _TARGET_ARM_
+            {
+                targetRegsReady |= targetRegMask;
+            }
         }
     }
 
@@ -8655,32 +8070,73 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
             targetRegsReady &= ~targetRegMask;
             regNumber targetReg = genRegNumFromMask(targetRegMask);
             assert(location[targetReg] != targetReg);
-            regNumber sourceReg = (regNumber) source[targetReg];
-            regNumber fromReg = (regNumber) location[sourceReg];
+            regNumber sourceReg = (regNumber)source[targetReg];
+            regNumber fromReg   = (regNumber)location[sourceReg];
             assert(fromReg < UCHAR_MAX && sourceReg < UCHAR_MAX);
-            Interval * interval = sourceIntervals[sourceReg];
+            Interval* interval = sourceIntervals[sourceReg];
             assert(interval != nullptr);
             addResolution(block, insertionPoint, interval, targetReg, fromReg);
             JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
             sourceIntervals[sourceReg] = nullptr;
-            location[sourceReg] = REG_NA;
+            location[sourceReg]        = REG_NA;
 
             // Do we have a free targetReg?
-            if (fromReg == sourceReg && source[fromReg] != REG_NA)
+            if (fromReg == sourceReg)
             {
-                regMaskTP fromRegMask = genRegMask(fromReg);
-                targetRegsReady |= fromRegMask;
+                if (source[fromReg] != REG_NA)
+                {
+                    regMaskTP fromRegMask = genRegMask(fromReg);
+                    targetRegsReady |= fromRegMask;
+#ifdef _TARGET_ARM_
+                    if (genIsValidDoubleReg(fromReg))
+                    {
+                        // Ensure that either:
+                        // - the Interval targeting fromReg is not double, or
+                        // - the other half of the double is free.
+                        Interval* otherInterval = sourceIntervals[source[fromReg]];
+                        regNumber upperHalfReg  = REG_NEXT(fromReg);
+                        if ((otherInterval->registerType == TYP_DOUBLE) && (location[upperHalfReg] != REG_NA))
+                        {
+                            targetRegsReady &= ~fromRegMask;
+                        }
+                    }
+                }
+                else if (genIsValidFloatReg(fromReg) && !genIsValidDoubleReg(fromReg))
+                {
+                    // We may have freed up the other half of a double where the lower half
+                    // was already free.
+                    regNumber lowerHalfReg    = REG_PREV(fromReg);
+                    regNumber lowerHalfSrcReg = (regNumber)source[lowerHalfReg];
+                    regNumber lowerHalfSrcLoc = (regNumber)location[lowerHalfReg];
+                    // Necessary conditions:
+                    // - There is a source register for this reg (lowerHalfSrcReg != REG_NA)
+                    // - It is currently free                    (lowerHalfSrcLoc == REG_NA)
+                    // - The source interval isn't yet completed (sourceIntervals[lowerHalfSrcReg] != nullptr)
+                    // - It's not in the ready set               ((targetRegsReady & genRegMask(lowerHalfReg)) ==
+                    //                                            RBM_NONE)
+                    //
+                    if ((lowerHalfSrcReg != REG_NA) && (lowerHalfSrcLoc == REG_NA) &&
+                        (sourceIntervals[lowerHalfSrcReg] != nullptr) &&
+                        ((targetRegsReady & genRegMask(lowerHalfReg)) == RBM_NONE))
+                    {
+                        // This must be a double interval, otherwise it would be in targetRegsReady, or already
+                        // completed.
+                        assert(sourceIntervals[lowerHalfSrcReg]->registerType == TYP_DOUBLE);
+                        targetRegsReady |= genRegMask(lowerHalfReg);
+                    }
+#endif // _TARGET_ARM_
+                }
             }
         }
         if (targetRegsToDo != RBM_NONE)
         {
             regMaskTP targetRegMask = genFindLowestBit(targetRegsToDo);
-            regNumber targetReg = genRegNumFromMask(targetRegMask);
+            regNumber targetReg     = genRegNumFromMask(targetRegMask);
 
             // Is it already there due to other moves?
             // If not, move it to the temp reg, OR swap it with another register
-            regNumber sourceReg = (regNumber) source[targetReg];
-            regNumber fromReg = (regNumber) location[sourceReg];
+            regNumber sourceReg = (regNumber)source[targetReg];
+            regNumber fromReg   = (regNumber)location[sourceReg];
             if (targetReg == fromReg)
             {
                 targetRegsToDo &= ~targetRegMask;
@@ -8688,10 +8144,18 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
             else
             {
                 regNumber tempReg = REG_NA;
-                bool useSwap = false;
+                bool      useSwap = false;
                 if (emitter::isFloatReg(targetReg))
                 {
-                    tempReg = tempRegFlt;
+#ifdef _TARGET_ARM_
+                    if (sourceIntervals[fromReg]->registerType == TYP_DOUBLE)
+                    {
+                        // ARM32 requires a double temp register for TYP_DOUBLE.
+                        tempReg = tempRegDbl;
+                    }
+                    else
+#endif // _TARGET_ARM_
+                        tempReg = tempRegFlt;
                 }
 #ifdef _TARGET_XARCH_
                 else
@@ -8699,10 +8163,12 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     useSwap = true;
                 }
 #else // !_TARGET_XARCH_
+
                 else
                 {
                     tempReg = tempRegInt;
                 }
+
 #endif // !_TARGET_XARCH_
                 if (useSwap || tempReg == REG_NA)
                 {
@@ -8726,11 +8192,11 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     {
                         // Look at the remaining registers from targetRegsToDo (which we expect to be relatively
                         // small at this point) to find out what's currently in targetReg.
-                         regMaskTP mask = targetRegsToDo;
+                        regMaskTP mask = targetRegsToDo;
                         while (mask != RBM_NONE && otherTargetReg == REG_NA)
                         {
                             regMaskTP nextRegMask = genFindLowestBit(mask);
-                            regNumber nextReg = genRegNumFromMask(nextRegMask);
+                            regNumber nextReg     = genRegNumFromMask(nextRegMask);
                             mask &= ~nextRegMask;
                             if (location[source[nextReg]] == targetReg)
                             {
@@ -8743,9 +8209,12 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
                     if (useSwap)
                     {
                         // Generate a "swap" of fromReg and targetReg
-                        insertSwap(block, insertionPoint, sourceIntervals[source[otherTargetReg]]->varNum, targetReg, sourceIntervals[sourceReg]->varNum, fromReg);
-                        location[sourceReg] = REG_NA;
-                        location[source[otherTargetReg]] = (regNumberSmall) fromReg;
+                        insertSwap(block, insertionPoint, sourceIntervals[source[otherTargetReg]]->varNum, targetReg,
+                                   sourceIntervals[sourceReg]->varNum, fromReg);
+                        location[sourceReg]              = REG_NA;
+                        location[source[otherTargetReg]] = (regNumberSmall)fromReg;
+
+                        INTRACK_STATS(updateLsraStat(LSRA_STAT_RESOLUTION_MOV, block->bbNum));
                     }
                     else
                     {
@@ -8756,6 +8225,7 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
 
                         // First, spill "otherInterval" from targetReg to the stack.
                         Interval* otherInterval = sourceIntervals[source[otherTargetReg]];
+                        setIntervalAsSpilled(otherInterval);
                         addResolution(block, insertionPoint, otherInterval, REG_STK, targetReg);
                         JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
                         location[source[otherTargetReg]] = REG_STK;
@@ -8771,11 +8241,25 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
                 }
                 else
                 {
-                    compiler->codeGen->regSet.rsSetRegsModified(genRegMask(tempReg) DEBUG_ARG(dumpTerse));
-                    assert(sourceIntervals[targetReg] != nullptr);
-                    addResolution(block, insertionPoint, sourceIntervals[targetReg], tempReg, targetReg);
-                    JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
-                    location[targetReg] = (regNumberSmall) tempReg;
+                    compiler->codeGen->regSet.rsSetRegsModified(genRegMask(tempReg) DEBUGARG(true));
+#ifdef _TARGET_ARM_
+                    if (sourceIntervals[fromReg]->registerType == TYP_DOUBLE)
+                    {
+                        assert(genIsValidDoubleReg(targetReg));
+                        assert(genIsValidDoubleReg(tempReg));
+
+                        addResolutionForDouble(block, insertionPoint, sourceIntervals, location, tempReg, targetReg,
+                                               resolveType);
+                    }
+                    else
+#endif // _TARGET_ARM_
+                    {
+                        assert(sourceIntervals[targetReg] != nullptr);
+
+                        addResolution(block, insertionPoint, sourceIntervals[targetReg], tempReg, targetReg);
+                        JITDUMP(" (%s)\n", resolveTypeName[resolveType]);
+                        location[targetReg] = (regNumberSmall)tempReg;
+                    }
                     targetRegsReady |= targetRegMask;
                 }
             }
@@ -8790,7 +8274,7 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
         targetRegsFromStack &= ~targetRegMask;
         regNumber targetReg = genRegNumFromMask(targetRegMask);
 
-        Interval * interval = stackToRegIntervals[targetReg];
+        Interval* interval = stackToRegIntervals[targetReg];
         assert(interval != nullptr);
 
         addResolution(block, insertionPoint, interval, targetReg, REG_STK);
@@ -8798,48 +8282,129 @@ LinearScan::resolveEdge(BasicBlock*      fromBlock,
     }
 }
 
-regMaskTP TreeNodeInfo::getSrcCandidates(LinearScan *lsra)
+#if TRACK_LSRA_STATS
+// ----------------------------------------------------------
+// updateLsraStat: Increment LSRA stat counter.
+//
+// Arguments:
+//    stat      -   LSRA stat enum
+//    bbNum     -   Basic block to which LSRA stat needs to be
+//                  associated with.
+//
+void LinearScan::updateLsraStat(LsraStat stat, unsigned bbNum)
 {
-    return lsra->GetRegMaskForIndex(srcCandsIndex);
+    if (bbNum > bbNumMaxBeforeResolution)
+    {
+        // This is a newly created basic block as part of resolution.
+        // These blocks contain resolution moves that are already accounted.
+        return;
+    }
+
+    switch (stat)
+    {
+        case LSRA_STAT_SPILL:
+            ++(blockInfo[bbNum].spillCount);
+            break;
+
+        case LSRA_STAT_COPY_REG:
+            ++(blockInfo[bbNum].copyRegCount);
+            break;
+
+        case LSRA_STAT_RESOLUTION_MOV:
+            ++(blockInfo[bbNum].resolutionMovCount);
+            break;
+
+        case LSRA_STAT_SPLIT_EDGE:
+            ++(blockInfo[bbNum].splitEdgeCount);
+            break;
+
+        default:
+            break;
+    }
 }
 
-void TreeNodeInfo::setSrcCandidates(LinearScan *lsra, regMaskTP mask)
+// -----------------------------------------------------------
+// dumpLsraStats - dumps Lsra stats to given file.
+//
+// Arguments:
+//    file    -  file to which stats are to be written.
+//
+void LinearScan::dumpLsraStats(FILE* file)
 {
-    LinearScan::RegMaskIndex i = lsra->GetIndexForRegMask(mask);
-    assert(FitsIn<unsigned char>(i));
-    srcCandsIndex = (unsigned char) i;
-}
+    unsigned sumSpillCount         = 0;
+    unsigned sumCopyRegCount       = 0;
+    unsigned sumResolutionMovCount = 0;
+    unsigned sumSplitEdgeCount     = 0;
+    UINT64   wtdSpillCount         = 0;
+    UINT64   wtdCopyRegCount       = 0;
+    UINT64   wtdResolutionMovCount = 0;
 
-regMaskTP TreeNodeInfo::getDstCandidates(LinearScan *lsra)
-{
-    return lsra->GetRegMaskForIndex(dstCandsIndex);
-}
+    fprintf(file, "----------\n");
+    fprintf(file, "LSRA Stats");
+#ifdef DEBUG
+    if (!VERBOSE)
+    {
+        fprintf(file, " : %s\n", compiler->info.compFullName);
+    }
+    else
+    {
+        // In verbose mode no need to print full name
+        // while printing lsra stats.
+        fprintf(file, "\n");
+    }
+#else
+    fprintf(file, " : %s\n", compiler->eeGetMethodFullName(compiler->info.compCompHnd));
+#endif
 
-void TreeNodeInfo::setDstCandidates(LinearScan *lsra, regMaskTP mask)
-{
-    LinearScan::RegMaskIndex i = lsra->GetIndexForRegMask(mask);
-    assert(FitsIn<unsigned char>(i));
-    dstCandsIndex = (unsigned char) i;
-}
+    fprintf(file, "----------\n");
 
-regMaskTP TreeNodeInfo::getInternalCandidates(LinearScan *lsra)
-{
-    return lsra->GetRegMaskForIndex(internalCandsIndex);
-}
+    for (BasicBlock* block = compiler->fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        if (block->bbNum > bbNumMaxBeforeResolution)
+        {
+            continue;
+        }
 
-void TreeNodeInfo::setInternalCandidates(LinearScan *lsra, regMaskTP mask)
-{
-    LinearScan::RegMaskIndex i = lsra->GetIndexForRegMask(mask);
-    assert(FitsIn<unsigned char>(i));
-    internalCandsIndex = (unsigned char) i;
-}
+        unsigned spillCount         = blockInfo[block->bbNum].spillCount;
+        unsigned copyRegCount       = blockInfo[block->bbNum].copyRegCount;
+        unsigned resolutionMovCount = blockInfo[block->bbNum].resolutionMovCount;
+        unsigned splitEdgeCount     = blockInfo[block->bbNum].splitEdgeCount;
 
-void TreeNodeInfo::addInternalCandidates(LinearScan *lsra, regMaskTP mask)
-{
-    LinearScan::RegMaskIndex i = lsra->GetIndexForRegMask(lsra->GetRegMaskForIndex(internalCandsIndex) | mask);
-    assert(FitsIn<unsigned char>(i));
-    internalCandsIndex = (unsigned char) i;
+        if (spillCount != 0 || copyRegCount != 0 || resolutionMovCount != 0 || splitEdgeCount != 0)
+        {
+            fprintf(file, FMT_BB " [%8d]: ", block->bbNum, block->bbWeight);
+            fprintf(file, "SpillCount = %d, ResolutionMovs = %d, SplitEdges = %d, CopyReg = %d\n", spillCount,
+                    resolutionMovCount, splitEdgeCount, copyRegCount);
+        }
+
+        sumSpillCount += spillCount;
+        sumCopyRegCount += copyRegCount;
+        sumResolutionMovCount += resolutionMovCount;
+        sumSplitEdgeCount += splitEdgeCount;
+
+        wtdSpillCount += (UINT64)spillCount * block->bbWeight;
+        wtdCopyRegCount += (UINT64)copyRegCount * block->bbWeight;
+        wtdResolutionMovCount += (UINT64)resolutionMovCount * block->bbWeight;
+    }
+
+    fprintf(file, "Total Tracked Vars:  %d\n", compiler->lvaTrackedCount);
+    fprintf(file, "Total Reg Cand Vars: %d\n", regCandidateVarCount);
+    fprintf(file, "Total number of Intervals: %d\n", static_cast<unsigned>(intervals.size() - 1));
+    fprintf(file, "Total number of RefPositions: %d\n", static_cast<unsigned>(refPositions.size() - 1));
+    fprintf(file, "Total Spill Count: %d    Weighted: %I64u\n", sumSpillCount, wtdSpillCount);
+    fprintf(file, "Total CopyReg Count: %d   Weighted: %I64u\n", sumCopyRegCount, wtdCopyRegCount);
+    fprintf(file, "Total ResolutionMov Count: %d    Weighted: %I64u\n", sumResolutionMovCount, wtdResolutionMovCount);
+    fprintf(file, "Total number of split edges: %d\n", sumSplitEdgeCount);
+
+    // compute total number of spill temps created
+    unsigned numSpillTemps = 0;
+    for (int i = 0; i < TYP_COUNT; i++)
+    {
+        numSpillTemps += maxSpill[i];
+    }
+    fprintf(file, "Total Number of spill temps created: %d\n\n", numSpillTemps);
 }
+#endif // TRACK_LSRA_STATS
 
 #ifdef DEBUG
 void dumpRegMask(regMaskTP regs)
@@ -8866,78 +8431,168 @@ void dumpRegMask(regMaskTP regs)
     }
 }
 
+static const char* getRefTypeName(RefType refType)
+{
+    switch (refType)
+    {
+#define DEF_REFTYPE(memberName, memberValue, shortName)                                                                \
+    case memberName:                                                                                                   \
+        return #memberName;
+#include "lsra_reftypes.h"
+#undef DEF_REFTYPE
+        default:
+            return nullptr;
+    }
+}
+
+static const char* getRefTypeShortName(RefType refType)
+{
+    switch (refType)
+    {
+#define DEF_REFTYPE(memberName, memberValue, shortName)                                                                \
+    case memberName:                                                                                                   \
+        return shortName;
+#include "lsra_reftypes.h"
+#undef DEF_REFTYPE
+        default:
+            return nullptr;
+    }
+}
+
 void RefPosition::dump()
 {
     printf("<RefPosition #%-3u @%-3u", rpNum, nodeLocation);
-    
-    if (nextRefPosition)
-        printf(" ->#%-3u", nextRefPosition->rpNum);
 
-    printf(" %s ", refTypeNames[refType]);
+    printf(" %s ", getRefTypeName(refType));
 
     if (this->isPhysRegRef)
+    {
         this->getReg()->tinyDump();
+    }
     else if (getInterval())
+    {
         this->getInterval()->tinyDump();
+    }
 
     if (this->treeNode)
+    {
         printf("%s ", treeNode->OpName(treeNode->OperGet()));
-    printf("BB%02u ", this->bbNum);
+    }
+    printf(FMT_BB " ", this->bbNum);
 
     printf("regmask=");
     dumpRegMask(registerAssignment);
 
+    printf(" minReg=%d", minRegCandidateCount);
+
     if (this->lastUse)
+    {
         printf(" last");
+    }
     if (this->reload)
+    {
         printf(" reload");
+    }
     if (this->spillAfter)
+    {
         printf(" spillAfter");
+    }
     if (this->moveReg)
+    {
         printf(" move");
+    }
     if (this->copyReg)
+    {
         printf(" copy");
+    }
     if (this->isFixedRegRef)
+    {
         printf(" fixed");
+    }
     if (this->isLocalDefUse)
+    {
         printf(" local");
+    }
     if (this->delayRegFree)
+    {
         printf(" delay");
+    }
     if (this->outOfOrder)
+    {
         printf(" outOfOrder");
+    }
+
+    if (this->AllocateIfProfitable())
+    {
+        printf(" regOptional");
+    }
     printf(">\n");
 }
 
 void RegRecord::dump()
 {
     tinyDump();
-}    
+}
 
-void
-Interval::dump()
+void Interval::dump()
 {
     printf("Interval %2u:", intervalIndex);
 
-    if (isLocalVar)         printf(" (V%02u)", varNum);
-    if (isInternal)         printf(" (INTERNAL)");
-    if (isSpilled)          printf(" (SPILLED)");
-    if (isSplit)            printf(" (SPLIT)");
-    if (isStructField)      printf(" (struct)");
-    if (isSpecialPutArg)    printf(" (specialPutArg)");
-    if (isConstant)         printf(" (constant)");
+    if (isLocalVar)
+    {
+        printf(" (V%02u)", varNum);
+    }
+    if (isInternal)
+    {
+        printf(" (INTERNAL)");
+    }
+    if (isSpilled)
+    {
+        printf(" (SPILLED)");
+    }
+    if (isSplit)
+    {
+        printf(" (SPLIT)");
+    }
+    if (isStructField)
+    {
+        printf(" (struct)");
+    }
+    if (isPromotedStruct)
+    {
+        printf(" (promoted struct)");
+    }
+    if (hasConflictingDefUse)
+    {
+        printf(" (def-use conflict)");
+    }
+    if (hasInterferingUses)
+    {
+        printf(" (interfering uses)");
+    }
+    if (isSpecialPutArg)
+    {
+        printf(" (specialPutArg)");
+    }
+    if (isConstant)
+    {
+        printf(" (constant)");
+    }
 
     printf(" RefPositions {");
-    for (RefPosition * refPosition = this->firstRefPosition;
-         refPosition != nullptr;
-         refPosition = refPosition->nextRefPosition)
+    for (RefPosition* refPosition = this->firstRefPosition; refPosition != nullptr;
+         refPosition              = refPosition->nextRefPosition)
     {
         printf("#%u@%u", refPosition->rpNum, refPosition->nodeLocation);
-        if (refPosition->nextRefPosition) printf(" ");
+        if (refPosition->nextRefPosition)
+        {
+            printf(" ");
+        }
     }
     printf("}");
 
     // this is not used (yet?)
-    //printf(" SpillOffset %d", this->spillOffset);
+    // printf(" SpillOffset %d", this->spillOffset);
 
     printf(" physReg:%s", getRegName(physReg));
 
@@ -8954,10 +8609,8 @@ Interval::dump()
     printf("\n");
 }
 
-
 // print out very concise representation
-void
-Interval::tinyDump()
+void Interval::tinyDump()
 {
     printf("<Ivl:%u", intervalIndex);
     if (isLocalVar)
@@ -8971,10 +8624,8 @@ Interval::tinyDump()
     printf("> ");
 }
 
-
 // print out extremely concise representation
-void
-Interval::microDump()
+void Interval::microDump()
 {
     char intervalTypeChar = 'I';
     if (isInternal)
@@ -8989,39 +8640,93 @@ Interval::microDump()
     printf("<%c%u>", intervalTypeChar, intervalIndex);
 }
 
-
 void RegRecord::tinyDump()
 {
     printf("<Reg:%-3s> ", getRegName(regNum));
 }
 
-
-void TreeNodeInfo::dump(LinearScan *lsra)
+void LinearScan::dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCount, int dstCount)
 {
-    printf("<TreeNodeInfo @ %2u %d=%d %di %df", loc, dstCount, srcCount, internalIntCount, internalFloatCount);
-    printf(" src="); dumpRegMask(getSrcCandidates(lsra));
-    printf(" int="); dumpRegMask(getInternalCandidates(lsra));
-    printf(" dst="); dumpRegMask(getDstCandidates(lsra));
-    if (isLocalDefUse) printf(" L");
-    if (isInitialized) printf(" I");
-    if (isHelperCallWithKills) printf(" H");
-    if (isLsraAdded) printf(" A");
-    if (isDelayFree) printf(" D");
-    if (isTgtPref) printf(" P");
-    printf(">\n");
+    if (!VERBOSE)
+    {
+        return;
+    }
+    // This is formatted like the old dump to make diffs easier. TODO-Cleanup: improve.
+    int       internalIntCount   = 0;
+    int       internalFloatCount = 0;
+    regMaskTP internalCandidates = RBM_NONE;
+    for (int i = 0; i < internalCount; i++)
+    {
+        RefPosition* def = internalDefs[i];
+        if (def->getInterval()->registerType == TYP_INT)
+        {
+            internalIntCount++;
+        }
+        else
+        {
+            internalFloatCount++;
+        }
+        internalCandidates |= def->registerAssignment;
+    }
+    if (dstCandidates == RBM_NONE)
+    {
+        dstCandidates = varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT);
+    }
+    if (internalCandidates == RBM_NONE)
+    {
+        internalCandidates = allRegs(TYP_INT);
+    }
+    printf("    +<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
+    printf(" src=");
+    dumpRegMask(varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT));
+    printf(" int=");
+    dumpRegMask(internalCandidates);
+    printf(" dst=");
+    dumpRegMask(dstCandidates);
+    if (node->IsUnusedValue())
+    {
+        printf(" L");
+    }
+    printf(" I");
+    if (pendingDelayFree)
+    {
+        printf(" D");
+    }
+    if (setInternalRegsDelayFree)
+    {
+        printf(" ID");
+    }
+    printf(">");
+    node->dumpLIRFlags();
+    printf("\n  consume= %d produce=%d\n", srcCount, dstCount);
 }
 
-void
-LinearScan::lsraDumpIntervals(const char* msg)
+void LinearScan::dumpDefList()
 {
-    Interval          * interval;
+    if (!VERBOSE)
+    {
+        return;
+    }
+    JITDUMP("DefList: { ");
+    bool first = true;
+    for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
+         listNode = listNode->Next())
+    {
+        GenTree* node = listNode->treeNode;
+        JITDUMP("%sN%03u.t%d. %s", first ? "" : "; ", node->gtSeqNum, node->gtTreeID, GenTree::OpName(node->OperGet()));
+        first = false;
+    }
+    JITDUMP(" }\n");
+}
 
+void LinearScan::lsraDumpIntervals(const char* msg)
+{
     printf("\nLinear scan intervals %s:\n", msg);
-    for (auto& interval : intervals)
+    for (Interval& interval : intervals)
     {
         // only dump something if it has references
-        //if (interval->firstRefPosition)
-            interval.dump();
+        // if (interval->firstRefPosition)
+        interval.dump();
     }
 
     printf("\n");
@@ -9029,22 +8734,27 @@ LinearScan::lsraDumpIntervals(const char* msg)
 
 // Dumps a tree node as a destination or source operand, with the style
 // of dump dependent on the mode
-void 
-LinearScan::lsraGetOperandString(GenTreePtr tree, LsraTupleDumpMode mode, char *operandString, unsigned operandStringLength)
+void LinearScan::lsraGetOperandString(GenTree*          tree,
+                                      LsraTupleDumpMode mode,
+                                      char*             operandString,
+                                      unsigned          operandStringLength)
 {
     const char* lastUseChar = "";
-    if ((tree->gtFlags & GTF_VAR_DEATH) != 0) lastUseChar = "*";
+    if ((tree->gtFlags & GTF_VAR_DEATH) != 0)
+    {
+        lastUseChar = "*";
+    }
     switch (mode)
     {
-    case LinearScan::LSRA_DUMP_PRE:
-        _snprintf_s(operandString, operandStringLength, operandStringLength, "t%d%s", tree->gtSeqNum, lastUseChar);
-        break;
-    case LinearScan::LSRA_DUMP_REFPOS:
-        _snprintf_s(operandString, operandStringLength, operandStringLength, "t%d%s", tree->gtSeqNum, lastUseChar);
-        break;
-    case LinearScan::LSRA_DUMP_POST:
+        case LinearScan::LSRA_DUMP_PRE:
+            _snprintf_s(operandString, operandStringLength, operandStringLength, "t%d%s", tree->gtTreeID, lastUseChar);
+            break;
+        case LinearScan::LSRA_DUMP_REFPOS:
+            _snprintf_s(operandString, operandStringLength, operandStringLength, "t%d%s", tree->gtTreeID, lastUseChar);
+            break;
+        case LinearScan::LSRA_DUMP_POST:
         {
-            Compiler *compiler = GetTlsCompiler();
+            Compiler* compiler = JitTls::GetCompiler();
 
             if (!tree->gtHasReg())
             {
@@ -9052,49 +8762,84 @@ LinearScan::lsraGetOperandString(GenTreePtr tree, LsraTupleDumpMode mode, char *
             }
             else
             {
-                _snprintf_s(operandString, operandStringLength, operandStringLength, "%s%s", getRegName(tree->gtRegNum, useFloatReg(tree->TypeGet())), lastUseChar);
+                regNumber reg       = tree->gtRegNum;
+                int       charCount = _snprintf_s(operandString, operandStringLength, operandStringLength, "%s%s",
+                                            getRegName(reg, genIsValidFloatReg(reg)), lastUseChar);
+                operandString += charCount;
+                operandStringLength -= charCount;
+
+                if (tree->IsMultiRegNode())
+                {
+                    unsigned regCount = tree->GetMultiRegCount();
+                    for (unsigned regIndex = 1; regIndex < regCount; regIndex++)
+                    {
+                        regNumber reg = tree->GetRegByIndex(regIndex);
+                        charCount     = _snprintf_s(operandString, operandStringLength, operandStringLength, ",%s%s",
+                                                getRegName(reg, genIsValidFloatReg(reg)), lastUseChar);
+                        operandString += charCount;
+                        operandStringLength -= charCount;
+                    }
+                }
             }
         }
         break;
-    default:
-        printf ("ERROR: INVALID TUPLE DUMP MODE\n");
-        break;
+        default:
+            printf("ERROR: INVALID TUPLE DUMP MODE\n");
+            break;
     }
 }
-void
-LinearScan::lsraDispNode(GenTreePtr tree, LsraTupleDumpMode mode, bool hasDest)
+void LinearScan::lsraDispNode(GenTree* tree, LsraTupleDumpMode mode, bool hasDest)
 {
-    Compiler*         compiler = GetTlsCompiler();
-    const unsigned    operandStringLength = 16;
-    char              operandString[operandStringLength];
-    const char*       emptyDestOperand = "               ";
-    char              spillChar = ' ';
+    Compiler*      compiler            = JitTls::GetCompiler();
+    const unsigned operandStringLength = 16;
+    char           operandString[operandStringLength];
+    const char*    emptyDestOperand = "               ";
+    char           spillChar        = ' ';
 
     if (mode == LinearScan::LSRA_DUMP_POST)
     {
-        if ((tree->gtFlags & GTF_SPILL) != 0) spillChar = 'S';
+        if ((tree->gtFlags & GTF_SPILL) != 0)
+        {
+            spillChar = 'S';
+        }
         if (!hasDest && tree->gtHasReg())
         {
-            // This can be true for the "localDefUse" case - defining a reg, but
-            // pushing it on the stack
-            assert(spillChar == ' ');
-            spillChar = '*';
+            // A node can define a register, but not produce a value for a parent to consume,
+            // i.e. in the "localDefUse" case.
+            // There used to be an assert here that we wouldn't spill such a node.
+            // However, we can have unused lclVars that wind up being the node at which
+            // it is spilled. This probably indicates a bug, but we don't realy want to
+            // assert during a dump.
+            if (spillChar == 'S')
+            {
+                spillChar = '$';
+            }
+            else
+            {
+                spillChar = '*';
+            }
             hasDest = true;
         }
     }
     printf("%c N%03u. ", spillChar, tree->gtSeqNum);
 
     LclVarDsc* varDsc = nullptr;
-    unsigned varNum = UINT_MAX;
+    unsigned   varNum = UINT_MAX;
     if (tree->IsLocal())
     {
         varNum = tree->gtLclVarCommon.gtLclNum;
         varDsc = &(compiler->lvaTable[varNum]);
-        if (varDsc->lvLRACandidate) hasDest = false;
+        if (varDsc->lvLRACandidate)
+        {
+            hasDest = false;
+        }
     }
     if (hasDest)
     {
-        if (mode == LinearScan::LSRA_DUMP_POST && tree->gtFlags & GTF_SPILLED) assert(tree->gtHasReg());
+        if (mode == LinearScan::LSRA_DUMP_POST && tree->gtFlags & GTF_SPILLED)
+        {
+            assert(tree->gtHasReg());
+        }
         lsraGetOperandString(tree, mode, operandString, operandStringLength);
         printf("%-15s =", operandString);
     }
@@ -9108,13 +8853,16 @@ LinearScan::lsraDispNode(GenTreePtr tree, LsraTupleDumpMode mode, bool hasDest)
         {
             if (mode == LSRA_DUMP_REFPOS)
             {
-                printf("  V%02u(L%d)", varNum, getIntervalForLocalVar(varNum)->intervalIndex);
+                printf("  V%02u(L%d)", varNum, getIntervalForLocalVar(varDsc->lvVarIndex)->intervalIndex);
             }
             else
             {
                 lsraGetOperandString(tree, mode, operandString, operandStringLength);
                 printf("  V%02u(%s)", varNum, operandString);
-                if (mode == LinearScan::LSRA_DUMP_POST && tree->gtFlags & GTF_SPILLED) printf("R");
+                if (mode == LinearScan::LSRA_DUMP_POST && tree->gtFlags & GTF_SPILLED)
+                {
+                    printf("R");
+                }
             }
         }
         else
@@ -9122,82 +8870,116 @@ LinearScan::lsraDispNode(GenTreePtr tree, LsraTupleDumpMode mode, bool hasDest)
             printf("  V%02u MEM", varNum);
         }
     }
-    else if (tree->OperIsAssignment())
+    else if (tree->OperIs(GT_ASG))
     {
         assert(!tree->gtHasReg());
-        const char * isRev = "";
-        if ((tree->gtFlags & GTF_REVERSE_OPS) != 0) isRev = "(Rev)";
-        printf("  asg%s%s  ", GenTree::NodeName(tree->OperGet()), isRev);
+        printf("  asg%s  ", GenTree::OpName(tree->OperGet()));
     }
     else
     {
         compiler->gtDispNodeName(tree);
-        if ((tree->gtFlags & GTF_REVERSE_OPS) != 0) printf("(Rev)");
-        if (tree->OperKind() & GTK_LEAF) compiler->gtDispLeaf(tree, 0);
+        if (tree->OperKind() & GTK_LEAF)
+        {
+            compiler->gtDispLeaf(tree, nullptr);
+        }
     }
 }
 
-GenTreePtr
-popAndPrintLclVarUses(ArrayStack<GenTreePtr>* stack, int* remainingUses)
+//------------------------------------------------------------------------
+// DumpOperandDefs: dumps the registers defined by a node.
+//
+// Arguments:
+//    operand - The operand for which to compute a register count.
+//
+// Returns:
+//    The number of registers defined by `operand`.
+//
+void LinearScan::DumpOperandDefs(
+    GenTree* operand, bool& first, LsraTupleDumpMode mode, char* operandString, const unsigned operandStringLength)
 {
-    while (*remainingUses != 0)
+    assert(operand != nullptr);
+    assert(operandString != nullptr);
+    if (!operand->IsLIR())
     {
-        GenTreePtr nextUseNode = stack->Pop();
-        (*remainingUses)--;
-        if (nextUseNode->IsLocal()) printf("  V%02u");
-        else return nextUseNode;
+        return;
     }
-    return nullptr;
+
+    int dstCount = ComputeOperandDstCount(operand);
+
+    if (dstCount != 0)
+    {
+        // This operand directly produces registers; print it.
+        if (!first)
+        {
+            printf(",");
+        }
+        lsraGetOperandString(operand, mode, operandString, operandStringLength);
+        printf("%s", operandString);
+        first = false;
+    }
+    else if (operand->isContained())
+    {
+        // This is a contained node. Dump the defs produced by its operands.
+        for (GenTree* op : operand->Operands())
+        {
+            DumpOperandDefs(op, first, mode, operandString, operandStringLength);
+        }
+    }
 }
 
 void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
 {
-    BasicBlock*             block;
-    ArrayStack<GenTreePtr>  stack(compiler, CMK_LSRA);
-    LsraLocation            currentLoc = 1; // 0 is the entry
-    const unsigned          operandStringLength = 16;
-    char                    operandString[operandStringLength];
+    BasicBlock*    block;
+    LsraLocation   currentLoc          = 1; // 0 is the entry
+    const unsigned operandStringLength = 16;
+    char           operandString[operandStringLength];
 
     // currentRefPosition is not used for LSRA_DUMP_PRE
     // We keep separate iterators for defs, so that we can print them
     // on the lhs of the dump
-    auto currentRefPosition = refPositions.begin();
+    RefPositionIterator refPosIterator     = refPositions.begin();
+    RefPosition*        currentRefPosition = &refPosIterator;
 
     switch (mode)
     {
-    case LSRA_DUMP_PRE:
-        printf("TUPLE STYLE DUMP BEFORE LSRA\n");
-        break;
-    case LSRA_DUMP_REFPOS:
-        printf("TUPLE STYLE DUMP WITH REF POSITIONS\n");
-        break;
-    case LSRA_DUMP_POST:
-        printf("TUPLE STYLE DUMP WITH REGISTER ASSIGNMENTS\n");
-        break;
-    default:
-        printf ("ERROR: INVALID TUPLE DUMP MODE\n");
-        return;
+        case LSRA_DUMP_PRE:
+            printf("TUPLE STYLE DUMP BEFORE LSRA\n");
+            break;
+        case LSRA_DUMP_REFPOS:
+            printf("TUPLE STYLE DUMP WITH REF POSITIONS\n");
+            break;
+        case LSRA_DUMP_POST:
+            printf("TUPLE STYLE DUMP WITH REGISTER ASSIGNMENTS\n");
+            break;
+        default:
+            printf("ERROR: INVALID TUPLE DUMP MODE\n");
+            return;
     }
 
     if (mode != LSRA_DUMP_PRE)
     {
-        printf ("Incoming Parameters: ");
-        for ( ;
-              currentRefPosition != refPositions.end() && currentRefPosition->refType != RefTypeBB;
-              ++currentRefPosition)
+        printf("Incoming Parameters: ");
+        for (; refPosIterator != refPositions.end() && currentRefPosition->refType != RefTypeBB;
+             ++refPosIterator, currentRefPosition = &refPosIterator)
         {
             Interval* interval = currentRefPosition->getInterval();
             assert(interval != nullptr && interval->isLocalVar);
             printf(" V%02d", interval->varNum);
-            if (mode == LSRA_DUMP_POST) 
+            if (mode == LSRA_DUMP_POST)
             {
                 regNumber reg;
-                if (currentRefPosition->registerAssignment == RBM_NONE) reg = REG_STK;
-                else reg = currentRefPosition->assignedReg();
+                if (currentRefPosition->registerAssignment == RBM_NONE)
+                {
+                    reg = REG_STK;
+                }
+                else
+                {
+                    reg = currentRefPosition->assignedReg();
+                }
                 LclVarDsc* varDsc = &(compiler->lvaTable[interval->varNum]);
                 printf("(");
                 regNumber assignedReg = varDsc->lvRegNum;
-                regNumber argReg = (varDsc->lvIsRegArg) ? varDsc->lvArgReg : REG_STK;
+                regNumber argReg      = (varDsc->lvIsRegArg) ? varDsc->lvArgReg : REG_STK;
 
                 assert(reg == assignedReg || varDsc->lvRegister == false);
                 if (reg != argReg)
@@ -9211,9 +8993,7 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
         printf("\n");
     }
 
-    for( block = startBlockSequence();
-         block != nullptr;
-         block = moveToNextBlock())
+    for (block = startBlockSequence(); block != nullptr; block = moveToNextBlock())
     {
         currentLoc += 2;
 
@@ -9221,35 +9001,36 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
         {
             bool printedBlockHeader = false;
             // We should find the boundary RefPositions in the order of exposed uses, dummy defs, and the blocks
-            for ( ;
-                  currentRefPosition != refPositions.end() &&
-                  (currentRefPosition->refType == RefTypeExpUse   ||
-                   currentRefPosition->refType == RefTypeDummyDef ||
-                   (currentRefPosition->refType == RefTypeBB && !printedBlockHeader));
-                  ++currentRefPosition)
+            for (; refPosIterator != refPositions.end() &&
+                   (currentRefPosition->refType == RefTypeExpUse || currentRefPosition->refType == RefTypeDummyDef ||
+                    (currentRefPosition->refType == RefTypeBB && !printedBlockHeader));
+                 ++refPosIterator, currentRefPosition = &refPosIterator)
             {
-                Interval * interval = nullptr;
-                if (currentRefPosition->isIntervalRef()) interval = currentRefPosition->getInterval();
+                Interval* interval = nullptr;
+                if (currentRefPosition->isIntervalRef())
+                {
+                    interval = currentRefPosition->getInterval();
+                }
                 switch (currentRefPosition->refType)
                 {
-                case RefTypeExpUse:
-                    assert(interval != nullptr);
-                    assert(interval->isLocalVar);
-                    printf("  Exposed use of V%02u at #%d\n", interval->varNum, currentRefPosition->rpNum);
-                    break;
-                case RefTypeDummyDef:
-                    assert(interval != nullptr);
-                    assert(interval->isLocalVar);
-                    printf("  Dummy def of V%02u at #%d\n", interval->varNum, currentRefPosition->rpNum);
-                    break;
-                case RefTypeBB:
-                    block->dspBlockHeader(compiler);
-                    printedBlockHeader = true;
-                    printf("=====\n");
-                    break;
-                default:
-                    printf("Unexpected RefPosition type at #%d\n", currentRefPosition->rpNum);
-                    break;
+                    case RefTypeExpUse:
+                        assert(interval != nullptr);
+                        assert(interval->isLocalVar);
+                        printf("  Exposed use of V%02u at #%d\n", interval->varNum, currentRefPosition->rpNum);
+                        break;
+                    case RefTypeDummyDef:
+                        assert(interval != nullptr);
+                        assert(interval->isLocalVar);
+                        printf("  Dummy def of V%02u at #%d\n", interval->varNum, currentRefPosition->rpNum);
+                        break;
+                    case RefTypeBB:
+                        block->dspBlockHeader(compiler);
+                        printedBlockHeader = true;
+                        printf("=====\n");
+                        break;
+                    default:
+                        printf("Unexpected RefPosition type at #%d\n", currentRefPosition->rpNum);
+                        break;
                 }
             }
         }
@@ -9258,9 +9039,10 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
             block->dspBlockHeader(compiler);
             printf("=====\n");
         }
-        if (mode == LSRA_DUMP_POST && block != compiler->fgFirstBB && block->bbNum <= bbNumMaxBeforeResolution)
+        if (enregisterLocalVars && mode == LSRA_DUMP_POST && block != compiler->fgFirstBB &&
+            block->bbNum <= bbNumMaxBeforeResolution)
         {
-            printf("Predecessor for variable locations: BB%02u\n", blockInfo[block->bbNum].predBBNum);
+            printf("Predecessor for variable locations: " FMT_BB "\n", blockInfo[block->bbNum].predBBNum);
             dumpInVarToRegMap(block);
         }
         if (block->bbNum > bbNumMaxBeforeResolution)
@@ -9269,124 +9051,61 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
             splitBBNumToTargetBBNumMap->Lookup(block->bbNum, &splitEdgeInfo);
             assert(splitEdgeInfo.toBBNum <= bbNumMaxBeforeResolution);
             assert(splitEdgeInfo.fromBBNum <= bbNumMaxBeforeResolution);
-            printf("New block introduced for resolution from BB%02u to BB%02u\n", splitEdgeInfo.fromBBNum, splitEdgeInfo.toBBNum);
+            printf("New block introduced for resolution from " FMT_BB " to " FMT_BB "\n", splitEdgeInfo.fromBBNum,
+                   splitEdgeInfo.toBBNum);
         }
 
-        for (GenTree *statement = block->FirstNonPhiDef();
-             statement;
-             statement = statement->gtNext)
+        for (GenTree* node : LIR::AsRange(block).NonPhiNodes())
         {
-            if ((statement->gtFlags & GTF_STMT_TOP_LEVEL) == 0) continue;
+            GenTree* tree = node;
 
-            for (GenTree *tree = statement->gtStmt.gtStmtList;
-                 tree; 
-                 tree = tree->gtNext, currentLoc += 2)
+            genTreeOps oper      = tree->OperGet();
+            int        produce   = tree->IsValue() ? ComputeOperandDstCount(tree) : 0;
+            int        consume   = ComputeAvailableSrcCount(tree);
+            regMaskTP  killMask  = RBM_NONE;
+            regMaskTP  fixedMask = RBM_NONE;
+
+            lsraDispNode(tree, mode, produce != 0 && mode != LSRA_DUMP_REFPOS);
+
+            if (mode != LSRA_DUMP_REFPOS)
             {
-                genTreeOps oper = tree->OperGet();
-                if (oper == GT_ARGPLACE) continue;
-                TreeNodeInfo &info = tree->gtLsraInfo;
-                if (tree->gtLsraInfo.isLsraAdded)
+                if (consume > 0)
                 {
-                    // This must be one of the nodes that we add during LSRA
+                    printf("; ");
 
-                    if (oper == GT_LCL_VAR)
+                    bool first = true;
+                    for (GenTree* operand : tree->Operands())
                     {
-                        info.srcCount = 0;
-                        info.dstCount = 1;
-                    }
-                    else if (oper == GT_RELOAD || oper == GT_COPY)
-                    {
-                        info.srcCount = 1;
-                        info.dstCount = 1;
-                    }
-#ifdef FEATURE_SIMD
-                    else if (oper == GT_SIMD)
-                    {
-                        if(tree->gtSIMD.gtSIMDIntrinsicID == SIMDIntrinsicUpperSave)
-                        {
-                            info.srcCount = 1;
-                            info.dstCount = 1;
-                        }
-                        else
-                        {
-                            assert(tree->gtSIMD.gtSIMDIntrinsicID == SIMDIntrinsicUpperRestore);
-                            info.srcCount = 2;
-                            info.dstCount = 0;
-                        }
-                    }
-#endif // FEATURE_SIMD
-                    else
-                    {
-                        assert(oper == GT_SWAP);
-                        info.srcCount = 2;
-                        info.dstCount = 0;
-                    }
-                    info.internalIntCount = 0;
-                    info.internalFloatCount = 0;
-                }
-
-                int consume = info.srcCount;
-                int produce = info.dstCount;
-                regMaskTP killMask = RBM_NONE;
-                regMaskTP fixedMask = RBM_NONE;
-
-                if (tree->OperGet() == GT_LIST)
-                    continue;
-
-                lsraDispNode(tree, mode, produce != 0 && mode != LSRA_DUMP_REFPOS);
-
-                if (mode != LSRA_DUMP_REFPOS)
-                {
-                    if (consume > stack.Height())
-                    {
-                        printf("about to consume %d, height is only %d\n", consume, stack.Height());
-                    }
-
-                    if (!(tree->gtFlags & GTF_REVERSE_OPS))
-                    {
-                        stack.ReverseTop(consume);
-                    }
-                    if (consume > 0)
-                        printf("; ");
-                    while (consume--)
-                    {
-                        lsraGetOperandString(stack.Pop(), mode, operandString, operandStringLength);
-                        printf("%s", operandString);
-                        if (consume) printf(",");
-                    }
-                    while (produce--)
-                    {
-                        stack.Push(tree);
+                        DumpOperandDefs(operand, first, mode, operandString, operandStringLength);
                     }
                 }
-                else
+            }
+            else
+            {
+                // Print each RefPosition on a new line, but
+                // printing all the kills for each node on a single line
+                // and combining the fixed regs with their associated def or use
+                bool         killPrinted        = false;
+                RefPosition* lastFixedRegRefPos = nullptr;
+                for (; refPosIterator != refPositions.end() &&
+                       (currentRefPosition->refType == RefTypeUse || currentRefPosition->refType == RefTypeFixedReg ||
+                        currentRefPosition->refType == RefTypeKill || currentRefPosition->refType == RefTypeDef) &&
+                       (currentRefPosition->nodeLocation == tree->gtSeqNum ||
+                        currentRefPosition->nodeLocation == tree->gtSeqNum + 1);
+                     ++refPosIterator, currentRefPosition = &refPosIterator)
                 {
-                    // Print each RefPosition on a new line, but
-                    // printing all the kills for each node on a single line
-                    // and combining the fixed regs with their associated def or use
-                    bool killPrinted = false;
-                    RefPosition * lastFixedRegRefPos = nullptr;
-                    for ( ;
-                          currentRefPosition != refPositions.end() &&
-                          (currentRefPosition->refType == RefTypeUse      ||
-                           currentRefPosition->refType == RefTypeFixedReg ||
-                           currentRefPosition->refType == RefTypeKill ||
-                           currentRefPosition->refType == RefTypeDef) &&
-                          (currentRefPosition->nodeLocation == tree->gtSeqNum ||
-                           currentRefPosition->nodeLocation == tree->gtSeqNum+1);
-                          ++currentRefPosition)
+                    Interval* interval = nullptr;
+                    if (currentRefPosition->isIntervalRef())
                     {
-                        Interval * interval = nullptr;
-                        if (currentRefPosition->isIntervalRef())
-                        {
-                            interval = currentRefPosition->getInterval();
-                        }
-                        switch (currentRefPosition->refType)
-                        {
+                        interval = currentRefPosition->getInterval();
+                    }
+                    switch (currentRefPosition->refType)
+                    {
                         case RefTypeUse:
                             if (currentRefPosition->isPhysRegRef)
                             {
-                                printf("\n                               Use:R%d(#%d)", currentRefPosition->getReg()->regNum, currentRefPosition->rpNum);
+                                printf("\n                               Use:R%d(#%d)",
+                                       currentRefPosition->getReg()->regNum, currentRefPosition->rpNum);
                             }
                             else
                             {
@@ -9394,31 +9113,14 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                                 printf("\n                               Use:");
                                 interval->microDump();
                                 printf("(#%d)", currentRefPosition->rpNum);
-                                if (currentRefPosition->isFixedRegRef)
+                                if (currentRefPosition->isFixedRegRef && !interval->isInternal)
                                 {
                                     assert(genMaxOneBit(currentRefPosition->registerAssignment));
                                     assert(lastFixedRegRefPos != nullptr);
-                                    printf(" Fixed:%s(#%d)", getRegName(currentRefPosition->assignedReg(), isFloatRegType(interval->registerType)), lastFixedRegRefPos->rpNum);
+                                    printf(" Fixed:%s(#%d)", getRegName(currentRefPosition->assignedReg(),
+                                                                        isFloatRegType(interval->registerType)),
+                                           lastFixedRegRefPos->rpNum);
                                     lastFixedRegRefPos = nullptr;
-                                }
-                                if (currentRefPosition->isLocalDefUse)
-                                {
-                                    printf(" LocalDefUse");
-                                }
-                                if (currentRefPosition->lastUse) printf(" *");
-                            }
-                            break;
-                        case RefTypeDef:
-                            {
-                                // Print each def on a new line
-                                assert(interval != nullptr);
-                                printf("\n        Def:");
-                                interval->microDump();
-                                printf("(#%d)", currentRefPosition->rpNum);
-                                if (currentRefPosition->isFixedRegRef)
-                                {
-                                    assert(genMaxOneBit(currentRefPosition->registerAssignment));
-                                    printf(" %s", getRegName(currentRefPosition->assignedReg(), isFloatRegType(interval->registerType)));
                                 }
                                 if (currentRefPosition->isLocalDefUse)
                                 {
@@ -9428,21 +9130,45 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                                 {
                                     printf(" *");
                                 }
-                                if (interval->relatedInterval != nullptr)
-                                {
-                                    printf(" Pref:");
-                                    interval->relatedInterval->microDump();
-                                }
                             }
                             break;
+                        case RefTypeDef:
+                        {
+                            // Print each def on a new line
+                            assert(interval != nullptr);
+                            printf("\n        Def:");
+                            interval->microDump();
+                            printf("(#%d)", currentRefPosition->rpNum);
+                            if (currentRefPosition->isFixedRegRef)
+                            {
+                                assert(genMaxOneBit(currentRefPosition->registerAssignment));
+                                printf(" %s", getRegName(currentRefPosition->assignedReg(),
+                                                         isFloatRegType(interval->registerType)));
+                            }
+                            if (currentRefPosition->isLocalDefUse)
+                            {
+                                printf(" LocalDefUse");
+                            }
+                            if (currentRefPosition->lastUse)
+                            {
+                                printf(" *");
+                            }
+                            if (interval->relatedInterval != nullptr)
+                            {
+                                printf(" Pref:");
+                                interval->relatedInterval->microDump();
+                            }
+                        }
+                        break;
                         case RefTypeKill:
                             if (!killPrinted)
                             {
-                                printf ("\n        Kill: ");
+                                printf("\n        Kill: ");
                                 killPrinted = true;
                             }
-                            printf (getRegName(currentRefPosition->assignedReg(), isFloatRegType(currentRefPosition->getReg()->registerType)));
-                            printf (" ");
+                            printf(getRegName(currentRefPosition->assignedReg(),
+                                              isFloatRegType(currentRefPosition->getReg()->registerType)));
+                            printf(" ");
                             break;
                         case RefTypeFixedReg:
                             lastFixedRegRefPos = currentRefPosition;
@@ -9450,193 +9176,93 @@ void LinearScan::TupleStyleDump(LsraTupleDumpMode mode)
                         default:
                             printf("Unexpected RefPosition type at #%d\n", currentRefPosition->rpNum);
                             break;
-                        }
                     }
-                }
-                printf("\n");
-                if (info.internalIntCount != 0 && mode != LSRA_DUMP_REFPOS)
-                {
-                    printf("\tinternal (%d):\t", info.internalIntCount);
-                    if (mode == LSRA_DUMP_POST)
-                    {
-                        dumpRegMask(tree->gtRsvdRegs);
-                    }
-                    else if ((info.getInternalCandidates(this) & allRegs(TYP_INT)) != allRegs(TYP_INT))
-                    {
-                        dumpRegMask(info.getInternalCandidates(this) & allRegs(TYP_INT));
-                }
-                printf("\n");
-                }
-                if (info.internalFloatCount != 0 && mode != LSRA_DUMP_REFPOS)
-                {
-                    printf("\tinternal (%d):\t", info.internalFloatCount);
-                    if (mode == LSRA_DUMP_POST)
-                    {
-                        dumpRegMask(tree->gtRsvdRegs);
-                    }
-                    else if ((info.getInternalCandidates(this) & allRegs(TYP_INT)) != allRegs(TYP_INT))
-                    {
-                        dumpRegMask(info.getInternalCandidates(this) & allRegs(TYP_INT));
-                    }
-                    printf("\n");
                 }
             }
             printf("\n");
         }
-        if (mode == LSRA_DUMP_POST) dumpOutVarToRegMap(block);
+        if (enregisterLocalVars && mode == LSRA_DUMP_POST)
+        {
+            dumpOutVarToRegMap(block);
+        }
         printf("\n");
     }
     printf("\n\n");
 }
 
-void
-LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event, Interval* interval, regNumber reg, BasicBlock* currentBlock)
+void LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event,
+                                         Interval*     interval,
+                                         regNumber     reg,
+                                         BasicBlock*   currentBlock)
 {
     if (!(VERBOSE))
     {
         return;
     }
-    switch(event)
+    if ((interval != nullptr) && (reg != REG_NA) && (reg != REG_STK))
     {
-    // Conflicting def/use
-    case LSRA_EVENT_DEFUSE_CONFLICT:
-        if (!dumpTerse)
-        {
-            printf("  Def and Use have conflicting register requirements:");
-        }
-        else
-        {
+        registersToDump |= genRegMask(reg);
+        dumpRegRecordTitleIfNeeded();
+    }
+
+    switch (event)
+    {
+        // Conflicting def/use
+        case LSRA_EVENT_DEFUSE_CONFLICT:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("DUconflict ");
             dumpRegRecords();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_FIXED_DELAY_USE:
-        if (!dumpTerse)
-        {
-            printf(" Can't change useAssignment ");
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE1:
-        if (!dumpTerse)
-        {
-            printf(" case #1, use the defRegAssignment\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #1 use defRegAssignment");
+            break;
+        case LSRA_EVENT_DEFUSE_CASE1:
+            printf(indentFormat, "  Case #1 use defRegAssignment");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE2:
-        if (!dumpTerse)
-        {
-            printf(" case #2, use the useRegAssignment\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #2 use useRegAssignment");
+            break;
+        case LSRA_EVENT_DEFUSE_CASE2:
+            printf(indentFormat, "  Case #2 use useRegAssignment");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE3:
-        if (!dumpTerse)
-        {
-            printf(" case #3, change the defRegAssignment to the use regs\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #3 use useRegAssignment");
+            break;
+        case LSRA_EVENT_DEFUSE_CASE3:
+            printf(indentFormat, "  Case #3 use useRegAssignment");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE4:
-        if (!dumpTerse)
-        {
-            printf(" case #4, change the useRegAssignment to the def regs\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #4 use defRegAssignment");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE5:
-        if (!dumpTerse)
-        {
-            printf(" case #5, Conflicting Def and Use single-register requirements require copies - set def to all regs of the appropriate type\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #5 set def to all regs");
+            break;
+        case LSRA_EVENT_DEFUSE_CASE4:
+            printf(indentFormat, "  Case #4 use defRegAssignment");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_DEFUSE_CASE6:
-        if (!dumpTerse)
-        {
-            printf(" case #6, Conflicting Def and Use register requirements require a copy\n");
-        }
-        else
-        {
-            printf(indentFormat, " case #6 need a copy");
+            break;
+        case LSRA_EVENT_DEFUSE_CASE5:
+            printf(indentFormat, "  Case #5 set def to all regs");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
+            break;
+        case LSRA_EVENT_DEFUSE_CASE6:
+            printf(indentFormat, "  Case #6 need a copy");
+            dumpRegRecords();
+            break;
 
-    case LSRA_EVENT_SPILL:
-        if (!dumpTerse)
-        {
-            printf("Spilled:\n");
-            interval->dump();
-        }
-        else
-        {
+        case LSRA_EVENT_SPILL:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             assert(interval != nullptr && interval->assignedReg != nullptr);
             printf("Spill %-4s ", getRegName(interval->assignedReg->regNum));
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_SPILL_EXTENDED_LIFETIME:
-        if (!dumpTerse)
-        {
-            printf("  Spilled extended lifetime var V%02u at last use; not marked for actual spill.", interval->intervalIndex);
-        }
-        break;
+            break;
 
-    // Restoring the previous register
-    case LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL_AFTER_SPILL:
-        assert(interval != nullptr);
-        if (!dumpTerse)
-        {
-            printf("  Assign register %s to previous interval Ivl:%d after spill\n", getRegName(reg), interval->intervalIndex);
-        }
-        else
-        {
-            // If we spilled, then the dump is already pre-indented, but we need to pre-indent for the subsequent allocation
-            // with a dumpEmptyRefPosition().
+        // Restoring the previous register
+        case LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL_AFTER_SPILL:
+            assert(interval != nullptr);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("SRstr %-4s ", getRegName(reg));
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL:
-        assert(interval != nullptr);
-        if (!dumpTerse)
-        {
-            printf("  Assign register %s to previous interval Ivl:%d\n", getRegName(reg), interval->intervalIndex);
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_RESTORE_PREVIOUS_INTERVAL:
+            assert(interval != nullptr);
             if (activeRefPosition == nullptr)
             {
                 printf(emptyRefPositionFormat, "");
+            }
+            else
+            {
+                dumpRefPositionShort(activeRefPosition, currentBlock);
             }
             printf("Restr %-4s ", getRegName(reg));
             dumpRegRecords();
@@ -9644,205 +9270,102 @@ LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event, Interval* interval, reg
             {
                 printf(emptyRefPositionFormat, "");
             }
-        }
-        break;
+            break;
 
-    // Done with GC Kills
-    case LSRA_EVENT_DONE_KILL_GC_REFS:
-        printf("DoneKillGC ");
-        break;
+        // Done with GC Kills
+        case LSRA_EVENT_DONE_KILL_GC_REFS:
+            printf(indentFormat, "  DoneKillGC ");
+            break;
 
-    // Block boundaries
-    case LSRA_EVENT_START_BB:
-        assert(currentBlock != nullptr);
-        if (!dumpTerse)
-        {
-            printf("\n\n  Live Vars(Regs) at start of BB%02u (from pred BB%02u):", currentBlock->bbNum, blockInfo[currentBlock->bbNum].predBBNum);
-            dumpVarToRegMap(inVarToRegMaps[currentBlock->bbNum]);
-        }
-        break;
-    case LSRA_EVENT_END_BB:
-        if (!dumpTerse)
-        {
-            printf("\n\n  Live Vars(Regs) after BB%02u:", currentBlock->bbNum);
-            dumpVarToRegMap(outVarToRegMaps[currentBlock->bbNum]);
-        }
-        break;
+        // Block boundaries
+        case LSRA_EVENT_START_BB:
+            assert(currentBlock != nullptr);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
+            break;
 
-    case LSRA_EVENT_FREE_REGS:
-        if (!dumpTerse)
-        {
-            printf("Freeing registers:\n");
-        }
-        break;
-
-    // Characteristics of the current RefPosition
-    case LSRA_EVENT_INCREMENT_RANGE_END:
-        if (!dumpTerse)
-        {
-            printf("  Incrementing nextPhysRegLocation for %s\n",  getRegName(reg));
-        }
-        // else ???
-        break;
-    case LSRA_EVENT_LAST_USE:
-        if (!dumpTerse)
-        {
-            printf("    Last use, marked to be freed\n");
-        }
-        break;
-    case LSRA_EVENT_LAST_USE_DELAYED:
-        if (!dumpTerse)
-        {
-            printf("    Last use, marked to be freed (delayed)\n");
-        }
-        break;
-    case LSRA_EVENT_NEEDS_NEW_REG:
-        if (!dumpTerse)
-        {
-            printf("    Needs new register; mark %s to be freed\n", getRegName(reg));
-        }
-        else
-        {
+        // Allocation decisions
+        case LSRA_EVENT_NEEDS_NEW_REG:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Free  %-4s ", getRegName(reg));
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
+            break;
 
-    // Allocation decisions
-    case LSRA_EVENT_FIXED_REG:
-    case LSRA_EVENT_EXP_USE:
-        if (!dumpTerse)
-        {
-            printf("No allocation\n");
-        }
-        else
-        {
-            printf("Keep  %-4s ", getRegName(reg));
-        }
-        break;       
-    case LSRA_EVENT_ZERO_REF:
-        assert(interval != nullptr && interval->isLocalVar);
-        if (!dumpTerse)
-        {
-            printf("Marking V%02u as last use there are no actual references\n", interval->varNum);
-        }
-        else
-        {
+        case LSRA_EVENT_ZERO_REF:
+            assert(interval != nullptr && interval->isLocalVar);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("NoRef      ");
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_KEPT_ALLOCATION:
-        if (!dumpTerse)
-        {
-            printf("already allocated %4s\n", getRegName(reg));
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_FIXED_REG:
+        case LSRA_EVENT_EXP_USE:
+        case LSRA_EVENT_KEPT_ALLOCATION:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Keep  %-4s ", getRegName(reg));
-        }
-        break;
-    case LSRA_EVENT_COPY_REG:
-        assert(interval != nullptr && interval->recentRefPosition != nullptr);
-        if (!dumpTerse)
-        {
-            printf("allocated %s as copyReg\n\n", getRegName(reg));
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_COPY_REG:
+            assert(interval != nullptr && interval->recentRefPosition != nullptr);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Copy  %-4s ", getRegName(reg));
-        }
-        break;
-    case LSRA_EVENT_MOVE_REG:
-        assert(interval != nullptr && interval->recentRefPosition != nullptr);
-        if (!dumpTerse)
-        {
-            printf("  needs a new register; marked as moveReg\n");
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_MOVE_REG:
+            assert(interval != nullptr && interval->recentRefPosition != nullptr);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Move  %-4s ", getRegName(reg));
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_ALLOC_REG:
-        if (!dumpTerse)
-        {
-            printf("allocated %s\n", getRegName(reg));
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_ALLOC_REG:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Alloc %-4s ", getRegName(reg));
-        }
-        break;
-    case LSRA_EVENT_REUSE_REG:
-        if (!dumpTerse)
-        {
-            printf("reused constant in %s\n", getRegName(reg));
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_REUSE_REG:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Reuse %-4s ", getRegName(reg));
-        }
-        break;
-    case LSRA_EVENT_ALLOC_SPILLED_REG:
-        if (!dumpTerse)
-        {
-            printf("allocated spilled register %s\n", getRegName(reg));
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_ALLOC_SPILLED_REG:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("Steal %-4s ", getRegName(reg));
-        }
-        break;
-    case LSRA_EVENT_NO_ENTRY_REG_ALLOCATED:
-        assert(interval != nullptr && interval->isLocalVar);
-        if (!dumpTerse)
-        {
-            printf("Not allocating an entry register for V%02u due to low ref count\n", interval->varNum);
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_NO_ENTRY_REG_ALLOCATED:
+            assert(interval != nullptr && interval->isLocalVar);
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("LoRef      ");
-        }
-        break;
-    case LSRA_EVENT_NO_REG_ALLOCATED:
-        if (!dumpTerse)
-        {
-            printf("no register allocated\n");
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_NO_REG_ALLOCATED:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("NoReg      ");
-        }
-        break;
-    case LSRA_EVENT_RELOAD:
-        if (!dumpTerse)
-        {
-            printf("    Marked for reload\n");
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_RELOAD:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("ReLod %-4s ", getRegName(reg));
             dumpRegRecords();
-            dumpEmptyRefPosition();
-        }
-        break;
-    case LSRA_EVENT_SPECIAL_PUTARG:
-        if (!dumpTerse)
-        {
-            printf("    Special case of putArg - using lclVar that's in the expected reg\n");
-        }
-        else
-        {
+            break;
+
+        case LSRA_EVENT_SPECIAL_PUTARG:
+            dumpRefPositionShort(activeRefPosition, currentBlock);
             printf("PtArg %-4s ", getRegName(reg));
-        }
-        break;
-    default:
-        break;
+            break;
+
+        // We currently don't dump anything for these events.
+        case LSRA_EVENT_DEFUSE_FIXED_DELAY_USE:
+        case LSRA_EVENT_SPILL_EXTENDED_LIFETIME:
+        case LSRA_EVENT_END_BB:
+        case LSRA_EVENT_FREE_REGS:
+        case LSRA_EVENT_INCREMENT_RANGE_END:
+        case LSRA_EVENT_LAST_USE:
+        case LSRA_EVENT_LAST_USE_DELAYED:
+            break;
+
+        default:
+            unreached();
     }
 }
 
@@ -9865,9 +9388,8 @@ LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event, Interval* interval, reg
 //      intervals, as Vnn for lclVar intervals, or as I<num> for other intervals.
 //    The table is indented by the amount needed for dumpRefPositionShort, which is
 //    captured in shortRefPositionDumpWidth.
-//      
-void
-LinearScan::dumpRegRecordHeader()
+//
+void LinearScan::dumpRegRecordHeader()
 {
     printf("The following table has one or more rows for each RefPosition that is handled during allocation.\n"
            "The first column provides the basic information about the RefPosition, with its type (e.g. Def,\n"
@@ -9880,7 +9402,7 @@ LinearScan::dumpRegRecordHeader()
 
     // First, determine the width of each register column (which holds a reg name in the
     // header, and an interval name in each subsequent row).
-    int intervalNumberWidth = (int)log10((double)intervalCount) + 1;
+    int intervalNumberWidth = (int)log10((double)intervals.size()) + 1;
     // The regColumnWidth includes the identifying character (I or V) and an 'i' or 'a' (inactive or active)
     regColumnWidth = intervalNumberWidth + 2;
     if (regColumnWidth < 4)
@@ -9901,15 +9423,16 @@ LinearScan::dumpRegRecordHeader()
     //    l is either '*' (if a last use) or ' ' (otherwise)
     //    d is either 'D' (if a delayed use) or ' ' (otherwise)
 
-    maxNodeLocation = (maxNodeLocation == 0) ? 1: maxNodeLocation;  // corner case of a method with an infinite loop without any gentree nodes
+    maxNodeLocation = (maxNodeLocation == 0)
+                          ? 1
+                          : maxNodeLocation; // corner case of a method with an infinite loop without any gentree nodes
     assert(maxNodeLocation >= 1);
-    assert(refPositionCount >= 1);
-    int nodeLocationWidth = (int)log10((double)maxNodeLocation) + 1;
-    int refPositionWidth  = (int)log10((double)refPositionCount) + 1;
-    int refTypeInfoWidth = 4 /*TYPE*/ + 2 /* last-use and delayed */ + 1 /* space */;
-    int locationAndRPNumWidth = nodeLocationWidth + 2 /* .# */ + refPositionWidth + 1 /* space */;
-    int shortRefPositionDumpWidth = locationAndRPNumWidth +
-                                    regColumnWidth + 1 /* space */ + refTypeInfoWidth;
+    assert(refPositions.size() >= 1);
+    int nodeLocationWidth         = (int)log10((double)maxNodeLocation) + 1;
+    int refPositionWidth          = (int)log10((double)refPositions.size()) + 1;
+    int refTypeInfoWidth          = 4 /*TYPE*/ + 2 /* last-use and delayed */ + 1 /* space */;
+    int locationAndRPNumWidth     = nodeLocationWidth + 2 /* .# */ + refPositionWidth + 1 /* space */;
+    int shortRefPositionDumpWidth = locationAndRPNumWidth + regColumnWidth + 1 /* space */ + refTypeInfoWidth;
     sprintf_s(shortRefPositionFormat, MAX_FORMAT_CHARS, "%%%dd.#%%-%dd ", nodeLocationWidth, refPositionWidth);
     sprintf_s(emptyRefPositionFormat, MAX_FORMAT_CHARS, "%%-%ds", shortRefPositionDumpWidth);
 
@@ -9928,7 +9451,7 @@ LinearScan::dumpRegRecordHeader()
 
     // BBnn printed left-justified in the NAME Typeld and allocationInfo space.
     int bbDumpWidth = regColumnWidth + 1 + refTypeInfoWidth + allocationInfoWidth;
-    int bbNumWidth = (int)log10((double)compiler->fgBBNumMax) + 1;
+    int bbNumWidth  = (int)log10((double)compiler->fgBBNumMax) + 1;
     // In the unlikely event that BB numbers overflow the space, we'll simply omit the predBB
     int predBBNumDumpSpace = regTableIndent - locationAndRPNumWidth - bbNumWidth - 9; // 'BB' + ' PredBB'
     if (predBBNumDumpSpace < bbNumWidth)
@@ -9940,68 +9463,72 @@ LinearScan::dumpRegRecordHeader()
         sprintf_s(bbRefPosFormat, MAX_LEGEND_FORMAT_CHARS, "BB%%-%dd PredBB%%-%dd", bbNumWidth, predBBNumDumpSpace);
     }
 
-
     if (compiler->shouldDumpASCIITrees())
     {
         columnSeparator = "|";
-        line = "-";
-        leftBox = "+";
-        middleBox = "+";
-        rightBox = "+";
+        line            = "-";
+        leftBox         = "+";
+        middleBox       = "+";
+        rightBox        = "+";
     }
     else
     {
         columnSeparator = "\xe2\x94\x82";
-        line = "\xe2\x94\x80";
-        leftBox = "\xe2\x94\x9c";
-        middleBox = "\xe2\x94\xbc";
-        rightBox = "\xe2\x94\xa4";
+        line            = "\xe2\x94\x80";
+        leftBox         = "\xe2\x94\x9c";
+        middleBox       = "\xe2\x94\xbc";
+        rightBox        = "\xe2\x94\xa4";
     }
     sprintf_s(indentFormat, MAX_FORMAT_CHARS, "%%-%ds", regTableIndent);
 
     // Now, set up the legend format for the RefPosition info
-    sprintf_s(legendFormat, MAX_LEGEND_FORMAT_CHARS, "%%-%d.%ds%%-%d.%ds%%-%ds%%s", nodeLocationWidth+1, nodeLocationWidth+1, refPositionWidth+2, refPositionWidth+2, regColumnWidth+1);
+    sprintf_s(legendFormat, MAX_LEGEND_FORMAT_CHARS, "%%-%d.%ds%%-%d.%ds%%-%ds%%s", nodeLocationWidth + 1,
+              nodeLocationWidth + 1, refPositionWidth + 2, refPositionWidth + 2, regColumnWidth + 1);
 
-    // Finally, print a "title row" including the legend and the reg names
-    dumpRegRecordTitle();
+    // Print a "title row" including the legend and the reg names.
+    lastDumpedRegisters = RBM_NONE;
+    dumpRegRecordTitleIfNeeded();
 }
 
-int
-LinearScan::getLastUsedRegNumIndex()
+void LinearScan::dumpRegRecordTitleIfNeeded()
 {
-    int lastUsedRegNumIndex = 0;
-    regMaskTP usedRegsMask = compiler->codeGen->regSet.rsGetModifiedRegsMask();
-    int lastRegNumIndex = compiler->compFloatingPointUsed ? REG_FP_LAST : REG_INT_LAST;
-    for( int regNumIndex = 0; regNumIndex <= lastRegNumIndex; regNumIndex++)
+    if ((lastDumpedRegisters != registersToDump) || (rowCountSinceLastTitle > MAX_ROWS_BETWEEN_TITLES))
     {
-        if ((usedRegsMask & genRegMask((regNumber)regNumIndex)) != 0)
+        lastUsedRegNumIndex = 0;
+        int lastRegNumIndex = compiler->compFloatingPointUsed ? REG_FP_LAST : REG_INT_LAST;
+        for (int regNumIndex = 0; regNumIndex <= lastRegNumIndex; regNumIndex++)
         {
-            lastUsedRegNumIndex = regNumIndex;
+            if ((registersToDump & genRegMask((regNumber)regNumIndex)) != 0)
+            {
+                lastUsedRegNumIndex = regNumIndex;
+            }
         }
+        dumpRegRecordTitle();
+        lastDumpedRegisters = registersToDump;
     }
-    return lastUsedRegNumIndex;
 }
 
-void
-LinearScan::dumpRegRecordTitleLines()
+void LinearScan::dumpRegRecordTitleLines()
 {
-    for( int i = 0; i < regTableIndent; i++)
+    for (int i = 0; i < regTableIndent; i++)
     {
         printf("%s", line);
     }
-    int lastUsedRegNumIndex = getLastUsedRegNumIndex();
-    for( int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
+    for (int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
     {
-        printf("%s", middleBox);
-        for (int i = 0; i < regColumnWidth; i++)
+        regNumber regNum = (regNumber)regNumIndex;
+        if (shouldDumpReg(regNum))
         {
-            printf("%s", line);
+            printf("%s", middleBox);
+            for (int i = 0; i < regColumnWidth; i++)
+            {
+                printf("%s", line);
+            }
         }
     }
     printf("%s\n", rightBox);
 }
-void
-LinearScan::dumpRegRecordTitle()
+void LinearScan::dumpRegRecordTitle()
 {
     dumpRegRecordTitleLines();
 
@@ -10011,12 +9538,14 @@ LinearScan::dumpRegRecordTitle()
     // Print out the register name column headers
     char columnFormatArray[MAX_FORMAT_CHARS];
     sprintf_s(columnFormatArray, MAX_FORMAT_CHARS, "%s%%-%d.%ds", columnSeparator, regColumnWidth, regColumnWidth);
-    int lastUsedRegNumIndex = getLastUsedRegNumIndex();
-    for( int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
+    for (int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
     {
         regNumber regNum = (regNumber)regNumIndex;
-        const char* regName = getRegName(regNum);
-        printf(columnFormatArray, regName);
+        if (shouldDumpReg(regNum))
+        {
+            const char* regName = getRegName(regNum);
+            printf(columnFormatArray, regName);
+        }
     }
     printf("%s\n", columnSeparator);
 
@@ -10025,79 +9554,71 @@ LinearScan::dumpRegRecordTitle()
     dumpRegRecordTitleLines();
 }
 
-void
-LinearScan::dumpRegRecords()
+void LinearScan::dumpRegRecords()
 {
     static char columnFormatArray[18];
-    int lastUsedRegNumIndex = getLastUsedRegNumIndex();
-    regMaskTP usedRegsMask = compiler->codeGen->regSet.rsGetModifiedRegsMask();
-    
-    for( int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
+
+    for (int regNumIndex = 0; regNumIndex <= lastUsedRegNumIndex; regNumIndex++)
     {
-        printf("%s", columnSeparator);
-        RegRecord& regRecord = physRegs[regNumIndex];
-        Interval* interval = regRecord.assignedInterval;
-        if (interval != nullptr)
+        if (shouldDumpReg((regNumber)regNumIndex))
         {
-            dumpIntervalName(interval);
-            char activeChar = interval->isActive ? 'a' : 'i';
-            printf("%c", activeChar);
-        }
-        else if (regRecord.isBusyUntilNextKill)
-        {
-            printf(columnFormatArray, "Busy");
-        }
-        else if ((usedRegsMask & genRegMask((regNumber)regNumIndex)) == 0)
-        {
-            sprintf_s(columnFormatArray, MAX_FORMAT_CHARS, "%%-%ds", regColumnWidth);
-            printf(columnFormatArray, "----");
-        }
-        else
-        {
-            sprintf_s(columnFormatArray, MAX_FORMAT_CHARS, "%%-%ds", regColumnWidth);
-            printf(columnFormatArray, "");
+            printf("%s", columnSeparator);
+            RegRecord& regRecord = physRegs[regNumIndex];
+            Interval*  interval  = regRecord.assignedInterval;
+            if (interval != nullptr)
+            {
+                dumpIntervalName(interval);
+                char activeChar = interval->isActive ? 'a' : 'i';
+                printf("%c", activeChar);
+            }
+            else if (regRecord.isBusyUntilNextKill)
+            {
+                printf(columnFormatArray, "Busy");
+            }
+            else
+            {
+                sprintf_s(columnFormatArray, MAX_FORMAT_CHARS, "%%-%ds", regColumnWidth);
+                printf(columnFormatArray, "");
+            }
         }
     }
     printf("%s\n", columnSeparator);
-
-    if (rowCountSinceLastTitle > MAX_ROWS_BETWEEN_TITLES)
-    {
-        dumpRegRecordTitle();
-    }
     rowCountSinceLastTitle++;
 }
 
-void
-LinearScan::dumpIntervalName(Interval* interval)
+void LinearScan::dumpIntervalName(Interval* interval)
 {
-    char intervalChar;
     if (interval->isLocalVar)
     {
-        intervalChar = 'V';
+        printf(intervalNameFormat, 'V', interval->varNum);
     }
     else if (interval->isConstant)
     {
-        intervalChar = 'C';
+        printf(intervalNameFormat, 'C', interval->intervalIndex);
     }
     else
     {
-        intervalChar = 'I';
+        printf(intervalNameFormat, 'I', interval->intervalIndex);
     }
-    printf(intervalNameFormat, intervalChar, interval->intervalIndex);
 }
 
-void
-LinearScan::dumpEmptyRefPosition()
+void LinearScan::dumpEmptyRefPosition()
 {
     printf(emptyRefPositionFormat, "");
 }
 
 // Note that the size of this dump is computed in dumpRegRecordHeader().
 //
-void
-LinearScan::dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBlock)
+void LinearScan::dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBlock)
 {
-    BasicBlock* block = currentBlock;
+    BasicBlock*         block                  = currentBlock;
+    static RefPosition* lastPrintedRefPosition = nullptr;
+    if (refPosition == lastPrintedRefPosition)
+    {
+        dumpEmptyRefPosition();
+        return;
+    }
+    lastPrintedRefPosition = refPosition;
     if (refPosition->refType == RefTypeBB)
     {
         // Always print a title row before a RefTypeBB (except for the first, because we
@@ -10135,20 +9656,80 @@ LinearScan::dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBl
                 delayChar = 'D';
             }
         }
-        printf("  %s%c%c ", shortRefTypeNames[refPosition->refType], lastUseChar, delayChar);
+        printf("  %s%c%c ", getRefTypeShortName(refPosition->refType), lastUseChar, delayChar);
     }
     else if (refPosition->isPhysRegRef)
     {
         RegRecord* regRecord = refPosition->getReg();
         printf(regNameFormat, getRegName(regRecord->regNum));
-        printf(" %s   ", shortRefTypeNames[refPosition->refType]);
+        printf(" %s   ", getRefTypeShortName(refPosition->refType));
     }
     else
     {
         assert(refPosition->refType == RefTypeKillGCRefs);
         // There's no interval or reg name associated with this.
         printf(regNameFormat, "   ");
-        printf(" %s   ", shortRefTypeNames[refPosition->refType]);
+        printf(" %s   ", getRefTypeShortName(refPosition->refType));
+    }
+}
+
+//------------------------------------------------------------------------
+// LinearScan::IsResolutionMove:
+//     Returns true if the given node is a move inserted by LSRA
+//     resolution.
+//
+// Arguments:
+//     node - the node to check.
+//
+bool LinearScan::IsResolutionMove(GenTree* node)
+{
+    if (!IsLsraAdded(node))
+    {
+        return false;
+    }
+
+    switch (node->OperGet())
+    {
+        case GT_LCL_VAR:
+        case GT_COPY:
+            return node->IsUnusedValue();
+
+        case GT_SWAP:
+            return true;
+
+        default:
+            return false;
+    }
+}
+
+//------------------------------------------------------------------------
+// LinearScan::IsResolutionNode:
+//     Returns true if the given node is either a move inserted by LSRA
+//     resolution or an operand to such a move.
+//
+// Arguments:
+//     containingRange - the range that contains the node to check.
+//     node - the node to check.
+//
+bool LinearScan::IsResolutionNode(LIR::Range& containingRange, GenTree* node)
+{
+    for (;;)
+    {
+        if (IsResolutionMove(node))
+        {
+            return true;
+        }
+
+        if (!IsLsraAdded(node) || (node->OperGet() != GT_LCL_VAR))
+        {
+            return false;
+        }
+
+        LIR::Use use;
+        bool     foundUse = containingRange.TryGetUse(node, &use);
+        assert(foundUse);
+
+        node = use.User();
     }
 }
 
@@ -10163,8 +9744,7 @@ LinearScan::dumpRefPositionShort(RefPosition* refPosition, BasicBlock* currentBl
 //
 // Notes:
 //    If verbose is set, this will also dump a table of the final allocations.
-void
-LinearScan::verifyFinalAllocation()
+void LinearScan::verifyFinalAllocation()
 {
     if (VERBOSE)
     {
@@ -10174,59 +9754,58 @@ LinearScan::verifyFinalAllocation()
     // Clear register assignments.
     for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
     {
-        RegRecord * physRegRecord = getRegisterRecord(reg);
+        RegRecord* physRegRecord        = getRegisterRecord(reg);
         physRegRecord->assignedInterval = nullptr;
     }
 
-    for (auto& interval : intervals)
+    for (Interval& interval : intervals)
     {
         interval.assignedReg = nullptr;
-        interval.physReg = REG_NA;
+        interval.physReg     = REG_NA;
     }
 
     DBEXEC(VERBOSE, dumpRegRecordTitle());
 
-    BasicBlock* currentBlock = nullptr;
-    GenTreeStmt* firstBlockEndResolutionStmt = nullptr;
-    regMaskTP regsToFree = RBM_NONE;
-    regMaskTP delayRegsToFree = RBM_NONE;
-    LsraLocation currentLocation = MinLocation;
-    for (auto& refPosition : refPositions)
+    BasicBlock*  currentBlock                = nullptr;
+    GenTree*     firstBlockEndResolutionNode = nullptr;
+    regMaskTP    regsToFree                  = RBM_NONE;
+    regMaskTP    delayRegsToFree             = RBM_NONE;
+    LsraLocation currentLocation             = MinLocation;
+    for (RefPosition& refPosition : refPositions)
     {
         RefPosition* currentRefPosition = &refPosition;
-        Interval* interval = nullptr;
-        RegRecord* regRecord = nullptr;
-        regNumber regNum = REG_NA;
+        Interval*    interval           = nullptr;
+        RegRecord*   regRecord          = nullptr;
+        regNumber    regNum             = REG_NA;
+        activeRefPosition               = currentRefPosition;
+
         if (currentRefPosition->refType == RefTypeBB)
         {
             regsToFree |= delayRegsToFree;
             delayRegsToFree = RBM_NONE;
-            // For BB RefPositions, wait until we dump the "end of block" info before dumping the basic RefPosition info.
         }
         else
         {
-            // For other RefPosition types, we can dump the basic RefPosition info now.
-            DBEXEC(VERBOSE, dumpRefPositionShort(currentRefPosition, currentBlock));
-
             if (currentRefPosition->isPhysRegRef)
             {
-                regRecord = currentRefPosition->getReg();
+                regRecord                    = currentRefPosition->getReg();
                 regRecord->recentRefPosition = currentRefPosition;
-                regNum = regRecord->regNum;
+                regNum                       = regRecord->regNum;
             }
             else if (currentRefPosition->isIntervalRef())
             {
-                interval = currentRefPosition->getInterval();
+                interval                    = currentRefPosition->getInterval();
                 interval->recentRefPosition = currentRefPosition;
                 if (currentRefPosition->registerAssignment != RBM_NONE)
                 {
                     if (!genMaxOneBit(currentRefPosition->registerAssignment))
                     {
-                        assert(currentRefPosition->refType == RefTypeExpUse || currentRefPosition->refType == RefTypeDummyDef);
+                        assert(currentRefPosition->refType == RefTypeExpUse ||
+                               currentRefPosition->refType == RefTypeDummyDef);
                     }
                     else
                     {
-                        regNum = currentRefPosition->assignedReg();
+                        regNum    = currentRefPosition->assignedReg();
                         regRecord = getRegisterRecord(regNum);
                     }
                 }
@@ -10244,18 +9823,18 @@ LinearScan::verifyFinalAllocation()
                 regMaskTP regMask = genRegMask(reg);
                 if ((regsToFree & regMask) != RBM_NONE)
                 {
-                    RegRecord * physRegRecord = getRegisterRecord(reg);
+                    RegRecord* physRegRecord        = getRegisterRecord(reg);
                     physRegRecord->assignedInterval = nullptr;
                 }
             }
-            regsToFree= delayRegsToFree;
+            regsToFree = delayRegsToFree;
             regsToFree = RBM_NONE;
         }
         currentLocation = newLocation;
 
-        switch(currentRefPosition->refType)
+        switch (currentRefPosition->refType)
         {
-        case RefTypeBB:
+            case RefTypeBB:
             {
                 if (currentBlock == nullptr)
                 {
@@ -10264,29 +9843,43 @@ LinearScan::verifyFinalAllocation()
                 else
                 {
                     // Verify the resolution moves at the end of the previous block.
-                    for (GenTreeStmt* stmt = firstBlockEndResolutionStmt; stmt != nullptr; stmt = stmt->getNextStmt())
+                    for (GenTree* node = firstBlockEndResolutionNode; node != nullptr; node = node->gtNext)
                     {
-                        verifyResolutionMove(stmt, currentLocation);
+                        assert(enregisterLocalVars);
+                        // Only verify nodes that are actually moves; don't bother with the nodes that are
+                        // operands to moves.
+                        if (IsResolutionMove(node))
+                        {
+                            verifyResolutionMove(node, currentLocation);
+                        }
                     }
 
                     // Validate the locations at the end of the previous block.
-                    VarToRegMap outVarToRegMap = outVarToRegMaps[currentBlock->bbNum];
-                    VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
-                    while (iter.NextElem(compiler, &varIndex))
+                    if (enregisterLocalVars)
                     {
-                        unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-                        regNumber            regNum = getVarReg(outVarToRegMap, varNum);
-                        interval = getIntervalForLocalVar(varNum);
-                        assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
-                        interval->physReg = REG_NA;
-                        interval->assignedReg = nullptr;
-                        interval->isActive = false;
+                        VarToRegMap     outVarToRegMap = outVarToRegMaps[currentBlock->bbNum];
+                        VarSetOps::Iter iter(compiler, currentBlock->bbLiveOut);
+                        unsigned        varIndex = 0;
+                        while (iter.NextElem(&varIndex))
+                        {
+                            if (localVarIntervals[varIndex] == nullptr)
+                            {
+                                assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
+                                continue;
+                            }
+                            regNumber regNum = getVarReg(outVarToRegMap, varIndex);
+                            interval         = getIntervalForLocalVar(varIndex);
+                            assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
+                            interval->physReg     = REG_NA;
+                            interval->assignedReg = nullptr;
+                            interval->isActive    = false;
+                        }
                     }
 
                     // Clear register assignments.
                     for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
                     {
-                        RegRecord * physRegRecord = getRegisterRecord(reg);
+                        RegRecord* physRegRecord        = getRegisterRecord(reg);
                         physRegRecord->assignedInterval = nullptr;
                     }
 
@@ -10296,17 +9889,25 @@ LinearScan::verifyFinalAllocation()
 
                 if (currentBlock != nullptr)
                 {
-                    VarToRegMap inVarToRegMap = inVarToRegMaps[currentBlock->bbNum];
-                    VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
-                    while (iter.NextElem(compiler, &varIndex))
+                    if (enregisterLocalVars)
                     {
-                        unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-                        regNumber            regNum = getVarReg(inVarToRegMap, varNum);
-                        interval = getIntervalForLocalVar(varNum);
-                        interval->physReg = regNum;
-                        interval->assignedReg = &(physRegs[regNum]);
-                        interval->isActive = true;
-                        physRegs[regNum].assignedInterval = interval;
+                        VarToRegMap     inVarToRegMap = inVarToRegMaps[currentBlock->bbNum];
+                        VarSetOps::Iter iter(compiler, currentBlock->bbLiveIn);
+                        unsigned        varIndex = 0;
+                        while (iter.NextElem(&varIndex))
+                        {
+                            if (localVarIntervals[varIndex] == nullptr)
+                            {
+                                assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
+                                continue;
+                            }
+                            regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
+                            interval                          = getIntervalForLocalVar(varIndex);
+                            interval->physReg                 = regNum;
+                            interval->assignedReg             = &(physRegs[regNum]);
+                            interval->isActive                = true;
+                            physRegs[regNum].assignedInterval = interval;
+                        }
                     }
 
                     if (VERBOSE)
@@ -10316,33 +9917,30 @@ LinearScan::verifyFinalAllocation()
                     }
 
                     // Finally, handle the resolution moves, if any, at the beginning of the next block.
-                    firstBlockEndResolutionStmt = nullptr;
-                    bool foundNonResolutionStmt = false;
-                    if (currentBlock != nullptr)
+                    firstBlockEndResolutionNode = nullptr;
+                    bool foundNonResolutionNode = false;
+
+                    LIR::Range& currentBlockRange = LIR::AsRange(currentBlock);
+                    for (GenTree* node : currentBlockRange.NonPhiNodes())
                     {
-                        for (GenTreeStmt* stmt = currentBlock->FirstNonPhiDef();
-                                stmt != nullptr && firstBlockEndResolutionStmt == nullptr;
-                                stmt = stmt->getNextStmt())
+                        if (IsResolutionNode(currentBlockRange, node))
                         {
-                            if (stmt->gtStmtExpr->gtLsraInfo.isLsraAdded
-#ifdef FEATURE_SIMD
-                                && stmt->gtStmtExpr->OperGet() != GT_SIMD
-#endif // FEATURE_SIMD
-                                )
+                            assert(enregisterLocalVars);
+                            if (foundNonResolutionNode)
                             {
-                                if (foundNonResolutionStmt)
-                                {
-                                    firstBlockEndResolutionStmt = stmt;
-                                }
-                                else
-                                {
-                                    verifyResolutionMove(stmt, currentLocation);
-                                }
+                                firstBlockEndResolutionNode = node;
+                                break;
                             }
-                            else
+                            else if (IsResolutionMove(node))
                             {
-                                foundNonResolutionStmt = true;
+                                // Only verify nodes that are actually moves; don't bother with the nodes that are
+                                // operands to moves.
+                                verifyResolutionMove(node, currentLocation);
                             }
+                        }
+                        else
+                        {
+                            foundNonResolutionNode = true;
                         }
                     }
                 }
@@ -10350,135 +9948,141 @@ LinearScan::verifyFinalAllocation()
 
             break;
 
-        case RefTypeKill:
-            assert(regRecord != nullptr);
-            assert(regRecord->assignedInterval == nullptr);
-            dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
-            break;
-        case RefTypeFixedReg:
-            assert(regRecord != nullptr);
-            dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
-            break;
-
-        case RefTypeUpperVectorSaveDef:
-        case RefTypeUpperVectorSaveUse:
-        case RefTypeDef:
-        case RefTypeUse:
-        case RefTypeParamDef:
-        case RefTypeZeroInit:
-            assert(interval != nullptr);
-
-            if (interval->isSpecialPutArg)
-            {
-                dumpLsraAllocationEvent(LSRA_EVENT_SPECIAL_PUTARG, interval, regNum);
-                break;
-            }
-            if (currentRefPosition->reload)
-            {
-                interval->isActive = true;
-                assert(regNum != REG_NA);
-                interval->physReg = regNum;
-                interval->assignedReg = regRecord;
-                regRecord->assignedInterval = interval;
-                dumpLsraAllocationEvent(LSRA_EVENT_RELOAD, nullptr, regRecord->regNum, currentBlock);
-            }
-            if (regNum == REG_NA)
-            {
-                dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, interval);
-            }
-            else if (RefTypeIsDef(currentRefPosition->refType))
-            {
-                interval->isActive = true;
-                if (VERBOSE)
-                {
-                    if (interval->isConstant &&
-                        (currentRefPosition->treeNode != nullptr) &&
-                        currentRefPosition->treeNode->IsReuseRegVal())
-                    {
-                        dumpLsraAllocationEvent(LSRA_EVENT_REUSE_REG, nullptr, regRecord->regNum, currentBlock);
-                    }
-                    else
-                    {
-                        dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, nullptr, regRecord->regNum, currentBlock);
-                    }
-                }
-            }
-            else if (currentRefPosition->copyReg)
-            {
-                dumpLsraAllocationEvent(LSRA_EVENT_COPY_REG, interval, regRecord->regNum, currentBlock);
-            }
-            else if (currentRefPosition->moveReg)
-            {
-                assert(interval->assignedReg != nullptr);
-                interval->assignedReg->assignedInterval = nullptr;
-                interval->physReg = regNum;
-                interval->assignedReg = regRecord;
-                regRecord->assignedInterval = interval;
-                if (VERBOSE)
-                {
-                    printf("Move  %-4s ", getRegName(regRecord->regNum));
-                }
-            }
-            else
-            {
+            case RefTypeKill:
+                assert(regRecord != nullptr);
+                assert(regRecord->assignedInterval == nullptr);
                 dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
-            }
-            if (currentRefPosition->lastUse || currentRefPosition->spillAfter)
-            {
-                interval->isActive = false;
-            }
-            if (regNum != REG_NA)
-            {
-                if (currentRefPosition->spillAfter)
+                break;
+            case RefTypeFixedReg:
+                assert(regRecord != nullptr);
+                dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
+                break;
+
+            case RefTypeUpperVectorSaveDef:
+            case RefTypeUpperVectorSaveUse:
+            case RefTypeDef:
+            case RefTypeUse:
+            case RefTypeParamDef:
+            case RefTypeZeroInit:
+                assert(interval != nullptr);
+
+                if (interval->isSpecialPutArg)
                 {
+                    dumpLsraAllocationEvent(LSRA_EVENT_SPECIAL_PUTARG, interval, regNum);
+                    break;
+                }
+                if (currentRefPosition->reload)
+                {
+                    interval->isActive = true;
+                    assert(regNum != REG_NA);
+                    interval->physReg           = regNum;
+                    interval->assignedReg       = regRecord;
+                    regRecord->assignedInterval = interval;
+                    dumpLsraAllocationEvent(LSRA_EVENT_RELOAD, nullptr, regRecord->regNum, currentBlock);
+                }
+                if (regNum == REG_NA)
+                {
+                    dumpLsraAllocationEvent(LSRA_EVENT_NO_REG_ALLOCATED, interval);
+                }
+                else if (RefTypeIsDef(currentRefPosition->refType))
+                {
+                    interval->isActive = true;
                     if (VERBOSE)
                     {
-                        dumpRegRecords();
-                        dumpEmptyRefPosition();
-                        printf("Spill %-4s ", getRegName(regNum));
+                        if (interval->isConstant && (currentRefPosition->treeNode != nullptr) &&
+                            currentRefPosition->treeNode->IsReuseRegVal())
+                        {
+                            dumpLsraAllocationEvent(LSRA_EVENT_REUSE_REG, nullptr, regRecord->regNum, currentBlock);
+                        }
+                        else
+                        {
+                            dumpLsraAllocationEvent(LSRA_EVENT_ALLOC_REG, nullptr, regRecord->regNum, currentBlock);
+                        }
                     }
                 }
                 else if (currentRefPosition->copyReg)
                 {
-                    regRecord->assignedInterval = interval;
+                    dumpLsraAllocationEvent(LSRA_EVENT_COPY_REG, interval, regRecord->regNum, currentBlock);
+                }
+                else if (currentRefPosition->moveReg)
+                {
+                    assert(interval->assignedReg != nullptr);
+                    interval->assignedReg->assignedInterval = nullptr;
+                    interval->physReg                       = regNum;
+                    interval->assignedReg                   = regRecord;
+                    regRecord->assignedInterval             = interval;
+                    if (VERBOSE)
+                    {
+                        printf("Move  %-4s ", getRegName(regRecord->regNum));
+                    }
                 }
                 else
                 {
-                    interval->physReg = regNum;
-                    interval->assignedReg = regRecord;
-                    regRecord->assignedInterval = interval;
+                    dumpLsraAllocationEvent(LSRA_EVENT_KEPT_ALLOCATION, nullptr, regRecord->regNum, currentBlock);
                 }
-            }
-            break;
-        case RefTypeKillGCRefs:
-            // No action to take.
-            // However, we will assert that, at resolution time, no registers contain GC refs.
-            {
-                DBEXEC(VERBOSE, printf("           "));
-                regMaskTP candidateRegs = currentRefPosition->registerAssignment;
-                while (candidateRegs != RBM_NONE)
+                if (currentRefPosition->lastUse || currentRefPosition->spillAfter)
                 {
-                    regMaskTP nextRegBit = genFindLowestBit(candidateRegs);
-                    candidateRegs &= ~nextRegBit;
-                    regNumber nextReg = genRegNumFromMask(nextRegBit);
-                    RegRecord* regRecord = getRegisterRecord(nextReg);
-                    Interval* assignedInterval = regRecord->assignedInterval;
-                    assert (assignedInterval == nullptr ||
-                            !varTypeIsGC(assignedInterval->registerType));
+                    interval->isActive = false;
                 }
-            }
-            break;
+                if (regNum != REG_NA)
+                {
+                    if (currentRefPosition->spillAfter)
+                    {
+                        if (VERBOSE)
+                        {
+                            // If refPos is marked as copyReg, then the reg that is spilled
+                            // is the homeReg of the interval not the reg currently assigned
+                            // to refPos.
+                            regNumber spillReg = regNum;
+                            if (currentRefPosition->copyReg)
+                            {
+                                assert(interval != nullptr);
+                                spillReg = interval->physReg;
+                            }
+                            dumpRegRecords();
+                            dumpEmptyRefPosition();
+                            printf("Spill %-4s ", getRegName(spillReg));
+                        }
+                    }
+                    else if (currentRefPosition->copyReg)
+                    {
+                        regRecord->assignedInterval = interval;
+                    }
+                    else
+                    {
+                        interval->physReg           = regNum;
+                        interval->assignedReg       = regRecord;
+                        regRecord->assignedInterval = interval;
+                    }
+                }
+                break;
+            case RefTypeKillGCRefs:
+                // No action to take.
+                // However, we will assert that, at resolution time, no registers contain GC refs.
+                {
+                    DBEXEC(VERBOSE, printf("           "));
+                    regMaskTP candidateRegs = currentRefPosition->registerAssignment;
+                    while (candidateRegs != RBM_NONE)
+                    {
+                        regMaskTP nextRegBit = genFindLowestBit(candidateRegs);
+                        candidateRegs &= ~nextRegBit;
+                        regNumber  nextReg          = genRegNumFromMask(nextRegBit);
+                        RegRecord* regRecord        = getRegisterRecord(nextReg);
+                        Interval*  assignedInterval = regRecord->assignedInterval;
+                        assert(assignedInterval == nullptr || !varTypeIsGC(assignedInterval->registerType));
+                    }
+                }
+                break;
 
-        case RefTypeExpUse:
-        case RefTypeDummyDef:
-            // Do nothing; these will be handled by the RefTypeBB.
-            DBEXEC(VERBOSE, printf("           "));
-            break;
+            case RefTypeExpUse:
+            case RefTypeDummyDef:
+                // Do nothing; these will be handled by the RefTypeBB.
+                DBEXEC(VERBOSE, printf("           "));
+                break;
 
-        case RefTypeInvalid:
-        case RefTypeBound:
-            // for these 'currentRefPosition->refType' values, No action to take
-            break;
+            case RefTypeInvalid:
+                // for these 'currentRefPosition->refType' values, No action to take
+                break;
         }
 
         if (currentRefPosition->refType != RefTypeBB)
@@ -10495,21 +10099,33 @@ LinearScan::verifyFinalAllocation()
                 }
                 if (currentRefPosition->spillAfter || currentRefPosition->lastUse)
                 {
-                    interval->physReg = REG_NA;
+                    interval->physReg     = REG_NA;
                     interval->assignedReg = nullptr;
-                    regRecord->assignedInterval = nullptr;
+
+                    // regRegcord could be null if the RefPosition does not require a register.
+                    if (regRecord != nullptr)
+                    {
+                        regRecord->assignedInterval = nullptr;
+                    }
+                    else
+                    {
+                        assert(!currentRefPosition->RequiresRegister());
+                    }
                 }
             }
         }
     }
 
     // Now, verify the resolution blocks.
-    // Currently these are nearly always at the end of the method, but that may not alwyas be the case.
+    // Currently these are nearly always at the end of the method, but that may not always be the case.
     // So, we'll go through all the BBs looking for blocks whose bbNum is greater than bbNumMaxBeforeResolution.
     for (BasicBlock* currentBlock = compiler->fgFirstBB; currentBlock != nullptr; currentBlock = currentBlock->bbNext)
     {
         if (currentBlock->bbNum > bbNumMaxBeforeResolution)
         {
+            // If we haven't enregistered an lclVars, we have no resolution blocks.
+            assert(enregisterLocalVars);
+
             if (VERBOSE)
             {
                 dumpRegRecordTitle();
@@ -10522,46 +10138,60 @@ LinearScan::verifyFinalAllocation()
             // Clear register assignments.
             for (regNumber reg = REG_FIRST; reg < ACTUAL_REG_COUNT; reg = REG_NEXT(reg))
             {
-                RegRecord * physRegRecord = getRegisterRecord(reg);
+                RegRecord* physRegRecord        = getRegisterRecord(reg);
                 physRegRecord->assignedInterval = nullptr;
             }
 
             // Set the incoming register assignments
-            VarToRegMap inVarToRegMap = getInVarToRegMap(currentBlock->bbNum);
-            VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveIn, varIndex);
-            while (iter.NextElem(compiler, &varIndex))
+            VarToRegMap     inVarToRegMap = getInVarToRegMap(currentBlock->bbNum);
+            VarSetOps::Iter iter(compiler, currentBlock->bbLiveIn);
+            unsigned        varIndex = 0;
+            while (iter.NextElem(&varIndex))
             {
-                unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-                regNumber            regNum = getVarReg(inVarToRegMap, varNum);
-                Interval*            interval = getIntervalForLocalVar(varNum);
-                interval->physReg = regNum;
-                interval->assignedReg = &(physRegs[regNum]);
-                interval->isActive = true;
+                if (localVarIntervals[varIndex] == nullptr)
+                {
+                    assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
+                    continue;
+                }
+                regNumber regNum                  = getVarReg(inVarToRegMap, varIndex);
+                Interval* interval                = getIntervalForLocalVar(varIndex);
+                interval->physReg                 = regNum;
+                interval->assignedReg             = &(physRegs[regNum]);
+                interval->isActive                = true;
                 physRegs[regNum].assignedInterval = interval;
             }
 
             // Verify the moves in this block
-            for (GenTreeStmt* stmt = currentBlock->FirstNonPhiDef();
-                    stmt != nullptr;
-                    stmt = stmt->getNextStmt())
+            LIR::Range& currentBlockRange = LIR::AsRange(currentBlock);
+            for (GenTree* node : currentBlockRange.NonPhiNodes())
             {
-                assert(stmt->gtStmtExpr->gtLsraInfo.isLsraAdded);
-                verifyResolutionMove(stmt, currentLocation);
+                assert(IsResolutionNode(currentBlockRange, node));
+                if (IsResolutionMove(node))
+                {
+                    // Only verify nodes that are actually moves; don't bother with the nodes that are
+                    // operands to moves.
+                    verifyResolutionMove(node, currentLocation);
+                }
             }
 
             // Verify the outgoing register assignments
             {
-                VarToRegMap outVarToRegMap = getOutVarToRegMap(currentBlock->bbNum);
-                VARSET_ITER_INIT(compiler, iter, currentBlock->bbLiveOut, varIndex);
-                while (iter.NextElem(compiler, &varIndex))
+                VarToRegMap     outVarToRegMap = getOutVarToRegMap(currentBlock->bbNum);
+                VarSetOps::Iter iter(compiler, currentBlock->bbLiveOut);
+                unsigned        varIndex = 0;
+                while (iter.NextElem(&varIndex))
                 {
-                    unsigned             varNum  = compiler->lvaTrackedToVarNum[varIndex];
-                    regNumber            regNum = getVarReg(outVarToRegMap, varNum);
-                    Interval*            interval = getIntervalForLocalVar(varNum);
+                    if (localVarIntervals[varIndex] == nullptr)
+                    {
+                        assert(!compiler->lvaTable[compiler->lvaTrackedToVarNum[varIndex]].lvLRACandidate);
+                        continue;
+                    }
+                    regNumber regNum   = getVarReg(outVarToRegMap, varIndex);
+                    Interval* interval = getIntervalForLocalVar(varIndex);
                     assert(interval->physReg == regNum || (interval->physReg == REG_NA && regNum == REG_STK));
-                    interval->physReg = REG_NA;
+                    interval->physReg     = REG_NA;
                     interval->assignedReg = nullptr;
-                    interval->isActive = false;
+                    interval->isActive    = false;
                 }
             }
         }
@@ -10574,7 +10204,7 @@ LinearScan::verifyFinalAllocation()
 // verifyResolutionMove: Verify a resolution statement.  Called by verifyFinalAllocation()
 //
 // Arguments:
-//    resolutionStmt    - A GenTreeStmt* that must be a resolution move.
+//    resolutionMove    - A GenTree* that must be a resolution move.
 //    currentLocation   - The LsraLocation of the most recent RefPosition that has been verified.
 //
 // Return Value:
@@ -10582,23 +10212,28 @@ LinearScan::verifyFinalAllocation()
 //
 // Notes:
 //    If verbose is set, this will also dump the moves into the table of final allocations.
-void
-LinearScan::verifyResolutionMove(GenTreeStmt* resolutionStmt, LsraLocation currentLocation)
+void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation currentLocation)
 {
-    GenTree* dst = resolutionStmt->gtStmtExpr;
+    GenTree* dst = resolutionMove;
+    assert(IsResolutionMove(dst));
+
     if (dst->OperGet() == GT_SWAP)
     {
-        GenTreeLclVarCommon* left  = dst->gtGetOp1()->AsLclVarCommon();
-        GenTreeLclVarCommon* right = dst->gtGetOp2()->AsLclVarCommon();
-        regNumber leftRegNum  = left->gtRegNum;
-        regNumber rightRegNum = right->gtRegNum;
-        Interval* leftInterval = getIntervalForLocalVar(left->gtLclNum);
-        Interval* rightInterval = getIntervalForLocalVar(right->gtLclNum);
+        GenTreeLclVarCommon* left          = dst->gtGetOp1()->AsLclVarCommon();
+        GenTreeLclVarCommon* right         = dst->gtGetOp2()->AsLclVarCommon();
+        regNumber            leftRegNum    = left->gtRegNum;
+        regNumber            rightRegNum   = right->gtRegNum;
+        LclVarDsc*           leftVarDsc    = compiler->lvaTable + left->gtLclNum;
+        LclVarDsc*           rightVarDsc   = compiler->lvaTable + right->gtLclNum;
+        Interval*            leftInterval  = getIntervalForLocalVar(leftVarDsc->lvVarIndex);
+        Interval*            rightInterval = getIntervalForLocalVar(rightVarDsc->lvVarIndex);
         assert(leftInterval->physReg == leftRegNum && rightInterval->physReg == rightRegNum);
-        leftInterval->physReg = rightRegNum;
-        rightInterval->physReg = leftRegNum;
+        leftInterval->physReg                  = rightRegNum;
+        rightInterval->physReg                 = leftRegNum;
+        leftInterval->assignedReg              = &physRegs[rightRegNum];
+        rightInterval->assignedReg             = &physRegs[leftRegNum];
         physRegs[rightRegNum].assignedInterval = leftInterval;
-        physRegs[leftRegNum].assignedInterval = rightInterval;
+        physRegs[leftRegNum].assignedInterval  = rightInterval;
         if (VERBOSE)
         {
             printf(shortRefPositionFormat, currentLocation, 0);
@@ -10614,12 +10249,12 @@ LinearScan::verifyResolutionMove(GenTreeStmt* resolutionStmt, LsraLocation curre
         }
         return;
     }
-    regNumber dstRegNum = dst->gtRegNum;
-    regNumber srcRegNum;
+    regNumber            dstRegNum = dst->gtRegNum;
+    regNumber            srcRegNum;
     GenTreeLclVarCommon* lcl;
     if (dst->OperGet() == GT_COPY)
     {
-        lcl = dst->gtGetOp1()->AsLclVarCommon();
+        lcl       = dst->gtGetOp1()->AsLclVarCommon();
         srcRegNum = lcl->gtRegNum;
     }
     else
@@ -10636,7 +10271,8 @@ LinearScan::verifyResolutionMove(GenTreeStmt* resolutionStmt, LsraLocation curre
             dstRegNum = REG_STK;
         }
     }
-    Interval* interval = getIntervalForLocalVar(lcl->gtLclNum);
+
+    Interval* interval = getIntervalForLocalVarNode(lcl);
     assert(interval->physReg == srcRegNum || (srcRegNum == REG_STK && interval->physReg == REG_NA));
     if (srcRegNum != REG_STK)
     {
@@ -10644,16 +10280,16 @@ LinearScan::verifyResolutionMove(GenTreeStmt* resolutionStmt, LsraLocation curre
     }
     if (dstRegNum != REG_STK)
     {
-        interval->physReg = dstRegNum;
-        interval->assignedReg = &(physRegs[dstRegNum]);
+        interval->physReg                    = dstRegNum;
+        interval->assignedReg                = &(physRegs[dstRegNum]);
         physRegs[dstRegNum].assignedInterval = interval;
-        interval->isActive = true;
+        interval->isActive                   = true;
     }
     else
     {
-        interval->physReg = REG_NA;
+        interval->physReg     = REG_NA;
         interval->assignedReg = nullptr;
-        interval->isActive = false;
+        interval->isActive    = false;
     }
     if (VERBOSE)
     {
@@ -10665,5 +10301,3 @@ LinearScan::verifyResolutionMove(GenTreeStmt* resolutionStmt, LsraLocation curre
     }
 }
 #endif // DEBUG
-
-#endif // !LEGACY_BACKEND

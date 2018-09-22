@@ -76,16 +76,6 @@ BOOL ContinueOnAssert()
     return fNoGui.val(CLRConfig::INTERNAL_ContinueOnAssert);
 }
 
-BOOL NoGuiOnAssert()
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_DEBUG_ONLY;
-
-    static ConfigDWORD fNoGui;
-    return fNoGui.val(CLRConfig::INTERNAL_NoGuiOnAssert);
-}
-
 void DoRaiseExceptionOnAssert(DWORD chance)
 {
     STATIC_CONTRACT_NOTHROW;
@@ -190,7 +180,7 @@ VOID TerminateOnAssert()
     STATIC_CONTRACT_DEBUG_ONLY;
 
     ShutdownLogging();
-    TerminateProcess(GetCurrentProcess(), 123456789);
+    RaiseFailFastException(NULL, NULL, 0);
 }
 
 // Whether this thread is already displaying an assert dialog.
@@ -317,7 +307,7 @@ BOOL LaunchJITDebugger()
 // This function is called in order to ultimately return an out of memory
 // failed hresult.  But this guy will check what environment you are running
 // in and give an assert for running in a debug build environment.  Usually
-// out of memory on a dev machine is a bogus alloction, and this allows you
+// out of memory on a dev machine is a bogus allocation, and this allows you
 // to catch such errors.  But when run in a stress envrionment where you are
 // trying to get out of memory, assert behavior stops the tests.
 //*****************************************************************************
@@ -441,14 +431,14 @@ bool _DbgBreakCheck(
         return false;       // don't stop debugger. No gui.
     }
 
+    if (IsDebuggerPresent() || DebugBreakOnAssert())
+    {
+        return true;       // like a retry
+    }
+
     if (NoGuiOnAssert())
     {
         TerminateOnAssert();
-    }
-
-    if (DebugBreakOnAssert())
-    {
-        return true;       // like a retry
     }
 
     if (IsDisplayingAssertDlg())
@@ -794,6 +784,16 @@ bool GetStackTraceAtContext(SString & s, CONTEXT * pContext)
 #endif // !defined(DACCESS_COMPILE)
 #endif // _DEBUG
 
+BOOL NoGuiOnAssert()
+{
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_DEBUG_ONLY;
+
+    static ConfigDWORD fNoGui;
+    return fNoGui.val(CLRConfig::INTERNAL_NoGuiOnAssert);
+}
+
 // This helper will throw up a message box without allocating or using stack if possible, and is
 // appropriate for either low memory or low stack situations.
 int LowResourceMessageBoxHelperAnsi(
@@ -870,27 +870,9 @@ void DECLSPEC_NORETURN __FreeBuildAssertFail(const char *szFile, int iLine, cons
 
     _flushall();
 
-    //    TerminateOnAssert();
     ShutdownLogging();
 
-    // Failing here implies an error in the runtime - hence we use
-    // COR_E_EXECUTIONENGINE
-    TerminateProcess(GetCurrentProcess(), COR_E_EXECUTIONENGINE);
+    RaiseFailFastException(NULL, NULL, 0);
 
     UNREACHABLE();
 }
-
-//===================================================================================
-// Used by the ex.h macro: EX_CATCH_HRESULT_AND_NGEN_CLEAN(_hr)
-// which is used by ngen and mscorsvc to catch unexpected HRESULT
-// from one of the RPC calls.
-//===================================================================================
-void RetailAssertIfExpectedClean()
-{
-    static ConfigDWORD g_NGenClean;
-    if (g_NGenClean.val(CLRConfig::EXTERNAL_NGenClean) == 1) 
-    {
-        _ASSERTE_ALL_BUILDS("clr/src/Utilcode/Debug.cpp", !"Error during NGen:  expected no exceptions to be thrown");
-    }
-}
-

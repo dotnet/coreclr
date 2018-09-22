@@ -79,7 +79,7 @@ BOOL ProfilerFunctionEnum::Init(BOOL fWithReJITIDs)
         if (fWithReJITIDs)
         {
             // This guy causes triggering and locking, while the non-rejitid case does not.
-            element->reJitId = pMD->GetReJitManager()->GetReJitId(pMD, heapIterator.GetMethodCode());
+            element->reJitId = ReJitManager::GetReJitId(pMD, heapIterator.GetMethodCode());
         }
         else
         {
@@ -294,7 +294,7 @@ HRESULT IterateUnsharedModules(AppDomain * pAppDomain,
     // DomainAssembly instances.
     AppDomain::AssemblyIterator domainAssemblyIterator = 
         pAppDomain->IterateAssembliesEx(
-            (AssemblyIterationFlags) (kIncludeAvailableToProfilers | kIncludeExecution | kIncludeIntrospection));
+            (AssemblyIterationFlags) (kIncludeAvailableToProfilers | kIncludeExecution));
     CollectibleAssemblyHolder<DomainAssembly *> pDomainAssembly;
     
     while (domainAssemblyIterator.Next(pDomainAssembly.This()))

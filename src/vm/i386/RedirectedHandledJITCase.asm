@@ -91,7 +91,6 @@ _HijackFunctionStart@0 endp
 GenerateRedirectedHandledJITCaseStub <GCThreadControl>
 GenerateRedirectedHandledJITCaseStub <DbgThreadControl>
 GenerateRedirectedHandledJITCaseStub <UserSuspend>
-GenerateRedirectedHandledJITCaseStub <YieldTask>
 
 ; Hijack for exceptions.
 ; This can be used to hijack at a 2nd-chance exception and execute the UEF
@@ -103,7 +102,7 @@ _ExceptionHijack@0 PROC PUBLIC
     ; This is where we land when we're hijacked from an IP by the debugger.
     ; The debugger has already pushed the args:
     ; - a CONTEXT 
-    ; - a EXCEPTION_RECORD onto the stack
+    ; - an EXCEPTION_RECORD onto the stack
     ; - an DWORD to use to mulitplex the hijack
     ; - an arbitrary void* data parameter
     call _ExceptionHijackWorker@16

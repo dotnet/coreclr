@@ -21,9 +21,9 @@
 #error pick suitable ADDRESS_SPACING for platform
 #endif
 
-GcInfoDumper::GcInfoDumper (PTR_CBYTE pbGCInfo)
+GcInfoDumper::GcInfoDumper (GCInfoToken gcInfoToken)
 {
-    m_pbGCInfo = pbGCInfo;
+    m_gcTable = gcInfoToken;
     m_pRecords = NULL;
     m_gcInfoSize = 0;
 }
@@ -260,7 +260,7 @@ PORTABILITY_ASSERT("GcInfoDumper::ReportPointerRecord is not implemented on this
                 break;
             }
 #elif defined (_TARGET_ARM64_)
-
+            iEncodedReg = iEncodedReg + ctx; //We have to compensate for not tracking x18
             if (ctx == 1)
             {
                 if (iReg < 18 )   // skip volatile registers for second context
@@ -300,7 +300,7 @@ PORTABILITY_ASSERT("GcInfoDumper::ReportPointerRecord is not implemented on this
                 pReg = *(SIZE_T**)(pContext + rgRegisters[iReg].cbContextOffset);
                 if (iEncodedReg == iSPRegister)
                 {
-                    pReg = (SIZE_T*)((BYTE*)pRD->pCurrentContext + rgRegisters[iEncodedReg].cbContextOffset);
+                    pReg = (SIZE_T*)((BYTE*)pRD->pCurrentContext + rgRegisters[iReg].cbContextOffset);
                 }
 #else
                 pReg = (SIZE_T*)(pContext + rgRegisters[iReg].cbContextOffset);
@@ -492,7 +492,7 @@ GcInfoDumper::EnumerateStateChangesResults GcInfoDumper::EnumerateStateChanges (
     //
     // Decode header information
     //
-    GcInfoDecoder hdrdecoder(m_pbGCInfo,
+    GcInfoDecoder hdrdecoder(m_gcTable,
                              (GcInfoDecoderFlags)(  DECODE_SECURITY_OBJECT
                                                   | DECODE_CODE_LENGTH
                                                   | DECODE_GC_LIFETIMES
@@ -617,11 +617,11 @@ PORTABILITY_ASSERT("GcInfoDumper::EnumerateStateChanges is not implemented on th
     //
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
-    GcInfoDecoder safePointDecoder(m_pbGCInfo, (GcInfoDecoderFlags)0, 0);
+    GcInfoDecoder safePointDecoder(m_gcTable, (GcInfoDecoderFlags)0, 0);
 #endif
 
     {
-        GcInfoDecoder untrackedDecoder(m_pbGCInfo, DECODE_GC_LIFETIMES, 0);
+        GcInfoDecoder untrackedDecoder(m_gcTable, DECODE_GC_LIFETIMES, 0);
         untrackedDecoder.EnumerateUntrackedSlots(&regdisp,
                     0,
                     &LivePointerCallback,
@@ -646,10 +646,14 @@ PORTABILITY_ASSERT("GcInfoDumper::EnumerateStateChanges is not implemented on th
     {
         BOOL fNewInterruptible = FALSE;
 
-        GcInfoDecoder decoder1(m_pbGCInfo,
+        GcInfoDecoder decoder1(m_gcTable,
                                (GcInfoDecoderFlags)(  DECODE_SECURITY_OBJECT
                                                     | DECODE_CODE_LENGTH
                                                     | DECODE_VARARG
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
+                                                    | DECODE_HAS_TAILCALLS
+#endif // _TARGET_ARM_ || _TARGET_ARM64_
+
                                                     | DECODE_INTERRUPTIBILITY),
                                offset);
 
@@ -667,20 +671,20 @@ PORTABILITY_ASSERT("GcInfoDumper::EnumerateStateChanges is not implemented on th
 
 #ifdef PARTIALLY_INTERRUPTIBLE_GC_SUPPORTED
         UINT32 safePointOffset = offset;
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) 
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_) 
         safePointOffset++;
 #endif
         if(safePointDecoder.IsSafePoint(safePointOffset))
         {
             _ASSERTE(!fNewInterruptible);
-            if (pfnSafePointFunc(offset, pvData))
+            if (pfnSafePointFunc(safePointOffset, pvData))
                 break;
 
             flags = 0;
         }
 #endif
         
-        GcInfoDecoder decoder2(m_pbGCInfo,
+        GcInfoDecoder decoder2(m_gcTable,
                                (GcInfoDecoderFlags)(  DECODE_SECURITY_OBJECT
                                                     | DECODE_CODE_LENGTH
                                                     | DECODE_VARARG

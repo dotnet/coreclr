@@ -314,6 +314,16 @@ CPalObjectBase::ReleaseReference(
                 );
         }
 
+        if (NULL != m_pot->GetImmutableDataCleanupRoutine())
+        {
+            (*m_pot->GetImmutableDataCleanupRoutine())(m_pvImmutableData);
+        }
+
+        if (NULL != m_pot->GetProcessLocalDataCleanupRoutine())
+        {
+            (*m_pot->GetProcessLocalDataCleanupRoutine())(pthr, static_cast<IPalObject*>(this));
+        }
+
         InternalDelete(this);
 
         pthr->ReleaseThreadReference();
@@ -341,12 +351,12 @@ CPalObjectBase::~CPalObjectBase()
 
     if (NULL != m_pvImmutableData)
     {
-        InternalFree(m_pvImmutableData);
+        free(m_pvImmutableData);
     }
 
     if (NULL != m_pvLocalData)
     {
-        InternalFree(m_pvLocalData);
+        free(m_pvLocalData);
     }
 
     if (NULL != m_oa.sObjectName.GetString())

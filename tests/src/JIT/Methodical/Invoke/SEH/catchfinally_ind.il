@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -66,7 +67,7 @@
         IL_0024:  stelem.i4
         IL_0025:  ldstr      "Shouldn't have reached here."
         IL_002a:  call       void [System.Console]System.Console::WriteLine(class System.String)
-        IL_002f:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_002f:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_0034:  throw
 
       }  // end .try
@@ -144,7 +145,7 @@
           IL_002a:  stelem.i4
           IL_002b:  ldstr      "Shouldn't have reached here."
           IL_0030:  call       void [System.Console]System.Console::WriteLine(class System.String)
-          IL_0035:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+          IL_0035:  newobj     instance void ['mscorlib']System.Exception::.ctor()
           IL_003a:  throw
 
         }  // end .try

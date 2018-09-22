@@ -21,44 +21,37 @@
 // $VASigCookieReg : register which contains the VASigCookie
 // $SaveFPArgs : "Yes" or "No" . For varidic functions FP Args are not present in FP regs 
 //                        So need not save FP Args registers for vararg Pinvoke
-.macro PINVOKE_STUB FuncPrefix,VASigCookieReg,HiddenArg,SaveFPArgs
+.macro PINVOKE_STUB __PInvokeStubFuncName,__PInvokeGenStubFuncName,__PInvokeStubWorkerName,VASigCookieReg,HiddenArg,SaveFPArgs,ShiftLeftAndOrSecret=0
 
-#if NOTYET
-        GBLS __PInvokeStubFuncName
-        GBLS __PInvokeGenStubFuncName
-        GBLS __PInvokeStubWorkerName
 
-        IF "\FuncPrefix" == "GenericPInvokeCalli"
-__PInvokeStubFuncName SETS "\FuncPrefix":CC:"Helper"
-        ELSE
-__PInvokeStubFuncName SETS "\FuncPrefix":CC:"Stub"
-        ENDIF
-__PInvokeGenStubFuncName SETS "\FuncPrefix":CC:"GenILStub"
-__PInvokeStubWorkerName SETS "\FuncPrefix":CC:"StubWorker"
-
-       IF "\VASigCookieReg" == "x1"
-__PInvokeStubFuncName SETS "\__PInvokeStubFuncName":CC:"_RetBuffArg"
-__PInvokeGenStubFuncName SETS "\__PInvokeGenStubFuncName":CC:"_RetBuffArg"
-        ENDIF
-
-        NESTED_ENTRY \__PInvokeStubFuncName
+        NESTED_ENTRY \__PInvokeStubFuncName, _TEXT, NoHandler
 
         // get the stub
         ldr                 x9, [\VASigCookieReg, #VASigCookie__pNDirectILStub]
 
         // if null goto stub generation
-        cbz                 x9, %0
+        cbz                 x9, LOCAL_LABEL(\__PInvokeStubFuncName\()_0)
 
+        .if (\ShiftLeftAndOrSecret == 1)
+            //
+            // We need to distinguish between a MethodDesc* and an unmanaged target.
+            // The way we do this is to shift the managed target to the left by one bit and then set the
+            // least significant bit to 1.  This works because MethodDesc* are always 8-byte aligned.
+            //
+            lsl             \HiddenArg, \HiddenArg, #1
+            orr             \HiddenArg, \HiddenArg, #1
+        .endif
 
         EPILOG_BRANCH_REG   x9 
 
-0
+LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
+
         EPILOG_BRANCH       \__PInvokeGenStubFuncName
 
-        NESTED_END
+        NESTED_END \__PInvokeStubFuncName, _TEXT
 
         
-        NESTED_ENTRY \__PInvokeGenStubFuncName
+        NESTED_ENTRY \__PInvokeGenStubFuncName, _TEXT, NoHandler
 
         PROLOG_WITH_TRANSITION_BLOCK 0, \SaveFPArgs
 
@@ -66,9 +59,7 @@ __PInvokeGenStubFuncName SETS "\__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         mov                 x2, \HiddenArg 
 
         // x1 = VaSigCookie
-        IF "\VASigCookieReg" != "x1"
         mov                 x1, \VASigCookieReg
-        ENDIF
 
         // x0 = pTransitionBlock
         add                 x0, sp, #__PWTB_TransitionBlock      
@@ -76,7 +67,13 @@ __PInvokeGenStubFuncName SETS "\__PInvokeGenStubFuncName":CC:"_RetBuffArg"
         // save hidden arg
         mov                 x19, \HiddenArg 
 
+        // save VASigCookieReg
+        mov                 x20, \VASigCookieReg
+
         bl                  \__PInvokeStubWorkerName
+
+        // restore VASigCookieReg
+        mov                 \VASigCookieReg, x20
 
         // restore hidden arg (method desc or unmanaged target)
         mov                 \HiddenArg , x19
@@ -86,21 +83,17 @@ __PInvokeGenStubFuncName SETS "\__PInvokeGenStubFuncName":CC:"_RetBuffArg"
 
         EPILOG_BRANCH       \__PInvokeStubFuncName
      
-        NESTED_END
-#else
-        EMIT_BREAKPOINT
-#endif
+        NESTED_END \__PInvokeGenStubFuncName, _TEXT
 .endm
 
 // ------------------------------------------------------------------
 // VarargPInvokeStub & VarargPInvokeGenILStub
-// There is a separate stub when the method has a hidden return buffer arg.
 //
 // in:
 // x0 = VASigCookie*
 // x12 = MethodDesc *       
 //
-PINVOKE_STUB VarargPInvoke, x0, x12, 1
+PINVOKE_STUB VarargPInvokeStub, VarargPInvokeGenILStub, VarargPInvokeStubWorker, x0, x12, 0
 
 
 // ------------------------------------------------------------------
@@ -109,16 +102,6 @@ PINVOKE_STUB VarargPInvoke, x0, x12, 1
 //
 // in:
 // x15 = VASigCookie*
-// x14 = Unmanaged target
+// x12 = Unmanaged target
 //
-PINVOKE_STUB GenericPInvokeCalli, x15, x14, 1
-
-// ------------------------------------------------------------------
-// VarargPInvokeStub_RetBuffArg & VarargPInvokeGenILStub_RetBuffArg
-// Vararg PInvoke Stub when the method has a hidden return buffer arg
-//
-// in:
-// x1 = VASigCookie*
-// x12 = MethodDesc*       
-// 
-PINVOKE_STUB VarargPInvoke, x1, x12, 0
+PINVOKE_STUB GenericPInvokeCalliHelper, GenericPInvokeCalliGenILStub, GenericPInvokeCalliStubWorker, x15, x12, 1, 1

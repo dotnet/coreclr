@@ -5,7 +5,7 @@
 .macro NESTED_ENTRY Name, Section, Handler
         LEAF_ENTRY \Name, \Section
         .ifnc \Handler, NoHandler
-        .cfi_personality 0, C_FUNC(\Handler) // 0 == DW_EH_PE_absptr
+        .cfi_personality 0x1b, C_FUNC(\Handler) // 0x1b == DW_EH_PE_pcrel | DW_EH_PE_sdata4
         .endif
 .endm
 
@@ -25,58 +25,78 @@ C_FUNC(\Name):
         .cfi_startproc
 .endm
 
-.macro LEAF_END_MARKED Name, Section
-        .global C_FUNC(\Name\()_End)
-C_FUNC(\Name\()_End):
+.macro LEAF_END Name, Section
         .size \Name, .-\Name
         .cfi_endproc
 .endm
 
+.macro LEAF_END_MARKED Name, Section
+C_FUNC(\Name\()_End):
+        .global C_FUNC(\Name\()_End)
+        LEAF_END \Name, \Section
+.endm
+
 .macro PREPARE_EXTERNAL_VAR Name, HelperReg
-        ldr \HelperReg, [pc, #C_FUNC(\Name)@GOTPCREL]
+        adrp    \HelperReg, \Name
+        add     \HelperReg, \HelperReg, :lo12:\Name
 .endm
 
 .macro PROLOG_STACK_ALLOC Size
         sub sp, sp, \Size
-        .cfi_adjust_cfa_offset \Size
 .endm
 
 .macro EPILOG_STACK_FREE Size
         add sp, sp, \Size
+        .cfi_adjust_cfa_offset -\Size
 .endm
 
 .macro EPILOG_STACK_RESTORE
         mov sp, fp
+        .cfi_restore sp
 .endm
 
 .macro PROLOG_SAVE_REG reg, ofs
         str \reg, [sp, \ofs]
+        .cfi_rel_offset \reg, \ofs
 .endm
 
 .macro PROLOG_SAVE_REG_PAIR reg1, reg2, ofs
         stp \reg1, \reg2, [sp, \ofs]
+        .cfi_rel_offset \reg1, \ofs
+        .cfi_rel_offset \reg2, \ofs + 8
         .ifc \reg1, fp
         mov fp, sp
+        .cfi_def_cfa_register fp
         .endif
 .endm
 
 .macro PROLOG_SAVE_REG_PAIR_INDEXED reg1, reg2, ofs
         stp \reg1, \reg2, [sp, \ofs]!
+        .cfi_adjust_cfa_offset -\ofs
+        .cfi_rel_offset \reg1, 0
+        .cfi_rel_offset \reg2, 8
         .ifc \reg1, fp
         mov fp, sp
+        .cfi_def_cfa_register fp
         .endif
 .endm
 
 .macro EPILOG_RESTORE_REG reg, ofs
         ldr \reg, [sp, \ofs]
+        .cfi_restore \reg1
 .endm
 
 .macro EPILOG_RESTORE_REG_PAIR reg1, reg2, ofs
         ldp \reg1, \reg2, [sp, \ofs]
+        .cfi_restore \reg1
+        .cfi_restore \reg2
 .endm
 
 .macro EPILOG_RESTORE_REG_PAIR_INDEXED reg1, reg2, ofs
         ldp \reg1, \reg2, [sp], \ofs
+        .cfi_restore \reg1
+        .cfi_restore \reg2
+        .cfi_adjust_cfa_offset -\ofs
 .endm
 
 .macro EPILOG_RETURN
@@ -89,14 +109,14 @@ C_FUNC(\Name\()_End):
 
 //-----------------------------------------------------------------------------
 // Define the prolog for a TransitionFrame-based method. This macro should be called first in the method and
-// comprises the entire prolog (i.e. don't modify SP after calling this).The locals must be 8 byte aligned 
+// comprises the entire prolog (i.e. don't modify SP after calling this).The locals must be 8 byte aligned
 //
 // Stack layout:
 //
 // (stack parameters)
 // ...
 // fp
-// lr 
+// lr
 // CalleeSavedRegisters::x28
 // CalleeSavedRegisters::x27
 // CalleeSavedRegisters::x26
@@ -128,6 +148,7 @@ C_FUNC(\Name\()_End):
 .macro PROLOG_WITH_TRANSITION_BLOCK extraLocals = 0, SaveFPArgs = 1
 
         __PWTB_FloatArgumentRegisters = \extraLocals
+        __PWTB_SaveFPArgs = \SaveFPArgs
 
         .if ((__PWTB_FloatArgumentRegisters % 16) != 0)
                 __PWTB_FloatArgumentRegisters = __PWTB_FloatArgumentRegisters + 8
@@ -135,50 +156,52 @@ C_FUNC(\Name\()_End):
 
         __PWTB_TransitionBlock = __PWTB_FloatArgumentRegisters
 
-        .if \SaveFPArgs > 0
+        .if (__PWTB_SaveFPArgs == 1)
             __PWTB_TransitionBlock = __PWTB_TransitionBlock + SIZEOF__FloatArgumentRegisters
         .endif
 
         __PWTB_StackAlloc = __PWTB_TransitionBlock
-        __PWTB_ArgumentRegisters = __PWTB_StackAlloc + 96 
+        __PWTB_ArgumentRegisters = __PWTB_StackAlloc + 104
+        __PWTB_ArgumentRegister_FirstArg = __PWTB_ArgumentRegisters + 8
 
-        PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, #-160
-        // Spill callee saved registers 
-        PROLOG_SAVE_REG_PAIR   x19, x20, #16
-        PROLOG_SAVE_REG_PAIR   x21, x22, #32
-        PROLOG_SAVE_REG_PAIR   x23, x24, #48
-        PROLOG_SAVE_REG_PAIR   x25, x26, #64
-        PROLOG_SAVE_REG_PAIR   x27, x28, #80
-       
+        PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -176
+        // Spill callee saved registers
+        PROLOG_SAVE_REG_PAIR   x19, x20, 16
+        PROLOG_SAVE_REG_PAIR   x21, x22, 32
+        PROLOG_SAVE_REG_PAIR   x23, x24, 48
+        PROLOG_SAVE_REG_PAIR   x25, x26, 64
+        PROLOG_SAVE_REG_PAIR   x27, x28, 80
+
         // Allocate space for the rest of the frame
         PROLOG_STACK_ALLOC  __PWTB_StackAlloc
-        
+
         // Spill argument registers.
         SAVE_ARGUMENT_REGISTERS        sp, __PWTB_ArgumentRegisters
 
-        .if \SaveFPArgs > 0
+        .if (__PWTB_SaveFPArgs == 1)
                 SAVE_FLOAT_ARGUMENT_REGISTERS sp, \extraLocals
         .endif
 
 .endm
 
 //-----------------------------------------------------------------------------
-// The Following sets of SAVE_*_REGISTERS expect the memory to be reserved and 
+// The Following sets of SAVE_*_REGISTERS expect the memory to be reserved and
 // base address to be passed in $reg
 //
 
 // Reserve 64 bytes of memory before calling  SAVE_ARGUMENT_REGISTERS
-.macro SAVE_ARGUMENT_REGISTERS reg, ofs 
+.macro SAVE_ARGUMENT_REGISTERS reg, ofs
 
-        stp                    x0, x1, [\reg, #(\ofs)]
-        stp                    x2, x3, [\reg, #(\ofs + 16)]
-        stp                    x4, x5, [\reg, #(\ofs + 32)]
-        stp                    x6, x7, [\reg, #(\ofs + 48)]
+        str                    x8, [\reg, #(\ofs)]
+        stp                    x0, x1, [\reg, #(\ofs + 8)]
+        stp                    x2, x3, [\reg, #(\ofs + 24)]
+        stp                    x4, x5, [\reg, #(\ofs + 40)]
+        stp                    x6, x7, [\reg, #(\ofs + 56)]
 
 .endm
 
 // Reserve 64 bytes of memory before calling  SAVE_FLOAT_ARGUMENT_REGISTERS
-.macro SAVE_FLOAT_ARGUMENT_REGISTERS reg, ofs 
+.macro SAVE_FLOAT_ARGUMENT_REGISTERS reg, ofs
 
         stp                    d0, d1, [\reg, #(\ofs)]
         stp                    d2, d3, [\reg, #(\ofs + 16)]
@@ -187,16 +210,17 @@ C_FUNC(\Name\()_End):
 
 .endm
 
-.macro RESTORE_ARGUMENT_REGISTERS reg, ofs 
+.macro RESTORE_ARGUMENT_REGISTERS reg, ofs
 
-        ldp                    x0, x1, [\reg, #(\ofs)]
-        ldp                    x2, x3, [\reg, #(\ofs + 16)]
-        ldp                    x4, x5, [\reg, #(\ofs + 32)]
-        ldp                    x6, x7, [\reg, #(\ofs + 48)]
+        ldr                    x8, [\reg, #(\ofs)]
+        ldp                    x0, x1, [\reg, #(\ofs + 8)]
+        ldp                    x2, x3, [\reg, #(\ofs + 24)]
+        ldp                    x4, x5, [\reg, #(\ofs + 40)]
+        ldp                    x6, x7, [\reg, #(\ofs + 56)]
 
 .endm
 
-.macro RESTORE_FLOAT_ARGUMENT_REGISTERS reg, ofs 
+.macro RESTORE_FLOAT_ARGUMENT_REGISTERS reg, ofs
 
         ldp                    d0, d1, [\reg, #(\ofs)]
         ldp                    d2, d3, [\reg, #(\ofs + 16)]
@@ -205,46 +229,52 @@ C_FUNC(\Name\()_End):
 
 .endm
 
+.macro EPILOG_BRANCH Target
+        b \Target
+.endm
+
 .macro EPILOG_BRANCH_REG reg
 
         br \reg
 
 .endm
 
+
+.macro EPILOG_WITH_TRANSITION_BLOCK_RETURN
+
+        EPILOG_STACK_FREE                 __PWTB_StackAlloc
+
+        EPILOG_RESTORE_REG_PAIR   x19, x20, 16
+        EPILOG_RESTORE_REG_PAIR   x21, x22, 32
+        EPILOG_RESTORE_REG_PAIR   x23, x24, 48
+        EPILOG_RESTORE_REG_PAIR   x25, x26, 64
+        EPILOG_RESTORE_REG_PAIR   x27, x28, 80
+        EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 176
+        ret
+
+.endm
+
+
 //-----------------------------------------------------------------------------
 // Provides a matching epilog to PROLOG_WITH_TRANSITION_BLOCK and ends by preparing for tail-calling.
 // Since this is a tail call argument registers are restored.
 //
-.macro EPILOG_WITH_TRANSITION_BLOCK_TAILCALL extraLocals = 0, SaveFPArgs =1
+.macro EPILOG_WITH_TRANSITION_BLOCK_TAILCALL
 
-        __PWTB_FloatArgumentRegisters = \extraLocals
-
-        .if ((__PWTB_FloatArgumentRegisters % 16) != 0)
-                __PWTB_FloatArgumentRegisters = __PWTB_FloatArgumentRegisters + 8
-        .endif
-
-        __PWTB_TransitionBlock = __PWTB_FloatArgumentRegisters
-
-        .if \SaveFPArgs > 0
-            __PWTB_TransitionBlock = __PWTB_TransitionBlock + SIZEOF__FloatArgumentRegisters
-        .endif
-
-        __PWTB_StackAlloc = __PWTB_TransitionBlock
-        __PWTB_ArgumentRegisters = __PWTB_StackAlloc + 96 
-
-        .if \SaveFPArgs > 0
-                RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, __PWTB_FloatArgumentRegisters
+        .if (__PWTB_SaveFPArgs == 1)
+            RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, __PWTB_FloatArgumentRegisters
         .endif
 
         RESTORE_ARGUMENT_REGISTERS        sp, __PWTB_ArgumentRegisters
+
         EPILOG_STACK_FREE                 __PWTB_StackAlloc
-        
-        EPILOG_RESTORE_REG_PAIR   x19, x20, #16
-        EPILOG_RESTORE_REG_PAIR   x21, x22, #32
-        EPILOG_RESTORE_REG_PAIR   x23, x24, #48
-        EPILOG_RESTORE_REG_PAIR   x25, x26, #64
-        EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-        EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, #160
+
+        EPILOG_RESTORE_REG_PAIR   x19, x20, 16
+        EPILOG_RESTORE_REG_PAIR   x21, x22, 32
+        EPILOG_RESTORE_REG_PAIR   x23, x24, 48
+        EPILOG_RESTORE_REG_PAIR   x25, x26, 64
+        EPILOG_RESTORE_REG_PAIR   x27, x28, 80
+        EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 176
 
 .endm
 
@@ -268,8 +298,8 @@ __RedirectionFuncName SETS "|?RedirectedHandledJITCaseFor":CC:"$reason":CC:"@Thr
         IMPORT $__RedirectionFuncName
 
         NESTED_ENTRY $__RedirectionStubFuncName
-        PROLOG_SAVE_REG_PAIR    fp, lr, #-16
-        sub sp, sp, #16                          // stack slot for CONTEXT * and padding 
+        PROLOG_SAVE_REG_PAIR    fp, lr, -16
+        sub sp, sp, #16                          // stack slot for CONTEXT * and padding
 
         //REDIRECTSTUB_SP_OFFSET_CONTEXT is defined in asmconstants.h and is used in GetCONTEXTFromRedirectedStubStackFrame
         //If CONTEXT is not saved at 0 offset from SP it must be changed as well.

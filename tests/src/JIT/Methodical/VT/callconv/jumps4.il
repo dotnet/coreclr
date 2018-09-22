@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 .assembly extern System.Console
 {
@@ -37,7 +38,7 @@
       			ldarg.0
       			ldfld      int32 MS.VT::target
       			switch     (case0, case1, case2)
-      			newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      			newobj     instance void [mscorlib]System.Exception::.ctor()
       			throw
 
       case0:	ldstr      "--VT--"
@@ -78,7 +79,7 @@
       			ldarg.0
       			ldfld      int32 MS.VT::target
       			switch     (case0, case1, case2)
-      			newobj     instance void [mscorlib]System.ApplicationException::.ctor()
+      			newobj     instance void [mscorlib]System.Exception::.ctor()
       			throw
 
       case0:	ldstr      "--VT--"

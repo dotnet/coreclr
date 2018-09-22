@@ -109,12 +109,7 @@
 //
 
 DEFINE_EXCEPTION(g_ReflectionNS,       AmbiguousMatchException,        false,  COR_E_AMBIGUOUSMATCH)
-#ifdef FEATURE_CORECLR
-// ApplicationException is removed in CoreCLR
-#define kApplicationException kException 
-#else
 DEFINE_EXCEPTION(g_SystemNS,           ApplicationException,           false,  COR_E_APPLICATION)
-#endif // FEATURE_CORECLR
 DEFINE_EXCEPTION(g_SystemNS,           AppDomainUnloadedException,     false,  COR_E_APPDOMAINUNLOADED)
 DEFINE_EXCEPTION(g_SystemNS,           ArithmeticException,            false,  COR_E_ARITHMETIC)
 
@@ -142,17 +137,15 @@ DEFINE_EXCEPTION(g_SystemNS,       BadImageFormatException,        true,
                  META_E_BAD_SIGNATURE,
                  COR_E_LOADING_WINMD_REFERENCE_ASSEMBLY)
 
-DEFINE_EXCEPTION(g_SystemNS,           CannotUnloadAppDomainException, false,  COR_E_CANNOTUNLOADAPPDOMAIN)
+// CannotUnloadAppDomainException is removed in CoreCLR
+#define kCannotUnloadAppDomainException kException 
+
 DEFINE_EXCEPTION(g_CodeContractsNS,    ContractException,              false,  COR_E_CODECONTRACTFAILED)
-DEFINE_EXCEPTION(g_SystemNS,           ContextMarshalException,        false,  COR_E_CONTEXTMARSHAL)
+
+
 DEFINE_EXCEPTION(g_ReflectionNS,       CustomAttributeFormatException, false,  COR_E_CUSTOMATTRIBUTEFORMAT)
 
-#if defined(FEATURE_X509) || defined(FEATURE_CRYPTO)
 DEFINE_EXCEPTION(g_CryptographyNS,     CryptographicException,         false,  CORSEC_E_CRYPTO)
-#endif // FEATURE_X509 || FEATURE_CRYPTO
-#ifndef FEATURE_CORECLR
-DEFINE_EXCEPTION(g_CryptographyNS,     CryptographicUnexpectedOperationException, false,  CORSEC_E_CRYPTO_UNEX_OPER)
-#endif // FEATURE_CORECLR
 
 DEFINE_EXCEPTION(g_SystemNS,           DataMisalignedException,        false,  COR_E_DATAMISALIGNED)
 
@@ -257,14 +250,8 @@ DEFINE_EXCEPTION(g_SystemNS,           PlatformNotSupportedException,  false,  C
 
 DEFINE_EXCEPTION(g_SystemNS,           RankException,                  false,  COR_E_RANK)
 DEFINE_EXCEPTION(g_ReflectionNS,       ReflectionTypeLoadException,    false,  COR_E_REFLECTIONTYPELOAD)
-#ifdef FEATURE_REMOTING
-DEFINE_EXCEPTION(g_RemotingNS,         RemotingException,              false,  COR_E_REMOTING)
-#endif // FEATURE_REMOTING
 DEFINE_EXCEPTION(g_CompilerServicesNS, RuntimeWrappedException,        false,  COR_E_RUNTIMEWRAPPED)
 
-#ifdef FEATURE_REMOTING
-DEFINE_EXCEPTION(g_RemotingNS,         ServerException,                false,  COR_E_SERVER)
-#endif // FEATURE_REMOTING
 
 DEFINE_EXCEPTION(g_SecurityNS,         SecurityException,              true,
                  COR_E_SECURITY, CORSEC_E_INVALID_STRONGNAME,
@@ -305,10 +292,6 @@ DEFINE_EXCEPTION(g_SystemNS,           UnauthorizedAccessException,    true,   C
 
 DEFINE_EXCEPTION(g_SecurityNS,         VerificationException,          false,  COR_E_VERIFICATION)
 
-#ifdef FEATURE_CAS_POLICY
-DEFINE_EXCEPTION(g_PolicyNS,           PolicyException,                true,   CORSEC_E_POLICY_EXCEPTION, CORSEC_E_NO_EXEC_PERM, CORSEC_E_MIN_GRANT_FAIL)
-DEFINE_EXCEPTION(g_SecurityNS,         XmlSyntaxException,             false,  CORSEC_E_XMLSYNTAX)
-#endif // FEATURE_CAS_POLICY
 
 DEFINE_EXCEPTION(g_InteropNS,          COMException,                   false,  E_FAIL)
 DEFINE_EXCEPTION(g_InteropNS,          ExternalException,              false,  E_FAIL)
@@ -317,19 +300,8 @@ DEFINE_EXCEPTION(g_SystemNS,           NotImplementedException,        false,  E
 
 DEFINE_EXCEPTION(g_SystemNS,           OutOfMemoryException,           false,  E_OUTOFMEMORY, CTL_E_OUTOFMEMORY, STD_CTL_SCODE(31001))
 
-#ifdef FEATURE_CORECLR
 DEFINE_EXCEPTION(g_SystemNS,           CrossAppDomainMarshaledException, false, E_FAIL)
-#endif //FEATURE_CORECLR
 
-#ifdef FEATURE_ISOSTORE
-DEFINE_EXCEPTION(g_IsolatedStorageNS,  IsolatedStorageException,       true,
-                 ISS_E_ISOSTORE, ISS_E_ISOSTORE, ISS_E_OPEN_STORE_FILE, 
-                 ISS_E_OPEN_FILE_MAPPING, ISS_E_MAP_VIEW_OF_FILE, ISS_E_GET_FILE_SIZE, ISS_E_CREATE_MUTEX, ISS_E_LOCK_FAILED,
-                 ISS_E_FILE_WRITE, ISS_E_SET_FILE_POINTER, ISS_E_CREATE_DIR,
-                 ISS_E_CORRUPTED_STORE_FILE, ISS_E_STORE_VERSION, ISS_E_FILE_NOT_MAPPED, ISS_E_BLOCK_SIZE_TOO_SMALL, 
-                 ISS_E_ALLOC_TOO_LARGE, ISS_E_USAGE_WILL_EXCEED_QUOTA, ISS_E_TABLE_ROW_NOT_FOUND, ISS_E_DEPRECATE, ISS_E_CALLER,
-                 ISS_E_PATH_LENGTH, ISS_E_MACHINE, ISS_E_STORE_NOT_OPEN, ISS_E_MACHINE_DACL)
-#endif // FEATURE_ISOSTORE
 
 DEFINE_EXCEPTION(g_SystemNS,           ArgumentNullException,          false,  E_POINTER)
 

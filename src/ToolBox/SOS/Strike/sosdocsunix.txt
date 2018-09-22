@@ -25,12 +25,12 @@ Object Inspection                  Examining code and stacks
 -----------------------------      -----------------------------
 DumpObj (dumpobj)                  Threads (clrthreads)
 DumpArray                          ThreadState
-DumpStackObjects (dso)             IP2MD (ip2md)
-DumpHeap (dumpheap)                u (clru)
-DumpVC                             DumpStack (dumpstack)
-GCRoot (gcroot)                    EEStack (eestack)
-PrintException (pe)                ClrStack (clrstack) 
-                                   GCInfo
+DumpAsync (dumpasync)              IP2MD (ip2md)
+DumpStackObjects (dso)             u (clru)
+DumpHeap (dumpheap)                DumpStack (dumpstack)
+DumpVC                             EEStack (eestack)
+GCRoot (gcroot)                    CLRStack (clrstack)
+PrintException (pe)                GCInfo
                                    EHInfo
                                    bpmd (bpmd)
 
@@ -50,10 +50,13 @@ DumpIL (dumpil)
 DumpSig
 DumpSigElem
 
-Other
------------------------------
-FAQ
-Help (soshelp)
+Examining the GC history           Other
+-----------------------------      -----------------------------
+HistInit (histinit)                FAQ
+HistRoot (histroot)                CreateDump (createdump)
+HistObj  (histobj)                 Help (soshelp)
+HistObjFind (histobjfind)
+HistClear (histclear)
 \\
 
 COMMAND: faq.
@@ -196,6 +199,66 @@ The arguments in detail:
 	    5b9a628c  4000002        4         System.Int32   instance        8 y
 	    5b9a628c  4000003        8         System.Int32   instance       12 z
 
+\\
+
+COMMAND: dumpasync.
+!DumpAsync [-mt <MethodTable address>] 
+           [-type <partial type name>]
+           [-waiting]
+           [-roots]]
+
+!DumpAsync traverses the garbage collected heap, looking for objects representing
+async state machines as created when an async method's state is transferred to the
+heap.  This command recognizes async state machines defined as "async void", "async Task",
+"async Task<T>", "async ValueTask", and "async ValueTask<T>".
+
+The output includes a block of details for each async state machine object found.
+These details include:
+    - a line for the type of the async state machine object, including its MethodTable address,
+      its object address, its size, and its type name.
+    - a line for the state machine type name as contained in the object.
+    - a listing of each field on the state machine.
+    - a line for a continuation from this state machine object, if one or more has been registered.
+    - discovered GC roots for this async state machine object.
+  
+For example:
+
+    (lldb) dumpasync -roots
+    #0
+    000001989f413de0 00007ff88c506ba8      112  System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodD>d__4, test]]
+    StateMachine: Program+<MethodD>d__4 (struct)
+                  MT    Field   Offset                 Type VT     Attr            Value Name
+    00007ff8d3df4b80  400000d        0         System.Int32  1 instance                0 <>1__state
+    00007ff8d3e082c0  400000e        8 ...TaskMethodBuilder  1 instance 000001989f413e38 <>t__builder
+    00007ff8d3dfea90  400000f       10 ...vices.TaskAwaiter  1 instance 000001989f413e40 <>u__1
+    Continuation: 000001989f413e50 (System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodC>d__3, test]])
+    GC roots:
+        Thread 2936c:
+            000000071a37e050 00007ff8d3ac1657 System.Threading.Tasks.Task.SpinThenBlockingWait(Int32, System.Threading.CancellationToken) [d:\repos\coreclr\src\System.Private.CoreLib\src\System\Threading\Tasks\Task.cs @ 2977]
+                rbp+10: 000000071a37e0c0
+                    ->  000001989f413fa0 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<Main>d__0, test]]
+                    ->  000001989f413f30 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodA>d__1, test]]
+                    ->  000001989f413ec0 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodB>d__2, test]]
+                    ->  000001989f413e50 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodC>d__3, test]]
+                    ->  000001989f413de0 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodD>d__4, test]]
+        HandleTable:
+            000001989d8415f8 (pinned handle)
+            -> 00000198af3e1038 System.Object[]
+            -> 000001989f413410 System.Threading.TimerQueue[]
+            -> 000001989f413468 System.Threading.TimerQueue
+            -> 000001989f413330 System.Threading.TimerQueueTimer
+            -> 000001989f412e40 System.Threading.Tasks.Task+DelayPromise
+            -> 000001989f413de0 System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1[[System.Threading.Tasks.VoidTaskResult, System.Private.CoreLib],[Program+<MethodD>d__4, test]]
+    ...
+
+
+The arguments in detail:
+
+-mt       List only those state machine objects with the MethodTable given.
+-type     List only those state machine objects whose type name is a
+          substring match of the string provided.
+-waiting  List only those state machines that are currently at an await point.
+-roots    Include GC root information for each state machine object.
 
 \\
 
@@ -615,6 +678,18 @@ should only need to execute "clrstack -i", and from there, click on the DML
 hyperlinks to inspect the different managed stack frames and managed variables.                             
 \\
 
+COMMAND: createdump.
+createdump [options] [dumpFileName]
+-n - create minidump.
+-h - create minidump with heap (default).
+-t - create triage minidump.
+-f - create full core dump (everything).
+-d - enable diagnostic messages.
+
+Creates a platform (ELF core on Linux, etc.) minidump. The pid can be placed in the dump 
+file name with %d. The default is '/tmp/coredump.%d'.
+\\
+
 COMMAND: ip2md.
 IP2MD <Code address>
 
@@ -643,7 +718,6 @@ associated with it. For example, this output from K:
         Module:       00007ffff7f6b938
         IsJitted:     yes
         CodeAddr:     00007ffff04976c0
-        Transparency: Critical
 
 We have taken a return address into Mainy.Main, and discovered information 
 about that method. You could run U, DumpMT, DumpClass, DumpMD, or 
@@ -755,7 +829,6 @@ Sample output:
 	Module: 001e2fd8
 	IsJitted: yes
 	CodeAddr: 033bbca0
-	Transparency: Critical
 
 	EHHandler 0: TYPED catch(System.IO.FileNotFoundException) 
 	Clause: [033bbd2b, 033bbd3c] [8b, 9c]
@@ -841,6 +914,7 @@ corruption bug caused by invalid GCEncoding for a particular method.
 
 COMMAND: bpmd.
 bpmd [-nofuturemodule] <module name> <method name> [<il offset>]
+bpmd <source file name>:<line number>
 bpmd -md <MethodDesc>
 bpmd -list
 bpmd -clear <pending breakpoint number>
@@ -1584,4 +1658,127 @@ Objects with Finalizers are the easiest case, as the CLR needs to be able to
 call those when an AppDomain shuts down.
 \\
 
+COMMAND: histinit.
+HistInit
 
+Before running any of the Hist - family commands you need to initialize the SOS 
+structures from the stress log saved in the debuggee.  This is achieved by the 
+HistInit command.
+
+Sample output:
+
+	(lldb) histinit
+	Attempting to read Stress log
+	STRESS LOG:
+	    facilitiesToLog  = 0xffffffff
+	    levelToLog       = 6
+	    MaxLogSizePerThread = 0x10000 (65536)
+	    MaxTotalLogSize = 0x1000000 (16777216)
+	    CurrentTotalLogChunk = 9
+	    ThreadsWithLogs  = 3
+	    Clock frequency  = 3.392 GHz
+	    Start time         15:26:31
+	    Last message time  15:26:56
+	    Total elapsed time 25.077 sec
+	.....................................
+	---------------------------- 2407 total entries -----------------------------
+
+
+	SUCCESS: GCHist structures initialized
+
+\\
+
+COMMAND: histobjfind.
+HistObjFind <obj_address>
+
+To examine log entries related to an object whose present address is known one 
+would use this command. The output of this command contains all entries that 
+reference the object:
+
+	(lldb) histobjfind 028970d4 
+	 GCCount   Object                                  Message
+	---------------------------------------------------------
+	    2296 028970d4 Promotion for root 01e411b8 (MT = 5b6c5cd8)
+	    2296 028970d4 Relocation NEWVALUE for root 00223fc4
+	    2296 028970d4 Relocation NEWVALUE for root 01e411b8
+	...
+	    2295 028970d4 Promotion for root 01e411b8 (MT = 5b6c5cd8)
+	    2295 028970d4 Relocation NEWVALUE for root 00223fc4
+	    2295 028970d4 Relocation NEWVALUE for root 01e411b8
+	...
+
+\\
+
+COMMAND: histroot.
+HistRoot <root>
+
+The root value obtained from !HistObjFind can be used to track the movement of 
+an object through the GCs.
+
+HistRoot provides information related to both promotions and relocations of the 
+root specified as the argument.
+
+	(lldb) histroot 01e411b8 
+	 GCCount    Value       MT Promoted?                Notes
+	---------------------------------------------------------
+	    2296 028970d4 5b6c5cd8       yes 
+	    2295 028970d4 5b6c5cd8       yes 
+	    2294 028970d4 5b6c5cd8       yes 
+	    2293 028970d4 5b6c5cd8       yes 
+	    2292 028970d4 5b6c5cd8       yes 
+	    2291 028970d4 5b6c5cd8       yes 
+	    2290 028970d4 5b6c5cd8       yes 
+	    2289 028970d4 5b6c5cd8       yes 
+	    2288 028970d4 5b6c5cd8       yes 
+	    2287 028970d4 5b6c5cd8       yes 
+	    2286 028970d4 5b6c5cd8       yes 
+	    2285 028970d4 5b6c5cd8       yes 
+	     322 028970e8 5b6c5cd8       yes Duplicate promote/relocs
+	...
+
+\\
+
+COMMAND: histobj.
+HistObj <obj_address>
+
+This command examines all stress log relocation records and displays the chain 
+of GC relocations that may have led to the address passed in as an argument.
+Conceptually the output is:
+
+		GenN    obj_address   root1, root2, root3,
+		GenN-1  prev_obj_addr root1, root2,
+		GenN-2  prev_prev_oa  root1, root4, 
+		...
+
+Sample output:
+	(lldb) histobj 028970d4 
+	 GCCount   Object                                    Roots
+	---------------------------------------------------------
+	    2296 028970d4 00223fc4, 01e411b8, 
+	    2295 028970d4 00223fc4, 01e411b8, 
+	    2294 028970d4 00223fc4, 01e411b8, 
+	    2293 028970d4 00223fc4, 01e411b8, 
+	    2292 028970d4 00223fc4, 01e411b8, 
+	    2291 028970d4 00223fc4, 01e411b8, 
+	    2290 028970d4 00223fc4, 01e411b8, 
+	    2289 028970d4 00223fc4, 01e411b8, 
+	    2288 028970d4 00223fc4, 01e411b8, 
+	    2287 028970d4 00223fc4, 01e411b8, 
+	    2286 028970d4 00223fc4, 01e411b8, 
+	    2285 028970d4 00223fc4, 01e411b8, 
+	     322 028970d4 01e411b8, 
+	       0 028970d4 
+
+\\
+
+COMMAND: histclear.
+HistClear
+
+This command releases any resources used by the Hist-family of commands. 
+Generally there's no need to call this explicitly, as each HistInit will first 
+cleanup the previous resources.
+
+	(lldb) histclear
+	Completed successfully.
+
+\\

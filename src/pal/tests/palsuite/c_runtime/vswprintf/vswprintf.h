@@ -15,23 +15,23 @@
 #define __vswprintf_H__
 
 /* These functions leaks memory like crazy. C'est la vie. */
-int testvswp(wchar_t* buf, const wchar_t* format, ...)
+int testvswp(wchar_t* buf, size_t buffSize, const wchar_t* format, ...)
 {
 	int retVal = 0;
 	va_list arglist;
 
 	va_start(arglist, format);
-	retVal = vswprintf(buf, format, arglist);
+	retVal = _vsnwprintf_s(buf, buffSize, _TRUNCATE, format, arglist);
 	va_end(arglist);
 
 	return( retVal);
 }
 
-void DoWStrTest(WCHAR *formatstr, WCHAR *param, WCHAR *checkstr)
+void DoWStrTest(const WCHAR *formatstr, WCHAR *param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, param);
+    testvswp(buf, _countof(buf), formatstr, param);
 
     if (memcmp(buf, checkstr, wcslen(buf) * 2 + 2) != 0)
     {
@@ -42,11 +42,11 @@ void DoWStrTest(WCHAR *formatstr, WCHAR *param, WCHAR *checkstr)
     }
 }
 
-void DoStrTest(WCHAR *formatstr, char *param, WCHAR *checkstr)
+void DoStrTest(const WCHAR *formatstr, char *param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, param);
+    testvswp(buf, _countof(buf), formatstr, param);
 
     if (memcmp(buf, checkstr, wcslen(buf) * 2 + 2) != 0)
     {
@@ -57,11 +57,11 @@ void DoStrTest(WCHAR *formatstr, char *param, WCHAR *checkstr)
     }
 }
 
-void DoCharTest(WCHAR *formatstr, char param, WCHAR *checkstr)
+void DoCharTest(const WCHAR *formatstr, char param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, param);
+    testvswp(buf, _countof(buf), formatstr, param);
     if (memcmp(buf, checkstr, wcslen(buf)*2 + 2) != 0)
     {
         Fail("ERROR: failed to insert char \'%c\' (%d) into \"%s\"\n"
@@ -71,11 +71,11 @@ void DoCharTest(WCHAR *formatstr, char param, WCHAR *checkstr)
     }    
 }
 
-void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
+void DoWCharTest(const WCHAR *formatstr, WCHAR param, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, param);
+    testvswp(buf, _countof(buf), formatstr, param);
     if (memcmp(buf, checkstr, wcslen(buf)*2 + 2) != 0)
     {
         Fail("ERROR: failed to insert wide char \'%c\' (%d) into \"%s\"\n"
@@ -85,11 +85,11 @@ void DoWCharTest(WCHAR *formatstr, WCHAR param, WCHAR *checkstr)
     }    
 }
 
-void DoNumTest(WCHAR *formatstr, int value, WCHAR*checkstr)
+void DoNumTest(const WCHAR *formatstr, int value, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, value);
+    testvswp(buf, _countof(buf), formatstr, value);
     if (memcmp(buf, checkstr, wcslen(buf)* 2 + 2) != 0)
     {
         Fail("ERROR: failed to insert %#x into \"%s\"\n"
@@ -98,11 +98,11 @@ void DoNumTest(WCHAR *formatstr, int value, WCHAR*checkstr)
     }    
 }
 
-void DoI64NumTest(WCHAR *formatstr, INT64 value, char *valuestr, WCHAR*checkstr)
+void DoI64NumTest(const WCHAR *formatstr, INT64 value, char *valuestr, const WCHAR *checkstr)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, value);
+    testvswp(buf, _countof(buf), formatstr, value);
     if (memcmp(buf, checkstr, wcslen(buf)* 2 + 2) != 0)
     {
         Fail("ERROR: failed to insert %s into \"%s\"\n"
@@ -110,12 +110,12 @@ void DoI64NumTest(WCHAR *formatstr, INT64 value, char *valuestr, WCHAR*checkstr)
             convertC(checkstr), convertC(buf));
     }    
 }
-void DoDoubleTest(WCHAR *formatstr, double value, WCHAR *checkstr1, WCHAR
+void DoDoubleTest(const WCHAR *formatstr, double value, const WCHAR *checkstr1, WCHAR
  *checkstr2)
 {
     WCHAR buf[256] = { 0 };
 
-    testvswp(buf, formatstr, value);
+    testvswp(buf, _countof(buf), formatstr, value);
     if (memcmp(buf, checkstr1, wcslen(checkstr1) + 2) != 0 &&
         memcmp(buf, checkstr2, wcslen(checkstr2) + 2) != 0)
     {

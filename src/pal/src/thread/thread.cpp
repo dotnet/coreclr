@@ -18,6 +18,9 @@ Abstract:
 
 --*/
 
+#include "pal/dbgmsg.h"
+SET_DEFAULT_DEBUG_CHANNEL(THREAD); // some headers have code with asserts, so do this first
+
 #include "pal/corunix.hpp"
 #include "pal/context.h"
 #include "pal/thread.hpp"
@@ -25,13 +28,22 @@ Abstract:
 #include "pal/handlemgr.hpp"
 #include "pal/cs.hpp"
 #include "pal/seh.hpp"
+#include "pal/signal.hpp"
 
 #include "procprivate.hpp"
 #include "pal/process.h"
 #include "pal/module.h"
-#include "pal/dbgmsg.h"
 #include "pal/environ.h"
 #include "pal/init.h"
+#include "pal/utils.h"
+#include "pal/virtual.h"
+
+#if defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID
+#include <sys/cdefs.h>
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#include <kvm.h>
+#endif
 
 #include <signal.h>
 #include <pthread.h>
@@ -42,6 +54,7 @@ Abstract:
 #include <errno.h>
 #include <stddef.h>
 #include <sys/stat.h>
+#include <sys/mman.h>
 #if HAVE_MACH_THREADS
 #include <mach/mach.h>
 #endif // HAVE_MACH_THREADS
@@ -67,14 +80,6 @@ using namespace CorUnix;
 
 
 /* ------------------- Definitions ------------------------------*/
-SET_DEFAULT_DEBUG_CHANNEL(THREAD);
-
-// The default stack size of a newly created thread (currently 256KB)
-// when the dwStackSize parameter of PAL_CreateThread()
-// is zero. This value can be set by setting the
-// environment variable PAL_THREAD_DEFAULT_STACK_SIZE
-// (the value should be in bytes and in hex).
-DWORD CPalThread::s_dwDefaultThreadStackSize = 256*1024; 
 
 /* list of free CPalThread objects */
 static Volatile<CPalThread*> free_threads_list = NULL;
@@ -126,10 +131,13 @@ CObjectType CorUnix::otThread(
                 otiThread,
                 ThreadCleanupRoutine,
                 ThreadInitializationRoutine,
-                0, //sizeof(CThreadImmutableData),
+                0,      // sizeof(CThreadImmutableData),
+                NULL,   // No immutable data copy routine
+                NULL,   // No immutable data cleanup routine
                 sizeof(CThreadProcessLocalData),
-                0, //sizeof(CThreadSharedData),
-                0, // THREAD_ALL_ACCESS,
+                NULL,   // No process local data cleanup routine
+                0,      // sizeof(CThreadSharedData),
+                0,      // THREAD_ALL_ACCESS,
                 CObjectType::SecuritySupported,
                 CObjectType::SecurityInfoNotPersisted,
                 CObjectType::UnnamedObject,
@@ -169,6 +177,10 @@ static void InternalEndCurrentThreadWrapper(void *arg)
     /* note : no need to enter a critical section for serialization, the loader 
        will lock its own critical section */
     LOADCallDllMain(DLL_THREAD_DETACH, NULL);
+
+#if !HAVE_MACH_EXCEPTIONS
+    pThread->FreeSignalAlternateStack();
+#endif // !HAVE_MACH_EXCEPTIONS
 
     // PAL_Leave will be called just before we release the thread reference
     // in InternalEndCurrentThread.
@@ -388,6 +400,31 @@ GetCurrentThreadId(
     return dwThreadId;
 }
 
+/*++
+Function:
+  PAL_GetCurrentOSThreadId
+
+Returns the current thread's OS thread ID.
+This API is functionally equivalent to GetCurrentThreadId, but does not truncate the return value to 32-bits.
+This is needed to ensure that we can provide the correct OS thread ID on platforms such as OSX that have a 64-bit thread ID.
+--*/
+size_t
+PALAPI
+PAL_GetCurrentOSThreadId(
+            VOID)
+{
+    size_t threadId;
+
+    PERF_ENTRY(PAL_GetCurrentOSThreadId);
+    ENTRY("PAL_GetCurrentOSThreadId()\n");
+
+    threadId = THREADSilentGetCurrentThreadId();
+    
+    LOGEXIT("PAL_GetCurrentOSThreadId returns %p\n", threadId);    
+    PERF_EXIT(GetCurrentThreadId);
+    
+    return threadId;
+}
 
 
 /*++
@@ -520,6 +557,7 @@ CorUnix::InternalCreateThread(
 #endif  // PTHREAD_CREATE_MODIFIES_ERRNO
     BOOL fHoldingProcessLock = FALSE;
     int iError = 0;
+    size_t alignedStackSize;
 
     if (0 != terminator)
     {
@@ -565,7 +603,24 @@ CorUnix::InternalCreateThread(
         palError = ERROR_INVALID_PARAMETER;
         goto EXIT;
     }
-    
+
+    alignedStackSize = dwStackSize;
+    if (alignedStackSize != 0)
+    {
+        // Some systems require the stack size to be aligned to the page size
+        if (sizeof(alignedStackSize) <= sizeof(dwStackSize) && alignedStackSize + (GetVirtualPageSize() - 1) < alignedStackSize)
+        {
+            // When coming here from the public API surface, the incoming value is originally a nonnegative signed int32, so
+            // this shouldn't happen
+            ASSERT(
+                "Couldn't align the requested stack size (%Iu) to the page size because the stack size was too large\n",
+                alignedStackSize);
+            palError = ERROR_INVALID_PARAMETER;
+            goto EXIT;
+        }
+        alignedStackSize = ALIGN_UP(alignedStackSize, GetVirtualPageSize());
+    }
+
     // Ignore the STACK_SIZE_PARAM_IS_A_RESERVATION flag
     dwCreationFlags &= ~STACK_SIZE_PARAM_IS_A_RESERVATION;
     
@@ -607,43 +662,41 @@ CorUnix::InternalCreateThread(
 
     fAttributesInitialized = TRUE;
 
+    if (alignedStackSize == 0)
+    {
+        // The thread is to be created with default stack size. Use the default stack size
+        // override that was determined during the PAL initialization.
+        alignedStackSize = g_defaultStackSize;
+    }
+
     /* adjust the stack size if necessary */
-    if (0 != pthread_attr_getstacksize(&pthreadAttr, &pthreadStackSize))
+    if (alignedStackSize != 0)
     {
-        ERROR("couldn't set thread stack size\n");
-        palError = ERROR_INTERNAL_ERROR;
-        goto EXIT;        
-    }
-
-    TRACE("default pthread stack size is %d, caller requested %d (default is %d)\n",
-          pthreadStackSize, dwStackSize, CPalThread::s_dwDefaultThreadStackSize);
-
-    if (0 == dwStackSize)
-    {
-        dwStackSize = CPalThread::s_dwDefaultThreadStackSize;
-    }
-
 #ifdef PTHREAD_STACK_MIN
-    if (PTHREAD_STACK_MIN > pthreadStackSize)
-    {
-        WARN("default stack size is reported as %d, but PTHREAD_STACK_MIN is "
-             "%d\n", pthreadStackSize, PTHREAD_STACK_MIN);
-    }
-#endif
-    
-    if (pthreadStackSize < dwStackSize)
-    {
-        TRACE("setting thread stack size to %d\n", dwStackSize);
-        if (0 != pthread_attr_setstacksize(&pthreadAttr, dwStackSize))
+        size_t MinStackSize = ALIGN_UP(PTHREAD_STACK_MIN, GetVirtualPageSize());
+#else // !PTHREAD_STACK_MIN
+        size_t MinStackSize = 64 * 1024; // this value is typically accepted by pthread_attr_setstacksize()
+#endif // PTHREAD_STACK_MIN
+        if (alignedStackSize < MinStackSize)
         {
-            ERROR("couldn't set pthread stack size to %d\n", dwStackSize);
+            // Adjust the stack size to a minimum value that is likely to be accepted by pthread_attr_setstacksize(). If this
+            // function fails, typically the caller will end up throwing OutOfMemoryException under the assumption that the
+            // requested stack size is too large or the system does not have sufficient memory to create a thread. Try to
+            // prevent failing just just because the stack size value is too low.
+            alignedStackSize = MinStackSize;
+        }
+
+        TRACE("setting thread stack size to %Iu\n", alignedStackSize);
+        if (0 != pthread_attr_setstacksize(&pthreadAttr, alignedStackSize))
+        {
+            ERROR("couldn't set pthread stack size to %Iu\n", alignedStackSize);
             palError = ERROR_INTERNAL_ERROR;
             goto EXIT;
         }
     }
     else
     {
-        TRACE("using the system default thread stack size of %d\n", pthreadStackSize);
+        TRACE("using the system default thread stack size\n");
     }
 
 #if HAVE_THREAD_SELF || HAVE__LWP_SELF
@@ -825,80 +878,6 @@ ExitThread(
     ASSERT("pthread_exit should not return!\n");
     for (;;);
 }
-
-/*++
-Function:
-  GetExitCodeThread
-
-See MSDN doc.
---*/
-BOOL
-PALAPI
-GetExitCodeThread(
-           IN HANDLE hThread,
-           IN LPDWORD lpExitCode)
-{
-    PAL_ERROR palError = NO_ERROR;
-    CPalThread *pthrCurrent = NULL;
-    CPalThread *pthrTarget = NULL;
-    IPalObject *pobjThread = NULL;
-    BOOL fExitCodeSet;
-
-    PERF_ENTRY(GetExitCodeThread);
-    ENTRY("GetExitCodeThread(hThread = %p, lpExitCode = %p)\n",
-          hThread, lpExitCode);
-
-    if (NULL == lpExitCode)
-    {
-        WARN("Got NULL lpExitCode\n");
-        palError = ERROR_INVALID_PARAMETER;
-        goto done;
-    }
-
-    pthrCurrent = InternalGetCurrentThread();
-    palError = InternalGetThreadDataFromHandle(
-        pthrCurrent,
-        hThread,
-        0,
-        &pthrTarget,
-        &pobjThread
-        );
-
-    pthrTarget->Lock(pthrCurrent);
-
-    fExitCodeSet = pthrTarget->GetExitCode(lpExitCode);
-    if (!fExitCodeSet)
-    {
-        if (TS_DONE == pthrTarget->synchronizationInfo.GetThreadState())
-        {
-#ifdef FEATURE_PAL_SXS
-            // The thread exited without ever calling ExitThread.
-            // It must have wandered in.
-            *lpExitCode = 0;
-#else // FEATURE_PAL_SXS
-            ASSERT("exit code not set but thread is dead\n");
-#endif // FEATURE_PAL_SXS
-        }
-        else
-        {
-            *lpExitCode = STILL_ACTIVE;
-        }
-    }
-
-    pthrTarget->Unlock(pthrCurrent);
-
-done:
-    if (NULL != pobjThread)
-    {
-        pobjThread->ReleaseReference(pthrCurrent);
-    }
-
-    LOGEXIT("GetExitCodeThread returns BOOL %d\n", NO_ERROR == palError);
-    PERF_EXIT(GetExitCodeThread);
-    
-    return NO_ERROR == palError;
-}
-
 
 /*++
 Function:
@@ -1148,7 +1127,8 @@ CorUnix::InternalSetThreadPriority(
     PAL_ERROR palError = NO_ERROR;
     CPalThread *pTargetThread = NULL;
     IPalObject *pobjThread = NULL;
-    
+
+    int st;
     int policy;
     struct sched_param schedParam;
     int max_priority;
@@ -1284,14 +1264,11 @@ CorUnix::InternalSetThreadPriority(
           iNewPriority, schedParam.sched_priority);
 
     /* Finally, set the new priority into place */
-    if (pthread_setschedparam(
-            pTargetThread->GetPThreadSelf(),
-            policy,
-            &schedParam
-            ) != 0)
+    st = pthread_setschedparam(pTargetThread->GetPThreadSelf(), policy, &schedParam);
+    if (st != 0)
     {
 #if SET_SCHEDPARAM_NEEDS_PRIVS
-        if (EPERM == errno)
+        if (EPERM == st)
         {
             // UNIXTODO: Should log a warning to the event log
             TRACE("Caller does not have OS privileges to call pthread_setschedparam\n");
@@ -1300,7 +1277,7 @@ CorUnix::InternalSetThreadPriority(
         }
 #endif
         
-        ASSERT("Unable to set thread priority (errno %d)\n", errno);
+        ASSERT("Unable to set thread priority to %d (error %d)\n", (int)posix_priority, st);
         palError = ERROR_INTERNAL_ERROR;
         goto InternalSetThreadPriorityExit;
     }
@@ -1331,6 +1308,7 @@ CorUnix::GetThreadTimesInternal(
     __int64 calcTime;
     BOOL retval = FALSE;
     const __int64 SECS_TO_NS = 1000000000; /* 10^9 */
+    const __int64 USECS_TO_NS = 1000;      /* 10^3 */
 
 #if HAVE_MACH_THREADS
     thread_basic_info resUsage;
@@ -1339,8 +1317,6 @@ CorUnix::GetThreadTimesInternal(
     CPalThread *pthrTarget = NULL;
     IPalObject *pobjThread = NULL;
     mach_msg_type_number_t resUsage_count = THREAD_BASIC_INFO_COUNT;
-
-    const __int64 USECS_TO_NS = 1000;      /* 10^3 */
 
     pthrCurrent = InternalGetCurrentThread();
     palError = InternalGetThreadDataFromHandle(
@@ -1397,6 +1373,89 @@ CorUnix::GetThreadTimesInternal(
 
     retval = TRUE;
 
+    goto GetThreadTimesInternalExit;
+
+#elif defined(__NetBSD__) && !HAVE_PTHREAD_GETCPUCLOCKID /* Currently unimplemented */
+
+    PAL_ERROR palError;
+    CPalThread *pThread;
+    CPalThread *pTargetThread;
+    IPalObject *pobjThread = NULL;
+    kvm_t *kd;
+    int cnt, nlwps;
+    struct kinfo_lwp *klwp;
+    int i;
+    bool found = false;
+
+    pThread = InternalGetCurrentThread();
+
+    palError = InternalGetThreadDataFromHandle(
+        pThread,
+        hThread,
+        0, // THREAD_GET_CONTEXT
+        &pTargetThread,
+        &pobjThread
+        );
+    if (palError != NO_ERROR)
+    {
+        ASSERT("Unable to get thread data from handle %p"
+              "thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }
+
+    kd = kvm_open(NULL, NULL, NULL, KVM_NO_FILES, "kvm_open");
+    if (kd == NULL)
+    {
+        ASSERT("kvm_open(3) error");
+        SetLastError(ERROR_INTERNAL_ERROR);
+        goto SetTimesToZero;
+    }
+
+    pTargetThread->Lock(pThread);
+
+    klwp = kvm_getlwps(kd, getpid(), 0, sizeof(struct kinfo_lwp), &nlwps);
+    if (klwp == NULL || nlwps < 1)
+    {
+        kvm_close(kd);
+        ASSERT("Unable to get clock from %p thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    for (i = 0; i < nlwps; i++)
+    {
+        if (klwp[i].l_lid == THREADSilentGetCurrentThreadId())
+        {
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        kvm_close(kd);
+        ASSERT("Unable to get clock from %p thread\n", hThread);
+        SetLastError(ERROR_INTERNAL_ERROR);
+        pTargetThread->Unlock(pThread);
+        goto SetTimesToZero;
+    }
+
+    pTargetThread->Unlock(pThread);
+
+    kvm_close(kd);
+
+    calcTime = (__int64) klwp[i].l_rtime_sec * SECS_TO_NS;
+    calcTime += (__int64) klwp[i].l_rtime_usec * USECS_TO_NS;
+    lpUserTime->dwLowDateTime = (DWORD)calcTime;
+    lpUserTime->dwHighDateTime = (DWORD)(calcTime >> 32);
+
+    /* NetBSD as of (7.0) doesn't differentiate used time in user/kernel for lwp */
+    lpKernelTime->dwLowDateTime = 0;
+    lpKernelTime->dwHighDateTime = 0;
+
+    retval = TRUE;
     goto GetThreadTimesInternalExit;
 
 #else //HAVE_MACH_THREADS
@@ -1564,6 +1623,14 @@ CPalThread::ThreadEntry(
         goto fail;
     }
 
+#if !HAVE_MACH_EXCEPTIONS
+    if (!pThread->EnsureSignalAlternateStack())
+    {
+        ASSERT("Cannot allocate alternate stack for SIGSEGV!\n");
+        goto fail;
+    }
+#endif // !HAVE_MACH_EXCEPTIONS
+
 #if defined(FEATURE_PAL_SXS) && defined(_DEBUG)
     // We cannot assert yet, as we haven't set in this thread into the TLS, and so __ASSERT_ENTER
     // will fail if the assert fails and we'll crash.
@@ -1664,47 +1731,6 @@ fail:
        above should release all resources */
     return NULL;
 }
-
-
-#define PAL_THREAD_DEFAULT_STACK_SIZE "PAL_THREAD_DEFAULT_STACK_SIZE"
-
-PAL_ERROR
-CorUnix::InitializeGlobalThreadData(
-    void
-    )
-{
-    PAL_ERROR palError = NO_ERROR;
-    char *pszStackSize = NULL;
-
-    //
-    // Read in the environment to see whether we need to change the default
-    // thread stack size.
-    //
-    pszStackSize = EnvironGetenv(PAL_THREAD_DEFAULT_STACK_SIZE);
-    if (NULL != pszStackSize)
-    {
-        // Environment variable exists
-        char *pszEnd;
-        DWORD dw = PAL_strtoul(pszStackSize, &pszEnd, 16); // treat it as hex
-        if ( (pszStackSize != pszEnd) && (0 != dw) )
-        {
-            CPalThread::s_dwDefaultThreadStackSize = dw;
-        }
-
-        InternalFree(pszStackSize);
-    }
-
-#if !HAVE_MACH_EXCEPTIONS
-    //
-    // Initialize the thread suspension signal sets.
-    //
-    
-    CThreadSuspensionInfo::InitializeSignalSets();
-#endif // !HAVE_MACH_EXCEPTIONS
-
-    return palError;
-}
-
 
 /*++
 Function:
@@ -2365,6 +2391,114 @@ CPalThread::WaitForStartStatus(
 
     return m_fStartStatus;
 }
+
+#if !HAVE_MACH_EXCEPTIONS
+/*++
+Function :
+    EnsureSignalAlternateStack
+
+    Ensure that alternate stack for signal handling is allocated for the current thread
+
+Parameters :
+    None
+
+Return :
+    TRUE in case of a success, FALSE otherwise
+--*/
+BOOL 
+CPalThread::EnsureSignalAlternateStack()
+{
+    int st = 0;
+
+    if (g_registered_signal_handlers)
+    {
+        stack_t oss;
+
+        // Query the current alternate signal stack
+        st = sigaltstack(NULL, &oss);
+        if ((st == 0) && (oss.ss_flags == SS_DISABLE))
+        {
+            // There is no alternate stack for SIGSEGV handling installed yet so allocate one
+
+            // We include the size of the SignalHandlerWorkerReturnPoint in the alternate stack size since the 
+            // context contained in it is large and the SIGSTKSZ was not sufficient on ARM64 during testing.
+            int altStackSize = SIGSTKSZ + ALIGN_UP(sizeof(SignalHandlerWorkerReturnPoint), 16) + GetVirtualPageSize();
+#ifdef HAS_ASAN
+            // Asan also uses alternate stack so we increase its size on the SIGSTKSZ * 4 that enough for asan
+            // (see kAltStackSize in compiler-rt/lib/sanitizer_common/sanitizer_posix_libcdep.cc)
+            altStackSize += SIGSTKSZ * 4;
+#endif
+            altStackSize = ALIGN_UP(altStackSize, GetVirtualPageSize());
+            void* altStack = mmap(NULL, altStackSize, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_STACK | MAP_PRIVATE, -1, 0);
+            if (altStack != MAP_FAILED)
+            {
+                // create a guard page for the alternate stack
+                st = mprotect(altStack, GetVirtualPageSize(), PROT_NONE);
+                if (st == 0)
+                {
+                    stack_t ss;
+                    ss.ss_sp = (char*)altStack;
+                    ss.ss_size = altStackSize;
+                    ss.ss_flags = 0;
+                    st = sigaltstack(&ss, NULL);
+                }
+
+                if (st == 0)
+                {
+                    m_alternateStack = altStack;
+                }
+                else 
+                {
+                    int st2 = munmap(altStack, altStackSize);
+                    _ASSERTE(st2 == 0);
+                }
+            }
+        }
+    }
+
+    return (st == 0);
+}
+
+/*++
+Function :
+    FreeSignalAlternateStack
+
+    Free alternate stack for signal handling
+
+Parameters :
+    None
+
+Return :
+    None
+--*/
+void 
+CPalThread::FreeSignalAlternateStack()
+{
+    void *altstack = m_alternateStack;
+    m_alternateStack = nullptr;
+
+    if (altstack != nullptr)
+    {
+        stack_t ss, oss;
+        // The man page for sigaltstack says that when the ss.ss_flags is set to SS_DISABLE,
+        // all other ss fields are ignored. However, MUSL implementation checks that the 
+        // ss_size is >= MINSIGSTKSZ even in this case.
+        ss.ss_size = MINSIGSTKSZ;
+        ss.ss_flags = SS_DISABLE;
+        int st = sigaltstack(&ss, &oss);
+        if ((st == 0) && (oss.ss_flags != SS_DISABLE))
+        {
+            // Make sure this altstack is this PAL's before freeing.
+            if (oss.ss_sp == altstack)
+            {
+                int st = munmap(oss.ss_sp, oss.ss_size);
+                _ASSERTE(st == 0);
+            }
+        }
+    }
+}
+
+#endif // !HAVE_MACH_EXCEPTIONS
 
 /* IncrementEndingThreadCount and DecrementEndingThreadCount are used
 to control a global counter that indicates if any threads are about to die.

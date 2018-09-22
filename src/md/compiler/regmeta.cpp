@@ -59,9 +59,6 @@ RegMeta::RegMeta() :
     m_fIsTypeDefDirty(false), 
     m_fIsMemberDefDirty(false), 
     m_fStartedEE(false), 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    m_pCorHost(NULL), 
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     m_pAppDomain(NULL),
     m_OpenFlags(0),
     m_cRef(0),
@@ -70,7 +67,6 @@ RegMeta::RegMeta() :
     m_trLanguageType(0),
     m_SetAPICaller(EXTERNAL_CALLER),
     m_ModuleType(ValidatorModuleTypeInvalid),
-    m_pVEHandler(0),
     m_bKeepKnownCa(false),
     m_pCorProfileData(NULL),
     m_ReorderingOptions(NoReordering)
@@ -159,18 +155,11 @@ RegMeta::~RegMeta()
         delete pCur;
     }
 
-    if (m_pVEHandler)
-        m_pVEHandler->Release();
-
     // If This RegMeta spun up the runtime (probably to process security 
     //  attributes), shut it down now.
     if (m_fStartedEE) 
     {
         m_pAppDomain->Release();
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        m_pCorHost->Stop();
-        m_pCorHost->Release();
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     }
 
     if (m_pFilterManager != NULL)
@@ -284,11 +273,6 @@ RegMeta::CreateNewMD()
         INDEBUG(m_pStgdb->m_MiniMd.Debug_SetLock(m_pSemReadWrite);)
     }
     
-#ifdef FEATURE_METADATA_EMIT_ALL
-    // initialize the embedded merger
-    m_newMerger.Init(this);
-#endif //FEATURE_METADATA_EMIT_ALL
-    
 ErrExit:
     return hr;
 } // RegMeta::CreateNewMD
@@ -347,11 +331,6 @@ HRESULT RegMeta::OpenExistingMD(
 
     if (!IsOfReOpen(dwOpenFlags))
     {
-#ifdef FEATURE_METADATA_EMIT_ALL
-        // initialize the embedded merger
-        m_newMerger.Init(this);
-#endif //FEATURE_METADATA_EMIT_ALL
-
         // There must always be a Global Module class and its the first entry in
         // the TypeDef table.
         m_tdModule = TokenFromRid(1, mdtTypeDef);
@@ -405,11 +384,6 @@ HRESULT RegMeta::OpenExistingMD(
 
     if (!IsOfReOpen(dwOpenFlags))
     {
-#ifdef FEATURE_METADATA_EMIT_ALL
-        // initialize the embedded merger
-        m_newMerger.Init(this);
-#endif //FEATURE_METADATA_EMIT_ALL
-
         // There must always be a Global Module class and its the first entry in
         // the TypeDef table.
         m_tdModule = TokenFromRid(1, mdtTypeDef);
@@ -556,12 +530,10 @@ RegMeta::QueryInterface(
         *ppUnk = static_cast<IMetaDataTables2 *>(this);
     }
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
     else if (riid == IID_IMetaDataInfo)
     {
         *ppUnk = static_cast<IMetaDataInfo *>(this);
     }
-#endif //!FEATURE_METADATA_STANDALONE_WINRT
 
 #ifdef FEATURE_METADATA_EMIT
     else if (riid == IID_IMetaDataEmit)
@@ -581,12 +553,6 @@ RegMeta::QueryInterface(
     }
 #endif //FEATURE_METADATA_EMIT
 
-#if defined(FEATURE_METADATA_IN_VM) && !defined(FEATURE_CORECLR)
-    else if (riid == IID_IMetaDataValidate)
-    {
-        *ppUnk = (IMetaDataValidate *)this;
-    }
-#endif //defined(FEATURE_METADATA_IN_VM) && !defined(FEATURE_CORECLR)
 
 #ifdef FEATURE_METADATA_EMIT_ALL
     else if (riid == IID_IMetaDataFilter)
@@ -698,7 +664,6 @@ ErrExit:
     return hr;
 } // RegMeta::QueryInterface
 
-#ifndef FEATURE_METADATA_STANDALONE_WINRT
 
 //---------------------------------------------------------------------------------------
 // 
@@ -794,7 +759,6 @@ ErrExit:
     return hr;
 } // RegMeta::GetFileMapping
 
-#endif //!FEATURE_METADATA_STANDALONE_WINRT
 
 //------------------------------------------------------------------------------
 // Metadata dump 
@@ -829,7 +793,10 @@ int DumpMD_VWriteMarker(__in __in_z const char *str, va_list marker)
     {
         if (FAILED(hr = m_output.ReSizeNoThrow(STRING_BUFFER_LEN * i)))
             return 0;
-        count = _vsnprintf((char *)m_output.Ptr(), STRING_BUFFER_LEN * i, str, marker);
+        va_list markerCopy;
+        va_copy(markerCopy, marker);
+        count = _vsnprintf_s((char *)m_output.Ptr(), STRING_BUFFER_LEN * i, _TRUNCATE, str, markerCopy);
+        va_end(markerCopy);
         i *= 2;
     }
     OutputDebugStringA((LPCSTR)m_output.Ptr());

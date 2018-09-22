@@ -17,7 +17,6 @@
 #include "vars.hpp"
 #include "stdinterfaces.h"
 #include "threads.h"
-#include "objecthandle.h"
 #include "comutilnative.h"
 #include "spinlock.h"
 #include "comtoclrcall.h"
@@ -389,7 +388,6 @@ public:
     ComMethodTable* GetBasicComMT();
     ULONG           GetNumInterfaces();
     SLOT*           GetVTableSlot(ULONG index);
-    BOOL            HasInvisibleParent();
     void            CheckParentComVisibility(BOOL fForIDispatch);
     BOOL            CheckParentComVisibilityNoThrow(BOOL fForIDispatch);
     
@@ -402,6 +400,12 @@ public:
     MethodDesc * GetICustomQueryInterfaceGetInterfaceMD();
 
     IIDToInterfaceTemplateCache *GetOrCreateIIDToInterfaceTemplateCache();
+
+    BOOL HasInvisibleParent()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (m_flags & enum_InvisibleParent);
+    }
 
     BOOL SupportsICustomQueryInterface()
     {
@@ -466,27 +470,6 @@ public:
     static ComCallWrapperTemplate *CreateTemplateForInterface(MethodTable *pItfMT);
 
 private:
-    
-    enum ComCallWrapperTemplateFlags
-    {
-        // first 3 bits are interpreted as DefaultInterfaceType
-        enum_DefaultInterfaceType             = 0x7,
-        enum_DefaultInterfaceTypeComputed     = 0x10,
-
-        enum_InvisibleParent                  = 0x20,
-        enum_ImplementsICustomQueryInterface  = 0x40,
-        enum_SupportsIInspectable             = 0x80,
-        enum_SupportsIClassX                  = 0x100,
-
-        enum_SupportsVariantInterface         = 0x200, // this is a template for a class that implements an interface with variance
-        enum_RepresentsVariantInterface       = 0x400, // this is a template for an interface with variance
-
-        enum_UseOleAutDispatchImpl            = 0x800, // the class is decorated with IDispatchImplAttribute(CompatibleImpl)
-
-        enum_ImplementsIMarshal               = 0x1000, // the class implements a managed interface with Guid == IID_IMarshal
-
-        enum_IsSafeTypeForMarshalling         = 0x2000, // The class can be safely marshalled out of process via DCOM
-    };
 
     // Hide the constructor
     ComCallWrapperTemplate();
@@ -513,6 +496,27 @@ private:
     MethodTable*                            m_pWinRTRuntimeClass;
     ComMethodTable*                         m_pClassComMT;
     ComMethodTable*                         m_pBasicComMT;
+
+    enum
+    {
+        // first 3 bits are interpreted as DefaultInterfaceType
+        enum_DefaultInterfaceTypeMask         = 0x7,
+        enum_DefaultInterfaceTypeComputed     = 0x10,
+
+        enum_InvisibleParent                  = 0x20,
+        enum_ImplementsICustomQueryInterface  = 0x40,
+        enum_SupportsIInspectable             = 0x80,
+        enum_SupportsIClassX                  = 0x100,
+
+        enum_SupportsVariantInterface         = 0x200, // this is a template for a class that implements an interface with variance
+        enum_RepresentsVariantInterface       = 0x400, // this is a template for an interface with variance
+
+        enum_UseOleAutDispatchImpl            = 0x800, // the class is decorated with IDispatchImplAttribute(CompatibleImpl)
+
+        enum_ImplementsIMarshal               = 0x1000, // the class implements a managed interface with Guid == IID_IMarshal
+
+        enum_IsSafeTypeForMarshalling         = 0x2000, // The class can be safely marshalled out of process via DCOM
+    };
     DWORD                                   m_flags;
     MethodDesc*                             m_pICustomQueryInterfaceGetInterfaceMD;
     Volatile<IIDToInterfaceTemplateCache *> m_pIIDToInterfaceTemplateCache;
@@ -573,7 +577,7 @@ enum Masks
     enum_SigClassLoadChecked            = 0x00000100,
     enum_ComClassItf                    = 0x00000200,
     enum_GuidGenerated                  = 0x00000400,
-    enum_IsUntrusted                    = 0x00001000,
+    // enum_unused                      = 0x00001000,
     enum_IsBasic                        = 0x00002000,
     enum_IsWinRTDelegate                = 0x00004000,
     enum_IsWinRTTrivialAggregate        = 0x00008000,
@@ -645,12 +649,6 @@ struct ComMethodTable
 
         _ASSERTE(IsIClassXOrBasicItf());
         return (CorClassIfaceAttr)(m_Flags & enum_ClassInterfaceTypeMask);
-    }
-
-    BOOL IsDefinedInUntrustedCode()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_Flags & enum_IsUntrusted) ? TRUE : FALSE;
     }
 
     BOOL IsIClassX()
@@ -1100,9 +1098,6 @@ protected:
         RETURN (LinkedWrapperTerminator == pWrap->m_pNext ? NULL : pWrap->m_pNext);
     }
 
-    // Helper to perform a security check for passing out CCWs late-bound to scripting code.
-    void DoScriptingSecurityCheck();
-
     // Helper to create a wrapper, pClassCCW must be specified if pTemplate->RepresentsVariantInterface()
     static ComCallWrapper* CreateWrapper(OBJECTREF* pObj, ComCallWrapperTemplate *pTemplate, ComCallWrapper *pClassCCW);
 
@@ -1503,7 +1498,7 @@ private:
         enum_IsObjectTP                        = 0x8,
         enum_IsAgile                           = 0x10,
         enum_IsPegged                          = 0x80,
-        enum_HasOverlappedRef                  = 0x100,
+        // unused                              = 0x100,
         enum_CustomQIRespondsToIMarshal        = 0x200,
         enum_CustomQIRespondsToIMarshal_Inited = 0x400,
     }; 
@@ -1805,14 +1800,7 @@ public:
             
         FastInterlockAnd((ULONG*)&m_flags, ~enum_IsPegged);
     }
-    
-    inline BOOL HasOverlappedRef()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        return m_flags & enum_HasOverlappedRef;
-    }    
-    
+        
     // Used for the creation and deletion of simple wrappers
     static SimpleComCallWrapper* CreateSimpleWrapper();
 
@@ -1993,13 +1981,6 @@ private:
         if (!CanRunManagedCode())
             return;
         SO_INTOLERANT_CODE_NOTHROW(GetThread(), return; );
-        ReverseEnterRuntimeHolderNoThrow REHolder;
-        if (CLRTaskHosted())                      
-        {                                         
-            HRESULT hr = REHolder.AcquireNoThrow();
-            if (FAILED(hr))
-                return;
-        }
 
         m_pWrap->Cleanup();
     }
@@ -2178,14 +2159,6 @@ public:
         return pWeakRef;
     }
 
-    void StoreOverlappedPointer(LPOVERLAPPED lpOverlapped)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        this->m_operlappedPtr = lpOverlapped;
-        MarkOverlappedRef();
-    }
-
     // Returns TRUE if the ICustomQI implementation returns Handled or Failed for IID_IMarshal.
     BOOL CustomQIRespondsToIMarshal();
 
@@ -2227,14 +2200,7 @@ private:
     // QI for well known interfaces from within the runtime based on an IID.
     IUnknown* QIStandardInterface(REFIID riid);
 
-    // These values are never used at the same time, so we can save a few bytes for each CCW by using a union.
-    // Use the inline methods HasOverlappedRef(), MarkOverlappedRef(), and UnMarkOverlappedRef() to differentiate
-    // how this union is to be interpreted.
-    union
-    {
-        CQuickArray<ConnectionPoint*>*  m_pCPList;
-        LPOVERLAPPED m_operlappedPtr;
-    };
+    CQuickArray<ConnectionPoint*>*  m_pCPList;
     
     // syncblock for the ObjecRef
     SyncBlock*                      m_pSyncBlock;
@@ -2267,21 +2233,7 @@ private:
 
     // This maintains both COM ref and Jupiter ref in 64-bit
     LONGLONG                        m_llRefCount;
-    
-    inline void MarkOverlappedRef()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        FastInterlockOr((ULONG*)&m_flags, enum_HasOverlappedRef);
-    }
-    
-    inline void UnMarkOverlappedRef()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        FastInterlockAnd((ULONG*)&m_flags, ~enum_HasOverlappedRef);
-    }
-};
+ };
 
 inline OBJECTHANDLE ComCallWrapper::GetObjectHandle()
 {
@@ -2336,13 +2288,8 @@ inline ComCallWrapper* __stdcall ComCallWrapper::InlineGetWrapper(OBJECTREF* ppO
         pMainWrap = pClassCCW;
     else
         pMainWrap = pWrap;
-    
+
     pMainWrap->CheckMakeAgile(*ppObj);
-    
-    // If the object is agile, and this domain doesn't have UmgdCodePermission
-    //  fail the call.
-    if (pMainWrap->GetSimpleWrapper()->IsAgile())
-        pMainWrap->DoScriptingSecurityCheck();
 
     pWrap->AddRef();
     

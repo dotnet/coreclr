@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{95DFC527-4DC1-495E-97D7-E94EE1F7140D}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <!-- Default configurations to help VS understand the configurations -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' " />
+  <ItemGroup>
+    <CodeAnalysisDependentAssemblyPaths Condition=" '$(VS100COMNTOOLS)' != '' " Include="$(VS100COMNTOOLS)..\IDE\PrivateAssemblies">
+      <Visible>False</Visible>
+    </CodeAnalysisDependentAssemblyPaths>
+  </ItemGroup>
+  <PropertyGroup>
+    <DebugType>Embedded</DebugType>
+    <Optimize></Optimize>
+  </PropertyGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Add.Single.cs" />
+    <Compile Include="AddScalar.Single.cs" />
+    <Compile Include="And.Single.cs" />
+    <Compile Include="AndNot.Single.cs" />
+    <Compile Include="CompareEqual.Single.cs" />
+    <Compile Include="CompareEqualScalar.Single.cs" />
+    <Compile Include="CompareEqualOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareEqualUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareGreaterThan.Single.cs" />
+    <Compile Include="CompareGreaterThanScalar.Single.cs" />
+    <Compile Include="CompareGreaterThanOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareGreaterThanUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareGreaterThanOrEqual.Single.cs" />
+    <Compile Include="CompareGreaterThanOrEqualScalar.Single.cs" />
+    <Compile Include="CompareGreaterThanOrEqualOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareGreaterThanOrEqualUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareLessThan.Single.cs" />
+    <Compile Include="CompareLessThanScalar.Single.cs" />
+    <Compile Include="CompareLessThanOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareLessThanUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareLessThanOrEqual.Single.cs" />
+    <Compile Include="CompareLessThanOrEqualScalar.Single.cs" />
+    <Compile Include="CompareLessThanOrEqualOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareLessThanOrEqualUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareNotEqual.Single.cs" />
+    <Compile Include="CompareNotEqualScalar.Single.cs" />
+    <Compile Include="CompareNotEqualOrderedScalar.Boolean.cs" />
+    <Compile Include="CompareNotEqualUnorderedScalar.Boolean.cs" />
+    <Compile Include="CompareNotGreaterThan.Single.cs" />
+    <Compile Include="CompareNotGreaterThanScalar.Single.cs" />
+    <Compile Include="CompareNotGreaterThanOrEqual.Single.cs" />
+    <Compile Include="CompareNotGreaterThanOrEqualScalar.Single.cs" />
+    <Compile Include="CompareNotLessThan.Single.cs" />
+    <Compile Include="CompareNotLessThanScalar.Single.cs" />
+    <Compile Include="CompareNotLessThanOrEqual.Single.cs" />
+    <Compile Include="CompareNotLessThanOrEqualScalar.Single.cs" />
+    <Compile Include="CompareOrdered.Single.cs" />
+    <Compile Include="CompareOrderedScalar.Single.cs" />
+    <Compile Include="CompareUnordered.Single.cs" />
+    <Compile Include="CompareUnorderedScalar.Single.cs" />
+    <Compile Include="Divide.Single.cs" />
+    <Compile Include="DivideScalar.Single.cs" />
+    <Compile Include="Max.Single.cs" />
+    <Compile Include="MaxScalar.Single.cs" />
+    <Compile Include="Min.Single.cs" />
+    <Compile Include="MinScalar.Single.cs" />
+    <Compile Include="Multiply.Single.cs" />
+    <Compile Include="MultiplyScalar.Single.cs" />
+    <Compile Include="Or.Single.cs" />
+    <Compile Include="Subtract.Single.cs" />
+    <Compile Include="SubtractScalar.Single.cs" />
+    <Compile Include="Xor.Single.cs" />
+    <Compile Include="Program.Sse.cs" />
+    <Compile Include="..\Shared\BooleanCmpOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\Program.cs" />
+    <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
+  </ItemGroup>
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+  <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>
+</Project>

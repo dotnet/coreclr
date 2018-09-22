@@ -22,6 +22,7 @@ namespace DefaultNamespace {
     using System.IO;
     using System.Collections;
     using System.Collections.Generic;
+    using System.Runtime.CompilerServices;
 
     internal class LeakWheel
     {
@@ -99,52 +100,28 @@ namespace DefaultNamespace {
             Console.WriteLine("Repro with these values:");
             Console.WriteLine("iMem= {0} MB, iIter= {1}, iTable={2} iSeed={3}", iMem, iIter, iTable, iSeed );
 
-            LeakWheel mv_obj = new LeakWheel();
-            
+            LeakWheel my_obj = new LeakWheel();
 
-            if(mv_obj.RunGame())
+            while(!my_obj.RunGame())
             {
-                Console.WriteLine("Test Passed!");
-                return 100;
-            }
+                GC.Collect(2);
+                GC.WaitForPendingFinalizers();
+                GC.Collect(2);
 
-            Console.WriteLine("Test Failed!");
-            return 1;
-
-        }
-
-        public bool RunGame()
-        {
-            Dictionary<int, WeakReference> oTable = new Dictionary<int, WeakReference>(10);
-            LstNode = null; //the last node in the node chain//
-            Random  r = new Random (LeakWheel.iSeed);
-
-            for(int i=0; i<iIter; i++)
-            {
-                LstNode = SpinWheel(oTable, LstNode, r);
+                Console.WriteLine( "After Delete and GCed all Objects: {0}", GC.GetTotalMemory(false) );
                
-                if( GC.GetTotalMemory(false)/(1024*1024) >= iMem )
-                {
-                    LstNode = null;
-
-                    GC.Collect( );
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect( );
-
-                    Console.WriteLine( "After Delete and GCed all Objects: {0}", GC.GetTotalMemory(false) );
-                }
             }
-
-            LstNode = null;
-
-            GC.Collect();
+            
+            GC.Collect(2);
             GC.WaitForPendingFinalizers();
 
             Thread.Sleep(100);
-            GC.Collect();
+            GC.Collect(2);
             GC.WaitForPendingFinalizers();
-            GC.Collect();
-
+            GC.Collect(2);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(2);
+            GC.WaitForPendingFinalizers();
 
             Console.WriteLine("When test finished: {0}", GC.GetTotalMemory(false));
             Console.WriteLine("Created VarAry objects: {0} Finalized VarAry Objects: {1}", Node.iVarAryCreat, Node.iVarAryFinal);
@@ -154,14 +131,51 @@ namespace DefaultNamespace {
             Console.WriteLine("Created Thread objects: {0} Finalized Thread Objects: {1}", Node.iThrdCreat, Node.iThrdFinal);
 
 
-            return (Node.iBitAryCreat == Node.iBitAryFinal &&
+            if (Node.iBitAryCreat == Node.iBitAryFinal &&
                     Node.iBiTreeCreat == Node.iBiTreeFinal &&
                     Node.iSmallCreat == Node.iSmallFinal &&
                     Node.iThrdCreat == Node.iThrdFinal &&
-                    Node.iVarAryCreat == Node.iVarAryFinal);
+                    Node.iVarAryCreat == Node.iVarAryFinal)
+            {
+                Console.WriteLine("Test Passed!");
+                return 100;
+            }
+
+            Console.WriteLine("Test Failed!");
+            return 1;
+
+        }
+        
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public void DestroyLstNode() {
+            LstNode = null;
         }
 
-        public Node SpinWheel( Dictionary<int, WeakReference> oTable,  Node LstNode, Random r )
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public bool RunGame()
+        {
+            Dictionary<int, WeakReference> oTable = new Dictionary<int, WeakReference>(10);
+            DestroyLstNode(); //the last node in the node chain//
+            Random r = new Random (LeakWheel.iSeed);
+
+            for(int i=0; i<iIter; i++)
+            {
+                SpinWheel(oTable, LstNode, r);
+               
+                if( GC.GetTotalMemory(false)/(1024*1024) >= iMem )
+                {
+                    DestroyLstNode();
+
+                    iIter -= i;  // Reduce the iteration count by how far we went
+                    return false;
+                } 
+            } 
+            DestroyLstNode();
+            return true;
+        }
+
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        public void SpinWheel( Dictionary<int, WeakReference> oTable,  Node node, Random r )
         {
             int iKey;//the index which the new node will be set at
             Node nValue;//the new node
@@ -186,7 +200,7 @@ namespace DefaultNamespace {
                 }
                 else
                 {
-                    LstNode = SetNodeInTable(iKey, nValue, LstNode, oTable);
+                    LstNode = SetNodeInTable(iKey, nValue, node, oTable);
                 }
             }
             else
@@ -197,9 +211,9 @@ namespace DefaultNamespace {
             //{
             //    Console.WriteLine("HeapSize: {0}", GC.GetTotalMemory(false));
             //}
-            return LstNode;
         }
 
+        [MethodImplAttribute(MethodImplOptions.NoInlining)]
         public void DeleteNode( int iKey, Dictionary<int, WeakReference> oTable)
         {
             //iSwitch is 0, delete one child Node at iKey;
@@ -337,17 +351,17 @@ namespace DefaultNamespace {
         public void ThreadNode()
         {
             Dictionary<int, WeakReference> oTable = new Dictionary<int, WeakReference>( 10);
-            Node LstNode = null; //the last node in the node chain//
+            DestroyLstNode(); //the last node in the node chain//
             Random  r = new Random (LeakWheel.iSeed);
             LeakWheel mv_obj = new LeakWheel();
 
             while (true)
             {
-                LstNode = mv_obj.SpinWheel( oTable, LstNode, r );
+                mv_obj.SpinWheel( oTable, LstNode, r );
 
                 if( GC.GetTotalMemory(false) >= LeakWheel.iMem*60 )
                 {
-                    LstNode = null;
+                    DestroyLstNode();
 
                     GC.Collect( );
                     GC.WaitForPendingFinalizers();

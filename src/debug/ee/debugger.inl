@@ -225,7 +225,7 @@ inline void FuncEvalFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
         return;
     }
 
-#if !defined(_WIN64)
+#ifndef WIN64EXCEPTIONS
     // Reset pContext; it's only valid for active (top-most) frame.
     pRD->pContext = NULL;
 #endif // !_WIN64
@@ -235,14 +235,14 @@ inline void FuncEvalFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     // Update all registers in the reg display from the CONTEXT we stored when the thread was hijacked for this func
     // eval. We have to update all registers, not just the callee saved registers, because we can hijack a thread at any
     // point for a func eval, not just at a call site.
-    pRD->pEdi = &(pDE->m_context.Edi);
-    pRD->pEsi = &(pDE->m_context.Esi);
-    pRD->pEbx = &(pDE->m_context.Ebx);
-    pRD->pEdx = &(pDE->m_context.Edx);
-    pRD->pEcx = &(pDE->m_context.Ecx);
-    pRD->pEax = &(pDE->m_context.Eax);
-    pRD->pEbp = &(pDE->m_context.Ebp);
-    pRD->Esp  = (DWORD)GetSP(&pDE->m_context);
+    pRD->SetEdiLocation(&(pDE->m_context.Edi));
+    pRD->SetEsiLocation(&(pDE->m_context.Esi));
+    pRD->SetEbxLocation(&(pDE->m_context.Ebx));
+    pRD->SetEdxLocation(&(pDE->m_context.Edx));
+    pRD->SetEcxLocation(&(pDE->m_context.Ecx));
+    pRD->SetEaxLocation(&(pDE->m_context.Eax));
+    pRD->SetEbpLocation(&(pDE->m_context.Ebp));
+    pRD->SP   = (DWORD)GetSP(&pDE->m_context);
     pRD->PCTAddr = GetReturnAddressPtr();
     pRD->ControlPC = *PTR_PCODE(pRD->PCTAddr);
 
@@ -295,7 +295,47 @@ inline void FuncEvalFrame::UpdateRegDisplay(const PREGDISPLAY pRD)
     pRD->volatileCurrContextPointers.R12 = &(pDE->m_context.R12);
 
     SyncRegDisplayToCurrentContext(pRD);
-#else 
+
+#elif defined(_TARGET_ARM64_)
+    pRD->IsCallerContextValid = FALSE;
+    pRD->IsCallerSPValid = FALSE;        // Don't add usage of this flag.  This is only temporary.
+
+    memcpy(pRD->pCurrentContext, &(pDE->m_context), sizeof(T_CONTEXT));
+
+    pRD->pCurrentContextPointers->X19 = &(pDE->m_context.X19);
+    pRD->pCurrentContextPointers->X20 = &(pDE->m_context.X20);
+    pRD->pCurrentContextPointers->X21 = &(pDE->m_context.X21);
+    pRD->pCurrentContextPointers->X22 = &(pDE->m_context.X22);
+    pRD->pCurrentContextPointers->X23 = &(pDE->m_context.X23);
+    pRD->pCurrentContextPointers->X24 = &(pDE->m_context.X24);
+    pRD->pCurrentContextPointers->X25 = &(pDE->m_context.X25);
+    pRD->pCurrentContextPointers->X26 = &(pDE->m_context.X26);
+    pRD->pCurrentContextPointers->X27 = &(pDE->m_context.X27);
+    pRD->pCurrentContextPointers->X28 = &(pDE->m_context.X28);
+    pRD->pCurrentContextPointers->Lr = &(pDE->m_context.Lr);
+    pRD->pCurrentContextPointers->Fp = &(pDE->m_context.Fp);
+
+    pRD->volatileCurrContextPointers.X0 = &(pDE->m_context.X0);
+    pRD->volatileCurrContextPointers.X1 = &(pDE->m_context.X1);
+    pRD->volatileCurrContextPointers.X2 = &(pDE->m_context.X2);
+    pRD->volatileCurrContextPointers.X3 = &(pDE->m_context.X3);
+    pRD->volatileCurrContextPointers.X4 = &(pDE->m_context.X4);
+    pRD->volatileCurrContextPointers.X5 = &(pDE->m_context.X5);
+    pRD->volatileCurrContextPointers.X6 = &(pDE->m_context.X6);
+    pRD->volatileCurrContextPointers.X7 = &(pDE->m_context.X7);
+    pRD->volatileCurrContextPointers.X8 = &(pDE->m_context.X8);
+    pRD->volatileCurrContextPointers.X9 = &(pDE->m_context.X9);
+    pRD->volatileCurrContextPointers.X10 = &(pDE->m_context.X10);
+    pRD->volatileCurrContextPointers.X11 = &(pDE->m_context.X11);
+    pRD->volatileCurrContextPointers.X12 = &(pDE->m_context.X12);
+    pRD->volatileCurrContextPointers.X13 = &(pDE->m_context.X13);
+    pRD->volatileCurrContextPointers.X14 = &(pDE->m_context.X14);
+    pRD->volatileCurrContextPointers.X15 = &(pDE->m_context.X15);
+    pRD->volatileCurrContextPointers.X16 = &(pDE->m_context.X16);
+    pRD->volatileCurrContextPointers.X17 = &(pDE->m_context.X17);
+
+    SyncRegDisplayToCurrentContext(pRD); 
+#else
     PORTABILITY_ASSERT("FuncEvalFrame::UpdateRegDisplay is not implemented on this platform.");
 #endif
 }

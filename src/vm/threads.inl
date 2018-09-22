@@ -22,7 +22,6 @@
 #include "frames.h"
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_IMPLICIT_TLS
 
 #ifndef __llvm__
 EXTERN_C __declspec(thread) ThreadLocalInfo gCurrentThreadInfo;
@@ -40,17 +39,7 @@ EXTERN_C inline AppDomain* STDCALL GetAppDomain()
     return gCurrentThreadInfo.m_pAppDomain;
 }
 
-#endif // FEATURE_IMPLICIT_TLS
 #endif // !DACCESS_COMPILE
-
-#ifdef ENABLE_GET_THREAD_GENERIC_FULL_CHECK
-// See code:GetThreadGenericFullCheck
-inline /* static */ BOOL Thread::ShouldEnforceEEThreadNotRequiredContracts()
-{
-    LIMITED_METHOD_CONTRACT;
-    return s_fEnforceEEThreadNotRequiredContracts;
-}
-#endif // ENABLE_GET_THREAD_GENERIC_FULL_CHECK
 
 inline void Thread::IncLockCount()
 {
@@ -186,86 +175,6 @@ inline void Thread::FinishSOWork()
 #endif
 }
 
-inline DWORD Thread::IncrementOverridesCount()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.IncrementOverridesCount();
-}
-
-inline DWORD Thread::DecrementOverridesCount()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.DecrementOverridesCount();
-}
-
-inline DWORD Thread::GetOverridesCount()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.GetOverridesCount();
-}
-
-inline DWORD Thread::IncrementAssertCount()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.IncrementAssertCount();
-}
-
-inline DWORD Thread::DecrementAssertCount()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.DecrementAssertCount();
-}
-
-inline DWORD Thread::GetAssertCount()
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_ADStack.GetAssertCount();
-}
-
-#ifndef DACCESS_COMPILE
-inline void Thread::PushDomain(ADID pDomain)
-{
-    WRAPPER_NO_CONTRACT;
-    m_ADStack.PushDomain(pDomain);
-}
-
-inline ADID Thread::PopDomain()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.PopDomain();
-}
-#endif // DACCESS_COMPILE
-
-inline DWORD Thread::GetNumAppDomainsOnThread()
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.GetNumDomains();
-}
-
-inline BOOL Thread::CheckThreadWideSpecialFlag(DWORD flags)
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.GetThreadWideSpecialFlag() & flags;
-}
-
-inline void Thread::InitDomainIteration(DWORD *pIndex)
-{
-    WRAPPER_NO_CONTRACT;
-    m_ADStack.InitDomainIteration(pIndex);
-}
-
-inline ADID Thread::GetNextDomainOnStack(DWORD *pIndex, DWORD *pOverrides, DWORD *pAsserts)
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.GetNextDomainOnStack(pIndex, pOverrides, pAsserts);
-}
-
-inline void Thread::UpdateDomainOnStack(DWORD pIndex, DWORD asserts, DWORD overrides)
-{
-    WRAPPER_NO_CONTRACT;
-    return m_ADStack.UpdateDomainOnStack(pIndex, asserts, overrides);
-}
-
 #ifdef FEATURE_COMINTEROP
 inline void Thread::RevokeApartmentSpy()
 {
@@ -300,8 +209,6 @@ inline void Thread::SetLastSTACtxCookie(LPVOID pCtxCookie, BOOL fNAContext)
     }
 }
 #endif // FEATURE_COMINTEROP
-
-#include "appdomainstack.inl"
 
 inline bool Thread::IsGCSpecial()
 {

@@ -11,6 +11,7 @@
 
 #include "stdafx.h"
 
+#ifndef FEATURE_PAL
 #ifndef _TARGET_X86_
 
 //
@@ -178,7 +179,6 @@ static NTSTATUS OutOfProcessFunctionTableCallback_JIT(IN  ReadMemoryFunction    
             DWORD_PTR          hdrOffsetInitial;
             DWORD              nEntries;
             DWORD              index;
-            DWORD_PTR          pUnwindInfo;
             PT_RUNTIME_FUNCTION  pFunctions;
             LONG64             lSmallestOffset;
 
@@ -388,6 +388,7 @@ static NTSTATUS OutOfProcessFunctionTableCallback_Stub(IN  ReadMemoryFunction   
 
 #endif // DEBUGSUPPORT_STUBS_HAVE_UNWIND_INFO
 
+
 BOOL ReadMemory(PVOID pUserContext, LPCVOID lpBaseAddress, PVOID lpBuffer, SIZE_T nSize, SIZE_T* lpNumberOfBytesRead)
 {
     HANDLE hProcess = (HANDLE)pUserContext;
@@ -456,6 +457,5 @@ extern "C" NTSTATUS OutOfProcessFunctionTableCallbackEx()
     return STATUS_UNSUCCESSFUL;
 }
 
-
-
 #endif // !_TARGET_X86_
+#endif // !FEATURE_PAL

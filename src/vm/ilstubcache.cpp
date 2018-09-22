@@ -128,7 +128,7 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
         pStubLinker->GenerateCode(pbBuffer, cbCode);
         pStubLinker->GetLocalSig(pbLocalSig, cbSig);
 
-        pResolver->SetJitFlags(CORJIT_FLG_IL_STUB);
+        pResolver->SetJitFlags(CORJIT_FLAGS(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB));
     }
 
     pResolver->SetTokenLookupMap(pStubLinker->GetTokenLookupMap());
@@ -167,7 +167,7 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     pMD->SetMemberDef(0);
     pMD->SetSlot(MethodTable::NO_SLOT);       // we can't ever use the slot for dynamic methods
     // the no metadata part of the method desc
-    pMD->m_pszMethodName   = (PTR_CUTF8)"IL_STUB";
+    pMD->m_pszMethodName.SetValue((PTR_CUTF8)"IL_STUB");
     pMD->m_dwExtendedFlags = mdPublic | DynamicMethodDesc::nomdILStub;
 
     pMD->SetTemporaryEntryPoint(pMT->GetLoaderAllocator(), pamTracker);
@@ -216,23 +216,31 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     }
     else
 #endif
-#ifdef FEATURE_STUBS_AS_IL
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
     if (SF_IsMulticastDelegateStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdMulticastStub;
         pMD->GetILStubResolver()->SetStubType(ILStubResolver::MulticastDelegateStub);
-    }	
+    }
+    else
+#endif
+#ifdef FEATURE_STUBS_AS_IL
+    if (SF_IsSecureDelegateStub(dwStubFlags))
+    {
+        pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdSecureDelegateStub;
+        pMD->GetILStubResolver()->SetStubType(ILStubResolver::SecureDelegateStub);
+    }
     else
     if (SF_IsUnboxingILStub(dwStubFlags))
     {
         pMD->m_dwExtendedFlags |= DynamicMethodDesc::nomdUnboxingILStub;
         pMD->GetILStubResolver()->SetStubType(ILStubResolver::UnboxingILStub);
-    }	
+    }
     else
     if (SF_IsInstantiatingStub(dwStubFlags))
     {
         pMD->GetILStubResolver()->SetStubType(ILStubResolver::InstantiatingStub);
-    }	
+    }
     else
 #endif
 #ifdef FEATURE_COMINTEROP
@@ -286,11 +294,11 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     {
         switch(dwStubFlags)
         {
-            case ILSTUB_ARRAYOP_GET: pMD->m_pszMethodName =  (PTR_CUTF8)"IL_STUB_Array_Get";
+            case ILSTUB_ARRAYOP_GET: pMD->m_pszMethodName.SetValue((PTR_CUTF8)"IL_STUB_Array_Get");
                                              break;
-            case ILSTUB_ARRAYOP_SET: pMD->m_pszMethodName =  (PTR_CUTF8)"IL_STUB_Array_Set";
+            case ILSTUB_ARRAYOP_SET: pMD->m_pszMethodName.SetValue((PTR_CUTF8)"IL_STUB_Array_Set");
                                              break;
-            case ILSTUB_ARRAYOP_ADDRESS: pMD->m_pszMethodName =  (PTR_CUTF8)"IL_STUB_Array_Address";
+            case ILSTUB_ARRAYOP_ADDRESS: pMD->m_pszMethodName.SetValue((PTR_CUTF8)"IL_STUB_Array_Address");
                                              break;
             default: _ASSERTE(!"Unknown array il stub");
         }
@@ -298,12 +306,12 @@ MethodDesc* ILStubCache::CreateNewMethodDesc(LoaderHeap* pCreationHeap, MethodTa
     else
 #endif
     {
-        pMD->m_pszMethodName = pMD->GetILStubResolver()->GetStubMethodName();
+        pMD->m_pszMethodName.SetValue(pMD->GetILStubResolver()->GetStubMethodName());
     }
 
 
 #ifdef _DEBUG
-    pMD->m_pszDebugMethodName = pMD->m_pszMethodName;
+    pMD->m_pszDebugMethodName = RelativePointer<PTR_CUTF8>::GetValueAtPtr(PTR_HOST_MEMBER_TADDR(DynamicMethodDesc, pMD, m_pszMethodName));
     pMD->m_pszDebugClassName  = ILStubResolver::GetStubClassName(pMD);  // must be called after type is set
     pMD->m_pszDebugMethodSignature = FormatSig(pMD, pCreationHeap, pamTracker);
     pMD->m_pDebugMethodTable.SetValue(pMT);
@@ -525,47 +533,6 @@ MethodDesc* ILStubCache::GetStubMethodDesc(
         }
     }
 
-#ifndef FEATURE_CORECLR
-    //
-    // Publish ETW events for IL stubs
-    //
-    if (bFireETWCacheHitEvent)    
-    {
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ILStubCacheHit))
-        {
-
-            SString strNamespaceOrClassName, strMethodName, strMethodSignature;
-            UINT64 uModuleId = 0;
-
-            if (pTargetMD)
-            {
-                pTargetMD->GetMethodInfoWithNewSig(strNamespaceOrClassName, strMethodName, strMethodSignature);
-                uModuleId = (UINT64)pTargetMD->GetModule()->GetAddrModuleID();               
-            }
-
-            DWORD dwToken = 0;
-            if (pTargetMD)
-                dwToken = pTargetMD->GetMemberDef();
-
-            //
-            // Truncate string fields. Make sure the whole event is less than 64KB
-            //
-            TruncateUnicodeString(strNamespaceOrClassName, ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);
-            TruncateUnicodeString(strMethodName,           ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);
-            TruncateUnicodeString(strMethodSignature,      ETW_IL_STUB_EVENT_STRING_FIELD_MAXSIZE);           
-            
-            FireEtwILStubCacheHit(
-                GetClrInstanceId(),                         // ClrInstanceId
-                uModuleId,                                  // ModuleIdentifier
-                (UINT64)pMD,                                // StubMethodIdentifier
-                dwToken,                                    // ManagedInteropMethodToken
-                strNamespaceOrClassName.GetUnicode(),       // ManagedInteropMethodNamespace
-                strMethodName.GetUnicode(),                 // ManagedInteropMethodName
-                strMethodSignature.GetUnicode()             // ManagedInteropMethodSignature
-                );
-        }                       
-    }
-#endif // !FEATURE_CORECLR
     
     if (!pMD)
     {

@@ -47,10 +47,6 @@ ASMCONSTANTS_C_ASSERT(ASM_ELEMENT_TYPE_R4 == ELEMENT_TYPE_R4);
 #define               ASM_ELEMENT_TYPE_R8                 0xD
 ASMCONSTANTS_C_ASSERT(ASM_ELEMENT_TYPE_R8 == ELEMENT_TYPE_R8);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-#define               ASM_CLRTASKHOSTED       0x2
-ASMCONSTANTS_C_ASSERT(ASM_CLRTASKHOSTED   == CLRTASKHOSTED);
-#endif
 
 #define METHODDESC_REGNUM                    10
 #define METHODDESC_REGISTER                 r10
@@ -164,80 +160,33 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_ThreadId
                     == offsetof(Thread, m_ThreadId));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_ptr 0x60
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_ptr));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_ptr == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_ptr));
 
 #define               OFFSET__Thread__m_alloc_context__alloc_limit 0x68
-ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(alloc_context, alloc_limit));
+ASMCONSTANTS_C_ASSERT(OFFSET__Thread__m_alloc_context__alloc_limit == offsetof(Thread, m_alloc_context) + offsetof(gc_alloc_context, alloc_limit));
+
+#define               OFFSETOF__gc_alloc_context__alloc_ptr 0x0
+ASMCONSTANT_OFFSETOF_ASSERT(gc_alloc_context, alloc_ptr);
+
+#define               OFFSETOF__gc_alloc_context__alloc_limit 0x8
+ASMCONSTANT_OFFSETOF_ASSERT(gc_alloc_context, alloc_limit);
 
 #define               OFFSETOF__ThreadExceptionState__m_pCurrentTracker 0x000
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ThreadExceptionState__m_pCurrentTracker
                     == offsetof(ThreadExceptionState, m_pCurrentTracker));
 
-#define               THREAD_CATCHATSAFEPOINT_BITS 0x5F
-ASMCONSTANTS_C_ASSERT(THREAD_CATCHATSAFEPOINT_BITS == Thread::TS_CatchAtSafePoint);
 #endif // CROSSGEN_COMPILE
 
 
-#ifdef FEATURE_REMOTING
-#define TransparentProxyObject___stubData       0x10
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stubData == offsetof(TransparentProxyObject, _stubData))
-
-#define TransparentProxyObject___stub           0x28
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___stub == offsetof(TransparentProxyObject, _stub))
-
-#define TransparentProxyObject___pMT            0x18
-ASMCONSTANTS_C_ASSERT(TransparentProxyObject___pMT == offsetof(TransparentProxyObject, _pMT))
-#endif //  FEATURE_REMOTING
 
 #define               OFFSETOF__NDirectMethodDesc__m_pWriteableData DBG_FRE(0x48, 0x20)
 ASMCONSTANTS_C_ASSERT(OFFSETOF__NDirectMethodDesc__m_pWriteableData == offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
-
-#define               OFFSETOF__ObjHeader__SyncBlkIndex         0x4
-ASMCONSTANTS_C_ASSERT(OFFSETOF__ObjHeader__SyncBlkIndex
-                    == (sizeof(ObjHeader) - offsetof(ObjHeader, m_SyncBlockValue)));
-
-#define           SIZEOF__SyncTableEntry                    0x10
-ASMCONSTANT_SIZEOF_ASSERT(SyncTableEntry);
-
-#define           OFFSETOF__SyncTableEntry__m_SyncBlock     0x0
-ASMCONSTANT_OFFSETOF_ASSERT(SyncTableEntry, m_SyncBlock);
-
-#define           OFFSETOF__SyncBlock__m_Monitor            0x0
-ASMCONSTANT_OFFSETOF_ASSERT(SyncBlock, m_Monitor);
 
 #define           OFFSETOF__DelegateObject___methodPtr      0x18
 ASMCONSTANT_OFFSETOF_ASSERT(DelegateObject, _methodPtr);
 
 #define           OFFSETOF__DelegateObject___target         0x08
 ASMCONSTANT_OFFSETOF_ASSERT(DelegateObject, _target);
-
-#define               OFFSETOF__AwareLock__m_MonitorHeld        0x0
-ASMCONSTANTS_C_ASSERT(OFFSETOF__AwareLock__m_MonitorHeld
-                    == offsetof(AwareLock, m_MonitorHeld));
-
-#define               OFFSETOF__AwareLock__m_Recursion          0x4
-ASMCONSTANTS_C_ASSERT(OFFSETOF__AwareLock__m_Recursion
-                    == offsetof(AwareLock, m_Recursion));
-
-#define               OFFSETOF__AwareLock__m_HoldingThread      0x8
-ASMCONSTANTS_C_ASSERT(OFFSETOF__AwareLock__m_HoldingThread
-                    == offsetof(AwareLock, m_HoldingThread));
-
-#define               OFFSETOF__g_SystemInfo__dwNumberOfProcessors  0x20
-ASMCONSTANTS_C_ASSERT(OFFSETOF__g_SystemInfo__dwNumberOfProcessors
-                    == offsetof(SYSTEM_INFO, dwNumberOfProcessors));
-
-#define               OFFSETOF__g_SpinConstants__dwInitialDuration  0x0
-ASMCONSTANTS_C_ASSERT(OFFSETOF__g_SpinConstants__dwInitialDuration
-                    == offsetof(SpinConstants, dwInitialDuration));
-
-#define               OFFSETOF__g_SpinConstants__dwMaximumDuration  0x4
-ASMCONSTANTS_C_ASSERT(OFFSETOF__g_SpinConstants__dwMaximumDuration
-                    == offsetof(SpinConstants, dwMaximumDuration));
-
-#define               OFFSETOF__g_SpinConstants__dwBackoffFactor  0x8
-ASMCONSTANTS_C_ASSERT(OFFSETOF__g_SpinConstants__dwBackoffFactor
-                    == offsetof(SpinConstants, dwBackoffFactor));
 
 #define               OFFSETOF__MethodTable__m_dwFlags              0x00
 ASMCONSTANTS_C_ASSERT(OFFSETOF__MethodTable__m_dwFlags
@@ -281,7 +230,7 @@ ASMCONSTANTS_C_ASSERT(MethodTable_VtableSlotsPerChunk == VTABLE_SLOTS_PER_CHUNK)
 #define MethodTable_VtableSlotsPerChunkLog2 3
 ASMCONSTANTS_C_ASSERT(MethodTable_VtableSlotsPerChunkLog2 == VTABLE_SLOTS_PER_CHUNK_LOG2)
 
-#if defined(FEATURE_TYPEEQUIVALENCE) || defined(FEATURE_REMOTING)
+#if defined(FEATURE_TYPEEQUIVALENCE)
 #define               METHODTABLE_EQUIVALENCE_FLAGS 0x02000000
 ASMCONSTANTS_C_ASSERT(METHODTABLE_EQUIVALENCE_FLAGS
                     == MethodTable::enum_flag_HasTypeEquivalence);
@@ -353,10 +302,6 @@ ASMCONSTANTS_C_ASSERT(   CORINFO_InvalidCastException_ASM
 #define                  CORINFO_IndexOutOfRangeException_ASM 3
 ASMCONSTANTS_C_ASSERT(   CORINFO_IndexOutOfRangeException_ASM
                       == CORINFO_IndexOutOfRangeException);
-
-#define                  CORINFO_SynchronizationLockException_ASM 5
-ASMCONSTANTS_C_ASSERT(   CORINFO_SynchronizationLockException_ASM
-                      == CORINFO_SynchronizationLockException);
 
 #define                  CORINFO_ArrayTypeMismatchException_ASM 6
 ASMCONSTANTS_C_ASSERT(   CORINFO_ArrayTypeMismatchException_ASM
@@ -572,22 +517,9 @@ ASMCONSTANTS_C_ASSERT(MethodDescClassification__mdcClassification == mdcClassifi
 ASMCONSTANTS_C_ASSERT(MethodDescClassification__mcInstantiated == mcInstantiated);
 
 #ifndef FEATURE_PAL
-
-#define OFFSET__TEB__TlsSlots 0x1480
-ASMCONSTANTS_C_ASSERT(OFFSET__TEB__TlsSlots == offsetof(TEB, TlsSlots));
-
-#define OFFSETOF__TEB__LastErrorValue 0x68
-ASMCONSTANTS_C_ASSERT(OFFSETOF__TEB__LastErrorValue == offsetof(TEB, LastErrorValue));
-
-#endif // !FEATURE_PAL
-
-#ifdef _DEBUG
-#define TLS_GETTER_MAX_SIZE_ASM 0x30
-#else
-#define TLS_GETTER_MAX_SIZE_ASM 0x18
+#define OFFSET__TEB__ThreadLocalStoragePointer 0x58
+ASMCONSTANTS_C_ASSERT(OFFSET__TEB__ThreadLocalStoragePointer == offsetof(TEB, ThreadLocalStoragePointer));
 #endif
-ASMCONSTANTS_C_ASSERT(TLS_GETTER_MAX_SIZE_ASM == TLS_GETTER_MAX_SIZE)
-
 
 // If you change these constants, you need to update code in
 // RedirectHandledJITCase.asm and ExcepAMD64.cpp.
@@ -613,21 +545,16 @@ ASMCONSTANTS_C_ASSERT(ASM_LARGE_OBJECT_SIZE == LARGE_OBJECT_SIZE);
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ArrayBase__m_NumComponents
                     == offsetof(ArrayBase, m_NumComponents));
 
+#define                     STRING_BASE_SIZE 0x16
+ASMCONSTANTS_RUNTIME_ASSERT(STRING_BASE_SIZE == StringObject::GetBaseSize());
+
 #define               OFFSETOF__StringObject__m_StringLength 0x8
 ASMCONSTANTS_C_ASSERT(OFFSETOF__StringObject__m_StringLength
                     == offsetof(StringObject, m_StringLength));
 
-#define               OFFSETOF__ArrayTypeDesc__m_TemplateMT 8
-ASMCONSTANTS_C_ASSERT(OFFSETOF__ArrayTypeDesc__m_TemplateMT
-                    == offsetof(ArrayTypeDesc, m_TemplateMT));
-
 #define               OFFSETOF__ArrayTypeDesc__m_Arg 0x10
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ArrayTypeDesc__m_Arg
                     == offsetof(ArrayTypeDesc, m_Arg));
-
-#define               SYNCBLOCKINDEX_OFFSET 0x4
-ASMCONSTANTS_C_ASSERT(SYNCBLOCKINDEX_OFFSET
-                    == (sizeof(ObjHeader) - offsetof(ObjHeader, m_SyncBlockValue)));
 
 #define CallDescrData__pSrc                0x00
 #define CallDescrData__numStackSlots       0x08
@@ -663,7 +590,9 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__TransitionBlock__m_argumentRegisters == offsetof
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT
+#ifndef UNIX_AMD64_ABI
 #undef DBG_FRE
+#endif // UNIX_AMD64_ABI
 
 
 //#define USE_COMPILE_TIME_CONSTANT_FINDER // Uncomment this line to use the constant finder

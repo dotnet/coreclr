@@ -64,8 +64,7 @@ inline void AccessCheckOptions::Initialize(
     BOOL                 throwIfTargetIsInaccessible,
     MethodTable *        pTargetMT,
     MethodDesc *         pTargetMethod, 
-    FieldDesc *          pTargetField,
-    BOOL                 skipCheckForCriticalCode /*=FALSE*/)
+    FieldDesc *          pTargetField)
 {
     CONTRACTL 
     {
@@ -80,14 +79,8 @@ inline void AccessCheckOptions::Initialize(
                      !throwIfTargetIsInaccessible ||
                      ((pTargetMT ? 1 : 0) + (pTargetMethod ? 1 : 0) + (pTargetField ? 1 : 0)) == 1);
         // m_pAccessContext can only be set for kRestrictedMemberAccess
-#ifdef FEATURE_CORECLR
         PRECONDITION(m_pAccessContext == NULL || 
                      accessCheckType == AccessCheckOptions::kRestrictedMemberAccess);
-#else
-        PRECONDITION(m_pAccessContext == NULL || 
-                     accessCheckType == AccessCheckOptions::kUserCodeOnlyRestrictedMemberAccess ||
-                     accessCheckType == AccessCheckOptions::kRestrictedMemberAccess);
-#endif
     }
     CONTRACTL_END;
 
@@ -96,7 +89,6 @@ inline void AccessCheckOptions::Initialize(
     m_pTargetMT = pTargetMT;
     m_pTargetMethod = pTargetMethod; 
     m_pTargetField = pTargetField;
-    m_fSkipCheckForCriticalCode = skipCheckForCriticalCode;
 }
 
 //******************************************************************************

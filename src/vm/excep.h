@@ -33,11 +33,6 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
 
 #endif // defined(_TARGET_AMD64_) && defined(FEATURE_HIJACK)
 
-void RaiseFailFastExceptionOnWin7(PEXCEPTION_RECORD pExceptionRecord, PT_CONTEXT pContext);
-
-// Check if the Win32 Error code is an IO error.
-BOOL IsWin32IOError(SCODE scode);
-
 //******************************************************************************
 //
 //  SwallowUnhandledExceptions
@@ -55,8 +50,7 @@ BOOL IsWin32IOError(SCODE scode);
 inline bool SwallowUnhandledExceptions()
 {
     return (eHostDeterminedPolicy == GetEEPolicy()->GetUnhandledExceptionPolicy()) ||
-           g_pConfig->LegacyUnhandledExceptionPolicy() ||
-           GetCompatibilityFlag(compatSwallowUnhandledExceptions);
+           g_pConfig->LegacyUnhandledExceptionPolicy();
 }
 
 // Enums
@@ -88,9 +82,6 @@ struct ThrowCallbackType
     MethodDesc * pProfilerNotify;   // Context for profiler callbacks -- see COMPlusFrameHandler().
     BOOL    bReplaceStack;  // Used to pass info to SaveStackTrace call
     BOOL    bSkipLastElement;// Used to pass info to SaveStackTrace call
-    HANDLE hCallerToken;
-    HANDLE hImpersonationToken;
-    BOOL bImpersonationTokenSet;
 #ifdef _DEBUG
     void * pCurrentExceptionRecord;
     void * pPrevExceptionRecord;
@@ -114,10 +105,6 @@ struct ThrowCallbackType
         pProfilerNotify = NULL;
         bReplaceStack = FALSE;
         bSkipLastElement = FALSE;
-        hCallerToken = NULL;
-        hImpersonationToken = NULL;
-        bImpersonationTokenSet = FALSE;
-        
 #ifdef _DEBUG
         pCurrentExceptionRecord = 0;
         pPrevExceptionRecord = 0;
@@ -181,7 +168,7 @@ BOOL IsCOMPlusExceptionHandlerInstalled();
 BOOL InstallUnhandledExceptionFilter();
 void UninstallUnhandledExceptionFilter();
 
-#if defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
 // Section naming is a strategy by itself. Ideally, we could have named the UEF section
 // ".text$zzz" (lowercase after $ is important). What the linker does is look for the sections
 // that has the same name before '$' sign. It combines them together but sorted in an alphabetical
@@ -200,7 +187,7 @@ void UninstallUnhandledExceptionFilter();
 // section that comes after UEF section, it can affect the UEF section and we will
 // assert about it in "CExecutionEngine::ClrVirtualProtect".
 #define CLR_UEF_SECTION_NAME ".CLR_UEF"
-#endif // defined(FEATURE_CORECLR) && !defined(FEATURE_PAL)
+#endif //!defined(FEATURE_PAL)
 LONG __stdcall COMUnhandledExceptionFilter(EXCEPTION_POINTERS *pExceptionInfo);
 
 
@@ -249,7 +236,8 @@ void STDMETHODCALLTYPE DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionInfo,
                                            BOOL useLastThrownObject = FALSE,
                                            BOOL isTerminating = FALSE,
                                            BOOL isThreadBaseFilter = FALSE,
-                                           BOOL sendAppDomainEvents = TRUE);
+                                           BOOL sendAppDomainEvents = TRUE,
+                                           BOOL sendWindowsEventLog = FALSE);
 
 void ReplaceExceptionContextRecord(T_CONTEXT *pTarget, T_CONTEXT *pSource);
 
@@ -422,10 +410,11 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(TypeHandle thCastFro
 VOID DECLSPEC_NORETURN RealCOMPlusThrowInvalidCastException(OBJECTREF *pObj, TypeHandle thCastTo);
 
 
+#ifndef WIN64EXCEPTIONS
+
 #include "eexcp.h"
 #include "exinfo.h"
 
-#ifdef _TARGET_X86_
 struct FrameHandlerExRecord
 {
     EXCEPTION_REGISTRATION_RECORD   m_ExReg;
@@ -460,7 +449,7 @@ struct NestedHandlerExRecord : public FrameHandlerExRecord
     }
 };
 
-#endif // _TARGET_X86_
+#endif // !WIN64EXCEPTIONS
 
 #if defined(ENABLE_CONTRACTS_IMPL)
 
@@ -526,10 +515,6 @@ extern "C" BOOL ExceptionIsOfRightType(TypeHandle clauseType, TypeHandle thrownT
 // The stuff below is what works "behind the scenes" of the public macros.
 //==========================================================================
 
-#ifdef _TARGET_X86_
-LPVOID COMPlusEndCatchWorker(Thread *pCurThread);
-EXTERN_C LPVOID STDCALL COMPlusEndCatch(LPVOID ebp, DWORD ebx, DWORD edi, DWORD esi, LPVOID* pRetAddress);
-#endif
 
 // Specify NULL for uTryCatchResumeAddress when not checking for a InducedThreadRedirectAtEndOfCatch
 EXTERN_C LPVOID COMPlusCheckForAbort(UINT_PTR uTryCatchResumeAddress = NULL);
@@ -755,9 +740,16 @@ bool IsInterceptableException(Thread *pThread);
 // perform simple checking to see if the current exception is intercepted
 bool CheckThreadExceptionStateForInterception();
 
+#ifndef FEATURE_PAL
+// Currently, only Windows supports ClrUnwindEx (used inside ClrDebuggerDoUnwindAndIntercept)
+#define DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
+#endif // !FEATURE_PAL
+
+#ifdef DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 // Intercept the current exception and start an unwind.  This function may never return.
 EXCEPTION_DISPOSITION ClrDebuggerDoUnwindAndIntercept(X86_FIRST_ARG(EXCEPTION_REGISTRATION_RECORD *pEstablisherFrame)
                                                       EXCEPTION_RECORD *pExceptionRecord);
+#endif // DEBUGGER_EXCEPTION_INTERCEPTION_SUPPORTED
 
 LONG NotifyDebuggerLastChance(Thread *pThread,
                               EXCEPTION_POINTERS *pExceptionInfo,
@@ -769,7 +761,7 @@ void CPFH_AdjustContextForThreadSuspensionRace(T_CONTEXT *pContext, Thread *pThr
 #endif // _TARGET_X86_
 
 DWORD GetGcMarkerExceptionCode(LPVOID ip);
-bool IsGcMarker(DWORD exceptionCode, T_CONTEXT *pContext);
+bool IsGcMarker(T_CONTEXT *pContext, EXCEPTION_RECORD *pExceptionRecord);
 
 void InitSavedExceptionInfo();
 
@@ -898,10 +890,8 @@ LONG EntryPointFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID _pData);
 enum ExceptionNotificationHandlerType
 {
     UnhandledExceptionHandler   = 0x1
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
     ,
     FirstChanceExceptionHandler = 0x2
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
 };
 
 // Defined in Frames.h
@@ -910,7 +900,6 @@ enum ExceptionNotificationHandlerType
 // This class contains methods to support delivering the various exception notifications.
 class ExceptionNotifications
 {
-#ifdef FEATURE_EXCEPTION_NOTIFICATIONS
 private:
     void static GetEventArgsForNotification(ExceptionNotificationHandlerType notificationType,
         OBJECTREF *pOutEventArgs, OBJECTREF *pThrowable);
@@ -942,7 +931,6 @@ public:
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
     BOOL static CanDelegateBeInvokedForException(OBJECTREF *pDelegate, CorruptionSeverity severity);
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
-#endif // FEATURE_EXCEPTION_NOTIFICATIONS
 
 public:
     void static DeliverExceptionNotification(ExceptionNotificationHandlerType notificationType, OBJECTREF *pDelegate, 
@@ -952,9 +940,9 @@ public:
 
 #ifndef DACCESS_COMPILE
 
-#if defined(_TARGET_X86_)
+#ifndef WIN64EXCEPTIONS
 void ResetThreadAbortState(PTR_Thread pThread, void *pEstablisherFrame);
-#elif defined(WIN64EXCEPTIONS)
+#else
 void ResetThreadAbortState(PTR_Thread pThread, CrawlFrame *pCf, StackFrame sfCurrentStackFrame);
 #endif
 

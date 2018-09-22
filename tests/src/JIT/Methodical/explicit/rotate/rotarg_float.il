@@ -1,5 +1,6 @@
-// Copyright (c) Microsoft. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
 
@@ -250,7 +251,7 @@
 
         IL_0137:  ldstr      "left weight do not match."
         IL_013c:  call       void [System.Console]System.Console::WriteLine(class System.String)
-        IL_0141:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_0141:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_0146:  throw
 
         IL_0147:  ldarg.0
@@ -298,7 +299,7 @@
 
         IL_01bb:  ldstr      "right weight do not match."
         IL_01c0:  call       void [System.Console]System.Console::WriteLine(class System.String)
-        IL_01c5:  newobj     instance void ['mscorlib']System.ApplicationException::.ctor()
+        IL_01c5:  newobj     instance void ['mscorlib']System.Exception::.ctor()
         IL_01ca:  throw
 
         IL_01cb:  ret

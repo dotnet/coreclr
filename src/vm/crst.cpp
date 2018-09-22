@@ -33,56 +33,14 @@ VOID CrstBase::InitWorker(INDEBUG_COMMA(CrstType crstType) CrstFlags flags)
     CONTRACTL {
         THROWS;
         WRAPPER(GC_TRIGGERS);
-    } CONTRACTL_END;    
-
-    // Disallow creation of Crst before EE starts.  But only complain if we end up
-    // being hosted, since such Crsts have escaped the hosting net and will cause
-    // AVs on next use.
-#ifdef _DEBUG
-    static bool fEarlyInit; // = false
-
-    if (!g_fEEStarted)
-    {
-        if (!CLRSyncHosted())
-            fEarlyInit = true;
-    }
-
-    // If we are now hosted, we better not have *ever* created some Crsts that are
-    // not known to our host.
-    _ASSERTE(!fEarlyInit || !CLRSyncHosted());
-
-#endif
+    } CONTRACTL_END;
 
     _ASSERTE((flags & CRST_INITIALIZED) == 0);
     
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    IHostSyncManager *pSyncManager = CorHost2::GetHostSyncManager();
-    if (pSyncManager) {
-        ResetOSCritSec ();
-    }
-    else 
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         SetOSCritSec ();
     }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSCritSec())
-    {
-        IHostCrst *pHostCrst;
-        PREFIX_ASSUME(pSyncManager != NULL);
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        hr = pSyncManager->CreateCrst(&pHostCrst);
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        if (hr != S_OK) {
-            _ASSERTE(hr == E_OUTOFMEMORY);
-            ThrowOutOfMemory();
-        }
-        m_pHostCrst = pHostCrst;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         UnsafeInitializeCriticalSection(&m_criticalsection);
     }
@@ -118,15 +76,6 @@ void CrstBase::Destroy()
     // deadlock detection is finished.
     GCPreemp __gcHolder((m_dwFlags & CRST_HOST_BREAKABLE) == CRST_HOST_BREAKABLE);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSCritSec())
-    {
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(GetThread());
-        m_pHostCrst->Release();
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
     {
         UnsafeDeleteCriticalSection(&m_criticalsection);
     }
@@ -202,62 +151,6 @@ void CrstBase::Enter(INDEBUG(NoLevelCheckFlag noLevelCheckFlag/* = CRST_LEVEL_CH
 #else // !DACCESS_COMPILE
 
 
-#if !defined(FEATURE_CORECLR)
-// Slower spin enter path after first attemp failed
-void CrstBase::SpinEnter()
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_CAN_TAKE_LOCK;
-
-    // We only reach this routine when first attemp failed, so time to fire ETW event (fyuan)
-
-    // Fire an ETW event to mark the beginning of native contention
-    FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::NativeContention, GetClrInstanceId());
-
-    // Try spinning and yielding before eventually blocking.
-    // The limit of dwRepetitions = 10 is largely arbitrary - feel free to tune if you have evidence
-    // you're making things better.
-    
-    for (DWORD iter = 0; iter < g_SpinConstants.dwRepetitions; iter++)
-    {
-        DWORD i = g_SpinConstants.dwInitialDuration;
-        
-        do
-        {
-            if (  (m_criticalsection.LockCount == -1 || 
-                (size_t)m_criticalsection.OwningThread == (size_t) GetCurrentThreadId())
-            && UnsafeTryEnterCriticalSection(&m_criticalsection))
-            {
-                return;
-            }
-                
-            if (g_SystemInfo.dwNumberOfProcessors <= 1)
-            {
-                break;
-            }
-            
-            // Delay by approximately 2*i clock cycles (Pentium III).
-            // This is brittle code - future processors may of course execute this
-            // faster or slower, and future code generators may eliminate the loop altogether.
-            // The precise value of the delay is not critical, however, and can't think
-            // of a better way that isn't machine-dependent.
-            
-            for (int delayCount = i; --delayCount; ) 
-            {
-                YieldProcessor();           // indicate to the processor that we are spining 
-            }
-
-            // exponential backoff: wait a factor longer in the next iteration
-            i *= g_SpinConstants.dwBackoffFactor;
-        } while (i < g_SpinConstants.dwMaximumDuration);
-        
-        __SwitchToThread(0, CALLER_LIMITS_SPINNING);
-    }
-
-    UnsafeEnterCriticalSection(& m_criticalsection);
-}
-#endif // FEATURE_CORECLR
 
 
 void CrstBase::Enter(INDEBUG(NoLevelCheckFlag noLevelCheckFlag/* = CRST_LEVEL_CHECK*/))
@@ -417,84 +310,7 @@ void CrstBase::Enter(INDEBUG(NoLevelCheckFlag noLevelCheckFlag/* = CRST_LEVEL_CH
         }
     }
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSCritSec())
-    {
-        DWORD option;
-        if (m_dwFlags & CRST_HOST_BREAKABLE)
-        {
-            option = 0;
-        }
-        else
-        {
-            option = WAIT_NOTINDEADLOCK;
-        }
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(pThread);
-        
-        // Try entering the critical section once, if we fail we contend
-        // and fire the contention start ETW event
-        hr = m_pHostCrst->TryEnter(option, &fIsCriticalSectionEnteredAfterFailingOnce);
-        
-        if (! fIsCriticalSectionEnteredAfterFailingOnce)
-        {
-#ifndef FEATURE_CORECLR
-            // Fire an ETW event to mark the beginning of native contention
-            FireEtwContentionStart_V1(ETW::ContentionLog::ContentionStructs::NativeContention, GetClrInstanceId());
-#endif // !FEATURE_CORECLR
-            fIsCriticalSectionEnteredAfterFailingOnce = TRUE;
-
-            hr = m_pHostCrst->Enter(option);
-        }
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        
-        PREFIX_ASSUME (hr == S_OK || ((m_dwFlags & CRST_HOST_BREAKABLE) && hr == HOST_E_DEADLOCK));
-        
-        if (hr == HOST_E_DEADLOCK)
-        {
-            RaiseDeadLockException();
-        }
-        
-        INCTHREADLOCKCOUNTTHREAD(pThread);
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        if (CLRTaskHosted()) 
-        {
-            Thread::BeginThreadAffinity();
-        }
-
-#ifdef FEATURE_CORECLR
-        UnsafeEnterCriticalSection(&m_criticalsection);
-#else
-        // Try entering the critical section once, if we fail we contend
-        // and fire the contention start ETW event
-        if ((m_criticalsection.LockCount == -1 || (size_t)m_criticalsection.OwningThread == (size_t) GetCurrentThreadId())
-             && UnsafeTryEnterCriticalSection(& m_criticalsection))
-        {
-        }
-        else
-        {
-            SpinEnter();
-
-            fIsCriticalSectionEnteredAfterFailingOnce = TRUE;
-        }
-#endif
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        INCTHREADLOCKCOUNTTHREAD(pThread);
-#endif
-    }
-
-#ifndef FEATURE_CORECLR
-    // Fire an ETW event to mark the end of native contention
-    // This we do only when we have fired a contention start event before
-    if (fIsCriticalSectionEnteredAfterFailingOnce)
-    {
-        FireEtwContentionStop(ETW::ContentionLog::ContentionStructs::NativeContention, GetClrInstanceId());
-    }
-#endif // !FEATURE_CORECLR
+    UnsafeEnterCriticalSection(&m_criticalsection);
 
 #ifdef _DEBUG
     PostEnter();
@@ -523,32 +339,11 @@ void CrstBase::Leave()
     PreLeave ();
 #endif //_DEBUG
 
-#if defined(FEATURE_INCLUDE_ALL_INTERFACES) || defined(_DEBUG)
+#if defined(_DEBUG)
     Thread * pThread = GetThread();
 #endif
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (!IsOSCritSec()) {
-        HRESULT hr;
-        BEGIN_SO_TOLERANT_CODE_CALLING_HOST(pThread);
-        hr = m_pHostCrst->Leave();
-        END_SO_TOLERANT_CODE_CALLING_HOST;
-        _ASSERTE (hr == S_OK);
-        DECTHREADLOCKCOUNT ();
-    }
-    else
-#endif // FEATURE_INCLUDE_ALL_INTERFACES
-    {
-        UnsafeLeaveCriticalSection(&m_criticalsection);
-
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-        DECTHREADLOCKCOUNTTHREAD(pThread);
-#endif
-
-        if (CLRTaskHosted()) {
-            Thread::EndThreadAffinity();
-        }
-    }
+    UnsafeLeaveCriticalSection(&m_criticalsection);
 
     // Check for both rare case using one if-check
     if (m_dwFlags & (CRST_TAKEN_DURING_SHUTDOWN | CRST_DEBUGGER_THREAD))
@@ -627,7 +422,7 @@ void CrstBase::PreEnter()
                           || (pThread != NULL && pThread->PreemptiveGCDisabled())
                            // If GC heap has not been initialized yet, there is no need to synchronize with GC.
                            // This check is mainly for code called from EEStartup.
-                          || (pThread == NULL && !GCHeap::IsGCHeapInitialized()) );
+                          || (pThread == NULL && !GCHeapUtilities::IsGCHeapInitialized()) );
     }
     
     if ((pThread != NULL) && 
@@ -910,7 +705,7 @@ BOOL CrstBase::IsSafeToTake()
     _ASSERTE(pThread == NULL ||
              (pThread->PreemptiveGCDisabled() == ((m_dwFlags & CRST_UNSAFE_COOPGC) != 0)) ||
              ((m_dwFlags & (CRST_UNSAFE_ANYMODE | CRST_GC_NOTRIGGER_WHEN_TAKEN)) != 0) ||
-             (GCHeap::IsGCInProgress() && pThread == ThreadSuspend::GetSuspensionThread()));
+             (GCHeapUtilities::IsGCInProgress() && pThread == ThreadSuspend::GetSuspensionThread()));
     END_GETTHREAD_ALLOWED;
 
     if (m_holderthreadid.IsCurrentThread())

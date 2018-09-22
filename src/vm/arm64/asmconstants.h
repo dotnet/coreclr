@@ -23,6 +23,13 @@
 #define ASMCONSTANTS_RUNTIME_ASSERT(cond)
 #endif
 
+// Some contants are different in _DEBUG builds.  This macro factors out ifdefs from below.
+#ifdef _DEBUG
+#define DBG_FRE(dbg,fre) dbg
+#else
+#define DBG_FRE(dbg,fre) fre
+#endif
+
 #define DynamicHelperFrameFlags_Default     0
 #define DynamicHelperFrameFlags_ObjectArg   1
 #define DynamicHelperFrameFlags_ObjectArg2  2
@@ -54,13 +61,14 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 #define SIZEOF__FloatArgumentRegisters 0x40
 ASMCONSTANTS_C_ASSERT(SIZEOF__FloatArgumentRegisters == sizeof(FloatArgumentRegisters))
 
-#define CallDescrData__pSrc                0x00
-#define CallDescrData__numStackSlots       0x08
-#define CallDescrData__pArgumentRegisters  0x10
-#define CallDescrData__pFloatArgumentRegisters 0x18
-#define CallDescrData__fpReturnSize        0x20
-#define CallDescrData__pTarget             0x28
-#define CallDescrData__returnValue         0x30
+#define CallDescrData__pSrc                     0x00
+#define CallDescrData__numStackSlots            0x08
+#define CallDescrData__pArgumentRegisters       0x10
+#define CallDescrData__pFloatArgumentRegisters  0x18
+#define CallDescrData__fpReturnSize             0x20
+#define CallDescrData__pTarget                  0x28
+#define CallDescrData__pRetBuffArg              0x30
+#define CallDescrData__returnValue              0x38
 
 ASMCONSTANTS_C_ASSERT(CallDescrData__pSrc                 == offsetof(CallDescrData, pSrc))
 ASMCONSTANTS_C_ASSERT(CallDescrData__numStackSlots        == offsetof(CallDescrData, numStackSlots))
@@ -68,11 +76,17 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__pArgumentRegisters   == offsetof(CallDescrD
 ASMCONSTANTS_C_ASSERT(CallDescrData__pFloatArgumentRegisters == offsetof(CallDescrData, pFloatArgumentRegisters))
 ASMCONSTANTS_C_ASSERT(CallDescrData__fpReturnSize         == offsetof(CallDescrData, fpReturnSize))
 ASMCONSTANTS_C_ASSERT(CallDescrData__pTarget              == offsetof(CallDescrData, pTarget))
+ASMCONSTANTS_C_ASSERT(CallDescrData__pRetBuffArg          == offsetof(CallDescrData, pRetBuffArg))
 ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrData, returnValue))
 
 #define                  CORINFO_NullReferenceException_ASM 0
 ASMCONSTANTS_C_ASSERT(   CORINFO_NullReferenceException_ASM
                       == CORINFO_NullReferenceException);
+
+
+#define                  CORINFO_IndexOutOfRangeException_ASM 3
+ASMCONSTANTS_C_ASSERT(   CORINFO_IndexOutOfRangeException_ASM
+                      == CORINFO_IndexOutOfRangeException);
 
 
 // Offset of the array containing the address of captured registers in MachState
@@ -114,9 +128,31 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__Frame == sizeof(Frame));
 ASMCONSTANTS_C_ASSERT(SIZEOF__CONTEXT == sizeof(T_CONTEXT));
 
 
+//=========================================
+#define MethodTable__m_dwFlags         0x0
+ASMCONSTANTS_C_ASSERT(MethodTable__m_dwFlags == offsetof(MethodTable, m_dwFlags));
+
+#define MethodTable__m_BaseSize         0x04
+ASMCONSTANTS_C_ASSERT(MethodTable__m_BaseSize == offsetof(MethodTable, m_BaseSize));
+
+#define MethodTable__m_ElementType     DBG_FRE(0x38, 0x30)
+ASMCONSTANTS_C_ASSERT(MethodTable__m_ElementType == offsetof(MethodTable, m_pMultipurposeSlot1));
+
+#define ArrayBase__m_NumComponents     0x8
+ASMCONSTANTS_C_ASSERT(ArrayBase__m_NumComponents == offsetof(ArrayBase, m_NumComponents));
+
+#define PtrArray__m_Array              0x10
+ASMCONSTANTS_C_ASSERT(PtrArray__m_Array == offsetof(PtrArray, m_Array));
+
+#define TypeHandle_CanCast 0x1 // TypeHandle::CanCast
+
+//=========================================
+
+
+
 #ifdef FEATURE_COMINTEROP
 
-#define SIZEOF__ComMethodFrame 0x68
+#define SIZEOF__ComMethodFrame 0x70
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame));
 
 #define UnmanagedToManagedFrame__m_pvDatum 0x10
@@ -146,6 +182,32 @@ ASMCONSTANTS_C_ASSERT(CONTEXT_Pc == offsetof(T_CONTEXT,Pc))
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
+
+#define SIZEOF__FixupPrecode                 24
+#define Offset_PrecodeChunkIndex             15
+#define Offset_MethodDescChunkIndex          14
+#define MethodDesc_ALIGNMENT_SHIFT           3
+#define FixupPrecode_ALIGNMENT_SHIFT_1       3
+#define FixupPrecode_ALIGNMENT_SHIFT_2       4
+
+ASMCONSTANTS_C_ASSERT(SIZEOF__FixupPrecode == sizeof(FixupPrecode));
+ASMCONSTANTS_C_ASSERT(Offset_PrecodeChunkIndex == offsetof(FixupPrecode, m_PrecodeChunkIndex));
+ASMCONSTANTS_C_ASSERT(Offset_MethodDescChunkIndex == offsetof(FixupPrecode, m_MethodDescChunkIndex));
+ASMCONSTANTS_C_ASSERT(MethodDesc_ALIGNMENT_SHIFT == MethodDesc::ALIGNMENT_SHIFT);
+ASMCONSTANTS_C_ASSERT((1<<FixupPrecode_ALIGNMENT_SHIFT_1) + (1<<FixupPrecode_ALIGNMENT_SHIFT_2)  == sizeof(FixupPrecode));
+
+#ifndef CROSSGEN_COMPILE
+#define ResolveCacheElem__target      0x10
+#define ResolveCacheElem__pNext       0x18
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__target == offsetof(ResolveCacheElem, target));
+ASMCONSTANTS_C_ASSERT(ResolveCacheElem__pNext == offsetof(ResolveCacheElem, pNext));
+#endif // CROSSGEN_COMPILE
+
+#define DomainLocalModule__m_pDataBlob 0x30
+#define DomainLocalModule__m_pGCStatics 0x20
+ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pDataBlob == offsetof(DomainLocalModule, m_pDataBlob));
+ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pGCStatics == offsetof(DomainLocalModule, m_pGCStatics));
+
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT

@@ -19,7 +19,6 @@
 
 #include "utilcode.h"
 #include "holder.h"
-#include "quirksapi.h"
 
 #ifndef __CLRConfig_h__
 #define __CLRConfig_h__
@@ -60,25 +59,16 @@ public:
         // Remove any whitespace at beginning and end of value.  (Only applicable for
         // *string* configuration values.)
         TrimWhiteSpaceFromStringValue = 0x100,
-        // If set, check whether a PerformanceDefault is active for this value before using the built-in default
-        MayHavePerformanceDefault = 0x200,
 
         // Legacy REGUTIL-style lookup.
         REGUTIL_default = IgnoreConfigFiles,
         // Legacy EEConfig-style lookup.
         EEConfig_default = 0,
-
-        // If set, Ignore windows quirk DB lookup
-        IgnoreWindowsQuirkDB = 0x400,
     };
 
     // Function pointer definition used for calling EEConfig::GetConfigValueCallback .
     typedef HRESULT (* GetConfigValueFunction)
         (__in_z LPCWSTR /*pKey*/, __deref_out_opt LPCWSTR* /*value*/, BOOL /*systemOnly*/, BOOL /*applicationFirst*/);
-
-    // Function pointer definition used for calling PerformanceDefaults::LookupConfigValue
-    typedef BOOL (* GetPerformanceDefaultValueFunction)
-        (LPCWSTR /*name*/, DWORD* /*pValue*/);
 
     // Struct used to store information about where/how to find a Config DWORD.
     // NOTE: Please do NOT create instances of this struct. Use the macros in file:CLRConfigValues.h instead.
@@ -164,9 +154,6 @@ public:
     // 
     // Methods to do config value (DWORD and String) lookups.
     // 
-#ifdef FEATURE_WIN_DB_APPCOMPAT    
-    static HRESULT getQuirkEnabledAndValueFromWinDB(LPCWSTR wszQuirkName, BOOL* isEnabled, CPT_QUIRK_DATA* quirkData);
-#endif
     static BOOL IsConfigEnabled(const ConfigDWORDInfo & info);
 
     // Look up a DWORD config value.
@@ -198,25 +185,10 @@ public:
     // Register EEConfig's GetConfigValueCallback function so CLRConfig can look in config files. 
     static void RegisterGetConfigValueCallback(GetConfigValueFunction func);
 
-    // Register PerformanceDefaults' LookupConfigValue so CLRConfig can support 'MayHavePerformanceDefault' values
-    static void RegisterGetPerformanceDefaultValueCallback(GetPerformanceDefaultValueFunction func);
-
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    static void RegisterWinDbQuirkApis(PFN_CptQuirkIsEnabled3 func1, PFN_CptQuirkGetData2 func2);
-#endif // FEATURE_WIN_DB_APPCOMPAT
-
-    
 private:
     // Function pointer to EEConfig's GetConfigValueCallback function (can't static bind from utilcode to VM)
     static GetConfigValueFunction s_GetConfigValueCallback;
 
-    // Function pointer to PerformanceDefaults' LookupConfigValue function (can't static bind from utilcode to VM)
-    static GetPerformanceDefaultValueFunction s_GetPerformanceDefaultValueCallback;
-
-#ifdef FEATURE_WIN_DB_APPCOMPAT
-    static PFN_CptQuirkIsEnabled3 s_IsQuirkEnabledCallback;
-    static PFN_CptQuirkGetData2 s_GetQuirkValueCallback;
-#endif // FEATURE_WIN_DB_APPCOMPAT
     
     // Helper method to translate LookupOptions to REGUTIL::CORConfigLevel
     static REGUTIL::CORConfigLevel GetConfigLevel(LookupOptions options);

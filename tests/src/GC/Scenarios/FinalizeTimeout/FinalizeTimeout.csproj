@@ -7,7 +7,7 @@
     <AssemblyName>FinalizeTimeout</AssemblyName>
     <ProjectGuid>{3B0E8096-79D4-413F-9010-F68DF90073B5}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <FileAlignment>512</FileAlignment>
+    <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -17,12 +17,5 @@
   <ItemGroup>
     <Compile Include="FinalizeTimeout.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="$(GCPackagesConfigFileDirectory)minimal\project.json" />
-  </ItemGroup>
-  <PropertyGroup>
-    <ProjectJson>$(GCPackagesConfigFileDirectory)minimal\project.json</ProjectJson>
-    <ProjectLockJson>$(GCPackagesConfigFileDirectory)minimal\project.lock.json</ProjectLockJson>
-  </PropertyGroup>
 <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

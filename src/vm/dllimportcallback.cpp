@@ -33,78 +33,84 @@ struct UM2MThunk_Args
     int argLen;
 };
 
+class UMEntryThunkFreeList
+{
+public:
+    UMEntryThunkFreeList(size_t threshold) :
+        m_threshold(threshold),
+        m_count(0),
+        m_pHead(NULL),
+        m_pTail(NULL)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        m_crst.Init(CrstLeafLock, CRST_UNSAFE_ANYMODE);
+    }
+
+    UMEntryThunk *GetUMEntryThunk()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (m_count < m_threshold)
+            return NULL;
+
+        CrstHolder ch(&m_crst);
+
+        UMEntryThunk *pThunk = m_pHead;
+
+        if (pThunk == NULL)
+            return NULL;
+
+        m_pHead = m_pHead->m_pNextFreeThunk;
+        --m_count;
+
+        return pThunk;
+    }
+
+    void AddToList(UMEntryThunk *pThunk)
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+        }
+        CONTRACTL_END;
+
+        CrstHolder ch(&m_crst);
+
+        if (m_pHead == NULL)
+        {
+            m_pHead = pThunk;
+            m_pTail = pThunk;
+        }
+        else
+        {
+            m_pTail->m_pNextFreeThunk = pThunk;
+            m_pTail = pThunk;
+        }
+
+        pThunk->m_pNextFreeThunk = NULL;
+
+        ++m_count;
+    }
+
+private:
+    // Used to delay reusing freed thunks
+    size_t m_threshold;
+    size_t m_count;
+    UMEntryThunk *m_pHead;
+    UMEntryThunk *m_pTail;
+    CrstStatic m_crst;
+};
+
+#define DEFAULT_THUNK_FREE_LIST_THRESHOLD 64
+
+static UMEntryThunkFreeList s_thunkFreeList(DEFAULT_THUNK_FREE_LIST_THRESHOLD);
+
 EXTERN_C void STDCALL UM2MThunk_WrapperHelper(void *pThunkArgs,
                                               int argLen,
                                               void *pAddr,
                                               UMEntryThunk *pEntryThunk,
                                               Thread *pThread);
-
-EXTERN_C void __fastcall ReverseEnterRuntimeHelper(Thread *pThread)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        SO_TOLERANT;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // ReverseEnterRuntimeThrowComplus probes.
-    //BEGIN_ENTRYPOINT_THROWS;
-
-    _ASSERTE (pThread == GetThread());
-
-#ifdef FEATURE_STACK_PROBE
-    // The thread is calling into managed code.  If we have the following sequence on stack
-    // Managed code 1 -> Unmanaged code -> Managed code 2,
-    // and we hit SO in managed code 2, in order to unwind stack for managed code 1, we need
-    // to make sure the thread is in cooperative gc mode.  Due to unmanaged code in between,
-    // when we reach managed code 1, the thread is in preemptive GC mode.  In order to switch
-    // to cooperative, we need to have enough stack.  This means that we need to reclaim stack
-    // for managed code 2.  Therefore we require that we have some amount of stack before entering
-    // managed code 2.
-    RetailStackProbe(static_cast<UINT>(ADJUST_PROBE(BACKOUT_CODE_STACK_LIMIT)),pThread);
-#endif
-    pThread->ReverseEnterRuntimeThrowComplus();
-    //END_ENTRYPOINT_THROWS
-}
-
-EXTERN_C void __fastcall ReverseLeaveRuntimeHelper(Thread *pThread)
-{
-    WRAPPER_NO_CONTRACT;
-
-    _ASSERTE (pThread == GetThread());
-    pThread->ReverseLeaveRuntime();
-}
-
-#ifdef MDA_SUPPORTED
-EXTERN_C void __fastcall CallbackOnCollectedDelegateHelper(UMEntryThunk *pEntryThunk)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        SO_TOLERANT;
-        PRECONDITION(CheckPointer(pEntryThunk));
-    }
-    CONTRACTL_END;
-
-    MdaCallbackOnCollectedDelegate* pProbe = MDA_GET_ASSISTANT(CallbackOnCollectedDelegate);
-    
-    // This MDA must be active if we generated a call to CallbackOnCollectedDelegateHelper
-    _ASSERTE(pProbe);
-
-    if (pEntryThunk->IsCollected())
-    {
-        INSTALL_UNWIND_AND_CONTINUE_HANDLER;
-        pProbe->ReportViolation(pEntryThunk->GetMethod());
-        COMPlusThrow(kNullReferenceException);
-        UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    }
-}
-#endif // MDA_SUPPORTED
 
 // This is used as target of callback from DoADCallBack. It sets up the environment and effectively
 // calls back into the thunk that needed to switch ADs.
@@ -164,7 +170,7 @@ EXTERN_C void STDCALL UM2MDoADCallBack(UMEntryThunk *pEntryThunk,
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
 EXTERN_C VOID __cdecl UMThunkStubRareDisable();
 EXTERN_C Thread* __stdcall CreateThreadBlockThrow();
@@ -378,72 +384,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // would deadlock).
     pcpusl->EmitLabel(pDoADCallBackStartLabel);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (NDirect::IsHostHookEnabled())
-    {
-        // We call ReverseEnterRuntimeHelper before we link a frame.
-        // So we know that when exception unwinds through our ReverseEnterRuntimeFrame,
-        // we need call ReverseLeaveRuntime.
-
-        // save registers
-        pcpusl->X86EmitPushReg(kEAXentryThunk);
-        pcpusl->X86EmitPushReg(kECXthread);
-
-        // ecx still has Thread
-        // ReverseEnterRuntimeHelper is a fast call
-        pcpusl->X86EmitCall(pcpusl->NewExternalCodeLabel((LPVOID)ReverseEnterRuntimeHelper), 0);
-
-        // restore registers
-        pcpusl->X86EmitPopReg(kECXthread);
-        pcpusl->X86EmitPopReg(kEAXentryThunk);
-
-        // push reg; leave room for m_next
-        pcpusl->X86EmitPushReg(kDummyPushReg);
-
-        // push IMM32 ; push Frame vptr
-        pcpusl->X86EmitPushImm32((UINT32)(size_t)ReverseEnterRuntimeFrame::GetMethodFrameVPtr());
-
-        // mov edx, esp  ;; set EDX -> new frame
-        pcpusl->X86EmitMovRegSP(kEDX);
-
-        // push IMM32  ; push gsCookie
-        pcpusl->X86EmitPushImmPtr((LPVOID)GetProcessGSCookie());
-
-        // save UMEntryThunk
-        pcpusl->X86EmitPushReg(kEAXentryThunk);
-
-        // mov eax,[ecx + Thread.GetFrame()]  ;; get previous frame
-        pcpusl->X86EmitIndexRegLoad(kEAXentryThunk, kECXthread, Thread::GetOffsetOfCurrentFrame());
-
-        // mov [edx + Frame.m_next], eax
-        pcpusl->X86EmitIndexRegStore(kEDX, Frame::GetOffsetOfNextLink(), kEAX);
-
-        // mov [ecx + Thread.GetFrame()], edx
-        pcpusl->X86EmitIndexRegStore(kECXthread, Thread::GetOffsetOfCurrentFrame(), kEDX);
-
-        // restore EAX
-        pcpusl->X86EmitPopReg(kEAXentryThunk);
-    }
-#endif
-
-#ifdef MDA_SUPPORTED
-    if ((pInfo->m_wFlags & umtmlSkipStub) && !(pInfo->m_wFlags & umtmlIsStatic) && 
-        MDA_GET_ASSISTANT(CallbackOnCollectedDelegate))
-    {
-        // save registers
-        pcpusl->X86EmitPushReg(kEAXentryThunk);
-        pcpusl->X86EmitPushReg(kECXthread);
-
-        // CallbackOnCollectedDelegateHelper is a fast call
-        pcpusl->X86EmitMovRegReg(kECX, kEAXentryThunk);
-        pcpusl->X86EmitCall(pcpusl->NewExternalCodeLabel((LPVOID)CallbackOnCollectedDelegateHelper), 0);
-
-        // restore registers
-        pcpusl->X86EmitPopReg(kECXthread);
-        pcpusl->X86EmitPopReg(kEAXentryThunk);
-    }
-#endif
-
     // save the thread pointer
     pcpusl->X86EmitPushReg(kECXthread);
 
@@ -624,39 +564,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // restore the thread pointer
     pcpusl->X86EmitPopReg(kECXthread);
 
-#ifdef FEATURE_INCLUDE_ALL_INTERFACES
-    if (NDirect::IsHostHookEnabled())
-    {
-#ifdef _DEBUG
-        // lea edx, [esp + sizeof(GSCookie)] ; edx <- current Frame
-        pcpusl->X86EmitEspOffset(0x8d, kEDX, sizeof(GSCookie));
-        pcpusl->EmitCheckGSCookie(kEDX, ReverseEnterRuntimeFrame::GetOffsetOfGSCookie());
-#endif
-
-        // Remove our frame
-        // Get the previous frame into EDX
-        // mov edx, [esp + GSCookie + Frame.m_next]
-        static const BYTE initArg1[] = { 0x8b, 0x54, 0x24, 0x08 }; // mov edx, [esp+8]
-        _ASSERTE(ReverseEnterRuntimeFrame::GetNegSpaceSize() + Frame::GetOffsetOfNextLink() == 0x8);
-        pcpusl->EmitBytes(initArg1, sizeof(initArg1));
-
-        // mov [ecx + Thread.GetFrame()], edx
-        pcpusl->X86EmitIndexRegStore(kECXthread, Thread::GetOffsetOfCurrentFrame(), kEDX);
-
-        // pop off stack
-        // add esp, 8
-        pcpusl->X86EmitAddEsp(sizeof(GSCookie) + sizeof(ReverseEnterRuntimeFrame));
-
-        // Save pThread
-        pcpusl->X86EmitPushReg(kECXthread);
-
-        // ReverseEnterRuntimeHelper is a fast call
-        pcpusl->X86EmitCall(pcpusl->NewExternalCodeLabel((LPVOID)ReverseLeaveRuntimeHelper), 0);
-
-        // Restore pThread
-        pcpusl->X86EmitPopReg(kECXthread);
-    }
-#endif
 
     // Check whether we got here via the switch AD case. We can tell this by looking at whether the
     // caller's arguments immediately precede our EBP frame (they will for the non-switch case but
@@ -1010,7 +917,7 @@ Stub *UMThunkMarshInfo::CompileNExportThunk(LoaderHeap *pLoaderHeap, PInvokeStat
     return pcpusl->Link(pLoaderHeap);
 }
 
-#else // _TARGET_X86_
+#else // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 PCODE UMThunkMarshInfo::GetExecStubEntryPoint()
 {
@@ -1019,7 +926,7 @@ PCODE UMThunkMarshInfo::GetExecStubEntryPoint()
     return GetEEFuncEntryPoint(UMThunkStub);
 }
 
-#endif // _TARGET_X86_
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
 UMEntryThunkCache::UMEntryThunkCache(AppDomain *pDomain) :
     m_crst(CrstUMEntryThunkCache),
@@ -1230,26 +1137,25 @@ UMEntryThunk* UMEntryThunk::CreateUMEntryThunk()
 
     UMEntryThunk * p;
 
-#ifdef FEATURE_WINDOWSPHONE
-    // On the phone, use loader heap to save memory commit of regular executable heap
-    p = (UMEntryThunk *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunk)));
-#else
-    p = new (executable) UMEntryThunk;
-    memset (p, 0, sizeof(*p));
-#endif
+    p = s_thunkFreeList.GetUMEntryThunk();
+
+    if (p == NULL)
+        p = (UMEntryThunk *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunk)));
 
     RETURN p;
 }
 
 void UMEntryThunk::Terminate()
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+    }
+    CONTRACTL_END;
 
-#ifdef FEATURE_WINDOWSPHONE
-    SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(this, sizeof(UMEntryThunk));
-#else
-    DeleteExecutable(this);
-#endif
+    m_code.Poison();
+
+    s_thunkFreeList.AddToList(this);
 }
 
 VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
@@ -1263,34 +1169,46 @@ VOID UMEntryThunk::FreeUMEntryThunk(UMEntryThunk* p)
     }
     CONTRACTL_END;
 
-#ifdef MDA_SUPPORTED
-    MdaCallbackOnCollectedDelegate* pProbe = MDA_GET_ASSISTANT(CallbackOnCollectedDelegate);
-    if (pProbe)
-    {
-        if (p->GetObjectHandle())
-        {
-            DestroyLongWeakHandle(p->GetObjectHandle());
-            p->m_pObjectHandle = NULL;
-
-            // We are intentionally not reseting m_pManagedTarget here so that
-            // it is available for diagnostics of call on collected delegate crashes.
-        }
-        else
-        {
-            p->m_pManagedTarget = NULL;
-        }
-
-        // Add this to the array of delegates to be cleaned up.
-        pProbe->AddToList(p);
-
-        return;
-    }
-#endif
-
     p->Terminate();
 }
 
 #endif // CROSSGEN_COMPILE
+
+//-------------------------------------------------------------------------
+// This function is used to report error when we call collected delegate.
+// But memory that was allocated for thunk can be reused, due to it this
+// function will not be called in all cases of the collected delegate call,
+// also it may crash while trying to report the problem.
+//-------------------------------------------------------------------------
+VOID __fastcall UMEntryThunk::ReportViolation(UMEntryThunk* pEntryThunk)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pEntryThunk));
+    }
+    CONTRACTL_END;
+
+    MethodDesc* pMethodDesc = pEntryThunk->GetMethod();
+
+    SString namespaceOrClassName;
+    SString methodName;
+    SString moduleName;
+
+    pMethodDesc->GetMethodInfoNoSig(namespaceOrClassName, methodName);
+    moduleName.SetUTF8(pMethodDesc->GetModule()->GetSimpleName());
+
+    SString message;
+
+    message.Printf(W("A callback was made on a garbage collected delegate of type '%s!%s::%s'."),
+        moduleName.GetUnicode(),
+        namespaceOrClassName.GetUnicode(),
+        methodName.GetUnicode());
+
+    EEPOLICY_HANDLE_FATAL_ERROR_WITH_MESSAGE(COR_E_FAILFAST, message.GetUnicode());
+}
 
 UMThunkMarshInfo::~UMThunkMarshInfo()
 {
@@ -1302,7 +1220,7 @@ UMThunkMarshInfo::~UMThunkMarshInfo()
     }
     CONTRACTL_END;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     if (m_pExecStub)
         m_pExecStub->DecRef();
 #endif
@@ -1320,7 +1238,9 @@ MethodDesc* UMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD, PInvoke
     dwStubFlags |= NDIRECTSTUB_FL_REVERSE_INTEROP;  // could be either delegate interop or not--that info is passed in from the caller
 
 #if defined(DEBUGGING_SUPPORTED)
-    if (GetDebuggerCompileFlags(pSigInfo->GetModule(), 0) & CORJIT_FLG_DEBUG_CODE)
+    // Combining the next two lines, and eliminating jitDebuggerFlags, leads to bad codegen in x86 Release builds using Visual C++ 19.00.24215.1.
+    CORJIT_FLAGS jitDebuggerFlags = GetDebuggerCompileFlags(pSigInfo->GetModule(), CORJIT_FLAGS());
+    if (jitDebuggerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE))
     {
         dwStubFlags |= NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL;
     }
@@ -1362,7 +1282,7 @@ VOID UMThunkMarshInfo::LoadTimeInit(Signature sig, Module * pModule, MethodDesc 
     m_pModule = pModule;
     m_sig = sig;
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     INDEBUG(m_cbRetPop = 0xcccc;)
 #endif
 }
@@ -1370,7 +1290,7 @@ VOID UMThunkMarshInfo::LoadTimeInit(Signature sig, Module * pModule, MethodDesc 
 #ifndef CROSSGEN_COMPILE
 //----------------------------------------------------------
 // This initializer finishes the init started by LoadTimeInit.
-// It does stub creation and can throw a exception.
+// It does stub creation and can throw an exception.
 //
 // It can safely be called multiple times and by concurrent
 // threads.
@@ -1394,7 +1314,9 @@ VOID UMThunkMarshInfo::RunTimeInit()
         DWORD dwStubFlags = NDIRECTSTUB_FL_NGENEDSTUB | NDIRECTSTUB_FL_REVERSE_INTEROP | NDIRECTSTUB_FL_DELEGATE;
 
 #if defined(DEBUGGING_SUPPORTED)
-        if (GetDebuggerCompileFlags(GetModule(), 0) & CORJIT_FLG_DEBUG_CODE)
+        // Combining the next two lines, and eliminating jitDebuggerFlags, leads to bad codegen in x86 Release builds using Visual C++ 19.00.24215.1.
+        CORJIT_FLAGS jitDebuggerFlags = GetDebuggerCompileFlags(GetModule(), CORJIT_FLAGS());
+        if (jitDebuggerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE))
         {
             dwStubFlags |= NDIRECTSTUB_FL_GENERATEDEBUGGABLEIL;
         }
@@ -1403,7 +1325,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
         pFinalILStub = GetStubForInteropMethod(pMD, dwStubFlags, &pStubMD);
     }
 
-#ifdef _TARGET_X86_
+#if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
     PInvokeStaticSigInfo sigInfo;
 
     if (pMD != NULL)
@@ -1454,7 +1376,7 @@ VOID UMThunkMarshInfo::RunTimeInit()
             pFinalExecStub->DecRef();
     }
 
-#else // _TARGET_X86_
+#else // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     if (pFinalILStub == NULL)
     {
@@ -1487,19 +1409,158 @@ VOID UMThunkMarshInfo::RunTimeInit()
 
             pStubMD = GetILStubMethodDesc(pMD, &sigInfo, dwStubFlags);
             pFinalILStub = JitILStub(pStubMD);
+
         }
     }
 
+#if defined(_TARGET_X86_)
+    MetaSig sig(pMD);
+    int numRegistersUsed = 0;
+    UINT16 cbRetPop = 0;
+
+    //
+    // cbStackArgSize represents the number of arg bytes for the MANAGED signature
+    //
+    UINT32 cbStackArgSize = 0;
+
+    int offs = 0;
+
+#ifdef UNIX_X86_ABI
+    if (HasRetBuffArgUnmanagedFixup(&sig))
+    {
+        // callee should pop retbuf
+        numRegistersUsed += 1;
+        offs += STACK_ELEM_SIZE;
+        cbRetPop += STACK_ELEM_SIZE;
+    }
+#endif // UNIX_X86_ABI
+
+    for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
+    {
+        TypeHandle thValueType;
+        CorElementType type = sig.NextArgNormalized(&thValueType);
+        int cbSize = sig.GetElemSize(type, thValueType);
+        if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
+        {
+            offs += STACK_ELEM_SIZE;
+        }
+        else
+        {
+            offs += StackElemSize(cbSize);
+            cbStackArgSize += StackElemSize(cbSize);
+        }
+    }
+    m_cbStackArgSize = cbStackArgSize;
+    m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : offs;
+
+    PInvokeStaticSigInfo sigInfo;
+    if (pMD != NULL)
+        new (&sigInfo) PInvokeStaticSigInfo(pMD);
+    else
+        new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
+    if (sigInfo.GetCallConv() == pmCallConvCdecl)
+    {
+        m_cbRetPop = cbRetPop;
+    }
+    else
+    {
+        // For all the other calling convention except cdecl, callee pops the stack arguments
+        m_cbRetPop = cbRetPop + static_cast<UINT16>(m_cbActualArgSize);
+    }
+#else // _TARGET_X86_
     //
     // m_cbActualArgSize gets the number of arg bytes for the NATIVE signature
     //
-    m_cbActualArgSize = (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
+    m_cbActualArgSize =
+        (pStubMD != NULL) ? pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize() : pMD->SizeOfArgStack();
 
 #endif // _TARGET_X86_
+
+#endif // _TARGET_X86_ && !FEATURE_STUBS_AS_IL
 
     // Must be the last thing we set!
     InterlockedCompareExchangeT<PCODE>(&m_pILStub, pFinalILStub, (PCODE)1);
 }
+
+#if defined(_TARGET_X86_) && defined(FEATURE_STUBS_AS_IL)
+VOID UMThunkMarshInfo::SetupArguments(char *pSrc, ArgumentRegisters *pArgRegs, char *pDst)
+{
+    MethodDesc *pMD = GetMethod();
+
+    _ASSERTE(pMD);
+
+    //
+    // x86 native uses the following stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg 0  |
+    // | stkarg 1  |
+    // | ...       |
+    // | stkarg N  |
+    //
+    // x86 managed, however, uses a bit different stack layout:
+    // | saved eip |
+    // | --------- | <- CFA
+    // | stkarg M  | (NATIVE/MANAGE may have different number of stack arguments)
+    // | ...       |
+    // | stkarg 1  |
+    // | stkarg 0  |
+    //
+    // This stub bridges the gap between them.
+    //
+    char *pCurSrc = pSrc;
+    char *pCurDst = pDst + m_cbStackArgSize;
+
+    MetaSig sig(pMD);
+
+    int numRegistersUsed = 0;
+
+#ifdef UNIX_X86_ABI
+    if (HasRetBuffArgUnmanagedFixup(&sig))
+    {
+        // Pass retbuf via Ecx
+        numRegistersUsed += 1;
+        pArgRegs->Ecx = *((UINT32 *)pCurSrc);
+        pCurSrc += STACK_ELEM_SIZE;
+    }
+#endif // UNIX_X86_ABI
+
+    for (UINT i = 0 ; i < sig.NumFixedArgs(); i++)
+    {
+        TypeHandle thValueType;
+        CorElementType type = sig.NextArgNormalized(&thValueType);
+        int cbSize = sig.GetElemSize(type, thValueType);
+        int elemSize = StackElemSize(cbSize);
+
+        if (ArgIterator::IsArgumentInRegister(&numRegistersUsed, type))
+        {
+            _ASSERTE(elemSize == STACK_ELEM_SIZE);
+
+            if (numRegistersUsed == 1)
+                pArgRegs->Ecx = *((UINT32 *)pCurSrc);
+            else if (numRegistersUsed == 2)
+                pArgRegs->Edx = *((UINT32 *)pCurSrc);
+        }
+        else
+        {
+            pCurDst -= elemSize;
+            memcpy(pCurDst, pCurSrc, elemSize);
+        }
+
+        pCurSrc += elemSize;
+    }
+
+    _ASSERTE(pDst == pCurDst);
+}
+
+EXTERN_C VOID STDCALL UMThunkStubSetupArgumentsWorker(UMThunkMarshInfo *pMarshInfo,
+                                                      char *pSrc,
+                                                      UMThunkMarshInfo::ArgumentRegisters *pArgRegs,
+                                                      char *pDst)
+{
+    pMarshInfo->SetupArguments(pSrc, pArgRegs, pDst);
+}
+#endif // _TARGET_X86_ && FEATURE_STUBS_AS_IL
 
 #ifdef _DEBUG
 void STDCALL LogUMTransition(UMEntryThunk* thunk)

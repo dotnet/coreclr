@@ -46,9 +46,9 @@ void ZapBaseRelocs::WriteReloc(PVOID pSrc, int offset, ZapNode * pTarget, int ta
     case IMAGE_REL_BASED_PTR:
 #ifdef _TARGET_ARM_
         // Misaligned relocs disable ASLR on ARM. We should never ever emit them.
-        _ASSERTE(IS_ALIGNED(rva, sizeof(TADDR)));
+        _ASSERTE(IS_ALIGNED(rva, TARGET_POINTER_SIZE));
 #endif
-        *(UNALIGNED TADDR *)pLocation = pActualTarget;
+        *(UNALIGNED TARGET_POINTER_TYPE *)pLocation = (TARGET_POINTER_TYPE)pActualTarget;
         break;
 
     case IMAGE_REL_BASED_RELPTR:
@@ -84,6 +84,22 @@ void ZapBaseRelocs::WriteReloc(PVOID pSrc, int offset, ZapNode * pTarget, int ta
             break;
         }
 
+    case IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL:
+        {
+            TADDR pSite = (TADDR)m_pImage->GetBaseAddress() + rva;
+
+            // For details about how the value is calculated, see
+            // description of IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL
+            const UINT32 offsetCorrection = 12;
+
+            UINT32 imm32 = UINT32(pActualTarget - (pSite + offsetCorrection));
+
+            PutThumb2Mov32((UINT16 *)pLocation, imm32);
+
+            // IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL does not need base reloc entry
+            return;
+        }
+
     case IMAGE_REL_BASED_THUMB_BRANCH24:
         {
             TADDR pSite = (TADDR)m_pImage->GetBaseAddress() + rva;
@@ -105,6 +121,38 @@ void ZapBaseRelocs::WriteReloc(PVOID pSrc, int offset, ZapNode * pTarget, int ta
             PutThumb2BlRel24((UINT16 *)pLocation, relOffset);
         }
         // IMAGE_REL_BASED_THUMB_BRANCH24 does not need base reloc entry
+        return;
+#endif // defined(_TARGET_ARM_)
+#if defined(_TARGET_ARM64_)
+    case IMAGE_REL_ARM64_BRANCH26:
+        {
+            TADDR pSite = (TADDR)m_pImage->GetBaseAddress() + rva;
+
+            INT32 relOffset = (INT32)(pActualTarget - pSite);
+            if (!FitsInRel28(relOffset))
+            {
+                ThrowHR(COR_E_OVERFLOW);
+            }
+            PutArm64Rel28((UINT32 *)pLocation,relOffset);
+        }
+        return;
+
+    case IMAGE_REL_ARM64_PAGEBASE_REL21:
+        {
+            TADDR pSitePage = ((TADDR)m_pImage->GetBaseAddress() + rva) & 0xFFFFFFFFFFFFF000LL;
+            TADDR pActualTargetPage = pActualTarget & 0xFFFFFFFFFFFFF000LL;
+
+            INT64 relPage = (INT64)(pActualTargetPage - pSitePage);
+            INT32 imm21 = (INT32)(relPage >> 12) & 0x1FFFFF;
+            PutArm64Rel21((UINT32 *)pLocation, imm21);
+        }
+        return;
+
+    case IMAGE_REL_ARM64_PAGEOFFSET_12A:
+        {
+            INT32 imm12 = (INT32)(pActualTarget & 0xFFFLL);
+            PutArm64Rel12((UINT32 *)pLocation, imm12);
+        }
         return;
 #endif
 
@@ -250,6 +298,7 @@ void ZapBlobWithRelocs::Save(ZapWriter * pZapWriter)
 
 #if defined(_TARGET_ARM_)
             case IMAGE_REL_BASED_THUMB_MOV32:
+            case IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL:
                 targetOffset = (int)GetThumb2Mov32((UINT16 *)pLocation);
                 break;
 
@@ -257,6 +306,21 @@ void ZapBlobWithRelocs::Save(ZapWriter * pZapWriter)
                 targetOffset = GetThumb2BlRel24((UINT16 *)pLocation);
                 break;
 #endif // defined(_TARGET_ARM_)
+
+#if defined(_TARGET_ARM64_)
+            case IMAGE_REL_ARM64_BRANCH26:
+                targetOffset = (int)GetArm64Rel28((UINT32*)pLocation);
+                break;
+
+            case IMAGE_REL_ARM64_PAGEBASE_REL21:
+                targetOffset = (int)GetArm64Rel21((UINT32*)pLocation);
+                break;
+
+            case IMAGE_REL_ARM64_PAGEOFFSET_12A:
+                targetOffset = (int)GetArm64Rel12((UINT32*)pLocation);
+                break;
+
+#endif // defined(_TARGET_ARM64_)
 
             default:
                 _ASSERTE(!"Unknown reloc type");
@@ -286,7 +350,7 @@ COUNT_T ZapBlobWithRelocs::GetCountOfStraddlerRelocations(DWORD dwPos)
     {
         if (pReloc->m_type == IMAGE_REL_BASED_PTR)
         {
-            if (AlignmentTrim(dwPos + pReloc->m_offset, RELOCATION_PAGE_SIZE) > RELOCATION_PAGE_SIZE - sizeof(TADDR))
+            if (AlignmentTrim(dwPos + pReloc->m_offset, RELOCATION_PAGE_SIZE) > RELOCATION_PAGE_SIZE - TARGET_POINTER_SIZE)
                 nStraddlers++;          
         }
     }

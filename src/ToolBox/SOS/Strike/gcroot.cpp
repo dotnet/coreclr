@@ -40,18 +40,14 @@
 #include "safemath.h"
 
 
-#ifdef _ASSERTE
 #undef _ASSERTE
-#endif
 
-#ifndef _ASSERTE
 #ifdef _DEBUG
 #define _ASSERTE(expr)         \
     do { if (!(expr) ) { ExtErr("_ASSERTE fired:\n\t%s\n", #expr); if (IsDebuggerPresent()) DebugBreak(); } } while (0)
 #else
 #define _ASSERTE(x)
 #endif
-#endif // ASSERTE
 
 inline size_t ALIGN_DOWN( size_t val, size_t alignment )
 {
@@ -452,12 +448,12 @@ void GCRootImpl::ReportOnePath(DWORD thread, const SOSStackRefData &stackRef, Ro
         if (stackRef.SourceType == SOS_StackSourceIP)
         {
             WString methodName = MethodNameFromIP(stackRef.Source);
-            ExtOut("    %p %p %S\n", stackRef.StackPointer, stackRef.Source, methodName.c_str());
+            ExtOut("    %p %p %S\n", SOS_PTR(stackRef.StackPointer), SOS_PTR(stackRef.Source), methodName.c_str());
         }
         else
         {
             WString frameName = GetFrameFromAddress(TO_TADDR(stackRef.Source));
-            ExtOut("    %p %S\n", stackRef.Source, frameName.c_str());
+            ExtOut("    %p %S\n", SOS_PTR(stackRef.Source), frameName.c_str());
         }
     }
     
@@ -520,13 +516,13 @@ int GCRootImpl::PrintRootsInOlderGen()
 
         if (!analyzeData.heap_analyze_success)
         {
-            ExtOut("Failed to gather needed data, possibly due to memory contraints in the debuggee.\n");
+            ExtOut("Failed to gather needed data, possibly due to memory constraints in the debuggee.\n");
             ExtOut("To try again re-issue the !FindRoots -gen <N> command.\n");
             return 0;
         }
 
-        ExtDbgOut("internal_root_array = %#p\n", analyzeData.internal_root_array);
-        ExtDbgOut("internal_root_array_index = %#p\n", analyzeData.internal_root_array_index);
+        ExtDbgOut("internal_root_array = %#p\n", SOS_PTR(analyzeData.internal_root_array));
+        ExtDbgOut("internal_root_array_index = %#p\n", SOS_PTR(analyzeData.internal_root_array_index));
         
         TADDR start = TO_TADDR(analyzeData.internal_root_array);
         TADDR stop = TO_TADDR(analyzeData.internal_root_array + sizeof(TADDR) * (size_t)analyzeData.internal_root_array_index);
@@ -562,13 +558,13 @@ int GCRootImpl::PrintRootsInOlderGen()
 
             if (!analyzeData.heap_analyze_success)
             {
-                ExtOut("Failed to gather needed data, possibly due to memory contraints in the debuggee.\n");
+                ExtOut("Failed to gather needed data, possibly due to memory constraints in the debuggee.\n");
                 ExtOut("To try again re-issue the !FindRoots -gen <N> command.\n");
                 continue;
             }
 
-            ExtDbgOut("internal_root_array = %#p\n", analyzeData.internal_root_array);
-            ExtDbgOut("internal_root_array_index = %#p\n", analyzeData.internal_root_array_index);
+            ExtDbgOut("internal_root_array = %#p\n", SOS_PTR(analyzeData.internal_root_array));
+            ExtDbgOut("internal_root_array_index = %#p\n", SOS_PTR(analyzeData.internal_root_array_index));
             
             TADDR start = TO_TADDR(analyzeData.internal_root_array);
             TADDR stop = TO_TADDR(analyzeData.internal_root_array + sizeof(TADDR) * (size_t)analyzeData.internal_root_array_index);
@@ -1013,7 +1009,7 @@ GCRootImpl::RootNode *GCRootImpl::GetGCRefs(RootNode *path, RootNode *node)
 
     // Only calculate the size if we need it.
     size_t objSize = 0;
-    if (mSize || node->MTInfo->ContainsPointers)
+    if (mSize || node->MTInfo->ContainsPointers || node->MTInfo->Collectible)
     {
         objSize = GetSizeOfObject(obj, node->MTInfo);
         
@@ -1031,7 +1027,7 @@ GCRootImpl::RootNode *GCRootImpl::GetGCRefs(RootNode *path, RootNode *node)
     }
     
     // Early out:  If the object doesn't contain any pointers, return.
-    if (!node->MTInfo->ContainsPointers)
+    if (!node->MTInfo->ContainsPointers && !node->MTInfo->Collectible)
         return NULL;
     
     // Make sure we have the object's data in the cache.
@@ -1142,6 +1138,15 @@ GCRootImpl::MTInfo *GCRootImpl::GetMTInfo(TADDR mt)
     curr->BaseSize = (size_t)dmtd.BaseSize;
     curr->ComponentSize = (size_t)dmtd.ComponentSize;
     curr->ContainsPointers = dmtd.bContainsPointers ? true : false;
+
+    // The following request doesn't work on older runtimes. For those, the
+    // objects would just look like non-collectible, which is acceptable.
+    DacpMethodTableCollectibleData dmtcd;
+    if (SUCCEEDED(dmtcd.Request(g_sos, mt)))
+    {
+        curr->Collectible = dmtcd.bCollectible ? true : false;
+        curr->LoaderAllocatorObjectHandle = TO_TADDR(dmtcd.LoaderAllocatorObjectHandle);
+    }
 
     // If this method table contains pointers, fill out and cache the GCDesc.
     if (curr->ContainsPointers)
@@ -1320,11 +1325,11 @@ void PrintNotReachableInRange(TADDR rngStart, TADDR rngEnd, BOOL bExcludeReadyFo
 // The value of card_size is determined empirically according to the average size of an object
 // In the code we also rely on the assumption that one card_table entry (DWORD) covers an entire os page
 //
-#if defined (_TARGET_AMD64_)
-#define card_size ((size_t)(2*DT_OS_PAGE_SIZE/card_word_width))
+#if defined (_TARGET_WIN64_)
+#define card_size ((size_t)(2*DT_GC_PAGE_SIZE/card_word_width))
 #else
-#define card_size ((size_t)(DT_OS_PAGE_SIZE/card_word_width))
-#endif //_TARGET_AMD64_
+#define card_size ((size_t)(DT_GC_PAGE_SIZE/card_word_width))
+#endif //_TARGET_WIN64_
 
 // so card_size = 128 on x86, 256 on x64
 
@@ -1639,7 +1644,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
     // Request the inital segment.
     if (seg.Request(g_sos, dwAddrSeg, heap) != S_OK)
     {
-        ExtOut("Error requesting heap segment %p.\n", (ULONG64)dwAddrSeg);
+        ExtOut("Error requesting heap segment %p.\n", SOS_PTR(dwAddrSeg));
         return FALSE;
     }
 
@@ -1656,7 +1661,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
 
         if (seg.Request(g_sos, dwAddrSeg, heap) != S_OK)
         {
-            ExtOut("Error requesting heap segment %p.\n", (ULONG64)dwAddrSeg);
+            ExtOut("Error requesting heap segment %p.\n", SOS_PTR(dwAddrSeg));
             return FALSE;
         }
     }
@@ -1667,7 +1672,7 @@ BOOL FindSegment(const DacpGcHeapDetails &heap, DacpHeapSegmentData &seg, CLRDAT
 BOOL VerifyObject(const DacpGcHeapDetails &heap, DWORD_PTR objAddr, DWORD_PTR MTAddr, size_t objSize, BOOL bVerifyMember)
 {
     // This is only used by the other VerifyObject function if bVerifyMember is true,
-    // so we only intialize it if we need it for verifying object members.
+    // so we only initialize it if we need it for verifying object members.
     DacpHeapSegmentData seg;
 
     if (bVerifyMember)
@@ -2165,7 +2170,7 @@ void HeapTraverser::PrintRefs(size_t obj, size_t methodTable, size_t size)
     
     // TODO: pass info to callback having to lookup the MethodTableInfo again
     MethodTableInfo* info = g_special_mtCache.Lookup((DWORD_PTR)methodTable);
-    _ASSERTE(info->IsInitialized());    // This is the second pass, so we should be intialized
+    _ASSERTE(info->IsInitialized());    // This is the second pass, so we should be initialized
 
     if (!info->bContainsPointers)
         return;
@@ -2339,7 +2344,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                          (GetSizeEfficient(dwAddr1, dwAddrMethTable, FALSE, s, bPointers) == FALSE)) 
                     {
                         BuildError(reason, count, "object %s: bad member %p at %p", DMLObject(objAddr),
-                               (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                               SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                         return false;
                     }
@@ -2347,7 +2352,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                     if (IsMTForFreeObj(dwAddrMethTable))
                     {
                         sos::Throw<HeapCorruption>("object %s contains free object %p at %p", DMLObject(objAddr),
-                               (ULONG64)dwAddr1, (ULONG64)(objAddr+(size_t)parm-objAddr));
+                               SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
                     }
                
                     // verify card table
@@ -2356,7 +2361,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                     {
                         BuildError(reason, count, "Object %s: %s missing card_table entry for %p",
                                 DMLObject(objAddr), (dwChild == dwAddr1)? "" : " maybe",
-                               (size_t)(objAddr+(size_t)parm-objAddr));
+                                SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                         return false;
                     }
@@ -2414,8 +2419,8 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              if (FAILED(GetMTOfObject(dwAddr1, &dwAddrMethTable)) ||
                                   (GetSizeEfficient(dwAddr1, dwAddrMethTable, FALSE, s, bPointers) == FALSE)) 
                              {
-                                 BuildError(reason, count, "Object %s: Bad member %p at %p.\n", DMLObject(objAddr), 
-                                         (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                                 BuildError(reason, count, "Object %s: Bad member %p at %p.\n", DMLObject(objAddr),
+                                         SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                                  return false;
                              }
@@ -2423,7 +2428,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              if (IsMTForFreeObj(dwAddrMethTable))
                              {
                                  BuildError(reason, count, "Object %s contains free object %p at %p.", DMLObject(objAddr),
-                                        (size_t)dwAddr1, (size_t)(objAddr+(size_t)parm-objAddr));
+                                        SOS_PTR(dwAddr1), SOS_PTR(objAddr+(size_t)parm-objAddr));
                                  return false;
                              }
 
@@ -2433,7 +2438,7 @@ bool sos::ObjectIterator::VerifyObjectMembers(char *reason, size_t count) const
                              {
                                  BuildError(reason, count, "Object %s:%s missing card_table entry for %p",
                                         DMLObject(objAddr), (dwChild == dwAddr1) ? "" : " maybe",
-                                        (size_t)(objAddr+(size_t)parm-objAddr));
+                                        SOS_PTR(objAddr+(size_t)parm-objAddr));
 
                                  return false;
                              }

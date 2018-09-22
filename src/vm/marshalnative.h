@@ -15,6 +15,8 @@
 
 #include "fcall.h"
 
+#define MAX_UTF8_CHAR_SIZE 3
+
 //!!! Must be kept in sync with ArrayWithOffset class layout.
 struct ArrayWithOffsetData
 {
@@ -78,7 +80,6 @@ public:
     static FCDECL3(VOID, GCHandleInternalSet, OBJECTHANDLE handle, Object *obj, CLR_BOOL isPinned);
     static FCDECL4(Object*, GCHandleInternalCompareExchange, OBJECTHANDLE handle, Object *obj, Object* oldObj, CLR_BOOL isPinned);
     static FCDECL1(LPVOID, GCHandleInternalAddrOfPinnedObject, OBJECTHANDLE handle);
-    static FCDECL1(VOID, GCHandleInternalCheckDomain, OBJECTHANDLE handle);
     static FCDECL1(INT32, GCHandleInternalGetHandleType, OBJECTHANDLE handle);
 
     static FCDECL2(Object*, GetDelegateForFunctionPointerInternal, LPVOID FPtr, ReflectClassBaseObject* refTypeUNSAFE);
@@ -227,7 +228,7 @@ public:
     static FCDECL2(void, ChangeWrapperHandleStrength, Object* orefUNSAFE, CLR_BOOL fIsWeak);
     static FCDECL2(void, InitializeWrapperForWinRT, Object *unsafe_pThis, IUnknown **ppUnk);
     static FCDECL2(void, InitializeManagedWinRTFactoryObject, Object *unsafe_pThis, ReflectClassBaseObject *unsafe_pType);
-    static FCDECL1(Object *, MarshalNative::GetNativeActivationFactory, ReflectClassBaseObject *unsafe_pType);
+    static FCDECL1(Object *, GetNativeActivationFactory, ReflectClassBaseObject *unsafe_pType);
     static void QCALLTYPE GetInspectableIIDs(QCall::ObjectHandleOnStack hobj, QCall::ObjectHandleOnStack retArrayGuids);
     static void QCALLTYPE GetCachedWinRTTypes(QCall::ObjectHandleOnStack hadObj, int * epoch, QCall::ObjectHandleOnStack retArrayMT);
     static void QCALLTYPE GetCachedWinRTTypeByIID(QCall::ObjectHandleOnStack hadObj, GUID iid, void * * ppMT);
@@ -237,5 +238,9 @@ private:
     static BOOL IsObjectInContext(OBJECTREF *pObj);
 #endif // FEATURE_COMINTEROP
 };
+
+// Check that the supplied object is valid to put in a pinned handle,
+// throwing an exception if not.
+void ValidatePinnedObject(OBJECTREF obj);
 
 #endif

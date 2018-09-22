@@ -7,33 +7,11 @@
 #ifndef __GCENV_EE_H__
 #define __GCENV_EE_H__
 
-struct ScanContext;
-class CrawlFrame;
-
-typedef void promote_func(PTR_PTR_Object, ScanContext*, uint32_t);
-
-typedef void enum_alloc_context_func(alloc_context*, void*);
-
-typedef struct
-{
-    promote_func*  f;
-    ScanContext*   sc;
-    CrawlFrame *   cf;
-} GCCONTEXT;
-
+#include "gcinterface.h"
 
 class GCToEEInterface
 {
 public:
-    //
-    // Suspend/Resume callbacks
-    //
-    typedef enum
-    {
-        SUSPEND_FOR_GC = 1,
-        SUSPEND_FOR_GC_PREP = 6
-    } SUSPEND_REASON;
-
     static void SuspendEE(SUSPEND_REASON reason);
     static void RestartEE(bool bFinishedGC); //resume threads.
 
@@ -66,19 +44,57 @@ public:
     static void SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2);
     static void SyncBlockCacheDemote(int max_gen);
     static void SyncBlockCachePromotionsGranted(int max_gen);
+    static uint32_t GetActiveSyncBlockCount();
 
     // Thread functions
-    static bool IsPreemptiveGCDisabled(Thread * pThread);
-    static void EnablePreemptiveGC(Thread * pThread);
-    static void DisablePreemptiveGC(Thread * pThread);
+    static bool IsPreemptiveGCDisabled();
+    static bool EnablePreemptiveGC();
+    static void DisablePreemptiveGC();
+    static Thread* GetThread();
 
-    static void SetGCSpecial(Thread * pThread);
-    static alloc_context * GetAllocContext(Thread * pThread);
-    static bool CatchAtSafePoint(Thread * pThread);
+    static gc_alloc_context * GetAllocContext();
 
     static void GcEnumAllocContexts(enum_alloc_context_func* fn, void* param);
 
-    static void AttachCurrentThread(); // does not acquire thread store lock
+    static uint8_t* GetLoaderAllocatorObjectForGC(Object* pObject);
+
+    // Diagnostics methods.
+    static void DiagGCStart(int gen, bool isInduced);
+    static void DiagUpdateGenerationBounds();
+    static void DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent);
+    static void DiagWalkFReachableObjects(void* gcContext);
+    static void DiagWalkSurvivors(void* gcContext);
+    static void DiagWalkLOHSurvivors(void* gcContext);
+    static void DiagWalkBGCSurvivors(void* gcContext);
+    static void StompWriteBarrier(WriteBarrierParameters* args);
+
+    static void EnableFinalization(bool foundFinalizers);
+
+    static void HandleFatalError(unsigned int exitCode);
+    static bool ShouldFinalizeObjectForUnload(void* pDomain, Object* obj);
+    static bool ForceFullGCToBeBlocking();
+    static bool EagerFinalized(Object* obj);
+    static MethodTable* GetFreeObjectMethodTable();
+    static bool GetBooleanConfigValue(const char* key, bool* value);
+    static bool GetIntConfigValue(const char* key, int64_t* value);
+    static bool GetStringConfigValue(const char* key, const char** value);
+    static void FreeStringConfigValue(const char* key);
+    static bool IsGCThread();
+    static bool WasCurrentThreadCreatedByGC();
+    static bool CreateThread(void (*threadStart)(void*), void* arg, bool is_suspendable, const char* name);
+    static void WalkAsyncPinnedForPromotion(Object* object, ScanContext* sc, promote_func* callback);
+    static void WalkAsyncPinned(Object* object, void* context, void(*callback)(Object*, Object*, void*));
+    static IGCToCLREventSink* EventSink();
+
+    static uint32_t GetDefaultDomainIndex();
+    static void *GetAppDomainAtIndex(uint32_t appDomainIndex);
+    static bool AppDomainCanAccessHandleTable(uint32_t appDomainID);
+    static uint32_t GetIndexOfAppDomainBeingUnloaded();
+    static uint32_t GetTotalNumSizedRefHandles();
+    static bool AppDomainIsRudeUnload(void *appDomain);
+
+    static bool AnalyzeSurvivorsRequested(int condemnedGeneration);
+    static void AnalyzeSurvivorsFinished(int condemnedGeneration);
 };
 
 #endif // __GCENV_EE_H__

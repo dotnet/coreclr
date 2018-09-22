@@ -25,6 +25,7 @@
 #include <stddef.h>
 #include "eeconfig.h"
 #include "precode.h"
+#include "codeversion.h"
 
 #ifndef FEATURE_PREJIT
 #include "fixuppointer.h"
@@ -42,6 +43,9 @@ class Dictionary;
 class GCCoverageInfo;
 class DynamicMethodDesc;
 class ReJitManager;
+class CodeVersionManager;
+class PrepareCodeConfig;
+class CallCounter;
 
 typedef DPTR(FCallMethodDesc)        PTR_FCallMethodDesc;
 typedef DPTR(ArrayMethodDesc)        PTR_ArrayMethodDesc;
@@ -143,29 +147,10 @@ enum MethodDescClassification
     // Method is static
     mdcStatic                           = 0x0020,
 
-    // Temporary Security Interception.
-    // Methods can now be intercepted by security. An intercepted method behaves
-    // like it was an interpreted method. The Prestub at the top of the method desc
-    // is replaced by an interception stub. Therefore, no back patching will occur.
-    // We picked this approach to minimize the number variations given IL and native
-    // code with edit and continue. E&C will need to find the real intercepted method
-    // and if it is intercepted change the real stub. If E&C is enabled then there
-    // is no back patching and needs to fix the pre-stub.
-    mdcIntercepted                      = 0x0040,
-
-    // Method requires linktime security checks.
-    mdcRequiresLinktimeCheck            = 0x0080,
-
-    // Method requires inheritance security checks.
-    // If this bit is set, then this method demands inheritance permissions
-    // or a method that this method overrides demands inheritance permissions
-    // or both.
-    mdcRequiresInheritanceCheck         = 0x0100,
-
-    // The method that this method overrides requires an inheritance security check.
-    // This bit is used as an optimization to avoid looking up overridden methods
-    // during the inheritance check.
-    mdcParentRequiresInheritanceCheck   = 0x0200,
+    // unused                           = 0x0040,
+    // unused                           = 0x0080,
+    // unused                           = 0x0100,
+    // unused                           = 0x0200,
 
     // Duplicate method. When a method needs to be placed in multiple slots in the
     // method table, because it could not be packed into one slot. For eg, a method
@@ -268,10 +253,6 @@ public:
 
     BOOL SetStableEntryPointInterlocked(PCODE addr);
 
-#ifdef FEATURE_INTERPRETER
-    BOOL SetEntryPointInterlocked(PCODE addr);
-#endif // FEATURE_INTERPRETER
-
     BOOL HasTemporaryEntryPoint();
     PCODE GetTemporaryEntryPoint();
 
@@ -304,7 +285,7 @@ public:
         }
         CONTRACTL_END
 
-        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub();
+        return !MayHaveNativeCode() || IsRemotingInterceptedViaPrestub() || IsVersionableWithPrecode();
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -507,7 +488,12 @@ public:
 
     BaseDomain *GetDomain();
 
-    ReJitManager * GetReJitManager();
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager* GetCodeVersionManager();
+#endif
+#ifdef FEATURE_TIERED_COMPILATION
+    CallCounter* GetCallCounter();
+#endif
 
     PTR_LoaderAllocator GetLoaderAllocator();
 
@@ -669,7 +655,6 @@ public:
     }
 
     void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
-    BOOL HasSuppressUnmanagedCodeAccessAttr();
     BOOL HasNativeCallableAttribute();
 
 #ifdef FEATURE_COMINTEROP 
@@ -697,32 +682,6 @@ public:
     // Update flags in a thread safe manner.
     WORD InterlockedUpdateFlags(WORD wMask, BOOL fSet);
 
-    inline DWORD IsInterceptedForDeclSecurity()
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;        
-        return m_wFlags & mdcIntercepted;
-    }
-
-    inline void SetInterceptedForDeclSecurity()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wFlags |= mdcIntercepted;
-    }
-
-    inline DWORD IsInterceptedForDeclSecurityCASDemandsOnly()
-    {
-        LIMITED_METHOD_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;        
-        return m_bFlags2 & enum_flag2_CASDemandsOnly;
-    }
-
-    inline void SetInterceptedForDeclSecurityCASDemandsOnly()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_bFlags2 |= enum_flag2_CASDemandsOnly;
-    }
-
     // If the method is in an Edit and Contine (EnC) module, then
     // we DON'T want to backpatch this, ever.  We MUST always call
     // through the precode so that we can update the method.
@@ -746,8 +705,6 @@ public:
         InterlockedUpdateFlags(mdcNotInline, set);
     }
 
-
-    BOOL IsIntrospectionOnly();
 #ifndef DACCESS_COMPILE
     VOID EnsureActive();
 #endif
@@ -797,24 +754,6 @@ public:
 
     //================================================================
     // Does it represent a one way method call with no out/return parameters?
-#ifdef FEATURE_REMOTING
-    inline BOOL IsOneWay()
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-        }
-        CONTRACTL_END
-
-        return (S_OK == GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                                "System.Runtime.Remoting.Messaging.OneWayAttribute",
-                                                                NULL,
-                                                                NULL));
-
-    }
-#endif // FEATURE_REMOTING
 
     //================================================================
     // FCalls.
@@ -829,50 +768,11 @@ public:
     BOOL IsQCall();
 
     //================================================================
-    // Has the method been verified?
-    // This does not mean that the IL is verifiable, just that we have
-    // determined if the IL is verfiable or unverifiable.
-    // (Is this is dead code since the JIT now does verification?)
-
-    inline BOOL IsVerified()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_wFlags & mdcVerifiedState;
-    }
-
-    inline void SetIsVerified(BOOL isVerifiable)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        WORD flags = isVerifiable ? (WORD(mdcVerifiedState) | WORD(mdcVerifiable))
-                                  : (WORD(mdcVerifiedState));
-        InterlockedUpdateFlags(flags, TRUE);
-    }
-
-    inline void ResetIsVerified()
-    {
-        WRAPPER_NO_CONTRACT;
-        InterlockedUpdateFlags(mdcVerifiedState | mdcVerifiable, FALSE);
-    }
-
-    BOOL IsVerifiable();
-
-    // fThrowException is used to prevent Verifier from
-    // throwin an exception on error
-    // fForceVerify is to be used by tools that need to
-    // force verifier to verify code even if the code is fully trusted.
-    HRESULT Verify(COR_ILMETHOD_DECODER* ILHeader,
-                   BOOL fThrowException,
-                   BOOL fForceVerify);
-
-
-    //================================================================
     //
 
     inline void ClearFlagsOnUpdate()
     {
         WRAPPER_NO_CONTRACT;
-        ResetIsVerified();
         SetNotInline(FALSE);
     }
 
@@ -1105,6 +1005,18 @@ public:
             && GetSlot() < pMT->GetNumVirtuals();
     }
 
+    // Is this a default interface method (virtual non-abstract instance method)
+    inline BOOL IsDefaultInterfaceMethod()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+        return (GetMethodTable()->IsInterface() && !IsStatic() && IsVirtual() && !IsAbstract());
+#else
+        return false;
+#endif // FEATURE_DEFAULT_INTERFACES
+    }
+
     inline BOOL HasNonVtableSlot();
 
     void SetHasNonVtableSlot()
@@ -1221,7 +1133,16 @@ public:
         }
     }
 
-    PTR_PCODE GetAddrOfSlot();
+    inline BOOL IsVirtualSlot()
+    {
+        return GetSlot() < GetMethodTable()->GetNumVirtuals();
+    }
+    inline BOOL IsVtableSlot()
+    {
+        return IsVirtualSlot() && !HasNonVtableSlot();
+    }
+
+    TADDR GetAddrOfSlot();
 
     PTR_MethodDesc GetDeclMethodDesc(UINT32 slotNumber);
 
@@ -1239,51 +1160,6 @@ protected:
     }
 
 public:
-    //==================================================================
-    // Security...
-
-    DWORD GetSecurityFlagsDuringPreStub();
-    DWORD GetSecurityFlagsDuringClassLoad(IMDInternalImport *pInternalImport,
-                           mdToken tkMethod, mdToken tkClass,
-                           DWORD *dwClassDeclFlags, DWORD *dwClassNullDeclFlags,
-                           DWORD *dwMethDeclFlags, DWORD *dwMethNullDeclFlags);
-
-    inline DWORD RequiresLinktimeCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_wFlags & mdcRequiresLinktimeCheck;
-    }
-
-    inline DWORD RequiresInheritanceCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_wFlags & mdcRequiresInheritanceCheck;
-    }
-
-    inline DWORD ParentRequiresInheritanceCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_wFlags & mdcParentRequiresInheritanceCheck;
-    }
-
-    void SetRequiresLinktimeCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wFlags |= mdcRequiresLinktimeCheck;
-    }
-
-    void SetRequiresInheritanceCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wFlags |= mdcRequiresInheritanceCheck;
-    }
-
-    void SetParentRequiresInheritanceCheck()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_wFlags |= mdcParentRequiresInheritanceCheck;
-    }
-
     mdMethodDef GetMemberDef() const;
     mdMethodDef GetMemberDef_NoLogging() const;
 
@@ -1302,11 +1178,137 @@ public:
     void SetChunkIndex(MethodDescChunk *pChunk);
 
     BOOL IsPointingToPrestub();
-#ifdef FEATURE_INTERPRETER
-    BOOL IsReallyPointingToPrestub();
-#endif // FEATURE_INTERPRETER
 
 public:
+
+    // TRUE iff it is possible to change the code this method will run using
+    // the CodeVersionManager.
+    // Note: EnC currently returns FALSE here because it uses its own seperate
+    // scheme to manage versionability. We will likely want to converge them
+    // at some point.
+    BOOL IsVersionable()
+    {
+#ifndef FEATURE_CODE_VERSIONING
+        return FALSE;
+#else
+        return IsVersionableWithPrecode() || IsVersionableWithJumpStamp();
+#endif
+    }
+
+    // If true, these methods version using the CodeVersionManager and
+    // switch between different code versions by updating the target of the precode.
+    // Note: EnC returns FALSE - even though it uses precode updates it does not
+    // use the CodeVersionManager right now
+    BOOL IsVersionableWithPrecode()
+    {
+#ifdef FEATURE_CODE_VERSIONING
+        return
+            // policy: which things do we want to version with a precode if possible
+            IsEligibleForTieredCompilation() &&
+
+            // functional requirements:
+            !IsZapped() &&        // NGEN directly invokes the pre-generated native code.
+                                  // without necessarily going through the prestub or
+                                  // precode
+            HasNativeCodeSlot();  // the stable entry point will need to point at our
+                                  // precode and not directly contain the native code.
+#else
+        return FALSE;
+#endif
+    }
+
+    // If true, these methods version using the CodeVersionManager and switch between
+    // different code versions by overwriting the first bytes of the method's initial
+    // native code with a jmp instruction.
+    BOOL IsVersionableWithJumpStamp()
+    {
+#if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
+        return
+            // for native image code this is policy, but for jitted code it is a functional requirement
+            // to ensure the prolog is sufficiently large
+            ReJitManager::IsReJITEnabled() &&
+
+            // functional requirement - the runtime doesn't expect both options to be possible
+            !IsVersionableWithPrecode() &&
+
+            // functional requirement - we must be able to evacuate the prolog and the prolog must be big
+            // enough, both of which are only designed to work on jitted code
+            (IsIL() || IsNoMetadata()) &&
+            !IsUnboxingStub() &&
+            !IsInstantiatingStub() &&
+
+            // functional requirement - code version manager can't handle what would happen if the code
+            // was collected
+            !GetLoaderAllocator()->IsCollectible();
+#else
+        return FALSE;
+#endif
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    // Is this method allowed to be recompiled and the entrypoint redirected so that we
+    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
+    BOOL IsEligibleForTieredCompilation()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
+        // to ensure native slots are available where needed.
+        return g_pConfig->TieredCompilation() &&
+            !IsZapped() &&
+            !IsEnCMethod() &&
+            HasNativeCodeSlot() &&
+            !IsUnboxingStub() &&
+            !IsInstantiatingStub() &&
+            !IsDynamicMethod() &&
+            !GetLoaderAllocator()->IsCollectible() &&
+            !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
+            !CORProfilerDisableTieredCompilation();
+    }
+#endif
+
+    // Returns a code version that represents the first (default)
+    // code body that this method would have.
+    NativeCodeVersion GetInitialCodeVersion()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return NativeCodeVersion(dac_cast<PTR_MethodDesc>(this));
+    }
+
+    // Does this method force the NativeCodeSlot to stay fixed after it
+    // is first initialized to native code? Consumers of the native code
+    // pointer need to be very careful about if and when they cache it
+    // if it is not stable.
+    //
+    // The stability of the native code pointer is separate from the
+    // stability of the entrypoint. A stable entrypoint can be a precode
+    // which dispatches to an unstable native code pointer.
+    BOOL IsNativeCodeStableAfterInit()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+#if defined(FEATURE_JIT_PITCHING)
+        if (IsPitchable())
+            return false;
+#endif
+
+        return 
+#ifdef FEATURE_TIERED_COMPILATION
+            !IsEligibleForTieredCompilation() &&
+#endif
+            !IsEnCMethod();
+    }
+
+    //Is this method currently pointing to native code that will never change?
+    BOOL IsPointingToStableNativeCode()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        if (!IsNativeCodeStableAfterInit())
+            return FALSE;
+
+        return IsPointingToNativeCode();
+    }
 
     // Note: We are skipping the prestub based on addition information from the JIT.
     // (e.g. that the call is on same this ptr or that the this ptr is not null).
@@ -1335,11 +1337,7 @@ public:
         return GetNativeCode() != NULL;
     }
 
-#ifdef FEATURE_INTERPRETER
-    BOOL SetNativeCodeInterlocked(PCODE addr, PCODE pExpected, BOOL fStable);
-#else  // FEATURE_INTERPRETER
     BOOL SetNativeCodeInterlocked(PCODE addr, PCODE pExpected = NULL);
-#endif // FEATURE_INTERPRETER
 
     TADDR GetAddrOfNativeCodeSlot();
 
@@ -1405,6 +1403,11 @@ public:
     // - jitted code if !IsPreImplemented()
     // - ngened code if IsPreImplemented()
     PCODE GetNativeCode();
+
+#if defined(FEATURE_JIT_PITCHING)
+    bool IsPitchable();
+    void PitchNativeCode();
+#endif
 
     //================================================================
     // FindOrCreateAssociatedMethodDesc
@@ -1649,68 +1652,10 @@ public:
 
     PCODE DoPrestub(MethodTable *pDispatchingMT);
 
-    PCODE MakeJitWorker(COR_ILMETHOD_DECODER* ILHeader, DWORD  flags, DWORD flags2);
-
     VOID GetMethodInfo(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
     VOID GetMethodInfoWithNewSig(SString &namespaceOrClassName, SString &methodName, SString &methodSignature);
     VOID GetMethodInfoNoSig(SString &namespaceOrClassName, SString &methodName);
     VOID GetFullMethodInfo(SString& fullMethodSigName);
-
-    BOOL IsCritical()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(HasCriticalTransparentInfo());
-        return (m_bFlags2 & enum_flag2_Transparency_Mask) != enum_flag2_Transparency_Transparent;
-    }
-
-    BOOL IsTreatAsSafe()
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(HasCriticalTransparentInfo());
-        return (m_bFlags2 & enum_flag2_Transparency_Mask) == enum_flag2_Transparency_TreatAsSafe;
-    }
-
-    BOOL IsTransparent()
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(HasCriticalTransparentInfo());
-        return !IsCritical();
-    }
-
-    BOOL HasCriticalTransparentInfo()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_bFlags2 & enum_flag2_Transparency_Mask) != enum_flag2_Transparency_Unknown;
-    }
-
-    void SetCriticalTransparentInfo(BOOL fIsCritical, BOOL fIsTreatAsSafe)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        // TreatAsSafe has to imply critical
-        _ASSERTE(fIsCritical || !fIsTreatAsSafe);
-
-        EnsureWritablePages(this);
-        InterlockedUpdateFlags2(
-            static_cast<BYTE>(fIsTreatAsSafe ? enum_flag2_Transparency_TreatAsSafe :
-                fIsCritical ? enum_flag2_Transparency_Critical :
-                    enum_flag2_Transparency_Transparent),
-            TRUE);
-
-        _ASSERTE(HasCriticalTransparentInfo());
-    }
-
-    BOOL RequiresLinkTimeCheckHostProtectionOnly()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_bFlags2 & enum_flag2_HostProtectionLinkCheckOnly) != 0;
-    }
-
-    void SetRequiresLinkTimeCheckHostProtectionOnly()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_bFlags2 |= enum_flag2_HostProtectionLinkCheckOnly;
-    }
 
     BOOL HasTypeEquivalentStructParameters()
 #ifndef FEATURE_TYPEEQUIVALENCE
@@ -1761,21 +1706,11 @@ protected:
         enum_flag2_IsUnboxingStub           = 0x04,
         enum_flag2_HasNativeCodeSlot        = 0x08,   // Has slot for native code
 
-        enum_flag2_Transparency_Mask        = 0x30,
-        enum_flag2_Transparency_Unknown     = 0x00,   // The transparency has not been computed yet
-        enum_flag2_Transparency_Transparent = 0x10,   // Method is transparent
-        enum_flag2_Transparency_Critical    = 0x20,   // Method is critical
-        enum_flag2_Transparency_TreatAsSafe = 0x30,   // Method is treat as safe. Also implied critical.
+        enum_flag2_IsJitIntrinsic           = 0x10,   // Jit may expand method as an intrinsic
 
-        // CAS Demands: Demands for Permissions that are CAS Permissions. CAS Perms are those 
-        // that derive from CodeAccessPermission and need a stackwalk to evaluate demands
-        // Non-CAS perms are those that don't need a stackwalk and don't derive from CodeAccessPermission. The implementor 
-        // specifies the behavior on a demand. Examples: CAS: FileIOPermission. Non-CAS: PrincipalPermission.
-        // This bit gets set if the demands are BCL CAS demands only. Even if there are non-BCL CAS demands, we don't set this
-        // bit.
-        enum_flag2_CASDemandsOnly           = 0x40,
-
-        enum_flag2_HostProtectionLinkCheckOnly = 0x80, // Method has LinkTime check due to HP only.
+        // unused                           = 0x20,
+        // unused                           = 0x40,
+        // unused                           = 0x80, 
     };
     BYTE        m_bFlags2;
 
@@ -1823,6 +1758,18 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         m_bFlags2 |= enum_flag2_HasNativeCodeSlot;
+    }
+
+    inline BOOL IsJitIntrinsic()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return (m_bFlags2 & enum_flag2_IsJitIntrinsic) != 0;
+    }
+
+    inline void SetIsJitIntrinsic()
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_bFlags2 |= enum_flag2_IsJitIntrinsic;
     }
 
     static const SIZE_T s_ClassificationSizeTable[];
@@ -1913,7 +1860,85 @@ public:
     REFLECTMETHODREF GetStubMethodInfo();
     
     PrecodeType GetPrecodeType();
+
+
+    // ---------------------------------------------------------------------------------
+    // IL based Code generation pipeline
+    // ---------------------------------------------------------------------------------
+
+#ifndef DACCESS_COMPILE
+public:
+    PCODE PrepareInitialCode();
+    PCODE PrepareCode(NativeCodeVersion codeVersion);
+    PCODE PrepareCode(PrepareCodeConfig* pConfig);
+
+private:
+    PCODE PrepareILBasedCode(PrepareCodeConfig* pConfig);
+    PCODE GetPrecompiledCode(PrepareCodeConfig* pConfig);
+    PCODE GetPrecompiledNgenCode(PrepareCodeConfig* pConfig);
+    PCODE GetPrecompiledR2RCode(PrepareCodeConfig* pConfig);
+    PCODE GetMulticoreJitCode();
+    COR_ILMETHOD_DECODER* GetAndVerifyILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
+    COR_ILMETHOD_DECODER* GetAndVerifyMetadataILHeader(PrepareCodeConfig* pConfig, COR_ILMETHOD_DECODER* pIlDecoderMemory);
+    COR_ILMETHOD_DECODER* GetAndVerifyNoMetadataILHeader();
+    PCODE JitCompileCode(PrepareCodeConfig* pConfig);
+    PCODE JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, JitListLockEntry* pEntry);
+    PCODE JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEntry* pLockEntry, ULONG* pSizeOfCode, CORJIT_FLAGS* pFlags);
+#endif // DACCESS_COMPILE
+
+#ifdef HAVE_GCCOVER
+private:
+    static CrstStatic m_GCCoverCrst;
+
+public:
+    static void Init();
+#endif
 };
+
+#ifndef DACCESS_COMPILE
+class PrepareCodeConfig
+{
+public:
+    PrepareCodeConfig();
+    PrepareCodeConfig(NativeCodeVersion nativeCodeVersion, BOOL needsMulticoreJitNotification, BOOL mayUsePrecompiledCode);
+    MethodDesc* GetMethodDesc();
+    NativeCodeVersion GetCodeVersion();
+    BOOL NeedsMulticoreJitNotification();
+    BOOL MayUsePrecompiledCode();
+    virtual PCODE IsJitCancellationRequested();
+    virtual BOOL SetNativeCode(PCODE pCode, PCODE * ppAlternateCodeToUse);
+    virtual COR_ILMETHOD* GetILHeader();
+    virtual CORJIT_FLAGS GetJitCompilationFlags();
+    BOOL ProfilerRejectedPrecompiledCode();
+    BOOL ReadyToRunRejectedPrecompiledCode();
+    void SetProfilerRejectedPrecompiledCode();
+    void SetReadyToRunRejectedPrecompiledCode();
+    
+protected:
+    MethodDesc* m_pMethodDesc;
+    NativeCodeVersion m_nativeCodeVersion;
+    BOOL m_needsMulticoreJitNotification;
+    BOOL m_mayUsePrecompiledCode;
+    BOOL m_ProfilerRejectedPrecompiledCode;
+    BOOL m_ReadyToRunRejectedPrecompiledCode;
+};
+
+#ifdef FEATURE_CODE_VERSIONING
+class VersionedPrepareCodeConfig : public PrepareCodeConfig
+{
+public:
+    VersionedPrepareCodeConfig();
+    VersionedPrepareCodeConfig(NativeCodeVersion codeVersion);
+    HRESULT FinishConfiguration();
+    virtual PCODE IsJitCancellationRequested();
+    virtual BOOL SetNativeCode(PCODE pCode, PCODE * ppAlternateCodeToUse);
+    virtual COR_ILMETHOD* GetILHeader();
+    virtual CORJIT_FLAGS GetJitCompilationFlags();
+private:
+    ILCodeVersion m_ilCodeVersion;
+};
+#endif // FEATURE_CODE_VERSIONING
+#endif // DACCESS_COMPILE
 
 /******************************************************************/
 
@@ -1997,23 +2022,18 @@ public:
     // direct call to direct jump.
     //
     // We use (1) for x86 and (2) for 64-bit to get the best performance on each platform.
-    //
+    // For ARM (1) is used.
 
     TADDR AllocateCompactEntryPoints(LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);
 
     static MethodDesc* GetMethodDescFromCompactEntryPoint(PCODE addr, BOOL fSpeculative = FALSE);
     static SIZE_T SizeOfCompactEntryPoints(int count);
 
-    static BOOL IsCompactEntryPointAtAddress(PCODE addr)
-    {
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-        // Compact entrypoints start at odd addresses
-        LIMITED_METHOD_DAC_CONTRACT;
-        return (addr & 1) != 0;
-#else
-        #error Unsupported platform
-#endif
-    }
+    static BOOL IsCompactEntryPointAtAddress(PCODE addr);
+
+#ifdef _TARGET_ARM_
+    static int GetCompactEntryPointMaxCount ();
+#endif // _TARGET_ARM_
 #endif // HAS_COMPACT_ENTRYPOINTS
 
     FORCEINLINE PTR_MethodTable GetMethodTable()
@@ -2034,7 +2054,7 @@ public:
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(m_methodTable.IsNull());
         _ASSERTE(pMT != NULL);
-        m_methodTable.SetValue(PTR_HOST_MEMBER_TADDR(MethodDescChunk, this, m_methodTable), pMT);
+        m_methodTable.SetValue(pMT);
     }
 
     inline void SetSizeAndCount(ULONG sizeOfMethodDescs, COUNT_T methodDescCount)
@@ -2186,7 +2206,7 @@ class StoredSigMethodDesc : public MethodDesc
     // Put the sig RVA in here - this allows us to avoid
     // touching the method desc table when mscorlib is prejitted.
 
-    TADDR           m_pSig;
+    RelativePointer<TADDR>           m_pSig;
     DWORD           m_cSig;
 #ifdef _WIN64 
     // m_dwExtendedFlags is not used by StoredSigMethodDesc itself.
@@ -2195,10 +2215,16 @@ class StoredSigMethodDesc : public MethodDesc
     DWORD           m_dwExtendedFlags;
 #endif
 
+    TADDR GetSigRVA()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<TADDR>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(StoredSigMethodDesc, this, m_pSig));
+    }
+
     bool HasStoredMethodSig(void)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return m_pSig != 0;
+        return !m_pSig.IsNull();
     }
     PCCOR_SIGNATURE GetStoredMethodSig(DWORD* sigLen = NULL)
     {
@@ -2209,16 +2235,16 @@ class StoredSigMethodDesc : public MethodDesc
         }
 #ifdef DACCESS_COMPILE 
         return (PCCOR_SIGNATURE)
-            DacInstantiateTypeByAddress(m_pSig, m_cSig, true);
+            DacInstantiateTypeByAddress(GetSigRVA(), m_cSig, true);
 #else // !DACCESS_COMPILE
         g_IBCLogger.LogNDirectCodeAccess(this);
-        return (PCCOR_SIGNATURE)m_pSig;
+        return (PCCOR_SIGNATURE) m_pSig.GetValueMaybeNull();
 #endif // !DACCESS_COMPILE
     }
     void SetStoredMethodSig(PCCOR_SIGNATURE sig, DWORD sigBytes)
     {
 #ifndef DACCESS_COMPILE 
-        m_pSig = (TADDR)sig;
+        m_pSig.SetValueMaybeNull((TADDR)sig);
         m_cSig = sigBytes;
 #endif // !DACCESS_COMPILE
     }
@@ -2278,7 +2304,7 @@ class DynamicMethodDesc : public StoredSigMethodDesc
 #endif
 
 protected:
-    PTR_CUTF8           m_pszMethodName;
+    RelativePointer<PTR_CUTF8>           m_pszMethodName;
     PTR_DynamicResolver m_pResolver;
 
 #ifndef _WIN64
@@ -2304,6 +2330,7 @@ protected:
         nomdStubNeedsCOMStarted   = 0x0800,  // EnsureComStarted must be called before executing the method
         nomdMulticastStub         = 0x1000,
         nomdUnboxingILStub        = 0x2000,
+        nomdSecureDelegateStub    = 0x4000,
 
         nomdILStub          = 0x00010000,
         nomdLCGMethod       = 0x00020000,
@@ -2318,7 +2345,11 @@ public:
     inline PTR_LCGMethodResolver  GetLCGMethodResolver();
     inline PTR_ILStubResolver     GetILStubResolver();
 
-    PTR_CUTF8 GetMethodName() { LIMITED_METHOD_DAC_CONTRACT; return m_pszMethodName; }
+    PTR_CUTF8 GetMethodName()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<PTR_CUTF8>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(DynamicMethodDesc, this, m_pszMethodName));
+    }
 
     WORD GetAttrs()
     {
@@ -2411,11 +2442,18 @@ public:
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
     bool IsStubNeedsCOMStarted()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdStubNeedsCOMStarted)); }
-#ifdef FEATURE_STUBS_AS_IL
-    bool IsMulticastStub() { 
-        LIMITED_METHOD_DAC_CONTRACT; 
+#ifdef FEATURE_MULTICASTSTUB_AS_IL
+    bool IsMulticastStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
         _ASSERTE(IsILStub());
         return !!(m_dwExtendedFlags & nomdMulticastStub);
+    }
+#endif
+#ifdef FEATURE_STUBS_AS_IL
+    bool IsSecureDelegateStub() {
+        LIMITED_METHOD_DAC_CONTRACT;
+        _ASSERTE(IsILStub());
+        return !!(m_dwExtendedFlags & nomdSecureDelegateStub);
     }
     bool IsUnboxingILStub() { 
         LIMITED_METHOD_DAC_CONTRACT; 
@@ -2536,26 +2574,28 @@ public:
         LPVOID      m_pNativeNDirectTarget;
             
         // Information about the entrypoint
-        LPCUTF8     m_pszEntrypointName;
+        RelativePointer<PTR_CUTF8>     m_pszEntrypointName;
 
         union
         {
-            LPCUTF8     m_pszLibName;
+            RelativePointer<PTR_CUTF8>     m_pszLibName;
             DWORD       m_dwECallID;    // ECallID for QCalls
         };
 
         // The writeable part of the methoddesc.
-        PTR_NDirectWriteableData    m_pWriteableData;
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
+        RelativePointer<PTR_NDirectWriteableData>    m_pWriteableData;
+#else
+        PlainPointer<PTR_NDirectWriteableData>    m_pWriteableData;
+#endif
 
 #ifdef HAS_NDIRECT_IMPORT_PRECODE
-        PTR_NDirectImportThunkGlue  m_pImportThunkGlue;        
+        RelativePointer<PTR_NDirectImportThunkGlue> m_pImportThunkGlue;
 #else // HAS_NDIRECT_IMPORT_PRECODE
         NDirectImportThunkGlue      m_ImportThunkGlue;
 #endif // HAS_NDIRECT_IMPORT_PRECODE
 
-#ifndef FEATURE_CORECLR
         ULONG       m_DefaultDllImportSearchPathsAttributeValue; // DefaultDllImportSearchPathsAttribute is saved.
-#endif
 
         // Various attributes needed at runtime.
         WORD        m_wFlags;
@@ -2588,9 +2628,7 @@ public:
 
         kHasSuppressUnmanagedCodeAccess = 0x0002,
 
-#ifndef FEATURE_CORECLR
         kDefaultDllImportSearchPathsIsCached = 0x0004, // set if we cache attribute value.
-#endif
 
         // kUnusedMask                  = 0x0008
 
@@ -2614,9 +2652,7 @@ public:
 
         kIsQCall                        = 0x1000,
 
-#if !defined(FEATURE_CORECLR)
         kDefaultDllImportSearchPathsStatus = 0x2000, // either method has custom attribute or not.
-#endif
 
         kHasCopyCtorArgs                = 0x4000,
 
@@ -2645,7 +2681,6 @@ public:
     // Atomically set specified flags. Only setting of the bits is supported.
     void InterlockedSetNDirectFlags(WORD wFlags);
 
-#ifdef FEATURE_MIXEDMODE // IJW
     void SetIsEarlyBound()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2657,7 +2692,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_wFlags & kEarlyBound) != 0;
     }
-#endif // FEATURE_MIXEDMODE
 
     BOOL IsNativeAnsi() const
     {
@@ -2673,22 +2707,6 @@ public:
         return (ndirect.m_wFlags & kNativeNoMangle) != 0;
     }
 
-#ifndef FEATURE_CORECLR
-    BOOL HasSuppressUnmanagedCodeAccessAttr() const
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return (ndirect.m_wFlags & kHasSuppressUnmanagedCodeAccess) != 0;
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            ndirect.m_wFlags |= kHasSuppressUnmanagedCodeAccess;
-    }
-#endif
 
     DWORD GetECallID() const
     {
@@ -2706,18 +2724,27 @@ public:
         ndirect.m_dwECallID = dwID;
     }
 
+    PTR_CUTF8 GetLibNameRaw()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        return RelativePointer<PTR_CUTF8>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(NDirectMethodDesc, this, ndirect.m_pszLibName));
+    }
+
+#ifndef DACCESS_COMPILE
     LPCUTF8 GetLibName() const
     {
         LIMITED_METHOD_CONTRACT;
 
-        return IsQCall() ? "QCall" : ndirect.m_pszLibName;
+        return IsQCall() ? "QCall" : ndirect.m_pszLibName.GetValueMaybeNull();
     }
+#endif // !DACCESS_COMPILE
 
-    LPCUTF8 GetEntrypointName() const
+    PTR_CUTF8 GetEntrypointName() const
     {
-        LIMITED_METHOD_CONTRACT;
+        LIMITED_METHOD_DAC_CONTRACT;
 
-        return ndirect.m_pszEntrypointName;
+        return RelativePointer<PTR_CUTF8>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(NDirectMethodDesc, this, ndirect.m_pszEntrypointName));
     }
 
     BOOL IsVarArgs() const
@@ -2749,7 +2776,6 @@ public:
         return (ndirect.m_wFlags & kIsQCall) != 0;
     }
 
-#ifndef FEATURE_CORECLR
     BOOL HasDefaultDllImportSearchPathsAttribute();
 
     BOOL IsDefaultDllImportSearchPathsAttributeCached()
@@ -2769,7 +2795,6 @@ public:
         LIMITED_METHOD_CONTRACT;
         return (ndirect.m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
-#endif // !FEATURE_CORECLR
 
     BOOL HasCopyCtorArgs() const
     {
@@ -2795,21 +2820,23 @@ public:
         return (ndirect.m_wFlags & kStdCallWithRetBuf) != 0;
     }
 
-    NDirectWriteableData* GetWriteableData() const
+    PTR_NDirectWriteableData GetWriteableData() const
     {
-        LIMITED_METHOD_CONTRACT;
+        LIMITED_METHOD_DAC_CONTRACT;
 
-        return ndirect.m_pWriteableData;
+        return ReadPointer(this, &NDirectMethodDesc::ndirect, &decltype(NDirectMethodDesc::ndirect)::m_pWriteableData);
     }
 
-    NDirectImportThunkGlue* GetNDirectImportThunkGlue()
+    PTR_NDirectImportThunkGlue GetNDirectImportThunkGlue()
     {
-        LIMITED_METHOD_CONTRACT;
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        TADDR base = PTR_HOST_MEMBER_TADDR(NDirectMethodDesc, this, ndirect.m_pImportThunkGlue);
 
 #ifdef HAS_NDIRECT_IMPORT_PRECODE
-        return ndirect.m_pImportThunkGlue;
+        return RelativePointer<PTR_NDirectImportThunkGlue>::GetValueAtPtr(base);
 #else
-        return &ndirect.m_ImportThunkGlue;
+        return dac_cast<PTR_NDirectImportThunkGlue>(base);
 #endif
     }
 
@@ -2854,9 +2881,8 @@ public:
     LPVOID FindEntryPoint(HINSTANCE hMod) const;
 
 private:
-    Stub* GenerateStubForHost(LPVOID pNativeTarget, Stub *pInnerStub);
 #ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub, BOOL fCalledByStub);
+    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
 #endif // MDA_SUPPORTED
 
 public:
@@ -2898,9 +2924,7 @@ public:
     }
 #endif // defined(_TARGET_X86_)
 
-#ifdef FEATURE_MIXEDMODE // IJW
     VOID InitEarlyBoundNDirectTarget();
-#endif
 
     // In AppDomains, we can trigger declarer's cctor when we link the P/Invoke,
     // which takes care of inlined calls as well. See code:NDirect.NDirectLink.
@@ -2964,12 +2988,7 @@ struct ComPlusCallInfo
         kHasCopyCtorArgs                = 0x4,
     };
 
-#if defined(FEATURE_REMOTING) && !defined(HAS_REMOTING_PRECODE)
-    // These two fields cannot overlap in this case because of AMD64 GenericComPlusCallStub uses m_pILStub on the COM event provider path
-    struct
-#else
     union
-#endif
     {
         // IL stub for CLR to COM call
         PCODE m_pILStub; 
@@ -3047,7 +3066,6 @@ struct ComPlusCallInfo
         LPVOID      m_pInterceptStub;    // used for early-bound IL stub calls
     };
 
-    Stub *GenerateStubForHost(LoaderHeap *pHeap, Stub *pInnerStub);
 #else // _TARGET_X86_
     void InitStackArgumentSize()
     {
@@ -3103,32 +3121,6 @@ public:
         return m_pComPlusCallInfo->m_pEventProviderMD;
     }
 
-#ifndef FEATURE_CORECLR
-
-    BOOL HasSuppressUnmanagedCodeAccessAttr()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (m_pComPlusCallInfo != NULL)
-        {
-            return (m_pComPlusCallInfo->m_flags & ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess) != 0;
-        }
-        
-        // it is possible that somebody will call this before we initialized m_pComPlusCallInfo
-        return (GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-                                                        COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                        NULL,
-                                                        NULL) == S_OK);
-    }
-
-    void SetSuppressUnmanagedCodeAccessAttr(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        if (value)
-            FastInterlockOr(reinterpret_cast<DWORD *>(&m_pComPlusCallInfo->m_flags), ComPlusCallInfo::kHasSuppressUnmanagedCodeAccess);
-    }
-#endif // FEATURE_CORECLR
 
     BOOL RequiresArgumentWrapping()
     {
@@ -3236,7 +3228,7 @@ public:
         if (IMD_IsGenericMethodDefinition())
             return TRUE;
         else
-            return m_pPerInstInfo != NULL;
+            return !m_pPerInstInfo.IsNull();
     }
 
     // All varieties of InstantiatedMethodDesc's support this method.
@@ -3244,13 +3236,21 @@ public:
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        return Instantiation(m_pPerInstInfo->GetInstantiation(), m_wNumGenericArgs);
+        return Instantiation(IMD_GetMethodDictionary()->GetInstantiation(), m_wNumGenericArgs);
     }
 
     PTR_Dictionary IMD_GetMethodDictionary()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return m_pPerInstInfo;
+
+        return ReadPointerMaybeNull(this, &InstantiatedMethodDesc::m_pPerInstInfo);
+    }
+
+    PTR_Dictionary IMD_GetMethodDictionaryNonNull()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        return ReadPointer(this, &InstantiatedMethodDesc::m_pPerInstInfo);
     }
 
     BOOL IMD_IsGenericMethodDefinition()
@@ -3317,28 +3317,37 @@ public:
     }
 #endif // FEATURE_COMINTEROP
 
+    PTR_DictionaryLayout GetDictLayoutRaw()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return RelativePointer<PTR_DictionaryLayout>::GetValueMaybeNullAtPtr(PTR_HOST_MEMBER_TADDR(InstantiatedMethodDesc, this, m_pDictLayout));
+    }
+
+    PTR_MethodDesc IMD_GetWrappedMethodDesc()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+
+        _ASSERTE(IMD_IsWrapperStubWithInstantiations());
+        return RelativeFixupPointer<PTR_MethodDesc>::GetValueAtPtr(PTR_HOST_MEMBER_TADDR(InstantiatedMethodDesc, this, m_pWrappedMethodDesc));
+    }
+
+#ifndef DACCESS_COMPILE
     // Get the dictionary layout, if there is one
     DictionaryLayout* IMD_GetDictionaryLayout()
     {
         WRAPPER_NO_CONTRACT;
         if (IMD_IsWrapperStubWithInstantiations() && IMD_HasMethodInstantiation())
-            return IMD_GetWrappedMethodDesc()->AsInstantiatedMethodDesc()->m_pDictLayout;
+        {
+            InstantiatedMethodDesc* pIMD = IMD_GetWrappedMethodDesc()->AsInstantiatedMethodDesc();
+            return pIMD->m_pDictLayout.GetValueMaybeNull();
+        }
         else
         if (IMD_IsSharedByGenericMethodInstantiations())
-            return m_pDictLayout;
+            return m_pDictLayout.GetValueMaybeNull();
         else
             return NULL;
     }
-
-    MethodDesc* IMD_GetWrappedMethodDesc()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        _ASSERTE(IMD_IsWrapperStubWithInstantiations());
-        return m_pWrappedMethodDesc.GetValue();
-    }
-
-
+#endif // !DACCESS_COMPILE
 
     // Setup the IMD as shared code
     void SetupSharedMethodInstantiation(DWORD numGenericArgs, TypeHandle *pPerInstInfo, DictionaryLayout *pDL);
@@ -3385,9 +3394,9 @@ private:
 
     friend class MethodDesc; // this fields are currently accessed by MethodDesc::Save/Restore etc.
     union {
-        DictionaryLayout * m_pDictLayout; //SharedMethodInstantiation
+        RelativePointer<PTR_DictionaryLayout> m_pDictLayout; //SharedMethodInstantiation
 
-        FixupPointer<PTR_MethodDesc> m_pWrappedMethodDesc; // For WrapperStubWithInstantiations
+        RelativeFixupPointer<PTR_MethodDesc> m_pWrappedMethodDesc; // For WrapperStubWithInstantiations
     };
 
 public: // <TODO>make private: JITinterface.cpp accesses through this </TODO>
@@ -3400,7 +3409,11 @@ public: // <TODO>make private: JITinterface.cpp accesses through this </TODO>
         //
         // For generic method definitions that are not the typical method definition (e.g. C<int>.m<U>)
         // this field is null; to obtain the instantiation use LoadMethodInstantiation
-    PTR_Dictionary m_pPerInstInfo;  //SHARED
+#if defined(FEATURE_NGEN_RELOCS_OPTIMIZATIONS)
+    RelativePointer<PTR_Dictionary> m_pPerInstInfo;  //SHARED
+#else
+    PlainPointer<PTR_Dictionary> m_pPerInstInfo;  //SHARED
+#endif
 
 private:
     WORD          m_wFlags2;
@@ -3597,6 +3610,22 @@ inline BOOL MethodDesc::HasMethodInstantiation() const
 
     return mcInstantiated == GetClassification() && AsInstantiatedMethodDesc()->IMD_HasMethodInstantiation();
 }
+
+#if defined(FEATURE_GDBJIT)
+class CalledMethod
+{
+private:
+    MethodDesc * m_pMD;
+    void * m_CallAddr;
+    CalledMethod * m_pNext;
+public:
+    CalledMethod(MethodDesc *pMD, void * addr, CalledMethod * next) : m_pMD(pMD), m_CallAddr(addr), m_pNext(next)  {}
+    ~CalledMethod() {}
+    MethodDesc * GetMethodDesc() { return m_pMD; }
+    void * GetCallAddr() { return m_CallAddr; }
+    CalledMethod * GetNext() { return m_pNext; }
+};
+#endif
 
 #include "method.inl"
 

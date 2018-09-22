@@ -44,18 +44,12 @@ bool inline IsTypeNameReservedChar(WCHAR ch)
     }
 }
 
-#ifdef FEATURE_FUSION
-DomainAssembly* LoadAssemblyFromPartialNameHack(SString* psszAssemblySpec, BOOL fCropPublicKey = FALSE);
-#endif // FEATURE_FUSION
 
 DomainAssembly * LoadDomainAssembly(
     SString *  psszAssemblySpec, 
     Assembly * pRequestingAssembly, 
-#ifdef FEATURE_HOSTED_BINDER
     ICLRPrivBinder * pPrivHostBinder,
-#endif
     BOOL       bThrowIfNotFound, 
-    BOOL       bIntrospectionOnly, 
     SString *  pssOuterTypeName);
 
 class TypeNameFactory : public ITypeNameFactory
@@ -64,13 +58,13 @@ public:
     static HRESULT CreateObject(REFIID riid, void **ppUnk);
     
 public:
-    virtual HRESULT __stdcall QueryInterface(REFIID riid, void **ppUnk);
-    virtual ULONG __stdcall AddRef() { LIMITED_METHOD_CONTRACT; m_count++; return m_count; }
-    virtual ULONG __stdcall Release() { LIMITED_METHOD_CONTRACT; SUPPORTS_DAC_HOST_ONLY; m_count--; ULONG count = m_count; if (count == 0) delete this; return count; }
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppUnk);
+    virtual ULONG STDMETHODCALLTYPE AddRef() { LIMITED_METHOD_CONTRACT; m_count++; return m_count; }
+    virtual ULONG STDMETHODCALLTYPE Release() { LIMITED_METHOD_CONTRACT; SUPPORTS_DAC_HOST_ONLY; m_count--; ULONG count = m_count; if (count == 0) delete this; return count; }
 
 public:
-    virtual HRESULT __stdcall ParseTypeName(LPCWSTR szName, DWORD* pError, ITypeName** ppTypeName);
-    virtual HRESULT __stdcall GetTypeNameBuilder(ITypeNameBuilder** ppTypeBuilder);
+    virtual HRESULT STDMETHODCALLTYPE ParseTypeName(LPCWSTR szName, DWORD* pError, ITypeName** ppTypeName);
+    virtual HRESULT STDMETHODCALLTYPE GetTypeNameBuilder(ITypeNameBuilder** ppTypeBuilder);
 
 public:
     TypeNameFactory() : m_count(0)
@@ -170,7 +164,7 @@ private:
             TypeNameComma               = 0x0010,
             TypeNamePlus                = 0x0020,
             TypeNameAstrix              = 0x0040,
-            TypeNameAmperstand          = 0x0080,
+            TypeNameAmpersand           = 0x0080,
             TypeNameBackSlash           = 0x0100,
             TypeNameEnd                 = 0x4000,
 
@@ -189,7 +183,7 @@ private:
             TypeNameEAQN                = TypeNameIdentifier,
             TypeNameEASSEMSPEC          = TypeNameIdentifier,
             TypeNameARRAY               = TypeNameOpenSqBracket,
-            TypeNameQUALIFIER           = TypeNameAmperstand | TypeNameAstrix | TypeNameARRAY | TypeNameEmpty,
+            TypeNameQUALIFIER           = TypeNameAmpersand | TypeNameAstrix | TypeNameARRAY | TypeNameEmpty,
             TypeNameRANK                = TypeNameComma | TypeNameEmpty,            
         } TypeNameTokens;
 
@@ -283,18 +277,18 @@ private:
     friend class TypeName::TypeNameParser;
     
 public:
-    virtual HRESULT __stdcall QueryInterface(REFIID riid, void **ppUnk);
-    virtual ULONG __stdcall AddRef();
-    virtual ULONG __stdcall Release();
+    virtual HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppUnk);
+    virtual ULONG STDMETHODCALLTYPE AddRef();
+    virtual ULONG STDMETHODCALLTYPE Release();
 
 public:
-    virtual HRESULT __stdcall GetNameCount(DWORD* pCount);
-    virtual HRESULT __stdcall GetNames(DWORD count, BSTR* rgbszNames, DWORD* pFetched);
-    virtual HRESULT __stdcall GetTypeArgumentCount(DWORD* pCount);
-    virtual HRESULT __stdcall GetTypeArguments(DWORD count, ITypeName** rgpArguments, DWORD* pFetched);
-    virtual HRESULT __stdcall GetModifierLength(DWORD* pCount);
-    virtual HRESULT __stdcall GetModifiers(DWORD count, DWORD* rgModifiers, DWORD* pFetched);
-    virtual HRESULT __stdcall GetAssemblyName(BSTR* rgbszAssemblyNames);
+    virtual HRESULT STDMETHODCALLTYPE GetNameCount(DWORD* pCount);
+    virtual HRESULT STDMETHODCALLTYPE GetNames(DWORD count, BSTR* rgbszNames, DWORD* pFetched);
+    virtual HRESULT STDMETHODCALLTYPE GetTypeArgumentCount(DWORD* pCount);
+    virtual HRESULT STDMETHODCALLTYPE GetTypeArguments(DWORD count, ITypeName** rgpArguments, DWORD* pFetched);
+    virtual HRESULT STDMETHODCALLTYPE GetModifierLength(DWORD* pCount);
+    virtual HRESULT STDMETHODCALLTYPE GetModifiers(DWORD count, DWORD* rgModifiers, DWORD* pFetched);
+    virtual HRESULT STDMETHODCALLTYPE GetAssemblyName(BSTR* rgbszAssemblyNames);
     
 public:
     TypeName(LPCWSTR szTypeName, DWORD* pError) : m_bIsGenericArgument(FALSE), m_count(0) 
@@ -313,14 +307,14 @@ public:
     virtual ~TypeName();
     
 public:
-#ifndef FEATURE_CORECLR
+#ifndef CROSSGEN_COMPILE
     static void QCALLTYPE QCreateTypeNameParser (LPCWSTR wszTypeName, QCall::ObjectHandleOnStack pNames, BOOL throwOnError);
     static void QCALLTYPE QReleaseTypeNameParser(TypeName * pTypeName);
     static void QCALLTYPE QGetNames             (TypeName * pTypeName, QCall::ObjectHandleOnStack pNames);
     static void QCALLTYPE QGetTypeArguments     (TypeName * pTypeName, QCall::ObjectHandleOnStack pTypeArguments);
     static void QCALLTYPE QGetModifiers         (TypeName * pTypeName, QCall::ObjectHandleOnStack pModifiers);
     static void QCALLTYPE QGetAssemblyName      (TypeName * pTypeName, QCall::StringHandleOnStack pAssemblyName);
-#endif //!FEATURE_CORECLR
+#endif //CROSSGEN_COMPILE
 
     //-------------------------------------------------------------------------------------------
     // Retrieves a type from an assembly. It requires the caller to know which assembly
@@ -328,12 +322,12 @@ public:
     //-------------------------------------------------------------------------------------------
     static TypeHandle GetTypeFromAssembly(LPCWSTR szTypeName, Assembly *pAssembly, BOOL bThrowIfNotFound = TRUE);
 
-    TypeHandle GetTypeFromAsm(BOOL bForIntrospection);
+    TypeHandle GetTypeFromAsm();
 
     //-------------------------------------------------------------------------------------------
     // Retrieves a type. Will assert if the name is not fully qualified.
     //-------------------------------------------------------------------------------------------
-    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName, BOOL bForIntrospection);
+    static TypeHandle GetTypeFromAsmQualifiedName(LPCWSTR szFullyQualifiedName);
 
 
     //-------------------------------------------------------------------------------------------
@@ -371,15 +365,11 @@ public:
         DomainAssembly* pAssemblyGetType,
         BOOL bThrowIfNotFound,
         BOOL bIgnoreCase,
-        BOOL bIntrospectionOnly,
         BOOL bProhibitAssemblyQualifiedName,
         StackCrawlMark* pStackMark,
         BOOL bLoadTypeFromPartialNameHack,
-        OBJECTREF *pKeepAlive
-#ifdef FEATURE_HOSTED_BINDER
-        , ICLRPrivBinder * pPrivHostBinder = nullptr
-#endif
-        );
+        OBJECTREF *pKeepAlive,
+        ICLRPrivBinder * pPrivHostBinder = nullptr);
     
     
 public:
@@ -435,7 +425,6 @@ private:
     TypeHandle GetTypeWorker(
         BOOL bThrowIfNotFound, 
         BOOL bIgnoreCase, 
-        BOOL bIntrospectionOnly, 
         Assembly* pAssemblyGetType,
 
         BOOL fEnableCASearchRules,  
@@ -444,9 +433,7 @@ private:
                                     
         StackCrawlMark* pStackMark, 
         Assembly* pRequestingAssembly, 
-#ifdef FEATURE_HOSTED_BINDER
         ICLRPrivBinder * pPrivHostBinder,
-#endif
         BOOL bLoadTypeFromPartialNameHack,
         OBJECTREF *pKeepAlive);    
 
@@ -458,10 +445,7 @@ private:
         return GetTypeHaveAssemblyHelper(pAssembly, bThrowIfNotFound, bIgnoreCase, pKeepAlive, TRUE);
     }
     TypeHandle GetTypeHaveAssemblyHelper(Assembly* pAssembly, BOOL bThrowIfNotFound, BOOL bIgnoreCase, OBJECTREF *pKeepAlive, BOOL bRecurse);
-
-#ifndef FEATURE_CORECLR
     SAFEHANDLE GetSafeHandle();
-#endif //!FEATURE_CORECLR
 
 private:
     BOOL m_bIsGenericArgument;

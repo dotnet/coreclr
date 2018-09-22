@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
 #include <stdint.h>
 #include <windows.h>
 #include <wchar.h>
@@ -16,10 +15,6 @@
 #include <cstdlib>
 #include <intrin.h>
 
-#if COR_JIT_EE_VERSION <= 460
-#include "corjithost.h"
-#include "jithost.h"
-#endif
 #include "jitconfig.h"
 #include "jit.h"
 #include "iallocator.h"
@@ -34,4 +29,4 @@
 #include "blockset.h"
 #include "bitvec.h"
 #include "inline.h"
-
+#include "objectalloc.h"

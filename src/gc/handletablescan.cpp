@@ -20,10 +20,6 @@
 #include "objecthandle.h"
 #include "handletablepriv.h"
 
-#ifndef FEATURE_REDHAWK
-#include "nativeoverlapped.h"
-#endif // FEATURE_REDHAWK
-
 
 /****************************************************************************
  *
@@ -818,37 +814,21 @@ void BlockResetAgeMapForBlocksWorker(uint32_t *pdwGen, uint32_t dwClumpMask, Sca
             {
                 if (!HndIsNullOrDestroyedHandle(*pValue))
                 {
-                    int thisAge = GCHeap::GetGCHeap()->WhichGeneration(*pValue);
+                    int thisAge = g_theGCHeap->WhichGeneration(*pValue);
                     if (minAge > thisAge)
                         minAge = thisAge;
 
-#ifndef FEATURE_REDHAWK
-                    if ((*pValue)->GetGCSafeMethodTable() == g_pOverlappedDataClass)
-                    {
-                        // reporting the pinned user objects
-                        OverlappedDataObject *pOverlapped = (OverlappedDataObject *)(*pValue);
-                        if (pOverlapped->m_userObject != NULL)
+                    GCToEEInterface::WalkAsyncPinned(*pValue, &minAge,
+                        [](Object*, Object* to, void* ctx)
                         {
-                            Object * pUserObject = OBJECTREFToObject(pOverlapped->m_userObject);
-                            thisAge = GCHeap::GetGCHeap()->WhichGeneration(pUserObject);
-                            if (minAge > thisAge)
-                                minAge = thisAge;
-                            if (pOverlapped->m_isArray)
+                            int* minAge = reinterpret_cast<int*>(ctx);
+                            int generation = g_theGCHeap->WhichGeneration(to);
+                            if (*minAge > generation)
                             {
-                                ArrayBase* pUserArrayObject = (ArrayBase*)pUserObject;
-                                Object **pObj = (Object**)pUserArrayObject->GetDataPtr(TRUE);
-                                size_t num = pUserArrayObject->GetNumComponents();
-                                for (size_t i = 0; i < num; i ++)
-                                {
-                                     thisAge = GCHeap::GetGCHeap()->WhichGeneration(pObj[i]);
-                                     if (minAge > thisAge)
-                                         minAge = thisAge;
-                                 }                                    
-                            }                            
-                        }
-                    }
-#endif // !FEATURE_REDHAWK                    
-                }
+                                *minAge = generation;
+                            }
+                        });
+               }
             }
             _ASSERTE(FitsInU1(minAge));
             ((uint8_t *)pSegment->rgGeneration)[uClump] = static_cast<uint8_t>(minAge);
@@ -911,7 +891,7 @@ void CALLBACK BlockResetAgeMapForBlocks(TableSegment *pSegment, uint32_t uBlock,
 
 static void VerifyObject(_UNCHECKED_OBJECTREF from, _UNCHECKED_OBJECTREF obj)
 {
-#ifdef FEATURE_REDHAWK
+#if defined(FEATURE_REDHAWK) || defined(BUILD_AS_STANDALONE)
     UNREFERENCED_PARAMETER(from);
     MethodTable* pMT = (MethodTable*)(obj->GetGCSafeMethodTable());
     pMT->SanityCheck();
@@ -920,15 +900,14 @@ static void VerifyObject(_UNCHECKED_OBJECTREF from, _UNCHECKED_OBJECTREF obj)
 #endif // FEATURE_REDHAWK
 }
 
-static void VerifyObjectAndAge(_UNCHECKED_OBJECTREF *pValue, _UNCHECKED_OBJECTREF from, _UNCHECKED_OBJECTREF obj, uint8_t minAge)
+static void VerifyObjectAndAge(_UNCHECKED_OBJECTREF from, _UNCHECKED_OBJECTREF obj, uint8_t minAge)
 {
-    UNREFERENCED_PARAMETER(pValue);
     VerifyObject(from, obj);
 
-    int thisAge = GCHeap::GetGCHeap()->WhichGeneration(obj);
+    int thisAge = g_theGCHeap->WhichGeneration(obj);
 
     //debugging code
-    //if (minAge > thisAge && thisAge < GCHeap::GetGCHeap()->GetMaxGeneration())
+    //if (minAge > thisAge && thisAge < g_theGCHeap->GetMaxGeneration())
     //{
     //    if ((*pValue) == obj)
     //        printf("Handle (age %u) %p -> %p (age %u)", minAge, pValue, obj, thisAge);
@@ -946,10 +925,10 @@ static void VerifyObjectAndAge(_UNCHECKED_OBJECTREF *pValue, _UNCHECKED_OBJECTRE
     //    }
     //}
 
-    if (minAge >= GEN_MAX_AGE || (minAge > thisAge && thisAge < static_cast<int>(GCHeap::GetGCHeap()->GetMaxGeneration())))
+    if (minAge >= GEN_MAX_AGE || (minAge > thisAge && thisAge < static_cast<int>(g_theGCHeap->GetMaxGeneration())))
     {
         _ASSERTE(!"Fatal Error in HandleTable.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);
+        GCToEEInterface::HandleFatalError(COR_E_EXECUTIONENGINE);
     }
 }
 
@@ -989,29 +968,13 @@ void BlockVerifyAgeMapForBlocksWorker(uint32_t *pdwGen, uint32_t dwClumpMask, Sc
             {
                 if (!HndIsNullOrDestroyedHandle(*pValue))
                 {
-                    VerifyObjectAndAge(pValue, (*pValue), (*pValue), minAge);
-#ifndef FEATURE_REDHAWK
-                    if ((*pValue)->GetGCSafeMethodTable() == g_pOverlappedDataClass)
-                    {
-                        // reporting the pinned user objects
-                        OverlappedDataObject *pOverlapped = (OverlappedDataObject *)(*pValue);
-                        if (pOverlapped->m_userObject != NULL)
+                    VerifyObjectAndAge((*pValue), (*pValue), minAge);
+                    GCToEEInterface::WalkAsyncPinned(*pValue, &minAge,
+                        [](Object* from, Object* object, void* age)
                         {
-                            Object * pUserObject = OBJECTREFToObject(pOverlapped->m_userObject);
-                            VerifyObjectAndAge(pValue, (*pValue), pUserObject, minAge);
-                            if (pOverlapped->m_isArray)
-                            {
-                                ArrayBase* pUserArrayObject = (ArrayBase*)pUserObject;
-                                Object **pObj = (Object**)pUserArrayObject->GetDataPtr(TRUE);
-                                size_t num = pUserArrayObject->GetNumComponents();
-                                for (size_t i = 0; i < num; i ++)
-                                {
-                                     VerifyObjectAndAge(pValue, pUserObject, pObj[i], minAge);
-                                }                                    
-                            }                            
-                        }
-                    }
-#endif // !FEATURE_REDHAWK
+                            uint8_t* minAge = reinterpret_cast<uint8_t*>(age);
+                            VerifyObjectAndAge(from, object, *minAge);
+                        });
 
                     if (uType == HNDTYPE_DEPENDENT)
                     {
@@ -1360,7 +1323,7 @@ void xxxTableScanQueuedBlocksAsync(PTR_HandleTable pTable, PTR_TableSegment pSeg
 
 #ifndef DACCESS_COMPILE
     // loop through, unlock all the blocks we had locked, and reset the queue nodes
-    ProcessScanQueue(pAsyncInfo, UnlockAndForgetQueuedBlocks, NULL, FALSE);
+    ProcessScanQueue(pAsyncInfo, UnlockAndForgetQueuedBlocks, (uintptr_t)NULL, FALSE);
 #endif
 
     // we are done processing this segment
@@ -1423,7 +1386,7 @@ PTR_TableSegment CALLBACK StandardSegmentIterator(PTR_HandleTable pTable, PTR_Ta
 {
     CONTRACTL
     {
-        WRAPPER(THROWS);
+        WRAPPER(NOTHROW);
         WRAPPER(GC_TRIGGERS);
         FORBID_FAULT;
         SUPPORTS_DAC;
@@ -1836,7 +1799,7 @@ void CALLBACK xxxTableScanHandlesAsync(PTR_HandleTable pTable,
         asyncInfo.pScanQueue = initialNode.pNext;
 
         // loop through and free all the queue nodes
-        ProcessScanQueue(&asyncInfo, FreeScanQNode, NULL, TRUE);
+        ProcessScanQueue(&asyncInfo, FreeScanQNode, (uintptr_t)NULL, TRUE);
     }
 
     // unlink our async scanning info from the table

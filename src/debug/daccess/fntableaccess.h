@@ -41,9 +41,7 @@ struct FakeHeapList
     DWORD_PTR           mapBase;        // changed from PBYTE
     DWORD_PTR           pHdrMap;        // changed from DWORD*
     size_t              maxCodeHeapSize;
-    DWORD               cBlocks;
-    bool                bFull;          // Heap is considered full do not use for new allocations
-    bool                bFullForJumpStubs; // Heap is considered full do not use for new allocations of jump stubs
+    size_t              reserveForJumpStubs;
 };
 
 typedef struct _FakeHpRealCodeHdr
@@ -51,6 +49,9 @@ typedef struct _FakeHpRealCodeHdr
     LPVOID              phdrDebugInfo;
     LPVOID              phdrJitEHInfo;  // changed from EE_ILEXCEPTION*
     LPVOID              phdrJitGCInfo;  // changed from BYTE*
+#if defined (FEATURE_GDBJIT)
+    LPVOID              pCalledMethods;
+#endif
     LPVOID              hdrMDesc;       // changed from MethodDesc*
     DWORD               nUnwindInfos;
     T_RUNTIME_FUNCTION  unwindInfos[0];

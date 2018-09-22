@@ -1,17 +1,12 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
 
+.assembly extern System.Console { auto }
+.assembly extern System.Runtime.Extensions { auto }
+.assembly extern mscorlib { auto }
 
-
-
-.assembly extern System.Console
-{
-  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
-  .ver 4:0:0:0
-}
-.assembly extern mscorlib
-{
-  .ver 0:0:0:0
-}
 .assembly Benchmark
 {
   .ver 0:0:0:0
@@ -28,7 +23,7 @@
 {
   .field privatescope int32 a$PST04000001
   .field privatescope int32 b$PST04000002
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(int32 A_0,
                                int32 A_1) cil managed
   {
@@ -42,16 +37,16 @@
     IL_000e:  ldarg.2
     IL_000f:  stfld      int32 c::b$PST04000002
     IL_0014:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed b
        extends [mscorlib]System.Object
 {
   .field privatescope class c a$PST04000003
   .field privatescope class b b$PST04000004
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class c A_0,
                                class b A_1) cil managed
   {
@@ -65,16 +60,16 @@
     IL_000e:  ldarg.2
     IL_000f:  stfld      class b b::b$PST04000004
     IL_0014:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed g
        extends [mscorlib]System.Object
 {
   .field privatescope string a$PST04000005
   .field privatescope class g b$PST04000006
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(string A_0,
                                class g A_1) cil managed
   {
@@ -88,19 +83,19 @@
     IL_000e:  ldarg.2
     IL_000f:  stfld      class g g::b$PST04000006
     IL_0014:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi Benchmark
        extends [mscorlib]System.Object
 {
-  .method public specialname rtspecialname static 
+  .method public specialname rtspecialname static
           void  .cctor() cil managed
   {
     .maxstack  0
     IL_0000:  ret
-  } 
+  }
 
   .method public static int32  main(string[] A_0) cil managed
   {
@@ -171,7 +166,7 @@
     IL_001d:  stloc.s    V_4
     IL_001f:  ldsfld     class a $::c$PST0400000E
     IL_0024:  stloc.s    V_5
-    IL_0026:  call       int32 [mscorlib]System.Environment::get_TickCount()
+    IL_0026:  call       int32 [System.Runtime.Extensions]System.Environment::get_TickCount()
     IL_002b:  stloc.s    V_6
     IL_002d:  ldloc.s    V_6
     IL_002f:  conv.i8
@@ -211,7 +206,7 @@
     IL_007a:  ldloc.s    V_37
     IL_007c:  call       void $::b(class a,
                                    class g)
-    IL_0081:  call       int32 [mscorlib]System.Environment::get_TickCount()
+    IL_0081:  call       int32 [System.Runtime.Extensions]System.Environment::get_TickCount()
     IL_0086:  stloc.s    V_38
     IL_0088:  ldloc.s    V_38
     IL_008a:  conv.i8
@@ -418,21 +413,21 @@
     IL_0268:  stloc.s    V_26
     IL_026a:  stloc.s    V_25
     IL_026c:  br         IL_022b
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi a
        extends [mscorlib]System.Object
 {
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor() cil managed
   {
     .maxstack  2
     IL_0000:  ldarg.0
     IL_0001:  call       instance void [mscorlib]System.Object::.ctor()
     IL_0006:  ret
-  } 
+  }
 
   .method public virtual instance int32  a(class c A_0,
                                            class c A_1) cil managed
@@ -440,37 +435,37 @@
     .maxstack  1
     IL_0000:  ldnull
     IL_0001:  throw
-  } 
+  }
 
   .method public virtual instance int32  b(class c A_0) cil managed
   {
     .maxstack  1
     IL_0000:  ldnull
     IL_0001:  throw
-  } 
+  }
 
-  .method public virtual instance class c 
+  .method public virtual instance class c
           c(class c A_0) cil managed
   {
     .maxstack  1
     IL_0000:  ldnull
     IL_0001:  throw
-  } 
+  }
 
   .method public virtual instance void  d(string A_0) cil managed
   {
     .maxstack  1
     IL_0000:  ldnull
     IL_0001:  throw
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed d
        extends a
 {
   .field privatescope class b a$PST04000007
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class b A_0) cil managed
   {
     .maxstack  2
@@ -480,9 +475,9 @@
     IL_0007:  ldarg.1
     IL_0008:  stfld      class b d::a$PST04000007
     IL_000d:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  5
@@ -501,15 +496,15 @@
                                     class b,
                                     class c)
     IL_0017:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed e
        extends a
 {
   .field privatescope class a a$PST04000008
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class a A_0) cil managed
   {
     .maxstack  2
@@ -519,9 +514,9 @@
     IL_0007:  ldarg.1
     IL_0008:  stfld      class a e::a$PST04000008
     IL_000d:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  5
@@ -596,15 +591,15 @@
     IL_006e:  stloc.s    V_6
     IL_0070:  stloc.s    V_5
     IL_0072:  br         IL_002d
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed f
        extends a
 {
   .field privatescope class b a$PST04000009
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class b A_0) cil managed
   {
     .maxstack  2
@@ -614,9 +609,9 @@
     IL_0007:  ldarg.1
     IL_0008:  stfld      class b f::a$PST04000009
     IL_000d:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  5
@@ -646,9 +641,9 @@
 
     IL_0024:  ldc.i4.0
     IL_0025:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi $
        extends [mscorlib]System.Object
@@ -668,7 +663,7 @@
   .field static privatescope class [mscorlib]System.IO.TextWriter k$PST04000016
   .field static privatescope class [mscorlib]System.Exception l$PST04000017
   .field static privatescope class b m$PST04000018
-  .method public specialname rtspecialname static 
+  .method public specialname rtspecialname static
           void  .cctor() cil managed
   {
     .maxstack  12
@@ -1484,7 +1479,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0597:  ldloc.s    V_132
     IL_0599:  stsfld     class [mscorlib]System.Exception $::l$PST04000017
     IL_059e:  ret
-  } 
+  }
 
   .method public static class b  a(class b A_0,
                                    class b A_1) cil managed
@@ -1528,7 +1523,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0035:  stloc.s    V_4
     IL_0037:  ldloc.s    V_4
     IL_0039:  ret
-  } 
+  }
 
   .method public static void  b(class a A_0,
                                 class g A_1) cil managed
@@ -1566,7 +1561,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_002e:  call       void $::b(class a,
                                    class g)
     IL_0033:  ret
-  } 
+  }
 
   .method public static void  c(class [mscorlib]System.Text.StringBuilder A_0,
                                 int32 A_1,
@@ -1655,7 +1650,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_008e:  callvirt   instance class [mscorlib]System.Text.StringBuilder [mscorlib]System.Text.StringBuilder::Append(char)
     IL_0093:  stloc.s    V_8
     IL_0095:  ret
-  } 
+  }
 
   .method public static class b  d(class a A_0,
                                    class b A_1) cil managed
@@ -1729,7 +1724,7 @@ call	void [System.Console]System.Console::WriteLine(string)
 ldstr "really5"
 call	void [System.Console]System.Console::WriteLine(string)
     IL_0043:  ret
-  } 
+  }
 
   .method public static class b  e(class a A_0,
                                    class b A_1) cil managed
@@ -1826,7 +1821,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0098:  starg.s    A_1
     IL_009a:  stloc.0
     IL_009b:  br         IL_0002
-  } 
+  }
 
   .method public static int32  f(class a A_0,
                                  class b A_1,
@@ -1875,7 +1870,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_003c:  ldloc.3
     IL_003d:  starg.s    A_1
     IL_003f:  br         IL_0000
-  } 
+  }
 
   .method public static int32  g(int32 A_0,
                                  int32 A_1,
@@ -1912,7 +1907,7 @@ call	void [System.Console]System.Console::WriteLine(string)
 
     IL_002d:  ldc.i4.0
     IL_002e:  ret
-  } 
+  }
 
   .method public static class b  h(class b A_0) cil managed
   {
@@ -1997,7 +1992,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0087:  call       class b $::a(class b,
                                       class b)
     IL_008c:  ret
-  } 
+  }
 
   .method public static class b  i(int32 A_0,
                                    int32 A_1) cil managed
@@ -2161,7 +2156,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_00dd:  stloc.s    V_27
     IL_00df:  ldloc.s    V_27
     IL_00e1:  ret
-  } 
+  }
 
   .method public static class g  j(int32 A_0,
                                    int32 A_1,
@@ -2419,7 +2414,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_01ca:  stloc.1
     IL_01cb:  ldloc.1
     IL_01cc:  ret
-  } 
+  }
 
   .method public static class g  k(int32 A_0,
                                    class g A_1) cil managed
@@ -2451,7 +2446,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0022:  call       class g $::k(int32,
                                       class g)
     IL_0027:  ret
-  } 
+  }
 
   .method public static class b  l(class b A_0,
                                    class c A_1) cil managed
@@ -2481,7 +2476,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_001a:  call       class b $::d(class a,
                                       class b)
     IL_001f:  ret
-  } 
+  }
 
   .method public static class b  m(int32 A_0) cil managed
   {
@@ -2568,7 +2563,7 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_006c:  stloc.s    V_13
     IL_006e:  ldloc.s    V_13
     IL_0070:  ret
-  } 
+  }
 
   .method public static class b  n(class a A_0,
                                    class b A_1,
@@ -2762,15 +2757,15 @@ call	void [System.Console]System.Console::WriteLine(string)
                                       class b,
                                       class b)
     IL_0103:  ret
-  } 
+  }
 
-} 
+}
 
 .class public abstract auto ansi h
        extends [mscorlib]System.Exception
 {
   .field privatescope string s$PST04000019
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(string A_0) cil managed
   {
     .maxstack  3
@@ -2781,9 +2776,9 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0008:  ldarg.1
     IL_0009:  stfld      string h::s$PST04000019
     IL_000e:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ToString() cil managed
   {
     .maxstack  6
@@ -2818,9 +2813,9 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_002c:  stloc.3
     IL_002d:  ldloc.3
     IL_002e:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ExnMessage() cil managed
   {
     .maxstack  6
@@ -2843,23 +2838,23 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_001c:  call       string [mscorlib]System.String::Concat(string,
                                                                 string)
     IL_0021:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ExnName() cil managed
   {
     .maxstack  2
     IL_0000:  ldstr      "SML exception"
     IL_0005:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed i
        extends a
 {
   .field privatescope class c a$PST0400001A
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class c A_0) cil managed
   {
     .maxstack  2
@@ -2869,9 +2864,9 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0007:  ldarg.1
     IL_0008:  stfld      class c i::a$PST0400001A
     IL_000d:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  4
@@ -2895,16 +2890,16 @@ call	void [System.Console]System.Console::WriteLine(string)
                                     int32,
                                     class c)
     IL_001f:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed j
        extends a
 {
   .field privatescope int32 a$PST0400001B
   .field privatescope int32 b$PST0400001C
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(int32 A_0,
                                int32 A_1) cil managed
   {
@@ -2922,9 +2917,9 @@ call	void [System.Console]System.Console::WriteLine(string)
 ldstr "now2"
 call	void [System.Console]System.Console::WriteLine(string)
     IL_0014:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  4
@@ -2944,9 +2939,9 @@ call	void [System.Console]System.Console::WriteLine(string)
                                     int32,
                                     class c)
     IL_0018:  ret
-  } 
+  }
 
-  .method public virtual final instance class c 
+  .method public virtual final instance class c
           c(class c A_0) cil managed
   {
     .maxstack  4
@@ -2981,16 +2976,16 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_002a:  newobj     instance void c::.ctor(int32,
                                                 int32)
     IL_002f:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed k
        extends a
 {
   .field privatescope class a a$PST0400001D
   .field privatescope class b b$PST0400001E
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(class a A_0,
                                class b A_1) cil managed
   {
@@ -3004,9 +2999,9 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_000e:  ldarg.2
     IL_000f:  stfld      class b k::b$PST0400001E
     IL_0014:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  4
@@ -3037,23 +3032,23 @@ call	void [System.Console]System.Console::WriteLine(string)
 
     IL_0025:  ldc.i4.0
     IL_0026:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed l
        extends a
 {
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor() cil managed
   {
     .maxstack  2
     IL_0000:  ldarg.0
     IL_0001:  call       instance void a::.ctor()
     IL_0006:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           a(class c A_0,
             class c A_1) cil managed
   {
@@ -3087,9 +3082,9 @@ call	void [System.Console]System.Console::WriteLine(string)
 
     IL_002d:  ldc.i4.0
     IL_002e:  ret
-  } 
+  }
 
-  .method public virtual final instance int32 
+  .method public virtual final instance int32
           b(class c A_0) cil managed
   {
     .maxstack  4
@@ -3135,9 +3130,9 @@ call	void [System.Console]System.Console::WriteLine(string)
 
     IL_0040:  ldc.i4.0
     IL_0041:  ret
-  } 
+  }
 
-  .method public virtual final instance class c 
+  .method public virtual final instance class c
           c(class c A_0) cil managed
   {
     .maxstack  4
@@ -3158,9 +3153,9 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0013:  newobj     instance void c::.ctor(int32,
                                                 int32)
     IL_0018:  ret
-  } 
+  }
 
-  .method public virtual final instance void 
+  .method public virtual final instance void
           d(string A_0) cil managed
   {
     .maxstack  5
@@ -3177,14 +3172,14 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0014:  ldstr      "\n"
     IL_0019:  callvirt   instance void [mscorlib]System.IO.TextWriter::Write(string)
     IL_001e:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed m
        extends h
 {
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor(string A_0) cil managed
   {
     .maxstack  3
@@ -3192,22 +3187,22 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0001:  ldarg.1
     IL_0002:  call       instance void h::.ctor(string)
     IL_0007:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ExnName() cil managed
   {
     .maxstack  3
     IL_0000:  ldstr      "Main.ex_undefined"
     IL_0005:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed n
        extends h
 {
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor() cil managed
   {
     .maxstack  3
@@ -3215,22 +3210,22 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0001:  ldnull
     IL_0002:  call       instance void h::.ctor(string)
     IL_0007:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ExnName() cil managed
   {
     .maxstack  3
     IL_0000:  ldstr      "Time.Time"
     IL_0005:  ret
-  } 
+  }
 
-} 
+}
 
 .class public auto ansi sealed o
        extends h
 {
-  .method public specialname rtspecialname 
+  .method public specialname rtspecialname
           instance void  .ctor() cil managed
   {
     .maxstack  3
@@ -3238,18 +3233,14 @@ call	void [System.Console]System.Console::WriteLine(string)
     IL_0001:  ldnull
     IL_0002:  call       instance void h::.ctor(string)
     IL_0007:  ret
-  } 
+  }
 
-  .method public virtual instance string 
+  .method public virtual instance string
           ExnName() cil managed
   {
     .maxstack  3
     IL_0000:  ldstr      "PrimUtils.Char.Chr"
     IL_0005:  ret
-  } 
+  }
 
-} 
-
-
-
-
+}

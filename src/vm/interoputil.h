@@ -106,6 +106,13 @@ ULONG SafeReleasePreemp(IUnknown* pUnk, RCW* pRCW = NULL);
 // Determines if a COM object can be cast to the specified type.
 BOOL CanCastComObject(OBJECTREF obj, MethodTable * pTargetMT);
 
+// includes Types which hold a "ComObject" class
+// and types which are imported through typelib
+BOOL IsComWrapperClass(TypeHandle type);
+
+// includes Type which hold a "__ComObject" class
+BOOL IsComObjectClass(TypeHandle type);
+
 //---------------------------------------------------------
 // Read the BestFit custom attribute info from 
 // both assembly level and interface level
@@ -129,12 +136,10 @@ void FillExceptionData(ExceptionData* pedata, IErrorInfo* pErrInfo, IRestrictedE
  // helper to access fields from an object
 INT64 FieldAccessor(FieldDesc* pFD, OBJECTREF oref, INT64 val, BOOL isGetter, U1 cbSize);
 
-#ifndef FEATURE_CORECLR
 //---------------------------------------------------------------------------
 //returns true if pImport has DefaultDllImportSearchPathsAttribute
 //if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
 BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, mdToken token, DWORD * pDlImportSearchPathFlag);
-#endif // !FEATURE_CORECLR
 
 //---------------------------------------------------------------------------
 // Returns the index of the LCID parameter if one exists and -1 otherwise.
@@ -352,14 +357,6 @@ BOOL IsMethodVisibleFromCom(MethodDesc *pMD);
 //---------------------------------------------------------------------------
 // This method determines if a type is visible from COM or not based on 
 // its visibility. This version of the method works with a type handle.
-// This version will ignore a type's generic attributes.
-//
-// This API should *never* be called directly!!!
-BOOL SpecialIsGenericTypeVisibleFromCom(TypeHandle hndType);
-
-//---------------------------------------------------------------------------
-// This method determines if a type is visible from COM or not based on 
-// its visibility. This version of the method works with a type handle.
 BOOL IsTypeVisibleFromCom(TypeHandle hndType);
 
 //---------------------------------------------------------------------------
@@ -493,14 +490,6 @@ public:
     static void ComputeGuidForGenericType(MethodTable *pMT, GUID *pGuid);
 };  // class WinRTGuidGenerator
 
-
-// includes Types which hold a "ComObject" class
-// and types which are imported through typelib
-BOOL IsComWrapperClass(TypeHandle type);
-
-// includes Type which hold a "__ComObject" class
-BOOL IsComObjectClass(TypeHandle type);
-
 IUnknown* MarshalObjectToInterface(OBJECTREF* ppObject, MethodTable* pItfMT, MethodTable* pClassMT, DWORD dwFlags);
 void UnmarshalObjectFromInterface(OBJECTREF *ppObjectDest, IUnknown **ppUnkSrc, MethodTable *pItfMT, MethodTable *pClassMT, DWORD dwFlags);
 
@@ -510,7 +499,6 @@ class ICOMInterfaceMarshalerCallback;
 void GetNativeWinRTFactoryObject(MethodTable *pMT, Thread *pThread, MethodTable *pFactoryIntfMT, BOOL bNeedUniqueRCW, ICOMInterfaceMarshalerCallback *pCallback, OBJECTREF *prefFactory);
 
 #else // FEATURE_COMINTEROP
-
 inline HRESULT EnsureComStartedNoThrow()
 {
     LIMITED_METHOD_CONTRACT;

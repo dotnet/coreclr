@@ -18,10 +18,6 @@
 #include "method.hpp"
 #include "threads.h"
 #include "excep.h"
-#ifdef FEATURE_REMOTING
-#include "remoting.h"
-#endif
-#include "security.h"
 #include "field.h"
 #include "customattribute.h"
 #include "eeconfig.h"
@@ -604,11 +600,9 @@ void InvokeUtil::ValidField(TypeHandle th, OBJECTREF* value)
                 if (!srcTH.CanCastTo(th))
                     COMPlusThrow(kArgumentException,W("Arg_ObjObj"));
             }
-            Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_SKIP_VER);
             return;
         }
         else if (MscorlibBinder::IsClass((*value)->GetMethodTable(), CLASS__INTPTR)) {
-            Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_SKIP_VER);
             return;
         }
 
@@ -655,9 +649,14 @@ void InvokeUtil::ValidField(TypeHandle th, OBJECTREF* value)
         COMPlusThrow(kArgumentException,W("Arg_ObjObj"));
 }
 
-// InternalCreateObject
-// This routine will create the specified object from the value
-OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
+//
+// CreateObjectAfterInvoke
+// This routine will create the specified object from the value returned by the Invoke target. 
+//
+// This does not handle the ELEMENT_TYPE_VALUETYPE case. The caller must preallocate the box object and
+// copy the value type into it afterward.
+//
+OBJECTREF InvokeUtil::CreateObjectAfterInvoke(TypeHandle th, void * pValue) {
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -669,8 +668,10 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
     CONTRACTL_END;
 
     CorElementType type = th.GetSignatureCorElementType();
-    MethodTable *pMT = NULL;
     OBJECTREF obj = NULL;
+
+    // WARNING: pValue can be an inner reference into a managed object and it is not protected from GC. You must do nothing that
+    // triggers a GC until the all the data it points to has been captured in a GC-protected location.
 
     // Handle the non-table types
     switch (type) {
@@ -683,18 +684,6 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
         break;
     }
 
-    case ELEMENT_TYPE_FNPTR:
-        pMT = MscorlibBinder::GetElementType(ELEMENT_TYPE_I);
-        goto PrimitiveType;
-
-    case ELEMENT_TYPE_VALUETYPE:
-    {
-        _ASSERTE(!th.IsTypeDesc());
-        pMT = th.AsMethodTable();
-        obj = pMT->Box(pValue);
-        break;
-    }
-
     case ELEMENT_TYPE_CLASS:        // Class
     case ELEMENT_TYPE_SZARRAY:      // Single Dim, Zero
     case ELEMENT_TYPE_ARRAY:        // General Array
@@ -704,35 +693,15 @@ OBJECTREF InvokeUtil::CreateObject(TypeHandle th, void * pValue) {
         obj = *(OBJECTREF *)pValue;
         break;
     
-    case ELEMENT_TYPE_BOOLEAN:      // boolean
-    case ELEMENT_TYPE_I1:           // byte
-    case ELEMENT_TYPE_U1:
-    case ELEMENT_TYPE_I2:           // short
-    case ELEMENT_TYPE_U2:           
-    case ELEMENT_TYPE_CHAR:         // char
-    case ELEMENT_TYPE_I4:           // int
-    case ELEMENT_TYPE_U4:
-    case ELEMENT_TYPE_I8:           // long
-    case ELEMENT_TYPE_U8:       
-    case ELEMENT_TYPE_R4:           // float
-    case ELEMENT_TYPE_R8:           // double
-    case ELEMENT_TYPE_I:
-    case ELEMENT_TYPE_U:
-        _ASSERTE(!th.IsTypeDesc());
-        pMT = th.AsMethodTable();
-    PrimitiveType:
+    case ELEMENT_TYPE_FNPTR:
         {
-            // Don't use MethodTable::Box here for perf reasons
-            PREFIX_ASSUME(pMT != NULL);
-            obj = AllocateObject(pMT);
-            DWORD size = pMT->GetNumInstanceFieldBytes();
-            memcpyNoGCRefs(obj->UnBox(), pValue, size);
+            LPVOID capturedValue = *(LPVOID*)pValue;
+            INDEBUG(pValue = (LPVOID)0xcccccccc); // We're about to allocate a GC object - can no longer trust pValue
+            obj = AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
+            *(LPVOID*)(obj->UnBox()) = capturedValue;
         }
         break;
     
-    case ELEMENT_TYPE_BYREF:
-        COMPlusThrow(kNotSupportedException, W("NotSupported_ByRefReturn"));
-    case ELEMENT_TYPE_END:
     default:
         _ASSERTE(!"Unknown Type");
         COMPlusThrow(kNotSupportedException);
@@ -940,13 +909,6 @@ void InvokeUtil::ValidateObjectTarget(FieldDesc *pField, TypeHandle enclosingTyp
     // Give a second chance to thunking classes to do the 
     // correct cast
     if (ty.IsNull()) {
-#ifdef FEATURE_REMOTING
-        BOOL fCastOK = FALSE;
-        if ((*target)->IsTransparentProxy()) {
-            fCastOK = CRemotingServices::CheckCast(*target, enclosingType);
-        }
-        if(!fCastOK) 
-#endif            
         {
             COMPlusThrow(kArgumentException,W("Arg_ObjObj"));
         }
@@ -1151,37 +1113,6 @@ void InvokeUtil::SetValidField(CorElementType fldType,
     {
         _ASSERTE(!fldTH.IsTypeDesc());
         MethodTable *pMT = fldTH.AsMethodTable();
-#ifdef FEATURE_REMOTING        
-        if((*target) != NULL && (*target)->IsTransparentProxy()) {
-            OBJECTREF val = *valueObj;        
-            GCPROTECT_BEGIN(val)
-
-            void* valueData;
-            if (Nullable::IsNullableType(fldTH)) {
-                // Special case for Nullable<T>, we need a true nullable that is gc protected.  The easiest
-                // way to make one is to allocate an object on the heap 
-                OBJECTREF trueNullable = fldTH.AsMethodTable()->Allocate();
-                BOOL typesChecked;
-                typesChecked = Nullable::UnBox(trueNullable->GetData(), val, fldTH.AsMethodTable());
-                _ASSERTE(typesChecked);
-                val = trueNullable;
-                valueData = val->GetData();
-            }
-            else if (val == NULL) {
-                // Null is the universal null object.  (Is this a good idea?)
-                int size = pMT->GetNumInstanceFieldBytes();
-                valueData = _alloca(size);
-                memset(valueData, 0, size);
-            }
-            else 
-                valueData = val->GetData();
-
-            OBJECTREF unwrapped = CRemotingServices::GetObjectFromProxy(*target);
-            CRemotingServices::FieldAccessor(pField, unwrapped, valueData, FALSE);
-            GCPROTECT_END();
-        }
-        else 
-#endif            
         {
             void* pFieldData;
             if (pField->IsStatic()) 
@@ -1336,14 +1267,6 @@ OBJECTREF InvokeUtil::GetFieldValue(FieldDesc* pField, TypeHandle fieldType, OBJ
         if (pField->IsStatic())
             p = pField->GetCurrentStaticAddress();
         else {
-#ifdef FEATURE_REMOTING            
-            OBJECTREF o = *target;
-            if(o->IsTransparentProxy()) {
-                OBJECTREF unwrapped = CRemotingServices::GetObjectFromProxy(o);
-                CRemotingServices::FieldAccessor(pField, unwrapped, (void*)obj->GetData(), TRUE);
-            }
-            else
-#endif                
                 p = (*((BYTE**)target)) + pField->GetOffset() + sizeof(Object);
         }
         GCPROTECT_END();
@@ -1479,64 +1402,6 @@ bool RefSecContext::IsCalledFromInterop()
     return (pCaller == NULL);
 }
 
-BOOL InvokeUtil::IsCriticalWithConversionToFullDemand(MethodTable* pMT)
-{
-    WRAPPER_NO_CONTRACT;
-
-    return Security::TypeRequiresTransparencyCheck(pMT, true);
-}
-
-BOOL InvokeUtil::IsCriticalWithConversionToFullDemand(MethodDesc* pMD, MethodTable* pInstanceMT)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    if (Security::IsMethodCritical(pMD) && !Security::IsMethodSafeCritical(pMD)
-        && pMD->GetAssembly()->GetSecurityTransparencyBehavior()->CanCriticalMembersBeConvertedToLinkDemand())
-        return TRUE;
-
-    if (pMD->HasMethodInstantiation())
-    {
-        Instantiation inst = pMD->GetMethodInstantiation();
-        for (DWORD i = 0; i < inst.GetNumArgs(); i++)
-        {   
-            TypeHandle th = inst[i];
-            if (InvokeUtil::IsCriticalWithConversionToFullDemand(th.GetMethodTableOfElementType()))
-                return TRUE;
-        }
-    }
-
-    if (pInstanceMT && InvokeUtil::IsCriticalWithConversionToFullDemand(pInstanceMT))
-        return TRUE;
-
-    return FALSE;
-}
-
-BOOL InvokeUtil::IsCriticalWithConversionToFullDemand(FieldDesc* pFD, MethodTable* pInstanceMT)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-    
-    if (Security::IsFieldCritical(pFD) && !Security::IsFieldSafeCritical(pFD)
-        && pFD->GetModule()->GetAssembly()->GetSecurityTransparencyBehavior()->CanCriticalMembersBeConvertedToLinkDemand())
-        return TRUE;
-
-    if (pInstanceMT && InvokeUtil::IsCriticalWithConversionToFullDemand(pInstanceMT))
-        return TRUE;
-
-    return FALSE;
-}
-
 void InvokeUtil::CanAccessClass(RefSecContext*  pCtx,
                                 MethodTable*    pClass,
                                 BOOL            checkAccessForImplicitValueTypeCtor /*= FALSE*/)
@@ -1551,14 +1416,6 @@ void InvokeUtil::CanAccessClass(RefSecContext*  pCtx,
 
     InvokeUtil::CheckAccessClass(pCtx, pClass, checkAccessForImplicitValueTypeCtor);
 
-#ifndef FEATURE_CORECLR
-    // Reflection invocation should turn critical method access into a full demand of full trust
-    // for level 2 assemblies.
-    if (InvokeUtil::IsCriticalWithConversionToFullDemand(pClass))
-    {
-        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_FULL_TRUST);
-    }
-#endif //FEATURE_CORECLR
 }
 
 #ifndef DACCESS_COMPILE
@@ -1579,162 +1436,10 @@ void InvokeUtil::CanAccessMethod(MethodDesc*    pMeth,
     }
     CONTRACTL_END;
 
-#ifndef FEATURE_CORECLR
-    // Security checks are expensive as they involve stack walking. Avoid them if we can.
-    // In immersive we don't allow private reflection to framework code. So we need to perform
-    // the access check even if all the domains on the stack are fully trusted.
-    if (Security::AllDomainsOnStackFullyTrusted() && !AppX::IsAppXProcess() && !pParentMT->GetAssembly()->IsDisabledPrivateReflection())
-        return;
-#endif // FEATURE_CORECLR
-
     InvokeUtil::CheckAccessMethod(pSCtx,
                                   pParentMT,
                                   pInstanceMT,
                                   pMeth);
-
-#ifndef FEATURE_CORECLR
-    // Reflection invocation should turn critical method access into a full demand of full trust
-    // for level 2 assemblies.
-    if (fCriticalToFullDemand && InvokeUtil::IsCriticalWithConversionToFullDemand(pMeth, pParentMT))
-    {
-        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_FULL_TRUST);
-
-        // No need to do any more checks if a full trust full demand has succeeded.
-        return;
-    }
-#endif //FEATURE_CORECLR
-
-    if (pMeth->RequiresLinktimeCheck())
-    {
-        // The following logic turns link demands on the target method into full
-        // stack walks in order to close security holes in poorly written
-        // reflection users.
-
-#ifdef FEATURE_APTCA
-        if (Security::IsUntrustedCallerCheckNeeded(pMeth))
-        {
-            if (pSCtx->GetCallerMT()) 
-            { 
-                // Check for untrusted caller
-                // It is possible that wrappers like VBHelper libraries that are
-                // fully trusted, make calls to public methods that do not have
-                // safe for Untrusted caller custom attribute set.
-                // Like all other link demand that gets transformed to a full stack 
-                // walk for reflection, calls to public methods also gets 
-                // converted to full stack walk
-    
-                Security::DoUntrustedCallerChecks(
-                    pSCtx->GetCallerMT()->GetAssembly(), pMeth,
-                    TRUE);
-            }
-        }
-#endif // FEATURE_APTCA
-
-        struct _gc
-        {
-            OBJECTREF refClassNonCasDemands;
-            OBJECTREF refClassCasDemands;
-            OBJECTREF refMethodNonCasDemands;
-            OBJECTREF refMethodCasDemands;
-        } gc;
-        ZeroMemory(&gc, sizeof(gc));
-
-        GCPROTECT_BEGIN(gc);
-
-        // Fetch link demand sets from all the places in metadata where we might
-        // find them (class and method). These might be split into CAS and non-CAS
-        // sets as well.
-        Security::RetrieveLinktimeDemands(pMeth,
-                                          &gc.refClassCasDemands,
-                                          &gc.refClassNonCasDemands,
-                                          &gc.refMethodCasDemands,
-                                          &gc.refMethodNonCasDemands);
-
-        // CAS Link Demands
-        if (gc.refClassCasDemands != NULL)
-            Security::DemandSet(SSWT_LATEBOUND_LINKDEMAND, gc.refClassCasDemands);
-
-        if (gc.refMethodCasDemands != NULL)
-            Security::DemandSet(SSWT_LATEBOUND_LINKDEMAND, gc.refMethodCasDemands);
-
-        // Non-CAS demands are not applied against a grant
-        // set, they're standalone.
-        if (gc.refClassNonCasDemands != NULL)
-            Security::CheckNonCasDemand(&gc.refClassNonCasDemands);
-
-        if (gc.refMethodNonCasDemands != NULL)
-            Security::CheckNonCasDemand(&gc.refMethodNonCasDemands);
-
-        GCPROTECT_END();
-
-#ifdef FEATURE_CORECLR                
-        if (pMeth->IsNDirect() ||
-            (pMeth->IsComPlusCall() && !pMeth->IsInterface()))
-        {
-            if (Security::IsTransparencyEnforcementEnabled())
-            {
-                MethodDesc* pmdCaller = pSCtx->GetCallerMethod();
-
-                if (pmdCaller != NULL &&
-                    Security::IsMethodTransparent(pmdCaller))
-                {
-                    ThrowMethodAccessException(pSCtx, pMeth, IDS_E_TRANSPARENT_CALL_NATIVE);
-                }
-            }
-        }
-
-#else  // FEATURE_CORECLR
-        // We perform automatic linktime checks for UnmanagedCode in three cases:
-        //   o  P/Invoke calls.
-        //   o  Calls through an interface that have a suppress runtime check
-        //      attribute on them (these are almost certainly interop calls).
-        //   o  Interop calls made through method impls.
-        if (pMeth->IsNDirect() ||
-            (pMeth->IsInterface() &&
-             (pMeth->GetMDImport()->GetCustomAttributeByName(pParentMT->GetCl(),
-                                                           COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                           NULL,
-                                                           NULL) == S_OK ||
-              pMeth->GetMDImport()->GetCustomAttributeByName(pMeth->GetMemberDef(),
-                                                           COR_SUPPRESS_UNMANAGED_CODE_CHECK_ATTRIBUTE_ANSI,
-                                                           NULL,
-                                                           NULL) == S_OK) ) ||
-            (pMeth->IsComPlusCall() && !pMeth->IsInterface()))
-        {
-            Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_UNMANAGED_CODE);
-        }
-#endif // FEATURE_CORECLR
-    }
-
-    // @todo: 
-    //if (checkSkipVer && !Security::CanSkipVerification(pSCtx->GetCallerMethod()->GetModule()))
-    //Security::ThrowSecurityException(g_SecurityPermissionClassName, SPFLAGSSKIPVERIFICATION);
-    //checkSkipVer is set only when the user tries to invoke a constructor on a existing object.
-    if (checkSkipVer)
-    {
-        if (Security::IsTransparencyEnforcementEnabled())
-        {
-            MethodDesc *pCallerMD = pSCtx->GetCallerMethod();
-
-            // Interop (NULL) caller should be able to skip verification
-            if (pCallerMD != NULL &&
-                Security::IsMethodTransparent(pCallerMD) &&
-                !pCallerMD->GetAssembly()->GetSecurityTransparencyBehavior()->CanTransparentCodeSkipVerification())
-            {
-#ifdef _DEBUG
-                if (g_pConfig->LogTransparencyErrors())
-                {
-                    SecurityTransparent::LogTransparencyError(pMeth, "Attempt by a transparent method to use unverifiable code");
-                }
-#endif // _DEBUG
-                ThrowMethodAccessException(pCallerMD, pMeth, FALSE, IDS_E_TRANSPARENT_REFLECTION);
-            }
-        }
-
-#ifndef FEATURE_CORECLR
-        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_SKIP_VER);
-#endif // !FEATURE_CORECLR
-    }
 }
 #endif // #ifndef DACCESS_COMPILE
 
@@ -1753,18 +1458,10 @@ void InvokeUtil::CanAccessField(RefSecContext*  pCtx,
 
     InvokeUtil::CheckAccessField(pCtx, pTargetMT, pInstanceMT, pTargetField);
 
-#ifndef FEATURE_CORECLR
-    // Reflection invocation should turn critical method access into a full demand of full trust
-    // for level 2 assemblies.
-    if (InvokeUtil::IsCriticalWithConversionToFullDemand(pTargetField, pInstanceMT))
-    {
-        Security::SpecialDemand(SSWT_LATEBOUND_LINKDEMAND, SECURITY_FULL_TRUST);
-    }
-#endif //FEATURE_CORECLR
 }
 
 //
-// Ensure that a type is accessable, throwing a TypeLoadException if not
+// Ensure that a type is accessible, throwing a TypeLoadException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1816,7 +1513,7 @@ void InvokeUtil::CheckAccessClass(RefSecContext *pCtx,
 }
 
 //
-// Ensure that a method is accessable, throwing a MethodAccessException if not
+// Ensure that a method is accessible, throwing a MethodAccessException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1857,7 +1554,7 @@ void InvokeUtil::CheckAccessMethod(RefSecContext       *pCtx,
 }
 
 //
-// Ensure that a field is accessable, throwing a FieldAccessException if not
+// Ensure that a field is accessible, throwing a FieldAccessException if not
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1900,7 +1597,7 @@ void InvokeUtil::CheckAccessField(RefSecContext       *pCtx,
 
 
 //
-// Check accessability of a field or method.
+// Check accessibility of a field or method.
 //
 // Arguments:
 //    pCtx                  - current reflection context
@@ -1969,36 +1666,6 @@ void InvokeUtil::CheckAccess(RefSecContext               *pCtx,
     _ASSERTE(canAccess);
 }
 
-// If a method has a linktime demand attached, perform it.
-
-// static
-void InvokeUtil::CheckLinktimeDemand(RefSecContext *pCtx, MethodDesc *pCalleeMD) {
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        
-        INJECT_FAULT(COMPlusThrowOM(););
-    }
-    CONTRACTL_END
-        
-    if (pCalleeMD->RequiresLinktimeCheck())
-    {
-        MethodDesc* pCallerMD = pCtx->GetCallerMethod();
-
-        if (pCallerMD)
-        {
-            Security::LinktimeCheckMethod(pCallerMD->GetAssembly(), pCalleeMD);
-
-            // perform transparency checks as well
-            if (Security::RequiresTransparentAssemblyChecks(pCallerMD, pCalleeMD, NULL))
-            {
-                Security::EnforceTransparentAssemblyChecks(pCallerMD, pCalleeMD);
-            }
-        }
-    }
-}
-
 /*static*/
 AccessCheckOptions::AccessCheckType InvokeUtil::GetInvocationAccessCheckType(BOOL targetRemoted /*= FALSE*/)
 {
@@ -2007,123 +1674,9 @@ AccessCheckOptions::AccessCheckType InvokeUtil::GetInvocationAccessCheckType(BOO
     if (targetRemoted)
         return AccessCheckOptions::kMemberAccess;
 
-    AppDomain * pAppDomain = GetAppDomain();
-
-#ifdef FEATURE_CORECLR
-
-    if (pAppDomain->GetSecurityDescriptor()->IsFullyTrusted())
-        // Ignore transparency so that reflection invocation is consistenct with LCG.
-        // There is no security concern because we are in Full Trust.
-        return AccessCheckOptions::kRestrictedMemberAccessNoTransparency;
-
-    return AccessCheckOptions::kMemberAccess;
-
-#else // !FEATURE_CORECLR
-    return 
-        AppX::IsAppXProcess() ?
-           (Security::AllDomainsOnStackFullyTrusted() ? 
-                AccessCheckOptions::kUserCodeOnlyRestrictedMemberAccessNoTransparency : 
-                AccessCheckOptions::kUserCodeOnlyRestrictedMemberAccess) :
-           AccessCheckOptions::kRestrictedMemberAccess;
-#endif //FEATURE_CORECLR
+    // Ignore transparency so that reflection invocation is consistenct with LCG.
+    // There is no security concern because we are in Full Trust.
+    return AccessCheckOptions::kRestrictedMemberAccessNoTransparency;
 }
 
 #endif // CROSSGEN_COMPILE
-
-struct DangerousAPIEntry
-{
-    BinderClassID   classID;
-    const LPCSTR    *pszAPINames;
-    DWORD           cAPINames;
-};
-
-#define DEFINE_DANGEROUS_API(classID, szAPINames) static const LPCSTR g__ ## classID ## __DangerousAPIs[] = { szAPINames };
-#include "dangerousapis.h"
-#undef DEFINE_DANGEROUS_API
-
-#define DEFINE_DANGEROUS_API(classID, szAPINames) { CLASS__ ## classID, g__ ## classID ## __DangerousAPIs, NumItems(g__ ## classID ## __DangerousAPIs)},
-static const DangerousAPIEntry DangerousAPIs[] = 
-{
-#include "dangerousapis.h"
-};
-#undef DEFINE_DANGEROUS_API
-
-/*static*/
-bool InvokeUtil::IsDangerousMethod(MethodDesc *pMD)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    MethodTable *pMT = pMD->GetMethodTable();
-
-    if (pMT->GetModule()->IsSystem())
-    {
-        // All methods on these types are considered dangerous
-        static const BinderClassID dangerousTypes[] = {
-#ifdef FEATURE_METHOD_RENTAL
-            CLASS__METHOD_RENTAL,
-#endif // FEATURE_METHOD_RENTAL
-#ifdef FEATURE_ISOSTORE
-            CLASS__ISS_STORE_FILE,
-#endif
-            CLASS__TYPE_HANDLE,
-            CLASS__METHOD_HANDLE,
-            CLASS__FIELD_HANDLE,
-            CLASS__ACTIVATOR,
-            CLASS__DELEGATE,
-            CLASS__MULTICAST_DELEGATE,
-            CLASS__RUNTIME_HELPERS
-        };
-
-
-        static bool fInited = false;
-
-        if (!VolatileLoad(&fInited))
-        {
-            // Make sure all types are loaded so that we can use faster GetExistingClass()
-            for (unsigned i = 0; i < NumItems(dangerousTypes); i++)
-            {
-                MscorlibBinder::GetClass(dangerousTypes[i]);
-            }
-
-            for (unsigned i = 0; i < NumItems(DangerousAPIs); i++)
-            {
-                MscorlibBinder::GetClass(DangerousAPIs[i].classID);
-            }
-
-            VolatileStore(&fInited, true);
-        }
-
-        for (unsigned i = 0; i < NumItems(dangerousTypes); i++)
-        {
-            if (MscorlibBinder::GetExistingClass(dangerousTypes[i]) == pMT)
-                return true;
-        }
-
-        for (unsigned i = 0; i < NumItems(DangerousAPIs); i++)
-        {
-            DangerousAPIEntry entry = DangerousAPIs[i];
-            if (MscorlibBinder::GetExistingClass(entry.classID) == pMT)
-            {
-                LPCUTF8 szMethodName = pMD->GetName();
-                for (unsigned j = 0; j < entry.cAPINames; j++)
-                {
-                    if (strcmp(szMethodName, entry.pszAPINames[j]) == 0)
-                        return true;
-                }
-
-                break;
-            }
-        }
-    }
-
-    // For reduce compat risks we treat non-ctors on DynamicMethod as safe.
-    if (pMT->IsDelegate() && pMD->IsCtor())
-        return true;
-
-    return false;
-}
