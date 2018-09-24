@@ -18126,12 +18126,9 @@ public:
         {
             MorphStructField(node, user);
         }
-        else if (node->OperIs(GT_LCL_VAR, GT_LCL_FLD))
+        else if (node->OperIs(GT_LCL_FLD))
         {
-            if (node->OperIs(GT_LCL_FLD))
-            {
-                MorphLocalField(node, user);
-            }
+            MorphLocalField(node, user);
         }
 
         if (node->OperIsLocal())
