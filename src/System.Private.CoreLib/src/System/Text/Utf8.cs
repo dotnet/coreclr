@@ -2,9 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.ComponentModel;
-using System.Diagnostics;
+using System.Buffers;
 using System.Globalization;
 
 namespace System.Text
@@ -149,8 +147,7 @@ namespace System.Text
         // Ordinal
         public static bool Contains(ReadOnlySpan<byte> source, UnicodeScalar scalar)
         {
-            // TODO: Implement me
-            throw new NotImplementedException();
+            return IndexOf(source, scalar) >= 0;
         }
 
         public static bool Contains(ReadOnlySpan<byte> source, UnicodeScalar scalar, StringComparison comparison)
@@ -162,8 +159,9 @@ namespace System.Text
         // Ordinal; returns -1 if not found
         public static int IndexOf(ReadOnlySpan<byte> source, UnicodeScalar scalar)
         {
-            // TODO: Implement me
-            throw new NotImplementedException();
+            Span<byte> scalarAsUtf8 = stackalloc byte[4];
+            int scalarUtf8CodeUnitCount = scalar.ToUtf8(scalarAsUtf8);
+            return source.IndexOf(scalarAsUtf8.Slice(0, scalarUtf8CodeUnitCount));
         }
 
         // Returns -1 if not found

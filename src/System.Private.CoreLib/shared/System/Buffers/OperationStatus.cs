@@ -2,9 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// TODO: Remove temporary copy of OperationStatus type (copied from System.Memory).
-
-namespace System.Text
+namespace System.Buffers
 {
     /// <summary>
     /// This enum defines the various potential status that can be returned from Span-based operations
