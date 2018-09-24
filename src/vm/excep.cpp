@@ -7917,7 +7917,7 @@ bool IsIPInEpilog(PTR_CONTEXT pContextToCheck, EECodeInfo *pCodeInfo, BOOL *pSaf
     _ASSERTE(pCodeInfo->IsValid());
 
     // The Codeinfo should correspond to the IP we are interested in.
-    _ASSERTE(ipToCheck == pCodeInfo->GetCodeAddress());
+    _ASSERTE(PCODEToPINSTR(ipToCheck) == pCodeInfo->GetCodeAddress());
 
     // By default, assume its safe to inject the abort.
     *pSafeToInjectThreadAbort = TRUE;
