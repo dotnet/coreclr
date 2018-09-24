@@ -53,13 +53,15 @@ void ThreadLocalBlock::FreeTLM(SIZE_T i, BOOL isThreadShuttingdown)
                     if (isThreadShuttingdown && (pThreadLocalModule->m_pDynamicClassTable[k].m_dwFlags & ClassInitFlags::COLLECTIBLE_FLAG))
                     {
                         ThreadLocalModule::CollectibleDynamicEntry *entry = (ThreadLocalModule::CollectibleDynamicEntry*)pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;
+                        PTR_LoaderAllocator pLoaderAllocator = entry->m_pLoaderAllocator;
+
                         if (entry->m_hGCStatics != NULL)
                         {
-                            pThreadLocalModule->m_pLoaderAllocator->FreeHandle(entry->m_hGCStatics);
+                            pLoaderAllocator->FreeHandle(entry->m_hGCStatics);
                         }
                         if (entry->m_hNonGCStatics != NULL)
                         {
-                            pThreadLocalModule->m_pLoaderAllocator->FreeHandle(entry->m_hNonGCStatics);
+                            pLoaderAllocator->FreeHandle(entry->m_hNonGCStatics);
                         }
                     }
                     delete pThreadLocalModule->m_pDynamicClassTable[k].m_pDynamicEntry;
@@ -550,6 +552,11 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
             // Zero out the new DynamicEntry
             memset((BYTE*)pDynamicStatics, 0, dynamicEntrySize);
 
+            if (pMT->Collectible())
+            {
+                ((CollectibleDynamicEntry*)pDynamicStatics)->m_pLoaderAllocator = pMT->GetLoaderAllocator();
+            }
+
             // Save the DynamicEntry in the DynamicClassTable
             m_pDynamicClassTable[dwID].m_pDynamicEntry = pDynamicStatics;
         }
@@ -748,11 +755,6 @@ PTR_ThreadLocalModule ThreadStatics::AllocateTLM(Module * pModule)
     
     // Zero out the part of memory where the TLM resides
     memset(pThreadLocalModule, 0, size);
-    
-    if (pModule->IsCollectible())
-    {
-        pThreadLocalModule->SetLoaderAllocator(pModule->GetLoaderAllocator());
-    }
 
     return pThreadLocalModule;
 }
