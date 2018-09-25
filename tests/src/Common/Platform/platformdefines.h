@@ -64,7 +64,7 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 #define DLL_EXPORT
 #endif
 
-LPWSTR HackyConvertToWSTR(char* pszInput);
+LPWSTR HackyConvertToWSTR(const char* pszInput);
 
 #define FS_SEPERATOR L("/")
 #define PATH_DELIMITER L(":")

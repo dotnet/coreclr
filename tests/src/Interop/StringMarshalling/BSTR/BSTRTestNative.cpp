@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#include "platformdefines.cpp"
+#include "platformdefines.h"
 
 WCHAR* strManaged = L("Managed\0String\0");
 size_t   lenstrManaged = 14; // the byte length of strManaged
@@ -95,7 +95,7 @@ extern "C" DLL_EXPORT BSTR MarshalPointer_Out(/*[out]*/ BSTR *s)
     return ReturnString();
 }
 
-extern "C" DLL_EXPORT int __cdecl Writeline(char * pFormat, int i, char c, double d, short s, unsigned u)
+extern "C" DLL_EXPORT int Writeline(char * pFormat, int i, char c, double d, short s, unsigned u)
 {
 	int sum = i;
 	for (size_t it = 0; it < strlen(pFormat); it++)
