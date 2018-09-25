@@ -1009,7 +1009,7 @@ namespace System
             {
                 if (!_source.IsEmpty)
                 {
-                    UnicodeTranscodings.TranscodeUtf8ToUtf16(_source, _chunkBuffer, isFinalChunk: true, fixupInvalidSequences: true, out int bytesConsumed, out int _numCharsConvertedInChunkBuffer);
+                    Unicode.TranscodeUtf8ToUtf16(_source, _chunkBuffer, isFinalChunk: true, fixupInvalidSequences: true, out int bytesConsumed, out int _numCharsConvertedInChunkBuffer);
                     Debug.Assert(bytesConsumed != 0, "Should've consumed a non-zero amount of data.");
                     _source = _source.Slice(bytesConsumed);
                     return true;

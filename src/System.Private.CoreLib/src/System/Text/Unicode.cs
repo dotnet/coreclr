@@ -7,9 +7,21 @@ using System.Diagnostics;
 
 namespace System.Text
 {
-    internal static class UnicodeTranscodings
+    public static class Unicode
     {
-        public static OperationStatus TranscodeUtf8ToUtf16(ReadOnlySpan<byte> source, Span<char> destination, bool isFinalChunk, bool fixupInvalidSequences, out int bytesConsumed, out int charsWritten)
+        public static OperationStatus TranscodeUtf8ToUtf16(ReadOnlySpan<byte> source, Span<char> destination, bool isFinalChunk, InvalidSequenceBehavior behavior, out int bytesConsumed, out int charsWritten)
+        {
+            // We disallow 'leave unchanged' because it's meaningless
+            if ((uint)behavior > (uint)InvalidSequenceBehavior.ReplaceInvalidSequence)
+            {
+                // TODO: Throw a better exception.
+                throw new ArgumentOutOfRangeException(paramName: nameof(behavior));
+            }
+
+            return TranscodeUtf8ToUtf16(source, destination, isFinalChunk, fixupInvalidSequences: (behavior != InvalidSequenceBehavior.Fail), out bytesConsumed, out charsWritten);
+        }
+
+        internal static OperationStatus TranscodeUtf8ToUtf16(ReadOnlySpan<byte> source, Span<char> destination, bool isFinalChunk, bool fixupInvalidSequences, out int bytesConsumed, out int charsWritten)
         {
             // TODO: Implement me in a much more optimized fashion.
 
@@ -101,7 +113,19 @@ namespace System.Text
             return OperationStatus.Done;
         }
 
-        public static OperationStatus TranscodeUtf16ToUtf8(ReadOnlySpan<char> source, Span<byte> destination, bool isFinalChunk, bool fixupInvalidSequences, out int charsConsumed, out int bytesWritten)
+        public static OperationStatus TranscodeUtf16ToUtf8(ReadOnlySpan<char> source, Span<byte> destination, bool isFinalChunk, InvalidSequenceBehavior behavior, out int charsConsumed, out int bytesWritten)
+        {
+            // We disallow 'leave unchanged' because it's meaningless
+            if ((uint)behavior > (uint)InvalidSequenceBehavior.ReplaceInvalidSequence)
+            {
+                // TODO: Throw a better exception.
+                throw new ArgumentOutOfRangeException(paramName: nameof(behavior));
+            }
+
+            return TranscodeUtf16ToUtf8(source, destination, isFinalChunk, fixupInvalidSequences: (behavior != InvalidSequenceBehavior.Fail), out charsConsumed, out bytesWritten);
+        }
+
+        internal static OperationStatus TranscodeUtf16ToUtf8(ReadOnlySpan<char> source, Span<byte> destination, bool isFinalChunk, bool fixupInvalidSequences, out int charsConsumed, out int bytesWritten)
         {
             // TODO: Optimize me, including vectorization, BMI, and unaligned reads / writes.
 
