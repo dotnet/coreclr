@@ -5,6 +5,7 @@
 // Dummy implementations of non-portable interop methods that just throw PlatformNotSupportedException
 
 using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices.ComTypes;
 
 namespace System.Runtime.InteropServices
