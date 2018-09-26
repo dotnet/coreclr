@@ -17039,7 +17039,7 @@ void Compiler::fgPromoteStructs()
     // Loop through the original lvaTable. Looking for struct locals to be promoted.
     //
     lvaStructPromotionInfo structPromotionInfo;
-    bool                   tooManyLocals = false;
+    bool                   tooManyLocalsReported = false;
 
     for (unsigned lclNum = 0; lclNum < startLvaCount; lclNum++)
     {
@@ -17057,11 +17057,11 @@ void Compiler::fgPromoteStructs()
         else if (lvaHaveManyLocals())
         {
             // Print the message first time when we detected this condition
-            if (!tooManyLocals)
+            if (!tooManyLocalsReported)
             {
                 JITDUMP("Stopped promoting struct fields, due to too many locals.\n");
             }
-            tooManyLocals = true;
+            tooManyLocalsReported = true;
         }
         else if (varTypeIsStruct(varDsc))
         {
