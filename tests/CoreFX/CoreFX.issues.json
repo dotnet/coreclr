@@ -406,5 +406,19 @@
                 }
             ]
         }
+    },
+    {
+        "name": "System.Runtime.InteropServices.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCED_NonRuntimeModule_ThrowsArgumentNullException",
+                    "reason": "outdated"
+                }
+            ]
+        }
     }
 ]
