@@ -79,6 +79,8 @@ void Compiler::lvaInit()
     lvaSIMDInitTempVarNum = BAD_VAR_NUM;
 #endif // FEATURE_SIMD
     lvaCurEpoch = 0;
+
+    structPromotionHelper = new (this, CMK_Unknown) StructPromotionHelper(this);
 }
 
 /*****************************************************************************/
@@ -1477,6 +1479,47 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
     {
         return (pFieldInfo1->fldOffset > pFieldInfo2->fldOffset) ? +1 : -1;
     }
+}
+
+Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler) : compiler(compiler)
+{
+}
+
+//--------------------------------------------------------------------------------------------
+// CanPromoteStructType - checks if the struct type can be promoted.
+//
+// Arguments:
+//   typeHnd - struct handle to check.
+//
+// Return value:
+//   true if the struct type can be promoted.
+//
+// Notes:
+//   The last analyzed type is memorized to skip the check if we ask about the same time again next.
+//   However, it was not found profitable to memorize all analyzed types in a map.
+//
+//   The check initializes only nessasary fields in lvaStructPromotionInfo,
+//   so if the promotion is rejected early than the most fields will be uninitialized.
+//
+bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
+{
+    NYI("Will be implemented later.");
+    return false;
+}
+
+//--------------------------------------------------------------------------------------------
+// TryPromoteStructVar - promote struct var if it is possible and profitable.
+//
+// Arguments:
+//   lclNum - struct number to try.
+//
+// Return value:
+//   true if the struct var was promoted.
+//
+bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
+{
+    NYI("Will be implemented later.");
+    return false;
 }
 
 /*****************************************************************************
