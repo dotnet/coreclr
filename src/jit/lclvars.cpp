@@ -69,6 +69,8 @@ void Compiler::lvaInit()
     lvaArg0Var          = BAD_VAR_NUM;
     lvaMonAcquired      = BAD_VAR_NUM;
 
+    structPromotionHelper = StructPromotionHelper(this);
+
     lvaInlineeReturnSpillTemp = BAD_VAR_NUM;
 
     gsShadowVarInfo = nullptr;
@@ -1479,10 +1481,12 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
     }
 }
 
-Compiler::StructPromotionHelper::StructPromotionHelper()
+Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
+    : compiler(compiler)
 #ifdef _TARGET_ARM_
-    : requiresScratchVar(false)
+    , requiresScratchVar(false)
 #endif // _TARGET_ARM_
+    , promotionInfoMap(compiler->getAllocator(CMK_StructPromotion))
 {
 }
 
@@ -1500,15 +1504,44 @@ void Compiler::StructPromotionHelper::SetRequiresScratchVar()
 
 #endif // _TARGET_ARM_
 
-/*****************************************************************************
- * Is this type promotable? */
-
-bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo)
+// GetStructPromotionInfo - returns the memorized info for the type.
+// Arguments:
+//   typeHnd - struct handle to get info for.
+//
+// Return value:
+//   struct promotion info for this type.
+//
+Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd)
 {
-    assert(eeIsValueClass(typeHnd));
+    assert(promotionInfoMap.Lookup(typeHnd));
+    return promotionInfoMap[typeHnd];
+}
 
-    if (typeHnd != structPromotionInfo->typeHnd)
+//--------------------------------------------------------------------------------------------
+// CanPromoteStructType - checks if the struct type can be promoted.
+//
+// Arguments:
+//   typeHnd - struct handle to check.
+//
+// Return value:
+//   true if the struct type can be promoted.
+//
+// Notes:
+//   Analyzed types are memorized in a map for the future requests.
+//   The check initializes only nessasary fields in lvaStructPromotionInfo,
+//   so if the promotion is rejected early than the most fields will be uninitialized.
+//
+bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
+{
+    assert(compiler->eeIsValueClass(typeHnd));
+    if (!promotionInfoMap.Lookup(typeHnd))
     {
+        lvaStructPromotionInfo  localStructPromotionInfo;
+        lvaStructPromotionInfo* structPromotionInfo =
+            &localStructPromotionInfo; // Temporary use a pointer to keep textual diffs low.
+
+        promotionInfoMap.Set(typeHnd, localStructPromotionInfo); // Set info that says canPromote == false.
+
         // sizeof(double) represents the size of the largest primitive type that we can struct promote.
         // In the future this may be changing to XMM_REGSIZE_BYTES.
         // Note: MaxOffset is used below to declare a local array, and therefore must be a compile-time constant.
@@ -1536,7 +1569,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         structPromotionInfo->typeHnd    = typeHnd;
         structPromotionInfo->canPromote = false;
 
-        COMP_HANDLE compHandle = info.compCompHnd;
+        COMP_HANDLE compHandle = compiler->info.compCompHnd;
 
         unsigned structSize = compHandle->getClassSize(typeHnd);
         if (structSize > MaxOffset)
@@ -1560,7 +1593,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         }
 
         // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type
-        if (StructHasCustomLayout(typeFlags) && IsHfa(typeHnd))
+        if (StructHasCustomLayout(typeFlags) && compiler->IsHfa(typeHnd))
         {
             return false;
         }
@@ -1601,13 +1634,14 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             // Check to see if this is a SIMD type.
             // We will only check this if we have already found a SIMD type, which will be true if
             // we have encountered any SIMD intrinsics.
-            if (usesSIMDTypes() && (pFieldInfo->fldSize == 0) && isSIMDorHWSIMDClass(pFieldInfo->fldTypeHnd))
+            if (compiler->usesSIMDTypes() && (pFieldInfo->fldSize == 0) &&
+                compiler->isSIMDorHWSIMDClass(pFieldInfo->fldTypeHnd))
             {
                 unsigned  simdSize;
-                var_types simdBaseType = getBaseTypeAndSizeOfSIMDType(pFieldInfo->fldTypeHnd, &simdSize);
+                var_types simdBaseType = compiler->getBaseTypeAndSizeOfSIMDType(pFieldInfo->fldTypeHnd, &simdSize);
                 if (simdBaseType != TYP_UNKNOWN)
                 {
-                    pFieldInfo->fldType = getSIMDTypeForSize(simdSize);
+                    pFieldInfo->fldType = compiler->getSIMDTypeForSize(simdSize);
                     pFieldInfo->fldSize = simdSize;
                 }
             }
@@ -1718,7 +1752,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             //
             if (pFieldInfo->fldSize < TARGET_POINTER_SIZE)
             {
-                structPromotionHelper.SetRequiresScratchVar();
+                SetRequiresScratchVar();
             }
 #endif // _TARGET_ARM_
         }
@@ -1765,14 +1799,14 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         qsort(structPromotionInfo->fields, structPromotionInfo->fieldCnt, sizeof(*structPromotionInfo->fields),
               lvaFieldOffsetCmp);
 
+        promotionInfoMap.Set(typeHnd, *structPromotionInfo); // Set the full info.
+
         return true;
     }
     else
     {
-        // Asking for the same type of struct as the last time.
-        // Nothing need to be done.
-        // Fall through ...
-        return structPromotionInfo->canPromote;
+        // We have already analized this type, return the memorized answer.
+        return promotionInfoMap[typeHnd].canPromote;
     }
 }
 
@@ -1836,7 +1870,9 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     }
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-    lvaCanPromoteStructType(typeHnd, structPromotionInfo);
+    structPromotionHelper.CanPromoteStructType(typeHnd);
+    // It is a temporary solution for this commit.
+    *structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(typeHnd);
 }
 
 //--------------------------------------------------------------------------------------------

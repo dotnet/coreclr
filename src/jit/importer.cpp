@@ -17742,8 +17742,7 @@ void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, I
     // Note if the callee's class is a promotable struct
     if ((info.compClassAttr & CORINFO_FLG_VALUECLASS) != 0)
     {
-        lvaStructPromotionInfo structPromotionInfo;
-        if (lvaCanPromoteStructType(info.compClassHnd, &structPromotionInfo))
+        if (structPromotionHelper.CanPromoteStructType(info.compClassHnd))
         {
             inlineResult->Note(InlineObservation::CALLEE_CLASS_PROMOTABLE);
         }

@@ -2985,7 +2985,6 @@ public:
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    bool lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
     void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
     // This class is responsible for checking possibility and profitability of struct promotion.
@@ -2993,11 +2992,13 @@ public:
     class StructPromotionHelper
     {
     public:
-        StructPromotionHelper();
+        StructPromotionHelper(Compiler* compiler);
 
         bool CanPromoteStructVar(unsigned lclNum);
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
         bool ShouldPromoteStructVar(unsigned lclNum);
+
+        lvaStructPromotionInfo GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
 
 #ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();
@@ -3005,9 +3006,14 @@ public:
 #endif // _TARGET_ARM_
 
     private:
+        Compiler* compiler;
+
 #ifdef _TARGET_ARM_
         bool requiresScratchVar;
 #endif // _TARGET_ARM_
+        typedef JitHashTable<CORINFO_CLASS_HANDLE, JitPtrKeyFuncs<CORINFO_CLASS_STRUCT_>, lvaStructPromotionInfo>
+                                         StructPromotionInfoForTypeHndMap;
+        StructPromotionInfoForTypeHndMap promotionInfoMap;
     };
 
     StructPromotionHelper structPromotionHelper;
