@@ -1598,20 +1598,22 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         structPromotionInfo->typeHnd    = typeHnd;
         structPromotionInfo->canPromote = false;
 
-        unsigned structSize = info.compCompHnd->getClassSize(typeHnd);
+        COMP_HANDLE compHandle = info.compCompHnd;
+
+        unsigned structSize = compHandle->getClassSize(typeHnd);
         if (structSize > MaxOffset)
         {
             return; // struct is too large
         }
 
-        unsigned fieldCnt = info.compCompHnd->getClassNumInstanceFields(typeHnd);
+        unsigned fieldCnt = compHandle->getClassNumInstanceFields(typeHnd);
         if (fieldCnt == 0 || fieldCnt > MAX_NumOfFieldsInPromotableStruct)
         {
             return; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
         }
 
         structPromotionInfo->fieldCnt = (BYTE)fieldCnt;
-        DWORD typeFlags               = info.compCompHnd->getClassAttribs(typeHnd);
+        DWORD typeFlags               = compHandle->getClassAttribs(typeHnd);
 
         bool overlappingFields = StructHasOverlappingFields(typeFlags);
         if (overlappingFields)
@@ -1627,8 +1629,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
 
 #ifdef _TARGET_ARM_
         // On ARM, we have a requirement on the struct alignment; see below.
-        unsigned structAlignment =
-            roundUp(info.compCompHnd->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
+        unsigned structAlignment = roundUp(compHandle->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
 #endif // _TARGET_ARM_
 
         bool isHole[MaxOffset]; // isHole[] is initialized to true for every valid offset in the struct and false for
@@ -1642,8 +1643,8 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
         {
             lvaStructFieldInfo* pFieldInfo = &structPromotionInfo->fields[ordinal];
-            pFieldInfo->fldHnd             = info.compCompHnd->getFieldInClass(typeHnd, ordinal);
-            unsigned fldOffset             = info.compCompHnd->getFieldOffset(pFieldInfo->fldHnd);
+            pFieldInfo->fldHnd             = compHandle->getFieldInClass(typeHnd, ordinal);
+            unsigned fldOffset             = compHandle->getFieldOffset(pFieldInfo->fldHnd);
 
             // The fldOffset value should never be larger than our structSize.
             if (fldOffset >= structSize)
@@ -1654,7 +1655,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
 
             pFieldInfo->fldOffset  = (BYTE)fldOffset;
             pFieldInfo->fldOrdinal = ordinal;
-            CorInfoType corType    = info.compCompHnd->getFieldType(pFieldInfo->fldHnd, &pFieldInfo->fldTypeHnd);
+            CorInfoType corType    = compHandle->getFieldType(pFieldInfo->fldHnd, &pFieldInfo->fldTypeHnd);
             pFieldInfo->fldType    = JITtype2varType(corType);
             pFieldInfo->fldSize    = genTypeSize(pFieldInfo->fldType);
 
@@ -1690,21 +1691,21 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 // natural boundary.
 
                 // Do Not promote if the struct field in turn has more than one field.
-                if (info.compCompHnd->getClassNumInstanceFields(pFieldInfo->fldTypeHnd) != 1)
+                if (compHandle->getClassNumInstanceFields(pFieldInfo->fldTypeHnd) != 1)
                 {
                     return;
                 }
 
                 // Do not promote if the single field is not aligned at its natural boundary within
                 // the struct field.
-                CORINFO_FIELD_HANDLE fHnd    = info.compCompHnd->getFieldInClass(pFieldInfo->fldTypeHnd, 0);
-                unsigned             fOffset = info.compCompHnd->getFieldOffset(fHnd);
+                CORINFO_FIELD_HANDLE fHnd    = compHandle->getFieldInClass(pFieldInfo->fldTypeHnd, 0);
+                unsigned             fOffset = compHandle->getFieldOffset(fHnd);
                 if (fOffset != 0)
                 {
                     return;
                 }
 
-                CorInfoType fieldCorType = info.compCompHnd->getFieldType(fHnd);
+                CorInfoType fieldCorType = compHandle->getFieldType(fHnd);
                 var_types   fieldVarType = JITtype2varType(fieldCorType);
                 unsigned    fieldSize    = genTypeSize(fieldVarType);
 
@@ -1729,7 +1730,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 }
 
                 // Insist this wrapped field occupy all of its parent storage.
-                unsigned innerStructSize = info.compCompHnd->getClassSize(pFieldInfo->fldTypeHnd);
+                unsigned innerStructSize = compHandle->getClassSize(pFieldInfo->fldTypeHnd);
 
                 if (fieldSize != innerStructSize)
                 {
