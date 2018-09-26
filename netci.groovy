@@ -926,7 +926,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
+    return (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release'))
 }
 
 def static getFxBranch(def branch) {
@@ -1955,6 +1955,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                                 }
                                 isDefaultTrigger = true
                             }
+                            break
+                         case 'crossgen_comparison':
+                            isDefaultTrigger = shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
                             break
                     }
                     break
