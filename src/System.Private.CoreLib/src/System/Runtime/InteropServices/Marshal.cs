@@ -861,7 +861,7 @@ namespace System.Runtime.InteropServices
 
             if (rtModule == null)
             {
-                return (IntPtr)-1;
+                return (IntPtr)(-1);
             }
 
             return GetHINSTANCE(rtModule.GetNativeHandle());
