@@ -1533,20 +1533,8 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
         StructPromotionInfo->fieldCnt = (BYTE)fieldCnt;
         DWORD typeFlags               = info.compCompHnd->getClassAttribs(typeHnd);
 
-        bool treatAsOverlapping = StructHasOverlappingFields(typeFlags);
-
-#if 1 // TODO-Cleanup: Consider removing this entire #if block in the future
-
-        // This method has two callers. The one in Importer.cpp passes `sortFields == false` and the other passes
-        // `sortFields == true`. This is a workaround that leaves the inlining behavior the same as before while still
-        // performing extra struct promotion when compiling the method.
-        if (!sortFields) // the condition "!sortFields" really means "we are inlining"
-        {
-            treatAsOverlapping = StructHasCustomLayout(typeFlags);
-        }
-#endif
-
-        if (treatAsOverlapping)
+        bool overlappingFields = StructHasOverlappingFields(typeFlags);
+        if (overlappingFields)
         {
             return;
         }
