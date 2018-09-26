@@ -1813,7 +1813,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
 /*****************************************************************************
  * Is this struct type local variable promotable? */
 
-void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
 {
     noway_assert(lclNum < lvaCount);
 
@@ -1829,7 +1829,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsUsedInSIMDIntrinsic()\n", lclNum);
         structPromotionInfo->canPromote = false;
-        return;
+        return false;
     }
 
     // Reject struct promotion of parameters when -GS stack reordering is enabled
@@ -1838,7 +1838,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsParam and compGSReorderStackLayout\n", lclNum);
         structPromotionInfo->canPromote = false;
-        return;
+        return false;
     }
 
     // Explicitly check for HFA reg args and reject them for promotion here.
@@ -1850,7 +1850,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsHfaRegArg()\n", lclNum);
         structPromotionInfo->canPromote = false;
-        return;
+        return false;
     }
 
 #if !FEATURE_MULTIREG_STRUCT_PROMOTE
@@ -1858,7 +1858,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegArg\n", lclNum);
         structPromotionInfo->canPromote = false;
-        return;
+        return false;
     }
 #endif
 
@@ -1866,13 +1866,15 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegRet\n", lclNum);
         structPromotionInfo->canPromote = false;
-        return;
+        return false;
     }
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-    structPromotionHelper.CanPromoteStructType(typeHnd);
+    bool                 result  = structPromotionHelper.CanPromoteStructType(typeHnd);
     // It is a temporary solution for this commit.
     *structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(typeHnd);
+    assert(result == structPromotionInfo->canPromote);
+    return result;
 }
 
 //--------------------------------------------------------------------------------------------
