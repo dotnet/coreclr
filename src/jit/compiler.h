@@ -2958,7 +2958,7 @@ public:
 
 #define MAX_NumOfFieldsInPromotableStruct 4 // Maximum number of fields in promotable struct
 
-    // Info about struct fields
+    // Info about struct type fields.
     struct lvaStructFieldInfo
     {
         CORINFO_FIELD_HANDLE fldHnd;
@@ -2969,7 +2969,7 @@ public:
         CORINFO_CLASS_HANDLE fldTypeHnd;
     };
 
-    // Info about struct to be promoted.
+    // Info about struct type to be promoted.
     struct lvaStructPromotionInfo
     {
         CORINFO_CLASS_HANDLE typeHnd;
@@ -2985,7 +2985,6 @@ public:
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    bool lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
     // This class is responsible for checking possibility and profitability of struct promotion.
     // If it decide to do promotion than it initializes nessesary information for fgMorphStructField to use.
@@ -2999,6 +2998,7 @@ public:
         bool ShouldPromoteStructVar(unsigned lclNum);
 
         lvaStructPromotionInfo GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
+        lvaStructPromotionInfo GetStructPromotionInfo(unsigned lclNum);
 
 #ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();

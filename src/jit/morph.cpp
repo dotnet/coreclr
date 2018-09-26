@@ -17067,10 +17067,10 @@ void Compiler::fgPromoteStructs()
         {
             bool shouldPromote;
 
-            lvaCanPromoteStructVar(lclNum, &structPromotionInfo);
-            if (structPromotionInfo.canPromote)
+            if (structPromotionHelper.CanPromoteStructVar(lclNum))
             {
-                shouldPromote = lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
+                structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
+                shouldPromote       = lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
             }
             else
             {

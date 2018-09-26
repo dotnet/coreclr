@@ -1462,7 +1462,7 @@ CORINFO_CLASS_HANDLE Compiler::lvaGetStruct(unsigned varNum)
 
 /*****************************************************************************
  *
- *  Compare function passed to qsort() by Compiler::lvaCanPromoteStructVar().
+ *  Compare function passed to qsort() by Compiler::StructPromotionHelper.
  */
 
 /* static */
@@ -1515,6 +1515,21 @@ Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromo
 {
     assert(promotionInfoMap.Lookup(typeHnd));
     return promotionInfoMap[typeHnd];
+}
+
+// GetStructPromotionInfo - returns the memorized info for the type.
+// Arguments:
+//   lclNum - struct number to get info for.
+//
+// Return value:
+//   struct promotion info for this local struct.
+//
+Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromotionInfo(unsigned lclNum)
+{
+    assert(lclNum < compiler->lvaCount);
+    LclVarDsc*           varDsc  = &compiler->lvaTable[lclNum];
+    CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
+    return GetStructPromotionInfo(typeHnd);
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1810,14 +1825,20 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
     }
 }
 
-/*****************************************************************************
- * Is this struct type local variable promotable? */
-
-bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+//--------------------------------------------------------------------------------------------
+// CanPromoteStructVar - checks if the struct can be promoted.
+//
+// Arguments:
+//   lclNum - struct number to check.
+//
+// Return value:
+//   true if the struct var can be promoted.
+//
+bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 {
-    noway_assert(lclNum < lvaCount);
+    noway_assert(lclNum < compiler->lvaCount);
 
-    LclVarDsc* varDsc = &lvaTable[lclNum];
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
     noway_assert(varTypeIsStruct(varDsc));
     noway_assert(!varDsc->lvPromoted); // Don't ask again :)
@@ -1828,16 +1849,14 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsUsedInSIMDIntrinsic())
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsUsedInSIMDIntrinsic()\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
     // Reject struct promotion of parameters when -GS stack reordering is enabled
     // as we could introduce shadow copies of them.
-    if (varDsc->lvIsParam && compGSReorderStackLayout)
+    if (varDsc->lvIsParam && compiler->compGSReorderStackLayout)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsParam and compGSReorderStackLayout\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
@@ -1849,7 +1868,6 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsHfaRegArg())
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsHfaRegArg()\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
@@ -1857,7 +1875,6 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsMultiRegArg)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegArg\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 #endif
@@ -1865,16 +1882,11 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsMultiRegRet)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegRet\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-    bool                 result  = structPromotionHelper.CanPromoteStructType(typeHnd);
-    // It is a temporary solution for this commit.
-    *structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(typeHnd);
-    assert(result == structPromotionInfo->canPromote);
-    return result;
+    return CanPromoteStructType(typeHnd);
 }
 
 //--------------------------------------------------------------------------------------------
