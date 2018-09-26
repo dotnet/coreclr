@@ -1885,22 +1885,27 @@ bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 }
 
 //--------------------------------------------------------------------------------------------
-// lvaShouldPromoteStructVar - Should a struct var be promoted if it can be promoted?
+// ShouldPromoteStructVar - Should a struct var be promoted if it can be promoted?
 // This routine mainly performs profitability checks.  Right now it also has
 // some correctness checks due to limitations of down-stream phases.
 //
 // Arguments:
-//   lclNum               -   Struct local number
-//   structPromotionInfo  -   In Parameter; struct promotion information
+//   lclNum               -   struct local number;
+//   structPromotionInfo  -   struct promotion information.
 //
-// Returns
-//   true if the struct should be promoted
-bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+// Return value:
+//   true if the struct should be promoted.
+//
+bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned                      lclNum,
+                                                             const lvaStructPromotionInfo* structPromotionInfo)
 {
-    assert(lclNum < lvaCount);
+    assert(lclNum < compiler->lvaCount);
     assert(structPromotionInfo->canPromote);
 
-    LclVarDsc* varDsc = &lvaTable[lclNum];
+    // structPromotionInfo is passed as arg to avoid this lookup in release.
+    assert(GetStructPromotionInfo(lclNum) == structPromotionInfo);
+
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
     assert(varTypeIsStruct(varDsc));
 
     bool shouldPromote = true;
@@ -1946,12 +1951,12 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
         shouldPromote = false;
     }
 #endif // _TARGET_AMD64_ || _TARGET_ARM64_ || _TARGET_ARM_
-    else if (varDsc->lvIsParam && !lvaIsImplicitByRefLocal(lclNum))
+    else if (varDsc->lvIsParam && !compiler->lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
         // multiple registers?
-        if ((structPromotionInfo->fieldCnt != 2) && lvaIsMultiregStruct(varDsc, this->info.compIsVarArgs))
+        if ((structPromotionInfo->fieldCnt != 2) && compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
         {
             JITDUMP("Not promoting multireg struct local V%02u, because lvIsParam is true and #fields != 2\n", lclNum);
             shouldPromote = false;

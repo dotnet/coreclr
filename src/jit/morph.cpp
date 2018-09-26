@@ -17075,8 +17075,7 @@ void Compiler::fgPromoteStructs()
                 structPromoVarNum++;
                 if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
-
-                if (lvaShouldPromoteStructVar(lclNum, structPromotionInfo))
+                if (structPromotionHelper.ShouldPromoteStructVar(lclNum, structPromotionInfo))
                 {
                     // Promote the this struct local var.
                     lvaPromoteStructVar(lclNum, structPromotionInfo);

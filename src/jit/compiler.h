@@ -2997,7 +2997,7 @@ public:
 
         bool CanPromoteStructVar(unsigned lclNum);
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
-        bool ShouldPromoteStructVar(unsigned lclNum);
+        bool ShouldPromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
 
         lvaStructPromotionInfo* GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
         lvaStructPromotionInfo* GetStructPromotionInfo(unsigned lclNum);
@@ -3020,7 +3020,6 @@ public:
 
     StructPromotionHelper structPromotionHelper;
 
-    bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
     void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 #if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();
