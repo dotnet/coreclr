@@ -17038,8 +17038,7 @@ void Compiler::fgPromoteStructs()
     //
     // Loop through the original lvaTable. Looking for struct locals to be promoted.
     //
-    lvaStructPromotionInfo structPromotionInfo;
-    bool                   tooManyLocalsReported = false;
+    bool tooManyLocalsReported = false;
 
     for (unsigned lclNum = 0; lclNum < startLvaCount; lclNum++)
     {
@@ -17067,7 +17066,7 @@ void Compiler::fgPromoteStructs()
         {
             if (structPromotionHelper.CanPromoteStructVar(lclNum))
             {
-                structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
+                lvaStructPromotionInfo structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
 
 #if 0
                 // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
