@@ -15,6 +15,8 @@
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 
+#pragma warning(disable:4644) // usage of the macro-based offsetof pattern in constant expressions is non-standard; use offsetof defined in the C++ standard library instead
+
 //
 // The following structure is the format on x86 builds of the data
 // being passed in plaformSpecificHandle for ProfileEnter/Leave/Tailcall
