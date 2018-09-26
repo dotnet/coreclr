@@ -2987,10 +2987,9 @@ public:
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    void lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
-                                 lvaStructPromotionInfo* StructPromotionInfo,
-                                 bool                    sortFields);
+    void lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* StructPromotionInfo);
     void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* StructPromotionInfo);
+
     bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
     void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* StructPromotionInfo);
 #if !defined(_TARGET_64BIT_)

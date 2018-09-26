@@ -1482,9 +1482,7 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
 /*****************************************************************************
  * Is this type promotable? */
 
-void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE    typeHnd,
-                                       lvaStructPromotionInfo* StructPromotionInfo,
-                                       bool                    sortFields)
+void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* StructPromotionInfo)
 {
     assert(eeIsValueClass(typeHnd));
 
@@ -1816,7 +1814,7 @@ void Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* S
     }
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-    lvaCanPromoteStructType(typeHnd, StructPromotionInfo, true);
+    lvaCanPromoteStructType(typeHnd, StructPromotionInfo);
 }
 
 //--------------------------------------------------------------------------------------------
