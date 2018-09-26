@@ -2988,7 +2988,7 @@ public:
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
     bool lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
-    void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
+    bool lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
     // This class is responsible for checking possibility and profitability of struct promotion.
     // If the both checks pass than it promotes struct and initializes nessesary information for fgMorphStructField to
