@@ -415,8 +415,8 @@
             "classes": null,
             "methods": [
                 {
-                    "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCED_NonRuntimeModule_ThrowsArgumentNullException",
-                    "reason": "outdated"
+                    "name": "System.Runtime.InteropServices.Tests.GetHINSTANCETests.GetHINSTANCE_NonRuntimeModule_ThrowsArgumentNullException",
+                    "reason": "https://github.com/dotnet/coreclr/pull/30925"
                 }
             ]
         }
