@@ -861,7 +861,7 @@ namespace System.Runtime.InteropServices
 
             if (rtModule == null)
             {
-                throw new ArgumentNullException(nameof(m), SR.Argument_MustBeRuntimeModule);
+                return (IntPtr)-1;
             }
 
             return GetHINSTANCE(rtModule.GetNativeHandle());

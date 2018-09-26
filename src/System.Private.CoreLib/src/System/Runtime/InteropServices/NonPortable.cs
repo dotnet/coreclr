@@ -5,7 +5,6 @@
 // Dummy implementations of non-portable interop methods that just throw PlatformNotSupportedException
 
 using System.Reflection;
-using System.Reflection.Emit;
 using System.Runtime.InteropServices.ComTypes;
 
 namespace System.Runtime.InteropServices
@@ -89,18 +88,6 @@ namespace System.Runtime.InteropServices
             if (m == null)
             {
                 throw new ArgumentNullException(nameof(m));
-            }
-
-
-            RuntimeModule rtModule = m as RuntimeModule;
-            if (rtModule == null && m is ModuleBuilder mb)
-            {
-                rtModule = mb.InternalModule;
-            }
-
-            if (rtModule == null)
-            {
-                throw new ArgumentNullException(nameof(m), SR.Argument_MustBeRuntimeModule);
             }
 
             return (IntPtr) (-1);
