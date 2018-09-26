@@ -1503,7 +1503,7 @@ void Compiler::StructPromotionHelper::SetRequiresScratchVar()
 /*****************************************************************************
  * Is this type promotable? */
 
-void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo)
+bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo)
 {
     assert(eeIsValueClass(typeHnd));
 
@@ -1541,13 +1541,13 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         unsigned structSize = compHandle->getClassSize(typeHnd);
         if (structSize > MaxOffset)
         {
-            return; // struct is too large
+            return false; // struct is too large
         }
 
         unsigned fieldCnt = compHandle->getClassNumInstanceFields(typeHnd);
         if (fieldCnt == 0 || fieldCnt > MAX_NumOfFieldsInPromotableStruct)
         {
-            return; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
+            return false; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
         }
 
         structPromotionInfo->fieldCnt = (BYTE)fieldCnt;
@@ -1556,13 +1556,13 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         bool overlappingFields = StructHasOverlappingFields(typeFlags);
         if (overlappingFields)
         {
-            return;
+            return false;
         }
 
         // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type
         if (StructHasCustomLayout(typeFlags) && IsHfa(typeHnd))
         {
-            return;
+            return false;
         }
 
 #ifdef _TARGET_ARM_
@@ -1588,7 +1588,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             if (fldOffset >= structSize)
             {
                 noway_assert(false);
-                return;
+                return false;
             }
 
             pFieldInfo->fldOffset  = (BYTE)fldOffset;
@@ -1621,7 +1621,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 // fields of TYP_BLK, TYP_FUNC or TYP_VOID.
                 if (pFieldInfo->fldType != TYP_STRUCT)
                 {
-                    return;
+                    return false;
                 }
 
                 // Non-primitive struct field.
@@ -1631,7 +1631,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 // Do Not promote if the struct field in turn has more than one field.
                 if (compHandle->getClassNumInstanceFields(pFieldInfo->fldTypeHnd) != 1)
                 {
-                    return;
+                    return false;
                 }
 
                 // Do not promote if the single field is not aligned at its natural boundary within
@@ -1640,7 +1640,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 unsigned             fOffset = compHandle->getFieldOffset(fHnd);
                 if (fOffset != 0)
                 {
-                    return;
+                    return false;
                 }
 
                 CorInfoType fieldCorType = compHandle->getFieldType(fHnd);
@@ -1664,7 +1664,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 {
                     JITDUMP("Promotion blocked: struct contains struct field with one field,"
                             " but that field has invalid size or type");
-                    return;
+                    return false;
                 }
 
                 // Insist this wrapped field occupy all of its parent storage.
@@ -1674,7 +1674,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 {
                     JITDUMP("Promotion blocked: struct contains struct field with one field,"
                             " but that field is not the same size as its parent.");
-                    return;
+                    return false;
                 }
 
                 // Retype the field as the type of the single field of the struct
@@ -1687,7 +1687,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
                 // The code in Compiler::genPushArgList that reconstitutes
                 // struct values on the stack from promoted fields expects
                 // those fields to be at their natural alignment.
-                return;
+                return false;
             }
 
             if (varTypeIsGC(pFieldInfo->fldType))
@@ -1710,7 +1710,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             if (pFieldInfo->fldSize > structAlignment)
             {
                 // Don't promote vars whose struct types violates the invariant.  (Alignment == size for primitives.)
-                return;
+                return false;
             }
             // If we have any small fields we will allocate a single PromotedStructScratch local var for the method.
             // This is a stack area that we use to assemble the small fields in order to place them in a register
@@ -1764,12 +1764,15 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         // as a struct) in order.
         qsort(structPromotionInfo->fields, structPromotionInfo->fieldCnt, sizeof(*structPromotionInfo->fields),
               lvaFieldOffsetCmp);
+
+        return true;
     }
     else
     {
         // Asking for the same type of struct as the last time.
         // Nothing need to be done.
         // Fall through ...
+        return structPromotionInfo->canPromote;
     }
 }
 

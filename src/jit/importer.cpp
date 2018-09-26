@@ -17743,8 +17743,7 @@ void Compiler::impMakeDiscretionaryInlineObservations(InlineInfo* pInlineInfo, I
     if ((info.compClassAttr & CORINFO_FLG_VALUECLASS) != 0)
     {
         lvaStructPromotionInfo structPromotionInfo;
-        lvaCanPromoteStructType(info.compClassHnd, &structPromotionInfo);
-        if (structPromotionInfo.canPromote)
+        if (lvaCanPromoteStructType(info.compClassHnd, &structPromotionInfo))
         {
             inlineResult->Note(InlineObservation::CALLEE_CLASS_PROMOTABLE);
         }
