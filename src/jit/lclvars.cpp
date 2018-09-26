@@ -1480,8 +1480,25 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
 }
 
 Compiler::StructPromotionHelper::StructPromotionHelper()
+#ifdef _TARGET_ARM_
+    : requiresScratchVar(false)
+#endif // _TARGET_ARM_
 {
 }
+
+#ifdef _TARGET_ARM_
+
+bool Compiler::StructPromotionHelper::GetRequiresScratchVar()
+{
+    return requiresScratchVar;
+}
+
+void Compiler::StructPromotionHelper::SetRequiresScratchVar()
+{
+    requiresScratchVar = true;
+}
+
+#endif // _TARGET_ARM_
 
 /*****************************************************************************
  * Is this type promotable? */
@@ -1512,7 +1529,6 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         assert((BYTE)MAX_NumOfFieldsInPromotableStruct ==
                MAX_NumOfFieldsInPromotableStruct); // because lvaStructFieldInfo.fieldCnt is byte-sized
 
-        bool requiresScratchVar = false;
         bool containsHoles      = false;
         bool customLayout       = false;
         bool containsGCpointers = false;
@@ -1701,7 +1717,7 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             //
             if (pFieldInfo->fldSize < TARGET_POINTER_SIZE)
             {
-                requiresScratchVar = true;
+                structPromotionHelper.SetRequiresScratchVar();
             }
 #endif // _TARGET_ARM_
         }
@@ -1738,10 +1754,9 @@ void Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         }
 
         // Cool, this struct is promotable.
-        structPromotionInfo->canPromote         = true;
-        structPromotionInfo->requiresScratchVar = requiresScratchVar;
-        structPromotionInfo->containsHoles      = containsHoles;
-        structPromotionInfo->customLayout       = customLayout;
+        structPromotionInfo->canPromote    = true;
+        structPromotionInfo->containsHoles = containsHoles;
+        structPromotionInfo->customLayout  = customLayout;
 
         // Sort the fields according to the increasing order of the field offset.
         // This is needed because the fields need to be pushed on stack (when referenced

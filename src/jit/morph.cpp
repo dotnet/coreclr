@@ -17090,20 +17090,6 @@ void Compiler::fgPromoteStructs()
                 // Promote the this struct local var.
                 lvaPromoteStructVar(lclNum, &structPromotionInfo);
                 promotedVar = true;
-
-#ifdef _TARGET_ARM_
-                if (structPromotionInfo.requiresScratchVar)
-                {
-                    // Ensure that the scratch variable is allocated, in case we
-                    // pass a promoted struct as an argument.
-                    if (lvaPromotedStructAssemblyScratchVar == BAD_VAR_NUM)
-                    {
-                        lvaPromotedStructAssemblyScratchVar =
-                            lvaGrabTempWithImplicitUse(false DEBUGARG("promoted struct assembly scratch var."));
-                        lvaTable[lvaPromotedStructAssemblyScratchVar].lvType = TYP_I_IMPL;
-                    }
-                }
-#endif // _TARGET_ARM_
             }
         }
 
@@ -17114,6 +17100,20 @@ void Compiler::fgPromoteStructs()
             varDsc->lvRegStruct = true;
         }
     }
+
+#ifdef _TARGET_ARM_
+    if (structPromotionHelper.GetRequiresScratchVar())
+    {
+        // Ensure that the scratch variable is allocated, in case we
+        // pass a promoted struct as an argument.
+        if (lvaPromotedStructAssemblyScratchVar == BAD_VAR_NUM)
+        {
+            lvaPromotedStructAssemblyScratchVar =
+                lvaGrabTempWithImplicitUse(false DEBUGARG("promoted struct assembly scratch var."));
+            lvaTable[lvaPromotedStructAssemblyScratchVar].lvType = TYP_I_IMPL;
+        }
+    }
+#endif // _TARGET_ARM_
 
 #ifdef DEBUG
     if (verbose)

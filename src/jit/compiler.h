@@ -2974,14 +2974,12 @@ public:
     {
         CORINFO_CLASS_HANDLE typeHnd;
         bool                 canPromote;
-        bool                 requiresScratchVar;
         bool                 containsHoles;
         bool                 customLayout;
         unsigned char        fieldCnt;
         lvaStructFieldInfo   fields[MAX_NumOfFieldsInPromotableStruct];
 
-        lvaStructPromotionInfo()
-            : typeHnd(nullptr), canPromote(false), requiresScratchVar(false), containsHoles(false), customLayout(false)
+        lvaStructPromotionInfo() : typeHnd(nullptr), canPromote(false), containsHoles(false), customLayout(false)
         {
         }
     };
@@ -3001,7 +2999,15 @@ public:
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
         bool ShouldPromoteStructVar(unsigned lclNum);
 
+#ifdef _TARGET_ARM_
+        bool GetRequiresScratchVar();
+        void SetRequiresScratchVar();
+#endif // _TARGET_ARM_
+
     private:
+#ifdef _TARGET_ARM_
+        bool requiresScratchVar;
+#endif // _TARGET_ARM_
     };
 
     StructPromotionHelper structPromotionHelper;
