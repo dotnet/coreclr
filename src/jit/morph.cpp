@@ -17065,31 +17065,24 @@ void Compiler::fgPromoteStructs()
         }
         else if (varTypeIsStruct(varDsc))
         {
-            bool shouldPromote;
-
             if (structPromotionHelper.CanPromoteStructVar(lclNum))
             {
                 structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
-                shouldPromote       = lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
-            }
-            else
-            {
-                shouldPromote = false;
-            }
 
 #if 0
-            // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
-            // method, this allows you to select a subset of the vars to promote (by 1-based ordinal number).
-            static int structPromoVarNum = 0;
-            structPromoVarNum++;
-            if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
+                // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
+                // method, this allows you to select a subset of the vars to promote (by 1-based ordinal number).
+                static int structPromoVarNum = 0;
+                structPromoVarNum++;
+                if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
 
-            if (shouldPromote)
-            {
-                // Promote the this struct local var.
-                lvaPromoteStructVar(lclNum, &structPromotionInfo);
-                promotedVar = true;
+                if (lvaShouldPromoteStructVar(lclNum, &structPromotionInfo))
+                {
+                    // Promote the this struct local var.
+                    lvaPromoteStructVar(lclNum, &structPromotionInfo);
+                    promotedVar = true;
+                }
             }
         }
 
