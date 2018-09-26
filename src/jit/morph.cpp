@@ -17078,7 +17078,7 @@ void Compiler::fgPromoteStructs()
                 if (structPromotionHelper.ShouldPromoteStructVar(lclNum, structPromotionInfo))
                 {
                     // Promote the this struct local var.
-                    lvaPromoteStructVar(lclNum, structPromotionInfo);
+                    structPromotionHelper.PromoteStructVar(lclNum, structPromotionInfo);
                     promotedVar = true;
                 }
             }

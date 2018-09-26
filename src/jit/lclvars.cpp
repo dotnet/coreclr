@@ -1990,12 +1990,17 @@ bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned           
     return shouldPromote;
 }
 
-/*****************************************************************************
- * Promote a struct type local */
-
-void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+//--------------------------------------------------------------------------------------------
+// PromoteStructVar - promote struct variable.
+//
+// Arguments:
+//   lclNum              - struct local number;
+//   structPromotionInfo - struct promotion information.
+//
+void Compiler::StructPromotionHelper::PromoteStructVar(unsigned                      lclNum,
+                                                       const lvaStructPromotionInfo* structPromotionInfo)
 {
-    LclVarDsc* varDsc = &lvaTable[lclNum];
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
     // We should never see a reg-sized non-field-addressed struct here.
     noway_assert(!varDsc->lvRegStruct);
@@ -2003,8 +2008,11 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
     noway_assert(structPromotionInfo->canPromote);
     noway_assert(structPromotionInfo->typeHnd == varDsc->lvVerTypeInfo.GetClassHandle());
 
+    // structPromotionInfo is passed as arg to avoid this lookup in release.
+    assert(GetStructPromotionInfo(lclNum) == structPromotionInfo);
+
     varDsc->lvFieldCnt      = structPromotionInfo->fieldCnt;
-    varDsc->lvFieldLclStart = lvaCount;
+    varDsc->lvFieldLclStart = compiler->lvaCount;
     varDsc->lvPromoted      = true;
     varDsc->lvContainsHoles = structPromotionInfo->containsHoles;
     varDsc->lvCustomLayout  = structPromotionInfo->customLayout;
@@ -2015,15 +2023,15 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
 #endif
 
 #ifdef DEBUG
-    if (verbose)
+    if (compiler->verbose)
     {
-        printf("\nPromoting struct local V%02u (%s):", lclNum, eeGetClassName(structPromotionInfo->typeHnd));
+        printf("\nPromoting struct local V%02u (%s):", lclNum, compiler->eeGetClassName(structPromotionInfo->typeHnd));
     }
 #endif
 
     for (unsigned index = 0; index < structPromotionInfo->fieldCnt; ++index)
     {
-        lvaStructFieldInfo* pFieldInfo = &structPromotionInfo->fields[index];
+        const lvaStructFieldInfo* pFieldInfo = &structPromotionInfo->fields[index];
 
         if (varTypeIsFloating(pFieldInfo->fldType) || varTypeIsSIMD(pFieldInfo->fldType))
         {
@@ -2031,7 +2039,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
             // it's possible we transition from a method that originally only had integer
             // local vars to start having FP.  We have to communicate this through this flag
             // since LSRA later on will use this flag to determine whether or not to track FP register sets.
-            compFloatingPointUsed = true;
+            compiler->compFloatingPointUsed = true;
         }
 
 // Now grab the temp for the field local.
@@ -2041,7 +2049,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
         char* bufp = &buf[0];
 
         sprintf_s(bufp, sizeof(buf), "%s V%02u.%s (fldOffset=0x%x)", "field", lclNum,
-                  eeGetFieldName(pFieldInfo->fldHnd), pFieldInfo->fldOffset);
+                  compiler->eeGetFieldName(pFieldInfo->fldHnd), pFieldInfo->fldOffset);
 
         if (index > 0)
         {
@@ -2049,11 +2057,12 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
         }
 #endif
 
-        unsigned varNum = lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs,
-                                                             // so they must be long lifetime temps.
-        varDsc = &lvaTable[lclNum];                          // lvaGrabTemp can reallocate the lvaTable
+        unsigned varNum =
+            compiler->lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs,
+                                                         // so they must be long lifetime temps.
+        varDsc = &compiler->lvaTable[lclNum];            // lvaGrabTemp can reallocate the lvaTable
 
-        LclVarDsc* fieldVarDsc       = &lvaTable[varNum];
+        LclVarDsc* fieldVarDsc       = &compiler->lvaTable[varNum];
         fieldVarDsc->lvType          = pFieldInfo->fldType;
         fieldVarDsc->lvExactSize     = pFieldInfo->fldSize;
         fieldVarDsc->lvIsStructField = true;
@@ -2070,7 +2079,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
             fieldVarDsc->lvIsRegArg = true;
             fieldVarDsc->lvArgReg   = varDsc->lvArgReg;
 #if FEATURE_MULTIREG_ARGS && defined(FEATURE_SIMD)
-            if (varTypeIsSIMD(fieldVarDsc) && !lvaIsImplicitByRefLocal(lclNum))
+            if (varTypeIsSIMD(fieldVarDsc) && !compiler->lvaIsImplicitByRefLocal(lclNum))
             {
                 // This field is a SIMD type, and will be considered to be passed in multiple registers
                 // if the parent struct was. Note that this code relies on the fact that if there is
@@ -2088,7 +2097,7 @@ void Compiler::lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* stru
         {
             // Set size to zero so that lvaSetStruct will appropriately set the SIMD-relevant fields.
             fieldVarDsc->lvExactSize = 0;
-            lvaSetStruct(varNum, pFieldInfo->fldTypeHnd, false, true);
+            compiler->lvaSetStruct(varNum, pFieldInfo->fldTypeHnd, false, true);
         }
 #endif // FEATURE_SIMD
 
