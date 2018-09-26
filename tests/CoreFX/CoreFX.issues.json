@@ -407,4 +407,13 @@
             ]
         }
     }
+    {
+        "name": "System.Security.Cryptography.Pkcs.Tests",
+        "enabled": false,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": null
+        }
+    }
 ]
