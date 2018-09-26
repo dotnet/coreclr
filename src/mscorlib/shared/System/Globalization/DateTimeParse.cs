@@ -186,7 +186,7 @@ namespace System
             Debug.Assert(dtfi != null, "dtfi == null");
 
             //
-            // Do a loop through the provided formats and see if we can parse succesfully in
+            // Do a loop through the provided formats and see if we can parse successfully in
             // one of the formats.
             //
             for (int i = 0; i < formats.Length; i++)
@@ -2675,7 +2675,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 return false;
             }
 
-            // Check if the parased string only contains hour/minute/second values.
+            // Check if the parsed string only contains hour/minute/second values.
             bool bTimeOnly = (result.Year == -1 && result.Month == -1 && result.Day == -1);
 
             //
@@ -3829,6 +3829,23 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             return (DateTimeFormat.GetRealFormat(format, dtfi));
         }
 
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        private static bool ParseJapaneseEraStart(ref __DTString str, DateTimeFormatInfo dtfi)
+        {
+            // ParseJapaneseEraStart will be called when parsing the year number. We can have dates which not listing
+            // the year as a number and listing it as JapaneseEraStart symbol (which means year 1).
+            // This will be legitimate date to recognize.
+            if (AppContextSwitches.EnforceLegacyJapaneseDateParsing || dtfi.Calendar.ID != CalendarId.JAPAN || !str.GetNext())
+                return false;
+
+            if (str.m_current != DateTimeFormatInfo.JapaneseEraStart[0])
+            {
+                str.Index--;
+                return false;
+            }
+
+            return true;
+        }
 
 
 
@@ -3854,7 +3871,12 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 case 'y':
                     tokenLen = format.GetRepeatCount();
                     bool parseResult;
-                    if (dtfi.HasForceTwoDigitYears)
+                    if (ParseJapaneseEraStart(ref str, dtfi))
+                    {
+                        tempYear = 1;
+                        parseResult = true;
+                    }
+                    else if (dtfi.HasForceTwoDigitYears)
                     {
                         parseResult = ParseDigits(ref str, 1, 4, out tempYear);
                     }
@@ -4423,7 +4445,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         **  When the following general formats are used, the time is assumed to be in Universal time.
         **
         **Limitations:
-        **  Only GregarianCalendar is supported for now.
+        **  Only GregorianCalendar is supported for now.
         **  Only support GMT timezone.
         ==============================================================================*/
 
@@ -4570,7 +4592,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             }
 
 
-            // Check if the parased string only contains hour/minute/second values.
+            // Check if the parsed string only contains hour/minute/second values.
             bTimeOnly = (result.Year == -1 && result.Month == -1 && result.Day == -1);
             if (!CheckDefaultDateTime(ref result, ref parseInfo.calendar, styles))
             {
@@ -4792,7 +4814,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
     internal ref struct __DTString
     {
         //
-        // Value propery: stores the real string to be parsed.
+        // Value property: stores the real string to be parsed.
         //
         internal ReadOnlySpan<char> Value;
 
@@ -4804,7 +4826,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         // The length of Value string.
         internal int Length => Value.Length;
 
-        // The current chracter to be looked at.
+        // The current character to be looked at.
         internal char m_current;
 
         private CompareInfo m_info;
@@ -5144,7 +5166,7 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
         //      The index that contains the longest word to match
         //  Arguments:
         //      words   The string array that contains words to search.
-        //      maxMatchStrLen  [in/out] the initailized maximum length.  This parameter can be used to
+        //      maxMatchStrLen  [in/out] the initialized maximum length.  This parameter can be used to
         //          find the longest match in two string arrays.
         //
         internal int MatchLongestWords(String[] words, ref int maxMatchStrLen)
