@@ -1479,6 +1479,10 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
     }
 }
 
+Compiler::StructPromotionHelper::StructPromotionHelper()
+{
+}
+
 /*****************************************************************************
  * Is this type promotable? */
 

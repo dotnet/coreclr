@@ -2990,6 +2990,22 @@ public:
     void lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
     void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
+    // This class is responsible for checking possibility and profitability of struct promotion.
+    // If it decide to do promotion than it initializes nessesary information for fgMorphStructField to use.
+    class StructPromotionHelper
+    {
+    public:
+        StructPromotionHelper();
+
+        bool CanPromoteStructVar(unsigned lclNum);
+        bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
+        bool ShouldPromoteStructVar(unsigned lclNum);
+
+    private:
+    };
+
+    StructPromotionHelper structPromotionHelper;
+
     bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
     void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 #if !defined(_TARGET_64BIT_)
