@@ -1511,7 +1511,7 @@ void Compiler::StructPromotionHelper::SetRequiresScratchVar()
 // Return value:
 //   struct promotion info for this type.
 //
-Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd)
+Compiler::lvaStructPromotionInfo* Compiler::StructPromotionHelper::GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd)
 {
     assert(promotionInfoMap.Lookup(typeHnd));
     return promotionInfoMap[typeHnd];
@@ -1524,7 +1524,7 @@ Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromo
 // Return value:
 //   struct promotion info for this local struct.
 //
-Compiler::lvaStructPromotionInfo Compiler::StructPromotionHelper::GetStructPromotionInfo(unsigned lclNum)
+Compiler::lvaStructPromotionInfo* Compiler::StructPromotionHelper::GetStructPromotionInfo(unsigned lclNum)
 {
     assert(lclNum < compiler->lvaCount);
     LclVarDsc*           varDsc  = &compiler->lvaTable[lclNum];
@@ -1551,11 +1551,9 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
     assert(compiler->eeIsValueClass(typeHnd));
     if (!promotionInfoMap.Lookup(typeHnd))
     {
-        lvaStructPromotionInfo  localStructPromotionInfo;
-        lvaStructPromotionInfo* structPromotionInfo =
-            &localStructPromotionInfo; // Temporary use a pointer to keep textual diffs low.
+        lvaStructPromotionInfo* structPromotionInfo = new (compiler, CMK_StructPromotion) lvaStructPromotionInfo();
 
-        promotionInfoMap.Set(typeHnd, localStructPromotionInfo); // Set info that says canPromote == false.
+        promotionInfoMap.Set(typeHnd, structPromotionInfo); // Set info that says canPromote == false.
 
         // sizeof(double) represents the size of the largest primitive type that we can struct promote.
         // In the future this may be changing to XMM_REGSIZE_BYTES.
@@ -1813,15 +1811,12 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         // as a struct) in order.
         qsort(structPromotionInfo->fields, structPromotionInfo->fieldCnt, sizeof(*structPromotionInfo->fields),
               lvaFieldOffsetCmp);
-
-        promotionInfoMap.Set(typeHnd, *structPromotionInfo); // Set the full info.
-
         return true;
     }
     else
     {
         // We have already analized this type, return the memorized answer.
-        return promotionInfoMap[typeHnd].canPromote;
+        return promotionInfoMap[typeHnd]->canPromote;
     }
 }
 

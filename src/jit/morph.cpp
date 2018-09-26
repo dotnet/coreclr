@@ -17066,7 +17066,7 @@ void Compiler::fgPromoteStructs()
         {
             if (structPromotionHelper.CanPromoteStructVar(lclNum))
             {
-                lvaStructPromotionInfo structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
+                lvaStructPromotionInfo* structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
 
 #if 0
                 // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
@@ -17076,10 +17076,10 @@ void Compiler::fgPromoteStructs()
                 if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
 
-                if (lvaShouldPromoteStructVar(lclNum, &structPromotionInfo))
+                if (lvaShouldPromoteStructVar(lclNum, structPromotionInfo))
                 {
                     // Promote the this struct local var.
-                    lvaPromoteStructVar(lclNum, &structPromotionInfo);
+                    lvaPromoteStructVar(lclNum, structPromotionInfo);
                     promotedVar = true;
                 }
             }

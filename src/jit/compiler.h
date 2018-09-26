@@ -2999,8 +2999,8 @@ public:
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
         bool ShouldPromoteStructVar(unsigned lclNum);
 
-        lvaStructPromotionInfo GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
-        lvaStructPromotionInfo GetStructPromotionInfo(unsigned lclNum);
+        lvaStructPromotionInfo* GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
+        lvaStructPromotionInfo* GetStructPromotionInfo(unsigned lclNum);
 
 #ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();
@@ -3013,7 +3013,7 @@ public:
 #ifdef _TARGET_ARM_
         bool requiresScratchVar;
 #endif // _TARGET_ARM_
-        typedef JitHashTable<CORINFO_CLASS_HANDLE, JitPtrKeyFuncs<CORINFO_CLASS_STRUCT_>, lvaStructPromotionInfo>
+        typedef JitHashTable<CORINFO_CLASS_HANDLE, JitPtrKeyFuncs<CORINFO_CLASS_STRUCT_>, lvaStructPromotionInfo*>
                                          StructPromotionInfoForTypeHndMap;
         StructPromotionInfoForTypeHndMap promotionInfoMap;
     };
