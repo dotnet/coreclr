@@ -3009,6 +3009,8 @@ public:
         bool GetRequiresScratchVar();
         void SetRequiresScratchVar();
 #endif // _TARGET_ARM_
+    private:
+        lvaStructFieldInfo GetFieldInfo(CORINFO_FIELD_HANDLE fieldHnd, BYTE ordinal);
 
     private:
         Compiler* compiler;

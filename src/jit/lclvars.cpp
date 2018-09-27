@@ -1532,6 +1532,46 @@ Compiler::lvaStructPromotionInfo* Compiler::StructPromotionHelper::GetStructProm
     return GetStructPromotionInfo(typeHnd);
 }
 
+// GetFieldInfo - get struct field information.
+// Arguments:
+//   fieldHnd - field handle to get info for;
+//   ordinal  - field ordinal.
+//
+// Return value:
+//  field information.
+//
+Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORINFO_FIELD_HANDLE fieldHnd, BYTE ordinal)
+{
+    lvaStructFieldInfo fieldInfo;
+    fieldInfo.fldHnd = fieldHnd;
+
+    unsigned fldOffset  = compiler->info.compCompHnd->getFieldOffset(fieldInfo.fldHnd);
+    fieldInfo.fldOffset = (BYTE)fldOffset;
+
+    fieldInfo.fldOrdinal = ordinal;
+    CorInfoType corType  = compiler->info.compCompHnd->getFieldType(fieldInfo.fldHnd, &fieldInfo.fldTypeHnd);
+    fieldInfo.fldType    = JITtype2varType(corType);
+    fieldInfo.fldSize    = genTypeSize(fieldInfo.fldType);
+
+#ifdef FEATURE_SIMD
+    // Check to see if this is a SIMD type.
+    // We will only check this if we have already found a SIMD type, which will be true if
+    // we have encountered any SIMD intrinsics.
+    if (compiler->usesSIMDTypes() && (fieldInfo.fldSize == 0) && compiler->isSIMDorHWSIMDClass(fieldInfo.fldTypeHnd))
+    {
+        unsigned  simdSize;
+        var_types simdBaseType = compiler->getBaseTypeAndSizeOfSIMDType(fieldInfo.fldTypeHnd, &simdSize);
+        if (simdBaseType != TYP_UNKNOWN)
+        {
+            fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
+            fieldInfo.fldSize = simdSize;
+        }
+    }
+#endif // FEATURE_SIMD
+
+    return fieldInfo;
+}
+
 //--------------------------------------------------------------------------------------------
 // CanPromoteStructType - checks if the struct type can be promoted.
 //
@@ -1615,37 +1655,13 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
 
         unsigned fieldsSize = 0;
 
-        for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
+        for (BYTE ordinal = 0; ordinal < (BYTE)fieldCnt; ++ordinal)
         {
-            lvaStructFieldInfo& fieldInfo = structPromotionInfo->fields[ordinal];
-            fieldInfo.fldHnd              = compHandle->getFieldInClass(typeHnd, ordinal);
-            unsigned fldOffset            = compHandle->getFieldOffset(fieldInfo.fldHnd);
+            CORINFO_FIELD_HANDLE fieldHnd  = compHandle->getFieldInClass(typeHnd, ordinal);
+            lvaStructFieldInfo   fieldInfo = GetFieldInfo(fieldHnd, ordinal);
 
             // The fldOffset value should fit into structSize.
-            noway_assert(fldOffset < structSize);
-
-            fieldInfo.fldOffset  = (BYTE)fldOffset;
-            fieldInfo.fldOrdinal = ordinal;
-            CorInfoType corType  = compHandle->getFieldType(fieldInfo.fldHnd, &fieldInfo.fldTypeHnd);
-            fieldInfo.fldType    = JITtype2varType(corType);
-            fieldInfo.fldSize    = genTypeSize(fieldInfo.fldType);
-
-#ifdef FEATURE_SIMD
-            // Check to see if this is a SIMD type.
-            // We will only check this if we have already found a SIMD type, which will be true if
-            // we have encountered any SIMD intrinsics.
-            if (compiler->usesSIMDTypes() && (fieldInfo.fldSize == 0) &&
-                compiler->isSIMDorHWSIMDClass(fieldInfo.fldTypeHnd))
-            {
-                unsigned  simdSize;
-                var_types simdBaseType = compiler->getBaseTypeAndSizeOfSIMDType(fieldInfo.fldTypeHnd, &simdSize);
-                if (simdBaseType != TYP_UNKNOWN)
-                {
-                    fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
-                    fieldInfo.fldSize = simdSize;
-                }
-            }
-#endif // FEATURE_SIMD
+            noway_assert(fieldInfo.fldOffset < structSize);
 
             if (fieldInfo.fldSize == 0)
             {
@@ -1730,7 +1746,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             }
 
             // The end offset for this field should never be larger than our structSize.
-            noway_assert(fldOffset + fieldInfo.fldSize <= structSize);
+            noway_assert(fieldInfo.fldOffset + fieldInfo.fldSize <= structSize);
 
             fieldsSize += fieldInfo.fldSize;
 
@@ -1752,6 +1768,9 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
                 SetRequiresScratchVar();
             }
 #endif // _TARGET_ARM_
+
+            // Memorize the field info.
+            structPromotionInfo->fields[ordinal] = fieldInfo;
         }
 
         // If we saw any GC pointer or by-ref fields above then CORINFO_FLG_CONTAINS_GC_PTR or
