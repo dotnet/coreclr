@@ -1783,13 +1783,8 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         }
 
         // Cool, this struct is promotable.
-        structPromotionInfo.canPromote = true;
 
-        // Sort the fields according to the increasing order of the field offset.
-        // This is needed because the fields need to be pushed on stack (when referenced
-        // as a struct) in order.
-        qsort(structPromotionInfo.fields, structPromotionInfo.fieldCnt, sizeof(*structPromotionInfo.fields),
-              lvaFieldOffsetCmp);
+        structPromotionInfo.canPromote = true;
         return true;
     }
     else
@@ -1968,6 +1963,20 @@ bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned lclNum)
 }
 
 //--------------------------------------------------------------------------------------------
+// SortStructFields - sort the fields according to the increasing order of the field offset.
+//
+// Notes:
+//   This is needed because the fields need to be pushed on stack (when referenced as a struct) in the order.
+//
+void Compiler::StructPromotionHelper::SortStructFields()
+{
+    assert(!structPromotionInfo.fieldsSorted);
+    qsort(structPromotionInfo.fields, structPromotionInfo.fieldCnt, sizeof(*structPromotionInfo.fields),
+          lvaFieldOffsetCmp);
+    structPromotionInfo.fieldsSorted = true;
+}
+
+//--------------------------------------------------------------------------------------------
 // PromoteStructVar - promote struct variable.
 //
 // Arguments:
@@ -2001,6 +2010,11 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
                compiler->eeGetClassName(varDsc->lvVerTypeInfo.GetClassHandle()));
     }
 #endif
+
+    if (!structPromotionInfo.fieldsSorted)
+    {
+        SortStructFields();
+    }
 
     for (unsigned index = 0; index < structPromotionInfo.fieldCnt; ++index)
     {
