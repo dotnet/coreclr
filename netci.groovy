@@ -1331,7 +1331,11 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             break
 
         case 'crossgen_comparison':
+            if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
+                addPeriodicTriggerHelper(job, '@daily')
+            }
             break
+
         case 'normal':
             switch (architecture) {
                 case 'x64':
