@@ -1961,7 +1961,9 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                             }
                             break
                          case 'crossgen_comparison':
-                            isDefaultTrigger = shouldGenerateCrossGenComparisonJob(os, architecture, configuration, scenario)
+                            if (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked') {
+                                isDefaultTrigger = true
+                            }
                             break
                     }
                     break
