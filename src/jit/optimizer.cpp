@@ -3516,7 +3516,7 @@ unsigned Compiler::optComputeLoopCost(unsigned loopId)
     return costLoop.Value();
 }
 
-unsigned Compiler::optExtractVaraibles(GenTreeStmt*              gtStmt,
+unsigned Compiler::optExtractLocalVars(GenTreeStmt*              gtStmt,
                                        jitstd::vector<GenTree*>* gtLclVar,
                                        jitstd::vector<GenTree*>* gtParent)
 {
@@ -3617,7 +3617,7 @@ void Compiler::optUnrollLoops()
         0    // COUNT_OPT_CODE
     };
 
-    // TODO : relax more ieration limits for better performance.
+    // TODO : relax more iteration limits for better performance.
     static const unsigned int ITER_LIMIT[COUNT_OPT_CODE + 1] = {
         16, // BLENDED_CODE
         0,  // SMALL_CODE
@@ -3625,8 +3625,9 @@ void Compiler::optUnrollLoops()
         0   // COUNT_OPT_CODE
     };
 
-    unsigned int CostLimit = COST_LIMIT[compCodeOpt()];
-    unsigned int IterLimit = ITER_LIMIT[compCodeOpt()];
+    unsigned int CostLimit    = COST_LIMIT[compCodeOpt()];
+    unsigned int IterLimitMax = ITER_LIMIT[compCodeOpt()];
+    unsigned int IterLimitMin = 16;
 
     // Visit loops from highest to lowest number to vist them in innermost to outermost order
     bool isChanged = false;
@@ -3668,12 +3669,12 @@ void Compiler::optUnrollLoops()
 
                 lvaParent.clear();
                 lvaLclvar.clear();
-                for (auto CntVars = optExtractVaraibles(gtStmt, &lvaLclvar, &lvaParent); CntVars--;)
+                for (auto CntVars = optExtractLocalVars(gtStmt, &lvaLclvar, &lvaParent); CntVars--;)
                 {
                     GenTree* gtParent = lvaParent[CntVars];
                     GenTree* gtLclVar = lvaLclvar[CntVars];
 
-                    // Assign, Load Ind, Store Ind includes uop fetchs.
+                    // Assign, Load Ind, Store Ind includes uop fetches.
                     if (gtParent->OperIs(GT_ASG) || gtParent->OperIs(GT_IND) || gtParent->OperIs(GT_STOREIND))
                     {
                         if (varTypeIsStruct(gtLclVar->TypeGet()))
@@ -3695,13 +3696,6 @@ void Compiler::optUnrollLoops()
                         // The array bound checks will be transformed into condition.
                         lpCntConds++;
                         lpIsUnsafeALU = false;
-
-                        continue;
-                    }
-
-                    if (gtLclVar->AsLclVar()->GetLclNum() != loopDesc->lpIterVar())
-                    {
-                        continue;
                     }
                 }
             }
@@ -3765,7 +3759,7 @@ void Compiler::optUnrollLoops()
                 //   - Condition of body (This mean except condition of loop) should less or equal to 8
                 //   - The loop iterations should more than 64.
 
-                noway_assert(lpCntFetch.size() != 0); /* DIVIDE BY ZERO */
+                noway_assert(!lpCntFetch.empty()); /* DIVIDE BY ZERO */
                 unsigned int szLSDThreshold = 0;
                 for (unsigned int i = 1;; i <<= 1)
                 {
@@ -3804,7 +3798,7 @@ void Compiler::optUnrollLoops()
         {
             // Do unrolling as possible. because its really fast when its unrolled
             // We are doubling limits for relaxed unrolling for unsafe ALUs(which has no conditional checks)
-            if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpIter > IterLimit * 2)
+            if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit * 2 || lpIter > IterLimitMax * 2)
             {
                 // We are at limits of full unrolling. do partial unrolling.
                 // TODO : implements for more limit check phases.
@@ -3821,11 +3815,12 @@ void Compiler::optUnrollLoops()
                 {
                     // this is maximum inner stmts to fits on cache line.
                     unsigned int cntCacheLim = 0;
-                    for (unsigned int i = 1;; i <<= 1)
+                    for (unsigned int i = 0;; ++i)
                     {
-                        if (szTotalFetch * i < 64)
+                        unsigned int n = 1 << i;
+                        if (szTotalFetch * n < 64)
                         {
-                            cntCacheLim = i;
+                            cntCacheLim = n;
                         }
                         break;
                     }
@@ -3841,7 +3836,8 @@ void Compiler::optUnrollLoops()
                             ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpInnerThres)) +
                             ClrSafeInt<unsigned>(ClrSafeInt<unsigned>(lpCost) * ClrSafeInt<unsigned>(lpOuterThres));
 
-                        if (!lpUnrolledCost.IsOverflow() && lpUnrolledCost.Value() <= CostLimit * 2)
+                        if (!lpUnrolledCost.IsOverflow() && lpUnrolledCost.Value() <= CostLimit * 2 &&
+                            lpNewIter > IterLimitMin)
                         {
                             // this can be partially unrolled based on cache line. lets do this!!
                             goto DO_UNROLL;
@@ -3849,10 +3845,10 @@ void Compiler::optUnrollLoops()
                     }
                 }
 
-                /* Phase 2 : Check for branch prediciation. */
+                /* Phase 2 : Check for branch predicates. */
                 // Default unrolling runtime count on LLVM is 8. we are trying to unroll it for 8 times and check that
-                // iterations are more than 16 to trigger branch predications.
-                if ((lpIter / 8) > 16)
+                // iterations are more than 16 to trigger branch predicates.
+                if ((lpIter / 8) > IterLimitMin)
                 {
                     lpInnerThres = 8;
                     lpOuterThres = lpIter % 8;
@@ -3883,7 +3879,7 @@ void Compiler::optUnrollLoops()
         // Those are safe ALUs. which can should be fully unrolled so that has better performance than
         // rolled loop because of conditions of bound checks.
         // the goal is make it fully unrolled as possible if that has bound checks
-        if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit || lpIter > IterLimit)
+        if (lpUnrolledCost.IsOverflow() || lpUnrolledCost.Value() > CostLimit || lpIter > IterLimitMax)
         {
             // This is too huge to unroll. skipping it.
             continue;
@@ -3919,18 +3915,16 @@ bool Compiler::optUnrollLoopImpl(
     bool     lpIsPtclUrl = (outer != 0);                /* is particle exists?      */
     LoopDsc* lpDesc      = &optLoopTable[loopId];
 
-    genTreeOps   lvaOpr     = lpDesc->lpIterOper();
-    unsigned int lvaVar     = lpDesc->lpIterVar();
-    int          lvaInc     = lpDesc->lpIterConst();
-    int          lvaBeg     = lpDesc->lpConstInit;
-    int          lvaLim     = lpDesc->lpConstLimit();
-    BasicBlock*  bbHead     = lpDesc->lpHead;
-    BasicBlock*  bbBottom   = lpDesc->lpBottom;
-    BasicBlock*  bbBody     = bbHead->bbNext;
-    GenTreeStmt* gtTest     = bbBottom->lastStmt();
-    GenTree*     gtTestExpr = gtTest->gtStmtExpr;
-    GenTreeStmt* gtIncr     = gtTest->gtPrevStmt;
-    GenTree*     gtIncrExpr = gtIncr->gtStmtExpr;
+    genTreeOps   lvaOpr   = lpDesc->lpIterOper();
+    unsigned int lvaVar   = lpDesc->lpIterVar();
+    int          lvaInc   = lpDesc->lpIterConst();
+    int          lvaBeg   = lpDesc->lpConstInit;
+    int          lvaLim   = lpDesc->lpConstLimit();
+    BasicBlock*  bbHead   = lpDesc->lpHead;
+    BasicBlock*  bbBottom = lpDesc->lpBottom;
+    BasicBlock*  bbBody   = bbHead->bbNext;
+    GenTreeStmt* gtTest   = bbBottom->lastStmt();
+    GenTreeStmt* gtIncr   = gtTest->gtPrevStmt;
 
     // Backup for restoring.
     BasicBlock* bbOldHeadNext = bbHead->bbNext;
@@ -4050,7 +4044,7 @@ bool Compiler::optUnrollLoopImpl(
                 {
                     lvaParent.clear();
                     lvaLclvar.clear();
-                    for (auto CntVars = optExtractVaraibles(gtStmt, &lvaLclvar, &lvaParent); CntVars--;)
+                    for (auto CntVars = optExtractLocalVars(gtStmt, &lvaLclvar, &lvaParent); CntVars--;)
                     {
                         GenTree* gtParent = lvaParent[CntVars];
                         GenTree* gtLclVar = lvaLclvar[CntVars];
@@ -4132,7 +4126,7 @@ bool Compiler::optUnrollLoopImpl(
 
         lvaParent.clear();
         lvaLclvar.clear();
-        for (auto CntVars = optExtractVaraibles(gtIncr, &lvaLclvar, &lvaParent); CntVars--;)
+        for (auto CntVars = optExtractLocalVars(gtIncr, &lvaLclvar, &lvaParent); CntVars--;)
         {
             GenTree* gtParent = lvaParent[CntVars];
             GenTree* gtOp1    = lvaLclvar[CntVars];
@@ -4179,7 +4173,7 @@ bool Compiler::optUnrollLoopImpl(
     {
         lvaParent.clear();
         lvaLclvar.clear();
-        for (auto CntVars = optExtractVaraibles(gtTest, &lvaLclvar, &lvaParent); CntVars--;)
+        for (auto CntVars = optExtractLocalVars(gtTest, &lvaLclvar, &lvaParent); CntVars--;)
         {
             GenTree* gtParent = lvaParent[CntVars];
             GenTree* gtLclVar = lvaLclvar[CntVars];
@@ -4199,7 +4193,7 @@ bool Compiler::optUnrollLoopImpl(
 
         lvaParent.clear();
         lvaLclvar.clear();
-        for (auto CntVars = optExtractVaraibles(gtParticleIncr, &lvaLclvar, &lvaParent); CntVars--;)
+        for (auto CntVars = optExtractLocalVars(gtParticleIncr, &lvaLclvar, &lvaParent); CntVars--;)
         {
             GenTree* gtParent = lvaParent[CntVars];
             GenTree* gtOp1    = lvaLclvar[CntVars];

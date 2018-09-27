@@ -5610,7 +5610,7 @@ public:
 
     unsigned optComputeLoopIter(unsigned loopId);
     unsigned optComputeLoopCost(unsigned loopId);
-    unsigned optExtractVaraibles(GenTreeStmt*              gtStmt,
+    unsigned optExtractLocalVars(GenTreeStmt*              gtStmt,
                                  jitstd::vector<GenTree*>* gtLclVar,
                                  jitstd::vector<GenTree*>* gtParent = nullptr);
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
