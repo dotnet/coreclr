@@ -1575,8 +1575,6 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         assert((BYTE)MAX_NumOfFieldsInPromotableStruct ==
                MAX_NumOfFieldsInPromotableStruct); // because lvaStructFieldInfo.fieldCnt is byte-sized
 
-        bool containsHoles      = false;
-        bool customLayout       = false;
         bool containsGCpointers = false;
 
         structPromotionInfo->canPromote = false;
@@ -1786,7 +1784,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         //
         if (StructHasCustomLayout(typeFlags) && ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0))
         {
-            customLayout = true;
+            structPromotionInfo->customLayout = true;
         }
 
         // Check if this promoted struct contains any holes
@@ -1795,15 +1793,13 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         {
             if (isHole[i])
             {
-                containsHoles = true;
+                structPromotionInfo->containsHoles = true;
                 break;
             }
         }
 
         // Cool, this struct is promotable.
-        structPromotionInfo->canPromote    = true;
-        structPromotionInfo->containsHoles = containsHoles;
-        structPromotionInfo->customLayout  = customLayout;
+        structPromotionInfo->canPromote = true;
 
         // Sort the fields according to the increasing order of the field offset.
         // This is needed because the fields need to be pushed on stack (when referenced
