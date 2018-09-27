@@ -17066,6 +17066,7 @@ void Compiler::fgPromoteStructs()
         {
             if (structPromotionHelper.CanPromoteStructVar(lclNum))
             {
+                // Make one hashtable lookup here to use its result in several places below.
                 lvaStructPromotionInfo* structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
 
 #if 0
