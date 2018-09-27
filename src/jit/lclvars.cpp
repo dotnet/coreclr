@@ -1613,13 +1613,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         unsigned structAlignment = roundUp(compHandle->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
 #endif // _TARGET_ARM_
 
-        bool isHole[MaxOffset]; // isHole[] is initialized to true for every valid offset in the struct and false for
-                                // the rest
-        unsigned i;             // then as we process the fields we clear the isHole[] values that the field spans.
-        for (i = 0; i < MaxOffset; i++)
-        {
-            isHole[i] = (i < structSize) ? true : false;
-        }
+        unsigned fieldsSize = 0;
 
         for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
         {
@@ -1737,10 +1731,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             // The end offset for this field should never be larger than our structSize.
             noway_assert(fldOffset + pFieldInfo->fldSize <= structSize);
 
-            for (i = 0; i < pFieldInfo->fldSize; i++)
-            {
-                isHole[fldOffset + i] = false;
-            }
+            fieldsSize += pFieldInfo->fldSize;
 
 #ifdef _TARGET_ARM_
             // On ARM, for struct types that don't use explicit layout, the alignment of the struct is
@@ -1782,15 +1773,13 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             structPromotionInfo.customLayout = true;
         }
 
-        // Check if this promoted struct contains any holes
-        //
-        for (i = 0; i < structSize; i++)
+        // Check if this promoted struct contains any holes.
+        assert(!overlappingFields);
+        if (fieldsSize != structSize)
         {
-            if (isHole[i])
-            {
-                structPromotionInfo.containsHoles = true;
-                break;
-            }
+            // If sizes do not match it means we have an overlapping fields or holes.
+            // Overlapping fields were rejected early, so here it can mean only holes.
+            structPromotionInfo.containsHoles = true;
         }
 
         // Cool, this struct is promotable.
