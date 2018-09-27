@@ -1831,12 +1831,12 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 {
-    noway_assert(lclNum < compiler->lvaCount);
+    assert(lclNum < compiler->lvaCount);
 
     LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
-    noway_assert(varTypeIsStruct(varDsc));
-    noway_assert(!varDsc->lvPromoted); // Don't ask again :)
+    assert(varTypeIsStruct(varDsc));
+    assert(!varDsc->lvPromoted); // Don't ask again :)
 
     // If this lclVar is used in a SIMD intrinsic, then we don't want to struct promote it.
     // Note, however, that SIMD lclVars that are NOT used in a SIMD intrinsic may be
@@ -2003,10 +2003,10 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned                 
     LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
     // We should never see a reg-sized non-field-addressed struct here.
-    noway_assert(!varDsc->lvRegStruct);
+    assert(!varDsc->lvRegStruct);
 
-    noway_assert(structPromotionInfo->canPromote);
-    noway_assert(structPromotionInfo->typeHnd == varDsc->lvVerTypeInfo.GetClassHandle());
+    assert(structPromotionInfo->canPromote);
+    assert(structPromotionInfo->typeHnd == varDsc->lvVerTypeInfo.GetClassHandle());
 
     // structPromotionInfo is passed as arg to avoid this lookup in release.
     assert(GetStructPromotionInfo(lclNum) == structPromotionInfo);
