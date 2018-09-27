@@ -9,7 +9,6 @@
 #define INT_MIN	   (-2147483647 - 1)
 
 typedef char16_t WCHAR;
-typedef unsigned long DWORD;
 typedef int BOOL;
 typedef WCHAR *LPWSTR, *PWSTR;
 typedef const WCHAR *LPCWSTR, *PCWSTR;

@@ -30,10 +30,10 @@ extern "C" DLL_EXPORT BSTR Marshal_InOut(/*[In,Out]*/BSTR s)
     //Check the Input
     size_t len = TP_SysStringByteLen(s);
 
-    if((len != lenstrManaged)||(memcmp(s,strManaged,len)!=0))
+    if(memcmp(s,strManaged,lenstrManaged)!=0)
     {
         printf("Error in Function Marshal_InOut(Native Client)\n");        
-        
+	printf("Error: Actual: %d, Expected: %d\n",(int32_t) len, (int32_t)lenstrManaged);        
         for(size_t i = 0; i< lenstrManaged;++i)
             putchar(*(((char *)strManaged)+i));               
         
@@ -67,10 +67,10 @@ extern "C" DLL_EXPORT BSTR MarshalPointer_InOut(/*[in,out]*/BSTR *s)
     //Check the Input
     size_t len = TP_SysStringByteLen(*s);
 
-    if((len != lenstrManaged)||(memcmp(*s,strManaged,len)!=0))
+    if(memcmp(*s,strManaged,lenstrManaged)!=0)
     {
         printf("Error in Function MarshalPointer_InOut\n");
-        
+	printf("Error: Expected: %d, Actual: %d", (int32_t)lenstrManaged, (int32_t)len);        
         for(size_t i = 0; i< lenstrManaged;++i)
             putchar(*(((char *)strManaged)+i));
                 
@@ -148,7 +148,7 @@ extern "C" DLL_EXPORT BOOL __stdcall RPinvoke_DelMarshalPointer_Out(Test_DelMars
     if((lenstr != lenchangedstr)||(memcmp(str,changedstr,lenstr)!=0))
     {
         printf("Error in RPinvoke_DelMarshalPointer_Out, Value didn't change\n");
-        printf("%zd, %zd\n", lenchangedstr, lenstr);
+        printf("%d, %d\n", (int32_t)lenchangedstr, (int32_t)lenstr);
         return FALSE;
     }
 

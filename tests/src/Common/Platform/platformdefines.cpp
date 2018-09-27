@@ -429,7 +429,7 @@ BSTR TP_SysAllocString(LPWSTR psz)
 
 BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len)
 {
-    DWORD cbTotal = 0;
+    ULONG cbTotal = 0;
 
     if (FAILED(CbSysStringSize((ULONG)len, FALSE, &cbTotal)))
         return NULL;
@@ -464,7 +464,7 @@ BSTR TP_SysAllocStringByteLen(LPCSTR psz, size_t len)
     return SysAllocStringByteLen(psz, (UINT)len);
 #else
     BSTR bstr;
-    DWORD cbTotal = 0;
+    ULONG cbTotal = 0;
 
     if (FAILED(CbSysStringSize(len, TRUE, &cbTotal)))
         return NULL;
@@ -511,6 +511,12 @@ size_t TP_SysStringByteLen(BSTR bstr)
 #else   
     if(bstr == NULL)
       return 0;
+    int32_t * p32 = (int32_t *) bstr;
+    int32_t * p32_1 = p32 -1;
+    DWORD * d32 = (DWORD *) bstr;
+    DWORD * d32_1 = d32 - 1;
+    //std::cout << p32 << p32_1 << endl;
+    //std::cout << d32 << d32_1 << endl;
     return (unsigned int)(((DWORD *)bstr)[-1]);
 #endif    
 }
