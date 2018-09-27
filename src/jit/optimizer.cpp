@@ -3761,11 +3761,12 @@ void Compiler::optUnrollLoops()
 
                 noway_assert(!lpCntFetch.empty()); /* DIVIDE BY ZERO */
                 unsigned int szLSDThreshold = 0;
-                for (unsigned int i = 1;; i <<= 1)
+                for (unsigned int i = 1;; ++i)
                 {
-                    if (lpCntFetch.size() * i <= 4 && lpIter / i >= 64)
+                    unsigned int n = 1 << i;
+                    if (lpCntFetch.size() * n <= 4 && lpIter / n >= 64)
                     {
-                        szLSDThreshold = i;
+                        szLSDThreshold = n;
                     }
                     break;
                 }
