@@ -2972,15 +2972,13 @@ public:
     // Info about struct type to be promoted.
     struct lvaStructPromotionInfo
     {
-        CORINFO_CLASS_HANDLE typeHnd;
-        bool                 canPromote;
-        bool                 containsHoles;
-        bool                 customLayout;
-        unsigned char        fieldCnt;
-        lvaStructFieldInfo   fields[MAX_NumOfFieldsInPromotableStruct];
+        bool               canPromote;
+        bool               containsHoles;
+        bool               customLayout;
+        unsigned char      fieldCnt;
+        lvaStructFieldInfo fields[MAX_NumOfFieldsInPromotableStruct];
 
-        lvaStructPromotionInfo()
-            : typeHnd(nullptr), canPromote(false), containsHoles(false), customLayout(false), fieldCnt(0)
+        lvaStructPromotionInfo() : canPromote(false), containsHoles(false), customLayout(false), fieldCnt(0)
         {
             memset(fields, 0, sizeof(fields));
         }

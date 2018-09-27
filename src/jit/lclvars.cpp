@@ -1579,7 +1579,6 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
         bool customLayout       = false;
         bool containsGCpointers = false;
 
-        structPromotionInfo->typeHnd    = typeHnd;
         structPromotionInfo->canPromote = false;
 
         COMP_HANDLE compHandle = compiler->info.compCompHnd;
@@ -2006,7 +2005,6 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned                 
     assert(!varDsc->lvRegStruct);
 
     assert(structPromotionInfo->canPromote);
-    assert(structPromotionInfo->typeHnd == varDsc->lvVerTypeInfo.GetClassHandle());
 
     // structPromotionInfo is passed as arg to avoid this lookup in release.
     assert(GetStructPromotionInfo(lclNum) == structPromotionInfo);
@@ -2025,7 +2023,8 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned                 
 #ifdef DEBUG
     if (compiler->verbose)
     {
-        printf("\nPromoting struct local V%02u (%s):", lclNum, compiler->eeGetClassName(structPromotionInfo->typeHnd));
+        printf("\nPromoting struct local V%02u (%s):", lclNum,
+               compiler->eeGetClassName(varDsc->lvVerTypeInfo.GetClassHandle()));
     }
 #endif
 
