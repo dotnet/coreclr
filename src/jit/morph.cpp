@@ -17078,6 +17078,11 @@ void Compiler::fgPromoteStructs()
 #endif // 0
                 if (structPromotionHelper.ShouldPromoteStructVar(lclNum, structPromotionInfo))
                 {
+                    if (!structPromotionInfo->fieldsSorted)
+                    {
+                        structPromotionHelper.SortStructFields(structPromotionInfo);
+                    }
+
                     // Promote the this struct local var.
                     structPromotionHelper.PromoteStructVar(lclNum, structPromotionInfo);
                     promotedVar = true;

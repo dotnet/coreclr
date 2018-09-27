@@ -2975,10 +2975,12 @@ public:
         bool               canPromote;
         bool               containsHoles;
         bool               customLayout;
+        bool               fieldsSorted;
         unsigned char      fieldCnt;
         lvaStructFieldInfo fields[MAX_NumOfFieldsInPromotableStruct];
 
-        lvaStructPromotionInfo() : canPromote(false), containsHoles(false), customLayout(false), fieldCnt(0)
+        lvaStructPromotionInfo()
+            : canPromote(false), containsHoles(false), customLayout(false), fieldsSorted(false), fieldCnt(0)
         {
             memset(fields, 0, sizeof(fields));
         }
@@ -2997,6 +2999,7 @@ public:
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
         bool ShouldPromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
 
+        void SortStructFields(lvaStructPromotionInfo* structPromotionInfo);
         void PromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
 
         lvaStructPromotionInfo* GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
