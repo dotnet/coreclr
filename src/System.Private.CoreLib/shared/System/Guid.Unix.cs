@@ -26,7 +26,7 @@ namespace System
             unchecked
             {
                 // time_hi_and_version
-                g._c = (short)((g._c & ~VersionMask) | RandomGuidVersion);
+                g._c = (ushort)((g._c & ~VersionMask) | RandomGuidVersion);
                 // clock_seq_hi_and_reserved
                 g._d = (byte)((g._d & ~ClockSeqHiAndReservedMask) | ClockSeqHiAndReservedValue);
             }
@@ -35,4 +35,3 @@ namespace System
         }
     }
 }
-
