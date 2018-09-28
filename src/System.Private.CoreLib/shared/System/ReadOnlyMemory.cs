@@ -6,6 +6,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 
@@ -131,6 +132,10 @@ namespace System
             {
                 return (_object is string str) ? str.Substring(_index, _length) : Span.ToString();
             }
+            else if (typeof(T) == typeof(Utf8Char))
+            {
+                return Span.ToString();
+            }
             return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
         }
 
@@ -201,6 +206,12 @@ namespace System
                         // Special-case string since it's the most common for ROM<char>.
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
+                    }
+                    else if (typeof(T) == typeof(Utf8Char) && tmpObject.GetType() == typeof(Utf8String))
+                    {
+                        // Special-case Utf8String since it's the most common for ROM<Utf8Char>.
+                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Utf8String>(tmpObject).DangerousGetMutableReference());
+                        lengthOfUnderlyingSpan = Unsafe.As<Utf8String>(tmpObject).Length;
                     }
                     else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
                     {

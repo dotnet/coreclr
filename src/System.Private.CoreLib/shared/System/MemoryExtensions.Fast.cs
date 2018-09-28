@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 using Internal.Runtime.CompilerServices;
 
@@ -475,16 +476,16 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8String text)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8String text)
         {
             if (text == null)
                 return default;
 
-            return new ReadOnlySpan<byte>(ref text.DangerousGetMutableReference(), text.Length);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), text.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8String text, int start)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8String text, int start)
         {
             if (text == null)
             {
@@ -496,11 +497,11 @@ namespace System
             if ((uint)start > (uint)text.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
-            return new ReadOnlySpan<byte>(ref Unsafe.Add(ref text.DangerousGetMutableReference(), start), text.Length - start);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), text.Length - start);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8String text, int start, int length)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8String text, int start, int length)
         {
             if (text == null)
             {
@@ -512,28 +513,28 @@ namespace System
             if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
-            return new ReadOnlySpan<byte>(ref Unsafe.Add(ref text.DangerousGetMutableReference(), start), length);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.Add(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), start), length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8StringSegment text)
         {
             // Call to Utf8String.AsSpan below will perform parameter validation
-            return (!text.IsEmpty) ? text.GetBuffer(out var offset, out var length).AsSpan(offset, length) : ReadOnlySpan<byte>.Empty;
+            return (!text.IsEmpty) ? text.GetBuffer(out var offset, out var length).AsSpan(offset, length) : ReadOnlySpan<Utf8Char>.Empty;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text, int start)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8StringSegment text, int start)
         {
             // Call to Utf8String.AsSpan and Slice below will perform parameter validation
-            return (!text.IsEmpty) ? AsSpan(text).Slice(start) : ReadOnlySpan<byte>.Empty;
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start) : ReadOnlySpan<Utf8Char>.Empty;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static ReadOnlySpan<byte> AsSpan(this Utf8StringSegment text, int start, int length)
+        public static ReadOnlySpan<Utf8Char> AsSpan(this Utf8StringSegment text, int start, int length)
         {
             // Call to Utf8String.AsSpan and Slice below will perform parameter validation
-            return (!text.IsEmpty) ? AsSpan(text).Slice(start, length) : ReadOnlySpan<byte>.Empty;
+            return (!text.IsEmpty) ? AsSpan(text).Slice(start, length) : ReadOnlySpan<Utf8Char>.Empty;
         }
 
         /// <summary>Creates a new <see cref="ReadOnlyMemory{T}"/> over the portion of the target string.</summary>
@@ -635,5 +636,66 @@ namespace System
                 return ReadOnlyMemory<char>.Empty; // substringed away the entire contents
             }
         }
+
+        public static ReadOnlyMemory<Utf8Char> AsMemory(this Utf8String text)
+        {
+            if (text == null)
+                return default;
+
+            return new ReadOnlyMemory<Utf8Char>(text, 0, text.Length);
+        }
+
+        public static ReadOnlyMemory<Utf8Char> AsMemory(this Utf8String text, int start)
+        {
+            if (text == null)
+            {
+                if (start != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                return default;
+            }
+
+            if ((uint)start > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            return new ReadOnlyMemory<Utf8Char>(text, start, text.Length - start);
+        }
+
+        public static ReadOnlyMemory<Utf8Char> AsMemory(this Utf8String text, int start, int length)
+        {
+            if (text == null)
+            {
+                if (start != 0 || length != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                return default;
+            }
+
+            if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            return new ReadOnlyMemory<Utf8Char>(text, start, length);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this Span<Utf8Char> value) => new ReadOnlySpan<byte>(ref Unsafe.As<Utf8Char, byte>(ref MemoryMarshal.GetReference(value)), value.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this ReadOnlySpan<Utf8Char> value) => new ReadOnlySpan<byte>(ref Unsafe.As<Utf8Char, byte>(ref MemoryMarshal.GetReference(value)), value.Length);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this Utf8String value) => AsSpan(value).AsBytes();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this Utf8String value, int start) => AsSpan(value, start).AsBytes();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this Utf8String value, int start, int length) => AsSpan(value, start, length).AsBytes();
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ReadOnlySpan<byte> AsBytes(this Utf8StringSegment value) => AsSpan(value).AsBytes();
+
+        // TODO: There are no ROS<byte> -> ROS<Utf8Char> APIs exposed because we don't want developers
+        // thinking that they can blindly reinterpret_cast arbitrary binary data as UTF-8. Allowing this
+        // could lead to security vulnerabilities in the consuming code if the callers haven't written
+        // defensive code with the expectation of receiving invalid data.
     }
 }

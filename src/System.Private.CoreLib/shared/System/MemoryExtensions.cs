@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Text;
 
 using Internal.Runtime.CompilerServices;
 
@@ -1406,7 +1407,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsTypeComparableAsBytes<T>(out nuint size)
         {
-            if (typeof(T) == typeof(byte) || typeof(T) == typeof(sbyte))
+            if (typeof(T) == typeof(byte) || typeof(T) == typeof(sbyte) || typeof(T) == typeof(Utf8Char))
             {
                 size = sizeof(byte);
                 return true;

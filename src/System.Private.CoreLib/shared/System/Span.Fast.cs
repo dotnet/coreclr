@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
+using System.Text;
 using EditorBrowsableAttribute = System.ComponentModel.EditorBrowsableAttribute;
 using EditorBrowsableState = System.ComponentModel.EditorBrowsableState;
 using Internal.Runtime.CompilerServices;
@@ -296,13 +297,16 @@ namespace System
         {
             if (typeof(T) == typeof(char))
             {
-                unsafe
-                {
-                    fixed (char* src = &Unsafe.As<T, char>(ref _pointer.Value))
-                        return new string(src, 0, _length);
-                }
+                return new string(new ReadOnlySpan<char>(ref Unsafe.As<T, char>(ref _pointer.Value), _length));
             }
-            return string.Format("System.Span<{0}>[{1}]", typeof(T).Name, _length);
+            else if (typeof(T) == typeof(Utf8Char))
+            {
+                return Utf8String.ToString(new ReadOnlySpan<byte>(ref Unsafe.As<T, byte>(ref _pointer.Value), _length));
+            }
+            else
+            {
+                return string.Format("System.Span<{0}>[{1}]", typeof(T).Name, _length);
+            }
         }
 
         /// <summary>

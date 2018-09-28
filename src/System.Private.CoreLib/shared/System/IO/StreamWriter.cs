@@ -466,7 +466,7 @@ namespace System.IO
             if (_isWellKnownUtf8Encoding)
             {
                 Flush(flushStream: false, flushEncoder: true);
-                _stream.Write(value.AsSpan());
+                _stream.Write(value.AsBytes());
             }
             else
             {
@@ -479,7 +479,7 @@ namespace System.IO
             if (_isWellKnownUtf8Encoding)
             {
                 Flush(flushStream: false, flushEncoder: true);
-                _stream.Write(value.AsSpan());
+                _stream.Write(value.AsBytes());
             }
             else
             {

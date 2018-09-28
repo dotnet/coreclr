@@ -64,6 +64,8 @@ namespace System
 
         public static bool operator !=(Utf8String a, Utf8String b) => !(a == b);
 
+        public static implicit operator ReadOnlySpan<Utf8Char>(Utf8String value) => value.AsSpan();
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Span<byte> AsMutableSpan() => MemoryMarshal.CreateSpan(ref DangerousGetMutableReference(), _length);
 
@@ -357,7 +359,7 @@ namespace System
                 return false;
             }
 
-            return Equals(a.AsSpanFast(), b.AsSpan(), comparisonType);
+            return Equals(a.AsSpanFast(), b.AsBytes(), comparisonType);
         }
 
         internal static bool Equals(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b, StringComparison comparisonType)

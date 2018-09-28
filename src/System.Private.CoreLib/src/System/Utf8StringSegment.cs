@@ -101,7 +101,7 @@ namespace System
         public static implicit operator Utf8StringSegment(Utf8String value) => new Utf8StringSegment(value);
 
         // ordinal case-sensitive comparison
-        public static bool operator ==(Utf8StringSegment a, Utf8StringSegment b) => IsSameSegment(a, b) || a.AsSpan().SequenceEqual(b.AsSpan());
+        public static bool operator ==(Utf8StringSegment a, Utf8StringSegment b) => IsSameSegment(a, b) || a.AsBytes().SequenceEqual(b.AsBytes());
 
         // ordinal case-sensitive comparison
         public static bool operator !=(Utf8StringSegment a, Utf8StringSegment b) => !(a == b);
@@ -135,7 +135,7 @@ namespace System
             // A substring will always compare equal with itself, so special-case that before
             // trying to call into any deep equality check routine.
 
-            return IsSameSegment(a, b) || Utf8String.Equals(a.AsSpan(), b.AsSpan(), comparisonType);
+            return IsSameSegment(a, b) || Utf8String.Equals(a.AsBytes(), b.AsBytes(), comparisonType);
         }
 
         public Utf8String GetBuffer(out int offset, out int length)
@@ -146,15 +146,15 @@ namespace System
         }
 
         // ordinal case-sensitive hash code
-        public override int GetHashCode() => Utf8String.GetHashCode(this.AsSpan());
+        public override int GetHashCode() => Utf8String.GetHashCode(this.AsBytes());
 
-        public int GetHashCode(StringComparison comparisonType) => Utf8String.GetHashCode(this.AsSpan(), comparisonType);
+        public int GetHashCode(StringComparison comparisonType) => Utf8String.GetHashCode(this.AsBytes(), comparisonType);
 
         [EditorBrowsable(EditorBrowsableState.Never)]
         [Obsolete("This type cannot be pinned because it may result in a byte* without a null terminator.", error: true)]
         public ref readonly byte GetPinnableReference() => throw new NotSupportedException();
 
-        public bool IsEmptyOrWhiteSpace() => Utf8String.IsEmptyOrWhiteSpace(this.AsSpan());
+        public bool IsEmptyOrWhiteSpace() => Utf8String.IsEmptyOrWhiteSpace(this.AsBytes());
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool IsSameSegment(Utf8StringSegment a, Utf8StringSegment b)
@@ -206,7 +206,7 @@ namespace System
         {
             if (!IsEmpty)
             {
-                return Utf8String.ToString(this.AsSpan());
+                return Utf8String.ToString(this.AsBytes());
             }
             else
             {
@@ -243,12 +243,12 @@ namespace System
 
             if (trimType.HasFlag(TrimType.Head))
             {
-                retVal = retVal.Substring(Utf8Utility.GetIndexOfFirstNonWhiteSpaceChar(retVal.AsSpan()));
+                retVal = retVal.Substring(Utf8Utility.GetIndexOfFirstNonWhiteSpaceChar(retVal.AsBytes()));
             }
 
             if (trimType.HasFlag(TrimType.Tail))
             {
-                retVal = retVal.Substring(0, Utf8Utility.GetIndexOfTrailingWhiteSpaceSequence(retVal.AsSpan()));
+                retVal = retVal.Substring(0, Utf8Utility.GetIndexOfTrailingWhiteSpaceSequence(retVal.AsBytes()));
             }
 
             // The Substring method will clear out the 'value' field if this is an empty segment.
@@ -260,7 +260,7 @@ namespace System
 
         internal Utf8String.ChunkToUtf16Enumerator ChunkToUtf16(Span<char> chunkBuffer)
         {
-            return new Utf8String.ChunkToUtf16Enumerator(this.AsSpan(), chunkBuffer);
+            return new Utf8String.ChunkToUtf16Enumerator(this.AsBytes(), chunkBuffer);
         }
     }
 }
