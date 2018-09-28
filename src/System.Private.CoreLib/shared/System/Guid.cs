@@ -23,17 +23,17 @@ namespace System
         ////////////////////////////////////////////////////////////////////////////////
         //  Member variables
         ////////////////////////////////////////////////////////////////////////////////
-        private uint _a;   // Do not rename (binary serialization)
-        private ushort _b; // Do not rename (binary serialization)
-        private ushort _c; // Do not rename (binary serialization)
-        private byte _d;   // Do not rename (binary serialization)
-        private byte _e;   // Do not rename (binary serialization)
-        private byte _f;   // Do not rename (binary serialization)
-        private byte _g;   // Do not rename (binary serialization)
-        private byte _h;   // Do not rename (binary serialization)
-        private byte _i;   // Do not rename (binary serialization)
-        private byte _j;   // Do not rename (binary serialization)
-        private byte _k;   // Do not rename (binary serialization)
+        private int _a;   // Do not rename (binary serialization)
+        private short _b; // Do not rename (binary serialization)
+        private short _c; // Do not rename (binary serialization)
+        private byte _d;  // Do not rename (binary serialization)
+        private byte _e;  // Do not rename (binary serialization)
+        private byte _f;  // Do not rename (binary serialization)
+        private byte _g;  // Do not rename (binary serialization)
+        private byte _h;  // Do not rename (binary serialization)
+        private byte _i;  // Do not rename (binary serialization)
+        private byte _j;  // Do not rename (binary serialization)
+        private byte _k;  // Do not rename (binary serialization)
 
         ////////////////////////////////////////////////////////////////////////////////
         //  Constructors
@@ -51,9 +51,9 @@ namespace System
             if ((uint)b.Length != 16)
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "16"), nameof(b));
 
-            _a = (uint)(b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0]);
-            _b = (ushort)(b[5] << 8 | b[4]);
-            _c = (ushort)(b[7] << 8 | b[6]);
+            _a = b[3] << 24 | b[2] << 16 | b[1] << 8 | b[0];
+            _b = (short)(b[5] << 8 | b[4]);
+            _c = (short)(b[7] << 8 | b[6]);
             _d = b[8];
             _e = b[9];
             _f = b[10];
@@ -67,9 +67,9 @@ namespace System
         [CLSCompliant(false)]
         public Guid(uint a, ushort b, ushort c, byte d, byte e, byte f, byte g, byte h, byte i, byte j, byte k)
         {
-            _a = a;
-            _b = b;
-            _c = c;
+            _a = (int)a;
+            _b = (short)b;
+            _c = (short)c;
             _d = d;
             _e = e;
             _f = f;
@@ -90,9 +90,9 @@ namespace System
             if (d.Length != 8)
                 throw new ArgumentException(SR.Format(SR.Arg_GuidArrayCtor, "8"), nameof(d));
 
-            _a = (uint)a;
-            _b = (ushort)b;
-            _c = (ushort)c;
+            _a = a;
+            _b = b;
+            _c = c;
             _d = d[0];
             _e = d[1];
             _f = d[2];
@@ -107,9 +107,9 @@ namespace System
         // arguments.  The bytes are specified like this to avoid endianness issues.
         public Guid(int a, short b, short c, byte d, byte e, byte f, byte g, byte h, byte i, byte j, byte k)
         {
-            _a = (uint)a;
-            _b = (ushort)b;
-            _c = (ushort)c;
+            _a = a;
+            _b = b;
+            _c = c;
             _d = d;
             _e = e;
             _f = f;
@@ -417,14 +417,14 @@ namespace System
             ref Guid g = ref result._parsedGuid;
 
             uint uintTmp;
-            if (TryParseHex(guidString.Slice(0, 8), out g._a) && // _a
+            if (TryParseHex(guidString.Slice(0, 8), out Unsafe.As<int, uint>(ref g._a)) && // _a
                 TryParseHex(guidString.Slice(9, 4), out uintTmp)) // _b
             {
-                g._b = (ushort)uintTmp;
+                g._b = (short)uintTmp;
 
                 if (TryParseHex(guidString.Slice(14, 4), out uintTmp)) // _c
                 {
-                    g._c = (ushort)uintTmp;
+                    g._c = (short)uintTmp;
 
                     if (TryParseHex(guidString.Slice(19, 4), out uintTmp)) // _d, _e
                     {
@@ -467,11 +467,11 @@ namespace System
             ref Guid g = ref result._parsedGuid;
 
             uint uintTmp;
-            if (uint.TryParse(guidString.Slice(0, 8), NumberStyles.AllowHexSpecifier, null, out g._a) && // _a
+            if (uint.TryParse(guidString.Slice(0, 8), NumberStyles.AllowHexSpecifier, null, out Unsafe.As<int, uint>(ref g._a)) && // _a
                 uint.TryParse(guidString.Slice(8, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _b, _c
             {
-                g._b = (ushort)(uintTmp >> 16);
-                g._c = (ushort)uintTmp;
+                g._b = (short)(uintTmp >> 16);
+                g._c = (short)uintTmp;
 
                 if (uint.TryParse(guidString.Slice(16, 8), NumberStyles.AllowHexSpecifier, null, out uintTmp)) // _d, _e, _f, _g
                 {
@@ -550,7 +550,7 @@ namespace System
             }
 
             bool overflow = false;
-            if (!TryParseHex(guidString.Slice(numStart, numLen), out result._parsedGuid._a, ref overflow) || overflow)
+            if (!TryParseHex(guidString.Slice(numStart, numLen), out Unsafe.As<int, uint>(ref result._parsedGuid._a), ref overflow) || overflow)
             {
                 result.SetFailure(overflow, overflow ? nameof(SR.Overflow_UInt32) : nameof(SR.Format_GuidInvalidChar));
                 return false;
@@ -678,11 +678,11 @@ namespace System
             return true;
         }
 
-        private static bool TryParseHex(ReadOnlySpan<char> guidString, out ushort result, ref bool overflow)
+        private static bool TryParseHex(ReadOnlySpan<char> guidString, out short result, ref bool overflow)
         {
             uint tmp;
             bool success = TryParseHex(guidString, out tmp, ref overflow);
-            result = (ushort)tmp;
+            result = (short)tmp;
             return success;
         }
 
@@ -819,7 +819,7 @@ namespace System
         public override int GetHashCode()
         {
             // Simply XOR all the bits of the GUID 32 bits at a time.
-            return (int)(_a ^ Unsafe.Add(ref _a, 1) ^ Unsafe.Add(ref _a, 2) ^ Unsafe.Add(ref _a, 3));
+            return _a ^ Unsafe.Add(ref _a, 1) ^ Unsafe.Add(ref _a, 2) ^ Unsafe.Add(ref _a, 3);
         }
 
         // Returns true if and only if the guid represented
@@ -1011,13 +1011,13 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static char HexToChar(uint a)
+        private static char HexToChar(int a)
         {
             a = a & 0xf;
             return (char)((a > 9) ? a - 10 + 0x61 : a + 0x30);
         }
 
-        private static unsafe int HexsToChars(char* guidChars, uint a, uint b)
+        private static unsafe int HexsToChars(char* guidChars, int a, int b)
         {
             guidChars[0] = HexToChar(a >> 4);
             guidChars[1] = HexToChar(a);
@@ -1028,7 +1028,7 @@ namespace System
             return 4;
         }
 
-        private static unsafe int HexsToCharsHexOutput(char* guidChars, uint a, uint b)
+        private static unsafe int HexsToCharsHexOutput(char* guidChars, int a, int b)
         {
             guidChars[0] = '0';
             guidChars[1] = 'x';
@@ -1164,11 +1164,11 @@ namespace System
                         *p++ = ',';
                         *p++ = '0';
                         *p++ = 'x';
-                        p += HexsToChars(p, (uint)(_b >> 8), _b);
+                        p += HexsToChars(p, _b >> 8, _b);
                         *p++ = ',';
                         *p++ = '0';
                         *p++ = 'x';
-                        p += HexsToChars(p, (uint)(_c >> 8), _c);
+                        p += HexsToChars(p, _c >> 8, _c);
                         *p++ = ',';
                         *p++ = '{';
                         p += HexsToCharsHexOutput(p, _d, _e);
@@ -1187,10 +1187,10 @@ namespace System
                         p += HexsToChars(p, _a >> 8, _a);
                         if (dash)
                             *p++ = '-';
-                        p += HexsToChars(p, (uint)(_b >> 8), _b);
+                        p += HexsToChars(p, _b >> 8, _b);
                         if (dash)
                             *p++ = '-';
-                        p += HexsToChars(p, (uint)(_c >> 8), _c);
+                        p += HexsToChars(p, _c >> 8, _c);
                         if (dash)
                             *p++ = '-';
                         p += HexsToChars(p, _d, _e);
