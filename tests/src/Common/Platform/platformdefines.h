@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <cstdint>
 
 #ifndef _PLATFORMDEFINES__H
 #define _PLATFORMDEFINES__H
@@ -20,7 +19,7 @@
 #define FS_SEPERATOR L"\\"
 #define PATH_DELIMITER L";"
 #define L(t) L##t
-#define W(str)  L##str
+
 
 typedef unsigned error_t;
 typedef HANDLE THREAD_ID;
@@ -31,7 +30,7 @@ typedef HANDLE THREAD_ID;
 #include <pthread.h>
 
 typedef char16_t WCHAR;
-typedef unsigned int DWORD;
+typedef unsigned long DWORD;
 typedef int BOOL;
 typedef WCHAR *LPWSTR, *PWSTR;
 typedef const WCHAR *LPCWSTR, *PCWSTR;
@@ -64,12 +63,11 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 #define DLL_EXPORT
 #endif
 
-LPWSTR HackyConvertToWSTR(const char* pszInput);
+LPWSTR HackyConvertToWSTR(char* pszInput);
 
 #define FS_SEPERATOR L("/")
 #define PATH_DELIMITER L(":")
 #define L(t) HackyConvertToWSTR(t)
-#define W(str)  u##str
 #define MAX_PATH 260
 
 typedef pthread_t THREAD_ID;
@@ -93,7 +91,6 @@ typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
 #endif
 
-typedef ULONG_PTR DWORD_PTR;
 //
 // Method declarations
 //
@@ -112,13 +109,6 @@ DWORD TP_CreateThread(THREAD_ID* tThread, LPTHREAD_START_ROUTINE worker,  LPVOID
 void TP_JoinThread(THREAD_ID tThread);
 void TP_DebugBreak();
 DWORD TP_GetFullPathName(LPWSTR fileName, DWORD nBufferLength, LPWSTR lpBuffer);
-
-typedef WCHAR* BSTR;
-BSTR TP_SysAllocStringByteLen(LPSTR psz, size_t len);
-void TP_SysFreeString(BSTR bstr);
-size_t TP_SysStringByteLen(BSTR bstr);
-BSTR TP_SysAllocStringLen(LPWSTR psz, size_t len);
-BSTR TP_SysAllocString(LPWSTR psz);
 
 //
 // Method redirects
