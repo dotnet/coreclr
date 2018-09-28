@@ -1258,8 +1258,7 @@ BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport)
     CONTRACTL_END;
 
     HRESULT hRESULT = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, NULL, NULL);
-    return hRESULT == S_OK; 
-    return false;
+    return hRESULT == S_OK;
 }
 
 
