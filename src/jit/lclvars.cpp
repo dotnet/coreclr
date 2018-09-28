@@ -1710,8 +1710,9 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
                     return false;
                 }
 
-                // Retype the field as the type of the single field of the struct
-                pFieldInfo->fldType = fieldVarType;
+                // Retype the field as the type of the single field of the struct.
+                // This is a hack that allows us to promote such fields before we support recursive struct promotion
+                // (tracked by #10019).                pFieldInfo->fldType = fieldVarType;
                 pFieldInfo->fldSize = fieldSize;
             }
 

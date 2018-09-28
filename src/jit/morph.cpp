@@ -17149,7 +17149,7 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
                     // constant, then it is interpreted as init-block incorrectly.
                     //
                     // TODO - This can also be avoided if we implement recursive struct
-                    // promotion.
+                    // promotion, tracked by #10019.
                     if (varTypeIsStruct(parent) && parent->gtOp.gtOp2 == tree && !varTypeIsStruct(tree))
                     {
                         tree->gtFlags |= GTF_DONT_CSE;
