@@ -2184,7 +2184,7 @@ void Compiler::lvaPromoteLongVars()
    that represents this field.
 */
 
-unsigned Compiler::lvaGetFieldLocal(LclVarDsc* varDsc, unsigned int fldOffset)
+unsigned Compiler::lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOffset)
 {
     noway_assert(varTypeIsStruct(varDsc));
     noway_assert(varDsc->lvPromoted);

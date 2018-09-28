@@ -17112,8 +17112,8 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
 
     if ((obj != nullptr) && (obj->gtOper == GT_LCL_VAR))
     {
-        unsigned   lclNum = obj->gtLclVarCommon.gtLclNum;
-        LclVarDsc* varDsc = &lvaTable[lclNum];
+        unsigned         lclNum = obj->gtLclVarCommon.gtLclNum;
+        const LclVarDsc* varDsc = &lvaTable[lclNum];
 
         if (varTypeIsStruct(obj))
         {
