@@ -1487,6 +1487,9 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
 #ifdef _TARGET_ARM_
     , requiresScratchVar(false)
 #endif // _TARGET_ARM_
+#ifdef DEBUG
+    , fakedFieldsMap(compiler->getAllocator(CMK_DebugOnly))
+#endif // DEBUG
 {
 }
 
@@ -1532,6 +1535,14 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
     }
     return false;
 }
+
+#ifdef DEBUG
+void Compiler::StructPromotionHelper::CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType)
+{
+    assert(fakedFieldsMap.Lookup(fieldHnd));
+    assert(fakedFieldsMap[fieldHnd] == requestedType);
+}
+#endif // DEBUG
 
 //--------------------------------------------------------------------------------------------
 // CanPromoteStructType - checks if the struct type can be promoted.
@@ -1923,6 +1934,9 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
         {
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
+#ifdef DEBUG
+            fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+#endif // DEBUG
         }
     }
 #endif // FEATURE_SIMD
@@ -2014,6 +2028,9 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     // (tracked by #10019).
     outerFieldInfo.fldType = fieldVarType;
     outerFieldInfo.fldSize = fieldSize;
+#ifdef DEBUG
+    fakedFieldsMap.Set(outerFieldInfo.fldHnd, outerFieldInfo.fldType);
+#endif // DEBUG
     return true;
 }
 
