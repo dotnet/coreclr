@@ -17126,8 +17126,9 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
 {
     noway_assert(tree->OperGet() == GT_FIELD);
 
-    GenTree* objRef = tree->gtField.gtFldObj;
-    GenTree* obj    = ((objRef != nullptr) && (objRef->gtOper == GT_ADDR)) ? objRef->gtOp.gtOp1 : nullptr;
+    GenTreeField* field  = tree->AsField();
+    GenTree*      objRef = field->gtFldObj;
+    GenTree*      obj    = ((objRef != nullptr) && (objRef->gtOper == GT_ADDR)) ? objRef->gtOp.gtOp1 : nullptr;
     noway_assert((tree->gtFlags & GTF_GLOB_REF) || ((obj != nullptr) && (obj->gtOper == GT_LCL_VAR)));
 
     /* Is this an instance data member? */
@@ -17142,13 +17143,38 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
             if (varDsc->lvPromoted)
             {
                 // Promoted struct
-                unsigned fldOffset     = tree->gtField.gtFldOffset;
+                unsigned fldOffset     = field->gtFldOffset;
                 unsigned fieldLclIndex = lvaGetFieldLocal(varDsc, fldOffset);
                 noway_assert(fieldLclIndex != BAD_VAR_NUM);
 
+                const LclVarDsc* fieldDsc  = &lvaTable[fieldLclIndex];
+                var_types        fieldType = fieldDsc->TypeGet();
+
+                assert(fieldType != TYP_STRUCT); // promoted LCL_VAR can't have a struct type.
+                if (tree->TypeGet() != fieldType)
+                {
+                    if (tree->TypeGet() != TYP_STRUCT)
+                    {
+                        // This is going to be an incorrect instruction promotion.
+                        // For example when we try to read int as long.
+                        // Tolerate this case now to keep no asm difs in this PR.
+                        // TODO make a return.
+                    }
+#ifdef DEBUG
+                    if (tree->TypeGet() == TYP_STRUCT)
+                    {
+                        // The field tree accesses it as a struct, but the promoted lcl var for the field
+                        // says that it has another type. It can happen only if struct promotion faked
+                        // field type for a struct of single field of scalar type aligned at their natural boundary.
+                        assert(structPromotionHelper != nullptr);
+                        structPromotionHelper->CheckFakedType(field->gtFldHnd, fieldType);
+                    }
+#endif // DEBUG
+                }
+
                 tree->SetOper(GT_LCL_VAR);
                 tree->gtLclVarCommon.SetLclNum(fieldLclIndex);
-                tree->gtType = lvaTable[fieldLclIndex].TypeGet();
+                tree->gtType = fieldType;
                 tree->gtFlags &= GTF_NODE_MASK;
                 tree->gtFlags &= ~GTF_GLOB_REF;
 

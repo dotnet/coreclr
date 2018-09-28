@@ -3005,6 +3005,10 @@ public:
         lvaStructPromotionInfo* GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
         lvaStructPromotionInfo* GetStructPromotionInfo(unsigned lclNum);
 
+#ifdef DEBUG
+        void CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
+#endif // DEBUG
+
 #ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();
         void SetRequiresScratchVar();
@@ -3021,6 +3025,11 @@ public:
         typedef JitHashTable<CORINFO_CLASS_HANDLE, JitPtrKeyFuncs<CORINFO_CLASS_STRUCT_>, lvaStructPromotionInfo*>
                                          StructPromotionInfoForTypeHndMap;
         StructPromotionInfoForTypeHndMap promotionInfoMap;
+
+#ifdef DEBUG
+        typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types> FakedFieldsMap;
+        FakedFieldsMap fakedFieldsMap;
+#endif // DEBUG
     };
 
     StructPromotionHelper* structPromotionHelper;

@@ -1487,6 +1487,9 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
     , requiresScratchVar(false)
 #endif // _TARGET_ARM_
     , promotionInfoMap(compiler->getAllocator(CMK_StructPromotion))
+#ifdef DEBUG
+    , fakedFieldsMap(compiler->getAllocator(CMK_StructPromotion))
+#endif // DEBUG
 {
 }
 
@@ -1565,6 +1568,9 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
         {
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
+#ifdef DEBUG
+            fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+#endif // DEBUG
         }
     }
 #endif // FEATURE_SIMD
@@ -1732,6 +1738,9 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
                 // (tracked by #10019).
                 fieldInfo.fldType = fieldVarType;
                 fieldInfo.fldSize = fieldSize;
+#ifdef DEBUG
+                fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+#endif // DEBUG
             }
 
             if ((fieldInfo.fldOffset % fieldInfo.fldSize) != 0)
@@ -2122,6 +2131,14 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned                 
 #endif
     }
 }
+
+#ifdef DEBUG
+void Compiler::StructPromotionHelper::CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType)
+{
+    assert(fakedFieldsMap.Lookup(fieldHnd));
+    assert(fakedFieldsMap[fieldHnd] == requestedType);
+}
+#endif // DEBUG
 
 #if !defined(_TARGET_64BIT_)
 //------------------------------------------------------------------------
