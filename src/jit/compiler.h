@@ -3023,7 +3023,7 @@ public:
         StructPromotionInfoForTypeHndMap promotionInfoMap;
     };
 
-    StructPromotionHelper structPromotionHelper;
+    StructPromotionHelper* structPromotionHelper;
 
 #if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();

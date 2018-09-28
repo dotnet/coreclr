@@ -17064,10 +17064,11 @@ void Compiler::fgPromoteStructs()
         }
         else if (varTypeIsStruct(varDsc))
         {
-            if (structPromotionHelper.CanPromoteStructVar(lclNum))
+            assert(structPromotionHelper != nullptr);
+            if (structPromotionHelper->CanPromoteStructVar(lclNum))
             {
                 // Make one hashtable lookup here to use its result in several places below.
-                lvaStructPromotionInfo* structPromotionInfo = structPromotionHelper.GetStructPromotionInfo(lclNum);
+                lvaStructPromotionInfo* structPromotionInfo = structPromotionHelper->GetStructPromotionInfo(lclNum);
 
 #if 0
                 // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
@@ -17076,15 +17077,15 @@ void Compiler::fgPromoteStructs()
                 structPromoVarNum++;
                 if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
-                if (structPromotionHelper.ShouldPromoteStructVar(lclNum, structPromotionInfo))
+                if (structPromotionHelper->ShouldPromoteStructVar(lclNum, structPromotionInfo))
                 {
                     if (!structPromotionInfo->fieldsSorted)
                     {
-                        structPromotionHelper.SortStructFields(structPromotionInfo);
+                        structPromotionHelper->SortStructFields(structPromotionInfo);
                     }
 
                     // Promote the this struct local var.
-                    structPromotionHelper.PromoteStructVar(lclNum, structPromotionInfo);
+                    structPromotionHelper->PromoteStructVar(lclNum, structPromotionInfo);
                     promotedVar = true;
                 }
             }
@@ -17099,7 +17100,7 @@ void Compiler::fgPromoteStructs()
     }
 
 #ifdef _TARGET_ARM_
-    if (structPromotionHelper.GetRequiresScratchVar())
+    if (structPromotionHelper->GetRequiresScratchVar())
     {
         // Ensure that the scratch variable is allocated, in case we
         // pass a promoted struct as an argument.

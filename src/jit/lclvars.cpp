@@ -69,7 +69,7 @@ void Compiler::lvaInit()
     lvaArg0Var          = BAD_VAR_NUM;
     lvaMonAcquired      = BAD_VAR_NUM;
 
-    structPromotionHelper = StructPromotionHelper(this);
+    structPromotionHelper = new StructPromotionHelper(this);
 
     lvaInlineeReturnSpillTemp = BAD_VAR_NUM;
 
