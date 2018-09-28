@@ -2997,6 +2997,7 @@ public:
 
         bool CanPromoteStructVar(unsigned lclNum);
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
+        bool CanPromoteStructField(lvaStructFieldInfo& outerFieldInfo);
         bool ShouldPromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
 
         void SortStructFields(lvaStructPromotionInfo* structPromotionInfo);
