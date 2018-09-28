@@ -73,4 +73,6 @@ DEFINE_NFT(NFT_ILLEGAL,                     1,                      true)
 DEFINE_NFT(NFT_WINDOWSFOUNDATIONIREFERENCE, sizeof(IUnknown*),      true)  // Windows.Foundation.IReference`1 is marshaled to System.Nullable`1.
 #endif // FEATURE_COMINTEROP
 
+DEFINE_NFT(NFT_FIXEDBUFFER,                 0,                      true) // Inline fixed fields
+
 // Append new entries only at the end of the enum to avoid phone versioning break.

@@ -1370,6 +1370,10 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
             fieldType = ((FieldMarshaler_NestedValueClass *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
             break;
 
+        case NFT_FIXEDBUFFER:
+            fieldType = ((FieldMarshaler_FixedBuffer *)pFieldMarshaler)->GetMethodTable()->GetNativeHFAType();
+            break;
+
         case NFT_FIXEDARRAY:
             fieldType = ((FieldMarshaler_FixedArray *)pFieldMarshaler)->GetElementTypeHandle().GetMethodTable()->GetNativeHFAType();
             break;

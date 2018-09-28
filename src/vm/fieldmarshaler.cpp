@@ -657,7 +657,20 @@ do                                                      \
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    if (IsStructMarshalable(thNestedType))
+                    if (IsFixedBuffer(pfwalk->m_MD, pInternalImport))
+                    {
+                        ULONG classSize = 0;
+
+                        if (pInternalImport->GetClassTotalSize(thNestedType.GetMethodTable()->GetCl(), &classSize) >= 0)
+                        {
+                            INITFIELDMARSHALER(NFT_FIXEDBUFFER, FieldMarshaler_FixedBuffer, (classSize, thNestedType.GetMethodTable()));
+                        }
+                        else
+                        {
+                            INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_VALUETYPE));
+                        }
+                    }
+                    else if (IsStructMarshalable(thNestedType))
                     {
                         INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
                     }
@@ -1230,6 +1243,27 @@ BOOL IsStructMarshalable(TypeHandle th)
 
 
 //=======================================================================
+// This function returns TRUE if the field passed in is a fixed buffer.
+// In all other cases it will return FALSE. 
+//=======================================================================
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(pInternalImport != NULL);
+    }
+    CONTRACTL_END;
+
+    HRESULT hRESULT = pInternalImport->GetCustomAttributeByName(field, "System.Runtime.CompilerServices.FixedBufferAttribute", NULL, NULL);
+    return hRESULT == S_OK; 
+    return false;
+}
+
+
+//=======================================================================
 // Called from the clsloader to load up and summarize the field metadata
 // for layout classes.
 //
@@ -1456,7 +1490,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             if (pfwalk->m_nft == NFT_COPY1    ||
                 pfwalk->m_nft == NFT_COPY2    ||
                 pfwalk->m_nft == NFT_COPY4    ||
-                pfwalk->m_nft == NFT_COPY8)
+                pfwalk->m_nft == NFT_COPY8    ||
+                pfwalk->m_nft == NFT_FIXEDBUFFER)
             {
                 resetBlittable = FALSE;
             }
@@ -2972,6 +3007,32 @@ UINT32 FieldMarshaler_NestedValueClass::AlignmentRequirementImpl() const
     }
     CONTRACTL_END;
     
+    // this can't be marshalled as native type if no layout, so we allow the 
+    // native size info to be created if available, but the alignment will only
+    // be valid for native, not unions. Marshaller will throw exception if
+    // try to marshall a value class with no layout
+    if (GetMethodTable()->HasLayout())
+    {
+        UINT32  uAlignmentReq = GetMethodTable()->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
+        return uAlignmentReq;
+    }
+    return 1;
+}
+
+//=======================================================================
+// Fixed Buffer conversion.
+// See FieldMarshaler for details.
+//=======================================================================
+UINT32 FieldMarshaler_FixedBuffer::AlignmentRequirementImpl() const
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
     // this can't be marshalled as native type if no layout, so we allow the 
     // native size info to be created if available, but the alignment will only
     // be valid for native, not unions. Marshaller will throw exception if
@@ -4527,6 +4588,14 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
                                    GetFullyQualifiedNameForClassW(pMT));
         return;
     }
+    else if (cls == NFT_FIXEDBUFFER)
+    {
+        MethodTable *pMT = ((FieldMarshaler_FixedBuffer*)pFM)->GetMethodTable();
+        DefineFullyQualifiedNameForClassW();
+        strNStructFieldType.Printf(W("fixed buffer class %s"),
+            GetFullyQualifiedNameForClassW(pMT));
+        return;
+    }
     else if (cls == NFT_COPY1)
     {
         // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy1. 
@@ -4754,6 +4823,7 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_WINBOOL: rettype ((FieldMarshaler_WinBool*)this)->name##Impl args; break; \
         case NFT_NESTEDLAYOUTCLASS: rettype ((FieldMarshaler_NestedLayoutClass*)this)->name##Impl args; break; \
         case NFT_NESTEDVALUECLASS: rettype ((FieldMarshaler_NestedValueClass*)this)->name##Impl args; break; \
+        case NFT_FIXEDBUFFER: rettype ((FieldMarshaler_FixedBuffer*)this)->name##Impl args; break; \
         case NFT_CBOOL: rettype ((FieldMarshaler_CBool*)this)->name##Impl args; break; \
         case NFT_DATE: rettype ((FieldMarshaler_Date*)this)->name##Impl args; break; \
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
@@ -4797,6 +4867,7 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_WINBOOL: rettype ((FieldMarshaler_WinBool*)this)->name##Impl args; break; \
         case NFT_NESTEDLAYOUTCLASS: rettype ((FieldMarshaler_NestedLayoutClass*)this)->name##Impl args; break; \
         case NFT_NESTEDVALUECLASS: rettype ((FieldMarshaler_NestedValueClass*)this)->name##Impl args; break; \
+        case NFT_FIXEDBUFFER: rettype ((FieldMarshaler_FixedBuffer*)this)->name##Impl args; break; \
         case NFT_CBOOL: rettype ((FieldMarshaler_CBool*)this)->name##Impl args; break; \
         case NFT_DATE: rettype ((FieldMarshaler_Date*)this)->name##Impl args; break; \
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
