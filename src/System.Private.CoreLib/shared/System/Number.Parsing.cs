@@ -1186,7 +1186,7 @@ namespace System
             if ((styles & NumberStyles.AllowHexSpecifier) != 0)
             {
                 bool overflow = false;
-                return TryParseUInt64HexNumberStyle(value, styles,  out result, ref overflow);
+                return TryParseUInt64HexNumberStyle(value, styles, out result, ref overflow);
             }
 
             NumberBuffer number = default;

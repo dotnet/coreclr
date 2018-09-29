@@ -137,7 +137,7 @@ namespace System
             private string _failureMessageID;
             private object _failureMessageFormatArgument;
 
-            public GuidResult(GuidParseThrowStyle canThrow) : this()
+            internal GuidResult(GuidParseThrowStyle canThrow) : this()
             {
                 _throwStyle = canThrow;
             }
@@ -609,7 +609,6 @@ namespace System
 
             // Prepare for loop
             numLen++;
-            ref byte guidByteRef = ref result._parsedGuid._d;
             for (int i = 0; i < 8; i++)
             {
                 // Check for '0x'
@@ -656,10 +655,8 @@ namespace System
                         nameof(SR.Format_GuidInvalidChar));
                     return false;
                 }
-                guidByteRef = (byte)byteVal;
-                guidByteRef = ref Unsafe.Add(ref guidByteRef, 1);
+                Unsafe.Add(ref result._parsedGuid._d, i) = (byte)byteVal;
             }
-            Debug.Assert(Unsafe.AreSame(ref guidByteRef, ref Unsafe.Add(ref result._parsedGuid._k, 1)));
 
             // Check for last '}'
             if (numStart + numLen + 1 >= guidString.Length || guidString[numStart + numLen + 1] != '}')
