@@ -723,19 +723,19 @@ class FieldMarshaler_NestedValueClass : public FieldMarshaler
 {
 public:
     FieldMarshaler_NestedValueClass(MethodTable *pMT)
+        : m_isBuffer(FALSE),
+          m_numBufferElements(0)
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
-        m_isBuffer = FALSE;
-        m_numBufferElements = 0;
     }
 
     FieldMarshaler_NestedValueClass(MethodTable *pMT, LONG numBufferElements)
+        : m_isBuffer(TRUE),
+          m_numBufferElements(numBufferElements)
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
-        m_isBuffer = TRUE;
-        m_numBufferElements = numBufferElements;
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
