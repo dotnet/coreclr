@@ -2958,7 +2958,7 @@ public:
 
 #define MAX_NumOfFieldsInPromotableStruct 4 // Maximum number of fields in promotable struct
 
-    // Info about struct fields
+    // Info about struct type fields.
     struct lvaStructFieldInfo
     {
         CORINFO_FIELD_HANDLE fldHnd;
@@ -2969,33 +2969,76 @@ public:
         CORINFO_CLASS_HANDLE fldTypeHnd;
     };
 
-    // Info about struct to be promoted.
+    // Info about struct type to be promoted.
     struct lvaStructPromotionInfo
     {
-        CORINFO_CLASS_HANDLE typeHnd;
-        bool                 canPromote;
-        bool                 requiresScratchVar;
-        bool                 containsHoles;
-        bool                 customLayout;
-        unsigned char        fieldCnt;
-        lvaStructFieldInfo   fields[MAX_NumOfFieldsInPromotableStruct];
+        bool               canPromote;
+        bool               containsHoles;
+        bool               customLayout;
+        bool               fieldsSorted;
+        unsigned char      fieldCnt;
+        lvaStructFieldInfo fields[MAX_NumOfFieldsInPromotableStruct];
 
         lvaStructPromotionInfo()
-            : typeHnd(nullptr), canPromote(false), requiresScratchVar(false), containsHoles(false), customLayout(false)
+            : canPromote(false), containsHoles(false), customLayout(false), fieldsSorted(false), fieldCnt(0)
         {
+            memset(fields, 0, sizeof(fields));
         }
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    void lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
-    void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
-    bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
-    void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
+    // This class is responsible for checking possibility and profitability of struct promotion.
+    // If it decide to do promotion than it initializes nessesary information for fgMorphStructField to use.
+    class StructPromotionHelper
+    {
+    public:
+        StructPromotionHelper(Compiler* compiler);
+
+        bool CanPromoteStructVar(unsigned lclNum);
+        bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
+        bool CanPromoteStructField(lvaStructFieldInfo& outerFieldInfo);
+        bool ShouldPromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
+
+        void SortStructFields(lvaStructPromotionInfo* structPromotionInfo);
+        void PromoteStructVar(unsigned lclNum, const lvaStructPromotionInfo* structPromotionInfo);
+
+        lvaStructPromotionInfo* GetStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd);
+        lvaStructPromotionInfo* GetStructPromotionInfo(unsigned lclNum);
+
+#ifdef DEBUG
+        void CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
+#endif // DEBUG
+
+#ifdef _TARGET_ARM_
+        bool GetRequiresScratchVar();
+        void SetRequiresScratchVar();
+#endif // _TARGET_ARM_
+    private:
+        lvaStructFieldInfo GetFieldInfo(CORINFO_FIELD_HANDLE fieldHnd, BYTE ordinal);
+
+    private:
+        Compiler* compiler;
+
+#ifdef _TARGET_ARM_
+        bool requiresScratchVar;
+#endif // _TARGET_ARM_
+        typedef JitHashTable<CORINFO_CLASS_HANDLE, JitPtrKeyFuncs<CORINFO_CLASS_STRUCT_>, lvaStructPromotionInfo*>
+                                         StructPromotionInfoForTypeHndMap;
+        StructPromotionInfoForTypeHndMap promotionInfoMap;
+
+#ifdef DEBUG
+        typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types> FakedFieldsMap;
+        FakedFieldsMap fakedFieldsMap;
+#endif // DEBUG
+    };
+
+    StructPromotionHelper* structPromotionHelper;
+
 #if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();
 #endif // !defined(_TARGET_64BIT_)
-    unsigned lvaGetFieldLocal(LclVarDsc* varDsc, unsigned int fldOffset);
+    unsigned lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOffset);
     lvaPromotionType lvaGetPromotionType(const LclVarDsc* varDsc);
     lvaPromotionType lvaGetPromotionType(unsigned varNum);
     lvaPromotionType lvaGetParentPromotionType(const LclVarDsc* varDsc);
