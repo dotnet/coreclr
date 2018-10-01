@@ -481,7 +481,7 @@ namespace System
             if (text == null)
                 return default;
 
-            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), text.Length);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.GetRawStringData()), text.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -497,7 +497,7 @@ namespace System
             if ((uint)start > (uint)text.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
-            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), text.Length - start);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.GetRawStringData()), text.Length - start);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -513,7 +513,7 @@ namespace System
             if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
-            return new ReadOnlySpan<Utf8Char>(ref Unsafe.Add(ref Unsafe.As<byte, Utf8Char>(ref text.DangerousGetMutableReference()), start), length);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.Add(ref Unsafe.As<byte, Utf8Char>(ref text.GetRawStringData()), start), length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -673,6 +673,44 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
             return new ReadOnlyMemory<Utf8Char>(text, start, length);
+        }
+
+        public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String text)
+        {
+            if (text == null)
+                return default;
+
+            return new ReadOnlyMemory<byte>(text, 0, text.Length);
+        }
+
+        public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String text, int start)
+        {
+            if (text == null)
+            {
+                if (start != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                return default;
+            }
+
+            if ((uint)start > (uint)text.Length)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            return new ReadOnlyMemory<byte>(text, start, text.Length - start);
+        }
+
+        public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String text, int start, int length)
+        {
+            if (text == null)
+            {
+                if (start != 0 || length != 0)
+                    ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+                return default;
+            }
+
+            if ((uint)start > (uint)text.Length || (uint)length > (uint)(text.Length - start))
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
+
+            return new ReadOnlyMemory<byte>(text, start, length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

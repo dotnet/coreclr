@@ -67,12 +67,12 @@ namespace System
         public static implicit operator ReadOnlySpan<Utf8Char>(Utf8String value) => value.AsSpan();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Span<byte> AsMutableSpan() => MemoryMarshal.CreateSpan(ref DangerousGetMutableReference(), _length);
+        private Span<byte> AsMutableSpan() => MemoryMarshal.CreateSpan(ref GetRawStringData(), _length);
 
         // Similar to the AsSpan() extension method, but doesn't map a null 'this' to the empty ROS.
         // Instead, null 'this' is observed as a null reference exception.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ReadOnlySpan<byte> AsSpanFast() => MemoryMarshal.CreateReadOnlySpan(ref DangerousGetMutableReference(), Length);
+        internal ReadOnlySpan<byte> AsSpanFast() => MemoryMarshal.CreateReadOnlySpan(ref GetRawStringData(), Length);
 
         public static Utf8String Concat(Utf8String str0, Utf8String str1)
         {
@@ -260,7 +260,7 @@ namespace System
         /// Returns a mutable ref byte pointing to the internal null-terminated UTF-8 data.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal ref byte DangerousGetMutableReference() => ref Unsafe.AsRef(in _firstByte);
+        internal ref byte GetRawStringData() => ref Unsafe.AsRef(in _firstByte);
 
         public bool EndsWith(UnicodeScalar value)
         {
@@ -273,7 +273,7 @@ namespace System
             // Common case is looking for an ASCII value (one UTF-8 code unit), so try that now
             // optimistically.
 
-            if (Unsafe.Add(ref DangerousGetMutableReference(), Length) == value.Value)
+            if (Unsafe.Add(ref GetRawStringData(), Length) == value.Value)
             {
                 return true; // match!
             }
@@ -637,7 +637,7 @@ namespace System
 
         private int IndexOf_Ascii_NoBoundsChecks(byte value, int startIndex, int count)
         {
-            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), value, count);
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref GetRawStringData(), startIndex), value, count);
         }
 
         private int IndexOf_Char_NoBoundsChecks(char value, int startIndex, int count)
@@ -666,7 +666,7 @@ namespace System
         {
             Span<byte> valueAsUtf8 = stackalloc byte[4]; // worst possible output case
             int utf8CodeUnitCount = value.ToUtf8(valueAsUtf8);
-            return SpanHelpers.IndexOf(ref Unsafe.Add(ref DangerousGetMutableReference(), startIndex), count, ref MemoryMarshal.GetReference(valueAsUtf8), utf8CodeUnitCount);
+            return SpanHelpers.IndexOf(ref Unsafe.Add(ref GetRawStringData(), startIndex), count, ref MemoryMarshal.GetReference(valueAsUtf8), utf8CodeUnitCount);
         }
 
         public static bool IsEmptyOrWhiteSpace(ReadOnlySpan<byte> value)

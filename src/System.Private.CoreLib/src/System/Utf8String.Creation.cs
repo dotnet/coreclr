@@ -281,7 +281,7 @@ namespace System
                 Debug.Assert(_value.Length == source.Length, "Constructor created Utf8String instance with incorrect size.");
 
                 Buffer.Memmove(
-                    destination: ref _value.DangerousGetMutableReference(),
+                    destination: ref _value.GetRawStringData(),
                     source: ref MemoryMarshal.GetReference(source),
                     elementCount: (nuint)source.Length);
             }
@@ -428,7 +428,7 @@ namespace System
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public Span<byte> GetSpan()
             {
-                return MemoryMarshal.CreateSpan(ref _value.DangerousGetMutableReference(), _value._length);
+                return MemoryMarshal.CreateSpan(ref _value.GetRawStringData(), _value._length);
             }
         }
     }

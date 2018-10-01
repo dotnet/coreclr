@@ -134,6 +134,8 @@ namespace System
             }
             else if (typeof(T) == typeof(Utf8Char))
             {
+                // Note: We don't call ToString below if typeof(T) == typeof(byte), since we're trying to draw a distinction
+                // between textual data and binary data (that may happen to represent textual data).
                 return Span.ToString();
             }
             return string.Format("System.ReadOnlyMemory<{0}>[{1}]", typeof(T).Name, _length);
@@ -207,10 +209,10 @@ namespace System
                         refToReturn = ref Unsafe.As<char, T>(ref Unsafe.As<string>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<string>(tmpObject).Length;
                     }
-                    else if (typeof(T) == typeof(Utf8Char) && tmpObject.GetType() == typeof(Utf8String))
+                    else if (MayRepresentUtf8 && tmpObject.GetType() == typeof(Utf8String))
                     {
-                        // Special-case Utf8String since it's the most common for ROM<Utf8Char>.
-                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Utf8String>(tmpObject).DangerousGetMutableReference());
+                        // Special-case Utf8String if we may contain UTF-8 data.
+                        refToReturn = ref Unsafe.As<byte, T>(ref Unsafe.As<Utf8String>(tmpObject).GetRawStringData());
                         lengthOfUnderlyingSpan = Unsafe.As<Utf8String>(tmpObject).Length;
                     }
                     else if (RuntimeHelpers.ObjectHasComponentSize(tmpObject))
@@ -296,10 +298,16 @@ namespace System
             object tmpObject = _object;
             if (tmpObject != null)
             {
-                if (typeof(T) == typeof(char) && tmpObject is string s)
+                if (typeof(T) == typeof(char) && tmpObject.GetType() == typeof(string))
                 {
                     GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
-                    ref char stringData = ref Unsafe.Add(ref s.GetRawStringData(), _index);
+                    ref char stringData = ref Unsafe.Add(ref Unsafe.As<string>(tmpObject).GetRawStringData(), _index);
+                    return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
+                }
+                else if (MayRepresentUtf8 && tmpObject.GetType() == typeof(Utf8String))
+                {
+                    GCHandle handle = GCHandle.Alloc(tmpObject, GCHandleType.Pinned);
+                    ref byte stringData = ref Unsafe.Add(ref Unsafe.As<Utf8String>(tmpObject).GetRawStringData(), _index);
                     return new MemoryHandle(Unsafe.AsPointer(ref stringData), handle);
                 }
                 else if (tmpObject is T[] array)
@@ -393,5 +401,9 @@ namespace System
             length = _length;
             return _object;
         }
+
+        // Returns true iff this Memory<T> / ROM<T> instance may represent UTF-8 data.
+        // JIT should elide this entire method into a single true / false.
+        private static bool MayRepresentUtf8 => typeof(T) == typeof(byte) || typeof(T) == typeof(Utf8Char);
     }
 }
