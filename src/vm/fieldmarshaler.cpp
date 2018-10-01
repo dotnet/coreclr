@@ -1510,14 +1510,6 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
                 resetBlittable = FALSE;
             }
 
-            if (pfwalk->m_nft == NFT_FIXEDBUFFER)
-            {
-                FieldMarshaler *pFM = (FieldMarshaler*)&(pfwalk->m_FieldMarshaler);
-
-                if (((FieldMarshaler_FixedBuffer *)pFM)->IsBlittable())
-                    resetBlittable = FALSE;
-            }
-
             // Or if it's a nested value class that is itself blittable...
             if (pfwalk->m_nft == NFT_NESTEDVALUECLASS)
             {
@@ -3165,32 +3157,6 @@ UINT32 FieldMarshaler_NestedValueClass::AlignmentRequirementImpl() const
     return 1;
 }
 
-//=======================================================================
-// Fixed Buffer conversion.
-// See FieldMarshaler for details.
-//=======================================================================
-UINT32 FieldMarshaler_FixedBuffer::AlignmentRequirementImpl() const
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    // this can't be marshalled as native type if no layout, so we allow the 
-    // native size info to be created if available, but the alignment will only
-    // be valid for native, not unions. Marshaller will throw exception if
-    // try to marshall a value class with no layout
-    if (GetMethodTable()->HasLayout())
-    {
-        UINT32  uAlignmentReq = GetMethodTable()->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
-        return uAlignmentReq;
-    }
-    return 1;
-}
-
 
 #ifndef CROSSGEN_COMPILE
 
@@ -4734,14 +4700,6 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
                                    GetFullyQualifiedNameForClassW(pMT));
         return;
     }
-    else if (cls == NFT_FIXEDBUFFER)
-    {
-        MethodTable *pMT = ((FieldMarshaler_FixedBuffer*)pFM)->GetMethodTable();
-        DefineFullyQualifiedNameForClassW();
-        strNStructFieldType.Printf(W("fixed buffer class %s"),
-            GetFullyQualifiedNameForClassW(pMT));
-        return;
-    }
     else if (cls == NFT_COPY1)
     {
         // The following CorElementTypes are the only ones handled with FieldMarshaler_Copy1. 
@@ -4969,7 +4927,6 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_WINBOOL: rettype ((FieldMarshaler_WinBool*)this)->name##Impl args; break; \
         case NFT_NESTEDLAYOUTCLASS: rettype ((FieldMarshaler_NestedLayoutClass*)this)->name##Impl args; break; \
         case NFT_NESTEDVALUECLASS: rettype ((FieldMarshaler_NestedValueClass*)this)->name##Impl args; break; \
-        case NFT_FIXEDBUFFER: rettype ((FieldMarshaler_FixedBuffer*)this)->name##Impl args; break; \
         case NFT_CBOOL: rettype ((FieldMarshaler_CBool*)this)->name##Impl args; break; \
         case NFT_DATE: rettype ((FieldMarshaler_Date*)this)->name##Impl args; break; \
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
@@ -5013,7 +4970,6 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_WINBOOL: rettype ((FieldMarshaler_WinBool*)this)->name##Impl args; break; \
         case NFT_NESTEDLAYOUTCLASS: rettype ((FieldMarshaler_NestedLayoutClass*)this)->name##Impl args; break; \
         case NFT_NESTEDVALUECLASS: rettype ((FieldMarshaler_NestedValueClass*)this)->name##Impl args; break; \
-        case NFT_FIXEDBUFFER: rettype ((FieldMarshaler_FixedBuffer*)this)->name##Impl args; break; \
         case NFT_CBOOL: rettype ((FieldMarshaler_CBool*)this)->name##Impl args; break; \
         case NFT_DATE: rettype ((FieldMarshaler_Date*)this)->name##Impl args; break; \
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
