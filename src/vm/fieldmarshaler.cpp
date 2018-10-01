@@ -1254,9 +1254,11 @@ BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport, LONG* p
     BYTE* pData;
     LONG cData;
 
-    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    HRESULT hr;
 
-    if (SUCCEEDED(hr) && cData != 0)
+    IfFailGo(pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, (const VOID **)(&pData), (ULONG *)&cData));
+
+    if (hr == S_OK && cData != 0)
     {
         CustomAttributeParser ca(pData, cData);
 
@@ -1270,8 +1272,6 @@ BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport, LONG* p
 
         return TRUE;
     }
-
-    return hr == S_OK ? TRUE : FALSE;
 
 ErrExit:
     return FALSE;
