@@ -2888,6 +2888,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 if (architecture == 'armem') {
                     return false
                 }
+                // Currently, we don't support pmi_asm_diffs for Windows arm/arm64. Is is not in validArmWindowsScenarios.
+                if ((os == 'Windows_NT') && (architecture == 'arm' || architecture == 'arm64')) {
+                    return false
+                }
                 break
             default:
                 println("Unknown scenario: ${scenario}")
