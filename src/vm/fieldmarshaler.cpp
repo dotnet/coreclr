@@ -1274,7 +1274,7 @@ BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport, LONG* p
     return hr == S_OK ? TRUE : FALSE;
 
 ErrExit:
-    return hr;
+    return FALSE;
 }
 
 
