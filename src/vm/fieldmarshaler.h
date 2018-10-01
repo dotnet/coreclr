@@ -121,7 +121,7 @@ BOOL IsStructMarshalable(TypeHandle th);
 // This function returns TRUE if the field passed in is a fixed buffer.
 // In all other cases it will return FALSE. 
 //=======================================================================
-BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport);
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport* pInternalImport, LONG* pNumBufferElements);
 
 //=======================================================================
 // The classloader stores an intermediate representation of the layout
@@ -175,6 +175,9 @@ struct LayoutRawFieldInfo
 VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE* pNativeData, OBJECTREF *ppCleanupWorkListOnStack);
 VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData);
 VOID LayoutDestroyNative(LPVOID pNative, MethodTable *pMT);
+
+VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE* pNativeData, LONG numBufferElements, OBJECTREF *ppCleanupWorkListOnStack);
+VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData, LONG numBufferElements);
 
 VOID FmtClassUpdateNative(OBJECTREF *ppProtectedManagedData, BYTE *pNativeData, OBJECTREF *ppCleanupWorkListOnStack);
 VOID FmtClassUpdateCLR(OBJECTREF *ppProtectedManagedData, BYTE *pNativeData);
@@ -723,6 +726,16 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
+        m_isBuffer = FALSE;
+        m_numBufferElements = 0;
+    }
+
+    FieldMarshaler_NestedValueClass(MethodTable *pMT, LONG numBufferElements)
+    {
+        WRAPPER_NO_CONTRACT;
+        m_pNestedMethodTable.SetValueMaybeNull(pMT);
+        m_isBuffer = TRUE;
+        m_numBufferElements = numBufferElements;
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
@@ -770,6 +783,8 @@ public:
     START_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
     {
         pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
+        pDestFieldMarshaller->m_isBuffer = m_isBuffer;
+        pDestFieldMarshaller->m_numBufferElements = m_numBufferElements;
     }
     END_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
 
@@ -802,10 +817,23 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
+    LONG GetNumBufferElements() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_numBufferElements;
+    }
+
+    BOOL IsBuffer() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_isBuffer;
+    }
 
 private:
     // MethodTable of nested NStruct.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+    BOOL m_isBuffer;
+    LONG m_numBufferElements;
 };
 
 
