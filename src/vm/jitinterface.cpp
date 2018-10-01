@@ -6776,6 +6776,17 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE_CALLER;
     }
 
+    // Check for the aggressive optimization directive. AggressiveOptimization only makes sense for IL methods.
+    DWORD ilMethodImplAttribs = 0;
+    if (pMD->IsIL())
+    {
+        ilMethodImplAttribs = pMD->GetImplAttrs();
+        if (IsMiAggressiveOptimization(ilMethodImplAttribs))
+        {
+            result |= CORINFO_FLG_AGGRESSIVE_OPT;
+        }
+    }
+
     // Check for an inlining directive.
     if (pMD->IsNotInline())
     {
@@ -6783,7 +6794,7 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE;
     }
     // AggressiveInlining only makes sense for IL methods.
-    else if (pMD->IsIL() && IsMiAggressiveInlining(pMD->GetImplAttrs()))
+    else if (pMD->IsIL() && IsMiAggressiveInlining(ilMethodImplAttribs))
     {
         result |= CORINFO_FLG_FORCEINLINE;
     }
@@ -12439,10 +12450,6 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
          if (IsMiNoOptimization(dwImplFlags))
          {
              flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MIN_OPT);
-         }
-         else if (IsMiAggressiveOptimization(dwImplFlags))
-         {
-             flags.Set(CORJIT_FLAGS::CORJIT_FLAG_AGGRESSIVE_OPT);
          }
 
          // Always emit frames for methods marked no-inline (see #define ETW_EBP_FRAMED in the JIT)

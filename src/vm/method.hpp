@@ -1273,7 +1273,7 @@ public:
 
         DWORD dwImplFlags = 0;
         return
-            !IsNoMetadata() &&
+            IsIL() && // only makes sense for IL methods, and this implies !IsNoMetadata()
             SUCCEEDED(GetMDImport()->GetMethodImplProps(GetMemberDef(), NULL, &dwImplFlags)) &&
             IsMiAggressiveOptimization(dwImplFlags);
     }
