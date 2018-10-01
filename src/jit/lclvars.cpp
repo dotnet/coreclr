@@ -1481,7 +1481,7 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
     }
 }
 
-Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler) : compiler(compiler)
+Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler) : compiler(compiler), structPromotionInfo()
 {
 }
 
@@ -1503,8 +1503,8 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler) : com
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
-    NYI("Will be implemented later.");
-    return false;
+    compiler->lvaCanPromoteStructType(typeHnd, &structPromotionInfo);
+    return structPromotionInfo.canPromote;
 }
 
 //--------------------------------------------------------------------------------------------
@@ -1518,7 +1518,46 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
 //
 bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 {
-    NYI("Will be implemented later.");
+    bool shouldPromote;
+
+    compiler->lvaCanPromoteStructVar(lclNum, &structPromotionInfo);
+    if (structPromotionInfo.canPromote)
+    {
+        shouldPromote = compiler->lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
+    }
+    else
+    {
+        shouldPromote = false;
+    }
+
+#if 0
+    // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
+    // method, this allows you to select a subset of the vars to promote (by 1-based ordinal number).
+    static int structPromoVarNum = 0;
+    structPromoVarNum++;
+    if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
+#endif // 0
+
+    if (shouldPromote)
+    {
+        // Promote the this struct local var.
+        compiler->lvaPromoteStructVar(lclNum, &structPromotionInfo);
+
+#ifdef _TARGET_ARM_
+        if (structPromotionInfo.requiresScratchVar)
+        {
+            // Ensure that the scratch variable is allocated, in case we
+            // pass a promoted struct as an argument.
+            if (compiler->lvaPromotedStructAssemblyScratchVar == BAD_VAR_NUM)
+            {
+                compiler->lvaPromotedStructAssemblyScratchVar =
+                    compiler->lvaGrabTempWithImplicitUse(false DEBUGARG("promoted struct assembly scratch var."));
+                compiler->lvaTable[compiler->lvaPromotedStructAssemblyScratchVar].lvType = TYP_I_IMPL;
+            }
+        }
+#endif // _TARGET_ARM_
+        return true;
+    }
     return false;
 }
 

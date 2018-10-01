@@ -3002,7 +3002,8 @@ public:
         bool TryPromoteStructVar(unsigned lclNum);
 
     private:
-        Compiler* compiler;
+        Compiler*              compiler;
+        lvaStructPromotionInfo structPromotionInfo;
     };
 
     StructPromotionHelper* structPromotionHelper;
