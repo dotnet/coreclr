@@ -2374,7 +2374,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     if (scenario == 'pmi_asm_diffs') {
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration}"
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
 
                         // ZIP up the asm
                         buildCommands += "zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm"
@@ -2544,7 +2544,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     else if (scenario == 'pmi_asm_diffs') {
                         // Pass `-skip_diffs` -- the actual diffs will be done on an arm machine in the test job. This is the build job.
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
-                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -skip_diffs True"
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_diffs True"
 
                         // ZIP what we created.
                         buildCommands += "zip -r coreroot.${os}.${architecture}.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
