@@ -3484,8 +3484,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 if (isUbuntuArmJob) {
                     if (isPmiAsmDiffsScenario) {
                         // TODO: add back "-q" when we know it works
-                        shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0"
-                        shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0"
+                        shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                        shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
                     }
                     else {
                         if (architecture == 'arm') {
