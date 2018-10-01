@@ -2098,10 +2098,8 @@ VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
 
     FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
 
-    OBJECTREF pCLRValue = NULL;
     LPVOID scalar = NULL;
 
-    GCPROTECT_BEGIN(pCLRValue)
     GCPROTECT_BEGININTERIOR(scalar)
     {
         g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
@@ -2129,6 +2127,52 @@ VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
         }
     }
     GCPROTECT_END();
+}
+
+VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData, LONG numBufferElements)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pMT));
+    }
+    CONTRACTL_END;
+
+    // Don't try to destroy/free native the structure on exception, we may not own it. If we do own it and
+    // are supposed to destroy/free it, we do it upstack (e.g. in a helper called from the marshaling stub).
+
+    FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
+    UINT  numReferenceFields = pMT->GetLayoutInfo()->GetNumCTMFields();
+
+    LPVOID scalar = NULL;
+
+    GCPROTECT_BEGININTERIOR(scalar)
+    {
+        g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
+        pFM->Restore();
+
+        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
+        DWORD externalOffset = pFM->GetExternalOffset();
+
+        while (numBufferElements--)
+        {
+            if (pFM->IsScalarMarshaler())
+            {
+                scalar = (LPVOID)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
+                // Note this will throw for FieldMarshaler_Illegal
+                pFM->ScalarUpdateCLR(pNativeData + externalOffset, scalar);
+            }
+            // Note this case is unused unless dotnet/csharplang#1314 is implemented.
+            else if (pFM->IsNestedValueClassMarshaler())
+            {
+                pFM->NestedValueClassUpdateCLR(pNativeData + externalOffset, ppProtectedManagedData, internalOffset + offsetbias);
+            }
+            internalOffset += pFM->GetFieldDesc()->GetSize();
+            externalOffset += pFM->NativeSize();
+        }
+    }
     GCPROTECT_END();
 }
 
@@ -2266,63 +2310,6 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
-        }
-    }
-    GCPROTECT_END();
-    GCPROTECT_END();
-}
-
-VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData, LONG numBufferElements)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        PRECONDITION(CheckPointer(pMT));
-    }
-    CONTRACTL_END;
-
-    // Don't try to destroy/free native the structure on exception, we may not own it. If we do own it and
-    // are supposed to destroy/free it, we do it upstack (e.g. in a helper called from the marshaling stub).
-
-    FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
-    UINT  numReferenceFields = pMT->GetLayoutInfo()->GetNumCTMFields();
-
-    struct _gc
-    {
-        OBJECTREF pCLRValue;
-        OBJECTREF pOldCLRValue;
-    } gc;
-
-    gc.pCLRValue = NULL;
-    gc.pOldCLRValue = NULL;
-    LPVOID scalar = NULL;
-
-    GCPROTECT_BEGIN(gc)
-    GCPROTECT_BEGININTERIOR(scalar)
-    {
-        g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
-        pFM->Restore();
-
-        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
-        DWORD externalOffset = pFM->GetExternalOffset();
-
-        while (numBufferElements--)
-        {
-            if (pFM->IsScalarMarshaler())
-            {
-                scalar = (LPVOID)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
-                // Note this will throw for FieldMarshaler_Illegal
-                pFM->ScalarUpdateCLR(pNativeData + externalOffset, scalar);
-            }
-            // Note this case is unused unless dotnet/csharplang#1314 is implemented.
-            else if (pFM->IsNestedValueClassMarshaler())
-            {
-                pFM->NestedValueClassUpdateCLR(pNativeData + externalOffset, ppProtectedManagedData, internalOffset + offsetbias);
-            }
-            internalOffset += pFM->GetFieldDesc()->GetSize();
-            externalOffset += pFM->NativeSize();
         }
     }
     GCPROTECT_END();
