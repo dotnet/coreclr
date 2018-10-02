@@ -3399,8 +3399,9 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             }
 
             if (isPmiAsmDiffsScenario) {
-                shell("unzip -q -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                shell("unzip -q -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                // TODO: add back "-q" when we know it works
+                shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
             }
             // CoreFX testing downloads the CoreFX tests, not the coreclr tests. Also, unzip the built CoreFX layout/runtime directories.
             else if (doCoreFxTesting) {
@@ -3422,12 +3423,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // copied correctly.
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
-                    if (isPmiAsmDiffsScenario) {
-                        // TODO: add back "-q" when we know it works
-                        shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                        shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
-                    }
-                    else {
+                    if (!isPmiAsmDiffsScenario) {
                         if (architecture == 'arm') {
                             shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
                             shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
@@ -3912,12 +3908,13 @@ Constants.allScenarios.each { scenario ->
                     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
                     def doCoreFxTesting = isCoreFxScenario(scenario)
                     def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
+                    def isPmiAsmDiffsScenario = (scenario == 'pmi_asm_diffs')
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
                     def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
                     def inputCoreCLRBuildIsBuildOnly = false
-                    if (doCoreFxTesting) {
+                    if (doCoreFxTesting || isPmiAsmDiffsScenario) {
                         // Every CoreFx test depends on its own unique build.
                         inputCoreCLRBuildScenario = scenario
                         if (windowsArmJob) {
@@ -3925,7 +3922,7 @@ Constants.allScenarios.each { scenario ->
                             inputCoreCLRBuildIsBuildOnly = true
                         }
                     }
-                    if (doCrossGenComparison) {
+                    else if (doCrossGenComparison) {
                         inputCoreCLRBuildScenario = scenario
                     }
 
