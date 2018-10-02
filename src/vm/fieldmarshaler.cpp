@@ -2108,8 +2108,8 @@ VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
         g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
         pFM->Restore();
 
-        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
-        DWORD externalOffset = pFM->GetExternalOffset();
+        ULONG internalOffset = pFM->GetFieldDesc()->GetOffset();
+        ULONG externalOffset = pFM->GetExternalOffset();
 
         while (numBufferElements--)
         {
@@ -2127,6 +2127,10 @@ VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             }
             internalOffset += pFM->GetFieldDesc()->GetSize();
             externalOffset += pFM->NativeSize();
+#ifdef _DEBUG
+            _ASSERTE(internalOffset <= pMT->GetLayoutInfo()->GetManagedSize());
+            _ASSERTE(externalOffset <= (ULONG)pMT->GetLayoutInfo()->GetNativeSize());
+#endif
         }
     }
     GCPROTECT_END();
@@ -2156,8 +2160,8 @@ VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
         g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
         pFM->Restore();
 
-        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
-        DWORD externalOffset = pFM->GetExternalOffset();
+        ULONG internalOffset = pFM->GetFieldDesc()->GetOffset();
+        ULONG externalOffset = pFM->GetExternalOffset();
 
         while (numBufferElements--)
         {
@@ -2174,6 +2178,10 @@ VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             }
             internalOffset += pFM->GetFieldDesc()->GetSize();
             externalOffset += pFM->NativeSize();
+#ifdef _DEBUG
+            _ASSERTE(internalOffset <= pMT->GetLayoutInfo()->GetManagedSize());
+            _ASSERTE(externalOffset <= (ULONG)pMT->GetLayoutInfo()->GetNativeSize());
+#endif
         }
     }
     GCPROTECT_END();
