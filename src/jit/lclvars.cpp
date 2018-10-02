@@ -1524,7 +1524,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
             structPromoVarNum++;
             if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
-        if (compiler->lvaShouldPromoteStructVar(lclNum, &structPromotionInfo))
+        if (ShouldPromoteStructVar(lclNum))
         {
             // Promote the this struct local var.
             compiler->lvaPromoteStructVar(lclNum, &structPromotionInfo);
@@ -1887,23 +1887,24 @@ bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 }
 
 //--------------------------------------------------------------------------------------------
-// lvaShouldPromoteStructVar - Should a struct var be promoted if it can be promoted?
+// ShouldPromoteStructVar - Should a struct var be promoted if it can be promoted?
 // This routine mainly performs profitability checks.  Right now it also has
 // some correctness checks due to limitations of down-stream phases.
 //
 // Arguments:
-//   lclNum               -   Struct local number
-//   structPromotionInfo  -   In Parameter; struct promotion information
+//   lclNum - struct local number;
 //
-// Returns
-//   true if the struct should be promoted
-bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+// Return value:
+//   true if the struct should be promoted.
+//
+bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned lclNum)
 {
-    assert(lclNum < lvaCount);
-    assert(structPromotionInfo->canPromote);
+    assert(lclNum < compiler->lvaCount);
 
-    LclVarDsc* varDsc = &lvaTable[lclNum];
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
     assert(varTypeIsStruct(varDsc));
+    assert(varDsc->lvVerTypeInfo.GetClassHandle() == structPromotionInfo.typeHnd);
+    assert(structPromotionInfo.canPromote);
 
     bool shouldPromote = true;
 
@@ -1924,10 +1925,10 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
     // passed as a parameter or assigned the return value of a call. Because once promoted,
     // struct copying is done by field by field assignment instead of a more efficient
     // rep.stos or xmm reg based copy.
-    if (structPromotionInfo->fieldCnt > 3 && !varDsc->lvFieldAccessed)
+    if (structPromotionInfo.fieldCnt > 3 && !varDsc->lvFieldAccessed)
     {
         JITDUMP("Not promoting promotable struct local V%02u: #fields = %d, fieldAccessed = %d.\n", lclNum,
-                structPromotionInfo->fieldCnt, varDsc->lvFieldAccessed);
+                structPromotionInfo.fieldCnt, varDsc->lvFieldAccessed);
         shouldPromote = false;
     }
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_) || defined(_TARGET_ARM_)
@@ -1940,20 +1941,20 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
     // Promoting it can cause us to shuffle it back and forth between the int and
     //  the float regs when it is used as a argument, which is very expensive for XARCH
     //
-    else if ((structPromotionInfo->fieldCnt == 1) && varTypeIsFloating(structPromotionInfo->fields[0].fldType))
+    else if ((structPromotionInfo.fieldCnt == 1) && varTypeIsFloating(structPromotionInfo.fields[0].fldType))
     {
         JITDUMP("Not promoting promotable struct local V%02u: #fields = %d because it is a struct with "
                 "single float field.\n",
-                lclNum, structPromotionInfo->fieldCnt);
+                lclNum, structPromotionInfo.fieldCnt);
         shouldPromote = false;
     }
 #endif // _TARGET_AMD64_ || _TARGET_ARM64_ || _TARGET_ARM_
-    else if (varDsc->lvIsParam && !lvaIsImplicitByRefLocal(lclNum))
+    else if (varDsc->lvIsParam && !compiler->lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
         // multiple registers?
-        if ((structPromotionInfo->fieldCnt != 2) && lvaIsMultiregStruct(varDsc, this->info.compIsVarArgs))
+        if ((structPromotionInfo.fieldCnt != 2) && compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
         {
             JITDUMP("Not promoting multireg struct local V%02u, because lvIsParam is true and #fields != 2\n", lclNum);
             shouldPromote = false;
@@ -1967,11 +1968,11 @@ bool Compiler::lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo
             //             byte parameters to the stack, so that if we have a byte field
             //             with something else occupying the same 4-byte slot, it will
             //             overwrite other fields.
-            if (structPromotionInfo->fieldCnt != 1)
+            if (structPromotionInfo.fieldCnt != 1)
         {
             JITDUMP("Not promoting promotable struct local V%02u, because lvIsParam is true and #fields = "
                     "%d.\n",
-                    lclNum, structPromotionInfo->fieldCnt);
+                    lclNum, structPromotionInfo.fieldCnt);
             shouldPromote = false;
         }
     }

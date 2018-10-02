@@ -3006,6 +3006,7 @@ public:
 
     private:
         bool CanPromoteStructVar(unsigned lclNum);
+        bool ShouldPromoteStructVar(unsigned lclNum);
 
     private:
         Compiler*              compiler;
@@ -3018,7 +3019,6 @@ public:
 
     StructPromotionHelper* structPromotionHelper;
 
-    bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
     void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 #if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();
