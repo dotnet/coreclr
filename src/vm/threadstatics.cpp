@@ -563,7 +563,6 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
 
         if (pMT->Collectible() && (dwStaticBytes != 0))
         {
-            GCX_COOP();
             OBJECTREF nongcStaticsArray = NULL;
             GCPROTECT_BEGIN(nongcStaticsArray);
 #ifdef FEATURE_64BIT_ALIGNMENT
@@ -589,7 +588,6 @@ void    ThreadLocalModule::AllocateDynamicClass(MethodTable *pMT)
             }
             else
             {
-                GCX_COOP();
                 OBJECTREF gcStaticsArray = NULL;
                 GCPROTECT_BEGIN(gcStaticsArray);
                 gcStaticsArray = AllocateObjectArray(dwNumHandleStatics, g_pObjectClass);
