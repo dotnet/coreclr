@@ -866,7 +866,7 @@ def setup_args(args):
         if test_location[-1] == os.path.sep:
             test_location = test_location[:-1]
 
-        if test_location != default_test_location and os.path.isdir(default_test_location):
+        if test_location.lower() != default_test_location.lower() and os.path.isdir(default_test_location):
             # Remove the existing directory if there is one.
             shutil.rmtree(default_test_location)
 
@@ -1902,7 +1902,7 @@ def do_setup(host_os,
     if host_os != "Windows_NT":
         copy_native_test_bin_to_core_root(host_os, os.path.join(test_native_bin_location, "src"), core_root)
 
-    correct_line_endings(host_os, test_location)
+        correct_line_endings(host_os, test_location)
 
     if unprocessed_args.build_test_wrappers:
         build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)

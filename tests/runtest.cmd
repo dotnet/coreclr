@@ -7,14 +7,18 @@ set "__MsgPrefix=RUNTEST: "
 
 set __ThisScriptDir="%~dp0"
 
-call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
-if NOT '%ERRORLEVEL%' == '0' exit /b 1
+if not "%__BuildArch%"=="arm64" (
+    if not "%__BuildArch%"=="arm" (
+        call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
+        if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
-if defined VS150COMNTOOLS (
-    set __VSVersion=vs2017
-) else (
-    set __VSVersion=vs2015
-)
+        if defined VS150COMNTOOLS (
+            set __VSVersion=vs2017
+        ) else (
+            set __VSVersion=vs2015
+        )
+    )
+)   
 
 :: Set the default arguments
 set __BuildArch=x64
