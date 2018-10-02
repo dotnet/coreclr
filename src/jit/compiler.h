@@ -2958,7 +2958,7 @@ public:
 
 #define MAX_NumOfFieldsInPromotableStruct 4 // Maximum number of fields in promotable struct
 
-    // Info about struct fields
+    // Info about struct type fields.
     struct lvaStructFieldInfo
     {
         CORINFO_FIELD_HANDLE fldHnd;
@@ -2969,7 +2969,7 @@ public:
         CORINFO_CLASS_HANDLE fldTypeHnd;
     };
 
-    // Info about struct to be promoted.
+    // Info about struct type to be promoted.
     struct lvaStructPromotionInfo
     {
         CORINFO_CLASS_HANDLE typeHnd;
@@ -2988,7 +2988,6 @@ public:
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
     bool lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
-    bool lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
     // This class is responsible for checking possibility and profitability of struct promotion.
     // If the both checks pass than it promotes struct and initializes nessesary information for fgMorphStructField to
@@ -3000,6 +2999,9 @@ public:
 
         bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
         bool TryPromoteStructVar(unsigned lclNum);
+
+    private:
+        bool CanPromoteStructVar(unsigned lclNum);
 
     private:
         Compiler*              compiler;

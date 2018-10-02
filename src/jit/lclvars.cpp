@@ -1462,7 +1462,7 @@ CORINFO_CLASS_HANDLE Compiler::lvaGetStruct(unsigned varNum)
 
 /*****************************************************************************
  *
- *  Compare function passed to qsort() by Compiler::lvaCanPromoteStructVar().
+ *  Compare function passed to qsort() by Compiler::StructPromotionHelper.
  */
 
 /* static */
@@ -1520,8 +1520,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 {
     bool shouldPromote;
 
-    compiler->lvaCanPromoteStructVar(lclNum, &structPromotionInfo);
-    if (structPromotionInfo.canPromote)
+    if (CanPromoteStructVar(lclNum))
     {
         shouldPromote = compiler->lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
     }
@@ -1839,17 +1838,23 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
     }
 }
 
-/*****************************************************************************
- * Is this struct type local variable promotable? */
-
-bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo)
+//--------------------------------------------------------------------------------------------
+// CanPromoteStructVar - checks if the struct can be promoted.
+//
+// Arguments:
+//   lclNum - struct number to check.
+//
+// Return value:
+//   true if the struct var can be promoted.
+//
+bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 {
-    noway_assert(lclNum < lvaCount);
+    assert(lclNum < compiler->lvaCount);
 
-    LclVarDsc* varDsc = &lvaTable[lclNum];
+    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
 
-    noway_assert(varTypeIsStruct(varDsc));
-    noway_assert(!varDsc->lvPromoted); // Don't ask again :)
+    assert(varTypeIsStruct(varDsc));
+    assert(!varDsc->lvPromoted); // Don't ask again :)
 
     // If this lclVar is used in a SIMD intrinsic, then we don't want to struct promote it.
     // Note, however, that SIMD lclVars that are NOT used in a SIMD intrinsic may be
@@ -1857,16 +1862,14 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsUsedInSIMDIntrinsic())
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsUsedInSIMDIntrinsic()\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
     // Reject struct promotion of parameters when -GS stack reordering is enabled
     // as we could introduce shadow copies of them.
-    if (varDsc->lvIsParam && compGSReorderStackLayout)
+    if (varDsc->lvIsParam && compiler->compGSReorderStackLayout)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsParam and compGSReorderStackLayout\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
@@ -1878,7 +1881,6 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsHfaRegArg())
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsHfaRegArg()\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
@@ -1886,7 +1888,6 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsMultiRegArg)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegArg\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 #endif
@@ -1894,14 +1895,11 @@ bool Compiler::lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* s
     if (varDsc->lvIsMultiRegRet)
     {
         JITDUMP("  struct promotion of V%02u is disabled because lvIsMultiRegRet\n", lclNum);
-        structPromotionInfo->canPromote = false;
         return false;
     }
 
     CORINFO_CLASS_HANDLE typeHnd = varDsc->lvVerTypeInfo.GetClassHandle();
-    bool                 result  = lvaCanPromoteStructType(typeHnd, structPromotionInfo);
-    assert(result == structPromotionInfo->canPromote);
-    return result;
+    return CanPromoteStructType(typeHnd);
 }
 
 //--------------------------------------------------------------------------------------------
