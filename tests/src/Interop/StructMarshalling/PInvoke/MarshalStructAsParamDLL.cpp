@@ -690,6 +690,12 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByRefOut1
 	str1->i = 64;
 	return TRUE;
 }
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByVal15(NonBlittableFixedBuffer buf)
+{
+    return buf.i == 32;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValINNER2(INNER2 inner)
 {

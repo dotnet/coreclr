@@ -270,3 +270,16 @@ public struct LongStructPack16Explicit
     [FieldOffset(8)]
     public long l2;
 }
+
+public unsafe struct NonBlittableFixedBuffer
+{
+#if true
+    public fixed bool buffer[4];
+#else
+    public bool b1;
+    public bool b2;
+    public bool b3;
+    public bool b4;
+#endif
+    public int i1;
+}

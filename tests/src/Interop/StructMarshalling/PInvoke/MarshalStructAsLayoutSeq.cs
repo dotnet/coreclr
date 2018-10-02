@@ -22,7 +22,8 @@ public class Managed
         S8Id,
         S9Id,
         IncludeOuterIntergerStructSequentialId,
-        S11Id
+        S11Id,
+        NonBlittableFixedBufferId
     }
 
     private static void InitialArray(int[] iarr, int[] icarr)
@@ -302,6 +303,10 @@ public class Managed
     [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByRef14")]
     static extern bool MarshalStructAsParam_AsSeqByRefInOut14([In, Out] ref S11 str1);
     #endregion
+    #region Struct with Layout Sequential scenario14
+    [DllImport("MarshalStructAsParam", EntryPoint = "MarshalStructAsParam_AsSeqByVal15")]
+    static extern bool MarshalStructAsParam_AsSeqByVal15(NonBlittableFixedBuffer buf);
+    #endregion
 
     #region Marshal struct method in PInvoke
     [SecuritySafeCritical]
@@ -517,7 +522,16 @@ public class Managed
                         failures++;
                     }
                     break;
+                case StructID.NonBlittableFixedBufferId:
+                    NonBlittableFixedBuffer source = Helper.NewNonBlittableFixedBuffer(32);
 
+                    Console.WriteLine("\tCalling MarshalStructAsParam_AsSeqByVal15...");
+                    if(!MarshalStructAsParam_AsSeqByVal15(source))
+                    {
+                        Console.WriteLine("\tFAILED! Managed to Native failed in MarshalStructAsParam_AsSeqByVal15.Expected:True;Actual:False");
+                        failures++;
+                    }
+                    break;
                 default:
                     Console.WriteLine("\tThere is not the struct id");
                     failures++;
@@ -2135,6 +2149,7 @@ public class Managed
         MarshalStructAsParam_AsSeqByVal(StructID.S9Id);
         MarshalStructAsParam_AsSeqByVal(StructID.IncludeOuterIntergerStructSequentialId);
         MarshalStructAsParam_AsSeqByVal(StructID.S11Id);
+        MarshalStructAsParam_AsSeqByVal(StructID.NonBlittableFixedBufferId);
     }
 
     [SecuritySafeCritical]
@@ -2300,4 +2315,3 @@ public class Managed
 }
 
 
-   
