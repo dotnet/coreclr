@@ -926,7 +926,7 @@ def static isCrossGenComparisonScenario(def scenario) {
 
 def static shouldGenerateCrossGenComparisonJob(def os, def architecture, def configuration, def scenario) {
     assert isCrossGenComparisonScenario(scenario)
-    return (os == 'Ubuntu' && architecture == 'arm' && configuration == 'Checked')
+    return (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release'))
 }
 
 def static getFxBranch(def branch) {
@@ -1331,7 +1331,11 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             break
 
         case 'crossgen_comparison':
+            if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
+                addPeriodicTriggerHelper(job, '@daily')
+            }
             break
+
         case 'normal':
             switch (architecture) {
                 case 'x64':
@@ -1586,10 +1590,8 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
                 break
             }
             if (jobRequiresLimitedHardware(architecture, os)) {
-                if ((architecture == 'arm64') && (os == 'Ubuntu16.04') && !isCoreFxScenario(scenario)) {
+                if ((architecture == 'arm64') && (os == 'Ubuntu16.04')) {
                     // These jobs are very fast on Linux/arm64 hardware, so run them daily.
-                    // TODO: When the corefx jobs are made to run in parallel, run those
-                    // jobs daily as well.
                     addPeriodicTriggerHelper(job, '@daily')
                 }
                 else {
@@ -1955,6 +1957,11 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                                 if (architecture == 'arm64') {
                                     break
                                 }
+                                isDefaultTrigger = true
+                            }
+                            break
+                         case 'crossgen_comparison':
+                            if (os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
                                 isDefaultTrigger = true
                             }
                             break
@@ -2378,7 +2385,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                             buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests"
                             buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatetesthostonly"
-                            buildCommands += "./tests/runtest.sh --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
+                            buildCommands += "./tests/runtest.sh ${lowerConfiguration} --corefxtestsall --testHostDir=\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/testhost/ --coreclr-src=\${WORKSPACE}"
                             
                             break
                             // Archive and process (only) the test results
@@ -2487,7 +2494,6 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxruntime.zip")
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/fxtests.zip")
-                        Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/run-test.sh")
                     }
                     else if (isCrossGenComparisonScenario(scenario)) {
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
@@ -3358,8 +3364,6 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     shell("mkdir -p ${workspaceRelativeFxRootLinux}")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxtests.zip")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
-                    shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/run-test.sh")
-                    shell("chmod +x ${workspaceRelativeFxRootLinux}/run-test.sh")
                 }
                 else {
                     shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.${lowerConfiguration}.zip")
@@ -3455,7 +3459,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
             if (doCoreFxTesting) {
                 shell("""\
-\${WORKSPACE}/${workspaceRelativeFxRootLinux}/run-test.sh --sequential --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin --configurationGroup Release""")
+\${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin --configurationGroup Release""")
             }
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"
@@ -3464,6 +3468,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 shell("""\
 ${runScript} \\
+    ${lowerConfiguration} \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
     --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\

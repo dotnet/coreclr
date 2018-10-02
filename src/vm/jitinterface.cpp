@@ -713,6 +713,18 @@ static bool IsInSameVersionBubble(MethodDesc* pCurMD, MethodDesc *pTargetMD)
 
 #endif // FEATURE_READYTORUN_COMPILER
 
+static bool CallerAndCalleeInSystemVersionBubble(MethodDesc* pCaller, MethodDesc* pCallee)
+{
+    LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_READYTORUN_COMPILER
+    if (IsReadyToRunCompilation())
+        return pCallee->GetModule()->IsSystem() && IsInSameVersionBubble(pCaller, pCallee);
+#endif
+
+    return false;
+}
+
 
 /*********************************************************************/
 CorInfoCanSkipVerificationResult CEEInfo::canSkipVerification(
@@ -5158,8 +5170,6 @@ void CEEInfo::getCallInfo(
         EX_THROW(EEMessageException, (kMissingMethodException, IDS_EE_MISSING_METHOD, W("?")));
     }
 
-
-
     TypeHandle exactType = TypeHandle(pResolvedToken->hClass);
 
     TypeHandle constrainedType;
@@ -5459,8 +5469,11 @@ void CEEInfo::getCallInfo(
         pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;  // stub dispatch can't handle generic method calls yet
         pResult->nullInstanceCheck = TRUE;
     }
-    // Non-interface dispatches go through the vtable
-    else if (!pTargetMD->IsInterface() && !IsReadyToRunCompilation())
+    // Non-interface dispatches go through the vtable.
+    // We'll special virtual calls to target methods in the corelib assembly when compiling in R2R mode and generate fragile-NI-like callsites for improved performance. We
+    // can do that because today we'll always service the corelib assembly and the runtime in one bundle. Any caller in the corelib version bubble can benefit from this
+    // performance optimization.
+    else if (!pTargetMD->IsInterface() && (!IsReadyToRunCompilation() || CallerAndCalleeInSystemVersionBubble((MethodDesc*)callerHandle, pTargetMD)))
     {
         pResult->kind = CORINFO_VIRTUALCALL_VTABLE;
         pResult->nullInstanceCheck = TRUE;
@@ -8769,8 +8782,8 @@ void CEEInfo::getMethodVTableOffset (CORINFO_METHOD_HANDLE methodHnd,
     // better be in the vtable
     _ASSERTE(method->GetSlot() < method->GetMethodTable()->GetNumVirtuals());
 
-    *pOffsetOfIndirection = MethodTable::GetVtableOffset() + MethodTable::GetIndexOfVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir_t);
-    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * sizeof(MethodTable::VTableIndir2_t);
+    *pOffsetOfIndirection = MethodTable::GetVtableOffset() + MethodTable::GetIndexOfVtableIndirection(method->GetSlot()) * TARGET_POINTER_SIZE /* sizeof(MethodTable::VTableIndir_t) */;
+    *pOffsetAfterIndirection = MethodTable::GetIndexAfterVtableIndirection(method->GetSlot()) * TARGET_POINTER_SIZE /* sizeof(MethodTable::VTableIndir2_t) */;
     *isRelative = MethodTable::VTableIndir_t::isRelative ? 1 : 0;
     _ASSERTE(MethodTable::VTableIndir_t::isRelative == MethodTable::VTableIndir2_t::isRelative);
 
@@ -9290,8 +9303,8 @@ CORINFO_CLASS_HANDLE CEEInfo::getFieldClass (CORINFO_FIELD_HANDLE fieldHnd)
 /*********************************************************************/
 // Returns the basic type of the field (not the the type that declares the field)
 //
-// pTypeHnd - On return, for reference and value types, *pTypeHnd will contain 
-//            the normalized type of the field.
+// pTypeHnd - Optional. If not null then on return, for reference and value types, 
+//            *pTypeHnd will contain the normalized type of the field.
 // owner - Optional. For resolving in a generic context
 
 CorInfoType CEEInfo::getFieldType (CORINFO_FIELD_HANDLE fieldHnd, 
@@ -9323,7 +9336,10 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
 {
     STANDARD_VM_CONTRACT;
 
-    *pTypeHnd = 0;
+    if (pTypeHnd != nullptr)
+    {
+        *pTypeHnd = 0;
+    }
 
     TypeHandle clsHnd = TypeHandle();
     FieldDesc* field = (FieldDesc*) fieldHnd;

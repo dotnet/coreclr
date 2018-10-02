@@ -1294,9 +1294,6 @@
   <data name="Argument_MustBeRuntimeMethodInfo" xml:space="preserve">
     <value>MethodInfo must be a runtime MethodInfo object.</value>
   </data>
-  <data name="Argument_MustBeRuntimeModule" xml:space="preserve">
-    <value>Module must be a runtime Module object.</value>
-  </data>
   <data name="Argument_MustBeRuntimeReflectionObject" xml:space="preserve">
     <value>The object must be a runtime Reflection object.</value>
   </data>
@@ -2886,9 +2883,6 @@
   </data>
   <data name="NotSupported_CollectibleCOM" xml:space="preserve">
     <value>COM Interop is not supported for collectible types.</value>
-  </data>
-  <data name="NotSupported_CollectibleDelegateMarshal" xml:space="preserve">
-    <value>Delegate marshaling for types within collectible assemblies is not supported.</value>
   </data>
   <data name="NotSupported_CreateInstanceWithTypeBuilder" xml:space="preserve">
     <value>CreateInstance cannot be used with an object of type TypeBuilder.</value>

@@ -5,6 +5,8 @@ if(WIN32)
     )
 endif(WIN32)
 
+list(APPEND LINK_LIBRARIES_ADDITIONAL platformdefines)
+
 # Consumed by native test assets
 SET(CLR_INTEROP_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 

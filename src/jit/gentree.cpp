@@ -16464,9 +16464,8 @@ bool Compiler::gtIsStaticFieldPtrToBoxedStruct(var_types fieldNodeType, CORINFO_
     {
         return false;
     }
-    CORINFO_CLASS_HANDLE fldCls = nullptr;
     noway_assert(fldHnd != nullptr);
-    CorInfoType cit      = info.compCompHnd->getFieldType(fldHnd, &fldCls);
+    CorInfoType cit      = info.compCompHnd->getFieldType(fldHnd);
     var_types   fieldTyp = JITtype2varType(cit);
     return fieldTyp != TYP_REF;
 }
@@ -17041,7 +17040,7 @@ void GenTree::ParseArrayAddressWork(Compiler*       comp,
                 break;
         }
         // If we didn't return above, must be a contribution to the non-constant part of the index VN.
-        ValueNum vn = comp->GetValueNumStore()->VNNormalValue(gtVNPair, VNK_Liberal);
+        ValueNum vn = comp->GetValueNumStore()->VNLiberalNormalValue(gtVNPair);
         if (inputMul != 1)
         {
             ValueNum mulVN = comp->GetValueNumStore()->VNForLongCon(inputMul);
