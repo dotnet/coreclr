@@ -30,8 +30,6 @@
 #ifdef FEATURE_COMINTEROP
 #include <winstring.h>
 #endif // FEATURE_COMINTEROP
-#include "../md/compiler/custattr.h"
-#include "caparser.h"
 
 // forward declaration
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
@@ -1458,7 +1456,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             if (pfwalk->m_nft == NFT_COPY1    ||
                 pfwalk->m_nft == NFT_COPY2    ||
                 pfwalk->m_nft == NFT_COPY4    ||
-                pfwalk->m_nft == NFT_COPY8 )
+                pfwalk->m_nft == NFT_COPY8)
             {
                 resetBlittable = FALSE;
             }
@@ -2143,7 +2141,7 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
     LPVOID scalar = NULL;
 
     GCPROTECT_BEGIN(gc)
-        GCPROTECT_BEGININTERIOR(scalar)
+    GCPROTECT_BEGININTERIOR(scalar)
     {
         g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
 
@@ -2157,7 +2155,7 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             {
                 scalar = (LPVOID)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 // Note this will throw for FieldMarshaler_Illegal
-                pFM->ScalarUpdateCLR(pNativeData + pFM->GetExternalOffset(), scalar);
+                pFM->ScalarUpdateCLR( pNativeData + pFM->GetExternalOffset(), scalar);
             }
             else if (pFM->IsNestedValueClassMarshaler())
             {
@@ -2166,8 +2164,8 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             else
             {
                 gc.pOldCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
-                pFM->UpdateCLR(pNativeData + pFM->GetExternalOffset(), &gc.pCLRValue, &gc.pOldCLRValue);
-                SetObjectReferenceUnchecked((OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue);
+                pFM->UpdateCLR( pNativeData + pFM->GetExternalOffset(), &gc.pCLRValue, &gc.pOldCLRValue );
+                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
