@@ -1515,30 +1515,21 @@ void Compiler::StructPromotionHelper::SetRequiresScratchVar()
 //
 bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 {
-    bool shouldPromote;
-
     if (CanPromoteStructVar(lclNum))
     {
-        shouldPromote = compiler->lvaShouldPromoteStructVar(lclNum, &structPromotionInfo);
-    }
-    else
-    {
-        shouldPromote = false;
-    }
-
 #if 0
-    // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
-    // method, this allows you to select a subset of the vars to promote (by 1-based ordinal number).
-    static int structPromoVarNum = 0;
-    structPromoVarNum++;
-    if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
+            // Often-useful debugging code: if you've narrowed down a struct-promotion problem to a single
+            // method, this allows you to select a subset of the vars to promote (by 1-based ordinal number).
+            static int structPromoVarNum = 0;
+            structPromoVarNum++;
+            if (atoi(getenv("structpromovarnumlo")) <= structPromoVarNum && structPromoVarNum <= atoi(getenv("structpromovarnumhi")))
 #endif // 0
-
-    if (shouldPromote)
-    {
-        // Promote the this struct local var.
-        compiler->lvaPromoteStructVar(lclNum, &structPromotionInfo);
-        return true;
+        if (compiler->lvaShouldPromoteStructVar(lclNum, &structPromotionInfo))
+        {
+            // Promote the this struct local var.
+            compiler->lvaPromoteStructVar(lclNum, &structPromotionInfo);
+            return true;
+        }
     }
     return false;
 }
