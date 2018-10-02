@@ -252,7 +252,8 @@ EventPipeSessionID EventPipe::Enable(
     LPCWSTR strOutputPath,
     unsigned int circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
-    int numProviders)
+    int numProviders,
+    bool enableAllEvents)
 {
     CONTRACTL
     {
@@ -268,6 +269,12 @@ EventPipeSessionID EventPipe::Enable(
         circularBufferSizeInMB,
         pProviders,
         static_cast<unsigned int>(numProviders));
+
+    // If requested, enable all events for diagnostic purposes.
+    if (enableAllEvents)
+    {
+        pSession->EnableAllEvents();
+    }
 
     // Enable the session.
     return Enable(strOutputPath, pSession);
@@ -1022,7 +1029,8 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders)
+        INT32 numProviders,
+        bool enableAllEvents)
 {
     QCALL_CONTRACT;
 
@@ -1030,7 +1038,7 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     BEGIN_QCALL;
     SampleProfiler::SetSamplingRate((unsigned long)profilerSamplingRateInNanoseconds);
-    sessionID = EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders);
+    sessionID = EventPipe::Enable(outputFile, circularBufferSizeInMB, pProviders, numProviders, enableAllEvents);
     END_QCALL;
 
     return sessionID;

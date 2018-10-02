@@ -239,7 +239,8 @@ class EventPipe
             LPCWSTR strOutputPath,
             unsigned int circularBufferSizeInMB,
             EventPipeProviderConfiguration *pProviders,
-            int numProviders);
+            int numProviders,
+            bool enableAllEvents);
 
         // Disable tracing via the event pipe.
         static void Disable(EventPipeSessionID id);
@@ -410,7 +411,8 @@ public:
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders);
+        INT32 numProviders,
+        bool enableAllEvents);
 
     static void QCALLTYPE Disable(UINT64 sessionID);
 

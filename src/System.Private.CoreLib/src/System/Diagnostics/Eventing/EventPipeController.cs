@@ -6,7 +6,9 @@ using Internal.IO;
 using Microsoft.Win32;
 using System.IO;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.Versioning;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -33,11 +35,16 @@ namespace System.Diagnostics.Tracing
         // Miscellaneous constants.
         private const string NetPerfFileExtension = ".netperf";
         private const string MarkerFileExtension = ".ctl";
+        private const string ConfigFileName = "EventPipeConfig.txt";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
-        private const int DisabledPollingIntervalMilliseconds = 10000; // 10 seconds
+        private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
+
+        private const string ConfigKey_Providers = "Providers";
+        private const string ConfigKey_CircularMB = "CircularMB";
+        private const string ConfigKey_OutputPath = "OutputPath";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
@@ -47,39 +54,33 @@ namespace System.Diagnostics.Tracing
             new EventPipeProviderConfiguration("Microsoft-DotNETCore-SampleProfiler", 0x0, 5)
         };
 
-        // Cache for COMPlus configuration variables.
-        private static int s_Config_EnableEventPipe = -1;
-        private static string s_Config_EventPipeConfig = null;
-        private static uint s_Config_EventPipeCircularMB = 0;
-        private static string s_Config_EventPipeOutputFile = null;
-
         // Singleton controller instance.
         private static EventPipeController s_controllerInstance = null;
 
         // Controller object state.
         private Timer m_timer;
+        private string m_configFilePath;
+        private DateTime m_configFileUpdateTime;
         private string m_traceFilePath = null;
-        private string m_markerFilePath = null;
-        private bool m_markerFileExists = false;
+        private bool m_configFileExists = false;
 
         internal static void Initialize()
         {
-            // Don't allow failures to propagate upstream.
-            // Instead, ensure program correctness without tracing.
+            // Don't allow failures to propagate upstream.  Ensure program correctness without tracing.
             try
             {
                 if (s_controllerInstance == null)
                 {
-                    if(Config_EnableEventPipe == 4)
-                    {
-                        // Create a new controller to listen for commands.
-                        s_controllerInstance = new EventPipeController();
-                    }
-                    else if (Config_EnableEventPipe > 0)
+                    if (Config_EnableEventPipe > 0)
                     {
                         // Enable tracing immediately.
                         // It will be disabled automatically on shutdown.
-                        EventPipe.Enable(GetConfiguration());
+                        EventPipe.Enable(BuildConfigFromEnvironment());
+                    }
+                    else
+                    {
+                        // Create a new controller to listen for commands.
+                        s_controllerInstance = new EventPipeController();
                     }
                 }
             }
@@ -88,15 +89,20 @@ namespace System.Diagnostics.Tracing
 
         private EventPipeController()
         {
-            // Initialize the timer to run once.  The timer will re-schedule itself after each poll operation.
-            // This is done to ensure that there aren't multiple concurrent polling operations when an operation
-            // takes longer than the polling interval (e.g. on disable/rundown).
+            // Set the config file path.
+            m_configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ConfigFileName);
+
+            // Initialize the timer, but don't set it to run.
+            // The timer will be set to run each time PollForTracingCommand is called.
             m_timer = new Timer(
                 callback: new TimerCallback(PollForTracingCommand),
                 state: null,
-                dueTime: DisabledPollingIntervalMilliseconds,
+                dueTime: Timeout.Infinite,
                 period: Timeout.Infinite,
                 flowExecutionContext: false);
+
+            // Trigger the first poll operation on the start-up path.
+            PollForTracingCommand(null);
         }
 
         private void PollForTracingCommand(object state)
@@ -104,32 +110,20 @@ namespace System.Diagnostics.Tracing
             // Make sure that any transient errors don't cause the listener thread to exit.
             try
             {
-                // Perform initialization when the timer fires for the first time.
-                if (m_traceFilePath == null)
-                {
-                    // Set file paths.
-                    m_traceFilePath = GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile);
-                    m_markerFilePath = MarkerFilePath;
-
-                    // Marker file is assumed to not exist.
-                    // This will be updated when the monitoring thread starts.
-                    m_markerFileExists = false;
-                }
-
-                // Check for existence of the file.
-                // If the existence of the file has changed since the last time we checked
+                // Check for existence of the config file.
+                // If the existence of the file has changed since the last time we checked or the update time has changed
                 // this means that we need to act on that change.
-                bool fileExists = File.Exists(m_markerFilePath);
-                if (m_markerFileExists != fileExists)
+                bool fileExists = File.Exists(m_configFilePath);
+                if (m_configFileExists != fileExists)
                 {
                     // Save the result.
-                    m_markerFileExists = fileExists;
+                    m_configFileExists = fileExists;
 
                     // Take the appropriate action.
                     if (fileExists)
                     {
                         // Enable tracing.
-                        EventPipe.Enable(GetConfiguration());
+                        EventPipe.Enable(BuildConfigFromFile(m_configFilePath));
                     }
                     else
                     {
@@ -144,7 +138,78 @@ namespace System.Diagnostics.Tracing
             catch { }
         }
 
-        private static EventPipeConfiguration GetConfiguration()
+        private static EventPipeConfiguration BuildConfigFromFile(string configFilePath)
+        {
+            // Read the config file in once call.
+            byte[] configContents = File.ReadAllBytes(configFilePath);
+
+            // Convert the contents to a string.
+            string strConfigContents = Encoding.UTF8.GetString(configContents);
+
+            // Read all of the config options.
+            string outputPath = null;
+            string strProviderConfig = null;
+            string strCircularMB = null;
+
+            // Split the configuration entries by line.
+            string[] configEntries = strConfigContents.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string configEntry in configEntries)
+            {
+                //`Split the key and value by '='.
+                string[] entryComponents = configEntry.Split('=');
+                if(entryComponents.Length == 2)
+                {
+                    string key = entryComponents[0];
+                    if (key.Equals(ConfigKey_Providers))
+                    {
+                        strProviderConfig = entryComponents[1];
+                    }
+                    else if (key.Equals(ConfigKey_OutputPath))
+                    {
+                        outputPath = entryComponents[1];
+                    }
+                    else if(key.Equals(ConfigKey_CircularMB))
+                    {
+                        strCircularMB = entryComponents[1];
+                    }
+                }
+            }
+
+            // Ensure that the output path is set.
+            if (string.IsNullOrEmpty(outputPath))
+            {
+                throw new ArgumentNullException(nameof(outputPath));
+            }
+
+            // Build the full path to the trace file.
+            string traceFileName = Assembly.GetEntryAssembly().GetName().Name + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
+            string outputFile = Path.Combine(outputPath, traceFileName);
+
+            // Get the circular buffer size.
+            uint circularMB = DefaultCircularBufferMB;
+            if(!string.IsNullOrEmpty(strCircularMB))
+            {
+                circularMB = Convert.ToUInt32(strCircularMB);
+            }
+
+            // Initialize a new configuration object.
+            EventPipeConfiguration config = new EventPipeConfiguration(outputFile, circularMB);
+
+            // Set the provider configuration if specified.
+            if (!string.IsNullOrEmpty(strProviderConfig))
+            {
+                SetProviderConfiguration(strProviderConfig, config);
+            }
+            else
+            {
+                // If the provider configuration isn't specified, use the default.
+                config.EnableProviderRange(DefaultProviderConfiguration);
+            }
+
+            return config;
+        }
+
+        private static EventPipeConfiguration BuildConfigFromEnvironment()
         {
             // Create a new configuration object.
             EventPipeConfiguration config = new EventPipeConfiguration(
@@ -154,6 +219,32 @@ namespace System.Diagnostics.Tracing
             // Get the configuration.
             string strConfig = Config_EventPipeConfig;
             if (!string.IsNullOrEmpty(strConfig))
+            {
+                // If the configuration is specified, parse it and save it to the config object.
+                SetProviderConfiguration(strConfig, config);
+            }
+            else
+            {
+                // Specify the default configuration.
+                config.EnableProviderRange(DefaultProviderConfiguration);
+            }
+
+            return config;
+        }
+
+        private static void SetProviderConfiguration(string strConfig, EventPipeConfiguration config)
+        {
+            if (string.IsNullOrEmpty(strConfig))
+            {
+                throw new ArgumentNullException(nameof(strConfig));
+            }
+
+            // Check for the diagnostic configuration '*' which means "enable all events in the entire system."
+            if (strConfig.Equals("*"))
+            {
+                config.EnableAllEvents = true;
+            }
+            else
             {
                 // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
                 string[] providers = strConfig.Split(ProviderConfigDelimiter);
@@ -184,13 +275,6 @@ namespace System.Diagnostics.Tracing
                     }
                 }
             }
-            else
-            {
-                // Specify the default configuration.
-                config.EnableProviderRange(DefaultProviderConfiguration);
-            }
-
-            return config;
         }
 
         /// <summary>
@@ -220,6 +304,12 @@ namespace System.Diagnostics.Tracing
         }
 
         #region Configuration
+
+        // Cache for COMPlus configuration variables.
+        private static int s_Config_EnableEventPipe = -1;
+        private static string s_Config_EventPipeConfig = null;
+        private static uint s_Config_EventPipeCircularMB = 0;
+        private static string s_Config_EventPipeOutputFile = null;
 
         private static int Config_EnableEventPipe
         {
@@ -282,14 +372,6 @@ namespace System.Diagnostics.Tracing
                 }
 
                 return s_Config_EventPipeOutputFile;
-            }
-        }
-
-        private static string MarkerFilePath
-        {
-            get
-            {
-                return Config_EventPipeOutputFile + MarkerFileExtension;
             }
         }
 

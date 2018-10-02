@@ -80,6 +80,7 @@ namespace System.Diagnostics.Tracing
         private uint m_circularBufferSizeInMB;
         private List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
+        private bool m_enableAllEvents = false;
 
         internal EventPipeConfiguration(
             string outputFile,
@@ -117,6 +118,14 @@ namespace System.Diagnostics.Tracing
         {
             // 100 nanoseconds == 1 tick.
             get { return m_minTimeBetweenSamples.Ticks * 100; }
+        }
+
+        // This is for the diagnostic mode where we enable all providers at once regardless of the configuration requested.
+        internal bool EnableAllEvents
+        {
+            get { return m_enableAllEvents; }
+            set { m_enableAllEvents = value; }
+
         }
 
         internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel)
@@ -174,7 +183,8 @@ namespace System.Diagnostics.Tracing
                 configuration.CircularBufferSizeInMB,
                 configuration.ProfilerSamplingRateInNanoseconds,
                 providers,
-                providers.Length);
+                providers.Length,
+                configuration.EnableAllEvents);
         }
 
         internal static void Disable()
@@ -189,7 +199,7 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by the configuration APIs to interact with EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern UInt64 Enable(string outputFile, uint circularBufferSizeInMB, long profilerSamplingRateInNanoseconds, EventPipeProviderConfiguration[] providers, int numProviders);
+        internal static extern UInt64 Enable(string outputFile, uint circularBufferSizeInMB, long profilerSamplingRateInNanoseconds, EventPipeProviderConfiguration[] providers, int numProviders, bool enableAllEvents);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Disable(UInt64 sessionID);
