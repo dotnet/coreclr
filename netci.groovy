@@ -2122,6 +2122,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
 
                     if (scenario == 'pmi_asm_diffs') {
+                        // Now, generate the layout. We don't have any tests, so we need to do some annoying magic before calling runtest.cmd.
+                        buildCommands += "run.cmd build -Project=\"tests\\build.proj\" -BuildOS=Windows_NT -BuildType=${lowerConfiguration} -BuildArch=${arch} -BatchRestorePackages"
+                        buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${arch} GenerateLayoutOnly"
+
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
                         buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration}"
 
@@ -2374,6 +2378,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     if (scenario == 'pmi_asm_diffs') {
                         buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests skipbuildpackages"
+                        buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatelayoutonly"
 
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
                         buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
@@ -2544,6 +2549,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
                     else if (scenario == 'pmi_asm_diffs') {
+                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
+
                         // Pass `-skip_diffs` -- the actual diffs will be done on an arm machine in the test job. This is the build job.
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
                         buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_diffs True"
