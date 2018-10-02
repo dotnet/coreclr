@@ -497,7 +497,7 @@ namespace System
             if ((uint)start > (uint)text.Length)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
-            return new ReadOnlySpan<Utf8Char>(ref Unsafe.As<byte, Utf8Char>(ref text.GetRawStringData()), text.Length - start);
+            return new ReadOnlySpan<Utf8Char>(ref Unsafe.Add(ref Unsafe.As<byte, Utf8Char>(ref text.GetRawStringData()), start), text.Length - start);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
