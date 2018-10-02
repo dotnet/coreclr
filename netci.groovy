@@ -2373,8 +2373,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     }
 
                     if (scenario == 'pmi_asm_diffs') {
+                        buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests skipbuildpackages"
+
                         // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
 
                         // ZIP up the asm
                         buildCommands += "zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm"
@@ -3873,8 +3875,8 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
                 if (configuration != 'Checked') {
                     return false
                 }
-                // Currently, no support for Linux x86.
-                if ((os != 'Windows_NT') && (architecture == 'x86')) {
+                // No need for flow job except for Linux arm/arm64
+                if ((os != 'Windows_NT') && (architecture != 'arm') && (architecture != 'arm64')) {
                     return false
                 }
                 break
@@ -3941,7 +3943,7 @@ Constants.allScenarios.each { scenario ->
                     // Ubuntu Arm64 jobs do the test build on the build machine, and thus don't depend on a Windows build.
                     def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
 
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job) {
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job && !isPmiAsmDiffsScenario) {
                         def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
