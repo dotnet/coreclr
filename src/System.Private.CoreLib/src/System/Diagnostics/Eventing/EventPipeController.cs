@@ -34,14 +34,16 @@ namespace System.Diagnostics.Tracing
     {
         // Miscellaneous constants.
         private const string NetPerfFileExtension = ".netperf";
-        private const string MarkerFileExtension = ".ctl";
         private const string ConfigFileName = "EventPipeConfig.txt";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
         private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
         private static readonly char[] ProviderConfigDelimiter = new char[] { ',' };
         private static readonly char[] ConfigComponentDelimiter = new char[] { ':' };
+        private static readonly string[] ConfigFileLineDelimiters = new string[] { "\r\n", "\n" };
+        private const char ConfigEntryDelimiter = '=';
 
+        // Config file keys.
         private const string ConfigKey_Providers = "Providers";
         private const string ConfigKey_CircularMB = "CircularMB";
         private const string ConfigKey_OutputPath = "OutputPath";
@@ -152,11 +154,11 @@ namespace System.Diagnostics.Tracing
             string strCircularMB = null;
 
             // Split the configuration entries by line.
-            string[] configEntries = strConfigContents.Split(new string[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+            string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
             foreach (string configEntry in configEntries)
             {
                 //`Split the key and value by '='.
-                string[] entryComponents = configEntry.Split('=');
+                string[] entryComponents = configEntry.Split(ConfigEntryDelimiter);
                 if(entryComponents.Length == 2)
                 {
                     string key = entryComponents[0];
