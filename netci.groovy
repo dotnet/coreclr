@@ -2915,6 +2915,10 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                 if ((os == 'Windows_NT') && (architecture == 'arm' || architecture == 'arm64')) {
                     return false
                 }
+                // Currently, no support for Linux x86.
+                if ((os != 'Windows_NT') && (architecture == 'x86')) {
+                    return false
+                }
                 break
             default:
                 println("Unknown scenario: ${scenario}")
@@ -3944,6 +3948,10 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 
             case 'pmi_asm_diffs':
                 if (configuration != 'Checked') {
+                    return false
+                }
+                // Currently, no support for Linux x86.
+                if ((os != 'Windows_NT') && (architecture == 'x86')) {
                     return false
                 }
                 break
