@@ -1629,12 +1629,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             pFieldInfo->fldHnd             = compHandle->getFieldInClass(typeHnd, ordinal);
             unsigned fldOffset             = compHandle->getFieldOffset(pFieldInfo->fldHnd);
 
-            // The fldOffset value should never be larger than our structSize.
-            if (fldOffset >= structSize)
-            {
-                noway_assert(false);
-                return false;
-            }
+            noway_assert(fldOffset < structSize);
 
             pFieldInfo->fldOffset  = (BYTE)fldOffset;
             pFieldInfo->fldOrdinal = ordinal;
