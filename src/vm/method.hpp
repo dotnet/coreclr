@@ -1274,8 +1274,7 @@ public:
         DWORD dwImplFlags = 0;
         return
             IsIL() && // only makes sense for IL methods, and this implies !IsNoMetadata()
-            SUCCEEDED(GetMDImport()->GetMethodImplProps(GetMemberDef(), NULL, &dwImplFlags)) &&
-            IsMiAggressiveOptimization(dwImplFlags);
+            IsMiAggressiveOptimization(GetImplAttrs());
     }
 
     // Does this method force the NativeCodeSlot to stay fixed after it
