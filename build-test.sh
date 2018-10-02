@@ -530,7 +530,7 @@ usage()
     echo "rebuild - if tests have already been built - rebuild them"
     echo "skipnative: skip the native tests build"
     echo "skipmanaged: skip the managed section of the test build"
-    echp "buildtestwrappersonly - only build the test wrappers"
+    echo "buildtestwrappersonly - only build the test wrappers"
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "skiprestorepackages - skip package restore"

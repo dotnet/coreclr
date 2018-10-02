@@ -47,7 +47,7 @@ set __CoreFXTests=
 set __CoreFXTestsRunAllAvailable=
 set __SkipGenerateLayout=
 set __BuildXUnitWrappers=
-set __PrintLastResultsOnly
+set __PrintLastResultsOnly=
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -727,6 +727,7 @@ echo timeout ^<n^>               - Sets the per-test timeout in milliseconds ^(d
 echo                             Note: some options override this ^(gcstresslevel, longgc, gcsimulator^).
 echo msbuildargs ^<args...^>     - Pass all subsequent args directly to msbuild invocations.
 echo ^<CORE_ROOT^>               - Path to the runtime to test ^(if specified^).
+echo printlastresultsonly        - Print the last test results without running tests.
 echo.
 echo Note that arguments are not case-sensitive.
 echo.
