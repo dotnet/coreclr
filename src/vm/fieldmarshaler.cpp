@@ -662,7 +662,7 @@ do                                                      \
                     if (IsStructMarshalable(thNestedType))
                     {
                         LONG numBufferElements;
-                        if (IsFixedBuffer(pfwalk->m_MD, pInternalImport, &numBufferElements))
+                        if (IsFixedBuffer(pfwalk->m_MD, pInternalImport, &numBufferElements) && thNestedType.GetMethodTable()->IsBlittable())
                         {
                             INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), numBufferElements));
                         }
