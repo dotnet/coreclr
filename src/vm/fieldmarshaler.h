@@ -796,6 +796,7 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
+
 private:
     // MethodTable of nested NStruct.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
@@ -1981,6 +1982,7 @@ public:
 };
 
 #endif // FEATURE_COMINTEROP
+
 
 //========================================================================
 // Used to ensure that native data is properly deleted in exception cases.

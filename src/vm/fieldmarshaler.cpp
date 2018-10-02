@@ -2923,7 +2923,7 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateCLRImpl(const VOID *
     {
         LayoutUpdateCLR((LPVOID*)ppProtectedCLR,
             startoffset,
-            GetMethodTable(),
+            pMT,
             (BYTE *)pNative);
     }
 }
