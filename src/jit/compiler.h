@@ -3016,6 +3016,9 @@ public:
         void PromoteStructVar(unsigned lclNum);
         void SortStructFields();
 
+        lvaStructFieldInfo GetFieldInfo(CORINFO_FIELD_HANDLE fieldHnd, BYTE ordinal);
+        bool TryPromoteStructField(lvaStructFieldInfo& outerFieldInfo);
+
     private:
         Compiler*              compiler;
         lvaStructPromotionInfo structPromotionInfo;
