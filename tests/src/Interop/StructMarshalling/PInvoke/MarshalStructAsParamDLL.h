@@ -668,12 +668,6 @@ struct S11 // size = 8 bytes
     INT i;
 };
 
-struct NonBlittableFixedBuffer
-{
-    BOOL buffer[4];
-    INT i;
-};
-
 union U // size = 8 bytes
 {
     INT i32;

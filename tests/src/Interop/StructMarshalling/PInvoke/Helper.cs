@@ -901,15 +901,5 @@ public class Helper
         }
     }
     #endregion
-
-    #region methods for NonBlittableFixedBuffer struct
-    public static NonBlittableFixedBuffer NewNonBlittableFixedBuffer(int i1)
-    {
-        return new NonBlittableFixedBuffer
-        {
-            i1 = i1
-        };
-    }
-    #endregion
-
+    
 }
