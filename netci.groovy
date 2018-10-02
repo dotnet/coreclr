@@ -3479,7 +3479,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
             if (isPmiAsmDiffsScenario) {
                 shell("""\
-python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -skip_baseline_build True""")
+python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_baseline_build True""")
 
                 shell("zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm")
             }
