@@ -239,13 +239,31 @@ def baseline_build():
     if not testing:
         os.chdir(baseCoreClrPath)
 
+    # Set up for possible docker usage
+
+    scriptPath = '.'
+    buildOpts = ''
+    dockerCmd = ''
+    if not Is_windows and (arch == 'arm' or arch == 'arm64'):
+        # Linux arm and arm64 builds are cross-compilation builds using Docker.
+        if arch == 'arm':
+            dockerFile = 'microsoft/dotnet-buildtools-prereqs:ubuntu-14.04-cross-e435274-20180426002420'
+            dockerOpts = '-e ROOTFS_DIR=/crossrootfs/arm -e CAC_ROOTFS_DIR=/crossrootfs/x86'
+        else:
+            # arch == 'arm64'
+            dockerFile = 'microsoft/dotnet-buildtools-prereqs:ubuntu-16.04-cross-arm64-a3ae44b-20180315221921'
+            dockerOpts = '-e ROOTFS_DIR=/crossrootfs/arm64'
+
+        dockerCmd = 'docker run -i --rm -v %s:%s -w %s %s %s ' % (baseCoreClrPath, baseCoreClrPath, baseCoreClrPath, dockerOpts, dockerFile)
+        buildOpts = 'cross crosscomponent'
+        scriptPath = baseCoreClrPath
+
     # Build a checked diff jit 
-    # TODO: build arm/arm64 Linux cross-builds in Docker, like the CI
 
     if Is_windows:
         command = 'set __TestIntermediateDir=int&&build.cmd %s checked skiptests skipbuildpackages' % arch
     else:
-        command = './build.sh %s checked skiptests skipbuildpackages' % arch
+        command = '%s%s/build.sh %s checked skiptests skipbuildpackages %s' % (dockerCmd, scriptPath, arch, buildOpts)
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
@@ -268,7 +286,7 @@ def baseline_build():
     if Is_windows:
         command = 'tests\\runtest.cmd %s checked GenerateLayoutOnly' % arch
     else:
-        command = './build-test.sh %s checked generatelayoutonly' % arch
+        command = '%s%s/build-test.sh %s checked generatelayoutonly' % (dockerCmd, scriptPath, arch)
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
