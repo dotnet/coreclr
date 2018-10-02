@@ -54,7 +54,6 @@ class FieldMarshaler_WinBool;
 class FieldMarshaler_CBool;
 class FieldMarshaler_Decimal;
 class FieldMarshaler_Date;
-class FieldMarshaler_FixedBuffer;
 #ifdef FEATURE_COMINTEROP
 class FieldMarshaler_SafeArray;
 class FieldMarshaler_BSTR;
