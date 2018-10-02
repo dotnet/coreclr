@@ -136,40 +136,6 @@ void UM2MThunk_Wrapper(LPVOID ptr) // UM2MThunk_Args
     END_CALL_TO_MANAGED();
 }
 
-EXTERN_C void STDCALL UM2MDoADCallBack(UMEntryThunk *pEntryThunk,
-                                       void *pAddr,
-                                       void *pArgs,
-                                       int argLen)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        ENTRY_POINT;
-        PRECONDITION(CheckPointer(pEntryThunk));
-        PRECONDITION(CheckPointer(pArgs));
-    }
-    CONTRACTL_END;
-
-    UM2MThunk_Args args = { pEntryThunk, pAddr, pArgs, argLen };
-
-
-    INSTALL_MANAGED_EXCEPTION_DISPATCHER;
-    INSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    {
-        AppDomainFromIDHolder domain(pEntryThunk->GetDomainId(),FALSE);
-        domain.ThrowIfUnloaded();
-        if(!domain->CanReversePInvokeEnter())
-            COMPlusThrow(kNotSupportedException);
-    }
-
-    GetThread()->DoADCallBack(pEntryThunk->GetDomainId(), UM2MThunk_Wrapper, &args);
-
-    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
-    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
-}
-
 #if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
 EXTERN_C VOID __cdecl UMThunkStubRareDisable();
@@ -199,7 +165,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     CodeLabel* pDisableGCLabel      = pcpusl->NewCodeLabel();
     CodeLabel* pRejoinGCLabel       = pcpusl->NewCodeLabel();
     CodeLabel* pDoADCallBackLabel   = pcpusl->NewCodeLabel();
-    CodeLabel* pDoneADCallBackLabel = pcpusl->NewCodeLabel();
     CodeLabel* pADCallBackEpilog    = pcpusl->NewCodeLabel();
     CodeLabel* pDoADCallBackStartLabel = pcpusl->NewAbsoluteCodeLabel();
 
@@ -317,22 +282,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // the arguments at their original location rather than re-copying them to the inner frame.
     // lea ebx, [ebp + 8]
     pcpusl->X86EmitIndexLea(kEBX, kEBP, 8);
-
-    // Load pThread->m_pDomain into edx
-    // mov edx,[ecx + offsetof(Thread, m_pAppDomain)]
-    pcpusl->X86EmitIndexRegLoad(kEDX, kECXthread, Thread::GetOffsetOfAppDomain());
-
-    // Load pThread->m_pAppDomain->m_dwId into edx
-    // mov edx,[edx + offsetof(AppDomain, m_dwId)]
-    pcpusl->X86EmitIndexRegLoad(kEDX, kEDX, AppDomain::GetOffsetOfId());
-
-    // check if the app domain of the thread matches that of delegate
-    // cmp edx,[eax + offsetof(UMEntryThunk, m_dwDomainId))]
-    pcpusl->X86EmitOffsetModRM(0x3b, kEDX, kEAXentryThunk, offsetof(UMEntryThunk, m_dwDomainId));
-
-    // jne pWrongAppDomain ; mismatch. This will call back into the stub with the
-    // correct AppDomain through DoADCallBack
-    pcpusl->X86EmitCondJump(pDoADCallBackLabel, X86CondCode::kJNE);
 
     //
     // ----------------------------------------------------------------------------------------------
@@ -583,13 +532,10 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
 
     //
     // Once we reach this point in the code we're back to a single scenario: the outer frame of the
-    // reverse p/invoke. Either we never had to switch AppDomains or the AD switch code has already
-    // unwound and returned here to pop off the outer frame.
+    // reverse p/invoke.
     //
     // ----------------------------------------------------------------------------------------------
     //
-
-    pcpusl->EmitLabel(pDoneADCallBackLabel);
 
     // move byte ptr [ecx + Thread.m_fPreemptiveGCDisabled],0
     pcpusl->X86EmitOffsetModRM(0xc6, (X86Reg)0, kECXthread, Thread::GetOffsetOfGCFlag());
@@ -691,47 +637,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
 
     // jump back into the main code path
     pcpusl->X86EmitNearJump(pRejoinGCLabel);
-
-    //-------------------------------------------------------------
-    // coming here if appdomain didn't match
-    //
-
-    pcpusl->EmitLabel(pDoADCallBackLabel);
-
-    // we will call DoADCallBack which calls into managed code to switch ADs and then calls us
-    // back. So when come in the second time the ADs will match and just keep processing.
-    // So we need to setup the parms to pass to DoADCallBack one of which is an address inside
-    // the stub that will branch back to the top of the stub to start again. Need to setup
-    // the parms etc so that when we return from the 2nd call we pop things properly.
-
-    // save thread pointer
-    pcpusl->X86EmitPushReg(kECXthread);
-
-    // push values for UM2MThunk_Args
-
-    // Move address of args (EBX) into EDX since some paths below use EBX.
-    pcpusl->X86EmitMovRegReg(kEDX, kEBX);
-
-    // size of args
-    pcpusl->X86EmitPushImm32(pInfo->m_cbSrcStack);
-
-    // address of args
-    pcpusl->X86EmitPushReg(kEDX);
-
-    // addr to call
-    pcpusl->X86EmitPushImm32(*pDoADCallBackStartLabel);
-
-    // UMEntryThunk
-    pcpusl->X86EmitPushReg(kEAXentryThunk);
-
-    // call UM2MDoADCallBack
-    pcpusl->X86EmitCall(pcpusl->NewExternalCodeLabel((LPVOID) UM2MDoADCallBack), 8);
-
-    // We need to clear the thread off the top of the stack and place it in ECX. Two birds with one stone.
-    pcpusl->X86EmitPopReg(kECX);
-
-    // Re-join the original stub to perform the last parts of the epilog.
-    pcpusl->X86EmitNearJump(pDoneADCallBackLabel);
 
     //-------------------------------------------------------------
     // Coming here for rare case when enabling GC pre-emptive mode
@@ -1105,15 +1010,6 @@ void STDCALL UMEntryThunk::DoRunTimeInit(UMEntryThunk* pUMEntryThunk)
     // exceptions don't leak out into managed code.
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
-    // The thread object is guaranteed to have been set up at this point.
-    Thread *pThread = GetThread();
-
-    if (pThread->GetDomain()->GetId() != pUMEntryThunk->GetDomainId())
-    {
-        // call ourselves again through DoCallBack with a domain transition
-        pThread->DoADCallBack(pUMEntryThunk->GetDomainId(), RunTimeInit_Wrapper, pUMEntryThunk);
-    }
-    else
     {
         GCX_PREEMP();
         pUMEntryThunk->RunTimeInit();

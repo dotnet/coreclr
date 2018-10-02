@@ -18,7 +18,6 @@ extern TheUMEntryPrestubWorker:proc
 extern UMEntryPrestubUnwindFrameChainHandler:proc
 extern UMThunkStubUnwindFrameChainHandler:proc
 extern g_TrapReturningThreads:dword
-extern UM2MDoADCallBack:proc
 extern UMThunkStubRareDisableWorker:proc
 extern ReversePInvokeBadTransition:proc
 
@@ -188,14 +187,6 @@ HaveThread:
 
 InCooperativeMode:
 
-        mov             rax, [r12 + OFFSETOF__Thread__m_pDomain]
-        mov             eax, [rax + OFFSETOF__AppDomain__m_dwId]
-
-        mov             r11d, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_dwDomainId]
-
-        cmp             rax, r11
-        jne             WrongAppDomain
-
         mov             r11, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo]
         mov             eax, [r11 + OFFSETOF__UMThunkMarshInfo__m_cbActualArgSize]                      ; stack_args
         test            rax, rax                                                                        ; stack_args
@@ -321,39 +312,6 @@ CopyLoop:
         mov             r8, [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 10h]
         
         jmp             ArgumentsSetup
-
-
-WrongAppDomain:
-        ;
-        ; home register args to the stack
-        ;
-        mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h], rcx
-        mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  8h], rdx
-        mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 10h], r8
-        mov             [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET + 18h], r9
-
-        ;
-        ; save off xmm registers
-        ;
-        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h], xmm0
-        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 10h], xmm1
-        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 20h], xmm2
-        movdqa          xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET + 30h], xmm3
-
-        ;
-        ; call our helper to perform the AD transtion 
-        ;
-        mov             rcx, METHODDESC_REGISTER
-        lea             r8,  [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET]
-        mov             rax, [METHODDESC_REGISTER + OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo]
-        mov             r9d, [rax + OFFSETOF__UMThunkMarshInfo__m_cbActualArgSize]
-        call            UM2MDoADCallBack
-
-        ; restore return value
-        mov             rax,  [rbp + UMThunkStubAMD64_ARGUMENTS_STACK_HOME_OFFSET +  0h]
-        movdqa          xmm0, xmmword ptr [rbp + UMThunkStubAMD64_XMM_SAVE_OFFSET +  0h]
-
-        jmp             PostCall
 
 NESTED_END UMThunkStub, _TEXT
 

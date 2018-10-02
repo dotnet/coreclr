@@ -341,14 +341,7 @@ LOCAL_LABEL(UMThunkStub_HaveThread):
 
 LOCAL_LABEL(UMThunkStub_InCooperativeMode):
         ldr                 r12, [r7, #UMThunkStub_HiddenArgOffset]
-
-        ldr                 r0, [r5, #Thread__m_pDomain]
-        ldr                 r1, [r12, #UMEntryThunk__m_dwDomainId]
-        ldr                 r0, [r0, #AppDomain__m_dwId]
         ldr                 r3, [r12, #UMEntryThunk__m_pUMThunkMarshInfo]
-        cmp                 r0, r1
-        bne                 LOCAL_LABEL(UMThunkStub_WrongAppDomain)
-
         ldr                 r2, [r3, #UMThunkMarshInfo__m_cbActualArgSize]
         cbz                 r2, LOCAL_LABEL(UMThunkStub_ArgumentsSetup)
 
@@ -400,23 +393,6 @@ LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads):
         vldm                sp, {d0-d7}
         add                 sp, #SIZEOF__FloatArgumentRegisters
         b                   LOCAL_LABEL(UMThunkStub_InCooperativeMode)
-
-LOCAL_LABEL(UMThunkStub_WrongAppDomain):
-        sub                 sp, #SIZEOF__FloatArgumentRegisters
-        vstm                sp, {d0-d7}
-
-        ldr                 r0, [r7, #UMThunkStub_HiddenArgOffset]  // UMEntryThunk* pUMEntry
-        mov                 r2, r7              // void * pArgs
-        // remaining arguments are unused
-        bl                  C_FUNC(UM2MDoADCallBack)
-
-        // Restore non-FP return value.
-        ldr                 r0, [r7, #0]
-        ldr                 r1, [r7, #4]
-
-        // Restore FP return value or HFA.
-        vldm                sp, {d0-d3}
-        b                   LOCAL_LABEL(UMThunkStub_PostCall)
 
         NESTED_END UMThunkStub,_TEXT
 

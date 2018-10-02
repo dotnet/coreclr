@@ -302,19 +302,6 @@ FCIMPL2(Object*, AppDomainNative::GetAssemblies, AppDomainBaseObject* refThisUNS
 } // AppDomainNative::GetAssemblies
 FCIMPLEND
 
-
-FCIMPL1(void, AppDomainNative::Unload, INT32 dwId)
-{
-    FCALL_CONTRACT;
-
-    HELPER_METHOD_FRAME_BEGIN_0();
-
-    IfFailThrow(AppDomain::UnloadById(ADID(dwId),TRUE));
-
-    HELPER_METHOD_FRAME_END();
-}
-FCIMPLEND
-
 FCIMPL1(FC_BOOL_RET, AppDomainNative::IsDomainIdValid, INT32 dwId)
 {
     FCALL_CONTRACT;
@@ -322,8 +309,9 @@ FCIMPL1(FC_BOOL_RET, AppDomainNative::IsDomainIdValid, INT32 dwId)
     BOOL retVal = FALSE;
     HELPER_METHOD_FRAME_BEGIN_RET_0()
 
-    AppDomainFromIDHolder ad((ADID)dwId, TRUE);
-    retVal=!ad.IsUnloaded();
+    AppDomain* pApp = SystemDomain::GetAppDomainAtId((ADID)dwId);
+    retVal = (pApp != NULL);
+
     HELPER_METHOD_FRAME_END();
     FC_RETURN_BOOL(retVal);
 }

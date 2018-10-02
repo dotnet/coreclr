@@ -767,15 +767,6 @@ LOCAL_LABEL(UMThunkStub_HaveThread):
 
 LOCAL_LABEL(UMThunkStub_InCooperativeMode):
     ldr x12, [fp, #UMThunkStub_HiddenArg] // x12 = UMEntryThunk*
-
-    ldr x0, [x19, #Thread__m_pDomain]
-
-    // m_dwDomainId is 4 bytes so using 32-bit variant
-    ldr w1, [x12, #UMEntryThunk__m_dwDomainId]
-    ldr w0, [x0, #AppDomain__m_dwId]
-    cmp w0, w1
-    bne LOCAL_LABEL(UMThunkStub_WrongAppDomain)
-
     ldr x3, [x12, #UMEntryThunk__m_pUMThunkMarshInfo] // x3 = m_pUMThunkMarshInfo
 
     // m_cbActualArgSize is UINT32 and hence occupies 4 bytes
@@ -845,28 +836,6 @@ LOCAL_LABEL(UMThunkStub_DoTrapReturningThreads):
     RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 0
     add sp, sp, #SIZEOF__FloatArgumentRegisters
     b LOCAL_LABEL(UMThunkStub_InCooperativeMode)
-
-LOCAL_LABEL(UMThunkStub_WrongAppDomain):
-    // Saving FP Args as this is read by UM2MThunk_WrapperHelper
-    sub sp, sp, #SIZEOF__FloatArgumentRegisters
-    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 0
-
-    // UMEntryThunk* pUMEntry
-    ldr x0, [fp, #UMThunkStub_HiddenArg]
-
-    // void * pArgs
-    add x2, fp, #16  
-
-    // remaining arguments are unused
-    bl C_FUNC(UM2MDoADCallBack)
-
-    // restore integral return value
-    ldp x0, x1, [fp, #16]
-
-    // restore FP or HFA return value
-    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 0
-
-    b LOCAL_LABEL(UMThunkStub_PostCall)
 
 NESTED_END UMThunkStub, _TEXT
 
