@@ -1505,28 +1505,6 @@ void Compiler::StructPromotionHelper::SetRequiresScratchVar()
 #endif // _TARGET_ARM_
 
 //--------------------------------------------------------------------------------------------
-// CanPromoteStructType - checks if the struct type can be promoted.
-//
-// Arguments:
-//   typeHnd - struct handle to check.
-//
-// Return value:
-//   true if the struct type can be promoted.
-//
-// Notes:
-//   The last analyzed type is memorized to skip the check if we ask about the same time again next.
-//   However, it was not found profitable to memorize all analyzed types in a map.
-//
-//   The check initializes only nessasary fields in lvaStructPromotionInfo,
-//   so if the promotion is rejected early than the most fields will be uninitialized.
-//
-bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
-{
-    compiler->lvaCanPromoteStructType(typeHnd, &structPromotionInfo);
-    return structPromotionInfo.canPromote;
-}
-
-//--------------------------------------------------------------------------------------------
 // TryPromoteStructVar - promote struct var if it is possible and profitable.
 //
 // Arguments:
@@ -1565,15 +1543,30 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
     return false;
 }
 
-/*****************************************************************************
- * Is this type promotable? */
-
-bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo)
+//--------------------------------------------------------------------------------------------
+// CanPromoteStructType - checks if the struct type can be promoted.
+//
+// Arguments:
+//   typeHnd - struct handle to check.
+//
+// Return value:
+//   true if the struct type can be promoted.
+//
+// Notes:
+//   The last analyzed type is memorized to skip the check if we ask about the same time again next.
+//   However, it was not found profitable to memorize all analyzed types in a map.
+//
+//   The check initializes only nessasary fields in lvaStructPromotionInfo,
+//   so if the promotion is rejected early than the most fields will be uninitialized.
+//
+bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
-    assert(eeIsValueClass(typeHnd));
-
-    if (typeHnd != structPromotionInfo->typeHnd)
+    assert(compiler->eeIsValueClass(typeHnd));
+    if (structPromotionInfo.typeHnd != typeHnd)
     {
+        // Analyze this type from scratch.
+        structPromotionInfo = lvaStructPromotionInfo(typeHnd);
+
         // sizeof(double) represents the size of the largest primitive type that we can struct promote.
         // In the future this may be changing to XMM_REGSIZE_BYTES.
         // Note: MaxOffset is used below to declare a local array, and therefore must be a compile-time constant.
@@ -1598,10 +1591,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         bool customLayout       = false;
         bool containsGCpointers = false;
 
-        structPromotionInfo->typeHnd    = typeHnd;
-        structPromotionInfo->canPromote = false;
-
-        COMP_HANDLE compHandle = info.compCompHnd;
+        COMP_HANDLE compHandle = compiler->info.compCompHnd;
 
         unsigned structSize = compHandle->getClassSize(typeHnd);
         if (structSize > MaxOffset)
@@ -1615,8 +1605,8 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             return false; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
         }
 
-        structPromotionInfo->fieldCnt = (BYTE)fieldCnt;
-        DWORD typeFlags               = compHandle->getClassAttribs(typeHnd);
+        structPromotionInfo.fieldCnt = (BYTE)fieldCnt;
+        DWORD typeFlags              = compHandle->getClassAttribs(typeHnd);
 
         bool overlappingFields = StructHasOverlappingFields(typeFlags);
         if (overlappingFields)
@@ -1625,7 +1615,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         }
 
         // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type
-        if (StructHasCustomLayout(typeFlags) && IsHfa(typeHnd))
+        if (StructHasCustomLayout(typeFlags) && compiler->IsHfa(typeHnd))
         {
             return false;
         }
@@ -1645,7 +1635,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
 
         for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
         {
-            lvaStructFieldInfo* pFieldInfo = &structPromotionInfo->fields[ordinal];
+            lvaStructFieldInfo* pFieldInfo = &structPromotionInfo.fields[ordinal];
             pFieldInfo->fldHnd             = compHandle->getFieldInClass(typeHnd, ordinal);
             unsigned fldOffset             = compHandle->getFieldOffset(pFieldInfo->fldHnd);
 
@@ -1666,13 +1656,14 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             // Check to see if this is a SIMD type.
             // We will only check this if we have already found a SIMD type, which will be true if
             // we have encountered any SIMD intrinsics.
-            if (usesSIMDTypes() && (pFieldInfo->fldSize == 0) && isSIMDorHWSIMDClass(pFieldInfo->fldTypeHnd))
+            if (compiler->usesSIMDTypes() && (pFieldInfo->fldSize == 0) &&
+                compiler->isSIMDorHWSIMDClass(pFieldInfo->fldTypeHnd))
             {
                 unsigned  simdSize;
-                var_types simdBaseType = getBaseTypeAndSizeOfSIMDType(pFieldInfo->fldTypeHnd, &simdSize);
+                var_types simdBaseType = compiler->getBaseTypeAndSizeOfSIMDType(pFieldInfo->fldTypeHnd, &simdSize);
                 if (simdBaseType != TYP_UNKNOWN)
                 {
-                    pFieldInfo->fldType = getSIMDTypeForSize(simdSize);
+                    pFieldInfo->fldType = compiler->getSIMDTypeForSize(simdSize);
                     pFieldInfo->fldSize = simdSize;
                 }
             }
@@ -1783,7 +1774,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
             //
             if (pFieldInfo->fldSize < TARGET_POINTER_SIZE)
             {
-                structPromotionHelper->SetRequiresScratchVar();
+                SetRequiresScratchVar();
             }
 #endif // _TARGET_ARM_
         }
@@ -1820,16 +1811,15 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         }
 
         // Cool, this struct is promotable.
-        structPromotionInfo->canPromote    = true;
-        structPromotionInfo->containsHoles = containsHoles;
-        structPromotionInfo->customLayout  = customLayout;
+        structPromotionInfo.canPromote    = true;
+        structPromotionInfo.containsHoles = containsHoles;
+        structPromotionInfo.customLayout  = customLayout;
 
         // Sort the fields according to the increasing order of the field offset.
         // This is needed because the fields need to be pushed on stack (when referenced
         // as a struct) in order.
-        qsort(structPromotionInfo->fields, structPromotionInfo->fieldCnt, sizeof(*structPromotionInfo->fields),
+        qsort(structPromotionInfo.fields, structPromotionInfo.fieldCnt, sizeof(*structPromotionInfo.fields),
               lvaFieldOffsetCmp);
-
         return true;
     }
     else
@@ -1837,7 +1827,7 @@ bool Compiler::lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPr
         // Asking for the same type of struct as the last time.
         // Nothing need to be done.
         // Fall through ...
-        return structPromotionInfo->canPromote;
+        return structPromotionInfo.canPromote;
     }
 }
 

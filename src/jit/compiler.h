@@ -2979,13 +2979,14 @@ public:
         unsigned char        fieldCnt;
         lvaStructFieldInfo   fields[MAX_NumOfFieldsInPromotableStruct];
 
-        lvaStructPromotionInfo() : typeHnd(nullptr), canPromote(false), containsHoles(false), customLayout(false)
+        lvaStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd = nullptr)
+            : typeHnd(typeHnd), canPromote(false), containsHoles(false), customLayout(false), fieldCnt(0)
         {
+            memset(fields, 0, sizeof(fields));
         }
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    bool lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
 
     // This class is responsible for checking possibility and profitability of struct promotion.
     // If the both checks pass than it promotes struct and initializes nessesary information for fgMorphStructField to
