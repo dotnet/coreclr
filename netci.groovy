@@ -173,7 +173,8 @@ class Constants {
                'gc_reliability_framework',
                'illink',
                'corefx_innerloop',
-               'crossgen_comparison']
+               'crossgen_comparison',
+               'pmi_asm_diffs']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -262,6 +263,7 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                // 'crossgen_comparison'
+               // 'pmi_asm_diffs'
                'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
                'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
@@ -374,6 +376,7 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                'crossgen_comparison',
+               'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
@@ -462,6 +465,7 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                // 'crossgen_comparison'
+               'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
@@ -1336,6 +1340,10 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
             }
             break
 
+        case 'pmi_asm_diffs':
+            // No non-PR triggers for now.
+            break
+
         case 'normal':
             switch (architecture) {
                 case 'x64':
@@ -2065,12 +2073,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
     def osGroup = getOSGroup(os)
     def lowerConfiguration = configuration.toLowerCase()
 
+    // Which set of tests to build? Innerloop tests build Pri-0.
+    // Currently, we only generate asm diffs on Pri-0 tests, if we generate asm diffs on tests at all.
+    // CoreFX testing skipts building tests altogether (done below).
+    // All other scenarios build Pri-1 tests.
     def priority = '1'
     if (isInnerloopTestScenario(scenario)) {
         priority = '0'
     }
 
     def doCoreFxTesting = isCoreFxScenario(scenario)
+
+    def buildCoreclrTests = true
+    if (doCoreFxTesting || (scenario == 'pmi_asm_diffs')) {
+        // These scenarios don't need the coreclr tests build.
+        buildCoreclrTests = false
+    }
 
     // Calculate the build steps, archival, and xunit results
     switch (os) {
@@ -2108,10 +2126,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildOpts += ' -enforcepgo'
                     }
 
-                    if (doCoreFxTesting) {
-                        buildOpts += ' skiptests';
-                    } else {
+                    if (buildCoreclrTests) {
                         buildOpts += " -priority=${priority}"
+                    } else {
+                        buildOpts += ' skiptests';
                     }
 
                     // Set __TestIntermediateDir to something short. If __TestIntermediateDir is already set, build-test.cmd will
@@ -2119,6 +2137,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // 35 characters long.
 
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
+
+                    if (scenario == 'pmi_asm_diffs') {
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration}"
+
+                        // ZIP up the asm
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('_\\_asm', '.\\dasm.${os}.${architecture}.${configuration}.zip')\"";
+
+                        // Archive the asm
+                        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
+                        break
+                    }
 
                     if (!isBuildOnly) {
                         def runtestArguments = ''
@@ -2280,10 +2310,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def buildOpts = ''
 
-                    if (doCoreFxTesting) {
-                        buildOpts += ' skiptests'
-                    } else {
+                    if (buildCoreclrTests) {
                         buildOpts += " -priority=${priority}"
+                    } else {
+                        buildOpts += ' skiptests'
                     }
 
                     // This is now a build only job. Do not run tests. Use the flow job.
@@ -2356,6 +2386,20 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     if (scenario == 'formatting') {
                         buildCommands += "python tests/scripts/format.py -c \${WORKSPACE} -o Linux -a ${architecture}"
                         Utilities.addArchival(newJob, "format.patch", "", true, false)
+                        break
+                    }
+
+                    if (scenario == 'pmi_asm_diffs') {
+                        buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests skipbuildpackages"
+
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
+
+                        // ZIP up the asm
+                        buildCommands += "zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm"
+
+                        // Archive the asm
+                        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
                         break
                     }
 
@@ -2515,6 +2559,18 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         } // crossArch
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeResultsDir}"
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
+                    }
+                    else if (scenario == 'pmi_asm_diffs') {
+                        // Pass `-skip_diffs` -- the actual diffs will be done on an arm machine in the test job. This is the build job.
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_diffs True"
+
+                        // ZIP what we created.
+                        buildCommands += "zip -r coreroot.${os}.${architecture}.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+                        buildCommands += "zip -r coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip ./_/_c/bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+
+                        // Archive the built artifacts
+                        Utilities.addArchival(newJob, "coreroot.${os}.${architecture}.${configuration}.zip,coreroot.baseline.${os}.${architecture}.${configuration}.zip")
                     }
                     else if (architecture == 'arm') {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
@@ -2850,6 +2906,22 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 break
+            case 'pmi_asm_diffs':
+                if (configuration != 'Checked') {
+                    return false
+                }
+                if (architecture == 'armem') {
+                    return false
+                }
+                // Currently, we don't support pmi_asm_diffs for Windows arm/arm64. Is is not in validArmWindowsScenarios.
+                if ((os == 'Windows_NT') && (architecture == 'arm' || architecture == 'arm64')) {
+                    return false
+                }
+                // Currently, no support for Linux x86.
+                if ((os != 'Windows_NT') && (architecture == 'x86')) {
+                    return false
+                }
+                break
             default:
                 println("Unknown scenario: ${scenario}")
                 assert false
@@ -3160,6 +3232,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
     def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
 
     def doCoreFxTesting = isCoreFxScenario(scenario)
+    def isPmiAsmDiffsScenario = (scenario == 'pmi_asm_diffs')
 
     def workspaceRelativeFxRootLinux = "_/fx" // only used for CoreFX testing
 
@@ -3344,7 +3417,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
                 def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
-                if (doCoreFxTesting || doCrossGenComparison) {
+                if (isPmiAsmDiffsScenario || doCoreFxTesting || doCrossGenComparison) {
                     // These depend on unique builds for each scenario
                     inputCoreCLRBuildScenario = scenario
                 }
@@ -3360,7 +3433,13 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 def inputUrlRoot = "https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/${inputJobPath}/\${CORECLR_BUILD}/artifact"
 
-                if (doCoreFxTesting) {
+                if (isPmiAsmDiffsScenario) {
+                    def workspaceRelativeRootLinux = "_"
+                    shell("mkdir -p ${workspaceRelativeRootLinux}")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.${os}.${architecture}.${lowerConfiguration}.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
+                }
+                else if (doCoreFxTesting) {
                     shell("mkdir -p ${workspaceRelativeFxRootLinux}")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxtests.zip")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
@@ -3389,8 +3468,13 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
             }
 
+            if (isPmiAsmDiffsScenario) {
+                // TODO: add back "-q" when we know it works
+                shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+            }
             // CoreFX testing downloads the CoreFX tests, not the coreclr tests. Also, unzip the built CoreFX layout/runtime directories.
-            if (doCoreFxTesting) {
+            else if (doCoreFxTesting) {
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
@@ -3409,16 +3493,18 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // copied correctly.
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
-                    if (architecture == 'arm') {
-                        shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
-                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                    }
-                    else {
-                        assert architecture == 'arm64'
-                        shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
-
-                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                    if (!isPmiAsmDiffsScenario) {
+                        if (architecture == 'arm') {
+                            shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
+                            shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                        }
+                        else {
+                            assert architecture == 'arm64'
+                            shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
+    
+                            // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
+                            shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
+                        }
                     }
                 }
                 else {
@@ -3457,7 +3543,13 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 }
             }
 
-            if (doCoreFxTesting) {
+            if (isPmiAsmDiffsScenario) {
+                shell("""\
+python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_baseline_build True""")
+
+                shell("zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm")
+            }
+            else if (doCoreFxTesting) {
                 shell("""\
 \${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin --configurationGroup Release""")
             }
@@ -3497,7 +3589,11 @@ ${runScript} \\
         summaries.emit(newJob)
     }
 
-    if (doCoreFxTesting) {
+    if (isPmiAsmDiffsScenario) {
+        // Archive the asm
+        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
+    }
+    else if (doCoreFxTesting) {
         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
         if ((os == "Ubuntu") && (architecture == 'arm')) {
             // We have a problem with the xunit plug-in, where it is consistently failing on Ubuntu arm32 test result uploading with this error:
@@ -3848,6 +3944,16 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
                 }
                 break
 
+            case 'pmi_asm_diffs':
+                if (configuration != 'Checked') {
+                    return false
+                }
+                // No need for flow job except for Linux arm/arm64
+                if ((os != 'Windows_NT') && (architecture != 'arm') && (architecture != 'arm64')) {
+                    return false
+                }
+                break
+
             case 'corefx_innerloop':
                 // No flow job needed
                 return false
@@ -3877,12 +3983,13 @@ Constants.allScenarios.each { scenario ->
                     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
                     def doCoreFxTesting = isCoreFxScenario(scenario)
                     def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
+                    def isPmiAsmDiffsScenario = (scenario == 'pmi_asm_diffs')
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
                     def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
                     def inputCoreCLRBuildIsBuildOnly = false
-                    if (doCoreFxTesting) {
+                    if (doCoreFxTesting || isPmiAsmDiffsScenario) {
                         // Every CoreFx test depends on its own unique build.
                         inputCoreCLRBuildScenario = scenario
                         if (windowsArmJob) {
@@ -3890,7 +3997,7 @@ Constants.allScenarios.each { scenario ->
                             inputCoreCLRBuildIsBuildOnly = true
                         }
                     }
-                    if (doCrossGenComparison) {
+                    else if (doCrossGenComparison) {
                         inputCoreCLRBuildScenario = scenario
                     }
 
@@ -3909,7 +4016,7 @@ Constants.allScenarios.each { scenario ->
                     // Ubuntu Arm64 jobs do the test build on the build machine, and thus don't depend on a Windows build.
                     def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
 
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job) {
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job && !isPmiAsmDiffsScenario) {
                         def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
