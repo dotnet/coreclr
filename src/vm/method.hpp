@@ -1271,7 +1271,6 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        DWORD dwImplFlags = 0;
         return
             IsIL() && // only makes sense for IL methods, and this implies !IsNoMetadata()
             IsMiAggressiveOptimization(GetImplAttrs());
