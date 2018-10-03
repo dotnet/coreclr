@@ -7,20 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\archive\Core_Root*\*.zip">
+    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\Core_Root\*.zip">
       <PayloadArchive>%(Identity)</PayloadArchive>
     </HelixCorrelationPayload>
   </ItemGroup>
 
   <ItemGroup>
-    <HelixWorkItem Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\archive\*.zip">
+    <HelixWorkItem Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\tests\*.zip">
       <PayloadArchive>%(Identity)</PayloadArchive>
       <Command>runtests.cmd</Command>
     </HelixWorkItem>
   </ItemGroup>
-
-  <Target Name="CorrelationId" AfterTargets="Test">
-    <Message Importance="High" Text="##vso[task.setvariable variable=HelixJobId;]$(HelixJobId)" />
-    <Message Importance="High" Text="##vso[task.setvariable variable=NumberOfWorkItems;]@(HelixWorkItem->Count())" />
-  </Target>
 </Project>
