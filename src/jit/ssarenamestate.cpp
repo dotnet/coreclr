@@ -66,15 +66,27 @@ void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
     DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", block->bbNum, lclNum, ssaNum);
 
     EnsureStacks();
+    Push(&m_stacks[lclNum], block, ssaNum);
+}
 
-    StackNode* top = m_stacks[lclNum].Top();
+//------------------------------------------------------------------------
+// Push: Push a SSA number onto a stack
+//
+// Arguments:
+//    stack  - The stack to push to
+//    block  - The block where the SSA definition occurs
+//    ssaNum - The SSA number
+//
+void SsaRenameState::Push(Stack* stack, BasicBlock* block, unsigned ssaNum)
+{
+    StackNode* top = stack->Top();
 
     if ((top == nullptr) || (top->m_block != block))
     {
-        m_stacks[lclNum].Push(AllocStackNode(m_stackListTail, block, ssaNum));
+        stack->Push(AllocStackNode(m_stackListTail, block, ssaNum));
         // Append the stack to the stack list. The stack list allows PopBlockStacks
         // to easily find stacks that need popping.
-        m_stackListTail = &m_stacks[lclNum];
+        m_stackListTail = stack;
     }
     else
     {
@@ -83,7 +95,7 @@ void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
         top->m_ssaNum = ssaNum;
     }
 
-    INDEBUG(DumpStack(&m_stacks[lclNum]));
+    INDEBUG(DumpStack(stack));
 }
 
 void SsaRenameState::PopBlockStacks(BasicBlock* block)

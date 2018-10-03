@@ -86,8 +86,7 @@ public:
 
     void PushMemory(MemoryKind memoryKind, BasicBlock* block, unsigned ssaNum)
     {
-        m_memoryStack[memoryKind].Push(AllocStackNode(m_stackListTail, block, ssaNum));
-        m_stackListTail = &m_memoryStack[memoryKind];
+        Push(&m_memoryStack[memoryKind], block, ssaNum);
     }
 
 private:
@@ -110,6 +109,9 @@ private:
 
         return new (stack, jitstd::placement_t()) StackNode(jitstd::forward<Args>(args)...);
     }
+
+    // Push a SSA number onto a stack
+    void Push(Stack* stack, BasicBlock* block, unsigned ssaNum);
 
     INDEBUG(void DumpStack(Stack* stack);)
 };
