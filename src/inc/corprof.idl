@@ -3911,6 +3911,21 @@ interface ICorProfilerInfo9 : ICorProfilerInfo8
     HRESULT GetCodeInfo4(UINT_PTR pNativeCodeStartAddress, ULONG32 cCodeInfos, ULONG32* pcCodeInfos, COR_PRF_CODE_INFO codeInfos[]);
 }
 
+[
+    object,
+    uuid(D5204E2C-3C39-41F0-B2DA-E7213D48BA0D),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo10 : ICorProfilerInfo9
+{
+    /*
+    * Add path that will be used for assembly resolution
+    */
+    HRESULT AddAssemblyPath( [in]         AppDomainID appDomainId,
+                             [in, string] const WCHAR *pAssemblyPath);
+}
+
 /*
 * This interface lets you iterate over methods in the runtime.
 */

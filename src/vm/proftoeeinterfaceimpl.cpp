@@ -593,6 +593,10 @@ COM_METHOD ProfToEEInterfaceImpl::QueryInterface(REFIID id, void ** pInterface)
     {
         *pInterface = static_cast<ICorProfilerInfo9 *>(this);
     }
+    else if (id == IID_ICorProfilerInfo10)
+    {
+        *pInterface = static_cast<ICorProfilerInfo10 *>(this);
+    }
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown *>(static_cast<ICorProfilerInfo *>(this));
@@ -9801,6 +9805,75 @@ HRESULT ProfToEEInterfaceImpl::ApplyMetaData(
        }
     }
     EX_CATCH_HRESULT(hr);
+    return hr;
+}
+
+// Add path to list of assemblies used by the runtime to probe assembly references
+// pAssemblyPath should be absolute path of assembly
+// Assembly name should match filename.
+HRESULT ProfToEEInterfaceImpl::AddAssemblyPath(AppDomainID appDomainId,
+    const WCHAR *pAssemblyPath)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        CANNOT_TAKE_LOCK;
+        SO_NOT_MAINLINE;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(kP2EEAllowableAfterAttach, (LF_CORPROF, LL_INFO1000, "**PROF: AddAssemblyPath.\n"));
+
+    BaseDomain* pDomain = reinterpret_cast<BaseDomain*>(appDomainId);
+    if (pDomain == NULL)
+    {
+        return CORPROF_E_DATAINCOMPLETE;
+    }
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        SString fileName(pAssemblyPath);
+        SString simpleName;
+        bool isNativeImage;
+
+        CLRPrivBinderCoreCLR* binderContext = pDomain->GetTPABinderContext();
+        if (binderContext == nullptr)
+        {
+            hr = CORPROF_E_NOT_YET_AVAILABLE;
+        }
+        else
+        {
+            BINDER_SPACE::ApplicationContext* appContext = binderContext->GetAppContext();
+
+            hr = BINDER_SPACE::ApplicationContext::GetAssemblySimpleName(fileName, simpleName, isNativeImage);
+
+            if (hr == S_OK) {
+                BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
+                if (tpaMap == nullptr)
+                {
+                    hr = CORPROF_E_NOT_YET_AVAILABLE;
+                }
+                else
+                {
+                    const BINDER_SPACE::SimpleNameToFileNameMapEntry *pExistingEntry = appContext->GetTpaList()->LookupPtr(simpleName.GetUnicode());
+                    if (pExistingEntry != nullptr)
+                    {
+                        hr = CORPROF_E_ASSEMBLY_ALREADY_DEFINED;
+                    }
+                    else
+                    {
+                        hr = appContext->UpdateSimpleNameToFileNameMapEntry(simpleName, fileName, isNativeImage);
+                    }
+                }
+            }
+
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+
     return hr;
 }
 

@@ -261,61 +261,20 @@ namespace BINDER_SPACE
             // Find the beginning of the simple name
             SString::Iterator iSimpleNameStart = fileName.End();
             
+#ifndef CROSSGEN_COMPILE
             if (!fileName.FindBack(iSimpleNameStart, DIRECTORY_SEPARATOR_CHAR_W))
             {
-#ifdef CROSSGEN_COMPILE
-                iSimpleNameStart = fileName.Begin();
-#else
                 // Couldn't find a directory separator.  File must have been specified as a relative path.  Not allowed.
                 GO_WITH_HRESULT(E_INVALIDARG);
+            }
 #endif
-            }
-            else
-            {
-                // Advance past the directory separator to the first character of the file name
-                iSimpleNameStart++;
-            }
-
-            if (iSimpleNameStart == fileName.End())
-            {
-                GO_WITH_HRESULT(E_INVALIDARG);
-            }
-
             SString simpleName;
             bool isNativeImage = false;
 
-            // GCC complains if we create SStrings inline as part of a function call
-            SString sNiDll(W(".ni.dll"));
-            SString sNiExe(W(".ni.exe"));
-            SString sNiWinmd(W(".ni.winmd"));
-            SString sDll(W(".dll"));
-            SString sExe(W(".exe"));
-            SString sWinmd(W(".winmd"));
-            
-            if (fileName.EndsWithCaseInsensitive(sNiDll) ||
-                fileName.EndsWithCaseInsensitive(sNiExe))
+            HRESULT simpleNameResult = S_OK;
+            if ((simpleNameResult = GetAssemblySimpleName(fileName, simpleName, isNativeImage)) != S_OK)
             {
-                simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 7);
-                isNativeImage = true;
-            }
-            else if (fileName.EndsWithCaseInsensitive(sNiWinmd))
-            {
-                simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 9);
-                isNativeImage = true;
-            }
-            else if (fileName.EndsWithCaseInsensitive(sDll) ||
-                     fileName.EndsWithCaseInsensitive(sExe))
-            {
-                simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 4);
-            }
-            else if (fileName.EndsWithCaseInsensitive(sWinmd))
-            {
-                simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 6);
-            }
-            else
-            {
-                // Invalid filename
-                GO_WITH_HRESULT(E_INVALIDARG);
+                GO_WITH_HRESULT(simpleNameResult);
             }
 
             const SimpleNameToFileNameMapEntry *pExistingEntry = m_pTrustedPlatformAssemblyMap->LookupPtr(simpleName.GetUnicode());
@@ -335,49 +294,12 @@ namespace BINDER_SPACE
                     continue;
                 }
             }
-            
-            LPWSTR wszSimpleName = nullptr;
-            if (pExistingEntry == nullptr)
-            {
-                wszSimpleName = new WCHAR[simpleName.GetCount() + 1];
-                if (wszSimpleName == nullptr)
-                {
-                    GO_WITH_HRESULT(E_OUTOFMEMORY);
-                }
-                wcscpy_s(wszSimpleName, simpleName.GetCount() + 1, simpleName.GetUnicode());
-            }
-            else
-            {
-                wszSimpleName = pExistingEntry->m_wszSimpleName;
-            }
-            
-            LPWSTR wszFileName = new WCHAR[fileName.GetCount() + 1];
-            if (wszFileName == nullptr)
-            {
-                GO_WITH_HRESULT(E_OUTOFMEMORY);
-            }
-            wcscpy_s(wszFileName, fileName.GetCount() + 1, fileName.GetUnicode());
-            
-            SimpleNameToFileNameMapEntry mapEntry;
-            mapEntry.m_wszSimpleName = wszSimpleName;
-            if (isNativeImage)
-            {
-                mapEntry.m_wszNIFileName = wszFileName;
-                mapEntry.m_wszILFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszILFileName;
-            }
-            else
-            {
-                mapEntry.m_wszILFileName = wszFileName;
-                mapEntry.m_wszNIFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszNIFileName;
-            }
 
-            m_pTrustedPlatformAssemblyMap->AddOrReplace(mapEntry);
-            
-            FileNameMapEntry fileNameExistenceEntry;
-            fileNameExistenceEntry.m_wszFileName = wszFileName;
-            m_pFileNameHash->AddOrReplace(fileNameExistenceEntry);
-            
-            BINDER_LOG_STRING(W("ApplicationContext::SetupBindingPaths: Added TPA entry"), wszFileName);
+            HRESULT updateEntryResult = S_OK;
+            if ((updateEntryResult = UpdateSimpleNameToFileNameMapEntry(simpleName, fileName, isNativeImage)) != S_OK)
+            {
+                GO_WITH_HRESULT(updateEntryResult);
+            }
         }
 
         //
@@ -476,6 +398,115 @@ namespace BINDER_SPACE
     Exit:
         BINDER_LOG_LEAVE_HR(W("ApplicationContext::GetAssemblyIdentity"), hr);
         return hr;
+    }
+
+    HRESULT ApplicationContext::GetAssemblySimpleName(/* in */  SString& fileName,
+                                                      /* out */ SString& simpleName,
+                                                      /* out */ bool& isNativeImage)
+    {
+        SString::Iterator iSimpleNameStart = fileName.End();
+
+        if (!fileName.FindBack(iSimpleNameStart, DIRECTORY_SEPARATOR_CHAR_W))
+        {
+            iSimpleNameStart = fileName.Begin();
+        }
+        else
+        {
+            // Advance past the directory separator to the first character of the file name
+            iSimpleNameStart++;
+        }
+
+        if (iSimpleNameStart == fileName.End())
+        {
+            return E_INVALIDARG;
+        }
+
+        // GCC complains if we create SStrings inline as part of a function call
+        SString sNiDll(W(".ni.dll"));
+        SString sNiExe(W(".ni.exe"));
+        SString sNiWinmd(W(".ni.winmd"));
+        SString sDll(W(".dll"));
+        SString sExe(W(".exe"));
+        SString sWinmd(W(".winmd"));
+
+        if (fileName.EndsWithCaseInsensitive(sNiDll) ||
+            fileName.EndsWithCaseInsensitive(sNiExe))
+        {
+            simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 7);
+            isNativeImage = true;
+        }
+        else if (fileName.EndsWithCaseInsensitive(sNiWinmd))
+        {
+            simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 9);
+            isNativeImage = true;
+        }
+        else if (fileName.EndsWithCaseInsensitive(sDll) ||
+            fileName.EndsWithCaseInsensitive(sExe))
+        {
+            simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 4);
+        }
+        else if (fileName.EndsWithCaseInsensitive(sWinmd))
+        {
+            simpleName.Set(fileName, iSimpleNameStart, fileName.End() - 6);
+        }
+        else
+        {
+            // Invalid filename
+            return E_INVALIDARG;
+        }
+
+        return S_OK;
+    }
+
+    HRESULT ApplicationContext::UpdateSimpleNameToFileNameMapEntry(SString& simpleName,
+                                                                   SString& fileName,
+                                                                   bool isNativeImage)
+    {
+        const SimpleNameToFileNameMapEntry *pExistingEntry = m_pTrustedPlatformAssemblyMap->LookupPtr(simpleName.GetUnicode());
+
+        LPWSTR wszSimpleName = nullptr;
+        if (pExistingEntry == nullptr)
+        {
+            wszSimpleName = new WCHAR[simpleName.GetCount() + 1];
+            if (wszSimpleName == nullptr)
+            {
+                return E_OUTOFMEMORY;
+            }
+            wcscpy_s(wszSimpleName, simpleName.GetCount() + 1, simpleName.GetUnicode());
+        }
+        else
+        {
+            wszSimpleName = pExistingEntry->m_wszSimpleName;
+        }
+
+        LPWSTR wszFileName = new WCHAR[fileName.GetCount() + 1];
+        if (wszFileName == nullptr)
+        {
+            return E_OUTOFMEMORY;
+        }
+        wcscpy_s(wszFileName, fileName.GetCount() + 1, fileName.GetUnicode());
+
+        SimpleNameToFileNameMapEntry mapEntry;
+        mapEntry.m_wszSimpleName = wszSimpleName;
+        if (isNativeImage)
+        {
+            mapEntry.m_wszNIFileName = wszFileName;
+            mapEntry.m_wszILFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszILFileName;
+        }
+        else
+        {
+            mapEntry.m_wszILFileName = wszFileName;
+            mapEntry.m_wszNIFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszNIFileName;
+        }
+
+        m_pTrustedPlatformAssemblyMap->AddOrReplace(mapEntry);
+
+        FileNameMapEntry fileNameExistenceEntry;
+        fileNameExistenceEntry.m_wszFileName = wszFileName;
+        m_pFileNameHash->AddOrReplace(fileNameExistenceEntry);
+
+        BINDER_LOG_STRING(W("ApplicationContext::UpdateSimpleNameToFileNameMapEntry: Added TPA entry"), wszFileName);
+        return S_OK;
     }
 
     bool ApplicationContext::IsTpaListProvided()

@@ -129,6 +129,14 @@ namespace BINDER_SPACE
         HRESULT GetAssemblyIdentity(/* in */ LPCSTR                szTextualIdentity,
                                     /* in */ AssemblyIdentityUTF8 **ppAssemblyIdentity);
 
+        static HRESULT GetAssemblySimpleName(/* in */  SString& fileName,
+                                             /* out */ SString& simpleName,
+                                             /* out */ bool& isNativeImage);
+
+        HRESULT UpdateSimpleNameToFileNameMapEntry(SString& simpleName,
+                                                   SString& fileName,
+                                                   bool isNativeImage);
+
         // Getters/Setter
         inline ExecutionContext *GetExecutionContext();
         inline InspectionContext *GetInspectionContext();
