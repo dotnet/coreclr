@@ -1540,7 +1540,7 @@ void SsaBuilder::RenameVariables(BlkToBlkVectorMap* domTree, SsaRenameState* pRe
             // In ValueNum we'd assume un-inited variables get FIRST_SSA_NUM.
             assert(ssaNum == SsaConfig::FIRST_SSA_NUM);
 
-            pRenameState->Push(nullptr, lclNum, ssaNum);
+            pRenameState->Push(m_pCompiler->fgFirstBB, lclNum, ssaNum);
         }
     }
 

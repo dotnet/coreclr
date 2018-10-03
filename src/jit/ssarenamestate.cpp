@@ -73,9 +73,7 @@ void SsaRenameState::Push(BasicBlock* bb, unsigned lclNum, unsigned count)
 {
     EnsureStacks();
 
-    // We'll use BB00 here to indicate the "block before any real blocks..."
-    DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", bb != nullptr ? bb->bbNum : 0, lclNum,
-                    count);
+    DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", bb->bbNum, lclNum, count);
 
     Stack* stack = stacks[lclNum];
 
@@ -160,8 +158,7 @@ void SsaRenameState::DumpStack(Stack* stack, const char* name, ...)
 
         for (Stack::reverse_iterator i = stack->rbegin(); i != stack->rend(); ++i)
         {
-            printf("%s<" FMT_BB ", %u>", (i == stack->rbegin()) ? "" : ", ", (i->m_bb != nullptr) ? i->m_bb->bbNum : 0,
-                   i->m_count);
+            printf("%s<" FMT_BB ", %u>", (i == stack->rbegin()) ? "" : ", ", i->m_bb->bbNum, i->m_count);
         }
 
         printf("\n");
