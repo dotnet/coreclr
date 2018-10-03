@@ -81,7 +81,6 @@ void SsaRenameState::Push(BasicBlock* bb, unsigned lclNum, unsigned count)
 
     if (stack == nullptr)
     {
-        DBG_SSA_JITDUMP("\tCreating a new stack\n");
         stack = stacks[lclNum] = new (m_alloc) Stack(m_alloc);
     }
 
@@ -97,19 +96,7 @@ void SsaRenameState::Push(BasicBlock* bb, unsigned lclNum, unsigned count)
         stack->back().m_count = count;
     }
 
-#ifdef DEBUG
-    if (JitTls::GetCompiler()->verboseSsa)
-    {
-        printf("\tContents of the stack: [");
-        for (Stack::iterator iter2 = stack->begin(); iter2 != stack->end(); iter2++)
-        {
-            printf("<" FMT_BB ", %d>", ((*iter2).m_bb != nullptr ? (*iter2).m_bb->bbNum : 0), (*iter2).m_count);
-        }
-        printf("]\n");
-
-        DumpStacks();
-    }
-#endif
+    INDEBUG(DumpStack(stack, "V%02u", lclNum));
 }
 
 void SsaRenameState::PopBlockStacks(BasicBlock* block)
@@ -126,7 +113,10 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
         assert(stack->back().m_bb == block);
         stack->pop_back();
         definedLocs.pop_back();
+
+        INDEBUG(DumpStack(stack, "V%02u", lclNum));
     }
+
 #ifdef DEBUG
     // It should now be the case that no stack in stacks has an entry for "block" on top --
     // the loop above popped them all.
@@ -136,10 +126,6 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
         {
             assert(stacks[i]->back().m_bb != block);
         }
-    }
-    if (JitTls::GetCompiler()->verboseSsa)
-    {
-        DumpStacks();
     }
 #endif // DEBUG
 }
@@ -154,37 +140,31 @@ void SsaRenameState::PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* bloc
 }
 
 #ifdef DEBUG
-/**
- * Print the stack data for each variable in a loop.
- */
-void SsaRenameState::DumpStacks()
+//------------------------------------------------------------------------
+// DumpStack: Print the specified stack.
+//
+// Arguments:
+//    stack - The stack to print
+//    name - The name stack name (printf format string)
+//
+void SsaRenameState::DumpStack(Stack* stack, const char* name, ...)
 {
-    printf("Dumping stacks:\n-------------------------------\n");
-    if (lvaCount == 0)
+    if (JitTls::GetCompiler()->verboseSsa)
     {
-        printf("None\n");
-    }
-    else
-    {
-        EnsureStacks();
-        for (unsigned i = 0; i < lvaCount; ++i)
+        char    buffer[32];
+        va_list args;
+        va_start(args, name);
+        _vsnprintf(buffer, sizeof(buffer), name, args);
+        va_end(args);
+        printf("%s: ", buffer);
+
+        for (Stack::reverse_iterator i = stack->rbegin(); i != stack->rend(); ++i)
         {
-            Stack* stack = stacks[i];
-            printf("V%02u:\t", i);
-            if (stack != nullptr)
-            {
-                for (Stack::iterator iter2 = stack->begin(); iter2 != stack->end(); ++iter2)
-                {
-                    if (iter2 != stack->begin())
-                    {
-                        printf(", ");
-                    }
-                    printf("<" FMT_BB ", %2d>", ((*iter2).m_bb != nullptr ? (*iter2).m_bb->bbNum : 0),
-                           (*iter2).m_count);
-                }
-            }
-            printf("\n");
+            printf("%s<" FMT_BB ", %u>", (i == stack->rbegin()) ? "" : ", ", (i->m_bb != nullptr) ? i->m_bb->bbNum : 0,
+                   i->m_count);
         }
+
+        printf("\n");
     }
 }
 #endif // DEBUG

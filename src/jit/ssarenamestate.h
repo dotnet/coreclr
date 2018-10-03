@@ -121,12 +121,9 @@ struct SsaRenameState
 
     void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* bb);
 
-#ifdef DEBUG
-    // Debug interface
-    void DumpStacks();
-#endif
-
 private:
+    INDEBUG(void DumpStack(Stack* stack, const char* name, ...);)
+
     // Map of lclNum -> SsaRenameStateForBlock.
     Stacks stacks;
 
