@@ -4,48 +4,67 @@
 
 #pragma once
 
-#include "jitstd.h"
-
 class SsaRenameState
 {
-    struct SsaRenameStateForBlock
-    {
-        BasicBlock* m_block;
-        unsigned    m_ssaNum;
+    struct StackNode;
 
-        SsaRenameStateForBlock(BasicBlock* block, unsigned ssaNum) : m_block(block), m_ssaNum(ssaNum)
+    class Stack
+    {
+        StackNode* m_top;
+
+    public:
+        Stack() : m_top(nullptr)
         {
         }
-        SsaRenameStateForBlock() : m_block(nullptr), m_ssaNum(0)
+
+        StackNode* Top()
         {
+            return m_top;
+        }
+
+        void Push(StackNode* node)
+        {
+            node->m_stackPrev = m_top;
+            m_top             = node;
+        }
+
+        StackNode* Pop()
+        {
+            StackNode* top = m_top;
+            m_top          = top->m_stackPrev;
+            return top;
         }
     };
 
-    // A record indicating that local "m_lclNum" was defined in block "m_block".
-    struct SsaRenameStateLocDef
+    struct StackNode
     {
+        // Link to the previous stack top node
+        StackNode* m_stackPrev;
+        // Link to the previously pushed stack (used only when popping blocks)
+        Stack* m_listPrev;
+        // The basic block (used only when popping blocks)
         BasicBlock* m_block;
-        unsigned    m_lclNum;
+        // The actual information StackNode stores - the SSA number
+        unsigned m_ssaNum;
 
-        SsaRenameStateLocDef(BasicBlock* block, unsigned lclNum) : m_block(block), m_lclNum(lclNum)
+        StackNode(Stack* listPrev, BasicBlock* block, unsigned ssaNum)
+            : m_listPrev(listPrev), m_block(block), m_ssaNum(ssaNum)
         {
         }
     };
-
-    typedef jitstd::list<SsaRenameStateForBlock> Stack;
-    typedef Stack**                              Stacks;
-    typedef jitstd::list<SsaRenameStateLocDef>   DefStack;
 
     // Memory allocator
     CompAllocator m_alloc;
     // Number of local variables to allocate stacks for
     unsigned m_lvaCount;
-    // Map of lclNum -> SsaRenameStateForBlock
-    Stacks m_stacks;
-    // This list represents the set of locals defined in the current block
-    DefStack m_definedLocs;
+    // An array of stack objects, one for each local variable
+    Stack* m_stacks;
+    // The tail of the list of stacks that have been pushed to
+    Stack* m_stackListTail;
     // Same state for the special implicit memory variables
     Stack m_memoryStack[MemoryKindCount];
+    // A stack of free stack nodes
+    Stack m_freeStack;
 
 public:
     SsaRenameState(CompAllocator alloc, unsigned lvaCount);
@@ -62,18 +81,35 @@ public:
     // Similar functions for the special implicit memory variable.
     unsigned TopMemory(MemoryKind memoryKind)
     {
-        return m_memoryStack[memoryKind].back().m_ssaNum;
+        return m_memoryStack[memoryKind].Top()->m_ssaNum;
     }
 
     void PushMemory(MemoryKind memoryKind, BasicBlock* block, unsigned ssaNum)
     {
-        m_memoryStack[memoryKind].push_back(SsaRenameStateForBlock(block, ssaNum));
+        m_memoryStack[memoryKind].Push(AllocStackNode(m_stackListTail, block, ssaNum));
+        m_stackListTail = &m_memoryStack[memoryKind];
     }
-
-    void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* block);
 
 private:
     void EnsureStacks();
 
-    INDEBUG(void DumpStack(Stack* stack, const char* name, ...);)
+    // Allocate a new stack entry (possibly by popping it from the free stack)
+    template <class... Args>
+    StackNode* AllocStackNode(Args&&... args)
+    {
+        StackNode* stack = m_freeStack.Top();
+
+        if (stack != nullptr)
+        {
+            m_freeStack.Pop();
+        }
+        else
+        {
+            stack = m_alloc.allocate<StackNode>(1);
+        }
+
+        return new (stack, jitstd::placement_t()) StackNode(jitstd::forward<Args>(args)...);
+    }
+
+    INDEBUG(void DumpStack(Stack* stack);)
 };

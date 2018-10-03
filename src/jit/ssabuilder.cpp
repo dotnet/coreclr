@@ -1479,31 +1479,6 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
 }
 
 /**
- * Walk the block's tree in the evaluation order and reclaim rename stack for var definitions.
- *
- * @param block Block for which SSA variables have to be renamed.
- * @param pRenameState The incremental rename information stored during renaming process.
- *
- */
-void SsaBuilder::BlockPopStacks(BasicBlock* block, SsaRenameState* pRenameState)
-{
-    // Pop the names given to the non-phi nodes.
-    pRenameState->PopBlockStacks(block);
-
-    // And for memory.
-    for (MemoryKind memoryKind : allMemoryKinds())
-    {
-        if ((memoryKind == GcHeap) && m_pCompiler->byrefStatesMatchGcHeapStates)
-        {
-            // GcHeap and ByrefExposed share a rename stack, so don't try
-            // to pop it a second time.
-            continue;
-        }
-        pRenameState->PopBlockMemoryStack(memoryKind, block);
-    }
-}
-
-/**
  * Perform variable renaming.
  *
  * Walks the blocks and renames all var defs with ssa numbers and all uses with the
@@ -1626,7 +1601,7 @@ void SsaBuilder::RenameVariables(BlkToBlkVectorMap* domTree, SsaRenameState* pRe
         else
         {
             // Done, pop all SSA numbers pushed in this block.
-            BlockPopStacks(block, pRenameState);
+            pRenameState->PopBlockStacks(block);
             DBG_SSA_JITDUMP("[SsaBuilder::RenameVariables] done with " FMT_BB "\n", block->bbNum);
         }
     }
