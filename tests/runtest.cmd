@@ -7,8 +7,8 @@ set "__MsgPrefix=RUNTEST: "
 
 set __ThisScriptDir="%~dp0"
 
-if not "%__BuildArch%"=="arm64" (
-    if not "%__BuildArch%"=="arm" (
+if /I not "%PROCESSOR_ARCHITECTURE%"=="arm64" (
+    if /I not "%PROCESSOR_ARCHITECTURE%"=="arm" (
         call "%__ThisScriptDir%"\..\setup_vs_tools.cmd
         if NOT '%ERRORLEVEL%' == '0' exit /b 1
 
