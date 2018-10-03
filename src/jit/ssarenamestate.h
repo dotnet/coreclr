@@ -6,53 +6,6 @@
 
 #include "jitstd.h"
 
-// Fixed-size array that can hold elements with no default constructor;
-// it will construct them all by forwarding whatever arguments are
-// supplied to its constructor.
-template <typename T, int N>
-class ConstructedArray
-{
-    union {
-        // Storage that gets used to hold the T objects.
-        unsigned char bytes[N * sizeof(T)];
-
-#if defined(_MSC_VER) && (_MSC_VER < 1900)
-        // With MSVC pre-VS2015, the code in the #else branch would hit error C2621,
-        // so in that case just count on pointer alignment being sufficient
-        // (currently T is only ever instantiated as jitstd::list<SsaRenameStateForBlock>)
-
-        // Unused (except to impart alignment requirement)
-        void* pointer;
-#else
-        // Unused (except to impart alignment requirement)
-        T alignedArray[N];
-#endif // defined(_MSC_VER) && (_MSC_VER < 1900)
-    };
-
-public:
-    T& operator[](size_t i)
-    {
-        return *(reinterpret_cast<T*>(bytes + i * sizeof(T)));
-    }
-
-    template <typename... Args>
-    ConstructedArray(Args&&... args)
-    {
-        for (int i = 0; i < N; ++i)
-        {
-            new (bytes + i * sizeof(T), jitstd::placement_t()) T(jitstd::forward<Args>(args)...);
-        }
-    }
-
-    ~ConstructedArray()
-    {
-        for (int i = 0; i < N; ++i)
-        {
-            operator[](i).~T();
-        }
-    }
-};
-
 struct SsaRenameStateForBlock
 {
     BasicBlock* m_block;
@@ -119,7 +72,7 @@ private:
     DefStack definedLocs;
 
     // Same state for the special implicit memory variables.
-    ConstructedArray<Stack, MemoryKindCount> memoryStack;
+    Stack memoryStack[MemoryKindCount];
 
     // Number of stacks/counts to allocate.
     unsigned lvaCount;
