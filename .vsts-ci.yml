@@ -14,7 +14,7 @@ phases:
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
-      name: Helix
+      name: dotnet-external-temp
       timeoutInMinutes: 180
       parallel: 3
       matrix:
