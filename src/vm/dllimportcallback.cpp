@@ -106,36 +106,6 @@ private:
 
 static UMEntryThunkFreeList s_thunkFreeList(DEFAULT_THUNK_FREE_LIST_THRESHOLD);
 
-EXTERN_C void STDCALL UM2MThunk_WrapperHelper(void *pThunkArgs,
-                                              int argLen,
-                                              void *pAddr,
-                                              UMEntryThunk *pEntryThunk,
-                                              Thread *pThread);
-
-// This is used as target of callback from DoADCallBack. It sets up the environment and effectively
-// calls back into the thunk that needed to switch ADs.
-void UM2MThunk_Wrapper(LPVOID ptr) // UM2MThunk_Args
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
-
-    UM2MThunk_Args *pArgs = (UM2MThunk_Args *) ptr;
-    Thread* pThread = GetThread();
-
-    BEGIN_CALL_TO_MANAGED();
-
-    // return value is saved to pArgs->pThunkArgs
-    UM2MThunk_WrapperHelper(pArgs->pThunkArgs,
-                            pArgs->argLen,
-                            pArgs->pAddr,
-                            pArgs->pEntryThunk,
-                            pThread);
-
-    END_CALL_TO_MANAGED();
-}
-
 #if defined(_TARGET_X86_) && !defined(FEATURE_STUBS_AS_IL)
 
 EXTERN_C VOID __cdecl UMThunkStubRareDisable();
