@@ -881,7 +881,6 @@ void SsaBuilder::TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRename
                         {
                             // GcHeap and ByrefExposed share the same stacks, SsaMap, and phis
                             assert(!hasByrefHavoc);
-                            assert(pRenameState->CountForMemoryUse(GcHeap) == ssaNum);
                             assert(*m_pCompiler->GetMemorySsaMap(GcHeap)->LookupPointer(tree) == ssaNum);
                             assert(block->bbMemorySsaPhiFunc[GcHeap] == block->bbMemorySsaPhiFunc[ByrefExposed]);
                         }
@@ -1148,7 +1147,8 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
             assert(block->bbMemorySsaPhiFunc[memoryKind] == block->bbMemorySsaPhiFunc[ByrefExposed]);
             // so we will have already allocated a defnum for it if needed.
             assert(memoryKind > ByrefExposed);
-            assert(pRenameState->CountForMemoryUse(memoryKind) == pRenameState->CountForMemoryUse(ByrefExposed));
+
+            block->bbMemorySsaNumIn[memoryKind] = pRenameState->CountForMemoryUse(ByrefExposed);
         }
         else
         {
@@ -1160,11 +1160,14 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
 
                 DBG_SSA_JITDUMP("Ssa # for %s phi on entry to " FMT_BB " is %d.\n", memoryKindNames[memoryKind],
                                 block->bbNum, ssaNum);
+
+                block->bbMemorySsaNumIn[memoryKind] = ssaNum;
+            }
+            else
+            {
+                block->bbMemorySsaNumIn[memoryKind] = pRenameState->CountForMemoryUse(memoryKind);
             }
         }
-
-        // Record the "in" Ssa # for memoryKind.
-        block->bbMemorySsaNumIn[memoryKind] = pRenameState->CountForMemoryUse(memoryKind);
     }
 
     // We need to iterate over phi definitions, to give them SSA names, but we need
@@ -1199,7 +1202,8 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
             assert(memoryKind > ByrefExposed);
             assert(((block->bbMemoryDef & memorySet) != 0) ==
                    ((block->bbMemoryDef & memoryKindSet(ByrefExposed)) != 0));
-            assert(pRenameState->CountForMemoryUse(memoryKind) == pRenameState->CountForMemoryUse(ByrefExposed));
+
+            block->bbMemorySsaNumOut[memoryKind] = pRenameState->CountForMemoryUse(ByrefExposed);
         }
         else
         {
@@ -1208,11 +1212,14 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
                 unsigned ssaNum = m_pCompiler->lvMemoryPerSsaData.AllocSsaNum(m_allocator);
                 pRenameState->PushMemory(memoryKind, block, ssaNum);
                 AddMemoryDefToHandlerPhis(memoryKind, block, ssaNum);
+
+                block->bbMemorySsaNumOut[memoryKind] = ssaNum;
+            }
+            else
+            {
+                block->bbMemorySsaNumOut[memoryKind] = pRenameState->CountForMemoryUse(memoryKind);
             }
         }
-
-        // Record the "out" Ssa" # for memoryKind.
-        block->bbMemorySsaNumOut[memoryKind] = pRenameState->CountForMemoryUse(memoryKind);
 
         DBG_SSA_JITDUMP("Ssa # for %s on entry to " FMT_BB " is %d; on exit is %d.\n", memoryKindNames[memoryKind],
                         block->bbNum, block->bbMemorySsaNumIn[memoryKind], block->bbMemorySsaNumOut[memoryKind]);
@@ -1744,9 +1751,8 @@ void SsaBuilder::Build()
     InsertPhiFunctions(postOrder, count);
 
     // Rename local variables and collect UD information for each ssa var.
-    SsaRenameState* pRenameState =
-        new (m_allocator) SsaRenameState(m_allocator, m_pCompiler->lvaCount, m_pCompiler->byrefStatesMatchGcHeapStates);
-    RenameVariables(domTree, pRenameState);
+    SsaRenameState renameState(m_allocator, m_pCompiler->lvaCount);
+    RenameVariables(domTree, &renameState);
     EndPhase(PHASE_BUILD_SSA_RENAME);
 
 #ifdef DEBUG

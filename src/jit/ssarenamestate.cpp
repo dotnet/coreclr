@@ -11,13 +11,8 @@
  *
  * @params alloc The allocator class used to allocate jitstd data.
  */
-SsaRenameState::SsaRenameState(CompAllocator alloc, unsigned lvaCount, bool byrefStatesMatchGcHeapStates)
-    : stacks(nullptr)
-    , definedLocs(alloc)
-    , memoryStack(alloc)
-    , lvaCount(lvaCount)
-    , m_alloc(alloc)
-    , byrefStatesMatchGcHeapStates(byrefStatesMatchGcHeapStates)
+SsaRenameState::SsaRenameState(CompAllocator alloc, unsigned lvaCount)
+    : stacks(nullptr), definedLocs(alloc), memoryStack(alloc), lvaCount(lvaCount), m_alloc(alloc)
 {
 }
 

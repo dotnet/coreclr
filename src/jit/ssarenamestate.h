@@ -83,7 +83,7 @@ struct SsaRenameState
     typedef Stack**                              Stacks;
     typedef jitstd::list<SsaRenameStateLocDef>   DefStack;
 
-    SsaRenameState(CompAllocator allocator, unsigned lvaCount, bool byrefStatesMatchGcHeapStates);
+    SsaRenameState(CompAllocator allocator, unsigned lvaCount);
 
     void EnsureStacks();
 
@@ -101,21 +101,11 @@ struct SsaRenameState
     // Similar functions for the special implicit memory variable.
     unsigned CountForMemoryUse(MemoryKind memoryKind)
     {
-        if ((memoryKind == GcHeap) && byrefStatesMatchGcHeapStates)
-        {
-            // Share rename stacks in this configuration.
-            memoryKind = ByrefExposed;
-        }
         return memoryStack[memoryKind].back().m_count;
     }
 
     void PushMemory(MemoryKind memoryKind, BasicBlock* bb, unsigned count)
     {
-        if ((memoryKind == GcHeap) && byrefStatesMatchGcHeapStates)
-        {
-            // Share rename stacks in this configuration.
-            memoryKind = ByrefExposed;
-        }
         memoryStack[memoryKind].push_back(SsaRenameStateForBlock(bb, count));
     }
 
@@ -138,7 +128,4 @@ private:
 
     // Allocator to allocate stacks.
     CompAllocator m_alloc;
-
-    // Indicates whether GcHeap and ByrefExposed use the same state.
-    bool byrefStatesMatchGcHeapStates;
 };
