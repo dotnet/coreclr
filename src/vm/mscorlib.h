@@ -777,8 +777,11 @@ DEFINE_METHOD(UNSAFE,               AS_REF_POINTER,         AsRef, GM_VoidPtr_Re
 DEFINE_METHOD(UNSAFE,               SIZEOF,                 SizeOf, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_AS,               As, GM_RefTFrom_RetRefTTo)
 DEFINE_METHOD(UNSAFE,               OBJECT_AS,              As, GM_Obj_RetT)
-DEFINE_METHOD(UNSAFE,               BYREF_ADD,              Add, GM_RefT_Int_RetRefT)
+DEFINE_METHOD(UNSAFE,               BYREF_INT32_ADD,        Add, GM_RefT_Int_RetRefT)
 DEFINE_METHOD(UNSAFE,               BYREF_INTPTR_ADD,       Add, GM_RefT_IntPtr_RetRefT)
+#ifdef _TARGET_64BIT_
+DEFINE_METHOD(UNSAFE,               BYREF_INT64_ADD,        Add, GM_RefT_Long_RetRefT)
+#endif // _TARGET_64BIT_
 DEFINE_METHOD(UNSAFE,               PTR_ADD,                Add, GM_PtrVoid_Int_RetPtrVoid)
 DEFINE_METHOD(UNSAFE,               BYREF_BYTE_OFFSET,      ByteOffset, NoSig)
 DEFINE_METHOD(UNSAFE,               BYREF_ADD_BYTE_OFFSET,  AddByteOffset, NoSig)

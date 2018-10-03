@@ -7083,7 +7083,10 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
-    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_ADD)->GetMemberDef() ||
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_INT32_ADD)->GetMemberDef() ||
+#ifdef _TARGET_64BIT_
+             tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_INT64_ADD)->GetMemberDef() ||
+#endif // _TARGET_64BIT_
              tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__PTR_ADD)->GetMemberDef())
     {
         mdToken tokGenericArg = FindGenericMethodArgTypeSpec(MscorlibBinder::GetModule()->GetMDImport());
