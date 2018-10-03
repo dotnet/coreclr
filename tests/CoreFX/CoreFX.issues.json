@@ -464,6 +464,10 @@
             "classes": null,
             "methods": [
                 {
+                    "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToChar_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                },
+                {
                     "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToSingle_InvalidObject_ThrowsInvalidCastException",
                     "reason" : "outdated"
                 },
@@ -509,6 +513,28 @@
                 },
                 {
                     "name" : "Microsoft.VisualBasic.Tests.ConversionsTests.ToULong_InvalidObject_ThrowsInvalidCastException",
+                    "reason" : "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Numerics.Vectors.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name" : "System.Numerics.Tests.Vector2Tests.Vector2ClampTest",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Vector3Tests.Vector3ClampTest",
+                    "reason" : "outdated"
+                },
+                {
+                    "name" : "System.Numerics.Tests.Vector4Tests.Vector4ClampTest",
                     "reason" : "outdated"
                 }
             ]
