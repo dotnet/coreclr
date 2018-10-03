@@ -241,40 +241,32 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(strConfig));
             }
 
-            // Check for the diagnostic configuration '*' which means "enable all events in the entire system."
-            if (strConfig.Equals("*"))
+            // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
+            string[] providers = strConfig.Split(ProviderConfigDelimiter);
+            foreach (string provider in providers)
             {
-                config.EnableAllEvents = true;
-            }
-            else
-            {
-                // String must be of the form "providerName:keywords:level,providerName:keywords:level..."
-                string[] providers = strConfig.Split(ProviderConfigDelimiter);
-                foreach (string provider in providers)
+                string[] components = provider.Split(ConfigComponentDelimiter);
+                if (components.Length == 3)
                 {
-                    string[] components = provider.Split(ConfigComponentDelimiter);
-                    if (components.Length == 3)
+                    string providerName = components[0];
+
+                    // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
+                    // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
+                    // Given that this is not a perf-critical path, catching the exception is the simpler code.
+                    ulong keywords = 0;
+                    try
                     {
-                        string providerName = components[0];
-
-                        // We use a try/catch block here because ulong.TryParse won't accept 0x at the beginning
-                        // of a hex string.  Thus, we either need to conditionally strip it or handle the exception.
-                        // Given that this is not a perf-critical path, catching the exception is the simpler code.
-                        ulong keywords = 0;
-                        try
-                        {
-                            keywords = Convert.ToUInt64(components[1], 16);
-                        }
-                        catch { }
-
-                        uint level;
-                        if (!uint.TryParse(components[2], out level))
-                        {
-                            level = 0;
-                        }
-
-                        config.EnableProvider(providerName, keywords, level);
+                        keywords = Convert.ToUInt64(components[1], 16);
                     }
+                    catch { }
+
+                    uint level;
+                    if (!uint.TryParse(components[2], out level))
+                    {
+                        level = 0;
+                    }
+
+                    config.EnableProvider(providerName, keywords, level);
                 }
             }
         }
