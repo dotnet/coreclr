@@ -19,6 +19,7 @@ namespace Tracing.Tests
         private static string ConfigFileContents = @"
 OutputPath=.
 CircularMB=2048
+Providers=*:0xFFFFFFFFFFFFFFFF:5
 ";
 
         private const int BytesInOneMB = 1024 * 1024;
