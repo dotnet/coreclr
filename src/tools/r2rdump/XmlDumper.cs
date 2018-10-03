@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Xml;
@@ -46,14 +47,6 @@ namespace R2RDump
             _ignoredProperties.Add(typeof(RuntimeFunction), "UnwindRVA", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "RelativeVirtualAddress", attrs);
             _ignoredProperties.Add(typeof(R2RSection), "Size", attrs);
-        }
-
-        public XmlDocument GetXmlDocument()
-        {
-            Begin();
-            DumpHeader(true);
-            DumpAllMethods();
-            return XmlDocument;
         }
 
         internal override void Begin()
@@ -130,12 +123,21 @@ namespace R2RDump
             }
         }
 
-        internal override void DumpAllMethods()
+        internal override void DumpAllMethods(bool unordered)
         {
             XmlNode methodsNode = XmlDocument.CreateNode("element", "Methods", "");
             _rootNode.AppendChild(methodsNode);
             AddXMLAttribute(methodsNode, "Count", _r2r.R2RMethods.Count.ToString());
-            foreach (R2RMethod method in _r2r.R2RMethods)
+            IEnumerable<R2RMethod> methods;
+            if (unordered)
+            {
+                methods = _r2r.R2RMethods;
+            }
+            else
+            {
+                methods = _r2r.R2RMethods.OrderBy((m) => m.SignatureString);
+            }
+            foreach (R2RMethod method in methods)
             {
                 DumpMethod(method, methodsNode);
             }

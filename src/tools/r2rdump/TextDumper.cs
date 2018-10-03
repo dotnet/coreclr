@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Xml;
@@ -102,12 +103,21 @@ namespace R2RDump
             }
         }
 
-        internal override void DumpAllMethods()
+        internal override void DumpAllMethods(bool unordered)
         {
             WriteDivider("R2R Methods");
             _writer.WriteLine($"{_r2r.R2RMethods.Count} methods");
             SkipLine();
-            foreach (R2RMethod method in _r2r.R2RMethods)
+            IEnumerable<R2RMethod> methods;
+            if (unordered)
+            {
+                methods = _r2r.R2RMethods;
+            }
+            else
+            {
+                methods = _r2r.R2RMethods.OrderBy((m) => m.SignatureString);
+            }
+            foreach (R2RMethod method in methods)
             {
                 DumpMethod(method);
             }

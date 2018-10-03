@@ -294,6 +294,19 @@ namespace R2RDump
         }
 
         /// <summary>
+        /// Construct the signature decoder by storing the image byte array and offset within the array. 
+        /// </summary>
+        /// <param name="metadataReader">Metadata reader for the R2R image</param>
+        /// <param name="signature">Signature to parse</param>
+        /// <param name="offset">Optional signature offset within the signature byte array, 0 by default</param>
+        public SignatureDecoder(MetadataReader metadataReader, byte[] signature, int offset = 0)
+        {
+            _image = signature;
+            _metadataReader = metadataReader;
+            _offset = offset;
+        }
+
+        /// <summary>
         /// Read a single byte from the signature stream and advances the current offset.
         /// </summary>
         public byte ReadByte()
@@ -395,6 +408,20 @@ namespace R2RDump
         {
             StringBuilder builder = new StringBuilder();
             ParseSignature(builder);
+            return builder.ToString();
+        }
+
+        public string ReadMethodSignature()
+        {
+            StringBuilder builder = new StringBuilder();
+            ParseMethod(builder);
+            return builder.ToString();
+        }
+
+        public string ReadTypeSignature()
+        {
+            StringBuilder builder = new StringBuilder();
+            ParseType(builder);
             return builder.ToString();
         }
 
@@ -744,7 +771,7 @@ namespace R2RDump
                     break;
 
                 case CorElementType.ELEMENT_TYPE_CANON_ZAPSIG:
-                    builder.Append("canon_zapsig");
+                    builder.Append("Canon");
                     break;
 
                 case CorElementType.ELEMENT_TYPE_MODULE_ZAPSIG:

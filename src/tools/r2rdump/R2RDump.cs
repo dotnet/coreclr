@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.IO;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
@@ -39,7 +41,7 @@ namespace R2RDump
         abstract internal void SkipLine();
         abstract internal void DumpHeader(bool dumpSections);
         abstract internal void DumpSection(R2RSection section, XmlNode parentNode = null);
-        abstract internal void DumpAllMethods();
+        abstract internal void DumpAllMethods(bool unordered);
         abstract internal void DumpMethod(R2RMethod method, XmlNode parentNode = null);
         abstract internal void DumpRuntimeFunction(RuntimeFunction rtf, XmlNode parentNode = null);
         abstract internal void DumpDisasm(RuntimeFunction rtf, int imageOffset, XmlNode parentNode = null);
@@ -66,6 +68,7 @@ namespace R2RDump
         private bool _unwind;
         private bool _gc;
         private bool _sectionContents;
+        private bool _unordered;
         private TextWriter _writer;
         private Dictionary<R2RSection.SectionType, bool> _selectedSections = new Dictionary<R2RSection.SectionType, bool>();
         private Dumper _dumper;
@@ -101,6 +104,7 @@ namespace R2RDump
                 syntax.DefineOption("unwind", ref _unwind, "Dump unwindInfo");
                 syntax.DefineOption("gc", ref _gc, "Dump gcInfo and slot table");
                 syntax.DefineOption("sc", ref _sectionContents, "Dump section contents");
+                syntax.DefineOption("u|unordered", ref _unordered, "Display methods in method table order (default = sorted by signatures)");
                 syntax.DefineOption("v|verbose", ref verbose, "Dump disassembly, unwindInfo, gcInfo and section contents");
                 syntax.DefineOption("diff", ref _diff, "Compare two R2R images");
                 syntax.DefineOption("ignoreSensitive", ref _ignoreSensitive, "Ignores sensitive properties in xml dump to avoid failing tests");
@@ -239,7 +243,7 @@ namespace R2RDump
                 
                 if (!_header)
                 {
-                    _dumper.DumpAllMethods();
+                    _dumper.DumpAllMethods(_unordered);
                 }
             }
             else //dump queried sections, methods and runtimeFunctions
@@ -267,7 +271,7 @@ namespace R2RDump
         {
             int id;
             bool isNum = ArgStringToInt(query, out id);
-            bool idMatch = isNum && (method.Rid == id || method.Token == id);
+            bool idMatch = isNum && (method.Rid == id || MetadataTokens.GetRowNumber(method.MetadataReader, method.MethodHandle) == id);
 
             bool sigMatch = false;
             if (exact)
