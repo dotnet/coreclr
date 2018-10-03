@@ -6,39 +6,49 @@
 
 #include "jitstd.h"
 
-struct SsaRenameStateForBlock
+class SsaRenameState
 {
-    BasicBlock* m_block;
-    unsigned    m_ssaNum;
-
-    SsaRenameStateForBlock(BasicBlock* block, unsigned ssaNum) : m_block(block), m_ssaNum(ssaNum)
+    struct SsaRenameStateForBlock
     {
-    }
-    SsaRenameStateForBlock() : m_block(nullptr), m_ssaNum(0)
+        BasicBlock* m_block;
+        unsigned    m_ssaNum;
+
+        SsaRenameStateForBlock(BasicBlock* block, unsigned ssaNum) : m_block(block), m_ssaNum(ssaNum)
+        {
+        }
+        SsaRenameStateForBlock() : m_block(nullptr), m_ssaNum(0)
+        {
+        }
+    };
+
+    // A record indicating that local "m_lclNum" was defined in block "m_block".
+    struct SsaRenameStateLocDef
     {
-    }
-};
+        BasicBlock* m_block;
+        unsigned    m_lclNum;
 
-// A record indicating that local "m_lclNum" was defined in block "m_block".
-struct SsaRenameStateLocDef
-{
-    BasicBlock* m_block;
-    unsigned    m_lclNum;
+        SsaRenameStateLocDef(BasicBlock* block, unsigned lclNum) : m_block(block), m_lclNum(lclNum)
+        {
+        }
+    };
 
-    SsaRenameStateLocDef(BasicBlock* block, unsigned lclNum) : m_block(block), m_lclNum(lclNum)
-    {
-    }
-};
-
-struct SsaRenameState
-{
     typedef jitstd::list<SsaRenameStateForBlock> Stack;
     typedef Stack**                              Stacks;
     typedef jitstd::list<SsaRenameStateLocDef>   DefStack;
 
-    SsaRenameState(CompAllocator allocator, unsigned lvaCount);
+    // Memory allocator
+    CompAllocator m_alloc;
+    // Number of local variables to allocate stacks for
+    unsigned m_lvaCount;
+    // Map of lclNum -> SsaRenameStateForBlock
+    Stacks m_stacks;
+    // This list represents the set of locals defined in the current block
+    DefStack m_definedLocs;
+    // Same state for the special implicit memory variables
+    Stack m_memoryStack[MemoryKindCount];
 
-    void EnsureStacks();
+public:
+    SsaRenameState(CompAllocator alloc, unsigned lvaCount);
 
     // Get the SSA number at the top of the stack for the specified variable.
     unsigned Top(unsigned lclNum);
@@ -52,31 +62,18 @@ struct SsaRenameState
     // Similar functions for the special implicit memory variable.
     unsigned TopMemory(MemoryKind memoryKind)
     {
-        return memoryStack[memoryKind].back().m_ssaNum;
+        return m_memoryStack[memoryKind].back().m_ssaNum;
     }
 
     void PushMemory(MemoryKind memoryKind, BasicBlock* block, unsigned ssaNum)
     {
-        memoryStack[memoryKind].push_back(SsaRenameStateForBlock(block, ssaNum));
+        m_memoryStack[memoryKind].push_back(SsaRenameStateForBlock(block, ssaNum));
     }
 
     void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* block);
 
 private:
+    void EnsureStacks();
+
     INDEBUG(void DumpStack(Stack* stack, const char* name, ...);)
-
-    // Map of lclNum -> SsaRenameStateForBlock.
-    Stacks stacks;
-
-    // This list represents the set of locals defined in the current block.
-    DefStack definedLocs;
-
-    // Same state for the special implicit memory variables.
-    Stack memoryStack[MemoryKindCount];
-
-    // Number of stacks/counts to allocate.
-    unsigned lvaCount;
-
-    // Allocator to allocate stacks.
-    CompAllocator m_alloc;
 };

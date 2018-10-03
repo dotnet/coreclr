@@ -6,29 +6,33 @@
 #include "ssaconfig.h"
 #include "ssarenamestate.h"
 
-/**
- * Constructor - initialize the stacks and counters maps (lclVar -> stack/counter) map.
- *
- * @params alloc The allocator class used to allocate jitstd data.
- */
+//------------------------------------------------------------------------
+// SsaRenameState: Initialize SsaRenameState
+//
+// Arguments:
+//    alloc - A memory allocator
+//    lvaCount - The number of local variables
+//
 SsaRenameState::SsaRenameState(CompAllocator alloc, unsigned lvaCount)
-    : stacks(nullptr), definedLocs(alloc), memoryStack{Stack(alloc), Stack(alloc)}, lvaCount(lvaCount), m_alloc(alloc)
+    : m_alloc(alloc)
+    , m_lvaCount(lvaCount)
+    , m_stacks(nullptr)
+    , m_definedLocs(alloc)
+    , m_memoryStack{Stack(alloc), Stack(alloc)}
 {
 }
 
-/**
- * Allocates memory for holding pointers to lcl's stacks,
- * if not allocated already.
- *
- */
+//------------------------------------------------------------------------
+// EnsureStacks: Allocate memory for the stacks array.
+//
 void SsaRenameState::EnsureStacks()
 {
-    if (stacks == nullptr)
+    if (m_stacks == nullptr)
     {
-        stacks = m_alloc.allocate<Stack*>(lvaCount);
-        for (unsigned i = 0; i < lvaCount; ++i)
+        m_stacks = m_alloc.allocate<Stack*>(m_lvaCount);
+        for (unsigned i = 0; i < m_lvaCount; ++i)
         {
-            stacks[i] = nullptr;
+            m_stacks[i] = nullptr;
         }
     }
 }
@@ -51,8 +55,8 @@ unsigned SsaRenameState::Top(unsigned lclNum)
 {
     DBG_SSA_JITDUMP("[SsaRenameState::Top] V%02u\n", lclNum);
 
-    noway_assert(stacks != nullptr);
-    Stack* stack = stacks[lclNum];
+    noway_assert(m_stacks != nullptr);
+    Stack* stack = m_stacks[lclNum];
     noway_assert((stack != nullptr) && !stack->empty());
     return stack->back().m_ssaNum;
 }
@@ -67,15 +71,15 @@ unsigned SsaRenameState::Top(unsigned lclNum)
 //
 void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
 {
-    EnsureStacks();
-
     DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", block->bbNum, lclNum, ssaNum);
 
-    Stack* stack = stacks[lclNum];
+    EnsureStacks();
+
+    Stack* stack = m_stacks[lclNum];
 
     if (stack == nullptr)
     {
-        stack = stacks[lclNum] = new (m_alloc) Stack(m_alloc);
+        stack = m_stacks[lclNum] = new (m_alloc) Stack(m_alloc);
     }
 
     if (stack->empty() || stack->back().m_block != block)
@@ -83,7 +87,7 @@ void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
         stack->push_back(SsaRenameStateForBlock(block, ssaNum));
         // Remember that we've pushed a def for this loc (so we don't have
         // to traverse *all* the locs to do the necessary pops later).
-        definedLocs.push_back(SsaRenameStateLocDef(block, lclNum));
+        m_definedLocs.push_back(SsaRenameStateLocDef(block, lclNum));
     }
     else
     {
@@ -96,17 +100,18 @@ void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
 void SsaRenameState::PopBlockStacks(BasicBlock* block)
 {
     DBG_SSA_JITDUMP("[SsaRenameState::PopBlockStacks] " FMT_BB "\n", block->bbNum);
+
     // Iterate over the stacks for all the variables, popping those that have an entry
     // for "block" on top.
-    while (!definedLocs.empty() && definedLocs.back().m_block == block)
+    while (!m_definedLocs.empty() && m_definedLocs.back().m_block == block)
     {
-        unsigned lclNum = definedLocs.back().m_lclNum;
-        assert(stacks != nullptr); // Cannot be empty because definedLocs is not empty.
-        Stack* stack = stacks[lclNum];
+        unsigned lclNum = m_definedLocs.back().m_lclNum;
+        assert(m_stacks != nullptr); // Cannot be empty because definedLocs is not empty.
+        Stack* stack = m_stacks[lclNum];
         assert(stack != nullptr);
         assert(stack->back().m_block == block);
         stack->pop_back();
-        definedLocs.pop_back();
+        m_definedLocs.pop_back();
 
         INDEBUG(DumpStack(stack, "V%02u", lclNum));
     }
@@ -114,11 +119,11 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
 #ifdef DEBUG
     // It should now be the case that no stack in stacks has an entry for "block" on top --
     // the loop above popped them all.
-    for (unsigned i = 0; i < lvaCount; ++i)
+    for (unsigned i = 0; i < m_lvaCount; ++i)
     {
-        if (stacks != nullptr && stacks[i] != nullptr && !stacks[i]->empty())
+        if (m_stacks != nullptr && m_stacks[i] != nullptr && !m_stacks[i]->empty())
         {
-            assert(stacks[i]->back().m_block != block);
+            assert(m_stacks[i]->back().m_block != block);
         }
     }
 #endif // DEBUG
@@ -126,7 +131,7 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
 
 void SsaRenameState::PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* block)
 {
-    auto& stack = memoryStack[memoryKind];
+    auto& stack = m_memoryStack[memoryKind];
     while (stack.size() > 0 && stack.back().m_block == block)
     {
         stack.pop_back();
