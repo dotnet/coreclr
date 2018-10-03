@@ -55,24 +55,24 @@ public:
 
 struct SsaRenameStateForBlock
 {
-    BasicBlock* m_bb;
-    unsigned    m_count;
+    BasicBlock* m_block;
+    unsigned    m_ssaNum;
 
-    SsaRenameStateForBlock(BasicBlock* bb, unsigned count) : m_bb(bb), m_count(count)
+    SsaRenameStateForBlock(BasicBlock* block, unsigned ssaNum) : m_block(block), m_ssaNum(ssaNum)
     {
     }
-    SsaRenameStateForBlock() : m_bb(nullptr), m_count(0)
+    SsaRenameStateForBlock() : m_block(nullptr), m_ssaNum(0)
     {
     }
 };
 
-// A record indicating that local "m_loc" was defined in block "m_bb".
+// A record indicating that local "m_lclNum" was defined in block "m_block".
 struct SsaRenameStateLocDef
 {
-    BasicBlock* m_bb;
+    BasicBlock* m_block;
     unsigned    m_lclNum;
 
-    SsaRenameStateLocDef(BasicBlock* bb, unsigned lclNum) : m_bb(bb), m_lclNum(lclNum)
+    SsaRenameStateLocDef(BasicBlock* block, unsigned lclNum) : m_block(block), m_lclNum(lclNum)
     {
     }
 };
@@ -87,29 +87,27 @@ struct SsaRenameState
 
     void EnsureStacks();
 
-    // Requires "lclNum" to be a variable number for which an ssa number at the top of the
-    // stack is required i.e., for variable "uses."
-    unsigned CountForUse(unsigned lclNum);
+    // Get the SSA number at the top of the stack for the specified variable.
+    unsigned Top(unsigned lclNum);
 
-    // Requires "lclNum" to be a variable number, and requires "count" to represent
-    // an ssa number, that needs to be pushed on to the stack corresponding to the lclNum.
-    void Push(BasicBlock* bb, unsigned lclNum, unsigned count);
+    // Push a SSA number onto the stack for the specified variable.
+    void Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum);
 
-    // Pop all stacks that have an entry for "bb" on top.
-    void PopBlockStacks(BasicBlock* bb);
+    // Pop all stacks that have an entry for "block" on top.
+    void PopBlockStacks(BasicBlock* block);
 
     // Similar functions for the special implicit memory variable.
-    unsigned CountForMemoryUse(MemoryKind memoryKind)
+    unsigned TopMemory(MemoryKind memoryKind)
     {
-        return memoryStack[memoryKind].back().m_count;
+        return memoryStack[memoryKind].back().m_ssaNum;
     }
 
-    void PushMemory(MemoryKind memoryKind, BasicBlock* bb, unsigned count)
+    void PushMemory(MemoryKind memoryKind, BasicBlock* block, unsigned ssaNum)
     {
-        memoryStack[memoryKind].push_back(SsaRenameStateForBlock(bb, count));
+        memoryStack[memoryKind].push_back(SsaRenameStateForBlock(block, ssaNum));
     }
 
-    void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* bb);
+    void PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* block);
 
 private:
     INDEBUG(void DumpStack(Stack* stack, const char* name, ...);)

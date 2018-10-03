@@ -120,15 +120,15 @@ private:
     // implies that any definition occurring within "tree" is a phi definition.
     void TreeRenameVariables(GenTree* tree, BasicBlock* block, SsaRenameState* pRenameState, bool isPhiDefn);
 
-    // Assumes that "block" contains a definition for local var "lclNum", with SSA number "count".
+    // Assumes that "block" contains a definition for local var "lclNum", with SSA number "ssaNum".
     // IF "block" is within one or more try blocks,
     // and the local variable is live at the start of the corresponding handlers,
-    // add this SSA number "count" to the argument list of the phi for the variable in the start
+    // add this SSA number "ssaNum" to the argument list of the phi for the variable in the start
     // block of those handlers.
-    void AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigned count);
+    void AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigned ssaNum);
 
     // Same as above, for memory.
-    void AddMemoryDefToHandlerPhis(MemoryKind memoryKind, BasicBlock* block, unsigned count);
+    void AddMemoryDefToHandlerPhis(MemoryKind memoryKind, BasicBlock* block, unsigned ssaNum);
 
     // Requires "block" to be non-NULL.  Requires "pRenameState" to be non-NULL and be currently used
     // for variables renaming. Assigns the rhs arguments to the phi, i.e., block's phi node arguments.

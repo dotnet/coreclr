@@ -33,42 +33,43 @@ void SsaRenameState::EnsureStacks()
     }
 }
 
-/**
- * Returns a SSA count number for a local variable from top of the stack.
- *
- * @params lclNum The local variable def for which a count has to be returned.
- * @return the current variable name for the "use".
- *
- * @remarks If the stack is empty, then we have an use before a def. To handle this
- *          special case, we need to initialize the count with 'default+1', so the
- *          next definition will always use 'default+1' but return 'default' for
- *          all uses until a definition.
- *
- */
-unsigned SsaRenameState::CountForUse(unsigned lclNum)
+//------------------------------------------------------------------------
+// Top: Get the SSA number at the top of the stack for the specified variable.
+//
+// Arguments:
+//    lclNum - The local variable number
+//
+// Return Value:
+//    The SSA number.
+//
+// Notes:
+//    The stack must not be empty. Method parameters and local variables that are live in at
+//    the start of the first block must have associated SSA definitions and their SSA numbers
+//    must have been pushed first.
+//
+unsigned SsaRenameState::Top(unsigned lclNum)
 {
-    EnsureStacks();
-    DBG_SSA_JITDUMP("[SsaRenameState::CountForUse] V%02u\n", lclNum);
+    DBG_SSA_JITDUMP("[SsaRenameState::Top] V%02u\n", lclNum);
 
+    noway_assert(stacks != nullptr);
     Stack* stack = stacks[lclNum];
     noway_assert((stack != nullptr) && !stack->empty());
-    return stack->back().m_count;
+    return stack->back().m_ssaNum;
 }
 
-/**
- * Pushes a count value on the variable stack.
- *
- * @params lclNum The local variable def whose stack the count needs to be pushed onto.
- * @params count The current count value that needs to be pushed on to the stack.
- *
- * @remarks Usually called when renaming a "def."
- *          Create stack lazily when needed for the first time.
- */
-void SsaRenameState::Push(BasicBlock* bb, unsigned lclNum, unsigned count)
+//------------------------------------------------------------------------
+// Push: Push a SSA number onto the stack for the specified variable.
+//
+// Arguments:
+//    block  - The block where the SSA definition occurs
+//    lclNum - The local variable number
+//    ssaNum - The SSA number
+//
+void SsaRenameState::Push(BasicBlock* block, unsigned lclNum, unsigned ssaNum)
 {
     EnsureStacks();
 
-    DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", bb->bbNum, lclNum, count);
+    DBG_SSA_JITDUMP("[SsaRenameState::Push] " FMT_BB ", V%02u, count = %d\n", block->bbNum, lclNum, ssaNum);
 
     Stack* stack = stacks[lclNum];
 
@@ -77,16 +78,16 @@ void SsaRenameState::Push(BasicBlock* bb, unsigned lclNum, unsigned count)
         stack = stacks[lclNum] = new (m_alloc) Stack(m_alloc);
     }
 
-    if (stack->empty() || stack->back().m_bb != bb)
+    if (stack->empty() || stack->back().m_block != block)
     {
-        stack->push_back(SsaRenameStateForBlock(bb, count));
+        stack->push_back(SsaRenameStateForBlock(block, ssaNum));
         // Remember that we've pushed a def for this loc (so we don't have
         // to traverse *all* the locs to do the necessary pops later).
-        definedLocs.push_back(SsaRenameStateLocDef(bb, lclNum));
+        definedLocs.push_back(SsaRenameStateLocDef(block, lclNum));
     }
     else
     {
-        stack->back().m_count = count;
+        stack->back().m_ssaNum = ssaNum;
     }
 
     INDEBUG(DumpStack(stack, "V%02u", lclNum));
@@ -97,13 +98,13 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
     DBG_SSA_JITDUMP("[SsaRenameState::PopBlockStacks] " FMT_BB "\n", block->bbNum);
     // Iterate over the stacks for all the variables, popping those that have an entry
     // for "block" on top.
-    while (!definedLocs.empty() && definedLocs.back().m_bb == block)
+    while (!definedLocs.empty() && definedLocs.back().m_block == block)
     {
         unsigned lclNum = definedLocs.back().m_lclNum;
         assert(stacks != nullptr); // Cannot be empty because definedLocs is not empty.
         Stack* stack = stacks[lclNum];
         assert(stack != nullptr);
-        assert(stack->back().m_bb == block);
+        assert(stack->back().m_block == block);
         stack->pop_back();
         definedLocs.pop_back();
 
@@ -117,7 +118,7 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
     {
         if (stacks != nullptr && stacks[i] != nullptr && !stacks[i]->empty())
         {
-            assert(stacks[i]->back().m_bb != block);
+            assert(stacks[i]->back().m_block != block);
         }
     }
 #endif // DEBUG
@@ -126,7 +127,7 @@ void SsaRenameState::PopBlockStacks(BasicBlock* block)
 void SsaRenameState::PopBlockMemoryStack(MemoryKind memoryKind, BasicBlock* block)
 {
     auto& stack = memoryStack[memoryKind];
-    while (stack.size() > 0 && stack.back().m_bb == block)
+    while (stack.size() > 0 && stack.back().m_block == block)
     {
         stack.pop_back();
     }
@@ -153,7 +154,7 @@ void SsaRenameState::DumpStack(Stack* stack, const char* name, ...)
 
         for (Stack::reverse_iterator i = stack->rbegin(); i != stack->rend(); ++i)
         {
-            printf("%s<" FMT_BB ", %u>", (i == stack->rbegin()) ? "" : ", ", i->m_bb->bbNum, i->m_count);
+            printf("%s<" FMT_BB ", %u>", (i == stack->rbegin()) ? "" : ", ", i->m_block->bbNum, i->m_ssaNum);
         }
 
         printf("\n");
