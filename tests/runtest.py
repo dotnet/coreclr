@@ -560,7 +560,7 @@ def call_msbuild(coreclr_repo_location,
     """
     global g_verbose
 
-    common_msbuild_arguments = ["/nologo", "/nodeReuse:false", "/p:Platform=%s" % arch]
+    common_msbuild_arguments = ["/nologo"]
 
     if sequential:
         common_msbuild_arguments += ["/p:ParallelRun=none"]
