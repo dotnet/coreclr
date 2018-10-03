@@ -33,6 +33,7 @@ namespace System.Diagnostics.Tracing
     internal sealed class EventPipeController
     {
         // Miscellaneous constants.
+        private const string DefaultTraceNamePrefix = "app";
         private const string NetPerfFileExtension = ".netperf";
         private const string ConfigFileName = "app.eventpipeconfig";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
@@ -68,6 +69,8 @@ namespace System.Diagnostics.Tracing
 
         internal static void Initialize()
         {
+            System.Diagnostics.Debugger.Launch();
+
             // Don't allow failures to propagate upstream.  Ensure program correctness without tracing.
             try
             {
@@ -184,7 +187,7 @@ namespace System.Diagnostics.Tracing
             }
 
             // Build the full path to the trace file.
-            string traceFileName = Assembly.GetEntryAssembly().GetName().Name + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
+            string traceFileName = BuildTraceFileName();
             string outputFile = Path.Combine(outputPath, traceFileName);
 
             // Get the circular buffer size.
@@ -213,9 +216,13 @@ namespace System.Diagnostics.Tracing
 
         private static EventPipeConfiguration BuildConfigFromEnvironment()
         {
+            // Build the full path to the trace file.
+            string traceFileName = BuildTraceFileName();
+            string outputFilePath = Path.Combine(Config_EventPipeOutputPath, traceFileName);
+
             // Create a new configuration object.
             EventPipeConfiguration config = new EventPipeConfiguration(
-                GetDisambiguatedTraceFilePath(Config_EventPipeOutputFile),
+                outputFilePath,
                 Config_EventPipeCircularMB);
 
             // Get the configuration.
@@ -232,6 +239,27 @@ namespace System.Diagnostics.Tracing
             }
 
             return config;
+        }
+
+        private static string BuildTraceFileName()
+        {
+            string traceNamePrefix = null;
+            Assembly entryAssembly = Assembly.GetEntryAssembly();
+            if (entryAssembly != null)
+            {
+                AssemblyName assemblyName = entryAssembly.GetName();
+                if (assemblyName != null)
+                {
+                    traceNamePrefix = assemblyName.Name;
+                }
+            }
+
+            if (string.IsNullOrEmpty(traceNamePrefix))
+            {
+                traceNamePrefix = DefaultTraceNamePrefix;
+            }
+
+            return traceNamePrefix + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
         }
 
         private static void SetProviderConfiguration(string strConfig, EventPipeConfiguration config)
@@ -271,39 +299,13 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        /// <summary>
-        /// Responsible for disambiguating the trace file path if the specified file already exists.
-        /// This can happen if there are multiple applications with tracing enabled concurrently and COMPlus_EventPipeOutputFile
-        /// is set to the same value for more than one concurrently running application.
-        /// </summary>
-        private static string GetDisambiguatedTraceFilePath(string inputPath)
-        {
-            if (string.IsNullOrEmpty(inputPath))
-            {
-                throw new ArgumentNullException("inputPath");
-            }
-
-            string filePath = inputPath;
-            if (File.Exists(filePath))
-            {
-                string directoryName = Path.GetDirectoryName(filePath);
-                string fileWithoutExtension = Path.GetFileName(filePath);
-                string extension = Path.GetExtension(filePath);
-
-                string newFileWithExtension = fileWithoutExtension + "." + Win32Native.GetCurrentProcessId() + extension;
-                filePath = Path.Combine(directoryName, newFileWithExtension);
-            }
-
-            return filePath;
-        }
-
         #region Configuration
 
         // Cache for COMPlus configuration variables.
         private static int s_Config_EnableEventPipe = -1;
         private static string s_Config_EventPipeConfig = null;
         private static uint s_Config_EventPipeCircularMB = 0;
-        private static string s_Config_EventPipeOutputFile = null;
+        private static string s_Config_EventPipeOutputPath = null;
 
         private static int Config_EnableEventPipe
         {
@@ -352,20 +354,20 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private static string Config_EventPipeOutputFile
+        private static string Config_EventPipeOutputPath
         {
             get
             {
-                if (s_Config_EventPipeOutputFile == null)
+                if (s_Config_EventPipeOutputPath == null)
                 {
-                    s_Config_EventPipeOutputFile = CompatibilitySwitch.GetValueInternal("EventPipeOutputFile");
-                    if (s_Config_EventPipeOutputFile == null)
+                    s_Config_EventPipeOutputPath = CompatibilitySwitch.GetValueInternal("EventPipeOutputPath");
+                    if (s_Config_EventPipeOutputPath == null)
                     {
-                        s_Config_EventPipeOutputFile = "Process-" + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
+                        s_Config_EventPipeOutputPath = ".";
                     }
                 }
 
-                return s_Config_EventPipeOutputFile;
+                return s_Config_EventPipeOutputPath;
             }
         }
 
