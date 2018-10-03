@@ -3653,6 +3653,7 @@ lDone: ;
     if(IsMiNoInlining(dwImplAttrs))         szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," noinlining");
     if(IsMiAggressiveInlining(dwImplAttrs)) szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," aggressiveinlining");
     if(IsMiNoOptimization(dwImplAttrs))     szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," nooptimization");
+    if(IsMiAggressiveOptimization(dwImplAttrs)) szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr)," aggressiveoptimization");
     szptr+=sprintf_s(szptr,SZSTRING_REMAINING_SIZE(szptr),KEYWORD((char*)-1));
     printLine(GUICookie, szString);
     VDELETE(buff);

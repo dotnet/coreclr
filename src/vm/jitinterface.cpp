@@ -6757,6 +6757,17 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE_CALLER;
     }
 
+    // Check for the aggressive optimization directive. AggressiveOptimization only makes sense for IL methods.
+    DWORD ilMethodImplAttribs = 0;
+    if (pMD->IsIL())
+    {
+        ilMethodImplAttribs = pMD->GetImplAttrs();
+        if (IsMiAggressiveOptimization(ilMethodImplAttribs))
+        {
+            result |= CORINFO_FLG_AGGRESSIVE_OPT;
+        }
+    }
+
     // Check for an inlining directive.
     if (pMD->IsNotInline())
     {
@@ -6764,7 +6775,7 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE;
     }
     // AggressiveInlining only makes sense for IL methods.
-    else if (pMD->IsIL() && IsMiAggressiveInlining(pMD->GetImplAttrs()))
+    else if (pMD->IsIL() && IsMiAggressiveInlining(ilMethodImplAttribs))
     {
         result |= CORINFO_FLG_FORCEINLINE;
     }
