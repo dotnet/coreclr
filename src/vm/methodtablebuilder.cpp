@@ -5206,8 +5206,7 @@ MethodTableBuilder::PlaceNonVirtualMethods()
 #endif // _DEBUG
 
         if (!fCanHaveNonVtableSlots ||
-            it->GetMethodType() == METHOD_TYPE_INSTANTIATED ||
-            MayBeRemotingIntercepted(*it))
+            it->GetMethodType() == METHOD_TYPE_INSTANTIATED)
         {
             // We use slot during remoting and to map methods between generic instantiations
             // (see MethodTable::GetParallelMethodDesc). The current implementation
@@ -6961,15 +6960,6 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 #endif
 
     return GetModule()->IsEditAndContinueEnabled();
-}
-
-//*******************************************************************************
-BOOL
-MethodTableBuilder::MayBeRemotingIntercepted(bmtMDMethod * pMDMethod)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return FALSE;
 }
 
 //*******************************************************************************

@@ -2801,11 +2801,6 @@ private:
     NeedsNativeCodeSlot(bmtMDMethod * pMDMethod);
 
     // --------------------------------------------------------------------------------------------
-    // MethodTableBuilder version of code:MethodDesc::MayBeRemotingIntercepted. Used for MethodDesc layout.
-    BOOL
-    MayBeRemotingIntercepted(bmtMDMethod * pMDMethod);
-
-    // --------------------------------------------------------------------------------------------
     // Used to allocate and initialize the dictionary used with generic types.
     VOID
     AllocAndInitDictionary();
