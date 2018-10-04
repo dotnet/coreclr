@@ -55,10 +55,10 @@ class Test
     public static string Call_DelMarshal_InOut(string s)
     {
         string strRet;
-        if (!s.Equals("ň"))
+        if (!s.Equals("\u0148"))
         {
             Console.WriteLine(s.Length);
-            ReportFailure("Method Call_DelMarshal_InOut[Managed Side],The passed string is wrong", "ň", s);
+            ReportFailure("Method Call_DelMarshal_InOut[Managed Side],The passed string is wrong", "\u0148", s);
             strRet = "\0\0\0";
             return strRet;
         }
@@ -156,7 +156,7 @@ class Test
 
         #region ReversePinvoke
         DelMarshal_InOut d1 = new DelMarshal_InOut(Call_DelMarshal_InOut);
-        if (!PInvokeDef.RPinvoke_DelMarshal_InOut(d1, "ň"))
+        if (!PInvokeDef.RPinvoke_DelMarshal_InOut(d1, "\u0148"))
         {
             ReportFailure("Method RPinvoke_DelMarshal_InOut[Managed Side],Return value is false");
         }

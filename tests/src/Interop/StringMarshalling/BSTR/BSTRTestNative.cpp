@@ -10,7 +10,7 @@ size_t lenstrManaged = sizeof(strManaged) - sizeof(WCHAR);
 WCHAR strReturn[] = W("a\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0");
 WCHAR strerrReturn[] = W("error");
 
-WCHAR strNative[] = W(" Native\0String\0");
+WCHAR strNative[] = W(" Native");
 size_t lenstrNative = sizeof(strNative) - sizeof(WCHAR);
 
 //Test Method1
@@ -49,10 +49,7 @@ extern "C" DLL_EXPORT BSTR Marshal_InOut(/*[In,Out]*/BSTR s)
 extern "C" DLL_EXPORT BSTR Marshal_Out(/*[Out]*/BSTR s)
 {
     s = TP_SysAllocString(strNative);
-    
-    //In-Place Change
-    memcpy(s,strNative, lenstrNative);
-
+        
     //Return
     return ReturnString();
 }
