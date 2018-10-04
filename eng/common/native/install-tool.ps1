@@ -60,7 +60,7 @@ try {
   }
   $ToolNameMoniker = "$ToolName-$Version-$ToolOs-$Arch"
   $ToolInstallDirectory = Join-Path $InstallPath "$ToolName\$Version\"
-  $ToolFilePath = Join-Path $ToolInstallDirectory "$ToolNameMoniker\$ToolName.exe"
+  $ToolFilePath = Join-Path $ToolInstallDirectory "$ToolNameMoniker\$PathToBinary$ToolName.exe"
   $ShimPath = Join-Path $InstallPath "$ToolName.cmd"
   $Uri = "$BaseUri/windows/$Toolname/$ToolNameMoniker.zip"
 

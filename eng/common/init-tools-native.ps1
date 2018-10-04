@@ -75,6 +75,10 @@ try {
       $ToolName = $_.Name
       $ToolVersion = $_.Value
       $InstallerFilename = "install-tool.ps1"
+      $PathToBinary = ""
+      if ($ToolName -Eq 'cmake') {
+        $PathToBinary = "bin\"
+      }
       $LocalInstallerCommand = Join-Path $EngCommonBaseDir $InstallerFilename
       $LocalInstallerCommand += " -ToolName $ToolName"
       $LocalInstallerCommand += " -InstallPath $InstallBin"
@@ -113,9 +117,7 @@ try {
   }
   if (Test-Path $InstallBin) {
     Write-Host "Native tools are available from" (Convert-Path -Path $InstallBin)
-    if ($env:BUILD_BUILDNUMBER) {
-        Write-Host "##vso[task.prependpath]" (Convert-Path -Path $InstallBin)
-    }
+    Write-Host "##vso[task.prependpath]" (Convert-Path -Path $InstallBin)
   }
   else {
     Write-Error "Native tools install directory does not exist, installation failed"
