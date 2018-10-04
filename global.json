@@ -4,6 +4,6 @@
       "cmake": "3.11.1"
   },
   "msbuild-sdks":{
-    "Microsoft.DotNet.Helix.Sdk": "1.0.0-beta.18475.16"
+    "Microsoft.DotNet.Helix.Sdk": "1.0.0-beta.18502.3"
   }
 }

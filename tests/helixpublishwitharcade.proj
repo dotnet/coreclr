@@ -4,6 +4,8 @@
     <HelixType>test/stuff</HelixType>
     <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
     <HelixTargetQueues>Windows.10.Amd64.Open;Windows.7.Amd64.Open;windows.10.arm64.open;Windows.81.Amd64.Open;fedora.27.amd64.open</HelixTargetQueues>
+    <EnableXUnitReporter>true</EnableXUnitReporter>
+    <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
   </PropertyGroup>
 
   <ItemGroup>
