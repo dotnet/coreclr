@@ -33,9 +33,9 @@ namespace System.Diagnostics.Tracing
     internal sealed class EventPipeController
     {
         // Miscellaneous constants.
-        private const string DefaultTraceNamePrefix = "app";
+        private const string DefaultAppName = "app";
         private const string NetPerfFileExtension = ".netperf";
-        private const string ConfigFileName = "app.eventpipeconfig";
+        private const string ConfigFileSuffix = ".eventpipeconfig";
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
         private const int DisabledPollingIntervalMilliseconds = 5000; // 5 seconds
         private const uint DefaultCircularBufferMB = 1024; // 1 GB
@@ -95,7 +95,7 @@ namespace System.Diagnostics.Tracing
         private EventPipeController()
         {
             // Set the config file path.
-            m_configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ConfigFileName);
+            m_configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, BuildConfigFileName());
 
             // Initialize the timer, but don't set it to run.
             // The timer will be set to run each time PollForTracingCommand is called.
@@ -241,25 +241,35 @@ namespace System.Diagnostics.Tracing
             return config;
         }
 
+        private static string BuildConfigFileName()
+        {
+            return GetAppName() + ConfigFileSuffix;
+        }
+
         private static string BuildTraceFileName()
         {
-            string traceNamePrefix = null;
+            return GetAppName() + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
+        }
+
+        private static string GetAppName()
+        {
+            string appName = null;
             Assembly entryAssembly = Assembly.GetEntryAssembly();
             if (entryAssembly != null)
             {
                 AssemblyName assemblyName = entryAssembly.GetName();
                 if (assemblyName != null)
                 {
-                    traceNamePrefix = assemblyName.Name;
+                    appName = assemblyName.Name;
                 }
             }
 
-            if (string.IsNullOrEmpty(traceNamePrefix))
+            if (string.IsNullOrEmpty(appName))
             {
-                traceNamePrefix = DefaultTraceNamePrefix;
+                appName = DefaultAppName;
             }
 
-            return traceNamePrefix + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
+            return appName;
         }
 
         private static void SetProviderConfiguration(string strConfig, EventPipeConfiguration config)

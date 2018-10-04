@@ -30,7 +30,8 @@ Providers=*:0xFFFFFFFFFFFFFFFF:5
         public static int Main(string[] args)
         {
             // Calculate the path to the config file.
-            string configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.eventpipeconfig");
+            string configFileName = Assembly.GetEntryAssembly().GetName().Name + ".eventpipeconfig";
+            string configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, configFileName);
             Console.WriteLine("Calculated config file path: " + configFilePath);
 
             // Write the config file to disk.
