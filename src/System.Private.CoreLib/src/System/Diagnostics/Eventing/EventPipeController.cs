@@ -48,6 +48,7 @@ namespace System.Diagnostics.Tracing
         private const string ConfigKey_Providers = "Providers";
         private const string ConfigKey_CircularMB = "CircularMB";
         private const string ConfigKey_OutputPath = "OutputPath";
+        private const string ConfigKey_ProcessID = "ProcessID";
 
         // The default set of providers/keywords/levels.  Used if an alternative configuration is not specified.
         private static readonly EventPipeProviderConfiguration[] DefaultProviderConfiguration = new EventPipeProviderConfiguration[]
@@ -128,7 +129,13 @@ namespace System.Diagnostics.Tracing
                     if (fileExists)
                     {
                         // Enable tracing.
-                        EventPipe.Enable(BuildConfigFromFile(m_configFilePath));
+                        // Check for null here because it's possible that the configuration contains a process filter
+                        // that doesn't match the current process.  IF this occurs, we should't enable tracing.
+                        EventPipeConfiguration config = BuildConfigFromFile(m_configFilePath);
+                        if (config != null)
+                        {
+                            EventPipe.Enable(config);
+                        }
                     }
                     else
                     {
@@ -155,6 +162,7 @@ namespace System.Diagnostics.Tracing
             string outputPath = null;
             string strProviderConfig = null;
             string strCircularMB = null;
+            string strProcessID = null;
 
             // Split the configuration entries by line.
             string[] configEntries = strConfigContents.Split(ConfigFileLineDelimiters, StringSplitOptions.RemoveEmptyEntries);
@@ -173,10 +181,25 @@ namespace System.Diagnostics.Tracing
                     {
                         outputPath = entryComponents[1];
                     }
-                    else if(key.Equals(ConfigKey_CircularMB))
+                    else if (key.Equals(ConfigKey_CircularMB))
                     {
                         strCircularMB = entryComponents[1];
                     }
+                    else if (key.Equals(ConfigKey_ProcessID))
+                    {
+                        strProcessID = entryComponents[1];
+                    }
+                }
+            }
+
+            // Check the process ID filter if it is set.
+            if (!string.IsNullOrEmpty(strProcessID))
+            {
+                // If set, bail out early if the specified process does not match the current process.
+                int processID = Convert.ToInt32(strProcessID);
+                if (processID != Win32Native.GetCurrentProcessId())
+                {
+                    return null;
                 }
             }
 
