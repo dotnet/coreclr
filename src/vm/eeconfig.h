@@ -1099,7 +1099,6 @@ private: //----------------------------------------------------------------
 
 #ifdef _DEBUG
     DWORD fShouldInjectFault;
-    DWORD testADUnload;
     DWORD testThreadAbort;
 #endif
 

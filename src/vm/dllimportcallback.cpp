@@ -134,9 +134,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     CodeLabel* pRejoinThreadLabel   = pcpusl->NewCodeLabel();
     CodeLabel* pDisableGCLabel      = pcpusl->NewCodeLabel();
     CodeLabel* pRejoinGCLabel       = pcpusl->NewCodeLabel();
-    CodeLabel* pDoADCallBackLabel   = pcpusl->NewCodeLabel();
-    CodeLabel* pADCallBackEpilog    = pcpusl->NewCodeLabel();
-    CodeLabel* pDoADCallBackStartLabel = pcpusl->NewAbsoluteCodeLabel();
 
     // We come into this code with UMEntryThunk in EAX
     const X86Reg kEAXentryThunk = kEAX;
@@ -294,14 +291,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     //            |                         |
     //            +-------------------------+
     //
-
-    // It's important that the "restart" after an AppDomain switch will skip
-    // the check for g_TrapReturningThreads.  That's because, during shutdown,
-    // we can only go through the UMThunkStubRareDisable pathway if we have
-    // not yet pushed a frame.  (Once pushed, the frame cannot be popped
-    // without coordinating with the GC.  During shutdown, such coordination
-    // would deadlock).
-    pcpusl->EmitLabel(pDoADCallBackStartLabel);
 
     // save the thread pointer
     pcpusl->X86EmitPushReg(kECXthread);
@@ -483,23 +472,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
     // restore the thread pointer
     pcpusl->X86EmitPopReg(kECXthread);
 
-
-    // Check whether we got here via the switch AD case. We can tell this by looking at whether the
-    // caller's arguments immediately precede our EBP frame (they will for the non-switch case but
-    // otherwise we will have pushed several frames in the interim). If we did switch now is the time
-    // to jump to our inner epilog which will clean up the inner stack frame and return to the runtime
-    // AD switching code.
-
-    // Does EBX (argument pointer) == EBP + 8?
-    // sub ebx, 8
-    pcpusl->X86EmitSubReg(kEBX, 8);
-
-    // cmp ebx, ebp
-    pcpusl->X86EmitR2ROp(0x3B, kEBX, kEBP);
-
-    // jne pADCallBackEpilog
-    pcpusl->X86EmitCondJump(pADCallBackEpilog, X86CondCode::kJNE);
-
     //
     // Once we reach this point in the code we're back to a single scenario: the outer frame of the
     // reverse p/invoke.
@@ -626,15 +598,6 @@ VOID UMEntryThunk::CompileUMThunkWorker(UMThunkStubInfo *pInfo,
 
     // return to mainline of function
     pcpusl->X86EmitNearJump(pEnableRejoin);
-
-    //-------------------------------------------------------------
-    // Coming here when we switched AppDomain and have successfully called the target. We must return
-    // into the runtime code (which will eventually unwind the AD transition and return us to the
-    // mainline stub in order to run the outer epilog).
-    //
-
-    pcpusl->EmitLabel(pADCallBackEpilog);
-    pcpusl->X86EmitReturn(0);
 }
 
 // Compiles an unmanaged to managed thunk for the given signature.
