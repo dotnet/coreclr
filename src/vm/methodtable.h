@@ -4341,12 +4341,10 @@ private:
 
     inline static DWORD GetOptionalMembersAllocationSize(
                                                   DWORD dwMultipurposeSlotsMask,
-                                                  BOOL needsRemotableMethodInfo,
                                                   BOOL needsGenericsStaticsInfo,
                                                   BOOL needsGuidInfo,
                                                   BOOL needsCCWTemplate,
                                                   BOOL needsRCWPerTypeData,
-                                                  BOOL needsRemotingVtsInfo,
                                                   BOOL needsTokenOverflow);
     inline DWORD GetOptionalMembersSize();
 

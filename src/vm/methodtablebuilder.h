@@ -2935,9 +2935,7 @@ private:
                                 BOOL isIFace, 
                                 BOOL fDynamicStatics,
                                 BOOL fHasGenericsStaticsInfo,
-                                BOOL fNeedsRCWPerTypeData,
-                                BOOL fNeedsRemotableMethodInfo,
-                                BOOL fNeedsRemotingVtsInfo
+                                BOOL fNeedsRCWPerTypeData
 #ifdef FEATURE_COMINTEROP
                                 , BOOL bHasDynamicInterfaceMap
 #endif

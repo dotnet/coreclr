@@ -9779,9 +9779,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
                                          BOOL isInterface,
                                          BOOL fDynamicStatics,
                                          BOOL fHasGenericsStaticsInfo,
-                                         BOOL fNeedsRCWPerTypeData,
-                                         BOOL fNeedsRemotableMethodInfo,
-                                         BOOL fNeedsRemotingVtsInfo
+                                         BOOL fNeedsRCWPerTypeData
 #ifdef FEATURE_COMINTEROP
         , BOOL fHasDynamicInterfaceMap
 #endif
@@ -9826,12 +9824,10 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
 
     // Add space for optional members here. Same as GetOptionalMembersSize()
     cbTotalSize += MethodTable::GetOptionalMembersAllocationSize(dwMultipurposeSlotsMask,
-                                                      fNeedsRemotableMethodInfo,
                                                       fHasGenericsStaticsInfo,
                                                       FALSE, // no GuidInfo needed for canonical instantiations
                                                       FALSE, // no CCW template needed for canonical instantiations
                                                       fNeedsRCWPerTypeData,
-                                                      fNeedsRemotingVtsInfo,
                                                       RidFromToken(GetCl()) >= METHODTABLE_TOKEN_OVERFLOW);
 
     // Interface map starts here
@@ -10079,10 +10075,6 @@ MethodTableBuilder::SetupMethodTable2(
                           bmtGenerics->GetNumGenericArgs(), pClass->GetDictionaryLayout())
                    : 0;
 
-
-    BOOL fNeedsRemotableMethodInfo=FALSE;
-    BOOL fNeedsRemotingVtsInfo = FALSE;
-
 #ifdef FEATURE_COLLECTIBLE_TYPES
     BOOL fCollectible = pLoaderModule->IsCollectible();
 #endif // FEATURE_COLLECTIBLE_TYPES
@@ -10122,8 +10114,6 @@ MethodTableBuilder::SetupMethodTable2(
                                    bmtProp->fDynamicStatics,
                                    bmtProp->fGenericsStatics,
                                    fNeedsRCWPerTypeData,
-                                   fNeedsRemotableMethodInfo,
-                                   fNeedsRemotingVtsInfo,
 #ifdef FEATURE_COMINTEROP 
                                    fHasDynamicInterfaceMap,
 #endif
