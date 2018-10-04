@@ -39,12 +39,15 @@ typedef const WCHAR *LPCWSTR, *PCWSTR;
 typedef long HRESULT;
 #define LONGLONG long long
 #define ULONGLONG unsigned LONGLONG
-#define ULONG_MAX     0xffffffffUL
 typedef unsigned long ULONG, *PULONG;
 #define S_OK                    0x0
 #define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
 #define FAILED(_hr)             ((HRESULT)(_hr) < 0)
 
+#ifdef ULONG_MAX
+#undef ULONG_MAX
+#endif
+#define ULONG_MAX     0xffffffffUL
 #define CCH_BSTRMAX 0x7FFFFFFF  // 4 + (0x7ffffffb + 1 ) * 2 ==> 0xFFFFFFFC
 #define CB_BSTRMAX 0xFFFFFFFa   // 4 + (0xfffffff6 + 2) ==> 0xFFFFFFFC
 
