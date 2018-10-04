@@ -537,12 +537,19 @@ int DBG_printf_gcc(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
        avoid holding a libc lock while another thread is calling
        SuspendThread on this one. */
 
+    BOOL print_failed;
     InternalEnterCriticalSection(pthrCurrent, &fprintf_crit_section);
-    fprintf( output_file, "%s%s", indent, buffer );
+    print_failed = fprintf( output_file, "%s%s", indent, buffer ) < 0;
     InternalLeaveCriticalSection(pthrCurrent, &fprintf_crit_section);
 
+    if (print_failed)
+    {
+        // NOTE: what should be done if this fprintf fails?
+        fprintf(stderr, "ERROR : fprintf to debug output file failed errno:%d (%s)\n",
+                errno, strerror(errno));
+    }
     /* flush the output to file */
-    if ( fflush(output_file) != 0 )
+    else if ( fflush(output_file) != 0 )
     {
         fprintf(stderr, "ERROR : fflush() failed errno:%d (%s)\n", 
                 errno, strerror(errno));
@@ -640,16 +647,27 @@ int DBG_printf_c99(DBG_CHANNEL_ID channel, DBG_LEVEL_ID level, BOOL bHeader,
        avoid holding a libc lock while another thread is calling
        SuspendThread on this one. */
 
+    BOOL print_failed;
     BOOL do_flush = FALSE;
     InternalEnterCriticalSection(pthrCurrent, &fprintf_crit_section);
-    fprintf( output_file, "%s", buffer );
-    call_count++; // can use call_count because we are in the crit section
-    if (call_count>5)
+    print_failed = fprintf( output_file, "%s", buffer ) < 0;
+    if (!print_failed)
     {
-        call_count = 0;
-        do_flush = TRUE;
+        call_count++; // can use call_count because we are in the crit section
+        if (call_count>5)
+        {
+            call_count = 0;
+            do_flush = TRUE;
+        }
     }
     InternalLeaveCriticalSection(pthrCurrent, &fprintf_crit_section);
+
+    if (print_failed)
+    {
+        // NOTE: what should be done if this fprintf fails?
+        fprintf(stderr, "ERROR : fprintf to debug output file failed errno:%d (%s)\n",
+            errno, strerror(errno));
+    }
 
     /* flush the output to file every once in a while */
     if (do_flush)
