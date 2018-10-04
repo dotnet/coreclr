@@ -2967,6 +2967,11 @@ public:
         var_types            fldType;
         unsigned             fldSize;
         CORINFO_CLASS_HANDLE fldTypeHnd;
+
+        lvaStructFieldInfo()
+            : fldHnd(nullptr), fldOffset(0), fldOrdinal(0), fldType(TYP_UNDEF), fldSize(0), fldTypeHnd(nullptr)
+        {
+        }
     };
 
     // Info about struct type to be promoted.
@@ -2988,7 +2993,6 @@ public:
             , fieldsSorted(false)
             , fieldCnt(0)
         {
-            memset(fields, 0, sizeof(fields));
         }
     };
 
@@ -3011,7 +3015,6 @@ public:
 
 #ifdef _TARGET_ARM_
         bool GetRequiresScratchVar();
-        void SetRequiresScratchVar();
 #endif // _TARGET_ARM_
 
     private:

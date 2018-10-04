@@ -80,7 +80,7 @@ void Compiler::lvaInit()
 #endif // FEATURE_SIMD
     lvaCurEpoch = 0;
 
-    structPromotionHelper = new (this, CMK_Unknown) StructPromotionHelper(this);
+    structPromotionHelper = new (this, CMK_Generic) StructPromotionHelper(this);
 }
 
 /*****************************************************************************/
@@ -1500,11 +1500,6 @@ bool Compiler::StructPromotionHelper::GetRequiresScratchVar()
     return requiresScratchVar;
 }
 
-void Compiler::StructPromotionHelper::SetRequiresScratchVar()
-{
-    requiresScratchVar = true;
-}
-
 #endif // _TARGET_ARM_
 
 //--------------------------------------------------------------------------------------------
@@ -1604,7 +1599,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             return false; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
         }
 
-        structPromotionInfo.fieldCnt = (BYTE)fieldCnt;
+        structPromotionInfo.fieldCnt = (unsigned char)fieldCnt;
         DWORD typeFlags              = compHandle->getClassAttribs(typeHnd);
 
         bool overlappingFields = StructHasOverlappingFields(typeFlags);
@@ -1673,7 +1668,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
             //
             if (fieldInfo.fldSize < TARGET_POINTER_SIZE)
             {
-                SetRequiresScratchVar();
+                requiresScratchVar = true;
             }
 #endif // _TARGET_ARM_
         }
@@ -1732,9 +1727,7 @@ bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE 
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 {
-    assert(lclNum < compiler->lvaCount);
-
-    LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
+    LclVarDsc* varDsc = compiler->lvaGetDesc(lclNum);
 
     assert(varTypeIsStruct(varDsc));
     assert(!varDsc->lvPromoted); // Don't ask again :)
@@ -2101,11 +2094,10 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
             noway_assert(pFieldInfo->fldOffset > (pFieldInfo - 1)->fldOffset);
         }
 #endif
+        // Lifetime of field locals might span multiple BBs, so they must be long lifetime temps.
+        unsigned varNum = compiler->lvaGrabTemp(false DEBUGARG(bufp));
 
-        unsigned varNum =
-            compiler->lvaGrabTemp(false DEBUGARG(bufp)); // Lifetime of field locals might span multiple BBs,
-                                                         // so they must be long lifetime temps.
-        varDsc = &compiler->lvaTable[lclNum];            // lvaGrabTemp can reallocate the lvaTable
+        varDsc = &compiler->lvaTable[lclNum]; // lvaGrabTemp can reallocate the lvaTable
 
         LclVarDsc* fieldVarDsc       = &compiler->lvaTable[varNum];
         fieldVarDsc->lvType          = pFieldInfo->fldType;
