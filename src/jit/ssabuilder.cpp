@@ -751,9 +751,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
                     // It will get replaced with a GT_LIST of GT_PHI_ARG nodes in
                     // SsaBuilder::AssignPhiNodeRhsVariables() and in SsaBuilder::AddDefToHandlerPhis()
 
-                    GenTree* phiRhs =
-                        m_pCompiler->gtNewOperNode(GT_PHI, m_pCompiler->lvaTable[lclNum].TypeGet(), nullptr);
-
+                    GenTree* phiRhs = new (m_pCompiler, GT_PHI) GenTreePhi(m_pCompiler->lvaTable[lclNum].TypeGet());
                     GenTree* phiAsg = m_pCompiler->gtNewAssignNode(phiLhs, phiRhs);
 
                     GenTreeStmt* stmt = m_pCompiler->fgNewStmtAtBeg(bbInDomFront, phiAsg);
@@ -1005,26 +1003,21 @@ void SsaBuilder::AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigne
 
                     if (tree->gtOp.gtOp1->gtLclVar.gtLclNum == lclNum)
                     {
-                        // It's the definition for the right local.  Add "ssaNum" to the RHS.
-                        GenTree*        phi  = tree->gtOp.gtOp2;
-                        GenTreeArgList* args = nullptr;
-                        if (phi->gtOp.gtOp1 != nullptr)
-                        {
-                            args = phi->gtOp.gtOp1->AsArgList();
-                        }
+                        // It's the definition for the right local.  Add "count" to the RHS.
+                        GenTreePhi* phi = tree->gtGetOp2()->AsPhi();
+
 #ifdef DEBUG
                         // Make sure it isn't already present: we should only add each definition once.
-                        for (GenTreeArgList* curArgs = args; curArgs != nullptr; curArgs = curArgs->Rest())
+                        for (GenTreePhi::Use& use : phi->Uses())
                         {
-                            GenTreePhiArg* phiArg = curArgs->Current()->AsPhiArg();
-                            assert(phiArg->gtSsaNum != ssaNum);
+                            assert(use.op->AsPhiArg()->GetSsaNum() != ssaNum);
                         }
 #endif
                         var_types      typ = m_pCompiler->lvaTable[lclNum].TypeGet();
                         GenTreePhiArg* newPhiArg =
                             new (m_pCompiler, GT_PHI_ARG) GenTreePhiArg(typ, lclNum, ssaNum, block);
 
-                        phi->gtOp.gtOp1 = new (m_pCompiler, GT_LIST) GenTreeArgList(newPhiArg, args);
+                        phi->gtUses = new (m_pCompiler, CMK_ASTNode) GenTreePhi::Use(newPhiArg, phi->gtUses);
                         m_pCompiler->gtSetStmtInfo(stmt);
                         m_pCompiler->fgSetStmtSeq(stmt);
 #ifdef DEBUG
@@ -1245,9 +1238,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
             GenTree* tree = stmt->gtStmtExpr;
             assert(tree->IsPhiDefn());
 
-            // Get the phi node from GT_ASG.
-            GenTree* phiNode = tree->gtOp.gtOp2;
-            assert(phiNode->gtOp.gtOp1 == nullptr || phiNode->gtOp.gtOp1->OperGet() == GT_LIST);
+            GenTreePhi* phi = tree->gtGetOp2()->AsPhi();
 
             unsigned lclNum = tree->gtOp.gtOp1->gtLclVar.gtLclNum;
             unsigned ssaNum = pRenameState->Top(lclNum);
@@ -1255,23 +1246,22 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
             // (Can we assert that its the head of the list?  This should only happen when we add
             // during renaming for a definition that occurs within a try, and then that's the last
             // value of the var within that basic block.)
-            GenTreeArgList* argList = (phiNode->gtOp.gtOp1 == nullptr ? nullptr : phiNode->gtOp.gtOp1->AsArgList());
-            bool            found   = false;
-            while (argList != nullptr)
+
+            bool found = false;
+            for (GenTreePhi::Use& use : phi->Uses())
             {
-                if (argList->Current()->AsLclVarCommon()->GetSsaNum() == ssaNum)
+                if (use.op->AsPhiArg()->GetSsaNum() == ssaNum)
                 {
                     found = true;
                     break;
                 }
-                argList = argList->Rest();
             }
             if (!found)
             {
                 GenTree* newPhiArg =
                     new (m_pCompiler, GT_PHI_ARG) GenTreePhiArg(tree->gtOp.gtOp1->TypeGet(), lclNum, ssaNum, block);
-                argList             = (phiNode->gtOp.gtOp1 == nullptr ? nullptr : phiNode->gtOp.gtOp1->AsArgList());
-                phiNode->gtOp.gtOp1 = new (m_pCompiler, GT_LIST) GenTreeArgList(newPhiArg, argList);
+                phi->gtUses = new (m_pCompiler, CMK_ASTNode) GenTreePhi::Use(newPhiArg, phi->gtUses);
+
                 DBG_SSA_JITDUMP("  Added phi arg u:%d for V%02u from " FMT_BB " in " FMT_BB ".\n", ssaNum, lclNum,
                                 block->bbNum, succ->bbNum);
             }
@@ -1402,17 +1392,15 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
                         continue;
                     }
 
-                    GenTree* phiNode = tree->gtOp.gtOp2;
-                    assert(phiNode->gtOp.gtOp1 == nullptr || phiNode->gtOp.gtOp1->OperGet() == GT_LIST);
-                    GenTreeArgList* argList = reinterpret_cast<GenTreeArgList*>(phiNode->gtOp.gtOp1);
+                    GenTreePhi* phi = tree->gtGetOp2()->AsPhi();
 
                     unsigned ssaNum = pRenameState->Top(lclNum);
 
                     // See if this ssaNum is already an arg to the phi.
                     bool alreadyArg = false;
-                    for (GenTreeArgList* curArgs = argList; curArgs != nullptr; curArgs = curArgs->Rest())
+                    for (GenTreePhi::Use& use : phi->Uses())
                     {
-                        if (curArgs->Current()->gtPhiArg.gtSsaNum == ssaNum)
+                        if (use.op->AsPhiArg()->GetSsaNum() == ssaNum)
                         {
                             alreadyArg = true;
                             break;
@@ -1423,8 +1411,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
                         // Add the new argument.
                         GenTree* newPhiArg =
                             new (m_pCompiler, GT_PHI_ARG) GenTreePhiArg(lclVar->TypeGet(), lclNum, ssaNum, block);
-                        phiNode->gtOp.gtOp1 = new (m_pCompiler, GT_LIST) GenTreeArgList(newPhiArg, argList);
-
+                        phi->gtUses = new (m_pCompiler, CMK_ASTNode) GenTreePhi::Use(newPhiArg, phi->gtUses);
                         DBG_SSA_JITDUMP("  Added phi arg u:%d for V%02u from " FMT_BB " in " FMT_BB ".\n", ssaNum,
                                         lclNum, block->bbNum, handlerStart->bbNum);
 

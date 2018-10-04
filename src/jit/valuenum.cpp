@@ -5961,21 +5961,16 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         ValueNumPair phiAppVNP;
         ValueNumPair sameVNPair;
 
-        GenTree* phiFunc = phiDef->gtOp.gtOp2;
+        GenTreePhi* phiFunc = phiDef->gtOp.gtOp2->AsPhi();
 
-        // At this point a GT_PHI node should never have a nullptr for gtOp1
-        // and the gtOp1 should always be a GT_LIST node.
-        GenTree* phiOp1 = phiFunc->gtOp.gtOp1;
-        noway_assert(phiOp1 != nullptr);
-        noway_assert(phiOp1->OperGet() == GT_LIST);
+        // A PHI node should have at least two arguments
+        noway_assert(phiFunc->uses != nullptr);
+        noway_assert(phiFunc->uses->next != nullptr);
 
-        GenTreeArgList* phiArgs = phiFunc->gtOp.gtOp1->AsArgList();
+        GenTreePhi::Use* phiArgs = phiFunc->uses;
 
-        // A GT_PHI node should have more than one argument.
-        noway_assert(phiArgs->Rest() != nullptr);
-
-        GenTreeLclVarCommon* phiArg = phiArgs->Current()->AsLclVarCommon();
-        phiArgs                     = phiArgs->Rest();
+        GenTreeLclVarCommon* phiArg = phiArgs->op->AsLclVarCommon();
+        phiArgs                     = phiArgs->next;
 
         phiAppVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
         bool allSameLib  = true;
@@ -5988,7 +5983,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         }
         while (phiArgs != nullptr)
         {
-            phiArg = phiArgs->Current()->AsLclVarCommon();
+            phiArg = phiArgs->op->AsPhiArg();
             // Set the VN of the phi arg.
             phiArg->gtVNPair = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->gtSsaNum)->m_vnPair;
             if (phiArg->gtVNPair.BothDefined())
@@ -6010,7 +6005,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
             ValueNumPair phiArgSsaVNP;
             phiArgSsaVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
             phiAppVNP = vnStore->VNPairForFunc(newSsaVar->TypeGet(), VNF_Phi, phiArgSsaVNP, phiAppVNP);
-            phiArgs   = phiArgs->Rest();
+            phiArgs   = phiArgs->next;
         }
 
         ValueNumPair newVNPair;

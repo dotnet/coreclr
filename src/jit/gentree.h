@@ -1574,7 +1574,6 @@ public:
         assert(OperIsSimple(gtOper));
         switch (gtOper)
         {
-            case GT_PHI:
             case GT_LEA:
             case GT_RETFILT:
             case GT_NOP:
@@ -2174,6 +2173,92 @@ public:
     inline GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode = false));
 };
 
+struct GenTreePhi : public GenTree
+{
+    struct Use
+    {
+        GenTree* op;
+        Use*     next;
+
+        Use(GenTree* op, Use* next = nullptr) : op(op), next(next)
+        {
+        }
+    };
+
+    class UseIterator
+    {
+        Use* m_use;
+
+    public:
+        UseIterator(Use* use) : m_use(use)
+        {
+        }
+
+        Use& operator*() const
+        {
+            return *m_use;
+        }
+
+        Use* operator->() const
+        {
+            return m_use;
+        }
+
+        UseIterator& operator++()
+        {
+            m_use = m_use->next;
+            return *this;
+        }
+
+        bool operator==(const UseIterator& i) const
+        {
+            return m_use == i.m_use;
+        }
+
+        bool operator!=(const UseIterator& i) const
+        {
+            return m_use != i.m_use;
+        }
+    };
+
+    class UseList
+    {
+        Use* m_uses;
+
+    public:
+        UseList(Use* uses) : m_uses(uses)
+        {
+        }
+
+        UseIterator begin() const
+        {
+            return UseIterator(m_uses);
+        }
+
+        UseIterator end() const
+        {
+            return UseIterator(nullptr);
+        }
+    };
+
+    Use* gtUses;
+
+    GenTreePhi(var_types type) : GenTree(GT_PHI, type), gtUses(nullptr)
+    {
+    }
+
+    UseList Uses()
+    {
+        return UseList(gtUses);
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreePhi() : GenTree()
+    {
+    }
+#endif
+};
+
 //------------------------------------------------------------------------
 // GenTreeUseEdgeIterator: an iterator that will produce each use edge of a GenTree node in the order in which
 //                         they are used.
@@ -2214,8 +2299,11 @@ class GenTreeUseEdgeIterator final
     AdvanceFn m_advance;
     GenTree*  m_node;
     GenTree** m_edge;
-    GenTree*  m_argList;
-    int       m_state;
+    union {
+        GenTree*         m_argList;
+        GenTreePhi::Use* m_phiUseList;
+    };
+    int m_state;
 
     GenTreeUseEdgeIterator(GenTree* node);
 
@@ -2226,6 +2314,7 @@ class GenTreeUseEdgeIterator final
     void AdvanceArrOffset();
     void AdvanceDynBlk();
     void AdvanceStoreDynBlk();
+    void AdvancePhi();
 
     template <bool ReverseOperands>
     void           AdvanceBinOp();

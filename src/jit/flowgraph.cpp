@@ -18799,6 +18799,13 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
             fgSetTreeSeqHelper(tree->gtArrOffs.gtArrObj, isLIR);
             break;
 
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                fgSetTreeSeqHelper(use.op, isLIR);
+            }
+            break;
+
         case GT_CMPXCHG:
             // Evaluate the trees left to right
             fgSetTreeSeqHelper(tree->gtCmpXchg.gtOpLocation, isLIR);
@@ -21401,6 +21408,14 @@ void Compiler::fgDebugCheckFlags(GenTree* tree)
                 chkFlags |= (bndsChk->gtIndex->gtFlags & GTF_ALL_EFFECT);
                 fgDebugCheckFlags(bndsChk->gtArrLen);
                 chkFlags |= (bndsChk->gtArrLen->gtFlags & GTF_ALL_EFFECT);
+                break;
+
+            case GT_PHI:
+                for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+                {
+                    fgDebugCheckFlags(use.op);
+                    chkFlags |= (use.op->gtFlags & GTF_ALL_EFFECT);
+                }
                 break;
 
             case GT_CMPXCHG:

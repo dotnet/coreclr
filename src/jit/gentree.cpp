@@ -1483,6 +1483,24 @@ AGAIN:
                     Compare(op1->gtArrOffs.gtIndex, op2->gtArrOffs.gtIndex) &&
                     Compare(op1->gtArrOffs.gtArrObj, op2->gtArrOffs.gtArrObj));
 
+        case GT_PHI:
+        {
+            GenTreePhi::UseIterator op1Use    = op1->AsPhi()->Uses().begin();
+            GenTreePhi::UseIterator op1UseEnd = op1->AsPhi()->Uses().end();
+            GenTreePhi::UseIterator op2Use    = op2->AsPhi()->Uses().begin();
+            GenTreePhi::UseIterator op2UseEnd = op2->AsPhi()->Uses().end();
+
+            for (; (op1Use != op1UseEnd) && (op2Use != op2UseEnd); ++op1Use, ++op2Use)
+            {
+                if (!Compare(op1Use->op, op2Use->op))
+                {
+                    return false;
+                }
+            }
+
+            return (op1Use == op1UseEnd) && (op2Use == op2UseEnd);
+        }
+
         case GT_CMPXCHG:
             return Compare(op1->gtCmpXchg.gtOpLocation, op2->gtCmpXchg.gtOpLocation) &&
                    Compare(op1->gtCmpXchg.gtOpValue, op2->gtCmpXchg.gtOpValue) &&
@@ -1697,6 +1715,16 @@ AGAIN:
                 gtHasRef(tree->gtArrOffs.gtArrObj, lclNum, defOnly))
             {
                 return true;
+            }
+            break;
+
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                if (gtHasRef(use.op, lclNum, defOnly))
+                {
+                    return true;
+                }
             }
             break;
 
@@ -2123,6 +2151,13 @@ AGAIN:
                 temp = tree->gtCall.gtCallLateArgs;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
+            }
+            break;
+
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                hash = genTreeHashAdd(hash, gtHashValue(use.op));
             }
             break;
 
@@ -4251,6 +4286,19 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             costSz += tree->gtArrOffs.gtArrObj->gtCostSz;
             break;
 
+        case GT_PHI:
+            level  = 0;
+            costEx = 0;
+            costSz = 0;
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                lvl2  = gtSetEvalOrder(use.op);
+                level = max(level, lvl2);
+                costEx += use.op->gtCostEx;
+                costSz += use.op->gtCostSz;
+            }
+            break;
+
         case GT_CMPXCHG:
 
             level  = gtSetEvalOrder(tree->gtCmpXchg.gtOpLocation);
@@ -4547,6 +4595,16 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             }
             break;
 
+        case GT_PHI:
+            for (GenTreePhi::Use& use : parent->AsPhi()->Uses())
+            {
+                if (use.op == this)
+                {
+                    return &use.op;
+                }
+            }
+            break;
+
         case GT_CMPXCHG:
             if (this == parent->gtCmpXchg.gtOpLocation)
             {
@@ -4758,10 +4816,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
             return false;
 
         // Variadic nodes
-        case GT_PHI:
-            assert(this->AsUnOp()->gtOp1 != nullptr);
-            return this->AsUnOp()->gtOp1->TryGetUseList(def, use);
-
         case GT_FIELD_LIST:
             return TryGetUseList(def, use);
 
@@ -4801,6 +4855,17 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
 #endif // FEATURE_HW_INTRINSICS
 
         // Special nodes
+        case GT_PHI:
+            for (GenTreePhi::Use& phiUse : AsPhi()->Uses())
+            {
+                if (phiUse.op == def)
+                {
+                    *use = &phiUse.op;
+                    return true;
+                }
+            }
+            return false;
+
         case GT_CMPXCHG:
         {
             GenTreeCmpXchg* const cmpXchg = this->AsCmpXchg();
@@ -7340,6 +7405,19 @@ GenTree* Compiler::gtCloneExpr(
         }
         break;
 
+        case GT_PHI:
+        {
+            copy                      = new (this, GT_PHI) GenTreePhi(tree->TypeGet());
+            GenTreePhi::Use** prevUse = &copy->AsPhi()->gtUses;
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                *prevUse = new (this, CMK_ASTNode)
+                    GenTreePhi::Use(gtCloneExpr(use.op, addFlags, deepVarNum, deepVarVal), *prevUse);
+                prevUse = &(*prevUse)->next;
+            }
+        }
+        break;
+
         case GT_CMPXCHG:
             copy = new (this, GT_CMPXCHG)
                 GenTreeCmpXchg(tree->TypeGet(),
@@ -8094,6 +8172,16 @@ unsigned GenTree::NumChildren()
         // Special
         switch (OperGet())
         {
+            case GT_PHI:
+            {
+                unsigned count = 0;
+                for (GenTreePhi::Use& use : AsPhi()->Uses())
+                {
+                    count++;
+                }
+                return count;
+            }
+
             case GT_CMPXCHG:
                 return 3;
 
@@ -8207,6 +8295,17 @@ GenTree* GenTree::GetChild(unsigned childNum)
         // Special
         switch (OperGet())
         {
+            case GT_PHI:
+                for (GenTreePhi::Use& use : AsPhi()->Uses())
+                {
+                    if (childNum == 0)
+                    {
+                        return use.op;
+                    }
+                    childNum--;
+                }
+                unreached();
+
             case GT_CMPXCHG:
                 switch (childNum)
                 {
@@ -8458,10 +8557,6 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         // Variadic nodes
-        case GT_PHI:
-            SetEntryStateForList(m_node->AsUnOp()->gtOp1);
-            return;
-
         case GT_FIELD_LIST:
             SetEntryStateForList(m_node);
             return;
@@ -8511,6 +8606,12 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         // Special nodes
+        case GT_PHI:
+            m_phiUseList = m_node->AsPhi()->gtUses;
+            m_advance    = &GenTreeUseEdgeIterator::AdvancePhi;
+            AdvancePhi();
+            return;
+
         case GT_CMPXCHG:
             m_edge = &m_node->AsCmpXchg()->gtOpLocation;
             assert(*m_edge != nullptr);
@@ -8719,6 +8820,24 @@ void GenTreeUseEdgeIterator::AdvanceStoreDynBlk()
     }
 
     assert(*m_edge != nullptr);
+}
+
+//------------------------------------------------------------------------
+// GenTreeUseEdgeIterator::AdvancePhi: produces the next operand of a Phi node and advances the state.
+//
+void GenTreeUseEdgeIterator::AdvancePhi()
+{
+    assert(m_state == 0);
+
+    if (m_phiUseList == nullptr)
+    {
+        m_state = -1;
+    }
+    else
+    {
+        m_edge       = &m_phiUseList->op;
+        m_phiUseList = m_phiUseList->next;
+    }
 }
 
 //------------------------------------------------------------------------
@@ -10795,6 +10914,20 @@ void Compiler::gtDispTree(GenTree*     tree,
 
     switch (tree->gtOper)
     {
+        case GT_PHI:
+            gtDispCommonEndLine(tree);
+
+            if (!topOnly)
+            {
+                for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+                {
+                    char block[32];
+                    sprintf_s(block, sizeof(block), "pred " FMT_BB, use.op->AsPhiArg()->gtPredBB->bbNum);
+                    gtDispChild(use.op, indentStack, (use.next == nullptr) ? IIArcBottom : IIArc, block);
+                }
+            }
+            break;
+
         case GT_FIELD:
             if (FieldSeqStore::IsPseudoField(tree->gtField.gtFldHnd))
             {
