@@ -10051,8 +10051,8 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
 #if FEATURE_ANYCSE
         if (lclNumIsTrueCSE(lclNum))
         {
-            ilKind = "cse";
-            ilNum  = lclNum - optCSEstart;
+            ilKind = "CSE #";
+            ilNum  = lclNum - optCSEstart + 1;
         }
         else if (lclNum >= optCSEstart)
         {
