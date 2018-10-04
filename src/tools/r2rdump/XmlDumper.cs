@@ -86,7 +86,7 @@ namespace R2RDump
                 _rootNode.AppendChild(sectionsNode);
                 AddXMLNode("Count", _r2r.R2RHeader.Sections.Count.ToString(), sectionsNode);
 
-                foreach (R2RSection section in _r2r.R2RHeader.Sections.Values)
+                foreach (R2RSection section in NormalizedSections())
                 {
                     DumpSection(section, sectionsNode);
                 }

@@ -264,11 +264,6 @@ namespace R2RDump
 
         public FixupCell[] Fixups { get; set; }
 
-        /// <summary>
-        /// Maps all the generic parameters to the type in the instance
-        /// </summary>
-        private Dictionary<string, string> _genericParamInstanceMap;
-
         public R2RMethod() { }
 
         /// <summary>
@@ -332,8 +327,6 @@ namespace R2RDump
                 DeclaringType = MetadataNameFormatter.FormatHandle(MetadataReader, owningTypeHandle);
             }
 
-            _genericParamInstanceMap = new Dictionary<string, string>();
-            
             Fixups = fixups;
 
             StringBuilder sb = new StringBuilder();
