@@ -70,8 +70,6 @@ namespace System.Diagnostics.Tracing
 
         internal static void Initialize()
         {
-            System.Diagnostics.Debugger.Launch();
-
             // Don't allow failures to propagate upstream.  Ensure program correctness without tracing.
             try
             {
