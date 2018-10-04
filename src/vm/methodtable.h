@@ -4396,12 +4396,6 @@ private:
 
     void SetModule(Module * pModule);
 
-    /************************************
-    //
-    // CONTEXT STATIC
-    //
-    ************************************/
-
 public:
 
     BOOL Validate ();

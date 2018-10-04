@@ -1868,8 +1868,8 @@ private:
         // Counts instance fields
         DWORD dwNumInstanceFields;
 
-        // Counts both regular statics and thread statics. Currently RVA and
-        // context statics get lumped in with "regular statics".
+        // Counts both regular statics and thread statics. Currently RVA
+        // get lumped in with "regular statics".
         DWORD dwNumStaticFields;
         DWORD dwNumStaticObjRefFields;
         DWORD dwNumStaticBoxedFields;
