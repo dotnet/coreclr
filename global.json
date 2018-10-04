@@ -1,7 +1,8 @@
 {
   "projects": [ "./tests/src", "./tests/src/Common" ],
   "native-tools": {
-      "cmake": "3.11.1"
+      "cmake": "3.11.1",
+      "python": "2.7.15"
   },
   "msbuild-sdks":{
     "Microsoft.DotNet.Helix.Sdk": "1.0.0-beta.18502.3"

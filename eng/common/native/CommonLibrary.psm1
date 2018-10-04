@@ -309,7 +309,7 @@ function Expand-Zip {
 
   Write-Verbose "Extracting '$ZipPath' to '$OutputDirectory'"
   try {
-    if ((Test-Path $OutputDirectory) -And (-Not $Overwrite)) {
+    if ((Test-Path $OutputDirectory) -And (-Not $Force)) {
       Write-Host "Directory '$OutputDirectory' already exists, skipping extract"
       return $True
     }
