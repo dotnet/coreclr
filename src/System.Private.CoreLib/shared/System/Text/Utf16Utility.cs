@@ -10,16 +10,16 @@ namespace System.Text
     internal static partial class Utf16Utility
     {
         /// <summary>
-        /// Returns true iff the DWORD represents two ASCII UTF-16 characters in machine endianness.
+        /// Returns true iff the UInt32 represents two ASCII UTF-16 characters in machine endianness.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool DWordAllCharsAreAscii(uint value)
+        internal static bool AllCharsInUInt32AreAscii(uint value)
         {
             return (value & ~0x007F007Fu) == 0;
         }
 
         /// <summary>
-        /// Given a DWORD that represents two ASCII UTF-16 characters, returns the invariant
+        /// Given a UInt32 that represents two ASCII UTF-16 characters, returns the invariant
         /// lowercase representation of those characters. Requires the input value to contain
         /// two ASCII UTF-16 characters in machine endianness.
         /// </summary>
@@ -27,10 +27,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint ToLowerInvariantAsciiDWord(uint value)
+        internal static uint ConvertAllAsciiCharsInUIntToLowercase(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(DWordAllCharsAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
             uint lowerIndicator = value + 0x00800080u - 0x00410041u;
@@ -48,7 +48,7 @@ namespace System.Text
         }
 
         /// <summary>
-        /// Given a DWORD that represents two ASCII UTF-16 characters, returns the invariant
+        /// Given a UInt32 that represents two ASCII UTF-16 characters, returns the invariant
         /// uppercase representation of those characters. Requires the input value to contain
         /// two ASCII UTF-16 characters in machine endianness.
         /// </summary>
@@ -56,10 +56,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint ToUpperInvariantAsciiDWord(uint value)
+        internal static uint ConvertAllAsciiCharsInUIntToUppercase(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(DWordAllCharsAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'a'
             uint lowerIndicator = value + 0x00800080u - 0x00610061u;
