@@ -1494,7 +1494,12 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
 }
 
 #ifdef _TARGET_ARM_
-
+//--------------------------------------------------------------------------------------------
+// GetRequiresScratchVar - do we need a stack area to assemble small fields in order to place them in a register.
+//
+// Return value:
+//   true if there was a small promoted variable and scratch var is requered.
+//
 bool Compiler::StructPromotionHelper::GetRequiresScratchVar()
 {
     return requiresScratchVar;
@@ -1532,6 +1537,19 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 }
 
 #ifdef DEBUG
+//--------------------------------------------------------------------------------------------
+// CheckFakedType - check that the fldType for this fieldHnd was retyped as requested type.
+//
+// Arguments:
+//   fieldHnd      - the field handler;
+//   requestedType - as which type the field was accessed;
+//
+// Notes:
+//   For example it can happen when such struct A { struct B { long c } } is compiled and we access A.B.c,
+//   it could look like "GT_FIELD struct B.c -> ADDR -> GT_FIELD struct A.B -> ADDR -> LCL_VAR A" , but
+//   "GT_FIELD struct A.B -> ADDR -> LCL_VAR A" can be promoted to "LCL_VAR long A.B" and then
+//   there is type mistmatch between "GT_FIELD struct B.c" and  "LCL_VAR long A.B".
+//
 void Compiler::StructPromotionHelper::CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType)
 {
     assert(fakedFieldsMap.Lookup(fieldHnd));
@@ -1884,7 +1902,7 @@ bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned lclNum)
 // SortStructFields - sort the fields according to the increasing order of the field offset.
 //
 // Notes:
-//   This is needed because the fields need to be pushed on stack (when referenced as a struct) in the order.
+//   This is needed because the fields need to be pushed on stack (when referenced as a struct) in offset order.
 //
 void Compiler::StructPromotionHelper::SortStructFields()
 {
@@ -1944,21 +1962,21 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
 
 //--------------------------------------------------------------------------------------------
 // TryPromoteStructField - checks that this struct's field is a struct that can be promoted as scalar type
-//   aligned at its natural boundary. Promote the field as the scalar if succeed.
+//   aligned at its natural boundary. Promotes the field as a scalar if succeed.
 //
 // Arguments:
-//   outerFieldInfo - information about the field in the outer struct.
+//   fieldInfo - information about the field in the outer struct.
 //
 // Return value:
 //   true if the intrenal struct can be promoted.
 //
-bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& outerFieldInfo)
+bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& fieldInfo)
 {
     // Size of TYP_BLK, TYP_FUNC, TYP_VOID and TYP_STRUCT is zero.
     // Early out if field type is other than TYP_STRUCT.
     // This is a defensive check as we don't expect a struct to have
     // fields of TYP_BLK, TYP_FUNC or TYP_VOID.
-    if (outerFieldInfo.fldType != TYP_STRUCT)
+    if (fieldInfo.fldType != TYP_STRUCT)
     {
         return false;
     }
@@ -1966,7 +1984,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     COMP_HANDLE compHandle = compiler->info.compCompHnd;
 
     // Do Not promote if the struct field in turn has more than one field.
-    if (compHandle->getClassNumInstanceFields(outerFieldInfo.fldTypeHnd) != 1)
+    if (compHandle->getClassNumInstanceFields(fieldInfo.fldTypeHnd) != 1)
     {
         return false;
     }
@@ -1975,14 +1993,14 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
 
     // Do not promote if the single field is not aligned at its natural boundary within
     // the struct field.
-    CORINFO_FIELD_HANDLE internalFieldHndl   = compHandle->getFieldInClass(outerFieldInfo.fldTypeHnd, 0);
-    unsigned             internalFieldOffset = compHandle->getFieldOffset(internalFieldHndl);
-    if (internalFieldOffset != 0)
+    CORINFO_FIELD_HANDLE innerFieldHndl   = compHandle->getFieldInClass(fieldInfo.fldTypeHnd, 0);
+    unsigned             innerFieldOffset = compHandle->getFieldOffset(innerFieldHndl);
+    if (innerFieldOffset != 0)
     {
         return false;
     }
 
-    CorInfoType fieldCorType = compHandle->getFieldType(internalFieldHndl);
+    CorInfoType fieldCorType = compHandle->getFieldType(innerFieldHndl);
     var_types   fieldVarType = JITtype2varType(fieldCorType);
     unsigned    fieldSize    = genTypeSize(fieldVarType);
 
@@ -1999,6 +2017,9 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     // Though this would serve the purpose of promoting Span<T> containing ByReference<T>,
     // this can be extended to other primitive types as long as they are aligned at their
     // natural boundary.
+    //
+    // TODO-CQ: Right now we only promote an actual SIMD typed field, which would cause
+    // a nested SIMD type to fail promotion.
     if (fieldSize == 0 || fieldSize != TARGET_POINTER_SIZE || varTypeIsFloating(fieldVarType))
     {
         JITDUMP("Promotion blocked: struct contains struct field with one field,"
@@ -2007,7 +2028,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     }
 
     // Insist this wrapped field occupy all of its parent storage.
-    unsigned innerStructSize = compHandle->getClassSize(outerFieldInfo.fldTypeHnd);
+    unsigned innerStructSize = compHandle->getClassSize(fieldInfo.fldTypeHnd);
 
     if (fieldSize != innerStructSize)
     {
@@ -2019,10 +2040,10 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     // Retype the field as the type of the single field of the struct.
     // This is a hack that allows us to promote such fields before we support recursive struct promotion
     // (tracked by #10019).
-    outerFieldInfo.fldType = fieldVarType;
-    outerFieldInfo.fldSize = fieldSize;
+    fieldInfo.fldType = fieldVarType;
+    fieldInfo.fldSize = fieldSize;
 #ifdef DEBUG
-    fakedFieldsMap.Set(outerFieldInfo.fldHnd, outerFieldInfo.fldType);
+    fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
 #endif // DEBUG
     return true;
 }
