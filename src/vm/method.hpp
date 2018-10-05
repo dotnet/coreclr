@@ -1258,6 +1258,14 @@ public:
     }
 #endif
 
+    // Returns a code version that represents the first (default)
+    // code body that this method would have.
+    NativeCodeVersion GetInitialCodeVersion()
+    {
+        LIMITED_METHOD_DAC_CONTRACT;
+        return NativeCodeVersion(dac_cast<PTR_MethodDesc>(this));
+    }
+
     bool RequestedAggressiveOptimization()
     {
         WRAPPER_NO_CONTRACT;
