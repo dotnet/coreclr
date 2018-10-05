@@ -1,3 +1,7 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
+
 using System;
 using System.Globalization;
 using System.Numerics;
@@ -8,9 +12,28 @@ namespace GitHub_20260
     {
         static int Main(string[] args)
         {         
+            // The jit will devirtualize the call to ToString and then undo the box.
+            // Make sure that happens properly for vectors.
+
             Vector<double> x = new Vector<double>();
             string s = ((IFormattable)x).ToString("G", CultureInfo.InvariantCulture);
-            string e = "<0, 0, 0, 0>";
+            string e = null;
+
+            switch (Vector<double>.Count)
+            {
+                case 2:
+                    e = "<0, 0>";
+                    break;
+                case 4:
+                    e = "<0, 0, 0, 0>";
+                    break;
+                case 8:
+                    e = "<0, 0, 0, 0, 0, 0, 0, 0>";
+                    break;
+                default:
+                    e = "unexpected vector length";
+                    break;
+            }
 
             if (s != e)
             {
@@ -18,6 +41,7 @@ namespace GitHub_20260
                 return -1;
             }
 
+            Console.WriteLine($"PASS: {s}");
             return 100;
         }
     }
