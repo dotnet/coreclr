@@ -1581,162 +1581,160 @@ void Compiler::StructPromotionHelper::CheckRetypedAsScalar(CORINFO_FIELD_HANDLE 
 bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
     assert(compiler->eeIsValueClass(typeHnd));
-    if (structPromotionInfo.typeHnd != typeHnd)
-    {
-        // Analyze this type from scratch.
-        structPromotionInfo = lvaStructPromotionInfo(typeHnd);
-
-        // sizeof(double) represents the size of the largest primitive type that we can struct promote.
-        // In the future this may be changing to XMM_REGSIZE_BYTES.
-        // Note: MaxOffset is used below to declare a local array, and therefore must be a compile-time constant.
-        CLANG_FORMAT_COMMENT_ANCHOR;
-#if defined(FEATURE_SIMD)
-#if defined(_TARGET_XARCH_)
-        // This will allow promotion of 4 Vector<T> fields on AVX2 or Vector256<T> on AVX,
-        // or 8 Vector<T>/Vector128<T> fields on SSE2.
-        const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * YMM_REGSIZE_BYTES;
-#elif defined(_TARGET_ARM64_)
-        const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * FP_REGSIZE_BYTES;
-#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
-#else  // !FEATURE_SIMD
-        const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * sizeof(double);
-#endif // !FEATURE_SIMD
-
-        assert((BYTE)MaxOffset == MaxOffset); // because lvaStructFieldInfo.fldOffset is byte-sized
-        assert((BYTE)MAX_NumOfFieldsInPromotableStruct ==
-               MAX_NumOfFieldsInPromotableStruct); // because lvaStructFieldInfo.fieldCnt is byte-sized
-
-        bool containsGCpointers = false;
-
-        COMP_HANDLE compHandle = compiler->info.compCompHnd;
-
-        unsigned structSize = compHandle->getClassSize(typeHnd);
-        if (structSize > MaxOffset)
-        {
-            return false; // struct is too large
-        }
-
-        unsigned fieldCnt = compHandle->getClassNumInstanceFields(typeHnd);
-        if (fieldCnt == 0 || fieldCnt > MAX_NumOfFieldsInPromotableStruct)
-        {
-            return false; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
-        }
-
-        structPromotionInfo.fieldCnt = (unsigned char)fieldCnt;
-        DWORD typeFlags              = compHandle->getClassAttribs(typeHnd);
-
-        bool overlappingFields = StructHasOverlappingFields(typeFlags);
-        if (overlappingFields)
-        {
-            return false;
-        }
-
-        // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type
-        if (StructHasCustomLayout(typeFlags) && compiler->IsHfa(typeHnd))
-        {
-            return false;
-        }
-
-#ifdef _TARGET_ARM_
-        // On ARM, we have a requirement on the struct alignment; see below.
-        unsigned structAlignment = roundUp(compHandle->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
-#endif // _TARGET_ARM_
-
-        unsigned fieldsSize = 0;
-
-        for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
-        {
-            CORINFO_FIELD_HANDLE fieldHnd       = compHandle->getFieldInClass(typeHnd, ordinal);
-            structPromotionInfo.fields[ordinal] = GetFieldInfo(fieldHnd, ordinal);
-            const lvaStructFieldInfo& fieldInfo = structPromotionInfo.fields[ordinal];
-
-            noway_assert(fieldInfo.fldOffset < structSize);
-
-            if (fieldInfo.fldSize == 0)
-            {
-                // Not a scalar type.
-                return false;
-            }
-
-            if ((fieldInfo.fldOffset % fieldInfo.fldSize) != 0)
-            {
-                // The code in Compiler::genPushArgList that reconstitutes
-                // struct values on the stack from promoted fields expects
-                // those fields to be at their natural alignment.
-                return false;
-            }
-
-            if (varTypeIsGC(fieldInfo.fldType))
-            {
-                containsGCpointers = true;
-            }
-
-            // The end offset for this field should never be larger than our structSize.
-            noway_assert(fieldInfo.fldOffset + fieldInfo.fldSize <= structSize);
-
-            fieldsSize += fieldInfo.fldSize;
-
-#ifdef _TARGET_ARM_
-            // On ARM, for struct types that don't use explicit layout, the alignment of the struct is
-            // at least the max alignment of its fields.  We take advantage of this invariant in struct promotion,
-            // so verify it here.
-            if (fieldInfo.fldSize > structAlignment)
-            {
-                // Don't promote vars whose struct types violates the invariant.  (Alignment == size for primitives.)
-                return false;
-            }
-            // If we have any small fields we will allocate a single PromotedStructScratch local var for the method.
-            // This is a stack area that we use to assemble the small fields in order to place them in a register
-            // argument.
-            //
-            if (fieldInfo.fldSize < TARGET_POINTER_SIZE)
-            {
-                requiresScratchVar = true;
-            }
-#endif // _TARGET_ARM_
-        }
-
-        // If we saw any GC pointer or by-ref fields above then CORINFO_FLG_CONTAINS_GC_PTR or
-        // CORINFO_FLG_CONTAINS_STACK_PTR has to be set!
-        noway_assert((containsGCpointers == false) ||
-                     ((typeFlags & (CORINFO_FLG_CONTAINS_GC_PTR | CORINFO_FLG_CONTAINS_STACK_PTR)) != 0));
-
-        // If we have "Custom Layout" then we might have an explicit Size attribute
-        // Managed C++ uses this for its structs, such C++ types will not contain GC pointers.
-        //
-        // The current VM implementation also incorrectly sets the CORINFO_FLG_CUSTOMLAYOUT
-        // whenever a managed value class contains any GC pointers.
-        // (See the comment for VMFLAG_NOT_TIGHTLY_PACKED in class.h)
-        //
-        // It is important to struct promote managed value classes that have GC pointers
-        // So we compute the correct value for "CustomLayout" here
-        //
-        if (StructHasCustomLayout(typeFlags) && ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0))
-        {
-            structPromotionInfo.customLayout = true;
-        }
-
-        // Check if this promoted struct contains any holes.
-        assert(!overlappingFields);
-        if (fieldsSize != structSize)
-        {
-            // If sizes do not match it means we have an overlapping fields or holes.
-            // Overlapping fields were rejected early, so here it can mean only holes.
-            structPromotionInfo.containsHoles = true;
-        }
-
-        // Cool, this struct is promotable.
-
-        structPromotionInfo.canPromote = true;
-        return true;
-    }
-    else
+    if (structPromotionInfo.typeHnd == typeHnd)
     {
         // Asking for the same type of struct as the last time.
         // Nothing need to be done.
         // Fall through ...
         return structPromotionInfo.canPromote;
     }
+
+    // Analyze this type from scratch.
+    structPromotionInfo = lvaStructPromotionInfo(typeHnd);
+
+    // sizeof(double) represents the size of the largest primitive type that we can struct promote.
+    // In the future this may be changing to XMM_REGSIZE_BYTES.
+    // Note: MaxOffset is used below to declare a local array, and therefore must be a compile-time constant.
+    CLANG_FORMAT_COMMENT_ANCHOR;
+#if defined(FEATURE_SIMD)
+#if defined(_TARGET_XARCH_)
+    // This will allow promotion of 4 Vector<T> fields on AVX2 or Vector256<T> on AVX,
+    // or 8 Vector<T>/Vector128<T> fields on SSE2.
+    const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * YMM_REGSIZE_BYTES;
+#elif defined(_TARGET_ARM64_)
+    const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * FP_REGSIZE_BYTES;
+#endif // defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)
+#else  // !FEATURE_SIMD
+    const int MaxOffset = MAX_NumOfFieldsInPromotableStruct * sizeof(double);
+#endif // !FEATURE_SIMD
+
+    assert((BYTE)MaxOffset == MaxOffset); // because lvaStructFieldInfo.fldOffset is byte-sized
+    assert((BYTE)MAX_NumOfFieldsInPromotableStruct ==
+           MAX_NumOfFieldsInPromotableStruct); // because lvaStructFieldInfo.fieldCnt is byte-sized
+
+    bool containsGCpointers = false;
+
+    COMP_HANDLE compHandle = compiler->info.compCompHnd;
+
+    unsigned structSize = compHandle->getClassSize(typeHnd);
+    if (structSize > MaxOffset)
+    {
+        return false; // struct is too large
+    }
+
+    unsigned fieldCnt = compHandle->getClassNumInstanceFields(typeHnd);
+    if (fieldCnt == 0 || fieldCnt > MAX_NumOfFieldsInPromotableStruct)
+    {
+        return false; // struct must have between 1 and MAX_NumOfFieldsInPromotableStruct fields
+    }
+
+    structPromotionInfo.fieldCnt = (unsigned char)fieldCnt;
+    DWORD typeFlags              = compHandle->getClassAttribs(typeHnd);
+
+    bool overlappingFields = StructHasOverlappingFields(typeFlags);
+    if (overlappingFields)
+    {
+        return false;
+    }
+
+    // Don't struct promote if we have an CUSTOMLAYOUT flag on an HFA type
+    if (StructHasCustomLayout(typeFlags) && compiler->IsHfa(typeHnd))
+    {
+        return false;
+    }
+
+#ifdef _TARGET_ARM_
+    // On ARM, we have a requirement on the struct alignment; see below.
+    unsigned structAlignment = roundUp(compHandle->getClassAlignmentRequirement(typeHnd), TARGET_POINTER_SIZE);
+#endif // _TARGET_ARM_
+
+    unsigned fieldsSize = 0;
+
+    for (BYTE ordinal = 0; ordinal < fieldCnt; ++ordinal)
+    {
+        CORINFO_FIELD_HANDLE fieldHnd       = compHandle->getFieldInClass(typeHnd, ordinal);
+        structPromotionInfo.fields[ordinal] = GetFieldInfo(fieldHnd, ordinal);
+        const lvaStructFieldInfo& fieldInfo = structPromotionInfo.fields[ordinal];
+
+        noway_assert(fieldInfo.fldOffset < structSize);
+
+        if (fieldInfo.fldSize == 0)
+        {
+            // Not a scalar type.
+            return false;
+        }
+
+        if ((fieldInfo.fldOffset % fieldInfo.fldSize) != 0)
+        {
+            // The code in Compiler::genPushArgList that reconstitutes
+            // struct values on the stack from promoted fields expects
+            // those fields to be at their natural alignment.
+            return false;
+        }
+
+        if (varTypeIsGC(fieldInfo.fldType))
+        {
+            containsGCpointers = true;
+        }
+
+        // The end offset for this field should never be larger than our structSize.
+        noway_assert(fieldInfo.fldOffset + fieldInfo.fldSize <= structSize);
+
+        fieldsSize += fieldInfo.fldSize;
+
+#ifdef _TARGET_ARM_
+        // On ARM, for struct types that don't use explicit layout, the alignment of the struct is
+        // at least the max alignment of its fields.  We take advantage of this invariant in struct promotion,
+        // so verify it here.
+        if (fieldInfo.fldSize > structAlignment)
+        {
+            // Don't promote vars whose struct types violates the invariant.  (Alignment == size for primitives.)
+            return false;
+        }
+        // If we have any small fields we will allocate a single PromotedStructScratch local var for the method.
+        // This is a stack area that we use to assemble the small fields in order to place them in a register
+        // argument.
+        //
+        if (fieldInfo.fldSize < TARGET_POINTER_SIZE)
+        {
+            requiresScratchVar = true;
+        }
+#endif // _TARGET_ARM_
+    }
+
+    // If we saw any GC pointer or by-ref fields above then CORINFO_FLG_CONTAINS_GC_PTR or
+    // CORINFO_FLG_CONTAINS_STACK_PTR has to be set!
+    noway_assert((containsGCpointers == false) ||
+                 ((typeFlags & (CORINFO_FLG_CONTAINS_GC_PTR | CORINFO_FLG_CONTAINS_STACK_PTR)) != 0));
+
+    // If we have "Custom Layout" then we might have an explicit Size attribute
+    // Managed C++ uses this for its structs, such C++ types will not contain GC pointers.
+    //
+    // The current VM implementation also incorrectly sets the CORINFO_FLG_CUSTOMLAYOUT
+    // whenever a managed value class contains any GC pointers.
+    // (See the comment for VMFLAG_NOT_TIGHTLY_PACKED in class.h)
+    //
+    // It is important to struct promote managed value classes that have GC pointers
+    // So we compute the correct value for "CustomLayout" here
+    //
+    if (StructHasCustomLayout(typeFlags) && ((typeFlags & CORINFO_FLG_CONTAINS_GC_PTR) == 0))
+    {
+        structPromotionInfo.customLayout = true;
+    }
+
+    // Check if this promoted struct contains any holes.
+    assert(!overlappingFields);
+    if (fieldsSize != structSize)
+    {
+        // If sizes do not match it means we have an overlapping fields or holes.
+        // Overlapping fields were rejected early, so here it can mean only holes.
+        structPromotionInfo.containsHoles = true;
+    }
+
+    // Cool, this struct is promotable.
+
+    structPromotionInfo.canPromote = true;
+    return true;
 }
 
 //--------------------------------------------------------------------------------------------
