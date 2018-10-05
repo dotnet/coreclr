@@ -2999,7 +2999,7 @@ public:
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
 
     // This class is responsible for checking validity and profitability of struct promotion.
-    // If it is both legal and profitable, then TryPromoteStructVar promotes the struct and initializesinitializes
+    // If it is both legal and profitable, then TryPromoteStructVar promotes the struct and initializes
     // nessesary information for fgMorphStructField to use.
     class StructPromotionHelper
     {

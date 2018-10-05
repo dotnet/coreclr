@@ -1460,12 +1460,17 @@ CORINFO_CLASS_HANDLE Compiler::lvaGetStruct(unsigned varNum)
     return varDsc->lvVerTypeInfo.GetClassHandleForValueClass();
 }
 
-/*****************************************************************************
- *
- *  Compare function passed to qsort() by Compiler::StructPromotionHelper.
- */
-
-/* static */
+//--------------------------------------------------------------------------------------------
+// lvaFieldOffsetCmp - a static compare function passed to qsort() by Compiler::StructPromotionHelper;
+//   compares fields' offsets.
+//
+// Arguments:
+//   field1 - pointer to the first field;
+//   field2 - pointer to the second field.
+//
+// Return value:
+//   0 if the fields' offsets are equal, 1 if the first field has bigger offset, -1 otherwise.
+//
 int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
 {
     lvaStructFieldInfo* pFieldInfo1 = (lvaStructFieldInfo*)field1;
@@ -1498,7 +1503,7 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
 // GetRequiresScratchVar - do we need a stack area to assemble small fields in order to place them in a register.
 //
 // Return value:
-//   true if there was a small promoted variable and scratch var is requered.
+//   true if there was a small promoted variable and scratch var is required .
 //
 bool Compiler::StructPromotionHelper::GetRequiresScratchVar()
 {
@@ -1541,7 +1546,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 // CheckRetypedAsScalar - check that the fldType for this fieldHnd was retyped as requested type.
 //
 // Arguments:
-//   fieldHnd      - the field handler;
+//   fieldHnd      - the field handle;
 //   requestedType - as which type the field was accessed;
 //
 // Notes:
@@ -1571,7 +1576,7 @@ void Compiler::StructPromotionHelper::CheckRetypedAsScalar(CORINFO_FIELD_HANDLE 
 //   However, it was not found profitable to memorize all analyzed types in a map.
 //
 //   The check initializes only nessasary fields in lvaStructPromotionInfo,
-//   so if the promotion is rejected early than the most fields will be uninitialized.
+//   so if the promotion is rejected early than most fields will be uninitialized.
 //
 bool Compiler::StructPromotionHelper::CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd)
 {
@@ -1912,6 +1917,7 @@ void Compiler::StructPromotionHelper::SortStructFields()
     structPromotionInfo.fieldsSorted = true;
 }
 
+//--------------------------------------------------------------------------------------------
 // GetFieldInfo - get struct field information.
 // Arguments:
 //   fieldHnd - field handle to get info for;
@@ -1962,13 +1968,13 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
 
 //--------------------------------------------------------------------------------------------
 // TryPromoteStructField - checks that this struct's field is a struct that can be promoted as scalar type
-//   aligned at its natural boundary. Promotes the field as a scalar if succeed.
+//   aligned at its natural boundary. Promotes the field as a scalar if the check succeeded.
 //
 // Arguments:
 //   fieldInfo - information about the field in the outer struct.
 //
 // Return value:
-//   true if the intrenal struct can be promoted.
+//   true if the internal struct was promoted.
 //
 bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& fieldInfo)
 {
@@ -1983,7 +1989,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
 
     COMP_HANDLE compHandle = compiler->info.compCompHnd;
 
-    // Do Not promote if the struct field in turn has more than one field.
+    // Do not promote if the struct field in turn has more than one field.
     if (compHandle->getClassNumInstanceFields(fieldInfo.fldTypeHnd) != 1)
     {
         return false;
@@ -2008,7 +2014,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     // target or a struct containing a single floating-point field.
     //
     // TODO-PERF: Structs containing a single floating-point field on Amd64
-    // needs to be passed in integer registers. Right now LSRA doesn't support
+    // need to be passed in integer registers. Right now LSRA doesn't support
     // passing of floating-point LCL_VARS in integer registers.  Enabling promotion
     // of such structs results in an assert in lsra right now.
     //
@@ -2250,11 +2256,16 @@ void Compiler::lvaPromoteLongVars()
 }
 #endif // !defined(_TARGET_64BIT_)
 
-/*****************************************************************************
- * Given a fldOffset in a promoted struct var, return the index of the local
-   that represents this field.
-*/
-
+//--------------------------------------------------------------------------------------------
+// lvaGetFieldLocal - returns the local var index for a promoted field in a promoted struct var.
+//
+// Arguments:
+//   varDsc    - the promoted struct var descriptor;
+//   fldOffset - field offset in the struct.
+//
+// Return value:
+//   the index of the local that represents this field.
+//
 unsigned Compiler::lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOffset)
 {
     noway_assert(varTypeIsStruct(varDsc));
