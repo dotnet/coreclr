@@ -556,6 +556,11 @@ namespace System
             return enumType.GetEnumValues();
         }
 
+        public static TEnum[] GetValues<TEnum>() where TEnum : Enum
+        {
+            return (TEnum[])typeof(TEnum).GetEnumValues();
+        }
+
         internal static ulong[] InternalGetValues(RuntimeType enumType)
         {
             // Get all of the values
@@ -570,12 +575,22 @@ namespace System
             return enumType.GetEnumName(value);
         }
 
+        public static string GetName<TEnum>(object value) where TEnum : Enum
+        {
+            return typeof(TEnum).GetEnumName(value);
+        }
+
         public static string[] GetNames(Type enumType)
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
 
             return enumType.GetEnumNames();
+        }
+
+        public static string[] GetNames<TEnum>() where TEnum : Enum
+        {
+            return typeof(TEnum).GetEnumNames();
         }
 
         internal static string[] InternalGetNames(RuntimeType enumType)
