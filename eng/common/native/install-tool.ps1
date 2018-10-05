@@ -39,6 +39,7 @@ Param (
   [string] $BaseUri,
   [Parameter(Mandatory=$True)]
   [string] $Version,
+  [string] $PathToBinary,
   [string] $CommonLibraryDirectory = $PSScriptRoot,
   [switch] $Force = $False,
   [switch] $Clean = $False,

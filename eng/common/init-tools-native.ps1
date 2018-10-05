@@ -85,6 +85,9 @@ try {
       $LocalInstallerCommand += " -BaseUri $BaseUri"
       $LocalInstallerCommand += " -CommonLibraryDirectory $EngCommonBaseDir"
       $LocalInstallerCommand += " -Version $ToolVersion"
+      if ($PathToBinary -Ne "") {
+        $LocalInstallerCommand += " -PathToBinary $PathToBinary"
+      }
 
       if ($Verbose) {
         $LocalInstallerCommand += " -Verbose"
