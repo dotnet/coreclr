@@ -671,16 +671,28 @@ def correct_line_endings(host_os, test_location, root=True):
         for item in os.listdir(test_location):
             correct_line_endings(host_os, os.path.join(test_location, item), False)
     elif test_location.endswith(extension):
-        content = None
-        with open(test_location) as file_handle:
-            content = file_handle.read()
-        
-        assert content != None
-        subbed_content = content.replace(incorrect_line_ending, correct_line_ending)
+        if sys.version_info < (3,0):
 
-        if content != subbed_content:
+            content = None
+            with open(test_location) as file_handle:
+                content = file_handle.read()
+     
+            assert content != None
+            subbed_content = content.replace(incorrect_line_ending, correct_line_ending)
+
+            if content != subbed_content:
+                with open(test_location, 'w') as file_handle:
+                    file_handle.write(subbed_content)
+
+        else:
+            # Python3 will correct line endings automatically.
+ 
+            content = None
+            with open(test_location) as file_handle:
+                content = file_handle.read()
+     
             with open(test_location, 'w') as file_handle:
-                file_handle.write(subbed_content)
+                file_handle.write(content)
 
 def run_tests(host_os,
               arch,
