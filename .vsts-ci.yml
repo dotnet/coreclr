@@ -27,7 +27,7 @@ phases:
     - task: DotNetCoreInstaller@0
       inputs:
         version: 2.1.400
-    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools
+    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
       displayName: Install native tools
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
