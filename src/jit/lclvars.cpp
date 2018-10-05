@@ -1486,6 +1486,12 @@ int __cdecl Compiler::lvaFieldOffsetCmp(const void* field1, const void* field2)
     }
 }
 
+//------------------------------------------------------------------------
+// StructPromotionHelper constructor.
+//
+// Arguments:
+//   compiler - pointer to a compiler to get access to an allocator, compHandle etc.
+//
 Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
     : compiler(compiler)
     , structPromotionInfo()
