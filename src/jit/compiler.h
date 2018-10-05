@@ -3010,7 +3010,7 @@ public:
         bool TryPromoteStructVar(unsigned lclNum);
 
 #ifdef DEBUG
-        void CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
+        void CheckRetypedAsScalar(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
 #endif // DEBUG
 
 #ifdef _TARGET_ARM_
@@ -3035,8 +3035,9 @@ public:
 #endif // _TARGET_ARM_
 
 #ifdef DEBUG
-        typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types> FakedFieldsMap;
-        FakedFieldsMap fakedFieldsMap;
+        typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types>
+                                 RetypedAsScalarFieldsMap;
+        RetypedAsScalarFieldsMap retypedFieldsMap;
 #endif // DEBUG
     };
 

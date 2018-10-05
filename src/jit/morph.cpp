@@ -17145,7 +17145,7 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
                         // says that it has another type. It can happen only if struct promotion faked
                         // field type for a struct of single field of scalar type aligned at their natural boundary.
                         assert(structPromotionHelper != nullptr);
-                        structPromotionHelper->CheckFakedType(field->gtFldHnd, fieldType);
+                        structPromotionHelper->CheckRetypedAsScalar(field->gtFldHnd, fieldType);
                     }
 #endif // DEBUG
                 }

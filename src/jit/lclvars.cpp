@@ -1488,7 +1488,7 @@ Compiler::StructPromotionHelper::StructPromotionHelper(Compiler* compiler)
     , requiresScratchVar(false)
 #endif // _TARGET_ARM_
 #ifdef DEBUG
-    , fakedFieldsMap(compiler->getAllocator(CMK_DebugOnly))
+    , retypedFieldsMap(compiler->getAllocator(CMK_DebugOnly))
 #endif // DEBUG
 {
 }
@@ -1538,7 +1538,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 
 #ifdef DEBUG
 //--------------------------------------------------------------------------------------------
-// CheckFakedType - check that the fldType for this fieldHnd was retyped as requested type.
+// CheckRetypedAsScalar - check that the fldType for this fieldHnd was retyped as requested type.
 //
 // Arguments:
 //   fieldHnd      - the field handler;
@@ -1550,10 +1550,10 @@ bool Compiler::StructPromotionHelper::TryPromoteStructVar(unsigned lclNum)
 //   "GT_FIELD struct A.B -> ADDR -> LCL_VAR A" can be promoted to "LCL_VAR long A.B" and then
 //   there is type mistmatch between "GT_FIELD struct B.c" and  "LCL_VAR long A.B".
 //
-void Compiler::StructPromotionHelper::CheckFakedType(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType)
+void Compiler::StructPromotionHelper::CheckRetypedAsScalar(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType)
 {
-    assert(fakedFieldsMap.Lookup(fieldHnd));
-    assert(fakedFieldsMap[fieldHnd] == requestedType);
+    assert(retypedFieldsMap.Lookup(fieldHnd));
+    assert(retypedFieldsMap[fieldHnd] == requestedType);
 }
 #endif // DEBUG
 
@@ -1946,7 +1946,7 @@ Compiler::lvaStructFieldInfo Compiler::StructPromotionHelper::GetFieldInfo(CORIN
             fieldInfo.fldType = compiler->getSIMDTypeForSize(simdSize);
             fieldInfo.fldSize = simdSize;
 #ifdef DEBUG
-            fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+            retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
 #endif // DEBUG
         }
     }
@@ -2043,7 +2043,7 @@ bool Compiler::StructPromotionHelper::TryPromoteStructField(lvaStructFieldInfo& 
     fieldInfo.fldType = fieldVarType;
     fieldInfo.fldSize = fieldSize;
 #ifdef DEBUG
-    fakedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
+    retypedFieldsMap.Set(fieldInfo.fldHnd, fieldInfo.fldType);
 #endif // DEBUG
     return true;
 }
