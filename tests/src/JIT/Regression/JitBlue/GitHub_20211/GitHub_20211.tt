@@ -13,7 +13,7 @@ namespace GitHub_20211
     class Program
     {
 <#
-        string[] typeNames = { "sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong" };
+        string[] typeNames = { "sbyte", "byte", "short", "ushort", "int", "uint", "long", "ulong", "float", "double" };
         foreach (string typeName in typeNames)
         {
 #>
@@ -69,6 +69,9 @@ namespace GitHub_20211
                 TestSquareRootAt0((uint)1);
                 TestSquareRootAt0((long)1);
                 TestSquareRootAt0((ulong)1);
+
+                TestSquareRootAt0((float)4);
+                TestSquareRootAt0((double)4);
 
                 return result;
             }

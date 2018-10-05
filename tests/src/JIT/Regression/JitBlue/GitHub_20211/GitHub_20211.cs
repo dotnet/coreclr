@@ -58,6 +58,18 @@ namespace GitHub_20211
             return (ulong)Math.Sqrt(arg[0]);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static unsafe float SquareRootAt0(Vector<float> arg)
+        {
+            return (float)Math.Sqrt(arg[0]);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static unsafe double SquareRootAt0(Vector<double> arg)
+        {
+            return (double)Math.Sqrt(arg[0]);
+        }
+
         enum Result { Pass, Fail }
 
         struct TestRunner
@@ -166,6 +178,32 @@ namespace GitHub_20211
                 }
             }
 
+            void TestSquareRootAt0(float arg0)
+            {
+                Vector<float> arg = new Vector<float>(arg0);
+                float actual = SquareRootAt0(arg);
+                float expected = (float)Math.Sqrt(arg0);
+
+                if (actual != expected)
+                {
+                    Console.WriteLine($"Fail: float (actual={actual}, expected={expected})");
+                    result = Result.Fail;
+                }
+            }
+
+            void TestSquareRootAt0(double arg0)
+            {
+                Vector<double> arg = new Vector<double>(arg0);
+                double actual = SquareRootAt0(arg);
+                double expected = (double)Math.Sqrt(arg0);
+
+                if (actual != expected)
+                {
+                    Console.WriteLine($"Fail: double (actual={actual}, expected={expected})");
+                    result = Result.Fail;
+                }
+            }
+
             Result result;
 
             public Result Run()
@@ -185,6 +223,9 @@ namespace GitHub_20211
                 TestSquareRootAt0((uint)1);
                 TestSquareRootAt0((long)1);
                 TestSquareRootAt0((ulong)1);
+
+                TestSquareRootAt0((float)4);
+                TestSquareRootAt0((double)4);
 
                 return result;
             }
