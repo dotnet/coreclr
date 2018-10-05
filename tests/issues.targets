@@ -1774,5 +1774,11 @@
             <Issue>Bug</Issue>
         </ExcludeList>
     </ItemGroup>
+
+    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' == 'true'">
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracecontrol/tracecontrol/*">
+            <Issue>Unable to write config file to app location</Issue>
+        </ExcludeList>
+    </ItemGroup>
     
 </Project>

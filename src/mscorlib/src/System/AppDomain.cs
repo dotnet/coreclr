@@ -677,8 +677,6 @@ namespace System
                     SetupFusionStore(new AppDomainSetup(), null);
                 }
             }
-
-            System.Diagnostics.Tracing.EventPipeController.Initialize();
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
