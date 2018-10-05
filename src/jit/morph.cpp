@@ -17135,8 +17135,7 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
                     {
                         // This is going to be an incorrect instruction promotion.
                         // For example when we try to read int as long.
-                        // Tolerate this case now to keep no asm difs in this PR.
-                        // TODO make a return.
+                        return;
                     }
 #ifdef DEBUG
                     if (tree->TypeGet() == TYP_STRUCT)
