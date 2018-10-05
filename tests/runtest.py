@@ -560,12 +560,10 @@ def call_msbuild(coreclr_repo_location,
     """
     global g_verbose
 
-    common_msbuild_arguments = ["/nologo"]
+    common_msbuild_arguments = []
 
     if sequential:
         common_msbuild_arguments += ["/p:ParallelRun=none"]
-    else:
-        common_msbuild_arguments += ["/maxcpucount"]
 
     logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
     if not os.path.isdir(logs_dir):
