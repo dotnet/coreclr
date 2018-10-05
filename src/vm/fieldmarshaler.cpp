@@ -34,7 +34,8 @@
 // forward declaration
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
-TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);  
+TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
 
 
 //=======================================================================

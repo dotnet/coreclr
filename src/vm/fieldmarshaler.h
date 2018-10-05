@@ -116,8 +116,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport *pInternalImport, 
 //=======================================================================
 BOOL IsStructMarshalable(TypeHandle th);
 
-BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
-
 //=======================================================================
 // The classloader stores an intermediate representation of the layout
 // metadata in an array of these structures. The dual-pass nature
