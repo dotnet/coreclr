@@ -11,7 +11,7 @@ using NativeDefs;
 class Test
 {
 
-    #region "Reprot Failure"
+    #region "Report Failure"
     static int fails = 0; //record the fail numbers
     // Overload methods for reportfailure	
     static int ReportFailure(string s)
