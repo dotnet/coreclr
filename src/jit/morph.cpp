@@ -17137,8 +17137,22 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
                         // For example when we try to read int as long.
                         return;
                     }
+
+                    if (field->gtFldHnd != fieldDsc->lvFieldHnd)
+                    {
+                        CORINFO_CLASS_HANDLE fieldTreeClass = nullptr, fieldDscClass = nullptr;
+
+                        CorInfoType fieldTreeType = info.compCompHnd->getFieldType(field->gtFldHnd, &fieldTreeClass);
+                        CorInfoType fieldDscType = info.compCompHnd->getFieldType(fieldDsc->lvFieldHnd, &fieldDscClass);
+                        if (fieldTreeType != fieldDscType || fieldTreeClass != fieldDscClass)
+                        {
+                            // Access the promoted field with a different class handle, can't check that types match.
+                            return;
+                        }
+                        // Access the promoted field as a field of a non-promoted struct with the same class handle.
+                    }
 #ifdef DEBUG
-                    if (tree->TypeGet() == TYP_STRUCT)
+                    else if (tree->TypeGet() == TYP_STRUCT)
                     {
                         // The field tree accesses it as a struct, but the promoted lcl var for the field
                         // says that it has another type. It can happen only if struct promotion faked
