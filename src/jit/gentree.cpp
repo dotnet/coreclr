@@ -4287,16 +4287,20 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             break;
 
         case GT_PHI:
-            level  = 0;
-            costEx = 0;
-            costSz = 0;
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
-                lvl2  = gtSetEvalOrder(use.op);
-                level = max(level, lvl2);
-                costEx += use.op->gtCostEx;
-                costSz += use.op->gtCostSz;
+                lvl2 = gtSetEvalOrder(use.op);
+                // PHI args should always have cost 0 and level 1
+                assert(lvl2 == 1);
+                assert(use.op->gtCostEx == 0);
+                assert(use.op->gtCostSz == 0);
             }
+            // Give it a level of 2, just to be sure that it's greater than the LHS of
+            // the parent assignment and the PHI gets evaluated first in linear order.
+            // See also SsaBuilder::InsertPhi and SsaBuilder::AddPhiArg.
+            level  = 2;
+            costEx = 0;
+            costSz = 0;
             break;
 
         case GT_CMPXCHG:
