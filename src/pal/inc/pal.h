@@ -10,9 +10,9 @@ Module Name:
 
 Abstract:
 
-    Rotor Platform Adaptation Layer (PAL) header file.  This file
-    defines all types and API calls required by the Rotor port of
-    the Microsoft Common Language Runtime.
+    CoreCLR Platform Adaptation Layer (PAL) header file.  This file
+    defines all types and API calls required by the CoreCLR when
+    compiled for Unix-like systems.
 
     Defines which control the behavior of this include file:
       UNICODE - define it to set the Ansi/Unicode neutral names to

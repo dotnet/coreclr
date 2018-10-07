@@ -7749,7 +7749,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         contextSize));
    
     HRESULT hr = E_UNEXPECTED;
-    // (hr assignment is to appease the rotor compiler; we won't actually return without explicitly setting hr again)
+    // (hr assignment is to appease the compiler; we won't actually return without explicitly setting hr again)
     
     Thread *pThreadToSnapshot = NULL;
     Thread * pCurrentThread = GetThreadNULLOk();
