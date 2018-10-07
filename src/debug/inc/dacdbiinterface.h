@@ -1938,7 +1938,7 @@ public:
 
     virtual
     CORDB_ADDRESS GetThreadStaticAddress(VMPTR_FieldDesc vmField,
-                                                   VMPTR_Thread    vmRuntimeThread) = 0;
+                                         VMPTR_Thread    vmRuntimeThread) = 0;
 
     // Get the target field address of a collectible types static. 
     // Arguments: 

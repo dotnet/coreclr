@@ -305,7 +305,7 @@ public:
 
     // Get the target field address of a context or thread local static. 
     CORDB_ADDRESS GetThreadStaticAddress(VMPTR_FieldDesc vmField,
-                                                  VMPTR_Thread    vmRuntimeThread);
+                                         VMPTR_Thread    vmRuntimeThread);
 
     // Get the target field address of a collectible types static. 
     CORDB_ADDRESS GetCollectibleTypeStaticAddress(VMPTR_FieldDesc vmField,

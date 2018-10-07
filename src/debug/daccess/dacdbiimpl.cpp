@@ -3226,7 +3226,7 @@ TypeHandle DacDbiInterfaceImpl::ExpandedTypeInfoToTypeHandle(DebuggerIPCE_Expand
 // This can commonly fail, in which case, it will return NULL.
 // ----------------------------------------------------------------------------
 CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadStaticAddress(VMPTR_FieldDesc vmField,
-                                                                    VMPTR_Thread    vmRuntimeThread)
+                                                          VMPTR_Thread    vmRuntimeThread)
 {
     DD_ENTER_MAY_THROW;
 
