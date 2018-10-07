@@ -5043,9 +5043,7 @@ public:
 };
 
 //
-// NOTE: Catching hardware exceptions are only enabled in the DAC and SOS 
-// builds. A hardware exception in coreclr code will fail fast/terminate
-// the process.
+// NOTE: This is only defined in one PAL test.
 //
 #ifdef FEATURE_ENABLE_HARDWARE_EXCEPTIONS
 #define HardwareExceptionHolder CatchHardwareExceptionHolder __catchHardwareException;
