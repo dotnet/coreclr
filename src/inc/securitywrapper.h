@@ -12,7 +12,9 @@
 #ifndef _SECURITY_WRAPPER_H
 #define _SECURITY_WRAPPER_H
 
-// This file should not even be included on Rotor.
+#ifdef FEATURE_PAL
+#error This file should not be included on non-Windows platforms.
+#endif
 
 //-----------------------------------------------------------------------------
 // Wrapper around a PSID.
