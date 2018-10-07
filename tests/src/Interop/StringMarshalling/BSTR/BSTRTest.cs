@@ -94,9 +94,69 @@ class Test
     }
 
     #endregion
+    
+    #region "Struct"
+    static void TestStructIn()
+    {
+        string strManaged = "Managed\0String\0";
+        Person person = new Person();
+        person.age = 12;
+        person.name = strManaged;
+        if (!PInvokeDef.Marshal_Struct_In(person))
+        {
+            ReportFailure("Method PInvokeDef.Marshal_Struct_In[Managed Side],The native return false");
+        }
+    }
+
+    static void TestStructPointerInOut()
+    {
+        string strManaged = "Managed\0String\0";
+        Person person = new Person();
+        person.age = 12;
+        person.name = strManaged;
+
+        Person expectedPerson = new Person();
+        expectedPerson.age = 21;
+        expectedPerson.name = " Native";
+        if (!PInvokeDef.MarshalPointer_Struct_InOut(ref person) || !expectedPerson.Equals(person))
+        {
+            ReportFailure("Method PInvokeDef.MarshalPointer_Struct_InOut[Managed Side],The Return struct is wrong", person.ToString(), expectedPerson.ToString());
+        }
+    }
+
+    static bool Call_Struct_Delegate_In(Person person)
+    {
+        Person expectedPerson = new Person();
+        expectedPerson.age = 21;
+        expectedPerson.name = " Native";
+        if (!expectedPerson.Equals(person))
+        {
+            ReportFailure("Method Call_Struct_Delegate_In[Managed Side], The native passing in struct is incorrect");
+            return false;
+        }
+
+        return true;
+    } 
+    static void TestRPInvokeStructIn()
+    {
+        DelMarshal_Struct_In d = new DelMarshal_Struct_In(Call_Struct_Delegate_In);
+        if (!PInvokeDef.RPInvoke_DelMarshal_Struct_In(d))
+        {
+            ReportFailure("Method PInvokeDef.RPInvoke_DelMarshal_Struct_In[Managed Side],The Return value is wrong");
+        }
+    }
+
+    static void TestStruct()
+    {
+        TestStructIn();
+        TestStructPointerInOut();
+        TestRPInvokeStructIn();
+    }
+    #endregion
 
     public static int Main(string[] args)
     {
+        /* 
 #pragma warning disable 0219
         string strManaged = "Managed\0String\0";
         string strRet = "a";
@@ -195,6 +255,11 @@ class Test
         }
 
         #endregion
+        */
+        #region "Struct"
+        TestStruct();
+        #endregion
+
         return ExitTest();
     }
 }

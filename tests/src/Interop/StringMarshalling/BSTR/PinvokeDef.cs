@@ -9,7 +9,30 @@ using System.Text;
 
 namespace NativeDefs
 {
-    
+    public struct Person
+    {
+        public int age;
+        [MarshalAs(UnmanagedType.BStr)]
+        public string name;
+
+        public override bool Equals(object obj)
+        {
+            if(obj == null)
+                return false;
+            if(this.GetType() != obj.GetType())
+                return false;
+            Person anotherPerson = (Person)obj;
+            return this.age == anotherPerson.age && this.name == anotherPerson.name;
+        }
+
+        public override int GetHashCode() => (age, name).GetHashCode();
+
+        public override string ToString()
+        {
+            return name + ":" + age.ToString();
+        }
+    }
+
     [return: MarshalAs(UnmanagedType.BStr)]
     public delegate string Del_MarshalPointer_Out([MarshalAs(UnmanagedType.BStr)] out string s);
     
@@ -23,6 +46,8 @@ namespace NativeDefs
     [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode)]
     [return: MarshalAs(UnmanagedType.BStr)]
     public delegate string DelMarshal_InOut([MarshalAs(UnmanagedType.BStr)][In, Out]string s);
+
+    public delegate bool DelMarshal_Struct_In(Person person);
 
     public static class PInvokeDef
     {
@@ -49,5 +74,14 @@ namespace NativeDefs
 
         [DllImport(NativeBinaryName, CallingConvention = CallingConvention.StdCall)]
         public static extern bool RPinvoke_DelMarshalPointer_Out(DelMarshalPointer_Out d);
+        
+        [DllImport(NativeBinaryName)]
+        public static extern bool Marshal_Struct_In(Person person);
+
+        [DllImport(NativeBinaryName)]
+        public static extern bool MarshalPointer_Struct_InOut(ref Person person);
+
+        [DllImport(NativeBinaryName)]
+        public static extern bool RPInvoke_DelMarshal_Struct_In(DelMarshal_Struct_In person);
     }
 }
