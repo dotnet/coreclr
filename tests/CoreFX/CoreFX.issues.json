@@ -394,6 +394,28 @@
         }
     },
     {
+        "name": "System.Runtime.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Tests.DecimalTests.Remainder",
+                    "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                },
+                {
+                    "name": "System.Tests.DecimalTests.Remainder_Invalid",
+                    "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                },
+                {
+                    "name": "System.Tests.DecimalTests+BigIntegerMod.Test",
+                    "reason": "https://github.com/dotnet/coreclr/issues/12605"
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Runtime.Extensions.Tests",
         "enabled": true,
         "exclusions": {
