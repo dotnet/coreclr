@@ -17,7 +17,17 @@
 #include "debugmacrosext.h"
 
 #ifndef _ASSERTE_SAFEMATH
+#ifdef _ASSERTE
+// Use _ASSERTE if we have it (should always be the case in the CLR)
 #define _ASSERTE_SAFEMATH _ASSERTE
+#else
+// Otherwise (eg. we're being used from a tool like SOS) there isn't much
+// we can rely on that is both available everywhere.  In
+// several other tools we just take the recourse of disabling asserts,
+// we'll do the same here.  
+// Ideally we'd have a collection of common utilities available evererywhere.
+#define _ASSERTE_SAFEMATH(a) 
+#endif
 #endif
 
 #include "static_assert.h"
