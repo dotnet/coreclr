@@ -893,7 +893,7 @@ def static isGcReliabilityFramework(def scenario) {
 }
 
 def static isArmWindowsScenario(def scenario) {
-    return Constants.validArmWindowsScenarios.containsKey(scenario)
+    return Constants.validArmWindowsScenarios.containsValue(scenario)
 }
 
 def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBuildOnly) {
