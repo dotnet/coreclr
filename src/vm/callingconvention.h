@@ -1016,8 +1016,6 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     case ELEMENT_TYPE_VALUETYPE:
     {
 #ifdef UNIX_AMD64_ABI
-//	if (!m_argTypeHandle.IsTypeDesc())
-//	{
         MethodTable *pMT = m_argTypeHandle.GetMethodTable();
         if (pMT->IsRegPassedStruct())
         {
@@ -1063,7 +1061,6 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         // Set the register counts to indicate that this argument will not be passed in registers
         cFPRegs = 0;
         cGenRegs = 0;
-	//}
 #else // UNIX_AMD64_ABI
         argSize = sizeof(TADDR);        
 #endif // UNIX_AMD64_ABI
