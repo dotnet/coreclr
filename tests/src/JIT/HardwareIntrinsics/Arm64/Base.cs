@@ -99,7 +99,6 @@ namespace Arm64intrisicsTest
 
         static void TestLeadingSignCount()
         {
-#if COREFX_HAS_ARM64_BASE
             String name = "LeadingSignCount";
 
             if (Base.IsSupported)
@@ -120,12 +119,10 @@ namespace Arm64intrisicsTest
             }
 
             Console.WriteLine($"Test{name} passed");
-#endif // COREFX_HAS_ARM64_BASE
         }
 
         static void TestLeadingZeroCount()
         {
-#if COREFX_HAS_ARM64_BASE
             String name = "LeadingZeroCount";
 
             if (Base.IsSupported)
@@ -152,7 +149,6 @@ namespace Arm64intrisicsTest
             }
 
             Console.WriteLine($"Test{name} passed");
-#endif // COREFX_HAS_ARM64_BASE
         }
 
         static void ExecuteAllTests()
@@ -163,7 +159,6 @@ namespace Arm64intrisicsTest
 
         static int Main(string[] args)
         {
-#if COREFX_HAS_ARM64_BASE
             Console.WriteLine($"System.Runtime.Intrinsics.Arm.Arm64.Base.IsSupported = {Base.IsSupported}");
 
             // Reflection call
@@ -171,7 +166,6 @@ namespace Arm64intrisicsTest
             bool reflectedIsSupported = Convert.ToBoolean(typeof(Base).GetMethod(issupported).Invoke(null, null));
 
             Debug.Assert(reflectedIsSupported == Base.IsSupported, "Reflection result does not match");
-#endif // COREFX_HAS_ARM64_BASE
 
             ExecuteAllTests();
 
