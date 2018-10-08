@@ -249,10 +249,10 @@ class Constants {
     // Note that some scenarios that are commented out should be enabled, but haven't yet been.
     //
     def static validArmWindowsScenarios = [
-               'innerloop':                              [],
-               'normal':                                 [],
+               'innerloop',
+               'normal',
                // 'ilrt'
-               'r2r':                                    ["R2R_FAIL", "R2R_EXCLUDE"],
+               'r2r',
                // 'longgc'
                // 'formatting'
                // 'gcsimulator'
@@ -262,102 +262,102 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                // 'crossgen_comparison'
-               'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress2_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs1':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs2':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs3':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs4':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs8':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x10':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x80':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x1000':                ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitminopts':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'r2r_jitforcerelocs':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_gcstress15':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'r2r_no_tiered_compilation':              ["R2R_FAIL", "R2R_EXCLUDE"],
-               'minopts':                                ["MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'tieredcompilation':                      [],
-               'no_tiered_compilation':                  [],
-               'no_tiered_compilation_innerloop':        [],
-               'forcerelocs':                            [],
-               'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress1_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs2':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs3':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs4':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs8':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x10':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x80':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x1000':                    ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs1':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs2':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs3':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs4':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs8':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x10':           ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x80':           ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x1000':         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'tailcallstress':                         ["TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
-               // 'jitsse2only'                          // Only relevant to xarch
-               'jitnosimd':                              [],    // Only interesting on platforms where SIMD support exists.
+               'r2r_jitstress1',
+               'r2r_jitstress2',
+               'r2r_jitstress1_tiered',
+               'r2r_jitstress2_tiered',
+               'r2r_jitstressregs1',
+               'r2r_jitstressregs2',
+               'r2r_jitstressregs3',
+               'r2r_jitstressregs4',
+               'r2r_jitstressregs8',
+               'r2r_jitstressregs0x10',
+               'r2r_jitstressregs0x80',
+               'r2r_jitstressregs0x1000',
+               'r2r_jitminopts',
+               'r2r_jitforcerelocs',
+               'r2r_gcstress15',
+               'r2r_no_tiered_compilation',
+               'minopts',
+               'tieredcompilation',
+               'no_tiered_compilation',
+               'no_tiered_compilation_innerloop',
+               'forcerelocs',
+               'jitstress1',
+               'jitstress2',
+               'jitstress1_tiered',
+               'jitstress2_tiered',
+               'jitstressregs1',
+               'jitstressregs2',
+               'jitstressregs3',
+               'jitstressregs4',
+               'jitstressregs8',
+               'jitstressregs0x10',
+               'jitstressregs0x80',
+               'jitstressregs0x1000',
+               'jitstress2_jitstressregs1',
+               'jitstress2_jitstressregs2',
+               'jitstress2_jitstressregs3',
+               'jitstress2_jitstressregs4',
+               'jitstress2_jitstressregs8',
+               'jitstress2_jitstressregs0x10',
+               'jitstress2_jitstressregs0x80',
+               'jitstress2_jitstressregs0x1000',
+               'tailcallstress',
+               // 'jitsse2only'                     // Only relevant to xarch
+               'jitnosimd',                         // Only interesting on platforms where SIMD support exists.
                // 'jitincompletehwintrinsic'
                // 'jitx86hwintrinsicnoavx'
                // 'jitx86hwintrinsicnoavx2'
                // 'jitx86hwintrinsicnosimd'
                // 'jitnox86hwintrinsic'
-               'corefx_baseline':                        [],    // corefx tests don't use smarty
-               'corefx_minopts':                         [],    // corefx tests don't use smarty
-               'corefx_tieredcompilation':               [],    // corefx tests don't use smarty
-               'corefx_jitstress1':                      [],    // corefx tests don't use smarty
-               'corefx_jitstress2':                      [],    // corefx tests don't use smarty
-               'corefx_jitstressregs1':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs2':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs3':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs4':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs8':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x10':               [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x80':               [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x1000':             [],    // corefx tests don't use smarty
-               'gcstress0x3':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'gcstress0xc':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'zapdisable':                             ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'heapverify1':                            [],
-               'gcstress0xc_zapdisable':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'gcstress0xc_zapdisable_jitstress2':      ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_zapdisable_heapverify1':     ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'gcstress0xc_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_minopts_heapverify1':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
+               'corefx_baseline',                   // corefx tests don't use smarty
+               'corefx_minopts',                    // corefx tests don't use smarty
+               'corefx_tieredcompilation',          // corefx tests don't use smarty
+               'corefx_jitstress1',                 // corefx tests don't use smarty
+               'corefx_jitstress2',                 // corefx tests don't use smarty
+               'corefx_jitstressregs1',             // corefx tests don't use smarty
+               'corefx_jitstressregs2',             // corefx tests don't use smarty
+               'corefx_jitstressregs3',             // corefx tests don't use smarty
+               'corefx_jitstressregs4',             // corefx tests don't use smarty
+               'corefx_jitstressregs8',             // corefx tests don't use smarty
+               'corefx_jitstressregs0x10',          // corefx tests don't use smarty
+               'corefx_jitstressregs0x80',          // corefx tests don't use smarty
+               'corefx_jitstressregs0x1000',        // corefx tests don't use smarty
+               'gcstress0x3',
+               'gcstress0xc',
+               'zapdisable',
+               'heapverify1',
+               'gcstress0xc_zapdisable',
+               'gcstress0xc_zapdisable_jitstress2',
+               'gcstress0xc_zapdisable_heapverify1',
+               'gcstress0xc_jitstress1',
+               'gcstress0xc_jitstress2',
+               'gcstress0xc_minopts_heapverify1',
 
                //
                // NOTE: the following scenarios are not defined in the 'allScenarios' list! Is this a bug?
                //
 
-               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'gcstress0x3_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs2':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs3':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs4':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs8':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x10':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x80':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x1000':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs2':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs3':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs4':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs8':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x10':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x80':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x1000':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"]
+               'minopts_zapdisable',
+               'gcstress0x3_jitstress1',
+               'gcstress0x3_jitstress2',
+               'gcstress0x3_jitstressregs1',
+               'gcstress0x3_jitstressregs2',
+               'gcstress0x3_jitstressregs3',
+               'gcstress0x3_jitstressregs4',
+               'gcstress0x3_jitstressregs8',
+               'gcstress0x3_jitstressregs0x10',
+               'gcstress0x3_jitstressregs0x80',
+               'gcstress0x3_jitstressregs0x1000',
+               'gcstress0xc_jitstressregs1',
+               'gcstress0xc_jitstressregs2',
+               'gcstress0xc_jitstressregs3',
+               'gcstress0xc_jitstressregs4',
+               'gcstress0xc_jitstressregs8',
+               'gcstress0xc_jitstressregs0x10',
+               'gcstress0xc_jitstressregs0x80',
+               'gcstress0xc_jitstressregs0x1000'
     ]
   
     def static validLinuxArmScenarios = [
@@ -3065,17 +3065,8 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 
                 addCommand("${runtestCommand}")
 
-                // Save the errorlevel from the smarty command to be used as the errorlevel of this batch file.
-                // However, we also need to remove all the variables that were set during this batch file, so we
-                // can run the ZIP powershell command (below) in a clean environment. (We can't run the powershell
-                // command with the COMPlus_AltJit variables set, for example.) To do that, we do ENDLOCAL as well
-                // as save the current errorlevel on the same line. This works because CMD evaluates the %errorlevel%
-                // variable expansion (or any variable expansion on the line) BEFORE it executes the ENDLOCAL command.
-                // Note that the ENDLOCAL also undoes the pushd command, but we add the popd here for clarity.
-                addCommand("popd & ENDLOCAL & set __save_runtest_errorlevel=%errorlevel%")
-
                 // Use the smarty errorlevel as the script errorlevel.
-                addCommand("exit /b %__save_runtest_errorlevel%")
+                addCommand("exit /b %errorlevel%")
 
                 batchFile(buildCommands)
             } // non-corefx testing
