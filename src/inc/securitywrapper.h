@@ -62,8 +62,6 @@ protected:
     BYTE * m_pBuffer;
 };
 
-#ifndef FEATURE_PAL
-
 //-----------------------------------------------------------------------------
 // Access Control List.
 //-----------------------------------------------------------------------------
@@ -100,14 +98,6 @@ public:
 protected:
     PSECURITY_DESCRIPTOR m_pDesc;
 };
-
-#endif // FEATURE_PAL
-
-//-----------------------------------------------------------------------------
-// Check if the handle owner belongs to either the process specified by the pid 
-// or the current process. This lets us know if the handle is spoofed.
-//-----------------------------------------------------------------------------
-bool IsHandleSpoofed(HANDLE handle, DWORD pid);
 
 
 #endif // _SECURITY_WRAPPER_H

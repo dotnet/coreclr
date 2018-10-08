@@ -22,7 +22,7 @@
 #define _ASSERTE_SAFEMATH _ASSERTE
 #else
 // Otherwise (eg. we're being used from a tool like SOS) there isn't much
-// we can rely on that is both available everywhere.  In
+// we can rely on that is available everywhere.  In
 // several other tools we just take the recourse of disabling asserts,
 // we'll do the same here.  
 // Ideally we'd have a collection of common utilities available evererywhere.
