@@ -3058,37 +3058,12 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                     addEnvVariable("RunCrossGen", "true")
                 } // isR2RScenario(scenario)
 
-                // Create the smarty command
-                def smartyCommand = "C:\\Tools\\Smarty.exe /noecid /noie /workers 9 /inc EXPECTED_PASS "
-                def addSmartyFlag = { flag -> smartyCommand += flag + " "}
-                def addExclude = { exclude -> addSmartyFlag("/exc " + exclude)}
-                def addArchSpecificExclude = { architectureToExclude, exclude -> addExclude(exclude) }
+                // Run runtest.cmd
+                // Do not run generate layout. It will delete the correct CORE_ROOT, and we do not have a correct product
+                // dir to copy from.
+                def runtestCommand = "%WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
 
-                // Exclude tests based on scenario.
-                Constants.validArmWindowsScenarios[scenario].each { excludeTag ->
-                    addArchSpecificExclude(architecture, excludeTag)
-                }
-
-                if (isInnerloopTestScenario(scenario)) {
-                    addExclude("pri1")
-                }
-
-                // Exclude any test marked LONG_RUNNING; these often exceed the standard timeout and fail as a result.
-                // TODO: We should create a "long running" job that runs these with a longer timeout.
-                addExclude("LONG_RUNNING")
-
-                smartyCommand += "/lstFile Tests.lst"
-
-                def testListArch = [
-                    'arm64': 'arm64',
-                    'arm': 'arm'
-                ]
-
-                def archLocation = testListArch[architecture]
-
-                addCommand("copy %WORKSPACE%\\tests\\${archLocation}\\Tests.lst bin\\tests\\${osGroup}.${architecture}.${configuration}")
-                addCommand("pushd bin\\tests\\${osGroup}.${architecture}.${configuration}")
-                addCommand("${smartyCommand}")
+                addCommand("${runtestCommand}")
 
                 // Save the errorlevel from the smarty command to be used as the errorlevel of this batch file.
                 // However, we also need to remove all the variables that were set during this batch file, so we
@@ -3097,16 +3072,10 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                 // as save the current errorlevel on the same line. This works because CMD evaluates the %errorlevel%
                 // variable expansion (or any variable expansion on the line) BEFORE it executes the ENDLOCAL command.
                 // Note that the ENDLOCAL also undoes the pushd command, but we add the popd here for clarity.
-                addCommand("popd & ENDLOCAL & set __save_smarty_errorlevel=%errorlevel%")
-
-                // ZIP up the smarty output, no matter what the smarty result.
-                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
-
-                addCommand("echo %errorlevel%")
-                addCommand("dir .\\bin\\tests\\${osGroup}.${architecture}.${configuration}")
+                addCommand("popd & ENDLOCAL & set __save_runtest_errorlevel=%errorlevel%")
 
                 // Use the smarty errorlevel as the script errorlevel.
-                addCommand("exit /b %__save_smarty_errorlevel%")
+                addCommand("exit /b %__save_runtest_errorlevel%")
 
                 batchFile(buildCommands)
             } // non-corefx testing
@@ -3114,12 +3083,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
     } // job
 
     if (!isCoreFxScenario(scenario)) {
-        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.run.0/*.smrt", '', true, false)
-
-        // Archive a ZIP file of the entire Smarty.run.0 directory. This is possibly a little too much,
-        // but there is no easy way to only archive the HTML/TXT files of the failing tests, so we get
-        // all the passing test info as well. Not necessarily a bad thing, but possibly somewhat large.
-        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.run.0.zip", '', true, false)
+        Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
     }
 
     return newJob
