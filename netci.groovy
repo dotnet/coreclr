@@ -3083,7 +3083,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
     } // job
 
     if (!isCoreFxScenario(scenario)) {
-        Utilities.addXUnitDotNETResults(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
+        Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
     }
 
     return newJob
