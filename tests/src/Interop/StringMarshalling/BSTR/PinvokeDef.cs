@@ -12,9 +12,10 @@ namespace NativeDefs
     public struct Person
     {
         public int age;
+	public int _pedding;
         [MarshalAs(UnmanagedType.BStr)]
         public string name;
-
+/*
         public override bool Equals(object obj)
         {
             if(obj == null)
@@ -30,7 +31,8 @@ namespace NativeDefs
         public override string ToString()
         {
             return name + ":" + age.ToString();
-        }
+        }i
+*/
     }
 
     [return: MarshalAs(UnmanagedType.BStr)]

@@ -7,6 +7,7 @@ using System;
 using System.Reflection;
 using System.Text;
 using NativeDefs;
+using System.Diagnostics;
 
 class Test
 {
@@ -148,15 +149,14 @@ class Test
 
     static void TestStruct()
     {
-        TestStructIn();
+        //TestStructIn();
         TestStructPointerInOut();
-        TestRPInvokeStructIn();
+       // TestRPInvokeStructIn();
     }
     #endregion
 
     public static int Main(string[] args)
     {
-        /* 
 #pragma warning disable 0219
         string strManaged = "Managed\0String\0";
         string strRet = "a";
@@ -255,7 +255,6 @@ class Test
         }
 
         #endregion
-        */
         #region "Struct"
         TestStruct();
         #endregion
