@@ -203,6 +203,21 @@ void EventPipe::Initialize()
     InitProvidersAndEvents();
 }
 
+void EventPipe::InitializeManaged()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    MethodDescCallSite eventPipeInitialize(METHOD__EVENTPIPE_CONTROLLER__INITIALIZE);
+    eventPipeInitialize.Call(NULL);
+}
+
 void EventPipe::Shutdown()
 {
     CONTRACTL

@@ -102,8 +102,7 @@ namespace System.Diagnostics.Tracing
                 callback: new TimerCallback(PollForTracingCommand),
                 state: null,
                 dueTime: Timeout.Infinite,
-                period: Timeout.Infinite,
-                flowExecutionContext: false);
+                period: Timeout.Infinite);
 
             // Trigger the first poll operation on the start-up path.
             PollForTracingCommand(null);

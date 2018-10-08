@@ -231,6 +231,9 @@ class EventPipe
         // Initialize the event pipe.
         static void Initialize();
 
+        // Initialize the managed code components of the event pipe.
+        static void InitializeManaged();
+
         // Shutdown the event pipe.
         static void Shutdown();
 

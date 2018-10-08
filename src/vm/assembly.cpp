@@ -52,6 +52,10 @@
 
 #include "peimagelayout.inl"
 
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+#endif
+
 
 // Define these macro's to do strict validation for jit lock and class init entry leaks.
 // This defines determine if the asserts that verify for these leaks are defined or not.
@@ -1810,6 +1814,12 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
             // to get the TargetFrameworkMoniker for the app
             AppDomain * pDomain = pThread->GetDomain();
             pDomain->SetRootAssembly(pMeth->GetAssembly());
+
+#ifdef FEATURE_PERFTRACING
+            // Initialize the managed components of EventPipe and allow tracing to be started before Main.
+            EventPipe::InitializeManaged();
+#endif
+
             hr = RunMain(pMeth, 1, &iRetVal, stringArgs);
         }
     }
