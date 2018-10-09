@@ -207,10 +207,6 @@ function New-ScriptShim {
     }
     $ErrorActionPreference = $oldPreference
 
-    Write-Host $ShimName
-    Write-Host $ToolFilePath
-    Write-Host $ShimDirectory
-
     if (-Not (Test-Path "$ShimDirectory\WinShimmer\winshimmer.exe")) {
       $InstallStatus = DownloadAndExtract -Uri "$BaseUri/windows/winshimmer/WinShimmer.zip" `
                                           -InstallDirectory $ShimDirectory\WinShimmer `
