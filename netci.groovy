@@ -2565,31 +2565,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // Archive the built artifacts
                         Utilities.addArchival(newJob, "coreroot.${os}.${architecture}.${lowerConfiguration}.zip,coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
                     }
-                    else if (architecture == 'arm') {
-                        // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
-                        // download the appropriate CoreFX packages.
-                        // Note that docker should not be necessary here, for the "generatelayoutonly" case, but we use it
-                        // just to be consistent with the "build.sh" case -- so both are run with the same environment.
-
-                        buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
-
-                        // ZIP up for the test job (created in the flow job code):
-                        // (1) the built CORE_ROOT, /home/user/coreclr/bin/tests/Linux.arm.Checked/Tests/Core_Root,
-                        //     used by runtest.sh as the "--coreOverlayDir" argument.
-                        // (2) the native parts of the test build: /home/user/coreclr/bin/obj/Linux.arm.Checked/tests,
-                        //     used by runtest.sh as the "--testNativeBinDir" argument.
-
-                        // These commands are assumed to be run from the root of the workspace.
-                        buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
-                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
-
-                        Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
-                    }
                     else {
-                        assert architecture == 'arm64'
-
                         // Then, using the same docker image, build the tests and generate the CORE_ROOT layout.
-                        // Linux/arm64 does not use Windows-built tests.
 
                         def testBuildOpts = ""
                         if (priority == '1') {
@@ -3420,8 +3397,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
-            else if (architecture != 'arm64') {
-                // ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
+            else if (architecture != 'arm' && architecture != 'arm64') {
+                // ARM/ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
                 //
                 // Unzip the tests first.  Exit with 0
                 shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
@@ -3436,17 +3413,11 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             if (!doCoreFxTesting) {
                 if (isUbuntuArmJob) {
                     if (!isPmiAsmDiffsScenario) {
-                        if (architecture == 'arm') {
-                            shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
-                            shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                        }
-                        else {
-                            assert architecture == 'arm64'
-                            shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
-    
-                            // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                            shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                        }
+                        assert architecture == 'arm' || architecture == 'arm64'
+                        shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
+
+                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
+                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
                     }
                 }
                 else {
