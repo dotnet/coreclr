@@ -62,7 +62,7 @@ try {
   $ToolNameMoniker = "$ToolName-$Version-$ToolOs-$Arch"
   $ToolInstallDirectory = Join-Path $InstallPath "$ToolName\$Version\"
   $ToolFilePath = Join-Path $ToolInstallDirectory "$ToolNameMoniker\$PathToBinary$ToolName.exe"
-  $ShimPath = Join-Path $InstallPath "$ToolName.cmd"
+  $ShimPath = Join-Path $InstallPath "$ToolName.exe"
   $Uri = "$BaseUri/windows/$Toolname/$ToolNameMoniker.zip"
 
   if ($Clean) {
@@ -101,9 +101,11 @@ try {
   }
   # Generate shim
   # Always rewrite shims so that we are referencing the expected version
-  $GenerateShimStatus = CommonLibrary\New-ScriptShim -ShimPath $ShimPath `
+  $GenerateShimStatus = CommonLibrary\New-ScriptShim -ShimName $ToolName `
+                                                     -ShimDirectory $InstallPath `
                                                      -ToolFilePath $ToolFilePath `
-                                                     -Force `
+                                                     -BaseUri $BaseUri `
+                                                     -Force:$Force `
                                                      -Verbose:$Verbose
 
   if ($GenerateShimStatus -Eq $False) {

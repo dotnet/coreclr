@@ -1,80 +1,94 @@
-# build.yml
-# Description: Defines the build phase
-# Parameters:
-#   agentOs: [Windows_NT (default), Linux, OSX] Used in templates to define variables which are OS specific
-#   dockerImage: If defined, specifies docker image to run build steps in
-#   matrix: build matrix
-#   queueName: agent pool name
-#   enableTelemetry: send telemetry if build is not a PR or CI build
-
 parameters:
-  agentOs: Windows_NT
-  buildReason: IndividualCI
-  dockerImage: ''
+  name: ''
+  # send telemetry
   enableTelemetry: true
+  # install Microbuild plugin if not a public build
+  enableMicrobuild: true
+  # queue YAML object - https://github.com/Microsoft/vsts-agent/blob/master/docs/preview/yamlgettingstarted-schema.md#queue
   queue: {}
-  useEsrpSigning: true
+  # variables YAML object - https://github.com/Microsoft/vsts-agent/blob/master/docs/preview/yamlgettingstarted-schema.md#phase
+  variables: {}
+
+# Common conditionals:  There are a number of common conditionals that are useful.  Generally these are used to decide what resources can be accessed,
+#                       or what logic should be applied based on the context the build is being run in.
+#   - eq/ne(variables['Agent.Os'], 'Windows_NT') - Running/not running on a windows machine
+#   - eq/ne(variables['System.TeamProject'], 'public') - Running/not running on the dotnet public VSTS project 
+#   - and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest') - Not running in public and not a pull request.
+#   - or(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest') - Running in public or a pull request.
 
 phases:
 - template: /eng/common/templates/phases/base.yml
   parameters:
-    agentOs: ${{ parameters.agentOs }}
-    buildConfig: $(_BuildConfig)
-    phaseName: ${{ parameters.agentOs }}
-    dockerImage: ${{ parameters.dockerImage }}
     enableTelemetry: ${{ parameters.enableTelemetry }}
-    fetchDepth: 5
-    helixType: build/product
-    helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
-    phase:
-      queue: ${{ parameters.queue }}
-      steps:
-      - template: /eng/common/templates/steps/run-on-windows.yml
-        parameters:
-          agentOs: ${{ parameters.agentOs }}
-          steps:
-          - script: eng\common\cibuild.cmd
-              -configuration $(_BuildConfig)
-              -prepareMachine
-              /p:SignType=$(_SignType)
-              $(_PublishArgs)
-            name: Build_Publish
-            displayName: Build / Publish
-            env:
-              OfficialBuildId: $(BUILD.BUILDNUMBER)
-            condition: succeeded()
-      - template: /eng/common/templates/steps/run-on-unix.yml
-        parameters:
-          agentOs: ${{ parameters.agentOs }}
-          steps:
-          - script: eng/common/cibuild.sh
-              --configuration $(_BuildConfig)
-              --prepareMachine
-              /p:SignType=$(_SignType)
-              $(_PublishArgs)
-            name: Build_Publish
-            displayName: Build / Publish
-            env:
-              OfficialBuildId: $(BUILD.BUILDNUMBER)
-            condition: succeeded()
+
+    enableMicrobuild: ${{ parameters.enableMicrobuild }}
+
+    name: ${{ parameters.name }}
+
+    queue: ${{ parameters.queue }}
+
+    variables: 
+      ${{ insert }}: ${{ parameters.variables }}
+      _HelixBuildConfig: $(_BuildConfig)
+      # Only enable publishing in non-public, non PR scenarios.
+      ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+        # This should be changed to an isolated blob feed per-build.
+        # Right now a manual build of a random branch would get published alongside the normal branch artifacts.
+        _PublishBlobFeedUrl: https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json
+        _SignArgs: /p:DotNetSignType=$(_SignType) /p:TeamName=$(_TeamName)
+        _PublishArgs: /p:DotNetPublishBlobFeedKey=$(dotnetfeed-storage-access-key-1) 
+          /p:DotNetPublishBlobFeedUrl=$(_PublishBlobFeedUrl) 
+          /p:DotNetPublishToBlobFeed=$(_DotNetPublishToBlobFeed)
+          /p:DotNetSymbolServerTokenMsdl=$(microsoft-symbol-server-pat)
+          /p:DotNetSymbolServerTokenSymWeb=$(symweb-symbol-server-pat)
+        _OfficialBuildIdArgs: /p:OfficialBuildId=$(BUILD.BUILDNUMBER)
+      # else
+      ${{ if or(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest')) }}:
+        _PublishArgs: ''
+        _OfficialBuildIdArgs: ''
+        _SignArgs: ''
+
+    steps:
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), notin(variables['Build.Reason'], 'PullRequest')) }}:
+        - task: AzureKeyVault@1
+          inputs:
+            azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+            KeyVaultName: EngKeyVault
+            SecretsFilter: 'dotnetfeed-storage-access-key-1,microsoft-symbol-server-pat,symweb-symbol-server-pat'
+
+    # Use utility script to run script command dependent on agent OS.
+    - script: eng\common\cibuild.cmd
+        -configuration $(_BuildConfig) 
+        -prepareMachine
+        $(_PublishArgs)
+        $(_SignArgs)
+        $(_OfficialBuildIdArgs)
+      displayName: Windows Build / Publish
+      condition: and(succeeded(), eq(variables['Agent.Os'], 'Windows_NT'))
+        
+    - script: eng/common/cibuild.sh
+        --configuration $(_BuildConfig) 
+        --prepareMachine
+        $(_PublishArgs)
+        $(_SignArgs)
+        $(_OfficialBuildIdArgs)
+      displayName: Unix Build / Publish
+      condition: and(succeeded(), ne(variables['Agent.Os'], 'Windows_NT'))
+
+    # Internal only build steps (until publishing artifacts in public CI is supported).
+    - ${{ if ne(variables['System.TeamProject'], 'public') }}:
       - task: CopyFiles@2
         displayName: Gather Logs
         inputs:
-          SourceFolder: '$(Build.SourcesDirectory)/artifacts'
-          Contents: '**/*log'
+          SourceFolder: '$(Build.SourcesDirectory)/artifacts/log/$(_BuildConfig)'
           TargetFolder: '$(Build.StagingDirectory)/BuildLogs'
         continueOnError: true
-        condition: succeededOrFailed()
+        condition: always()
       - task: PublishBuildArtifacts@1
         displayName: Publish Logs to VSTS
         inputs:
           PathtoPublish: '$(Build.StagingDirectory)/BuildLogs'
           PublishLocation: Container
-          # Should be able to use a single definition of ArtifactName here instead of conditioned on
-          # agentOs once variables are available in the template evaluation context.
-          ${{ if eq(parameters.agentOs, 'Windows_NT') }}:
-            ArtifactName: Windows_NT_$(Agent.JobName)
-          ${{ if ne(parameters.agentOs, 'Windows_NT') }}:
-            ArtifactName: Linux_$(Agent.JobName)
+          ArtifactName: $(Agent.Os)_$(Agent.JobName)
         continueOnError: true
-        condition: succeededOrFailed()
+        condition: always()

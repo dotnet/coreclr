@@ -9,9 +9,6 @@ and executes installers for those tools
 .PARAMETER BaseUri
 Base file directory or Url from which to acquire tool archives
 
-.PARAMETER PathToBinary
-Appended path within the downloaded zip to the location of the executable
-
 .PARAMETER InstallDirectory
 Directory to install native toolset.  This is a command-line override for the default
 Install directory precedence order:
@@ -123,8 +120,7 @@ try {
   }
   if (Test-Path $InstallBin) {
     Write-Host "Native tools are available from" (Convert-Path -Path $InstallBin)
-    Write-Host "##vso[task.logissue type=warning]The install bin is `"$(Convert-Path -Path $InstallBin)`""
-    Write-Host "##vso[task.prependpath]$(Convert-Path -Path $InstallBin)"
+    Write-Host "##vso[task.prependpath]" (Convert-Path -Path $InstallBin)
   }
   else {
     Write-Error "Native tools install directory does not exist, installation failed"
