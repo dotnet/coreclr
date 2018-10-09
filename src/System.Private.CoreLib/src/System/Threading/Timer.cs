@@ -241,14 +241,7 @@ namespace System.Threading
                 bool haveTimerToSchedule = false;
                 uint nextAppDomainTimerDuration = uint.MaxValue;
 
-                // Remember the current absolute threshold; we'll use that to evaluate whether
-                // to process the long list.  Then update the current threshold, so that we have a wider
-                // window with which to move items into the short list and so that we can just
-                // use due time relative comparisons when deciding whether to move something, as it'll
-                // all be based off of nowTicks.
-                int startAbsoluteThreshold = m_currentAbsoluteThreshold;
                 int nowTicks = TickCount;
-                m_currentAbsoluteThreshold = nowTicks + ShortTimersThresholdMilliseconds;
 
                 // Sweep through the "short" timers.  If the current tick count is greater than
                 // the current threshold, also sweep through the "long" timers.  Finally, as part
@@ -301,22 +294,7 @@ namespace System.Threading
                                 // updated the due time appropriately so that we won't fire it again (it's also possible
                                 // but rare that we could be moving a timer from the long list to the short list here,
                                 // if the initial due time was set to be long but the timer then had a short period).
-                                // Note that we actually want to be comparing:
-                                //    (timer.m_startTicks + timer.m_dueTime) <= m_currentAbsoluteThreshold
-                                // or to account for wrap-around:
-                                //    (timer.m_startTicks + timer.m_dueTime) - m_currentAbsoluteThreshold <= 0
-                                // but we get away with the simpler due-time comparison because we just updated
-                                // m_currentAbsoluteThreshold to be nowTicks+ShortTimersThresholdMilliseconds and
-                                // timer.m_startTicks to be nowTicks, so:
-                                //     (timer.m_startTicks + timer.m_dueTime) <= m_currentAbsoluteThreshold
-                                // becomes:
-                                //     nowTicks + timer.m_dueTime <= nowTicks + ShortTimersThresholdMilliseconds
-                                // which becomes:
-                                //     timer.m_dueTime <= ShortTimersThresholdMilliseconds
-                                // which is valid without concern for wrap-around because we're working with relative
-                                // times that are guaranteed by construction not to wrap.  This is the same condition
-                                // used in UpdateTimer.
-                                bool targetShortList = timer.m_dueTime <= ShortTimersThresholdMilliseconds;
+                                bool targetShortList = (nowTicks + timer.m_dueTime) - m_currentAbsoluteThreshold <= 0;
                                 if (timer.m_short != targetShortList)
                                 {
                                     MoveTimerToCorrectList(timer, targetShortList);
@@ -359,20 +337,37 @@ namespace System.Threading
                         timer = next;
                     }
 
-                    // If we just finished procesing the short list, we can stop and avoid the long list if
-                    // we're <= the current threshold by which timers were partitioned into the short list
-                    // and the short list is not empty (if it's empty, we need to evaluate the long list to
-                    // know when to next schedule the appdomain timer). Otherwise, we move on to processing
-                    // the long list.
+                    // Switch to process the long list if necessary.
                     if (listNum == 0)
                     {
-                        bool processLongList = startAbsoluteThreshold - nowTicks < 0 || m_shortTimers == null;
-                        if (!processLongList)
+                        // Determine how much time remains between now and the current threshold.  If time remains,
+                        // we can skip processing the long list.  We use > rather than >= because, although we
+                        // know that if remaining == 0 no timers in the long list will need to be fired, we
+                        // don't know without looking at them when we'll need to call FireNextTimers again.  We
+                        // could in that case just set the next appdomain firing to 1, but we may as well just iterate the
+                        // long list now; otherwise, most timers created in the interim would end up in the long
+                        // list and we'd likely end up paying for another invocation of FireNextTimers that could
+                        // have been delayed longer (to whatever is the current minimum in the long list).
+                        int remaining = m_currentAbsoluteThreshold - nowTicks;
+                        if (remaining > 0)
                         {
+                            if (m_shortTimers == null && m_longTimers != null)
+                            {
+                                // We don't have any short timers left and we haven't examined the long list,
+                                // which means we likely don't have an accurate nextAppDomainTimerDuration.
+                                // But we do know that nothing in the long list will be firing before or at m_currentAbsoluteThreshold,
+                                // so we can just set nextAppDomainTimerDuration to the difference between then and now.
+                                nextAppDomainTimerDuration = (uint)remaining + 1;
+                                haveTimerToSchedule = true;
+                            }
                             break;
                         }
 
+                        // Switch to processing the long list.
                         timer = m_longTimers;
+
+                        // Now that we're going to process the long list, update the current threshold.
+                        m_currentAbsoluteThreshold = nowTicks + ShortTimersThresholdMilliseconds;
                     }
                 }
 
