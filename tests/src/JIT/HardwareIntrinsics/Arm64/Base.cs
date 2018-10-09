@@ -52,48 +52,6 @@ namespace Arm64intrisicsTest
             }
         }
 
-        static ulong bitsToUint64<T>(T x)
-        {
-            return Unsafe.As<T, ulong>(ref x) & ~(~0UL << 8*Unsafe.SizeOf<T>());
-        }
-
-        static int leadingZero<T>(T x)
-            where T : IConvertible
-        {
-            ulong compare = 0x1UL << (8*Unsafe.SizeOf<T>() - 1);
-            int result = 0;
-            ulong value = bitsToUint64(x);
-
-            while(value < compare)
-            {
-                result++;
-                compare >>= 1;
-            }
-
-            return result;
-
-            throw new Exception("Unexpected Type");
-        }
-
-        static int leadingSign<T>(T x)
-            where T : IConvertible
-        {
-            ulong value = bitsToUint64(x);
-            ulong signBit = value & (0x1UL << (8*Unsafe.SizeOf<T>() - 1));
-            int result = 0;
-
-            if (signBit == 0)
-            {
-                result = leadingZero(x);
-            }
-            else
-            {
-                result = leadingZero((T) Convert.ChangeType(value ^ (signBit + (signBit - 1)),  typeof(T)));
-            }
-
-            return result - 1;
-        }
-
         static int s_SignBit32 = 1 << 31;
         static long s_SignBit64 = 1L << 63;
 
