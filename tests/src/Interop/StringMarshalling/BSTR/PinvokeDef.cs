@@ -15,24 +15,6 @@ namespace NativeDefs
 	public int _pedding;
         [MarshalAs(UnmanagedType.BStr)]
         public string name;
-/*
-        public override bool Equals(object obj)
-        {
-            if(obj == null)
-                return false;
-            if(this.GetType() != obj.GetType())
-                return false;
-            Person anotherPerson = (Person)obj;
-            return this.age == anotherPerson.age && this.name == anotherPerson.name;
-        }
-
-        public override int GetHashCode() => (age, name).GetHashCode();
-
-        public override string ToString()
-        {
-            return name + ":" + age.ToString();
-        }i
-*/
     }
 
     [return: MarshalAs(UnmanagedType.BStr)]
@@ -50,6 +32,8 @@ namespace NativeDefs
     public delegate string DelMarshal_InOut([MarshalAs(UnmanagedType.BStr)][In, Out]string s);
 
     public delegate bool DelMarshal_Struct_In(Person person);
+
+    public delegate Person DelMarshalPointer_Struct_InOut(ref Person person);
 
     public static class PInvokeDef
     {
@@ -84,6 +68,9 @@ namespace NativeDefs
         public static extern bool MarshalPointer_Struct_InOut(ref Person person);
 
         [DllImport(NativeBinaryName)]
-        public static extern bool RPInvoke_DelMarshal_Struct_In(DelMarshal_Struct_In person);
+        public static extern bool RPInvoke_DelMarshal_Struct_In(DelMarshal_Struct_In d);
+
+	[DllImport(NativeBinaryName)]
+	public static extern bool RPInvoke_DelMarshalStructPointer_InOut(DelMarshalPointer_Struct_InOut d);
     }
 }

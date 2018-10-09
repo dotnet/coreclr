@@ -223,3 +223,36 @@ extern "C" DLL_EXPORT BOOL RPInvoke_DelMarshal_Struct_In(Test_DelMarshal_Struct_
 
     return TRUE;
 }
+
+typedef Person (* Test_DelMarshalPointer_Struct_InOut)(Person * person);
+extern "C" DLL_EXPORT BOOL RPInvoke_DelMarshalStructPointer_InOut(Test_DelMarshalPointer_Struct_InOut d)
+{
+   
+    Person * pPerson = (Person *)TP_CoTaskMemAlloc(sizeof(Person));
+    pPerson->age = 21;
+    pPerson->name =  TP_SysAllocString(strNative);
+    
+    Person managedPerson = d(pPerson);
+    if (managedPerson.age != pPerson->age)
+    {
+       return FALSE;
+    }    
+
+    size_t len = TP_SysStringByteLen(pPerson->name);
+    if (len != lenstrManaged || memcmp(pPerson->name, strManaged, lenstrManaged) != 0)
+    {
+        printf("Error in RPInvoke_DelMarshalStructPointer_InOut,The value for name field for pPerson is incorrect\n");
+        return FALSE;
+    }
+
+	
+    size_t len2 = TP_SysStringByteLen(managedPerson.name);
+    if (len2 != lenstrManaged || memcmp(managedPerson.name, strManaged, lenstrManaged) != 0)
+    {
+        printf("Error in RPInvoke_DelMarshalStructPointer_InOut, The value for name field for managedPerson is incorrect\n");
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
