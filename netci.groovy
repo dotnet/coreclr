@@ -3907,24 +3907,20 @@ Constants.allScenarios.each { scenario ->
 
                     // Figure out the name of the build job that the test job will depend on.
                     // For Windows ARM tests, this is not used, as the CoreCLR build creates the tests. For other
-                    // tests (e.g., Linux ARM), we depend on a Windows build to get the tests.
+                    // tests, we depend on a Windows build to get the tests.
                     // For CoreFX tests, however, Linux doesn't need the Windows build for the tests, since the
                     // CoreFX build creates the tests.
 
                     def inputTestsBuildName = null
 
-                    // Ubuntu Arm64 jobs do the test build on the build machine, and thus don't depend on a Windows build.
+                    def isUbuntuArm32Job = ((os == "Ubuntu") && (architecture == 'arm'))
                     def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
+                    def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
 
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job && !isPmiAsmDiffsScenario) {
+                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArmJob && !isPmiAsmDiffsScenario) {
                         def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
 
                         def inputTestsBuildArch = architecture
-                        if (architecture == "arm") {
-                            // Use the x86 test build for arm unix
-                            inputTestsBuildArch = "x86"
-                        }
-
                         def inputTestsBuildIsBuildOnly = true
 
                         inputTestsBuildName = projectFolder + '/' +
