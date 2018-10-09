@@ -196,17 +196,6 @@ function New-ScriptShim {
       return $False
     }
 
-    $oldPreference = $ErrorActionPreference
-    $ErrorActionPreference = 'stop'
-    try {
-      Get-Command winshimmer
-    }
-    catch {
-      Write-Verbose "Installing winshimmer"
-      Invoke-Expression "dotnet tool install -g Microsoft.DotNet.WinShimmer --version 1.0.0-dev"
-    }
-    $ErrorActionPreference = $oldPreference
-
     if (-Not (Test-Path "$ShimDirectory\WinShimmer\winshimmer.exe")) {
       $InstallStatus = DownloadAndExtract -Uri "$BaseUri/windows/winshimmer/WinShimmer.zip" `
                                           -InstallDirectory $ShimDirectory\WinShimmer `
