@@ -17127,7 +17127,7 @@ void Compiler::fgMorphStructField(GenTree* tree, GenTree* parent)
                 if (fieldLclIndex == BAD_VAR_NUM)
                 {
                     // Access a promoted struct's field with an offset that doesn't correspond to any field.
-                    // It can happen if the struct was casted to another struct with different offsets.
+                    // It can happen if the struct was cast to another struct with different offsets.
                     return;
                 }
 
