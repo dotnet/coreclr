@@ -2578,11 +2578,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
                         buildCommands += "zip -r tests.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}"
 
-                        // We still use the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        // With https://github.com/dotnet/coreclr/pull/19918 this shouldn't be needed anymore.
-                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
-
-                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
+                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip", "")
                     }
 
                     // Archive the build logs from both product and test builds.
@@ -3415,10 +3411,6 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     if (!isPmiAsmDiffsScenario) {
                         assert architecture == 'arm' || architecture == 'arm64'
                         shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
-
-                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                    }
                 }
                 else {
                     shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
