@@ -1,21 +1,18 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm.Arm64;
 
 namespace Arm64intrisicsTest
 {
     class Program
     {
-        static void testUnaryOp<T>(String testCaseDescription, Func<T, int> binOp, Func<T, int> check, T value)
+        static void testUnaryOp<T>(String testCaseDescription, Func<T, int> func, int expected, T value)
         {
             bool failed = false;
             try
             {
-                int expected = check(value);
-                int result = binOp(value);
+                int result = func(value);
 
                 if (result != expected)
                 {
@@ -31,13 +28,13 @@ namespace Arm64intrisicsTest
             }
         }
 
-        static void testThrowsPlatformNotSupported<T>(String testCaseDescription, Func<T, int> unaryOp, T value)
+        static void testThrowsPlatformNotSupported<T>(String testCaseDescription, Func<T, int> func, T value)
         {
             bool notSupported = false;
 
             try
             {
-                unaryOp(value);
+                func(value);
             }
             catch (PlatformNotSupportedException)
             {
@@ -97,20 +94,58 @@ namespace Arm64intrisicsTest
             return result - 1;
         }
 
+        static int s_SignBit32 = 1 << 31;
+        static long s_SignBit64 = 1L << 63;
+
+        static int GenLeadingSignBitsI32(int num)
+        {
+            Debug.Assert(0 <= num && num < 32);
+            return s_SignBit32 >> num;
+        }
+
+        static long GenLeadingSignBitsI64(int num)
+        {
+            Debug.Assert(0 <= num && num < 64);
+            return s_SignBit64 >> num;
+        }
+
+        static uint GenLeadingZeroBitsU32(int num)
+        {
+            Debug.Assert(0 <= num && num <= 32);
+            return (num < 32) ? (~0U >> num) : 0;
+        }
+
+        static int GenLeadingZeroBitsI32(int num)
+        {
+            return (int)GenLeadingZeroBitsU32(num);
+        }
+
+        static ulong GenLeadingZeroBitsU64(int num)
+        {
+            Debug.Assert(0 <= num && num <= 64);
+            return (num < 64) ? (~0UL >> num) : 0;
+        }
+
+        static long GenLeadingZeroBitsI64(int num)
+        {
+            return (long)GenLeadingZeroBitsU64(num);
+        }
+
         static void TestLeadingSignCount()
         {
             String name = "LeadingSignCount";
 
             if (Base.IsSupported)
             {
-                testUnaryOp<int >(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x),  0);
-                testUnaryOp<int >(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x), -1);
-                testUnaryOp<int >(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x),  1 << 30);
-                testUnaryOp<int >(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x), -1 << 30);
-                testUnaryOp<long>(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x),  0);
-                testUnaryOp<long>(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x), -1);
-                testUnaryOp<long>(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x),  1L << 60);
-                testUnaryOp<long>(name, (x) => Base.LeadingSignCount(x), (x) => leadingSign(x), -1L << 60);
+                for (int num = 0; num < 32; num++)
+                {
+                     testUnaryOp<int>(name, (x) => Base.LeadingSignCount(x), num,  GenLeadingSignBitsI32(num));
+                }
+
+                for (int num = 0; num < 64; num++)
+                {
+                     testUnaryOp<long>(name, (x) => Base.LeadingSignCount(x), num,  GenLeadingSignBitsI64(num));
+                }
             }
             else
             {
@@ -127,18 +162,17 @@ namespace Arm64intrisicsTest
 
             if (Base.IsSupported)
             {
-                testUnaryOp<int  >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  0);
-                testUnaryOp<int  >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x), -1);
-                testUnaryOp<int  >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  1 << 30);
-                testUnaryOp<int  >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x), -1 << 30);
-                testUnaryOp<uint >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  0);
-                testUnaryOp<uint >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  1 << 30);
-                testUnaryOp<long >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  0);
-                testUnaryOp<long >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x), -1);
-                testUnaryOp<long >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  1L << 60);
-                testUnaryOp<long >(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x), -1L << 60);
-                testUnaryOp<ulong>(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  0);
-                testUnaryOp<ulong>(name, (x) => Base.LeadingZeroCount(x), (x) => leadingZero(x),  1L << 60);
+                for (int num = 0; num <= 32; num++)
+                {
+                     testUnaryOp<int >(name, (x) => Base.LeadingZeroCount(x), num,  GenLeadingZeroBitsI32(num));
+                     testUnaryOp<uint>(name, (x) => Base.LeadingZeroCount(x), num,  GenLeadingZeroBitsU32(num));
+                }
+
+                for (int num = 0; num <= 64; num++)
+                {
+                     testUnaryOp<long >(name, (x) => Base.LeadingZeroCount(x), num,  GenLeadingZeroBitsI64(num));
+                     testUnaryOp<ulong>(name, (x) => Base.LeadingZeroCount(x), num,  GenLeadingZeroBitsU64(num));
+                }
             }
             else
             {
