@@ -231,11 +231,11 @@ class EventPipe
         // Initialize the event pipe.
         static void Initialize();
 
+        // Initialize the managed code components of the event pipe.
+        static void InitializeManaged();
+
         // Shutdown the event pipe.
         static void Shutdown();
-
-        // Enable tracing from the start-up path based on COMPLUS variable.
-        static void EnableOnStartup();
 
         // Enable tracing via the event pipe.
         static EventPipeSessionID Enable(
@@ -294,10 +294,6 @@ class EventPipe
 
         // Enable the specified EventPipe session.
         static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
-
-        // Get the EnableOnStartup configuration from environment.
-        static void GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession);
-
 
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
