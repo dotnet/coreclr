@@ -8,6 +8,11 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
+// GitHub 20211: bug with lowering SIMDIntrinsicGetItem on ARM64
+// when INS_mov (move w/o sign-extension) was used to copy signed value
+// from Vn.b[i] (or Vn.h[i]) to general register Wd (or Xd) instead of
+// INS_smov (move with sign-extension).
+
 namespace GitHub_20211
 {
     class Program
