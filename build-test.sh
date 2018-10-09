@@ -152,6 +152,8 @@ build_test_wrappers()
 
 generate_layout()
 {
+    echo "${__MsgPrefix}Creating test overlay..."
+
     __TestDir=$__ProjectDir/tests
     __ProjectFilesDir=$__TestDir
     __TestBinDir=$__TestWorkingDir
@@ -200,13 +202,13 @@ generate_layout()
     echo "${__MsgPrefix}Creating test overlay..."
 
     if [ -z "$xUnitTestBinBase" ]; then
-      xUnitTestBinBase=$__TestWorkingDir
+        xUnitTestBinBase=$__TestWorkingDir
     fi
 
     export CORE_ROOT=$xUnitTestBinBase/Tests/Core_Root
 
     if [ -d "${CORE_ROOT}" ]; then
-      rm -rf $CORE_ROOT
+        rm -rf $CORE_ROOT
     fi
 
     mkdir -p $CORE_ROOT
@@ -218,18 +220,18 @@ generate_layout()
 
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
-
 }
 
 generate_testhost()
 {
+    echo "${__MsgPrefix}Generating test host..."
+
     export TEST_HOST=$xUnitTestBinBase/testhost
 
     if [ -d "${TEST_HOST}" ]; then
         rm -rf $TEST_HOST
     fi
 
-    echo "${__MsgPrefix}Creating test overlay..."    
     mkdir -p $TEST_HOST
 
     build_MSBuild_projects "Tests_Generate_TestHost" "${__ProjectDir}/tests/runtest.proj" "Creating test host" "-testHost"
@@ -238,6 +240,8 @@ generate_testhost()
 
 build_Tests()
 {
+    echo "${__MsgPrefix}Building Tests..."
+
     __TestDir=$__ProjectDir/tests
     __ProjectFilesDir=$__TestDir
     __TestBinDir=$__TestWorkingDir
@@ -322,9 +326,9 @@ build_Tests()
                 echo "${__MsgPrefix}Error: Check Test Build failed."
                 exit 1
             fi
-
-            echo "Managed tests build success!"
         fi
+
+        echo "Managed tests build success!"
     fi
 
     build_test_wrappers
@@ -332,8 +336,6 @@ build_Tests()
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up=-updateinvalidpackageversion
     fi
-
-    echo "${__MsgPrefix}Creating test overlay..."
 
     generate_layout
 
@@ -737,8 +739,8 @@ while :; do
             ;;
 
         verbose)
-        __VerboseBuild=1
-        ;;
+            __VerboseBuild=1
+            ;;
 
         clang3.5|-clang3.5)
             __ClangMajorVersion=3
@@ -812,9 +814,11 @@ while :; do
         generatelayoutonly)
             __GenerateLayoutOnly=1
             ;;
+
         generatetesthostonly)
             __GenerateTestHostOnly=1
             ;;
+
         skiprestorepackages)
             __SkipRestorePackages=1
             ;;
@@ -838,10 +842,12 @@ while :; do
         msbuildonunsupportedplatform)
             __msbuildonunsupportedplatform=1
             ;;
+
         priority1)
             __priority1=1
             __UnprocessedBuildArgs+=("-priority=1")
             ;;
+
         *)
             __UnprocessedBuildArgs+=("$1")
             ;;
@@ -938,15 +944,12 @@ __CoreClrVersion=1.1.0
 __sharedFxDir=$__BuildToolsDir/dotnetcli/shared/Microsoft.NETCore.App/$__CoreClrVersion/
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
-    echo "Building Tests..."
     build_Tests
 elif [ ! -z "$__BuildTestWrappersOnly" ]; then
     build_test_wrappers
 else
-    echo "Generating test layout..."
     generate_layout
     if [ ! -z "$__GenerateTestHostOnly" ]; then
-        echo "Generating test host..."
         generate_testhost
     fi
 fi
