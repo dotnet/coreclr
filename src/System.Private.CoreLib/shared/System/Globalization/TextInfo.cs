@@ -277,19 +277,19 @@ namespace System.Globalization
                             // this method, so we won't bother vectorizing until data shows us that it's worthwhile to do so.
 
                             uint tempValue = Unsafe.ReadUnaligned<uint>(pSource + currIdx);
-                            if (!Utf16Utility.AllCharsInUIntAreAscii(tempValue))
+                            if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
                             {
                                 goto NonAscii;
                             }
-                            tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUIntToLowercase(tempValue);
+                            tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(tempValue);
                             Unsafe.WriteUnaligned<uint>(pDestination + currIdx, tempValue);
 
                             tempValue = Unsafe.ReadUnaligned<uint>(pSource + currIdx + 2);
-                            if (!Utf16Utility.AllCharsInUIntAreAscii(tempValue))
+                            if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
                             {
                                 goto NonAsciiSkipTwoChars;
                             }
-                            tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUIntToLowercase(tempValue);
+                            tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(tempValue);
                             Unsafe.WriteUnaligned<uint>(pDestination + currIdx + 2, tempValue);
                             currIdx += 4;
                         } while (currIdx <= lastIndexWhereCanReadFourChars);
@@ -302,11 +302,11 @@ namespace System.Globalization
                     if ((charCount & 2) != 0)
                     {
                         uint tempValue = Unsafe.ReadUnaligned<uint>(pSource + currIdx);
-                        if (!Utf16Utility.AllCharsInUIntAreAscii(tempValue))
+                        if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
                         {
                             goto NonAscii;
                         }
-                        tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUIntToLowercase(tempValue);
+                        tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(tempValue);
                         Unsafe.WriteUnaligned<uint>(pDestination + currIdx, tempValue);
                         currIdx += 2;
                     }
@@ -319,7 +319,7 @@ namespace System.Globalization
                         {
                             goto NonAscii;
                         }
-                        tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUIntToLowercase(tempValue);
+                        tempValue = (toUpper) ? Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue) : Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(tempValue);
                         pDestination[currIdx] = (char)tempValue;
                     }
 
@@ -382,11 +382,11 @@ namespace System.Globalization
                             // See the comments in ChangeCaseCommon<TConversion>(ROS<char>, Span<char>) for a full explanation of the below code.
 
                             uint tempValue = Unsafe.ReadUnaligned<uint>(pSource + currIdx);
-                            if (!Utf16Utility.AllCharsInUIntAreAscii(tempValue))
+                            if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
                             {
                                 goto NotAscii;
                             }
-                            if ((toUpper) ? Utf16Utility.UIntContainsAnyLowercaseAsciiChar(tempValue) : Utf16Utility.UIntContainsAnyUppercaseAsciiChar(tempValue))
+                            if ((toUpper) ? Utf16Utility.UInt32ContainsAnyLowercaseAsciiChar(tempValue) : Utf16Utility.UInt32ContainsAnyUppercaseAsciiChar(tempValue))
                             {
                                 goto AsciiMustChangeCase;
                             }

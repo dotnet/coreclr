@@ -13,7 +13,7 @@ namespace System.Text
         /// Returns true iff the UInt32 represents two ASCII UTF-16 characters in machine endianness.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool AllCharsInUIntAreAscii(uint value)
+        internal static bool AllCharsInUInt32AreAscii(uint value)
         {
             return (value & ~0x007F007Fu) == 0;
         }
@@ -27,10 +27,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint ConvertAllAsciiCharsInUIntToLowercase(uint value)
+        internal static uint ConvertAllAsciiCharsInUInt32ToLowercase(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(AllCharsInUIntAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
             uint lowerIndicator = value + 0x00800080u - 0x00410041u;
@@ -56,10 +56,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static uint ConvertAllAsciiCharsInUIntToUppercase(uint value)
+        internal static uint ConvertAllAsciiCharsInUInt32ToUppercase(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(AllCharsInUIntAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'a'
             uint lowerIndicator = value + 0x00800080u - 0x00610061u;
@@ -84,10 +84,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool UIntContainsAnyLowercaseAsciiChar(uint value)
+        internal static bool UInt32ContainsAnyLowercaseAsciiChar(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(AllCharsInUIntAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'a'
             uint lowerIndicator = value + 0x00800080u - 0x00610061u;
@@ -109,10 +109,10 @@ namespace System.Text
         /// This is a branchless implementation.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool UIntContainsAnyUppercaseAsciiChar(uint value)
+        internal static bool UInt32ContainsAnyUppercaseAsciiChar(uint value)
         {
             // ASSUMPTION: Caller has validated that input value is ASCII.
-            Debug.Assert(AllCharsInUIntAreAscii(value));
+            Debug.Assert(AllCharsInUInt32AreAscii(value));
 
             // the 0x80 bit of each word of 'lowerIndicator' will be set iff the word has value >= 'A'
             uint lowerIndicator = value + 0x00800080u - 0x00410041u;
