@@ -135,7 +135,7 @@ build_test_wrappers()
         __MsbuildErr="/fileloggerparameters2:\"ErrorsOnly;LogFile=${__BuildErr}\""
         __Logging="$__MsbuildLog $__MsbuildWrn $__MsbuildErr /consoleloggerparameters:$buildVerbosity"
 
-        nextCommand="${__DotNetCli} msbuild ${__ProjectDir}/tests/runtest.proj /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
+        nextCommand="\"${__DotNetCli}\" msbuild \"${__ProjectDir}/tests/runtest.proj\" /p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/ /p:BuildWrappers=true /p:TargetsWindows=false $__Logging /p:__BuildOS=$__BuildOS /p:__BuildType=$__BuildType /p:__BuildArch=$__BuildArch"
         echo "$nextCommand"
         eval $nextCommand
 
@@ -397,7 +397,7 @@ build_MSBuild_projects()
             buildArgs+=("${__RunArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="$__ProjectRoot/run.sh build ${buildArgs[@]}"
+            nextCommand="\"$__ProjectRoot/run.sh\" build \"${buildArgs[@]}\""
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -425,7 +425,7 @@ build_MSBuild_projects()
         buildArgs+=("${__RunArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="$__ProjectRoot/run.sh build ${buildArgs[@]}"
+        nextCommand="\"$__ProjectRoot/run.sh\" build \"${buildArgs[@]}\""
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
@@ -484,7 +484,8 @@ build_native_projects()
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__TestDir\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator \"$extraCmakeArguments\" \"$__cmakeargs\""
+        # Force cross dir to point to project root cross dir, in case there is a cross build.
+        nextCommand="CONFIG_DIR=\"$__ProjectRoot/cross\" \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__TestDir\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
         echo "Invoking $nextCommand"
         eval $nextCommand
         popd
