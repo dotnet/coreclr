@@ -399,7 +399,7 @@ build_MSBuild_projects()
             buildArgs+=("${__RunArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/run.sh\" build \"${buildArgs[@]}\""
+            nextCommand="\"$__ProjectRoot/run.sh\" build ${buildArgs[@]}"
             echo "Building step '$stepName' slice=$slice via $nextCommand"
             eval $nextCommand
 
@@ -427,7 +427,7 @@ build_MSBuild_projects()
         buildArgs+=("${__RunArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/run.sh\" build \"${buildArgs[@]}\""
+        nextCommand="\"$__ProjectRoot/run.sh\" build ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
