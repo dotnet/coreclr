@@ -8526,6 +8526,7 @@ public:
 #define CPU_INTEL_X64 0x0240 // Intel x64 CPU
 
 #define CPU_ARM 0x0300 // The generic ARM CPU
+#define CPU_ARM64 0x0400 // The generic ARM64 CPU
 
         unsigned genCPU; // What CPU are we running on
     } info;

@@ -2255,10 +2255,13 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
                 printf("X64 CPU with SSE2");
             }
         }
-
         else if (compiler->info.genCPU == CPU_ARM)
         {
             printf("generic ARM CPU");
+        }
+        else if (compiler->info.genCPU == CPU_ARM64)
+        {
+            printf("generic ARM64 CPU");
         }
 
         printf("\n");

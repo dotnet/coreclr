@@ -2386,6 +2386,8 @@ void Compiler::compSetProcessor()
 
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
+#elif defined(_TARGET_ARM64_)
+    info.genCPU = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
     info.genCPU       = CPU_X64;
 #elif defined(_TARGET_X86_)
