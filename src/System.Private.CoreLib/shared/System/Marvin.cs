@@ -114,7 +114,7 @@ namespace System
                 {
                     goto NotAscii;
                 }
-                p0 += Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue);
+                p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                 Block(ref p0, ref p1);
 
                 tempValue = Unsafe.ReadUnaligned<uint>(ref Unsafe.As<char, byte>(ref Unsafe.AddByteOffset(ref data, byteOffset + 4)));
@@ -122,7 +122,7 @@ namespace System
                 {
                     goto NotAsciiSkip2Chars;
                 }
-                p0 += Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue);
+                p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                 Block(ref p0, ref p1);
 
                 byteOffset += 8;
@@ -137,7 +137,7 @@ namespace System
                     {
                         goto NotAscii;
                     }
-                    p0 += Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue);
+                    p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                     Block(ref p0, ref p1);
                     goto case 0;
 
@@ -151,7 +151,7 @@ namespace System
                     {
                         goto NotAscii;
                     }
-                    p0 += Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue);
+                    p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                     byteOffset += 4;
                     Block(ref p0, ref p1);
                     goto case 1;
@@ -162,7 +162,7 @@ namespace System
                     {
                         goto NotAscii;
                     }
-                    p0 += 0x800000u | Utf16Utility.ConvertAllAsciiCharsInUIntToUppercase(tempValue);
+                    p0 += 0x800000u | Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                     break;
 
                 default:
