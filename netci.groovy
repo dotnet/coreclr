@@ -605,7 +605,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
         if (isBuild == true) {
             Utilities.setMachineAffinity(job, os, 'latest-arm64')
         } else {
-            Utilities.setMachineAffinity(job, os, 'arm64-windows_nt')
+            Utilities.setMachineAffinity(job, 'windows.10.arm64.open')
         }
     } else {
         assert os != 'Windows_NT'
