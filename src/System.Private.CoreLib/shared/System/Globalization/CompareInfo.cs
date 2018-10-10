@@ -1281,12 +1281,6 @@ namespace System.Globalization
             return (this.Name.GetHashCode());
         }
 
-        internal static unsafe int GetIgnoreCaseHash(string source)
-        {
-            Debug.Assert(source != null, "source must not be null");
-            return source.GetHashCodeOrdinalIgnoreCase();
-        }
-
         ////////////////////////////////////////////////////////////////////////
         //
         //  GetHashCodeOfString
@@ -1328,7 +1322,7 @@ namespace System.Globalization
 
             if (_invariantMode)
             {
-                return ((options & CompareOptions.IgnoreCase) != 0) ? GetIgnoreCaseHash(source) : source.GetHashCode();
+                return ((options & CompareOptions.IgnoreCase) != 0) ? source.GetHashCodeOrdinalIgnoreCase() : source.GetHashCode();
             }
 
             return GetHashCodeOfStringCore(source, options);
@@ -1348,7 +1342,7 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return GetIgnoreCaseHash(source);
+                return source.GetHashCodeOrdinalIgnoreCase();
             }
 
             //
