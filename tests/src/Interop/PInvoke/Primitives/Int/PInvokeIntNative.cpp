@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <stdio.h>
-#include <windows.h>
 #include <xplatform.h>
 
 int intManaged = 1000;
@@ -11,7 +10,7 @@ int intNative = 2000;
 int intReturn = 3000;
 int intErrReturn = 4000;
 
-extern "C" DLL_EXPORT int WINAPI Marshal_In(/*[in]*/int intValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE Marshal_In(/*[in]*/int intValue)
 {
     //Check the input
     if(intValue != intManaged)
@@ -31,7 +30,7 @@ extern "C" DLL_EXPORT int WINAPI Marshal_In(/*[in]*/int intValue)
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI Marshal_InOut(/*[In,Out]*/int intValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE Marshal_InOut(/*[In,Out]*/int intValue)
 {
     //Check the input
     if(intValue != intManaged)
@@ -55,7 +54,7 @@ extern "C" DLL_EXPORT int WINAPI Marshal_InOut(/*[In,Out]*/int intValue)
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI Marshal_Out(/*[Out]*/int intValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE Marshal_Out(/*[Out]*/int intValue)
 {
     intValue = intNative;
 
@@ -63,7 +62,7 @@ extern "C" DLL_EXPORT int WINAPI Marshal_Out(/*[Out]*/int intValue)
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_In(/*[in]*/int *pintValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_In(/*[in]*/int *pintValue)
 {
     //Check the input
     if(*pintValue != intManaged)
@@ -83,7 +82,7 @@ extern "C" DLL_EXPORT int WINAPI MarshalPointer_In(/*[in]*/int *pintValue)
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_InOut(/*[in,out]*/int *pintValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_InOut(/*[in,out]*/int *pintValue)
 {
     //Check the input
     if(*pintValue != intManaged)
@@ -107,7 +106,7 @@ extern "C" DLL_EXPORT int WINAPI MarshalPointer_InOut(/*[in,out]*/int *pintValue
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_Out(/*[out]*/ int *pintValue)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_Out(/*[out]*/ int *pintValue)
 {
     *pintValue = intNative;
 
