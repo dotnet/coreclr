@@ -544,9 +544,33 @@ namespace System
             }
             if (typeof(T) == typeof(char))
             {
-                if (values.Length == 4)
+                ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                if (values.Length == 1)
                 {
-                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                    return SpanHelpers.IndexOf(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        span.Length);
+                }
+                else if (values.Length == 2)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        span.Length);
+                }
+                else if (values.Length == 3)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        span.Length);
+                }
+                else if (values.Length == 4)
+                {
                     return SpanHelpers.IndexOfAny(
                         ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
                         valueRef,
@@ -557,7 +581,6 @@ namespace System
                 }
                 else if (values.Length == 5)
                 {
-                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
                     return SpanHelpers.IndexOfAny(
                         ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
                         valueRef,
@@ -642,6 +665,56 @@ namespace System
                     span.Length,
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)),
                     values.Length);
+
+            if (typeof(T) == typeof(char))
+            {
+                ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                if (values.Length == 1)
+                {
+                    return SpanHelpers.IndexOf(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        span.Length);
+                }
+                else if (values.Length == 2)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        span.Length);
+                }
+                else if (values.Length == 3)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        span.Length);
+                }
+                else if (values.Length == 4)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        Unsafe.Add(ref valueRef, 3),
+                        span.Length);
+                }
+                else if (values.Length == 5)
+                {
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        Unsafe.Add(ref valueRef, 3),
+                        Unsafe.Add(ref valueRef, 4),
+                        span.Length);
+                }
+            }
 
             return SpanHelpers.IndexOfAny(ref MemoryMarshal.GetReference(span), span.Length, ref MemoryMarshal.GetReference(values), values.Length);
         }

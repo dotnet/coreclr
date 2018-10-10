@@ -203,12 +203,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (pCh[0] == value)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -296,12 +296,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (pCh[0] == value0 || pCh[0] == value1)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -393,12 +393,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (pCh[0] == value0 || pCh[0] == value1 || pCh[0] == value2)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -493,12 +493,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (pCh[0] == value0 || pCh[0] == value1 || pCh[0] == value2 || pCh[0] == value3)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow
@@ -595,12 +595,12 @@ namespace System
 
                 while (length > 0)
                 {
-                    length -= 1;
+                    length--;
 
                     if (pCh[0] == value0 || pCh[0] == value1 || pCh[0] == value2 || pCh[0] == value3 || pCh[0] == value4)
                         goto Found;
 
-                    pCh += 1;
+                    pCh++;
                 }
 
                 // We get past SequentialScan only if IsHardwareAccelerated is true. However, we still have the redundant check to allow

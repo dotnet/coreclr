@@ -99,34 +99,16 @@ namespace System
             if ((uint)count > (uint)(Length - startIndex))
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_Count);
 
-            if (anyOf.Length == 2)
+            if (anyOf.Length > 0 && anyOf.Length <= 5)
             {
-                // Very common optimization for directory separators (/, \), quotes (", '), brackets, etc
-                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], count);
-                return result == -1 ? result : result + startIndex;
-            }
-            else if (anyOf.Length == 3)
-            {
-                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], count);
-                return result == -1 ? result : result + startIndex;
-            }
-            else if (anyOf.Length == 4)
-            {
-                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], anyOf[3], count);
-                return result == -1 ? result : result + startIndex;
-            }
-            else if (anyOf.Length == 5)
-            {
-                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], anyOf[3], anyOf[4], count);
+                // The ReadOnlySpan.IndexOfAny extension is vectorized for values of 1 - 5 in length
+                var result = new ReadOnlySpan<char>(ref Unsafe.Add(ref _firstChar, startIndex), count).IndexOfAny(anyOf);
                 return result == -1 ? result : result + startIndex;
             }
             else if (anyOf.Length > 5)
             {
+                // Use Probabilistic Map
                 return IndexOfCharArray(anyOf, startIndex, count);
-            }
-            else if (anyOf.Length == 1)
-            {
-                return IndexOf(anyOf[0], startIndex, count);
             }
             else // anyOf.Length == 0
             {
