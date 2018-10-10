@@ -212,7 +212,7 @@ namespace R2RDump
         private const int _mdtMethodDef = 0x06000000;
 
         /// <summary>
-        /// ECMA metadata reader for the method module.
+        /// R2R reader representing the method module.
         /// </summary>
         public R2RReader R2RReader { get; }
 
