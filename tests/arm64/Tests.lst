@@ -85324,9 +85324,9 @@ MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;NEW;EXCLUDED
 HostStyle=0
 
-[MultiplyHorizontalAdd_ro.cmd_12141]
-RelativePath=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_ro\MultiplyHorizontalAdd_ro.cmd
-WorkingDir=JIT\HardwareIntrinsics\X86\Sse2\MultiplyHorizontalAdd_ro
+[Popcnt_r.cmd_12141]
+RelativePath=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_r\Popcnt_r.cmd
+WorkingDir=JIT\HardwareIntrinsics\X86\Popcnt\Popcnt_r
 Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS;NEW;EXCLUDED
