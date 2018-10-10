@@ -29,9 +29,12 @@ phases:
         version: 2.1.400
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
       displayName: Install native tools
-    - powershell: Write-Host $env:PATH; ls ..\native-tools\bin
-      displayName: try to find the thing
-    - script: set & python.exe --version
+    - script: |
+        set
+        dir F:\vsagent\2\native-tools\bin
+        F:\vsagent\2\native-tools\bin\python.exe --version
+        python.exe --version
+        python --version
       displayName: kill me if python isn't here
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
