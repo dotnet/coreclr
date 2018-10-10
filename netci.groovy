@@ -2360,9 +2360,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
         case 'Tizen':
         case 'Fedora24': // editor brace matching: {
             switch (architecture) {
-                case 'x64':
                 case 'x86':
-                    if (architecture == 'x86' && os == 'Ubuntu') {
+                    if (os == 'Ubuntu') {
                         // build and PAL test
                         def dockerImage = getDockerImageName(architecture, os, true)
                         buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh ${architecture} cross ${lowerConfiguration}"
@@ -2370,9 +2369,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/${osGroup}.${architecture}.${configuration} /opt/code/bin/paltestout"
                         Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
-                        break
                     }
+                    break
 
+                case 'x64':
                     if (scenario == 'formatting') {
                         buildCommands += "python tests/scripts/format.py -c \${WORKSPACE} -o Linux -a ${architecture}"
                         Utilities.addArchival(newJob, "format.patch", "", true, false)
