@@ -71,6 +71,13 @@ public:
         return data[tosIndex];
     }
 
+    // Pop `count` elements from the stack
+    void Pop(int count)
+    {
+        assert(tosIndex >= count);
+        tosIndex -= count;
+    }
+
     T Top()
     {
         assert(tosIndex > 0);
