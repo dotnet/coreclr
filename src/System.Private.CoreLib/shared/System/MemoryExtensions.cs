@@ -535,11 +535,39 @@ namespace System
             where T : IEquatable<T>
         {
             if (typeof(T) == typeof(byte))
+            {
                 return SpanHelpers.IndexOfAny(
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(span)),
                     span.Length,
                     ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)),
                     values.Length);
+            }
+            if (typeof(T) == typeof(char))
+            {
+                if (values.Length == 4)
+                {
+                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        Unsafe.Add(ref valueRef, 3),
+                        span.Length);
+                }
+                else if (values.Length == 5)
+                {
+                    ref var valueRef = ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(values));
+                    return SpanHelpers.IndexOfAny(
+                        ref Unsafe.As<T, char>(ref MemoryMarshal.GetReference(span)),
+                        valueRef,
+                        Unsafe.Add(ref valueRef, 1),
+                        Unsafe.Add(ref valueRef, 2),
+                        Unsafe.Add(ref valueRef, 3),
+                        Unsafe.Add(ref valueRef, 4),
+                        span.Length);
+                }
+            }
 
             return SpanHelpers.IndexOfAny(ref MemoryMarshal.GetReference(span), span.Length, ref MemoryMarshal.GetReference(values), values.Length);
         }

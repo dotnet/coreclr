@@ -110,7 +110,17 @@ namespace System
                 var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], count);
                 return result == -1 ? result : result + startIndex;
             }
-            else if (anyOf.Length > 3)
+            else if (anyOf.Length == 4)
+            {
+                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], anyOf[3], count);
+                return result == -1 ? result : result + startIndex;
+            }
+            else if (anyOf.Length == 5)
+            {
+                var result = SpanHelpers.IndexOfAny(ref Unsafe.Add(ref _firstChar, startIndex), anyOf[0], anyOf[1], anyOf[2], anyOf[3], anyOf[4], count);
+                return result == -1 ? result : result + startIndex;
+            }
+            else if (anyOf.Length > 5)
             {
                 return IndexOfCharArray(anyOf, startIndex, count);
             }
