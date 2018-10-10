@@ -12,7 +12,7 @@ namespace NativeDefs
     public struct Person
     {
         public int age;
-	public int _pedding;
+        public int _pedding;
         [MarshalAs(UnmanagedType.BStr)]
         public string name;
     }
@@ -33,7 +33,7 @@ namespace NativeDefs
 
     public delegate bool DelMarshal_Struct_In(Person person);
 
-    public delegate Person DelMarshalPointer_Struct_InOut(ref Person person);
+    public delegate bool DelMarshalPointer_Struct_InOut(ref Person person);
 
     public static class PInvokeDef
     {
@@ -70,7 +70,7 @@ namespace NativeDefs
         [DllImport(NativeBinaryName)]
         public static extern bool RPInvoke_DelMarshal_Struct_In(DelMarshal_Struct_In d);
 
-	[DllImport(NativeBinaryName)]
-	public static extern bool RPInvoke_DelMarshalStructPointer_InOut(DelMarshalPointer_Struct_InOut d);
+        [DllImport(NativeBinaryName)]
+        public static extern bool RPInvoke_DelMarshalStructPointer_InOut(DelMarshalPointer_Struct_InOut d);
     }
 }

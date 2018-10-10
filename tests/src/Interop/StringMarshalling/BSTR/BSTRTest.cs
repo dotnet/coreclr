@@ -14,7 +14,7 @@ class Test
 
     #region "Report Failure"
     static int fails = 0; //record the fail numbers
-    // Overload methods for reportfailure	
+    // Overload methods for reportfailure
     static int ReportFailure(string s)
     {
         Console.WriteLine(" === Fail:" + s);
@@ -116,21 +116,20 @@ class Test
         person.age = 12;
         person.name = strManaged;
 
-        Person expectedPerson = new Person();
-        expectedPerson.age = 21;
-        expectedPerson.name = " Native";
-        if (!PInvokeDef.MarshalPointer_Struct_InOut(ref person) || !expectedPerson.Equals(person))
+        if (!PInvokeDef.MarshalPointer_Struct_InOut(ref person))
         {
-            ReportFailure("Method PInvokeDef.MarshalPointer_Struct_InOut[Managed Side],The Return struct is wrong", person.ToString(), expectedPerson.ToString());
+            ReportFailure("Method PInvokeDef.MarshalPointer_Struct_InOut[Managed Side],The native return false");
+        }
+        
+        if(person.age != 21 || person.name != " Native")
+        {
+            ReportFailure("Method PInvokeDef.MarshalPointer_Struct_InOut[Managed Side],The Return struct is wrong");
         }
     }
 
     static bool Call_Struct_Delegate_In(Person person)
     {
-        Person expectedPerson = new Person();
-        expectedPerson.age = 21;
-        expectedPerson.name = " Native";
-        if (!expectedPerson.Equals(person))
+        if (person.age != 21 || person.name != " Native")
         {
             ReportFailure("Method Call_Struct_Delegate_In[Managed Side], The native passing in struct is incorrect");
             return false;
@@ -148,40 +147,37 @@ class Test
         }
     }
    
-    static Person Call_StructPointer_Delegate_InOut(ref Person person)
+    static bool Call_StructPointer_Delegate_InOut(ref Person person)
     {
-	
-        Person expectedPerson = new Person();
-        expectedPerson.age = 21;
-        expectedPerson.name = " Native";
-        if (!expectedPerson.Equals(person))
+        if (person.age != 21 || person.name != " Native")
         {
             ReportFailure("Method Call_StructPointer_Delegate_InOut[Managed Side], The native passing in struct is incorrect");
+            return false;
         }
-
 
         string strManaged = "Managed\0String\0";
         Person managedPerson = new Person();
         managedPerson.age = 12;
         managedPerson.name = strManaged;
-	
-	person = managedPerson;
-	return managedPerson;
+
+        person = managedPerson;
+        return true;
     }
     
     static void TestRPInvokeStructPointerInOut()
     {
         DelMarshalPointer_Struct_InOut d = new DelMarshalPointer_Struct_InOut(Call_StructPointer_Delegate_InOut);
         if(!PInvokeDef.RPInvoke_DelMarshalStructPointer_InOut(d))
-	{
-	    ReportFailure("Method PInvokeDef.RPInvoke_DelMarshalStructPointer_InOut[Managed Side], The Return value is wrong");
-	}
+        {
+            ReportFailure("Method PInvokeDef.RPInvoke_DelMarshalStructPointer_InOut[Managed Side], The Return value is wrong");
+        }
     }
     static void TestStruct()
     {
         TestStructIn();
         TestStructPointerInOut();
         TestRPInvokeStructIn();
+        TestRPInvokeStructPointerInOut();
     }
     #endregion
 
@@ -285,6 +281,7 @@ class Test
         }
 
         #endregion
+
         #region "Struct"
         TestStruct();
         #endregion
