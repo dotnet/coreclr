@@ -17,10 +17,6 @@
 #include "profattach.h"
 #endif // FEATURE_PROFAPI_ATTACH_DETACH 
 
-#ifdef FEATURE_PERFTRACING
-#include "eventpipe.h"
-#endif
-
 BOOL FinalizerThread::fRunFinalizersOnUnload = FALSE;
 BOOL FinalizerThread::fQuitFinalizer = FALSE;
 
@@ -555,13 +551,6 @@ VOID FinalizerThread::FinalizerThreadWorker(void *args)
             
             LastHeapDumpTime = CLRGetTickCount64();
             g_TriggerHeapDump = FALSE;
-        }
-#endif
-
-#ifdef FEATURE_PERFTRACING
-        if (EventPipe::Enabled())
-        {
-            EventPipe::PollSwitchToNextFile();
         }
 #endif
 

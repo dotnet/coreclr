@@ -16,6 +16,7 @@
 #include "eventpipejsonfile.h"
 #include "eventtracebase.h"
 #include "sampleprofiler.h"
+#include "win32threadpool.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
@@ -37,6 +38,7 @@ EventPipeFile* EventPipe::s_pSyncFile = NULL;
 EventPipeJsonFile* EventPipe::s_pJsonFile = NULL;
 #endif // _DEBUG
 unsigned long EventPipe::s_nextFileIndex;
+HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 ULONGLONG EventPipe::s_lastFileSwitchTime = 0;
 
 #ifdef FEATURE_PAL
@@ -358,6 +360,12 @@ EventPipeSessionID EventPipe::Enable(LPCWSTR strOutputPath, EventPipeSession *pS
     // Enable the sample profiler
     SampleProfiler::Enable();
 
+    // Enable the file switch timer if needed.
+    if(s_pSession->GetMultiFileTraceLengthInSeconds() > 0)
+    {
+        CreateFileSwitchTimer();
+    }
+
     // Return the session ID.
     return (EventPipeSessionID)s_pSession;
 }
@@ -402,6 +410,9 @@ void EventPipe::Disable(EventPipeSessionID id)
         // Delete the session.
         s_pConfig->DeleteSession(s_pSession);
         s_pSession = NULL;
+
+        // Delete the file switch timer.
+        DeleteFileSwitchTimer();
 
         // Flush all write buffers to make sure that all threads see the change.
         FlushProcessWriteBuffers();
@@ -465,13 +476,77 @@ void EventPipe::Disable(EventPipeSessionID id)
     }
 }
 
-void EventPipe::PollSwitchToNextFile()
+void EventPipe::CreateFileSwitchTimer()
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+    }
+    CONTRACTL_END
+
+    NewHolder<ThreadpoolMgr::TimerInfoContext> timerContextHolder = new(nothrow) ThreadpoolMgr::TimerInfoContext();
+    if (timerContextHolder == NULL)
+    {
+        return;
+    }
+//    timerContextHolder->AppDomainId = m_domainId;
+    timerContextHolder->TimerId = 0;
+
+    bool success = false;
+    _ASSERTE(s_fileSwitchTimerHandle == NULL);
+    EX_TRY
+    {
+        if (ThreadpoolMgr::CreateTimerQueueTimer(
+                &s_fileSwitchTimerHandle,
+                SwitchToNextFileTimerCallback,
+                timerContextHolder,
+                1000,
+                1000, 
+                0 /* flags */))
+        {
+            success = true;
+        }
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
+    if (!success)
+    {
+        _ASSERTE(s_fileSwitchTimerHandle == NULL);
+        return;
+    }
+
+    timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+}
+
+void EventPipe::DeleteFileSwitchTimer()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(s_fileSwitchTimerHandle != NULL);
+    }
+    CONTRACTL_END
+
+    if(ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL))
+    {
+        s_fileSwitchTimerHandle = NULL;
+    }
+}
+
+void WINAPI EventPipe::SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(timerFired);
     }
     CONTRACTL_END;
 

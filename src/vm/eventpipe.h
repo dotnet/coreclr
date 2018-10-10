@@ -245,10 +245,6 @@ class EventPipe
         // Disable tracing via the event pipe.
         static void Disable(EventPipeSessionID id);
 
-        // Performs one polling operation to determine if it is necessary to switch to a new file.
-        // If the polling operation decides it is time, it will perform the switch.
-        static void PollSwitchToNextFile();
-
         // Get the session for the specified session ID.
         static EventPipeSession* GetSession(EventPipeSessionID id);
 
@@ -297,6 +293,15 @@ class EventPipe
         // Enable the specified EventPipe session.
         static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
 
+        static void CreateFileSwitchTimer();
+
+        static void DeleteFileSwitchTimer();
+
+        // Performs one polling operation to determine if it is necessary to switch to a new file.
+        // If the polling operation decides it is time, it will perform the switch.
+        // Called directly from the timer when the timer is triggered.
+        static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
+
         // If event pipe has been configured to write multiple files, switch to the next file.
         static void SwitchToNextFile();
 
@@ -328,6 +333,7 @@ class EventPipe
         static EventPipeFile *s_pSyncFile;
         static EventPipeJsonFile *s_pJsonFile;
 #endif // _DEBUG
+        static HANDLE s_fileSwitchTimerHandle;
         static ULONGLONG s_lastFileSwitchTime;
 };
 
