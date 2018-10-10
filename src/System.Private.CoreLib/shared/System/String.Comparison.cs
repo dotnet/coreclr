@@ -744,6 +744,7 @@ namespace System
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override int GetHashCode()
         {
             ulong seed = Marvin.DefaultSeed;
