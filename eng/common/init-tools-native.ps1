@@ -60,6 +60,7 @@ try {
   }
   $Env:CommonLibrary_NativeInstallDir = $NativeBaseDir
   $InstallBin = Join-Path $NativeBaseDir "bin"
+  $IntallerPath = Join-Path $EngCommonBaseDir "install-tool.ps1"
 
   # Process tools list
   Write-Host "Processing $GlobalJsonFile"
@@ -74,20 +75,12 @@ try {
     $NativeTools.PSObject.Properties | ForEach-Object {
       $ToolName = $_.Name
       $ToolVersion = $_.Value
-      $InstallerFilename = "install-tool.ps1"
-      $PathToBinary = ""
-      if ($ToolName -Eq 'cmake') {
-        $PathToBinary = "bin\"
-      }
-      $LocalInstallerCommand = Join-Path $EngCommonBaseDir $InstallerFilename
+      $LocalInstallerCommand = $InstallerPath
       $LocalInstallerCommand += " -ToolName $ToolName"
       $LocalInstallerCommand += " -InstallPath $InstallBin"
       $LocalInstallerCommand += " -BaseUri $BaseUri"
       $LocalInstallerCommand += " -CommonLibraryDirectory $EngCommonBaseDir"
       $LocalInstallerCommand += " -Version $ToolVersion"
-      if ($PathToBinary -Ne "") {
-        $LocalInstallerCommand += " -PathToBinary $PathToBinary"
-      }
 
       if ($Verbose) {
         $LocalInstallerCommand += " -Verbose"
