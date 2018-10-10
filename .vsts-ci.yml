@@ -31,7 +31,7 @@ phases:
       displayName: Install native tools
     - powershell: Write-Host $env:PATH; ls ..\native-tools\bin
       displayName: try to find the thing
-    - script: python --version
+    - script: echo %PATH% & python --version
       displayName: kill me if python isn't here
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
