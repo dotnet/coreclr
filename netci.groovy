@@ -1239,6 +1239,9 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
     assert false
 }
 
+def static getTestArtifactsZipFileName(def osGroup, def architecture, def configuration) {
+    return "bin-tests-${osGroup}.${architecture}.${configuration}.zip"
+}
 
 // We have a limited amount of some hardware. For these, scale back the periodic testing we do,
 // and only allowing using this hardware in some specific branches.
@@ -2406,10 +2409,21 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
 
                         buildCommands += "${bootstrapRidEnv}./build.sh ${lowerConfiguration} ${architecture}"
+
+                        def testBuildOpts = ""
+                        if (priority == '1') {
+                            testBuildOpts = "priority1"
+                        }
+
+                        buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} ${testBuildOpts}"
+
+                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
+                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
+
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+                        Utilities.addArchival(newJob, "${testArtifactsZipFileName}", "")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
@@ -2576,9 +2590,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross ${testBuildOpts}"
 
                         // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
-                        buildCommands += "zip -r tests.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}"
+                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
+                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
 
-                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip", "")
+                        Utilities.addArchival(newJob, "${testArtifactsZipFileName}", "")
                     }
 
                     // Archive the build logs from both product and test builds.
@@ -3138,7 +3153,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Create a test job not covered by the "Windows ARM" case that will be used by a flow job.
 // E.g., non-Windows tests.
 // Returns the newly created job.
-def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     def lowerConfiguration = configuration.toLowerCase()
 
@@ -3256,31 +3271,14 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
         }
     }
 
-    // The ARM Ubuntu corefx test job doesn't depend on a Windows test build, and hence inputTestsBuildName
-    // will be null in this case.
-
     def jobFolder = getJobFolder(scenario)
     def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
         parameters {
-            if (inputTestsBuildName != null) {
-                stringParam('CORECLR_WINDOWS_BUILD', '', 'Build number to copy CoreCLR Windows test binaries from')
-            }
             stringParam('CORECLR_BUILD', '', "Build number to copy CoreCLR ${osGroup} binaries from")
         }
 
         steps {
             // Set up the copies
-
-            // Coreclr build containing the tests and mscorlib
-            // pri1 jobs still need to copy windows_nt built tests
-            if (inputTestsBuildName != null) {
-                copyArtifacts(inputTestsBuildName) {
-                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                    buildSelector {
-                        buildNumber('${CORECLR_WINDOWS_BUILD}')
-                    }
-                }
-            }
 
             // Coreclr build we are trying to test
             //
@@ -3360,8 +3358,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
                 }
                 else {
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.${lowerConfiguration}.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/tests.${lowerConfiguration}.zip")
+                    def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/${testArtifactsZipFileName}")
                 }
             }
 
@@ -3393,13 +3391,6 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
-            else if (architecture != 'arm' && architecture != 'arm64') {
-                // ARM/ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
-                //
-                // Unzip the tests first.  Exit with 0
-                shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
-                shell("rm -r ./bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root || exit 0")
-            }
 
             // For arm Ubuntu (on hardware), we do the "build-test" step on the build machine, not on the test
             // machine. The arm Ubuntu test machines do no building -- they have no CLI, for example.
@@ -3407,14 +3398,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
             // However, it's believed that perhaps there's an issue with executable permission bits not getting
             // copied correctly.
             if (!doCoreFxTesting) {
-                if (isUbuntuArmJob) {
-                    if (!isPmiAsmDiffsScenario) {
-                        assert architecture == 'arm' || architecture == 'arm64'
-                        shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
-                }
-                else {
-                    shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
-                }
+                def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
+                shell("unzip -q -o ./${testArtifactsZipFileName} || exit 0")         // unzips to ./bin/tests/${osGroup}.${architecture}.${configuration}
             }
 
             // Execute the tests
@@ -3580,21 +3565,19 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
 // Returns the newly created job.
 // Note that we don't add tests jobs to the various views, since they are always used by a flow job, which is in the views,
 // and we want the views to be the minimal set of "top-level" jobs that represent all work.
-def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
 
     def newJob = null
     if (windowsArmJob) {
-        assert inputTestsBuildName == null
         newJob = CreateWindowsArmTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
     else if (isCrossGenComparisonScenario(scenario)) {
-        assert inputTestsBuildName == null
         newJob = CreateNonWindowsCrossGenComparisonTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
     else {
-        newJob = CreateOtherTestJob(dslFactory, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName, inputTestsBuildName)
+        newJob = CreateOtherTestJob(dslFactory, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
 
     setJobMachineAffinity(architecture, os, false, true, false, newJob) // isBuildJob = false, isTestJob = true, isFlowJob = false
@@ -3611,47 +3594,24 @@ def static CreateTestJob(def dslFactory, def project, def branch, def architectu
 }
 
 // Create a flow job to tie together a build job with the given test job.
-// The 'inputTestsBuildName' argument might be null if the flow job doesn't depend on a Windows build job.
 // Returns the new flow job.
-def static CreateFlowJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def fullTestJobName, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateFlowJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def fullTestJobName, def inputCoreCLRBuildName)
 {
     // Windows CoreCLR build and Linux CoreCLR build (in parallel) ->
     // Linux CoreCLR test
     def flowJobName = getJobName(configuration, architecture, os, scenario, false) + "_flow"
     def jobFolder = getJobFolder(scenario)
 
-    def newFlowJob = null
-
-    if (inputTestsBuildName == null) {
-        newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
-                        buildFlow("""\
+    def newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
+        buildFlow("""\
 coreclrBuildJob = build(params, '${inputCoreCLRBuildName}')
 
 // And then build the test build
 build(params + [CORECLR_BUILD: coreclrBuildJob.build.number], '${fullTestJobName}')
 """)
-        }
-        JobReport.Report.addReference(inputCoreCLRBuildName)
-        JobReport.Report.addReference(fullTestJobName)
     }
-    else {
-        newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
-                        buildFlow("""\
-// Build the input jobs in parallel
-parallel (
-{ coreclrBuildJob = build(params, '${inputCoreCLRBuildName}') },
-{ windowsBuildJob = build(params, '${inputTestsBuildName}') }
-)
-
-// And then build the test build
-build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
-                CORECLR_WINDOWS_BUILD: windowsBuildJob.build.number], '${fullTestJobName}')
-""")
-        }
-        JobReport.Report.addReference(inputCoreCLRBuildName)
-        JobReport.Report.addReference(inputTestsBuildName)
-        JobReport.Report.addReference(fullTestJobName)
-    }
+    JobReport.Report.addReference(inputCoreCLRBuildName)
+    JobReport.Report.addReference(fullTestJobName)
 
     addToViews(newFlowJob, true, isPR, architecture, os, configuration, scenario) // isFlowJob = true
 
@@ -3911,27 +3871,11 @@ Constants.allScenarios.each { scenario ->
                     // For CoreFX tests, however, Linux doesn't need the Windows build for the tests, since the
                     // CoreFX build creates the tests.
 
-                    def inputTestsBuildName = null
-
-                    def isUbuntuArm32Job = ((os == "Ubuntu") && (architecture == 'arm'))
-                    def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
-                    def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
-
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArmJob && !isPmiAsmDiffsScenario) {
-                        def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
-
-                        def inputTestsBuildArch = architecture
-                        def inputTestsBuildIsBuildOnly = true
-
-                        inputTestsBuildName = projectFolder + '/' +
-                            Utilities.getFullJobName(project, getJobName(configuration, inputTestsBuildArch, 'windows_nt', testBuildScenario, inputTestsBuildIsBuildOnly), isPR)
-                    }
-
                     // =============================================================================================
                     // Create the test job
                     // =============================================================================================
 
-                    def testJob = CreateTestJob(this, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName, inputTestsBuildName)
+                    def testJob = CreateTestJob(this, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
 
                     // =============================================================================================
                     // Create a build flow to join together the build and tests required to run this test.
@@ -3943,7 +3887,7 @@ Constants.allScenarios.each { scenario ->
                     }
 
                     def fullTestJobName = projectFolder + '/' + testJob.name
-                    def flowJob = CreateFlowJob(this, project, branch, architecture, os, configuration, scenario, isPR, fullTestJobName, inputCoreCLRBuildName, inputTestsBuildName)
+                    def flowJob = CreateFlowJob(this, project, branch, architecture, os, configuration, scenario, isPR, fullTestJobName, inputCoreCLRBuildName)
 
                 } // os
             } // configuration
