@@ -60,7 +60,7 @@ try {
   }
   $ToolNameMoniker = "$ToolName-$Version-$ToolOs-$Arch"
   $ToolInstallDirectory = Join-Path $InstallPath "$ToolName\$Version\"
-  $ToolFilePath = Get-ChildItem $ToolInstallDirectory -Recurse -Filter $ToolName | % { $_.FullName }
+  $ToolFilePath = Get-ChildItem $ToolInstallDirectory -Recurse -Filter "$ToolName.exe" | % { $_.FullName }
   if (@($ToolFilePath).Length -Gt 1) {
     Write-Error "There are too many $($ToolName)s in $ToolFilePath!"
     exit 1
