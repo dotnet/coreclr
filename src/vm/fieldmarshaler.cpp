@@ -2381,8 +2381,7 @@ VOID FieldMarshaler_BSTR::DestroyNativeImpl(LPVOID pNativeValue) const
     
     if (pBSTR)
     {
-        // BSTR has been created, which means oleaut32 should have been loaded.
-        // Delay load will not fail.
+        // BSTR has been created, Delay load will not fail.
         CONTRACT_VIOLATION(ThrowsViolation);
         SysFreeString(pBSTR);
     }

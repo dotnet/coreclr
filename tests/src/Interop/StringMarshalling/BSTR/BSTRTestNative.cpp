@@ -166,7 +166,7 @@ extern "C" DLL_EXPORT  BOOL __stdcall ReverseP_MarshalStrB_InOut(Test_Del_Marsha
 typedef struct Person Person;
 struct Person{
     int age;
-    int _pedding;
+    int _padding;
     BSTR name;
 };
 

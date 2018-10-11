@@ -12,7 +12,7 @@ namespace NativeDefs
     public struct Person
     {
         public int age;
-        public int _pedding;
+        public int _padding;
         [MarshalAs(UnmanagedType.BStr)]
         public string name;
     }
