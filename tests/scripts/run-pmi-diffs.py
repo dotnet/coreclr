@@ -537,7 +537,12 @@ def do_pmi_diffs():
     if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
         altjit_args = ["--altjit", "protononjit.dll"]
 
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath] + altjit_args
+    # Over which set of assemblies should we generate asm?
+    # TODO: parameterize this
+    asm_source_args = ["--corelib"]
+    # asm_source_args = ["--frameworks"]
+
+    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath] + asm_source_args + altjit_args
     log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
@@ -556,7 +561,7 @@ def do_pmi_diffs():
 
     # Next, generate the baseline asm
 
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath] + altjit_args
+    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath] + asm_source_args + altjit_args
     log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
