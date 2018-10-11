@@ -6946,6 +6946,7 @@ EXTERN_C void JIT_MemCpy_End();
 
 EXTERN_C void JIT_WriteBarrier_End();
 EXTERN_C void JIT_CheckedWriteBarrier_End();
+EXTERN_C void JIT_ByRefWriteBarrier_End();
 #endif // _TARGET_X86_
 
 #if defined(_TARGET_AMD64_) && defined(_DEBUG)
@@ -6972,6 +6973,7 @@ bool IsIPInMarkedJitHelper(UINT_PTR uControlPc)
 
     CHECK_RANGE(JIT_WriteBarrier)
     CHECK_RANGE(JIT_CheckedWriteBarrier)
+    CHECK_RANGE(JIT_ByRefWriteBarrier)
 #else
 #ifdef FEATURE_PAL
     CHECK_RANGE(JIT_WriteBarrierGroup)
