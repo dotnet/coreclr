@@ -109,7 +109,7 @@ try {
   # Always rewrite shims so that we are referencing the expected version
   $GenerateShimStatus = CommonLibrary\New-ScriptShim -ShimName $ToolName `
                                                      -ShimDirectory $InstallPath `
-                                                     -ToolFilePath $ToolFilePath `
+                                                     -ToolFilePath "$ToolFilePath" `
                                                      -BaseUri $BaseUri `
                                                      -Force:$Force `
                                                      -Verbose:$Verbose
