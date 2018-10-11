@@ -430,6 +430,7 @@ def do_pmi_diffs():
         proc = subprocess.Popen(["dotnet", "restore"], env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
+        log('Return code = %s' % returncode)
 
     # Do build
 
@@ -440,6 +441,7 @@ def do_pmi_diffs():
         output,error = proc.communicate()
         returncode = proc.returncode
         if returncode != 0:
+            log('Return code = %s' % returncode)
             log('ERROR: jitutils build failed')
             return 1
 
@@ -484,10 +486,12 @@ def do_pmi_diffs():
     # 2. Make it easier to specify the exact directory you want output to go to?
 
     command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath]
-    log('Invoking %s' % (' '.join(command)))
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
+        returncode = proc.returncode
+        log('Return code = %s' % returncode)
 
     # Did we get any diffs?
 
@@ -499,10 +503,12 @@ def do_pmi_diffs():
     # Next, generate the baseline asm
 
     command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath]
-    log('Invoking %s' % (' '.join(command)))
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
+        returncode = proc.returncode
+        log('Return code = %s' % returncode)
 
     # Did we get any diffs?
 
@@ -515,18 +521,24 @@ def do_pmi_diffs():
     #   dotnet c:\gh\jitutils\bin\jit-analyze.dll --diff f:\output\diffs\diff\diff --base f:\output\diffs\base\diff --recursive
 
     command = ["dotnet", jitAnalyzePath, "--diff", diffOutputDir, "--base", baseOutputDir]
-    log('Invoking %s' % (' '.join(command)))
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
+        returncode = proc.returncode
+        log('Return code = %s' % returncode)
 
     # Shutdown the dotnet build servers before cleaning things up
     # TODO: make this shutdown happen anytime after we're run any 'dotnet' commands. I.e., try/finally style.
 
-    log('Shutting down build servers: dotnet build-server shutdown')
+    log('Shutting down build servers')
+    command = ["dotnet", "build-server", "shutdown"]
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
-        proc = subprocess.Popen(["dotnet", "build-server", "shutdown"], env=my_env)
+        proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
+        returncode = proc.returncode
+        log('Return code = %s' % returncode)
 
     return 0
 
