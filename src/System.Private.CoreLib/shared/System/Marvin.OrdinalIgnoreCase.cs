@@ -24,11 +24,13 @@ namespace System
         /// </summary>
         public static int ComputeHash32OrdinalIgnoreCase(ref char data, int count, uint p0, uint p1)
         {
-            nuint ucount = (nuint)count;
-            nuint byteOffset = 0;
+            uint ucount = (uint)count; // in chars
+            nuint byteOffset = 0; // in bytes
             uint tempValue;
 
-            while (ucount >= 4)
+            // We operate on 32-bit integers (two chars) at a time.
+
+            while (ucount >= 2)
             {
                 tempValue = Unsafe.ReadUnaligned<uint>(ref Unsafe.As<char, byte>(ref Unsafe.AddByteOffset(ref data, byteOffset)));
                 if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
@@ -38,67 +40,30 @@ namespace System
                 p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
                 Block(ref p0, ref p1);
 
-                tempValue = Unsafe.ReadUnaligned<uint>(ref Unsafe.As<char, byte>(ref Unsafe.AddByteOffset(ref data, byteOffset + 4)));
-                if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
-                {
-                    goto NotAsciiSkip2Chars;
-                }
-                p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
-                Block(ref p0, ref p1);
-
-                byteOffset += 8;
-                ucount -= 4;
+                byteOffset += 4;
+                ucount -= 2;
             }
 
-            switch (ucount)
+            // We have either one char (16 bits) or zero chars left over.
+            Debug.Assert(ucount < 2);
+
+            if (ucount > 0)
             {
-                case 2:
-                    tempValue = Unsafe.ReadUnaligned<uint>(ref Unsafe.AddByteOffset(ref Unsafe.As<char, byte>(ref data), byteOffset));
-                    if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
-                    {
-                        goto NotAscii;
-                    }
-                    p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
-                    Block(ref p0, ref p1);
-                    goto case 0;
+                tempValue = Unsafe.AddByteOffset(ref data, byteOffset);
+                if (tempValue > 0x7Fu)
+                {
+                    goto NotAscii;
+                }
 
-                case 0:
-                    p0 += 0x80u;
-                    break;
-
-                case 3:
-                    tempValue = Unsafe.ReadUnaligned<uint>(ref Unsafe.AddByteOffset(ref Unsafe.As<char, byte>(ref data), byteOffset));
-                    if (!Utf16Utility.AllCharsInUInt32AreAscii(tempValue))
-                    {
-                        goto NotAscii;
-                    }
-                    p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
-                    byteOffset += 4;
-                    Block(ref p0, ref p1);
-                    goto case 1;
-
-                case 1:
-                    tempValue = Unsafe.AddByteOffset(ref data, byteOffset);
-                    if (tempValue > 0x7Fu)
-                    {
-                        goto NotAscii;
-                    }
-                    p0 += 0x800000u | Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue);
-                    break;
-
-                default:
-                    Debug.Fail("Should not get here.");
-                    break;
+                // addition is written with -0x80u to allow fall-through to next statement rather than jmp past it
+                p0 += Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(tempValue) + (0x800000u - 0x80u);
             }
+            p0 += 0x80u;
 
             Block(ref p0, ref p1);
             Block(ref p0, ref p1);
 
             return (int)(p1 ^ p0);
-
-        NotAsciiSkip2Chars:
-            byteOffset += 4; // in bytes
-            ucount -= 2; // in chars
 
         NotAscii:
             Debug.Assert(0 <= ucount && ucount <= Int32.MaxValue); // this should fit into a signed int
