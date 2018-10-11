@@ -224,6 +224,11 @@ def copy_files(source_dir, target_dir):
 
 def baseline_build():
 
+    if not testing:
+        if os.path.isdir(baseCoreClrPath):
+            log('Removing existing tree: %s' % baseCoreClrPath)
+            shutil.rmtree(baseCoreClrPath, onerror=del_rw)
+
     # Find the baseline commit
 
     # Clone at that commit
@@ -370,13 +375,13 @@ def do_pmi_diffs():
             os.makedirs(asmRootPath)
         except OSError:
             if not os.path.isdir(dotnetcliPath):
-                log('ERROR: cannot create CLI install dir %s' % dotnetcliPath)
+                log('ERROR: cannot create CLI install directory %s' % dotnetcliPath)
                 return 1
             if not os.path.isdir(jitutilsPath):
-                log('ERROR: cannot create jitutils install dir %s' % jitutilsPath)
+                log('ERROR: cannot create jitutils install directory %s' % jitutilsPath)
                 return 1
             if not os.path.isdir(asmRootPath):
-                log('ERROR: cannot create diff dir %s' % asmRootPath)
+                log('ERROR: cannot create diff directory %s' % asmRootPath)
                 return 1
 
     log('dotnet CLI install directory: %s' % dotnetcliPath)
@@ -630,26 +635,28 @@ def main(args):
        log('ERROR: diff test overlay not found or is not a directory: %s' % diff_layout_root)
        return 1
 
+    # Create the scratch root directory
+
+    if not testing:
+        try:
+            os.makedirs(scratch_root)
+        except OSError:
+            if not os.path.isdir(scratch_root):
+                log('ERROR: cannot create scratch directory %s' % scratch_root)
+                return 1
+
     # Set up baseline root directory. If one is passed to us, we use it. Otherwise, we create
     # a temporary directory.
 
     if base_root is None:
         # Setup scratch directories. Names are short to avoid path length problems on Windows.
+        # No need to create this directory now, as the "git clone" will do it later.
         baseCoreClrPath = os.path.abspath(os.path.join(scratch_root, '_c'))
-
-        if not testing:
-            try:
-                os.makedirs(baseCoreClrPath)
-            except OSError:
-                if not os.path.isdir(baseCoreClrPath):
-                    log('ERROR: cannot create base coreclr dir %s' % baseCoreClrPath)
-                    return 1
     else:
         baseCoreClrPath = os.path.abspath(base_root)
-
-    if not testing and not os.path.isdir(baseCoreClrPath):
-       log('ERROR: base root directory not found or is not a directory: %s' % baseCoreClrPath)
-       return 1
+        if not testing and not os.path.isdir(baseCoreClrPath):
+           log('ERROR: base root directory not found or is not a directory: %s' % baseCoreClrPath)
+           return 1
 
     # Do the baseline build, if needed
 
