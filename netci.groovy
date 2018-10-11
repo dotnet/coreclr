@@ -2416,13 +2416,11 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         }
 
                         buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} ${testBuildOpts}"
-
-                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
-
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
-                        // Basic archiving of the build
+                        // Archive the bin/tests folder for *_tst jobs
+                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
+                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
                         Utilities.addArchival(newJob, "${testArtifactsZipFileName}", "")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
@@ -3282,8 +3280,6 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
             // Coreclr build we are trying to test
             //
-            //  ** NOTE ** This will, correctly, overwrite the CORE_ROOT from the Windows test archive
-            //
             // HACK: the Ubuntu arm64 copyArtifacts Jenkins plug-in is ridiculously slow (45 minutes to
             // 1.5 hours for this step). Instead, directly use wget, which is fast (1 minute).
 
@@ -3391,15 +3387,9 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
-
-            // For arm Ubuntu (on hardware), we do the "build-test" step on the build machine, not on the test
-            // machine. The arm Ubuntu test machines do no building -- they have no CLI, for example.
-            // We should probably do the "generatelayoutonly" step on the build machine for all architectures.
-            // However, it's believed that perhaps there's an issue with executable permission bits not getting
-            // copied correctly.
-            if (!doCoreFxTesting) {
+            else {
                 def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                shell("unzip -q -o ./${testArtifactsZipFileName} || exit 0")         // unzips to ./bin/tests/${osGroup}.${architecture}.${configuration}
+                shell("unzip -q -o ./${testArtifactsZipFileName} || exit 0") // unzips to ./bin/tests/${osGroup}.${architecture}.${configuration}
             }
 
             // Execute the tests
@@ -3446,14 +3436,11 @@ python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"
 
-                // TODO: the testNativeBinDir shouldn't be necessary if the native test binaries are placed properly with their corresponding managed test code.
-
                 shell("""\
 ${runScript} \\
     ${lowerConfiguration} \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
-    --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
     --copyNativeTestBin --limitedDumpGeneration ${testOpts}""")
             }
 
@@ -3864,12 +3851,6 @@ Constants.allScenarios.each { scenario ->
                     def inputCoreCLRFolderName = getJobFolder(inputCoreCLRBuildScenario)
                     def inputCoreCLRBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, inputCoreCLRBuildIsBuildOnly), isPR, inputCoreCLRFolderName)
-
-                    // Figure out the name of the build job that the test job will depend on.
-                    // For Windows ARM tests, this is not used, as the CoreCLR build creates the tests. For other
-                    // tests, we depend on a Windows build to get the tests.
-                    // For CoreFX tests, however, Linux doesn't need the Windows build for the tests, since the
-                    // CoreFX build creates the tests.
 
                     // =============================================================================================
                     // Create the test job
