@@ -3441,7 +3441,7 @@ ${runScript} \\
     ${lowerConfiguration} \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
-    --copyNativeTestBin --limitedDumpGeneration ${testOpts}""")
+    --limitedDumpGeneration ${testOpts}""")
             }
 
             if (isGcReliabilityFramework(scenario)) {
