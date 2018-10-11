@@ -556,7 +556,7 @@ def do_pmi_diffs():
 
     # Next, generate the baseline asm
 
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath]
+    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--base", "--base_root", baseCoreClrPath, "--arch", arch, "--build", build_type, "--tag", "base", "--output", asmRootPath] + altjit_args
     log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
