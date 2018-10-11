@@ -579,6 +579,7 @@ def do_pmi_diffs():
         returncode = proc.returncode
         if returncode != 0:
             log('Return code = %s' % returncode)
+            log('Compare: %s %s' % (baseOutputDir, diffOutputDir))
 
     # Shutdown the dotnet build servers before cleaning things up
     # TODO: make this shutdown happen anytime after we've run any 'dotnet' commands. I.e., try/finally style.
