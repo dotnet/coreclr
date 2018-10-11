@@ -5514,6 +5514,27 @@ protected:
         }
     };
 
+    struct LoopUnrollContext
+    {
+        unsigned int lpIteration;
+        unsigned int lpInner;
+        unsigned int lpOuter;
+
+        bool lpIsExitsBeforeEnd;
+        bool lpIsUnsafe;
+        bool lpIsSimple; // This mean the loop body variables has no dependency.
+
+        bool lpIsPartUnroll() const
+        {
+            return lpOuter != 0;
+        }
+
+        bool lpIsFullUnroll() const
+        {
+            return lpIteration == 1 && !lpIsPartUnroll();
+        }
+    };
+
     // Do hoisting for loop "lnum" (an index into the optLoopTable), and all loops nested within it.
     // Tracks the expressions that have been hoisted by containing loops by temporary recording their
     // value numbers in "m_hoistedInParentLoops".  This set is not modified by the call.
@@ -5611,11 +5632,13 @@ public:
     unsigned optComputeLoopIter(unsigned loopId);
     unsigned optComputeLoopCost(unsigned loopId);
     unsigned optExtractLocalVars(GenTreeStmt*              gtStmt,
-                                 jitstd::vector<GenTree*>* gtLclVar,
+                                 jitstd::vector<GenTree*>* gtLclVar = nullptr,
                                  jitstd::vector<GenTree*>* gtParent = nullptr);
+
+    bool optUnrollCheckLimits(
+        unsigned threshold, unsigned iteration, unsigned cost, bool isUnsafe, bool checkMin = false);
     void optUnrollLoops(); // Unrolls loops (needs to have cost info)
-    bool optUnrollLoopImpl(
-        unsigned loopId, unsigned inner, unsigned outer, unsigned iter, unsigned cost, bool isSimpleALU);
+    bool optUnrollLoopImpl(unsigned loopId, LoopUnrollContext* context, unsigned cost);
 
 protected:
     // This enumeration describes what is killed by a call.
