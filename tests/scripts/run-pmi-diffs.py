@@ -527,7 +527,7 @@ def do_pmi_diffs():
     # 4. put base and diff in saner directory names.
 
     altjit_args = []
-    if ci_arch is not None:
+    if ci_arch is not None and (ci_arch == 'x86_arm_altjit' or ci_arch == 'x64_arm64_altjit'):
         altjit_args = ["--altjit", "protononjit.dll"]
 
     command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath] + altjit_args
