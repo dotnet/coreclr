@@ -712,10 +712,11 @@ private:
 class FieldMarshaler_NestedValueClass : public FieldMarshaler
 {
 public:
-    FieldMarshaler_NestedValueClass(MethodTable *pMT)
+    FieldMarshaler_NestedValueClass(MethodTable *pMT, BOOL isFixedBuffer)
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
+        m_isFixedBuffer = isFixedBuffer;
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
@@ -763,6 +764,7 @@ public:
     START_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
     {
         pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
+        pDestFieldMarshaller->m_isFixedBuffer = m_isFixedBuffer;
     }
     END_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
 
@@ -795,10 +797,16 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
+    BOOL IsFixedBuffer() const
+    {
+        return m_isFixedBuffer;
+    }
+
 
 private:
     // MethodTable of nested NStruct.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+    BOOL m_isFixedBuffer;
 };
 
 

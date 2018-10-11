@@ -660,14 +660,7 @@ do                                                      \
                 {
                     if (IsStructMarshalable(thNestedType))
                     {
-                        if (IsFixedBuffer(pfwalk->m_MD, pInternalImport) && !thNestedType.GetMethodTable()->IsBlittable())
-                        {
-                            INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
-                        }
-                        else
-                        {
-                            INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
-                        }
+                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
                     }
                     else
                     {
@@ -2898,6 +2891,10 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateNativeImpl(const VOI
     {
         memcpyNoGCRefs(pNative, (BYTE*)(*ppProtectedCLR) + startoffset, pMT->GetNativeSize());
     }
+    else if (IsFixedBuffer())
+    {
+        COMPlusThrow(kArgumentException, IDS_EE_BADMARSHAL_NOTMARSHALABLE);
+    }
     else
     {
         LayoutUpdateNative((LPVOID*)ppProtectedCLR, startoffset, pMT, (BYTE*)pNative, ppCleanupWorkListOnStack);
@@ -2931,6 +2928,10 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateCLRImpl(const VOID *
     if (pMT->IsBlittable())
     {
         memcpyNoGCRefs((BYTE*)(*ppProtectedCLR) + startoffset, pNative, pMT->GetNativeSize());
+    }
+    else if (IsFixedBuffer())
+    {
+        COMPlusThrow(kArgumentException, IDS_EE_BADMARSHAL_NOTMARSHALABLE);
     }
     else
     {
