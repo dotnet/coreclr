@@ -2560,7 +2560,7 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "zip -r coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip ./_/_c/bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
 
                         // Archive the built artifacts
-                        Utilities.addArchival(newJob, "coreroot.${os}.${architecture}.${configuration}.zip,coreroot.baseline.${os}.${architecture}.${configuration}.zip")
+                        Utilities.addArchival(newJob, "coreroot.${os}.${architecture}.${lowerConfiguration}.zip,coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
                     }
                     else if (architecture == 'arm') {
                         // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
