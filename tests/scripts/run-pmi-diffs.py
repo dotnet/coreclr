@@ -73,7 +73,7 @@ parser = argparse.ArgumentParser(description=description)
 # TODO: need to fix parser so -skip_baseline_build / -skip_diffs don't take an argument
 
 parser.add_argument('-arch', dest='arch', default='x64')
-parser.add_argument('-ci_arch', dest='ci_arch', default='x64')
+parser.add_argument('-ci_arch', dest='ci_arch', default=None)
 parser.add_argument('-build_type', dest='build_type', default='Checked')
 parser.add_argument('-base_root', dest='base_root', default=None)
 parser.add_argument('-diff_root', dest='diff_root', default=None)
@@ -127,6 +127,7 @@ def validate_args(args):
             raise Exception('Argument: %s is not valid.' % (arg))
 
     valid_archs = ['x86', 'x64', 'arm', 'arm64']
+    valid_ci_archs = valid_archs + ['x86_arm_altjit', 'x64_arm64_altjit']
     valid_build_types = ['Debug', 'Checked', 'Release']
 
     arch = next((a for a in valid_archs if a.lower() == arch.lower()), arch)
@@ -145,6 +146,9 @@ def validate_args(args):
         scratch_root = os.path.join(diff_root, '_')
     else:
         scratch_root = os.path.abspath(scratch_root)
+
+    if ci_arch is not None:
+        validate_arg(ci_arch, lambda item: item in valid_ci_archs)
 
     args = (arch, ci_arch, build_type, base_root, diff_root, scratch_root, skip_baseline_build, skip_diffs, target_branch, commit_hash)
 
@@ -235,7 +239,7 @@ def baseline_build():
     # Change directory to the baseline root
 
     cwd = os.getcwd()
-    log('[cd] ' + baseCoreClrPath)
+    log('[cd] %s' % baseCoreClrPath)
     if not testing:
         os.chdir(baseCoreClrPath)
 
@@ -258,7 +262,7 @@ def baseline_build():
         buildOpts = 'cross crosscomponent'
         scriptPath = baseCoreClrPath
 
-    # Build a checked diff jit 
+    # Build a checked baseline jit 
 
     if Is_windows:
         command = 'set __TestIntermediateDir=int&&build.cmd %s checked skiptests skipbuildpackages' % arch
@@ -295,7 +299,7 @@ def baseline_build():
 
     # After baseline build, change directory back to where we started
 
-    log('[cd] ' + cwd)
+    log('[cd] %s' % cwd)
     if not testing:
         os.chdir(cwd)
 
@@ -319,14 +323,44 @@ def do_pmi_diffs():
     jitutilsPath = os.path.abspath(os.path.join(scratch_root, '_j'))
     asmRootPath = os.path.abspath(os.path.join(scratch_root, '_asm'))
 
+    dotnet_tool = 'dotnet.exe' if Is_windows else 'dotnet'
+
     # Make sure the temporary directories do not exist. If they do already, delete them.
 
     if not testing:
+        # If we can't delete the dotnet tree, it might be because a previous run failed or was
+        # cancelled, and the build servers are still running. Try to stop it if that happens.
         if os.path.isdir(dotnetcliPath):
-            shutil.rmtree(dotnetcliPath, onerror=del_rw)
+            try:
+                log('Removing existing tree: %s' % dotnetcliPath)
+                shutil.rmtree(dotnetcliPath, onerror=del_rw)
+            except OSError:
+                if os.path.isfile(os.path.join(dotnetcliPath, dotnet_tool)):
+                    log('Failed to remove existing tree; trying to shutdown the dotnet build servers before trying again.')
+
+                    # Looks like the dotnet too is still there; try to run it to shut down the build servers.
+                    temp_env = my_env
+                    temp_env["PATH"] = dotnetcliPath + os.pathsep + my_env["PATH"]
+                    log('Shutting down build servers')
+                    command = ["dotnet", "build-server", "shutdown"]
+                    log('Invoking: %s' % (' '.join(command)))
+                    proc = subprocess.Popen(command, env=temp_env)
+                    output,error = proc.communicate()
+                    returncode = proc.returncode
+                    log('Return code = %s' % returncode)
+
+                    # Try again
+                    log('Trying again to remove existing tree: %s' % dotnetcliPath)
+                    shutil.rmtree(dotnetcliPath, onerror=del_rw)
+                else:
+                    log('Failed to remove existing tree')
+                    return 1
+
         if os.path.isdir(jitutilsPath):
+            log('Removing existing tree: %s' % jitutilsPath)
             shutil.rmtree(jitutilsPath, onerror=del_rw)
         if os.path.isdir(asmRootPath):
+            log('Removing existing tree: %s' % asmRootPath)
             shutil.rmtree(asmRootPath, onerror=del_rw)
 
         try:
@@ -384,7 +418,6 @@ def do_pmi_diffs():
 
     log('Unpacking .Net CLI')
 
-    dotnet = 'dotnet.exe' if Is_windows else 'dotnet'
     if not testing:
         if Is_windows:
             with zipfile.ZipFile(dotnetcliFilename, "r") as z:
@@ -394,7 +427,7 @@ def do_pmi_diffs():
             tar.extractall(dotnetcliPath)
             tar.close()
 
-        if not os.path.isfile(os.path.join(dotnetcliPath, dotnet)):
+        if not os.path.isfile(os.path.join(dotnetcliPath, dotnet_tool)):
             log('ERROR: did not extract .Net CLI from download')
             return 1
 
@@ -419,25 +452,26 @@ def do_pmi_diffs():
     # Change directory to the jitutils root
 
     cwd = os.getcwd()
-    log('[cd] ' + jitutilsPath)
+    log('[cd] %s' % jitutilsPath)
     if not testing:
         os.chdir(jitutilsPath)
 
     # Do "dotnet restore"
 
-    log('dotnet restore')
+    command = ["dotnet", "restore"]
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
-        proc = subprocess.Popen(["dotnet", "restore"], env=my_env)
+        proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
         log('Return code = %s' % returncode)
 
     # Do build
 
-    command = 'build.cmd' if Is_windows else 'build.sh'
-    log(command + ' -p')
+    command = ['build.cmd' if Is_windows else 'build.sh', '-p']
+    log('Invoking: %s' % (' '.join(command)))
     if not testing:
-        proc = subprocess.Popen([command, "-p"], env=my_env)
+        proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
         if returncode != 0:
@@ -468,13 +502,18 @@ def do_pmi_diffs():
 
     # After baseline build, change directory back to where we started
 
-    log('[cd] ' + cwd)
+    log('[cd] %s' % cwd)
     if not testing:
         os.chdir(cwd)
 
     #
     # Run PMI asm diffs
     #
+
+    # We continue through many failures, to get as much asm generated as possible. But make sure we return
+    # a failure code if there are any failures.
+
+    result = 0
 
     # First, generate the diffs
 
@@ -484,14 +523,22 @@ def do_pmi_diffs():
     # TODO: Fix issues when invoking this from a script:
     # 1. There is no way to turn off the progress output
     # 2. Make it easier to specify the exact directory you want output to go to?
+    # 3. run base and diff with a single command?
+    # 4. put base and diff in saner directory names.
 
-    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath]
+    altjit_args = []
+    if ci_arch is not None:
+        altjit_args = ["--altjit", "protononjit.dll"]
+
+    command = ["dotnet", jitDiffPath, "diff", "--pmi", "--corelib", "--diff", "--diff_root", diff_root, "--arch", arch, "--build", build_type, "--tag", "diff", "--output", asmRootPath] + altjit_args
     log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
         log('Return code = %s' % returncode)
+        if returncode != 0:
+            result = 1
 
     # Did we get any diffs?
 
@@ -509,6 +556,8 @@ def do_pmi_diffs():
         output,error = proc.communicate()
         returncode = proc.returncode
         log('Return code = %s' % returncode)
+        if returncode != 0:
+            result = 1
 
     # Did we get any diffs?
 
@@ -518,9 +567,9 @@ def do_pmi_diffs():
         return 1
 
     # Do the jit-analyze comparison:
-    #   dotnet c:\gh\jitutils\bin\jit-analyze.dll --diff f:\output\diffs\diff\diff --base f:\output\diffs\base\diff --recursive
+    #   dotnet c:\gh\jitutils\bin\jit-analyze.dll --base f:\output\diffs\base\diff --recursive --diff f:\output\diffs\diff\diff
 
-    command = ["dotnet", jitAnalyzePath, "--diff", diffOutputDir, "--base", baseOutputDir]
+    command = ["dotnet", jitAnalyzePath, "--base", baseOutputDir, "--diff", diffOutputDir]
     log('Invoking: %s' % (' '.join(command)))
     if not testing:
         proc = subprocess.Popen(command, env=my_env)
@@ -529,7 +578,7 @@ def do_pmi_diffs():
         log('Return code = %s' % returncode)
 
     # Shutdown the dotnet build servers before cleaning things up
-    # TODO: make this shutdown happen anytime after we're run any 'dotnet' commands. I.e., try/finally style.
+    # TODO: make this shutdown happen anytime after we've run any 'dotnet' commands. I.e., try/finally style.
 
     log('Shutting down build servers')
     command = ["dotnet", "build-server", "shutdown"]
@@ -540,7 +589,7 @@ def do_pmi_diffs():
         returncode = proc.returncode
         log('Return code = %s' % returncode)
 
-    return 0
+    return result
 
 ##########################################################################
 # Main
@@ -566,11 +615,11 @@ def main(args):
     # Check the diff layout directory before going too far.
 
     diff_layout_root = os.path.join(diff_root,
-                             'bin',
-                             'tests',
-                             '%s.%s.%s' % (clr_os, arch, build_type),
-                             'Tests',
-                             'Core_Root')
+                                    'bin',
+                                    'tests',
+                                    '%s.%s.%s' % (clr_os, arch, build_type),
+                                    'Tests',
+                                    'Core_Root')
 
     if not testing and not os.path.isdir(diff_layout_root):
        log('ERROR: diff test overlay not found or is not a directory: %s' % diff_layout_root)
@@ -607,11 +656,11 @@ def main(args):
     # Check that the baseline root directory was created.
 
     base_layout_root = os.path.join(baseCoreClrPath,
-                             'bin',
-                             'tests',
-                             '%s.%s.%s' % (clr_os, arch, build_type),
-                             'Tests',
-                             'Core_Root')
+                                    'bin',
+                                    'tests',
+                                    '%s.%s.%s' % (clr_os, arch, build_type),
+                                    'Tests',
+                                    'Core_Root')
 
     if not testing and not os.path.isdir(base_layout_root):
        log('ERROR: baseline test overlay not found or is not a directory: %s' % base_layout_root)
@@ -634,4 +683,5 @@ def main(args):
 if __name__ == '__main__':
     Args = parser.parse_args(sys.argv[1:])
     return_code = main(Args)
+    log('Exit code: %s' % return_code)
     sys.exit(return_code)
