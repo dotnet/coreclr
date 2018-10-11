@@ -3855,32 +3855,34 @@ void Compiler::optUnrollLoops()
 
         /* Phase 2 : Check for cache line limits */
         // The cache line is 64 bytes on morden AMD64 processors, so check that fits on cache line
-        unsigned int szTotalFetch = 0;
-        for (unsigned int szFetch : lpCntFetch)
         {
-            szTotalFetch += szFetch;
-        }
-
-        if (szTotalFetch < 64)
-        {
-            // this is maximum inner stmts to fits on cache line.
-            unsigned int cntCacheLim = 0;
-            for (unsigned int i = 0;; ++i)
+            unsigned int szTotalFetch = 0;
+            for (unsigned int szFetch : lpCntFetch)
             {
-                unsigned int n = 1 << i;
-                if (szTotalFetch * n < 64)
-                {
-                    cntCacheLim = n;
-                    continue;
-                }
-                break;
+                szTotalFetch += szFetch;
             }
 
-            // Check that threshold modifies something.
-            if (optUnrollCheckLimits(cntCacheLim, lpIter, lpCost, lpIsUnsafe, true))
+            if (szTotalFetch < 64)
             {
-                lpUnrollThreshold = cntCacheLim;
-                goto DO_UNROLL;
+                // this is maximum inner stmts to fits on cache line.
+                unsigned int cntCacheLim = 0;
+                for (unsigned int i = 0;; ++i)
+                {
+                    unsigned int n = 1 << i;
+                    if (szTotalFetch * n < 64)
+                    {
+                        cntCacheLim = n;
+                        continue;
+                    }
+                    break;
+                }
+
+                // Check that threshold modifies something.
+                if (optUnrollCheckLimits(cntCacheLim, lpIter, lpCost, lpIsUnsafe, true))
+                {
+                    lpUnrollThreshold = cntCacheLim;
+                    goto DO_UNROLL;
+                }
             }
         }
 
