@@ -347,7 +347,8 @@ def do_pmi_diffs():
                     proc = subprocess.Popen(command, env=temp_env)
                     output,error = proc.communicate()
                     returncode = proc.returncode
-                    log('Return code = %s' % returncode)
+                    if returncode != 0:
+                        log('Return code = %s' % returncode)
 
                     # Try again
                     log('Trying again to remove existing tree: %s' % dotnetcliPath)
@@ -464,7 +465,8 @@ def do_pmi_diffs():
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
-        log('Return code = %s' % returncode)
+        if returncode != 0:
+            log('Return code = %s' % returncode)
 
     # Do build
 
@@ -536,8 +538,8 @@ def do_pmi_diffs():
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
-        log('Return code = %s' % returncode)
         if returncode != 0:
+            log('Return code = %s' % returncode)
             result = 1
 
     # Did we get any diffs?
@@ -555,8 +557,8 @@ def do_pmi_diffs():
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
-        log('Return code = %s' % returncode)
         if returncode != 0:
+            log('Return code = %s' % returncode)
             result = 1
 
     # Did we get any diffs?
@@ -575,7 +577,8 @@ def do_pmi_diffs():
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
-        log('Return code = %s' % returncode)
+        if returncode != 0:
+            log('Return code = %s' % returncode)
 
     # Shutdown the dotnet build servers before cleaning things up
     # TODO: make this shutdown happen anytime after we've run any 'dotnet' commands. I.e., try/finally style.
@@ -587,7 +590,8 @@ def do_pmi_diffs():
         proc = subprocess.Popen(command, env=my_env)
         output,error = proc.communicate()
         returncode = proc.returncode
-        log('Return code = %s' % returncode)
+        if returncode != 0:
+            log('Return code = %s' % returncode)
 
     return result
 
