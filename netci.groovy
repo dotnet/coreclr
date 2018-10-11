@@ -1239,8 +1239,8 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
     assert false
 }
 
-def static getTestArtifactsZipFileName(def osGroup, def architecture, def configuration) {
-    return "bin-tests-${osGroup}.${architecture}.${configuration}.zip"
+def static getTestArtifactsTgzFileName(def osGroup, def architecture, def configuration) {
+    return "bin-tests-${osGroup}.${architecture}.${configuration}.tgz"
 }
 
 // We have a limited amount of some hardware. For these, scale back the periodic testing we do,
@@ -2419,9 +2419,9 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
                         // Archive the bin/tests folder for *_tst jobs
-                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
-                        Utilities.addArchival(newJob, "${testArtifactsZipFileName}", "")
+                        def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                        buildCommands += "tar -czf ${testArtifactsTgzFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
+                        Utilities.addArchival(newJob, "${testArtifactsTgzFileName}", "")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
@@ -2588,10 +2588,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross ${testBuildOpts}"
 
                         // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
-                        def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                        buildCommands += "zip -r ${testArtifactsZipFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
+                        def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                        buildCommands += "tar -czf ${testArtifactsTgzFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
 
-                        Utilities.addArchival(newJob, "${testArtifactsZipFileName}", "")
+                        Utilities.addArchival(newJob, "${testArtifactsTgzFileName}", "")
                     }
 
                     // Archive the build logs from both product and test builds.
@@ -3354,8 +3354,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
                 }
                 else {
-                    def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/${testArtifactsZipFileName}")
+                    def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/${testArtifactsTgzFileName}")
                 }
             }
 
@@ -3388,8 +3388,8 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
             else {
-                def testArtifactsZipFileName = getTestArtifactsZipFileName(osGroup, architecture, configuration)
-                shell("unzip -q -o ./${testArtifactsZipFileName} || exit 0") // unzips to ./bin/tests/${osGroup}.${architecture}.${configuration}
+                def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                shell("tar -xzf ./${testArtifactsTgzFileName} || exit 0") // extracts to ./bin/tests/${osGroup}.${architecture}.${configuration}
             }
 
             // Execute the tests
