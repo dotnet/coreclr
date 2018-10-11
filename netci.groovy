@@ -1738,7 +1738,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 triggerString += "\\W+${scenario}"
             }
 
-            if (configuration == 'Debug') {
+            if (scenario == 'pmi_asm_diffs') {
+                // Don't add the "Build and Test" part
+            }
+            else if (configuration == 'Debug') {
                 contextString += " Build"
                 triggerString += "\\W+Build"
             }
