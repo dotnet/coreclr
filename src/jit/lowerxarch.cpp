@@ -417,19 +417,19 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
 
         // The code generator will push these fields in reverse order by offset. Reorder the list here s.t. the order
         // of uses is visible to LSRA.
-        unsigned          fieldCount = 0;
-        GenTreeFieldList* head       = nullptr;
-        for (GenTreeFieldList *current = fieldList, *next; current != nullptr; current = next)
+        unsigned               fieldCount = 0;
+        GenTreeFieldList::Use* head       = nullptr;
+        for (GenTreeFieldList::Use *current = fieldList->gtUses, *next; current != nullptr; current = next)
         {
-            next = current->Rest();
+            next = current->GetNext();
 
             // First, insert the field node into the sorted list.
-            GenTreeFieldList* prev = nullptr;
-            for (GenTreeFieldList* cursor = head;; cursor = cursor->Rest())
+            GenTreeFieldList::Use* prev = nullptr;
+            for (GenTreeFieldList::Use* cursor = head;; cursor = cursor->GetNext())
             {
                 // If the offset of the current list node is greater than the offset of the cursor or if we have
                 // reached the end of the list, insert the current node before the cursor and terminate.
-                if ((cursor == nullptr) || (current->gtFieldOffset > cursor->gtFieldOffset))
+                if ((cursor == nullptr) || (current->GetOffset() > cursor->GetOffset()))
                 {
                     if (prev == nullptr)
                     {
@@ -438,10 +438,10 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
                     }
                     else
                     {
-                        prev->Rest() = current;
+                        prev->SetNext(current);
                     }
 
-                    current->Rest() = cursor;
+                    current->SetNext(cursor);
                     break;
                 }
             }
@@ -458,36 +458,22 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
         // the maximum size of a field list grows significantly, we will need to reevaluate it.
         assert(fieldCount <= 8);
 
-        // The sort above may have changed which node is at the head of the list. Update the PUTARG_STK node if
-        // necessary.
-        if (head != fieldList)
+        if (head != fieldList->gtUses)
         {
-            head->gtFlags |= GTF_FIELD_LIST_HEAD;
-            head->SetContained();
-
-            fieldList->ClearContained();
-            fieldList->gtFlags &= ~GTF_FIELD_LIST_HEAD;
-
-#ifdef DEBUG
-            head->gtSeqNum = fieldList->gtSeqNum;
-#endif // DEBUG
-
-            BlockRange().InsertAfter(fieldList, head);
-            BlockRange().Remove(fieldList);
-
-            fieldList         = head;
-            putArgStk->gtOp1  = fieldList;
-            putArgStk->gtType = fieldList->gtType;
+            fieldList->gtUses = head;
+            // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
+            // The type of the first field is used instead to match the old implementation.
+            fieldList->gtType = head->GetType();
         }
 
         // Now that the fields have been sorted, the kind of code we will generate.
         bool     allFieldsAreSlots = true;
         unsigned prevOffset        = putArgStk->getArgSize();
-        for (GenTreeFieldList* current = fieldList; current != nullptr; current = current->Rest())
+        for (GenTreeFieldList::Use& use : fieldList->Uses())
         {
-            GenTree* const  fieldNode   = current->Current();
+            GenTree* const  fieldNode   = use.GetNode();
             const var_types fieldType   = fieldNode->TypeGet();
-            const unsigned  fieldOffset = current->gtFieldOffset;
+            const unsigned  fieldOffset = use.GetOffset();
             assert(fieldType != TYP_LONG);
 
             // We can treat as a slot any field that is stored at a slot boundary, where the previous

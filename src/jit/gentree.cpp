@@ -1549,6 +1549,9 @@ AGAIN:
         case GT_PHI:
             return GenTreePhi::Equals(op1->AsPhi(), op2->AsPhi());
 
+        case GT_FIELD_LIST:
+            return GenTreeFieldList::Equals(op1->AsFieldList(), op2->AsFieldList());
+
         case GT_CMPXCHG:
             return Compare(op1->gtCmpXchg.gtOpLocation, op2->gtCmpXchg.gtOpLocation) &&
                    Compare(op1->gtCmpXchg.gtOpValue, op2->gtCmpXchg.gtOpValue) &&
@@ -1767,6 +1770,16 @@ AGAIN:
 
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                if (gtHasRef(use.GetNode(), lclNum, defOnly))
+                {
+                    return true;
+                }
+            }
+            break;
+
+        case GT_FIELD_LIST:
+            for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
             {
                 if (gtHasRef(use.GetNode(), lclNum, defOnly))
                 {
@@ -2197,6 +2210,13 @@ AGAIN:
 
         case GT_PHI:
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                hash = genTreeHashAdd(hash, gtHashValue(use.GetNode()));
+            }
+            break;
+
+        case GT_FIELD_LIST:
+            for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
             {
                 hash = genTreeHashAdd(hash, gtHashValue(use.GetNode()));
             }
@@ -3505,7 +3525,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     break;
 
                 case GT_LIST:
-                case GT_FIELD_LIST:
                 case GT_NOP:
                     costEx = 0;
                     costSz = 0;
@@ -3879,7 +3898,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 goto DONE;
 
             case GT_LIST:
-            case GT_FIELD_LIST:
             {
                 const bool isListCallArgs = false;
                 const bool callArgsInRegs = false;
@@ -4170,7 +4188,6 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         break;
 
                     case GT_LIST:
-                    case GT_FIELD_LIST:
                         break;
 
                     default:
@@ -4376,6 +4393,20 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             level  = 2;
             costEx = 0;
             costSz = 0;
+            break;
+
+        case GT_FIELD_LIST:
+            level  = 0;
+            costEx = 0;
+            costSz = 0;
+            for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
+            {
+                unsigned opLevel = gtSetEvalOrder(use.GetNode());
+                level            = max(level, opLevel);
+                gtSetEvalOrder(use.GetNode());
+                costEx += use.GetNode()->GetCostEx();
+                costSz += use.GetNode()->GetCostSz();
+            }
             break;
 
         case GT_CMPXCHG:
@@ -4684,6 +4715,16 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             }
             break;
 
+        case GT_FIELD_LIST:
+            for (GenTreeFieldList::Use& use : parent->AsFieldList()->Uses())
+            {
+                if (this == use.GetNode())
+                {
+                    return &use.NodeRef();
+                }
+            }
+            break;
+
         case GT_CMPXCHG:
             if (this == parent->gtCmpXchg.gtOpLocation)
             {
@@ -4900,15 +4941,12 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
             }
             return false;
 
-        // Variadic nodes
-        case GT_FIELD_LIST:
-            return TryGetUseList(def, use);
-
+// Variadic nodes
 #if FEATURE_ARG_SPLIT
         case GT_PUTARG_SPLIT:
             if (this->AsUnOp()->gtOp1->gtOper == GT_FIELD_LIST)
             {
-                return this->AsUnOp()->gtOp1->TryGetUseList(def, use);
+                return this->AsUnOp()->gtOp1->TryGetUse(def, use);
             }
             if (def == this->AsUnOp()->gtOp1)
             {
@@ -4946,6 +4984,17 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
                 if (phiUse.GetNode() == def)
                 {
                     *use = &phiUse.NodeRef();
+                    return true;
+                }
+            }
+            return false;
+
+        case GT_FIELD_LIST:
+            for (GenTreeFieldList::Use& fieldUse : AsFieldList()->Uses())
+            {
+                if (fieldUse.GetNode() == def)
+                {
+                    *use = &fieldUse.NodeRef();
                     return true;
                 }
             }
@@ -5537,15 +5586,6 @@ GenTree::VtablePtr GenTree::GetVtableForOper(genTreeOps oper)
         case GT_NULLCHECK:
         {
             GenTreeIndir gt;
-            res = *reinterpret_cast<VtablePtr*>(&gt);
-        }
-        break;
-
-        // Handle GT_LIST (but not GT_FIELD_LIST, which is also in a GTSTRUCT_1).
-
-        case GT_LIST:
-        {
-            GenTreeArgList gt;
             res = *reinterpret_cast<VtablePtr*>(&gt);
         }
         break;
@@ -7193,13 +7233,6 @@ GenTree* Compiler::gtCloneExpr(
                 copy->gtOp.gtOp2 = tree->gtOp.gtOp2;
                 break;
 
-            case GT_FIELD_LIST:
-                copy = new (this, GT_FIELD_LIST) GenTreeFieldList(tree->gtOp.gtOp1, tree->AsFieldList()->gtFieldOffset,
-                                                                  tree->AsFieldList()->gtFieldType, nullptr);
-                copy->gtOp.gtOp2 = tree->gtOp.gtOp2;
-                copy->gtFlags    = (copy->gtFlags & ~GTF_FIELD_LIST_HEAD) | (tree->gtFlags & GTF_FIELD_LIST_HEAD);
-                break;
-
             case GT_INDEX:
             {
                 GenTreeIndex* asInd = tree->AsIndex();
@@ -7470,6 +7503,22 @@ GenTree* Compiler::gtCloneExpr(
                 *prevUse = new (this, CMK_ASTNode)
                     GenTreePhi::Use(gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal), *prevUse);
                 prevUse = &((*prevUse)->NextRef());
+            }
+        }
+        break;
+
+        case GT_FIELD_LIST:
+        {
+            copy                         = new (this, GT_FIELD_LIST) GenTreeFieldList();
+            copy->gtType                 = tree->gtType;
+            GenTreeFieldList::Use** tail = &copy->AsFieldList()->gtUses;
+            for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
+            {
+                *tail = new (this, CMK_ASTNode)
+                    GenTreeFieldList::Use(gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal), use.GetOffset(),
+                                          use.GetType());
+                copy->gtFlags |= (*tail)->GetNode()->gtFlags & GTF_ALL_EFFECT;
+                tail = &((*tail)->NextRef());
             }
         }
         break;
@@ -8258,6 +8307,16 @@ unsigned GenTree::NumChildren()
                 return count;
             }
 
+            case GT_FIELD_LIST:
+            {
+                unsigned count = 0;
+                for (GenTreeFieldList::Use& use : AsFieldList()->Uses())
+                {
+                    count++;
+                }
+                return count;
+            }
+
             case GT_CMPXCHG:
                 return 3;
 
@@ -8373,6 +8432,17 @@ GenTree* GenTree::GetChild(unsigned childNum)
         {
             case GT_PHI:
                 for (GenTreePhi::Use& use : AsPhi()->Uses())
+                {
+                    if (childNum == 0)
+                    {
+                        return use.GetNode();
+                    }
+                    childNum--;
+                }
+                unreached();
+
+            case GT_FIELD_LIST:
+                for (GenTreeFieldList::Use& use : AsFieldList()->Uses())
                 {
                     if (childNum == 0)
                     {
@@ -8635,11 +8705,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             }
             return;
 
-        // Variadic nodes
-        case GT_FIELD_LIST:
-            SetEntryStateForList(m_node->AsArgList());
-            return;
-
+// Variadic nodes
 #ifdef FEATURE_SIMD
         case GT_SIMD:
             if (m_node->AsSIMD()->gtSIMDIntrinsicID == SIMDIntrinsicInitN)
@@ -8685,6 +8751,12 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         // Special nodes
+        case GT_FIELD_LIST:
+            m_statePtr = m_node->AsFieldList()->gtUses;
+            m_advance  = &GenTreeUseEdgeIterator::AdvanceFieldList;
+            AdvanceFieldList();
+            return;
+
         case GT_PHI:
             m_statePtr = m_node->AsPhi()->gtUses;
             m_advance  = &GenTreeUseEdgeIterator::AdvancePhi;
@@ -8899,6 +8971,25 @@ void GenTreeUseEdgeIterator::AdvanceStoreDynBlk()
     }
 
     assert(*m_edge != nullptr);
+}
+
+//------------------------------------------------------------------------
+// GenTreeUseEdgeIterator::AdvanceFieldList: produces the next operand of a FieldList node and advances the state.
+//
+void GenTreeUseEdgeIterator::AdvanceFieldList()
+{
+    assert(m_state == 0);
+
+    if (m_statePtr == nullptr)
+    {
+        m_state = -1;
+    }
+    else
+    {
+        GenTreeFieldList::Use* currentUse = static_cast<GenTreeFieldList::Use*>(m_statePtr);
+        m_edge                            = &currentUse->NodeRef();
+        m_statePtr                        = currentUse->GetNext();
+    }
 }
 
 //------------------------------------------------------------------------
@@ -9747,15 +9838,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
             case GT_JCMP:
                 printf((tree->gtFlags & GTF_JCMP_TST) ? "T" : "C");
                 printf((tree->gtFlags & GTF_JCMP_EQ) ? "EQ" : "NE");
-                goto DASH;
-
-            case GT_FIELD_LIST:
-                if (tree->gtFlags & GTF_FIELD_LIST_HEAD)
-                {
-                    printf("H");
-                    --msgLength;
-                    break;
-                }
                 goto DASH;
 
             default:
@@ -10799,11 +10881,6 @@ void Compiler::gtDispTree(GenTree*     tree,
                 }
             }
         }
-        else if (tree->OperIsFieldList())
-        {
-            printf(" %s at offset %d", varTypeName(tree->AsFieldList()->gtFieldType),
-                   tree->AsFieldList()->gtFieldOffset);
-        }
 #if FEATURE_PUT_STRUCT_ARG_STK
         else if (tree->OperGet() == GT_PUTARG_STK)
         {
@@ -10994,6 +11071,20 @@ void Compiler::gtDispTree(GenTree*     tree,
 
     switch (tree->gtOper)
     {
+        case GT_FIELD_LIST:
+            gtDispCommonEndLine(tree);
+
+            if (!topOnly)
+            {
+                for (GenTreeFieldList::Use& use : tree->AsFieldList()->Uses())
+                {
+                    char offset[32];
+                    sprintf_s(offset, sizeof(offset), "ofs %u", use.GetOffset());
+                    gtDispChild(use.GetNode(), indentStack, (use.GetNext() == nullptr) ? IIArcBottom : IIArc, offset);
+                }
+            }
+            break;
+
         case GT_PHI:
             gtDispCommonEndLine(tree);
 
