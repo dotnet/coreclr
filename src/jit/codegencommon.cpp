@@ -2269,9 +2269,9 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         }
 
 #if defined(_TARGET_WINDOWS_)
-        printf(" - Windows")
+        printf(" - Windows");
 #elif defined(_TARGET_UNIX_)
-        printf(" - Unix")
+        printf(" - Unix");
 #endif
 
         printf("\n");
