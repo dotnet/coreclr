@@ -23,8 +23,6 @@ WARNING:   When setting properties based on their current state (for example:
   <Target Name="GetJitDisasmBashScript"
           Returns="$(JitDisasmBashScript)">
     <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace("\","/"))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
       <JitDisasmOut>$([MSBuild]::MakeRelative($(OutputPath), $(BaseOutputPathWithConfig)dasm\$(BuildProjectRelativeDir)).Replace("\","/"))</JitDisasmOut>
       <JitDisasmBashScript>
 <![CDATA[
@@ -48,8 +46,6 @@ fi
   <Target Name="GetJitDisasmBatchScript"
           Returns="$(JitDisasmBatchScript)">
     <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
       <JitDisasmOut>$([MSBuild]::MakeRelative($(OutputPath), $(BaseOutputPathWithConfig)dasm\$(BuildProjectRelativeDir)))</JitDisasmOut>
       <JitDisasmBatchScript>
 <![CDATA[
@@ -72,8 +68,6 @@ if defined RunningJitDisasm (
       Name="GetIlasmRoundTripBashScript"
       Returns="$(IlasmRoundTripBashScript)">
     <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)).Replace("\","/"))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
       <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
       <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
 
@@ -112,8 +106,6 @@ fi
   <Target Name="GetIlasmRoundTripBatchScript"
           Returns="$(IlasmRoundTripBatchScript);$(BatchIlrtTestLaunchCmds)">
     <PropertyGroup>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'RunOnly'">$([MSBuild]::MakeRelative($(OutputPath), $(_CLRTestToRunFileFullPath)))</InputAssemblyName>
-      <InputAssemblyName Condition="'$(CLRTestKind)' == 'BuildAndRun'">$(MSBuildProjectName).exe</InputAssemblyName>
       <DisassemblyName>$(MSBuildProjectName).dasm.il</DisassemblyName>
       <TargetAssemblyName>$(MSBuildProjectName).asm.exe</TargetAssemblyName>
 
