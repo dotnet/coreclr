@@ -2263,6 +2263,16 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         {
             printf("generic ARM64 CPU");
         }
+        else
+        {
+            printf("unknown architecture");
+        }
+
+#if defined(_TARGET_WINDOWS_)
+        printf(" - Windows")
+#elif defined(_TARGET_UNIX_)
+        printf(" - Unix")
+#endif
 
         printf("\n");
 
