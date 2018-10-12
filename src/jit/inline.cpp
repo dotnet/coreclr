@@ -1176,7 +1176,6 @@ InlineContext* InlineStrategy::NewRoot()
 // and link it into the context tree
 //
 // Arguments:
-//    stmt       - statement containing call being inlined
 //    inlineInfo - information about this inline
 //
 // Return Value:
@@ -1202,7 +1201,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
     calleeContext->m_Sibling       = parentContext->m_Child;
     parentContext->m_Child         = calleeContext;
     calleeContext->m_Child         = nullptr;
-    calleeContext->m_Offset        = stmt->AsStmt()->gtStmtILoffsx;
+    calleeContext->m_Offset        = stmt->gtStmtILoffsx;
     calleeContext->m_Observation   = inlineInfo->inlineResult->GetObservation();
     calleeContext->m_Success       = true;
     calleeContext->m_Devirtualized = originalCall->IsDevirtualized();
@@ -1244,8 +1243,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 //    inlineResult - inlineResult for the attempt
 //
 // Return Value:
-//    A new InlineContext for diagnostic purposes, or nullptr if
-//    the desired context could not be created.
+//    A new InlineContext for diagnostic purposes
 
 InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlineResult)
 {
