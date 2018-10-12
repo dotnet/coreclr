@@ -87,7 +87,9 @@ if NOT exist "%DOTNET_LOCAL_PATH%" (
 
 REM We do not need the build tools for arm64/x86
 if /i "%_Arch%" == "x86" (
-  goto :EOF
+  if defined __SkipBuildTools__ (
+    goto :EOF
+  )
 )
 
 if exist "%BUILD_TOOLS_PATH%" goto :afterbuildtoolsrestore
