@@ -25,34 +25,34 @@ class Test
         public System.UInt16 wProcessorRevision;
     }
 
-    [DllImport(@"DllImportPath_Local", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath_Local", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Local1([In, Out]ref string strManaged);
 
-    [DllImport(@".\DllImportPath_Local", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@".\DllImportPath_Local", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Local2([In, Out]ref string strManaged);
 
-    [DllImport(@"DllImportPath.Local.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath.Local.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_LocalWithDot1([In, Out]ref string strManaged);
 
-    [DllImport(@".\DllImportPath.Local.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@".\DllImportPath.Local.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_LocalWithDot2([In, Out]ref string strManaged);
 
-    [DllImport(@".\RelativeNative\..\DllImportPath_Relative", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@".\RelativeNative\..\DllImportPath_Relative", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative1([In, Out]ref string strManaged);
 
-    [DllImport(@"..\DllImportPathTest\DllImportPath_Relative.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative2([In, Out]ref string strManaged);
 
-    [DllImport(@"..\DllImportPathTest\DllImportPath_Relative", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"..\DllImportPathTest\DllImportPath_Relative", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative3([In, Out]ref string strManaged);
 
-    [DllImport(@".\..\DllImportPathTest\DllImportPath_Relative.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@".\..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative4([In, Out]ref string strManaged);
 
-    [DllImport(@"DllImportPath_U�n�i�c�o�d�e.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath_U�n�i�c�o�d�e.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
     
-    [DllImport(@"Moved_DllImportPath_PathEnv", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"Moved_DllImportPath_PathEnv", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_PathEnv([In, Out]ref string strManaged);
 
     static bool DllExistsOnLocalPath()

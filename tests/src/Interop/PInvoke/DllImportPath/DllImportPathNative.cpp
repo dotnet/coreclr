@@ -11,7 +11,7 @@ size_t lenstrManaged = 7; // the length of strManaged
 LPWSTR strNative = L" Native\0String\0";
 size_t lenstrNative = 7; //the len of strNative
 
-extern "C" DLL_EXPORT bool MarshalStringPointer_InOut(/*[in,out]*/LPWSTR *s)
+extern "C" DLL_EXPORT bool STDMETHODCALLTYPE MarshalStringPointer_InOut(/*[in,out]*/LPWSTR *s)
 {
     //Check the Input
     size_t len = wcslen(*s);
