@@ -7,7 +7,6 @@ using System.Runtime.InteropServices;
 using System;
 using System.Reflection;
 using System.Text;
-using CoreFXTestLibrary;
 
 class LCIDTest
 {
@@ -32,116 +31,154 @@ class LCIDTest
     private static extern StringBuilder MarshalStringBuilder_LCID_PreserveSig_SetLastError([In, Out][MarshalAs(UnmanagedType.LPStr)]StringBuilder s);
 
     //LCID as first argument
-    static void Scenario1()
+    static bool Scenario1()
     {
         Console.WriteLine("Scenairo1 started");
 
         string strManaged = "Managed";
-        string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
         string strNative = " Native";
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
-        StringBuilder strPara1 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet1 = MarshalStringBuilder_LCID_As_First_Argument(strPara1);
+        StringBuilder strPara = new StringBuilder(strManaged, strManaged.Length);
+        StringBuilder strRet = MarshalStringBuilder_LCID_As_First_Argument(strPara);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet1.ToString(), "Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara1.ToString(), "Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Passed string is wrong");
-        
-        Console.WriteLine("Scenairo1 end");
+        if (expectedStrRet.ToString() != strRet.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Return string is wrong");
+            return false;
+        }
+
+        if (strBNative.ToString() != strPara.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_First_Argument[Managed Side],The Passed string is wrong");
+            return false;
+        }
+
+        Console.WriteLine("Scenairo1 success");
+        return true;
     }
 
     //LCID as last argument
-    static void Scenario2()
+    static bool Scenario2()
     {
         Console.WriteLine("Scenairo2 started");
-        
+
         string strManaged = "Managed";
-        string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
         string strNative = " Native";
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
-        StringBuilder strPara2 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet2 = MarshalStringBuilder_LCID_As_Last_Argument(strPara2);
+        StringBuilder strPara = new StringBuilder(strManaged, strManaged.Length);
+        StringBuilder strRet = MarshalStringBuilder_LCID_As_Last_Argument(strPara);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet2.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara2.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Passed string is wrong");
+        if (expectedStrRet.ToString() != strRet.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Return string is wrong");
+            return false;
+        }
+
+        if (strBNative.ToString() != strPara.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument[Managed Side],The Passed string is wrong");
+            return false;
+        }
 
         //Verify that error value is set.
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(0, result, "MarshalStringBuilder_LCID_As_Last_Argument: GetLasterror returned wrong error code");
-        
-        Console.WriteLine("Scenairo2 end");
+        if (result != 0)
+        {
+            Console.WriteLine("MarshalStringBuilder_LCID_As_Last_Argument: GetLasterror returned wrong error code");
+            return false;
+        }
+
+        Console.WriteLine("Scenairo2 success");
+        return true;
     }
 
     //SetLastError =true
-    static void Scearnio3()
+    static bool Scenario3()
     {
         Console.WriteLine("Scenairo3 started");
-        
+
         string strManaged = "Managed";
-        string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
         string strNative = " Native";
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
-        StringBuilder strPara3 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet3 = MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(strPara3);
+        StringBuilder strPara = new StringBuilder(strManaged, strManaged.Length);
+        StringBuilder strRet = MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(strPara);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet3.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara3.ToString(), "Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Passed string is wrong");
+        if (expectedStrRet.ToString() != strRet.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Return string is wrong");
+            return false;
+        }
 
-        //Verify that error value is set
+        if (strBNative.ToString() != strPara.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Passed string is wrong");
+            return false;
+        }
+
+        //Verify that error value is set.
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(1090, result, "MarshalStringBuilder_LCID_As_Last_Argument_SetLastError : GetLasterror returned wrong error code");
+        if (result != 1090)
+        {
+            Console.WriteLine("MarshalStringBuilder_LCID_As_Last_Argument_SetLastError: GetLasterror returned wrong error code");
+            return false;
+        }
 
-        Console.WriteLine("Scenairo3 end");
+        Console.WriteLine("Scenairo3 success");
+        return true;
     }
 
     //PreserveSig = false, SetLastError = true
-    static void Scenario4()
+    static bool Scenario4()
     {
         Console.WriteLine("Scenairo4 started");
-        
+
         string strManaged = "Managed";
-        string strRet = "a";
         StringBuilder expectedStrRet = new StringBuilder("a", 1);
         string strNative = " Native";
         StringBuilder strBNative = new StringBuilder(" Native", 7);
 
-        StringBuilder strPara4 = new StringBuilder(strManaged, strManaged.Length);
-        StringBuilder strRet4 = MarshalStringBuilder_LCID_PreserveSig_SetLastError(strPara4);
+        StringBuilder strPara = new StringBuilder(strManaged, strManaged.Length);
+        StringBuilder strRet = MarshalStringBuilder_LCID_PreserveSig_SetLastError(strPara);
 
-        Assert.AreEqual(expectedStrRet.ToString(), strRet4.ToString(), "Method MarshalStringBuilder_LCID_PreserveSig_SetLastError[Managed Side],The Return string is wrong");
-        Assert.AreEqual(strBNative.ToString(), strPara4.ToString(), "Method MarshalStringBuilder_LCID_PreserveSig_SetLastError[Managed Side],The Passed string is wrong");
 
-        //Verify that error value is set
+        if (expectedStrRet.ToString() != strRet.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Return string is wrong");
+            return false;
+        }
+
+        if (strBNative.ToString() != strPara.ToString())
+        {
+            Console.WriteLine("Method MarshalStringBuilder_LCID_As_Last_Argument_SetLastError[Managed Side],The Passed string is wrong");
+            return false;
+        }
+
+        //Verify that error value is set.
         int result = Marshal.GetLastWin32Error();
-        Assert.AreEqual(1090, result, "MarshalStringBuilder_LCID_PreserveSig_SetLastError : GetLasterror returned wrong error code");
-
-        Console.WriteLine("Scenairo4 end");
+        if (result != 1090)
+        {
+            Console.WriteLine("MarshalStringBuilder_LCID_As_Last_Argument_SetLastError: GetLasterror returned wrong error code");
+            return false;
+        }
+        
+        Console.WriteLine("Scenairo4 success");
+        return true;
     }
 
     public static int Main(string[] args)
     {
-        try
-        {
-            //LCID as first argument
-            Scenario1();
-            //LCID as last argument
-            Scenario2();
-            //SetLastError =true
-            Scearnio3();
-            //PreserveSig = false, SetLastError = true
-            Scenario4();
+        var success = true;
+        success = success && Scenario1();
+        success = success && Scenario2();
+        success = success && Scenario3();
+        success = success && Scenario4();
 
-            return 100;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"Test Failure: {e}");
-            return 101;
-        }
+        return success ? 100 : 101;
     }
 }

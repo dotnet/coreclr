@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <stdio.h>
-#include <windows.h>
 #include <tchar.h>
 #include <xplatform.h>
 
@@ -16,25 +15,17 @@ char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 char* strNative = " Native\0String\0";
 size_t lenstrNative = 7; //the len of strNative
 
-extern "C" LPSTR ReturnString()
+LPSTR ReturnString()
 {
-    size_t lenstrReturn = strlen(strReturn);
-    LPSTR ret = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrReturn+1)));
-    memset(ret,'\0',lenstrReturn+1);
-    strncpy_s(ret,lenstrReturn + 1,strReturn,1);
-    return ret;
+    return strReturn;
 }
 
-extern "C" LPSTR ReturnFalseString()
+LPSTR ReturnFalseString()
 {
-    size_t lenstrFalseReturn = strlen(strFalseReturn);
-    LPSTR ret = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrFalseReturn+1)));
-    memset(ret,'\0',lenstrFalseReturn+1);
-    strncpy_s(ret,lenstrFalseReturn + 1,strFalseReturn,1);
-    return ret;
+    return strFalseReturn;
 }
 
-extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
+void PrintExpectedAndActual(LPSTR s, size_t len)
 {
     //Expected
     printf("Expected:");
@@ -49,7 +40,7 @@ extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
     printf("\tThe length of Actual:%d\n",static_cast<int>(len));
 }
 
-extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_First_Argument(int lcid, LPSTR s)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE MarshalStringBuilder_LCID_As_First_Argument(int lcid, LPSTR s)
 {
     printf("LCID:%d\n\n",lcid);
 
@@ -69,7 +60,7 @@ extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_First_Argument(int lcid
     return ReturnString();
 }
 
-extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(LPSTR s,int lcid)
+extern "C" DLL_EXPORT LPSTR STDMETHODCALLTYPE MarshalStringBuilder_LCID_As_Last_Argument_SetLastError(LPSTR s,int lcid)
 {	
     //Check the Input
     size_t len = strlen(s);
@@ -88,7 +79,7 @@ extern "C" DLL_EXPORT LPSTR MarshalStringBuilder_LCID_As_Last_Argument_SetLastEr
     return ReturnString();
 }
 
-extern "C" DLL_EXPORT HRESULT WINAPI MarshalStringBuilder_LCID_PreserveSig_SetLastError(LPSTR s, int lcid, LPSTR * retVal)
+extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE MarshalStringBuilder_LCID_PreserveSig_SetLastError(LPSTR s, int lcid, LPSTR * retVal)
 {
     //Check the Input
     size_t len = strlen(s);
@@ -96,11 +87,7 @@ extern "C" DLL_EXPORT HRESULT WINAPI MarshalStringBuilder_LCID_PreserveSig_SetLa
     {
         printf("Error in Function MarshalStringBuilder_LCID_PreserveSig_SetLastError\n");
         PrintExpectedAndActual(s, len);
-
-        size_t lenstrFalseReturn = strlen(ReturnFalseString());
-        *retVal = (LPSTR)CoTaskMemAlloc(sizeof(char)*(lenstrFalseReturn+1));
-        memset(*retVal,'\0',lenstrFalseReturn+1);
-        strncpy_s(*retVal,lenstrFalseReturn,ReturnFalseString(),lenstrFalseReturn);
+        *retVal = ReturnFalseString();
 
         return S_FALSE;
     }
@@ -111,10 +98,7 @@ extern "C" DLL_EXPORT HRESULT WINAPI MarshalStringBuilder_LCID_PreserveSig_SetLa
     //Set the error code.
     SetLastError(1090);
 
-    size_t lenstrReturn = strlen(strReturn);
-    *retVal = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrReturn+1)));
-    memset(*retVal,'\0',lenstrReturn+1);
-    strncpy_s(*retVal,lenstrReturn + 1,strReturn,lenstrReturn);
+    *retVal = ReturnString();
 
     return S_OK;
 }
