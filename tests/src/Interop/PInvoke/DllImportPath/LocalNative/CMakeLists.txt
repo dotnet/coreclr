@@ -10,5 +10,6 @@ set(SOURCES
 # Additional files to reference: 
 # add the executable 
 add_library (DllImportPath_Local SHARED ${SOURCES}) 
+target_link_libraries(DllImportPath_Local ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
 install (TARGETS DllImportPath_Local DESTINATION bin) 

@@ -1,7 +1,7 @@
 ﻿#VCXPROJ 
 # Escaped UTF-16 name: DllImportPath_U&#xbb;n&#xbb;i&#xbb;c&#xbb;o&#xbb;d&#xbb;e
 cmake_minimum_required (VERSION 2.6) 
-project (DllImportPath_Relative) 
+project (DllImportPath_PathEnv) 
 include ("${CLR_INTEROP_TEST_ROOT}/Interop.cmake") 
 include_directories(${INC_PLATFORM_DIR}) 
 set(SOURCES 
@@ -9,7 +9,7 @@ set(SOURCES
 ) 
 # Additional files to reference: 
 # add the executable 
-add_library (DllImportPath_Relative SHARED ${SOURCES}) 
-target_link_libraries(DllImportPath_Relative ${LINK_LIBRARIES_ADDITIONAL}) 
+add_library (DllImportPath_PathEnv SHARED ${SOURCES}) 
+target_link_libraries(DllImportPath_PathEnv ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
-install (TARGETS DllImportPath_Relative DESTINATION bin) 
+install (TARGETS DllImportPath_PathEnv DESTINATION bin) 

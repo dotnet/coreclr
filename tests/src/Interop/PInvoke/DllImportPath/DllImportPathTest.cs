@@ -3,8 +3,9 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
 
 class Test
 {
@@ -50,105 +51,207 @@ class Test
 
     [DllImport(@"DllImportPath_U�n�i�c�o�d�e.dll", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
+    
+    [DllImport(@"Moved_DllImportPath_PathEnv", CallingConvention = CallingConvention.Winapi, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    private static extern bool MarshalStringPointer_InOut_PathEnv([In, Out]ref string strManaged);
 
-    [DllImport(@"api-ms-win-core-sysinfo-l1-2-0.dll", CallingConvention = CallingConvention.Winapi, SetLastError = false, PreserveSig = true)]
-    public static extern void GetNativeSystemInfo(ref SYSTEM_INFO a);
-
-    [DllImport(@"api-ms-win-core-errorhandling-l1-1-0", CallingConvention = CallingConvention.Winapi, SetLastError = false, PreserveSig = true)]
-    public static extern void SetLastError(System.Int32 a);
-
-    [DllImport(@"api-ms-win-core-errorhandling-l1-1-0", CallingConvention = CallingConvention.Winapi, SetLastError = false, PreserveSig = true)]
-    public static extern System.Int32 GetLastError();
-
-    static void DllExistsOnLocalPath()
+    static bool DllExistsOnLocalPath()
     {
         string strManaged = "Managed";
-        string strNative = " Native";
+        string native = " Native";
 
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Local1].");
         string strPara1 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Local1(ref strPara1), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara1, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Local1(ref strPara1))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara1)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
 
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Local2]");
         string strPara2 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Local2(ref strPara2), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara2, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Local2(ref strPara2))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara2)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
 
         Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot1]");
         string strPara3 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_LocalWithDot1(ref strPara3), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara3, "The passed string is wrong");
+        if (!MarshalStringPointer_InOut_LocalWithDot1(ref strPara3))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara3)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
 
         Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot2]");
         string strPara4 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_LocalWithDot2(ref strPara4), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara4, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_LocalWithDot2(ref strPara4))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara4)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
+
+        return true;
     }
 
-    static void DllExistsOnRelativePath()
+    static bool DllExistsOnRelativePath()
     {
         string strManaged = "Managed";
-        string strNative = " Native";
+        string native = " Native";
 
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative1]");
         string strPara5 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Relative1(ref strPara5), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara5, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Relative1(ref strPara5))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara5)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
         
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative2]");
         string strPara6 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Relative2(ref strPara6), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara6, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Relative2(ref strPara6))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara6)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
         
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative3]");
         string strPara7 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Relative3(ref strPara7), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara7, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Relative3(ref strPara7))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara7)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
+
         
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative4]");
         string strPara8 = strManaged;
-        Assert.IsTrue(MarshalStringPointer_InOut_Relative4(ref strPara8), "the return value is wrong");
-        Assert.AreEqual(strNative, strPara8, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Relative4(ref strPara8))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != strPara8)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
+
+        return true;
     }
 
-    static void DllExistsOnPathEnv()
+    private static void SetupPathEnvTest()
     {
-        Console.WriteLine("[Calling GetNativeSystemInfo]");
-        SYSTEM_INFO sysInfo = new SYSTEM_INFO();
-        GetNativeSystemInfo(ref sysInfo);
-        Assert.AreEqual<uint>((uint)Environment.ProcessorCount, sysInfo.dwNumberOfProcessors, "Method GetNativeSystemInfo, the number of processors reported is different.");
+        string subDirectoryName = "Subdirectory";
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var info = new DirectoryInfo(currentDirectory);
+        var subDirectory = info.CreateSubdirectory(subDirectoryName);
 
-        Console.WriteLine("[Calling SetLastError/GetLastError]");
-        int intError10 = 255;
-        SetLastError(intError10);
-        int intError11 = GetLastError();
-        Assert.AreEqual(intError10, intError11, "The value set by SetLastError and the value returned by GetLastError is different.");
+        var file = info.EnumerateFiles("DllImportPath_PathEnv*", SearchOption.TopDirectoryOnly).First();
+
+        var newFileLocation = Path.Combine(subDirectory.FullName, file.Name);
+
+        file.CopyTo(Path.Combine(subDirectory.FullName, $"Moved_{file.Name}"), true);
+
+        Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + $";{subDirectory.FullName}");
     }
 
-    static void DllExistsUnicode()
+    static bool DllExistsOnPathEnv()
+    {
+        SetupPathEnvTest();
+
+        string managed = "Managed";
+        string native = " Native";
+
+        Console.WriteLine("[Calling MarshalStringPointer_InOut_PathEnv]");
+        if (!MarshalStringPointer_InOut_PathEnv(ref managed))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != managed)
+        {
+            Console.WriteLine($"The passed string is wrong. Expected {native} got {managed}.");
+            return false;
+        }
+
+        return true;
+    }
+
+    static bool DllExistsUnicode()
     {
         string managed = "Managed";
         string native = " Native";
         
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Unicode]");
-        Assert.IsTrue(MarshalStringPointer_InOut_Unicode(ref managed), "the return value is wrong");
-        Assert.AreEqual(native, managed, "the passed string is wrong");
+        if (!MarshalStringPointer_InOut_Unicode(ref managed))
+        {
+            Console.WriteLine("Return value is wrong");
+            return false;
+        }
+
+        if (native != managed)
+        {
+            Console.WriteLine("The passed string is wrong");
+            return false;
+        }
+
+        return true;
     }
 
     public static int Main(string[] args)
     {
-        try
-        {
-            DllExistsOnLocalPath();
-            DllExistsOnRelativePath();
-            DllExistsUnicode();
-            DllExistsOnPathEnv();
-            
-            return 100;
-        } catch (Exception e){
-            Console.WriteLine($"Test Failure: {e}"); 
-            return 101; 
-        }
+        bool success = true;
+        success = success && DllExistsOnLocalPath();
+        success = success && DllExistsOnRelativePath();
+        success = success && DllExistsUnicode();
+        success = success && DllExistsOnPathEnv();
+        
+        return success ? 100 : 101;
     }
 }
