@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <tchar.h>
+#include <windows.h>
 #include <xplatform.h>
 
 char* strManaged = "Managed\0String\0";
@@ -15,17 +16,25 @@ char* strFalseReturn = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 char* strNative = " Native\0String\0";
 size_t lenstrNative = 7; //the len of strNative
 
-LPSTR ReturnString()
+extern "C" LPSTR ReturnString()
 {
-    return strReturn;
+    size_t lenstrReturn = strlen(strReturn);
+    LPSTR ret = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrReturn+1)));
+    memset(ret,'\0',lenstrReturn+1);
+    strncpy_s(ret,lenstrReturn + 1,strReturn,1);
+    return ret;
 }
 
-LPSTR ReturnFalseString()
+extern "C" LPSTR ReturnFalseString()
 {
-    return strFalseReturn;
+    size_t lenstrFalseReturn = strlen(strFalseReturn);
+    LPSTR ret = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrFalseReturn+1)));
+    memset(ret,'\0',lenstrFalseReturn+1);
+    strncpy_s(ret,lenstrFalseReturn + 1,strFalseReturn,1);
+    return ret;
 }
 
-void PrintExpectedAndActual(LPSTR s, size_t len)
+extern "C" void PrintExpectedAndActual(LPSTR s, size_t len)
 {
     //Expected
     printf("Expected:");
@@ -87,7 +96,11 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE MarshalStringBuilder_LCID_Preser
     {
         printf("Error in Function MarshalStringBuilder_LCID_PreserveSig_SetLastError\n");
         PrintExpectedAndActual(s, len);
-        *retVal = ReturnFalseString();
+
+        size_t lenstrFalseReturn = strlen(ReturnFalseString());
+        *retVal = (LPSTR)CoTaskMemAlloc(sizeof(char)*(lenstrFalseReturn+1));
+        memset(*retVal,'\0',lenstrFalseReturn+1);
+        strncpy_s(*retVal,lenstrFalseReturn,ReturnFalseString(),lenstrFalseReturn);
 
         return S_FALSE;
     }
@@ -98,7 +111,10 @@ extern "C" DLL_EXPORT HRESULT STDMETHODCALLTYPE MarshalStringBuilder_LCID_Preser
     //Set the error code.
     SetLastError(1090);
 
-    *retVal = ReturnString();
+    size_t lenstrReturn = strlen(ReturnString());
+    *retVal = (LPSTR)(CoTaskMemAlloc(sizeof(char)*(lenstrReturn+1)));
+    memset(*retVal,'\0',lenstrReturn+1);
+    strncpy_s(*retVal,lenstrReturn + 1,ReturnString(),lenstrReturn);
 
     return S_OK;
 }

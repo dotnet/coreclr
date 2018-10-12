@@ -12,7 +12,6 @@ list(APPEND LINK_LIBRARIES_ADDITIONAL platformdefines)
 SET(CLR_INTEROP_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(common)
-add_subdirectory(PInvoke/Attributes/LCID)
 add_subdirectory(NativeCallable)
 add_subdirectory(PrimitiveMarshalling/Bool)
 add_subdirectory(PrimitiveMarshalling/UIntPtr)
@@ -37,6 +36,8 @@ add_subdirectory(DllImportAttribute/FileNameContainDot)
 add_subdirectory(DllImportAttribute/Simple)
 
 if(WIN32)
+    add_subdirectory(PInvoke/Attributes/LCID)
+    
     add_subdirectory(COM/NativeServer)
     add_subdirectory(COM/NativeClients/Primitives)
     add_subdirectory(IJW/FakeMscoree)
