@@ -5575,7 +5575,7 @@ MethodTableBuilder::ProcessInexactMethodImpls()
                     continue;
 
                 // Otherwise, record the method impl discovery if the match is 
-                bmtMethodImpl->AddMethodImpl(*it, declMethod, GetStackingAllocator());
+                bmtMethodImpl->AddMethodImpl(*it, declMethod, bmtMetaData->rgMethodImplTokens[m].methodDecl, GetStackingAllocator());
             }
 
             if (!fMatchFound && bmtMetaData->rgMethodImplTokens[m].fThrowIfUnmatchedDuringInexactMethodImplProcessing)
@@ -5890,7 +5890,7 @@ MethodTableBuilder::ProcessMethodImpls()
                         BuildMethodTableThrowException(IDS_CLASSLOAD_MI_MUSTBEVIRTUAL, it.Token());
                     }
 
-                    bmtMethodImpl->AddMethodImpl(*it, declMethod, GetStackingAllocator());
+                    bmtMethodImpl->AddMethodImpl(*it, declMethod, mdDecl, GetStackingAllocator());
                 }
             }
         }
@@ -6201,6 +6201,7 @@ MethodTableBuilder::PlaceMethodImpls()
     DWORD dwMaxSlotSize = IsInterface() ? bmtMethod->dwNumberMethodImpls : bmtVT->cVirtualSlots;
 
     DWORD * slots = new (&GetThread()->m_MarshalAlloc) DWORD[dwMaxSlotSize];
+    mdToken * tokens = new (&GetThread()->m_MarshalAlloc) mdToken[dwMaxSlotSize];
     RelativePointer<MethodDesc *> * replaced = new (&GetThread()->m_MarshalAlloc) RelativePointer<MethodDesc*>[dwMaxSlotSize];
 
     DWORD iEntry = 0;
@@ -6214,6 +6215,8 @@ MethodTableBuilder::PlaceMethodImpls()
     // found on the body method desc.
     while (true)
     {   // collect information until we reach the next body
+
+        tokens[slotIndex] = bmtMethodImpl->GetDeclarationToken(iEntry);
 
         // Get the declaration part of the method impl. It will either be a token
         // (declaration is on this type) or a method desc.
@@ -6296,7 +6299,7 @@ MethodTableBuilder::PlaceMethodImpls()
         if(iEntry == bmtMethodImpl->pIndex)
         {
             // We hit the end of the list so dump the current data and leave
-            WriteMethodImplData(pCurImplMethod, slotIndex, slots, replaced);
+            WriteMethodImplData(pCurImplMethod, slotIndex, slots, tokens, replaced);
             break;
         }
         else
@@ -6306,7 +6309,7 @@ MethodTableBuilder::PlaceMethodImpls()
             if (pNextImplMethod != pCurImplMethod)
             {
                 // If we're moving on to a new body, dump the current data and reset the counter
-                WriteMethodImplData(pCurImplMethod, slotIndex, slots, replaced);
+                WriteMethodImplData(pCurImplMethod, slotIndex, slots, tokens, replaced);
                 slotIndex = 0;
             }
 
@@ -6321,6 +6324,7 @@ MethodTableBuilder::WriteMethodImplData(
     bmtMDMethod * pImplMethod, 
     DWORD         cSlots, 
     DWORD *       rgSlots, 
+    mdToken *     rgTokens,
     RelativePointer<MethodDesc *> * rgDeclMD)
 {
     STANDARD_VM_CONTRACT;
@@ -6370,12 +6374,16 @@ MethodTableBuilder::WriteMethodImplData(
                     DWORD sTmp = rgSlots[i];
                     rgSlots[i] = rgSlots[min];
                     rgSlots[min] = sTmp;
+
+                    mdToken tTmp = rgTokens[i];
+                    rgTokens[i] = rgTokens[min];
+                    rgTokens[min] = tTmp;
                 }
             }
         }
 
         // Go and set the method impl
-        pImpl->SetData(rgSlots, rgDeclMD);
+        pImpl->SetData(rgSlots, rgTokens, rgDeclMD);
 
         GetHalfBakedClass()->SetContainsMethodImpls();
     }
@@ -11546,7 +11554,7 @@ void MethodTableBuilder::GetCoClassAttribInfo()
 
 //*******************************************************************************
 void MethodTableBuilder::bmtMethodImplInfo::AddMethodImpl(
-    bmtMDMethod * pImplMethod, bmtMethodHandle declMethod,
+    bmtMDMethod * pImplMethod, bmtMethodHandle declMethod, mdToken declToken,
     StackingAllocator * pStackingAllocator)
 {
     STANDARD_VM_CONTRACT;
@@ -11572,7 +11580,7 @@ void MethodTableBuilder::bmtMethodImplInfo::AddMethodImpl(
         rgEntries = rgEntriesNew;
         cMaxIndex = newEntriesCount;
     }
-    rgEntries[pIndex++] = Entry(pImplMethod, declMethod);
+    rgEntries[pIndex++] = Entry(pImplMethod, declMethod, declToken);
 }
 
 //*******************************************************************************
