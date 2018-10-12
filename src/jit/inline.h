@@ -677,6 +677,16 @@ public:
         return m_Parent == nullptr;
     }
 
+    bool IsDevirtualized() const
+    {
+        return m_Devirtualized;
+    }
+
+    bool IsUnboxed() const
+    {
+        return m_Unboxed;
+    }
+
 private:
     InlineContext(InlineStrategy* strategy);
 
@@ -691,6 +701,8 @@ private:
     InlineObservation m_Observation;      // what lead to this inline
     int               m_CodeSizeEstimate; // in bytes * 10
     bool              m_Success;          // true if this was a successful inline
+    bool              m_Devirtualized;    // true if this was a devirtualized call
+    bool              m_Unboxed;          // true if this call now invokes the unboxed entry
 
 #if defined(DEBUG) || defined(INLINE_DATA)
 
@@ -817,7 +829,7 @@ public:
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     // Dump textual description of inlines done so far.
-    void Dump();
+    void Dump(bool showBudget);
 
     // Dump data-format description of inlines done so far.
     void DumpData();
