@@ -78,11 +78,8 @@ COM_METHOD SymWriter::QueryInterface(REFIID riid, void **ppInterface)
 
     if (riid == IID_ISymUnmanagedWriter )
         *ppInterface = (ISymUnmanagedWriter*)this;
-    /* ROTORTODO: Pretend that we do not implement ISymUnmanagedWriter2 to prevent C# compiler from using it.
-       This is against COM rules since ISymUnmanagedWriter3 inherits from ISymUnmanagedWriter2.
     else if (riid == IID_ISymUnmanagedWriter2 )
         *ppInterface = (ISymUnmanagedWriter2*)this;
-    */
     else if (riid == IID_ISymUnmanagedWriter3 )
         *ppInterface = (ISymUnmanagedWriter3*)this;
     else if (riid == IID_IUnknown)
@@ -127,7 +124,7 @@ COM_METHOD SymWriter::Initialize
 {    
     HRESULT hr = S_OK;
     
-    // Incremental compile not implemented in Rotor
+    // Incremental compile not implemented
     _ASSERTE(fFullBuild);
     
     if (emitter == NULL)
@@ -1072,8 +1069,6 @@ COM_METHOD SymWriter::SetSymAttribute(
     BYTE data[])
 {
     // Setting attributes on the symbol isn't supported
-
-    // ROTORTODO: #156785 in PS
     return S_OK;
 }
 

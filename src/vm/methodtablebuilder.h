@@ -79,15 +79,6 @@ public:
 #endif //_DEBUG
     };  // struct bmtGenericsInfo
 
-
-    // information for Thread and Context Static. Filled by InitializedFieldDesc and used when
-    // setting up a MethodTable
-    struct bmtContextStaticInfo
-    {
-    
-        inline bmtContextStaticInfo() { LIMITED_METHOD_CONTRACT; memset((void *)this, NULL, sizeof(*this)); }
-    };
-
     MethodTableBuilder(
         MethodTable *       pHalfBakedMT,
         EEClass *           pHalfBakedClass,
@@ -100,7 +91,6 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         SetBMTData(
-            NULL,
             NULL,
             NULL,
             NULL,
@@ -1878,8 +1868,8 @@ private:
         // Counts instance fields
         DWORD dwNumInstanceFields;
 
-        // Counts both regular statics and thread statics. Currently RVA and
-        // context statics get lumped in with "regular statics".
+        // Counts both regular statics and thread statics. Currently RVA
+        // get lumped in with "regular statics".
         DWORD dwNumStaticFields;
         DWORD dwNumStaticObjRefFields;
         DWORD dwNumStaticBoxedFields;
@@ -2212,7 +2202,6 @@ private:
     bmtMethodImplInfo *bmtMethodImpl;
     const bmtGenericsInfo *bmtGenerics;
     bmtEnumFieldInfo *bmtEnumFields;
-    bmtContextStaticInfo *bmtCSInfo;
 
     void SetBMTData(
         LoaderAllocator *bmtAllocator,
@@ -2229,8 +2218,7 @@ private:
         bmtGCSeriesInfo *bmtGCSeries,
         bmtMethodImplInfo *bmtMethodImpl,
         const bmtGenericsInfo *bmtGenerics,
-        bmtEnumFieldInfo *bmtEnumFields,
-        bmtContextStaticInfo *bmtCSInfo);
+        bmtEnumFieldInfo *bmtEnumFields);
 
     // --------------------------------------------------------------------------------------------
     // Returns the parent bmtRTType pointer. Can be null if no parent exists.
@@ -2585,7 +2573,6 @@ private:
         MethodTable***,
         bmtMethAndFieldDescs*,
         bmtFieldPlacement*,
-        bmtContextStaticInfo*,
         unsigned * totalDeclaredSize);
 
     // --------------------------------------------------------------------------------------------
@@ -2814,11 +2801,6 @@ private:
     NeedsNativeCodeSlot(bmtMDMethod * pMDMethod);
 
     // --------------------------------------------------------------------------------------------
-    // MethodTableBuilder version of code:MethodDesc::MayBeRemotingIntercepted. Used for MethodDesc layout.
-    BOOL
-    MayBeRemotingIntercepted(bmtMDMethod * pMDMethod);
-
-    // --------------------------------------------------------------------------------------------
     // Used to allocate and initialize the dictionary used with generic types.
     VOID
     AllocAndInitDictionary();
@@ -2953,10 +2935,7 @@ private:
                                 BOOL isIFace, 
                                 BOOL fDynamicStatics,
                                 BOOL fHasGenericsStaticsInfo,
-                                BOOL fNeedsRCWPerTypeData,
-                                BOOL fNeedsRemotableMethodInfo,
-                                BOOL fNeedsRemotingVtsInfo,
-                                BOOL fHasContextStatics
+                                BOOL fNeedsRCWPerTypeData
 #ifdef FEATURE_COMINTEROP
                                 , BOOL bHasDynamicInterfaceMap
 #endif

@@ -2901,7 +2901,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             switch (cls)
             {
 #ifdef FEATURE_COMINTEROP
-            case NFT_BSTR:
             case NFT_HSTRING:
             case NFT_VARIANT:
             case NFT_VARIANTBOOL:
@@ -2919,6 +2918,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             case NFT_DELEGATE:
             case NFT_SAFEHANDLE:
             case NFT_CRITICALHANDLE:
+            case NFT_BSTR:
                 fieldClassificationType = SystemVClassificationTypeInteger;
                 break;
 
@@ -3489,7 +3489,7 @@ void MethodTable::DoRunClassInitThrowing()
                 if (hNewInitException != NULL && 
                     InterlockedCompareExchangeT((&pEntry->m_hInitException), hNewInitException, hOrigInitException) != hOrigInitException)
                 {
-                    pEntry->m_pLoaderAllocator->ClearHandle(hNewInitException);
+                    pEntry->m_pLoaderAllocator->FreeHandle(hNewInitException);
                 }
             }
         }
@@ -4042,7 +4042,7 @@ OBJECTREF MethodTable::GetManagedClassObject()
 
         if (FastInterlockCompareExchangePointer(&(EnsureWritablePages(GetWriteableDataForWrite())->m_hExposedClassObject), exposedClassObjectHandle, static_cast<LOADERHANDLE>(NULL)))
         {
-            pLoaderAllocator->ClearHandle(exposedClassObjectHandle);
+            pLoaderAllocator->FreeHandle(exposedClassObjectHandle);
         }
 
         GCPROTECT_END();
@@ -10075,7 +10075,7 @@ BOOL MethodTable::Validate()
 NOINLINE BYTE *MethodTable::GetLoaderAllocatorObjectForGC()
 {
     WRAPPER_NO_CONTRACT;
-    if (!Collectible() || ((PTR_AppDomain)GetLoaderModule()->GetDomain())->NoAccessToHandleTable())
+    if (!Collectible())
     {
         return NULL;
     }

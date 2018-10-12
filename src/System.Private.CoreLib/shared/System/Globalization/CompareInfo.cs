@@ -1280,7 +1280,6 @@ namespace System.Globalization
         {
             return (this.Name.GetHashCode());
         }
-        
         ////////////////////////////////////////////////////////////////////////
         //
         //  GetHashCodeOfString

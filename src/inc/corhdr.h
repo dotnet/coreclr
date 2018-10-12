@@ -198,8 +198,8 @@ typedef enum ReplacesCorHdrNumericDefines
 // The most important of these is the MetaData tables.   The easiest way of looking at meta-data is using
 // the IlDasm.exe tool.   
 // 
-// MetaData holds most of the information in the IL image.  THe exceptions are resource blobs and the IL
-// instructions streams for individual methods.  Intstead the Meta-data for a method holds an RVA to a 
+// MetaData holds most of the information in the IL image.  The exceptions are resource blobs and the IL
+// instructions streams for individual methods.  Instead the Meta-data for a method holds an RVA to a
 // code:IMAGE_COR_ILMETHOD which holds all the IL stream (and exception handling information).  
 // 
 // Precompiled (NGEN) images use the same IMAGE_COR20_HEADER but also use the ManagedNativeHeader field to
@@ -644,6 +644,7 @@ typedef enum CorMethodImpl
     miNoInlining         =   0x0008,   // Method may not be inlined.
     miAggressiveInlining =   0x0100,   // Method should be inlined if possible.
     miNoOptimization     =   0x0040,   // Method may not be optimized.
+    miAggressiveOptimization = 0x0200, // Method may contain hot code and should be aggressively optimized.
 
     // These are the flags that are allowed in MethodImplAttribute's Value
     // property. This should include everything above except the code impl
@@ -651,7 +652,7 @@ typedef enum CorMethodImpl
     miUserMask           =   miManagedMask | miForwardRef | miPreserveSig |
                              miInternalCall | miSynchronized |
                              miNoInlining | miAggressiveInlining |
-                             miNoOptimization,
+                             miNoOptimization | miAggressiveOptimization,
 
     miMaxMethodImplVal   =   0xffff,   // Range check value
 } CorMethodImpl;
@@ -674,6 +675,7 @@ typedef enum CorMethodImpl
 #define IsMiNoInlining(x)                   ((x) & miNoInlining)
 #define IsMiAggressiveInlining(x)           ((x) & miAggressiveInlining)
 #define IsMiNoOptimization(x)               ((x) & miNoOptimization)
+#define IsMiAggressiveOptimization(x)       (((x) & (miAggressiveOptimization | miNoOptimization)) == miAggressiveOptimization)
 
 // PinvokeMap attr bits, used by DefinePinvokeMap.
 typedef enum  CorPinvokeMap

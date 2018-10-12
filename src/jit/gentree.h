@@ -2067,16 +2067,6 @@ public:
     // Returns "true" iff "*this" is a statement containing an assignment that defines an SSA name (lcl = phi(...));
     bool IsPhiDefnStmt();
 
-    // Can't use an assignment operator, because we need the extra "comp" argument
-    // (to provide the allocator necessary for the VarSet assignment).
-    // TODO-Cleanup: Not really needed now, w/o liveset on tree nodes
-    void CopyTo(class Compiler* comp, const GenTree& gt);
-
-    // Like the above, excepts assumes copying from small node to small node.
-    // (Following the code it replaces, it does *not* copy the GenTree fields,
-    // which CopyTo does.)
-    void CopyToSmall(const GenTree& gt);
-
     // Because of the fact that we hid the assignment operator of "BitSet" (in DEBUG),
     // we can't synthesize an assignment operator.
     // TODO-Cleanup: Could change this w/o liveset on tree nodes
@@ -5559,22 +5549,25 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
     unsigned GetRegCount()
     {
-        if (gtRegNum == REG_NA)
-        {
-            return 0;
-        }
 #if FEATURE_MULTIREG_RET
-        for (unsigned i = 0; i < MAX_RET_REG_COUNT - 1; ++i)
+        // We need to return the highest index for which we have a valid register.
+        // Note that the gtOtherRegs array is off by one (the 0th register is gtRegNum).
+        // If there's no valid register in gtOtherRegs, gtRegNum must be valid.
+        // Note that for most nodes, the set of valid registers must be contiguous,
+        // but for COPY or RELOAD there is only a valid register for the register positions
+        // that must be copied or reloaded.
+        //
+        for (unsigned i = MAX_RET_REG_COUNT; i > 1; i--)
         {
-            if (gtOtherRegs[i] == REG_NA)
+            if (gtOtherRegs[i - 2] != REG_NA)
             {
-                return i + 1;
+                return i;
             }
         }
-        return MAX_RET_REG_COUNT;
-#else
-        return 1;
 #endif
+        // We should never have a COPY or RELOAD with no valid registers.
+        assert(gtRegNum != REG_NA);
+        return 1;
     }
 
     GenTreeCopyOrReload(genTreeOps oper, var_types type, GenTree* op1) : GenTreeUnOp(oper, type, op1)

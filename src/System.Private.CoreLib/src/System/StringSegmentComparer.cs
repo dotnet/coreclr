@@ -137,7 +137,7 @@ namespace System
 
             public override bool Equals(StringSegment x, StringSegment y) => MemoryExtensions.EqualsOrdinalIgnoreCase(x.AsSpan(), y.AsSpan());
 
-            public override int GetHashCode(StringSegment obj) => Marvin.ComputeHash32OrdinalIgnoreCase(obj.AsSpan());
+            public override int GetHashCode(StringSegment obj) => string.GetHashCodeOrdinalIgnoreCase(obj.AsSpan());
         }
     }
 }

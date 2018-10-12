@@ -2493,6 +2493,8 @@ public:
     CORINFO_CLASS_HANDLE gtGetStructHandle(GenTree* tree);
     // Get the handle for a ref type.
     CORINFO_CLASS_HANDLE gtGetClassHandle(GenTree* tree, bool* isExact, bool* isNonNull);
+    // Get the element handle for an array of ref type.
+    CORINFO_CLASS_HANDLE gtGetArrayElementClassHandle(GenTree* array);
 
 //-------------------------------------------------------------------------
 // Functions to display the trees
@@ -2960,7 +2962,7 @@ public:
 
 #define MAX_NumOfFieldsInPromotableStruct 4 // Maximum number of fields in promotable struct
 
-    // Info about struct fields
+    // Info about struct type fields.
     struct lvaStructFieldInfo
     {
         CORINFO_FIELD_HANDLE fldHnd;
@@ -2969,35 +2971,86 @@ public:
         var_types            fldType;
         unsigned             fldSize;
         CORINFO_CLASS_HANDLE fldTypeHnd;
+
+        lvaStructFieldInfo()
+            : fldHnd(nullptr), fldOffset(0), fldOrdinal(0), fldType(TYP_UNDEF), fldSize(0), fldTypeHnd(nullptr)
+        {
+        }
     };
 
-    // Info about struct to be promoted.
+    // Info about a struct type, instances of which may be candidates for promotion.
     struct lvaStructPromotionInfo
     {
         CORINFO_CLASS_HANDLE typeHnd;
         bool                 canPromote;
-        bool                 requiresScratchVar;
         bool                 containsHoles;
         bool                 customLayout;
+        bool                 fieldsSorted;
         unsigned char        fieldCnt;
         lvaStructFieldInfo   fields[MAX_NumOfFieldsInPromotableStruct];
 
-        lvaStructPromotionInfo()
-            : typeHnd(nullptr), canPromote(false), requiresScratchVar(false), containsHoles(false), customLayout(false)
+        lvaStructPromotionInfo(CORINFO_CLASS_HANDLE typeHnd = nullptr)
+            : typeHnd(typeHnd)
+            , canPromote(false)
+            , containsHoles(false)
+            , customLayout(false)
+            , fieldsSorted(false)
+            , fieldCnt(0)
         {
         }
     };
 
     static int __cdecl lvaFieldOffsetCmp(const void* field1, const void* field2);
-    void lvaCanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd, lvaStructPromotionInfo* structPromotionInfo);
-    void lvaCanPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
 
-    bool lvaShouldPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
-    void lvaPromoteStructVar(unsigned lclNum, lvaStructPromotionInfo* structPromotionInfo);
+    // This class is responsible for checking validity and profitability of struct promotion.
+    // If it is both legal and profitable, then TryPromoteStructVar promotes the struct and initializes
+    // nessesary information for fgMorphStructField to use.
+    class StructPromotionHelper
+    {
+    public:
+        StructPromotionHelper(Compiler* compiler);
+
+        bool CanPromoteStructType(CORINFO_CLASS_HANDLE typeHnd);
+        bool TryPromoteStructVar(unsigned lclNum);
+
+#ifdef DEBUG
+        void CheckRetypedAsScalar(CORINFO_FIELD_HANDLE fieldHnd, var_types requestedType);
+#endif // DEBUG
+
+#ifdef _TARGET_ARM_
+        bool GetRequiresScratchVar();
+#endif // _TARGET_ARM_
+
+    private:
+        bool CanPromoteStructVar(unsigned lclNum);
+        bool ShouldPromoteStructVar(unsigned lclNum);
+        void PromoteStructVar(unsigned lclNum);
+        void SortStructFields();
+
+        lvaStructFieldInfo GetFieldInfo(CORINFO_FIELD_HANDLE fieldHnd, BYTE ordinal);
+        bool TryPromoteStructField(lvaStructFieldInfo& outerFieldInfo);
+
+    private:
+        Compiler*              compiler;
+        lvaStructPromotionInfo structPromotionInfo;
+
+#ifdef _TARGET_ARM_
+        bool requiresScratchVar;
+#endif // _TARGET_ARM_
+
+#ifdef DEBUG
+        typedef JitHashTable<CORINFO_FIELD_HANDLE, JitPtrKeyFuncs<CORINFO_FIELD_STRUCT_>, var_types>
+                                 RetypedAsScalarFieldsMap;
+        RetypedAsScalarFieldsMap retypedFieldsMap;
+#endif // DEBUG
+    };
+
+    StructPromotionHelper* structPromotionHelper;
+
 #if !defined(_TARGET_64BIT_)
     void lvaPromoteLongVars();
 #endif // !defined(_TARGET_64BIT_)
-    unsigned lvaGetFieldLocal(LclVarDsc* varDsc, unsigned int fldOffset);
+    unsigned lvaGetFieldLocal(const LclVarDsc* varDsc, unsigned int fldOffset);
     lvaPromotionType lvaGetPromotionType(const LclVarDsc* varDsc);
     lvaPromotionType lvaGetPromotionType(unsigned varNum);
     lvaPromotionType lvaGetParentPromotionType(const LclVarDsc* varDsc);
@@ -4267,8 +4320,24 @@ public:
     // the call may modify the heap (we assume arbitrary memory side effects if so).
     bool fgValueNumberHelperCall(GenTreeCall* helpCall);
 
-    // Requires "helpFunc" to be pure.  Returns the corresponding VNFunc.
-    VNFunc fgValueNumberHelperMethVNFunc(CorInfoHelpFunc helpFunc);
+    // Requires that "helpFunc" is one of the pure Jit Helper methods.
+    // Returns the corresponding VNFunc to use for value numbering
+    VNFunc fgValueNumberJitHelperMethodVNFunc(CorInfoHelpFunc helpFunc);
+
+    // Adds the exception set for the current tree node which is performing a memory indirection operation
+    void fgValueNumberAddExceptionSetForIndirection(GenTree* tree);
+
+    // Adds the exception sets for the current tree node which is performing a division or modulus operation
+    void fgValueNumberAddExceptionSetForDivision(GenTree* tree);
+
+    // Adds the exception set for the current tree node which is performing a overflow checking operation
+    void fgValueNumberAddExceptionSetForOverflow(GenTree* tree);
+
+    // Adds the exception set for the current tree node which is performing a ckfinite operation
+    void fgValueNumberAddExceptionSetForCkFinite(GenTree* tree);
+
+    // Adds the exception sets for the current tree node
+    void fgValueNumberAddExceptionSet(GenTree* tree);
 
     // These are the current value number for the memory implicit variables while
     // doing value numbering.  These are the value numbers under the "liberal" interpretation
@@ -5762,7 +5831,7 @@ protected:
     {
         CSEdsc* csdNextInBucket; // used by the hash table
 
-        unsigned csdHashValue; // the orginal hashkey
+        unsigned csdHashKey; // the orginal hashkey
 
         unsigned csdIndex;          // 1..optCSECandidateCount
         char     csdLiveAcrossCall; // 0 or 1
@@ -5780,8 +5849,13 @@ protected:
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
         treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
 
-        ValueNum defConservativeVN; // if all def occurrences share the same conservative value
-                                    // number, this will reflect it; otherwise, NoVN.
+        ValueNum defExcSetPromise; // The exception set that is now required for all defs of this CSE.
+                                   // This will be set to NoVN if we decide to abandon this CSE
+
+        ValueNum defExcSetCurrent; // The set of exceptions we currently can use for CSE uses.
+
+        ValueNum defConservNormVN; // if all def occurrences share the same conservative normal value
+                                   // number, this will reflect it; otherwise, NoVN.
     };
 
     static const size_t s_optCSEhashSize;

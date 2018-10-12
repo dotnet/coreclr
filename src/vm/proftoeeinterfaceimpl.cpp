@@ -3132,8 +3132,7 @@ HRESULT ProfToEEInterfaceImpl::GetRVAStaticAddress(ClassID classId,
     //
     if(!pFieldDesc->IsStatic() ||
        !pFieldDesc->IsRVA() ||
-       pFieldDesc->IsThreadStatic() || 
-       pFieldDesc->IsContextStatic())
+       pFieldDesc->IsThreadStatic())
     {
         return E_INVALIDARG;
     }
@@ -3271,8 +3270,7 @@ HRESULT ProfToEEInterfaceImpl::GetAppDomainStaticAddress(ClassID classId,
     //
     if(!pFieldDesc->IsStatic() ||
        pFieldDesc->IsRVA() ||
-       pFieldDesc->IsThreadStatic() ||
-       pFieldDesc->IsContextStatic())
+       pFieldDesc->IsThreadStatic())
     {
         return E_INVALIDARG;
     }
@@ -3494,8 +3492,7 @@ HRESULT ProfToEEInterfaceImpl::GetThreadStaticAddress2(ClassID classId,
     //
     if(!pFieldDesc->IsStatic() ||
        !pFieldDesc->IsThreadStatic() ||
-       pFieldDesc->IsRVA() ||
-       pFieldDesc->IsContextStatic())
+       pFieldDesc->IsRVA())
     {
         return E_INVALIDARG;
     }
@@ -3540,9 +3537,7 @@ HRESULT ProfToEEInterfaceImpl::GetThreadStaticAddress2(ClassID classId,
  *    pAddress - location for storing the resulting address location.
  *
  * Returns:
- *    S_OK on success,
- *    E_INVALIDARG if not a context static,
- *    CORPROF_E_DATAINCOMPLETE if not yet initialized.
+ *    E_NOTIMPL
  *
  */
 HRESULT ProfToEEInterfaceImpl::GetContextStaticAddress(ClassID classId,
@@ -3739,11 +3734,6 @@ HRESULT ProfToEEInterfaceImpl::GetStaticFieldInfo(ClassID classId,
     }
 
     *pFieldInfo = COR_PRF_FIELD_NOT_A_STATIC;
-
-    if (pFieldDesc->IsContextStatic())
-    {
-        *pFieldInfo = (COR_PRF_STATIC_TYPE)(*pFieldInfo | COR_PRF_FIELD_CONTEXT_STATIC);
-    }
 
     if (pFieldDesc->IsRVA())
     {
@@ -7757,7 +7747,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
         contextSize));
    
     HRESULT hr = E_UNEXPECTED;
-    // (hr assignment is to appease the rotor compiler; we won't actually return without explicitly setting hr again)
+    // (hr assignment is to appease the compiler; we won't actually return without explicitly setting hr again)
     
     Thread *pThreadToSnapshot = NULL;
     Thread * pCurrentThread = GetThreadNULLOk();
