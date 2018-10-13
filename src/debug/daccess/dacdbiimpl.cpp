@@ -1625,7 +1625,6 @@ void DacDbiInterfaceImpl::ComputeFieldData(PTR_FieldDesc pFD,
         pCurrentFieldData->m_vmFieldDesc.SetHostPtr(pFD);
         pCurrentFieldData->m_fFldStorageAvailable = FALSE;
         pCurrentFieldData->m_fFldIsTLS = FALSE;
-        pCurrentFieldData->m_fFldIsContextStatic = FALSE;
         pCurrentFieldData->m_fFldIsRVA = FALSE;
         pCurrentFieldData->m_fFldIsCollectibleStatic = FALSE;
     }
@@ -1638,7 +1637,6 @@ void DacDbiInterfaceImpl::ComputeFieldData(PTR_FieldDesc pFD,
         // completely DACized
         pCurrentFieldData->m_vmFieldDesc.SetHostPtr(pFD);
         pCurrentFieldData->m_fFldIsTLS = (pFD->IsThreadStatic() == TRUE);
-        pCurrentFieldData->m_fFldIsContextStatic = (pFD->IsContextStatic() == TRUE);
         pCurrentFieldData->m_fFldIsRVA = (pFD->IsRVA() == TRUE);
         pCurrentFieldData->m_fFldIsCollectibleStatic = (pFD->IsStatic() == TRUE &&
             pFD->GetEnclosingMethodTable()->Collectible());
@@ -1657,7 +1655,7 @@ void DacDbiInterfaceImpl::ComputeFieldData(PTR_FieldDesc pFD,
                     pCurrentFieldData->SetStaticAddress(PTR_TO_TADDR(addr));
                 }
             }
-            else if (pFD->IsThreadStatic() || pFD->IsContextStatic() || 
+            else if (pFD->IsThreadStatic() || 
                 pCurrentFieldData->m_fFldIsCollectibleStatic)
             {
                 // this is a special type of static that must be queried using DB_IPCE_GET_SPECIAL_STATIC
@@ -3219,21 +3217,16 @@ TypeHandle DacDbiInterfaceImpl::ExpandedTypeInfoToTypeHandle(DebuggerIPCE_Expand
 } // DacDbiInterfaceImpl::ExpandedTypeInfoToTypeHandle
 
 // ----------------------------------------------------------------------------
-// DacDbi API: GetThreadOrContextStaticAddress
-// Get the target field address of a context or thread local static. 
+// DacDbi API: GetThreadStaticAddress
+// Get the target field address of a thread local static.
 // 
 // Notes: 
-// The address is  constant and could be cached.
-// 
-// If this is a context-static, the function uses the thread's current context.  
-// [This is important because it means that you can't lookup a context static 
-// unless you have a thread in that context. If anybody actually cared about contexts, 
-// we might have to revise this in the future] 
+// The address is constant and could be cached.
 // 
 // This can commonly fail, in which case, it will return NULL.
 // ----------------------------------------------------------------------------
-CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadOrContextStaticAddress(VMPTR_FieldDesc vmField,
-                                                                    VMPTR_Thread    vmRuntimeThread)
+CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadStaticAddress(VMPTR_FieldDesc vmField,
+                                                          VMPTR_Thread    vmRuntimeThread)
 {
     DD_ENTER_MAY_THROW;
 
@@ -3243,8 +3236,7 @@ CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadOrContextStaticAddress(VMPTR_FieldDe
 
     _ASSERTE(pRuntimeThread != NULL);
 
-    // Find out whether the field is thread local or context local and get its
-    // address. 
+    // Find out whether the field is thread local and get its address.
     if (pFieldDesc->IsThreadStatic())
     {
         fieldAddress = pRuntimeThread->GetStaticFieldAddrNoCreate(pFieldDesc, NULL);
@@ -3257,7 +3249,7 @@ CORDB_ADDRESS DacDbiInterfaceImpl::GetThreadOrContextStaticAddress(VMPTR_FieldDe
     }
     return fieldAddress;
 
-} // DacDbiInterfaceImpl::GetThreadOrContextStaticAddress
+} // DacDbiInterfaceImpl::GetThreadStaticAddress
 
     // Get the target field address of a collectible types static. 
 CORDB_ADDRESS DacDbiInterfaceImpl::GetCollectibleTypeStaticAddress(VMPTR_FieldDesc vmField,
@@ -3831,14 +3823,12 @@ void DacDbiInterfaceImpl::InitFieldData(const FieldDesc *           pFD,
     pFieldData->m_fFldIsTLS = (pFD->IsThreadStatic() == TRUE);
     pFieldData->m_fldMetadataToken = pFD->GetMemberDef();
     pFieldData->m_fFldIsRVA = (pFD->IsRVA() == TRUE);
-    pFieldData->m_fFldIsContextStatic = (pFD->IsContextStatic() == TRUE);
     pFieldData->m_fFldIsCollectibleStatic = FALSE;
     pFieldData->m_fFldStorageAvailable = true;
 
     if (pFieldData->m_fFldIsStatic)
     {
         //EnC is only supported on regular static fields
-        _ASSERTE(!pFieldData->m_fFldIsContextStatic);
         _ASSERTE(!pFieldData->m_fFldIsTLS);
         _ASSERTE(!pFieldData->m_fFldIsRVA);
 

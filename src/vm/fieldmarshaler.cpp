@@ -34,7 +34,8 @@
 // forward declaration
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
-TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);  
+TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
 
 
 //=======================================================================
@@ -659,7 +660,14 @@ do                                                      \
                 {
                     if (IsStructMarshalable(thNestedType))
                     {
-                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+                        if (IsFixedBuffer(pfwalk->m_MD, pInternalImport) && !thNestedType.GetMethodTable()->IsBlittable())
+                        {
+                            INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_NOTMARSHALABLE));
+                        }
+                        else
+                        {
+                            INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+                        }
                     }
                     else
                     {
@@ -787,11 +795,12 @@ do                                                      \
                             // We no longer support Win9x so LPTSTR always maps to a Unicode string.
                             INITFIELDMARSHALER(NFT_STRINGUNI, FieldMarshaler_StringUni, ());
                             break;
-#ifdef FEATURE_COMINTEROP
+
                         case NATIVE_TYPE_BSTR:
                             INITFIELDMARSHALER(NFT_BSTR, FieldMarshaler_BSTR, ());
                             break;
 
+#ifdef FEATURE_COMINTEROP
                         case NATIVE_TYPE_HSTRING:
                             INITFIELDMARSHALER(NFT_HSTRING, FieldMarshaler_HSTRING, ());
                             break;
@@ -1226,6 +1235,13 @@ BOOL IsStructMarshalable(TypeHandle th)
     }
 
     return TRUE;
+}
+
+BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport)
+{
+    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, NULL, NULL);
+
+    return hr == S_OK ? TRUE : FALSE;
 }
 
 
@@ -2282,9 +2298,6 @@ VOID FmtValueTypeUpdateCLR(LPVOID pProtectedManagedData, MethodTable *pMT, BYTE 
     }
 }
 
-
-#ifdef FEATURE_COMINTEROP
-
 //=======================================================================
 // BSTR <--> System.String
 // See FieldMarshaler for details.
@@ -2383,14 +2396,13 @@ VOID FieldMarshaler_BSTR::DestroyNativeImpl(LPVOID pNativeValue) const
     
     if (pBSTR)
     {
-        _ASSERTE (GetModuleHandleA("oleaut32.dll") != NULL);
-        // BSTR has been created, which means oleaut32 should have been loaded.
-        // Delay load will not fail.
+        // BSTR has been created, Delay load will not fail.
         CONTRACT_VIOLATION(ThrowsViolation);
         SysFreeString(pBSTR);
     }
 }
 
+#ifdef FEATURE_COMINTEROP
 //===========================================================================================
 // Windows.Foundation.IReference'1<-- System.Nullable'1
 //
@@ -4668,10 +4680,10 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         // All other NStruct Field Types which do not require special handling.
         switch (cls)
         {
-#ifdef FEATURE_COMINTEROP
             case NFT_BSTR:
                 strRetVal = W("BSTR");
                 break;
+#ifdef FEATURE_COMINTEROP                
             case NFT_HSTRING:
                 strRetVal = W("HSTRING");
                 break;
@@ -4822,6 +4834,7 @@ VOID NStructFieldTypeToString(FieldMarshaler* pFM, SString& strNStructFieldType)
         case NFT_DECIMAL: rettype ((FieldMarshaler_Decimal*)this)->name##Impl args; break; \
         case NFT_SAFEHANDLE: rettype ((FieldMarshaler_SafeHandle*)this)->name##Impl args; break; \
         case NFT_CRITICALHANDLE: rettype ((FieldMarshaler_CriticalHandle*)this)->name##Impl args; break; \
+        case NFT_BSTR: rettype ((FieldMarshaler_BSTR*)this)->name##Impl args; break; \
         case NFT_ILLEGAL: rettype ((FieldMarshaler_Illegal*)this)->name##Impl args; break; \
         default: UNREACHABLE_MSG("unexpected type of FieldMarshaler"); break; \
         } \

@@ -1992,11 +1992,7 @@ static PCODE PatchNonVirtualExternalMethod(MethodDesc * pMD, PCODE pCode, PTR_CO
     //
 #ifdef HAS_FIXUP_PRECODE
     if (pMD->HasPrecode() && pMD->GetPrecode()->GetType() == PRECODE_FIXUP
-        && pMD->IsNativeCodeStableAfterInit()
-#ifndef HAS_REMOTING_PRECODE
-        && !pMD->IsRemotingInterceptedViaPrestub()
-#endif
-        )
+        && pMD->IsNativeCodeStableAfterInit())
     {
         PCODE pDirectTarget = pMD->IsFCall() ? ECall::GetFCallImpl(pMD) : pMD->GetNativeCode();
         if (pDirectTarget != NULL)
@@ -2885,7 +2881,7 @@ PCODE DynamicHelperFixup(TransitionBlock * pTransitionBlock, TADDR * pCell, DWOR
                     {
                         if (pFD != NULL)
                         {
-                            if (pFD->IsRVA() || pFD->IsContextStatic())
+                            if (pFD->IsRVA())
                             {
                                 _ASSERTE(!"Fast getter for rare kinds of static fields");
                             }

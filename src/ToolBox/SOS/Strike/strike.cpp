@@ -1258,14 +1258,6 @@ DECLARE_API(DumpClass)
             ExtOut("NumThreadStaticFields: %x\n", vMethodTableFields.wNumThreadStaticFields);
         }
 
-
-        if (vMethodTableFields.wContextStaticsSize)
-        {
-            ExtOut("ContextStaticOffset: %x\n", vMethodTableFields.wContextStaticOffset);
-            ExtOut("ContextStaticsSize:  %x\n", vMethodTableFields.wContextStaticsSize);
-        }
-
-    
         if (vMethodTableFields.wNumInstanceFields + vMethodTableFields.wNumStaticFields > 0)
         {
             DisplayFields(methodTable, &mtdata, &vMethodTableFields, NULL, TRUE, FALSE);
@@ -1338,6 +1330,9 @@ DECLARE_API(DumpMT)
         return Status;
     }
 
+    DacpMethodTableCollectibleData vMethTableCollectible;
+    vMethTableCollectible.Request(g_sos, TO_CDADDR(dwStartAddr));
+
     table.WriteRow("EEClass:", EEClassPtr(vMethTable.Class));
 
     table.WriteRow("Module:", ModulePtr(vMethTable.Module));
@@ -1349,6 +1344,15 @@ DECLARE_API(DumpMT)
     FileNameForModule(TO_TADDR(vMethTable.Module), fileName);
     table.WriteRow("mdToken:", Pointer(vMethTable.cl));
     table.WriteRow("File:", fileName[0] ? fileName : W("Unknown Module"));
+
+    if (vMethTableCollectible.LoaderAllocatorObjectHandle != NULL)
+    {
+        TADDR loaderAllocator;
+        if (SUCCEEDED(MOVE(loaderAllocator, vMethTableCollectible.LoaderAllocatorObjectHandle)))
+        {
+            table.WriteRow("LoaderAllocator:", ObjectPtr(loaderAllocator));
+        }
+    }
 
     table.WriteRow("BaseSize:", PrefixHex(vMethTable.BaseSize));
     table.WriteRow("ComponentSize:", PrefixHex(vMethTable.ComponentSize));

@@ -7436,7 +7436,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
     }
 #endif // defined(WIN64EXCEPTIONS) && defined(FEATURE_HIJACK)
 
-#ifndef FEATURE_PAL
     if (IsSOExceptionCode(pExceptionInfo->ExceptionRecord->ExceptionCode))
     {
         //
@@ -7475,9 +7474,6 @@ LONG WINAPI CLRVectoredExceptionHandler(PEXCEPTION_POINTERS pExceptionInfo)
         //END_ENTRYPOINT_VOIDRET;
     //
     return retVal;
-#else // !FEATURE_PAL
-    return CLRVectoredExceptionHandlerPhase2(pExceptionInfo);
-#endif // !FEATURE_PAL
 }
 
 LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo)
@@ -7603,8 +7599,7 @@ LONG WINAPI CLRVectoredExceptionHandlerPhase2(PEXCEPTION_POINTERS pExceptionInfo
             return EXCEPTION_CONTINUE_SEARCH;
         }
 
-        // The breakpoint was from managed or the runtime.  Handle it.  Or,
-        //  this may be a Rotor build.
+        // The breakpoint was from managed or the runtime.  Handle it.
         return UserBreakpointFilter(pExceptionInfo);
     }
 

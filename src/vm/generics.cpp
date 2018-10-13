@@ -224,8 +224,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
     // These are all copied across from the old MT, i.e. don't depend on the
     // instantiation.
-    BOOL fHasRemotingVtsInfo = FALSE;
-    BOOL fHasContextStatics = FALSE;
     BOOL fHasGenericsStaticsInfo = pOldMT->HasGenericsStaticsInfo();
 
 #ifdef FEATURE_COMINTEROP
@@ -239,10 +237,6 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     // Collectible types have some special restrictions
     if (pAllocator->IsCollectible())
     {
-        if (fHasContextStatics)
-        {
-            ClassLoader::ThrowTypeLoadException(pTypeKey, IDS_CLASSLOAD_COLLECTIBLESPECIALSTATICS);
-        }
         if (pOldMT->HasFixedAddressVTStatics())
         {
             ClassLoader::ThrowTypeLoadException(pTypeKey, IDS_CLASSLOAD_COLLECTIBLEFIXEDVTATTR);
@@ -283,13 +277,10 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
 
     // We need space for the optional members.
     DWORD cbOptional = MethodTable::GetOptionalMembersAllocationSize(dwMultipurposeSlotsMask,
-                                                      FALSE, // fHasRemotableMethodInfo
                                                       fHasGenericsStaticsInfo,
                                                       fHasGuidInfo,
                                                       fHasCCWTemplate,
                                                       fHasRCWPerTypeData,
-                                                      fHasRemotingVtsInfo,
-                                                      fHasContextStatics,
                                                       pOldMT->HasTokenOverflow());
 
     // We need space for the PerInstInfo, i.e. the generic dictionary pointers...

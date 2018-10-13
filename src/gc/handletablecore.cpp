@@ -508,10 +508,7 @@ BOOL SegmentInitialize(TableSegment *pSegment, HandleTable *pTable)
     */
     
     // we want to commit enough for the header PLUS some handles
-    uint32_t dwCommit = HANDLE_HEADER_SIZE;
-
-    // Round down to the dwPageSize
-    dwCommit &= ~(OS_PAGE_SIZE - 1);
+    size_t dwCommit = ALIGN_UP(HANDLE_HEADER_SIZE, OS_PAGE_SIZE);
 
     // commit the header
     if (!GCToOSInterface::VirtualCommit(pSegment, dwCommit))
@@ -1845,7 +1842,7 @@ void SegmentTrimExcessPages(TableSegment *pSegment)
             // compute the address for the new decommit line
             size_t dwDecommitAddr = dwLo - OS_PAGE_SIZE;
 
-            // assume a decommit line of zero until we know otheriwse
+            // assume a decommit line of zero until we know otherwise
             uDecommitLine = 0;
 
             // if the address is within the handle area then compute the line from the address

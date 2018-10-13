@@ -632,14 +632,14 @@ namespace System.Threading.Tasks
                         if (antecedent == null)
                         {
                             // if no antecedent was specified, use this task's reference as the cancellation state object
-                            ctr = cancellationToken.InternalRegisterWithoutEC(s_taskCancelCallback, this);
+                            ctr = cancellationToken.UnsafeRegister(s_taskCancelCallback, this);
                         }
                         else
                         {
                             // If an antecedent was specified, pack this task, its antecedent and the TaskContinuation together as a tuple 
                             // and use it as the cancellation state object. This will be unpacked in the cancellation callback so that 
                             // antecedent.RemoveCancellation(continuation) can be invoked.
-                            ctr = cancellationToken.InternalRegisterWithoutEC(s_taskCancelCallback,
+                            ctr = cancellationToken.UnsafeRegister(s_taskCancelCallback,
                                                                               new Tuple<Task, Task, TaskContinuation>(this, antecedent, continuation));
                         }
 
@@ -2178,9 +2178,15 @@ namespace System.Threading.Tasks
             // continuations hold onto the task, and therefore are keeping it alive.
             m_action = null;
 
-            // Notify parent if this was an attached task
-            if (m_contingentProperties != null)
+            ContingentProperties cp = m_contingentProperties;
+            if (cp != null)
             {
+                // Similarly, null out any ExecutionContext we may have captured,
+                // to avoid keeping state like async locals alive unnecessarily
+                // when the Task is kept alive.
+                cp.m_capturedContext = null;
+
+                // Notify parent if this was an attached task
                 NotifyParentIfPotentiallyAttachedTask();
             }
 
@@ -5413,7 +5419,7 @@ namespace System.Threading.Tasks
             // Register our cancellation token, if necessary.
             if (cancellationToken.CanBeCanceled)
             {
-                promise.Registration = cancellationToken.InternalRegisterWithoutEC(state => ((DelayPromise)state).Complete(), promise);
+                promise.Registration = cancellationToken.UnsafeRegister(state => ((DelayPromise)state).Complete(), promise);
             }
 
             // ... and create our timer and make sure that it stays rooted.

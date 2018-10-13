@@ -30,6 +30,13 @@ enum StompWriteBarrierCompletionAction
     SWB_EE_RESTART = 0x2
 };
 
+enum SignatureKind
+{
+    SK_NOT_CALLSITE,
+    SK_CALLSITE,
+    SK_VIRTUAL_CALLSITE,
+};
+
 class Stub;
 class MethodDesc;
 class FieldDesc;
@@ -484,6 +491,8 @@ public:
     BOOL isStructRequiringStackAllocRetBuf(CORINFO_CLASS_HANDLE cls);
 
     unsigned getClassSize (CORINFO_CLASS_HANDLE cls);
+    unsigned getHeapClassSize(CORINFO_CLASS_HANDLE cls);
+    BOOL canAllocateOnStack(CORINFO_CLASS_HANDLE cls);
     unsigned getClassAlignmentRequirement(CORINFO_CLASS_HANDLE cls, BOOL fDoubleAlignHint);
     static unsigned getClassAlignmentRequirementStatic(TypeHandle clsHnd);
 
@@ -745,7 +754,7 @@ public:
             CORINFO_METHOD_HANDLE ftnHnd,
             CORINFO_SIG_INFO* sigInfo,
             CORINFO_CLASS_HANDLE owner = NULL,
-            BOOL isCallSite = FALSE
+            SignatureKind signatureKind = SK_NOT_CALLSITE
             );
 
     void getEHinfo(
