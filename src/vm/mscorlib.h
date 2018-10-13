@@ -854,6 +854,9 @@ DEFINE_CLASS(EVENTPIPE_CONTROLLER, Tracing, EventPipeController)
 DEFINE_METHOD(EVENTPIPE_CONTROLLER, INITIALIZE, Initialize, SM_RetVoid)
 #endif
 
+DEFINE_CLASS(STARTUP_HOOK_PROVIDER,  System,                StartupHookProvider)
+DEFINE_METHOD(STARTUP_HOOK_PROVIDER, PROCESS_STARTUP_HOOKS, ProcessStartupHooks, SM_RetVoid)
+
 DEFINE_CLASS(STREAM,                IO,                     Stream)
 DEFINE_METHOD(STREAM,               BEGIN_READ,             BeginRead,  IM_ArrByte_Int_Int_AsyncCallback_Object_RetIAsyncResult)
 DEFINE_METHOD(STREAM,               END_READ,               EndRead,    IM_IAsyncResult_RetInt)
