@@ -130,6 +130,7 @@ class VirtualCallStubManager;
 template <typename ELEMENT>
 class ListLockEntryBase;
 typedef ListLockEntryBase<void*> ListLockEntry;
+class UMEntryThunkCache;
 
 class LoaderAllocator
 {
@@ -172,6 +173,8 @@ protected:
     // used. See code in GetVSDHeapInitialBlock and GetCodeHeapInitialBlock
     BYTE *              m_pVSDHeapInitialAlloc;
     BYTE *              m_pCodeHeapInitialAlloc;
+
+    UMEntryThunkCache * m_pUMEntryThunkCache;
 
 public:
     BYTE *GetVSDHeapInitialBlock(DWORD *pSize);
@@ -510,6 +513,9 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_pVirtualCallStubManager;
     }
+
+    UMEntryThunkCache *GetUMEntryThunkCache();
+
 #endif
 };  // class LoaderAllocator
 
