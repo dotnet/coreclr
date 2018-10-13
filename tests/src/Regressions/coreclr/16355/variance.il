@@ -41,11 +41,14 @@
 .method public hidebysig static int32 Main() cil managed
 {
   .entrypoint
+  .locals (valuetype [System.Runtime]System.RuntimeTypeHandle)
   newobj instance void class Fooer::.ctor()
   ldnull
   callvirt instance valuetype [System.Runtime]System.RuntimeTypeHandle class IContravariant`1<string>::Frob(!0)
+  stloc.0
+  ldloca 0
   ldtoken object
-  ceq
+  call instance bool valuetype [System.Runtime]System.RuntimeTypeHandle::Equals(valuetype [System.Runtime]System.RuntimeTypeHandle)
   brtrue Okay
   ldc.i4.m1
   ret
