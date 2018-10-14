@@ -6649,39 +6649,6 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
     }
 }
 
-// Hoist any expressions in "blk" that are invariant in loop "lnum" outside of "blk" and into a PreHead for loop "lnum".
-void Compiler::optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoistContext* hoistCtxt)
-{
-    LoopDsc* pLoopDsc                      = &optLoopTable[lnum];
-    bool     firstBlockAndBeforeSideEffect = (blk == pLoopDsc->lpEntry);
-    unsigned blkWeight                     = blk->getBBWeight(this);
-
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("    optHoistLoopExprsForBlock " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
-               ">, firstBlock is %s\n",
-               blk->bbNum, refCntWtd2str(blkWeight), lnum, pLoopDsc->lpFirst->bbNum, pLoopDsc->lpBottom->bbNum,
-               firstBlockAndBeforeSideEffect ? "true" : "false");
-        if (blkWeight < (BB_UNITY_WEIGHT / 10))
-        {
-            printf("      block weight is too small to perform hoisting.\n");
-        }
-    }
-#endif
-
-    if (blkWeight < (BB_UNITY_WEIGHT / 10))
-    {
-        // Block weight is too small to perform hoisting.
-        return;
-    }
-
-    for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
-    {
-        optHoistLoopExprsForStmt(stmt, lnum, hoistCtxt, &firstBlockAndBeforeSideEffect);
-    }
-}
-
 bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
 {
     LoopDsc* pLoopDsc = &optLoopTable[lnum];
@@ -6777,17 +6744,15 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
     return true;
 }
 
+//------------------------------------------------------------------------
+// optHoistLoopExprsForBlock: Hoist invariant expression out of the block.
 //
-//  This function returns true if 'tree' is a loop invariant expression.
-//  It also sets '*pHoistable' to true if 'tree' can be hoisted into a loop PreHeader block,
-//  and sets '*pCctorDependent' if 'tree' is a function of a static field that must not be
-//  hoisted (even if '*pHoistable' is true) unless a preceding corresponding cctor init helper
-//  call is also hoisted.
+// Arguments:
+//    block - The block to hoist expressions from
+//    loopNum - The number of the loop `block` belongs to
+//    hoistContext - The loop hoist context
 //
-void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
-                                        unsigned          loopNum,
-                                        LoopHoistContext* hoistContext,
-                                        bool*             pFirstBlockAndBeforeSideEffect)
+void Compiler::optHoistLoopExprsForBlock(BasicBlock* block, unsigned loopNum, LoopHoistContext* hoistContext)
 {
     class HoistVisitor : public GenTreeVisitor<HoistVisitor>
     {
@@ -6811,7 +6776,7 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
         };
 
         ArrayStack<Value> m_valueStack;
-        bool*             m_pFirstBlockAndBeforeSideEffect;
+        bool              m_beforeSideEffect;
         unsigned          m_loopNum;
         LoopHoistContext* m_hoistContext;
 
@@ -6825,13 +6790,10 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
             UseExecutionOrder = true,
         };
 
-        HoistVisitor(Compiler*         compiler,
-                     bool*             pFirstBlockAndBeforeSideEffect,
-                     unsigned          loopNum,
-                     LoopHoistContext* hoistContext)
+        HoistVisitor(Compiler* compiler, bool firstBlock, unsigned loopNum, LoopHoistContext* hoistContext)
             : GenTreeVisitor(compiler)
             , m_valueStack(compiler->getAllocator(CMK_LoopHoist))
-            , m_pFirstBlockAndBeforeSideEffect(pFirstBlockAndBeforeSideEffect)
+            , m_beforeSideEffect(firstBlock)
             , m_loopNum(loopNum)
             , m_hoistContext(hoistContext)
         {
@@ -6951,7 +6913,7 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
 
                 if (treeIsHoistable)
                 {
-                    if (!(*m_pFirstBlockAndBeforeSideEffect))
+                    if (!m_beforeSideEffect)
                     {
                         // For now, we give up on an expression that might raise an exception if it is after the
                         // first possible global side effect (and we assume we're after that if we're not in the first
@@ -6976,13 +6938,13 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
                 }
             }
 
-            // Check if we need to set '*pFirstBlockAndBeforeSideEffect' to false.
+            // Check if we need to set 'm_beforeSideEffect' to false.
             // If we encounter a tree with a call in it
             //  or if we see an assignment to global we set it to false.
             //
             // If we are already set to false then we can skip these checks
             //
-            if (*m_pFirstBlockAndBeforeSideEffect)
+            if (m_beforeSideEffect)
             {
                 // For this purpose, we only care about memory side effects.  We assume that expressions will
                 // be hoisted so that they are evaluated in the same order as they would have been in the loop,
@@ -6996,19 +6958,19 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
                     GenTreeCall* call = tree->AsCall();
                     if (call->gtCallType != CT_HELPER)
                     {
-                        *m_pFirstBlockAndBeforeSideEffect = false;
+                        m_beforeSideEffect = false;
                     }
                     else
                     {
                         CorInfoHelpFunc helpFunc = eeGetHelperNum(call->gtCallMethHnd);
                         if (s_helperCallProperties.MutatesHeap(helpFunc))
                         {
-                            *m_pFirstBlockAndBeforeSideEffect = false;
+                            m_beforeSideEffect = false;
                         }
                         else if (s_helperCallProperties.MayRunCctor(helpFunc) &&
                                  (call->gtFlags & GTF_CALL_HOISTABLE) == 0)
                         {
-                            *m_pFirstBlockAndBeforeSideEffect = false;
+                            m_beforeSideEffect = false;
                         }
                     }
                 }
@@ -7018,7 +6980,7 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
                     GenTree* lhs = tree->gtOp.gtOp1;
                     if (lhs->gtFlags & GTF_GLOB_REF)
                     {
-                        *m_pFirstBlockAndBeforeSideEffect = false;
+                        m_beforeSideEffect = false;
                     }
                 }
                 else if (tree->OperIsCopyBlkOp())
@@ -7027,7 +6989,7 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
                     assert(args->OperGet() == GT_LIST);
                     if (args->gtOp.gtOp1->gtFlags & GTF_GLOB_REF)
                     {
-                        *m_pFirstBlockAndBeforeSideEffect = false;
+                        m_beforeSideEffect = false;
                     }
                 }
             }
@@ -7069,8 +7031,28 @@ void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
         }
     };
 
-    HoistVisitor visitor(this, pFirstBlockAndBeforeSideEffect, loopNum, hoistContext);
-    visitor.Hoist(stmt->gtStmtExpr);
+    LoopDsc* loopDsc     = &optLoopTable[loopNum];
+    bool     firstBlock  = (block == loopDsc->lpEntry);
+    unsigned blockWeight = block->getBBWeight(this);
+
+    JITDUMP("    optHoistLoopExprsForBlock " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
+            ">, firstBlock is %s\n",
+            block->bbNum, refCntWtd2str(blockWeight), loopNum, loopDsc->lpFirst->bbNum, loopDsc->lpBottom->bbNum,
+            firstBlock ? "true" : "false");
+
+    if (blockWeight < (BB_UNITY_WEIGHT / 10))
+    {
+        // Block weight is too small to perform hoisting.
+        JITDUMP("      block weight is too small to perform hoisting.\n");
+        return;
+    }
+
+    HoistVisitor visitor(this, firstBlock, loopNum, hoistContext);
+
+    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    {
+        visitor.Hoist(stmt->gtStmtExpr);
+    }
 }
 
 void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt)
