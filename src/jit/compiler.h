@@ -5698,12 +5698,10 @@ protected:
     // Returns "true" iff "tree" is loop-invariant (wrt "lnum").
     // Assumes that the value of "*firstBlockAndBeforeSideEffect" indicates that we're in the first block, and before
     // any possible globally visible side effects.  Assume is called in evaluation order, and updates this.
-    bool optHoistLoopExprsForTree(GenTree*          tree,
-                                  unsigned          lnum,
-                                  LoopHoistContext* hoistCtxt,
-                                  bool*             firstBlockAndBeforeSideEffect,
-                                  bool*             pHoistable,
-                                  bool*             pCctorDependent);
+    void optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
+                                  unsigned          loopNum,
+                                  LoopHoistContext* hoistContext,
+                                  bool*             firstBlockAndBeforeSideEffect);
 
     // Performs the hoisting 'tree' into the PreHeader for loop 'lnum'
     void optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt);

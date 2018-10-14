@@ -6678,16 +6678,7 @@ void Compiler::optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoi
 
     for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        GenTree* stmtTree = stmt->gtStmtExpr;
-        bool     hoistable;
-        bool     cctorDependent;
-        (void)optHoistLoopExprsForTree(stmtTree, lnum, hoistCtxt, &firstBlockAndBeforeSideEffect, &hoistable,
-                                       &cctorDependent);
-        if (hoistable)
-        {
-            // we will try to hoist the top-level stmtTree
-            optHoistCandidate(stmtTree, lnum, hoistCtxt);
-        }
+        optHoistLoopExprsForStmt(stmt, lnum, hoistCtxt, &firstBlockAndBeforeSideEffect);
     }
 }
 
@@ -6793,12 +6784,10 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
 //  hoisted (even if '*pHoistable' is true) unless a preceding corresponding cctor init helper
 //  call is also hoisted.
 //
-bool Compiler::optHoistLoopExprsForTree(GenTree*          tree,
-                                        unsigned          lnum,
-                                        LoopHoistContext* hoistCtxt,
-                                        bool*             pFirstBlockAndBeforeSideEffect,
-                                        bool*             pHoistable,
-                                        bool*             pCctorDependent)
+void Compiler::optHoistLoopExprsForStmt(GenTreeStmt*      stmt,
+                                        unsigned          loopNum,
+                                        LoopHoistContext* hoistContext,
+                                        bool*             pFirstBlockAndBeforeSideEffect)
 {
     class HoistVisitor : public GenTreeVisitor<HoistVisitor>
     {
@@ -6848,10 +6837,15 @@ bool Compiler::optHoistLoopExprsForTree(GenTree*          tree,
         {
         }
 
-        bool Hoist(GenTree* tree)
+        void Hoist(GenTree* tree)
         {
             WalkTree(&tree, nullptr);
-            return m_valueStack.TopRef().m_hoistable;
+
+            if (m_valueStack.TopRef().m_hoistable)
+            {
+                assert(m_valueStack.TopRef().Node() == tree);
+                m_compiler->optHoistCandidate(tree, m_loopNum, m_hoistContext);
+            }
         }
 
         fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
@@ -7075,9 +7069,8 @@ bool Compiler::optHoistLoopExprsForTree(GenTree*          tree,
         }
     };
 
-    HoistVisitor visitor(this, pFirstBlockAndBeforeSideEffect, lnum, hoistCtxt);
-    *pHoistable = visitor.Hoist(tree);
-    return false;
+    HoistVisitor visitor(this, pFirstBlockAndBeforeSideEffect, loopNum, hoistContext);
+    visitor.Hoist(stmt->gtStmtExpr);
 }
 
 void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt)
