@@ -24,20 +24,16 @@ private:
     DataFlow();
 
 public:
-    // The callback interface that needs to be implemented by anyone
-    // needing updates by the dataflow object.
-    class Callback
-    {
-    public:
-        Callback(Compiler* pCompiler);
-
-        void StartMerge(BasicBlock* block);
-        void Merge(BasicBlock* block, BasicBlock* pred, flowList* preds);
-        bool EndMerge(BasicBlock* block);
-
-    private:
-        Compiler* m_pCompiler;
-    };
+    // The callback class that needs to be implemented by DataFlow users
+    // must have the following members:
+    //
+    // class Callback
+    // {
+    // public:
+    //     void StartMerge(BasicBlock* block);
+    //     void Merge(BasicBlock* block, BasicBlock* pred, flowList* preds);
+    //     bool EndMerge(BasicBlock* block);
+    // };
 
     DataFlow(Compiler* pCompiler);
 
