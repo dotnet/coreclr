@@ -575,6 +575,9 @@ namespace System
 
         public ref readonly byte GetPinnableReference() => ref _firstByte;
 
+        // TODO: Replace exception message below
+        public UnicodeScalar GetScalarAt(int index) => (TryGetScalarAt(index, out UnicodeScalar scalar)) ? scalar : throw new Exception("Invalid data.");
+
         public int IndexOf(char value)
         {
             return IndexOf_Char_NoBoundsChecks(value, 0, Length);
@@ -950,6 +953,18 @@ namespace System
         /// whitespace characters removed.
         /// </summary>
         public Utf8String TrimStart() => TrimHelper(TrimType.Head);
+
+        public bool TryGetScalarAt(int index, out UnicodeScalar scalar)
+        {
+            if ((uint)index >= Length)
+            {
+                throw new ArgumentOutOfRangeException(paramName: nameof(index), SR.ArgumentOutOfRange_Index);
+            }
+
+            var result = UnicodeReader.PeekFirstScalarUtf8(AsSpanFast().DangerousSliceWithoutBoundsCheck(index));
+            scalar = result.scalar; // will be U+FFFD on failure
+            return (result.status == SequenceValidity.Valid);
+        }
 
         /// <summary>
         /// Characteristics of a <see cref="Utf8String"/> instance that can be determined by examining
