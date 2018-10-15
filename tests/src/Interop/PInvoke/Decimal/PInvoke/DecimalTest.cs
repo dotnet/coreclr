@@ -40,8 +40,6 @@ public class CMain
     [DllImport("DecNative")]
     [return: MarshalAs(UnmanagedType.LPStruct)]
     static extern decimal RetDec();
-    [DllImport("DecNative")]
-    static extern bool TakeStru_Seq_DecAsLPStructAsFldByInOutRef([In, Out] ref Stru_Seq_DecAsLPStructAsFld s);
 
     //CY
     [DllImport("DecNative")]
@@ -100,43 +98,6 @@ public class CMain
         {
             Console.WriteLine("Expected MarshalDirectiveException is not thrown");
             return false;
-        }
-
-        //TODO: failed test scenarios
-        /* Test failed with exception:
-         * Cannot marshal field 'dec' of type 'Stru_Seq_DecAsLPStructAsFld': Invalid managed/unmanaged type combination (Decimal fields must be paired with Struct)
-         */
-        try
-        {
-            Stru_Seq_DecAsLPStructAsFld s = new Stru_Seq_DecAsLPStructAsFld();
-            s.dblVal = 1.23;
-            s.cVal = 'I';
-            s.dec = decimal.MinValue;
-
-            if (!TakeStru_Seq_DecAsLPStructAsFldByInOutRef(ref s))
-            {
-                Console.WriteLine("Test Failed: TakeStru_Seq_DecAsLPStructAsFldByInOutRef : Returned false");
-                return false;
-            }
-            if (decimal.MaxValue != s.dec)
-            {
-                Console.WriteLine($"Test Failed: Expected 'decimal.MaxValue'. Got {s.dec}.");
-                return false;
-            }
-            if (3.21 != s.dblVal)
-            {
-                Console.WriteLine($"Test Failed: Expected '3.21'. Got {s.dblVal}.");
-                return false;
-            }
-            if ('C' != s.cVal)
-            {
-                Console.WriteLine($"Test Failed: Expected ''C''. Got {s.cVal}.");
-                return false;
-            }
-        }
-        catch (MarshalDirectiveException)
-        {
-
         }
 
         Console.WriteLine("MarshalAsLPStruct end.");

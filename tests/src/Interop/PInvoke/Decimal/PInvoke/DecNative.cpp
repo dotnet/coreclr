@@ -130,22 +130,6 @@ extern "C" DLL_EXPORT DECIMAL RetDec()
     return g_DECIMAL_MaxValue;
 }
 
-extern "C" DLL_EXPORT BOOL TakeStru_Seq_DecAsLPStructAsFldByInOutRef(Stru_Seq_DecAsLPStructAsFld* s)
-{
-    if(DecEqualsToExpected("001.04.01", g_DECIMAL_MaxValue, *(s->lpDec)) 
-        && Equals("001.04.02", 1.23, s->dblVal) 
-        && Equals("001.04.03", L'I', s->cVal))
-    {
-        *(s->lpDec) = g_DECIMAL_MaxValue;
-        s->dblVal = 3.21;
-        s->cVal = L'C';
-
-        return true;
-    }
-    else
-        return false;
-}
-
 // CY
 extern "C" DLL_EXPORT BOOL TakeCYAsInOutParamAsLPStructByRef(CY* lpCy)
 {

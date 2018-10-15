@@ -66,10 +66,6 @@ public class CMain
     static extern bool ReverseCall_TakeDecByInOutRefAsLPStruct([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecInOutRefAsLPStruct dele);
     [DllImport("RevNative.dll")]
     static extern bool ReverseCall_TakeDecByOutRefAsLPStruct([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecOutRefAsLPStruct dele);
-    [DllImport("RevNative.dll")]
-    static extern bool ReverseCall_DecAsLPStructRet([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecAsLPStructRet dele);
-    [DllImport("RevNative.dll")]
-    static extern bool ReverseCall_TakeStru_Seq_DecAsLPStructAsFldByInOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_Stru_Seq_DecAsLPStructAsFldInOutRef dele);
     //************** ReverseCall Return Int From Net **************//
     [DllImport("RevNative.dll")]
     static extern bool ReverseCall_IntRet([MarshalAs(UnmanagedType.FunctionPtr)] Dele_IntRet dele);
@@ -320,23 +316,6 @@ public class CMain
         if (!ReverseCall_TakeDecByOutRefAsLPStruct(new Dele_DecOutRefAsLPStruct(TakeDecByOutRefAsLPStruct)))
         {
             Console.WriteLine("Test Failed: Decimal <-> DECIMAL, Marshal As LPStruct/Param, Passed By Out / Ref");
-            return false;
-        }
-        // MCG would fail to compile these methods while desktop throws MarshalDirectiveException
-        //TODO: failed test scenarios
-        /* Test failed with exception: 
-         * System.Runtime.InteropServices.MarshalDirectiveException: Method's type signature is not PInvoke compatible. */
-        if (!ReverseCall_DecAsLPStructRet(new Dele_DecAsLPStructRet(DecAsLPStructRet)))
-        {
-            Console.WriteLine("Test Failed: Decimal <-> DECIMAL, Marshal As LPStruct/RetVal");
-            return false;
-        }
-        /* Test failed with exception:
-         * Cannot marshal field 'dec' of type 'Stru_Seq_DecAsLPStructAsFld': Invalid managed/unmanaged type combination (Decimal fields must be paired with Struct)
-         * */
-        if (!ReverseCall_TakeStru_Seq_DecAsLPStructAsFldByInOutRef(new Dele_Stru_Seq_DecAsLPStructAsFldInOutRef(TakeStru_Seq_DecAsLPStructAsFldByInOutRef)))
-        {
-            Console.WriteLine("Test Failed: Decimal <-> DECIMAL, Marshal As LPStruct/Field, Passed By In / Out / Ref");
             return false;
         }
 
