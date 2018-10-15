@@ -177,7 +177,10 @@ public class CMain
     {
         bool success = true;
         success = success && MarshalAsLPStruct();
-        success = success && MarshalAsCurrencyScenario();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            success = success && MarshalAsCurrencyScenario();
+        }
 
         return success ? 100 : 101;
     }

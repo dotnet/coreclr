@@ -312,10 +312,12 @@ public class CMain
 
     static int Main()
     {
-        // System.Diagnostics.Debugger.Launch();
         bool success = true;
         success = success && AsStruct();
-        success = success && AsCY();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            success = success && AsCY();
+        }
         success = success && AsLPStruct();
         success = success && AsInt();
 
