@@ -25,15 +25,68 @@ typedef WCHAR OLECHAR;
 typedef unsigned int UINT_PTR;
 
 typedef unsigned long long ULONG64;
+typedef unsigned long long LONG64;
 typedef double DOUBLE;
 typedef float FLOAT;
 typedef signed long long LONG64, *PLONG64;
 typedef int INT, *LPINT;
 typedef unsigned int UINT;
+typedef int LONG;
+typedef unsigned int ULONG;
 typedef char CHAR, *PCHAR;
 typedef unsigned short USHORT;
 typedef signed short SHORT;
 typedef unsigned short WORD, *PWORD, *LPWORD;
+
+typedef union tagCY {
+    struct {
+#if BIGENDIAN
+        LONG    Hi;
+        ULONG   Lo;
+#else
+        ULONG   Lo;
+        LONG    Hi;
+#endif
+    } u;
+    LONG64 int64;
+} CY, *LPCY;
+
+typedef CY CURRENCY;
+
+typedef struct tagDEC {
+    // Decimal.cs treats the first two shorts as one long
+    // And they seriable the data so we need to little endian
+    // seriliazation
+    // The wReserved overlaps with Variant's vt member
+#if BIGENDIAN
+    union {
+        struct {
+            BYTE sign;
+            BYTE scale;
+        } u;
+        USHORT signscale;
+    } u;
+    USHORT wReserved;
+#else
+    USHORT wReserved;
+    union {
+        struct {
+            BYTE scale;
+            BYTE sign;
+        } u;
+        USHORT signscale;
+    } u;
+#endif
+    ULONG Hi32;
+    union {
+        struct {
+            ULONG Lo32;
+            ULONG Mid32;
+        } v;
+        ULONG64 Lo64;
+    } v;
+} DECIMAL, *LPDECIMAL;
+
 
 #ifndef TRUE
 #define TRUE 1
