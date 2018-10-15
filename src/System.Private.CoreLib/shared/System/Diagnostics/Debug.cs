@@ -6,6 +6,7 @@
 #define DEBUG
 using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace System.Diagnostics
 {
@@ -15,6 +16,15 @@ namespace System.Diagnostics
     public static partial class Debug
     {
         private static readonly object s_lock = new object();
+        private static DebugProvider s_provider = new DebugProvider();
+
+        public static DebugProvider SetProvider(DebugProvider provider)
+        {
+            if (provider == null)
+                throw new ArgumentNullException(nameof(provider));
+
+            return Interlocked.Exchange(ref s_provider, provider);
+        }
 
         public static bool AutoFlush { get { return true; } set { } }
 
@@ -102,7 +112,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
+                s_provider.ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
             }
         }
 
@@ -120,7 +130,7 @@ namespace System.Diagnostics
                     stackTrace = "";
                 }
                 WriteLine(FormatAssert(stackTrace, message, detailMessage));
-                s_ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
+                s_provider.ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
             }
         }
 
@@ -162,24 +172,7 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Write(string message)
         {
-            lock (s_lock)
-            {
-                if (message == null)
-                {
-                    s_WriteCore(string.Empty);
-                    return;
-                }
-                if (s_needIndent)
-                {
-                    message = GetIndentString() + message;
-                    s_needIndent = false;
-                }
-                s_WriteCore(message);
-                if (message.EndsWith(Environment.NewLine))
-                {
-                    s_needIndent = true;
-                }
-            }
+            s_provider.Write(message);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -346,5 +339,35 @@ namespace System.Diagnostics
         internal static Action<string, string, string, string> s_ShowDialog = ShowDialog;
 
         internal static Action<string> s_WriteCore = WriteCore;
+
+        public class DebugProvider
+        {
+            public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
+            {
+                Debug.s_ShowDialog(stackTrace, message, detailMessage, errorSource);
+            }
+
+            public virtual void Write(string message)
+            {
+                lock (Debug.s_lock)
+                {
+                    if (message == null)
+                    {
+                        Debug.s_WriteCore(string.Empty);
+                        return;
+                    }
+                    if (Debug.s_needIndent)
+                    {
+                        message = Debug.GetIndentString() + message;
+                        Debug.s_needIndent = false;
+                    }
+                    Debug.s_WriteCore(message);
+                    if (message.EndsWith(Environment.NewLine))
+                    {
+                        Debug.s_needIndent = true;
+                    }
+                }
+            }
+        }
     }
 }
