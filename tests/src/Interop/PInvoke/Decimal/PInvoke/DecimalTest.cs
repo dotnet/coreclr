@@ -110,15 +110,27 @@ public class CMain
         //CY
         decimal cy = CY_MAX_VALUE;
         if (!TakeCYAsInOutParamAsLPStructByRef(ref cy))
-        { Console.WriteLine("Test Failed: TakeCYAsInOutParamAsLPStructByRef : Returned false"); return false; }
+        { 
+            Console.WriteLine("Test Failed: TakeCYAsInOutParamAsLPStructByRef : Returned false");
+            return false;
+        }
         if (CY_MIN_VALUE != cy)
-        { Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}."); return false; }
+        { 
+            Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}.");
+            return false;
+        }
 
         cy = decimal.MaxValue;
         if (!TakeCYAsOutParamAsLPStructByRef(out cy))
-        { Console.WriteLine("Test Failed: TakeCYAsOutParamAsLPStructByRef : Returned false"); return false; }
+        { 
+            Console.WriteLine("Test Failed: TakeCYAsOutParamAsLPStructByRef : Returned false");
+            return false;
+        }
         if (CY_MIN_VALUE != cy)
-        { Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}."); return false; }
+        { 
+            Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}.");
+            return false;
+        }
 
 
         bool exceptionThrown = false;
