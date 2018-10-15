@@ -289,6 +289,7 @@ def main(args):
     # Gather up some arguments to pass to the different build scripts.
 
     config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
+    native_config_args = 'Release %s $s' % (clr_os, arch)
 
     # Run the primary (non-test) corefx build. We previously passed the argument:
     #
@@ -312,7 +313,7 @@ def main(args):
         # clang3.9, which is currently the default used by the native build. We need to pass
         # "cross", but we also pass "portable", which native build script normally passes
         # (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' portable cross clang5.0'
+        build_native_args += ' portable cross --clang5.0'
 
     if not Is_windows and arch == 'arm64' :
         # We need to pass "cross", but we also pass "portable", which native build script normally
@@ -320,7 +321,7 @@ def main(args):
         build_native_args += ' portable cross'
 
     command = ' '.join(('src/Native/build-native.cmd' if Is_windows else 'src/Native/build-native.sh',
-                        config_args,
+                        native_config_args,
                         build_native_args))
     log(command)
     returncode = 0 if testing else os.system(command)
