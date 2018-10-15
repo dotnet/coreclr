@@ -26,17 +26,6 @@ public struct Stru_Exp_DecAsCYAsFld
     public decimal dec;
 }
 
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
-public struct Stru_Seq_DecAsLPStructAsFld
-{
-    public double dblVal;
-
-    public char cVal;
-
-    [MarshalAs(UnmanagedType.LPStruct)]
-    public decimal dec;
-}
-
 public class CMain
 {
     #region Func Sig   
@@ -94,7 +83,6 @@ public class CMain
 
     [return: MarshalAs(UnmanagedType.LPStruct)]
     delegate decimal Dele_DecAsLPStructRet();
-    delegate bool Dele_Stru_Seq_DecAsLPStructAsFldInOutRef([In, Out]ref Stru_Seq_DecAsLPStructAsFld s);
 
     //************** ReverseCall Return Int From Net **************//
     delegate int Dele_IntRet();
@@ -210,19 +198,6 @@ public class CMain
     static decimal DecAsLPStructRet()
     {
         return decimal.MinValue;
-    }
-
-    static bool TakeStru_Seq_DecAsLPStructAsFldByInOutRef([In, Out] ref Stru_Seq_DecAsLPStructAsFld s)
-    {
-        if (Equals(decimal.MaxValue, s.dec) && Equals('I', s.cVal) && Equals(1.23, s.dblVal))
-        {
-            s.dec = decimal.MinValue;
-            s.cVal = 'C';
-            s.dblVal = 3.21;
-            return true;
-        }
-        else
-            return false;
     }
 
     //************** ReverseCall Return Int From Net **************//
