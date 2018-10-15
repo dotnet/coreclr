@@ -4,14 +4,15 @@
 
 #include <iostream>
 #include <xplatform.h>
+#include "platformdefines.h"
 
-DECIMAL g_DECIMAL_MaxValue = { 0, { 0, 0 }, 0xffffffff, 0xffffffff, 0xffffffff };
-DECIMAL g_DECIMAL_MinValue  = { 0, { 0, DECIMAL_NEG }, 0xffffffff, 0xffffffff, 0xffffffff };
+DECIMAL g_DECIMAL_MaxValue = { 0, {{ 0, 0 }}, 0xffffffff, {{0xffffffff, 0xffffffff}} };
+DECIMAL g_DECIMAL_MinValue  = { 0, {{ 0, DECIMAL_NEG }}, 0xffffffff, {{0xffffffff, 0xffffffff}} };
 DECIMAL g_DECIMAL_Zero = { 0 };
 
-CY g_CY_MaxValue = { 0xffffffff, 0x7fffffff };
-CY g_CY_MinValue = { (long)0x00000000, (long)0x80000000 };
-CY g_CY_Zero = { 0 };
+CY g_CY_MaxValue = { { 0xffffffff, 0x7fffffff } };
+CY g_CY_MinValue = { { (LONG)0x00000000, (LONG)0x80000000 } };
+CY g_CY_Zero = { { 0 } };
 
 typedef struct _Stru_Exp_DecAsCYAsFld
 {
@@ -162,10 +163,10 @@ extern "C" DLL_EXPORT CY RetCY()
 
 extern "C" DLL_EXPORT BOOL TakeStru_Exp_DecAsCYAsFldByInOutRef(Stru_Exp_DecAsCYAsFld* s)
 {
-    if(CYEqualsToExpected("001.04.01", g_CY_Zero, s->cy) && Equals("001.04.02", (wchar_t)0, s->wc))
+    if(CYEqualsToExpected("001.04.01", g_CY_Zero, s->cy) && Equals("001.04.02", W('\0'), s->wc))
     {
         s->cy = g_CY_MaxValue;
-        s->wc = L'C';
+        s->wc = W('C');
 
         return true;
     }

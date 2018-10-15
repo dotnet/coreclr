@@ -17,7 +17,6 @@ typedef char* LPSTR;
 typedef const char* LPCSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
-typedef unsigned error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
@@ -28,11 +27,9 @@ typedef unsigned long long ULONG64;
 typedef unsigned long long LONG64;
 typedef double DOUBLE;
 typedef float FLOAT;
-typedef signed long long LONG64, *PLONG64;
 typedef int INT, *LPINT;
 typedef unsigned int UINT;
 typedef int LONG;
-typedef unsigned int ULONG;
 typedef char CHAR, *PCHAR;
 typedef unsigned short USHORT;
 typedef signed short SHORT;
@@ -42,12 +39,12 @@ typedef union tagCY {
     struct {
 #if BIGENDIAN
         LONG    Hi;
-        ULONG   Lo;
+        LONG   Lo;
 #else
-        ULONG   Lo;
+        LONG   Lo;
         LONG    Hi;
 #endif
-    } u;
+    };
     LONG64 int64;
 } CY, *LPCY;
 
@@ -63,9 +60,9 @@ typedef struct tagDEC {
         struct {
             BYTE sign;
             BYTE scale;
-        } u;
+        };
         USHORT signscale;
-    } u;
+    };
     USHORT wReserved;
 #else
     USHORT wReserved;
@@ -73,18 +70,18 @@ typedef struct tagDEC {
         struct {
             BYTE scale;
             BYTE sign;
-        } u;
+        };
         USHORT signscale;
-    } u;
+    };
 #endif
-    ULONG Hi32;
+    LONG Hi32;
     union {
         struct {
-            ULONG Lo32;
-            ULONG Mid32;
-        } v;
+            LONG Lo32;
+            LONG Mid32;
+        };
         ULONG64 Lo64;
-    } v;
+    };
 } DECIMAL, *LPDECIMAL;
 
 

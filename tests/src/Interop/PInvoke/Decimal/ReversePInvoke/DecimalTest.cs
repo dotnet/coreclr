@@ -42,32 +42,32 @@ public class CMain
     #region Func Sig   
 
     // Dec As Struct
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeDecByInOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecInOutRef dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeDecByOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecOutRef dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_DecRet([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecRet dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeStru_Seq_DecAsStructAsFldByInOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_Stru_Seq_DecAsStructAsFldInOutRef dele);
 
     // Dec As CY
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeCYByInOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_CYInOutRef dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeCYByOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_CYOutRef dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_CYRet([MarshalAs(UnmanagedType.FunctionPtr)] Dele_CYRet dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef([MarshalAs(UnmanagedType.FunctionPtr)] Dele_Stru_Exp_DecAsCYAsFldOutRef dele);
 
     // Dec As LPStruct
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeDecByInOutRefAsLPStruct([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecInOutRefAsLPStruct dele);
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_TakeDecByOutRefAsLPStruct([MarshalAs(UnmanagedType.FunctionPtr)] Dele_DecOutRefAsLPStruct dele);
     //************** ReverseCall Return Int From Net **************//
-    [DllImport("RevNative.dll")]
+    [DllImport("RevNative")]
     static extern bool ReverseCall_IntRet([MarshalAs(UnmanagedType.FunctionPtr)] Dele_IntRet dele);
 
     #endregion

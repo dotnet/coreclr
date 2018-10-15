@@ -4,14 +4,15 @@
 
 #include <iostream>
 #include <xplatform.h>
+#include "platformdefines.h"
 
-DECIMAL g_DECIMAL_MaxValue = { 0, { 0, 0 }, 0xffffffff, 0xffffffff, 0xffffffff };
-DECIMAL g_DECIMAL_MinValue  = { 0, { 0, DECIMAL_NEG }, 0xffffffff, 0xffffffff, 0xffffffff };
+DECIMAL g_DECIMAL_MaxValue = { 0, {{ 0, 0 }}, 0xffffffff, {{0xffffffff, 0xffffffff}} };
+DECIMAL g_DECIMAL_MinValue  = { 0, {{ 0, DECIMAL_NEG }}, 0xffffffff, {{0xffffffff, 0xffffffff }}};
 DECIMAL g_DECIMAL_Zero = { 0 };
 
-CY g_CY_MaxValue = { 0xffffffff, 0x7fffffff };
-CY g_CY_MinValue = { (long)0x00000000, (long)0x80000000 };
-CY g_CY_Zero = { 0 };
+CY g_CY_MaxValue = { {0xffffffff, 0x7fffffff} };
+CY g_CY_MinValue = { {(LONG)0x00000000, (LONG)0x80000000} };
+CY g_CY_Zero = { {0} };
 
 typedef struct _Stru_Seq_DecAsStructAsFld
 {
@@ -206,7 +207,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef
     Stru_Exp_DecAsCYAsFld s = { 0 };
 
     if((*fp)(&s))
-        return CYEqualsToExpected("002.04", g_CY_MaxValue, s.cy) && Equals("002.05", L'C', s.wc);
+        return CYEqualsToExpected("002.04", g_CY_MaxValue, s.cy) && Equals("002.05", W('C'), s.wc);
     else
         return false;
 }
