@@ -262,6 +262,10 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal ref byte GetRawStringData() => ref Unsafe.AsRef(in _firstByte);
 
+        // Ordinal comparison - returns false if input char is a standalone surrogate code unit
+        public bool EndsWith(char value) => UnicodeScalar.TryCreate(value, out UnicodeScalar scalar) && EndsWith(scalar);
+
+        // Ordinal comparison
         public bool EndsWith(UnicodeScalar value)
         {
             if (Length == 0)
@@ -289,6 +293,19 @@ namespace System
             Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
             int actualSequenceLength = value.ToUtf8(valueAsUtf8);
             return AsSpanFast().EndsWith(valueAsUtf8.Slice(0, actualSequenceLength));
+        }
+
+        // Ordinal comparison
+        public bool EndsWith(Utf8String value)
+        {
+            if (value is null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+            else
+            {
+                return this.AsSpanFast().EndsWith(value.AsSpanFast());
+            }
         }
 
         public override bool Equals(object obj) => (obj is Utf8String other) && this.Equals(other);
@@ -710,6 +727,10 @@ namespace System
             return RuntimeHelpers.GetUtf8StringLiteral(value);
         }
 
+        // Ordinal comparison - returns false if input char is a standalone surrogate code unit
+        public bool StartsWith(char value) => UnicodeScalar.TryCreate(value, out UnicodeScalar scalar) && StartsWith(scalar);
+
+        // Ordinal comparison
         public bool StartsWith(UnicodeScalar value)
         {
             if (Length == 0)
@@ -737,6 +758,19 @@ namespace System
             Span<byte> valueAsUtf8 = stackalloc byte[4]; // longest sequence is 4 bytes
             int actualSequenceLength = value.ToUtf8(valueAsUtf8);
             return AsSpanFast().StartsWith(valueAsUtf8.Slice(0, actualSequenceLength));
+        }
+
+        // Ordinal comparison
+        public bool StartsWith(Utf8String value)
+        {
+            if (value is null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+            else
+            {
+                return this.AsSpanFast().StartsWith(value.AsSpanFast());
+            }
         }
 
         private static unsafe nuint strlen(byte* value)

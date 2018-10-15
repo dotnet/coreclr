@@ -114,6 +114,16 @@ namespace System.Text
 
         public static bool operator >=(UnicodeScalar a, UnicodeScalar b) => (a.Value >= b.Value);
 
+        // throws if UTF-16 code unit is not a valid scalar
+        public static explicit operator UnicodeScalar(char value) => new UnicodeScalar(value);
+
+        // throws if UTF-32 code unit is not a valid scalar
+        [CLSCompliant(false)]
+        public static explicit operator UnicodeScalar(uint value) => new UnicodeScalar(value);
+
+        // throws if UTF-32 code unit is not a valid scalar
+        public static explicit operator UnicodeScalar(int value) => new UnicodeScalar(value);
+
         private string DebuggerDisplay => FormattableString.Invariant($"'{(IsValid((int)Value) ? ToString() : "\uFFFD")}' (U+{Value:X4})");
 
         /// <summary>
@@ -326,6 +336,23 @@ namespace System.Text
 
             // TODO: Call non-validating Utf8String ctor (and pass flags)
             return new Utf8String(utf8Chars.Slice(0, ToUtf8(utf8Chars)));
+        }
+
+        /// <summary>
+        /// Attempts to create a <see cref="UnicodeScalar"/> from the provided input value.
+        /// </summary>
+        public static bool TryCreate(char value, out UnicodeScalar result)
+        {
+            if (!UnicodeHelpers.IsSurrogateCodePoint(value))
+            {
+                result = DangerousCreateWithoutValidation(value);
+                return true;
+            }
+            else
+            {
+                result = default;
+                return false;
+            }
         }
 
         /// <summary>
