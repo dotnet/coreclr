@@ -9,9 +9,10 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.IO;
+using System.Runtime.Loader;
 #if !PROJECTK_BUILD
 using System.Runtime.Remoting;
-#endif 
+#endif
 
 public enum eReasonForUnload
 {
@@ -32,10 +33,9 @@ public class LoaderClass
     : MarshalByRefObject
 #endif 
 {
-#if !PROJECTK_BUILD
     private Assembly assem;
     string assembly;
-#endif
+    object myRf;
 
     public LoaderClass()
     {
@@ -122,6 +122,102 @@ public class LoaderClass
         {
             Console.WriteLine("Load failed for: {0}", assemblyName);
             LoadFrom(assemblyName, paths, rf);	// couldn't load the assembly, try doing a LoadFrom with paths.
+
+        }
+    }
+
+    /// <summary>
+    /// Checks the test's entry point for an STA or MTA thread attribute.  Returns
+    /// the apartment state if set, or ApartmentState.Unknown
+    /// </summary>
+    /// <returns></returns>
+    public ApartmentState CheckMainForThreadType()
+    {
+        if (assem != null)
+        {
+            MethodInfo mi = assem.EntryPoint;
+            object[] attrs = mi.GetCustomAttributes(typeof(STAThreadAttribute), false);
+            if (attrs != null && attrs.Length > 0)
+            {
+                return (ApartmentState.STA);
+            }
+            attrs = mi.GetCustomAttributes(typeof(MTAThreadAttribute), false);
+            if (attrs != null && attrs.Length > 0)
+            {
+                return (ApartmentState.MTA);
+            }
+        }
+        return (ApartmentState.Unknown);
+    }
+#else
+    /// <summary>
+    /// Executes a LoadFrom in the app domain LoaderClass has been loaded into.  Attempts to load a given assembly, looking in the
+    /// given paths & the current directory.
+    /// </summary>
+    /// <param name="path">The assembly to load</param>
+    /// <param name="paths">Paths to search for the given assembly</param>
+    public void LoadFrom(string path, string[] paths, object rf)
+    {
+        myRf = rf;
+        AssemblyLoadContext alc = AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
+
+        //register AssemblyLoad and DomainUnload events
+        //AppDomain.CurrentDomain.AssemblyLoad += new AssemblyLoadEventHandler(this.UnloadOnAssemblyLoad);
+        //AppDomain.CurrentDomain.DomainUnload += new EventHandler(this.UnloadOnDomainUnload);
+
+        try
+        {
+            assembly = path;
+            assem = alc.LoadFromAssemblyPath(assembly);
+        }
+        catch
+        {
+            try
+            {
+                FileInfo fi = new FileInfo(path);
+                assembly = fi.FullName;
+                assem = alc.LoadFromAssemblyPath(assembly);
+            }
+            catch
+            {
+                if (paths != null)
+                {
+                    foreach (string basePath in paths)
+                    {
+                        try
+                        {
+                            assembly = ReliabilityConfig.ConvertPotentiallyRelativeFilenameToFullPath(basePath, path);
+                            assem = alc.LoadFromAssemblyPath(assembly);
+                            break;
+                        }
+                        catch
+                        {
+
+                        }
+                    }
+                }
+            }
+        }
+        if (assem == null)
+        {
+            Console.WriteLine($"Failed to load {path}");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to load an assembly w/ a simple name, looking in the given paths if a normal load fails
+    /// </summary>
+    /// <param name="assemblyName">The assembly name to load</param>
+    /// <param name="paths">paths to look in if the initial load fails</param>
+    public void Load(string assemblyName, string[] paths, object rf)
+    {
+        try
+        {
+            LoadFrom(assemblyName + ".exe", paths, rf);	// couldn't load the assembly, try doing a LoadFrom with paths.
+        }
+        catch
+        {
+            LoadFrom(assemblyName + ".dll", paths, rf);	// couldn't load the assembly, try doing a LoadFrom with paths.
 
         }
     }
@@ -241,6 +337,48 @@ public class LoaderClass
     {
         myRf.UnloadOnEvent(AppDomain.CurrentDomain, eReasonForUnload.AppDomainUnload);
     }
+#else
+    /// <summary>
+    /// Gets back the test object.  If the test is an assembly (to be executed) we return a string which is the full path.
+    /// If we're an ISingleReliabilityTest or IMultipleReliabilityTest we return the object it's self.
+    /// </summary>
+    /// <returns>a string (executable test) or a ISingleReliabilityTest or IMultipleReliabilityTest</returns>
+    public object GetTest()
+    {
+        if (assem == null)
+            throw new Exception("Could not load specified assembly: " + assembly);
+
+        Type[] assemTypes = null;
+        try
+        {
+            assemTypes = assem.GetTypes();
+        }
+        catch (System.Reflection.ReflectionTypeLoadException e)
+        {
+            if (assembly.ToLower().IndexOf(".exe") != -1)
+                return (assembly);
+            throw new Exception(string.Format("Couldn't GetTypes for {0} ({1})", assembly, e.Message));
+        }
+
+        // now create an instance of the correct type in the app domain
+        object ourObj = null;
+        if (assemTypes != null)
+        {
+            foreach (Type t in assemTypes)
+            {
+                if (t.GetInterface("ISingleReliabilityTest") != null || t.GetInterface("IMultipleReliabilityTest") != null)
+                {
+                    ourObj = Activator.CreateInstance(t);
+                }
+            }
+        }
+
+        if (ourObj == null)
+            return (assembly);
+
+        return (ourObj);
+    }
+
 #endif
 }
 
