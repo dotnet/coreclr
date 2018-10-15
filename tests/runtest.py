@@ -1907,11 +1907,6 @@ def do_setup(host_os,
     global gc_stress_c
 
     # Setup the tools for the repo.
-    if arch == "arm64" and host_os == "Windows_NT":
-        # Hack to avoid restoring build tools on x86/arm64 using init-tools.cmd.
-        # When we have an arm64 cli this can be safely removed when init-tools.cmd
-        # is updated.
-        os.environ["__SkipBuildTools__"] = "1"
     setup_tools(host_os, coreclr_repo_location)
 
     if unprocessed_args.generate_layout:
