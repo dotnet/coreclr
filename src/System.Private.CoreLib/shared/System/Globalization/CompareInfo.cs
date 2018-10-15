@@ -1421,6 +1421,14 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(source));
             }
 
+            return GetHashCodeOfString(source.AsSpan(), options);
+        }
+
+        internal int GetHashCodeOfString(ReadOnlySpan<char> source, CompareOptions options)
+        {
+            //
+            //  Parameter validation
+            //
             if ((options & ValidHashCodeOfStringMaskOffFlags) != 0)
             {
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
@@ -1428,7 +1436,7 @@ namespace System.Globalization
 
             if (_invariantMode)
             {
-                return ((options & CompareOptions.IgnoreCase) != 0) ? source.GetHashCodeOrdinalIgnoreCase() : source.GetHashCode();
+                return ((options & CompareOptions.IgnoreCase) != 0) ? string.GetHashCodeOrdinalIgnoreCase(source) : string.GetHashCode(source);
             }
 
             return GetHashCodeOfStringCore(source, options);
@@ -1441,14 +1449,19 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(source));
             }
 
+            return GetHashCode(source.AsSpan(), options);
+        }
+
+        public int GetHashCode(ReadOnlySpan<char> source, CompareOptions options)
+        {
             if (options == CompareOptions.Ordinal)
             {
-                return source.GetHashCode();
+                return string.GetHashCode(source);
             }
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                return source.GetHashCodeOrdinalIgnoreCase();
+                return string.GetHashCodeOrdinalIgnoreCase(source);
             }
 
             //
