@@ -12335,9 +12335,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetHelperArgClassHandle(GenTree*  tree,
                                                          unsigned* runtimeLookupCount,
                                                          GenTree** handleTree)
 {
-    CORINFO_CLASS_HANDLE result             = nullptr;
-    bool                 wasRuntimeLookup   = false;
-    GenTree*             handleTreeInternal = nullptr;
+    CORINFO_CLASS_HANDLE result = nullptr;
 
     // Walk through any wrapping nop.
     if ((tree->gtOper == GT_NOP) && (tree->gtType == TYP_I_IMPL))
@@ -12354,8 +12352,12 @@ CORINFO_CLASS_HANDLE Compiler::gtGetHelperArgClassHandle(GenTree*  tree,
     // Or the result of a runtime lookup
     else if (tree->OperGet() == GT_RUNTIMELOOKUP)
     {
-        result           = tree->AsRuntimeLookup()->GetClassHandle();
-        wasRuntimeLookup = true;
+        result = tree->AsRuntimeLookup()->GetClassHandle();
+
+        if (runtimeLookupCount != nullptr)
+        {
+            *runtimeLookupCount = *runtimeLookupCount + 1;
+        }
     }
     // Or something reached indirectly
     else if (tree->gtOper == GT_IND)
@@ -12364,25 +12366,20 @@ CORINFO_CLASS_HANDLE Compiler::gtGetHelperArgClassHandle(GenTree*  tree,
         // Certain others (eg from refanytype) may not be.
         if (tree->gtFlags & GTF_IND_NONFAULTING)
         {
-            handleTreeInternal = tree->gtOp.gtOp1;
+            GenTree* handleTreeInternal = tree->gtOp.gtOp1;
 
             if ((handleTreeInternal->OperGet() == GT_CNS_INT) && (handleTreeInternal->TypeGet() == TYP_I_IMPL))
             {
                 // These handle constants should be class handles.
                 assert(handleTreeInternal->IsIconHandle(GTF_ICON_CLASS_HDL));
                 result = (CORINFO_CLASS_HANDLE)handleTreeInternal->gtIntCon.gtCompileTimeHandle;
+
+                if (handleTree != nullptr)
+                {
+                    *handleTree = handleTreeInternal;
+                }
             }
         }
-    }
-
-    if ((runtimeLookupCount != nullptr) && wasRuntimeLookup)
-    {
-        *runtimeLookupCount = *runtimeLookupCount + 1;
-    }
-
-    if (handleTree != nullptr)
-    {
-        *handleTree = handleTreeInternal;
     }
 
     return result;
