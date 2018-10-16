@@ -4,8 +4,6 @@
 
 // Do not remove this, it is needed to retain calls to these conditional methods in release builds
 #define DEBUG
-using System.Diagnostics.Contracts;
-using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace System.Diagnostics
@@ -15,7 +13,6 @@ namespace System.Diagnostics
     /// </summary>
     public static partial class Debug
     {
-        private static readonly object s_lock = new object();
         private static DebugProvider s_provider = new DebugProvider();
 
         public static DebugProvider SetProvider(DebugProvider provider)
@@ -28,30 +25,27 @@ namespace System.Diagnostics
 
         public static bool AutoFlush { get { return true; } set { } }
 
-        [ThreadStatic]
-        private static int s_indentLevel;
         public static int IndentLevel
         {
             get
             {
-                return s_indentLevel;
+                return DebugProvider.IndentLevel;
             }
             set
             {
-                s_indentLevel = value < 0 ? 0 : value;
+                DebugProvider.IndentLevel = value;
             }
         }
 
-        private static int s_indentSize = 4;
         public static int IndentSize
         {
             get
             {
-                return s_indentSize;
+                return DebugProvider.IndentSize;
             }
             set
             {
-                s_indentSize = value < 0 ? 0 : value;
+                DebugProvider.IndentSize = value;
             }
         }
 
@@ -148,7 +142,7 @@ namespace System.Diagnostics
 
         private static string FormatAssert(string stackTrace, string message, string detailMessage)
         {
-            string newLine = GetIndentString() + Environment.NewLine;
+            string newLine = DebugProvider.GetIndentString() + Environment.NewLine;
             return SR.DebugAssertBanner + newLine
                    + SR.DebugAssertShortMessage + newLine
                    + message + newLine
@@ -300,73 +294,6 @@ namespace System.Diagnostics
             if (condition)
             {
                 WriteLine(message, category);
-            }
-        }
-
-        private static bool s_needIndent;
-
-        private static string s_indentString;
-
-        private static string GetIndentString()
-        {
-            int indentCount = IndentSize * IndentLevel;
-            if (s_indentString?.Length == indentCount)
-            {
-                return s_indentString;
-            }
-            return s_indentString = new string(' ', indentCount);
-        }
-
-        private sealed class DebugAssertException : Exception
-        {
-            internal DebugAssertException(string stackTrace) :
-                base(Environment.NewLine + stackTrace)
-            {
-            }
-
-            internal DebugAssertException(string message, string stackTrace) :
-                base(message + Environment.NewLine + Environment.NewLine + stackTrace)
-            {
-            }
-
-            internal DebugAssertException(string message, string detailMessage, string stackTrace) :
-                base(message + Environment.NewLine + detailMessage + Environment.NewLine + Environment.NewLine + stackTrace)
-            {
-            }
-        }
-
-        // internal and not readonly so that the tests can swap this out.
-        internal static Action<string, string, string, string> s_ShowDialog = ShowDialog;
-
-        internal static Action<string> s_WriteCore = WriteCore;
-
-        public class DebugProvider
-        {
-            public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
-            {
-                Debug.s_ShowDialog(stackTrace, message, detailMessage, errorSource);
-            }
-
-            public virtual void Write(string message)
-            {
-                lock (Debug.s_lock)
-                {
-                    if (message == null)
-                    {
-                        Debug.s_WriteCore(string.Empty);
-                        return;
-                    }
-                    if (Debug.s_needIndent)
-                    {
-                        message = Debug.GetIndentString() + message;
-                        Debug.s_needIndent = false;
-                    }
-                    Debug.s_WriteCore(message);
-                    if (message.EndsWith(Environment.NewLine))
-                    {
-                        Debug.s_needIndent = true;
-                    }
-                }
             }
         }
     }

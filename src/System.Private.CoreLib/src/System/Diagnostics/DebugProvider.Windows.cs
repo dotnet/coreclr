@@ -4,9 +4,10 @@
 
 namespace System.Diagnostics
 {
-    public static partial class Debug
+    public partial class DebugProvider
     {
-        private static void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
+        [System.Diagnostics.Conditional("DEBUG")]
+        public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
         {
             if (Debugger.IsAttached)
             {
