@@ -5,9 +5,9 @@
 using System.Buffers;
 using System.Diagnostics;
 
-namespace System.Text
+namespace System.Text.Unicode
 {
-    public static class Unicode
+    public static class Transcoders
     {
         public static OperationStatus TranscodeUtf8ToUtf16(ReadOnlySpan<byte> source, Span<char> destination, bool isFinalChunk, InvalidSequenceBehavior behavior, out int bytesConsumed, out int charsWritten)
         {

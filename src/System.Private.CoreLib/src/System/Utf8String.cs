@@ -8,6 +8,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Unicode;
 using System.Threading;
 using Internal.Runtime.CompilerServices;
 
@@ -1060,7 +1061,7 @@ namespace System
             {
                 if (!_source.IsEmpty)
                 {
-                    Unicode.TranscodeUtf8ToUtf16(_source, _chunkBuffer, isFinalChunk: true, fixupInvalidSequences: true, out int bytesConsumed, out int _numCharsConvertedInChunkBuffer);
+                    Transcoders.TranscodeUtf8ToUtf16(_source, _chunkBuffer, isFinalChunk: true, fixupInvalidSequences: true, out int bytesConsumed, out int _numCharsConvertedInChunkBuffer);
                     Debug.Assert(bytesConsumed != 0, "Should've consumed a non-zero amount of data.");
                     _source = _source.Slice(bytesConsumed);
                     return true;
