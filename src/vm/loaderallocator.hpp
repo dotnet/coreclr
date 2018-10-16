@@ -20,6 +20,9 @@ class FuncPtrStubs;
 #include "qcall.h"
 #include "ilstubcache.h"
 
+#include "callcounter.h"
+#include "methoddescvirtualinfo.h"
+
 #define VPTRU_LoaderAllocator 0x3200
 
 enum LoaderAllocatorType
@@ -221,8 +224,6 @@ protected:
 #endif
 
 private:
-    typedef SHash<PtrSetSHashTraits<LoaderAllocator * > > LoaderAllocatorSet;
-
     LoaderAllocatorSet m_LoaderAllocatorReferences;
     Volatile<UINT32>   m_cReferences;
     // This will be set by code:LoaderAllocator::Destroy (from managed scout finalizer) and signalizes that 
@@ -248,6 +249,13 @@ private:
     SList<FailedTypeInitCleanupListItem> m_failedTypeInitCleanupList;
 
     SegmentedHandleIndexStack m_freeHandleIndexesStack;
+
+#ifdef FEATURE_TIERED_COMPILATION
+    CallCounter m_callCounter;
+
+    MethodDescVirtualInfoTracker m_methodDescVirtualInfoTracker;
+    MethodDescEntryPointSlotsToBackpatchHash m_dependencyMethodDescEntryPointSlotsToBackpatchHash;
+#endif
 
 #ifndef DACCESS_COMPILE
 
@@ -530,6 +538,30 @@ public:
         LIMITED_METHOD_CONTRACT;
         return &m_ILStubCache;
     }
+
+#ifdef FEATURE_TIERED_COMPILATION
+
+public:
+    CallCounter* GetCallCounter()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_callCounter;
+    }
+
+    MethodDescVirtualInfoTracker *GetMethodDescVirtualInfoTracker()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_methodDescVirtualInfoTracker;
+    }
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+public:
+    EntryPointSlotsToBackpatch *GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
+    EntryPointSlotsToBackpatch *GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc);
+    void ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
+#endif
+
+#endif // FEATURE_TIERED_COMPILATION
 };  // class LoaderAllocator
 
 typedef VPTR(LoaderAllocator) PTR_LoaderAllocator;

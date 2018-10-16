@@ -2239,36 +2239,52 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
 {
     // TODO: This function needs to make sure it does not change the precode's target if call counting is in progress. Track
     // whether call counting is currently being done for the method, and use a lock to ensure the expected precode target.
-    LIMITED_METHOD_CONTRACT;
+    WRAPPER_NO_CONTRACT;
     _ASSERTE(LockOwnedByCurrentThread());
     _ASSERTE(pMethod->IsVersionable());
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
-    if (pMethod->IsVersionableWithPrecode())
+    if (pMethod->IsEligibleForTieredCompilation())
     {
-        Precode* pPrecode = pMethod->GetOrCreatePrecode();
-        if (pCode == NULL)
+        if (pMethod->IsTieredMethodVersionableWithPrecode())
         {
-            EX_TRY
+            Precode* pPrecode = pMethod->GetOrCreatePrecode();
+            if (pCode == NULL)
             {
-                pPrecode->Reset();
+                EX_TRY
+                {
+                    pPrecode->Reset();
+                }
+                EX_CATCH_HRESULT(hr);
+                return hr;
             }
-            EX_CATCH_HRESULT(hr);
-            return hr;
+            else
+            {
+                EX_TRY
+                {
+                    pPrecode->SetTargetInterlocked(pCode, FALSE);
+
+                    // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
+                    // can continue assuming it was successful, similarly to it successfully updating the target and another thread
+                    // updating the target again shortly afterwards.
+                    hr = S_OK;
+                }
+                EX_CATCH_HRESULT(hr);
+                return hr;
+            }
         }
         else
         {
-            EX_TRY
+            _ASSERTE(pMethod->IsTieredMethodVersionableWithVtableSlotBackpatch());
+            if (pCode == NULL)
             {
-                pPrecode->SetTargetInterlocked(pCode, FALSE);
-
-                // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
-                // can continue assuming it was successful, similarly to it successfully updating the target and another thread
-                // updating the target again shortly afterwards.
-                hr = S_OK;
+                pMethod->BackpatchToResetEntryPointSlots();
             }
-            EX_CATCH_HRESULT(hr);
-            return hr;
+            else
+            {
+                pMethod->BackpatchEntryPointSlots(pCode);
+            }
+            return S_OK;
         }
     }
     else

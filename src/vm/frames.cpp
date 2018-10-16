@@ -568,13 +568,12 @@ BOOL PrestubMethodFrame::TraceFrame(Thread *thread, BOOL fromPatch,
 
     //
     // We want to set a frame patch, unless we're already at the
-    // frame patch, in which case we'll trace stable entrypoint which 
-    // should be set by now.
+    // frame patch, in which case we'll trace the method entrypoint.
     //
 
     if (fromPatch)
     {
-        trace->InitForStub(GetFunction()->GetStableEntryPoint());
+        trace->InitForStub(GetFunction()->GetMethodEntryPoint());
     }
     else
     {
@@ -735,13 +734,12 @@ BOOL StubDispatchFrame::TraceFrame(Thread *thread, BOOL fromPatch,
 
     //
     // We want to set a frame patch, unless we're already at the
-    // frame patch, in which case we'll trace stable entrypoint which 
-    // should be set by now.
+    // frame patch, in which case we'll trace the method entrypoint.
     //
 
     if (fromPatch)
     {
-        trace->InitForStub(GetFunction()->GetStableEntryPoint());
+        trace->InitForStub(GetFunction()->GetMethodEntryPoint());
     }
     else
     {

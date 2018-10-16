@@ -77931,3 +77931,11 @@ Expected=0
 MaxAllowedDurationSeconds=600
 Categories=EXPECTED_PASS
 HostStyle=0
+
+[TieredVtableMethodTests.cmd_12237]
+RelativePath=baseservices\TieredCompilation\TieredVtableMethodTests\TieredVtableMethodTests.cmd
+WorkingDir=baseservices\TieredCompilation\TieredVtableMethodTests
+Expected=0
+MaxAllowedDurationSeconds=600
+Categories=EXPECTED_PASS
+HostStyle=0

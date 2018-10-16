@@ -498,7 +498,7 @@ End
 
 // Used to synchronize all rejit information stored in a given AppDomain.
 Crst ReJITDomainTable
-    AcquiredBefore LoaderHeap SingleUseLock DeadlockDetection JumpStubCache DebuggerController
+    AcquiredBefore LoaderHeap SingleUseLock DeadlockDetection JumpStubCache DebuggerController MethodDescVirtualInfoTracker
     AcquiredAfter ReJITGlobalRequest ThreadStore GlobalStrLiteralMap SystemDomain DebuggerMutex
 End
 
@@ -702,4 +702,8 @@ End
 
 Crst TieredCompilation
     AcquiredBefore ThreadpoolTimerQueue
+End
+
+Crst MethodDescVirtualInfoTracker
+    AcquiredBefore FuncPtrStubs
 End

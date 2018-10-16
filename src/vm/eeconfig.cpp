@@ -357,6 +357,7 @@ HRESULT EEConfig::Init()
     fTieredCompilation_OptimizeTier0 = false;
     tieredCompilation_tier1CallCountThreshold = 1;
     tieredCompilation_tier1CallCountingDelayMs = 0;
+    tieredCompilation_patchVirtualSlots = false;
 #endif
     
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -1231,6 +1232,8 @@ HRESULT EEConfig::sync()
             }
         }
     }
+
+    tieredCompilation_patchVirtualSlots = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TieredCompilation_PatchVirtualSlots) != 0;
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

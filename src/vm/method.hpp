@@ -246,17 +246,30 @@ public:
     inline PCODE GetStableEntryPoint()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-
         _ASSERTE(HasStableEntryPoint());
+        _ASSERTE(!IsTieredVtableMethod());
+
         return GetMethodEntryPoint();
     }
 
+    void SetMethodEntryPoint(PCODE addr);
     BOOL SetStableEntryPointInterlocked(PCODE addr);
 
     BOOL HasTemporaryEntryPoint();
     PCODE GetTemporaryEntryPoint();
 
     void SetTemporaryEntryPoint(LoaderAllocator *pLoaderAllocator, AllocMemTracker *pamTracker);
+
+    PCODE GetInitialEntryPointForCopiedSlot()
+    {
+        WRAPPER_NO_CONTRACT;
+
+        if (IsTieredVtableMethod())
+        {
+            return GetTemporaryEntryPoint();
+        }
+        return GetMethodEntryPoint();
+    }
 
     inline BOOL HasPrecode()
     {
@@ -285,7 +298,7 @@ public:
         }
         CONTRACTL_END
 
-        return !MayHaveNativeCode() || IsVersionableWithPrecode();
+        return !MayHaveNativeCode() || (IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithPrecode());
     }
 
     void InterlockedUpdateFlags2(BYTE bMask, BOOL fSet);
@@ -493,6 +506,7 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter* GetCallCounter();
+    MethodDescVirtualInfoTracker* GetVirtualInfoTracker();
 #endif
 
     PTR_LoaderAllocator GetLoaderAllocator();
@@ -1147,32 +1161,12 @@ public:
     // at some point.
     BOOL IsVersionable()
     {
+        WRAPPER_NO_CONTRACT;
+
 #ifndef FEATURE_CODE_VERSIONING
         return FALSE;
 #else
-        return IsVersionableWithPrecode() || IsVersionableWithJumpStamp();
-#endif
-    }
-
-    // If true, these methods version using the CodeVersionManager and
-    // switch between different code versions by updating the target of the precode.
-    // Note: EnC returns FALSE - even though it uses precode updates it does not
-    // use the CodeVersionManager right now
-    BOOL IsVersionableWithPrecode()
-    {
-#ifdef FEATURE_CODE_VERSIONING
-        return
-            // policy: which things do we want to version with a precode if possible
-            IsEligibleForTieredCompilation() &&
-
-            // functional requirements:
-            !IsZapped() &&        // NGEN directly invokes the pre-generated native code.
-                                  // without necessarily going through the prestub or
-                                  // precode
-            HasNativeCodeSlot();  // the stable entry point will need to point at our
-                                  // precode and not directly contain the native code.
-#else
-        return FALSE;
+        return IsEligibleForTieredCompilation() || IsVersionableWithJumpStamp();
 #endif
     }
 
@@ -1181,6 +1175,8 @@ public:
     // native code with a jmp instruction.
     BOOL IsVersionableWithJumpStamp()
     {
+        WRAPPER_NO_CONTRACT;
+
 #if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
         return
             // for native image code this is policy, but for jitted code it is a functional requirement
@@ -1188,7 +1184,7 @@ public:
             ReJitManager::IsReJITEnabled() &&
 
             // functional requirement - the runtime doesn't expect both options to be possible
-            !IsVersionableWithPrecode() &&
+            !IsEligibleForTieredCompilation() &&
 
             // functional requirement - we must be able to evacuate the prolog and the prolog must be big
             // enough, both of which are only designed to work on jitted code
@@ -1204,28 +1200,79 @@ public:
 #endif
     }
 
-#ifdef FEATURE_TIERED_COMPILATION
-    // Is this method allowed to be recompiled and the entrypoint redirected so that we
-    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     BOOL IsEligibleForTieredCompilation()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
-        // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
-        // to ensure native slots are available where needed.
-        return g_pConfig->TieredCompilation() &&
-            !IsZapped() &&
-            !IsEnCMethod() &&
-            HasNativeCodeSlot() &&
-            !IsUnboxingStub() &&
-            !IsInstantiatingStub() &&
-            !IsDynamicMethod() &&
-            !GetLoaderAllocator()->IsCollectible() &&
-            !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
-            !CORProfilerDisableTieredCompilation();
+#ifdef FEATURE_TIERED_COMPILATION
+        return (m_bFlags2 & enum_flag2_IsEligibleForTieredCompilation) != 0;
+#else
+        return FALSE;
+#endif
     }
+
+    // Is this method allowed to be recompiled and the entrypoint redirected so that we
+    // can optimize its performance? Eligibility is invariant for the lifetime of a method.
+    bool DetermineAndSetIsEligibleForTieredCompilation();
+
+    bool IsTieredMethodVersionableWithPrecode()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsEligibleForTieredCompilation());
+
+        return !IsTieredMethodVersionableWithVtableSlotBackpatch();
+    }
+
+    bool IsTieredMethodVersionableWithVtableSlotBackpatch()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsEligibleForTieredCompilation());
+
+#ifdef FEATURE_TIERED_COMPILATION
+        return
+            g_pConfig->TieredCompilation_PatchVirtualSlots() &&
+            IsVtableSlot() &&
+            !(IsInterface() && !IsStatic()); // true interface methods are not backpatched, see DoBackpatch()
+#else
+        return false;
+#endif
+    }
+
+    bool IsTieredVtableMethod()
+    {
+        WRAPPER_NO_CONTRACT;
+        return IsEligibleForTieredCompilation() && IsTieredMethodVersionableWithVtableSlotBackpatch();
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    void RecordAndBackpatchEntryPointSlot(LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlotsToBackpatch::SlotType slotType);
+private:
+    void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlotsToBackpatch::SlotType slotType, PCODE currentEntryPoint);
+
+public:
+    void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsTieredVtableMethod());
+        _ASSERTE(entryPoint != GetTemporaryEntryPoint());
+
+        BackpatchEntryPointSlots(entryPoint, false /* isTemporaryEntryPoint */);
+    }
+
+    void MethodDesc::BackpatchToResetEntryPointSlots()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsTieredVtableMethod());
+
+        BackpatchEntryPointSlots(GetTemporaryEntryPoint(), true /* isTemporaryEntryPoint */);
+    }
+
+private:
+    void BackpatchEntryPointSlots(PCODE entryPoint, bool isTemporaryEntryPoint);
 #endif
 
+public:
     bool RequestedAggressiveOptimization()
     {
         WRAPPER_NO_CONTRACT;
@@ -1666,7 +1713,8 @@ protected:
 
         enum_flag2_IsJitIntrinsic           = 0x10,   // Jit may expand method as an intrinsic
 
-        // unused                           = 0x20,
+        enum_flag2_IsEligibleForTieredCompilation = 0x20,
+
         // unused                           = 0x40,
         // unused                           = 0x80, 
     };

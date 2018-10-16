@@ -8832,10 +8832,13 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
         // just the first indirection to detect sharing.
         if (pMT->GetVtableIndirections()[0].GetValueMaybeNull() != pCanonMT->GetVtableIndirections()[0].GetValueMaybeNull())
         {
+            MethodTable::MethodDataWrapper hCanonMTData(MethodTable::GetMethodData(pCanonMT, FALSE));
             for (DWORD i = 0; i < nParentVirtuals; i++)
             {
-                PCODE target = pCanonMT->GetRestoredSlot(i);
-                pMT->SetSlot(i, target);
+                MethodDesc *pMD = hCanonMTData->GetImplMethodDesc(i);
+                CONSISTENCY_CHECK(CheckPointer(pMD));
+                CONSISTENCY_CHECK(pMD == pCanonMT->GetMethodDescForSlot(i));
+                pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
             }
         }
     }
@@ -8844,11 +8847,13 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
         MethodTable::MethodDataWrapper hMTData(MethodTable::GetMethodData(pMT, FALSE));
 
         MethodTable * pParentMT = pMT->GetParentMethodTable();
+        MethodTable::MethodDataWrapper hParentMTData(MethodTable::GetMethodData(pParentMT, FALSE));
 
         for (DWORD i = 0; i < nParentVirtuals; i++)
         {
             // fix up wrongly-inherited method descriptors
             MethodDesc* pMD = hMTData->GetImplMethodDesc(i);
+            CONSISTENCY_CHECK(CheckPointer(pMD));
             CONSISTENCY_CHECK(pMD == pMT->GetMethodDescForSlot(i));
 
             if (pMD->GetMethodTable() == pMT)
@@ -8875,8 +8880,10 @@ void MethodTableBuilder::CopyExactParentSlots(MethodTable *pMT, MethodTable *pAp
             }
 
             // The slot lives in an unshared chunk. We need to update the slot contents
-            PCODE target = pParentMT->GetRestoredSlot(i);
-            pMT->SetSlot(i, target);
+            pMD = hParentMTData->GetImplMethodDesc(i);
+            CONSISTENCY_CHECK(CheckPointer(pMD));
+            CONSISTENCY_CHECK(pMD == pParentMT->GetMethodDescForSlot(i));
+            pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
         }
     }
 } // MethodTableBuilder::CopyExactParentSlots
@@ -10506,7 +10513,7 @@ MethodTableBuilder::SetupMethodTable2(
                 //
                 DWORD indirectionIndex = MethodTable::GetIndexOfVtableIndirection(iCurSlot);
                 if (GetParentMethodTable()->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull() != pMT->GetVtableIndirections()[indirectionIndex].GetValueMaybeNull())
-                    pMT->SetSlot(iCurSlot, pMD->GetMethodEntryPoint());
+                    pMT->SetSlot(iCurSlot, pMD->GetInitialEntryPointForCopiedSlot());
             }
             else
             {
@@ -10620,22 +10627,27 @@ MethodTableBuilder::SetupMethodTable2(
                 // This indicates that the method body in this slot was copied here through a methodImpl.
                 // Thus, copy the value of the slot from which the body originally came, in case it was
                 // overridden, to make sure the two slots stay in sync.
-                INDEBUG(MethodDesc * pMDOld; pMDOld = pMD;)
-                if(pMD->GetSlot() != i &&
-                   pMT->GetSlot(i) != pMT->GetSlot(pMD->GetSlot()))
+                DWORD originalIndex = pMD->GetSlot();
+                if (originalIndex != i)
                 {
-                    // Copy the slot value in the method's original slot.
-                    pMT->SetSlot(i,pMT->GetSlot(pMD->GetSlot()));
-                    hMTData->InvalidateCachedVirtualSlot(i);
+                    MethodDesc *pOriginalMD = hMTData->GetImplMethodDesc(originalIndex);
+                    CONSISTENCY_CHECK(CheckPointer(pOriginalMD));
+                    CONSISTENCY_CHECK(pOriginalMD == pMT->GetMethodDescForSlot(originalIndex));
+                    if (pMD != pOriginalMD)
+                    {
+                        // Copy the slot value in the method's original slot.
+                        pMT->SetSlot(i, pOriginalMD->GetInitialEntryPointForCopiedSlot());
+                        hMTData->InvalidateCachedVirtualSlot(i);
 
-                    // Update the pMD to the new method desc we just copied over ourselves with. This will
-                    // be used in the check for missing method block below.
-                    pMD = pMT->GetMethodDescForSlot(pMD->GetSlot());
+                        // Update the pMD to the new method desc we just copied over ourselves with. This will
+                        // be used in the check for missing method block below.
+                        pMD = pOriginalMD;
 
-                    // This method is now duplicate
-                    pMD->SetDuplicate();
-                    INDEBUG(g_dupMethods++;)
-                    fChangeMade = TRUE;
+                        // This method is now duplicate
+                        pMD->SetDuplicate();
+                        INDEBUG(g_dupMethods++;)
+                        fChangeMade = TRUE;
+                    }
                 }
             }
         }
