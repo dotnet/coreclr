@@ -289,7 +289,7 @@ def main(args):
     # Gather up some arguments to pass to the different build scripts.
 
     config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
-    native_config_args = 'Release %s $s' % (clr_os, arch)
+    native_config_args = 'Release %s %s' % (clr_os, arch)
 
     # Run the primary (non-test) corefx build. We previously passed the argument:
     #
