@@ -7194,19 +7194,6 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                 if (pDeclMD->GetSlot() != targetSlot)
                                     continue;
 
-                                // pDeclMD is only an approximate method because at the type loading time
-                                // we couldn't do better than that. Get the token and do a full load.
-                                mdToken declToken = it.GetToken();
-
-                                Module* pModule = pMD->GetModule();
-                                SigTypeContext typeContext = SigTypeContext(pCurMT);
-                                pDeclMD = MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec(
-                                    pModule,
-                                    declToken,
-                                    &typeContext,
-                                    FALSE,
-                                    FALSE);
-
                                 // Is this the right interface?
                                 if (!pDeclMD->HasSameMethodDefAs(pInterfaceMD))
                                     continue;
@@ -7217,14 +7204,16 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
                                     // instantiation against pInterfaceMT.
                                     //
                                     // The parent of pDeclMD is unreliable for this purpose because it may or
-                                    // may not be canonicalized. Let's go from the metadata again.
+                                    // may not be canonicalized. Let's go from the metadata.
 
-                                    mdTypeRef parent;
-                                    IfFailThrow(pModule->GetMDImport()->GetParentToken(declToken, &parent));
+                                    SigTypeContext typeContext = SigTypeContext(pCurMT);
+
+                                    mdTypeRef tkParent;
+                                    IfFailThrow(pMD->GetModule()->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
 
                                     MethodTable* pDeclMT = ClassLoader::LoadTypeDefOrRefOrSpecThrowing(
-                                        pModule,
-                                        parent,
+                                        pMD->GetModule(),
+                                        tkParent,
                                         &typeContext).AsMethodTable();
 
                                     // We do CanCastToInterface to also cover variance.
