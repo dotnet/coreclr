@@ -289,47 +289,8 @@ def main(args):
     # Gather up some arguments to pass to the different build scripts.
 
     config_args = '-Release /p:OSGroup=%s /p:ArchGroup=%s' % (clr_os, arch)
-    native_config_args = 'Release %s %s' % (clr_os, arch)
 
-    # Run the primary (non-test) corefx build. We previously passed the argument:
-    #
-    #    /p:CoreCLROverridePath=<path-to-core_root>
-    #
-    # which causes the corefx build to overwrite its built runtime with the binaries from
-    # the coreclr build. However, this often causes build failures when breaking changes are
-    # in progress (e.g., a breaking change is made in coreclr that has not yet had compensating
-    # changes made in the corefx repo). Instead, build corefx normally. This should always work
-    # since corefx is protected by a CI testing system. Then, overwrite the built corefx
-    # runtime with the runtime built in the coreclr build. The result will be that perhaps
-    # some, hopefully few, corefx tests will fail, but the builds will never fail.
-
-    # Cross build corefx for arm64 on x64.
-    # Cross build corefx for arm32 on x86.
-
-    build_native_args = ''
-
-    if not Is_windows and arch == 'arm' :
-        # We need to force clang5.0; we are building in a docker container that doesn't have
-        # clang3.9, which is currently the default used by the native build. We need to pass
-        # "cross", but we also pass "portable", which native build script normally passes
-        # (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' portable cross --clang5.0'
-
-    if not Is_windows and arch == 'arm64' :
-        # We need to pass "cross", but we also pass "portable", which native build script normally
-        # passes (there doesn't appear to be a way to pass these individually).
-        build_native_args += ' portable cross'
-
-    command = ' '.join(('src/Native/build-native.cmd' if Is_windows else 'src/Native/build-native.sh',
-                        native_config_args,
-                        build_native_args))
-    log(command)
-    returncode = 0 if testing else os.system(command)
-    if returncode != 0:
-        log('Error: exit code %s' % returncode)
-        sys.exit(1)
-
-    command = ' '.join(('build.cmd /p:BuildNative=false' if Is_windows else './build.sh /p:BuildNative=false', config_args))
+    command = ' '.join(('build.cmd' if Is_windows else './build.sh', config_args))
     log(command)
     returncode = 0 if testing else os.system(command)
     if returncode != 0:
