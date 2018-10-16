@@ -12180,8 +12180,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         GenTree*             op2ClassFromHandle = tree->gtOp.gtOp2->gtCall.gtCallArgs->gtOp.gtOp1;
         GenTree*             op1TunneledHandle  = nullptr;
         GenTree*             op2TunneledHandle  = nullptr;
-        CORINFO_CLASS_HANDLE cls1Hnd            = nullptr;
-        CORINFO_CLASS_HANDLE cls2Hnd            = nullptr;
+        CORINFO_CLASS_HANDLE cls1Hnd            = NO_CLASS_HANDLE;
+        CORINFO_CLASS_HANDLE cls2Hnd            = NO_CLASS_HANDLE;
         unsigned             runtimeLookupCount = 0;
 
         // Try and find class handles from op1 and op2
@@ -12191,7 +12191,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         // If we have both class handles, try and resolve the type equality test completely.
         bool resolveFailed = false;
 
-        if ((cls1Hnd != nullptr) && (cls2Hnd != nullptr))
+        if ((cls1Hnd != NO_CLASS_HANDLE) && (cls2Hnd != NO_CLASS_HANDLE))
         {
             JITDUMP("Asking runtime to compare %p (%s) and %p (%s) for equality\n", dspPtr(cls1Hnd),
                     info.compCompHnd->getClassName(cls1Hnd), dspPtr(cls2Hnd), info.compCompHnd->getClassName(cls2Hnd));
@@ -12224,8 +12224,8 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
         }
         else
         {
-            JITDUMP("Could not find handle for %s%s\n", (cls1Hnd == nullptr) ? " cls1" : "",
-                    (cls2Hnd == nullptr) ? " cls2" : "");
+            JITDUMP("Could not find handle for %s%s\n", (cls1Hnd == NO_CLASS_HANDLE) ? " cls1" : "",
+                    (cls2Hnd == NO_CLASS_HANDLE) ? " cls2" : "");
         }
 
         // We can't answer the equality comparison definitively at jit
@@ -12269,7 +12269,7 @@ GenTree* Compiler::gtFoldTypeCompare(GenTree* tree)
     CORINFO_CLASS_HANDLE clsHnd           = gtGetHelperArgClassHandle(opHandleArgument);
 
     // If we couldn't find the class handle, give up.
-    if (clsHnd == nullptr)
+    if (clsHnd == NO_CLASS_HANDLE)
     {
         return tree;
     }
@@ -12335,7 +12335,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetHelperArgClassHandle(GenTree*  tree,
                                                          unsigned* runtimeLookupCount,
                                                          GenTree** handleTree)
 {
-    CORINFO_CLASS_HANDLE result = nullptr;
+    CORINFO_CLASS_HANDLE result = NO_CLASS_HANDLE;
 
     // Walk through any wrapping nop.
     if ((tree->gtOper == GT_NOP) && (tree->gtType == TYP_I_IMPL))
