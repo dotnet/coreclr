@@ -2850,7 +2850,7 @@ private:
     VOID HandleGCForValueClasses(
         MethodTable **);
 
-    BOOL HasDefaultInterfaceImplementation(MethodDesc *pIntfMD);
+    BOOL HasDefaultInterfaceImplementation(bmtRTType *pIntfType, MethodDesc *pIntfMD);
     VOID VerifyVirtualMethodsImplemented(MethodTable::MethodData * hMTData);
 
     VOID CheckForTypeEquivalence(

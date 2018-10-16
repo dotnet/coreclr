@@ -10763,39 +10763,81 @@ MethodTableBuilder::SetupMethodTable2(
 
 // Returns true if there is at least one default implementation for this interface method
 // We don't care about conflicts at this stage in order to avoid impact type load performance
-BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(MethodDesc *pDeclMD)
+BOOL MethodTableBuilder::HasDefaultInterfaceImplementation(bmtRTType *pDeclType, MethodDesc *pDeclMD)
 {
     STANDARD_VM_CONTRACT;
 
 #ifdef FEATURE_DEFAULT_INTERFACES
     // If the interface method is already non-abstract, we are done
-    if (pDeclMD->IsDefaultInterfaceMethod())
+    if (!pDeclMD->IsAbstract())
         return TRUE;
 
-    MethodTable *pDeclMT = pDeclMD->GetMethodTable();
+    int targetSlot = pDeclMD->GetSlot();
 
-    // Otherwise, traverse the list of interfaces and see if there is at least one override 
-    bmtInterfaceInfo::MapIterator intIt = bmtInterface->IterateInterfaceMap();
-    for (; !intIt.AtEnd(); intIt.Next())
+    // Iterate over all the interfaces this type implements
+    bmtInterfaceEntry * pItfEntry = NULL;
+    for (DWORD i = 0; i < bmtInterface->dwInterfaceMapSize; i++)
     {
-        MethodTable *pIntfMT = intIt->GetInterfaceType()->GetMethodTable();
-        if (pIntfMT->GetClass()->ContainsMethodImpls() && pIntfMT->CanCastToInterface(pDeclMT))
+        bmtRTType * pCurItf = bmtInterface->pInterfaceMap[i].GetInterfaceType();
+
+        // Go over the methods on the interface
+        MethodTable::IntroducedMethodIterator methIt(pCurItf->GetMethodTable());
+        for (; methIt.IsValid(); methIt.Next())
         {
-            MethodTable::MethodIterator methodIt(pIntfMT);
-            for (; methodIt.IsValid(); methodIt.Next())
+            MethodDesc * pPotentialImpl = methIt.GetMethodDesc();
+
+            // If this interface method is not a MethodImpl, it can't possibly implement
+            // the interface method we are looking for
+            if (!pPotentialImpl->IsMethodImpl())
+                continue;
+
+            // Go over all the decls this MethodImpl is implementing
+            MethodImpl::Iterator it(pPotentialImpl);
+            for (; it.IsValid(); it.Next())
             {
-                MethodDesc *pMD = methodIt.GetMethodDesc();
-                if (pMD->IsMethodImpl())
+                MethodDesc *pPotentialDecl = it.GetMethodDesc();
+
+                // Check this is a decl with the right slot
+                if (pPotentialDecl->GetSlot() != targetSlot)
+                    continue;
+
+                // Find out what interface this default implementation is implementing
+                mdToken tkParent;
+                IfFailThrow(GetModule()->GetMDImport()->GetParentToken(it.GetToken(), &tkParent));
+
+                // We can only load the approximate interface at this point
+                MethodTable * pPotentialInterfaceMT = ClassLoader::LoadTypeDefOrRefOrSpecThrowing(
+                    GetModule(),
+                    tkParent,
+                    &bmtGenerics->typeContext,
+                    ClassLoader::ThrowIfNotFound,
+                    ClassLoader::PermitUninstDefOrRef,
+                    ClassLoader::LoadTypes,
+                    CLASS_LOAD_APPROXPARENTS,
+                    TRUE).GetMethodTable()->GetCanonicalMethodTable();
+
+                // Is this a default implementation for the interface we are looking for?
+                if (pDeclType->GetMethodTable()->HasSameTypeDefAs(pPotentialInterfaceMT))
                 {
-                    MethodImpl::Iterator it(pMD);
-                    for (; it.IsValid(); it.Next())
+                    // If the type is not generic, matching defs are all we need
+                    if (!pDeclType->GetMethodTable()->HasInstantiation())
+                        return TRUE;
+
+                    // If this is generic, we need to compare under substitutions
+                    Substitution curItfSubs(tkParent, GetModule(), &pCurItf->GetSubstitution());
+
+                    // Type Equivalence is not respected for this comparision as you can have multiple type equivalent interfaces on a class
+                    TokenPairList newVisited = TokenPairList::AdjustForTypeEquivalenceForbiddenScope(NULL);
+                    if (MetaSig::CompareTypeDefsUnderSubstitutions(
+                        pPotentialInterfaceMT, pDeclType->GetMethodTable(),
+                        &curItfSubs, &pDeclType->GetSubstitution(),
+                        &newVisited))
                     {
-                        if (it.GetMethodDesc() == pDeclMD)
-                            return TRUE;
+                        return TRUE;
                     }
                 }
             }
-        }
+        }        
     }
 #endif // FEATURE_DEFAULT_INTERFACES
 
@@ -10878,7 +10920,7 @@ void MethodTableBuilder::VerifyVirtualMethodsImplemented(MethodTable::MethodData
                 {
                     MethodDesc *pMD = it.GetDeclMethodDesc();
 
-                    if (!HasDefaultInterfaceImplementation(pMD))
+                    if (!HasDefaultInterfaceImplementation(intIt->GetInterfaceType(), pMD))
                         BuildMethodTableThrowException(IDS_CLASSLOAD_NOTIMPLEMENTED, pMD->GetNameOnNonArrayClass());
                 }
             }
