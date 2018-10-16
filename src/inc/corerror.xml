@@ -1247,6 +1247,11 @@
     <SymbolicName>CORPROF_E_CALLBACK7_REQUIRED</SymbolicName>
     <Comment> Profiler must implement ICorProfilerCallback7 interface for this call to be supported. </Comment>
 </HRESULT>
+<HRESULT NumericValue="0x80131383">
+	<SymbolicName>CORPROF_E_ASSEMBLY_ALREADY_DEFINED</SymbolicName>
+	<Message>"Profiler can not redefine assembly path for assembly registred in application."</Message>
+	<Comment> Profiler can not redefine assembly path for assembly registred in application. </Comment>
+</HRESULT>
 
 <HRESULT NumericValue="0x80131401">
 	<SymbolicName>SECURITY_E_INCOMPATIBLE_SHARE</SymbolicName>

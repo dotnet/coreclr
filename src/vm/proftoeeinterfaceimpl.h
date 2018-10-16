@@ -600,13 +600,13 @@ public:
 
     // end ICorProfilerInfo9
 
-    // beging ICorProfilerInfo10
+    // begin ICorProfilerInfo10
 
     COM_METHOD AddAssemblyPath(
         AppDomainID appDomainId, 
         const WCHAR *pAssemblyPath);
 
-    // end ICorProfilerInfo9
+    // end ICorProfilerInfo10
 
 protected:
 

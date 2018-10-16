@@ -9819,7 +9819,8 @@ HRESULT ProfToEEInterfaceImpl::AddAssemblyPath(AppDomainID appDomainId,
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        CANNOT_TAKE_LOCK;
+        // Access to TPA list require lock
+        CAN_TAKE_LOCK;
         SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
@@ -9835,41 +9836,49 @@ HRESULT ProfToEEInterfaceImpl::AddAssemblyPath(AppDomainID appDomainId,
     HRESULT hr = S_OK;
     EX_TRY
     {
-        SString fileName(pAssemblyPath);
-        SString simpleName;
-        bool isNativeImage;
-
-        CLRPrivBinderCoreCLR* binderContext = pDomain->GetTPABinderContext();
-        if (binderContext == nullptr)
+        if (PathIsRelativeW(pAssemblyPath))
         {
-            hr = CORPROF_E_NOT_YET_AVAILABLE;
+            hr = CORPROF_E_DATAINCOMPLETE;
         }
         else
         {
-            BINDER_SPACE::ApplicationContext* appContext = binderContext->GetAppContext();
+            SString fileName(pAssemblyPath);
+            SString simpleName;
+            bool isNativeImage;
 
-            hr = BINDER_SPACE::ApplicationContext::GetAssemblySimpleName(fileName, simpleName, isNativeImage);
+            CLRPrivBinderCoreCLR* binderContext = pDomain->GetTPABinderContext();
+            if (binderContext == nullptr)
+            {
+                hr = CORPROF_E_NOT_YET_AVAILABLE;
+            }
+            else
+            {
+                BINDER_SPACE::ApplicationContext* appContext = binderContext->GetAppContext();
 
-            if (hr == S_OK) {
-                BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
-                if (tpaMap == nullptr)
-                {
-                    hr = CORPROF_E_NOT_YET_AVAILABLE;
-                }
-                else
-                {
-                    const BINDER_SPACE::SimpleNameToFileNameMapEntry *pExistingEntry = appContext->GetTpaList()->LookupPtr(simpleName.GetUnicode());
-                    if (pExistingEntry != nullptr)
+                CRITSEC_Holder contextLock(appContext->GetCriticalSectionCookie());
+
+                hr = BINDER_SPACE::ApplicationContext::GetAssemblySimpleName(fileName, simpleName, isNativeImage);
+
+                if (hr == S_OK) {
+                    BINDER_SPACE::SimpleNameToFileNameMap* tpaMap = appContext->GetTpaList();
+                    if (tpaMap == nullptr)
                     {
-                        hr = CORPROF_E_ASSEMBLY_ALREADY_DEFINED;
+                        hr = CORPROF_E_NOT_YET_AVAILABLE;
                     }
                     else
                     {
-                        hr = appContext->UpdateSimpleNameToFileNameMapEntry(simpleName, fileName, isNativeImage);
+                        const BINDER_SPACE::SimpleNameToFileNameMapEntry *pExistingEntry = tpaMap->LookupPtr(simpleName.GetUnicode());
+                        if (pExistingEntry != nullptr)
+                        {
+                            hr = CORPROF_E_ASSEMBLY_ALREADY_DEFINED;
+                        }
+                        else
+                        {
+                            hr = appContext->UpdateSimpleNameToFileNameMapEntry(simpleName, fileName, isNativeImage);
+                        }
                     }
                 }
             }
-
         }
     }
     EX_CATCH_HRESULT(hr);

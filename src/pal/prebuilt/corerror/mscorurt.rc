@@ -164,6 +164,7 @@ BEGIN
 	MSG_FOR_URT_HR(CORPROF_E_NOT_YET_AVAILABLE) "Requested information is not yet available."
 	MSG_FOR_URT_HR(CORPROF_E_TYPE_IS_PARAMETERIZED) "The given type is a generic and cannot be used with this method."
 	MSG_FOR_URT_HR(CORPROF_E_FUNCTION_IS_PARAMETERIZED) "The given function is a generic and cannot be used with this method."
+	MSG_FOR_URT_HR(CORPROF_E_ASSEMBLY_ALREADY_DEFINED) "Profiler can not redefine assembly path for assembly registred in application."
 	MSG_FOR_URT_HR(SECURITY_E_INCOMPATIBLE_SHARE) "Loading this assembly would produce a different grant set from other instances."
 	MSG_FOR_URT_HR(SECURITY_E_UNVERIFIABLE) "Unverifiable code failed policy check."
 	MSG_FOR_URT_HR(SECURITY_E_INCOMPATIBLE_EVIDENCE) "Assembly already loaded without additional security evidence."
