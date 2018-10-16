@@ -6,7 +6,6 @@ namespace System.Diagnostics
 {
     public partial class DebugProvider
     {
-        [System.Diagnostics.Conditional("DEBUG")]
         public virtual void ShowDialog(string stackTrace, string message, string detailMessage, string errorSource)
         {
             if (Debugger.IsAttached)

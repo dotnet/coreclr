@@ -12,7 +12,6 @@ namespace System.Diagnostics
     /// </summary>
     public partial class DebugProvider
     {
-        [System.Diagnostics.Conditional("DEBUG")]
         public virtual void Write(string message)
         {
             lock (s_lock)
