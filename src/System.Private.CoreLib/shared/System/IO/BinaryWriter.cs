@@ -5,6 +5,8 @@
 using System.Text;
 using System.Diagnostics;
 using System.Buffers;
+using System.Threading.Tasks;
+using System.Threading;
 
 namespace System.IO
 {
@@ -12,7 +14,7 @@ namespace System.IO
     // primitives to an arbitrary stream. A subclass can override methods to
     // give unique encodings.
     //
-    public class BinaryWriter : IDisposable
+    public class BinaryWriter : IDisposable, IAsyncDisposable
     {
         public static readonly BinaryWriter Null = new BinaryWriter();
 
@@ -86,6 +88,30 @@ namespace System.IO
         {
             Dispose(true);
         }
+
+        public virtual ValueTask DisposeAsync()
+        {
+            if (GetType() == typeof(BinaryWriter))
+            {
+                if (_leaveOpen)
+                {
+                    return new ValueTask(OutStream.FlushAsync());
+                }
+                else
+                {
+                    OutStream.Close();
+                    return default;
+                }
+            }
+            else
+            {
+                // Since this is a derived BinaryWriter, delegate to whatever logic
+                // the derived implementation already has in Dispose.
+                return new ValueTask(Task.Factory.StartNew(s => ((BinaryWriter)s).Dispose(), this,
+                    CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
+            }
+        }
+
 
         // Returns the stream associated with the writer. It flushes all pending
         // writes before returning. All subclasses should override Flush to

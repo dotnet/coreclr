@@ -269,6 +269,12 @@ namespace System.IO
             }
         }
 
+        public override ValueTask DisposeAsync() =>
+            // On Unix, we'll always end up doing what's in Dispose anyway,
+            // so just delegate to the base to queue it.  We maintain an explicit override for
+            // consistency with Windows, which has a more complicated implementation.
+            base.DisposeAsync();
+
         /// <summary>Flushes the OS buffer.  This does not flush the internal read/write buffer.</summary>
         private void FlushOSBuffer()
         {

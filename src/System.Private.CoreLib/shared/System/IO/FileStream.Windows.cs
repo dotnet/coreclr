@@ -251,14 +251,11 @@ namespace System.IO
             {
                 if (_fileHandle != null && !_fileHandle.IsClosed)
                 {
-                    if (_fileHandle.ThreadPoolBinding != null)
-                        _fileHandle.ThreadPoolBinding.Dispose();
-
+                    _fileHandle.ThreadPoolBinding?.Dispose();
                     _fileHandle.Dispose();
                 }
 
-                if (_preallocatedOverlapped != null)
-                    _preallocatedOverlapped.Dispose();
+                _preallocatedOverlapped?.Dispose();
 
                 _canSeek = false;
 
@@ -267,6 +264,35 @@ namespace System.IO
                 // Close when calling another method on Stream like Read).
                 //_buffer = null;
                 base.Dispose(disposing);
+            }
+        }
+
+        public override ValueTask DisposeAsync() =>
+            GetType() == typeof(FileStream) ?
+                DisposeAsyncCore() :
+                base.DisposeAsync();
+
+        private async ValueTask DisposeAsyncCore()
+        {
+            // Same logic as in Dispose(disposing:true), except with async counterparts.
+            // TODO: https://github.com/dotnet/corefx/issues/32837: FlushAsync does synchronous work.
+            try
+            {
+                if (_fileHandle != null && !_fileHandle.IsClosed && _writePos > 0)
+                {
+                    await FlushAsyncInternal(default).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (_fileHandle != null && !_fileHandle.IsClosed)
+                {
+                    _fileHandle.ThreadPoolBinding?.Dispose();
+                    _fileHandle.Dispose();
+                }
+
+                _preallocatedOverlapped?.Dispose();
+                _canSeek = false;
             }
         }
 
@@ -1544,6 +1570,7 @@ namespace System.IO
             if (_fileHandle.IsClosed)
                 throw Error.GetFileNotOpen();
 
+            // TODO: https://github.com/dotnet/corefx/issues/32837 (stop doing this synchronous work).
             // The always synchronous data transfer between the OS and the internal buffer is intentional 
             // because this is needed to allow concurrent async IO requests. Concurrent data transfer
             // between the OS and the internal buffer will result in race conditions. Since FlushWrite and

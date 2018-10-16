@@ -141,6 +141,17 @@ namespace System.IO
             }
         }
 
+        public override ValueTask DisposeAsync()
+        {
+            if (GetType() != typeof(MemoryStream))
+            {
+                return base.DisposeAsync();
+            }
+
+            Dispose(disposing: true);
+            return default;
+        }
+
         // returns a bool saying whether we allocated a new array.
         private bool EnsureCapacity(int value)
         {

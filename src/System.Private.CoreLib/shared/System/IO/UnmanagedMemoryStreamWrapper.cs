@@ -59,6 +59,11 @@ namespace System.IO
             }
         }
 
+        public override ValueTask DisposeAsync()
+        {
+            return _unmanagedStream.DisposeAsync();
+        }
+
         public override void Flush()
         {
             _unmanagedStream.Flush();

@@ -231,6 +231,17 @@ namespace System.IO
             base.Dispose(disposing);
         }
 
+        public override ValueTask DisposeAsync()
+        {
+            if (GetType() != typeof(UnmanagedMemoryStream))
+            {
+                return base.DisposeAsync();
+            }
+
+            Dispose(disposing: true);
+            return default;
+        }
+
         private void EnsureNotClosed()
         {
             if (!_isOpen)

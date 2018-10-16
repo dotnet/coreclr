@@ -15,8 +15,9 @@
 ===========================================================*/
 
 using System;
-using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 
 namespace System.IO
 {
@@ -55,6 +56,12 @@ namespace System.IO
             }
 
             base.Dispose(disposing);
+        }
+
+        public override ValueTask DisposeAsync()
+        {
+            Dispose(disposing: true);
+            return default;
         }
     }
 }

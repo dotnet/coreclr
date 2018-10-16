@@ -18,7 +18,7 @@ namespace System.IO
     //
     // This class is intended for character output, not bytes.
     // There are methods on the Stream class for writing bytes.
-    public abstract partial class TextWriter : MarshalByRefObject, IDisposable
+    public abstract partial class TextWriter : MarshalByRefObject, IDisposable, IAsyncDisposable
     {
         public static readonly TextWriter Null = new NullTextWriter();
 
@@ -77,6 +77,15 @@ namespace System.IO
         {
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        public virtual ValueTask DisposeAsync()
+        {
+            // Since TextWriter is abstract, delegate to whatever logic a derived
+            // type put in place already in Dispose.  The derived type can then
+            // optionally choose to override this to do better.
+            return new ValueTask(Task.Factory.StartNew(s => ((TextWriter)s).Dispose(), this,
+                CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default));
         }
 
         // Clears all buffers for this TextWriter and causes any buffered data to be
@@ -732,6 +741,32 @@ namespace System.IO
             public override void Write(char value)
             {
             }
+
+            public override Task FlushAsync() => Task.CompletedTask;
+
+            public override Task WriteAsync(char value) => Task.CompletedTask;
+
+            public override Task WriteAsync(char[] buffer, int index, int count) => Task.CompletedTask;
+
+            public override Task WriteAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public override Task WriteAsync(string value) => Task.CompletedTask;
+
+            public override Task WriteAsync(StringBuilder value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public override Task WriteLineAsync() => Task.CompletedTask;
+
+            public override Task WriteLineAsync(char value) => Task.CompletedTask;
+
+            public override Task WriteLineAsync(char[] buffer, int index, int count) => Task.CompletedTask;
+
+            public override Task WriteLineAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public override Task WriteLineAsync(string value) => Task.CompletedTask;
+
+            public override Task WriteLineAsync(StringBuilder value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public override ValueTask DisposeAsync() => default;
         }
 
         public static TextWriter Synchronized(TextWriter writer)
@@ -773,6 +808,9 @@ namespace System.IO
                 if (disposing)
                     ((IDisposable)_out).Dispose();
             }
+
+            [MethodImpl(MethodImplOptions.Synchronized)]
+            public override ValueTask DisposeAsync() => _out.DisposeAsync();
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Flush() => _out.Flush();
