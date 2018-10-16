@@ -2791,6 +2791,16 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStub(PCODE            ad
 #endif
                        );
 
+#ifdef FEATURE_TIERED_COMPILATION
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsTieredVtableMethod())
+    {
+        EntryPointSlotsToBackpatch::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(((MethodTable *)pMTExpected)->GetLoaderAllocator(), slot, slotType);
+    }
+#endif
+
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
     AddToCollectibleVSDRangeList(holder);
@@ -2836,6 +2846,16 @@ DispatchHolder *VirtualCallStubManager::GenerateDispatchStubLong(PCODE          
                        addrOfFail,
                        (size_t)pMTExpected,
                        DispatchStub::e_TYPE_LONG);
+
+#ifdef FEATURE_TIERED_COMPILATION
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(addrOfCode);
+    if (pMD->IsTieredVtableMethod())
+    {
+        EntryPointSlotsToBackpatch::SlotType slotType;
+        TADDR slot = holder->stub()->implTargetSlot(&slotType);
+        pMD->RecordAndBackpatchEntryPointSlot(((MethodTable *)pMTExpected)->GetLoaderAllocator(), slot, slotType);
+    }
+#endif
 
     ClrFlushInstructionCache(holder->stub(), holder->stub()->size());
 
@@ -3004,6 +3024,17 @@ ResolveCacheElem *VirtualCallStubManager::GenerateResolveCacheElem(void *addrOfC
     e->target = addrOfCode;
 
     e->pNext  = NULL;
+
+#ifdef FEATURE_TIERED_COMPILATION
+    MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress((PCODE)addrOfCode);
+    if (pMD->IsTieredVtableMethod())
+    {
+        pMD->RecordAndBackpatchEntryPointSlot(
+            ((MethodTable *)pMTExpected)->GetLoaderAllocator(),
+            (TADDR)&e->target,
+            EntryPointSlotsToBackpatch::SlotType_Normal);
+    }
+#endif
 
     //incr our counters
     stats.cache_entry_counter++;

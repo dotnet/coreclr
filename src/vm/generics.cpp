@@ -445,9 +445,13 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     if (!canShareVtableChunks)
     {
         // Need to assign the slots one by one to filter out jump thunks
+        MethodTable::MethodDataWrapper hOldMTData(MethodTable::GetMethodData(pOldMT, FALSE));
         for (DWORD i = 0; i < cSlots; i++)
         {
-            pMT->SetSlot(i, pOldMT->GetRestoredSlot(i));
+            MethodDesc *pMD = hOldMTData->GetImplMethodDesc(i);
+            CONSISTENCY_CHECK(CheckPointer(pMD));
+            CONSISTENCY_CHECK(pMD == pOldMT->GetMethodDescForSlot(i));
+            pMT->SetSlot(i, pMD->GetInitialEntryPointForCopiedSlot());
         }
     }
 

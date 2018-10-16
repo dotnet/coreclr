@@ -332,7 +332,8 @@ In order to do step 3 the CodeVersionManager relies on one of two different mech
 All methods have been classified to use at most one of the techniques, based on:
 
 ```
-MethodDesc::IsVersionableWithPrecode()
+MethodDesc::IsEligibleForTieredCompilation() && MethodDesc::IsTieredMethodVersionableWithPrecode()
+MethodDesc::IsEligibleForTieredCompilation() && MethodDesc::IsTieredMethodVersionableWithVtableSlotBackpatch()
 MethodDesc::IsVersionableWithJumpStamp()
 ```
 

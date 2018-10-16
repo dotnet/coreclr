@@ -55,7 +55,7 @@ LoaderAllocator::LoaderAllocator()
     m_pFatTokenSetLock = NULL;
     m_pFatTokenSet = NULL;
 #endif
-    
+
 #ifndef CROSSGEN_COMPILE
     m_pVirtualCallStubManager = NULL;
 #endif
@@ -91,6 +91,9 @@ LoaderAllocator::~LoaderAllocator()
     CONTRACTL_END;
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     Terminate();
+
+    // This hash table is cleared before the virtual call stub manager is uninitialized
+    _ASSERTE(m_dependencyMethodDescEntryPointSlotsToBackpatchHash.GetCount() == 0);
 
     // Assert that VSD is not still active when the destructor is called.
     _ASSERTE(m_pVirtualCallStubManager == NULL);
@@ -594,6 +597,11 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
         pDomainLoaderAllocatorDestroyIterator->m_pFirstDomainAssemblyFromSameALCToDelete = NULL;
 
         pDomainLoaderAllocatorDestroyIterator->ReleaseManagedAssemblyLoadContext();
+
+    #ifdef FEATURE_TIERED_COMPILATION
+        // Recorded entry point slots may point into the virtual call stub manager's heaps, so clear it first
+        pDomainLoaderAllocatorDestroyIterator->ClearDependencyMethodDescEntryPointSlotsToBackpatchHash();
+    #endif
 
         // The following code was previously happening on delete ~DomainAssembly->Terminate
         // We are moving this part here in order to make sure that we can unload a LoaderAllocator
@@ -1621,6 +1629,66 @@ void LoaderAllocator::UninitVirtualCallStubManager()
         m_pVirtualCallStubManager = NULL;
     }
 }
+
+#ifdef FEATURE_TIERED_COMPILATION
+
+EntryPointSlotsToBackpatch *LoaderAllocator::GetDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(methodDesc != nullptr);
+    _ASSERTE(methodDesc->IsTieredVtableMethod());
+
+    MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
+        m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
+    return methodDescSlots == nullptr ? nullptr : methodDescSlots->GetSlots();
+}
+
+EntryPointSlotsToBackpatch *LoaderAllocator::GetOrAddDependencyMethodDescEntryPointSlotsToBackpatch_Locked(MethodDesc *methodDesc)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(MethodDescVirtualInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(methodDesc != nullptr);
+    _ASSERTE(methodDesc->IsTieredVtableMethod());
+
+    MethodDescEntryPointSlotsToBackpatch *methodDescSlots =
+        m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Lookup(methodDesc);
+    if (methodDescSlots != nullptr)
+    {
+        return methodDescSlots->GetSlots();
+    }
+
+    NewHolder<MethodDescEntryPointSlotsToBackpatch> methodDescSlotsHolder =
+        new MethodDescEntryPointSlotsToBackpatch(methodDesc);
+    m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Add(methodDescSlotsHolder);
+    return methodDescSlotsHolder.Extract()->GetSlots();
+}
+
+void LoaderAllocator::ClearDependencyMethodDescEntryPointSlotsToBackpatchHash()
+{
+    WRAPPER_NO_CONTRACT;
+
+    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+
+    for (MethodDescEntryPointSlotsToBackpatchHash::Iterator
+            it = m_dependencyMethodDescEntryPointSlotsToBackpatchHash.Begin(),
+            itEnd = m_dependencyMethodDescEntryPointSlotsToBackpatchHash.End();
+        it != itEnd;
+        ++it)
+    {
+        MethodDesc *methodDesc = (*it)->GetMethodDesc();
+        MethodDescVirtualInfo *virtualInfo = methodDesc->GetVirtualInfoTracker()->GetVirtualInfo_Locked(methodDesc);
+        if (virtualInfo != nullptr)
+        {
+            virtualInfo->RemoveDependentLoaderAllocatorsWithSlotsToBackpatch_Locked(this);
+        }
+    }
+
+    m_dependencyMethodDescEntryPointSlotsToBackpatchHash.RemoveAll();
+}
+
+#endif // FEATURE_TIERED_COMPILATION
+
 #endif // !CROSSGEN_COMPILE
 
 #endif // !DACCESS_COMPILE

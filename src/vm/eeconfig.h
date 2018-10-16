@@ -289,6 +289,7 @@ public:
     bool          TieredCompilation_OptimizeTier0() const {LIMITED_METHOD_CONTRACT; return fTieredCompilation_OptimizeTier0; }
     DWORD         TieredCompilation_Tier1CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountThreshold; }
     DWORD         TieredCompilation_Tier1CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_tier1CallCountingDelayMs; }
+    bool          TieredCompilation_PatchVtableSlots() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_patchVtableSlots; }
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)
@@ -1026,6 +1027,7 @@ private: //----------------------------------------------------------------
     bool fTieredCompilation_OptimizeTier0;
     DWORD tieredCompilation_tier1CallCountThreshold;
     DWORD tieredCompilation_tier1CallCountingDelayMs;
+    bool tieredCompilation_patchVtableSlots;
 #endif
 
 #if defined(FEATURE_GDBJIT) && defined(_DEBUG)

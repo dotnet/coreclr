@@ -48,6 +48,7 @@
 
 #ifdef FEATURE_TIERED_COMPILATION
 #include "callcounter.h"
+#include "methoddescvirtualinfo.h"
 #endif
 
 #if defined(FEATURE_GDBJIT)
@@ -83,58 +84,115 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
     {
         STANDARD_VM_CHECK;
         PRECONDITION(!ContainsGenericVariables());
-        PRECONDITION(HasStableEntryPoint());
         PRECONDITION(pMT == GetMethodTable());
     }
     CONTRACTL_END;
-    PCODE pTarget = GetStableEntryPoint();
 
-    if (!HasTemporaryEntryPoint())
-        return pTarget;
+    bool isTieredVtableMethod = IsTieredVtableMethod();
+#ifdef FEATURE_TIERED_COMPILATION
+    LoaderAllocator *mdLoaderAllocator = isTieredVtableMethod ? GetLoaderAllocator() : nullptr;
 
-    PCODE pExpected = GetTemporaryEntryPoint();
+    // Only take the lock if it's a tiered virtual method, for recording slots and synchronizing with backpatching slots
+    MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder(isTieredVtableMethod);
+#endif
 
-    if (pExpected == pTarget)
-        return pTarget;
+    // For tiered vtable methods, get the method entry point inside the lock above to synchronize with backpatching in
+    // MethodDesc::BackpatchEntryPointSlots()
+    PCODE pTarget = GetMethodEntryPoint();
 
-    // True interface methods are never backpatched
-    if (pMT->IsInterface() && !IsStatic())
-        return pTarget;
-
-    if (fFullBackPatch)
+    PCODE pExpected;
+    if (isTieredVtableMethod)
     {
-        FuncPtrStubs * pFuncPtrStubs = GetLoaderAllocator()->GetFuncPtrStubsNoCreate();
-        if (pFuncPtrStubs != NULL)
+        pExpected = GetTemporaryEntryPoint();
+        if (pExpected == pTarget)
+            return pTarget;
+
+        // True interface methods are never backpatched and do not qualify for tiered vtable slot backpatching
+        _ASSERTE(!(pMT->IsInterface() && !IsStatic()));
+
+        // Backpatching the funcptr stub:
+        //     For tiered vtable methods, a funcptr stub is guaranteed to point to the at-the-time current entry point shortly
+        //     after creation, and backpatching it further is taken care of by MethodDesc::BackpatchEntryPointSlots()
+
+        // Backpatching the temporary entry point:
+        //     The temporary entry point is never backpatched for tiered vtable methods. New vtable slots inheriting the method
+        //     will initially point to the temporary entry point and it must point to the prestub and come here for backpatching
+        //     such that the new vtable slot can be discovered and recorded for future backpatching.
+
+        _ASSERTE(!HasNonVtableSlot());
+    }
+    else
+    {
+        _ASSERTE(pTarget == GetStableEntryPoint());
+
+        if (!HasTemporaryEntryPoint())
+            return pTarget;
+
+        pExpected = GetTemporaryEntryPoint();
+        if (pExpected == pTarget)
+            return pTarget;
+
+        // True interface methods are never backpatched
+        if (pMT->IsInterface() && !IsStatic())
+            return pTarget;
+
+        if (fFullBackPatch)
         {
-            Precode* pFuncPtrPrecode = pFuncPtrStubs->Lookup(this);
-            if (pFuncPtrPrecode != NULL)
+            FuncPtrStubs * pFuncPtrStubs = GetLoaderAllocator()->GetFuncPtrStubsNoCreate();
+            if (pFuncPtrStubs != NULL)
             {
-                // If there is a funcptr precode to patch, we are done for this round.
-                if (pFuncPtrPrecode->SetTargetInterlocked(pTarget))
-                    return pTarget;
+                Precode* pFuncPtrPrecode = pFuncPtrStubs->Lookup(this);
+                if (pFuncPtrPrecode != NULL)
+                {
+                    // If there is a funcptr precode to patch, we are done for this round.
+                    if (pFuncPtrPrecode->SetTargetInterlocked(pTarget))
+                        return pTarget;
+                }
             }
-        }
 
 #ifndef HAS_COMPACT_ENTRYPOINTS
-        // Patch the fake entrypoint if necessary
-        Precode::GetPrecodeFromEntryPoint(pExpected)->SetTargetInterlocked(pTarget);
+            // Patch the fake entrypoint if necessary
+            Precode::GetPrecodeFromEntryPoint(pExpected)->SetTargetInterlocked(pTarget);
 #endif // HAS_COMPACT_ENTRYPOINTS
+        }
+
+        if (HasNonVtableSlot())
+            return pTarget;
     }
 
-    if (HasNonVtableSlot())
-        return pTarget;
+    auto RecordAndBackpatchSlot = [&](MethodTable *patchedMT, DWORD slotIndex, PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(isTieredVtableMethod);
+
+#ifdef FEATURE_TIERED_COMPILATION
+        RecordAndBackpatchEntryPointSlot_Locked(
+            mdLoaderAllocator,
+            patchedMT->GetLoaderAllocator(),
+            patchedMT->GetSlotPtr(slotIndex),
+            EntryPointSlotsToBackpatch::SlotType_IsVtableSlot,
+            pTarget);
+#endif
+    };
 
     BOOL fBackpatched = FALSE;
 
-#define BACKPATCH(pPatchedMT)                           \
-    do                                                  \
-    {                                                   \
-        if (pPatchedMT->GetSlot(dwSlot) == pExpected)   \
-        {                                               \
-            pPatchedMT->SetSlot(dwSlot, pTarget);       \
-            fBackpatched = TRUE;                        \
-        }                                               \
-    }                                                   \
+#define BACKPATCH(pPatchedMT)                                           \
+    do                                                                  \
+    {                                                                   \
+        if (pPatchedMT->GetSlot(dwSlot) == pExpected)                   \
+        {                                                               \
+            if (isTieredVtableMethod)                                   \
+            {                                                           \
+                RecordAndBackpatchSlot(pPatchedMT, dwSlot, pTarget);    \
+            }                                                           \
+            else                                                        \
+            {                                                           \
+                pPatchedMT->SetSlot(dwSlot, pTarget);                   \
+            }                                                           \
+            fBackpatched = TRUE;                                        \
+        }                                                               \
+    }                                                                   \
     while(0)
 
     // The owning slot has been updated already, so there is no need to backpatch it
@@ -154,8 +212,10 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
             // that it returns the stable entrypoint eventually to avoid going through the slow path all the time.
             //
             MethodTable * pRestoredSlotMT = pDispatchingMT->GetRestoredSlotMT(dwSlot);
-
-            BACKPATCH(pRestoredSlotMT);
+            if (pRestoredSlotMT != pDispatchingMT)
+            {
+                BACKPATCH(pRestoredSlotMT);
+            }
         }
     }
 
@@ -168,7 +228,7 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
 
             BACKPATCH(pMT);
 
-            if (pDispatchingMT != NULL)
+            if (pDispatchingMT != NULL && pDispatchingMT != pMT)
             {
                 BACKPATCH(pDispatchingMT);
             }
@@ -185,7 +245,7 @@ PCODE MethodDesc::DoBackpatch(MethodTable * pMT, MethodTable *pDispatchingMT, BO
         {
             BACKPATCH(pMT);
 
-            if (pDispatchingMT != NULL)
+            if (pDispatchingMT != NULL && pDispatchingMT != pMT)
             {
                 BACKPATCH(pDispatchingMT);
             }
@@ -1739,7 +1799,8 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #ifdef FEATURE_TIERED_COMPILATION
     BOOL fNeedsCallCounting = FALSE;
     TieredCompilationManager* pTieredCompilationManager = nullptr;
-    if (IsEligibleForTieredCompilation() && TieredCompilationManager::RequiresCallCounting(this))
+    BOOL fIsEligibleForTieredCompilation = IsEligibleForTieredCompilation();
+    if (fIsEligibleForTieredCompilation && TieredCompilationManager::RequiresCallCounting(this))
     {
         pTieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
         CallCounter * pCallCounter = GetCallCounter();
@@ -1753,7 +1814,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     BOOL fIsPointingToPrestub = IsPointingToPrestub();
 #ifdef FEATURE_CODE_VERSIONING
-    if (IsVersionableWithPrecode() ||
+    if (fIsEligibleForTieredCompilation ||
         (!fIsPointingToPrestub && IsVersionableWithJumpStamp()))
     {
         pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, fCanBackpatchPrestub);
@@ -1803,7 +1864,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 #endif // defined(FEATURE_SHARE_GENERIC_CODE)
     else if (IsIL() || IsNoMetadata())
     {
-        if (!IsNativeCodeStableAfterInit())
+        if (!IsNativeCodeStableAfterInit() && !(IsEligibleForTieredCompilation() && !IsTieredMethodVersionableWithPrecode()))
         {
             GetOrCreatePrecode();
         }
@@ -1874,13 +1935,21 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     if (pCode != NULL)
     {
+        if (IsEligibleForTieredCompilation())
+        {
+            // Tiered methods should not get here unless there was a failure. There may have been a failure to update the code
+            // versions above for some reason. Don't backpatch this time and try again next time.
+            return pCode;
+        }
+
         if (HasPrecode())
+        {
             GetPrecode()->SetTargetInterlocked(pCode);
-        else
-            if (!HasStableEntryPoint())
-            {
-                SetStableEntryPointInterlocked(pCode);
-            }
+        }
+        else if (!HasStableEntryPoint())
+        {
+            SetStableEntryPointInterlocked(pCode);
+        }
     }
     else
     {
@@ -1888,8 +1957,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         {
             pStub->DecRef();
         }
-        else
-        if (pStub->HasExternalEntryPoint())
+        else if (pStub->HasExternalEntryPoint())
         {
             // If the Stub wraps code that is outside of the Stub allocation, then we
             // need to free the Stub allocation now.
@@ -2319,11 +2387,20 @@ EXTERN_C PCODE STDCALL ExternalMethodFixupWorker(TransitionBlock * pTransitionBl
             pCode = pMD->GetMethodEntryPoint();
 
             //
-            // Note that we do not want to call code:MethodDesc::IsPointingToPrestub() here. It does not take remoting interception 
-            // into account and so it would cause otherwise intercepted methods to be JITed. It is a compat issue if the JITing fails.
+            // Note that we do not want to call code:MethodDesc::IsPointingToPrestub() here. It does not take remoting
+            // interception into account and so it would cause otherwise intercepted methods to be JITed. It is a compat
+            // issue if the JITing fails.
             //
             if (!DoesSlotCallPrestub(pCode))
             {
+                if (pMD->IsTieredVtableMethod())
+                {
+                    // The entry point for a tiered vtable method needs to be versionable, so use a FuncPtrStub similarly to
+                    // what is done in MethodDesc::GetMultiCallableAddrOfCode()
+                    GCX_COOP();
+                    pCode = pMD->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMD);
+                }
+
                 pCode = PatchNonVirtualExternalMethod(pMD, pCode, pImportSection, pIndirection);
             }
         }
@@ -2380,10 +2457,21 @@ EXTERN_C PCODE VirtualMethodFixupWorker(Object * pThisPtr,  CORCOMPILE_VIRTUAL_I
 
     if (!DoesSlotCallPrestub(pCode))
     {
-        // Skip fixup precode jump for better perf
-        PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
-        if (pDirectTarget != NULL)
-            pCode = pDirectTarget;
+        MethodDesc *pMD = MethodTable::GetMethodDescForSlotAddress(pCode);
+        if (pMD->IsTieredVtableMethod())
+        {
+            // The entry point for a tiered vtable method needs to be versionable, so use a FuncPtrStub similarly to
+            // what is done in MethodDesc::GetMultiCallableAddrOfCode()
+            GCX_COOP();
+            pCode = pMD->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMD);
+        }
+        else
+        {
+            // Skip fixup precode jump for better perf
+            PCODE pDirectTarget = Precode::TryToSkipFixupPrecode(pCode);
+            if (pDirectTarget != NULL)
+                pCode = pDirectTarget;
+        }
 
         // Patch the thunk to the actual method body
         if (EnsureWritableExecutablePagesNoThrow(&pThunk->m_pTarget, sizeof(pThunk->m_pTarget)))

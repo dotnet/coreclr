@@ -182,7 +182,13 @@ inline CodeVersionManager * MethodDesc::GetCodeVersionManager()
 inline CallCounter * MethodDesc::GetCallCounter()
 {
     LIMITED_METHOD_CONTRACT;
-    return GetModule()->GetCallCounter();
+    return GetLoaderAllocator()->GetCallCounter();
+}
+
+inline MethodDescVirtualInfoTracker * MethodDesc::GetVirtualInfoTracker()
+{
+    LIMITED_METHOD_CONTRACT;
+    return GetLoaderAllocator()->GetMethodDescVirtualInfoTracker();
 }
 #endif
 

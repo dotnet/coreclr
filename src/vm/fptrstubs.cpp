@@ -17,7 +17,7 @@ Precode* FuncPtrStubs::Lookup(MethodDesc * pMD, PrecodeType type)
     CONTRACTL
     {
         NOTHROW;
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -82,6 +82,7 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
     }
 
     PCODE target = NULL;
+    bool setTargetAfterAddingToHashTable = false;
 
     if (type != GetDefaultType(pMD) &&
         // Always use stable entrypoint for LCG. If the cached precode pointed directly to JITed code,
@@ -91,11 +92,17 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
         // Set the target if precode is not of the default type. We are patching the precodes of the default type only.
         target = pMD->GetMultiCallableAddrOfCode();
     }
-    else
-    if (pMD->HasStableEntryPoint())
+    else if (pMD->HasStableEntryPoint())
     {
         // Set target
         target = pMD->GetStableEntryPoint();
+    }
+    else if (pMD->IsTieredVtableMethod())
+    {
+        // For tiered vtable methods, the funcptr stub must point to the current entry point after it is created and added to
+        // the hash table. Keep the target as null for now, it will be updated after the precode is added.
+        _ASSERTE(target == NULL);
+        setTargetAfterAddingToHashTable = true;
     }
     else
     {
@@ -137,6 +144,29 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
                 m_hashTable.Add(pPrecode);
                 amt.SuppressRelease();
             }
+            else
+            {
+                setTargetAfterAddingToHashTable = false;
+            }
+        }
+    }
+
+    if (setTargetAfterAddingToHashTable)
+    {
+        _ASSERTE(pMD->IsTieredVtableMethod());
+
+        PCODE temporaryEntryPoint = pMD->GetTemporaryEntryPoint();
+        MethodDescVirtualInfoTracker::ConditionalLockHolder lockHolder;
+
+        // For tiered vtable methods, set the funcptr stub's entry point to the current entry point inside the lock and after
+        // the funcptr stub is added to the hash table, to synchronize with backpatching in
+        // MethodDesc::BackpatchEntryPointSlots()
+        PCODE entryPoint = pMD->GetMethodEntryPoint();
+        if (entryPoint != temporaryEntryPoint)
+        {
+            // Need only patch the precode from the prestub, since if someone else managed to patch the precode already then its
+            // target would already be up-to-date
+            pPrecode->SetTargetInterlocked(entryPoint, TRUE /* fOnlyRedirectFromPrestub */);
         }
     }
 
