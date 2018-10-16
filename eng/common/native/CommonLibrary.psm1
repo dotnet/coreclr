@@ -186,11 +186,6 @@ function New-ScriptShim {
   try {
     Write-Verbose "Generating '$ShimName' shim"
 
-    if ((Test-Path (Join-Path $ShimDirectory $ShimName.exe)) -And (-Not $Force)) {
-      Write-Error "$ShimDirectory already exists"
-      return $False
-    }
-
     if (-Not (Test-Path $ToolFilePath)){
       Write-Error "Specified tool file path '$ToolFilePath' does not exist"
       return $False
@@ -207,6 +202,11 @@ function New-ScriptShim {
                                           -DownloadRetries 2 `
                                           -RetryWaitTimeInSeconds 5 `
                                           -Verbose:$Verbose
+    }
+
+    if ((Test-Path (Join-Path $ShimDirectory "$ShimName.exe"))) {
+      Write-Host "$ShimName.exe already exists; replacing..."
+      Remove-Item (Join-Path $ShimDirectory "$ShimName.exe")
     }
 
     Invoke-Expression "$ShimDirectory\WinShimmer\winshimmer.exe $ShimName $ToolFilePath $ShimDirectory"
