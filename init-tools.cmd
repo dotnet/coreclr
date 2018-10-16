@@ -86,7 +86,7 @@ if NOT exist "%DOTNET_LOCAL_PATH%" (
 :afterdotnetrestore
 
 REM We do not need the build tools for arm64/x86
-if /i "%PROCESSOR_ARCHITEW6432%" == "x86" (
+if /i "%PROCESSOR_ARCHITEW6432%" == "arm64" (
   goto :EOF
 )
 
