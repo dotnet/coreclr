@@ -6,7 +6,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using NativeCallManagedComVisible;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 // Don't set ComVisible.
 // [assembly: ComVisible(true)]

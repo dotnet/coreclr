@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Collections.Generic;
 using NativeCallManagedComVisible;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 // Setting ComVisible to false makes the types in this assembly not visible 
 // to COM components by default.  If you need to access a type in this assembly from 
