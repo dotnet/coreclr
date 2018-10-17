@@ -541,9 +541,12 @@ void CodeGen::siBeginBlock(BasicBlock* block)
         {
             LclVarDsc* lclVarDsc1 = &compiler->lvaTable[varScope->vsdVarNum];
 
-            // Only report locals that have a stack slot...
-            if (lclVarDsc1->lvStkOffs != BAD_STK_OFFS)
+            // Only report locals that were referenced
+            if (lclVarDsc1->lvRefCnt() > 0)
             {
+                // If referenced, we expect a valid stack slot.
+                assert(lclVarDsc1->lvStkOffs != BAD_STK_OFFS);
+
                 // brace-matching editor workaround for following line: (
                 JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum, varScope->vsdLifeBeg,
                         varScope->vsdLifeEnd);
@@ -551,7 +554,6 @@ void CodeGen::siBeginBlock(BasicBlock* block)
                 siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
 
 #ifdef DEBUG
-
                 if (VERBOSE)
                 {
                     printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
