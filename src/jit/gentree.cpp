@@ -16590,7 +16590,6 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     case CORINFO_HELP_CHKCASTARRAY:
                     case CORINFO_HELP_CHKCASTINTERFACE:
                     case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
-                    case CORINFO_HELP_READYTORUN_CHKCAST:
                         isCastHelper = true;
                         __fallthrough;
 
@@ -16598,7 +16597,6 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     case CORINFO_HELP_ISINSTANCEOFARRAY:
                     case CORINFO_HELP_ISINSTANCEOFCLASS:
                     case CORINFO_HELP_ISINSTANCEOFANY:
-                    case CORINFO_HELP_READYTORUN_ISINSTANCEOF:
                     {
                         // Fetch the class handle from the helper call arglist
                         GenTreeArgList*      args    = call->gtCallArgs;
