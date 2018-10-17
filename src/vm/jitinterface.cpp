@@ -5293,10 +5293,22 @@ void CEEInfo::getCallInfo(
             }
         }
 
-        MethodDesc * directMethod = constrainedType.GetMethodTable()->TryResolveConstraintMethodApprox(
-            exactType, 
-            pMD, 
-            &fForceUseRuntimeLookup);
+        // In a try block because the interface method resolution might end up being
+        // ambiguous (diamond inheritance case of default interface methods).
+        MethodDesc * directMethod = nullptr;
+        EX_TRY
+        {
+            directMethod = constrainedType.GetMethodTable()->TryResolveConstraintMethodApprox(
+                exactType,
+                pMD,
+                &fForceUseRuntimeLookup);
+        }
+        EX_CATCH
+        {
+            // We will let this type get boxed and throw the same exception we just hit during dispatch.
+        }
+        EX_END_CATCH(RethrowTransientExceptions)
+
         if (directMethod)
         {
             // Either
