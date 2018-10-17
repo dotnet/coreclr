@@ -2126,11 +2126,21 @@ MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(TypeHandle ownerType, M
 
 #ifdef CROSSGEN_COMPILE
     DispatchSlot implSlot(FindDispatchSlot(pInterfaceMT->GetTypeID(), pInterfaceMD->GetSlot(), throwOnConflict));
+    if (implSlot.IsNull())
+    {
+        _ASSERTE(!throwOnConflict);
+        return NULL;
+    }
     PCODE pTgt = implSlot.GetTarget();
 #else
     PCODE pTgt = VirtualCallStubManager::GetTarget(
         pInterfaceMT->GetLoaderAllocator()->GetDispatchToken(pInterfaceMT->GetTypeID(), pInterfaceMD->GetSlot()),
         this, throwOnConflict);
+    if (pTgt == NULL)
+    {
+        _ASSERTE(!throwOnConflict);
+        return NULL;
+    }
 #endif
     pMD = MethodTable::GetMethodDescForSlotAddress(pTgt);
 
