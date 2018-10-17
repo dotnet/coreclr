@@ -16590,9 +16590,6 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     case CORINFO_HELP_CHKCASTARRAY:
                     case CORINFO_HELP_CHKCASTINTERFACE:
                     case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
-                        isCastHelper = true;
-                        __fallthrough;
-
                     case CORINFO_HELP_ISINSTANCEOFINTERFACE:
                     case CORINFO_HELP_ISINSTANCEOFARRAY:
                     case CORINFO_HELP_ISINSTANCEOFCLASS:
@@ -16630,15 +16627,11 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                         // fails at runtime then an exception is thrown for cast helpers, or the
                         // result is set null for instance helpers.
                         //
-                        // So it safe to claim the result has the cast type, and that if we have a
-                        // cast the result is not null.
-                        //
+                        // So it safe to claim the result has the cast type.
                         // Note we don't know for sure that it is exactly this type.
                         if (castHnd != nullptr)
                         {
-                            objClass   = castHnd;
-                            *isExact   = false;
-                            *isNonNull = isCastHelper;
+                            objClass = castHnd;
                         }
 
                         break;
