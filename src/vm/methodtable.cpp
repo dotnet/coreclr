@@ -812,7 +812,7 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
         TypeHandle resulTypeHnd = resultTypeObj->GetType();
         MethodTable *pResultMT = resulTypeHnd.GetMethodTable();
 
-        RETURN(pResultMT->GetMethodDescForInterfaceMethod(ownerType, pItfMD));
+        RETURN(pResultMT->GetMethodDescForInterfaceMethod(ownerType, pItfMD, TRUE /* throwOnConflict */));
     }
 #endif    
 
@@ -833,7 +833,7 @@ PTR_MethodTable InterfaceInfo_t::GetApproxMethodTable(Module * pContainingModule
 #endif // !FEATURE_COMINTEROP
 
     // Handle pure COM+ types.
-    RETURN (pServerMT->GetMethodDescForInterfaceMethod(ownerType, pItfMD));
+    RETURN (pServerMT->GetMethodDescForInterfaceMethod(ownerType, pItfMD, TRUE /* throwOnConflict */));
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -871,7 +871,7 @@ MethodDesc *MethodTable::GetMethodDescForComInterfaceMethod(MethodDesc *pItfMD, 
 
         // Calling GetTarget here instead of FindDispatchImpl gives us caching functionality to increase speed.
         PCODE tgt = VirtualCallStubManager::GetTarget(
-            pItfMT->GetLoaderAllocator()->GetDispatchToken(pItfMT->GetTypeID(), pItfMD->GetSlot()), this);
+            pItfMT->GetLoaderAllocator()->GetDispatchToken(pItfMT->GetTypeID(), pItfMD->GetSlot()), this, TRUE /* throwOnConflict */);
 
         if (tgt != NULL)
         {
@@ -2092,7 +2092,7 @@ BOOL MethodTable::ImplementsEquivalentInterface(MethodTable *pInterface)
 }
 
 //==========================================================================================
-MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(MethodDesc *pInterfaceMD)
+MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(MethodDesc *pInterfaceMD, BOOL throwOnConflict)
 {
     CONTRACTL
     {
@@ -2103,11 +2103,11 @@ MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(MethodDesc *pInterfaceM
     CONTRACTL_END;
     WRAPPER_NO_CONTRACT;
 
-    return GetMethodDescForInterfaceMethod(TypeHandle(pInterfaceMD->GetMethodTable()), pInterfaceMD);
+    return GetMethodDescForInterfaceMethod(TypeHandle(pInterfaceMD->GetMethodTable()), pInterfaceMD, throwOnConflict);
 }
 
 //==========================================================================================
-MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(TypeHandle ownerType, MethodDesc *pInterfaceMD)
+MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(TypeHandle ownerType, MethodDesc *pInterfaceMD, BOOL throwOnConflict)
 {
     CONTRACTL
     {
@@ -2125,17 +2125,17 @@ MethodDesc *MethodTable::GetMethodDescForInterfaceMethod(TypeHandle ownerType, M
     MethodTable *pInterfaceMT = ownerType.AsMethodTable();
 
 #ifdef CROSSGEN_COMPILE
-    DispatchSlot implSlot(FindDispatchSlot(pInterfaceMT->GetTypeID(), pInterfaceMD->GetSlot()));
+    DispatchSlot implSlot(FindDispatchSlot(pInterfaceMT->GetTypeID(), pInterfaceMD->GetSlot(), throwOnConflict));
     PCODE pTgt = implSlot.GetTarget();
 #else
     PCODE pTgt = VirtualCallStubManager::GetTarget(
         pInterfaceMT->GetLoaderAllocator()->GetDispatchToken(pInterfaceMT->GetTypeID(), pInterfaceMD->GetSlot()),
-        this);
+        this, throwOnConflict);
 #endif
     pMD = MethodTable::GetMethodDescForSlotAddress(pTgt);
 
 #ifdef _DEBUG
-    MethodDesc *pDispSlotMD = FindDispatchSlotForInterfaceMD(ownerType, pInterfaceMD).GetMethodDesc();
+    MethodDesc *pDispSlotMD = FindDispatchSlotForInterfaceMD(ownerType, pInterfaceMD, throwOnConflict).GetMethodDesc();
     _ASSERTE(pDispSlotMD == pMD);
 #endif // _DEBUG
 
@@ -6941,7 +6941,8 @@ BOOL
 MethodTable::FindDispatchImpl(
     UINT32         typeID, 
     UINT32         slotNumber, 
-    DispatchSlot * pImplSlot)
+    DispatchSlot * pImplSlot,
+    BOOL           throwOnConflict)
 {
     CONTRACT (BOOL) {
         INSTANCE_CHECK;
@@ -7024,7 +7025,8 @@ MethodTable::FindDispatchImpl(
                 if (FindDefaultInterfaceImplementation(
                     pIfcMD,     // the interface method being resolved
                     pIfcMT,     // the interface being resolved
-                    &pDefaultMethod))
+                    &pDefaultMethod,
+                    throwOnConflict))
                 {
                     // Now, construct a DispatchSlot to return in *pImplSlot
                     DispatchSlot ds(pDefaultMethod->GetMethodEntryPoint());
@@ -7103,7 +7105,8 @@ void ThrowExceptionForConflictingOverride(
 BOOL MethodTable::FindDefaultInterfaceImplementation(
     MethodDesc *pInterfaceMD,
     MethodTable *pInterfaceMT,
-    MethodDesc **ppDefaultMethod
+    MethodDesc **ppDefaultMethod,
+    BOOL throwOnConflict
 )
 {
     CONTRACT(BOOL) {
@@ -7314,7 +7317,11 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
         }
         else if (pBestCandidateMT != candidates[i].pMT)
         {
-            ThrowExceptionForConflictingOverride(this, pInterfaceMT, pInterfaceMD);
+            if (throwOnConflict)
+                ThrowExceptionForConflictingOverride(this, pInterfaceMT, pInterfaceMD);
+
+            *ppDefaultMethod = NULL;
+            RETURN(FALSE);
         }
     }
 
@@ -7332,17 +7339,17 @@ BOOL MethodTable::FindDefaultInterfaceImplementation(
 #endif // DACCESS_COMPILE
 
 //==========================================================================================
-DispatchSlot MethodTable::FindDispatchSlot(UINT32 typeID, UINT32 slotNumber)
+DispatchSlot MethodTable::FindDispatchSlot(UINT32 typeID, UINT32 slotNumber, BOOL throwOnConflict)
 {
     WRAPPER_NO_CONTRACT;
     STATIC_CONTRACT_SO_TOLERANT;
     DispatchSlot implSlot(NULL);
-    FindDispatchImpl(typeID, slotNumber, &implSlot);
+    FindDispatchImpl(typeID, slotNumber, &implSlot, throwOnConflict);
     return implSlot;
 }
 
 //==========================================================================================
-DispatchSlot MethodTable::FindDispatchSlot(DispatchToken tok)
+DispatchSlot MethodTable::FindDispatchSlot(DispatchToken tok, BOOL throwOnConflict)
 {
     CONTRACTL
     {
@@ -7352,28 +7359,28 @@ DispatchSlot MethodTable::FindDispatchSlot(DispatchToken tok)
         MODE_ANY;
     }
     CONTRACTL_END;
-    return FindDispatchSlot(tok.GetTypeID(), tok.GetSlotNumber());
+    return FindDispatchSlot(tok.GetTypeID(), tok.GetSlotNumber(), throwOnConflict);
 }
 
 #ifndef DACCESS_COMPILE
 
 //==========================================================================================
-DispatchSlot MethodTable::FindDispatchSlotForInterfaceMD(MethodDesc *pMD)
+DispatchSlot MethodTable::FindDispatchSlotForInterfaceMD(MethodDesc *pMD, BOOL throwOnConflict)
 {
     WRAPPER_NO_CONTRACT;
     CONSISTENCY_CHECK(CheckPointer(pMD));
     CONSISTENCY_CHECK(pMD->IsInterface());
-    return FindDispatchSlotForInterfaceMD(TypeHandle(pMD->GetMethodTable()), pMD);
+    return FindDispatchSlotForInterfaceMD(TypeHandle(pMD->GetMethodTable()), pMD, throwOnConflict);
 }
 
 //==========================================================================================
-DispatchSlot MethodTable::FindDispatchSlotForInterfaceMD(TypeHandle ownerType, MethodDesc *pMD)
+DispatchSlot MethodTable::FindDispatchSlotForInterfaceMD(TypeHandle ownerType, MethodDesc *pMD, BOOL throwOnConflict)
 {
     WRAPPER_NO_CONTRACT;
     CONSISTENCY_CHECK(!ownerType.IsNull());
     CONSISTENCY_CHECK(CheckPointer(pMD));
     CONSISTENCY_CHECK(pMD->IsInterface());
-    return FindDispatchSlot(ownerType.GetMethodTable()->GetTypeID(), pMD->GetSlot());
+    return FindDispatchSlot(ownerType.GetMethodTable()->GetTypeID(), pMD->GetSlot(), throwOnConflict);
 }
 
 //==========================================================================================
@@ -9867,7 +9874,7 @@ MethodTable::TryResolveConstraintMethodApprox(
                 thInterfaceType.AsMethodTable()->GetCanonicalMethodTable())
             {
                 cPotentialMatchingInterfaces++;
-                pMD = pCanonMT->GetMethodDescForInterfaceMethod(thPotentialInterfaceType, pGenInterfaceMD);
+                pMD = pCanonMT->GetMethodDescForInterfaceMethod(thPotentialInterfaceType, pGenInterfaceMD, FALSE /* throwOnConflict */);
 
                 // See code:#TryResolveConstraintMethodApprox_DoNotReturnParentMethod
                 if ((pMD != NULL) && !pMD->GetMethodTable()->IsValueType())
@@ -9898,7 +9905,7 @@ MethodTable::TryResolveConstraintMethodApprox(
                 if (this->CanCastToInterface(pInterfaceMT))
                 {
                     // We can resolve to exact method
-                    pMD = this->GetMethodDescForInterfaceMethod(pInterfaceMT, pInterfaceMD);
+                    pMD = this->GetMethodDescForInterfaceMethod(pInterfaceMT, pInterfaceMD, FALSE /* throwOnConflict */);
                     _ASSERTE(pMD != NULL);
                     fIsExactMethodResolved = TRUE;
                 }
@@ -9918,7 +9925,7 @@ MethodTable::TryResolveConstraintMethodApprox(
             // lookup at runtime, or when not sharing generic code).
             if (pCanonMT->CanCastToInterface(thInterfaceType.GetMethodTable()))
             {
-                pMD = pCanonMT->GetMethodDescForInterfaceMethod(thInterfaceType, pGenInterfaceMD);
+                pMD = pCanonMT->GetMethodDescForInterfaceMethod(thInterfaceType, pGenInterfaceMD, FALSE /* throwOnConflict */);
                 if (pMD == NULL)
                 {
                     LOG((LF_JIT, LL_INFO10000, "TryResolveConstraintMethodApprox: failed to find method desc for interface method\n"));
