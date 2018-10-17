@@ -5744,6 +5744,9 @@ GenTree* Compiler::fgMorphArrayIndex(GenTree* tree)
     // play) to create a "partial" byref that doesn't point exactly to the correct object; there is risk that
     // the partial byref will not point within the object, and thus not get updated correctly during a GC.
     // This is mostly a risk in fully-interruptible code regions.
+    //
+    // NOTE: the tree form created here is pattern matched by optExtractArrIndex(), so changes here must
+    // be reflected there.
 
     /* Add the first element's offset */
 
