@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Buffers;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -26,6 +27,8 @@ namespace System
 {
     public sealed partial class Utf8String : IEquatable<Utf8String>
     {
+        private const int StackallocIntBufferSizeLimit = 128;
+
         /*
          * STATIC FIELDS
          */
@@ -731,6 +734,87 @@ namespace System
         public static Utf8String Literal(string value)
         {
             return RuntimeHelpers.GetUtf8StringLiteral(value);
+        }
+
+        // Ordinal
+        public Utf8String Replace(Utf8String oldValue, Utf8String newValue)
+        {
+            if (oldValue is null)
+            {
+                throw new ArgumentNullException(nameof(oldValue));
+            }
+            if (oldValue.Length == 0)
+            {
+                throw new ArgumentException(SR.Argument_StringZeroLength, nameof(oldValue));
+            }
+
+            // Quick check: does the search string even exist in the target?
+
+            int idxOfMatch = this.AsSpanFast().IndexOf(oldValue.AsSpanFast());
+            if (idxOfMatch < 0)
+            {
+                return this; // no match
+            }
+
+            // At this point, we have a match, so we know we need to perform a replacement.
+
+            Span<int> matchingIndexes = stackalloc int[StackallocIntBufferSizeLimit];
+            var list = new ValueListBuilder<int>(matchingIndexes);
+            list.Append(idxOfMatch); // add the first matching value
+
+            var targetSpan = this.AsSpanFast().DangerousSliceWithoutBoundsCheck(idxOfMatch + oldValue.Length);
+
+            // Look for all remaining matches
+
+            while (true)
+            {
+                idxOfMatch = targetSpan.IndexOf(oldValue.AsSpanFast());
+                if (idxOfMatch < 0)
+                {
+                    break; // no more matches
+                }
+
+                list.Append(idxOfMatch);
+                targetSpan = targetSpan.DangerousSliceWithoutBoundsCheck(idxOfMatch + oldValue.Length);
+            }
+
+            // All matches were found - allocate new string to hold results
+
+            if (newValue is null)
+            {
+                newValue = Empty; // default to 'remove' if no new value was specified
+            }
+
+            int stringExpansionPerReplacement = newValue.Length - oldValue.Length; // may be negative, but guaranteed not to overflow
+            UnbakedUtf8String retVal = new UnbakedUtf8String(checked(this.Length + stringExpansionPerReplacement * list.Length)); // check for overflow
+
+            // And copy string (with replacement) into destination
+
+            var destBuffer = retVal.GetSpan();
+            targetSpan = this.AsSpanFast();
+
+            for (int i = 0; i < list.Length; i++)
+            {
+                int segmentLength = list[i];
+                targetSpan.Slice(0, segmentLength).CopyTo(destBuffer);
+
+                destBuffer = destBuffer.Slice(segmentLength);
+                newValue.AsSpanFast().CopyTo(destBuffer);
+
+                destBuffer = destBuffer.Slice(newValue.Length);
+                targetSpan = targetSpan.DangerousSliceWithoutBoundsCheck(segmentLength + oldValue.Length);
+            }
+
+            list.Dispose();
+
+            Debug.Assert(targetSpan.Length == destBuffer.Length); // there should be exactly enough data left over for one final copy
+            targetSpan.CopyTo(destBuffer);
+
+            // Bake and return string
+
+            // TODO: Copy characteristics from this and newValue into retVal
+
+            return retVal.BakeWithoutValidation();
         }
 
         // Ordinal comparison - returns false if input char is a standalone surrogate code unit
