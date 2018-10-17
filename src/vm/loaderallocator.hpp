@@ -174,6 +174,8 @@ protected:
     BYTE *              m_pVSDHeapInitialAlloc;
     BYTE *              m_pCodeHeapInitialAlloc;
 
+    // U->M thunks that are not associated with a delegate.
+    // The cache is keyed by MethodDesc pointers.
     UMEntryThunkCache * m_pUMEntryThunkCache;
 
 public:

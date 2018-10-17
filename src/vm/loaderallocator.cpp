@@ -72,6 +72,8 @@ LoaderAllocator::LoaderAllocator()
     m_pJumpStubCache = NULL;
     m_IsCollectible = false;
 
+    m_pUMEntryThunkCache = NULL;
+
     m_nLoaderAllocator = InterlockedIncrement64((LONGLONG *)&LoaderAllocator::cLoaderAllocatorsCreated);
 }
 
