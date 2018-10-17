@@ -4,14 +4,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <windows.h>
 #include <string.h>
-#include <mbstring.h>
-#include <oleauto.h>
 #include <xplatform.h>
 
 
-extern "C" bool DLL_EXPORT __cdecl Char_In(char c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_In(char c)
 {
     printf ("Char_In ");
     printf ("%c",c);
@@ -20,7 +17,7 @@ extern "C" bool DLL_EXPORT __cdecl Char_In(char c)
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_InByRef(char* c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_InByRef(char* c)
 {
     printf ("Char_InByRef ");
     printf ("%c",*c);
@@ -29,7 +26,7 @@ extern "C" bool DLL_EXPORT __cdecl Char_InByRef(char* c)
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_InOutByRef(char* c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_InOutByRef(char* c)
 {
     printf ("Char_InOutByRef ");
     printf ("%c",*c);
@@ -38,64 +35,64 @@ extern "C" bool DLL_EXPORT __cdecl Char_InOutByRef(char* c)
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_In_String(char* c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_In_String(char* c)
 {
     printf ("native %s \n", c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_InByRef_String(char** c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_InByRef_String(char** c)
 {
     printf ("native %s \n", *c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_InOutByRef_String(char** c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_InOutByRef_String(char** c)
 {
     printf ("native %s \n", *c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_In_StringBuilder(char* c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_In_StringBuilder(char* c)
 {
     printf ("native %s \n", c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_InByRef_StringBuilder(char** c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_InByRef_StringBuilder(char** c)
 {
     printf ("native %s \n", *c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl CharBuffer_InOutByRef_StringBuilder(char** c)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE CharBuffer_InOutByRef_StringBuilder(char** c)
 {
     printf ("native %s \n", *c);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_In_ArrayWithOffset (char* pArrayWithOffset)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_In_ArrayWithOffset (char* pArrayWithOffset)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_InOut_ArrayWithOffset (char* pArrayWithOffset)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_InOut_ArrayWithOffset (char* pArrayWithOffset)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_InByRef_ArrayWithOffset (char** ppArrayWithOffset)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_InByRef_ArrayWithOffset (char** ppArrayWithOffset)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl Char_InOutByRef_ArrayWithOffset (char** ppArrayWithOffset)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE Char_InOutByRef_ArrayWithOffset (char** ppArrayWithOffset)
 {
     return TRUE;
 }

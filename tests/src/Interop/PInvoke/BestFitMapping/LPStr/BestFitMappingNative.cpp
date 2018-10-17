@@ -4,10 +4,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <windows.h>
 #include <string.h>
-#include <mbstring.h>
-#include <oleauto.h>
 #include <xplatform.h>
 
 typedef struct TLPStr_Test_Struct
@@ -26,58 +23,58 @@ typedef struct TLPStrTestStructOfArrays
     LPSTR pStr2;
 } LPStrTestStructOfArrays;
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_String(LPSTR pStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_String(LPSTR pStr)
 {
     printf ("xx %s \n", pStr);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_String(LPSTR* ppStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_String(LPSTR* ppStr)
 {
     printf ("yy %s \n", *ppStr);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_String(LPSTR* ppStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_String(LPSTR* ppStr)
 {
     printf ("zz %s \n", *ppStr);
 
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_StringBuilder(LPSTR pStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_StringBuilder(LPSTR pStr)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_StringBuilder(LPSTR* ppStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_StringBuilder(LPSTR* ppStr)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_StringBuilder(LPSTR* ppStr)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_StringBuilder(LPSTR* ppStr)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Struct_String (LPStr_Test_Struct strStruct)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_Struct_String (LPStr_Test_Struct strStruct)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Struct_String (LPStr_Test_Struct* pSstrStruct)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_Struct_String (LPStr_Test_Struct* pSstrStruct)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Struct_String (LPStr_Test_Struct* pStrStruct)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_Struct_String (LPStr_Test_Struct* pStrStruct)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Array_String (LPSTR str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_Array_String (LPSTR str[]) 
 {
     printf ("%s \n", str[0]);
     printf ("%s \n", str[1]);
@@ -86,7 +83,7 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Array_String (LPSTR str[])
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Array_String (LPSTR* str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_Array_String (LPSTR* str[]) 
 {
     printf ("%s \n", (*str)[0]);
     printf ("%s \n", (*str)[1]);
@@ -95,7 +92,7 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Array_String (LPSTR* str[
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Array_String (LPSTR* str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_Array_String (LPSTR* str[]) 
 {
     printf ("%s \n", (*str)[0]);
     printf ("%s \n", (*str)[1]);
@@ -104,22 +101,22 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Array_String (LPSTR* s
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Class_String (LPStr_Test_Class strClass)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_Class_String (LPStr_Test_Class strClass)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Class_String (LPStr_Test_Class* pSstrClass)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_Class_String (LPStr_Test_Class* pSstrClass)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Class_String (LPStr_Test_Class* pStrClass)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_Class_String (LPStr_Test_Class* pStrClass)
 {
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Array_Struct (LPStr_Test_Struct str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_Array_Struct (LPStr_Test_Struct str[]) 
 {
     printf ("** %s \n", str[0].pStr);
     printf ("** %s \n", str[1].pStr);
@@ -127,7 +124,7 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Array_Struct (LPStr_Test_Struc
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Array_Struct (LPStr_Test_Struct* str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InByRef_Array_Struct (LPStr_Test_Struct* str[]) 
 {
     printf ("++ %s \n", (*str)[0].pStr);
     printf ("++ %s \n", (*str)[1].pStr);
@@ -135,7 +132,7 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InByRef_Array_Struct (LPStr_Test_
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Array_Struct (LPStr_Test_Struct* str[]) 
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_InOutByRef_Array_Struct (LPStr_Test_Struct* str[]) 
 {
     printf ("-- %s \n", (*str)[0].pStr);
     printf ("-- %s \n", (*str)[1].pStr);
@@ -143,7 +140,7 @@ extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_InOutByRef_Array_Struct (LPStr_Te
     return TRUE;
 }
 
-extern "C" bool DLL_EXPORT __cdecl LPStrBuffer_In_Struct_String_nothrow (LPStr_Test_Struct strStruct)
+extern "C" bool DLL_EXPORT STDMETHODCALLTYPE LPStrBuffer_In_Struct_String_nothrow (LPStr_Test_Struct strStruct)
 {
     return TRUE;
 }

@@ -6,9 +6,8 @@ include_directories(${INC_PLATFORM_DIR})
 set(SOURCES 
     BestFitMappingNative.cpp 
 ) 
-# Additional files to reference: 
-#    BestFitMappingNative.def 
-# add the executable 
+
 add_library (LPStr_BestFitMappingNative SHARED ${SOURCES}) 
+target_link_libraries(LPStr_BestFitMappingNative ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
 install (TARGETS LPStr_BestFitMappingNative DESTINATION bin) 
