@@ -97,7 +97,7 @@ bool CYEqualsToExpected(LPCSTR err_id, const CY& expected, const CY& actual)
 }
 
 // DECIMAL
-extern "C" DLL_EXPORT BOOL TakeDecAsInOutParamAsLPStructByRef(DECIMAL** lppDec)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDecAsInOutParamAsLPStructByRef(DECIMAL** lppDec)
 {
     if(DecEqualsToExpected("001.01", g_DECIMAL_MaxValue, **lppDec))
     {
@@ -108,7 +108,7 @@ extern "C" DLL_EXPORT BOOL TakeDecAsInOutParamAsLPStructByRef(DECIMAL** lppDec)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL TakeDecAsOutParamAsLPStructByRef(DECIMAL** lppDec)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDecAsOutParamAsLPStructByRef(DECIMAL** lppDec)
 {
     if(*lppDec)
     {
@@ -124,13 +124,13 @@ extern "C" DLL_EXPORT BOOL TakeDecAsOutParamAsLPStructByRef(DECIMAL** lppDec)
     }
 }
 
-extern "C" DLL_EXPORT DECIMAL RetDec()
+extern "C" DLL_EXPORT DECIMAL STDMETHODCALLTYPE RetDec()
 {
     return g_DECIMAL_MaxValue;
 }
 
 // CY
-extern "C" DLL_EXPORT BOOL TakeCYAsInOutParamAsLPStructByRef(CY* lpCy)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeCYAsInOutParamAsLPStructByRef(CY* lpCy)
 {
     if(CYEqualsToExpected("002.01", g_CY_MaxValue, *lpCy))
     {
@@ -141,7 +141,7 @@ extern "C" DLL_EXPORT BOOL TakeCYAsInOutParamAsLPStructByRef(CY* lpCy)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL TakeCYAsOutParamAsLPStructByRef(CY* lpCy)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeCYAsOutParamAsLPStructByRef(CY* lpCy)
 {
     if(g_CY_Zero == *lpCy) 
     {        
@@ -156,12 +156,12 @@ extern "C" DLL_EXPORT BOOL TakeCYAsOutParamAsLPStructByRef(CY* lpCy)
     }
 }
 
-extern "C" DLL_EXPORT CY RetCY()
+extern "C" DLL_EXPORT CY STDMETHODCALLTYPE RetCY()
 {
     return g_CY_MinValue;
 }
 
-extern "C" DLL_EXPORT BOOL TakeStru_Exp_DecAsCYAsFldByInOutRef(Stru_Exp_DecAsCYAsFld* s)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeStru_Exp_DecAsCYAsFldByInOutRef(Stru_Exp_DecAsCYAsFld* s)
 {
     if(CYEqualsToExpected("001.04.01", g_CY_Zero, s->cy) && Equals("001.04.02", W('\0'), s->wc))
     {

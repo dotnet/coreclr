@@ -34,17 +34,17 @@ typedef struct _Stru_Seq_DecAsLPStructAsFld
 } Stru_Seq_DecAsLPStructAsFld;
 
 // As Struct
-typedef bool (*Fp_Dec)(DECIMAL*);
-typedef DECIMAL (*Fp_RetDec)();
-typedef bool (*Fp_Stru_Seq_DecAsStructAsFld)(Stru_Seq_DecAsStructAsFld*);
+typedef BOOL (STDMETHODCALLTYPE *Fp_Dec)(DECIMAL*);
+typedef DECIMAL (STDMETHODCALLTYPE *Fp_RetDec)();
+typedef BOOL (STDMETHODCALLTYPE *Fp_Stru_Seq_DecAsStructAsFld)(Stru_Seq_DecAsStructAsFld*);
 // As CY
-typedef bool (*Fp_CY)(CY*);
-typedef CY (*Fp_RetCY)();
-typedef bool (*Fp_Stru_Exp_DecAsCYAsFld)(Stru_Exp_DecAsCYAsFld*);
+typedef BOOL (STDMETHODCALLTYPE *Fp_CY)(CY*);
+typedef CY (STDMETHODCALLTYPE *Fp_RetCY)();
+typedef BOOL (STDMETHODCALLTYPE *Fp_Stru_Exp_DecAsCYAsFld)(Stru_Exp_DecAsCYAsFld*);
 // As LPStruct
-typedef bool (*Fp_DecAsLPStruct)(DECIMAL**);
-typedef DECIMAL* (*Fp_RetDecAsLPStruct)();
-typedef bool (*Fp_Stru_Seq_DecAsLPStructAsFld)(Stru_Seq_DecAsLPStructAsFld*);
+typedef BOOL (STDMETHODCALLTYPE *Fp_DecAsLPStruct)(DECIMAL**);
+typedef DECIMAL* (STDMETHODCALLTYPE *Fp_RetDecAsLPStruct)();
+typedef BOOL (STDMETHODCALLTYPE *Fp_Stru_Seq_DecAsLPStructAsFld)(Stru_Seq_DecAsLPStructAsFld*);
 
 void DecDisplay(const DECIMAL& dec)
 {
@@ -141,7 +141,7 @@ T* RetSpecificTypeInstancePtr(T tVal)
 }
 
 // As Struct
-extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeDecByInOutRef(Fp_Dec fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeDecByInOutRef(Fp_Dec fp)
 {
     DECIMAL* lpDec = RetSpecificTypeInstancePtr(g_DECIMAL_MaxValue);
 
@@ -151,7 +151,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeDecByInOutRef(Fp_Dec fp)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeDecByOutRef(Fp_Dec fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeDecByOutRef(Fp_Dec fp)
 {
     DECIMAL* lpDec = RetSpecificTypeInstancePtr(g_DECIMAL_MaxValue);
 
@@ -161,12 +161,12 @@ extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeDecByOutRef(Fp_Dec fp)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL ReverseCall_DecRet(Fp_RetDec fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_DecRet(Fp_RetDec fp)
 {
     return DecEqualsToExpected("001.03", g_DECIMAL_MinValue, (*fp)());
 }
 
-extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeStru_Seq_DecAsStructAsFldByInOutRef(Fp_Stru_Seq_DecAsStructAsFld fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeStru_Seq_DecAsStructAsFldByInOutRef(Fp_Stru_Seq_DecAsStructAsFld fp)
 {
     Stru_Seq_DecAsStructAsFld s = { 1, g_DECIMAL_MaxValue };
 
@@ -177,7 +177,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeStru_Seq_DecAsStructAsFldByIn
 }
 
 // As CY
-extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeCYByInOutRef(Fp_CY fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeCYByInOutRef(Fp_CY fp)
 {
     CY* lpCy = RetSpecificTypeInstancePtr(g_CY_MaxValue);
 
@@ -187,7 +187,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeCYByInOutRef(Fp_CY fp)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeCYByOutRef(Fp_CY fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeCYByOutRef(Fp_CY fp)
 {
     CY* lpCy = RetSpecificTypeInstancePtr(g_CY_MaxValue);
 
@@ -197,12 +197,12 @@ extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeCYByOutRef(Fp_CY fp)
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL ReverseCall_CYRet(Fp_RetCY fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_CYRet(Fp_RetCY fp)
 {
     return CYEqualsToExpected("002.03", g_CY_MinValue, (*fp)());
 }
 
-extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef(Fp_Stru_Exp_DecAsCYAsFld fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef(Fp_Stru_Exp_DecAsCYAsFld fp)
 {
     Stru_Exp_DecAsCYAsFld s = { 0 };
 
@@ -213,7 +213,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeStru_Exp_DecAsCYAsFldByOutRef
 }
 
 // As LPStrcut
-extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeDecByInOutRefAsLPStruct(Fp_DecAsLPStruct fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeDecByInOutRefAsLPStruct(Fp_DecAsLPStruct fp)
 {
     DECIMAL* lpDec = RetSpecificTypeInstancePtr(g_DECIMAL_MaxValue);
     DECIMAL**    lppDec = &lpDec;
@@ -224,7 +224,7 @@ extern "C" DLL_EXPORT BOOL __cdecl ReverseCall_TakeDecByInOutRefAsLPStruct(Fp_De
         return false;
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeDecByOutRefAsLPStruct(Fp_DecAsLPStruct fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_TakeDecByOutRefAsLPStruct(Fp_DecAsLPStruct fp)
 {
     DECIMAL* lpDecAsLPStruct = RetSpecificTypeInstancePtr(g_DECIMAL_MaxValue);
     DECIMAL** lppDecAsLPStruct = &lpDecAsLPStruct;
@@ -237,7 +237,7 @@ extern "C" DLL_EXPORT BOOL __stdcall ReverseCall_TakeDecByOutRefAsLPStruct(Fp_De
 
 //************** ReverseCall Return Int From Net **************//
 typedef int (*Fp_RetInt)();
-extern "C" DLL_EXPORT BOOL ReverseCall_IntRet(Fp_RetInt fp)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE ReverseCall_IntRet(Fp_RetInt fp)
 {
     return 0x12345678 == (*fp)();
 }

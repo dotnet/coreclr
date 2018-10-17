@@ -64,27 +64,39 @@ public class CMain
     #region Delegate Set
 
     // Dec As Struct
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_DecInOutRef([MarshalAs(UnmanagedType.Struct), In, Out]ref decimal dec);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_DecOutRef([MarshalAs(UnmanagedType.Struct), Out]out decimal dec);
     [return: MarshalAs(UnmanagedType.Struct)]
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate decimal Dele_DecRet();
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_Stru_Seq_DecAsStructAsFldInOutRef([In, Out]ref Stru_Seq_DecAsStructAsFld s);
 
     // Dec As CY
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_CYInOutRef([MarshalAs(UnmanagedType.Currency), In, Out]ref decimal dec);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_CYOutRef([MarshalAs(UnmanagedType.Currency), Out]out decimal dec);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     [return: MarshalAs(UnmanagedType.Currency)]
     delegate decimal Dele_CYRet();
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_Stru_Exp_DecAsCYAsFldOutRef([Out]out Stru_Exp_DecAsCYAsFld s);
 
     // Dec As LPStruct
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_DecInOutRefAsLPStruct([MarshalAs(UnmanagedType.LPStruct), In, Out]ref decimal dec);
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate bool Dele_DecOutRefAsLPStruct([MarshalAs(UnmanagedType.LPStruct), Out]out decimal dec);
 
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     [return: MarshalAs(UnmanagedType.LPStruct)]
     delegate decimal Dele_DecAsLPStructRet();
 
     //************** ReverseCall Return Int From Net **************//
+    [UnmanagedFunctionPointer(CallingConvention.Winapi)]
     delegate int Dele_IntRet();
 
     #endregion
