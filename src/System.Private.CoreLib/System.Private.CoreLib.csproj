@@ -439,6 +439,7 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\System\IO\FileLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\FileNotFoundException.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\IO\Utf8StringStream.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\IO\Stream.CoreCLR.cs" />
   </ItemGroup>
   <ItemGroup>

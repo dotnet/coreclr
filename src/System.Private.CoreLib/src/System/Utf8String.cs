@@ -3,8 +3,10 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Buffers;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -595,6 +597,9 @@ namespace System
 
         // TODO: Replace exception message below
         public UnicodeScalar GetScalarAt(int index) => (TryGetScalarAt(index, out UnicodeScalar scalar)) ? scalar : throw new Exception("Invalid data.");
+
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public Stream GetStream() => new Utf8StringStream(this);
 
         public int IndexOf(char value)
         {
