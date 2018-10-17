@@ -123,7 +123,7 @@ namespace System.IO
                     }
                 case SeekOrigin.End:
                     {
-                        newPosition = _position + _string.Length;
+                        newPosition = offset + _string.Length;
                         break;
                     }
                 default:
