@@ -171,6 +171,22 @@ namespace System.Text
             throw new NotImplementedException();
         }
 
+        public static bool IsWellFormedString(ReadOnlySpan<byte> source)
+        {
+            return Utf8Utility.GetIndexOfFirstInvalidUtf8Sequence(source, out _) < 0;
+        }
+
+        public static bool IsWellFormedString(Utf8String source)
+        {
+            if (source == null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+
+            // TODO: Read "well-formed" bit from string
+            return IsWellFormedString(source.AsSpanFast());
+        }
+
         public static int ToLower(ReadOnlySpan<byte> source, Span<byte> destination, CultureInfo culture)
         {
             // TODO: Optimize me. This can be done much, much faster by special-casing ASCII.
