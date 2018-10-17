@@ -48,6 +48,7 @@ usage()
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
+    echo "-crossgenonly - only run native image generation"
     echo "-verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
     echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
@@ -659,6 +660,7 @@ __SkipCoreCLR=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
+__CrossgenOnly=0
 __SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
@@ -858,6 +860,12 @@ while :; do
             __SkipCrossgen=1
             ;;
 
+        crossgenonly|-crossgenonly)
+            __SkipMSCorLib=1
+            __SkipCoreCLR=1
+            __CrossgenOnly=1
+            ;;
+
         skiptests|-skiptests)
             __SkipTests=1
             ;;
@@ -1044,6 +1052,10 @@ fi
 # Build System.Private.CoreLib.
 
 build_CoreLib
+
+if [[ $__CrossgenOnly ==1]]; then
+    build_CoreLib_ni "$__BinDir/crossgen"
+fi
 
 # Generate nuget packages
 if [ $__SkipNuget != 1 ]; then

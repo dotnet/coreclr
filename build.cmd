@@ -618,64 +618,6 @@ if %__BuildCoreLib% EQU 1 (
         exit /b 1
     )
 
-    REM } Scope environment changes end
-    endlocal
-)
-
-REM =========================================================================================
-REM ===
-REM === Build native System.Private.CoreLib.
-REM ===
-REM =========================================================================================
-
-REM Scope environment changes start {
-setlocal
-
-REM Need diasymreader.dll on your path for /CreatePdb
-set PATH=%PATH%;%WinDir%\Microsoft.Net\Framework64\V4.0.30319;%WinDir%\Microsoft.Net\Framework\V4.0.30319
-
-if %__BuildNativeCoreLib% EQU 1 (
-    echo %__MsgPrefix%Generating native image of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%. Logging to "%__CrossGenCoreLibLog%".
-    if exist "%__CrossGenCoreLibLog%" del "%__CrossGenCoreLibLog%"
-
-    REM Need VS native tools environment for the **target** arch when running instrumented binaries
-    if %__PgoInstrument% EQU 1 (
-        set __VCExecArch=%__BuildArch%
-        if /i [%__BuildArch%] == [x64] set __VCExecArch=amd64
-        echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
-        call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
-        @if defined _echo @echo on
-        if NOT !errorlevel! == 0 (
-            echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
-            goto CrossgenFailure
-        )
-
-        REM HACK: Workaround for [dotnet/coreclr#13970](https://github.com/dotnet/coreclr/issues/13970)
-        set __PgoRtPath=
-        for /f "tokens=*" %%f in ('where pgort*.dll') do (
-            if not defined __PgoRtPath set "__PgoRtPath=%%~f"
-        )
-        echo %__MsgPrefix%Copying "!__PgoRtPath!" into "%__BinDir%"
-        copy /y "!__PgoRtPath!" "%__BinDir%" || (
-            echo %__MsgPrefix%Error: copy failed
-            goto CrossgenFailure
-        )
-        REM End HACK
-    )
-
-    if defined __CrossgenAltJit (
-        REM Set altjit flags for the crossgen run. Note that this entire crossgen section is within a setlocal/endlocal scope,
-        REM so we don't need to save or unset these afterwards.
-        echo %__MsgPrefix%Setting altjit environment variables for %__CrossgenAltJit%.
-        echo %__MsgPrefix%Setting altjit environment variables for %__CrossgenAltJit%. >> "%__CrossGenCoreLibLog%"
-        set COMPlus_AltJit=*
-        set COMPlus_AltJitNgen=*
-        set COMPlus_AltJitName=%__CrossgenAltJit%
-        set COMPlus_AltJitAssertOnNYI=1
-        set COMPlus_NoGuiOnAssert=1
-        set COMPlus_ContinueOnAssert=0
-    )
-
     if %__IbcOptimize% EQU 1 (
         set IbcMergeProjectFilePath=%__ProjectDir%\src\.nuget\optdata\ibcmerge.csproj
         for /f "tokens=*" %%s in ('%DotNetCli% msbuild "!IbcMergeProjectFilePath!" /t:DumpIbcMergePackageVersion /nologo') do @(
@@ -751,6 +693,64 @@ if %__BuildNativeCoreLib% EQU 1 (
                 goto CrossgenFailure
             )
         )
+    )
+
+    REM } Scope environment changes end
+    endlocal
+)
+
+REM =========================================================================================
+REM ===
+REM === Build native System.Private.CoreLib.
+REM ===
+REM =========================================================================================
+
+REM Scope environment changes start {
+setlocal
+
+REM Need diasymreader.dll on your path for /CreatePdb
+set PATH=%PATH%;%WinDir%\Microsoft.Net\Framework64\V4.0.30319;%WinDir%\Microsoft.Net\Framework\V4.0.30319
+
+if %__BuildNativeCoreLib% EQU 1 (
+    echo %__MsgPrefix%Generating native image of System.Private.CoreLib for %__BuildOS%.%__BuildArch%.%__BuildType%. Logging to "%__CrossGenCoreLibLog%".
+    if exist "%__CrossGenCoreLibLog%" del "%__CrossGenCoreLibLog%"
+
+    REM Need VS native tools environment for the **target** arch when running instrumented binaries
+    if %__PgoInstrument% EQU 1 (
+        set __VCExecArch=%__BuildArch%
+        if /i [%__BuildArch%] == [x64] set __VCExecArch=amd64
+        echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
+        call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
+        @if defined _echo @echo on
+        if NOT !errorlevel! == 0 (
+            echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!
+            goto CrossgenFailure
+        )
+
+        REM HACK: Workaround for [dotnet/coreclr#13970](https://github.com/dotnet/coreclr/issues/13970)
+        set __PgoRtPath=
+        for /f "tokens=*" %%f in ('where pgort*.dll') do (
+            if not defined __PgoRtPath set "__PgoRtPath=%%~f"
+        )
+        echo %__MsgPrefix%Copying "!__PgoRtPath!" into "%__BinDir%"
+        copy /y "!__PgoRtPath!" "%__BinDir%" || (
+            echo %__MsgPrefix%Error: copy failed
+            goto CrossgenFailure
+        )
+        REM End HACK
+    )
+
+    if defined __CrossgenAltJit (
+        REM Set altjit flags for the crossgen run. Note that this entire crossgen section is within a setlocal/endlocal scope,
+        REM so we don't need to save or unset these afterwards.
+        echo %__MsgPrefix%Setting altjit environment variables for %__CrossgenAltJit%.
+        echo %__MsgPrefix%Setting altjit environment variables for %__CrossgenAltJit%. >> "%__CrossGenCoreLibLog%"
+        set COMPlus_AltJit=*
+        set COMPlus_AltJitNgen=*
+        set COMPlus_AltJitName=%__CrossgenAltJit%
+        set COMPlus_AltJitAssertOnNYI=1
+        set COMPlus_NoGuiOnAssert=1
+        set COMPlus_ContinueOnAssert=0
     )
 
     if defined __PartialNgen (
