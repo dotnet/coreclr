@@ -9,21 +9,7 @@ using System.Runtime.InteropServices;
 
 class Test
 {
-    [StructLayout(LayoutKind.Sequential)]
-    public struct SYSTEM_INFO
-    {
-        public System.UInt16 wProcessorArchitecture;
-        public System.UInt16 wReserved;
-        public System.UInt32 dwPageSize;
-        public System.IntPtr lpMinimumApplicationAddress;
-        public System.IntPtr lpMaximumApplicationAddress;
-        public System.UIntPtr dwActiveProcessorMask;
-        public System.UInt32 dwNumberOfProcessors;
-        public System.UInt32 dwProcessorType;
-        public System.UInt32 dwAllocationGranularity;
-        public System.UInt16 wProcessorLevel;
-        public System.UInt16 wProcessorRevision;
-    }
+    private const string PathEnvSubdirectoryName = "Subdirectory";
 
     [DllImport(@"DllImportPath_Local", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Local1([In, Out]ref string strManaged);
@@ -49,10 +35,10 @@ class Test
     [DllImport(@".\..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative4([In, Out]ref string strManaged);
 
-    [DllImport(@"DllImportPath_U�n�i�c�o�d�e.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath_U�n�i�c�o�d�e", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
     
-    [DllImport(@"Moved_DllImportPath_PathEnv", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"MovedNativeLib", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_PathEnv([In, Out]ref string strManaged);
 
     static bool DllExistsOnLocalPath()
@@ -74,46 +60,49 @@ class Test
             return false;
         }
 
-        Console.WriteLine("[Calling MarshalStringPointer_InOut_Local2]");
-        string strPara2 = strManaged;
-        if (!MarshalStringPointer_InOut_Local2(ref strPara2))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Console.WriteLine("Return value is wrong");
-            return false;
-        }
+            Console.WriteLine("[Calling MarshalStringPointer_InOut_Local2]");
+            string strPara2 = strManaged;
+            if (!MarshalStringPointer_InOut_Local2(ref strPara2))
+            {
+                Console.WriteLine("Return value is wrong");
+                return false;
+            }
 
-        if (native != strPara2)
-        {
-            Console.WriteLine("The passed string is wrong");
-            return false;
-        }
+            if (native != strPara2)
+            {
+                Console.WriteLine("The passed string is wrong");
+                return false;
+            }
 
-        Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot1]");
-        string strPara3 = strManaged;
-        if (!MarshalStringPointer_InOut_LocalWithDot1(ref strPara3))
-        {
-            Console.WriteLine("Return value is wrong");
-            return false;
-        }
+            Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot1]");
+            string strPara3 = strManaged;
+            if (!MarshalStringPointer_InOut_LocalWithDot1(ref strPara3))
+            {
+                Console.WriteLine("Return value is wrong");
+                return false;
+            }
 
-        if (native != strPara3)
-        {
-            Console.WriteLine("The passed string is wrong");
-            return false;
-        }
+            if (native != strPara3)
+            {
+                Console.WriteLine("The passed string is wrong");
+                return false;
+            }
 
-        Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot2]");
-        string strPara4 = strManaged;
-        if (!MarshalStringPointer_InOut_LocalWithDot2(ref strPara4))
-        {
-            Console.WriteLine("Return value is wrong");
-            return false;
-        }
+            Console.WriteLine("[Calling MarshalStringPointer_InOut_LocalWithDot2]");
+            string strPara4 = strManaged;
+            if (!MarshalStringPointer_InOut_LocalWithDot2(ref strPara4))
+            {
+                Console.WriteLine("Return value is wrong");
+                return false;
+            }
 
-        if (native != strPara4)
-        {
-            Console.WriteLine("The passed string is wrong");
-            return false;
+            if (native != strPara4)
+            {
+                Console.WriteLine("The passed string is wrong");
+                return false;
+            }
         }
 
         return true;
@@ -186,23 +175,25 @@ class Test
 
     private static void SetupPathEnvTest()
     {
-        string subDirectoryName = "Subdirectory";
         var currentDirectory = Directory.GetCurrentDirectory();
         var info = new DirectoryInfo(currentDirectory);
-        var subDirectory = info.CreateSubdirectory(subDirectoryName);
+        var subDirectory = info.CreateSubdirectory(PathEnvSubdirectoryName);
 
-        var file = info.EnumerateFiles("DllImportPath_PathEnv*", SearchOption.TopDirectoryOnly).First();
+        var file = info.EnumerateFiles("*DllImportPath_PathEnv*", SearchOption.TopDirectoryOnly).First();
 
         var newFileLocation = Path.Combine(subDirectory.FullName, file.Name);
 
-        file.CopyTo(Path.Combine(subDirectory.FullName, $"Moved_{file.Name}"), true);
+        file.CopyTo(Path.Combine(subDirectory.FullName, "MovedNativeLib"), true);
 
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + $";{subDirectory.FullName}");
     }
 
     static bool DllExistsOnPathEnv()
     {
-        SetupPathEnvTest();
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            SetupPathEnvTest();
+        }
 
         string managed = "Managed";
         string native = " Native";
@@ -247,8 +238,14 @@ class Test
     public static int Main(string[] args)
     {
         bool success = true;
+
         success = success && DllExistsOnLocalPath();
-        success = success && DllExistsOnRelativePath();
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            success = success && DllExistsOnRelativePath();
+        }
+
         success = success && DllExistsUnicode();
         success = success && DllExistsOnPathEnv();
         
