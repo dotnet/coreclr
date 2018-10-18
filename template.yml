@@ -1,0 +1,7 @@
+parameters:
+  name: paramName
+
+jobs:
+- job: template-job-${{ parameters.paramName }}
+  steps:
+  - bash: echo ${PARAMETERS_PARAMNAME} in step 1

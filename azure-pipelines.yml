@@ -6,11 +6,56 @@
 # pool:
 #  vmImage: 'Ubuntu 16.04'
 
-phases:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+# phases:
+# - script: echo Hello, world!
+#   displayName: 'Run a one-line script'
+# 
+# - script: |
+#     echo Add other tasks to build, test, and deploy your project.
+#     echo See https://aka.ms/yaml
+#   displayName: 'Run a multi-line script'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+name: nameofpipeline
+resources:
+  containers:
+  repositories:
+
+jobs:        
+- job: job1
+  displayName: job1UIName
+  dependsOn:
+  condition:
+  steps:
+  - bash: echo hi from job1
+- job: job2matrix
+  strategy:
+    matrix:
+      { matrix1:
+        { var1: inmatrix1 }
+        { var2: alsoinmatrix1 }
+        matrix2:
+        { var1: inmatrix2 }
+        { var2: alsoinmatrix2 }
+      }
+  steps:
+  - bash: echo var1: ${VAR1}, var2: ${VAR2}
+- job: job2matrixyamlsyntax
+  strategy:
+    matrix:
+      matrix1:
+        var1: inmatrix1
+        var2: alsoinmatrix1
+      matrix2:
+        var1: inmatrix2
+        var2: alsoinmatrix2
+- job: job2parallel
+  strategy:
+    parallel: 4
+- template: template.yml
+  parameters:
+    name: instantiatedTemplateName
+- job: withsteptemplate
+  steps:
+  - template: steptemplate.yml
+    parameters:
+      myParam: instantiatedStepTemplateName
