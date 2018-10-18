@@ -5,6 +5,11 @@ include_directories(${INC_PLATFORM_DIR})
 set(SOURCES 
     NativeDateTime.cpp 
 ) 
+if(WIN32)
+    list(APPEND LINK_LIBRARIES_ADDITIONAL
+        OleAut32.lib
+    )
+endif(WIN32)
 # add the executable 
 add_library (NativeDateTime SHARED ${SOURCES}) 
 # add the install targets 
