@@ -18,11 +18,8 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64_checked_Innerloop:
+        x64 checked innerLoop:
           buildConfig: checked
-          archType: x64
-        x64 debug InnerLoop:
-          buildConfig: debug
           archType: x64
     agentOs: Windows_NT
     name: Windows_NT
@@ -53,7 +50,7 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64_checked_Innerloop:
+        x64 checked innerloop:
           buildConfig: checked
           archType: x64
     agentOs: Ubuntu
@@ -85,7 +82,7 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64_checked_Innerloop:
+        x64 checked innerloop:
           buildConfig: checked
           archType: x64
     agentOs: MacOS
