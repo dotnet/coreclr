@@ -32,7 +32,7 @@ jobs:
     matrix:
       { matrix1:
         { var1: inmatrix1 }
-        { var2: alsoinmatrix1 }
+        { var2: alsoinmatrix1 },
         matrix2:
         { var1: inmatrix2 }
         { var2: alsoinmatrix2 }
