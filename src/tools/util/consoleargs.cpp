@@ -10,9 +10,9 @@ typedef unsigned char byte;
 
 size_t SafeStrCopy( _In_ LPCWSTR wszSrc, _In_ size_t cchSrc, _Out_ LPWSTR wszDest, _In_ size_t cchDest)
 {
-    if (cchSrc == (size_t)-1)
+    if (cchSrc == (size_t)-1) {
         cchSrc = wcslen(wszSrc);
-
+    }
     if (cchSrc >= cchDest) {
         SetLastError(ERROR_FILENAME_EXCED_RANGE);
         return 0;
@@ -27,9 +27,9 @@ size_t SafeStrCopy( _In_ LPCWSTR wszSrc, _In_ size_t cchSrc, _Out_ LPWSTR wszDes
 
 size_t SafeStrLower( _In_ LPCWSTR wszSrc, _In_ size_t cchSrc, _Out_ LPWSTR wszDest, _In_ size_t cchDest)
 {
-    if (cchSrc == (size_t)-1)
+    if (cchSrc == (size_t)-1) {
         cchSrc = wcslen(wszSrc);
-
+    }
     if (cchSrc >= cchDest) {
         SetLastError(ERROR_FILENAME_EXCED_RANGE);
         return 0;
@@ -61,21 +61,22 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
     memset(full_path, 0, cchDestFileName * sizeof(WCHAR));
     out_cur = wszDestFileName;
     out_end = out_cur + cchDestFileName;
-    if (wszSrcFileName != wszDestFileName)
+    if (wszSrcFileName != wszDestFileName) {
         *out_cur = L'\0';
+    }
     full_cur = full_path;
 
     // Replace '\\' with single backslashes in paths, because W_GetFullPathName fails to do this on win9x.
     size_t i = 0;
     size_t j = 0;
     size_t length = wcslen(wszSrcFileName);
-    while (j<length)
-    {
+    while (j < length) {
         // UNC paths start with '\\' so skip the first character if it is a backslash.
-        if (j!= 0 && wszSrcFileName[j] == '\\' && wszSrcFileName[j+1] == '\\')
+        if (j != 0 && wszSrcFileName[j] == '\\' && wszSrcFileName[j + 1] == '\\') {
             j++;
-        else
+        } else {
             temp_path[i++] = wszSrcFileName[j++];
+        }
         if (i >= cchDestFileName) {
             SetLastError(ERROR_FILENAME_EXCED_RANGE);
             goto FAIL;
@@ -84,8 +85,9 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
     temp_path[i] = L'\0';
 
     full_len = GetFullPathNameW(temp_path, cchDestFileName, full_path, NULL);
-    if (wszSrcFileName == wszDestFileName)
-        wszDestFileName[cchDestFileName-1] = L'\0';
+    if (wszSrcFileName == wszDestFileName) {
+        wszDestFileName[cchDestFileName - 1] = L'\0';
+    }
     if (full_len == 0) {
         goto FAIL;
     } else if (full_len >= cchDestFileName) {
@@ -96,8 +98,9 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
     // Allow only 1 ':' for drives and no long paths with "\\?\"
     if (((full_path[0] >= L'a' && full_path[0] <= L'z') ||
         (full_path[0] >= L'A' && full_path[0] <= L'Z')) &&
-        full_path[1] == L':')
+        full_path[1] == L':') {
         hasDrive = true;
+    }
 
     // We don't allow colons (except after the drive letter)
     // long paths beginning with "\\?\"
@@ -117,8 +120,9 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
 
     if (hasDrive) {
         size_t len = SafeStrLower( full_path, 3, out_cur, out_end - out_cur);
-        if (len == 0)
+        if (len == 0) {
             goto FAIL;
+        }
 
         full_cur += 3;
         out_cur += len;
@@ -140,14 +144,16 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
             // An empty share-name?
             SetLastError(ERROR_INVALID_NAME);
             goto FAIL;
-        } else
+        } else {
             slash++;
+        }
         // slash should now point to char after the slash after the share name
         // or the end of the sharename if there's no trailing slash
 
         size_t len = SafeStrLower( full_path, slash - full_path, out_cur, out_end - out_cur);
-        if (len == 0)
+        if (len == 0) {
             goto FAIL;
+        }
 
         full_cur = slash;
         out_cur += len;
@@ -217,8 +223,9 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
                 } else {
                     temp_len = SafeStrLower( full_cur, slash - full_cur, out_cur, out_end - out_cur);
                 }                    
-                if (temp_len == 0)
+                if (temp_len == 0) {
                     goto FAIL;
+                }
 
                 full_cur = slash;
                 out_cur += temp_len;
@@ -243,8 +250,9 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
                 } else {
                     len = SafeStrLower( temp_slash, -1, out_cur, out_end - out_cur);
                 }
-                if (len == 0)
+                if (len == 0) {
                     goto FAIL;
+                }
 
                 full_cur = slash;
                 out_cur += len;
@@ -263,8 +271,7 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
             // if this is not a directory name and the caller asked to perserve the casing
             if (hasSlash || !fPreserveSrcCasing) {
                 memcpy(out_cur, find_data.cFileName, name_len * sizeof(WCHAR));
-            }
-            else if (name_len != (slash - full_cur) || _wcsnicmp(find_data.cFileName, full_cur, name_len) != 0) {
+            } else if (name_len != (slash - full_cur) || _wcsnicmp(find_data.cFileName, full_cur, name_len) != 0) {
                 // The user asked us to preserve the casing of the filename
                 // and the filename is different by more than just casing so report 
                 // an error indicating we can't create the file
@@ -290,12 +297,10 @@ DWORD GetCanonFilePath(_In_z_ LPCWSTR wszSrcFileName, _Out_z_cap_(cchDestFileNam
     return (DWORD)(out_cur - wszDestFileName);
 
 FAIL:
-    if (full_path)
-    {
+    if (full_path) {
         delete [] full_path;
     }
-    if (temp_path)
-    {
+    if (temp_path) {
         delete [] temp_path;
     }
     return 0;
@@ -304,8 +309,9 @@ FAIL:
 
 bool FreeString(LPCWSTR szText)
 {
-    if (szText)
+    if (szText) {
         delete [] (const_cast<LPWSTR>(szText));
+    }
     return true;
 }
 
@@ -316,22 +322,22 @@ bool IsWhitespace(WCHAR c)
 
 void ConsoleArgs::CleanUpArgs()
 {
-    while (m_listArgs)
-    {
+    while (m_listArgs) {
         WStrList * next = m_listArgs->next;
-        if (m_listArgs->arg)
+        if (m_listArgs->arg) {
             delete [] m_listArgs->arg;
+        }
         delete m_listArgs;
         m_listArgs = next;
     }
 
-    if (m_rgArgs)
+    if (m_rgArgs) {
         delete[] m_rgArgs;
+    }
 
     m_rgArgs = NULL;
 
-    if(m_lastErrorMessage)
-    {
+    if(m_lastErrorMessage) {
         delete[] m_lastErrorMessage;
     }
 }
@@ -347,8 +353,7 @@ bool ConsoleArgs::GetFullFileName(LPCWSTR szSource, __out_ecount(cchFilenameBuff
     if (0 == GetCanonFilePath( szSource, filenameBuffer, cchFilenameBuffer, fOutputFilename))
 #endif
     {
-        if (filenameBuffer[0] == L'\0')
-        {
+        if (filenameBuffer[0] == L'\0') {
             // This could easily fail because of an overflow, but that's OK
             // we only want what will fit in the output buffer so we can print
             // a good error message
@@ -368,14 +373,12 @@ bool ConsoleArgs::GetFullFileName(LPCWSTR szSource, __out_ecount(cchFilenameBuff
 //
 void ConsoleArgs::SetErrorMessage(__in LPCWSTR pwzMessage)
 {
-    if (m_lastErrorMessage != nullptr)
-    {
+    if (m_lastErrorMessage != nullptr) {
         delete[] m_lastErrorMessage;
     }
     m_errorOccurred = true;
     m_lastErrorMessage = new WCHAR[wcslen(pwzMessage) + 1];
-    if (m_lastErrorMessage == nullptr)
-    {
+    if (m_lastErrorMessage == nullptr) {
         //
         // Out of memory allocating error string
         //
@@ -395,8 +398,7 @@ b_tree * ConsoleArgs::MakeLeaf(LPCWSTR text)
     size_t name_len = wcslen(text) + 1;
     LPWSTR szCopy = new WCHAR[name_len];
 
-    if (!szCopy)
-    {
+    if (!szCopy) {
         return NULL;
     }
 
@@ -404,8 +406,7 @@ b_tree * ConsoleArgs::MakeLeaf(LPCWSTR text)
     hr = StringCchCopyW (szCopy, name_len, text);
 
     t = new b_tree(szCopy);
-    if (!t)
-    {
+    if (!t) {
         delete [] szCopy;
         return NULL;
     }
@@ -417,8 +418,9 @@ b_tree * ConsoleArgs::MakeLeaf(LPCWSTR text)
 //
 void ConsoleArgs::CleanupTree(b_tree *root)
 {
-    if (root == NULL)
+    if (root == NULL) {
         return ;
+    }
     root->InOrderWalk(FreeString);
     delete root;
 }
@@ -433,19 +435,15 @@ HRESULT ConsoleArgs::TreeAdd(b_tree **root, LPCWSTR add
 {
     // Special case - init the tree if it
     // doesn't already exist
-    if (*root == NULL)
-    {
-        *root = MakeLeaf(add
-                        );
+    if (*root == NULL) {
+        *root = MakeLeaf(add);
         return *root == NULL ? E_OUTOFMEMORY : S_OK;
     }
 
-    size_t name_len = wcslen(add
-                            ) + 1;
+    size_t name_len = wcslen(add) + 1;
     LPWSTR szCopy = new WCHAR[name_len];
 
-    if (!szCopy)
-    {
+    if (!szCopy) {
         return NULL;
     }
 
@@ -454,8 +452,9 @@ HRESULT ConsoleArgs::TreeAdd(b_tree **root, LPCWSTR add
     // otherwise, just let the template do the work
     hr = (*root)->Add(szCopy, _wcsicmp);
 
-    if (hr != S_OK) // S_FALSE means it already existed
+    if (hr != S_OK) { // S_FALSE means it already existed
         delete [] szCopy;
+    }
 
     return hr;
 }
@@ -479,25 +478,24 @@ void ConsoleArgs::TextToArgs(LPCWSTR szText, WStrList ** listReplace)
 
     // Guaranteed that all tokens are no bigger than the entire file.
     LPWSTR szTemp = new WCHAR[wcslen(szText) + 1];
-    if (!szTemp)
-    {
+    if (!szTemp) {
         return ;
     }
-    while (*pCur != '\0')
-    {
+    while (*pCur != '\0') {
         WCHAR *pPut, *pFirst, *pLast;
         WCHAR chIllegal;
 
 LEADINGWHITE:
-        while (IsWhitespace( *pCur) && *pCur != '\0')
+        while (IsWhitespace( *pCur) && *pCur != '\0') {
             pCur++;
+        }
 
-        if (*pCur == '\0')
+        if (*pCur == '\0') {
             break;
-        else if (*pCur == L'#')
-        {
-            while ( *pCur != '\0' && *pCur != '\n')
+        } else if (*pCur == L'#') {
+            while ( *pCur != '\0' && *pCur != '\n') {
                 pCur++; // Skip to end of line
+            }
             goto LEADINGWHITE;
         }
 
@@ -535,28 +533,25 @@ LEADINGWHITE:
         int cQuotes = 0;
         pPut = pFirst = szTemp;
         chIllegal = 0;
-        while ((!IsWhitespace( *pCur) || !!(cQuotes & 1)) && *pCur != '\0')
-        {
-            switch (*pCur)
-            {
+        while ((!IsWhitespace( *pCur) || !!(cQuotes & 1)) && *pCur != '\0') {
+            switch (*pCur) {
                     // All this weird slash stuff follows the standard argument processing routines
                 case L'\\':
                     iSlash = 0;
                     // Copy and advance while counting slashes
-                    while (*pCur == L'\\')
-                    {
+                    while (*pCur == L'\\') {
                         *pPut++ = *pCur++;
                         iSlash++;
                     }
 
                     // Slashes not followed by a quote character don't matter now
-                    if (*pCur != L'\"')
+                    if (*pCur != L'\"') {
                         break;
+                    }
 
                     // If there's an odd count of slashes, it's escaping the quote
                     // Otherwise the quote is a quote
-                    if ((iSlash & 1) == 0)
-                    {
+                    if ((iSlash & 1) == 0) {
                         ++cQuotes;
                     }
                     *pPut++ = *pCur++;
@@ -569,18 +564,17 @@ LEADINGWHITE:
 
                 case L'^':
                     // ignore this sequence: \^[\r\n|\r|\n]( \t)*
-                    if (pCur[1] == L'\r' || pCur[1] == L'\n')
-                    {
-                        if (pCur[1] == L'\r' && pCur[2] == L'\n')
+                    if (pCur[1] == L'\r' || pCur[1] == L'\n') {
+                        if (pCur[1] == L'\r' && pCur[2] == L'\n') {
                             pCur += 3;
-                        else
+                        } else {
                             pCur += 2;
+                        }
 
-                        while (*pCur == L' ' || *pCur == L'\t')
+                        while (*pCur == L' ' || *pCur == L'\t') {
                             ++pCur;
-                    }
-                    else
-                    {
+                        }
+                    } else {
                         *pPut++ = *pCur++;  // Copy the caret and advance
                     }
                     break;
@@ -618,8 +612,9 @@ LEADINGWHITE:
                 case L'\x1F':
                 case L'|':
                     // Save the first legal character and skip over them
-                    if (chIllegal == 0)
+                    if (chIllegal == 0) {
                         chIllegal = *pCur;
+                    }
                     pCur++;
                     break;
 
@@ -633,29 +628,25 @@ LEADINGWHITE:
         *pPut++ = '\0';
 
         // If the string is surrounded by quotes, with no interior quotes, remove them.
-        if (cQuotes == 2 && *pFirst == L'\"' && *(pLast - 1) == L'\"')
-        {
+        if (cQuotes == 2 && *pFirst == L'\"' && *(pLast - 1) == L'\"') {
             ++pFirst;
             --pLast;
             *pLast = L'\0';
         }
 
-        if (chIllegal != 0)
-        {
+        if (chIllegal != 0) {
             SetErrorMessage(W("Illegal option character."));
             break;
         }
 
         size_t cchLen = pLast - pFirst + 1;
         WCHAR * szArgCopy = new WCHAR[cchLen];
-        if (!szArgCopy || FAILED(StringCchCopyW(szArgCopy, cchLen, pFirst)))
-        {
+        if (!szArgCopy || FAILED(StringCchCopyW(szArgCopy, cchLen, pFirst))) {
             SetErrorMessage(W("Out of memory."));
             break;
         }
         WStrList * listArgNew = new WStrList( szArgCopy, (*argLast));
-        if (!listArgNew)
-        {
+        if (!listArgNew) {
             SetErrorMessage(W("Out of memory."));
             break;
         }
@@ -679,22 +670,19 @@ bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) con
     *pargc2 = 0;
     *pppargv2 = NULL;
     WStrList **argLast = &m_listArgs;
-    while (argc > 0)
-    {
+    while (argc > 0) {
         // Make a copy of the original var args so we can just delete[] everything
         // once parsing is done: original args and new args from response files
         // mixed in amongst the originals.
         LPWSTR copyArg = new WCHAR[wcslen(argv[0]) + 1];
-        if (!copyArg)
-        {
+        if (!copyArg) {
             SetErrorMessage(W("Out of memory."));
             return false;
         }
         wcscpy_s(copyArg, wcslen(argv[0]) + 1, argv[0]);
         
         WStrList * listArgNew = new WStrList(copyArg, (*argLast));
-        if (!listArgNew)
-        {
+        if (!listArgNew) {
             SetErrorMessage(W("Out of memory."));
             return false;
         }
@@ -708,28 +696,26 @@ bool ConsoleArgs::ExpandResponseFiles(__in int argc, __deref_in_ecount(argc) con
 
     // Process Response Files
     ProcessResponseArgs();
-    if (m_errorOccurred)
+    if (m_errorOccurred) {
         return false;
+    }
 
     // Now convert to an argc/argv form for remaining processing.
     int newArgc = 0;
-    for (WStrList * listCurArg = m_listArgs; listCurArg != NULL; listCurArg = listCurArg->next)
-    {
-        if (listCurArg->arg)
+    for (WStrList * listCurArg = m_listArgs; listCurArg != NULL; listCurArg = listCurArg->next) {
+        if (listCurArg->arg) {
             ++newArgc;
+        }
     }
 
     m_rgArgs = new LPWSTR[newArgc];
-    if (!m_rgArgs)
-    {
+    if (!m_rgArgs) {
         SetErrorMessage(W("Out of memory."));
         return false;
     }
     int i = 0;
-    for (WStrList * listCurArg = m_listArgs; listCurArg != NULL; listCurArg = listCurArg->next)
-    {
-        if (listCurArg->arg)
-        {
+    for (WStrList * listCurArg = m_listArgs; listCurArg != NULL; listCurArg = listCurArg->next) {
+        if (listCurArg->arg) {
             LPWSTR newString = new WCHAR[wcslen(listCurArg->arg) + 1];
             wcscpy_s(newString, wcslen(listCurArg->arg) + 1, listCurArg->arg);
             m_rgArgs[i++] = newString;
@@ -752,8 +738,7 @@ bool ConsoleArgs::ReadTextFile(LPCWSTR pwzFilename, __deref_out LPWSTR *ppwzText
     WCHAR *bufW = nullptr;
 
     HANDLE hFile = CreateFile(pwzFilename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
+    if (hFile == INVALID_HANDLE_VALUE) {
         SetErrorMessage(W("Cannot open response file."));
         goto ErrExit;
     }
@@ -762,14 +747,12 @@ bool ConsoleArgs::ReadTextFile(LPCWSTR pwzFilename, __deref_out LPWSTR *ppwzText
     DWORD size = GetFileSize(hFile, NULL);
     bufA = new char[size];
     
-    if (!bufA)
-    {
+    if (!bufA) {
         SetErrorMessage(W("Out of memory"));
         goto ErrExit;
     }
     DWORD numRead = 0;
-    if (!ReadFile(hFile, bufA, size, &numRead, NULL) || numRead != size)
-    {
+    if (!ReadFile(hFile, bufA, size, &numRead, NULL) || numRead != size) {
         SetErrorMessage(W("Failure reading response file."));
         goto ErrExit;
     }
@@ -788,39 +771,30 @@ bool ConsoleArgs::ReadTextFile(LPCWSTR pwzFilename, __deref_out LPWSTR *ppwzText
 
     bool alreadyUtf16 = false;
 
-    if (byte0 == 0xEF && byte1 == 0xBB && byte2 == 0xBF)
-    {
+    if (byte0 == 0xEF && byte1 == 0xBB && byte2 == 0xBF) {
         postByteOrderMarks += 3;
         size -= 3;
-    }
-    else if (byte0 == 0xFF && byte1 == 0xFE)
-    {
+    } else if (byte0 == 0xFF && byte1 == 0xFE) {
         postByteOrderMarks += 2;
         size -= 2;
         alreadyUtf16 = true;
-    }
-    else if (byte0 == 0xFE && byte1 == 0xFF)
-    {
+    } else if (byte0 == 0xFE && byte1 == 0xFF) {
         SetErrorMessage(W("Invalid response file format.  Use little endian encoding with Unicode"));
         goto ErrExit;
-    }
-    else if ((byte0 == 0xFF && byte1 == 0xFE && byte2 == 0x00 && byte3 == 0x00) ||
-        (byte0 == 0x00 && byte1 == 0x00 && byte2 == 0xFE && byte3 == 0xFF))
-    {
+    } else if ((byte0 == 0xFF && byte1 == 0xFE && byte2 == 0x00 && byte3 == 0x00) ||
+        (byte0 == 0x00 && byte1 == 0x00 && byte2 == 0xFE && byte3 == 0xFF)) {
         SetErrorMessage(W("Invalid response file format.  Use ANSI, UTF-8, or UTF-16"));
         goto ErrExit;
     }
 
-    if (alreadyUtf16)
-    {
+    if (alreadyUtf16) {
         //
         // File is already formatted as UTF-16; just copy the bytes into the output buffer
         //
         int requiredSize = size + 2;  // space for 2 nullptr bytes
 
         // Sanity check - requiredSize better be an even number since we're dealing with UTF-16
-        if (requiredSize % 2 != 0)
-        {
+        if (requiredSize % 2 != 0) {
             SetErrorMessage(W("Response file corrupt.  Expected UTF-16 encoding but we had an odd number of bytes"));
             goto ErrExit;
         }
@@ -828,30 +802,25 @@ bool ConsoleArgs::ReadTextFile(LPCWSTR pwzFilename, __deref_out LPWSTR *ppwzText
         requiredSize /= 2;
 
         bufW = new WCHAR[requiredSize];
-        if (!bufW)
-        {
+        if (!bufW) {
             SetErrorMessage(W("Out of memory"));
             goto ErrExit;
         }
 
         memcpy(bufW, postByteOrderMarks, size);
         bufW[requiredSize - 1] = L'\0';
-    }
-    else
-    {
+    } else {
         //
         // File is formated as ANSI or UTF-8 and needs converting to UTF-16
         //
         int requiredSize = MultiByteToWideChar(CP_UTF8, 0, postByteOrderMarks, size, nullptr, 0);
         bufW = new WCHAR[requiredSize + 1];
-        if (!bufW)
-        {
+        if (!bufW) {
             SetErrorMessage(W("Out of memory"));
             goto ErrExit;
         }
 
-        if (!MultiByteToWideChar(CP_UTF8, 0, postByteOrderMarks, size, bufW, requiredSize))
-        {
+        if (!MultiByteToWideChar(CP_UTF8, 0, postByteOrderMarks, size, bufW, requiredSize)) {
             SetErrorMessage(W("Failure reading response file."));
             goto ErrExit;
         }
@@ -865,8 +834,7 @@ bool ConsoleArgs::ReadTextFile(LPCWSTR pwzFilename, __deref_out LPWSTR *ppwzText
     }
 
 ErrExit:
-    if (bufA)
-    {
+    if (bufA) {
         delete[] bufA;
     }
     CloseHandle(hFile);
@@ -885,33 +853,30 @@ void ConsoleArgs::ProcessResponseArgs()
 
     for (WStrList * listCurArg = m_listArgs;
          listCurArg != NULL && !m_errorOccurred;
-         listCurArg = listCurArg->next)
-    {
+         listCurArg = listCurArg->next) {
         WCHAR * szArg = listCurArg->arg;
 
         // Skip everything except Response files
-        if (szArg == NULL || szArg[0] != '@')
+        if (szArg == NULL || szArg[0] != '@') {
             continue;
+        }
 
-        if (wcslen(szArg) == 1)
-        {
+        if (wcslen(szArg) == 1) {
             SetErrorMessage(W("No response file specified"));
             goto CONTINUE;
         }
 
         // Check for duplicates
-        if (!GetFullFileName(&szArg[1], szFilename, MAX_LONGPATH, false))
+        if (!GetFullFileName(&szArg[1], szFilename, MAX_LONGPATH, false)) {
             continue;
+        }
 
         
         hr = TreeAdd(&response_files, szFilename);
-        if (hr == E_OUTOFMEMORY)
-        {
+        if (hr == E_OUTOFMEMORY) {
             SetErrorMessage(W("Out of memory."));
             goto CONTINUE;
-        }
-        else if (hr == S_FALSE)
-        {
+        } else if (hr == S_FALSE) {
             SetErrorMessage(W("Duplicate response file."));
             goto CONTINUE;
         }
@@ -919,8 +884,7 @@ void ConsoleArgs::ProcessResponseArgs()
         {
         LPWSTR pwzFileBuffer;
         pwzFileBuffer = nullptr;
-        if (!ReadTextFile(szFilename, &pwzFileBuffer))
-        {
+        if (!ReadTextFile(szFilename, &pwzFileBuffer)) {
             goto CONTINUE;
         }
 
@@ -930,18 +894,13 @@ void ConsoleArgs::ProcessResponseArgs()
 #else
         DWORD dwNumChars = ExpandEnvironmentStrings(pwzFileBuffer, NULL, 0);
         LPWSTR szExpandedBuffer = new WCHAR[dwNumChars];
-        if (szExpandedBuffer != nullptr)
-        {
+        if (szExpandedBuffer != nullptr) {
             DWORD dwRetVal = ExpandEnvironmentStrings(pwzFileBuffer, szExpandedBuffer, dwNumChars);
 
-            if (dwRetVal != 0)
-            {
+            if (dwRetVal != 0) {
                 szActualText = szExpandedBuffer;
-            }
-            else
-            {
-                // Expand failed
-                
+            } else {
+                // Expand failed   
             }
         }
 #endif
