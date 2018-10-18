@@ -2,6 +2,6 @@ parameters:
   name: paramName
 
 jobs:
-- job: template_job_${{ parameters.paramName }}
+- job: templatejob${{ parameters.paramName }}
   steps:
   - bash: echo $PARAMETERS_PARAMNAME in step 1
