@@ -47,7 +47,7 @@ class Test
     [DllImport(@"DllImportPath_U�n�i�c�o�d�e", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
     
-    [DllImport(@"MovedNativeLib", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath_PathEnv", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_PathEnv([In, Out]ref string strManaged);
 
     static bool DllExistsOnLocalPath()
@@ -204,7 +204,9 @@ class Test
 
         var newFileLocation = Path.Combine(subDirectory.FullName, file.Name);
 
-        file.CopyTo(Path.Combine(subDirectory.FullName, "MovedNativeLib"), true);
+        file.CopyTo(Path.Combine(subDirectory.FullName, file.Name), true);
+
+        file.Delete();
 
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + $";{subDirectory.FullName}");
     }
