@@ -765,16 +765,12 @@ var_types Compiler::getPrimitiveTypeForStruct(unsigned structSize, CORINFO_CLASS
 var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
                                         structPassingKind*   wbPassStruct,
                                         bool                 isVarArg,
-                                        unsigned             structSize /* = 0 */)
+                                        unsigned             structSize)
 {
     var_types         useType         = TYP_UNKNOWN;
     structPassingKind howToPassStruct = SPK_Unknown; // We must change this before we return
 
-    if (structSize == 0)
-    {
-        structSize = info.compCompHnd->getClassSize(clsHnd);
-    }
-    assert(structSize > 0);
+    assert(structSize != 0);
 
 // Determine if we can pass the struct as a primitive type.
 // Note that on x86 we never pass structs as primitive types (unless the VM unwraps them for us).
@@ -913,7 +909,7 @@ var_types Compiler::getArgTypeForStruct(CORINFO_CLASS_HANDLE clsHnd,
             // and can't be passed in multiple registers
             CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
+#if defined(_TARGET_X86_) || defined(_TARGET_ARM_) || defined(UNIX_AMD64_ABI)
 
             // Otherwise we pass this struct by value on the stack
             // setup wbPassType and useType indicate that this is passed by value according to the X86/ARM32 ABI
@@ -2386,8 +2382,10 @@ void Compiler::compSetProcessor()
 
 #if defined(_TARGET_ARM_)
     info.genCPU = CPU_ARM;
+#elif defined(_TARGET_ARM64_)
+    info.genCPU       = CPU_ARM64;
 #elif defined(_TARGET_AMD64_)
-    info.genCPU       = CPU_X64;
+    info.genCPU                   = CPU_X64;
 #elif defined(_TARGET_X86_)
     if (jitFlags.IsSet(JitFlags::JIT_FLAG_TARGET_P4))
         info.genCPU = CPU_X86_PENTIUM_4;
@@ -3663,6 +3661,18 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
     if (verbose)
     {
+        // If we are compiling for a specific tier, make that very obvious in the output.
+        // Note that we don't expect multiple TIER flags to be set at one time, but there
+        // is nothing preventing that.
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf("OPTIONS: Tier-0 compilation (set COMPlus_TieredCompilation=0 to disable)\n");
+        }
+        if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf("OPTIONS: Tier-1 compilation\n");
+        }
+
         printf("OPTIONS: compCodeOpt = %s\n",
                (opts.compCodeOpt == BLENDED_CODE)
                    ? "BLENDED_CODE"
@@ -4664,11 +4674,6 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         fgComputeReachability();
         EndPhase(PHASE_COMPUTE_REACHABILITY);
     }
-
-    // Transform each GT_ALLOCOBJ node into either an allocation helper call or
-    // local variable allocation on the stack.
-    ObjectAllocator objectAllocator(this);
-    objectAllocator.Run();
 
     if (!opts.MinOpts() && !opts.compDbgCode)
     {
@@ -7004,7 +7009,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
                         if (arg->gtFlags & GTF_LATE_ARG)
                         {
                             // Find the corresponding late arg.
-                            GenTree* lateArg = call->fgArgInfo->GetLateArg(i);
+                            GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
                             if (GetNodeTestData()->Lookup(lateArg, &tlAndN))
                             {
                                 reachable->Set(lateArg, 0);

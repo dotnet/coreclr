@@ -2255,13 +2255,35 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
                 printf("X64 CPU with SSE2");
             }
         }
-
         else if (compiler->info.genCPU == CPU_ARM)
         {
             printf("generic ARM CPU");
         }
+        else if (compiler->info.genCPU == CPU_ARM64)
+        {
+            printf("generic ARM64 CPU");
+        }
+        else
+        {
+            printf("unknown architecture");
+        }
+
+#if defined(_TARGET_WINDOWS_)
+        printf(" - Windows");
+#elif defined(_TARGET_UNIX_)
+        printf(" - Unix");
+#endif
 
         printf("\n");
+
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0))
+        {
+            printf("; Tier-0 compilation\n");
+        }
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        {
+            printf("; Tier-1 compilation\n");
+        }
 
         if ((compiler->opts.compFlags & CLFLG_MAXOPT) == CLFLG_MAXOPT)
         {

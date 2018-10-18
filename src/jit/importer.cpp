@@ -19710,6 +19710,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     call->gtFlags &= ~GTF_CALL_VIRT_STUB;
     call->gtCallMethHnd = derivedMethod;
     call->gtCallType    = CT_USER_FUNC;
+    call->gtCallMoreFlags |= GTF_CALL_M_DEVIRTUALIZED;
 
     // Virtual calls include an implicit null check, which we may
     // now need to make explicit.
@@ -19774,6 +19775,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                         // Pass the local var as this and the type handle as a new arg
                         JITDUMP("Success! invoking unboxed entry point on local copy, and passing method table arg\n");
                         call->gtCallObjp = localCopyThis;
+                        call->gtCallMoreFlags |= GTF_CALL_M_UNBOXED;
 
                         // Prepend for R2L arg passing or empty L2R passing
                         if ((Target::g_tgtArgOrder == Target::ARG_ORDER_R2L) || (call->gtCallArgs == nullptr))
@@ -19821,7 +19823,8 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                     JITDUMP("Success! invoking unboxed entry point on local copy\n");
                     call->gtCallObjp    = localCopyThis;
                     call->gtCallMethHnd = unboxedEntryMethod;
-                    derivedMethod       = unboxedEntryMethod;
+                    call->gtCallMoreFlags |= GTF_CALL_M_UNBOXED;
+                    derivedMethod = unboxedEntryMethod;
                 }
                 else
                 {

@@ -2398,7 +2398,11 @@ void Compiler::lvaSetVarDoNotEnregister(unsigned varNum DEBUGARG(DoNotEnregister
 #endif
 }
 
-// Returns true if this local var is a multireg struct
+// Returns true if this local var is a multireg struct.
+// TODO-Throughput: This does a lookup on the class handle, and in the outgoing arg context
+// this information is already available on the fgArgTabEntry, and shouldn't need to be
+// recomputed.
+//
 bool Compiler::lvaIsMultiregStruct(LclVarDsc* varDsc, bool isVarArg)
 {
     if (varTypeIsStruct(varDsc->TypeGet()))
@@ -2544,6 +2548,7 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
 
 void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
 {
+#ifdef FEATURE_HFA
 #if defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
     LclVarDsc* varDsc = &lvaTable[varNum];
     // For varargs methods incoming and outgoing arguments should not be treated
@@ -2551,6 +2556,7 @@ void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
     varDsc->_lvIsHfa          = false;
     varDsc->_lvHfaTypeIsFloat = false;
 #endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
+#endif // FEATURE_HFA
 }
 
 //------------------------------------------------------------------------

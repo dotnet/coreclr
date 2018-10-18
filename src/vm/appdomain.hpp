@@ -69,7 +69,6 @@ class DomainModule;
 class DomainAssembly;
 struct InteropMethodTableData;
 class LoadLevelLimiter;
-class UMEntryThunkCache;
 class TypeEquivalenceHashTable;
 class StringArrayList;
 
@@ -3397,10 +3396,6 @@ private:
     // IL stub cache with fabricated MethodTable parented by a random module in this AD.
     ILStubCache         m_ILStubCache;
 
-    // U->M thunks created in this domain and not associated with a delegate.
-    // The cache is keyed by MethodDesc pointers.
-    UMEntryThunkCache *m_pUMEntryThunkCache;
-
     // The number of  times we have entered this AD
     ULONG m_dwThreadEnterCount;
     // The number of threads that have entered this AD, for ADU only
@@ -3477,8 +3472,6 @@ public:
     BOOL IsHostAssemblyResolverInUse();
     BOOL IsBindingModelLocked();
     BOOL LockBindingModel();
-
-    UMEntryThunkCache *GetUMEntryThunkCache();
 
     ILStubCache* GetILStubCache()
     {
