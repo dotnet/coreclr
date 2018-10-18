@@ -45,14 +45,14 @@ phases:
 
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
-  queue:
-    name: Hosted Ubuntu 1604
-    timeoutInMinutes: 180
-    parallel: 3
-    matrix:
-      x64_checked_Innerloop:
-        buildConfig: checked
-        archType: x64
+    queue:
+      name: Hosted Ubuntu 1604
+      timeoutInMinutes: 180
+      parallel: 3
+      matrix:
+        x64_checked_Innerloop:
+          buildConfig: checked
+          archType: x64
     agentOs: Ubuntu
     phaseName: Ubuntu
     steps:
