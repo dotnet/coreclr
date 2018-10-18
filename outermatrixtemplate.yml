@@ -1,0 +1,11 @@
+# parameters:
+#   os_combos: {}
+#   arch_combos: {}
+#   config_combos: {}
+#   testleg_combos: {}
+# 
+# - job: nestedmatrixtemplate.yml
+#   strategy:
+#     matrix:
+      
+   

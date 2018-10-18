@@ -15,7 +15,7 @@
 #     echo See https://aka.ms/yaml
 #   displayName: 'Run a multi-line script'
 
-name: nameofpipeline
+name: testpipeline
 # resources:
 #   containers:
 #   repositories:
@@ -53,6 +53,21 @@ jobs:
 # - job: job2parallel
 #   strategy:
 #     parallel: 4
+
+# - template: outermatrixtemplate.yml
+#   parameters:
+#     os_combos: { linux, windows }
+#     arch_combos: { x64, x86 }
+#     config_combos: { debug, release }
+#     testleg_combos: { stress, normal }
+
+- template: nestedmatrixtemplate.yml
+  parameters:
+    os: linux
+    arch: x64
+    config: debug
+    testleg: stress
+
 - template: template.yml
   parameters:
     name: instantiatedTemplateName
