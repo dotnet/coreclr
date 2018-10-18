@@ -28,7 +28,7 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayShort_AsByOut_AsSizeParam
 {
     short shortArray_Size = 16384;//SHRT_MAX+1/2
 
-    *ppActual = (SHORT*)CoTaskMemAlloc(sizeof(SHORT)*shortArray_Size);
+    *ppActual = (SHORT*)CoreClrAlloc(sizeof(SHORT)*shortArray_Size);
 
     *arrSize = shortArray_Size;
 
@@ -42,7 +42,7 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayShort_AsByOut_AsSizeParam
 //SHORT 10 ==> -1 size Array
 extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayShortReturnNegative_AsByOut_AsSizeParamIndex(SHORT* arrSize, SHORT** ppActual)
 {
-    *ppActual = (SHORT*)CoTaskMemAlloc(sizeof(SHORT)*CArray_Size);
+    *ppActual = (SHORT*)CoreClrAlloc(sizeof(SHORT)*CArray_Size);
     *arrSize = -1;
 
     for(SHORT i = 0; i < CArray_Size; ++i)
@@ -85,7 +85,7 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayUlong_AsByOut_AsSizeParam
 //String 10 size Array ==> BSTR 20 size Array
 extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByOut_AsSizeParamIndex(BSTR** ppBSTR,short* arrSize)
 {
-    *ppBSTR = (BSTR*)CoTaskMemAlloc(sizeof(BSTR)*CArray_Size);
+    *ppBSTR = (BSTR*)CoreClrAlloc(sizeof(BSTR)*CArray_Size);
     for(int i = 0;i<CArray_Size;++i)
     {
         (*ppBSTR)[i] = ToBSTR(CArray_Size - 1 - i);

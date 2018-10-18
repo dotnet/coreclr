@@ -41,8 +41,8 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayShort_AsByRef_AsSizeParam
         return FALSE;
     }
 
-    CoTaskMemFree(*ppActual);
-    *ppActual = (SHORT*)CoTaskMemAlloc(sizeof(SHORT)*CArray_Size);
+    CoreClrFree(*ppActual);
+    *ppActual = (SHORT*)CoreClrAlloc(sizeof(SHORT)*CArray_Size);
 
     *arrSize = CArray_Size;
 
@@ -64,8 +64,8 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayShortReturnNegative_AsByR
         return FALSE;
     }
 
-    CoTaskMemFree(*ppActual);
-    *ppActual = (SHORT*)CoTaskMemAlloc(sizeof(SHORT)*CArray_Size);
+    CoreClrFree(*ppActual);
+    *ppActual = (SHORT*)CoreClrAlloc(sizeof(SHORT)*CArray_Size);
 
     *arrSize = (SHORT)-1;
 
@@ -117,9 +117,9 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByRef_AsSizePara
         return FALSE;
     }
 
-    CoTaskMemFree(*ppBSTR);
+    CoreClrFree(*ppBSTR);
 
-    *ppBSTR = (BSTR*)CoTaskMemAlloc(sizeof(BSTR)*10);
+    *ppBSTR = (BSTR*)CoreClrAlloc(sizeof(BSTR)*10);
     for(int i = 0;i<10;++i)
     {
         (*ppBSTR)[i] = ToBSTR(10 - 1 - i);

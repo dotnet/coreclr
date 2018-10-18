@@ -31,7 +31,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalByteArray_AsParam_AsByOut(D
     if(!caller(&arrByte, &arrSize))
     {
         printf("DoCallBack_MarshalByteArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrByte);
+        CoreClrFree(arrByte);
         return FALSE;
     }
 
@@ -47,7 +47,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalSbyteArray_AsParam_AsByOut(
     if(!caller(&arrSize, &arrSbyte))
     {
         printf("DoCallBack_MarshalSbyteArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrSbyte);
+        CoreClrFree(arrSbyte);
         return FALSE;
     }
 
@@ -63,7 +63,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalShortArray_AsParam_AsByOut(
     if(!caller(&arrShort, &arrSize))
     {
         printf("DoCallBack_MarshalShortArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrShort);
+        CoreClrFree(arrShort);
         return FALSE;
     }
 
@@ -79,7 +79,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalShortArrayReturnNegativeSiz
     if(!caller(&arrShort, &arrSize))
     {
         printf("DoCallBack_MarshalShortArrayReturnNegativeSize_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrShort);
+        CoreClrFree(arrShort);
         return FALSE;
     }
 
@@ -98,7 +98,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalUshortArray_AsParam_AsByOut
     if(!caller(&arrUshort, &arrSize))
     {
         printf("DoCallBack_MarshalUshortArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrUshort);
+        CoreClrFree(arrUshort);
         return FALSE;
     }
 
@@ -114,7 +114,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalInt32Array_AsParam_AsByOut(
     if(!caller(&arrInt32, &arrSize))
     {
         printf("DoCallBack_MarshalInt32Array_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrInt32);
+        CoreClrFree(arrInt32);
         return FALSE;
     }
 
@@ -130,7 +130,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalUint32Array_AsParam_AsByOut
     if(!caller(&arrUint32, &arrSize))
     {
         printf("DoCallBack_MarshalUint32Array_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrUint32);
+        CoreClrFree(arrUint32);
         return FALSE;
     }
 
@@ -146,7 +146,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalLongArray_AsParam_AsByOut(D
     if(!caller(&arrLong, &arrSize))
     {
         printf("DoCallBack_MarshalLongArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrLong);
+        CoreClrFree(arrLong);
         return FALSE;
     }
 
@@ -162,7 +162,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalUlongArray_AsParam_AsByOut(
     if(!caller(&arrUlong, &arrSize))
     {
         printf("DoCallBack_MarshalUlongArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrUlong);
+        CoreClrFree(arrUlong);
         return FALSE;
     }
 
@@ -178,12 +178,12 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalStringArray_AsParam_AsByOut
     if(!caller(&arrString, &arrSize))
     {
         printf("DoCallBack_MarshalStringArray_AsParam_AsByOut:\n\tThe Caller returns wrong value\n");
-        CoTaskMemFree(arrString);
+        CoreClrFree(arrString);
         return FALSE;
     }
 
     LONG ExpectedArraySize = 20;
-    BSTR* pExpectedArr = (BSTR*)CoTaskMemAlloc(sizeof(BSTR)*ExpectedArraySize);
+    BSTR* pExpectedArr = (BSTR*)CoreClrAlloc(sizeof(BSTR)*ExpectedArraySize);
     for(LONG i = 0; i < ExpectedArraySize; ++i)
     {
         pExpectedArr[i] = ToBSTR(ExpectedArraySize - 1 - i);
@@ -195,7 +195,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalStringArray_AsParam_AsByOut
         return FALSE;
     }
 
-    CoTaskMemFree(arrString);
-    CoTaskMemFree(pExpectedArr);
+    CoreClrFree(arrString);
+    CoreClrFree(pExpectedArr);
     return TRUE;
 }

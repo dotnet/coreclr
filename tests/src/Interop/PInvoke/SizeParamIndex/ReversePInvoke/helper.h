@@ -3,10 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 // helper.h : Defines helper functions
-#include<windows.h>
-#include<stdio.h>
-#include<objbase.h>
-#include<OleAuto.h>
+#include <xplatform.h>
 
 const LONG Array_Size = 10;
 const LONG CArray_Size = 20;
@@ -44,7 +41,7 @@ BOOL IsObjectEquals(BSTR o1, BSTR o2)
 template<typename T>
 T* InitArray(SIZE_T arrSize)
 {
-    T* pExpectArr = (T*)CoTaskMemAlloc(sizeof(T)*arrSize);
+    T* pExpectArr = (T*)CoreClrAlloc(sizeof(T)*arrSize);
     for(SIZE_T i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = (T)i;
@@ -55,7 +52,7 @@ T* InitArray(SIZE_T arrSize)
 template<typename T>
 T* InitExpectedArray(SIZE_T arrSize)
 {
-    T* pExpectArr = (T*)CoTaskMemAlloc(sizeof(T)*arrSize);
+    T* pExpectArr = (T*)CoreClrAlloc(sizeof(T)*arrSize);
     for(SIZE_T i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = (T)(arrSize - 1 - i);
@@ -113,9 +110,9 @@ BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expect
         return FALSE;
     }
 
-    CoTaskMemFree(pExpectedArr);
-    CoTaskMemFree(*ppActual);
-    *ppActual = (T*)CoTaskMemAlloc(sizeof(T)*Return_Array_Size);
+    CoreClrFree(pExpectedArr);
+    CoreClrFree(*ppActual);
+    *ppActual = (T*)CoreClrAlloc(sizeof(T)*Return_Array_Size);
 
     *Actual_Array_Size = ((T)Return_Array_Size);
     for(SIZE_T i = 0; i < Return_Array_Size; ++i)
@@ -135,8 +132,8 @@ BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Return
         return FALSE;
     }
 
-    CoTaskMemFree(*ppActual);
-    *ppActual = (T*)CoTaskMemAlloc(sizeof(T)*Return_Array_Size);
+    CoreClrFree(*ppActual);
+    *ppActual = (T*)CoreClrAlloc(sizeof(T)*Return_Array_Size);
 
     *Actual_Array_Size = ((T)Return_Array_Size);
     for(SIZE_T i = 0; i < Return_Array_Size; ++i)
@@ -154,12 +151,12 @@ BOOL CheckArray(T* pReturnArr, SIZE_T actualArraySize, SIZE_T expectedArraySize)
     if(!EqualArray(pReturnArr, actualArraySize, pExpectedArr, expectedArraySize))
     {
         printf("ManagedtoNative Error in Method: %s!\n",__FUNCTION__);
-        CoTaskMemFree(pExpectedArr);
+        CoreClrFree(pExpectedArr);
         return FALSE;
     }
     else
     {
-        CoTaskMemFree(pExpectedArr);
+        CoreClrFree(pExpectedArr);
         return TRUE;
     }
 }
@@ -183,7 +180,7 @@ BOOL CmpBSTR(BSTR bstr1, BSTR bstr2)
 }
 BSTR* InitArrayBSTR(LONG arrSize)
 {
-    BSTR* pExpectArr = (BSTR*)CoTaskMemAlloc(sizeof(BSTR)*arrSize);
+    BSTR* pExpectArr = (BSTR*)CoreClrAlloc(sizeof(BSTR)*arrSize);
     for(LONG i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = ToBSTR(i);

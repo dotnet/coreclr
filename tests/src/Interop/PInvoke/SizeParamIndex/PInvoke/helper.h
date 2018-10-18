@@ -43,7 +43,7 @@ template<> BOOL IsObjectEquals(BSTR o1, BSTR o2)
 template<typename T>
 T* InitArray(SIZE_T arrSize)
 {
-    T* pExpectArr = (T*)CoTaskMemAlloc(sizeof(T)*arrSize);
+    T* pExpectArr = (T*)CoreClrAlloc(sizeof(T)*arrSize);
     for(SIZE_T i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = (T)i;
@@ -54,7 +54,7 @@ T* InitArray(SIZE_T arrSize)
 template<typename T>
 T* InitExpectedArray(SIZE_T arrSize)
 {
-    T* pExpectArr = (T*)CoTaskMemAlloc(sizeof(T)*arrSize);
+    T* pExpectArr = (T*)CoreClrAlloc(sizeof(T)*arrSize);
     for(SIZE_T i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = arrSize - 1 - i;
@@ -112,9 +112,9 @@ BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expect
         return FALSE;
     }
 
-    CoTaskMemFree(pExpectedArr);
-    CoTaskMemFree(*ppActual);
-    *ppActual = (T*)CoTaskMemAlloc(sizeof(T)*Return_Array_Size);
+    CoreClrFree(pExpectedArr);
+    CoreClrFree(*ppActual);
+    *ppActual = (T*)CoreClrAlloc(sizeof(T)*Return_Array_Size);
 
     *Actual_Array_Size = ((T)Return_Array_Size);
     for(SIZE_T i = 0; i < Return_Array_Size; ++i)
@@ -127,7 +127,7 @@ BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expect
 template<typename T>
 BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Array_Size)
 {
-    *ppActual = (T*)CoTaskMemAlloc(sizeof(T)*Array_Size);
+    *ppActual = (T*)CoreClrAlloc(sizeof(T)*Array_Size);
     *Actual_Array_Size = ((T)Array_Size);
 
     for(SIZE_T i = 0; i < Array_Size; ++i)
@@ -145,13 +145,13 @@ BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Array_
 //    if(!EqualArray(pReturnArr, Actual_Array_Size, pExpectedArr, Expected_Array_Size))
 //    {
 //        printf("ManagedtoNative Error in Method: %s!\n",__FUNCTION__);
-//        CoTaskMemFree(pExpectedArr);
+//        CoreClrFree(pExpectedArr);
 //        return FALSE;
 //    }
 //    else
 //    {
 //        //printf("Managed to Native:Passed!\n");
-//        CoTaskMemFree(pExpectedArr);
+//        CoreClrFree(pExpectedArr);
 //        return TRUE;
 //    }
 //}
@@ -177,7 +177,7 @@ BOOL CmpBSTR(BSTR bstr1, BSTR bstr2)
 
 BSTR* InitArrayBSTR(LONG arrSize)
 {
-    BSTR* pExpectArr = (BSTR*)CoTaskMemAlloc(sizeof(BSTR)*arrSize);
+    BSTR* pExpectArr = (BSTR*)CoreClrAlloc(sizeof(BSTR)*arrSize);
     for(LONG i = 0;i<arrSize;++i)
     {
         pExpectArr[i] = ToBSTR(i);
