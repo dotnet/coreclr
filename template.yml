@@ -4,4 +4,4 @@ parameters:
 jobs:
 - job: template-job-${{ parameters.paramName }}
   steps:
-  - bash: echo ${PARAMETERS_PARAMNAME} in step 1
+  - bash: echo $PARAMETERS_PARAMNAME in step 1
