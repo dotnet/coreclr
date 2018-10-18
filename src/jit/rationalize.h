@@ -28,7 +28,6 @@ public:
     virtual void DoPhase() override;
 
     static void RewriteAssignmentIntoStoreLcl(GenTreeOp* assignment);
-    static void MorphAsgIntoStoreObj(Compiler::fgWalkData* data, GenTreeStmt* stmt, GenTree** ppTree);
 
 private:
     inline LIR::Range& BlockRange() const
@@ -38,7 +37,6 @@ private:
 
     // SIMD related
     void RewriteSIMDOperand(LIR::Use& use, bool keepBlk);
-    void FixupIfSIMDLocal(GenTreeLclVarCommon* node);
 
     // Intrinsic related transformations
     void RewriteNodeAsCall(GenTree**             use,
