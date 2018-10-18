@@ -5,7 +5,7 @@
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 #pragma warning disable 618
 [StructLayout(LayoutKind.Sequential)]
