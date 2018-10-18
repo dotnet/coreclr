@@ -33,7 +33,7 @@ typedef struct _Struct1_FuncPtrAsField1_Seq{
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInStruct_Seq(Struct1_FuncPtrAsField1_Seq sfs)
 {
-    if(sfs.verification == NULL || sfs.funcPtr == NULL)
+    if(!sfs.verification || sfs.funcPtr == NULL)
     {
         printf("TakeDelegateAsFieldInStruct_Seq:NULL field member.\n");
         return FALSE;
@@ -53,7 +53,7 @@ typedef struct _Struct1_FuncPtrAsField2_Exp{
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInStruct_Exp(Struct1_FuncPtrAsField2_Exp sfe)
 {
-    if(sfe.verification == NULL || sfe.funcPtr == NULL)
+    if(!sfs.verification || sfe.funcPtr == NULL)
     {
         printf("TakeDelegateAsFieldInStruct_Exp:NULL field member.\n");
         return FALSE;	
@@ -73,7 +73,7 @@ public:
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInClass_Seq(Class1_FuncPtrAsField3_Seq *cfs)
 {
-    if(cfs->verification == NULL || cfs->funcPtr == NULL)
+    if(!cfs->verification || cfs->funcPtr == NULL)
     {
         printf("TakeDelegateAsFieldInClass_Seq:NULL field member.\n");
         return FALSE;
@@ -94,7 +94,7 @@ public:
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInClass_Exp(Class1_FuncPtrAsField4_Exp *cfe)
 {
-    if(cfe->verification == NULL || cfe->funcPtr == NULL)
+    if(!cfe->verification || cfe->funcPtr == NULL)
     {
         printf("TakeDelegateAsFieldInClass_Exp:NULL field member.\n");
         return FALSE;
