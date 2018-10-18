@@ -5,6 +5,7 @@
 // PInvokePassingByRefNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
+#include <limits.h>
 #include "helper.h"
 
 //#####################################################################
@@ -105,7 +106,7 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayUlong_AsByRef_AsSizeParam
 {
     return CheckAndChangeArrayByRef(ppActual, arrSize, (ULONGLONG)0, (ULONGLONG)0);
 }
-
+#ifdef _WIN32
 //String size Array 20 ==> BSTR 10 size Array
 extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByRef_AsSizeParamIndex(short* arrSize, BSTR** ppBSTR,char *** pppStr)
 {
@@ -129,4 +130,4 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByRef_AsSizePara
 
     return TRUE;
 }
-
+#endif

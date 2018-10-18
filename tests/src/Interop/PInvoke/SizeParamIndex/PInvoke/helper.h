@@ -3,10 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 // helper.h : Defines helper functions
-#include<windows.h>
-#include<stdio.h>
-#include<objbase.h>
-#include<OleAuto.h>
+#include <xplatform.h>
+#include "platformdefines.h"
 
 
 const LONG Array_Size = 10;
@@ -19,24 +17,6 @@ template<typename T> BOOL IsObjectEquals(T o1, T o2)
 {
     // T::operator== required.
     return o1 == o2;
-}
-
-template<> BOOL IsObjectEquals(BSTR o1, BSTR o2)
-{
-    if ( o1 == NULL && o2 == NULL )
-        return TRUE;
-    else if ( o1 == NULL && o2 != NULL )
-        return FALSE;
-    else if ( o1 != NULL && o2 == NULL )
-        return FALSE;
-
-    UINT uLen1 = SysStringLen(o1);
-    UINT uLen2 = SysStringLen(o2);
-
-    if (uLen1 != uLen2 )
-        return FALSE;
-
-    return memcmp(o1, o2, uLen1) == 0;
 }
 
 //Int32 helper
@@ -157,6 +137,25 @@ BOOL CheckAndChangeArrayByOut(T ** ppActual, T* Actual_Array_Size, SIZE_T Array_
 //}
 
 //BSTR helper
+#ifdef _WIN32
+template<> BOOL IsObjectEquals(BSTR o1, BSTR o2)
+{
+    if ( o1 == NULL && o2 == NULL )
+        return TRUE;
+    else if ( o1 == NULL && o2 != NULL )
+        return FALSE;
+    else if ( o1 != NULL && o2 == NULL )
+        return FALSE;
+
+    UINT uLen1 = SysStringLen(o1);
+    UINT uLen2 = SysStringLen(o2);
+
+    if (uLen1 != uLen2 )
+        return FALSE;
+
+    return memcmp(o1, o2, uLen1) == 0;
+}
+
 BSTR ToBSTR(int i)
 {
     BSTR bstrRet = NULL;
@@ -223,3 +222,4 @@ BOOL EqualArrayBSTR(BSTR* ArrBSTR, LONG arrSize1, BSTR* CArrBSTR, LONG arrSize2)
         return FALSE;
     return TRUE;
 }
+#endif

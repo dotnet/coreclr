@@ -5,6 +5,8 @@
 // ReversePInvokePassingByOutNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
+#include <limits.h>
+#include "platformdefines.h"
 #include "helper.h"
 
 //Func Pointer
@@ -169,6 +171,7 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalUlongArray_AsParam_AsByOut(
     return CheckArray(arrUlong, (SIZE_T)arrSize, 20);
 }
 
+#ifdef _WIN32
 //BSTR 10 ==> 20 size Array
 extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalStringArray_AsParam_AsByOut(DelStringArrByOutAsCdeclCaller caller)
 {
@@ -199,3 +202,4 @@ extern "C" DLL_EXPORT BOOL __cdecl DoCallBack_MarshalStringArray_AsParam_AsByOut
     CoreClrFree(pExpectedArr);
     return TRUE;
 }
+#endif

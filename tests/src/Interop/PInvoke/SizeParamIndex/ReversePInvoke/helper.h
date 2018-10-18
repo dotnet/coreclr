@@ -18,25 +18,6 @@ BOOL IsObjectEquals(T o1, T o2)
     return o1 == o2;
 }
 
-template<> 
-BOOL IsObjectEquals(BSTR o1, BSTR o2)
-{
-    if ( o1 == NULL && o2 == NULL )
-        return TRUE;
-    else if ( o1 == NULL && o2 != NULL )
-        return FALSE;
-    else if ( o1 != NULL && o2 == NULL )
-        return FALSE;
-
-    UINT uLen1 = SysStringLen(o1);
-    UINT uLen2 = SysStringLen(o2);
-
-    if (uLen1 != uLen2 )
-        return FALSE;
-
-    return memcmp(o1, o2, uLen1) == 0;
-}
-
 //Int32 helper
 template<typename T>
 T* InitArray(SIZE_T arrSize)
@@ -103,7 +84,7 @@ BOOL EqualArray(T* actualArray, SIZE_T actualSize, T* expectedArray, SIZE_T expe
 template<typename T>
 BOOL CheckAndChangeArrayByRef(T ** ppActual, T* Actual_Array_Size, SIZE_T Expected_Array_Size, SIZE_T Return_Array_Size)
 {
-    T* pExpectedArr = InitArray(Expected_Array_Size);
+    T* pExpectedArr = InitArray<T>(Expected_Array_Size);
     if(!EqualArray(*ppActual, *Actual_Array_Size, pExpectedArr, Expected_Array_Size))
     {
         printf("ManagedtoNative Error in Method: %s!\n",__FUNCTION__);
@@ -162,6 +143,26 @@ BOOL CheckArray(T* pReturnArr, SIZE_T actualArraySize, SIZE_T expectedArraySize)
 }
 
 //BSTR helper
+#ifdef _WIN32
+template<> 
+BOOL IsObjectEquals(BSTR o1, BSTR o2)
+{
+    if ( o1 == NULL && o2 == NULL )
+        return TRUE;
+    else if ( o1 == NULL && o2 != NULL )
+        return FALSE;
+    else if ( o1 != NULL && o2 == NULL )
+        return FALSE;
+
+    UINT uLen1 = SysStringLen(o1);
+    UINT uLen2 = SysStringLen(o2);
+
+    if (uLen1 != uLen2 )
+        return FALSE;
+
+    return memcmp(o1, o2, uLen1) == 0;
+}
+
 BSTR ToBSTR(int i)
 {
     BSTR bstrRet = NULL;
@@ -225,3 +226,4 @@ BOOL EqualArrayBSTR(BSTR* actualBSTRArray, LONG actualSize, BSTR* expectedBSTRAr
         return FALSE;
     return TRUE;
 }
+#endif

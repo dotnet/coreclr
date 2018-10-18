@@ -5,6 +5,8 @@
 // PInvokePassingByOutNative.cpp : Defines the entry point for the DLL application.
 //
 #include <xplatform.h>
+#include <limits.h>
+#include "platformdefines.h"
 #include "helper.h"
 
 //#####################################################################
@@ -81,7 +83,7 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayUlong_AsByOut_AsSizeParam
 {
     return CheckAndChangeArrayByOut(ppActual, arrSize, (ULONGLONG)1000);
 }
-
+#ifdef _WIN32
 //String 10 size Array ==> BSTR 20 size Array
 extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByOut_AsSizeParamIndex(BSTR** ppBSTR,short* arrSize)
 {
@@ -95,3 +97,4 @@ extern "C" DLL_EXPORT BOOL __stdcall MarshalCStyleArrayString_AsByOut_AsSizePara
 
     return TRUE;
 }
+#endif

@@ -242,7 +242,10 @@ public class ClientMarshalArrayAsSizeParamIndexByOutTest
             SizeParamTypeIsUInt32();
             SizeParamTypeIsLong();
             SizeParamTypeIsULong();
-            SizeParamTypeIsString();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                SizeParamTypeIsString();
+            }
             return 100;
         }
         catch (Exception e)
