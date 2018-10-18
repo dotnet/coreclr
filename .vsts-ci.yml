@@ -65,7 +65,7 @@ phases:
       displayName: Build
     - script: build-test.sh $buildConfig $archType
       displayName: Build tests
-    - task: DotNetCoreCLR@2
+    - task: DotNetCoreCLI@2
       inputs:
         command: custom
         projects: tests\helixpublishwitharcade.proj
