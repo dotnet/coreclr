@@ -4,4 +4,5 @@ parameters:
 jobs:
 - job: ${{ parameters.name }}
   steps:
-  - bash: echo $PARAMETERS_NAME (or ${{ parameters.name }}) in step 1 
+  - bash: echo $PARAMETERS_NAME in step 1
+  - bash: echo ${{ parameters.name }}

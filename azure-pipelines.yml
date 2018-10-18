@@ -21,38 +21,38 @@ name: nameofpipeline
 #   repositories:
 
 jobs:        
-- job: job1
-  displayName: job1UIName
-  dependsOn:
-  condition:
-  steps:
-  - bash: echo hi from job1
-- job: job2matrix
-  strategy:
-    matrix:
-      { matrix1:
-        { var1: inmatrix1,
-          var2: alsoinmatrix1 },
-        matrix2:
-        { var1: inmatrix2,
-          var2: alsoinmatrix2 }
-      }
-  steps:
-  - bash: echo var1 ${VAR1}, var2 ${VAR2}
-- job: job2matrixyamlsyntax
-  strategy:
-    matrix:
-      matrix1:
-        var1: inmatrix1
-        var2: alsoinmatrix1
-      matrix2:
-        var1: inmatrix2
-        var2: alsoinmatrix2
-  steps:
-  - bash: echo var1 $VAR1, var2 $VAR2
-- job: job2parallel
-  strategy:
-    parallel: 4
+# - job: job1
+#   displayName: job1UIName
+#   dependsOn:
+#   condition:
+#   steps:
+#   - bash: echo hi from job1
+# - job: job2matrix
+#   strategy:
+#     matrix:
+#       { matrix1:
+#         { var1: inmatrix1,
+#           var2: alsoinmatrix1 },
+#         matrix2:
+#         { var1: inmatrix2,
+#           var2: alsoinmatrix2 }
+#       }
+#   steps:
+#   - bash: echo var1 ${VAR1}, var2 ${VAR2}
+# - job: job2matrixyamlsyntax
+#   strategy:
+#     matrix:
+#       matrix1:
+#         var1: inmatrix1
+#         var2: alsoinmatrix1
+#       matrix2:
+#         var1: inmatrix2
+#         var2: alsoinmatrix2
+#   steps:
+#   - bash: echo var1 $VAR1, var2 $VAR2
+# - job: job2parallel
+#   strategy:
+#     parallel: 4
 - template: template.yml
   parameters:
     name: instantiatedTemplateName
