@@ -5,6 +5,6 @@ parameters:
   testleg: ''
 
 jobs:
-- job: ${{ format('matrix-job-{0}-{1}-{2}-{3}', parameters.os, parameters.arch, parameters.config, parameters.testleg) }}
+- job: ${{ format('matrix_job_{0}_{1}_{2}_{3}', parameters.os, parameters.arch, parameters.config, parameters.testleg) }}
   steps:
   - bash: ${{ format('echo building {0} {1} {2} {3}', parameters.os, parameters.arch, parameters.config, parameters.testleg) }}
