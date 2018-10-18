@@ -18,7 +18,7 @@ namespace System.Diagnostics
             {
                 if (message == null)
                 {
-                    WriteCore(string.Empty);
+                    s_WriteCore(string.Empty);
                     return;
                 }
                 if (s_needIndent)
@@ -26,7 +26,7 @@ namespace System.Diagnostics
                     message = GetIndentString() + message;
                     s_needIndent = false;
                 }
-                WriteCore(message);
+                s_WriteCore(message);
                 if (message.EndsWith(Environment.NewLine))
                 {
                     s_needIndent = true;
@@ -94,5 +94,8 @@ namespace System.Diagnostics
             }
             return s_indentString = new string(' ', indentCount);
         }
+
+        // internal and not readonly so that the tests can swap this out.
+        internal static Action<string> s_WriteCore = WriteCore;
     }
 }
