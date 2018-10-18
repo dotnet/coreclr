@@ -4,43 +4,43 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class AsFunctionPtrTest
 {
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int CommonMethodCalled1();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int CommonMethodCalled2();
 
     delegate int Dele();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByValParam([MarshalAs(UnmanagedType.FunctionPtr)]Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInValParam([In, MarshalAs(UnmanagedType.FunctionPtr)]Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByOutValParam([Out, MarshalAs(UnmanagedType.FunctionPtr)]Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInOutValParam([In, Out, MarshalAs(UnmanagedType.FunctionPtr)]Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByRefParam([MarshalAs(UnmanagedType.FunctionPtr)]ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInRefParam([In, MarshalAs(UnmanagedType.FunctionPtr)]ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByOutRefParam([MarshalAs(UnmanagedType.FunctionPtr)]out Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInOutRefParam([In, Out, MarshalAs(UnmanagedType.FunctionPtr)]ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     [return: MarshalAs(UnmanagedType.FunctionPtr)]
     extern static Dele ReturnDelegateByVal();
 

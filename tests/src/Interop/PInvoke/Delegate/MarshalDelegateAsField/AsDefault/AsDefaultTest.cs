@@ -4,23 +4,23 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class AsDefaultTest
 {
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static int CommonMethod();
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool TakeDelegateAsFieldInStruct_Seq(Struct2_FuncPtrAsField1_Seq s);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool TakeDelegateAsFieldInStruct_Exp(Struct2_FuncPtrAsField2_Exp s);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool TakeDelegateAsFieldInClass_Seq(Class2_FuncPtrAsField3_Seq s);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool TakeDelegateAsFieldInClass_Exp(Class2_FuncPtrAsField4_Exp s);
 
     static int Main()

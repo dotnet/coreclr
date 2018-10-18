@@ -4,42 +4,42 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class AsDefaultTest
 {
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int CommonMethodCalled1();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int CommonMethodCalled2();
 
     delegate int Dele();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByValParam(Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByRefParam(ref Dele dele);
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInValParam([In] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInRefParam([In] ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByOutValParam([Out] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByOutRefParam(out Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInOutValParam([In, Out] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool TakeDelegateByInOutRefParam([In, Out] ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static Dele ReturnDelegateByVal();
 
     #region "Auxiliary Verification Value"

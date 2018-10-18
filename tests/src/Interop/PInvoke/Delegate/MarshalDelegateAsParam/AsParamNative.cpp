@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include<windows.h>
 #include <xplatform.h>
 
 /*-----------------------------------------------------------------------------*
@@ -18,23 +17,23 @@ const int COMMONMETHODCALLED1_RIGHT_RETVAL = 10;
 const int COMMONMETHODCALLED2_RIGHT_RETVAL = 20;
 
 //common method called by function pointer(Delegate)
-extern "C" DLL_EXPORT int __stdcall CommonMethodCalled1()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE CommonMethodCalled1()
 {
     printf("\n\tCalling CommonMethodCalled1() by FuncPtr...");
     return COMMONMETHODCALLED1_RIGHT_RETVAL;
 }
 
-extern "C" DLL_EXPORT int __stdcall CommonMethodCalled2()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE CommonMethodCalled2()
 {
     printf("\n\tCalling CommonMethodCalled2() by FuncPtr...");
     return COMMONMETHODCALLED2_RIGHT_RETVAL;
 }
 
 //define function pointer
-typedef int (__stdcall *DelegateParam)();
+typedef int (STDMETHODCALLTYPE *DelegateParam)();
 
 //delegate marshalled by val
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByValParam(DelegateParam deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByValParam(DelegateParam deleParam)
 {
     printf("\tdelegate marshaled by val.");
 
@@ -54,7 +53,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByValParam(DelegateParam delePa
 }
 
 //delegate marshalled by ref
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByRefParam(DelegateParam* deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByRefParam(DelegateParam* deleParam)
 {
     printf("\n\tdelegate marshaled by ref.");
 
@@ -84,7 +83,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByRefParam(DelegateParam* deleP
 }
 
 //delegate marshalled by in,val
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInValParam(DelegateParam deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByInValParam(DelegateParam deleParam)
 {
     printf("\n\tdelegate marshalled by in,val.");
 
@@ -106,7 +105,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInValParam(DelegateParam dele
 }
 
 //delegate marshalled by in,ref
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInRefParam(DelegateParam* deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByInRefParam(DelegateParam* deleParam)
 {
     printf("\n\tdelegate marshalled by in,ref.");
 
@@ -128,7 +127,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInRefParam(DelegateParam* del
 }
 
 //delegate marshalled by out,val
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByOutValParam(DelegateParam deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByOutValParam(DelegateParam deleParam)
 {
     printf("\n\tdelegate marshalled by out,val.");
 
@@ -148,7 +147,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByOutValParam(DelegateParam del
 }
 
 //delegate marshalled by out,ref
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByOutRefParam(DelegateParam* deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByOutRefParam(DelegateParam* deleParam)
 {
     printf("\n\tdelegate marshalled by out,ref.");
 
@@ -175,7 +174,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByOutRefParam(DelegateParam* de
 }
 
 //delegate marshalled by in,out,val
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInOutValParam(DelegateParam deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByInOutValParam(DelegateParam deleParam)
 {
     printf("\n\tdelegate marshalled by in,out,val.");
     //verify return value
@@ -194,7 +193,7 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInOutValParam(DelegateParam d
 }
 
 //delegate marshalled by in,out,ref
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInOutRefParam(DelegateParam* deleParam)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateByInOutRefParam(DelegateParam* deleParam)
 {
     printf("\n\tdelegate marshalled by in,out,ref.");
 
@@ -224,12 +223,16 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateByInOutRefParam(DelegateParam* 
 }
 
 //ret delegate by val
-extern "C" DLL_EXPORT DelegateParam __stdcall ReturnDelegateByVal()
+extern "C" DLL_EXPORT DelegateParam STDMETHODCALLTYPE ReturnDelegateByVal()
 {
     printf("\n\tdelegate marshalled by val.");
 
     return CommonMethodCalled1;
 }
+
+#ifdef _WIN32
+
+#include <windows.h>
 
 /* -----------------------------------------------------------------------------*
 *																			    *
@@ -257,37 +260,37 @@ const Result expected = {
 
 Result result = {0,0,0};
 
-void __stdcall ResetToZero()
+void STDMETHODCALLTYPE ResetToZero()
 {
     result.result1 = result.result2 = result.result3 = 0; 
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod1()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod1()
 {
     printf("\n\tCommonMethod1() Calling...");
     result.result1 = 10;
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod2()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod2()
 {
     printf("\n\tCommonMethod2() Calling...");
     result.result2 = 20;
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod3()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod3()
 {
     printf("\n\tCommonMethod3() Calling...");
     result.result3 = 30;
 }
 
-BOOL __stdcall Verify(Result expectedR, Result resultR)
+BOOL STDMETHODCALLTYPE Verify(Result expectedR, Result resultR)
 {
     return expectedR.result1 == resultR.result1
         && expectedR.result2 == resultR.result2
         && expectedR.result3 == resultR.result3;
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByValParam(_Delegate * p_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByValParam(_Delegate * p_dele)
 {
     ResetToZero();
 
@@ -299,7 +302,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByValParam(_Delegate * p_de
         return Verify(expected, result);
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByRefParam(_Delegate **pp_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByRefParam(_Delegate **pp_dele)
 {
     ResetToZero();
 
@@ -316,7 +319,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByRefParam(_Delegate **pp_d
     }
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInValParam(_Delegate * p_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByInValParam(_Delegate * p_dele)
 {
     ResetToZero();
 
@@ -332,7 +335,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInValParam(_Delegate * p_
     }
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInRefParam(_Delegate **pp_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByInRefParam(_Delegate **pp_dele)
 {
     ResetToZero();
 
@@ -349,7 +352,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInRefParam(_Delegate **pp
     }
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByOutValParam(_Delegate * p_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByOutValParam(_Delegate * p_dele)
 {
     ResetToZero();
 
@@ -367,22 +370,22 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByOutValParam(_Delegate * p
 }
 
 //verification method
-extern "C" DLL_EXPORT int __stdcall RetFieldResult1()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE RetFieldResult1()
 {
     return result.result1;
 }
 
-extern "C" DLL_EXPORT int __stdcall RetFieldResult2()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE RetFieldResult2()
 {
     return result.result2;
 }
 
-extern "C" DLL_EXPORT int __stdcall RetFieldResult3()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE RetFieldResult3()
 {
     return result.result3;
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByOutRefParam(_Delegate ** pp_dele, _Delegate * pdeleHelper)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByOutRefParam(_Delegate ** pp_dele, _Delegate * pdeleHelper)
 {
     printf("In Take_DelegatePtrByOutRefParam native side \n");
     ResetToZero();
@@ -399,7 +402,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByOutRefParam(_Delegate ** 
     }
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInOutValParam(_Delegate * p_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByInOutValParam(_Delegate * p_dele)
 {
     ResetToZero();
 
@@ -415,7 +418,7 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInOutValParam(_Delegate *
     }
 }
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrByInOutRefParam(_Delegate **pp_dele)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrByInOutRefParam(_Delegate **pp_dele)
 {
     ResetToZero();
 
@@ -437,3 +440,5 @@ extern "C" DLL_EXPORT _Delegate* ReturnDelegatePtrByVal(_Delegate * pdeleHelper)
     pdeleHelper->AddRef();
     return pdeleHelper;
 }
+
+#endif

@@ -4,7 +4,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <windows.h>
 #include <xplatform.h>
 
 /*-----------------------------------------------------------------------------*
@@ -13,12 +12,12 @@
 *							 /  MarshalDelegateAsField_AsDefault.cs			   *
 *-----------------------------------------------------------------------------*/
 
-typedef int (__stdcall *FuncPtr)();
+typedef int (STDMETHODCALLTYPE *FuncPtr)();
 
 //auxiliary verification value
 const int COMMONMETHODCALLED_RIGHT_RETVAL = 10;
 
-extern "C" DLL_EXPORT int __stdcall CommonMethod()
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE CommonMethod()
 {
     printf("\n\tCalling CommonMethodCalled() by FuncPtr...");
     return COMMONMETHODCALLED_RIGHT_RETVAL;
@@ -32,7 +31,7 @@ typedef struct _Struct1_FuncPtrAsField1_Seq{
     FuncPtr funcPtr;
 } Struct1_FuncPtrAsField1_Seq;
 
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateAsFieldInStruct_Seq(Struct1_FuncPtrAsField1_Seq sfs)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInStruct_Seq(Struct1_FuncPtrAsField1_Seq sfs)
 {
     if(sfs.verification == NULL || sfs.funcPtr == NULL)
     {
@@ -52,7 +51,7 @@ typedef struct _Struct1_FuncPtrAsField2_Exp{
     FuncPtr funcPtr;
 } Struct1_FuncPtrAsField2_Exp;
 
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateAsFieldInStruct_Exp(Struct1_FuncPtrAsField2_Exp sfe)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInStruct_Exp(Struct1_FuncPtrAsField2_Exp sfe)
 {
     if(sfe.verification == NULL || sfe.funcPtr == NULL)
     {
@@ -72,7 +71,7 @@ public:
     FuncPtr funcPtr;
 } ;
 
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateAsFieldInClass_Seq(Class1_FuncPtrAsField3_Seq *cfs)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInClass_Seq(Class1_FuncPtrAsField3_Seq *cfs)
 {
     if(cfs->verification == NULL || cfs->funcPtr == NULL)
     {
@@ -93,7 +92,7 @@ public:
     FuncPtr funcPtr;
 };
 
-extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateAsFieldInClass_Exp(Class1_FuncPtrAsField4_Exp *cfe)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInClass_Exp(Class1_FuncPtrAsField4_Exp *cfe)
 {
     if(cfe->verification == NULL || cfe->funcPtr == NULL)
     {
@@ -106,6 +105,8 @@ extern "C" DLL_EXPORT BOOL __stdcall TakeDelegateAsFieldInClass_Exp(Class1_FuncP
     }
 }
 
+#ifdef _WIN32
+#include <windows.h>
 
 /*-----------------------------------------------------------------------------*
 *                                                                             *
@@ -133,30 +134,30 @@ const Result expected = {
 
 Result result = {0,0,0};
 
-void __stdcall ResetToZero()
+void STDMETHODCALLTYPE ResetToZero()
 {
     result.result1 = result.result2 = result.result3 = 0; 
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod1()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod1()
 {
     printf("\n\tCommonMethod1() Calling...\n");
     result.result1 = COMMONMETHOD1_RESULT;
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod2()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod2()
 {
     printf("\n\tCommonMethod2() Calling...\n");
     result.result2 = COMMONMETHOD2_RESULT;
 }
 
-extern "C" DLL_EXPORT void __stdcall CommonMethod3()
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE CommonMethod3()
 {
     printf("\n\tCommonMethod3() Calling...\n");
     result.result3 = COMMONMETHOD3_RESULT;
 }
 
-bool __stdcall Verify(Result expectedR, Result resultR)
+bool STDMETHODCALLTYPE Verify(Result expectedR, Result resultR)
 {
     return expectedR.result1 == resultR.result1
         && expectedR.result2 == resultR.result2
@@ -169,7 +170,7 @@ typedef struct _Struct3_InterfacePtrAsField1_Seq{
     _Delegate * p_dele;
 }Struct3_InterfacePtrAsField1_Seq;
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrAsFieldInStruct_Seq(Struct3_InterfacePtrAsField1_Seq sis)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrAsFieldInStruct_Seq(Struct3_InterfacePtrAsField1_Seq sis)
 {
     HRESULT hr;
 
@@ -243,7 +244,7 @@ typedef struct _Struct3_InterfacePtrAsField2_Exp{
     _Delegate * p_dele;
 }Struct3_InterfacePtrAsField2_Exp;
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrAsFieldInStruct_Exp(Struct3_InterfacePtrAsField2_Exp sie)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrAsFieldInStruct_Exp(Struct3_InterfacePtrAsField2_Exp sie)
 {
     HRESULT hr;
 
@@ -317,7 +318,7 @@ public:
     _Delegate * p_dele;
 };
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrAsFieldInClass_Seq(Class3_InterfacePtrAsField3_Seq *cis)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrAsFieldInClass_Seq(Class3_InterfacePtrAsField3_Seq *cis)
 {
     HRESULT hr;
 
@@ -391,7 +392,7 @@ public:
     _Delegate * p_dele;
 };
 
-extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrAsFieldInClass_Exp(Class3_InterfacePtrAsField4_Exp *cie)
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Take_DelegatePtrAsFieldInClass_Exp(Class3_InterfacePtrAsField4_Exp *cie)
 {
     HRESULT hr;
 
@@ -455,3 +456,4 @@ extern "C" DLL_EXPORT BOOL __stdcall Take_DelegatePtrAsFieldInClass_Exp(Class3_I
         return tempBool && Verify(expected, result);
     }
 }
+#endif

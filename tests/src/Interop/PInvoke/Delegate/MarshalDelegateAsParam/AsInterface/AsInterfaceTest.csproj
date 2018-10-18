@@ -12,6 +12,9 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\..\..\</SolutionDir>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Test unsupported outside of windows -->
+    <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
+    <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'"></PropertyGroup>
@@ -23,8 +26,9 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsInterfaceTest.cs" />
-    <Compile Include="..\..\..\..\common\Assertion.cs" />
   </ItemGroup>
+  <Import Project="../../../../Interop.settings.targets" />
+
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
@@ -33,3 +37,9 @@
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
+
+
+
+
+
+

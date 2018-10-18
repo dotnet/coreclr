@@ -4,29 +4,29 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class AsInterfaceTest
 {
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static void CommonMethod1();
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static void CommonMethod2();
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static void CommonMethod3();
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool Take_DelegatePtrAsFieldInStruct_Seq(Struct3_InterfacePtrAsField1_Seq sis);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool Take_DelegatePtrAsFieldInStruct_Exp(Struct3_InterfacePtrAsField2_Exp sie);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool Take_DelegatePtrAsFieldInClass_Seq(Class3_InterfacePtrAsField3_Seq cis);
 
-    [DllImport("PInvoke_Delegate_AsField.dll")]
+    [DllImport("PInvoke_Delegate_AsField")]
     extern static bool Take_DelegatePtrAsFieldInClass_Exp(Class3_InterfacePtrAsField4_Exp cie);
 
     static int Main()

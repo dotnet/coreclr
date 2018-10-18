@@ -4,56 +4,56 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class AsInterfaceTest
 {
     public delegate void Dele();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByValParam([MarshalAs(UnmanagedType.Interface)] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByRefParam([MarshalAs(UnmanagedType.Interface)] ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByInValParam([In, MarshalAs(UnmanagedType.Interface)] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByInRefParam([In, MarshalAs(UnmanagedType.Interface)] ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByOutValParam([Out, MarshalAs(UnmanagedType.Interface)] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByOutRefParam([Out, MarshalAs(UnmanagedType.Interface)]out Dele dele, [MarshalAs(UnmanagedType.Interface)] Dele deleHelper);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByInOutValParam([In, Out, MarshalAs(UnmanagedType.Interface)] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static bool Take_DelegatePtrByInOutRefParam([In, Out, MarshalAs(UnmanagedType.Interface)] ref Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     [return: MarshalAs(UnmanagedType.Interface)]
     extern static Dele ReturnDelegatePtrByVal([MarshalAs(UnmanagedType.Interface)] Dele dele);
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int RetFieldResult1();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int RetFieldResult2();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static int RetFieldResult3();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static void CommonMethod1();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static void CommonMethod2();
 
-    [DllImport("PInvoke_Delegate_AsParam.dll")]
+    [DllImport("PInvoke_Delegate_AsParam")]
     extern static void CommonMethod3();
 
     const int COMMONMETHOD1_RESULT = 10;

@@ -6,9 +6,9 @@ include_directories(${INC_PLATFORM_DIR})
 set(SOURCES 
     AsParamNative.cpp 
 ) 
-# Additional files to reference: 
-#    AsParamNative.def 
+
 # add the executable 
-add_library (PInvoke_Delegate_AsParam SHARED ${SOURCES}) 
+add_library (PInvoke_Delegate_AsParam SHARED ${SOURCES})
+target_link_libraries(PInvoke_Delegate_AsParam ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
 install (TARGETS PInvoke_Delegate_AsParam DESTINATION bin) 

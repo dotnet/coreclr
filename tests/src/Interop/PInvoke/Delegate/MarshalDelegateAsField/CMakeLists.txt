@@ -6,9 +6,8 @@ include_directories(${INC_PLATFORM_DIR})
 set(SOURCES 
     AsFieldNative.cpp 
 ) 
-# Additional files to reference: 
-#    AsFieldNative.def 
 # add the executable 
 add_library (PInvoke_Delegate_AsField SHARED ${SOURCES}) 
+target_link_libraries(PInvoke_Delegate_AsField ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
 install (TARGETS PInvoke_Delegate_AsField DESTINATION bin) 
