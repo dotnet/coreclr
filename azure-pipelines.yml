@@ -16,9 +16,9 @@
 #   displayName: 'Run a multi-line script'
 
 name: nameofpipeline
-resources:
-  containers:
-  repositories:
+# resources:
+#   containers:
+#   repositories:
 
 jobs:        
 - job: job1
