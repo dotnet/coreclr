@@ -53,7 +53,7 @@ typedef struct _Struct1_FuncPtrAsField2_Exp{
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE TakeDelegateAsFieldInStruct_Exp(Struct1_FuncPtrAsField2_Exp sfe)
 {
-    if(!sfs.verification || sfe.funcPtr == NULL)
+    if(!sfe.verification || sfe.funcPtr == NULL)
     {
         printf("TakeDelegateAsFieldInStruct_Exp:NULL field member.\n");
         return FALSE;	
