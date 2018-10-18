@@ -292,7 +292,7 @@ jobs:
 
 - job: MacOS
   pool:
-    name: Hosted Mac Preview
+    name: Hosted macOS
   strategy:
     matrix:
       x64 debug innerloop:

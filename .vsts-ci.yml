@@ -81,7 +81,7 @@ phases:
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
-      name: Hosted Mac Preview
+      name: Hosted macOS
       timeoutInMinutes: 180
       parallel: 3
       matrix:
