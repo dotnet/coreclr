@@ -13,7 +13,6 @@ SET(CLR_INTEROP_TEST_ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(common)
 add_subdirectory(PInvoke/Primitives/Int)
-add_subdirectory(PInvoke/DateTime)
 add_subdirectory(NativeCallable)
 add_subdirectory(PrimitiveMarshalling/Bool)
 add_subdirectory(PrimitiveMarshalling/UIntPtr)
@@ -38,6 +37,9 @@ add_subdirectory(DllImportAttribute/FileNameContainDot)
 add_subdirectory(DllImportAttribute/Simple)
 
 if(WIN32)
+    # This test doesn't necessarily need to be Windows-only, but the implementation is very tied to Windows APIs
+    add_subdirectory(PInvoke/DateTime)
+
     add_subdirectory(COM/NativeServer)
     add_subdirectory(COM/NativeClients/Primitives)
     add_subdirectory(IJW/FakeMscoree)

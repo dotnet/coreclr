@@ -4,7 +4,6 @@
 
 // NativeDateTime.cpp : Defines the exported functions for the DLL application.
 
-#include "NativeDateTime.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
