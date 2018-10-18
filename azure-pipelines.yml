@@ -48,6 +48,8 @@ jobs:
       matrix2:
         var1: inmatrix2
         var2: alsoinmatrix2
+  steps:
+  - bash: echo var1 $VAR1, var2 $VAR2
 - job: job2parallel
   strategy:
     parallel: 4

@@ -2,6 +2,6 @@ parameters:
   name: paramName
 
 jobs:
-- job: ${{ parameters.paramName }}
+- job: ${{ parameters.name }}
   steps:
-  - bash: echo $PARAMETERS_PARAMNAME in step 1
+  - bash: echo $PARAMETERS_NAME (or ${{ parameters.name }}) in step 1 
