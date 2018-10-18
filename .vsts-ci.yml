@@ -43,6 +43,38 @@ phases:
       env:
         HelixAccessToken: $(HelixTestAccessToken)
 
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+  queue:
+    name: Hosted Ubuntu 1604
+    timeoutInMinutes: 180
+    parallel: 3
+    matrix:
+      x64_checked_Innerloop:
+        buildConfig: checked
+        archType: x64
+    agentOs: Ubuntu
+    phaseName: Ubuntu
+    steps:
+    - task: DotNetCoreInstaller@0
+      inputs:
+        version: 2.1.400
+    - script: eng\common\init-tools-native.sh --installdirectory $(Agent.BuildDirectory)\native-tools -Force
+      displayName: Install native tools
+    - script: build.sh $buildConfig $archType
+      displayName: Build
+    - script: build-test.sh $buildConfig $archType
+      displayName: Build tests
+    - task: DotNetCoreCLR@2
+      inputs:
+        command: custom
+        projects: tests\helixpublishwitharcade.proj
+        custom: msbuild
+        arguments: '/t:test'
+      displayName: Send tests job to Helix
+      env:
+        HelixAccessToken: $(HelixTestAccessToken)
+
 #
 #- phase: Windows_NT_x64 Formatting
 #    queue:
