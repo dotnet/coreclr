@@ -3,7 +3,7 @@ resources:
   # shared library repository
   - repository: arcade
     type: github
-    endpoint: jofortes-personal
+    endpoint: sbomer
     name: dotnet/arcade
     ref: refs/heads/master
 
