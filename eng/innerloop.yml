@@ -1,0 +1,22 @@
+parameters:
+  agentOs: Windows_NT
+  buildConfig: undefined-buildConfig
+  archType: undefined-archType
+  queue: {}
+
+phases:
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    agentOs: ${{ parameters.agentOs }}
+    buildConfig: $(buildConfig)
+    phaseName: ${{ parameters.agentOs }}
+    phase:
+      queue: ${{ parameters.queue }}
+      steps:
+      - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %buildConfig% -priority=0
+      - script: tests\runtest.cmd %buildconfig% %archType% collectdumps
+      - script: build.cmd %buildconfig% %archType% linuxmscorlib
+      - script: build.cmd %buildconfig% %archType% osxmscorlib
+      - ${{ if eq(parameters.archType, 'x64') }}:
+        - script: build.cmd %buildconfig% arm64 linuxmscorlib
+      - script: powershell -NoProfile -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\bin\tests\Windows_NT.x64.Checked', '.\bin\tests\tests.zip')"

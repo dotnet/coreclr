@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.DotNet.Helix.Sdk">
+  <PropertyGroup>
+    <HelixSource>pr/coreclr/master</HelixSource>
+    <HelixType>test/stuff</HelixType>
+    <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
+    <HelixTargetQueues>Windows.10.Amd64.Open;Windows.7.Amd64.Open;windows.10.arm64.open;Windows.81.Amd64.Open;fedora.27.amd64.open</HelixTargetQueues>
+    <EnableXUnitReporter>true</EnableXUnitReporter>
+    <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\Core_Root\*.zip">
+      <PayloadArchive>%(Identity)</PayloadArchive>
+    </HelixCorrelationPayload>
+  </ItemGroup>
+
+  <ItemGroup>
+    <HelixWorkItem Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\tests\*.zip">
+      <PayloadArchive>%(Identity)</PayloadArchive>
+      <Command>runtests.cmd</Command>
+    </HelixWorkItem>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,34 @@
+parameters:
+  agentOs: Windows_NT
+  scenario: undefined-scenario
+  buildConfig: undefined-buildConfig
+  archType: undefined-archType
+  queue: {}
+
+phases:
+- template: /eng/common/templates/phases/base.yml
+  parameters:
+    agentOs: ${{ parameters.agentOs }}
+    buildConfig: $(parameters.buildConfig)
+    phaseName: ${{ parameters.agentOs }}
+    phase:
+      queue: ${{ parameters.queue }}
+      steps:
+        - script: powershell -NoProfile wget https://dist.nuget.org/win-x86-commandline/latest/nuget.exe -OutFile "%Agent.WorkingDirectory%\nuget.exe" 
+        - script: if exist "%Agent.WorkingDirectory%\Microsoft.BenchView.JSONFormat" rmdir /s /q "%Agent.WorkingDirectory%\Microsoft.BenchView.JSONFormat"
+        - script: "%Agent.WorkingDirectory%\nuget.exe" install Microsoft.BenchView.JSONFormat -Source http://benchviewtestfeed.azurewebsites.net/nuget -OutputDirectory "%WAgent.WorkingDirectory%" -Prerelease -ExcludeVersion
+
+        - script: if "%GIT_BRANCH:~0,7%" == "origin/" (set "GIT_BRANCH_WITHOUT_ORIGIN=%GIT_BRANCH:origin/=%") else (set "GIT_BRANCH_WITHOUT_ORIGIN=%GIT_BRANCH%")
+        - script: set "BENCHVIEWNAME=coreclr private %BenchviewCommitName%"
+        - script: set "BENCHVIEWNAME=%BENCHVIEWNAME:"=""%"
+        - script: py "%Agent.WorkingDirectory%\Microsoft.BenchView.JSONFormat\tools\submission-metadata.py" --name "%BENCHVIEWNAME%" --user-email "dotnet-bot@microsoft.com"
+        - script: py "%Agent.WorkingDirectory%\Microsoft.BenchView.JSONFormat\tools\build.py" git --branch %GIT_BRANCH_WITHOUT_ORIGIN% --type private
+
+        - script: py "%Agent.WorkingDirectory%\Microsoft.BenchView.JSONFormat\tools\machinedata.py"
+        - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType%
+        - script: tests\runtest.cmd %buildConfig% %archType GenerateLayoutOnly
+        - script: py tests\scripts\run-xunit-perf.py -arch %archType% -configuration %buildConfig% -os %agentOs% -generateBenchviewData "%Agent.WorkingDirectory%\Microsoft.Benchview.JSONFormat\tools"  -runtype private  -optLevel %scenario% -jitName ryujit -outputdir "%WORKSPACE%\bin\sandbox_logs" -stabilityPrefix "START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2" -testBinLoc bin\tests\%agentOs%.%archType%.%buildConfig%\performance\perflab\Perflab -library
+        - script: py tests\scripts\run-xunit-perf.py -arch %archType% -configuration %buildConfig% -os %agentOs% -generateBenchviewData "%Agent.WorkingDirectory%\Microsoft.Benchview.JSONFormat\tools"  -runtype private  -optLevel %scenario% -jitName ryujit -outputdir "%WORKSPACE%\bin\sandbox_logs" -stabilityPrefix "START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2" -testBinLoc bin\tests\%agentOs%.%archType%.%buildConfig%\Jit\Performance\CodeQuality
+        - ${{ if eq(parameters.scenario, 'full_opt') }}:
+          - script: py tests\scripts\run-xunit-perf.py -arch %archType% -configuration %buildConfig% -os %agentOs% -generateBenchviewData "%Agent.WorkingDirectory%\Microsoft.Benchview.JSONFormat\tools"  -runtype private  -optLevel %scenario% -jitName ryujit -outputdir "%WORKSPACE%\bin\sandbox_logs" -stabilityPrefix "START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2" -testBinLoc bin\tests\%agentOs%.%archType%.%buildConfig%\performance\perflab\Perflab -library -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi
+          - script: py tests\scripts\run-xunit-perf.py -arch %archType% -configuration %buildConfig% -os %agentOs% -generateBenchviewData "%Agent.WorkingDirectory%\Microsoft.Benchview.JSONFormat\tools"  -runtype private  -optLevel %scenario% -jitName ryujit -outputdir "%WORKSPACE%\bin\sandbox_logs" -stabilityPrefix "START \"CORECLR_PERF_RUN\" /B /WAIT /HIGH /AFFINITY 0x2" -testBinLoc bin\tests\%agentOs%.%archType%.%buildConfig%\Jit\Performance\CodeQuality -collectionFlags default+BranchMispredictions+CacheMisses+InstructionRetired+gcapi

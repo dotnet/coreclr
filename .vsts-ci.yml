@@ -1,0 +1,90 @@
+resources:
+  repositories:
+  # shared library repository
+  - repository: arcade
+    type: github
+    endpoint: jofortes-personal
+    name: dotnet/arcade
+    ref: refs/heads/master
+
+variables:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+phases:
+- template: /eng/common/templates/phases/base.yml@arcade
+  parameters:
+    queue:
+      name: dotnet-external-temp
+      timeoutInMinutes: 180
+      parallel: 3
+      matrix:
+        x64_checked_Innerloop:
+          buildConfig: checked
+          archType: x64
+    agentOs: Windows_NT
+    phaseName: Windows_NT
+    steps:
+    - task: DotNetCoreInstaller@0
+      inputs:
+        version: 2.1.400
+    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
+      displayName: Install native tools
+    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
+      displayName: Build
+    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
+      displayName: Build tests
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: custom
+        projects: tests\helixpublishwitharcade.proj
+        custom: msbuild
+        arguments: '/t:test'
+      displayName: Send tests job to Helix
+      env:
+        HelixAccessToken: $(HelixTestAccessToken)
+
+#
+#- phase: Windows_NT_x64 Formatting
+#    queue:
+#      name: Hosted VS2017
+#      steps:
+#        - script: 'python -u tests\\scripts\\format.py -c %Agent.WorkingDirectory% -o Windows_NT -a x64'
+#
+#- template: /eng/ryujit-perf.yml
+#  parameters:
+#    agentOs: Windows_NT
+#    queue:
+#      name: Hosted VS2017
+#      parallel: 4
+#      matrix:
+#        x64_release_full_opt_ryujit_perf:
+#          scenario: full_opt
+#          buildConfig: release
+#          archType: x64
+#        x64_release_min_opt_ryujit_perf:
+#          scenario: min_opt
+#          buildconfig: release
+#          archType: x64
+#        x86_release_full_opt_ryujit_perf:
+#          scenario: full_opt
+#          buildconfig: release
+#          archType: x86
+#        x86_release_min_opt_ryujit_perf:
+#          scenario: min_opt
+#          buildConfig: release
+#          archType: x86
+
+
+#  CentOS7.1 x64 Checked Innerloop Build and Test
+#  CentOS7.1 x64 Debug Innerloop Build
+#  Linux-musl x64 Debug Build
+#  OSX 10.12 x64 Checked InnerLoop Build and Test
+#  Tizen armel Corss Checked Innerloop Build and Test
+#  Ubuntu arm Cross Checked InnerLoop Build and Test
+#  Ubuntu arm64 Cross Debug Innerloop Build
+#  Ubuntu x64 Checked Innerloop Build and Test
+#  Ubuntu x64 Formatting
+#  Windows_NT arm Cross Checked Innerloop Build and Test
+#  Windows_NT arm64 Cross Checked Innerloop Build and Test
+#  Windows_NT x64 Checked CoreFx tests
+#  Windows_NT x64 Release CoreFx tests
