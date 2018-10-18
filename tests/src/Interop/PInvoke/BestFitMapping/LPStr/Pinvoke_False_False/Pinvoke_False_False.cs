@@ -5,7 +5,7 @@
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 [StructLayout(LayoutKind.Sequential)]
 [BestFitMapping(false, ThrowOnUnmappableChar = false)]

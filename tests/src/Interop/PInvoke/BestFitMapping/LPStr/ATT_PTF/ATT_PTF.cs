@@ -5,7 +5,7 @@
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 [assembly: BestFitMapping(true, ThrowOnUnmappableChar = true)]
 
