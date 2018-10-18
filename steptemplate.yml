@@ -1,6 +1,6 @@
 parameters:
-  myParam: paramName
+  myparam: 'paramName'
 
 steps:
 - bash: echo step template, param is $PARAMETERS_MYPARAM
-- script: echo ${{ parameters.myParam }}
+- script: echo ${{ parameters.myparam }}
