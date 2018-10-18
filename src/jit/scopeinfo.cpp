@@ -486,16 +486,13 @@ void CodeGen::siBeginBlock(BasicBlock* block)
     {
         // There aren't any tracked locals.
         //
-        // For debuggable code, scopes can begin only on block boundaries.
-        // For other codegen modes (eg minopts/tier0) we report on a best-faith effort.
-        //
-        // Check if there are any scopes on the current block's start boundary.
-        VarScopeDsc* varScope = nullptr;
-
-        // Do some offset sanity checking in debug codegen where things should
-        // be predictably simple.
-        if (compiler->opts.compDbgCode)
+        // For debuggable or minopts code, scopes can begin only on block boundaries.
+        // For other codegen modes (eg minopts/tier0) we currently won't report any
+        // untracked locals.
+        if (compiler->opts.compDbgCode || compiler->opts.MinOpts())
         {
+            // Check if there are any scopes on the current block's start boundary.
+            VarScopeDsc* varScope = nullptr;
 
 #if FEATURE_EH_FUNCLETS
 
@@ -535,36 +532,36 @@ void CodeGen::siBeginBlock(BasicBlock* block)
             }
 
 #endif // FEATURE_EH_FUNCLETS
-        }
 
-        while ((varScope = compiler->compGetNextEnterScope(beginOffs)) != nullptr)
-        {
-            LclVarDsc* lclVarDsc1 = &compiler->lvaTable[varScope->vsdVarNum];
-
-            // Only report locals that were referenced
-            if (lclVarDsc1->lvRefCnt() > 0)
+            while ((varScope = compiler->compGetNextEnterScope(beginOffs)) != nullptr)
             {
-                // If referenced, we expect a valid stack slot.
-                assert(lclVarDsc1->lvStkOffs != BAD_STK_OFFS);
+                LclVarDsc* lclVarDsc1 = &compiler->lvaTable[varScope->vsdVarNum];
 
-                // brace-matching editor workaround for following line: (
-                JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum, varScope->vsdLifeBeg,
-                        varScope->vsdLifeEnd);
+                // Only report locals that were referenced
+                if (lclVarDsc1->lvRefCnt() > 0)
+                {
+                    // If referenced, we expect a valid stack slot.
+                    assert(lclVarDsc1->lvStkOffs != BAD_STK_OFFS);
 
-                siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
+                    // brace-matching editor workaround for following line: (
+                    JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum,
+                            varScope->vsdLifeBeg, varScope->vsdLifeEnd);
+
+                    siNewScope(varScope->vsdLVnum, varScope->vsdVarNum);
 
 #ifdef DEBUG
-                if (VERBOSE)
-                {
-                    printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
-                           varScope->vsdVarNum, lclVarDsc1->lvTracked ? "yes" : "no", lclVarDsc1->lvVarIndex,
-                           VarSetOps::ToString(compiler, block->bbLiveIn));
-                    dumpConvertedVarSet(compiler, block->bbLiveIn);
-                    printf("\n");
-                }
-                assert(!lclVarDsc1->lvTracked ||
-                       VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc1->lvVarIndex));
+                    if (VERBOSE)
+                    {
+                        printf("Scope info: >> new scope, VarNum=%u, tracked? %s, VarIndex=%u, bbLiveIn=%s ",
+                               varScope->vsdVarNum, lclVarDsc1->lvTracked ? "yes" : "no", lclVarDsc1->lvVarIndex,
+                               VarSetOps::ToString(compiler, block->bbLiveIn));
+                        dumpConvertedVarSet(compiler, block->bbLiveIn);
+                        printf("\n");
+                    }
+                    assert(!lclVarDsc1->lvTracked ||
+                           VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc1->lvVarIndex));
 #endif // DEBUG
+                }
             }
         }
     }
