@@ -9,7 +9,16 @@ using System.Runtime.InteropServices;
 
 class Test
 {
+    private const string RelativeSubdirectoryName = "RelativeNative";
     private const string PathEnvSubdirectoryName = "Subdirectory";
+
+#if PLATFORM_WINDOWS
+    private const string RelativePath1 = @".\RelativeNative\..\DllImportPath_Relative";
+    private const string RelativePath3 = @"..\DllImportPathTest\DllImportPath_Relative";
+#else
+    private const string RelativePath1 =  @"./RelativeNative/../libDllImportPath_Relative";
+    private const string RelativePath3 = @"../DllImportPathTest/libDllImportPath_Relative";
+#endif
 
     [DllImport(@"DllImportPath_Local", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Local1([In, Out]ref string strManaged);
@@ -23,13 +32,13 @@ class Test
     [DllImport(@".\DllImportPath.Local.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_LocalWithDot2([In, Out]ref string strManaged);
 
-    [DllImport(@".\RelativeNative\..\DllImportPath_Relative", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(RelativePath1, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative1([In, Out]ref string strManaged);
 
     [DllImport(@"..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative2([In, Out]ref string strManaged);
 
-    [DllImport(@"..\DllImportPathTest\DllImportPath_Relative", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(RelativePath3, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative3([In, Out]ref string strManaged);
 
     [DllImport(@".\..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
@@ -113,6 +122,13 @@ class Test
         string strManaged = "Managed";
         string native = " Native";
 
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) // We need to ensure that the subdirectory exists for off-Windows.
+        {        
+            var currentDirectory = Directory.GetCurrentDirectory();
+            var info = new DirectoryInfo(currentDirectory);
+            info.CreateSubdirectory(RelativeSubdirectoryName);
+        }
+
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative1]");
         string strPara5 = strManaged;
         if (!MarshalStringPointer_InOut_Relative1(ref strPara5))
@@ -127,18 +143,21 @@ class Test
             return false;
         }
         
-        Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative2]");
-        string strPara6 = strManaged;
-        if (!MarshalStringPointer_InOut_Relative2(ref strPara6))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            Console.WriteLine("Return value is wrong");
-            return false;
-        }
+            Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative2]");
+            string strPara6 = strManaged;
+            if (!MarshalStringPointer_InOut_Relative2(ref strPara6))
+            {
+                Console.WriteLine("Return value is wrong");
+                return false;
+            }
 
-        if (native != strPara6)
-        {
-            Console.WriteLine("The passed string is wrong");
-            return false;
+            if (native != strPara6)
+            {
+                Console.WriteLine("The passed string is wrong");
+                return false;
+            }
         }
         
         Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative3]");
@@ -155,19 +174,21 @@ class Test
             return false;
         }
 
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative4]");
+            string strPara8 = strManaged;
+            if (!MarshalStringPointer_InOut_Relative4(ref strPara8))
+            {
+                Console.WriteLine("Return value is wrong");
+                return false;
+            }
         
-        Console.WriteLine("[Calling MarshalStringPointer_InOut_Relative4]");
-        string strPara8 = strManaged;
-        if (!MarshalStringPointer_InOut_Relative4(ref strPara8))
-        {
-            Console.WriteLine("Return value is wrong");
-            return false;
-        }
-
-        if (native != strPara8)
-        {
-            Console.WriteLine("The passed string is wrong");
-            return false;
+            if (native != strPara8)
+            {
+                Console.WriteLine("The passed string is wrong");
+                return false;
+            }
         }
 
         return true;
@@ -190,10 +211,7 @@ class Test
 
     static bool DllExistsOnPathEnv()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            SetupPathEnvTest();
-        }
+        SetupPathEnvTest();
 
         string managed = "Managed";
         string native = " Native";
@@ -240,12 +258,7 @@ class Test
         bool success = true;
 
         success = success && DllExistsOnLocalPath();
-
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            success = success && DllExistsOnRelativePath();
-        }
-
+        success = success && DllExistsOnRelativePath();
         success = success && DllExistsUnicode();
         success = success && DllExistsOnPathEnv();
         
