@@ -59,7 +59,7 @@ phases:
     - task: DotNetCoreInstaller@0
       inputs:
         version: 2.1.400
-    - script: eng\common\init-tools-native.sh --installdirectory $(Agent.BuildDirectory)\native-tools -Force
+    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
       displayName: Install native tools
     - script: build.sh $buildConfig $archType
       displayName: Build
