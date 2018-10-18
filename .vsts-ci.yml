@@ -22,7 +22,7 @@ phases:
           buildConfig: checked
           archType: x64
     agentOs: Windows_NT
-    phaseName: Windows_NT
+    name: Windows_NT
     steps:
     - task: DotNetCoreInstaller@0
       inputs:
@@ -54,7 +54,7 @@ phases:
           buildConfig: checked
           archType: x64
     agentOs: Ubuntu
-    phaseName: Ubuntu
+    name: Ubuntu
     steps:
     - task: DotNetCoreInstaller@0
       inputs:
