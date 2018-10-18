@@ -64,9 +64,9 @@ phases:
         version: 2.1.400
 #    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
-    - script: build.sh $buildConfig $archType
+    - script: ./build.sh $buildConfig $archType
       displayName: Build
-    - script: build-test.sh $buildConfig $archType
+    - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
     - task: DotNetCoreCLI@2
       inputs:
@@ -96,9 +96,9 @@ phases:
         version: 2.1.400
 #    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
-    - script: build.sh $buildConfig $archType
+    - script: ./build.sh $buildConfig $archType
       displayName: Build
-    - script: build-test.sh $buildConfig $archType
+    - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
     - task: DotNetCoreCLI@2
       inputs:
