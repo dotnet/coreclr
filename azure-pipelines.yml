@@ -350,13 +350,23 @@ jobs:
 
 # test conditional job
 
-- job: testconditional
-  condition: eq(variables.runconditionaljob, true)
-  steps:
-  - script: echo running conditional job!
-  
+# - job: testconditional
+#   condition: eq(variables.runconditionaljob, true)
+#   steps:
+#   - script: echo running conditional job!
+#   
+# variables:
+#   runconditionaljob: true
+
+- template: matrix.yml
+  parameters:
+    testlegs: variables.testlegs
+
 variables:
-  runconditionaljob: true
+  testlegs:
+    ? innerloop
+    ? outerloop
+
 
 # - job: 
 # 
