@@ -26,6 +26,14 @@
   <ItemGroup>
     <CLRTestBashEnvironmentVariable Include="export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$%28pwd)/Subdirectory" />
   </ItemGroup>
+  <PropertyGroup>
+    <PathEnvSetupCommands>
+    <![CDATA[
+      mkdir Subdirectory
+      ]]>
+    </PathEnvSetupCommands>
+    <BashCLRTestPreCommands>$(BashCLRTestPreCommands);$(PathEnvSetupCommands)</BashCLRTestPreCommands>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include=".\LocalNative\CMakeLists.txt" />
     <ProjectReference Include=".\LocalWithDotNative\CMakeLists.txt" />

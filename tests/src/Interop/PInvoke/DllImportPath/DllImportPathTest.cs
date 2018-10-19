@@ -11,6 +11,7 @@ class Test
 {
     private const string RelativeSubdirectoryName = "RelativeNative";
     private const string PathEnvSubdirectoryName = "Subdirectory";
+    private const string PathEnvFileName = "MovedNativeLib";
 
 #if PLATFORM_WINDOWS
     private const string RelativePath1 = @".\RelativeNative\..\DllImportPath_Relative";
@@ -47,7 +48,7 @@ class Test
     [DllImport(@"DllImportPath_U�n�i�c�o�d�e", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
     
-    [DllImport(@"DllImportPath_PathEnv", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(PathEnvFileName, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_PathEnv([In, Out]ref string strManaged);
 
     static bool DllExistsOnLocalPath()
@@ -200,13 +201,11 @@ class Test
         var info = new DirectoryInfo(currentDirectory);
         var subDirectory = info.CreateSubdirectory(PathEnvSubdirectoryName);
 
-        var file = info.EnumerateFiles("*DllImportPath_PathEnv*", SearchOption.TopDirectoryOnly).First();
+        var file = info.EnumerateFiles("*DllImportPath_PathEnv*", SearchOption.TopDirectoryOnly).FirstOrDefault();
 
         var newFileLocation = Path.Combine(subDirectory.FullName, file.Name);
 
-        file.CopyTo(Path.Combine(subDirectory.FullName, file.Name), true);
-
-        file.Delete();
+        file.CopyTo(Path.Combine(subDirectory.FullName, PathEnvFileName + file.Extension), true);
 
         Environment.SetEnvironmentVariable("PATH", Environment.GetEnvironmentVariable("PATH") + $";{subDirectory.FullName}");
     }
