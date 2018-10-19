@@ -24,7 +24,7 @@
     <Compile Include="DllImportPathTest.cs" />
   </ItemGroup>
   <ItemGroup>
-    <CLRTestBashEnvironmentVariable Include="export LD_LIBRARY_PATH=$%28LD_LIBRARY_PATH):$%28pwd)/Subdirectory" />
+    <CLRTestBashEnvironmentVariable Include="export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$%28pwd)/Subdirectory" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include=".\LocalNative\CMakeLists.txt" />
