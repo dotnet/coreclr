@@ -540,7 +540,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private Characteristics GetCharacteristics() => default;
 
-        public override int GetHashCode() => GetHashCode(AsSpanFast());
+        public override int GetHashCode() => Marvin.ComputeHash32(AsSpanFast(), Marvin.DefaultSeed);
 
         public int GetHashCode(StringComparison comparisonType) => GetHashCode(AsSpanFast(), comparisonType);
 

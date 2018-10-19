@@ -4,8 +4,9 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 using System.Numerics;
-
 using Internal.Runtime.CompilerServices;
 
 #if BIT64
@@ -262,6 +263,21 @@ namespace System
                 while ((byte*)nLength > (byte*)index)
                 {
                     var vMatches = Vector.Equals(vComparison, Unsafe.ReadUnaligned<Vector<byte>>(ref Unsafe.AddByteOffset(ref searchSpace, index)));
+
+                    // use pmovmskb / vpmovmskb & tzcnt if available
+                    if (Unsafe.SizeOf<Vector<byte>>() == Unsafe.SizeOf<Vector256<byte>>() && Avx2.IsSupported && Bmi1.IsSupported)
+                    {
+                        uint mask = (uint)Avx2.MoveMask(Unsafe.As<Vector<byte>, Vector256<byte>>(ref vMatches));
+                        if (mask == 0)
+                        {
+                            index += Vector<byte>.Count;
+                            continue;
+                        }
+
+                        // Find offset of first match
+                        return (int)(byte*)index + (int)Bmi1.TrailingZeroCount(mask);
+                    }
+
                     if (Vector<byte>.Zero.Equals(vMatches))
                     {
                         index += Vector<byte>.Count;
