@@ -349,8 +349,7 @@ jobs:
 # new test matrix, with conditional testleg runs
 
 # test conditional job
-variables:
-  runconditionaljob: false
+
 - job: testconditional
   condition: eq(variables.runconditionaljob, true)
   steps:
