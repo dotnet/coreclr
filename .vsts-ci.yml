@@ -90,7 +90,9 @@ phases:
     agentOs: MacOS
     name: MacOS
     steps:
-    - script: brew install cmake
+#    - script: brew install cmake # mac machine already has cmake 3.12.2. this command fails, saying:
+  #  Error: cmake 3.12.2 is already installed
+  #  To upgrade to 3.12.3, run `brew upgrade cmake`
     - script: brew list icu4c
     - script: brew install icu4c
     - script: brew link --force icu4c
