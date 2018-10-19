@@ -4,25 +4,13 @@
 
 #include <iostream>
 #include <xplatform.h>
+#include "MarshalArray.h"
 
 using namespace std;
-
-const int ARRAY_SIZE = 100;
 
 /*----------------------------------------------------------------------------
 macro definition
 ----------------------------------------------------------------------------*/
-
-#define ENTERFUNC() printf("========== [%s]\t ==========\n", __FUNCTION__)
-
-#define CHECK_PARAM_NOT_EMPTY(__p) \
-    ENTERFUNC(); \
-    if ( (__p) == NULL ) \
-{ \
-    printf("[%s] Error: parameter actual is NULL\n", __FUNCTION__); \
-    return false; \
-} \
-    else 
 
 #define INIT_EXPECTED(__type, __size) \
     __type expected[(__size)]; \
@@ -59,8 +47,6 @@ typedef struct  { BSTR		 arr[ARRAY_SIZE];		}	S_BSTRArray;
 #endif
 
 //struct array in a struct
-typedef struct  { INT		x;			DOUBLE	                   d;
-LONG64	l;			LPSTR					 str;		}	TestStruct;
 
 typedef struct  { TestStruct	 arr[ARRAY_SIZE];		}	S_StructArray;
 
@@ -69,78 +55,6 @@ typedef struct  { BOOL		 arr[ARRAY_SIZE];		}	S_BOOLArray;
 /*----------------------------------------------------------------------------
 helper function
 ----------------------------------------------------------------------------*/
-
-template<typename T>
-bool IsObjectEquals(T o1, T o2)
-{
-    // T::operator== required.
-    return o1 == o2;
-}
-
-template<>
-bool IsObjectEquals(LPSTR o1, LPSTR o2)
-{
-    size_t cLen1 = strlen(o1);
-    size_t cLen2 = strlen(o2);
-
-    if (cLen1 != cLen2 )
-    {
-        printf("Not equals in %s\n",__FUNCTION__);
-        return false;
-    }
-
-    return strncmp(o1, o2, cLen1) == 0;
-}
-
-template<>
-bool IsObjectEquals(LPCSTR o1, LPCSTR o2)
-{
-    size_t cLen1 = strlen(o1);
-    size_t cLen2 = strlen(o2);
-
-    if (cLen1 != cLen2 )
-    {
-        printf("Not equals in %s\n",__FUNCTION__);
-        return false;
-    }
-
-    return strncmp(o1, o2, cLen1) == 0;
-}
-
-#ifdef _WIN32
-template<>
-bool IsObjectEquals(BSTR o1, BSTR o2)
-{
-    UINT uLen1 = SysStringLen(o1);
-    UINT uLen2 = SysStringLen(o2);
-
-    if (uLen1 != uLen2 )
-    {
-        printf("Not equals in %s\n",__FUNCTION__);
-        return false;
-    }
-
-    return memcmp(o1, o2, uLen1) == 0;
-}
-#endif
-
-LPSTR ToString(int i)
-{
-    CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case, WCHAR for BSTR
-    itoa(i, pBuffer, 10);
-
-    return pBuffer;
-}
-
-#ifdef _WIN32
-BSTR ToBSTR(int i)
-{
-    BSTR bstrRet = NULL;
-    VarBstrFromI4(i, 0, 0, &bstrRet);
-
-    return bstrRet;
-}
-#endif
 
 TestStruct* InitTestStruct()
 {

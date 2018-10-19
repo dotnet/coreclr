@@ -48,48 +48,57 @@
 //////////////////////////////////////////////////////////////////////////////
 // Verify helper methods
 //////////////////////////////////////////////////////////////////////////////
-template<typename T> bool IsObjectEquals(T o1, T o2)
+
+template<typename T>
+bool IsObjectEquals(const T& o1, const T& o2)
 {
-    // T::operator== required.
     return o1 == o2;
 }
 
-// Special for LPCSTR, LPSTR will fall to this method
-template<> bool IsObjectEquals(LPSTR o1, LPSTR o2)
+template<>
+bool IsObjectEquals(const LPSTR& o1, const LPSTR& o2)
 {
-    if ( o1 == NULL && o2 == NULL )
-        return true;
-    else if ( o1 == NULL && o2 != NULL )
-        return false;
-    else if ( o1 != NULL && o2 == NULL )
-        return false;
-
     size_t cLen1 = strlen(o1);
     size_t cLen2 = strlen(o2);
 
     if (cLen1 != cLen2 )
+    {
+        printf("Not equals in %s\n",__FUNCTION__);
         return false;
+    }
+
+    return strncmp(o1, o2, cLen1) == 0;
+}
+
+template<>
+bool IsObjectEquals(const LPCSTR& o1, const LPCSTR& o2)
+{
+    size_t cLen1 = strlen(o1);
+    size_t cLen2 = strlen(o2);
+
+    if (cLen1 != cLen2 )
+    {
+        printf("Not equals in %s\n",__FUNCTION__);
+        return false;
+    }
 
     return strncmp(o1, o2, cLen1) == 0;
 }
 
 #ifdef _WIN32
-template<> bool IsObjectEquals(BSTR o1, BSTR o2)
+template<>
+bool IsObjectEquals(const BSTR& o1, const BSTR& o2)
 {
-    if ( o1 == NULL && o2 == NULL )
-        return true;
-    else if ( o1 == NULL && o2 != NULL )
-        return false;
-    else if ( o1 != NULL && o2 == NULL )
-        return false;
-
     UINT uLen1 = SysStringLen(o1);
     UINT uLen2 = SysStringLen(o2);
 
     if (uLen1 != uLen2 )
+    {
+        printf("Not equals in %s\n",__FUNCTION__);
         return false;
+    }
 
-    return memcmp(o1, o2, uLen1) == 0;
+    return memcmp(o1, o2, uLen1 * sizeof(*o1)) == 0;
 }
 #endif
 
@@ -144,7 +153,7 @@ struct TestStructSA
     LONG64 l;
     BSTR str;
 
-    inline bool operator==(TestStructSA &other)
+    inline bool operator==(const TestStructSA &other) const
     {
         return IsObjectEquals(x, other.x) &&
             IsObjectEquals(d, other.d) &&
@@ -176,7 +185,7 @@ struct TestStruct
     LONG64 l;
     LPSTR str;
 
-    inline bool operator==(TestStruct &other)
+    inline bool operator==(const TestStruct &other) const
     {
         return IsObjectEquals(x, other.x) &&
             IsObjectEquals(d, other.d) &&
