@@ -7,7 +7,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Runtime.ConstrainedExecution;
 using SafeHandlesTests;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class SafeFileHandle : SafeHandle //SafeHandle subclass
 {

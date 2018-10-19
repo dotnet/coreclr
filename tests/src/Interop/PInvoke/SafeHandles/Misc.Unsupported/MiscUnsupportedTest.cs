@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 using SafeHandlesTests;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 public class SHTester_Misc
 {

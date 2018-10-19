@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 using SafeHandlesTests;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 #pragma warning disable 618
 public class SHTester_MA

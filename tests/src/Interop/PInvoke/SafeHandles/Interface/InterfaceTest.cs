@@ -6,7 +6,7 @@ using System;
 using System.Runtime.InteropServices;
 using SafeHandlesTests;
 using System.Threading;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 [StructLayout(LayoutKind.Sequential)]
 public struct StructMAIntf

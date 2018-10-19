@@ -6,7 +6,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using SafeHandlesTests;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 public abstract class AllMySafeHandles : SafeHandle
 {
