@@ -356,7 +356,7 @@ jobs:
   - script: echo running conditional job!
   
 variables:
-  runconditionaljob: false
+  runconditionaljob: true
 
 # - job: 
 # 
