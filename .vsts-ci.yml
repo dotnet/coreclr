@@ -58,11 +58,12 @@ phases:
     name: Ubuntu
     steps:
     - script: sudo apt install cmake llvm-3.9 clang-3.9 lldb-3.9 liblldb-3.9-dev libunwind8 libunwind8-dev gettext libicu-dev liblttng-ust-dev libcurl4-openssl-dev libssl-dev libkrb5-dev libnuma-dev
-    - task: DotNetCoreInstaller@0
-      inputs:
-        version: 2.1.400
-    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-      displayName: Install native tools
+      displayName: Install native dependencies
+#    - task: DotNetCoreInstaller@0
+#      inputs:
+#        version: 2.1.400
+#    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
+#      displayName: Install native tools
     - script: ./build.sh $buildConfig $archType
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
@@ -103,8 +104,8 @@ phases:
 #         version: 2.1.400
 #    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
-    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-      displayName: Install native tools
+#    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
+#      displayName: Install native tools
     - script: ./build.sh $buildConfig $archType
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
