@@ -27,8 +27,8 @@ phases:
     - task: DotNetCoreInstaller@0
       inputs:
         version: 2.1.400
-    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
-      displayName: Install native tools
+#    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
+#      displayName: Install native tools
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
     - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
@@ -59,8 +59,8 @@ phases:
     - task: DotNetCoreInstaller@0
       inputs:
         version: 2.1.400
-#    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
-#      displayName: Install native tools
+    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
+      displayName: Install native tools
     - script: ./build.sh $buildConfig $archType
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
@@ -88,11 +88,13 @@ phases:
     agentOs: MacOS
     name: MacOS
     steps:
-    - task: DotNetCoreInstaller@0
-      inputs:
-        version: 2.1.400
+#     - task: DotNetCoreInstaller@0
+#       inputs:
+#         version: 2.1.400
 #    - script: eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
+    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
+      displayName: Install native tools
     - script: ./build.sh $buildConfig $archType
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
