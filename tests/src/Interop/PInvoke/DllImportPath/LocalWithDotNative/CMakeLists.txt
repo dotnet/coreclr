@@ -1,4 +1,4 @@
-﻿cmake_minimum_required (VERSION 2.6) 
+cmake_minimum_required (VERSION 2.6) 
 project (DllImportPath.Local) 
 include ("${CLR_INTEROP_TEST_ROOT}/Interop.cmake") 
 include_directories(${INC_PLATFORM_DIR}) 
