@@ -345,3 +345,24 @@ jobs:
         testleg: GCStress
   steps:
     - script: echo $ARCH $CONFIG $TESTLEG
+
+# new test matrix, with conditional testleg runs
+
+# test conditional job
+variables:
+  runconditionaljob: false
+- job: testconditional
+  condition: eq(variables.runconditionaljob, true)
+  steps:
+  - script: echo running conditional job!
+  
+
+# - job: 
+# 
+# - job: macos.yml
+#   parameters:
+#     arch: x64
+#     config: debug
+#     testleg: innerloop
+#   condition: eq(variables
+# 
