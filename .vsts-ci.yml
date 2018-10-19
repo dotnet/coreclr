@@ -90,6 +90,12 @@ phases:
     agentOs: MacOS
     name: MacOS
     steps:
+    - script: brew install cmake
+    - script: brew list icu4c
+    - script: brew install icu4c
+    - script: brew link --force icu4c
+    - script: brew list openssl
+    - script: brew install openssl
 #     - task: DotNetCoreInstaller@0
 #       inputs:
 #         version: 2.1.400
