@@ -96,7 +96,7 @@ phases:
     # - script: brew list icu4c # this fails when it's not installed.
     - script: brew install icu4c
     - script: brew link --force icu4c
-    - script: brew list openssl
+    # - script: brew list openssl
     - script: brew install openssl
 #     - task: DotNetCoreInstaller@0
 #       inputs:
