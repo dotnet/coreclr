@@ -30,7 +30,7 @@ macro definition
     expected[i] = (__type)i
 
 #define INIT_EXPECTED_STRUCT(__type, __size, __array_type) \
-    __type *expected = (__type *)::CoTaskMemAlloc( sizeof(__type) ); \
+    __type *expected = (__type *)CoreClrAlloc( sizeof(__type) ); \
     for ( size_t i = 0; i < (__size); ++i) \
     expected->arr[i] = (__array_type)i
 
@@ -72,7 +72,7 @@ helper function
 
 LPSTR ToString(int i)
 {
-    CHAR *pBuffer = (CHAR *)::CoTaskMemAlloc(10 * sizeof(CHAR)); // 10 is enough for our case, WCHAR for BSTR
+    CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case, WCHAR for BSTR
     _itoa_s(i, pBuffer, sizeof(pBuffer) / sizeof(pBuffer[0]), 10);
 
     return pBuffer;
@@ -90,7 +90,7 @@ BSTR ToBSTR(int i)
 
 TestStruct* InitTestStruct()
 {
-    TestStruct *expected = (TestStruct *)CoTaskMemAlloc( sizeof(TestStruct) * ARRAY_SIZE );
+    TestStruct *expected = (TestStruct *)CoreClrAlloc( sizeof(TestStruct) * ARRAY_SIZE );
 
     for ( int i = 0; i < ARRAY_SIZE; i++)
     {
@@ -628,7 +628,7 @@ extern "C" DLL_EXPORT S_CHARArray* S_CHARArray_Ret()
 
 extern "C" DLL_EXPORT S_LPSTRArray* S_LPSTRArray_Ret()
 {
-    S_LPSTRArray *expected = (S_LPSTRArray *)::CoTaskMemAlloc( sizeof(S_LPSTRArray) );
+    S_LPSTRArray *expected = (S_LPSTRArray *)CoreClrAlloc( sizeof(S_LPSTRArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
         expected->arr[i] = ToString(i);
 
@@ -638,7 +638,7 @@ extern "C" DLL_EXPORT S_LPSTRArray* S_LPSTRArray_Ret()
 #ifdef _WIN32
 extern "C" DLL_EXPORT S_BSTRArray* S_BSTRArray_Ret()
 {
-    S_BSTRArray *expected = (S_BSTRArray *)::CoTaskMemAlloc( sizeof(S_BSTRArray) );
+    S_BSTRArray *expected = (S_BSTRArray *)CoreClrAlloc( sizeof(S_BSTRArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
         expected->arr[i] = ToBSTR(i);
 
@@ -648,7 +648,7 @@ extern "C" DLL_EXPORT S_BSTRArray* S_BSTRArray_Ret()
 
 extern "C" DLL_EXPORT S_StructArray* S_StructArray_Ret()
 {
-    S_StructArray *expected = (S_StructArray *)::CoTaskMemAlloc( sizeof(S_StructArray) );
+    S_StructArray *expected = (S_StructArray *)CoreClrAlloc( sizeof(S_StructArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
     {
         expected->arr[i].x = i;

@@ -45,6 +45,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int(int *pActual, int cActual)
     return EQUALS(pActual, cActual, expected);
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object(VARIANT *pActual, int cActual)
 {
     CHECK_PARAM_NOT_EMPTY(pActual);
@@ -77,6 +78,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object(VARIANT *pActual, int cActual)
     return TRUE;
     //EQUALS(pActual, cActual, expected);
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint(UINT *pActual, int cActual)
 {
@@ -182,7 +184,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_LPCSTR(LPCSTR *pActual, int cActual)
         if (i == nullIdx)
             continue;
 
-        CoTaskMemFree(expected[i]);
+        CoreClrFree(expected[i]);
     }
 
     return retval;
@@ -227,34 +229,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool(BOOL *pActual, int cActual)
     return EQUALS(pActual, cActual, expected);
 }
 
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate(LPPDELEGATE pActual, int cActual)
-{
-    CHECK_PARAM_NOT_EMPTY(pActual);
-
-    for (int i = 0; i < cActual; ++i)
-    {
-        if ((i == cActual - 1) && (pActual[i] != NULL))
-            return false;
-
-        if (pActual[i] != NULL)
-        {
-            LPDELEGATE ptr = pActual[i];
-            VARIANT pVar;
-            ptr->Invoke(NULL, IID_NULL, NULL, DISPATCH_METHOD, NULL, &pVar, NULL, NULL);
-
-            if (i != pVar.lVal)
-            {
-                printf("%s Error: delegate marshal error: expected: %d, pActual %ld\n", __FUNCTION__, i, pVar.lVal);
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-#endif
-
 /////////////////////////////////////////// In Out By Value /////////////////////////////////////////
 template<typename T>
 void ChangeArrayValue(T *pArray, int cSize)
@@ -269,12 +243,12 @@ void ChangeArrayValue(LPSTR *pArray, int cSize)
     for (int i = 0; i < cSize; ++i)
     {
         // Free resource
-        CoTaskMemFree(pArray[i]);
+        CoreClrFree(pArray[i]);
         pArray[i] = ToString(cSize - 1 - i);
     }
 
     int nullIdx = cSize / 2 - 1;
-    CoTaskMemFree(pArray[nullIdx]);
+    CoreClrFree(pArray[nullIdx]);
     pArray[nullIdx] = NULL;
 }
 
@@ -284,15 +258,16 @@ void ChangeArrayValue(LPCSTR *pArray, int cSize)
     for (int i = 0; i < cSize; ++i)
     {
         // Free resource
-        CoTaskMemFree((LPVOID)pArray[i]);
+        CoreClrFree((LPVOID)pArray[i]);
         pArray[i] = ToString(cSize - 1 - i);
     }
 
     int nullIdx = cSize / 2 - 1;
-    CoTaskMemFree((LPVOID)pArray[nullIdx]);
+    CoreClrFree((LPVOID)pArray[nullIdx]);
     pArray[nullIdx] = NULL;
 }
 
+#ifdef _WIN32
 template<>
 void ChangeArrayValue(VARIANT *pArray, int cSize)
 {
@@ -308,6 +283,7 @@ void ChangeArrayValue(VARIANT *pArray, int cSize)
     VariantClear(&pArray[nullIdx]);
     pArray[nullIdx].vt = VT_EMPTY;
 }
+#endif
 
 template<>
 void ChangeArrayValue(TestStruct *pArray, int cSize)
@@ -321,26 +297,6 @@ void ChangeArrayValue(TestStruct *pArray, int cSize)
         pArray[i].str = ToString(v);
     }
 }
-
-#ifdef _WIN32
-template<>
-void ChangeArrayValue(LPPDELEGATE pArray, int cSize)
-{
-    LPDELEGATE pTemp = NULL;
-
-    for (int left = 0; left < cSize; ++left)
-    {
-        int right = cSize - 1 - left;
-        if (left >= right)
-            break;
-
-        pTemp = pArray[right];
-        pArray[right] = pArray[left];
-        pArray[left] = pTemp;
-        //pArray[left] = NULL;
-    }
-}
-#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut(int *pActual, int cActual)
 {
@@ -364,6 +320,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut_ZeroLength(int *pActual)
 	return true;
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object_InOut(VARIANT *pActual, int cActual)
 {
     CHECK_PARAM_NOT_EMPTY(pActual);
@@ -373,6 +330,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object_InOut(VARIANT *pActual, int cActu
 
     return retval;
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint_InOut(UINT *pActual, int cActual)
 {
@@ -501,17 +459,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool_InOut(BOOL *pActual, int cActual)
     return retval;
 }
 
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate_InOut(LPPDELEGATE pActual, int cActual)
-{
-    CHECK_PARAM_NOT_EMPTY(pActual);
-
-    BOOL retval = CStyle_Array_Delegate(pActual, cActual);
-    ChangeArrayValue(pActual, cActual);
-    return retval;
-}
-#endif
-
 /////////////////////////////////////////// Out By Value /////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out(int *pActual, int cActual)
 {
@@ -533,6 +480,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out_ZeroLength(int *pActual)
 	return true;
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object_Out(VARIANT *pActual, int cActual)
 {
     CHECK_PARAM_NOT_EMPTY(pActual);
@@ -541,6 +489,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object_Out(VARIANT *pActual, int cActual
 
     return true;
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint_Out(UINT *pActual, int cActual)
 {
@@ -656,17 +605,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool_Out(BOOL *pActual, int cActual)
     return true;
 }
 
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate_Out(LPPDELEGATE pActual, int cActual)
-{
-    CHECK_PARAM_NOT_EMPTY(pActual);
-
-    ChangeArrayValue(pActual, cActual);
-
-    return true;
-}
-#endif
-
 /////////////////////////////////////////// InAttribute ByRef /////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_In_Ref(int **ppActual, int cActual)
 {
@@ -678,6 +616,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_In_Ref(int **ppActual, int cActual)
     return true;
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object_In_Ref(VARIANT **ppActual, int cActual)
 {
     if (!CStyle_Array_Object(*ppActual, cActual))
@@ -686,6 +625,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object_In_Ref(VARIANT **ppActual, int cA
     ChangeArrayValue(*ppActual, cActual);
     return true;
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint_In_Ref(UINT **ppActual, int cActual)
 {
@@ -813,17 +753,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool_In_Ref(BOOL **ppActual, int cActual
     return true;
 }
 
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate_In_Ref(LPPDELEGATE *ppActual, int cActual)
-{
-    if (!CStyle_Array_Delegate(*ppActual, cActual))
-        return false;
-
-    ChangeArrayValue(*ppActual, cActual);
-    return true;
-}
-#endif
-
 /////////////////////////////////////////// OutAttribute ByRef /////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out_Ref(int **ppActual, int cActual)
 {
@@ -834,6 +763,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_Out_Ref(int **ppActual, int cActual)
     return true;
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object_Out_Ref(VARIANT **ppActual, int cActual)
 {
     CHECK_PARAM_EMPTY(*ppActual);
@@ -842,6 +772,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object_Out_Ref(VARIANT **ppActual, int c
 
     return true;
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint_Out_Ref(UINT **ppActual, int cActual)
 {
@@ -967,17 +898,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool_Out_Ref(BOOL **ppActual, int cActua
     return true;
 }
 
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate_Out_Ref(LPPDELEGATE *ppActual, int cActual)
-{
-    CHECK_PARAM_EMPTY(*ppActual);
-
-    ChangeArrayValue(*ppActual, cActual);
-
-    return true;
-}
-#endif
-
 /////////////////////////////////////////// InAttribute OutAttribute ByRef /////////////////////////////////////////
 extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut_Ref(int **ppActual, int cActual)
 {
@@ -989,6 +909,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Int_InOut_Ref(int **ppActual, int cActua
     return retval;
 }
 
+#ifdef _WIN32
 extern "C" DLL_EXPORT BOOL CStyle_Array_Object_InOut_Ref(VARIANT **ppActual, int cActual)
 {
     CHECK_PARAM_NOT_EMPTY(*ppActual);
@@ -998,6 +919,7 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Object_InOut_Ref(VARIANT **ppActual, int
 
     return retval;
 }
+#endif
 
 extern "C" DLL_EXPORT BOOL CStyle_Array_Uint_InOut_Ref(UINT **ppActual, int cActual)
 {
@@ -1136,18 +1058,6 @@ extern "C" DLL_EXPORT BOOL CStyle_Array_Bool_InOut_Ref(BOOL **ppActual, int cAct
 
     return retval;
 }
-
-#ifdef _WIN32
-extern "C" DLL_EXPORT BOOL CStyle_Array_Delegate_InOut_Ref(LPPDELEGATE *ppActual, int cActual)
-{
-    CHECK_PARAM_NOT_EMPTY(*ppActual);
-
-    BOOL retval = CStyle_Array_Delegate_In_Ref(ppActual, cActual);
-    //ChangeArrayValue(*ppActual, cActual);
-
-    return retval;
-}
-#endif
 
 ////////////////////////////////Added marshal array of struct as LPArray//////////////////////////////////
 extern "C" DLL_EXPORT BOOL MarshalArrayOfStructAsLPArrayByVal(S2 *pActual, int cActual, S2* pExpect)

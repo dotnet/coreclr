@@ -4,7 +4,7 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 public class ArrayMarshal
 {
@@ -15,8 +15,6 @@ public class ArrayMarshal
         public long l;
         public string str;
     }
-
-    delegate int TestDelegate();
 
     #region No attributes applied
 
@@ -61,9 +59,6 @@ public class ArrayMarshal
 
     [DllImport("MarshalArrayLPArrayNative")]
     private static extern bool CStyle_Array_Bool(bool[] actual, int cActual);
-
-    [DllImport("MarshalArrayLPArrayNative")]
-    private static extern bool CStyle_Array_Delegate(TestDelegate[] actual, int cActual);
 
     [DllImport("MarshalArrayLPArrayNative")]
     private static extern bool CStyle_Array_Object(object[] actual, int cActual);
@@ -112,9 +107,6 @@ public class ArrayMarshal
 
     [DllImport("MarshalArrayLPArrayNative", EntryPoint = "CStyle_Array_Bool")]
     private static extern bool CStyle_Array_Bool_In([In]bool[] actual, int cActual);
-
-    [DllImport("MarshalArrayLPArrayNative", EntryPoint = "CStyle_Array_Delegate")]
-    private static extern bool CStyle_Array_Delegate_In([In]TestDelegate[] actual, int cActual);
 
     [DllImport("MarshalArrayLPArrayNative", EntryPoint = "CStyle_Array_Object")]
     private static extern bool CStyle_Array_Object_In([In]object[] actual, int cActual);
@@ -185,10 +177,6 @@ public class ArrayMarshal
     [DllImport("MarshalArrayLPArrayNative")]
     private static extern bool CStyle_Array_Bool_InOut(
         [In, Out] bool[] actual, int cActual);
-
-    [DllImport("MarshalArrayLPArrayNative")]
-    private static extern bool CStyle_Array_Delegate_InOut(
-        [In, Out] TestDelegate[] actual, int cActual);
     #endregion
 
     #region OutAttribute attributes applied
@@ -256,10 +244,6 @@ public class ArrayMarshal
     [DllImport("MarshalArrayLPArrayNative")]
     private static extern bool CStyle_Array_Bool_Out(
         [Out] bool[] actual, int cActual);
-
-    [DllImport("MarshalArrayLPArrayNative")]
-    private static extern bool CStyle_Array_Delegate_Out(
-        [Out] TestDelegate[] actual, int cActual);
     #endregion
 
     #region Marshal ByVal
@@ -306,36 +290,6 @@ public class ArrayMarshal
         return array;
     }
 
-    static int Delegate0()
-    {
-        return 0;
-    }
-
-    static int Delegate1()
-    {
-        return 1;
-    }
-
-    static int Delegate2()
-    {
-        return 2;
-    }
-
-    private static TestDelegate[] InitDelegateArray()
-    {
-        TestDelegate[] array = new TestDelegate[] {
-                                   new TestDelegate(Delegate0),
-                                   new TestDelegate(Delegate1),
-                                   new TestDelegate(Delegate2),
-                                   new TestDelegate(delegate() {
-                                       return 3;
-                                   }),
-                                   null
-                               };
-
-        return array;
-    }
-
     private static void TestMarshalByVal_NoAttributes()
     {
         Console.WriteLine("ByVal marshaling CLR array as c-style-array no attributes");
@@ -360,15 +314,13 @@ public class ArrayMarshal
 
         Assert.IsTrue(CStyle_Array_Bool(InitBoolArray(ARRAY_SIZE), ARRAY_SIZE), "CStyle_Array_Bool");
 
-        object[] oArr = InitArray<object>(ARRAY_SIZE);
-        // Test nesting null value scenario
-        oArr[oArr.Length / 2] = null;
-        Assert.IsTrue(CStyle_Array_Object(oArr, ARRAY_SIZE), "CStyle_Array_Object");
-
-        /*TODO: test failed, BUG659954
-        TestDelegate[] dels = InitDelegateArray();
-        Assert.IsTrue(CStyle_Array_Delegate(dels, dels.Length), "CStyle_Array_Delegate");
-        */
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            object[] oArr = InitArray<object>(ARRAY_SIZE);
+            // Test nesting null value scenario
+            oArr[oArr.Length / 2] = null;
+            Assert.IsTrue(CStyle_Array_Object(oArr, ARRAY_SIZE), "CStyle_Array_Object"); 
+        }
     }
 
     private static void TestMarshalByVal_In()
@@ -394,15 +346,13 @@ public class ArrayMarshal
         Assert.IsTrue(CStyle_Array_LPSTR_In(strArr, ARRAY_SIZE), "CStyle_Array_LPSTR_In");
         Assert.IsTrue(CStyle_Array_Struct_In(InitStructArray(ARRAY_SIZE), ARRAY_SIZE), "CStyle_Array_Struct_In");
         Assert.IsTrue(CStyle_Array_Bool_In(InitBoolArray(ARRAY_SIZE), ARRAY_SIZE), "CStyle_Array_Bool_In");
-        object[] oArr = InitArray<object>(ARRAY_SIZE);
-        // Test nesting null value scenario
-        oArr[oArr.Length / 2] = null;
-        Assert.IsTrue(CStyle_Array_Object_In(oArr, ARRAY_SIZE), "CStyle_Array_Object_In");
-
-        /*TODO: test failed, BUG659954
-        TestDelegate[] dels = InitDelegateArray();
-        Assert.IsTrue(CStyle_Array_Delegate(dels, dels.Length), "CStyle_Array_Delegate");
-        */
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            object[] oArr = InitArray<object>(ARRAY_SIZE);
+            // Test nesting null value scenario
+            oArr[oArr.Length / 2] = null;
+            Assert.IsTrue(CStyle_Array_Object_In(oArr, ARRAY_SIZE), "CStyle_Array_Object_In"); 
+        }
     }
 
     #endregion
@@ -491,47 +441,18 @@ public class ArrayMarshal
         Assert.IsTrue(CStyle_Array_Bool_InOut(boolArr, ARRAY_SIZE), "CStyle_Array_Bool_InOut");
         Assert.IsTrue(Equals<bool>(boolArr, GetExpectedOutBoolArray(ARRAY_SIZE)), "CStyle_Array_Bool_InOut:Equals<bool>");
 
-        /*TODO: test failed, BUG659954
-        Console.WriteLine("CStyle_Array_Delegate_InOut");
-        TestDelegate[] delArr = InitDelegateArray();
-        Assert.IsTrue(CStyle_Array_Delegate_InOut(delArr, delArr.Length), "CStyle_Array_Delegate_InOut");
-        Assert.IsTrue(CheckOutDelegates(delArr), "CStyle_Array_Delegate_InOut:CheckOutDelegates");
-        */
-
-        Console.WriteLine("CStyle_Array_Object_InOut");
-        object[] oArr = InitArray<object>(ARRAY_SIZE);
-        oArr[oArr.Length / 2] = null;
-        Assert.IsTrue(CStyle_Array_Object_InOut(oArr, ARRAY_SIZE), "CStyle_Array_Object_InOut");
-
-        object[] expectedOArr = GetExpectedOutArray<object>(ARRAY_SIZE);
-        // Test nesting null value scenario
-        expectedOArr[expectedOArr.Length / 2 - 1] = null;
-        Assert.IsTrue(Equals<object>(oArr, expectedOArr), "CStyle_Array_Object_InOut:Equals<object>");
-    }
-
-    private static bool CheckOutDelegates(TestDelegate[] arr)
-    {
-        if (arr == null)
-            return false;
-
-        int size = arr.Length;
-        for (int i = 0; i < size; ++i)
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            if ((arr[i] == null) && (i == 0))
-            {
-                continue;
-            }
+            Console.WriteLine("CStyle_Array_Object_InOut");
+            object[] oArr = InitArray<object>(ARRAY_SIZE);
+            oArr[oArr.Length / 2] = null;
+            Assert.IsTrue(CStyle_Array_Object_InOut(oArr, ARRAY_SIZE), "CStyle_Array_Object_InOut");
 
-            int expected = size - 1 - i;
-            int actual = arr[i]();
-            if (expected != actual)
-            {
-                Console.WriteLine("WARNING: delegate is not marshaling correctly from unmanaged side");
-                return false;
-            }
+            object[] expectedOArr = GetExpectedOutArray<object>(ARRAY_SIZE);
+            // Test nesting null value scenario
+            expectedOArr[expectedOArr.Length / 2 - 1] = null;
+            Assert.IsTrue(Equals<object>(oArr, expectedOArr), "CStyle_Array_Object_InOut:Equals<object>"); 
         }
-
-        return true;
     }
 
     private static bool Equals<T>(T[] arr1, T[] arr2)
@@ -683,21 +604,17 @@ public class ArrayMarshal
         Assert.IsTrue(CStyle_Array_Bool_Out(boolArr, ARRAY_SIZE), "CStyle_Array_Bool_Out");
         Assert.IsTrue(Equals<bool>(boolArr, GetExpectedOutBoolArray(ARRAY_SIZE)), "CStyle_Array_Bool_Out:Equals<bool>");
 
-        /*TODO: test failed, BUG659954
-        Console.WriteLine("CStyle_Array_Delegate_InOut");
-        TestDelegate[] delArr = InitDelegateArray();
-        Assert.IsTrue(CStyle_Array_Delegate_InOut(delArr, delArr.Length), "CStyle_Array_Delegate_InOut");
-        Assert.IsTrue(CheckOutDelegates(delArr), "CheckOutDelegates");
-        */
-        
-        Console.WriteLine("CStyle_Array_Object_Out");
-        object[] oArr = new object[ARRAY_SIZE];
-        Assert.IsTrue(CStyle_Array_Object_Out(oArr, ARRAY_SIZE), "CStyle_Array_Object_Out");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            Console.WriteLine("CStyle_Array_Object_Out");
+            object[] oArr = new object[ARRAY_SIZE];
+            Assert.IsTrue(CStyle_Array_Object_Out(oArr, ARRAY_SIZE), "CStyle_Array_Object_Out");
 
-        object[] expectedOArr = GetExpectedOutArray<object>(ARRAY_SIZE);
-        // Test nesting null value scenario
-        expectedOArr[expectedOArr.Length / 2 - 1] = null;
-        Assert.IsTrue(Equals<object>(oArr, expectedOArr), "CStyle_Array_Object_Out:Equals<object>");
+            object[] expectedOArr = GetExpectedOutArray<object>(ARRAY_SIZE);
+            // Test nesting null value scenario
+            expectedOArr[expectedOArr.Length / 2 - 1] = null;
+            Assert.IsTrue(Equals<object>(oArr, expectedOArr), "CStyle_Array_Object_Out:Equals<object>"); 
+        }
     }
 
     #endregion

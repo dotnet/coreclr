@@ -5,11 +5,6 @@
 #pragma once 
 #include <stdio.h>
 #include <stdlib.h> // required by itoa
-#include <windows.h>
-#include <atlcomcli.h>
-#include <atlsafe.h>
-
-#import "mscorlib.tlb" no_namespace
 #include <iostream>
 
 //////////////////////////////////////////////////////////////////////////////
@@ -104,7 +99,7 @@ template<> bool IsObjectEquals(BSTR o1, BSTR o2)
 
 LPSTR ToString(int i)
 {
-    CHAR *pBuffer = (CHAR *)::CoTaskMemAlloc(10 * sizeof(CHAR)); // 10 is enough for our case
+    CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case
     _itoa_s(i, pBuffer, sizeof(pBuffer) / sizeof(pBuffer[0]), 10);
 
     return pBuffer;
@@ -205,12 +200,6 @@ typedef struct S2
     FLOAT sgl;
     DOUBLE d;
 }S2;
-
-#ifdef _WIN32
-// used in delegate array testing
-typedef _Delegate * LPDELEGATE;
-typedef LPDELEGATE * LPPDELEGATE;
-#endif
 
 //////////////////////////////////////////////////////////////////////////////
 // Other methods

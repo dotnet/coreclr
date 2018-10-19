@@ -4,7 +4,7 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 #region Sequential
 #region sequential struct definition
@@ -817,9 +817,12 @@ class Test
         s12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.IsTrue(TakeLPCSTRArraySeqStructByVal(s12, s12.arr.Length),"TakeLPCSTRArraySeqStructByVal");
 
-        S_BSTRArray_Seq s13 = new S_BSTRArray_Seq();
-        s13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.IsTrue(TakeBSTRArraySeqStructByVal(s13, s13.arr.Length),"TakeBSTRArraySeqStructByVal");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            S_BSTRArray_Seq s13 = new S_BSTRArray_Seq();
+            s13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.IsTrue(TakeBSTRArraySeqStructByVal(s13, s13.arr.Length),"TakeBSTRArraySeqStructByVal");
+        }
 
         S_StructArray_Seq s14 = new S_StructArray_Seq();
         s14.arr = InitStructArray(ARRAY_SIZE);
@@ -878,9 +881,12 @@ class Test
         c12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.IsTrue(TakeLPCSTRArraySeqClassByVal(c12, c12.arr.Length));
 
-        C_BSTRArray_Seq c13 = new C_BSTRArray_Seq();
-        c13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.IsTrue(TakeBSTRArraySeqClassByVal(c13, c13.arr.Length));
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Seq c13 = new C_BSTRArray_Seq();
+            c13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.IsTrue(TakeBSTRArraySeqClassByVal(c13, c13.arr.Length));
+        }
 
         C_StructArray_Seq c14 = new C_StructArray_Seq();
         c14.arr = InitStructArray(ARRAY_SIZE);
@@ -939,9 +945,13 @@ class Test
         s12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.IsTrue(TakeLPCSTRArrayExpStructByVal(s12, s12.arr.Length));
 
-        S_BSTRArray_Exp s13 = new S_BSTRArray_Exp();
-        s13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.IsTrue(TakeBSTRArrayExpStructByVal(s13, s13.arr.Length));
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            S_BSTRArray_Exp c13 = new S_BSTRArray_Exp();
+            c13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.IsTrue(TakeBSTRArrayExpStructByVal(c13, c13.arr.Length));
+        }
 
         S_StructArray_Exp s14 = new S_StructArray_Exp();
         s14.arr = InitStructArray(ARRAY_SIZE);
@@ -1000,9 +1010,12 @@ class Test
         c12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.IsTrue(TakeLPCSTRArrayExpClassByVal(c12, c12.arr.Length));
 
-        C_BSTRArray_Exp c13 = new C_BSTRArray_Exp();
-        c13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.IsTrue(TakeBSTRArrayExpClassByVal(c13, c13.arr.Length));
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Exp c13 = new C_BSTRArray_Exp();
+            c13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.IsTrue(TakeBSTRArrayExpClassByVal(c13, c13.arr.Length));
+        }
 
         C_StructArray_Exp c14 = new C_StructArray_Exp();
         c14.arr = InitStructArray(ARRAY_SIZE);
@@ -1046,8 +1059,11 @@ class Test
         C_LPSTRArray_Seq retval11 = S_LPSTRArray_Ret();
         Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval11.arr));
 
-        C_BSTRArray_Seq retval12 = S_BSTRArray_Ret();
-        Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval12.arr));
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Seq retval12 = S_BSTRArray_Ret();
+            Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval12.arr));
+        }
 
         C_StructArray_Seq retval13 = S_StructArray_Ret();
         Assert.IsTrue(TestStructEquals(InitStructArray(ARRAY_SIZE), retval13.arr));
@@ -1090,8 +1106,11 @@ class Test
         C_LPSTRArray_Exp retval11 = S_LPSTRArray_Ret2();
         Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval11.arr));
 
-        C_BSTRArray_Exp retval12 = S_BSTRArray_Ret2();
-        Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval12.arr));
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Exp retval12 = S_BSTRArray_Ret2();
+            Assert.IsTrue(Equals(InitArray<string>(ARRAY_SIZE), retval12.arr));
+        }
 
         C_StructArray_Exp retval13 = S_StructArray_Ret2();
         Assert.IsTrue(TestStructEquals(InitStructArray(ARRAY_SIZE), retval13.arr));
@@ -1102,8 +1121,11 @@ class Test
         try
         {
             RunTest1("RunTest1 : Marshal array as field as ByValArray in sequential struct as parameter.");
-            RunTest3("RunTest3 : Marshal array as field as ByValArray in explicit struct as parameter.");
             RunTest2("RunTest2 : Marshal array as field as ByValArray in sequential class as parameter.");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                RunTest3("RunTest3 : Marshal array as field as ByValArray in explicit struct as parameter.");
+            }
             RunTest4("RunTest4 : Marshal array as field as ByValArray in explicit class as parameter.");
             RunTest5("RunTest5 : Marshal array as field as ByValArray in sequential class as return type.");
             RunTest6("RunTest6 : Marshal array as field as ByValArray in explicit class as return type.");

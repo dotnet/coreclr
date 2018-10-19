@@ -7,7 +7,7 @@ include_directories(${INC_PLATFORM_DIR})
 set(SOURCES 
     MarshalArrayLPArrayNative.cpp 
 ) 
-# Additional files to reference: 
+
 # add the executable 
 add_library (MarshalArrayLPArrayNative SHARED ${SOURCES})
 target_link_libraries(MarshalArrayLPArrayNative ${LINK_LIBRARIES_ADDITIONAL})  

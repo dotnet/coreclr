@@ -4,7 +4,7 @@
 
 using System;
 using System.Runtime.InteropServices;
-using CoreFXTestLibrary;
+using TestLibrary;
 
 class Test
 {
@@ -64,8 +64,6 @@ class Test
     static extern void TakeBSTRArraySeqClassByVal([In]C_BSTRArray_Seq c, [In]int size);
     [DllImport("MarshalArrayByValArrayNative")]
     static extern void TakeStructArraySeqClassByVal([In]C_StructArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBoolArraySeqClassByVal([In]C_BOOLArray_Seq c, [In]int size);
 
     [DllImport("MarshalArrayByValArrayNative")]
     static extern void TakeIntArrayExpStructByVal([In]S_INTArray_Exp s, [In]int size);
@@ -123,8 +121,6 @@ class Test
     static extern void TakeBSTRArrayExpClassByVal([In]C_BSTRArray_Exp c, [In]int size);
     [DllImport("MarshalArrayByValArrayNative")]
     static extern void TakeStructArrayExpClassByVal([In]C_StructArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBoolArrayExpClassByVal([In]C_BOOLArray_Exp c, [In]int size);
 
     #region Helper
 
@@ -223,9 +219,12 @@ class Test
         s12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeLPCSTRArraySeqStructByVal(s12, ARRAY_SIZE), "TakeLPCSTRArraySeqStructByVal");
 
-        S_BSTRArray_Seq s13 = new S_BSTRArray_Seq();
-        s13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBSTRArraySeqStructByVal(s13, ARRAY_SIZE), "TakeBSTRArraySeqStructByVal");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            S_BSTRArray_Seq s13 = new S_BSTRArray_Seq();
+            s13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.Throws<TypeLoadException>(() => TakeBSTRArraySeqStructByVal(s13, ARRAY_SIZE), "TakeBSTRArraySeqStructByVal"); 
+        }
 
         S_StructArray_Seq s14 = new S_StructArray_Seq();
         s14.arr = InitStructArray(ARRAY_SIZE);
@@ -234,6 +233,7 @@ class Test
 
     static void RunTest2(string report)
     {
+        Console.WriteLine(report);
         C_INTArray_Seq c1 = new C_INTArray_Seq();
         c1.arr = InitArray<int>(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeIntArraySeqClassByVal(c1, ARRAY_SIZE), "TakeIntArraySeqClassByVal");
@@ -282,17 +282,16 @@ class Test
         c12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeLPCSTRArraySeqClassByVal(c12, ARRAY_SIZE), "TakeLPCSTRArraySeqClassByVal");
 
-        C_BSTRArray_Seq c13 = new C_BSTRArray_Seq();
-        c13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBSTRArraySeqClassByVal(c13, ARRAY_SIZE), "TakeBSTRArraySeqClassByVal");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Seq c13 = new C_BSTRArray_Seq();
+            c13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.Throws<TypeLoadException>(() => TakeBSTRArraySeqClassByVal(c13, ARRAY_SIZE), "TakeBSTRArraySeqClassByVal"); 
+        }
 
         C_StructArray_Seq c14 = new C_StructArray_Seq();
         c14.arr = InitStructArray(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeStructArraySeqClassByVal(c14, ARRAY_SIZE), "TakeStructArraySeqClassByVal");
-
-        C_BOOLArray_Seq c15 = new C_BOOLArray_Seq();
-        c15.arr = InitBoolArray(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBoolArraySeqClassByVal(c15, ARRAY_SIZE), "TakeBoolArraySeqClassByVal");
     }
 
     static void RunTest3(string report)
@@ -347,9 +346,12 @@ class Test
         s12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeLPCSTRArrayExpStructByVal(s12, ARRAY_SIZE), "TakeLPCSTRArrayExpStructByVal");
 
-        S_BSTRArray_Exp s13 = new S_BSTRArray_Exp();
-        s13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBSTRArrayExpStructByVal(s13, ARRAY_SIZE), "TakeBSTRArrayExpStructByVal");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            S_BSTRArray_Exp s13 = new S_BSTRArray_Exp();
+            s13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.Throws<TypeLoadException>(() => TakeBSTRArrayExpStructByVal(s13, ARRAY_SIZE), "TakeBSTRArrayExpStructByVal"); 
+        }
 
         S_StructArray_Exp s14 = new S_StructArray_Exp();
         s14.arr = InitStructArray(ARRAY_SIZE);
@@ -408,36 +410,35 @@ class Test
         c12.arr = InitArray<string>(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeLPCSTRArrayExpClassByVal(c12, ARRAY_SIZE), "TakeLPCSTRArrayExpClassByVal");
 
-        C_BSTRArray_Exp c13 = new C_BSTRArray_Exp();
-        c13.arr = InitArray<string>(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBSTRArrayExpClassByVal(c13, ARRAY_SIZE), "TakeBSTRArrayExpClassByVal");
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            C_BSTRArray_Exp c13 = new C_BSTRArray_Exp();
+            c13.arr = InitArray<string>(ARRAY_SIZE);
+            Assert.Throws<TypeLoadException>(() => TakeBSTRArrayExpClassByVal(c13, ARRAY_SIZE), "TakeBSTRArrayExpClassByVal"); 
+        }
 
         C_StructArray_Exp c14 = new C_StructArray_Exp();
         c14.arr = InitStructArray(ARRAY_SIZE);
         Assert.Throws<TypeLoadException>(() => TakeStructArrayExpClassByVal(c14, ARRAY_SIZE), "TakeStructArrayExpClassByVal");
-
-        C_BOOLArray_Exp c15 = new C_BOOLArray_Exp();
-        c15.arr = InitBoolArray(ARRAY_SIZE);
-        Assert.Throws<TypeLoadException>(() => TakeBoolArrayExpClassByVal(c15, ARRAY_SIZE), "TakeBoolArrayExpClassByVal");
     }
 
     static int Main(string[] args)
     {
         try
         {
-            //TODO: EntryPointNotFoundException thows but expects TypeLoadException for all tests
-            /* 
             RunTest1("RunTest 1 : Marshal Array In Sequential Struct As LPArray. ");
             RunTest2("RunTest 2 : Marshal Array In Sequential Class As LPArray. ");
-            RunTest3("RunTest 3 : Marshal Array In Explicit Struct As LPArray. ");
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                RunTest3("RunTest 3 : Marshal Array In Explicit Struct As LPArray. "); 
+            }
             RunTest4("RunTest 4 : Marshal Array In Explicit Class As LPArray. ");
-            */
             Console.WriteLine("\nTest PASS.");
             return 100;
         }
         catch (Exception e)
         {
-            Console.WriteLine($"\nTest FAIL: {e.Message}");
+            Console.WriteLine($"\nTest FAIL: {e}");
             return 101;
         }
     }
