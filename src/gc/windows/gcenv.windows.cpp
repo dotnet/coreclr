@@ -956,12 +956,9 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit()
         return restricted_limit;
 
     MEMORYSTATUSEX memStatus;
-    if (::GlobalMemoryStatusEx(&memStatus))
-    {
-        return memStatus.ullTotalPhys;
-    }
-
-    return 0;
+    GetProcessMemoryLoad(&memStatus);
+    assert(memStatus.ullTotalPhys != 0);
+    return memStatus.ullTotalPhys;
 }
 
 // Get memory status
