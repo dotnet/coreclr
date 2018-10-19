@@ -70,64 +70,6 @@ typedef struct  { BOOL		 arr[ARRAY_SIZE];		}	S_BOOLArray;
 helper function
 ----------------------------------------------------------------------------*/
 
-LPSTR ToString(int i)
-{
-    CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case, WCHAR for BSTR
-    _itoa_s(i, pBuffer, sizeof(pBuffer) / sizeof(pBuffer[0]), 10);
-
-    return pBuffer;
-}
-
-#ifdef _WIN32
-BSTR ToBSTR(int i)
-{
-    BSTR bstrRet = NULL;
-    VarBstrFromI4(i, 0, 0, &bstrRet);
-
-    return bstrRet;
-}
-#endif
-
-TestStruct* InitTestStruct()
-{
-    TestStruct *expected = (TestStruct *)CoreClrAlloc( sizeof(TestStruct) * ARRAY_SIZE );
-
-    for ( int i = 0; i < ARRAY_SIZE; i++)
-    {
-        expected[i].x = i;
-        expected[i].d = i;
-        expected[i].l = i;
-        expected[i].str = ToString(i);
-    }
-
-    return expected;
-}
-
-template<typename T>
-BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
-{
-    if ( pActual == NULL && pExpected == NULL )
-        return TRUE;
-    else if ( cActual != cExpected )
-    {
-        printf("WARNING: Test error - %s\n", __FUNCSIG__);
-        printf("Array Length: expected: %d, actutl: %d\n", cExpected, cActual);
-        return FALSE;
-    }
-
-    for ( size_t i = 0; i < ((size_t) cExpected); ++i )
-    {
-        if ( !IsObjectEquals(pActual[i], pExpected[i]) )
-        {
-            printf("WARNING: Test error - %s\n", __FUNCSIG__);
-            printf("Array Element Not Equal: index: %d", static_cast<int>(i));
-            return FALSE;
-        }
-    }
-
-    return TRUE;
-}
-
 template<typename T>
 bool IsObjectEquals(T o1, T o2)
 {
@@ -181,6 +123,64 @@ bool IsObjectEquals(BSTR o1, BSTR o2)
     return memcmp(o1, o2, uLen1) == 0;
 }
 #endif
+
+LPSTR ToString(int i)
+{
+    CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case, WCHAR for BSTR
+    itoa(i, pBuffer, 10);
+
+    return pBuffer;
+}
+
+#ifdef _WIN32
+BSTR ToBSTR(int i)
+{
+    BSTR bstrRet = NULL;
+    VarBstrFromI4(i, 0, 0, &bstrRet);
+
+    return bstrRet;
+}
+#endif
+
+TestStruct* InitTestStruct()
+{
+    TestStruct *expected = (TestStruct *)CoreClrAlloc( sizeof(TestStruct) * ARRAY_SIZE );
+
+    for ( int i = 0; i < ARRAY_SIZE; i++)
+    {
+        expected[i].x = i;
+        expected[i].d = i;
+        expected[i].l = i;
+        expected[i].str = ToString(i);
+    }
+
+    return expected;
+}
+
+template<typename T>
+BOOL Equals(T *pActual, int cActual, T *pExpected, int cExpected)
+{
+    if ( pActual == NULL && pExpected == NULL )
+        return TRUE;
+    else if ( cActual != cExpected )
+    {
+        printf("WARNING: Test error - %s\n", __FUNCSIG__);
+        printf("Array Length: expected: %d, actutl: %d\n", cExpected, cActual);
+        return FALSE;
+    }
+
+    for ( size_t i = 0; i < ((size_t) cExpected); ++i )
+    {
+        if ( !IsObjectEquals(pActual[i], pExpected[i]) )
+        {
+            printf("WARNING: Test error - %s\n", __FUNCSIG__);
+            printf("Array Element Not Equal: index: %d", static_cast<int>(i));
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
 
 bool TestStructEquals(TestStruct Actual[], TestStruct Expected[])
 {
