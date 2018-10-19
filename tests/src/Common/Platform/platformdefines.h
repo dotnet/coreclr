@@ -112,7 +112,7 @@ typedef const TCHAR* LPCTSTR;
 typedef void* FARPROC;
 typedef void* HMODULE;
 typedef void* ULONG_PTR;
-typedef unsigned error_t;
+typedef int error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
