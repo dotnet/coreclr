@@ -1581,6 +1581,13 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
                 }
             }
         }
+
+        if (tree->OperIsPutArgSplit())
+        {
+            // If it is a putArgSplit then it can have previous PUTARG_REG nodes that can't be split.
+            // It is costly to calculate their exact number so add max here; -1 stands for this PutArgSplit itself.
+            minRegCount += MAX_REG_ARG - 1;
+        }
         for (refPositionMark++; refPositionMark != refPositions.end(); refPositionMark++)
         {
             RefPosition* newRefPosition    = &(*refPositionMark);
