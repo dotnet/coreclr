@@ -36,10 +36,10 @@ typedef int BOOL;
 typedef WCHAR *LPWSTR, *PWSTR;
 typedef const WCHAR *LPCWSTR, *PCWSTR;
 
-typedef long HRESULT;
+typedef int HRESULT;
 #define LONGLONG long long
 #define ULONGLONG unsigned LONGLONG
-typedef unsigned long ULONG, *PULONG;
+typedef unsigned int ULONG, *PULONG;
 #define S_OK                    0x0
 #define SUCCEEDED(_hr)          ((HRESULT)(_hr) >= 0)
 #define FAILED(_hr)             ((HRESULT)(_hr) < 0)
