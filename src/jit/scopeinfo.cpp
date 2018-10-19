@@ -259,12 +259,15 @@ void CodeGen::siEndScope(unsigned varNum)
         }
     }
 
-    // At this point, we probably have a bad LocalVarTab
+    JITDUMP("siEndScope: Failed to end scope for V%02u\n");
 
+    // At this point, we probably have a bad LocalVarTab
     if (compiler->opts.compDbgCode)
     {
-        // LocalVarTab is good?? If we reached here implies that we are in a
-        // bad state, so pretend that we don't have any scope info.
+        JITDUMP("...checking var tab validity\n", varNum);
+
+        // Note the following assert is saying that we expect
+        // the VM supplied info to be invalid...
         assert(!siVerifyLocalVarTab());
 
         compiler->opts.compScopeInfo = false;
@@ -537,12 +540,9 @@ void CodeGen::siBeginBlock(BasicBlock* block)
             {
                 LclVarDsc* lclVarDsc1 = &compiler->lvaTable[varScope->vsdVarNum];
 
-                // Only report locals that were referenced
-                if (lclVarDsc1->lvRefCnt() > 0)
+                // Only report locals that were referenced, if we're not doing debug codegen
+                if (compiler->opts.compDbgCode || (lclVarDsc1->lvRefCnt() > 0))
                 {
-                    // If referenced, we expect a valid stack slot.
-                    assert(lclVarDsc1->lvStkOffs != BAD_STK_OFFS);
-
                     // brace-matching editor workaround for following line: (
                     JITDUMP("Scope info: opening scope, LVnum=%u [%03X..%03X)\n", varScope->vsdLVnum,
                             varScope->vsdLifeBeg, varScope->vsdLifeEnd);
@@ -561,6 +561,10 @@ void CodeGen::siBeginBlock(BasicBlock* block)
                     assert(!lclVarDsc1->lvTracked ||
                            VarSetOps::IsMember(compiler, block->bbLiveIn, lclVarDsc1->lvVarIndex));
 #endif // DEBUG
+                }
+                else
+                {
+                    JITDUMP("Skipping open scope for V%02u, unreferenced\n", varScope->vsdVarNum);
                 }
             }
         }
