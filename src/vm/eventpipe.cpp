@@ -506,6 +506,7 @@ void EventPipe::CreateFileSwitchTimer()
                 1000, 
                 0 /* flags */))
         {
+            _ASSERTE(s_fileSwitchTimerHandle != NULL);
             success = true;
         }
     }
@@ -529,11 +530,10 @@ void EventPipe::DeleteFileSwitchTimer()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_fileSwitchTimerHandle != NULL);
     }
     CONTRACTL_END
 
-    if(ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL))
+    if((s_fileSwitchTimerHandle != NULL) && (ThreadpoolMgr::DeleteTimerQueueTimer(s_fileSwitchTimerHandle, NULL)))
     {
         s_fileSwitchTimerHandle = NULL;
     }
