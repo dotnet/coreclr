@@ -4768,11 +4768,16 @@ namespace System
         {
             RuntimeMethodHandleInternal runtime_ctor = default;
             bool bCanBeCached = false;
+            bool bHasNoDefaultCtor = false;
 
             if (!skipCheckThis)
                 CreateInstanceCheckThis();
 
-            object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, wrapExceptions, ref bCanBeCached, ref runtime_ctor);
+            object instance = RuntimeTypeHandle.CreateInstance(this, publicOnly, wrapExceptions, ref bCanBeCached, ref runtime_ctor, ref bHasNoDefaultCtor);
+            if (bHasNoDefaultCtor)
+            {
+                throw new MissingMethodException("No parameterless constructor defined for " + this);
+            }
 
             if (bCanBeCached && fillCache)
             {
