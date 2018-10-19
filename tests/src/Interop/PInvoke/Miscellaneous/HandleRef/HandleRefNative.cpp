@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <stdio.h>
-#include <windows.h>
 #include <xplatform.h>
 
 const int intManaged = 1000;
@@ -12,7 +11,7 @@ const int intReturn = 3000;
 const int intErrReturn = 4000;
 const int expectedStackGuard = 5000;
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_In(/*[in]*/int *pintValue, int stackGuard)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_In(/*[in]*/int *pintValue, int stackGuard)
 {
     if (*pintValue != intManaged)
     {
@@ -32,7 +31,7 @@ extern "C" DLL_EXPORT int WINAPI MarshalPointer_In(/*[in]*/int *pintValue, int s
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_InOut(/*[in,out]*/int *pintValue, int stackGuard)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_InOut(/*[in,out]*/int *pintValue, int stackGuard)
 {
     if(*pintValue != intManaged)
     {
@@ -55,7 +54,7 @@ extern "C" DLL_EXPORT int WINAPI MarshalPointer_InOut(/*[in,out]*/int *pintValue
     return intReturn;
 }
 
-extern "C" DLL_EXPORT int WINAPI MarshalPointer_Out(/*[out]*/ int *pintValue, int stackGuard)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE MarshalPointer_Out(/*[out]*/ int *pintValue, int stackGuard)
 {
     *pintValue = intNative;
     if (stackGuard != expectedStackGuard)
@@ -68,7 +67,7 @@ extern "C" DLL_EXPORT int WINAPI MarshalPointer_Out(/*[out]*/ int *pintValue, in
 }
 
 typedef void (*GCCallback)(void);
-extern "C" DLL_EXPORT int WINAPI TestNoGC(int *pintValue, GCCallback gcCallback)
+extern "C" DLL_EXPORT int STDMETHODCALLTYPE TestNoGC(int *pintValue, GCCallback gcCallback)
 {
     int origValue = *pintValue;
     gcCallback();
