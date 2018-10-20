@@ -3026,13 +3026,6 @@ void CodeGen::genCodeForReturnTrap(GenTreeOp* tree)
 //
 void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
 {
-    GenTree*    data       = tree->Data();
-    GenTree*    addr       = tree->Addr();
-    var_types   targetType = tree->TypeGet();
-    emitter*    emit       = getEmitter();
-    emitAttr    attr       = emitTypeSize(tree);
-    instruction ins        = ins_Store(targetType);
-
 #ifdef FEATURE_SIMD
     // Storing Vector3 of size 12 bytes through indirection
     if (tree->TypeGet() == TYP_SIMD12)
@@ -3041,6 +3034,9 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         return;
     }
 #endif // FEATURE_SIMD
+
+    GenTree* data = tree->Data();
+    GenTree* addr = tree->Addr();
 
     GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(tree, data);
     if (writeBarrierForm != GCInfo::WBF_NoBarrier)
@@ -3065,8 +3061,6 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
     }
     else // A normal store, not a WriteBarrier store
     {
-        bool     dataIsUnary = false;
-        GenTree* nonRMWsrc   = nullptr;
         // We must consume the operands in the proper execution order,
         // so that liveness is updated appropriately.
         genConsumeAddress(addr);
@@ -3076,7 +3070,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             genConsumeRegs(data);
         }
 
-        regNumber dataReg = REG_NA;
+        regNumber dataReg;
         if (data->isContainedIntOrIImmed())
         {
             assert(data->IsIntegralConst(0));
@@ -3088,33 +3082,25 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             dataReg = data->gtRegNum;
         }
 
-        assert((attr != EA_1BYTE) || !(tree->gtFlags & GTF_IND_UNALIGNED));
+        var_types   type = tree->TypeGet();
+        instruction ins  = ins_Store(type);
 
-        if (tree->gtFlags & GTF_IND_VOLATILE)
+        if ((tree->gtFlags & GTF_IND_VOLATILE) != 0)
         {
-            bool useStoreRelease =
-                genIsValidIntReg(dataReg) && !addr->isContained() && !(tree->gtFlags & GTF_IND_UNALIGNED);
+            bool addrIsInReg   = addr->isUsedFromReg();
+            bool addrIsAligned = ((tree->gtFlags & GTF_IND_UNALIGNED) == 0);
 
-            if (useStoreRelease)
+            if ((ins == INS_strb) && addrIsInReg)
             {
-                switch (EA_SIZE(attr))
-                {
-                    case EA_1BYTE:
-                        assert(ins == INS_strb);
-                        ins = INS_stlrb;
-                        break;
-                    case EA_2BYTE:
-                        assert(ins == INS_strh);
-                        ins = INS_stlrh;
-                        break;
-                    case EA_4BYTE:
-                    case EA_8BYTE:
-                        assert(ins == INS_str);
-                        ins = INS_stlr;
-                        break;
-                    default:
-                        assert(false); // We should not get here
-                }
+                ins = INS_stlrb;
+            }
+            else if ((ins == INS_strh) && addrIsInReg && addrIsAligned)
+            {
+                ins = INS_stlrh;
+            }
+            else if ((ins == INS_str) && genIsValidIntReg(dataReg) && addrIsInReg && addrIsAligned)
+            {
+                ins = INS_stlr;
             }
             else
             {
@@ -3123,7 +3109,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             }
         }
 
-        emit->emitInsLoadStoreOp(ins, attr, dataReg, tree);
+        getEmitter()->emitInsLoadStoreOp(ins, emitTypeSize(type), dataReg, tree);
     }
 }
 

@@ -1711,12 +1711,6 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
 {
     assert(tree->OperIs(GT_IND));
 
-    var_types   targetType = tree->TypeGet();
-    regNumber   targetReg  = tree->gtRegNum;
-    emitter*    emit       = getEmitter();
-    emitAttr    attr       = emitTypeSize(tree);
-    instruction ins        = ins_Load(targetType);
-
 #ifdef FEATURE_SIMD
     // Handling of Vector3 type values loaded through indirection.
     if (tree->TypeGet() == TYP_SIMD12)
@@ -1726,55 +1720,48 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
     }
 #endif // FEATURE_SIMD
 
+    var_types   type      = tree->TypeGet();
+    instruction ins       = ins_Load(type);
+    regNumber   targetReg = tree->gtRegNum;
+
     genConsumeAddress(tree->Addr());
+
+    bool emitBarrier = false;
+
     if ((tree->gtFlags & GTF_IND_VOLATILE) != 0)
     {
-        bool isAligned = ((tree->gtFlags & GTF_IND_UNALIGNED) == 0);
-
-        assert((attr != EA_1BYTE) || isAligned);
-
 #ifdef _TARGET_ARM64_
-        GenTree* addr           = tree->Addr();
-        bool     useLoadAcquire = genIsValidIntReg(targetReg) && !addr->isContained() &&
-                              (varTypeIsUnsigned(targetType) || varTypeIsI(targetType)) &&
-                              !(tree->gtFlags & GTF_IND_UNALIGNED);
+        bool addrIsInReg   = tree->Addr()->isUsedFromReg();
+        bool addrIsAligned = ((tree->gtFlags & GTF_IND_UNALIGNED) == 0);
 
-        if (useLoadAcquire)
+        if ((ins == INS_ldrb) && addrIsInReg)
         {
-            switch (EA_SIZE(attr))
-            {
-                case EA_1BYTE:
-                    assert(ins == INS_ldrb);
-                    ins = INS_ldarb;
-                    break;
-                case EA_2BYTE:
-                    assert(ins == INS_ldrh);
-                    ins = INS_ldarh;
-                    break;
-                case EA_4BYTE:
-                case EA_8BYTE:
-                    assert(ins == INS_ldr);
-                    ins = INS_ldar;
-                    break;
-                default:
-                    assert(false); // We should not get here
-            }
+            ins = INS_ldarb;
         }
-
-        emit->emitInsLoadStoreOp(ins, attr, targetReg, tree);
-
-        if (!useLoadAcquire) // issue a INS_BARRIER_OSHLD after a volatile LdInd operation
-            instGen_MemoryBarrier(INS_BARRIER_OSHLD);
-#else
-        emit->emitInsLoadStoreOp(ins, attr, targetReg, tree);
-
-        // issue a full memory barrier after a volatile LdInd operation
-        instGen_MemoryBarrier();
+        else if ((ins == INS_ldrh) && addrIsInReg && addrIsAligned)
+        {
+            ins = INS_ldarh;
+        }
+        else if ((ins == INS_ldr) && addrIsInReg && addrIsAligned && genIsValidIntReg(targetReg))
+        {
+            ins = INS_ldar;
+        }
+        else
 #endif // _TARGET_ARM64_
+        {
+            emitBarrier = true;
+        }
     }
-    else
+
+    getEmitter()->emitInsLoadStoreOp(ins, emitTypeSize(type), targetReg, tree);
+
+    if (emitBarrier)
     {
-        emit->emitInsLoadStoreOp(ins, attr, targetReg, tree);
+#ifdef _TARGET_ARM64_
+        instGen_MemoryBarrier(INS_BARRIER_OSHLD);
+#else
+        instGen_MemoryBarrier();
+#endif
     }
 
     genProduceReg(tree);
