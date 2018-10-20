@@ -809,8 +809,13 @@ namespace System.IO
                     ((IDisposable)_out).Dispose();
             }
 
-            [MethodImpl(MethodImplOptions.Synchronized)]
-            public override ValueTask DisposeAsync() => _out.DisposeAsync();
+            // [MethodImpl(MethodImplOptions.Synchronized)]
+            public override ValueTask DisposeAsync()
+            {
+                // TODO: https://github.com/dotnet/coreclr/issues/20499
+                // Manual synchronization should be replaced by Synchronized.
+                lock (this) return _out.DisposeAsync();
+            }
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Flush() => _out.Flush();
