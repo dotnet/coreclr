@@ -109,7 +109,7 @@ bool IsObjectEquals(const BSTR& o1, const BSTR& o2)
 LPSTR ToString(int i)
 {
     CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case
-    _itoa_s(i, pBuffer, sizeof(pBuffer) / sizeof(pBuffer[0]), 10);
+    itoa(i, pBuffer, 10);
 
     return pBuffer;
 }
@@ -123,44 +123,6 @@ BSTR ToBSTR(int i)
     return bstrRet;
 }
 #endif
-
-struct TestStructSA
-{
-    inline TestStructSA()
-        : x(0)
-        , d(0)
-        , l(0)
-        , str(NULL)
-    {
-    }
-
-    inline TestStructSA(int v)
-        : x(v)
-        , d(v)
-        , l(v)
-    {
-        str = ToBSTR(v);
-    }
-
-    inline ~TestStructSA()
-    {
-        if ( str != NULL )
-            SysFreeString(str);
-    }
-
-    int x;
-    double d;
-    LONG64 l;
-    BSTR str;
-
-    inline bool operator==(const TestStructSA &other) const
-    {
-        return IsObjectEquals(x, other.x) &&
-            IsObjectEquals(d, other.d) &&
-            IsObjectEquals(l, other.l) &&
-            IsObjectEquals(str, other.str);
-    }
-};
 
 struct TestStruct
 {
@@ -214,13 +176,13 @@ typedef struct S2
 // Other methods
 //////////////////////////////////////////////////////////////////////////////
 
+#ifdef _WIN32
 // Do not output variants, and suppress the boring template compile warning
 std::ostream &operator<<(std::ostream &ostr, VARIANT &v)
 {
     return ostr;
 }
 
-#ifdef _WIN32
 std::ostream &operator<<(std::ostream &ostr, BSTR &b)
 {
     std::wcout << b;
@@ -229,7 +191,7 @@ std::ostream &operator<<(std::ostream &ostr, BSTR &b)
 #endif
 
 //////////////////////////////////method for struct S2////////////////////////////////////////////////
-void InstanceS2(S2 HUGEP* pREC, int i32,UINT ui32,SHORT s1,WORD us1,BYTE b,CHAR sb,SHORT i16,WORD ui16,
+void InstanceS2(S2 * pREC, int i32,UINT ui32,SHORT s1,WORD us1,BYTE b,CHAR sb,SHORT i16,WORD ui16,
                 LONG64 i64,ULONG64 ui64,FLOAT sgl,DOUBLE d)
 {
     pREC->i32 = i32;
@@ -246,7 +208,7 @@ void InstanceS2(S2 HUGEP* pREC, int i32,UINT ui32,SHORT s1,WORD us1,BYTE b,CHAR 
     pREC->d = d;
 }
 
-bool ValidateS2LPArray(S2 HUGEP* pREC, S2 HUGEP* pRECCorrect, int numArrElement)
+bool ValidateS2LPArray(S2 * pREC, S2 * pRECCorrect, int numArrElement)
 {
     for(int i = 0; i<numArrElement;i++)
     {
