@@ -340,7 +340,7 @@ void CodeGen::genLclHeap(GenTree* tree)
 
         // Save a copy of PSPSym
         pspSymReg = tree->ExtractTempReg();
-        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+        getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
     }
 #endif
 
@@ -510,7 +510,7 @@ ALLOC_DONE:
         if (hasPspSym)
         {
             assert(genIsValidIntReg(pspSymReg));
-            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
+            getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, pspSymReg, compiler->lvaPSPSym, 0);
         }
 #endif
         // Return the stackalloc'ed address in result register.
@@ -541,7 +541,7 @@ BAILOUT:
         noway_assert(compiler->lvaReturnEspCheck != 0xCCCCCCCC &&
                      compiler->lvaTable[compiler->lvaReturnEspCheck].lvDoNotEnregister &&
                      compiler->lvaTable[compiler->lvaReturnEspCheck].lvOnFrame);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regCnt, compiler->lvaReturnEspCheck, 0);
+        getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regCnt, compiler->lvaReturnEspCheck, 0);
     }
 #endif
 

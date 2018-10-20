@@ -2607,12 +2607,12 @@ void CodeGen::genJmpMethod(GenTree* jmp)
         if (varDsc->TypeGet() == TYP_LONG)
         {
             // long - at least the low half must be enregistered
-            getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvRegNum, varNum, 0);
+            getEmitter()->emitIns_S_R(INS_str, EA_4BYTE, varDsc->lvRegNum, varNum, 0);
 
             // Is the upper half also enregistered?
             if (varDsc->lvOtherReg != REG_STK)
             {
-                getEmitter()->emitIns_S_R(ins_Store(TYP_INT), EA_4BYTE, varDsc->lvOtherReg, varNum, sizeof(int));
+                getEmitter()->emitIns_S_R(INS_str, EA_4BYTE, varDsc->lvOtherReg, varNum, sizeof(int));
             }
         }
         else

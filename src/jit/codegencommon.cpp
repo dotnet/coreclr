@@ -1892,10 +1892,10 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     {
         // Ngen case - GS cookie constant needs to be accessed through an indirection.
         instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, regGSConst, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSConst, regGSConst, 0);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, regGSConst, regGSConst, 0);
     }
     // Load this method's GS value from the stack frame
-    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
+    getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
     // Compare with the GC cookie constant
     getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
 
@@ -6664,7 +6664,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
     }
 
 #if CPU_LOAD_STORE_ARCH
-    getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(),
+    getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, reg, genFramePointerReg(),
                                 compiler->lvaCachedGenericContextArgOffset());
 #else  // CPU_LOAD_STORE_ARCH
     // mov [ebp-lvaCachedGenericContextArgOffset()], reg
@@ -6717,7 +6717,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 
 #if CPU_LOAD_STORE_ARCH
         instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, reg, reg, 0);
         regSet.verifyRegUsed(reg);
 #else
         //  mov   reg, dword ptr [compiler->gsGlobalSecurityCookieAddr]
@@ -8292,7 +8292,7 @@ void CodeGen::genFnProlog()
     if (compiler->info.compPublishStubParam)
     {
 #if CPU_LOAD_STORE_ARCH
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_SECRET_STUB_PARAM, genFramePointerReg(),
                                     compiler->lvaTable[compiler->lvaStubArgumentVar].lvStkOffs);
 #else
         // mov [lvaStubArgumentVar], EAX
@@ -9380,11 +9380,9 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     {
         // This is the first block of a filter
 
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
-                                    genFuncletInfo.fiPSP_slot_CallerSP_offset);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, REG_R1, REG_R1, genFuncletInfo.fiPSP_slot_CallerSP_offset);
         regSet.verifyRegUsed(REG_R1);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
-                                    genFuncletInfo.fiPSP_slot_SP_offset);
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_R1, REG_SPBASE, genFuncletInfo.fiPSP_slot_SP_offset);
         getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_FPBASE, REG_R1,
                                     genFuncletInfo.fiFunctionCallerSPtoFPdelta);
     }
@@ -9394,8 +9392,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_R3, REG_FPBASE,
                                     genFuncletInfo.fiFunctionCallerSPtoFPdelta);
         regSet.verifyRegUsed(REG_R3);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
-                                    genFuncletInfo.fiPSP_slot_SP_offset);
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_R3, REG_SPBASE, genFuncletInfo.fiPSP_slot_SP_offset);
     }
 }
 
@@ -10055,7 +10052,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     *pInitRegZeroed  = false;
 
     getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regTmp, regBase, callerSPOffs);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
+    getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #elif defined(_TARGET_ARM64_)
 
@@ -10067,7 +10064,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     *pInitRegZeroed  = false;
 
     getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, regTmp, REG_SPBASE, SPtoCallerSPdelta);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
+    getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #elif defined(_TARGET_AMD64_)
 
