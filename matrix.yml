@@ -1,16 +1,16 @@
 parameters:
-  testlegs: {}
+  testlegs: ''
 
 jobs:
-- ${{ if in('innerloop', testlegs) }}:
+- ${{ if in('innerloop', parameters.testlegs) }}:
   - job:
     steps:
       - script: echo innerloop!
-- ${{ if in('outerloop', testlegs) }}:
+- ${{ if in('outerloop', parameters.testlegs) }}:
   - job:
     steps:
       - script: echo outerloop!
-- ${{ if in('gcstress', testlegs) }}:
+- ${{ if in('gcstress', parameters.testlegs) }}:
   - job:
     steps:
       - script: echo gcstress!
