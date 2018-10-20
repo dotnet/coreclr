@@ -1337,7 +1337,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             instGen_MemoryBarrier();
         }
 
-        getEmitter()->emitInsLoadStoreOp(ins_Store(type), emitTypeSize(type), data->gtRegNum, tree);
+        getEmitter()->emitInsLoadStoreOp(ins_Store(type), emitActualTypeSize(type), data->gtRegNum, tree);
     }
 }
 
