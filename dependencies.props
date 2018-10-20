@@ -38,7 +38,7 @@
     <PgoDataPackageVersion>99.99.99-master-20181019-1032</PgoDataPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>3.0.0-preview1-27020-01</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
     <MicrosoftNETCoreAppPackageVersion>3.0.0-preview1-27019-05</MicrosoftNETCoreAppPackageVersion>
-    <XunitPackageVersion>2.4.0-beta.2.build4010</XunitPackageVersion>
+    <XunitPackageVersion>2.4.0</XunitPackageVersion>
     <IbcDataPackageVersion>99.99.99-master-20181019-1034</IbcDataPackageVersion>
     <IbcMergePackageVersion>4.6.0-alpha-00001</IbcMergePackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
