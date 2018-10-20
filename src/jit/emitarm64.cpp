@@ -965,13 +965,12 @@ bool emitter::emitInsMayWriteMultipleRegs(instrDesc* id)
 //
 emitAttr emitter::emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr)
 {
-    if (EA_SIZE(attr) <= EA_4BYTE)
+    if (EA_SIZE(attr) < EA_4BYTE)
     {
         if (emitInsIsLoad(ins))
         {
             // The value of 'ins' encodes the size to load
             // we use EA_8BYTE here because it is the size we will write (into dataReg)
-            // it is also required when ins is INS_ldrsw
             //
             attr = EA_8BYTE;
         }
