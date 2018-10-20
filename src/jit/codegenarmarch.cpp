@@ -1623,17 +1623,7 @@ void CodeGen::genCodeForLclFld(GenTreeLclFld* tree)
     unsigned varNum = tree->gtLclNum;
     assert(varNum < compiler->lvaCount);
 
-    if (varTypeIsFloating(targetType) || varTypeIsSIMD(targetType))
-    {
-        emit->emitIns_R_S(ins_Load(targetType), size, targetReg, varNum, offs);
-    }
-    else
-    {
-#ifdef _TARGET_ARM64_
-        size = EA_SET_SIZE(size, EA_8BYTE);
-#endif // _TARGET_ARM64_
-        emit->emitIns_R_S(ins_Move_Extend(targetType, false), size, targetReg, varNum, offs);
-    }
+    emit->emitIns_R_S(ins_Load(targetType), emitActualTypeSize(targetType), targetReg, varNum, offs);
 
     genProduceReg(tree);
 }
@@ -1753,7 +1743,7 @@ void CodeGen::genCodeForIndir(GenTreeIndir* tree)
         }
     }
 
-    getEmitter()->emitInsLoadStoreOp(ins, emitTypeSize(type), targetReg, tree);
+    getEmitter()->emitInsLoadStoreOp(ins, emitActualTypeSize(type), targetReg, tree);
 
     if (emitBarrier)
     {
@@ -1930,14 +1920,14 @@ void CodeGen::genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode)
     {
         if ((size & 2) != 0)
         {
-            genCodeForLoadOffset(INS_ldrh, EA_2BYTE, tmpReg, srcAddr, offset);
-            genCodeForStoreOffset(INS_strh, EA_2BYTE, tmpReg, dstAddr, offset);
+            genCodeForLoadOffset(INS_ldrh, EA_4BYTE, tmpReg, srcAddr, offset);
+            genCodeForStoreOffset(INS_strh, EA_4BYTE, tmpReg, dstAddr, offset);
             offset += 2;
         }
         if ((size & 1) != 0)
         {
-            genCodeForLoadOffset(INS_ldrb, EA_1BYTE, tmpReg, srcAddr, offset);
-            genCodeForStoreOffset(INS_strb, EA_1BYTE, tmpReg, dstAddr, offset);
+            genCodeForLoadOffset(INS_ldrb, EA_4BYTE, tmpReg, srcAddr, offset);
+            genCodeForStoreOffset(INS_strb, EA_4BYTE, tmpReg, dstAddr, offset);
         }
     }
 #endif // !_TARGET_ARM64_

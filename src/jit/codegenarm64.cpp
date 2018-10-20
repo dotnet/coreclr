@@ -1609,9 +1609,7 @@ void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
         assert(targetType != TYP_STRUCT);
 
         instruction ins  = ins_Load(targetType);
-        emitAttr    attr = emitTypeSize(targetType);
-
-        attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+        emitAttr    attr = emitActualTypeSize(targetType);
 
         emit->emitIns_R_S(ins, attr, tree->gtRegNum, varNum, 0);
         genProduceReg(tree);
@@ -1671,9 +1669,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
 
     instruction ins = ins_Store(targetType);
 
-    emitAttr attr = emitTypeSize(targetType);
-
-    attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+    emitAttr attr = emitActualTypeSize(targetType);
 
     emit->emitIns_S_R(ins, attr, dataReg, varNum, offset);
 
@@ -1750,9 +1746,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
             inst_set_SV_var(tree);
 
             instruction ins  = ins_Store(targetType);
-            emitAttr    attr = emitTypeSize(targetType);
-
-            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+            emitAttr    attr = emitActualTypeSize(targetType);
 
             emit->emitIns_S_R(ins, attr, dataReg, varNum, /* offset */ 0);
 
@@ -3109,7 +3103,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             }
         }
 
-        getEmitter()->emitInsLoadStoreOp(ins, emitTypeSize(type), dataReg, tree);
+        getEmitter()->emitInsLoadStoreOp(ins, emitActualTypeSize(type), dataReg, tree);
     }
 }
 
@@ -4552,9 +4546,6 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
             {
                 int         offset = (int)index * genTypeSize(baseType);
                 instruction ins    = ins_Load(baseType);
-                baseTypeSize       = varTypeIsFloating(baseType)
-                                   ? baseTypeSize
-                                   : getEmitter()->emitInsAdjustLoadStoreAttr(ins, baseTypeSize);
 
                 assert(!op1->isUsedFromReg());
 
@@ -4562,7 +4553,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
                 {
                     unsigned varNum = op1->gtLclVarCommon.gtLclNum;
 
-                    getEmitter()->emitIns_R_S(ins, baseTypeSize, targetReg, varNum, offset);
+                    getEmitter()->emitIns_R_S(ins, emitActualTypeSize(baseType), targetReg, varNum, offset);
                 }
                 else
                 {
@@ -4573,7 +4564,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
                     regNumber baseReg = addr->gtRegNum;
 
                     // ldr targetReg, [baseReg, #offset]
-                    getEmitter()->emitIns_R_R_I(ins, baseTypeSize, targetReg, baseReg, offset);
+                    getEmitter()->emitIns_R_R_I(ins, emitActualTypeSize(baseType), targetReg, baseReg, offset);
                 }
             }
             else

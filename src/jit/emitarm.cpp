@@ -2247,14 +2247,14 @@ void emitter::emitIns_R_R(
             break;
 
         case INS_tbb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
             fmt = IF_T2_C9;
             sf  = INS_FLAGS_NOT_SET;
             break;
 
         case INS_tbh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
             fmt = IF_T2_C9;
             sf  = INS_FLAGS_NOT_SET;
@@ -2268,7 +2268,7 @@ void emitter::emitIns_R_R(
 
         case INS_ldrexb:
         case INS_strexb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
             fmt = IF_T2_E1;
             sf  = INS_FLAGS_NOT_SET;
@@ -2276,7 +2276,7 @@ void emitter::emitIns_R_R(
 
         case INS_ldrexh:
         case INS_strexh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
             fmt = IF_T2_E1;
             sf  = INS_FLAGS_NOT_SET;
@@ -2701,7 +2701,7 @@ void emitter::emitIns_R_R_I(instruction ins,
 
         case INS_ldrb:
         case INS_strb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
 
             if (isLowRegister(reg1) && isLowRegister(reg2) && insOptsNone(opt) && ((imm & 0x001f) == imm))
@@ -2713,12 +2713,12 @@ void emitter::emitIns_R_R_I(instruction ins,
             goto COMMON_THUMB2_LDST;
 
         case INS_ldrsb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB2_LDST;
 
         case INS_ldrh:
         case INS_strh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             assert(insDoesNotSetFlags(flags));
 
             if (isLowRegister(reg1) && isLowRegister(reg2) && insOptsNone(opt) && ((imm & 0x003e) == imm))
@@ -2730,7 +2730,7 @@ void emitter::emitIns_R_R_I(instruction ins,
             goto COMMON_THUMB2_LDST;
 
         case INS_ldrsh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB2_LDST;
 
         case INS_vldr:
@@ -3015,13 +3015,13 @@ void emitter::emitIns_R_R_R(instruction ins,
         case INS_ldrb:
         case INS_strb:
         case INS_ldrsb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB1_LDST;
 
         case INS_ldrsh:
         case INS_ldrh:
         case INS_strh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB1_LDST;
 
         case INS_ldr:
@@ -3269,13 +3269,13 @@ void emitter::emitIns_R_R_R_I(instruction ins,
         case INS_ldrb:
         case INS_ldrsb:
         case INS_strb:
-            assert(size == EA_1BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB2_LDST;
 
         case INS_ldrh:
         case INS_ldrsh:
         case INS_strh:
-            assert(size == EA_2BYTE);
+            assert(size == EA_4BYTE);
             goto COMMON_THUMB2_LDST;
 
         case INS_ldr:
