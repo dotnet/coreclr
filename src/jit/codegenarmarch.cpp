@@ -1473,11 +1473,11 @@ void CodeGen::genCodeForArrIndex(GenTreeArrIndex* arrIndex)
     unsigned  offset;
 
     offset = genOffsetOfMDArrayLowerBound(elemType, rank, dim);
-    emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_PTRSIZE, tmpReg, arrReg, offset); // a 4 BYTE sign extending load
+    emit->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, arrReg, offset);
     emit->emitIns_R_R_R(INS_sub, EA_4BYTE, tgtReg, indexReg, tmpReg);
 
     offset = genOffsetOfMDArrayDimensionSize(elemType, rank, dim);
-    emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_PTRSIZE, tmpReg, arrReg, offset); // a 4 BYTE sign extending load
+    emit->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, arrReg, offset);
     emit->emitIns_R_R(INS_cmp, EA_4BYTE, tgtReg, tmpReg);
 
     emitJumpKind jmpGEU = genJumpKindForOper(GT_GE, CK_UNSIGNED);
@@ -1529,7 +1529,7 @@ void CodeGen::genCodeForArrOffset(GenTreeArrOffs* arrOffset)
 
         // Load tmpReg with the dimension size and evaluate
         // tgtReg = offsetReg*tmpReg + indexReg.
-        emit->emitIns_R_R_I(ins_Load(TYP_INT), EA_PTRSIZE, tmpReg, arrReg, offset);
+        emit->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, arrReg, offset);
         emit->emitIns_R_R_R_R(INS_MULADD, EA_PTRSIZE, tgtReg, tmpReg, offsetReg, indexReg);
     }
     else
