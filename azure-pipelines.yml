@@ -363,7 +363,7 @@ jobs:
     testlegs: variables.testlegs
 
 variables:
-  testlegs: { innerloop, outerloop }
+  testlegs: 'innerloop,outerloop'
 
 
 # - job: 
