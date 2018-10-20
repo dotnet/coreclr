@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <stdio.h>
-#include <windows.h>
 #include <xplatform.h>
 
 typedef BOOL(__stdcall *HandleCallback)(void*);

@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using CoreFXTestLibrary;
+using TestLibrary;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -62,25 +62,25 @@ internal class Native
     [UnmanagedFunctionPointer(System.Runtime.InteropServices.CallingConvention.StdCall)]
     [return: MarshalAs(UnmanagedType.Bool)]internal delegate bool IsHandleClosed(IntPtr handle);
 
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern IntPtr In([MarshalAs(UnmanagedType.LPArray)]MyCriticalHandle[] handle);
 
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern void Out(IntPtr handleValue, [MarshalAs(UnmanagedType.LPArray)]out MyCriticalHandle[] handle);
 
-    [DllImport("CriticalHandlesNative.dll", EntryPoint = "Ref", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", EntryPoint = "Ref", CallingConvention = CallingConvention.StdCall)]
     internal static extern IntPtr InRef([In, MarshalAs(UnmanagedType.LPArray)]ref MyCriticalHandle[] handle);
 
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern IntPtr Ref([MarshalAs(UnmanagedType.LPArray)]ref MyCriticalHandle[] handle);
 
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern IntPtr RefModify(IntPtr handleValue, [MarshalAs(UnmanagedType.LPArray)]ref MyCriticalHandle[] handle);
     
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern MyCriticalHandle[] Ret(IntPtr handleValue);
 
-    [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+    [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
     internal static extern IntPtr SetIsHandleClosedCallback([MarshalAs(UnmanagedType.FunctionPtr)]IsHandleClosed isHandleClosed);
 }
 

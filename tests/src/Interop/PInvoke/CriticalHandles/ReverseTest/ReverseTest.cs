@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using CoreFXTestLibrary;
+using TestLibrary;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
@@ -116,19 +116,19 @@ public class Reverse
         [UnmanagedFunctionPointer(System.Runtime.InteropServices.CallingConvention.StdCall)]
         internal delegate MyCriticalHandle RetCallback();
 
-        [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+        [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
         internal static extern void InvokeInCallback(InCallback callback, IntPtr handle);
 
-        [DllImport("CriticalHandlesNative.dll", EntryPoint = "InvokeRefCallback", CallingConvention = CallingConvention.StdCall)]
+        [DllImport("CriticalHandlesNative", EntryPoint = "InvokeRefCallback", CallingConvention = CallingConvention.StdCall)]
         internal static extern void InvokeOutCallback(OutCallback callback);
 
-        [DllImport("CriticalHandlesNative.dll", EntryPoint = "InvokeRefCallback", CallingConvention = CallingConvention.StdCall)]
+        [DllImport("CriticalHandlesNative", EntryPoint = "InvokeRefCallback", CallingConvention = CallingConvention.StdCall)]
         internal static extern void InvokeInRefCallback(InRefCallback callback, ref IntPtr handle);
 
-        [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+        [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
         internal static extern void InvokeRefCallback(RefCallback callback, ref IntPtr handle);
 
-        [DllImport("CriticalHandlesNative.dll", CallingConvention = CallingConvention.StdCall)]
+        [DllImport("CriticalHandlesNative", CallingConvention = CallingConvention.StdCall)]
         internal static extern IntPtr InvokeRetCallback(RetCallback callback);
     }
 
