@@ -2,8 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+
 namespace System.Buffers
 {
+    internal static class ArrayPool
+    {
+        // Store the shared arraypool in a field of its derived type so the Jit can "see" it when inlining Shared and devirtualize its calls.
+        // Needs to be in a non-generic class as crossgen doesn't resolve generic types in generic types very well.
+        internal static TlsOverPerCoreLockedStacksArrayPool<byte> ByteArrayPool { get; } = new TlsOverPerCoreLockedStacksArrayPool<byte>();
+        internal static TlsOverPerCoreLockedStacksArrayPool<char> CharArrayPool { get; } = new TlsOverPerCoreLockedStacksArrayPool<char>();
+    }
+
     /// <summary>
     /// Provides a resource pool that enables reusing instances of type <see cref="T:T[]"/>. 
     /// </summary>
@@ -19,6 +29,11 @@ namespace System.Buffers
     /// </remarks>
     public abstract class ArrayPool<T>
     {
+        // Store the shared arraypool in a field of its derived type so the Jit can "see" it when inlining Shared
+        // and devirtualize its calls.
+        private readonly static TlsOverPerCoreLockedStacksArrayPool<T> s_arrayPool
+            = (typeof(T) == typeof(byte) || typeof(T) == typeof(char)) ? null : new TlsOverPerCoreLockedStacksArrayPool<T>();
+
         /// <summary>
         /// Retrieves a shared <see cref="ArrayPool{T}"/> instance.
         /// </summary>
@@ -33,7 +48,25 @@ namespace System.Buffers
         /// optimized for very fast access speeds, at the expense of more memory consumption.
         /// The shared pool instance is created lazily on first access.
         /// </remarks>
-        public static ArrayPool<T> Shared { get; } = new TlsOverPerCoreLockedStacksArrayPool<T>();
+        public static ArrayPool<T> Shared
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (typeof(T) == typeof(byte))
+                {
+                    return (ArrayPool<T>)(object)ArrayPool.ByteArrayPool;
+                }
+                else if (typeof(T) == typeof(char))
+                {
+                    return (ArrayPool<T>)(object)ArrayPool.CharArrayPool;
+                }
+                else
+                {
+                    return s_arrayPool;
+                }
+            }
+        }
 
         /// <summary>
         /// Creates a new <see cref="ArrayPool{T}"/> instance using default configuration options.
