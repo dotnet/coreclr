@@ -1180,13 +1180,13 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
             // Load the CallerSP of the main function (stored in the PSP of the dynamically containing funclet or
             // function)
-            genInstrWithConstant(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
-                                 genFuncletInfo.fiCallerSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_ldr, EA_PTRSIZE, REG_R1, REG_R1, genFuncletInfo.fiCallerSP_to_PSP_slot_delta,
+                                 REG_R2, false);
             regSet.verifyRegUsed(REG_R1);
 
             // Store the PSP value (aka CallerSP)
-            genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
-                                 genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_str, EA_PTRSIZE, REG_R1, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2,
+                                 false);
 
             // re-establish the frame pointer
             genInstrWithConstant(INS_add, EA_PTRSIZE, REG_FPBASE, REG_R1,
@@ -1201,8 +1201,8 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
                                  -genFuncletInfo.fiFunction_CallerSP_to_FP_delta, REG_R2, false);
             regSet.verifyRegUsed(REG_R3);
 
-            genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
-                                 genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_str, EA_PTRSIZE, REG_R3, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2,
+                                 false);
         }
     }
 }
@@ -1509,7 +1509,7 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 
     if (compiler->lvaPSPSym != BAD_VAR_NUM)
     {
-        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
+        getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
     }
     else
     {
@@ -5047,7 +5047,7 @@ void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
     assert(tmpReg != addr->gtRegNum);
 
     // 8-byte write
-    getEmitter()->emitIns_R_R(ins_Store(TYP_DOUBLE), EA_8BYTE, data->gtRegNum, addr->gtRegNum);
+    getEmitter()->emitIns_R_R(INS_str, EA_8BYTE, data->gtRegNum, addr->gtRegNum);
 
     // Extract upper 4-bytes from data
     getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, data->gtRegNum, 2);
@@ -5083,7 +5083,7 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
     // 8-byte read
-    getEmitter()->emitIns_R_R(ins_Load(TYP_DOUBLE), EA_8BYTE, targetReg, addr->gtRegNum);
+    getEmitter()->emitIns_R_R(INS_ldr, EA_8BYTE, targetReg, addr->gtRegNum);
 
     // 4-byte read
     getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, addr->gtRegNum, 8);
@@ -5126,7 +5126,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
     // store lower 8 bytes
-    getEmitter()->emitIns_S_R(ins_Store(TYP_DOUBLE), EA_8BYTE, operandReg, varNum, offs);
+    getEmitter()->emitIns_S_R(INS_str, EA_8BYTE, operandReg, varNum, offs);
 
     // Extract upper 4-bytes from data
     getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, operandReg, 2);
