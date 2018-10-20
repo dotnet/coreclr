@@ -3,14 +3,14 @@ parameters:
 
 jobs:
 - ${{ if in('innerloop', parameters.testlegs) }}:
-  - job:
+  - job: innerloop
     steps:
       - script: echo innerloop!
 - ${{ if in('outerloop', parameters.testlegs) }}:
-  - job:
+  - job: outerloop
     steps:
       - script: echo outerloop!
 - ${{ if in('gcstress', parameters.testlegs) }}:
-  - job:
+  - job: gcstress
     steps:
       - script: echo gcstress!
