@@ -112,7 +112,10 @@ namespace Internal.Win32
         public string[] GetSubKeyNames()
         {
             var names = new List<string>();
-            char[] name = ArrayPool<char>.Shared.Rent(MaxKeyLength + 1);
+            // Use simple variable to call ArrayPool.Shared.Rent to allow devirtualization
+            // https://github.com/dotnet/coreclr/issues/15783
+            int length = MaxKeyLength + 1;
+            char[] name = ArrayPool<char>.Shared.Rent(length);
 
             try
             {
@@ -192,7 +195,10 @@ namespace Internal.Win32
                                 int oldLength = oldName.Length;
                                 name = null;
                                 ArrayPool<char>.Shared.Return(oldName);
-                                name = ArrayPool<char>.Shared.Rent(checked(oldLength * 2));
+                                // Use simple variables to call ArrayPool.Shared.Rent to allow devirtualization
+                                // https://github.com/dotnet/coreclr/issues/15783
+                                int length = checked(oldLength * 2);
+                                name = ArrayPool<char>.Shared.Rent(length);
                             }
                             break;
                         default:
