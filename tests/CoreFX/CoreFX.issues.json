@@ -279,6 +279,10 @@
                 {
                     "name": "System.IO.Tests.EncryptDecrypt.NullArg_ThrowsException",
                     "reason": "outdated"
+                },
+                {
+                    "name": "System.IO.Tests.File_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
                 }
             ]
         }
