@@ -910,7 +910,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, int start)
         {
-            if (((uint)start) > segment.Count)
+            if (((uint)start) > (uint)segment.Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
             return new Span<T>(segment.Array, segment.Offset + start, segment.Count - start);
@@ -931,9 +931,9 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Span<T> AsSpan<T>(this ArraySegment<T> segment, int start, int length)
         {
-            if (((uint)start) > segment.Count)
+            if (((uint)start) > (uint)segment.Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
-            if (((uint)length) > segment.Count - start)
+            if (((uint)length) > (uint)(segment.Count - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
 
             return new Span<T>(segment.Array, segment.Offset + start, length);
@@ -989,7 +989,7 @@ namespace System
         /// </exception>
         public static Memory<T> AsMemory<T>(this ArraySegment<T> segment, int start)
         {
-            if (((uint)start) > segment.Count)
+            if (((uint)start) > (uint)segment.Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
 
             return new Memory<T>(segment.Array, segment.Offset + start, segment.Count - start);
@@ -1009,9 +1009,9 @@ namespace System
         /// </exception>
         public static Memory<T> AsMemory<T>(this ArraySegment<T> segment, int start, int length)
         {
-            if (((uint)start) > segment.Count)
+            if (((uint)start) > (uint)segment.Count)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
-            if (((uint)length) > segment.Count - start)
+            if (((uint)length) > (uint)(segment.Count - start))
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
 
             return new Memory<T>(segment.Array, segment.Offset + start, length);
