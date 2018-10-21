@@ -283,6 +283,10 @@
                 {
                     "name": "System.IO.Tests.File_Delete.Unix_NonExistentPath_Nop",
                     "reason": "outdated (deleted from corefx)"
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
                 }
             ]
         }
