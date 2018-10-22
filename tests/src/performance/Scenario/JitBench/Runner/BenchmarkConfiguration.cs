@@ -16,9 +16,9 @@ namespace JitBench
         public string Name { get; set; }
         public Dictionary<string, string> EnvironmentVariables { get; private set; }
 
-        public BenchmarkConfiguration WithoutTiering()
+        public BenchmarkConfiguration WithTiering()
         {
-            return WithModifier("NoTiering", "COMPlus_TieredCompilation", "0");
+            return WithModifier("Tiering", "COMPlus_TieredCompilation", "1");
         }
 
         public BenchmarkConfiguration WithMinOpts()

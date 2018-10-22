@@ -168,9 +168,9 @@ namespace JitBench
             string r2rEnv = Environment.GetEnvironmentVariable("COMPlus_ReadyToRun");
             string noNgenEnv = Environment.GetEnvironmentVariable("COMPlus_ZapDisable");
             BenchmarkConfiguration envConfig = new BenchmarkConfiguration();
-            if(tieredEnv != null && tieredEnv == "0")
+            if(tieredEnv != null && tieredEnv != "0")
             {
-                envConfig.WithoutTiering();
+                envConfig.WithTiering();
             }
             if (minoptsEnv != null && minoptsEnv != "0")
             {
@@ -196,25 +196,12 @@ namespace JitBench
                 yield break;
             }
 
-            // The minopts config name by itself implies without tiering
-            var minOptsConfig = new BenchmarkConfiguration().WithMinOpts();
-            string minOptsConfigName = minOptsConfig.Name;
-            minOptsConfig = minOptsConfig.WithoutTiering();
-            minOptsConfig.Name = minOptsConfigName;
-
             BenchmarkConfiguration[] possibleConfigs = new BenchmarkConfiguration[]
             {
-                new BenchmarkConfiguration(),
-                new BenchmarkConfiguration().WithoutTiering(),
-                minOptsConfig,
-                new BenchmarkConfiguration().WithMinOpts().WithoutTiering(),
-                new BenchmarkConfiguration().WithoutTiering().WithMinOpts(),
+                new BenchmarkConfiguration().WithTiering(),
+                new BenchmarkConfiguration().WithMinOpts(),
                 new BenchmarkConfiguration().WithNoR2R(),
-                new BenchmarkConfiguration().WithNoR2R().WithoutTiering(),
-                new BenchmarkConfiguration().WithoutTiering().WithNoR2R(),
-                new BenchmarkConfiguration().WithNoNgen(),
-                new BenchmarkConfiguration().WithNoNgen().WithoutTiering(),
-                new BenchmarkConfiguration().WithoutTiering().WithNoNgen()
+                new BenchmarkConfiguration().WithNoNgen()
             };
             foreach(string configName in configNames)
             {

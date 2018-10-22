@@ -460,6 +460,8 @@ def main(args):
         myEnv['COMPlus_TieredCompilation'] = '0'
     elif optLevel == 'full_opt':
         myEnv['COMPlus_TieredCompilation'] = '0'
+    elif optLevel == 'tiered':
+        myEnv['COMPLUS_TieredCompilation'] = '1'
 
     if not 'XUNIT_PERFORMANCE_MAX_ITERATION' in myEnv:
         myEnv['XUNIT_PERFORMANCE_MAX_ITERATION'] = '21'
