@@ -26,10 +26,10 @@ variables:
 
 
 jobs:
-  - job: testvariablejob
-    displayName: $(testvar)
-    steps:
-      - script: echo in test job.
+- job: testvariablejob
+  displayName: $(testvar)
+  steps:
+    - script: echo in test job.
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
