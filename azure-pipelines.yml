@@ -21,7 +21,7 @@ name: testpipeline
 #   repositories:
 
 variables:
-  testlegs: 'innerloop,outerloop'
+  testlegsoutervar: 'innerloop,outerloop'
   testvar: 'avariable'
 
 
@@ -30,7 +30,7 @@ jobs:
   displayName: testvariableDisplayName
   steps:
     # this works! but not in display name...? what about in parameters?
-  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs)'
+  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegsoutervar)'
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
@@ -370,7 +370,7 @@ jobs:
 
 - template: matrix.yml
   parameters:
-    testlegs: $(testlegs)
+    testlegsparam: $(testlegsoutervar)
 
 # - job: 
 # 

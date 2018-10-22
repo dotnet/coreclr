@@ -1,24 +1,26 @@
 parameters:
-  testlegs: ''
+  testlegsparam: ''
 
 jobs:
-- ${{ if contains(parameters.testlegs, 'innerloop') }}:
+- ${{ if contains(parameters.testlegsparam, 'innerloop') }}:
   - job: innerloop
     steps:
       - script: echo innerloop!
-- ${{ if contains(parameters.testlegs, 'outerloop') }}:
+- ${{ if contains(parameters.testlegsparam, 'outerloop') }}:
   - job: outerloop
     steps:
       - script: echo outerloop!
-- ${{ if contains(parameters.testlegs, 'gcstress') }}:
+- ${{ if contains(parameters.testlegsparam, 'gcstress') }}:
   - job: gcstress
     steps:
       - script: echo gcstress!
 - job: matrixjob_withvars
   variables:
-    testlegs: ${{ parameters.testlegs }}
+    testlegsinnervar: ${{ parameters.testlegsparam }}
   steps:
-  - script: echo $(testlegs) variable?
+    # this doesn't work at all. detects it as a cyclic reference
+  - script: echo $(testlegsinnervar) variable?
 - job: matrixjob_withparams
   steps:
-  - script: echo ${{ parameters.testlegs }} parameter?
+    # doesn't get expanded. just treated as part of a string.
+  - script: ${{ format('echo testlegsparam: {0}', parameters.testlegsparam) }}
