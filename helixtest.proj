@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.DotNet.Helix.Sdk">
   <PropertyGroup>
-    <HelixSource>svenhelixsource</HelixSource>
+    <HelixSource>pr/svencoreclr</HelixSource> <!-- source must start with pr/, official/, prodcon/, or agent/ -->
     <HelixType>svenhelixtype</HelixType>
     <HelixBuild>$(BUILD_BUILDNUMBER)</HelixBuild>
     <HelixTargetQueues>Windows.10.Amd64.Open;Windows.7.Amd64.Open;windows.10.arm64.open;Windows.81.Amd64.Open;fedora.27.amd64.open</HelixTargetQueues>
