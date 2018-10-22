@@ -165,3 +165,21 @@ phases:
 #  Windows_NT arm64 Cross Checked Innerloop Build and Test
 #  Windows_NT x64 Checked CoreFx tests
 #  Windows_NT x64 Release CoreFx tests
+
+- phase: helix_test_job
+  queue:
+    name: Hosted Ubuntu 1604
+    timeoutInMinutes: 180
+    parallel: 3
+  agentOs: Ubuntu
+  name: UbuntuHelix
+  steps:
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: custom
+        projects: helixtest.proj
+        custom:msbuild
+        arguments: '/t:test'
+      displayName: Send test workload to helix
+      env:
+        HelixAccessToken: $(HelixTestAccessToken)
