@@ -71,7 +71,7 @@ phases:
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
-        projects: tests\helixpublishwitharcade.proj
+        projects: tests/helixpublishwitharcade.proj
         custom: msbuild
         arguments: '/t:test'
       displayName: Send tests job to Helix
@@ -113,7 +113,7 @@ phases:
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
-        projects: tests\helixpublishwitharcade.proj
+        projects: tests/helixpublishwitharcade.proj
         custom: msbuild
         arguments: '/t:test'
       displayName: Send tests job to Helix
