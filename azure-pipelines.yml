@@ -29,7 +29,7 @@ jobs:
 - job: testvariablejob
   displayName: testvariableDisplayName
   steps:
-  - script: echo in test job. variable: $(testvar). testlegs: $(testlegs) with prefix: $(variables.testlegs)
+  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs) with prefix: $(variables.testlegs)'
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
