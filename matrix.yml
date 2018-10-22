@@ -18,9 +18,9 @@ jobs:
   variables:
     testlegsinnervar: ${{ parameters.testlegsparam }}
   steps:
-    # this doesn't work at all. detects it as a cyclic reference
+    # this works with a distinct variable name
   - script: echo $(testlegsinnervar) variable?
 - job: matrixjob_withparams
   steps:
-    # doesn't get expanded. just treated as part of a string.
+    # this works as long as the entire string is a template expression evaluation
   - script: ${{ format('echo testlegsparam {0}', parameters.testlegsparam) }}
