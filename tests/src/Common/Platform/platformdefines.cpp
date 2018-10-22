@@ -269,7 +269,7 @@ error_t TP_itoa_s(int num, LPSTR buffer, size_t sizeInCharacters, int radix)
     while(0 < num && 0 < len)
     {
         len--;
-        buffer[len] = (CHAR)((num % 10) + '0');
+        buffer[len] = (char)((num % 10) + '0');
         num /= 10;
     }
 
