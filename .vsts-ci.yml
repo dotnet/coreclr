@@ -10,7 +10,7 @@ resources:
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
-# ########-#########phases:
+phases:
 # ########-#########- template: /eng/common/templates/phases/base.yml@arcade
 # ########-#########  parameters:
 # ########-#########    queue:
