@@ -470,77 +470,77 @@ extern "C" DLL_EXPORT BOOL __cdecl TakeStructArrayExpClassByVal( S_StructArray *
 /*----------------------------------------------------------------------------
 return a struct including a C array
 ----------------------------------------------------------------------------*/
-extern "C" DLL_EXPORT S_INTArray* S_INTArray_Ret()
+extern "C" DLL_EXPORT S_INTArray* __cdecl S_INTArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_INTArray, ARRAY_SIZE, INT );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_UINTArray* S_UINTArray_Ret()
+extern "C" DLL_EXPORT S_UINTArray* __cdecl S_UINTArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_UINTArray, ARRAY_SIZE, UINT );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_SHORTArray* S_SHORTArray_Ret()
+extern "C" DLL_EXPORT S_SHORTArray* __cdecl S_SHORTArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_SHORTArray, ARRAY_SIZE, SHORT );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_WORDArray* S_WORDArray_Ret()
+extern "C" DLL_EXPORT S_WORDArray* __cdecl S_WORDArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_WORDArray, ARRAY_SIZE, WORD );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_LONG64Array* S_LONG64Array_Ret()
+extern "C" DLL_EXPORT S_LONG64Array* __cdecl S_LONG64Array_Ret()
 {
     INIT_EXPECTED_STRUCT( S_LONG64Array, ARRAY_SIZE, LONG64 );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_ULONG64Array* S_ULONG64Array_Ret()
+extern "C" DLL_EXPORT S_ULONG64Array* __cdecl S_ULONG64Array_Ret()
 {
     INIT_EXPECTED_STRUCT( S_ULONG64Array, ARRAY_SIZE, ULONG64 );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_DOUBLEArray* S_DOUBLEArray_Ret()
+extern "C" DLL_EXPORT S_DOUBLEArray* __cdecl S_DOUBLEArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_DOUBLEArray, ARRAY_SIZE, DOUBLE );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_FLOATArray* S_FLOATArray_Ret()
+extern "C" DLL_EXPORT S_FLOATArray* __cdecl S_FLOATArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_FLOATArray, ARRAY_SIZE, FLOAT );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_BYTEArray* S_BYTEArray_Ret()
+extern "C" DLL_EXPORT S_BYTEArray* __cdecl S_BYTEArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_BYTEArray, ARRAY_SIZE, BYTE );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_CHARArray* S_CHARArray_Ret()
+extern "C" DLL_EXPORT S_CHARArray* __cdecl S_CHARArray_Ret()
 {
     INIT_EXPECTED_STRUCT( S_CHARArray, ARRAY_SIZE, CHAR );
 
     return expected;
 }
 
-extern "C" DLL_EXPORT S_LPSTRArray* S_LPSTRArray_Ret()
+extern "C" DLL_EXPORT S_LPSTRArray* __cdecl S_LPSTRArray_Ret()
 {
     S_LPSTRArray *expected = (S_LPSTRArray *)CoreClrAlloc( sizeof(S_LPSTRArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
@@ -550,7 +550,7 @@ extern "C" DLL_EXPORT S_LPSTRArray* S_LPSTRArray_Ret()
 }
 
 #ifdef _WIN32
-extern "C" DLL_EXPORT S_BSTRArray* S_BSTRArray_Ret()
+extern "C" DLL_EXPORT S_BSTRArray* __cdecl S_BSTRArray_Ret()
 {
     S_BSTRArray *expected = (S_BSTRArray *)CoreClrAlloc( sizeof(S_BSTRArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
@@ -560,7 +560,7 @@ extern "C" DLL_EXPORT S_BSTRArray* S_BSTRArray_Ret()
 }
 #endif
 
-extern "C" DLL_EXPORT S_StructArray* S_StructArray_Ret()
+extern "C" DLL_EXPORT S_StructArray* __cdecl S_StructArray_Ret()
 {
     S_StructArray *expected = (S_StructArray *)CoreClrAlloc( sizeof(S_StructArray) );
     for ( int i = 0; i < ARRAY_SIZE; ++i )
