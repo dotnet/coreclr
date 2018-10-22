@@ -279,6 +279,14 @@
                 {
                     "name": "System.IO.Tests.EncryptDecrypt.NullArg_ThrowsException",
                     "reason": "outdated"
+                },
+                {
+                    "name": "System.IO.Tests.File_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
                 }
             ]
         }
@@ -540,6 +548,19 @@
                 {
                     "name" : "System.Numerics.Tests.Vector4Tests.Vector4ClampTest",
                     "reason" : "outdated"
+                }
+            ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": [
+                {
+                    "name" : "System.Diagnostics.Tests.DebugTests",
+                    "reason" : "refactoring Debug"
                 }
             ]
         }
