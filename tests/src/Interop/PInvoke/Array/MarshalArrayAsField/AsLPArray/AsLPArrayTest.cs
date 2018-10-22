@@ -8,119 +8,119 @@ using TestLibrary;
 
 class Test
 {
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeIntArraySeqStructByVal([In]S_INTArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeUIntArraySeqStructByVal([In]S_UINTArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeShortArraySeqStructByVal([In]S_SHORTArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeWordArraySeqStructByVal([In]S_WORDArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLong64ArraySeqStructByVal([In]S_LONG64Array_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeULong64ArraySeqStructByVal([In]S_ULONG64Array_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeDoubleArraySeqStructByVal([In]S_DOUBLEArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeFloatArraySeqStructByVal([In]S_FLOATArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeByteArraySeqStructByVal([In]S_BYTEArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeCharArraySeqStructByVal([In]S_CHARArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPSTRArraySeqStructByVal([In]S_LPSTRArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPCSTRArraySeqStructByVal([In]S_LPCSTRArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBSTRArraySeqStructByVal([In]S_BSTRArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeStructArraySeqStructByVal([In]S_StructArray_Seq s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeIntArraySeqClassByVal([In]C_INTArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeUIntArraySeqClassByVal([In]C_UINTArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeShortArraySeqClassByVal([In]C_SHORTArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeWordArraySeqClassByVal([In]C_WORDArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLong64ArraySeqClassByVal([In]C_LONG64Array_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeULong64ArraySeqClassByVal([In]C_ULONG64Array_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeDoubleArraySeqClassByVal([In]C_DOUBLEArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeFloatArraySeqClassByVal([In]C_FLOATArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeByteArraySeqClassByVal([In]C_BYTEArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeCharArraySeqClassByVal([In]C_CHARArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPSTRArraySeqClassByVal([In]C_LPSTRArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPCSTRArraySeqClassByVal([In]C_LPCSTRArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBSTRArraySeqClassByVal([In]C_BSTRArray_Seq c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeStructArraySeqClassByVal([In]C_StructArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeIntArraySeqStructByVal([In]S_INTArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeUIntArraySeqStructByVal([In]S_UINTArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeShortArraySeqStructByVal([In]S_SHORTArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeWordArraySeqStructByVal([In]S_WORDArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLong64ArraySeqStructByVal([In]S_LONG64Array_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeULong64ArraySeqStructByVal([In]S_ULONG64Array_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeDoubleArraySeqStructByVal([In]S_DOUBLEArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeFloatArraySeqStructByVal([In]S_FLOATArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeByteArraySeqStructByVal([In]S_BYTEArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeCharArraySeqStructByVal([In]S_CHARArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPSTRArraySeqStructByVal([In]S_LPSTRArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPCSTRArraySeqStructByVal([In]S_LPCSTRArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeBSTRArraySeqStructByVal([In]S_BSTRArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeStructArraySeqStructByVal([In]S_StructArray_Seq s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeIntArraySeqClassByVal([In]C_INTArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeUIntArraySeqClassByVal([In]C_UINTArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeShortArraySeqClassByVal([In]C_SHORTArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeWordArraySeqClassByVal([In]C_WORDArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLong64ArraySeqClassByVal([In]C_LONG64Array_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeULong64ArraySeqClassByVal([In]C_ULONG64Array_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeDoubleArraySeqClassByVal([In]C_DOUBLEArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeFloatArraySeqClassByVal([In]C_FLOATArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeByteArraySeqClassByVal([In]C_BYTEArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeCharArraySeqClassByVal([In]C_CHARArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPSTRArraySeqClassByVal([In]C_LPSTRArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPCSTRArraySeqClassByVal([In]C_LPCSTRArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeBSTRArraySeqClassByVal([In]C_BSTRArray_Seq c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeStructArraySeqClassByVal([In]C_StructArray_Seq c, [In]int size);
 
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeIntArrayExpStructByVal([In]S_INTArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeUIntArrayExpStructByVal([In]S_UINTArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeShortArrayExpStructByVal([In]S_SHORTArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeWordArrayExpStructByVal([In]S_WORDArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLong64ArrayExpStructByVal([In]S_LONG64Array_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeULong64ArrayExpStructByVal([In]S_ULONG64Array_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeDoubleArrayExpStructByVal([In]S_DOUBLEArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeFloatArrayExpStructByVal([In]S_FLOATArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeByteArrayExpStructByVal([In]S_BYTEArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeCharArrayExpStructByVal([In]S_CHARArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPSTRArrayExpStructByVal([In]S_LPSTRArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPCSTRArrayExpStructByVal([In]S_LPCSTRArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBSTRArrayExpStructByVal([In]S_BSTRArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeStructArrayExpStructByVal([In]S_StructArray_Exp s, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeIntArrayExpClassByVal([In]C_INTArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeUIntArrayExpClassByVal([In]C_UINTArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeShortArrayExpClassByVal([In]C_SHORTArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeWordArrayExpClassByVal([In]C_WORDArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLong64ArrayExpClassByVal([In]C_LONG64Array_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeULong64ArrayExpClassByVal([In]C_ULONG64Array_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeDoubleArrayExpClassByVal([In]C_DOUBLEArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeFloatArrayExpClassByVal([In]C_FLOATArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeByteArrayExpClassByVal([In]C_BYTEArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeCharArrayExpClassByVal([In]C_CHARArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPSTRArrayExpClassByVal([In]C_LPSTRArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeLPCSTRArrayExpClassByVal([In]C_LPCSTRArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeBSTRArrayExpClassByVal([In]C_BSTRArray_Exp c, [In]int size);
-    [DllImport("MarshalArrayByValArrayNative")]
-    static extern void TakeStructArrayExpClassByVal([In]C_StructArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeIntArrayExpStructByVal([In]S_INTArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeUIntArrayExpStructByVal([In]S_UINTArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeShortArrayExpStructByVal([In]S_SHORTArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeWordArrayExpStructByVal([In]S_WORDArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLong64ArrayExpStructByVal([In]S_LONG64Array_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeULong64ArrayExpStructByVal([In]S_ULONG64Array_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeDoubleArrayExpStructByVal([In]S_DOUBLEArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeFloatArrayExpStructByVal([In]S_FLOATArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeByteArrayExpStructByVal([In]S_BYTEArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeCharArrayExpStructByVal([In]S_CHARArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPSTRArrayExpStructByVal([In]S_LPSTRArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPCSTRArrayExpStructByVal([In]S_LPCSTRArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeBSTRArrayExpStructByVal([In]S_BSTRArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeStructArrayExpStructByVal([In]S_StructArray_Exp s, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeIntArrayExpClassByVal([In]C_INTArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeUIntArrayExpClassByVal([In]C_UINTArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeShortArrayExpClassByVal([In]C_SHORTArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeWordArrayExpClassByVal([In]C_WORDArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLong64ArrayExpClassByVal([In]C_LONG64Array_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeULong64ArrayExpClassByVal([In]C_ULONG64Array_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeDoubleArrayExpClassByVal([In]C_DOUBLEArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeFloatArrayExpClassByVal([In]C_FLOATArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeByteArrayExpClassByVal([In]C_BYTEArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeCharArrayExpClassByVal([In]C_CHARArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPSTRArrayExpClassByVal([In]C_LPSTRArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeLPCSTRArrayExpClassByVal([In]C_LPCSTRArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeBSTRArrayExpClassByVal([In]C_BSTRArray_Exp c, [In]int size);
+    [DllImport("MarshalArrayByValArrayNative", CallingConvention = CallingConvention.Cdecl)]
+    static extern bool TakeStructArrayExpClassByVal([In]C_StructArray_Exp c, [In]int size);
 
     #region Helper
 

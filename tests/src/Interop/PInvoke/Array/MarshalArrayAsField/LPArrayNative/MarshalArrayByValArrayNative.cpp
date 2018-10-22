@@ -129,77 +129,77 @@ Function
 /*----------------------------------------------------------------------------
 marshal sequential strut
 ----------------------------------------------------------------------------*/
-extern "C" DLL_EXPORT BOOL TakeIntArraySeqStructByVal( S_INTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeIntArraySeqStructByVal( S_INTArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( INT, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeUIntArraySeqStructByVal( S_UINTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeUIntArraySeqStructByVal( S_UINTArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( UINT, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeShortArraySeqStructByVal( S_SHORTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeShortArraySeqStructByVal( S_SHORTArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( SHORT, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeWordArraySeqStructByVal( S_WORDArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeWordArraySeqStructByVal( S_WORDArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( WORD, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLong64ArraySeqStructByVal( S_LONG64Array s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLong64ArraySeqStructByVal( S_LONG64Array s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( LONG64, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeULong64ArraySeqStructByVal( S_ULONG64Array s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeULong64ArraySeqStructByVal( S_ULONG64Array s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( ULONG64, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeDoubleArraySeqStructByVal( S_DOUBLEArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeDoubleArraySeqStructByVal( S_DOUBLEArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( DOUBLE, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeFloatArraySeqStructByVal( S_FLOATArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeFloatArraySeqStructByVal( S_FLOATArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( FLOAT, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeByteArraySeqStructByVal( S_BYTEArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeByteArraySeqStructByVal( S_BYTEArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( BYTE, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeCharArraySeqStructByVal( S_CHARArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeCharArraySeqStructByVal( S_CHARArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
     INIT_EXPECTED( CHAR, ARRAY_SIZE );
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPSTRArraySeqStructByVal( S_LPSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPSTRArraySeqStructByVal( S_LPSTRArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
 
@@ -210,7 +210,7 @@ extern "C" DLL_EXPORT BOOL TakeLPSTRArraySeqStructByVal( S_LPSTRArray s, int siz
     return Equals( s.arr, size, expected, ARRAY_SIZE );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPCSTRArraySeqStructByVal( S_LPCSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPCSTRArraySeqStructByVal( S_LPCSTRArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
 
@@ -222,7 +222,7 @@ extern "C" DLL_EXPORT BOOL TakeLPCSTRArraySeqStructByVal( S_LPCSTRArray s, int s
 }
 
 #ifdef _WIN32
-extern "C" DLL_EXPORT BOOL TakeBSTRArraySeqStructByVal( S_BSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeBSTRArraySeqStructByVal( S_BSTRArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
 
@@ -234,7 +234,7 @@ extern "C" DLL_EXPORT BOOL TakeBSTRArraySeqStructByVal( S_BSTRArray s, int size 
 }
 #endif
 
-extern "C" DLL_EXPORT BOOL TakeStructArraySeqStructByVal( S_StructArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeStructArraySeqStructByVal( S_StructArray s, int size )
 {
     CHECK_PARAM_NOT_EMPTY( s.arr );
 
@@ -245,74 +245,74 @@ extern "C" DLL_EXPORT BOOL TakeStructArraySeqStructByVal( S_StructArray s, int s
 /*----------------------------------------------------------------------------
 marshal sequential class
 ----------------------------------------------------------------------------*/
-extern "C" DLL_EXPORT BOOL TakeIntArraySeqClassByVal( S_INTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeIntArraySeqClassByVal( S_INTArray *s, int size )
 {
     return TakeIntArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeUIntArraySeqClassByVal( S_UINTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeUIntArraySeqClassByVal( S_UINTArray *s, int size )
 {
     return TakeUIntArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeShortArraySeqClassByVal( S_SHORTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeShortArraySeqClassByVal( S_SHORTArray *s, int size )
 {
     return TakeShortArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeWordArraySeqClassByVal( S_WORDArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeWordArraySeqClassByVal( S_WORDArray *s, int size )
 {
     return TakeWordArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLong64ArraySeqClassByVal( S_LONG64Array *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLong64ArraySeqClassByVal( S_LONG64Array *s, int size )
 {
     return TakeLong64ArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeULong64ArraySeqClassByVal( S_ULONG64Array *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeULong64ArraySeqClassByVal( S_ULONG64Array *s, int size )
 {
     return TakeULong64ArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeDoubleArraySeqClassByVal( S_DOUBLEArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeDoubleArraySeqClassByVal( S_DOUBLEArray *s, int size )
 {
     return TakeDoubleArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeFloatArraySeqClassByVal( S_FLOATArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeFloatArraySeqClassByVal( S_FLOATArray *s, int size )
 {
     return TakeFloatArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeByteArraySeqClassByVal( S_BYTEArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeByteArraySeqClassByVal( S_BYTEArray *s, int size )
 {
     return TakeByteArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeCharArraySeqClassByVal( S_CHARArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeCharArraySeqClassByVal( S_CHARArray *s, int size )
 {
     return TakeCharArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPSTRArraySeqClassByVal( S_LPSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPSTRArraySeqClassByVal( S_LPSTRArray *s, int size )
 {
     return TakeLPSTRArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPCSTRArraySeqClassByVal( S_LPCSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPCSTRArraySeqClassByVal( S_LPCSTRArray *s, int size )
 {
     return TakeLPCSTRArraySeqStructByVal( *s, size );
 }
 
 #ifdef _WIN32
-extern "C" DLL_EXPORT BOOL TakeBSTRArraySeqClassByVal( S_BSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeBSTRArraySeqClassByVal( S_BSTRArray *s, int size )
 {
     return TakeBSTRArraySeqStructByVal( *s, size );
 }
 #endif
 
-extern "C" DLL_EXPORT BOOL TakeStructArraySeqClassByVal( S_StructArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeStructArraySeqClassByVal( S_StructArray *s, int size )
 {
     return TakeStructArraySeqStructByVal( *s, size );
 }
@@ -320,74 +320,74 @@ extern "C" DLL_EXPORT BOOL TakeStructArraySeqClassByVal( S_StructArray *s, int s
 /*----------------------------------------------------------------------------
 marshal explicit struct
 ----------------------------------------------------------------------------*/
-extern "C" DLL_EXPORT BOOL TakeIntArrayExpStructByVal( S_INTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeIntArrayExpStructByVal( S_INTArray s, int size )
 {
     return TakeIntArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeUIntArrayExpStructByVal( S_UINTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeUIntArrayExpStructByVal( S_UINTArray s, int size )
 {
     return TakeUIntArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeShortArrayExpStructByVal( S_SHORTArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeShortArrayExpStructByVal( S_SHORTArray s, int size )
 {
     return TakeShortArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeWordArrayExpStructByVal( S_WORDArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeWordArrayExpStructByVal( S_WORDArray s, int size )
 {
     return TakeWordArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLong64ArrayExpStructByVal( S_LONG64Array s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLong64ArrayExpStructByVal( S_LONG64Array s, int size )
 {
     return TakeLong64ArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeULong64ArrayExpStructByVal( S_ULONG64Array s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeULong64ArrayExpStructByVal( S_ULONG64Array s, int size )
 {
     return TakeULong64ArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeDoubleArrayExpStructByVal( S_DOUBLEArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeDoubleArrayExpStructByVal( S_DOUBLEArray s, int size )
 {
     return TakeDoubleArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeFloatArrayExpStructByVal( S_FLOATArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeFloatArrayExpStructByVal( S_FLOATArray s, int size )
 {
     return TakeFloatArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeByteArrayExpStructByVal( S_BYTEArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeByteArrayExpStructByVal( S_BYTEArray s, int size )
 {
     return TakeByteArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeCharArrayExpStructByVal( S_CHARArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeCharArrayExpStructByVal( S_CHARArray s, int size )
 {
     return TakeCharArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPSTRArrayExpStructByVal( S_LPSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPSTRArrayExpStructByVal( S_LPSTRArray s, int size )
 {
     return TakeLPSTRArraySeqStructByVal( s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPCSTRArrayExpStructByVal( S_LPCSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPCSTRArrayExpStructByVal( S_LPCSTRArray s, int size )
 {
     return TakeLPCSTRArraySeqStructByVal( s, size );
 }
 
 #ifdef _WIN32
-extern "C" DLL_EXPORT BOOL TakeBSTRArrayExpStructByVal( S_BSTRArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeBSTRArrayExpStructByVal( S_BSTRArray s, int size )
 {
     return TakeBSTRArraySeqStructByVal( s, size );
 }
 #endif
 
-extern "C" DLL_EXPORT BOOL TakeStructArrayExpStructByVal( S_StructArray s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeStructArrayExpStructByVal( S_StructArray s, int size )
 {
     return TakeStructArraySeqStructByVal( s, size );
 }
@@ -395,74 +395,74 @@ extern "C" DLL_EXPORT BOOL TakeStructArrayExpStructByVal( S_StructArray s, int s
 /*----------------------------------------------------------------------------
 marshal explicit class
 ----------------------------------------------------------------------------*/
-extern "C" DLL_EXPORT BOOL TakeIntArrayExpClassByVal( S_INTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeIntArrayExpClassByVal( S_INTArray *s, int size )
 {
     return TakeIntArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeUIntArrayExpClassByVal( S_UINTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeUIntArrayExpClassByVal( S_UINTArray *s, int size )
 {
     return TakeUIntArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeShortArrayExpClassByVal( S_SHORTArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeShortArrayExpClassByVal( S_SHORTArray *s, int size )
 {
     return TakeShortArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeWordArrayExpClassByVal( S_WORDArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeWordArrayExpClassByVal( S_WORDArray *s, int size )
 {
     return TakeWordArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLong64ArrayExpClassByVal( S_LONG64Array *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLong64ArrayExpClassByVal( S_LONG64Array *s, int size )
 {
     return TakeLong64ArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeULong64ArrayExpClassByVal( S_ULONG64Array *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeULong64ArrayExpClassByVal( S_ULONG64Array *s, int size )
 {
     return TakeULong64ArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeDoubleArrayExpClassByVal( S_DOUBLEArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeDoubleArrayExpClassByVal( S_DOUBLEArray *s, int size )
 {
     return TakeDoubleArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeFloatArrayExpClassByVal( S_FLOATArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeFloatArrayExpClassByVal( S_FLOATArray *s, int size )
 {
     return TakeFloatArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeByteArrayExpClassByVal( S_BYTEArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeByteArrayExpClassByVal( S_BYTEArray *s, int size )
 {
     return TakeByteArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeCharArrayExpClassByVal( S_CHARArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeCharArrayExpClassByVal( S_CHARArray *s, int size )
 {
     return TakeCharArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPSTRArrayExpClassByVal( S_LPSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPSTRArrayExpClassByVal( S_LPSTRArray *s, int size )
 {
     return TakeLPSTRArraySeqStructByVal( *s, size );
 }
 
-extern "C" DLL_EXPORT BOOL TakeLPCSTRArrayExpClassByVal( S_LPCSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeLPCSTRArrayExpClassByVal( S_LPCSTRArray *s, int size )
 {
     return TakeLPCSTRArraySeqStructByVal( *s, size );
 }
 
 #ifdef _WIN32
-extern "C" DLL_EXPORT BOOL TakeBSTRArrayExpClassByVal( S_BSTRArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeBSTRArrayExpClassByVal( S_BSTRArray *s, int size )
 {
     return TakeBSTRArraySeqStructByVal( *s, size );
 }
 #endif
 
-extern "C" DLL_EXPORT BOOL TakeStructArrayExpClassByVal( S_StructArray *s, int size )
+extern "C" DLL_EXPORT BOOL __cdecl TakeStructArrayExpClassByVal( S_StructArray *s, int size )
 {
     return TakeStructArraySeqStructByVal( *s, size );
 }
