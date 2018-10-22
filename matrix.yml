@@ -2,15 +2,15 @@ parameters:
   testlegs: ''
 
 jobs:
-- ${{ if contains('innerloop', parameters.testlegs) }}:
+- ${{ if contains(parameters.testlegs, 'innerloop') }}:
   - job: innerloop
     steps:
       - script: echo innerloop!
-- ${{ if contains('outerloop', parameters.testlegs) }}:
+- ${{ if contains(parameters.testlegs, 'outerloop') }}:
   - job: outerloop
     steps:
       - script: echo outerloop!
-- ${{ if contains('gcstress', parameters.testlegs) }}:
+- ${{ if contains(parameters.testlegs, 'gcstress') }}:
   - job: gcstress
     steps:
       - script: echo gcstress!
