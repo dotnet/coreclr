@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h> // required by itoa
 #include <iostream>
+#include "platformdefines.h"
 
 //////////////////////////////////////////////////////////////////////////////
 // Macro definitions
@@ -58,6 +59,15 @@ bool IsObjectEquals(const T& o1, const T& o2)
 template<>
 bool IsObjectEquals(const LPSTR& o1, const LPSTR& o2)
 {
+    if (o1 == NULL)
+    {
+        return (o2 == NULL);
+    }
+    else if (o2 == NULL)
+    {
+        return false;
+    }
+
     size_t cLen1 = strlen(o1);
     size_t cLen2 = strlen(o2);
 
@@ -73,6 +83,15 @@ bool IsObjectEquals(const LPSTR& o1, const LPSTR& o2)
 template<>
 bool IsObjectEquals(const LPCSTR& o1, const LPCSTR& o2)
 {
+    if (o1 == NULL)
+    {
+        return (o2 == NULL);
+    }
+    else if (o2 == NULL)
+    {
+        return false;
+    }
+
     size_t cLen1 = strlen(o1);
     size_t cLen2 = strlen(o2);
 
@@ -89,6 +108,15 @@ bool IsObjectEquals(const LPCSTR& o1, const LPCSTR& o2)
 template<>
 bool IsObjectEquals(const BSTR& o1, const BSTR& o2)
 {
+    if (o1 == NULL)
+    {
+        return (o2 == NULL);
+    }
+    else if (o2 == NULL)
+    {
+        return false;
+    }
+
     UINT uLen1 = SysStringLen(o1);
     UINT uLen2 = SysStringLen(o2);
 
@@ -109,7 +137,7 @@ bool IsObjectEquals(const BSTR& o1, const BSTR& o2)
 LPSTR ToString(int i)
 {
     CHAR *pBuffer = (CHAR *)CoreClrAlloc(10 * sizeof(CHAR)); // 10 is enough for our case
-    itoa(i, pBuffer, 10);
+    _itoa_s(i, pBuffer, 10, 10);
 
     return pBuffer;
 }
