@@ -20,6 +20,10 @@ name: testpipeline
 #   containers:
 #   repositories:
 
+variables:
+  testlegs: 'innerloop,outerloop'
+
+
 jobs:        
 # - job: job1
 #   displayName: job1UIName
@@ -361,10 +365,6 @@ jobs:
 - template: matrix.yml
   parameters:
     testlegs: $(testlegs)
-
-variables:
-  testlegs: 'innerloop,outerloop'
-
 
 # - job: 
 # 
