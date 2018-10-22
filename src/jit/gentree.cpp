@@ -16565,81 +16565,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
             }
             else if (call->gtCallType == CT_HELPER)
             {
-                const CorInfoHelpFunc helper       = eeGetHelperNum(call->gtCallMethHnd);
-                bool                  isCastHelper = false;
-
-                switch (helper)
-                {
-                    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
-                    case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
-                    {
-                        // Note for some runtimes these helpers return exact types.
-                        //
-                        // But in those cases the types are also sealed, so there's no
-                        // need to claim exactness here.
-                        const bool           helperResultNonNull = (helper == CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE);
-                        CORINFO_CLASS_HANDLE runtimeType = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
-
-                        objClass   = runtimeType;
-                        *isNonNull = helperResultNonNull;
-                        break;
-                    }
-
-                    case CORINFO_HELP_CHKCASTCLASS:
-                    case CORINFO_HELP_CHKCASTANY:
-                    case CORINFO_HELP_CHKCASTARRAY:
-                    case CORINFO_HELP_CHKCASTINTERFACE:
-                    case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
-                    case CORINFO_HELP_ISINSTANCEOFINTERFACE:
-                    case CORINFO_HELP_ISINSTANCEOFARRAY:
-                    case CORINFO_HELP_ISINSTANCEOFCLASS:
-                    case CORINFO_HELP_ISINSTANCEOFANY:
-                    {
-                        // Fetch the class handle from the helper call arglist
-                        GenTreeArgList*      args    = call->gtCallArgs;
-                        GenTree*             typeArg = args->Current();
-                        CORINFO_CLASS_HANDLE castHnd = gtGetHelperArgClassHandle(typeArg);
-
-                        // We generally assume the type being cast to the best type
-                        // for the result, unless it is an interface type.
-                        //
-                        // Todo: when we have default interface methods then this
-                        // might not be the best assumption.
-                        if (castHnd != nullptr)
-                        {
-                            DWORD attrs = info.compCompHnd->getClassAttribs(castHnd);
-
-                            if ((attrs & CORINFO_FLG_INTERFACE) != 0)
-                            {
-                                castHnd = nullptr;
-                            }
-                        }
-
-                        // If we don't have a good estimate for the type we can use the
-                        // type from the value being cast instead.
-                        if (castHnd == nullptr)
-                        {
-                            GenTree* valueArg = args->Rest()->Current();
-                            castHnd           = gtGetClassHandle(valueArg, isExact, isNonNull);
-                        }
-
-                        // We don't know at jit time if the cast will succeed or fail, but if it
-                        // fails at runtime then an exception is thrown for cast helpers, or the
-                        // result is set null for instance helpers.
-                        //
-                        // So it safe to claim the result has the cast type.
-                        // Note we don't know for sure that it is exactly this type.
-                        if (castHnd != nullptr)
-                        {
-                            objClass = castHnd;
-                        }
-
-                        break;
-                    }
-
-                    default:
-                        break;
-                }
+                objClass = gtGetHelperCallClassHandle(call, isExact, isNonNull);
             }
 
             break;
@@ -16649,20 +16575,12 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
         {
             GenTreeIntrinsic* intrinsic = obj->AsIntrinsic();
 
-            switch (intrinsic->gtIntrinsicId)
+            if (intrinsic->gtIntrinsicId == CORINFO_INTRINSIC_Object_GetType)
             {
-                case CORINFO_INTRINSIC_Object_GetType:
-                {
-                    CORINFO_CLASS_HANDLE runtimeType = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
-
-                    objClass   = runtimeType;
-                    *isExact   = false;
-                    *isNonNull = true;
-                    break;
-                }
-
-                default:
-                    break;
+                CORINFO_CLASS_HANDLE runtimeType = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
+                objClass                         = runtimeType;
+                *isExact                         = false;
+                *isNonNull                       = true;
             }
 
             break;
@@ -16716,32 +16634,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                     GenTree* op1 = base->gtOp.gtOp1;
                     GenTree* op2 = base->gtOp.gtOp2;
 
-                    bool op1IsStaticFieldBase = false;
-
-                    if (op1->OperGet() == GT_CALL)
-                    {
-                        GenTreeCall* op1Call = op1->AsCall();
-
-                        if (op1Call->gtCallType == CT_HELPER)
-                        {
-                            const CorInfoHelpFunc helper = eeGetHelperNum(op1Call->gtCallMethHnd);
-                            switch (helper)
-                            {
-                                // We are looking for a REF type so only need to check for the GC base helpers
-                                case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
-                                case CORINFO_HELP_GETSHARED_GCSTATIC_BASE:
-                                case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_NOCTOR:
-                                case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_DYNAMICCLASS:
-                                case CORINFO_HELP_GETGENERICS_GCTHREADSTATIC_BASE:
-                                case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE:
-                                case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_NOCTOR:
-                                case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_DYNAMICCLASS:
-                                    op1IsStaticFieldBase = true;
-                                default:
-                                    break;
-                            }
-                        }
-                    }
+                    const bool op1IsStaticFieldBase = gtIsStaticGCBaseHelperCall(op1);
 
                     if (op1IsStaticFieldBase && (op2->OperGet() == GT_CNS_INT))
                     {
@@ -16804,6 +16697,108 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
 }
 
 //------------------------------------------------------------------------
+// gtGetHelperCallClassHandle: find class handle for return value of a
+//   helper call
+//
+// Arguments:
+//    call - helper call to examine
+//    isExact - [OUT] true if type is known exactly
+//    isNonNull - [OUT] true if return value is not null
+//
+// Return Value:
+//    nullptr if helper call result is not a ref class, or the class handle
+//    is unknown, otherwise the class handle.
+
+CORINFO_CLASS_HANDLE Compiler::gtGetHelperCallClassHandle(GenTreeCall* call, bool* isExact, bool* isNonNull)
+{
+    assert(call->gtCallType == CT_HELPER);
+
+    *isNonNull                     = false;
+    *isExact                       = false;
+    CORINFO_CLASS_HANDLE  objClass = nullptr;
+    const CorInfoHelpFunc helper   = eeGetHelperNum(call->gtCallMethHnd);
+
+    switch (helper)
+    {
+        case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE:
+        case CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL:
+        {
+            // Note for some runtimes these helpers return exact types.
+            //
+            // But in those cases the types are also sealed, so there's no
+            // need to claim exactness here.
+            const bool           helperResultNonNull = (helper == CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE);
+            CORINFO_CLASS_HANDLE runtimeType         = info.compCompHnd->getBuiltinClass(CLASSID_RUNTIME_TYPE);
+
+            objClass   = runtimeType;
+            *isNonNull = helperResultNonNull;
+            break;
+        }
+
+        case CORINFO_HELP_CHKCASTCLASS:
+        case CORINFO_HELP_CHKCASTANY:
+        case CORINFO_HELP_CHKCASTARRAY:
+        case CORINFO_HELP_CHKCASTINTERFACE:
+        case CORINFO_HELP_CHKCASTCLASS_SPECIAL:
+        case CORINFO_HELP_ISINSTANCEOFINTERFACE:
+        case CORINFO_HELP_ISINSTANCEOFARRAY:
+        case CORINFO_HELP_ISINSTANCEOFCLASS:
+        case CORINFO_HELP_ISINSTANCEOFANY:
+        {
+            // Fetch the class handle from the helper call arglist
+            GenTreeArgList*      args    = call->gtCallArgs;
+            GenTree*             typeArg = args->Current();
+            CORINFO_CLASS_HANDLE castHnd = gtGetHelperArgClassHandle(typeArg);
+
+            // We generally assume the type being cast to is the best type
+            // for the result, unless it is an interface type.
+            //
+            // TODO-CQ: when we have default interface methods then
+            // this might not be the best assumption. We could also
+            // explore calling something like mergeClasses to identify
+            // the more specific class. A similar issue arises when
+            // typing the temp in impCastClassOrIsInstToTree, when we
+            // expand the cast inline.
+            if (castHnd != nullptr)
+            {
+                DWORD attrs = info.compCompHnd->getClassAttribs(castHnd);
+
+                if ((attrs & CORINFO_FLG_INTERFACE) != 0)
+                {
+                    castHnd = nullptr;
+                }
+            }
+
+            // If we don't have a good estimate for the type we can use the
+            // type from the value being cast instead.
+            if (castHnd == nullptr)
+            {
+                GenTree* valueArg = args->Rest()->Current();
+                castHnd           = gtGetClassHandle(valueArg, isExact, isNonNull);
+            }
+
+            // We don't know at jit time if the cast will succeed or fail, but if it
+            // fails at runtime then an exception is thrown for cast helpers, or the
+            // result is set null for instance helpers.
+            //
+            // So it safe to claim the result has the cast type.
+            // Note we don't know for sure that it is exactly this type.
+            if (castHnd != nullptr)
+            {
+                objClass = castHnd;
+            }
+
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    return objClass;
+}
+
+//------------------------------------------------------------------------
 // gtGetArrayElementClassHandle: find class handle for elements of an array
 // of ref types
 //
@@ -16839,6 +16834,55 @@ CORINFO_CLASS_HANDLE Compiler::gtGetArrayElementClassHandle(GenTree* array)
     }
 
     return nullptr;
+}
+
+//------------------------------------------------------------------------
+// gtIsGCStaticBaseHelperCall: true if tree is fetching the gc static base
+//    for a subsequent static field access
+//
+// Arguments:
+//    tree - tree to consider
+//
+// Return Value:
+//    true if the tree is a suitable helper call
+//
+// Notes:
+//    Excludes R2R helpers as they specify the target field in a way
+//    that is opaque to the jit.
+
+bool Compiler::gtIsStaticGCBaseHelperCall(GenTree* tree)
+{
+    if (tree->OperGet() != GT_CALL)
+    {
+        return false;
+    }
+
+    GenTreeCall* call = tree->AsCall();
+
+    if (call->gtCallType != CT_HELPER)
+    {
+        return false;
+    }
+
+    const CorInfoHelpFunc helper = eeGetHelperNum(call->gtCallMethHnd);
+
+    switch (helper)
+    {
+        // We are looking for a REF type so only need to check for the GC base helpers
+        case CORINFO_HELP_GETGENERICS_GCSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_NOCTOR:
+        case CORINFO_HELP_GETSHARED_GCSTATIC_BASE_DYNAMICCLASS:
+        case CORINFO_HELP_GETGENERICS_GCTHREADSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_NOCTOR:
+        case CORINFO_HELP_GETSHARED_GCTHREADSTATIC_BASE_DYNAMICCLASS:
+            return true;
+        default:
+            break;
+    }
+
+    return false;
 }
 
 void GenTree::ParseArrayAddress(
