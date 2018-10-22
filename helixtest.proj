@@ -9,12 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\Core_Root\*.zip">
-      <PayloadArchive>%(Identity)</PayloadArchive>
-    </HelixCorrelationPayload>
-  </ItemGroup>
-
-  <ItemGroup>
     <HelixWorkItem Include="Sven test helix workitem">
       <Command>echo hi helix</Command>
     </HelixWorkItem>
