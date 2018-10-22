@@ -35,11 +35,7 @@
     <BashCLRTestPreCommands>$(BashCLRTestPreCommands);$(PathEnvSetupCommands)</BashCLRTestPreCommands>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include=".\LocalNative\CMakeLists.txt" />
-    <ProjectReference Include=".\LocalWithDotNative\CMakeLists.txt" />
-    <ProjectReference Include=".\RelativeNative\CMakeLists.txt" />
-    <ProjectReference Include=".\UnicodeNative\CMakeLists.txt" />
-    <ProjectReference Include=".\PathEnvNative\CMakeLists.txt" />
+    <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
