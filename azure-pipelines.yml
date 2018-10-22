@@ -27,9 +27,9 @@ variables:
 
 jobs:
 - job: testvariablejob
-  displayName: $(testvar)
+  displayName: testvariableDisplayName
   steps:
-    - script: echo in test job.
+    - script: echo in test job. variable: $(testvar). testlegs: $(testlegs)
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
