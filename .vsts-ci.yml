@@ -171,6 +171,7 @@ variables:
     queue:
       name: Hosted Ubuntu 1604
       timeoutInMinutes: 180
+      parallel: 1
     agentOs: Ubuntu
     name: UbuntuHelix
     steps:
@@ -189,6 +190,7 @@ variables:
     queue:
       name: dotnet-external-temp
       timeoutInMinutes: 180
+      parallel: 1
     agentOs: Windows_NT
     name: WindowsHelix
     steps:
