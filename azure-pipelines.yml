@@ -30,7 +30,7 @@ jobs:
   displayName: testvariableDisplayName
   steps:
     # this works! but not in display name...? what about in parameters?
-  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs)
+  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs)'
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
