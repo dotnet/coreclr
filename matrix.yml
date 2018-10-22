@@ -23,4 +23,4 @@ jobs:
 - job: matrixjob_withparams
   steps:
     # doesn't get expanded. just treated as part of a string.
-  - script: ${{ format('echo testlegsparam: {0}', parameters.testlegsparam) }}
+  - script: ${{ format('echo testlegsparam {0}', parameters.testlegsparam) }}
