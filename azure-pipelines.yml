@@ -29,7 +29,8 @@ jobs:
 - job: testvariablejob
   displayName: testvariableDisplayName
   steps:
-  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs) with prefix: $(variables.testlegs)'
+    # this works! but not in display name...? what about in parameters?
+  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegs)
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:

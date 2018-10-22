@@ -1,6 +1,9 @@
 parameters:
   testlegs: ''
 
+variables:
+  testlegs: ${{ parameters.testlegs }}
+
 jobs:
 - ${{ if contains(parameters.testlegs, 'innerloop') }}:
   - job: innerloop
@@ -14,3 +17,6 @@ jobs:
   - job: gcstress
     steps:
       - script: echo gcstress!
+- job: matrixjob_alwayson
+  steps:
+  - script: echo $(testlegs) variable?
