@@ -16,7 +16,7 @@ jobs:
       - script: echo gcstress!
 - job: matrixjob_withvars
   variables:
-  testlegs: ${{ parameters.testlegs }}
+    testlegs: ${{ parameters.testlegs }}
   steps:
   - script: echo $(testlegs) variable?
 - job: matrixjob_withparams
