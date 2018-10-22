@@ -178,7 +178,7 @@ phases:
       inputs:
         command: custom
         projects: helixtest.proj
-        custom:msbuild
+        custom: msbuild
         arguments: '/t:test'
       displayName: Send test workload to helix
       env:
