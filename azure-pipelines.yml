@@ -360,10 +360,10 @@ jobs:
 
 - template: matrix.yml
   parameters:
-    testlegs: 'innerloop, outerloop'
+    testlegs: $(testlegs)
 
-# variables:
-#   testlegs: 'innerloop,outerloop'
+variables:
+  testlegs: 'innerloop,outerloop'
 
 
 # - job: 
