@@ -210,6 +210,7 @@ error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix)
     {
         buffer[0] = '0';
         buffer[1] = '\0';
+        return 0;
     }
 
     // get length of final string (dumb implementation)
@@ -251,6 +252,7 @@ error_t TP_itoa_s(int num, LPSTR buffer, size_t sizeInCharacters, int radix)
     {
         buffer[0] = '0';
         buffer[1] = '\0';
+        return 0;
     }
 
     // get length of final string (dumb implementation)
