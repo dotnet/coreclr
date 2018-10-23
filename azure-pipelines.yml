@@ -380,7 +380,14 @@ jobs:
 #     config: debug
 #     testleg: innerloop
 #   condition: eq(variables
-# 
+#
+
+# I guess that the conditions are evaluated statically on the serer, not on the agent when the job is queued.
+# so because the variables are dynamic but the expressions are static, contains evaluates to false statically.
+
+# using template parameters, we can get around this, as long as the template inputs are known statically.
+# so there's no way to dynamically change which jobs gets included. maybe that's fine.
+
 - ${{ if contains(variables.testlegsoutervar, 'innerloop') }}:
   - job: innerloop
     steps:
