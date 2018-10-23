@@ -465,7 +465,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return ReadOnlyMemory<T>.CombineHashCodes((_object != null) ? RuntimeHelpers.GetHashCode(_object) : 0, _index, _length);
+            return (_object != null) ? ReadOnlyMemory<T>.CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
     }
 }

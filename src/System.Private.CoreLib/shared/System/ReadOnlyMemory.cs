@@ -374,7 +374,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return CombineHashCodes((_object != null) ? RuntimeHelpers.GetHashCode(_object) : 0, _index, _length);
+            return (_object != null) ? CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index, _length) : 0;
         }
 
         private static int CombineHashCodes(int left, int right)
