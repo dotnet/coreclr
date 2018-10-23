@@ -27,6 +27,7 @@
 #include "sigformat.h"
 #include "marshalnative.h"
 #include "typeparse.h"
+#include "../md/compiler/custattr.h"
 #ifdef FEATURE_COMINTEROP
 #include <winstring.h>
 #endif // FEATURE_COMINTEROP
@@ -35,7 +36,9 @@
 BOOL CheckForPrimitiveType(CorElementType elemType, CQuickArray<WCHAR> *pStrPrimitiveType);
 TypeHandle ArraySubTypeLoadWorker(const SString &strUserDefTypeName, Assembly* pAssembly);
 TypeHandle GetFieldTypeHandleWorker(MetaSig *pFieldSig);
-BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport);
+BOOL IsFixedBuffer(MethodTable* pParentMT, mdFieldDef field, IMDInternalImport *pInternalImport, int* pNumElements, MethodTable** ppFixedBufferTypeMethodTable);
+VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE* pNativeData, INT numBufferElements, OBJECTREF *ppCleanupWorkListOnStack);
+VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData, INT numBufferElements);
 
 
 //=======================================================================
@@ -660,7 +663,16 @@ do                                                      \
                 {
                     if (IsStructMarshalable(thNestedType))
                     {
-                        INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport)));
+                        INT numElements;
+                        PTR_MethodTable fixedBufferMemberType;
+                        if (IsFixedBuffer(thNestedType.GetMethodTable(), pfwalk->m_MD, pInternalImport, &numElements, &fixedBufferMemberType))
+                        {
+                            INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable(), numElements, fixedBufferMemberType));
+                        }
+                        else
+                        {
+                            INITFIELDMARSHALER(NFT_NESTEDVALUECLASS, FieldMarshaler_NestedValueClass, (thNestedType.GetMethodTable()));
+                        }
                     }
                     else
                     {
@@ -1229,11 +1241,34 @@ BOOL IsStructMarshalable(TypeHandle th)
     return TRUE;
 }
 
-BOOL IsFixedBuffer(mdFieldDef field, IMDInternalImport *pInternalImport)
+BOOL IsFixedBuffer(MethodTable* pParentMT, mdFieldDef field, IMDInternalImport *pInternalImport, int* pNumElements, MethodTable** ppFixedBufferTypeMethodTable)
 {
-    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, NULL, NULL);
+    const void* pData;
+    ULONG cData;
 
-    return hr == S_OK ? TRUE : FALSE;
+    HRESULT hr = pInternalImport->GetCustomAttributeByName(field, g_FixedBufferAttribute, &pData, &cData);
+
+    if (hr == S_OK && cData != 0)
+    {
+        CustomAttributeParser ca(pData, cData);
+
+        CaArg args[2];
+        args[0].Init(SERIALIZATION_TYPE_TYPE);
+        args[1].Init(SERIALIZATION_TYPE_I4);
+
+        
+        if (FAILED(ParseKnownCaArgs(ca, args, lengthof(args)))) {
+            return FALSE;
+        }
+        
+        TypeHandle fixedBufferFieldType = TypeName::GetTypeUsingCASearchRules(args[0].val.str.pStr, pParentMT->GetAssembly());
+        *ppFixedBufferTypeMethodTable = fixedBufferFieldType.GetMethodTable();
+        *pNumElements = args[1].val.i4;
+        
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 
@@ -2044,6 +2079,53 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
     GCPROTECT_END();
 }
 
+VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE* pNativeData, INT numBufferElements, OBJECTREF *ppCleanupWorkListOnStack)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pMT));
+    }
+    CONTRACTL_END;
+
+    FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
+
+    OBJECTREF pCLRValue = NULL;
+    LPVOID scalar = NULL;
+
+    GCPROTECT_BEGIN(pCLRValue)
+    GCPROTECT_BEGININTERIOR(scalar)
+    {
+        g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
+        pFM->Restore();
+
+        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
+        DWORD externalOffset = pFM->GetExternalOffset();
+
+        while (numBufferElements--)
+        {
+            if (pFM->IsScalarMarshaler())
+            {
+                scalar = (LPVOID)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
+                // Note this will throw for FieldMarshaler_Illegal
+                pFM->ScalarUpdateNative(scalar, pNativeData + externalOffset);
+            }
+            // Note this case is unused unless dotnet/csharplang#1314 is implemented.
+            else if (pFM->IsNestedValueClassMarshaler())
+            {
+                pFM->NestedValueClassUpdateNative((const VOID **)ppProtectedManagedData, internalOffset + offsetbias, pNativeData + externalOffset,
+                    ppCleanupWorkListOnStack);
+            }
+            internalOffset += pFM->GetFieldDesc()->GetSize();
+            externalOffset += pFM->NativeSize();
+        }
+    }
+    GCPROTECT_END();
+    GCPROTECT_END();
+}
+
 VOID FmtClassUpdateNative(OBJECTREF *ppProtectedManagedData, BYTE *pNativeData, OBJECTREF *ppCleanupWorkListOnStack)
 {        
     CONTRACTL
@@ -2177,6 +2259,63 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
+        }
+    }
+    GCPROTECT_END();
+    GCPROTECT_END();
+}
+
+VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTable *pMT, BYTE *pNativeData, INT numBufferElements)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(CheckPointer(pMT));
+    }
+    CONTRACTL_END;
+
+    // Don't try to destroy/free native the structure on exception, we may not own it. If we do own it and
+    // are supposed to destroy/free it, we do it upstack (e.g. in a helper called from the marshaling stub).
+
+    FieldMarshaler* pFM = pMT->GetLayoutInfo()->GetFieldMarshalers();
+    UINT  numReferenceFields = pMT->GetLayoutInfo()->GetNumCTMFields();
+
+    struct _gc
+    {
+        OBJECTREF pCLRValue;
+        OBJECTREF pOldCLRValue;
+    } gc;
+
+    gc.pCLRValue = NULL;
+    gc.pOldCLRValue = NULL;
+    LPVOID scalar = NULL;
+
+    GCPROTECT_BEGIN(gc)
+    GCPROTECT_BEGININTERIOR(scalar)
+    {
+        g_IBCLogger.LogFieldMarshalersReadAccess(pMT);
+        pFM->Restore();
+
+        DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
+        DWORD externalOffset = pFM->GetExternalOffset();
+
+        while (numBufferElements--)
+        {
+            if (pFM->IsScalarMarshaler())
+            {
+                scalar = (LPVOID)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
+                // Note this will throw for FieldMarshaler_Illegal
+                pFM->ScalarUpdateCLR(pNativeData + externalOffset, scalar);
+            }
+            // Note this case is unused unless dotnet/csharplang#1314 is implemented.
+            else if (pFM->IsNestedValueClassMarshaler())
+            {
+                pFM->NestedValueClassUpdateCLR(pNativeData + externalOffset, ppProtectedManagedData, internalOffset + offsetbias);
+            }
+            internalOffset += pFM->GetFieldDesc()->GetSize();
+            externalOffset += pFM->NativeSize();
         }
     }
     GCPROTECT_END();
@@ -2893,7 +3032,7 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateNativeImpl(const VOI
     }
     else if (IsFixedBuffer())
     {
-        COMPlusThrow(kArgumentException, IDS_EE_BADMARSHAL_NOTMARSHALABLE);
+        BufferUpdateNative((LPVOID*)ppProtectedCLR, startoffset, pMT, (BYTE*)pNative, GetNumFixedBufferElements(), ppCleanupWorkListOnStack);
     }
     else
     {
@@ -2931,7 +3070,11 @@ VOID FieldMarshaler_NestedValueClass::NestedValueClassUpdateCLRImpl(const VOID *
     }
     else if (IsFixedBuffer())
     {
-        COMPlusThrow(kArgumentException, IDS_EE_BADMARSHAL_NOTMARSHALABLE);
+        BufferUpdateCLR((LPVOID*)ppProtectedCLR,
+            startoffset,
+            pMT,
+            (BYTE *)pNative,
+            GetNumFixedBufferElements());
     }
     else
     {
@@ -2982,6 +3125,10 @@ UINT32 FieldMarshaler_NestedValueClass::NativeSizeImpl() const
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    
+    if (IsFixedBuffer() && GetFixedBufferTypeMethodTable()->HasLayout())
+        return GetNumFixedBufferElements() * GetFixedBufferTypeMethodTable()->GetLayoutInfo()->GetNativeSize();
 
     // this can't be marshalled as native type if no layout, so we allow the 
     // native size info to be created if available, but the size will only

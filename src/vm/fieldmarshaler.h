@@ -712,11 +712,19 @@ private:
 class FieldMarshaler_NestedValueClass : public FieldMarshaler
 {
 public:
-    FieldMarshaler_NestedValueClass(MethodTable *pMT, BOOL isFixedBuffer)
+    FieldMarshaler_NestedValueClass(MethodTable *pMT)
+        : m_numFixedBufferElements(0)
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
-        m_isFixedBuffer = isFixedBuffer;
+    }
+
+    FieldMarshaler_NestedValueClass(MethodTable *pMT, INT fixedBufferSize, MethodTable *pFixedBufferMT)
+        : m_numFixedBufferElements(fixedBufferSize)
+    {
+        WRAPPER_NO_CONTRACT;
+        m_pNestedMethodTable.SetValueMaybeNull(pMT);
+        m_pFixedBufferTypeMethodTable.SetValueMaybeNull(pFixedBufferMT);
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
@@ -741,6 +749,7 @@ public:
         STANDARD_VM_CONTRACT;
         
         image->FixupMethodTablePointer(this, &m_pNestedMethodTable);
+        image->FixupMethodTablePointer(this, &m_pFixedBufferTypeMethodTable);
 
         FieldMarshaler::FixupImpl(image);
     }
@@ -757,6 +766,7 @@ public:
         CONTRACTL_END;
 
         RestoreHelper(&m_pNestedMethodTable);
+        RestoreHelper(&m_pFixedBufferTypeMethodTable);
 
         FieldMarshaler::RestoreImpl();
     }
@@ -764,7 +774,8 @@ public:
     START_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
     {
         pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
-        pDestFieldMarshaller->m_isFixedBuffer = m_isFixedBuffer;
+        pDestFieldMarshaller->m_numFixedBufferElements = m_numFixedBufferElements;
+        pDestFieldMarshaller->m_pFixedBufferTypeMethodTable.SetValueMaybeNull(GetFixedBufferTypeMethodTable());
     }
     END_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
 
@@ -773,7 +784,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        return IsRestoredHelper(m_pNestedMethodTable);
+        return IsRestoredHelper(m_pNestedMethodTable) && IsRestoredHelper(m_pFixedBufferTypeMethodTable);
     }
 #endif
 
@@ -799,14 +810,36 @@ public:
 
     BOOL IsFixedBuffer() const
     {
-        return m_isFixedBuffer;
+        return m_numFixedBufferElements != 0;
     }
 
+    INT GetNumFixedBufferElements() const
+    {
+        return m_numFixedBufferElements;
+    }
+
+    MethodTable *GetFixedBufferTypeMethodTable() const
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_ANY;
+            PRECONDITION(IsRestored());
+        }
+        CONTRACTL_END;
+
+        return m_pFixedBufferTypeMethodTable.GetValueMaybeNull();
+    }
 
 private:
+
     // MethodTable of nested NStruct.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
-    BOOL m_isFixedBuffer;
+    // If a fixed buffer, pointer to the type of the fixed buffer elements
+    RelativeFixupPointer<PTR_MethodTable> m_pFixedBufferTypeMethodTable;
+    // Number of fixed buffer elements. 0 signifies that this field is not a fixed buffer
+    INT m_numFixedBufferElements;
 };
 
 
