@@ -1177,12 +1177,16 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned                                    
                                     const bool                                                       isStruct,
                                     const bool                                                       isVararg,
                                     const regNumber                                                  otherRegNum,
+                                    const unsigned                                                   structIntRegs,
+                                    const unsigned                                                   structFloatRegs,
                                     const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr)
 {
     fgArgTabEntry* curArgTabEntry = AddRegArg(argNum, node, parent, regNum, numRegs, alignment, isStruct, isVararg);
     assert(curArgTabEntry != nullptr);
 
     curArgTabEntry->isStruct = isStruct; // is this a struct arg
+    curArgTabEntry->structIntRegs = structIntRegs;
+    curArgTabEntry->structFloatRegs = structFloatRegs;
 
     curArgTabEntry->checkIsStruct();
     assert(numRegs <= 2);
@@ -2958,7 +2962,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
 
         // This is a register argument - put it in the table.
         call->fgArgInfo->AddRegArg(argIndex, argx, nullptr, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1, false,
-                                   callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
+                                   callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
 
         intArgRegNum++;
 #ifdef WINDOWS_AMD64_ABI
@@ -3535,12 +3539,12 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
                     if (structDesc.IsIntegralSlot(i))
                     {
                         *nextRegNumPtrs[i] = genMapIntRegArgNumToRegNum(intArgRegNum + structIntRegs);
-                        structIntRegs++;
+                        ++structIntRegs;
                     }
                     else if (structDesc.IsSseSlot(i))
                     {
                         *nextRegNumPtrs[i] = genMapFloatRegArgNumToRegNum(nextFltArgRegNum + structFloatRegs);
-                        structFloatRegs++;
+                        ++structFloatRegs;
                     }
                 }
             }
@@ -3560,7 +3564,9 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
 
             // This is a register argument - put it in the table
             newArgEntry = call->fgArgInfo->AddRegArg(argIndex, argx, args, nextRegNum, size, argAlign, isStructArg,
-                                                     callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum)
+                                                     callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum) 
+                                                         UNIX_AMD64_ABI_ONLY_ARG(structIntRegs)
+                                                         UNIX_AMD64_ABI_ONLY_ARG(structFloatRegs)
                                                          UNIX_AMD64_ABI_ONLY_ARG(&structDesc));
 
             newArgEntry->SetIsBackFilled(isBackFilled);
@@ -7001,6 +7007,11 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 #endif
 
+    assert(!callee->AreArgsComplete());
+
+    fgInitArgInfo(callee);
+    fgArgInfo* argInfo = callee->fgArgInfo;
+
     auto reportFastTailCallDecision = [this, callee](const char* msg, size_t callerStackSize, size_t calleeStackSize) {
 #if DEBUG
         if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
@@ -7048,6 +7059,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     //
     // Note that callee being a vararg method is not a problem since we can account the params being passed.
     unsigned nCallerArgs = info.compArgsCount;
+    unsigned nCalleeArgs = argInfo->ArgCount();
 
     size_t callerArgRegCount      = codeGen->intRegState.rsCalleeRegArgCount;
     size_t callerFloatArgRegCount = codeGen->floatRegState.rsCalleeRegArgCount;
@@ -7058,9 +7070,81 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     size_t calleeArgRegCount      = 0;
     size_t calleeFloatArgRegCount = 0;
 
-    if (callee->gtCallObjp) // thisPtr
+    // Count user args while tracking whether any of them has a larger than one
+    // stack slot sized requirement. This requirement is required to support
+    // lowering the fast tail call. Which, currently only supports copying
+    // stack slot arguments which have only one stack slot.
+    //
+    // Note that we don't need to count
+    // non-standard and secret params passed in registers (e.g. R10, R11) since
+    // these won't contribute to out-going arg size.
+    // 
+    // For each struct arg, determine whether the argument would have  > 1 stack 
+    // slot if on the stack If it has > 1 stack slot we will not fastTailCall. 
+    // This is an implementation limitation of LowerFastTailCall that is tracked by:
+    // https://github.com/dotnet/coreclr/issues/12644.
+
+    bool   hasLargerThanOneStackSlotSizedStruct = false;
+    bool   hasNonEnregisterableStructs          = false;
+    size_t calleeStackSize                      = 0;
+
+    for (unsigned index = 0; index < nCalleeArgs; ++index)
     {
-        ++calleeArgRegCount;
+        fgArgTabEntry* arg = argInfo->GetArgEntry(index);
+
+        if (!arg->isStruct)
+        {
+            if (arg->numSlots > 0)
+            {
+                calleeStackSize += (TARGET_POINTER_SIZE * arg->numSlots);
+            }
+
+            else if (arg->isPassedInFloatRegisters()) 
+            {
+                ++calleeFloatArgRegCount;
+            }
+            else 
+            {
+                ++calleeArgRegCount;
+            }
+            
+        }
+        else
+        {
+            // Struct Arg
+#ifdef FEATURE_ARG_SPLIT
+            if (arg->isSplit || arg->numSlots > 0)
+#else
+            if (arg->numSlots > 0)
+#endif // FEATURE_ARG_SPLIT
+            {
+                calleeStackSize += (TARGET_POINTER_SIZE * arg->numSlots);
+
+                if (arg->numSlots > 1)
+                {
+                    // TODO-CQ: Fix LowerFastTailCall (GH #12644)
+                    hasNonEnregisterableStructs = true;
+                }
+            }
+
+            if (arg->numRegs > 0)
+            {
+#ifndef FEATURE_ARG_SPLIT
+                assert(arg->numSlots == 0);
+#endif // FEATURE_ARG_SPLIT
+
+                auto numIntRegAndFloatRegArgs = arg->getNumIntRegAndFloatRegForStructArg();
+
+                calleeArgRegCount += numIntRegAndFloatRegArgs.first;
+                calleeFloatArgRegCount += numIntRegAndFloatRegArgs.second;
+
+                if ((calleeArgRegCount > 1 || calleeFloatArgRegCount > 1) || ((calleeArgRegCount + calleeFloatArgRegCount) > 0))
+                {
+                    // TODO-CQ: Fix LowerFastTailCall(GH $12644)
+                    hasLargerThanOneStackSlotSizedStruct = true;
+                }
+            }
+        }
     }
 
     if (callee->HasRetBufArg()) // RetBuf
@@ -7073,145 +7157,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         {
             reportFastTailCallDecision("Callee has RetBuf but caller does not.", 0, 0);
             return false;
-        }
-    }
-
-    // Count user args while tracking whether any of them is a multi-byte params
-    // that cannot be passed in a register. Note that we don't need to count
-    // non-standard and secret params passed in registers (e.g. R10, R11) since
-    // these won't contribute to out-going arg size.
-    // For each struct arg, hasMultiByteStackArgs will track if it can be passed in registers.
-    // If it cannot we will break the loop and not fastTailCall. This is an implementation limitation
-    // where the callee only is checked for non enregisterable structs.
-    // It is tracked with https://github.com/dotnet/coreclr/issues/12644.
-    bool   hasMultiByteStackArgs = false;
-    bool   hasTwoSlotSizedStruct = false;
-    bool   hasHfaArg             = false;
-    size_t nCalleeArgs           = calleeArgRegCount; // Keep track of how many args we have.
-    size_t calleeStackSize       = 0;
-    for (GenTree* args = callee->gtCallArgs; (args != nullptr); args = args->gtOp.gtOp2)
-    {
-        ++nCalleeArgs;
-        assert(args->OperIsList());
-        GenTree* argx = args->gtOp.gtOp1;
-
-        if (varTypeIsStruct(argx))
-        {
-            // Actual arg may be a child of a GT_COMMA. Skip over comma opers.
-            argx = argx->gtEffectiveVal(true /*commaOnly*/);
-
-            // Get the size of the struct and see if it is register passable.
-            CORINFO_CLASS_HANDLE objClass = nullptr;
-
-            if (argx->OperGet() == GT_OBJ)
-            {
-                objClass = argx->AsObj()->gtClass;
-            }
-            else if (argx->IsLocal())
-            {
-                objClass = lvaTable[argx->AsLclVarCommon()->gtLclNum].lvVerTypeInfo.GetClassHandle();
-            }
-            if (objClass != nullptr)
-            {
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-
-                unsigned typeSize = 0;
-                // We should have already broken out of the loop if we've set hasMultiByteStackArgs to true.
-                assert(!hasMultiByteStackArgs);
-                hasMultiByteStackArgs =
-                    !VarTypeIsMultiByteAndCanEnreg(argx->TypeGet(), objClass, &typeSize, false, false);
-
-#if defined(UNIX_AMD64_ABI)
-                SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
-
-                assert(objClass != nullptr);
-                eeGetSystemVAmd64PassStructInRegisterDescriptor(objClass, &structDesc);
-
-                if (structDesc.passedInRegisters)
-                {
-                    if (structDesc.eightByteCount == 2)
-                    {
-                        hasTwoSlotSizedStruct = true;
-                    }
-
-                    for (unsigned int i = 0; i < structDesc.eightByteCount; i++)
-                    {
-                        if (structDesc.IsIntegralSlot(i))
-                        {
-                            ++calleeArgRegCount;
-                        }
-                        else if (structDesc.IsSseSlot(i))
-                        {
-                            ++calleeFloatArgRegCount;
-                        }
-                        else
-                        {
-                            assert(false && "Invalid eightbyte classification type.");
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    calleeStackSize += roundUp(typeSize, TARGET_POINTER_SIZE);
-                    hasMultiByteStackArgs = true;
-                }
-
-#elif defined(_TARGET_ARM64_) // ARM64
-                var_types hfaType  = GetHfaType(argx);
-                bool      isHfaArg = varTypeIsValidHfaType(hfaType);
-                size_t    size     = 1;
-
-                if (isHfaArg)
-                {
-                    hasHfaArg = true;
-
-                    calleeFloatArgRegCount += GetHfaCount(argx);
-                }
-                else
-                {
-                    // Structs are either passed in 1 or 2 (64-bit) slots
-                    size_t roundupSize = roundUp(typeSize, TARGET_POINTER_SIZE);
-                    size               = roundupSize / TARGET_POINTER_SIZE;
-
-                    if (size > 2)
-                    {
-                        size = 1;
-                    }
-
-                    else if (size == 2)
-                    {
-                        hasTwoSlotSizedStruct = true;
-                    }
-
-                    calleeArgRegCount += size;
-                }
-
-#elif defined(WINDOWS_AMD64_ABI)
-
-                ++calleeArgRegCount;
-
-#endif // UNIX_AMD64_ABI
-
-#else
-                assert(!"Target platform ABI rules regarding passing struct type args in registers");
-                unreached();
-#endif //_TARGET_AMD64_ || _TARGET_ARM64_
-            }
-            else
-            {
-                hasMultiByteStackArgs = true;
-            }
-        }
-        else
-        {
-            varTypeIsFloating(argx) ? ++calleeFloatArgRegCount : ++calleeArgRegCount;
-        }
-
-        // We can break early on multiByte cases.
-        if (hasMultiByteStackArgs)
-        {
-            break;
         }
     }
 
@@ -7239,14 +7184,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     if (callerStackSize > 0 || calleeStackSize > 0)
     {
         hasStackArgs = true;
-    }
-
-    // Go the slow route, if it has multi-byte params. This is an implementation
-    // limitatio see https://github.com/dotnet/coreclr/issues/12644.
-    if (hasMultiByteStackArgs)
-    {
-        reportFastTailCallDecision("Will not fastTailCall hasMultiByteStackArgs", callerStackSize, calleeStackSize);
-        return false;
     }
 
     // x64 Windows: If we have more callee registers used than MAX_REG_ARG, then
@@ -7283,30 +7220,21 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         hasStackArgs = true;
     }
 
-    // Go the slow route, if it has multi-byte params. This is an implementation
-    // limitation see https://github.com/dotnet/coreclr/issues/12644.
-    if (hasMultiByteStackArgs)
-    {
-        reportFastTailCallDecision("Will not fastTailCall hasMultiByteStackArgs", callerStackSize, calleeStackSize);
-        return false;
-    }
-
     // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not
     // fastTailCall.
     //
     // When either the caller or callee have multi-stlot stack arguments we cannot safely
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
-    if (hasStackArgs && hasTwoSlotSizedStruct)
+    if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize)
     {
-        reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasTwoSlotSizedStruct",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize", callerStackSize,
+                                   calleeStackSize);
         return false;
     }
 
-    // Callee has an HFA struct and arguments that has to go on the stack. Do not fastTailCall.
-    if (calleeStackSize > 0 && hasHfaArg)
+    if (hasNonEnregisterableStructs)
     {
-        reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasHfaArg", callerStackSize,
+        reportFastTailCallDecision("Will not fastTailCall hasNonEnregisterableStructs", callerStackSize,
                                    calleeStackSize);
         return false;
     }

@@ -1078,7 +1078,15 @@ bool GenTreeCall::AreArgsComplete() const
         assert((gtCallLateArgs != nullptr) || !fgArgInfo->HasRegArgs());
         return true;
     }
+    
+#if FEATURE_FASTTAILCALL
+    // If the args are not complete and fgArgInfo is not null. Then most
+    // most likely the argInfo has been populated in fgCanFastTailCall and
+    // we are just re-querying this information in fgMorphArgs.
+#else
     assert(gtCallArgs == nullptr);
+#endif
+
     return false;
 }
 
