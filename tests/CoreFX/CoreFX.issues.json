@@ -553,77 +553,17 @@
         }
     },
     {
-        "name": "System.Diagnostics.Tests",
+        "name": "System.Diagnostics.Debug.Tests",
         "enabled": true,
         "exclusions": {
             "namespaces": null,
-            "classes": null,
-            "methods": [
+            "classes": [
                 {
-                    "name" : "System.Diagnostics.Tests.DebugTests.Asserts",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.Fail",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.Write",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.Print",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.WriteLine",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.WriteIf",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.WriteLineIf",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: -1, expectedIndentSize: 0)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: 0, expectedIndentSize: 0)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: 1, expectedIndentSize: 1)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: 2, expectedIndentSize: 2)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: 3, expectedIndentSize: 3)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentSize_Set_GetReturnsExpected(indentSize: 4, expectedIndentSize: 4)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentLevel_Set_GetReturnsExpected(indentLevel: -1, expectedIndentLevel: 0)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentLevel_Set_GetReturnsExpected(indentLevel: 0, expectedIndentLevel: 0)",
-                    "reason" : "refactoring Debug"
-                },
-                {
-                    "name" : "System.Diagnostics.Tests.DebugTests.IndentLevel_Set_GetReturnsExpected(indentLevel: 1, expectedIndentLevel: 1)",
+                    "name" : "System.Diagnostics.Tests.DebugTests",
                     "reason" : "refactoring Debug"
                 }
-            ]
+            ],
+            "methods": null
         }
     }
 ]
