@@ -713,7 +713,7 @@ class FieldMarshaler_NestedValueClass : public FieldMarshaler
 {
 public:
     FieldMarshaler_NestedValueClass(MethodTable *pMT)
-        : m_numFixedBufferElements(0)
+        : m_numFixedBufferElements(-1)
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
@@ -810,7 +810,7 @@ public:
 
     BOOL IsFixedBuffer() const
     {
-        return m_numFixedBufferElements != 0;
+        return m_numFixedBufferElements != -1;
     }
 
     INT GetNumFixedBufferElements() const

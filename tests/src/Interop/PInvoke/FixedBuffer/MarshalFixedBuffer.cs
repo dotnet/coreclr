@@ -47,12 +47,14 @@ public unsafe class Managed
 
         var buffer = new BlittableFixedBuffer();
 
+        int expected = 0;
         for (int i = 0; i < BufferSize; i++)
         {
             buffer.elements[i] = i;
+            expected += i;
         }
 
-        Assert.AreEqual(45, SumBlittableFixedBuffer(buffer));
+        Assert.AreEqual(expected, SumBlittableFixedBuffer(buffer));
     }
 
     private static void TestNonBlittableFixedBuffer()

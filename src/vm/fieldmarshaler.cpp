@@ -1255,9 +1255,8 @@ BOOL IsFixedBuffer(MethodTable* pParentMT, mdFieldDef field, IMDInternalImport *
         CaArg args[2];
         args[0].Init(SERIALIZATION_TYPE_TYPE);
         args[1].Init(SERIALIZATION_TYPE_I4);
-
         
-        if (FAILED(ParseKnownCaArgs(ca, args, lengthof(args)))) {
+        if (FAILED(ParseKnownCaArgs(ca, args, ARRAYSIZE(args)))) {
             return FALSE;
         }
         
@@ -2104,7 +2103,7 @@ VOID BufferUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
         DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
         DWORD externalOffset = pFM->GetExternalOffset();
 
-        while (numBufferElements--)
+        for (int i = 0; i < numBufferElements; ++i)
         {
             if (pFM->IsScalarMarshaler())
             {
@@ -2301,7 +2300,7 @@ VOID BufferUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
         DWORD internalOffset = pFM->GetFieldDesc()->GetOffset();
         DWORD externalOffset = pFM->GetExternalOffset();
 
-        while (numBufferElements--)
+        for (int i = 0; i < numBufferElements; ++i)
         {
             if (pFM->IsScalarMarshaler())
             {
