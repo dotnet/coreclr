@@ -30,9 +30,7 @@ namespace System
         private readonly object _object;
         private readonly int _index;
         private readonly int _length;
-
-        private const int RemoveFlagsBitMask = 0x7FFFFFFF;
-
+        
         /// <summary>
         /// Creates a new memory over the entirety of the target array.
         /// </summary>
@@ -324,7 +322,7 @@ namespace System
                     // least to be in-bounds when compared with the original Memory<T> instance, so using the span won't
                     // AV the process.
 
-                    int desiredStartIndex = _index & RemoveFlagsBitMask;
+                    int desiredStartIndex = _index & ReadOnlyMemory<T>.RemoveFlagsBitMask;
                     int desiredLength = _length;
 
                     if ((uint)desiredStartIndex > (uint)lengthOfUnderlyingSpan || (uint)desiredLength > (uint)(lengthOfUnderlyingSpan - desiredStartIndex))
@@ -401,7 +399,7 @@ namespace System
                     // Array is already pre-pinned
                     if (_index < 0)
                     {
-                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index & RemoveFlagsBitMask);
+                        void* pointer = Unsafe.Add<T>(Unsafe.AsPointer(ref Unsafe.As<T[]>(tmpObject).GetRawSzArrayData()), _index & ReadOnlyMemory<T>.RemoveFlagsBitMask);
                         return new MemoryHandle(pointer);
                     }
                     else
@@ -467,18 +465,7 @@ namespace System
         [EditorBrowsable(EditorBrowsableState.Never)]
         public override int GetHashCode()
         {
-            return _object != null ? CombineHashCodes(RuntimeHelpers.GetHashCode(_object), _index.GetHashCode(), _length.GetHashCode()) : 0;
+            return ReadOnlyMemory<T>.CombineHashCodes((_object != null) ? RuntimeHelpers.GetHashCode(_object) : 0, _index, _length);
         }
-
-        private static int CombineHashCodes(int left, int right)
-        {
-            return ((left << 5) + left) ^ right;
-        }
-
-        private static int CombineHashCodes(int h1, int h2, int h3)
-        {
-            return CombineHashCodes(CombineHashCodes(h1, h2), h3);
-        }
-
     }
 }
