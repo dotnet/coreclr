@@ -35,7 +35,7 @@
     <MicrosoftNETCorePlatformsPackageVersion>2.2.0-preview3-27014-02</MicrosoftNETCorePlatformsPackageVersion>
     <PgoDataPackageVersion>2.2.0-release-20180912-0041</PgoDataPackageVersion>
     <MicrosoftNETCoreRuntimeCoreCLRPackageVersion>2.2.0-preview3-27014-03</MicrosoftNETCoreRuntimeCoreCLRPackageVersion>
-    <XunitPackageVersion>2.4.0</XunitPackageVersion>
+    <XunitPackageVersion>2.4.1-pre.build.4059</XunitPackageVersion>
     <XunitPerformanceApiPackageVersion>1.0.0-beta-build0015</XunitPerformanceApiPackageVersion>
     <MicrosoftDiagnosticsTracingTraceEventPackageVersion>2.0.4</MicrosoftDiagnosticsTracingTraceEventPackageVersion>
     <CommandLineParserVersion>2.1.1</CommandLineParserVersion>
