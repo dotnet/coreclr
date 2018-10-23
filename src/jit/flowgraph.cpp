@@ -22314,10 +22314,15 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
     //
     if (tree->OperGet() == GT_ASG)
     {
-        GenTree* value = tree->gtOp.gtOp2->gtEffectiveVal(/*commaOnly*/ true);
+        GenTree* value = tree->gtOp.gtOp2;
 
-        noway_assert(!varTypeIsStruct(value) || (value->OperGet() != GT_RET_EXPR) ||
-                     !comp->IsMultiRegReturnedType(value->gtRetExpr.gtRetClsHnd));
+        if (value->OperGet() == GT_COMMA)
+        {
+            GenTree* effectiveValue = value->gtEffectiveVal(/*commaOnly*/ true);
+
+            noway_assert(!varTypeIsStruct(effectiveValue) || (effectiveValue->OperGet() != GT_RET_EXPR) ||
+                         !comp->IsMultiRegReturnedType(effectiveValue->gtRetExpr.gtRetClsHnd));
+        }
     }
 
 #endif // defined(DEBUG)
