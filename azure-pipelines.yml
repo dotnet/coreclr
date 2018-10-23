@@ -381,3 +381,15 @@ jobs:
 #     testleg: innerloop
 #   condition: eq(variables
 # 
+- ${{ if contains(variables.testlegsoutervar, 'innerloop') }}
+  - job: innerloop
+    steps:
+    - script: echo innerloop!
+- ${{ if contains(variables.testlegsoutervar, 'outerloop') }}
+  - job: outerloop
+    steps:
+    - script: echo outerloop!
+- ${{ if contains(variables.testlegsoutervar, 'gcstress') }}
+  - job: gcstress
+    steps:
+    - script: echo gcstress!
