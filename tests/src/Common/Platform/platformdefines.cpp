@@ -208,7 +208,7 @@ error_t TP_itow_s(int num, LPWSTR buffer, size_t sizeInCharacters, int radix)
     // take care of the trivial case
     if (0 == num)
     {
-        buffer[0] = '\0';
+        buffer[0] = '0';
         buffer[1] = '\0';
     }
 
@@ -249,7 +249,7 @@ error_t TP_itoa_s(int num, LPSTR buffer, size_t sizeInCharacters, int radix)
     // take care of the trivial case
     if (0 == num)
     {
-        buffer[0] = '\0';
+        buffer[0] = '0';
         buffer[1] = '\0';
     }
 
