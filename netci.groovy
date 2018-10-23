@@ -784,6 +784,14 @@ def static isPri0TestScenario(def scenario) {
     return (scenario == 'innerloop' || scenario == 'no_tiered_compilation_innerloop')
 }
 
+def static getFxBranch(def branch) {
+    def fxBranch = branch
+    if (branch == 'dev/unix_test_workflow') {
+        fxBranch = 'release/2.2'
+    }
+    return fxBranch
+}
+
 def static setJobTimeout(newJob, isPR, architecture, configuration, scenario, isBuildOnly) {
     // 2 hours (120 minutes) is the default timeout
     def timeout = 120
@@ -2173,7 +2181,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                             def workspaceRelativeFxRoot = "_/fx"
                             def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
 
-                            buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${envScriptPath}"
+                            def fxBranch = getFxBranch(branch)
+                            buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath}"
 
                             // Archive and process (only) the test results
                             Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
@@ -2274,7 +2283,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeFxRootWin = "_\\fx"
                         def absoluteFxRoot = "%WORKSPACE%\\_\\fx"
 
-                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${envScriptPath} -no_run_tests"
+                        def fxBranch = getFxBranch(branch)
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${envScriptPath} -no_run_tests"
 
                         // Zip up the CoreFx runtime and tests. We don't need the CoreCLR binaries; they have been copied to the CoreFX tree.
                         buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('${workspaceRelativeFxRootWin}\\bin\\testhost\\netcoreapp-Windows_NT-Release-arm', '${workspaceRelativeFxRootWin}\\fxruntime.zip')\"";
@@ -2380,7 +2390,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def workspaceRelativeFxRoot = "_/fx"
                         def absoluteFxRoot = "\$WORKSPACE/${workspaceRelativeFxRoot}"
 
-                        buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${branch} -env_script ${scriptFileName}"
+                        def fxBranch = getFxBranch(branch)
+                        buildCommands += "python -u \$WORKSPACE/tests/scripts/run-corefx-tests.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -fx_root ${absoluteFxRoot} -fx_branch ${fxBranch} -env_script ${scriptFileName}"
 
                         // Archive and process (only) the test results
                         Utilities.addArchival(newJob, "${workspaceRelativeFxRoot}/bin/**/testResults.xml")
@@ -2392,7 +2403,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs ./build.sh verbose ${lowerConfiguration} ${architecture} cross clang3.8"
                         
                         // HACK -- Arm64 does not have corefx jobs yet.
-                        buildCommands += "git clone -b ${branch} https://github.com/dotnet/corefx fx"
+                        def fxBranch = getFxBranch(branch)
+                        buildCommands += "git clone -b ${fxBranch} https://github.com/dotnet/corefx fx"
                         buildCommands += "ROOTFS_DIR=/opt/arm64-xenial-rootfs-corefx ./fx/build-native.sh -release -buildArch=arm64 -- verbose cross clang3.8"
                         buildCommands += "mkdir ./bin/Product/Linux.arm64.${configuration}/corefxNative"
                         buildCommands += "cp fx/bin/Linux.arm64.Release/native/* ./bin/Product/Linux.arm64.${configuration}/corefxNative"
@@ -2734,7 +2746,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
 }
 
 Constants.allScenarios.each { scenario ->
-    [true, false].each { isPR ->
+    [true].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
                 Constants.osList.each { os ->
@@ -3547,7 +3559,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 // Create jobs requiring flow jobs. This includes x64 non-Windows, arm/arm64 Ubuntu, and arm/arm64/armlb Windows.
 // Note: no armlb non-Windows; we expect to deprecate/remove armlb soon, so don't want to add new testing for it.
 Constants.allScenarios.each { scenario ->
-    [true, false].each { isPR ->
+    [true].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
                 Constants.osList.each { os ->
