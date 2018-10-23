@@ -2734,7 +2734,7 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
 }
 
 Constants.allScenarios.each { scenario ->
-    [true, false].each { isPR ->
+    [true].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
                 Constants.osList.each { os ->
@@ -3497,7 +3497,7 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
 // Create jobs requiring flow jobs. This includes x64 non-Windows, arm/arm64 Ubuntu, and arm/arm64/armlb Windows.
 // Note: no armlb non-Windows; we expect to deprecate/remove armlb soon, so don't want to add new testing for it.
 Constants.allScenarios.each { scenario ->
-    [true, false].each { isPR ->
+    [true].each { isPR ->
         Constants.architectureList.each { architecture ->
             Constants.configurationList.each { configuration ->
                 Constants.osList.each { os ->
