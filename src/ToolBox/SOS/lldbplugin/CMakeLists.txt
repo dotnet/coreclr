@@ -18,6 +18,10 @@ add_definitions(-DPAL_STDCPP_COMPAT)
 set(ENABLE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_UNIX} CACHE BOOL "Enable building the SOS plugin for LLDB.")
 set(REQUIRE_LLDBPLUGIN ${CLR_CMAKE_PLATFORM_LINUX} CACHE BOOL "Require building the SOS plugin for LLDB.")
 
+if(CLR_CMAKE_PLATFORM_FREEBSD)
+set(REQUIRE_LLDBPLUGIN true)
+endif (CLR_CMAKE_PLATFORM_FREEBSD)
+
 if(SKIP_LLDBPLUGIN)
     SET(REQUIRE_LLDBPLUGIN false)
 endif()
@@ -100,6 +104,9 @@ else()
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-3.6/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/lib/llvm-3.5/include")
     #FreeBSD
+    find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm70/include")
+    find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm60/include")
+    find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm50/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm39/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm38/include")
 
