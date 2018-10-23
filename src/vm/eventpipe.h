@@ -333,6 +333,7 @@ class EventPipe
         static EventPipeFile *s_pSyncFile;
         static EventPipeJsonFile *s_pJsonFile;
 #endif // _DEBUG
+        const static DWORD FileSwitchTimerPeriodMS = 1000;
         static HANDLE s_fileSwitchTimerHandle;
         static ULONGLONG s_lastFileSwitchTime;
 };

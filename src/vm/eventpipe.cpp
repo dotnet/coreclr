@@ -483,6 +483,7 @@ void EventPipe::CreateFileSwitchTimer()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
 
@@ -491,7 +492,6 @@ void EventPipe::CreateFileSwitchTimer()
     {
         return;
     }
-//    timerContextHolder->AppDomainId = m_domainId;
     timerContextHolder->TimerId = 0;
 
     bool success = false;
@@ -502,8 +502,8 @@ void EventPipe::CreateFileSwitchTimer()
                 &s_fileSwitchTimerHandle,
                 SwitchToNextFileTimerCallback,
                 timerContextHolder,
-                1000,
-                1000, 
+                FileSwitchTimerPeriodMS,
+                FileSwitchTimerPeriodMS,
                 0 /* flags */))
         {
             _ASSERTE(s_fileSwitchTimerHandle != NULL);
@@ -530,6 +530,7 @@ void EventPipe::DeleteFileSwitchTimer()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
 
@@ -579,6 +580,7 @@ void EventPipe::SwitchToNextFile()
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(s_pSession != NULL);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END
 
@@ -612,6 +614,7 @@ void EventPipe::GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFi
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(pSession != NULL);
+        PRECONDITION(GetLock()->OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
