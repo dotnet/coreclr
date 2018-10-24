@@ -6,16 +6,17 @@
     <HelixTargetQueues>Windows.10.Amd64.Open;Windows.7.Amd64.Open;windows.10.arm64.open;Windows.81.Amd64.Open;fedora.27.amd64.open</HelixTargetQueues>
     <EnableXUnitReporter>true</EnableXUnitReporter>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
+    <SourceDirectory>$(MSBuildProjectDirectory)/..</SourceDirectory>
   </PropertyGroup>
 
   <ItemGroup>
-    <HelixCorrelationPayload Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\Core_Root\*.zip">
+    <HelixCorrelationPayload Include="$(SourceDirectory)\bin\tests\*\archive\Core_Root\*.zip">
       <PayloadArchive>%(Identity)</PayloadArchive>
     </HelixCorrelationPayload>
   </ItemGroup>
 
   <ItemGroup>
-    <HelixWorkItem Include="$(BUILD_SOURCESDIRECTORY)\bin\tests\*\archive\tests\*.zip">
+    <HelixWorkItem Include="$(SourceDirectory)\bin\tests\*\archive\tests\*.zip">
       <PayloadArchive>%(Identity)</PayloadArchive>
       <Command>runtests.cmd</Command>
     </HelixWorkItem>
