@@ -68,7 +68,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/Product/OSX.$(archType).$(buildConfig)
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfig)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
@@ -112,7 +112,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/Product/OSX.$(archType).$(buildConfig)
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfig)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
