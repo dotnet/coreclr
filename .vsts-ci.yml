@@ -80,11 +80,11 @@ phases:
       matrix:
         x64 release innerloop:
           buildConfig: release
-          BuildConfig: Release
+          buildConfigUpper: Release
           archType: x64
         x86 release innerloop:
           buildConfig: release
-          BuildConfig: Release
+          buildConfigUpper: Release
           archType: x86
     agentOs: Ubuntu
     name: Ubuntu
@@ -100,7 +100,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(BuildConfig)/Tests/Core_Root
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
@@ -133,7 +133,7 @@ phases:
       matrix:
         x64 release innerloop:
           buildConfig: release
-          BuildConfig: Release
+          buildConfigUpper: Release
           archType: x64
     agentOs: MacOS
     name: MacOS
@@ -157,7 +157,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(BuildConfig)/Tests/Core_Root
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
