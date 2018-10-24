@@ -96,7 +96,11 @@ if [ ! -e "$__DOTNET_PATH" ]; then
                     exit 1
                 fi
                 ;;
-
+            FreeBSD)
+                ulimit -n 2048
+                __PKG_RID=freebsd
+                OS=FreeBSD
+                ;;
             Linux)
                 __PKG_RID=linux
                 OS=Linux
