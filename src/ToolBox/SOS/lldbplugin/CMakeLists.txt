@@ -107,6 +107,7 @@ else()
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm70/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm60/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm50/include")
+    find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm40/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm39/include")
     find_path(LLDB_H "lldb/API/LLDB.h" PATHS "/usr/local/llvm38/include")
 
