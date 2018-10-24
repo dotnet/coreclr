@@ -12,7 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <TestCmds Include="$(DiscoveryDirectory)\**\*.cmd" ></TestCmds>
     <XunitDlls Include="$(DiscoveryDirectory)\**\*.XUnitWrapper.dll" ></XunitDlls>
     <RequiresSigningFilesToDelete Include="$(DiscoveryDirectory)\**\*.requires_signing" />
   </ItemGroup>
