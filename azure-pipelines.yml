@@ -408,7 +408,9 @@ jobs:
 
 - job: jobA
   steps:
-  - script: echo hi > file.txt
+  - bash: pwd
+  - bash: "echo sourcesdir: $BUILD_SOURCESDIRECTORY, systemwd: $SYSTEM_DEFAULTWORKINGDIRECTORY, agentwf: $AGENT_WORKFOLDER"
+  - bash: echo hi > file.txt
   - bash: ls
   - task: PublishPipelineArtifact@0
     inputs:
