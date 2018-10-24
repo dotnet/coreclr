@@ -29,11 +29,11 @@ namespace System.Diagnostics
         {
             get
             {
-                return DebugProvider.IndentLevel;
+                return s_provider.IndentLevel;
             }
             set
             {
-                DebugProvider.IndentLevel = value;
+                s_provider.IndentLevel = value;
             }
         }
 
@@ -41,11 +41,11 @@ namespace System.Diagnostics
         {
             get
             {
-                return DebugProvider.IndentSize;
+                return s_provider.IndentSize;
             }
             set
             {
-                DebugProvider.IndentSize = value;
+                s_provider.IndentSize = value;
             }
         }
 
@@ -58,13 +58,13 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Indent()
         {
-            IndentLevel++;
+            s_provider.IndentLevel++;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
         public static void Unindent()
         {
-            IndentLevel--;
+            s_provider.IndentLevel--;
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -105,7 +105,7 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage));
+                WriteLine(FormatAssert(stackTrace, message, detailMessage, s_provider.GetIndentString()));
                 s_provider.ShowDialog(stackTrace, message, detailMessage, "Assertion Failed");
             }
         }
@@ -123,7 +123,7 @@ namespace System.Diagnostics
                 {
                     stackTrace = "";
                 }
-                WriteLine(FormatAssert(stackTrace, message, detailMessage));
+                WriteLine(FormatAssert(stackTrace, message, detailMessage, s_provider.GetIndentString()));
                 s_provider.ShowDialog(stackTrace, message, detailMessage, SR.GetResourceString(failureKindMessage));
             }
         }
@@ -140,9 +140,9 @@ namespace System.Diagnostics
             Assert(false, message, detailMessage);
         }
 
-        private static string FormatAssert(string stackTrace, string message, string detailMessage)
+        private static string FormatAssert(string stackTrace, string message, string detailMessage, string indentString)
         {
-            string newLine = DebugProvider.GetIndentString() + Environment.NewLine;
+            string newLine = indentString + Environment.NewLine;
             return SR.DebugAssertBanner + newLine
                    + SR.DebugAssertShortMessage + newLine
                    + message + newLine
@@ -160,7 +160,7 @@ namespace System.Diagnostics
         [System.Diagnostics.Conditional("DEBUG")]
         public static void WriteLine(string message)
         {
-            Write(message + Environment.NewLine);
+            s_provider.WriteLine(message);
         }
 
         [System.Diagnostics.Conditional("DEBUG")]
@@ -196,7 +196,7 @@ namespace System.Diagnostics
             }
             else
             {
-                WriteLine(category + ":" + message);
+                WriteLine(category + ": " + message);
             }
         }
 
@@ -215,7 +215,7 @@ namespace System.Diagnostics
             }
             else
             {
-                Write(category + ":" + message);
+                Write(category + ": " + message);
             }
         }
 

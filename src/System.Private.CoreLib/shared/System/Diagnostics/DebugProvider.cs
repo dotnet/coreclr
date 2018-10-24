@@ -33,6 +33,11 @@ namespace System.Diagnostics
                 }
             }
         }
+        
+        public virtual void WriteLine(string message)
+        {
+            Write(message + Environment.NewLine);
+        }
 
         private static readonly object s_lock = new object();
 
@@ -56,7 +61,7 @@ namespace System.Diagnostics
 
         [ThreadStatic]
         private static int s_indentLevel;
-        internal static int IndentLevel
+        public virtual int IndentLevel
         {
             get
             {
@@ -69,7 +74,7 @@ namespace System.Diagnostics
         }
 
         private static int s_indentSize = 4;
-        internal static int IndentSize
+        public virtual int IndentSize
         {
             get
             {
@@ -81,11 +86,11 @@ namespace System.Diagnostics
             }
         }
 
-        private static bool s_needIndent;
+        private static bool s_needIndent = true;
 
         private static string s_indentString;
 
-        internal static string GetIndentString()
+        internal string GetIndentString()
         {
             int indentCount = IndentSize * IndentLevel;
             if (s_indentString?.Length == indentCount)
