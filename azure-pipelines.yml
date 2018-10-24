@@ -410,12 +410,13 @@ jobs:
   steps:
   - bash: pwd
   - bash: "echo sourcesdir: $BUILD_SOURCESDIRECTORY, systemwd: $SYSTEM_DEFAULTWORKINGDIRECTORY, agentwf: $AGENT_WORKFOLDER"
-  - bash: echo hi > file.txt
+  - bash: mkdir filedir
+  - bash: echo hi > filedir/file.txt
   - bash: ls
   - task: PublishPipelineArtifact@0
     inputs:
       artifactName: myPipelineArtifact
-      targetPath: file.txt
+      targetPath: filedir
 - job: jobB
   dependsOn: jobA
   steps:
@@ -423,5 +424,5 @@ jobs:
   - task: DownloadPipelineArtifact@0
     inputs:
       artifactName: myPipelineArtifact
-      targetPath: file.txt
+      targetPath: filedir
   - bash: cat file.txt
