@@ -10,7 +10,13 @@ resources:
 variables:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
 
+
 phases:
+
+###
+###  Windows: x64, x86, arm64, arm
+###
+
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
@@ -18,9 +24,18 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64 checked innerLoop:
-          buildConfig: checked
+        x64 release innerLoop:
+          buildConfig: release
           archType: x64
+        x86 release innerLoop:
+          buildConfig: release
+          archType: x86
+        arm release innerLoop:
+          buildConfig: release
+          archType: arm
+        arm64 release innerLoop:
+          buildConfig: release
+          archType: arm64
     agentOs: Windows_NT
     name: Windows_NT
     steps:
@@ -49,6 +64,13 @@ phases:
       env:
         HelixAccessToken: $(HelixTestAccessToken)
 
+
+
+
+###
+### Linux x64
+###
+
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
@@ -56,9 +78,14 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64 checked innerloop:
-          buildConfig: checked
+        x64 release innerloop:
+          buildConfig: release
+          BuildConfig: Release
           archType: x64
+        x86 release innerloop:
+          buildConfig: release
+          BuildConfig: Release
+          archType: x86
     agentOs: Ubuntu
     name: Ubuntu
     steps:
@@ -73,7 +100,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).Checked/Tests/Core_Root
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(BuildConfig)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
@@ -85,6 +112,18 @@ phases:
       env:
         HelixAccessToken: $(HelixTestAccessToken)
 
+
+###
+### RedHat x64
+###
+
+
+
+
+###
+### macOS x64
+###
+
 - template: /eng/common/templates/phases/base.yml@arcade
   parameters:
     queue:
@@ -92,8 +131,9 @@ phases:
       timeoutInMinutes: 180
       parallel: 3
       matrix:
-        x64 checked innerloop:
-          buildConfig: checked
+        x64 release innerloop:
+          buildConfig: release
+          BuildConfig: Release
           archType: x64
     agentOs: MacOS
     name: MacOS
@@ -117,7 +157,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).Checked/Tests/Core_Root
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(BuildConfig)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
