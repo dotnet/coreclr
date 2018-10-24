@@ -26,11 +26,11 @@ variables:
 
 
 jobs:
-- job: testvariablejob
-  displayName: testvariableDisplayName
-  steps:
-    # this works! but not in display name...? what about in parameters?
-  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegsoutervar)'
+#- job: testvariablejob
+#  displayName: testvariableDisplayName
+#  steps:
+#    # this works! but not in display name...? what about in parameters?
+#  - script: 'echo in test job. variable: $(testvar). testlegs: $(testlegsoutervar)'
 # - job: job1
 #   displayName: job1UIName
 #   dependsOn:
@@ -71,21 +71,21 @@ jobs:
 #     config_combos: { debug, release }
 #     testleg_combos: { stress, normal }
 
-- template: nestedmatrixtemplate.yml
-  parameters:
-    os: linux
-    arch: x64
-    config: debug
-    testleg: stress
-
-- template: template.yml
-  parameters:
-    name: instantiatedTemplateName
-- job: withsteptemplate
-  steps:
-  - template: steptemplate.yml
-    parameters:
-      myParam: instantiatedStepTemplateName
+#- template: nestedmatrixtemplate.yml
+#  parameters:
+#    os: linux
+#    arch: x64
+#    config: debug
+#    testleg: stress
+#
+#- template: template.yml
+#  parameters:
+#    name: instantiatedTemplateName
+#- job: withsteptemplate
+#  steps:
+#  - template: steptemplate.yml
+#    parameters:
+#      myParam: instantiatedStepTemplateName
 
 
 # test matrix
@@ -368,9 +368,9 @@ jobs:
 # variables:
 #   runconditionaljob: true
 
-- template: matrix.yml
-  parameters:
-    testlegsparam: $(testlegsoutervar)
+#- template: matrix.yml
+#  parameters:
+#    testlegsparam: $(testlegsoutervar)
 
 # - job: 
 # 
@@ -400,10 +400,10 @@ jobs:
   - job: gcstress
     steps:
     - script: echo gcstress!
-- ${{ if true }}:
-  - job: truejob
-    steps:
-    - script: echo this job should run!
+#- ${{ if true }}:
+#  - job: truejob
+#    steps:
+#    - script: echo this job should run!
 
 
 - job: jobA
