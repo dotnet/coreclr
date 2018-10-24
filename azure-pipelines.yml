@@ -409,7 +409,17 @@ jobs:
 - job: jobA
   steps:
   - script: echo hi > file.txt
+  - bash: ls
+  - task: PublishPipelineArtifact@0
+    inputs:
+      artifactName: myPipelineArtifact
+      targetPath: file.txt
 - job: jobB
   dependsOn: jobA
   steps:
-  - script: cat file.txt
+  - bash: ls
+  - task: DownloadPipelineArtifact@0
+    inputs:
+      artifactName: myPipelineArtifact
+      targetPath: file.txt
+  - bash: cat file.txt
