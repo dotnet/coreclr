@@ -16173,12 +16173,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
 
             if (fieldHnd != nullptr)
             {
-                CORINFO_CLASS_HANDLE fieldClass   = nullptr;
-                CorInfoType          fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &fieldClass);
-                if (fieldCorType == CORINFO_TYPE_CLASS)
-                {
-                    objClass = fieldClass;
-                }
+                objClass = gtGetFieldClassHandle(fieldHnd, isExact, isNonNull);
             }
 
             break;
@@ -16354,13 +16349,16 @@ CORINFO_CLASS_HANDLE Compiler::gtGetClassHandle(GenTree* tree, bool* isExact, bo
                                 fieldSeq = fieldSeq->m_next;
                             }
 
+                            assert(!fieldSeq->IsPseudoField());
+
+                            // No benefit to calling gtGetFieldClassHandle here, as
+                            // the exact field being accessed can vary.
                             CORINFO_FIELD_HANDLE fieldHnd     = fieldSeq->m_fieldHnd;
                             CORINFO_CLASS_HANDLE fieldClass   = nullptr;
                             CorInfoType          fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &fieldClass);
-                            if (fieldCorType == CORINFO_TYPE_CLASS)
-                            {
-                                objClass = fieldClass;
-                            }
+
+                            assert(fieldCorType == CORINFO_TYPE_CLASS);
+                            objClass = fieldClass;
                         }
                     }
                 }
@@ -16541,6 +16539,76 @@ CORINFO_CLASS_HANDLE Compiler::gtGetArrayElementClassHandle(GenTree* array)
     }
 
     return nullptr;
+}
+
+//------------------------------------------------------------------------
+// gtGetFieldClassHandle: find class handle for a field
+//
+// Arguments:
+//    fieldHnd - field handle for field in question
+//    isExact - [OUT] true if type is known exactly
+//    isNonNull - [OUT] true if field value is not null
+//
+// Return Value:
+//    nullptr if helper call result is not a ref class, or the class handle
+//    is unknown, otherwise the class handle.
+//
+//    May examine runtime state of static field instances.
+
+CORINFO_CLASS_HANDLE Compiler::gtGetFieldClassHandle(CORINFO_FIELD_HANDLE fieldHnd, bool* isExact, bool* isNonNull)
+{
+    CORINFO_CLASS_HANDLE fieldClass   = nullptr;
+    CorInfoType          fieldCorType = info.compCompHnd->getFieldType(fieldHnd, &fieldClass);
+
+    if (fieldCorType == CORINFO_TYPE_CLASS)
+    {
+        // Optionally, look at the actual type of the field's value
+        bool queryForCurrentClass = true;
+        INDEBUG(queryForCurrentClass = (JitConfig.JitQueryCurrentStaticFieldClass() > 0););
+
+        if (queryForCurrentClass)
+        {
+
+#if DEBUG
+            const char* fieldClassName = nullptr;
+            const char* fieldName      = eeGetFieldName(fieldHnd, &fieldClassName);
+            JITDUMP("Querying runtime about current class of field %s.%s (declared as %s)\n", fieldClassName, fieldName,
+                    eeGetClassName(fieldClass));
+#endif // DEBUG
+
+            // Is this an initialized static init-only field?
+            bool                 isFieldInitOnly = false;
+            CORINFO_CLASS_HANDLE currentClass =
+                info.compCompHnd->getStaticFieldCurrentClass(fieldHnd, &isFieldInitOnly);
+
+            if (currentClass != NO_CLASS_HANDLE)
+            {
+                // We know the current type -- can we rely on it?
+                if (isFieldInitOnly)
+                {
+                    // Yes! We know the class exactly and can rely on this to always be true.
+                    fieldClass = currentClass;
+                    *isExact   = true;
+                    *isNonNull = true;
+                    JITDUMP("Runtime reports field is init-only and has type %s\n", eeGetClassName(fieldClass));
+                }
+                else
+                {
+                    // No. We know the current type but it may change over time.
+                    //
+                    // We could use this type as an informed guess, someday,
+                    // if it is a "better" type than the declared field type.
+                    JITDUMP("Field is not init-only\n");
+                }
+            }
+            else
+            {
+                JITDUMP("Field's current class not available\n");
+            }
+        }
+    }
+
+    return fieldClass;
 }
 
 //------------------------------------------------------------------------

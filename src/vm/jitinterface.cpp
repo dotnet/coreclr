@@ -11756,6 +11756,79 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
     return result;
 }
 
+/*********************************************************************/
+CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                            bool* isInitOnly)
+{
+    CONTRACTL {
+        SO_TOLERANT;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_CLASS_HANDLE result = NULL;
+
+    if (isInitOnly != NULL)
+    {
+        *isInitOnly = false;
+    }
+
+    // Only examine the field's value if we are producing jitted code.
+    if (isVerifyOnly() || IsCompilingForNGen() || IsReadyToRunCompilation())
+    {
+        return result;
+    }
+
+    JIT_TO_EE_TRANSITION();
+
+    FieldDesc* field = (FieldDesc*) fieldHnd;
+
+    // We're only interested in ref class typed static fields
+    // where the field handle specifies a unique location.
+    if (field->IsStatic() && field->IsObjRef() && !field->IsThreadStatic())
+    {
+        MethodTable* pEnclosingMT = field->GetEnclosingMethodTable();
+
+        // We must not call here for statics of collectible types.
+        _ASSERTE(!pEnclosingMT->Collectible());
+
+        if (!pEnclosingMT->IsSharedByGenericInstantiations())
+        {
+            // Allocate space for the local class if necessary, but don't trigger
+            // class construction.
+            DomainLocalModule *pLocalModule = pEnclosingMT->GetDomainLocalModule();
+            pLocalModule->PopulateClass(pEnclosingMT);
+            
+            GCX_COOP();
+            
+            OBJECTREF fieldObj = field->GetStaticOBJECTREF();
+            VALIDATEOBJECTREF(fieldObj);
+
+            if (fieldObj != NULL)
+            {
+                MethodTable *pObjMT = fieldObj->GetMethodTable();
+                
+                // TODO: Check if the jit is allowed to embed this handle in jitted code.
+                // Note for the initonly cases it probably won't embed.
+                result = (CORINFO_CLASS_HANDLE) pObjMT;
+            }
+        }
+    }
+    
+    // If the field is init only, and the class is known, the class can't ever change.
+    if ((result != NULL) && (isInitOnly != NULL))
+    {
+        DWORD fieldAttribs = field->GetAttributes();
+        *isInitOnly = !!IsFdInitOnly(fieldAttribs);
+    }
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
+/*********************************************************************/
 static void *GetClassSync(MethodTable *pMT)
 {
     STANDARD_VM_CONTRACT;
@@ -13863,6 +13936,16 @@ void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
     if (ppIndirection != NULL)
         *ppIndirection = NULL;
     return (void *)0x10;
+}
+
+CORINFO_CLASS_HANDLE CEEInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE fieldHnd,
+                                                         bool* isInitOnly)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(isVerifyOnly());
+    if (isInitOnly != NULL)
+        *isInitOnly = false;
+    return NULL;
 }
 
 void* CEEInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,

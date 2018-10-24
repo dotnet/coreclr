@@ -2339,6 +2339,16 @@ void * ZapInfo::getFieldAddress(CORINFO_FIELD_HANDLE field, void **ppIndirection
     return NULL;
 }
 
+CORINFO_CLASS_HANDLE ZapInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isInitOnly)
+{
+    if (isInitOnly != NULL)
+    {
+        isInitOnly = false;
+    }
+
+    return NULL;
+}
+
 DWORD ZapInfo::getFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field,
                                           void **ppIndirection)
 {

@@ -1258,6 +1258,12 @@ void* interceptor_ICJI::getFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
     return original_ICorJitInfo->getFieldAddress(field, ppIndirection);
 }
 
+// return the class handle for the current value of a static field
+CORINFO_CLASS_HANDLE interceptor_ICJI::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool *isInitOnly)
+{
+    return original_ICorJitInfo->getStaticFieldCurrentClass(field, isInitOnly);
+}
+
 // registers a vararg sig & returns a VM cookie for it (which can contain other stuff)
 CORINFO_VARARGS_HANDLE interceptor_ICJI::getVarArgsHandle(CORINFO_SIG_INFO* pSig, void** ppIndirection)
 {

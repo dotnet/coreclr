@@ -3466,6 +3466,37 @@ void* MethodContext::repGetFieldAddress(CORINFO_FIELD_HANDLE field, void** ppInd
     return temp;
 }
 
+void MethodContext::recGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool isInitOnly, CORINFO_CLASS_HANDLE result)
+{
+    if (GetStaticFieldCurrentClass == nullptr)
+        GetStaticFieldCurrentClass = new LightWeightMap<DWORDLONG, Agnostic_GetStaticFieldCurrentClass>();
+
+    Agnostic_GetStaticFieldCurrentClass value;
+    
+    value.classHandle = (DWORDLONG)result;
+    value.isInitOnly = isInitOnly;
+
+    GetStaticFieldCurrentClass->Add((DWORDLONG)field, value);
+    DEBUG_REC(dmpGetFieldAddress((DWORDLONG)field, value));
+}
+void MethodContext::dmpGetStaticFieldCurrentClass(DWORDLONG key, const Agnostic_GetStaticFieldCurrentClass& value)
+{
+    printf("GetStaticFieldCurrentClass key fld-%016llX, value clsHnd-%016llX isInitOnly-%u", key, value.classHandle, value.isInitOnly);
+}
+CORINFO_CLASS_HANDLE MethodContext::repGetStaticFieldCurrentClass(CORINFO_FIELD_HANDLE field, bool* isInitOnly)
+{
+    Agnostic_GetStaticFieldCurrentClass value = GetStaticFieldCurrentClass->Get((DWORDLONG) field);
+
+    if (isInitOnly != nullptr)
+    {
+        *isInitOnly = value.isInitOnly;
+    }
+
+    CORINFO_CLASS_HANDLE result = (CORINFO_CLASS_HANDLE) value.classHandle;
+    DEBUG_REP(dmpGetStaticFieldCurrentValue((DWORDLONG)field, value));
+    return result;
+}
+
 void MethodContext::recGetClassGClayout(CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs, unsigned len, unsigned result)
 {
     if (GetClassGClayout == nullptr)
