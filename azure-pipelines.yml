@@ -25,7 +25,18 @@ variables:
   testvar: 'avariable'
 
 
+resources:
+  - container: alpine
+  - image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-3148f11-20171119021156
+    
 jobs:
+- job: testcontainerjob
+  displayName: container job
+  container: alpine
+  steps:
+    - script: printenv
+
+
 #- job: testvariablejob
 #  displayName: testvariableDisplayName
 #  steps:
@@ -426,3 +437,5 @@ jobs:
       artifactName: myPipelineArtifact
       targetPath: filedir
   - bash: cat filedir/file.txt
+
+
