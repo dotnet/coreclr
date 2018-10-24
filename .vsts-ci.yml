@@ -30,7 +30,8 @@ phases:
     # necessary to install python!
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
       displayName: Install native tools
-    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
+      # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
+    - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% skiptests -priority=0
       displayName: Build
 #    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
 #      displayName: Build tests
