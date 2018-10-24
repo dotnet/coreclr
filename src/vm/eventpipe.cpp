@@ -618,13 +618,21 @@ void EventPipe::GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFi
     }
     CONTRACTL_END;
 
-    // If multiFileTraceLengthInSeconds == 0 then s_pOutputPath is the full path to the trace file.
-    // Otherwise s_pOutputPath is the path and base name of the trace file.  It needs the file index and suffix appended to it to produce the fill path.
+    // Set the full path to the requested trace file as the next file path.
     nextTraceFilePath.Set(s_pOutputPath);
 
+    // If multiple files have been requested, then add a sequence number to the trace file name.
     UINT64 multiFileTraceLengthInSeconds = pSession->GetMultiFileTraceLengthInSeconds();
     if(multiFileTraceLengthInSeconds > 0)
     {
+        // Remove the ".netperf" file extension if it exists.
+        SString::Iterator netPerfExtension = nextTraceFilePath.End();
+        if(nextTraceFilePath.FindBack(netPerfExtension, W(".netperf")))
+        {
+            nextTraceFilePath.Truncate(netPerfExtension);
+        }
+
+        // Add the sequence number and the ".netperf" file extension.
         WCHAR strNextIndex[21];
         swprintf_s(strNextIndex, 21, W(".%u.netperf"), s_nextFileIndex++);
         nextTraceFilePath.Append(strNextIndex);

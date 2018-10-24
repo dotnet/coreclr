@@ -221,7 +221,7 @@ namespace System.Diagnostics.Tracing
             }
 
             // Build the full path to the trace file.
-            string traceFileName = BuildTraceFileName(multiFileSec > 0);
+            string traceFileName = BuildTraceFileName();
             string outputFile = Path.Combine(outputPath, traceFileName);
 
             // Get the circular buffer size.
@@ -252,7 +252,7 @@ namespace System.Diagnostics.Tracing
         private static EventPipeConfiguration BuildConfigFromEnvironment()
         {
             // Build the full path to the trace file.
-            string traceFileName = BuildTraceFileName(false);
+            string traceFileName = BuildTraceFileName();
             string outputFilePath = Path.Combine(Config_EventPipeOutputPath, traceFileName);
 
             // Create a new configuration object.
@@ -281,19 +281,9 @@ namespace System.Diagnostics.Tracing
             return GetAppName() + ConfigFileSuffix;
         }
 
-        private static string BuildTraceFileName(bool multiFile)
+        private static string BuildTraceFileName()
         {
-            string traceFileName;
-            if (multiFile)
-            {
-                traceFileName = GetAppName() + "." + Win32Native.GetCurrentProcessId();
-            }
-            else
-            {
-                traceFileName = GetAppName() + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
-            }
-
-            return traceFileName;
+            return GetAppName() + "." + Win32Native.GetCurrentProcessId() + NetPerfFileExtension;
         }
 
         private static string GetAppName()
