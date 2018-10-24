@@ -7,6 +7,7 @@
 
 //
 // Implement the interface between the DAC and DBI.
+//
 //*****************************************************************************
 
 #ifndef _DACDBI_IMPL_H_
@@ -21,18 +22,15 @@ DacDbiInterfaceInstance(
     IDacDbiInterface::IMetaDataLookup * pMetaDataLookup,
     IDacDbiInterface ** ppInterface);
 
-//---------------------------------------------------------------------------------------
-//
-// This implements the DAC/DBI interface. See that interface declaration for 
-// full documentation on these methods.
-//
-// Assumptions:
-//    This class is free-threaded and provides its own synchronization.
-//
-// Notes:
-//    It inherits from ClrDataAccess to get the DAC-management implementation, and to 
-//    override GetMDImport.
-//
+/// <summary>
+/// This implements the DAC/DBI interface. See that interface declaration for
+/// full documentation on these methods.
+/// </summary>
+/// <remarks>
+/// This class is free-threaded and provides its own synchronization.
+/// It inherits from ClrDataAccess to get the DAC-management implementation, and to 
+/// override GetMDImport.
+/// </remarks>
 class DacDbiInterfaceImpl : 
     public ClrDataAccess,
     public IDacDbiInterface

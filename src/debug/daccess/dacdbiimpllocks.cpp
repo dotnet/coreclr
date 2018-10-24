@@ -17,12 +17,11 @@
 #include "switches.h"
 #include "dacdbiimpl.h"
 
-// ============================================================================
-// Functions to test data safety. In these functions we determine whether a lock
-// is held in a code path we need to execute for inspection. If so, we throw an 
-// exception. 
-// ============================================================================
-
+/// <summary>
+/// Functions to test data safety. In these functions we determine whether a lock
+/// is held in a code path we need to execute for inspection. If so, we throw an 
+/// exception. 
+/// </summary>
 #ifdef TEST_DATA_CONSISTENCY
 #include "crst.h"
 

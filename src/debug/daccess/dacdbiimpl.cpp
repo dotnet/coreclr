@@ -33,60 +33,63 @@
 
 #include "request_common.h"
 
-//-----------------------------------------------------------------------------
-// Have standard enter and leave macros at the DacDbi boundary to enforce 
-// standard behavior. 
-// 1. catch exceptions and convert them at the boundary.
-// 2. provide a space to hook logging and transitions.
-// 3. provide a hook to verify return values.
-//
-// Usage notes:
-// - use this at the DacDbi boundary; but not at internal functions
-// - it's ok to Return from the middle.
-//
-// Expected usage is:
-//  Foo() 
-//  {
-//      DD_ENTER_MAY_THROW
-//      ...
-//      if (...) { ThrowHr(E_SOME_FAILURE); }
-//      ...
-//      if (...) { return; } // early success case
-//      ...
-//  }
-//-----------------------------------------------------------------------------
-
-
+/// <summary>
+/// Have standard enter and leave macros at the DacDbi boundary to enforce
+/// standard behavior.
+/// 1. Catch exceptions and convert them at the boundary.
+/// 2. Provide a space to hook logging and transitions.
+/// 3. Provide a hook to verify return values.
+/// </summary>
+/// <remarks>
+/// - Use this at the DacDbi boundary; but not at internal functions
+/// - It's ok to Return from the middle.
+/// </remarks>
+/// <example> Expected usage is:
+/// <code>
+///  Foo() 
+///  {
+///      DD_ENTER_MAY_THROW
+///      ...
+///      if (...) { ThrowHr(E_SOME_FAILURE); }
+///      ...
+///      if (...) { return; } // early success case
+///      ...
+///  }
+/// </code>
+/// </example>
 
 
 // Global allocator for DD. Access is protected under the g_dacCritSec lock.
 IDacDbiInterface::IAllocator * g_pAllocator = NULL;
 
-//---------------------------------------------------------------------------------------
-//
-// Extra sugar for wrapping IAllocator under friendly New/Delete operators.
-//
-// Sample usage:
-//     void Foo(TestClass ** ppOut) 
-//     {
-//        *ppOut = NULL;
-//        TestClass * p = new (forDbi) TestClass();
-//        ...
-//        if (ok) 
-//        { 
-//            *ppOut = p; 
-//            return; // DBI will then free this memory.
-//        } 
-//        ...
-//        DeleteDbiMemory(p);
-//     }
-//
-//     Be very careful when using this on classes since Dbi and DAC may be in
-//     separate dlls. This is best used when operating on blittable data-structures.
-//     (no ctor/dtor, plain data fields) to guarantee the proper DLL isolation.
-//     You don't want to call the ctor in DAC's context and the dtor in DBI's context
-//     unless you really know what you're doing and that it's safe.
-//
+
+/// <summary>
+/// Extra sugar for wrapping IAllocator under friendly New/Delete operators.
+/// </summary>
+/// <remarks>
+/// Be very careful when using this on classes since Dbi and DAC may be in
+/// separate dlls. This is best used when operating on blittable data-structures.
+/// (no ctor/dtor, plain data fields) to guarantee the proper DLL isolation.
+/// You don't want to call the ctor in DAC's context and the dtor in DBI's context
+/// unless you really know what you're doing and that it's safe.
+/// </remarks>
+/// <example> Sample usage:
+/// <code>
+///  void Foo(TestClass ** ppOut) 
+///    {
+///       *ppOut = NULL;
+///       TestClass * p = new (forDbi) TestClass();
+///       ...
+///       if (ok) 
+///       { 
+///           *ppOut = p; 
+///           return; // DBI will then free this memory.
+///       } 
+///       ...
+///       DeleteDbiMemory(p);
+///    }
+/// </code>
+/// </example>
 
 // Need a class to serve as a tag that we can use to overload New/Delete.
 forDbiWorker forDbi;
@@ -156,34 +159,28 @@ template<class T> void DeleteDbiMemory(T *p)
 }
 
 
-//---------------------------------------------------------------------------------------
-// Creates the DacDbiInterface object, used by Dbi.
-//
-// Arguments:
-//    pTarget     - pointer to a Data-Target
-//    baseAddress - non-zero base address of mscorwks in target to debug. 
-//    pAllocator  - pointer to client allocator object. This lets DD allocate objects and
-//                  pass them out back to the client, which can then delete them.
-//                  DD takes a weak ref to this, so client must keep it alive until it 
-//                  calls Destroy.
-//    pMetadataLookup - callback interface to do internal metadata lookup. This is because
-//                  metadata is not dac-ized.
-//    ppInterface - mandatory out-parameter 
-//
-// Return Value:
-//    S_OK on success.
-//
-//
-// Notes:
-//    On Windows, this is public function that can be retrieved by GetProcAddress.
-
-//    On Mac, this is used internally by DacDbiMarshalStubInstance below
-//    This will yield an IDacDbiInterface to provide structured access to the
-//    data-target.
-//
-//    Must call Destroy to on interface to free its resources.
-//
-//---------------------------------------------------------------------------------------
+/// <summary>
+/// Creates the DacDbiInterface object, used by Dbi.
+/// </summary>
+/// <remarks>
+/// On Windows, this is public function that can be retrieved by GetProcAddress.
+///
+/// On Mac, this is used internally by DacDbiMarshalStubInstance below
+/// This will yield an IDacDbiInterface to provide structured access to the
+/// data-target.
+///
+/// Must call Destroy to on interface to free its resources.
+/// </remarks>
+/// <param name='pTarget'>Pointer to a Data-Target.</param>
+/// <param name='baseAddress'>Non-zero base address of mscorwks in target to debug.</param>
+/// <param name='pAllocator'>pointer to client allocator object. This lets DD allocate objects and
+///    pass them out back to the client, which can then delete them.
+///    DD takes a weak ref to this, so client must keep it alive until it 
+///    calls Destroy.</param>
+/// <param name='pMetadataLookup'>Callback interface to do internal metadata lookup. This is because
+///    metadata is not dac-ized.</param>
+/// <param name='ppInterface'>Mandatory out-parameter.</param>
+/// <returns>S_OK on success.</returns>
 STDAPI
 DacDbiInterfaceInstance(
     ICorDebugDataTarget * pTarget,

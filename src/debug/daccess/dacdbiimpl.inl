@@ -15,23 +15,17 @@
 
 #include "dacdbiimpl.h"
 
-//---------------------------------------------------------------------------------------
-// Helper to write a structure to the target
-//
-// Arguments:
-//    T - type of structure to read.
-//    pRemotePtr - remote pointer into target (dest).
-//    pLocalBuffer - local buffer to write (Src). 
-//
-// Return Value:
-//    Throws on error.
-//
-// Notes:
-//    This just does a raw Byte copy into the Target, but does not do any Marshalling. 
-//    This fails if any part of the buffer can't be written. 
-//
-//
-//---------------------------------------------------------------------------------------
+/// <summary>
+/// Helper to write a structure to the target.
+/// </summary>
+/// <remarks>
+/// This just does a raw Byte copy into the Target, but does not do any Marshalling. 
+/// This fails if any part of the buffer can't be written.
+/// </remarks>
+/// <typeparam name="T">Type of structure to read.</typeparam>
+/// <param name='pRemotePtr'>Remote pointer into target (dest).</param>
+/// <param name='pLocalBuffer'>Local buffer to write (Src).</param>
+/// <returns>Throws on error</returns>
 template<typename T>
 void DacDbiInterfaceImpl::SafeWriteStructOrThrow(CORDB_ADDRESS pRemotePtr, const T * pLocalBuffer)
 {
@@ -44,19 +38,16 @@ void DacDbiInterfaceImpl::SafeWriteStructOrThrow(CORDB_ADDRESS pRemotePtr, const
     }
 }
 
-//---------------------------------------------------------------------------------------
-// Helper to read a structure from the target process
-//
-// Arguments:
-//    T            - type of structure to read
-//    pRemotePtr   - remote pointer into the target process (src)
-//    pLocalBuffer - local buffer to store the structure (dest)
-//
-// Notes:
-//    This just does a raw Byte copy into the Target, but does not do any Marshalling. 
-//    This fails if any part of the buffer can't be written. 
-//
-
+/// <summary>
+/// Helper to read a structure from the target process
+/// </summary>
+/// <remarks>
+/// This just does a raw Byte copy into the Target, but does not do any Marshalling.
+/// This fails if any part of the buffer can't be written. 
+/// </remarks>
+/// <typeparam name="T">Type of structure to read.</typeparam>
+/// <param name='pRemotePtr'>remote pointer into the target process (src).</param>
+/// <param name='pLocalBuffer'>local buffer to store the structure (dest).</param>
 template<typename T>
 void DacDbiInterfaceImpl::SafeReadStructOrThrow(CORDB_ADDRESS pRemotePtr, T * pLocalBuffer)
 {
