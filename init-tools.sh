@@ -97,7 +97,6 @@ if [ ! -e "$__DOTNET_PATH" ]; then
                 fi
                 ;;
             FreeBSD)
-                ulimit -n 2048
                 __PKG_RID=freebsd
                 OS=FreeBSD
                 ;;
