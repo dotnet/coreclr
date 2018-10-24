@@ -33,6 +33,8 @@ resources:
 jobs:
 - job: testcontainerjob
   displayName: container job
+  pool:
+    name: Hosted Ubuntu 1604
   container: alpine
   steps:
     - script: printenv
