@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name": "System.Globalization.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Globalization.Tests.CharUnicodeInfoGetUnicodeCategoryTests.GetUnicodeCategory",
+                    "reason": "We updated the Unicode data and didn't pick yet the updated tests from corefx. we should remove this entry after updating the tests in coreclr."
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Data.SqlClient.ManualTesting.Tests",
         "enabled": false,
         "exclusions": {
@@ -279,6 +293,14 @@
                 {
                     "name": "System.IO.Tests.EncryptDecrypt.NullArg_ThrowsException",
                     "reason": "outdated"
+                },
+                {
+                    "name": "System.IO.Tests.File_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
+                },
+                {
+                    "name": "System.IO.Tests.FileInfo_Delete.Unix_NonExistentPath_Nop",
+                    "reason": "outdated (deleted from corefx)"
                 }
             ]
         }
@@ -542,6 +564,20 @@
                     "reason" : "outdated"
                 }
             ]
+        }
+    },
+    {
+        "name": "System.Diagnostics.Debug.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": [
+                {
+                    "name" : "System.Diagnostics.Tests.DebugTests",
+                    "reason" : "refactoring Debug"
+                }
+            ],
+            "methods": null
         }
     }
 ]

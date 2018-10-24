@@ -3537,6 +3537,8 @@ struct GenTreeCall final : public GenTree
                                                     // stubs, because executable code cannot be generated at runtime.
 #define GTF_CALL_M_HELPER_SPECIAL_DCE    0x00020000 // GT_CALL -- this helper call can be removed if it is part of a comma and
                                                     // the comma result is unused.
+#define GTF_CALL_M_DEVIRTUALIZED         0x00040000 // GT_CALL -- this call was devirtualized
+#define GTF_CALL_M_UNBOXED               0x00080000 // GT_CALL -- this call was optimized to use the unboxed entry point
 
     // clang-format on
 
@@ -3741,6 +3743,16 @@ struct GenTreeCall final : public GenTree
     void SetFatPointerCandidate()
     {
         gtCallMoreFlags |= GTF_CALL_M_FAT_POINTER_CHECK;
+    }
+
+    bool IsDevirtualized() const
+    {
+        return (gtCallMoreFlags & GTF_CALL_M_DEVIRTUALIZED) != 0;
+    }
+
+    bool IsUnboxed() const
+    {
+        return (gtCallMoreFlags & GTF_CALL_M_UNBOXED) != 0;
     }
 
     unsigned gtCallMoreFlags; // in addition to gtFlags
@@ -6326,10 +6338,6 @@ const size_t TREE_NODE_SZ_SMALL = max(sizeof(GenTreeIntCon), sizeof(GenTreeLclFl
 
 const size_t TREE_NODE_SZ_LARGE = sizeof(GenTreeCall);
 
-/*****************************************************************************
- * Types returned by GenTree::lvaLclVarRefs()
- */
-
 enum varRefKinds
 {
     VR_INVARIANT = 0x00, // an invariant value
@@ -6338,8 +6346,6 @@ enum varRefKinds
     VR_IND_SCL   = 0x02, // a non-object reference
     VR_GLB_VAR   = 0x04, // a global (clsVar)
 };
-// Add a temp define to avoid merge conflict.
-#define VR_IND_PTR VR_IND_REF
 
 /*****************************************************************************/
 #endif // !GENTREE_H

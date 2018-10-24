@@ -48,6 +48,8 @@ usage()
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
+    echo "-crossgenonly - only run native image generation"
+    echo "-partialngen - build CoreLib as PartialNGen"
     echo "-verbose - optional argument to enable verbose build output."
     echo "-skiprestore: skip restoring packages ^(default: packages are restored during build^)."
     echo "-disableoss: Disable Open Source Signing for System.Private.CoreLib."
@@ -162,7 +164,11 @@ check_prereqs()
     fi
 
     # Check for clang
-    hash clang-$__ClangMajorVersion.$__ClangMinorVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null ||  hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
+    __ClangCombinedDottedVersion=$__ClangMajorVersion;
+    if [[ "$__ClangMinorVersion" != "" ]]; then
+        __ClangCombinedDottedVersion=$__ClangCombinedDottedVersion.$__ClangMinorVersion
+    fi
+    hash clang-$__ClangCombinedDottedVersion 2>/dev/null ||  hash clang$__ClangMajorVersion$__ClangMinorVersion 2>/dev/null || hash clang 2>/dev/null || { echo >&2 "Please install clang-$__ClangMajorVersion.$__ClangMinorVersion before running this script"; exit 1; }
 
 }
 
@@ -301,8 +307,8 @@ build_native()
 
         pushd "$intermediatesForBuild"
         # Regenerate the CMake solution
-        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
-        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion $__ClangMinorVersion $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
+        echo "Invoking \"$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh\" \"$__ProjectRoot\" $__ClangMajorVersion \"$__ClangMinorVersion\" $platformArch $__BuildType $__CodeCoverage $generator $extraCmakeArguments $__cmakeargs"
+        "$__ProjectRoot/src/pal/tools/gen-buildsys-clang.sh" "$__ProjectRoot" $__ClangMajorVersion "$__ClangMinorVersion" $platformArch $__BuildType $__CodeCoverage $generator "$extraCmakeArguments" "$__cmakeargs"
         popd
     fi
 
@@ -424,6 +430,10 @@ build_CoreLib_ni()
 {
     local __CrossGenExec=$1
 
+    if [ $__PartialNgen == 1 ]; then
+        export COMPlus_PartialNGen=1
+    fi
+
     if [ -e $__CrossGenCoreLibLog ]; then
         rm $__CrossGenCoreLibLog
     fi
@@ -519,7 +529,7 @@ generate_NugetPackages()
     fi
 
     # Since we can build mscorlib for this OS, did we build the native components as well?
-    if [ $__SkipCoreCLR == 1 ]; then
+    if [[ $__SkipCoreCLR == 1 && $__CrossgenOnly == 0 ]]; then
         echo "Unable to generate nuget packages since native components were not built."
         return
     fi
@@ -655,6 +665,8 @@ __SkipCoreCLR=0
 __SkipMSCorLib=0
 __SkipRestoreOptData=0
 __SkipCrossgen=0
+__CrossgenOnly=0
+__PartialNgen=0
 __SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
@@ -788,6 +800,11 @@ while :; do
             __ClangMinorVersion=0
             ;;
 
+        clang7|-clang7)
+            __ClangMajorVersion=7
+            __ClangMinorVersion=
+            ;;
+
         ninja|-ninja)
             __UseNinja=1
             ;;
@@ -847,6 +864,15 @@ while :; do
 
         skipcrossgen|-skipcrossgen)
             __SkipCrossgen=1
+            ;;
+
+        crossgenonly|-crossgenonly)
+            __SkipMSCorLib=1
+            __SkipCoreCLR=1
+            __CrossgenOnly=1
+            ;;
+        partialngen|-partialngen)
+            __PartialNgen=1
             ;;
 
         skiptests|-skiptests)
@@ -1035,6 +1061,10 @@ fi
 # Build System.Private.CoreLib.
 
 build_CoreLib
+
+if [ $__CrossgenOnly ==1 ]; then
+    build_CoreLib_ni "$__BinDir/crossgen"
+fi
 
 # Generate nuget packages
 if [ $__SkipNuget != 1 ]; then
