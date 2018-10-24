@@ -14099,7 +14099,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 + f2;
+                        d1 = forceCastToFloat(f1 + f2);
                     }
                     else
                     {
@@ -14112,7 +14112,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 - f2;
+                        d1 = forceCastToFloat(f1 - f2);
                     }
                     else
                     {
@@ -14125,7 +14125,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 * f2;
+                        d1 = forceCastToFloat(f1 * f2);
                     }
                     else
                     {
@@ -14142,7 +14142,7 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
                     {
                         f1 = forceCastToFloat(d1);
                         f2 = forceCastToFloat(d2);
-                        d1 = f1 / f2;
+                        d1 = forceCastToFloat(f1 / f2);
                     }
                     else
                     {
