@@ -639,6 +639,14 @@ namespace System.Reflection.Emit
                 return true;
             }
         }
+
+        public override bool IsCollectible
+        {
+            get
+            {
+                return InternalAssembly.IsCollectible;
+            }
+        }
         #endregion
 
 
