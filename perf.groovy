@@ -677,6 +677,7 @@ parallel(
     ['x64', 'x86'].each { arch ->
         def architecture = arch
         def newJob = job(Utilities.getFullJobName(project, "sizeondisk_${arch}", false)) {
+            label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
 
             wrappers {
                 credentialsBinding {
@@ -726,8 +727,6 @@ parallel(
             }
         }
 
-        Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
-
         def archiveSettings = new ArchivalSettings()
         archiveSettings.addFiles('bin/toArchive/**')
         archiveSettings.addFiles('machinedata.json')
@@ -763,6 +762,7 @@ parallel(
                 ['full_opt'].each { opt_level ->
                     def architecture = arch
                     def newJob = job(Utilities.getFullJobName(project, "perf_illink_${os}_${arch}_${opt_level}_${jit}", isPR)) {
+                        label('Windows.Amd64.ClientRS4.DevEx.15.8.Perf')
 
                         def testEnv = ""
                         wrappers {
@@ -819,7 +819,6 @@ parallel(
                     archiveSettings.setAlwaysArchive()
 
                     // Set the label (currently we are only measuring size, therefore we are running on VM).
-                    Utilities.setMachineAffinity(newJob, "Windows_NT", '20170427-elevated')
                     Utilities.addArchival(newJob, archiveSettings)
                     Utilities.standardJobSetup(newJob, project, isPR, "*/${branch}")
 
