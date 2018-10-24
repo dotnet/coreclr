@@ -22359,8 +22359,21 @@ Compiler::fgWalkResult Compiler::fgUpdateInlineReturnExpressionPlaceHolder(GenTr
 
 Compiler::fgWalkResult Compiler::fgLateDevirtualization(GenTree** pTree, fgWalkData* data)
 {
-    GenTree*  tree = *pTree;
-    Compiler* comp = data->compiler;
+    GenTree*  tree   = *pTree;
+    GenTree*  parent = data->parent;
+    Compiler* comp   = data->compiler;
+
+    // In some (rare) cases the parent node of tree will be smashed to a NOP during
+    // the preorder by fgAttachStructToInlineeArg.
+    //
+    // jit\Methodical\VT\callconv\_il_reljumper3 for x64 linux
+    //
+    // If so, just bail out here.
+    if ((parent != nullptr) && parent->OperGet() == GT_NOP)
+    {
+        assert(tree == nullptr);
+        return WALK_CONTINUE;
+    }
 
     if (tree->OperGet() == GT_CALL)
     {
