@@ -46,8 +46,14 @@ phases:
     - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
       displayName: Install native tools
       # TODO: do we want to skiptests? skipbuildpackages? IBCOptimize? EnforcePGO? pass an OfficialBuildId? SkipRestore? signtype? file logging parameters?
-    - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) skiptests -priority=0
+    - script: .\Tools\dotnetcli\dotnet.exe msbuild build.proj /p:RestoreDuringBuild:true /t:Sync
+      displayName: Sync
+    # skiprestore sets restoreduringbuild to false. that step has been separated out.
+    - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages -skiprestore -priority=0
       displayName: Build
+    - script: echo Sign!
+      displayName: Sign Binaries (empty for now)
+    - script: build packages
 #    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
 #      displayName: Build tests
     - script: build-test.cmd $(buildConfig) $(archType) -Priority=0
@@ -96,7 +102,9 @@ phases:
 #        version: 2.1.400
 #    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
-    - script: ./build.sh $(buildConfig) $(archType)
+    - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild:true /t:Sync
+      displayName: Sync
+    - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
       displayName: Build
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
@@ -153,6 +161,8 @@ phases:
 #      displayName: Install native tools
 #    - script: bash ./eng/common/init-tools-native.sh --installdirectory $(Agent.BuildDirectory)/native-tools -Force
 #      displayName: Install native tools
+    - script: ./Tools/dotnetcli/dotnet msbuild build.proj /p:RestoreDuringBuild:true /t:Sync
+      displayName: Sync
     - script: ./build.sh $(buildConfig) $(archType)
       displayName: Build
     - script: ./build-test.sh $(buildConfig) $(archType)
@@ -215,40 +225,40 @@ phases:
 #  Windows_NT x64 Checked CoreFx tests
 #  Windows_NT x64 Release CoreFx tests
 
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: Hosted Ubuntu 1604
-      timeoutInMinutes: 180
-      parallel: 1
-    agentOs: Ubuntu
-    name: UbuntuHelix
-    steps:
-      - task: DotNetCoreCLI@2
-        inputs:
-          command: custom
-          projects: helixtest.proj
-          custom: msbuild
-          arguments: '/t:test'
-        displayName: Send test workload to helix
-        env:
-          HelixAccessToken: $(HelixTestAccessToken)
-
-- template: /eng/common/templates/phases/base.yml@arcade
-  parameters:
-    queue:
-      name: dotnet-external-temp
-      timeoutInMinutes: 180
-      parallel: 1
-    agentOs: Windows_NT
-    name: WindowsHelix
-    steps:
-      - task: DotNetCoreCLI@2
-        inputs:
-          command: custom
-          projects: helixtest.proj
-          custom: msbuild
-          arguments: '/t:test'
-        displayName: Send test workload to helix
-        env:
-          HelixAccessToken: $(HelixTestAccessToken)
+#- template: /eng/common/templates/phases/base.yml@arcade
+#  parameters:
+#    queue:
+#      name: Hosted Ubuntu 1604
+#      timeoutInMinutes: 180
+#      parallel: 1
+#    agentOs: Ubuntu
+#    name: UbuntuHelix
+#    steps:
+#      - task: DotNetCoreCLI@2
+#        inputs:
+#          command: custom
+#          projects: helixtest.proj
+#          custom: msbuild
+#          arguments: '/t:test'
+#        displayName: Send test workload to helix
+#        env:
+#          HelixAccessToken: $(HelixTestAccessToken)
+#
+#- template: /eng/common/templates/phases/base.yml@arcade
+#  parameters:
+#    queue:
+#      name: dotnet-external-temp
+#      timeoutInMinutes: 180
+#      parallel: 1
+#    agentOs: Windows_NT
+#    name: WindowsHelix
+#    steps:
+#      - task: DotNetCoreCLI@2
+#        inputs:
+#          command: custom
+#          projects: helixtest.proj
+#          custom: msbuild
+#          arguments: '/t:test'
+#        displayName: Send test workload to helix
+#        env:
+#          HelixAccessToken: $(HelixTestAccessToken)
