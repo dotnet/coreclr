@@ -425,4 +425,4 @@ jobs:
     inputs:
       artifactName: myPipelineArtifact
       targetPath: filedir
-  - bash: cat file.txt
+  - bash: cat filedir/file.txt
