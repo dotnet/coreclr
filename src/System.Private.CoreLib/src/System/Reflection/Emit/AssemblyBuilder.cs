@@ -640,13 +640,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override bool IsCollectible
-        {
-            get
-            {
-                return InternalAssembly.IsCollectible;
-            }
-        }
+        public override bool IsCollectible => InternalAssembly.IsCollectible;
         #endregion
 
 
