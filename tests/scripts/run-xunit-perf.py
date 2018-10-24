@@ -454,7 +454,7 @@ def main(args):
     perfRunLog = set_perf_run_log(sandboxOutputDir)
     build_perfharness(coreclrRepo, sandboxDir, extension, myEnv)
 
-    # Set up environment for running tests
+    # Set up environment for running tests!
     if optLevel == 'min_opts':
         myEnv['COMPlus_JITMinOpts'] = '1'
         myEnv['COMPlus_TieredCompilation'] = '0'
