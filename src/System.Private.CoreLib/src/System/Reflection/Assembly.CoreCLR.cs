@@ -227,8 +227,5 @@ namespace System.Reflection
                 domainManager = new AppDomainManager();
             return domainManager.EntryAssembly;
         }
-
-        // Check whether this assembly is collectible by GC
-        public abstract bool IsCollectible { get; }
     }
 }
