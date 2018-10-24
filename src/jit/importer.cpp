@@ -9217,15 +9217,6 @@ void Compiler::impImportLeave(BasicBlock* block)
                                               // exit) returns to this block
                 step->bbJumpDest->bbRefs++;
 
-#if defined(_TARGET_ARM_)
-                if (stepType == ST_FinallyReturn)
-                {
-                    assert(step->bbJumpKind == BBJ_ALWAYS);
-                    // Mark the target of a finally return
-                    step->bbJumpDest->bbFlags |= BBF_FINALLY_TARGET;
-                }
-#endif // defined(_TARGET_ARM_)
-
                 /* The new block will inherit this block's weight */
                 exitBlock->setBBWeight(block->bbWeight);
                 exitBlock->bbFlags |= (block->bbFlags & BBF_RUN_RARELY) | BBF_IMPORTED;
@@ -9362,15 +9353,6 @@ void Compiler::impImportLeave(BasicBlock* block)
                                               // finally in the chain)
                 step->bbJumpDest->bbRefs++;
 
-#if defined(_TARGET_ARM_)
-                if (stepType == ST_FinallyReturn)
-                {
-                    assert(step->bbJumpKind == BBJ_ALWAYS);
-                    // Mark the target of a finally return
-                    step->bbJumpDest->bbFlags |= BBF_FINALLY_TARGET;
-                }
-#endif // defined(_TARGET_ARM_)
-
                 /* The new block will inherit this block's weight */
                 callBlock->setBBWeight(block->bbWeight);
                 callBlock->bbFlags |= (block->bbFlags & BBF_RUN_RARELY) | BBF_IMPORTED;
@@ -9467,14 +9449,6 @@ void Compiler::impImportLeave(BasicBlock* block)
                 step->bbJumpDest = catchStep;
                 step->bbJumpDest->bbRefs++;
 
-#if defined(_TARGET_ARM_)
-                if (stepType == ST_FinallyReturn)
-                {
-                    // Mark the target of a finally return
-                    step->bbJumpDest->bbFlags |= BBF_FINALLY_TARGET;
-                }
-#endif // defined(_TARGET_ARM_)
-
                 /* The new block will inherit this block's weight */
                 catchStep->setBBWeight(block->bbWeight);
                 catchStep->bbFlags |= (block->bbFlags & BBF_RUN_RARELY) | BBF_IMPORTED;
@@ -9523,15 +9497,6 @@ void Compiler::impImportLeave(BasicBlock* block)
     else
     {
         step->bbJumpDest = leaveTarget; // this is the ultimate destination of the LEAVE
-
-#if defined(_TARGET_ARM_)
-        if (stepType == ST_FinallyReturn)
-        {
-            assert(step->bbJumpKind == BBJ_ALWAYS);
-            // Mark the target of a finally return
-            step->bbJumpDest->bbFlags |= BBF_FINALLY_TARGET;
-        }
-#endif // defined(_TARGET_ARM_)
 
 #ifdef DEBUG
         if (verbose)

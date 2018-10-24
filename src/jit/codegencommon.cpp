@@ -358,6 +358,12 @@ void CodeGen::genPrepForEHCodegen()
 {
     assert(!compiler->fgSafeBasicBlockCreation);
 
+#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+    // For ARM, we need to mark all the targets of finally returns specially, to prepare
+    // to generate code for them.
+    compiler->fgAddFinallyTargetFlags();
+#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+
     EHblkDsc* HBtab;
     EHblkDsc* HBtabEnd;
 

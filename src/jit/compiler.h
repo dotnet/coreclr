@@ -4132,17 +4132,7 @@ public:
 
     void fgCleanupContinuation(BasicBlock* continuation);
 
-    void fgUpdateFinallyTargetFlags();
-
-    void fgClearAllFinallyTargetBits();
-
     void fgAddFinallyTargetFlags();
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
-    // when this is necessary.
-    bool fgNeedToAddFinallyTargetBits;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     bool fgRetargetBranchesToCanonicalCallFinally(BasicBlock*      block,
                                                   BasicBlock*      handler,
@@ -4796,9 +4786,6 @@ public:
     BasicBlock* fgRelocateEHRange(unsigned regionIndex, FG_RELOCATE_TYPE relocateType);
 
 #if FEATURE_EH_FUNCLETS
-#if defined(_TARGET_ARM_)
-    void fgClearFinallyTargetBit(BasicBlock* block);
-#endif // defined(_TARGET_ARM_)
     bool fgIsIntraHandlerPred(BasicBlock* predBlock, BasicBlock* block);
     bool fgAnyIntraHandlerPreds(BasicBlock* block);
     void fgInsertFuncletPrologBlock(BasicBlock* block);

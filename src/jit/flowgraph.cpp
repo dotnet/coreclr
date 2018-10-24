@@ -2017,8 +2017,6 @@ bool Compiler::fgRemoveUnreachableBlocks()
 
         if (block->bbFlags & BBF_DONT_REMOVE)
         {
-            bool bIsBBCallAlwaysPair = block->isBBCallAlwaysPair();
-
             /* Unmark the block as removed, */
             /* clear BBF_INTERNAL as well and set BBJ_IMPORTED */
 
@@ -2026,16 +2024,6 @@ bool Compiler::fgRemoveUnreachableBlocks()
             block->bbFlags |= BBF_IMPORTED;
             block->bbJumpKind = BBJ_THROW;
             block->bbSetRunRarely();
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-            // If this is a <BBJ_CALLFINALLY, BBJ_ALWAYS> pair, we have to clear BBF_FINALLY_TARGET flag on
-            // the target node (of BBJ_ALWAYS) since BBJ_CALLFINALLY node is getting converted to a BBJ_THROW.
-            if (bIsBBCallAlwaysPair)
-            {
-                noway_assert(block->bbNext->bbJumpKind == BBJ_ALWAYS);
-                fgClearFinallyTargetBit(block->bbNext->bbJumpDest);
-            }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
         }
         else
         {
@@ -9197,10 +9185,6 @@ BasicBlock* Compiler::fgSplitBlockAtEnd(BasicBlock* curr)
     // interruptible if we exercised more care here.
     newBlock->bbFlags &= ~BBF_GC_SAFE_POINT;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    newBlock->bbFlags &= ~(BBF_FINALLY_TARGET);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
     // The new block has no code, so we leave bbCodeOffs/bbCodeOffsEnd set to BAD_IL_OFFSET. If a caller
     // puts code in the block, then it needs to update these.
 
@@ -9969,13 +9953,6 @@ bool Compiler::fgCanCompactBlocks(BasicBlock* block, BasicBlock* bNext)
         return false;
     }
 
-#if defined(_TARGET_ARM_)
-    // We can't compact a finally target block, as we need to generate special code for such blocks during code
-    // generation
-    if ((bNext->bbFlags & BBF_FINALLY_TARGET) != 0)
-        return false;
-#endif
-
     // We don't want to compact blocks that are in different Hot/Cold regions
     //
     if (fgInDifferentRegions(block, bNext))
@@ -10026,10 +10003,6 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
     noway_assert((bNext->bbFlags & BBF_REMOVED) == 0);
     noway_assert(bNext->countOfInEdges() == 1 || block->isEmpty());
     noway_assert(bNext->bbPreds);
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    noway_assert((bNext->bbFlags & BBF_FINALLY_TARGET) == 0);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     // Make sure the second block is not the start of a TRY block or an exception handler
 
@@ -10815,11 +10788,6 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
     // Should never remove a genReturnBB, as we might have special hookups there.
     noway_assert(block != genReturnBB);
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    // Don't remove a finally target
-    assert(!(block->bbFlags & BBF_FINALLY_TARGET));
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
     if (unreachable)
     {
         PREFIX_ASSUME(bPrev != nullptr);
@@ -10886,10 +10854,6 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
             leaveBlk->bbPreds = nullptr;
 
             fgRemoveBlock(leaveBlk, true);
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-            fgClearFinallyTargetBit(leaveBlk->bbJumpDest);
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
         }
         else if (block->bbJumpKind == BBJ_RETURN)
         {
@@ -12199,43 +12163,6 @@ DONE:
 }
 
 #if FEATURE_EH_FUNCLETS
-
-#if defined(_TARGET_ARM_)
-
-/*****************************************************************************
- * We just removed a BBJ_CALLFINALLY/BBJ_ALWAYS pair. If this was the only such pair
- * targeting the BBJ_ALWAYS target, then we need to clear the BBF_FINALLY_TARGET bit
- * so that target can also be removed. 'block' is the finally target. Since we just
- * removed the BBJ_ALWAYS, it better have the BBF_FINALLY_TARGET bit set.
- */
-
-void Compiler::fgClearFinallyTargetBit(BasicBlock* block)
-{
-    assert(fgComputePredsDone);
-    assert((block->bbFlags & BBF_FINALLY_TARGET) != 0);
-
-    for (flowList* pred = block->bbPreds; pred; pred = pred->flNext)
-    {
-        if (pred->flBlock->bbJumpKind == BBJ_ALWAYS && pred->flBlock->bbJumpDest == block)
-        {
-            BasicBlock* pPrev = pred->flBlock->bbPrev;
-            if (pPrev != NULL)
-            {
-                if (pPrev->bbJumpKind == BBJ_CALLFINALLY)
-                {
-                    // We found a BBJ_CALLFINALLY / BBJ_ALWAYS that still points to this finally target
-                    return;
-                }
-            }
-        }
-    }
-
-    // Didn't find any BBJ_CALLFINALLY / BBJ_ALWAYS that still points here, so clear the bit
-
-    block->bbFlags &= ~BBF_FINALLY_TARGET;
-}
-
-#endif // defined(_TARGET_ARM_)
 
 /*****************************************************************************
  * Is this an intra-handler control flow edge?
@@ -13580,18 +13507,6 @@ bool Compiler::fgOptimizeBranchToEmptyUnconditional(BasicBlock* block, BasicBloc
         optimizeJump = false;
     }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    // Don't optimize a jump to a finally target. For BB1->BB2->BB3, where
-    // BB2 is a finally target, if we changed BB1 to jump directly to BB3,
-    // it would skip the finally target. BB1 might be a BBJ_ALWAYS block part
-    // of a BBJ_CALLFINALLY/BBJ_ALWAYS pair, so changing the finally target
-    // would change the unwind behavior.
-    if (bDest->bbFlags & BBF_FINALLY_TARGET)
-    {
-        optimizeJump = false;
-    }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
     // Must optimize jump if bDest has been removed
     //
     if (bDest->bbFlags & BBF_REMOVED)
@@ -13787,12 +13702,6 @@ bool Compiler::fgOptimizeEmptyBlock(BasicBlock* block)
                     break;
                 }
             }
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-            /* Don't remove finally targets */
-            if (block->bbFlags & BBF_FINALLY_TARGET)
-                break;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
 #if FEATURE_EH_FUNCLETS
             /* Don't remove an empty block that is in a different EH region
@@ -25034,10 +24943,6 @@ void Compiler::fgDebugCheckTryFinallyExits()
 //
 //    Used by finally cloning, empty try removal, and empty
 //    finally removal.
-//
-//    BBF_FINALLY_TARGET bbFlag is left unchanged by this method
-//    since it cannot be incrementally updated. Proper updates happen
-//    when fgUpdateFinallyTargetFlags runs after all finally optimizations.
 
 void Compiler::fgCleanupContinuation(BasicBlock* continuation)
 {
@@ -25065,51 +24970,6 @@ void Compiler::fgCleanupContinuation(BasicBlock* continuation)
 }
 
 //------------------------------------------------------------------------
-// fgUpdateFinallyTargetFlags: recompute BBF_FINALLY_TARGET bits for all blocks
-// after finally optimizations have run.
-
-void Compiler::fgUpdateFinallyTargetFlags()
-{
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
-    // Any fixup required?
-    if (!fgOptimizedFinally)
-    {
-        JITDUMP("In fgUpdateFinallyTargetFlags - no finally opts, no fixup required\n");
-        return;
-    }
-
-    JITDUMP("In fgUpdateFinallyTargetFlags, updating finally target flag bits\n");
-
-    fgClearAllFinallyTargetBits();
-    fgAddFinallyTargetFlags();
-
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-}
-
-//------------------------------------------------------------------------
-// fgClearAllFinallyTargetBits: Clear all BBF_FINALLY_TARGET bits; these will need to be
-// recomputed later.
-//
-void Compiler::fgClearAllFinallyTargetBits()
-{
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
-    JITDUMP("*************** In fgClearAllFinallyTargetBits()\n");
-
-    // Note that we clear the flags even if there are no EH clauses (compHndBBtabCount == 0)
-    // in case bits are left over from EH clauses being deleted.
-
-    // Walk all blocks, and reset the target bits.
-    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
-    {
-        block->bbFlags &= ~BBF_FINALLY_TARGET;
-    }
-
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-}
-
-//------------------------------------------------------------------------
 // fgAddFinallyTargetFlags: Add BBF_FINALLY_TARGET bits to all finally targets.
 //
 void Compiler::fgAddFinallyTargetFlags()
@@ -25117,6 +24977,15 @@ void Compiler::fgAddFinallyTargetFlags()
 #if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     JITDUMP("*************** In fgAddFinallyTargetFlags()\n");
+
+#ifdef DEBUG
+    // This is the first and only time anyone should be setting this bit.
+    // So make sure it's not already set.
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
+    {
+        assert((block->bbFlags & BBF_FINALLY_TARGET) == 0);
+    }
+#endif // DEBUG
 
     if (compHndBBtabCount == 0)
     {

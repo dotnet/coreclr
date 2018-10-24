@@ -1755,23 +1755,6 @@ public:
             return false;
         }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-        // Disqualify loops where the first block of the loop is a finally target.
-        // The main problem is when multiple loops share a 'first' block that is a finally
-        // target and we canonicalize the loops by adding a new loop head. In that case, we
-        // need to update the blocks so the finally target bit is moved to the newly created
-        // block, and removed from the old 'first' block. This is 'hard', so at this point
-        // in the RyuJIT codebase (when we don't expect to keep the "old" ARM32 code generator
-        // long-term), it's easier to disallow the loop than to update the flow graph to
-        // support this case.
-
-        if ((first->bbFlags & BBF_FINALLY_TARGET) != 0)
-        {
-            JITDUMP("Loop 'first' " FMT_BB " is a finally target. Rejecting loop.\n", first->bbNum);
-            return false;
-        }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-
         // Compact the loop (sweep through it and move out any blocks that aren't part of the
         // flow cycle), and find the exits.
         if (!MakeCompactAndFindExits())

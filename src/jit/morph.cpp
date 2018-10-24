@@ -16776,8 +16776,6 @@ void Compiler::fgMorph()
 
     EndPhase(PHASE_CLONE_FINALLY);
 
-    fgUpdateFinallyTargetFlags();
-
     /* For x64 and ARM64 we need to mark irregular parameters */
 
     lvaRefCountState = RCS_EARLY;
@@ -16817,15 +16815,6 @@ void Compiler::fgMorph()
     JITDUMP("trees after fgMorphBlocks\n");
     DBEXEC(VERBOSE, fgDispBasicBlocks(true));
 #endif
-
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
-    if (fgNeedToAddFinallyTargetBits)
-    {
-        // We previously wiped out the BBF_FINALLY_TARGET bits due to some morphing; add them back.
-        fgAddFinallyTargetFlags();
-        fgNeedToAddFinallyTargetBits = false;
-    }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
 
     /* Decide the kind of code we want to generate */
 
