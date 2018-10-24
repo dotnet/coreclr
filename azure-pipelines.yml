@@ -409,7 +409,7 @@ jobs:
 - job: jobA
   steps:
   - bash: pwd
-  - bash: "echo sourcesdir: $BUILD_SOURCESDIRECTORY, systemwd: $SYSTEM_DEFAULTWORKINGDIRECTORY, agentwf: $AGENT_WORKFOLDER"
+  - bash: "echo sourcesdir: $BUILD_SOURCESDIRECTORY, systemwd: $SYSTEM_DEFAULTWORKINGDIRECTORY, agentwf: $AGENT_WORKFOLDER, agentbuilddir: $AGENT_BUILDDIRECTORY"
   - bash: mkdir filedir
   - bash: echo hi > filedir/file.txt
   - bash: ls
