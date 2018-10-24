@@ -28,12 +28,16 @@ phases:
 #      inputs:
 #        version: 2.1.400
     # necessary to install python!
-    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Agent.BuildDirectory)\native-tools -Force
+    - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
       displayName: Install native tools
     - script: set __TestIntermediateDir=int&&build.cmd %buildConfig% %archType% -priority=0
       displayName: Build
-    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
+#    - script: build-test.cmd %buildConfig% %archType% buildagainstpackages runtimeid win-%archType% -Priority=0
+#      displayName: Build tests
+    - script: build-test.cmd %buildConfig% %archType% -Priority=0
       displayName: Build tests
+    - script: .\Tools\dotnetcli\dotnet.exe msbuild tests\helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)\bin\tests\Windows_NT.$(archType).$(buildConfig)\tests\core_root
+      displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
         command: custom
@@ -68,7 +72,7 @@ phases:
       displayName: Build
     - script: ./build-test.sh $buildConfig $archType
       displayName: Build tests
-    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfig)/Tests/Core_Root
+    - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(buildConfig)/Tests/Core_Root
       displayName: Prepare test directories for helix
     - task: DotNetCoreCLI@2
       inputs:
