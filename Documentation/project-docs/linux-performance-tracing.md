@@ -82,25 +82,93 @@ Follow these steps to prepare your machine to collect a performance trace.
 	The compressed trace file is now stored in the current working directory.
 
 # Resolving Framework Symbols #
-Framework symbols need to be manually generated at the time the trace is collected.  They are different than app-level symbols because the framework is pre-compiled while apps are just-in-time-compiled.
+Framework symbols need to be manually generated at the time the trace is collected.  They are different than app-level symbols because the framework is pre-compiled while apps are just-in-time-compiled.  For code like the framework that was precompiled to native
+code, you need a special tool called crossgen that knows how to generate the mapping from the native code to the name of the
+methods.  
 
-The easiest way to generate framework symbols is to have perfcollect do it for you automatically when the trace is collected.  To do this, crossgen must be present on the collection machine and located next to libcoreclr.so.  This can be done manually using the following steps:
+Perfcollect can handle most of the details for you, but it needs to have the crossgen tool and by default this is NOT part of
+the standard .NET distribution.   If it is not there it warns you and refers you to these instructions.   To fix things you 
+need to fetch EXACTLY the right version of crossgen for the runtime you happen to be
+using.  If you place the crossgen tool in the same directory as the .NET Runtime DLLs (e.g. libcoreclr.so), then perfcollect can
+find it and add the framework symbols to the trace file for you.
 
-1. Download the CoreCLR nuget package.  A simple way to do this is to create a self-contained version of your application using the dotnet CLI:
-	> ```bash
-	> dotnet publish --self-contained -r linux-x64
-	> ```	
+Normally when you create a .NET application it just generates the DLL for the code you wrote, using a shared copy of the runtime
+for the rest.   However you can also generate what is called a 'self-contained' version of an application and this contains all 
+runtime DLLs.  It turns out that the crossgen tool is part of the Nuget package that is used to create these self-contained apps, so
+one way of getting the right crossgen tool is to create a self contained package of any application.   
 
-	This will create a bin/*/netcoreapp2.0/Linux-x64/publish directory which contains all of the files required to run your app including the .NET runtime and framework.  As a side-effect, the dotnet CLI downloads and extracts the CoreCLR nuget package.  You should be able to find crossgen at:
+So you could do the following 
+   >```bash
+   > mkdir helloWorld
+   > cd helloWorld
+   > dotnet new console
+   > dotnet publish --self-contained -r linux-x64
+   >```
+Which creates a new helloWorld application and builds it as a self-contained app.    The only subtlty here is that if you have
+multiple versions of the .NET Runtime installed the instructcions above will use the latest.  As long as your app also uses
+the latest (likely) then these instructions will work without modification.   
 
-	> ```bash
-	> ~/.nuget/packages/runtime.linux-x64.microsoft.netcore.app/2.0.0/tools/crossgen
-	> ``` 
+As a side effect of creating the self-contained application the dotnet tool will download a nuget package 
+called runtime.linux-x64.microsoft.netcore.app and place it in 
+the directory ~/.nuget/package/sruntime.linux-x64.microsoft.netcore.app/VERSION, where VERSION is the version number of 
+your .NET Core runtime (e.g. 2.1.0).   Under that is a tools directory and inside there is the crossgen tool you need.
 
-2. Copy crossgen next to libcoreclr.so.  If you run your application out of the publish directory, you can copy it into the directory that you just created during step # 1.  If you run your application using the dotnet CLI, then you likely need to copy it to /usr/share/dotnet/shared/Microsoft.NETCore.App/<Version> where <Version> is the version number of CoreCLR.  This should match the version number in the path to crossgen from step # 1.
+The crossgen tool needs to be put next to the runtime that is actually used by your application.   Typically your app uses the shared
+version of .NET Core that is installed at /usr/share/dotnet/shared/Microsoft.NETCore.App/VERSION where VERSION is the 
+version number of the .NET Runtime.   This is a shared location, so you need to be super-user to modify it.   If the
+VERSION is 2.1.0 the commands to update crossgen would be 
+   >```bash
+   > sudo bash
+   > cp ~/.nuget/packages/runtime.linux-x64.microsoft.netcore.app/2.1.0/tools/crossgen /usr/share/dotnet/shared/Microsoft.NETCore.App/2.1.0
+   >```
+  
+Once you have done this, perfcollect will use crossgen to include framework symbols.  The warning that perfcollect used to
+issue should go away.   This only has to be one once per machine (until you update your runtime). 
 
-Now, traces containing apps that were run on the updated runtime should contain framework-level symbols.  To view the trace with framework-level symbols, you will need to use PerfView.  Details on using PerfView to view a trace are available below in this document.
+### Alternative: Turn off use of precomppiled code
 
+If you don't have the abiltiy to update the .NET Rutnime (to add crossgen), or if the above procedure did not work
+for some reasion, there is another approach to getting framework symbols.   You can tell the runtime to simply 
+not use the precompiled framework code.   The all code will be Just in time compiled and the special crossgen tool
+is not needed.   This works, but will increase startup time for your code by something like a second or two.  If you 
+can tolerate that (you probably can), then this is an alternative.   You were already setting envinronment variables
+in order to get symbols, you simply need to add one more.
+	> ```bash 
+	> export COMPlus_ZapDisable=1
+	> ```
+With this change you should get the symbols for all .NET code. 
+
+## Getting Symbols For the Native Runtime
+
+Most of the time you are interested in your own code, which perfcollect resolves by default.   Sometimes it is very
+useful to see what is going on inside the .NET Framework DLLs (which is what the last section was about), but sometimes
+what is going on in the NATIVE runtime dlls (typically libcoreclr.so), is interesting.  perfcollect will resolve the
+symbols for these when it converts its data, but ONLY if the symbols for these native DLLs are present (and are beside
+the library they are for).   
+
+There is a global command called [dotnet symbols](https://github.com/dotnet/symstore/blob/master/src/dotnet-symbol/README.md#symbol-downloader-dotnet-cli-extension) which does this.   This tool was mostly desiged to download symbols
+for debugging, but it works for perfollect as well.  There are three steps to getting the symbols
+
+   1. Install dotnet symbols
+   2. Download the symbols.
+   3. Copy the symbols to the correct place 
+
+To install dotnet symbols issue the command 
+```
+     dotnet tool install -g dotnet-symbol
+```
+With that installed download the symbols to a local directory.  if your installed version of the .NET Core runtime is
+2.1.0 the command to do this is 
+```
+    mkdir mySymbols
+    dotnet symbols --symbols --output mySymbols  /usr/share/dotnet/shared/Microsoft.NETCore.App/2.1.0/lib*.so
+```
+Now all the symbols for those native dlls are in mySymbols.   You then have to copy them (as super user next to the 
+dlls that they are for.
+```
+    sudo cp mySymbols/* /usr/share/dotnet/shared/Microsoft.NETCore.App/2.1.0
+```
+After this, you should get symbolic names for the native dlls when you run perfcollect.  
 # Collecting in a Docker Container #
 Perfcollect can be used to collect data for an application running inside a Docker container.  The main thing to know is that collecting a trace requires elevated privileges because the [default seccomp profile](https://docs.docker.com/engine/security/seccomp/) blocks a required syscall - perf_events_open.
 

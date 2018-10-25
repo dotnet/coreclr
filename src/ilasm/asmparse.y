@@ -78,7 +78,7 @@
 %token VALUE_ VALUETYPE_ NATIVE_ INSTANCE_ SPECIALNAME_ FORWARDER_
 %token STATIC_ PUBLIC_ PRIVATE_ FAMILY_ FINAL_ SYNCHRONIZED_ INTERFACE_ SEALED_ NESTED_
 %token ABSTRACT_ AUTO_ SEQUENTIAL_ EXPLICIT_ ANSI_ UNICODE_ AUTOCHAR_ IMPORT_ ENUM_
-%token VIRTUAL_ NOINLINING_ AGGRESSIVEINLINING_ NOOPTIMIZATION_ UNMANAGEDEXP_ BEFOREFIELDINIT_
+%token VIRTUAL_ NOINLINING_ AGGRESSIVEINLINING_ NOOPTIMIZATION_ AGGRESSIVEOPTIMIZATION_ UNMANAGEDEXP_ BEFOREFIELDINIT_
 %token STRICT_ RETARGETABLE_ WINDOWSRUNTIME_ NOPLATFORM_
 %token METHOD_ FIELD_ PINNED_ MODREQ_ MODOPT_ SERIALIZABLE_ PROPERTY_ TYPE_
 %token ASSEMBLY_ FAMANDASSEM_ FAMORASSEM_ PRIVATESCOPE_ HIDEBYSIG_ NEWSLOT_ RTSPECIALNAME_ PINVOKEIMPL_
@@ -118,7 +118,7 @@
 %token _FILE NOMETADATA_ _HASH _ASSEMBLY _PUBLICKEY _PUBLICKEYTOKEN ALGORITHM_ _VER _LOCALE EXTERN_ 
 %token _MRESOURCE 
 %token _MODULE _EXPORT
-%token LEGACY_ LIBRARY_ X86_ IA64_ AMD64_ ARM_
+%token LEGACY_ LIBRARY_ X86_ AMD64_ ARM_ ARM64_
         /* field marshaling */
 %token MARSHAL_ CUSTOM_ SYSSTRING_ FIXED_ VARIANT_ CURRENCY_ SYSCHAR_ DECIMAL_ DATE_ BSTR_ TBSTR_ LPSTR_
 %token LPWSTR_ LPTSTR_ OBJECTREF_ IUNKNOWN_ IDISPATCH_ STRUCT_ SAFEARRAY_ BYVALSTR_ LPVOID_ ANY_ ARRAY_ LPSTRUCT_
@@ -854,6 +854,7 @@ implAttr                : /* EMPTY */                       { $$ = (CorMethodImp
                         | implAttr NOINLINING_              { $$ = (CorMethodImpl) ($1 | miNoInlining); }
                         | implAttr AGGRESSIVEINLINING_      { $$ = (CorMethodImpl) ($1 | miAggressiveInlining); }
                         | implAttr NOOPTIMIZATION_          { $$ = (CorMethodImpl) ($1 | miNoOptimization); }
+                        | implAttr AGGRESSIVEOPTIMIZATION_  { $$ = (CorMethodImpl) ($1 | miAggressiveOptimization); }
                         | implAttr FLAGS_ '(' int32 ')'     { $$ = (CorMethodImpl) ($4); }
                         ;
 
@@ -1942,9 +1943,9 @@ asmAttr                 : /* EMPTY */                         { $$ = (CorAssembl
                         | asmAttr LEGACY_ LIBRARY_            { $$ = $1; }
                         | asmAttr CIL_                        { SET_PA($$,$1,afPA_MSIL); }
                         | asmAttr X86_                        { SET_PA($$,$1,afPA_x86); }
-                        | asmAttr IA64_                       { SET_PA($$,$1,afPA_IA64); }
                         | asmAttr AMD64_                      { SET_PA($$,$1,afPA_AMD64); }
                         | asmAttr ARM_                        { SET_PA($$,$1,afPA_ARM); }
+                        | asmAttr ARM64_                      { SET_PA($$,$1,afPA_ARM64); }
                         ;
 
 assemblyDecls           : /* EMPTY */

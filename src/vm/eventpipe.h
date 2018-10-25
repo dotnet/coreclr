@@ -239,7 +239,8 @@ class EventPipe
             LPCWSTR strOutputPath,
             unsigned int circularBufferSizeInMB,
             EventPipeProviderConfiguration *pProviders,
-            int numProviders);
+            int numProviders,
+            UINT64 multiFileTraceLengthInSeconds);
 
         // Disable tracing via the event pipe.
         static void Disable(EventPipeSessionID id);
@@ -292,9 +293,21 @@ class EventPipe
         // Enable the specified EventPipe session.
         static EventPipeSessionID Enable(LPCWSTR strOutputPath, EventPipeSession *pSession);
 
-        // Get the EnableOnStartup configuration from environment.
-        static void GetConfigurationFromEnvironment(SString &outputPath, EventPipeSession *pSession);
+        static void CreateFileSwitchTimer();
 
+        static void DeleteFileSwitchTimer();
+
+        // Performs one polling operation to determine if it is necessary to switch to a new file.
+        // If the polling operation decides it is time, it will perform the switch.
+        // Called directly from the timer when the timer is triggered.
+        static void WINAPI SwitchToNextFileTimerCallback(PVOID parameter, BOOLEAN timerFired);
+
+        // If event pipe has been configured to write multiple files, switch to the next file.
+        static void SwitchToNextFile();
+
+        // Generate the file path for the next trace file.
+        // This is used when event pipe has been configured to create multiple trace files with a specified maximum length of time.
+        static void GetNextFilePath(EventPipeSession *pSession, SString &nextTraceFilePath);
 
         // Callback function for the stack walker.  For each frame walked, this callback is invoked.
         static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
@@ -311,13 +324,14 @@ class EventPipe
         static EventPipeConfiguration *s_pConfig;
         static EventPipeSession *s_pSession;
         static EventPipeBufferManager *s_pBufferManager;
+        static LPCWSTR s_pOutputPath;
+        static unsigned long s_nextFileIndex;
         static EventPipeFile *s_pFile;
         static EventPipeEventSource *s_pEventSource;
         static LPCWSTR s_pCommandLine;
-#ifdef _DEBUG
-        static EventPipeFile *s_pSyncFile;
-        static EventPipeJsonFile *s_pJsonFile;
-#endif // _DEBUG
+        const static DWORD FileSwitchTimerPeriodMS = 1000;
+        static HANDLE s_fileSwitchTimerHandle;
+        static ULONGLONG s_lastFileSwitchTime;
 };
 
 struct EventPipeProviderConfiguration
@@ -410,7 +424,8 @@ public:
         UINT32 circularBufferSizeInMB,
         INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
-        INT32 numProviders);
+        INT32 numProviders,
+        UINT64 multiFileTraceLengthInSeconds);
 
     static void QCALLTYPE Disable(UINT64 sessionID);
 

@@ -1846,6 +1846,8 @@ BOOL IsMethodTable (DWORD_PTR value);
 BOOL IsStringObject (size_t obj);
 BOOL IsObjectArray (DWORD_PTR objPointer);
 BOOL IsObjectArray (DacpObjectData *pData);
+BOOL IsDerivedFrom(CLRDATA_ADDRESS mtObj, __in_z LPCWSTR baseString);
+BOOL TryGetMethodDescriptorForDelegate(CLRDATA_ADDRESS delegateAddr, CLRDATA_ADDRESS* pMD);
 
 /* Returns a list of all modules in the process.
  * Params:
@@ -2831,6 +2833,7 @@ private:
 
     void PrintObjectHead(size_t objAddr,size_t typeID,size_t Size);
     void PrintObjectMember(size_t memberValue, bool dependentHandle);
+    void PrintLoaderAllocator(size_t memberValue);
     void PrintObjectTail();
 
     void PrintRootHead();

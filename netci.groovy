@@ -173,7 +173,8 @@ class Constants {
                'gc_reliability_framework',
                'illink',
                'corefx_innerloop',
-               'crossgen_comparison']
+               'crossgen_comparison',
+               'pmi_asm_diffs']
 
     def static allScenarios = basicScenarios + r2rStressScenarios.keySet() + jitStressModeScenarios.keySet()
 
@@ -249,10 +250,10 @@ class Constants {
     // Note that some scenarios that are commented out should be enabled, but haven't yet been.
     //
     def static validArmWindowsScenarios = [
-               'innerloop':                              [],
-               'normal':                                 [],
+               'innerloop',
+               'normal',
                // 'ilrt'
-               'r2r':                                    ["R2R_FAIL", "R2R_EXCLUDE"],
+               'r2r',
                // 'longgc'
                // 'formatting'
                // 'gcsimulator'
@@ -262,102 +263,103 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                // 'crossgen_comparison'
-               'r2r_jitstress1':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress2':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress1_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstress2_tiered':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs1':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs2':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs3':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs4':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs8':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x10':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x80':                  ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitstressregs0x1000':                ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_jitminopts':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'r2r_jitforcerelocs':                     ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'r2r_gcstress15':                         ["R2R_FAIL", "R2R_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE", "GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'r2r_no_tiered_compilation':              ["R2R_FAIL", "R2R_EXCLUDE"],
-               'minopts':                                ["MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'tieredcompilation':                      [],
-               'no_tiered_compilation':                  [],
-               'no_tiered_compilation_innerloop':        [],
-               'forcerelocs':                            [],
-               'jitstress1':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2':                             ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress1_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_tiered':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs1':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs2':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs3':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs4':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs8':                         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x10':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x80':                      ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstressregs0x1000':                    ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs1':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs2':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs3':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs4':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs8':              ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x10':           ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x80':           ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'jitstress2_jitstressregs0x1000':         ["JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'tailcallstress':                         ["TAILCALLSTRESS_FAIL", "TAILCALLSTRESS_EXCLUDE"],
-               // 'jitsse2only'                          // Only relevant to xarch
-               'jitnosimd':                              [],    // Only interesting on platforms where SIMD support exists.
+               // 'pmi_asm_diffs'
+               'r2r_jitstress1',
+               'r2r_jitstress2',
+               'r2r_jitstress1_tiered',
+               'r2r_jitstress2_tiered',
+               'r2r_jitstressregs1',
+               'r2r_jitstressregs2',
+               'r2r_jitstressregs3',
+               'r2r_jitstressregs4',
+               'r2r_jitstressregs8',
+               'r2r_jitstressregs0x10',
+               'r2r_jitstressregs0x80',
+               'r2r_jitstressregs0x1000',
+               'r2r_jitminopts',
+               'r2r_jitforcerelocs',
+               'r2r_gcstress15',
+               'r2r_no_tiered_compilation',
+               'minopts',
+               'tieredcompilation',
+               'no_tiered_compilation',
+               'no_tiered_compilation_innerloop',
+               'forcerelocs',
+               'jitstress1',
+               'jitstress2',
+               'jitstress1_tiered',
+               'jitstress2_tiered',
+               'jitstressregs1',
+               'jitstressregs2',
+               'jitstressregs3',
+               'jitstressregs4',
+               'jitstressregs8',
+               'jitstressregs0x10',
+               'jitstressregs0x80',
+               'jitstressregs0x1000',
+               'jitstress2_jitstressregs1',
+               'jitstress2_jitstressregs2',
+               'jitstress2_jitstressregs3',
+               'jitstress2_jitstressregs4',
+               'jitstress2_jitstressregs8',
+               'jitstress2_jitstressregs0x10',
+               'jitstress2_jitstressregs0x80',
+               'jitstress2_jitstressregs0x1000',
+               'tailcallstress',
+               // 'jitsse2only'                     // Only relevant to xarch
+               'jitnosimd',                         // Only interesting on platforms where SIMD support exists.
                // 'jitincompletehwintrinsic'
                // 'jitx86hwintrinsicnoavx'
                // 'jitx86hwintrinsicnoavx2'
                // 'jitx86hwintrinsicnosimd'
                // 'jitnox86hwintrinsic'
-               'corefx_baseline':                        [],    // corefx tests don't use smarty
-               'corefx_minopts':                         [],    // corefx tests don't use smarty
-               'corefx_tieredcompilation':               [],    // corefx tests don't use smarty
-               'corefx_jitstress1':                      [],    // corefx tests don't use smarty
-               'corefx_jitstress2':                      [],    // corefx tests don't use smarty
-               'corefx_jitstressregs1':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs2':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs3':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs4':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs8':                  [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x10':               [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x80':               [],    // corefx tests don't use smarty
-               'corefx_jitstressregs0x1000':             [],    // corefx tests don't use smarty
-               'gcstress0x3':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'gcstress0xc':                            ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE"],
-               'zapdisable':                             ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'heapverify1':                            [],
-               'gcstress0xc_zapdisable':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'gcstress0xc_zapdisable_jitstress2':      ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_zapdisable_heapverify1':     ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE"],
-               'gcstress0xc_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_minopts_heapverify1':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
+               'corefx_baseline',                   // corefx tests don't use smarty
+               'corefx_minopts',                    // corefx tests don't use smarty
+               'corefx_tieredcompilation',          // corefx tests don't use smarty
+               'corefx_jitstress1',                 // corefx tests don't use smarty
+               'corefx_jitstress2',                 // corefx tests don't use smarty
+               'corefx_jitstressregs1',             // corefx tests don't use smarty
+               'corefx_jitstressregs2',             // corefx tests don't use smarty
+               'corefx_jitstressregs3',             // corefx tests don't use smarty
+               'corefx_jitstressregs4',             // corefx tests don't use smarty
+               'corefx_jitstressregs8',             // corefx tests don't use smarty
+               'corefx_jitstressregs0x10',          // corefx tests don't use smarty
+               'corefx_jitstressregs0x80',          // corefx tests don't use smarty
+               'corefx_jitstressregs0x1000',        // corefx tests don't use smarty
+               'gcstress0x3',
+               'gcstress0xc',
+               'zapdisable',
+               'heapverify1',
+               'gcstress0xc_zapdisable',
+               'gcstress0xc_zapdisable_jitstress2',
+               'gcstress0xc_zapdisable_heapverify1',
+               'gcstress0xc_jitstress1',
+               'gcstress0xc_jitstress2',
+               'gcstress0xc_minopts_heapverify1',
 
                //
                // NOTE: the following scenarios are not defined in the 'allScenarios' list! Is this a bug?
                //
 
-               'minopts_zapdisable':                     ["ZAPDISABLE_FAIL", "ZAPDISABLE_EXCLUDE", "MINOPTS_FAIL", "MINOPTS_EXCLUDE"],
-               'gcstress0x3_jitstress1':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstress2':                 ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs2':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs3':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs4':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs8':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x10':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x80':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0x3_jitstressregs0x1000':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs1':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs2':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs3':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs4':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs8':             ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x10':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x80':          ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"],
-               'gcstress0xc_jitstressregs0x1000':        ["GCSTRESS_FAIL", "GCSTRESS_EXCLUDE", "JITSTRESS_FAIL", "JITSTRESS_EXCLUDE"]
+               'minopts_zapdisable',
+               'gcstress0x3_jitstress1',
+               'gcstress0x3_jitstress2',
+               'gcstress0x3_jitstressregs1',
+               'gcstress0x3_jitstressregs2',
+               'gcstress0x3_jitstressregs3',
+               'gcstress0x3_jitstressregs4',
+               'gcstress0x3_jitstressregs8',
+               'gcstress0x3_jitstressregs0x10',
+               'gcstress0x3_jitstressregs0x80',
+               'gcstress0x3_jitstressregs0x1000',
+               'gcstress0xc_jitstressregs1',
+               'gcstress0xc_jitstressregs2',
+               'gcstress0xc_jitstressregs3',
+               'gcstress0xc_jitstressregs4',
+               'gcstress0xc_jitstressregs8',
+               'gcstress0xc_jitstressregs0x10',
+               'gcstress0xc_jitstressregs0x80',
+               'gcstress0xc_jitstressregs0x1000'
     ]
   
     def static validLinuxArmScenarios = [
@@ -374,6 +376,7 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                'crossgen_comparison',
+               'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
@@ -462,6 +465,7 @@ class Constants {
                // 'illink'
                // 'corefx_innerloop'
                // 'crossgen_comparison'
+               'pmi_asm_diffs',
                'r2r_jitstress1',
                'r2r_jitstress2',
                'r2r_jitstress1_tiered',
@@ -762,7 +766,7 @@ def static setMachineAffinity(def job, def os, def architecture, def options = n
                 label('Windows.10.Amd64.ClientRS4.DevEx.Open')
             }
         } else {
-            Utilities.setMachineAffinity(job, os, 'arm64-windows_nt')
+            Utilities.setMachineAffinity(job, 'windows.10.arm64.open')
         }
     } else {
         assert os != 'Windows_NT'
@@ -893,7 +897,7 @@ def static isGcReliabilityFramework(def scenario) {
 }
 
 def static isArmWindowsScenario(def scenario) {
-    return Constants.validArmWindowsScenarios.containsKey(scenario)
+    return Constants.validArmWindowsScenarios.contains(scenario)
 }
 
 def static isValidPrTriggeredInnerLoopJob(os, architecture, configuration, isBuildOnly) {
@@ -1235,6 +1239,9 @@ def static getDockerImageName(def architecture, def os, def isBuild) {
     assert false
 }
 
+def static getTestArtifactsTgzFileName(def osGroup, def architecture, def configuration) {
+    return "bin-tests-${osGroup}.${architecture}.${configuration}.tgz"
+}
 
 // We have a limited amount of some hardware. For these, scale back the periodic testing we do,
 // and only allowing using this hardware in some specific branches.
@@ -1318,22 +1325,14 @@ def static addNonPRTriggers(def job, def branch, def isPR, def architecture, def
 
     // Check scenario.
     switch (scenario) {
-        case 'innerloop':
-        case 'no_tiered_compilation_innerloop':
-            // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
-            //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
-            // We should never get here (in the "innerloop cases) for non-PR jobs, except for this TEMPORARY exception.
-            // Only trigger the flow job, not the build job.
-            assert (isInnerloopTestScenario(scenario) && (architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked'))
-            if (isFlowJob) {
-                addGithubPushTriggerHelper(job)
-            }
-            break
-
         case 'crossgen_comparison':
             if (isFlowJob && os == 'Ubuntu' && architecture == 'arm' && (configuration == 'Checked' || configuration == 'Release')) {
                 addPeriodicTriggerHelper(job, '@daily')
             }
+            break
+
+        case 'pmi_asm_diffs':
+            // No non-PR triggers for now.
             break
 
         case 'normal':
@@ -1742,7 +1741,10 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                 triggerString += "\\W+${scenario}"
             }
 
-            if (configuration == 'Debug') {
+            if (scenario == 'pmi_asm_diffs') {
+                // Don't add the "Build and Test" part
+            }
+            else if (configuration == 'Debug') {
                 contextString += " Build"
                 triggerString += "\\W+Build"
             }
@@ -1952,11 +1954,6 @@ def static addTriggers(def job, def branch, def isPR, def architecture, def os, 
                         case 'innerloop':
                         case 'no_tiered_compilation_innerloop':
                             if (configuration == 'Checked') {
-                                // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
-                                //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
-                                if (architecture == 'arm64') {
-                                    break
-                                }
                                 isDefaultTrigger = true
                             }
                             break
@@ -2065,12 +2062,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
     def osGroup = getOSGroup(os)
     def lowerConfiguration = configuration.toLowerCase()
 
+    // Which set of tests to build? Innerloop tests build Pri-0.
+    // Currently, we only generate asm diffs on Pri-0 tests, if we generate asm diffs on tests at all.
+    // CoreFX testing skipts building tests altogether (done below).
+    // All other scenarios build Pri-1 tests.
     def priority = '1'
     if (isInnerloopTestScenario(scenario)) {
         priority = '0'
     }
 
     def doCoreFxTesting = isCoreFxScenario(scenario)
+
+    def buildCoreclrTests = true
+    if (doCoreFxTesting || (scenario == 'pmi_asm_diffs')) {
+        // These scenarios don't need the coreclr tests build.
+        buildCoreclrTests = false
+    }
 
     // Calculate the build steps, archival, and xunit results
     switch (os) {
@@ -2108,10 +2115,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildOpts += ' -enforcepgo'
                     }
 
-                    if (doCoreFxTesting) {
-                        buildOpts += ' skiptests';
-                    } else {
+                    if (buildCoreclrTests) {
                         buildOpts += " -priority=${priority}"
+                    } else {
+                        buildOpts += ' skiptests';
                     }
 
                     // Set __TestIntermediateDir to something short. If __TestIntermediateDir is already set, build-test.cmd will
@@ -2119,6 +2126,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                     // 35 characters long.
 
                     buildCommands += "set __TestIntermediateDir=int&&build.cmd ${lowerConfiguration} ${arch} ${buildOpts}"
+
+                    if (scenario == 'pmi_asm_diffs') {
+                        // Now, generate the layout. We don't have any tests, so we need to do some annoying magic before calling runtest.cmd.
+                        buildCommands += "run.cmd build -Project=\"tests\\build.proj\" -BuildOS=Windows_NT -BuildType=${lowerConfiguration} -BuildArch=${arch} -BatchRestorePackages"
+                        buildCommands += "tests\\runtest.cmd ${lowerConfiguration} ${arch} GenerateLayoutOnly"
+
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u %WORKSPACE%\\tests\\scripts\\run-pmi-diffs.py -arch ${arch} -ci_arch ${architecture} -build_type ${configuration}"
+
+                        // ZIP up the asm
+                        buildCommands += "powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('_\\_asm', '.\\dasm.${os}.${architecture}.${configuration}.zip')\"";
+
+                        // Archive the asm
+                        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
+                        break
+                    }
 
                     if (!isBuildOnly) {
                         def runtestArguments = ''
@@ -2280,10 +2303,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
 
                     def buildOpts = ''
 
-                    if (doCoreFxTesting) {
-                        buildOpts += ' skiptests'
-                    } else {
+                    if (buildCoreclrTests) {
                         buildOpts += " -priority=${priority}"
+                    } else {
+                        buildOpts += ' skiptests'
                     }
 
                     // This is now a build only job. Do not run tests. Use the flow job.
@@ -2340,9 +2363,8 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
         case 'Tizen':
         case 'Fedora24': // editor brace matching: {
             switch (architecture) {
-                case 'x64':
                 case 'x86':
-                    if (architecture == 'x86' && os == 'Ubuntu') {
+                    if (os == 'Ubuntu') {
                         // build and PAL test
                         def dockerImage = getDockerImageName(architecture, os, true)
                         buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code -e ROOTFS_DIR=/crossrootfs/x86 ${dockerImage} ./build.sh ${architecture} cross ${lowerConfiguration}"
@@ -2350,12 +2372,28 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "docker run -i --rm -v \${WORKSPACE}:/opt/code -w /opt/code ${dockerImage} ./src/pal/tests/palsuite/runpaltests.sh /opt/code/bin/obj/${osGroup}.${architecture}.${configuration} /opt/code/bin/paltestout"
                         Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
-                        break
                     }
+                    break
 
+                case 'x64':
                     if (scenario == 'formatting') {
                         buildCommands += "python tests/scripts/format.py -c \${WORKSPACE} -o Linux -a ${architecture}"
                         Utilities.addArchival(newJob, "format.patch", "", true, false)
+                        break
+                    }
+
+                    if (scenario == 'pmi_asm_diffs') {
+                        buildCommands += "./build.sh ${lowerConfiguration} ${architecture} skiptests skipbuildpackages"
+                        buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} generatelayoutonly"
+
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration}"
+
+                        // ZIP up the asm
+                        buildCommands += "zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm"
+
+                        // Archive the asm
+                        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
                         break
                     }
 
@@ -2371,10 +2409,19 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         def bootstrapRidEnv = bootstrapRid != null ? "__PUBLISH_RID=${bootstrapRid} " : ''
 
                         buildCommands += "${bootstrapRidEnv}./build.sh ${lowerConfiguration} ${architecture}"
+
+                        def testBuildOpts = ""
+                        if (priority == '1') {
+                            testBuildOpts = "priority1"
+                        }
+
+                        buildCommands += "./build-test.sh ${lowerConfiguration} ${architecture} ${testBuildOpts}"
                         buildCommands += "src/pal/tests/palsuite/runpaltests.sh \${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration} \${WORKSPACE}/bin/paltestout"
 
-                        // Basic archiving of the build
-                        Utilities.addArchival(newJob, "bin/Product/**,bin/obj/*/tests/**/*.dylib,bin/obj/*/tests/**/*.so", "bin/Product/**/.nuget/**")
+                        // Archive the bin/tests folder for *_tst jobs
+                        def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                        buildCommands += "tar -czf ${testArtifactsTgzFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
+                        Utilities.addArchival(newJob, "${testArtifactsTgzFileName}", "")
                         // And pal tests
                         Utilities.addXUnitDotNETResults(newJob, '**/pal_tests.xml')
                     }
@@ -2516,31 +2563,22 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}zip -r ${workspaceRelativeArtifactsArchive} ${workspaceRelativeCoreLib} ${workspaceRelativeCoreRootDir} ${workspaceRelativeCrossGenComparisonScript} ${workspaceRelativeResultsDir}"
                         Utilities.addArchival(newJob, "${workspaceRelativeArtifactsArchive}")
                     }
-                    else if (architecture == 'arm') {
-                        // Then, using the same docker image, generate the CORE_ROOT layout using build-test.sh to
-                        // download the appropriate CoreFX packages.
-                        // Note that docker should not be necessary here, for the "generatelayoutonly" case, but we use it
-                        // just to be consistent with the "build.sh" case -- so both are run with the same environment.
-
+                    else if (scenario == 'pmi_asm_diffs') {
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross generatelayoutonly"
 
-                        // ZIP up for the test job (created in the flow job code):
-                        // (1) the built CORE_ROOT, /home/user/coreclr/bin/tests/Linux.arm.Checked/Tests/Core_Root,
-                        //     used by runtest.sh as the "--coreOverlayDir" argument.
-                        // (2) the native parts of the test build: /home/user/coreclr/bin/obj/Linux.arm.Checked/tests,
-                        //     used by runtest.sh as the "--testNativeBinDir" argument.
+                        // Pass `-skip_diffs` -- the actual diffs will be done on an arm machine in the test job. This is the build job.
+                        // TODO: Add -target_branch and -commit_hash arguments based on GitHub variables.
+                        buildCommands += "python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_diffs True"
 
-                        // These commands are assumed to be run from the root of the workspace.
-                        buildCommands += "zip -r coreroot.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
-                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
+                        // ZIP what we created.
+                        buildCommands += "zip -r coreroot.${os}.${architecture}.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
+                        buildCommands += "zip -r coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip ./_/_c/bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root"
 
-                        Utilities.addArchival(newJob, "coreroot.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
+                        // Archive the built artifacts
+                        Utilities.addArchival(newJob, "coreroot.${os}.${architecture}.${lowerConfiguration}.zip,coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
                     }
                     else {
-                        assert architecture == 'arm64'
-
                         // Then, using the same docker image, build the tests and generate the CORE_ROOT layout.
-                        // Linux/arm64 does not use Windows-built tests.
 
                         def testBuildOpts = ""
                         if (priority == '1') {
@@ -2550,13 +2588,10 @@ def static calculateBuildCommands(def newJob, def scenario, def branch, def isPR
                         buildCommands += "${dockerCmd}\${WORKSPACE}/build-test.sh ${lowerConfiguration} ${architecture} cross ${testBuildOpts}"
 
                         // ZIP up the built tests (including CORE_ROOT and native test components copied to the CORE_ROOT) for the test job (created in the flow job code)
-                        buildCommands += "zip -r tests.${lowerConfiguration}.zip ./bin/tests/Linux.${architecture}.${configuration}"
+                        def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                        buildCommands += "tar -czf ${testArtifactsTgzFileName} bin/tests/${osGroup}.${architecture}.${configuration}"
 
-                        // We still use the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        // With https://github.com/dotnet/coreclr/pull/19918 this shouldn't be needed anymore.
-                        buildCommands += "zip -r testnativebin.${lowerConfiguration}.zip ./bin/obj/Linux.${architecture}.${configuration}/tests"
-
-                        Utilities.addArchival(newJob, "tests.${lowerConfiguration}.zip,testnativebin.${lowerConfiguration}.zip", "")
+                        Utilities.addArchival(newJob, "${testArtifactsTgzFileName}", "")
                     }
 
                     // Archive the build logs from both product and test builds.
@@ -2595,12 +2630,6 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
     // The various "innerloop" jobs are only available as PR triggered.
 
     if (!isPR) {
-        if (isInnerloopTestScenario(scenario) && (architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked')) {
-            // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
-            //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
-            return true
-        }
-
         if (isInnerloopTestScenario(scenario)) {
             return false
         }
@@ -2850,6 +2879,22 @@ def static shouldGenerateJob(def scenario, def isPR, def architecture, def confi
                     return false
                 }
                 break
+            case 'pmi_asm_diffs':
+                if (configuration != 'Checked') {
+                    return false
+                }
+                if (architecture == 'armem') {
+                    return false
+                }
+                // Currently, we don't support pmi_asm_diffs for Windows arm/arm64. Is is not in validArmWindowsScenarios.
+                if ((os == 'Windows_NT') && (architecture == 'arm' || architecture == 'arm64')) {
+                    return false
+                }
+                // Currently, no support for Linux x86.
+                if ((os != 'Windows_NT') && (architecture == 'x86')) {
+                    return false
+                }
+                break
             default:
                 println("Unknown scenario: ${scenario}")
                 assert false
@@ -3081,55 +3126,15 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
                     addEnvVariable("RunCrossGen", "true")
                 } // isR2RScenario(scenario)
 
-                // Create the smarty command
-                def smartyCommand = "C:\\Tools\\Smarty.exe /noecid /noie /workers 9 /inc EXPECTED_PASS "
-                def addSmartyFlag = { flag -> smartyCommand += flag + " "}
-                def addExclude = { exclude -> addSmartyFlag("/exc " + exclude)}
-                def addArchSpecificExclude = { architectureToExclude, exclude -> addExclude(exclude) }
+                // Run runtest.cmd
+                // Do not run generate layout. It will delete the correct CORE_ROOT, and we do not have a correct product
+                // dir to copy from.
+                def runtestCommand = "%WORKSPACE%\\tests\\runtest.cmd ${architecture} ${configuration} skipgeneratelayout"
 
-                // Exclude tests based on scenario.
-                Constants.validArmWindowsScenarios[scenario].each { excludeTag ->
-                    addArchSpecificExclude(architecture, excludeTag)
-                }
-
-                if (isInnerloopTestScenario(scenario)) {
-                    addExclude("pri1")
-                }
-
-                // Exclude any test marked LONG_RUNNING; these often exceed the standard timeout and fail as a result.
-                // TODO: We should create a "long running" job that runs these with a longer timeout.
-                addExclude("LONG_RUNNING")
-
-                smartyCommand += "/lstFile Tests.lst"
-
-                def testListArch = [
-                    'arm64': 'arm64',
-                    'arm': 'arm'
-                ]
-
-                def archLocation = testListArch[architecture]
-
-                addCommand("copy %WORKSPACE%\\tests\\${archLocation}\\Tests.lst bin\\tests\\${osGroup}.${architecture}.${configuration}")
-                addCommand("pushd bin\\tests\\${osGroup}.${architecture}.${configuration}")
-                addCommand("${smartyCommand}")
-
-                // Save the errorlevel from the smarty command to be used as the errorlevel of this batch file.
-                // However, we also need to remove all the variables that were set during this batch file, so we
-                // can run the ZIP powershell command (below) in a clean environment. (We can't run the powershell
-                // command with the COMPlus_AltJit variables set, for example.) To do that, we do ENDLOCAL as well
-                // as save the current errorlevel on the same line. This works because CMD evaluates the %errorlevel%
-                // variable expansion (or any variable expansion on the line) BEFORE it executes the ENDLOCAL command.
-                // Note that the ENDLOCAL also undoes the pushd command, but we add the popd here for clarity.
-                addCommand("popd & ENDLOCAL & set __save_smarty_errorlevel=%errorlevel%")
-
-                // ZIP up the smarty output, no matter what the smarty result.
-                addCommand("powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0', '.\\bin\\tests\\${osGroup}.${architecture}.${configuration}\\Smarty.run.0.zip')\"")
-
-                addCommand("echo %errorlevel%")
-                addCommand("dir .\\bin\\tests\\${osGroup}.${architecture}.${configuration}")
+                addCommand("${runtestCommand}")
 
                 // Use the smarty errorlevel as the script errorlevel.
-                addCommand("exit /b %__save_smarty_errorlevel%")
+                addCommand("exit /b %errorlevel%")
 
                 batchFile(buildCommands)
             } // non-corefx testing
@@ -3137,12 +3142,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
     } // job
 
     if (!isCoreFxScenario(scenario)) {
-        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.run.0/*.smrt", '', true, false)
-
-        // Archive a ZIP file of the entire Smarty.run.0 directory. This is possibly a little too much,
-        // but there is no easy way to only archive the HTML/TXT files of the failing tests, so we get
-        // all the passing test info as well. Not necessarily a bad thing, but possibly somewhat large.
-        Utilities.addArchival(newJob, "bin/tests/${osGroup}.${architecture}.${configuration}/Smarty.run.0.zip", '', true, false)
+        Utilities.addXUnitDotNETResults(newJob, 'bin/**/TestRun*.xml', true)
     }
 
     return newJob
@@ -3151,7 +3151,7 @@ def static CreateWindowsArmTestJob(def dslFactory, def project, def architecture
 // Create a test job not covered by the "Windows ARM" case that will be used by a flow job.
 // E.g., non-Windows tests.
 // Returns the newly created job.
-def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateOtherTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     def lowerConfiguration = configuration.toLowerCase()
 
@@ -3160,6 +3160,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
     def isUbuntuArmJob = isUbuntuArm32Job || isUbuntuArm64Job
 
     def doCoreFxTesting = isCoreFxScenario(scenario)
+    def isPmiAsmDiffsScenario = (scenario == 'pmi_asm_diffs')
 
     def workspaceRelativeFxRootLinux = "_/fx" // only used for CoreFX testing
 
@@ -3268,35 +3269,16 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
         }
     }
 
-    // The ARM Ubuntu corefx test job doesn't depend on a Windows test build, and hence inputTestsBuildName
-    // will be null in this case.
-
     def jobFolder = getJobFolder(scenario)
     def newJob = dslFactory.job(Utilities.getFullJobName(project, jobName, isPR, jobFolder)) {
         parameters {
-            if (inputTestsBuildName != null) {
-                stringParam('CORECLR_WINDOWS_BUILD', '', 'Build number to copy CoreCLR Windows test binaries from')
-            }
             stringParam('CORECLR_BUILD', '', "Build number to copy CoreCLR ${osGroup} binaries from")
         }
 
         steps {
             // Set up the copies
 
-            // Coreclr build containing the tests and mscorlib
-            // pri1 jobs still need to copy windows_nt built tests
-            if (inputTestsBuildName != null) {
-                copyArtifacts(inputTestsBuildName) {
-                    excludePatterns('**/testResults.xml', '**/*.ni.dll')
-                    buildSelector {
-                        buildNumber('${CORECLR_WINDOWS_BUILD}')
-                    }
-                }
-            }
-
             // Coreclr build we are trying to test
-            //
-            //  ** NOTE ** This will, correctly, overwrite the CORE_ROOT from the Windows test archive
             //
             // HACK: the Ubuntu arm64 copyArtifacts Jenkins plug-in is ridiculously slow (45 minutes to
             // 1.5 hours for this step). Instead, directly use wget, which is fast (1 minute).
@@ -3344,7 +3326,7 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
                 def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
-                if (doCoreFxTesting || doCrossGenComparison) {
+                if (isPmiAsmDiffsScenario || doCoreFxTesting || doCrossGenComparison) {
                     // These depend on unique builds for each scenario
                     inputCoreCLRBuildScenario = scenario
                 }
@@ -3360,14 +3342,20 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
 
                 def inputUrlRoot = "https://ci.dot.net/job/${mungedProjectName}/job/${mungedBranchName}/${inputJobPath}/\${CORECLR_BUILD}/artifact"
 
-                if (doCoreFxTesting) {
+                if (isPmiAsmDiffsScenario) {
+                    def workspaceRelativeRootLinux = "_"
+                    shell("mkdir -p ${workspaceRelativeRootLinux}")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.${os}.${architecture}.${lowerConfiguration}.zip")
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip")
+                }
+                else if (doCoreFxTesting) {
                     shell("mkdir -p ${workspaceRelativeFxRootLinux}")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxtests.zip")
                     shell("wget --progress=dot:giga --directory-prefix=${workspaceRelativeFxRootLinux} ${inputUrlRoot}/${workspaceRelativeFxRootLinux}/fxruntime.zip")
                 }
                 else {
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/testnativebin.${lowerConfiguration}.zip")
-                    shell("wget --progress=dot:giga ${inputUrlRoot}/tests.${lowerConfiguration}.zip")
+                    def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                    shell("wget --progress=dot:giga ${inputUrlRoot}/${testArtifactsTgzFileName}")
                 }
             }
 
@@ -3389,41 +3377,19 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 shell("tar -xf ./bin/CoreFxNative/bin/build.tar.gz -C ./bin/CoreFxBinDir")
             }
 
+            if (isPmiAsmDiffsScenario) {
+                // TODO: add back "-q" when we know it works
+                shell("unzip -o ./coreroot.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+                shell("unzip -o ./coreroot.baseline.${os}.${architecture}.${lowerConfiguration}.zip || exit 0")
+            }
             // CoreFX testing downloads the CoreFX tests, not the coreclr tests. Also, unzip the built CoreFX layout/runtime directories.
-            if (doCoreFxTesting) {
+            else if (doCoreFxTesting) {
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxtests.zip || exit 0")
                 shell("unzip -q -o ${workspaceRelativeFxRootLinux}/fxruntime.zip || exit 0")
             }
-            else if (architecture != 'arm64') {
-                // ARM64 copies the tests from the build machine; this is for unzip'ing tests copied from a Windows build.
-                //
-                // Unzip the tests first.  Exit with 0
-                shell("unzip -q -o ./bin/tests/tests.zip -d ./bin/tests/${osGroup}.${architecture}.${configuration} || exit 0")
-                shell("rm -r ./bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root || exit 0")
-            }
-
-            // For arm Ubuntu (on hardware), we do the "build-test" step on the build machine, not on the test
-            // machine. The arm Ubuntu test machines do no building -- they have no CLI, for example.
-            // We should probably do the "generatelayoutonly" step on the build machine for all architectures.
-            // However, it's believed that perhaps there's an issue with executable permission bits not getting
-            // copied correctly.
-            if (!doCoreFxTesting) {
-                if (isUbuntuArmJob) {
-                    if (architecture == 'arm') {
-                        shell("unzip -q -o ./coreroot.${lowerConfiguration}.zip || exit 0")      // unzips to ./bin/tests/Linux.${architecture}.${configuration}/Tests/Core_Root
-                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                    }
-                    else {
-                        assert architecture == 'arm64'
-                        shell("unzip -q -o ./tests.${lowerConfiguration}.zip || exit 0")         // unzips to ./bin/tests/Linux.${architecture}.${configuration}
-
-                        // We still the testnativebin files until they get placed properly in the tests directory (next to their respective tests).
-                        shell("unzip -q -o ./testnativebin.${lowerConfiguration}.zip || exit 0") // unzips to ./bin/obj/Linux.${architecture}.${configuration}/tests
-                    }
-                }
-                else {
-                    shell("./build-test.sh ${architecture} ${configuration} generatelayoutonly")
-                }
+            else {
+                def testArtifactsTgzFileName = getTestArtifactsTgzFileName(osGroup, architecture, configuration)
+                shell("tar -xzf ./${testArtifactsTgzFileName} || exit 0") // extracts to ./bin/tests/${osGroup}.${architecture}.${configuration}
             }
 
             // Execute the tests
@@ -3457,22 +3423,25 @@ def static CreateOtherTestJob(def dslFactory, def project, def branch, def archi
                 }
             }
 
-            if (doCoreFxTesting) {
+            if (isPmiAsmDiffsScenario) {
+                shell("""\
+python -u \${WORKSPACE}/tests/scripts/run-pmi-diffs.py -arch ${architecture} -ci_arch ${architecture} -build_type ${configuration} -skip_baseline_build True""")
+
+                shell("zip -r dasm.${os}.${architecture}.${configuration}.zip ./_/_asm")
+            }
+            else if (doCoreFxTesting) {
                 shell("""\
 \${WORKSPACE}/tests/scripts/run-corefx-tests.sh --test-exclude-file \${WORKSPACE}/tests/${architecture}/corefx_linux_test_exclusions.txt --runtime \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin/testhost/netcoreapp-Linux-Release-${architecture} --arch ${architecture} --corefx-tests \${WORKSPACE}/${workspaceRelativeFxRootLinux}/bin --configurationGroup Release""")
             }
             else {
                 def runScript = "${dockerCmd}./tests/runtest.sh"
 
-                // TODO: the testNativeBinDir shouldn't be necessary if the native test binaries are placed properly with their corresponding managed test code.
-
                 shell("""\
 ${runScript} \\
     ${lowerConfiguration} \\
     --testRootDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}\" \\
     --coreOverlayDir=\"\${WORKSPACE}/bin/tests/${osGroup}.${architecture}.${configuration}/Tests/Core_Root\" \\
-    --testNativeBinDir=\"\${WORKSPACE}/bin/obj/${osGroup}.${architecture}.${configuration}/tests\" \\
-    --copyNativeTestBin --limitedDumpGeneration ${testOpts}""")
+    --limitedDumpGeneration ${testOpts}""")
             }
 
             if (isGcReliabilityFramework(scenario)) {
@@ -3498,7 +3467,11 @@ ${runScript} \\
         summaries.emit(newJob)
     }
 
-    if (doCoreFxTesting) {
+    if (isPmiAsmDiffsScenario) {
+        // Archive the asm
+        Utilities.addArchival(newJob, "dasm.${os}.${architecture}.${configuration}.zip")
+    }
+    else if (doCoreFxTesting) {
         Utilities.addArchival(newJob, "${workspaceRelativeFxRootLinux}/bin/**/testResults.xml")
         if ((os == "Ubuntu") && (architecture == 'arm')) {
             // We have a problem with the xunit plug-in, where it is consistently failing on Ubuntu arm32 test result uploading with this error:
@@ -3579,21 +3552,19 @@ def static CreateNonWindowsCrossGenComparisonTestJob(def dslFactory, def project
 // Returns the newly created job.
 // Note that we don't add tests jobs to the various views, since they are always used by a flow job, which is in the views,
 // and we want the views to be the minimal set of "top-level" jobs that represent all work.
-def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateTestJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def inputCoreCLRBuildName)
 {
     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
 
     def newJob = null
     if (windowsArmJob) {
-        assert inputTestsBuildName == null
         newJob = CreateWindowsArmTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
     else if (isCrossGenComparisonScenario(scenario)) {
-        assert inputTestsBuildName == null
         newJob = CreateNonWindowsCrossGenComparisonTestJob(dslFactory, project, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
     else {
-        newJob = CreateOtherTestJob(dslFactory, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName, inputTestsBuildName)
+        newJob = CreateOtherTestJob(dslFactory, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
     }
 
     setJobMachineAffinity(architecture, os, false, true, false, newJob) // isBuildJob = false, isTestJob = true, isFlowJob = false
@@ -3610,47 +3581,24 @@ def static CreateTestJob(def dslFactory, def project, def branch, def architectu
 }
 
 // Create a flow job to tie together a build job with the given test job.
-// The 'inputTestsBuildName' argument might be null if the flow job doesn't depend on a Windows build job.
 // Returns the new flow job.
-def static CreateFlowJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def fullTestJobName, def inputCoreCLRBuildName, def inputTestsBuildName)
+def static CreateFlowJob(def dslFactory, def project, def branch, def architecture, def os, def configuration, def scenario, def isPR, def fullTestJobName, def inputCoreCLRBuildName)
 {
     // Windows CoreCLR build and Linux CoreCLR build (in parallel) ->
     // Linux CoreCLR test
     def flowJobName = getJobName(configuration, architecture, os, scenario, false) + "_flow"
     def jobFolder = getJobFolder(scenario)
 
-    def newFlowJob = null
-
-    if (inputTestsBuildName == null) {
-        newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
-                        buildFlow("""\
+    def newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
+        buildFlow("""\
 coreclrBuildJob = build(params, '${inputCoreCLRBuildName}')
 
 // And then build the test build
 build(params + [CORECLR_BUILD: coreclrBuildJob.build.number], '${fullTestJobName}')
 """)
-        }
-        JobReport.Report.addReference(inputCoreCLRBuildName)
-        JobReport.Report.addReference(fullTestJobName)
     }
-    else {
-        newFlowJob = dslFactory.buildFlowJob(Utilities.getFullJobName(project, flowJobName, isPR, jobFolder)) {
-                        buildFlow("""\
-// Build the input jobs in parallel
-parallel (
-{ coreclrBuildJob = build(params, '${inputCoreCLRBuildName}') },
-{ windowsBuildJob = build(params, '${inputTestsBuildName}') }
-)
-
-// And then build the test build
-build(params + [CORECLR_BUILD: coreclrBuildJob.build.number,
-                CORECLR_WINDOWS_BUILD: windowsBuildJob.build.number], '${fullTestJobName}')
-""")
-        }
-        JobReport.Report.addReference(inputCoreCLRBuildName)
-        JobReport.Report.addReference(inputTestsBuildName)
-        JobReport.Report.addReference(fullTestJobName)
-    }
+    JobReport.Report.addReference(inputCoreCLRBuildName)
+    JobReport.Report.addReference(fullTestJobName)
 
     addToViews(newFlowJob, true, isPR, architecture, os, configuration, scenario) // isFlowJob = true
 
@@ -3669,12 +3617,6 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
     // The various "innerloop" jobs are only available as PR triggered.
 
     if (!isPR) {
-        if (isInnerloopTestScenario(scenario) && (architecture == 'arm64') && (os == 'Ubuntu16.04') && (configuration == 'Checked')) {
-            // TEMPORARY: make arm64 Linux innerloop jobs push jobs, not default triggered jobs, until we have experience
-            //            with the machines running these jobs (and the jobs themselves), to understand how robust they are.
-            return true
-        }
-
         if (isInnerloopTestScenario(scenario)) {
             return false
         }
@@ -3849,6 +3791,16 @@ def static shouldGenerateFlowJob(def scenario, def isPR, def architecture, def c
                 }
                 break
 
+            case 'pmi_asm_diffs':
+                if (configuration != 'Checked') {
+                    return false
+                }
+                // No need for flow job except for Linux arm/arm64
+                if ((os != 'Windows_NT') && (architecture != 'arm') && (architecture != 'arm64')) {
+                    return false
+                }
+                break
+
             case 'corefx_innerloop':
                 // No flow job needed
                 return false
@@ -3878,12 +3830,13 @@ Constants.allScenarios.each { scenario ->
                     def windowsArmJob = ((os == "Windows_NT") && (architecture in Constants.armWindowsCrossArchitectureList))
                     def doCoreFxTesting = isCoreFxScenario(scenario)
                     def doCrossGenComparison = isCrossGenComparisonScenario(scenario)
+                    def isPmiAsmDiffsScenario = (scenario == 'pmi_asm_diffs')
 
                     // Figure out the job name of the CoreCLR build the test will depend on.
 
                     def inputCoreCLRBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
                     def inputCoreCLRBuildIsBuildOnly = false
-                    if (doCoreFxTesting) {
+                    if (doCoreFxTesting || isPmiAsmDiffsScenario) {
                         // Every CoreFx test depends on its own unique build.
                         inputCoreCLRBuildScenario = scenario
                         if (windowsArmJob) {
@@ -3891,7 +3844,7 @@ Constants.allScenarios.each { scenario ->
                             inputCoreCLRBuildIsBuildOnly = true
                         }
                     }
-                    if (doCrossGenComparison) {
+                    else if (doCrossGenComparison) {
                         inputCoreCLRBuildScenario = scenario
                     }
 
@@ -3899,37 +3852,11 @@ Constants.allScenarios.each { scenario ->
                     def inputCoreCLRBuildName = projectFolder + '/' +
                         Utilities.getFullJobName(project, getJobName(configuration, architecture, os, inputCoreCLRBuildScenario, inputCoreCLRBuildIsBuildOnly), isPR, inputCoreCLRFolderName)
 
-                    // Figure out the name of the build job that the test job will depend on.
-                    // For Windows ARM tests, this is not used, as the CoreCLR build creates the tests. For other
-                    // tests (e.g., Linux ARM), we depend on a Windows build to get the tests.
-                    // For CoreFX tests, however, Linux doesn't need the Windows build for the tests, since the
-                    // CoreFX build creates the tests.
-
-                    def inputTestsBuildName = null
-
-                    // Ubuntu Arm64 jobs do the test build on the build machine, and thus don't depend on a Windows build.
-                    def isUbuntuArm64Job = ((os == "Ubuntu16.04") && (architecture == 'arm64'))
-
-                    if (!windowsArmJob && !doCoreFxTesting & !doCrossGenComparison && !isUbuntuArm64Job) {
-                        def testBuildScenario = isInnerloopTestScenario(scenario) ? 'innerloop' : 'normal'
-
-                        def inputTestsBuildArch = architecture
-                        if (architecture == "arm") {
-                            // Use the x86 test build for arm unix
-                            inputTestsBuildArch = "x86"
-                        }
-
-                        def inputTestsBuildIsBuildOnly = true
-
-                        inputTestsBuildName = projectFolder + '/' +
-                            Utilities.getFullJobName(project, getJobName(configuration, inputTestsBuildArch, 'windows_nt', testBuildScenario, inputTestsBuildIsBuildOnly), isPR)
-                    }
-
                     // =============================================================================================
                     // Create the test job
                     // =============================================================================================
 
-                    def testJob = CreateTestJob(this, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName, inputTestsBuildName)
+                    def testJob = CreateTestJob(this, project, branch, architecture, os, configuration, scenario, isPR, inputCoreCLRBuildName)
 
                     // =============================================================================================
                     // Create a build flow to join together the build and tests required to run this test.
@@ -3941,7 +3868,7 @@ Constants.allScenarios.each { scenario ->
                     }
 
                     def fullTestJobName = projectFolder + '/' + testJob.name
-                    def flowJob = CreateFlowJob(this, project, branch, architecture, os, configuration, scenario, isPR, fullTestJobName, inputCoreCLRBuildName, inputTestsBuildName)
+                    def flowJob = CreateFlowJob(this, project, branch, architecture, os, configuration, scenario, isPR, fullTestJobName, inputCoreCLRBuildName)
 
                 } // os
             } // configuration

@@ -41,7 +41,7 @@
 #include "sigbuilder.h"
 #include "metadataexports.h"
 #include "inlinetracking.h"
-
+#include "threads.h"
 
 #ifdef FEATURE_PREJIT
 #include "exceptionhandling.h"
@@ -2067,7 +2067,7 @@ void Module::BuildStaticsOffsets(AllocMemTracker *pamTracker)
                     continue;
 
                 // We account for "regular statics" and "thread statics" separately. 
-                // Currently we are lumping RVA and context statics into "regular statics",
+                // Currently we are lumping RVA into "regular statics",
                 // but we probably shouldn't.
                 switch (ElementType)
                 {
@@ -2903,6 +2903,18 @@ void Module::FreeModuleIndex()
             // contain a pointer to the DLM
             _ASSERTE(!Module::IsEncodedModuleIndex((SIZE_T)m_ModuleID));
             _ASSERTE(m_ModuleIndex == m_ModuleID->GetModuleIndex());
+
+#ifndef CROSSGEN_COMPILE
+            if (IsCollectible())
+            {
+                ThreadStoreLockHolder tsLock;
+                Thread *pThread = NULL;
+                while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+                {
+                    pThread->DeleteThreadStaticData(m_ModuleIndex);
+                }
+            }
+#endif // CROSSGEN_COMPILE
 
             // Get the ModuleIndex from the DLM and free it
             Module::FreeModuleIndex(m_ModuleIndex);

@@ -190,19 +190,16 @@ private:
     // Returns "true" iff "vnf" can be evaluated for constant arguments.
     static bool CanEvalForConstantArgs(VNFunc vnf);
 
+    // Returns "true" iff "vnf" should be folded by evaluating the func with constant arguments.
+    bool VNEvalShouldFold(var_types typ, VNFunc func, ValueNum arg0VN, ValueNum arg1VN);
+
     // return vnf(v0)
     template <typename T>
     static T EvalOp(VNFunc vnf, T v0);
 
-    // returns vnf(v0)  for int/INT32
-    int EvalOpInt(VNFunc vnf, int v0);
-
     // returns vnf(v0, v1).
     template <typename T>
     T EvalOp(VNFunc vnf, T v0, T v1);
-
-    // returns vnf(v0, v1)  for int/INT32
-    int EvalOpInt(VNFunc vnf, int v0, int v1);
 
     // return vnf(v0) or vnf(v0, v1), respectively (must, of course be unary/binary ops, respectively.)
     template <typename T>
@@ -212,8 +209,6 @@ private:
 
     template <typename T>
     static int EvalComparison(VNFunc vnf, T v0, T v1);
-    template <typename T>
-    static int EvalOrderedComparisonFloat(VNFunc vnf, T v0, T v1);
 
     // Should only instantiate (in a non-trivial way) for "int" and "INT64".  Returns true iff dividing "v0" by "v1"
     // would produce integer overflow (an ArithmeticException -- *not* division by zero, which is separate.)
@@ -239,6 +234,8 @@ private:
     ValueNum EvalFuncForConstantArgs(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
     ValueNum EvalFuncForConstantFPArgs(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
     ValueNum EvalCastForConstantArgs(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
+
+    ValueNum EvalUsingMathIdentity(var_types typ, VNFunc vnf, ValueNum vn0, ValueNum vn1);
 
 // This is the constant value used for the default value of m_mapSelectBudget
 #define DEFAULT_MAP_SELECT_BUDGET 100 // used by JitVNMapSelBudget
@@ -358,10 +355,6 @@ public:
     // It returns NoVN for a "typ" that has no one value, such as TYP_REF.
     ValueNum VNOneForType(var_types typ);
 
-    // Returns the value number for negative one of the given "typ".
-    // It returns NoVN for a "typ" that has no negative one value, such as TYP_REF, or TYP_UINT
-    ValueNum VNNegOneForType(var_types typ);
-
     // Create or return the existimg value number representing a singleton exception set
     // for the the exception value "x".
     ValueNum VNExcSetSingleton(ValueNum x);
@@ -452,15 +445,14 @@ public:
     // True "iff" vn is a value returned by a call to a shared static helper.
     bool IsSharedStatic(ValueNum vn);
 
-    // VN's for functions of other values.
-    // Four overloads, for arities 0, 1, 2, and 3.  If we need other arities, we'll consider it.
+    // VNForFunc: We have five overloads, for arities 0, 1, 2, 3 and 4
     ValueNum VNForFunc(var_types typ, VNFunc func);
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum opVNwx);
     // This must not be used for VNF_MapSelect applications; instead use VNForMapSelect, below.
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx);
     ValueNum VNForFunc(var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx, ValueNum op3VNwx);
 
-    // The following four op VNForFunc is only used for VNF_PtrToArrElem, elemTypeEqVN, arrVN, inxVN, fldSeqVN
+    // The following four-op VNForFunc is used for VNF_PtrToArrElem, elemTypeEqVN, arrVN, inxVN, fldSeqVN
     ValueNum VNForFunc(
         var_types typ, VNFunc func, ValueNum op1VNwx, ValueNum op2VNwx, ValueNum op3VNwx, ValueNum op4VNwx);
 
@@ -831,10 +823,6 @@ public:
         return ConstantValueInternal<T>(vn DEBUGARG(true));
     }
 
-    // Given a value number "vn", go through the list of VNs that are handles
-    // to find if it is present, if so, return "true", else "false."
-    bool IsHandle(ValueNum vn);
-
     // Requires "mthFunc" to be an intrinsic math function (one of the allowable values for the "gtMath" field
     // of a GenTreeMath node).  For unary ops, return the value number for the application of this function to
     // "arg0VN". For binary ops, return the value number for the application of this function to "arg0VN" and
@@ -912,18 +900,6 @@ public:
 
     // Returns true if "vn" is a reserved value number
     static bool isReservedVN(ValueNum);
-
-#define VALUENUM_SUPPORT_MERGE 0
-#if VALUENUM_SUPPORT_MERGE
-    // If we're going to support the Merge operation, and do it right, we really need to use an entire
-    // egraph data structure, so that we can do congruence closure, and discover congruences implied
-    // by the eq-class merge.
-
-    // It may be that we provisionally give two expressions distinct value numbers, then later discover
-    // that the values of the expressions are provably equal.  We allow the two value numbers to be
-    // "merged" -- after the merge, they represent the same abstract value.
-    void MergeVNs(ValueNum vn1, ValueNum vn2);
-#endif
 
 private:
     // We will allocate value numbers in "chunks".  Each chunk will have the same type and "constness".

@@ -226,14 +226,14 @@ regMaskTP LinearScan::allRegs(RegisterType rt)
     else if (rt == TYP_DOUBLE)
     {
         return availableDoubleRegs;
-#ifdef FEATURE_SIMD
-        // TODO-Cleanup: Add an RBM_ALLSIMD
     }
+#ifdef FEATURE_SIMD
+    // TODO-Cleanup: Add an RBM_ALLSIMD
     else if (varTypeIsSIMD(rt))
     {
         return availableDoubleRegs;
-#endif // FEATURE_SIMD
     }
+#endif // FEATURE_SIMD
     else
     {
         return availableIntRegs;
@@ -9237,6 +9237,16 @@ void LinearScan::dumpLsraAllocationEvent(LsraDumpEvent event,
         case LSRA_EVENT_DEFUSE_CASE6:
             printf(indentFormat, "  Case #6 need a copy");
             dumpRegRecords();
+            if (interval == nullptr)
+            {
+                printf(indentFormat, "    NULL interval");
+                dumpRegRecords();
+            }
+            else if (interval->firstRefPosition->multiRegIdx != 0)
+            {
+                printf(indentFormat, "    (multiReg)");
+                dumpRegRecords();
+            }
             break;
 
         case LSRA_EVENT_SPILL:

@@ -54,9 +54,9 @@ class FieldMarshaler_WinBool;
 class FieldMarshaler_CBool;
 class FieldMarshaler_Decimal;
 class FieldMarshaler_Date;
+class FieldMarshaler_BSTR;
 #ifdef FEATURE_COMINTEROP
 class FieldMarshaler_SafeArray;
-class FieldMarshaler_BSTR;
 class FieldMarshaler_HSTRING;
 class FieldMarshaler_Interface;
 class FieldMarshaler_Variant;
@@ -466,9 +466,6 @@ protected:
 };
 
 
-
-#ifdef FEATURE_COMINTEROP
-
 //=======================================================================
 // BSTR <--> System.String
 //=======================================================================
@@ -484,6 +481,7 @@ public:
     COPY_TO_IMPL_BASE_STRUCT_ONLY()
 };
 
+#ifdef FEATURE_COMINTEROP
 //=======================================================================
 // HSTRING <--> System.String
 //=======================================================================
@@ -712,10 +710,17 @@ private:
 class FieldMarshaler_NestedValueClass : public FieldMarshaler
 {
 public:
+#ifndef _DEBUG
     FieldMarshaler_NestedValueClass(MethodTable *pMT)
+#else
+    FieldMarshaler_NestedValueClass(MethodTable *pMT, BOOL isFixedBuffer)
+#endif
     {
         WRAPPER_NO_CONTRACT;
         m_pNestedMethodTable.SetValueMaybeNull(pMT);
+#ifdef _DEBUG
+        m_isFixedBuffer = isFixedBuffer;
+#endif
     }
 
     BOOL IsNestedValueClassMarshalerImpl() const
@@ -763,6 +768,9 @@ public:
     START_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
     {
         pDestFieldMarshaller->m_pNestedMethodTable.SetValueMaybeNull(GetMethodTable());
+#ifdef _DEBUG
+        pDestFieldMarshaller->m_isFixedBuffer = m_isFixedBuffer;
+#endif
     }
     END_COPY_TO_IMPL(FieldMarshaler_NestedValueClass)
 
@@ -795,10 +803,20 @@ public:
         return m_pNestedMethodTable.GetValueMaybeNull();
     }
 
+#ifdef _DEBUG
+    BOOL IsFixedBuffer() const
+    {
+        return m_isFixedBuffer;
+    }
+#endif
+
 
 private:
     // MethodTable of nested NStruct.
     RelativeFixupPointer<PTR_MethodTable> m_pNestedMethodTable;
+#ifdef _DEBUG
+    BOOL m_isFixedBuffer;
+#endif
 };
 
 

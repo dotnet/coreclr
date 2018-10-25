@@ -9496,11 +9496,8 @@ void Compiler::fgSimpleLowering()
                     }
                     else
                     {
-                        con             = gtNewIconNode(arrLen->ArrLenOffset(), TYP_I_IMPL);
-                        con->gtRsvdRegs = RBM_NONE;
-
-                        add             = gtNewOperNode(GT_ADD, TYP_REF, arr, con);
-                        add->gtRsvdRegs = arr->gtRsvdRegs;
+                        con = gtNewIconNode(arrLen->ArrLenOffset(), TYP_I_IMPL);
+                        add = gtNewOperNode(GT_ADD, TYP_REF, arr, con);
 
                         range.InsertAfter(arr, con, add);
                     }
@@ -10979,6 +10976,14 @@ void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 
         /* First update the loop table and bbWeights */
         optUpdateLoopsBeforeRemoveBlock(block, skipUnmarkLoop);
+
+        // Update successor block start IL offset, if empty predecessor
+        // covers the immediately preceding range.
+        if ((block->bbCodeOffsEnd == succBlock->bbCodeOffs) && (block->bbCodeOffs != BAD_IL_OFFSET))
+        {
+            assert(block->bbCodeOffs <= succBlock->bbCodeOffs);
+            succBlock->bbCodeOffs = block->bbCodeOffs;
+        }
 
         /* Remove the block */
 
@@ -21881,8 +21886,9 @@ void Compiler::fgInline()
 
     if (verbose || fgPrintInlinedMethods)
     {
-        printf("**************** Inline Tree\n");
-        m_inlineStrategy->Dump();
+        JITDUMP("**************** Inline Tree");
+        printf("\n");
+        m_inlineStrategy->Dump(verbose);
     }
 
 #endif // DEBUG
@@ -22576,7 +22582,7 @@ void Compiler::fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* inlineRe
 
 #ifdef DEBUG
 
-    if (verbose || fgPrintInlinedMethods)
+    if (verbose)
     {
         printf("Successfully inlined %s (%d IL bytes) (depth %d) [%s]\n", eeGetMethodFullName(fncHandle),
                inlineCandidateInfo->methInfo.ILCodeSize, inlineDepth, inlineResult->ReasonString());
@@ -23057,7 +23063,7 @@ GenTree* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 
                 /* argBashTmpNode is non-NULL iff the argument's value was
                    referenced exactly once by the original IL. This offers an
-                   oppportunity to avoid an intermediate temp and just insert
+                   opportunity to avoid an intermediate temp and just insert
                    the original argument tree.
 
                    However, if the temp node has been cloned somewhere while

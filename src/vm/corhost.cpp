@@ -520,9 +520,85 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
         return HOST_E_CLRNOTAVAILABLE;
     }   
    
-    
-    // Ensure that code is not loaded in the Default AppDomain
-    return HOST_E_INVALIDOPERATION;
+    if(! (pwzAssemblyPath && pwzTypeName && pwzMethodName) )
+        return E_POINTER;
+
+    HRESULT hr = S_OK;
+
+    BEGIN_ENTRYPOINT_NOTHROW;
+
+    Thread *pThread = GetThread();
+    if (pThread == NULL)
+    {
+        pThread = SetupThreadNoThrow(&hr);
+        if (pThread == NULL)
+        {
+            goto ErrExit;
+        }
+    }
+
+    _ASSERTE (!pThread->PreemptiveGCDisabled());
+
+    _ASSERTE (SystemDomain::GetCurrentDomain()->GetId().m_dwId == DefaultADID);
+
+    INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+    INSTALL_UNWIND_AND_CONTINUE_HANDLER;
+
+    EX_TRY
+    {
+        Assembly *pAssembly = AssemblySpec::LoadAssembly(pwzAssemblyPath);
+
+        SString szTypeName(pwzTypeName);
+        StackScratchBuffer buff1;
+        const char* szTypeNameUTF8 = szTypeName.GetUTF8(buff1);
+        MethodTable *pMT = ClassLoader::LoadTypeByNameThrowing(pAssembly,
+                                                            NULL,
+                                                            szTypeNameUTF8).AsMethodTable();
+
+        SString szMethodName(pwzMethodName);
+        StackScratchBuffer buff;
+        const char* szMethodNameUTF8 = szMethodName.GetUTF8(buff);
+        MethodDesc *pMethodMD = MemberLoader::FindMethod(pMT, szMethodNameUTF8, &gsig_SM_Str_RetInt);
+
+        if (!pMethodMD)
+        {
+            hr = COR_E_MISSINGMETHOD;
+        }
+        else
+        {
+            GCX_COOP();
+
+            MethodDescCallSite method(pMethodMD);
+
+            STRINGREF sref = NULL;
+            GCPROTECT_BEGIN(sref);
+
+            if (pwzArgument)
+                sref = StringObject::NewString(pwzArgument);
+
+            ARG_SLOT MethodArgs[] =
+            {
+                ObjToArgSlot(sref)
+            };
+            DWORD retval = method.Call_RetI4(MethodArgs);
+            if (pReturnValue)
+            {
+                *pReturnValue = retval;
+            }
+
+            GCPROTECT_END();
+        }
+    }
+    EX_CATCH_HRESULT(hr);
+
+    UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
+    UNINSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
+
+ErrExit:
+
+    END_ENTRYPOINT_NOTHROW;
+
+    return hr;
 }
 
 HRESULT ExecuteInAppDomainHelper(FExecuteInAppDomainCallback pCallback,
@@ -798,7 +874,7 @@ HRESULT CorHost2::_CreateDelegate(
     if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
         ThrowHR(COR_E_MISSINGMETHOD);
 
-    UMEntryThunk *pUMEntryThunk = GetAppDomain()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+    UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
     *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
 
     END_DOMAIN_TRANSITION;
@@ -1180,48 +1256,7 @@ HRESULT CorRuntimeHostBase::UnloadAppDomain2(DWORD dwDomainId, BOOL fWaitUntilDo
     }
     CONTRACTL_END;
 
-    HRESULT hr = S_OK;
-
-    // No point going further if the runtime is not running...
-    {
-        // In IsRuntimeActive, we will call CanRunManagedCode that will
-        // check if the current thread has taken the loader lock or not,
-        // if MDA is supported. To do the check, MdaLoaderLock::ReportViolation
-        // will be invoked that will internally end up invoking
-        // MdaFactory<MdaXmlElement>::GetNext that will use the "new" operator
-        // that has the "FAULT" contract set, resulting in FAULT_VIOLATION since
-        // this method has the FORBID_FAULT contract set above.
-        //
-        // However, for a thread that holds the loader lock, unloading the appDomain is
-        // not a supported scenario. Thus, we should not be ending up in this code
-        // path for the FAULT violation.
-        //
-        // Hence, the CONTRACT_VIOLATION below for overriding the FORBID_FAULT
-        // for this scope only.
-        CONTRACT_VIOLATION(FaultViolation);
-        if (!IsRuntimeActive()
-            || !m_fStarted
-        )
-        {
-            return HOST_E_CLRNOTAVAILABLE;
-        }
-    }
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    // We do not use BEGIN_EXTERNAL_ENTRYPOINT here because
-    // we do not want to setup Thread.  Process may be OOM, and we want Unload
-    // to work.
-    hr =  AppDomain::UnloadById(ADID(dwDomainId), fWaitUntilDone);
-
-    END_ENTRYPOINT_NOTHROW;
-
-    if (pLatchedExitCode)
-    {
-        *pLatchedExitCode = GetLatchedExitCode();
-    }
-
-    return hr;
+    return COR_E_CANNOTUNLOADAPPDOMAIN;
 }
 
 //*****************************************************************************
@@ -1312,7 +1347,13 @@ HRESULT CorHost2::QueryInterface(REFIID riid, void **ppUnk)
     // Deliberately do NOT hand out ICorConfiguration.  They must explicitly call
     // GetConfiguration to obtain that interface.
     if (riid == IID_IUnknown)
+    {
         *ppUnk = static_cast<IUnknown *>(static_cast<ICLRRuntimeHost *>(this));
+    }
+    else if (riid == IID_ICLRRuntimeHost)
+    {
+        *ppUnk = static_cast<ICLRRuntimeHost *>(this);
+    }
     else if (riid == IID_ICLRRuntimeHost2)
     {
         ULONG version = 2;
@@ -1924,18 +1965,11 @@ public:
         BEGIN_ENTRYPOINT_NOTHROW;
 
         SystemDomain::LockHolder lh;
-        AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
 
-        if (!pAppDomain.IsUnloaded())
+        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);        
+        if (pBytesAllocated)
         {
-            if (pBytesAllocated)
-            {
-                *pBytesAllocated = pAppDomain->GetAllocBytes();
-            }
-        }
-        else
-        {
-            hr = COR_E_APPDOMAINUNLOADED;
+            *pBytesAllocated = pAppDomain->GetAllocBytes();
         }
 
         END_ENTRYPOINT_NOTHROW;
@@ -1959,22 +1993,15 @@ public:
         BEGIN_ENTRYPOINT_NOTHROW;
 
         SystemDomain::LockHolder lh;
-        AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
 
-        if (pAppDomain.IsUnloaded())
+        AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
+        if (pAppDomainBytesSurvived)
         {
-            hr = COR_E_APPDOMAINUNLOADED;
+            *pAppDomainBytesSurvived = pAppDomain->GetSurvivedBytes();
         }
-        else
+        if (pTotalBytesSurvived)
         {
-            if (pAppDomainBytesSurvived)
-            {
-                *pAppDomainBytesSurvived = pAppDomain->GetSurvivedBytes();
-            }
-            if (pTotalBytesSurvived)
-            {
-                *pTotalBytesSurvived = SystemDomain::GetTotalSurvivedBytes();
-            }
+            *pTotalBytesSurvived = SystemDomain::GetTotalSurvivedBytes();
         }
 
         END_ENTRYPOINT_NOTHROW;
@@ -2000,20 +2027,10 @@ public:
         {
             SystemDomain::LockHolder lh;
     
+            AppDomain* pAppDomain = SystemDomain::GetAppDomainFromId((ADID)dwAppDomainId, ADV_CURRENTAD);
+            if (pMilliseconds)
             {
-                AppDomainFromIDHolder pAppDomain((ADID)dwAppDomainId, TRUE, AppDomainFromIDHolder::SyncType_ADLock);
-
-                if (!pAppDomain.IsUnloaded())
-                {
-                    if (pMilliseconds)
-                    {
-                        *pMilliseconds = pAppDomain->QueryProcessorUsage() / 10000;
-                    }
-                }
-                else
-                {
-                    hr = COR_E_APPDOMAINUNLOADED;
-                }
+                *pMilliseconds = pAppDomain->QueryProcessorUsage() / 10000;
             }
         }
 

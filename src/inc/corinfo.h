@@ -213,11 +213,11 @@ TODO: Talk about initializing strutures before use
     #define SELECTANY extern __declspec(selectany)
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 45aafd4d-1d23-4647-9ce1-cf09a2677ca0 */
-    0x45aafd4d,
-    0x1d23,
-    0x4647,
-    {0x9c, 0xe1, 0xcf, 0x09, 0xa2, 0x67, 0x7c, 0xa0}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 12768bf8-549c-455b-a3df-57a751a81813 */
+    0x12768bf8,
+    0x549c,
+    0x455b,
+    {0xa3, 0xdf, 0x57, 0xa7, 0x51, 0xa8, 0x18, 0x13}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -824,7 +824,7 @@ enum CorInfoFlag
     CORINFO_FLG_NOGCCHECK             = 0x00200000, // This method is FCALL that has no GC check.  Don't put alone in loops
     CORINFO_FLG_INTRINSIC             = 0x00400000, // This method MAY have an intrinsic ID
     CORINFO_FLG_CONSTRUCTOR           = 0x00800000, // This method is an instance or type initializer
-//  CORINFO_FLG_UNUSED                = 0x01000000,
+    CORINFO_FLG_AGGRESSIVE_OPT        = 0x01000000, // The method may contain hot code and should be aggressively optimized if possible
 //  CORINFO_FLG_UNUSED                = 0x02000000,
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
@@ -2382,6 +2382,15 @@ public:
     virtual unsigned getClassSize (
             CORINFO_CLASS_HANDLE        cls
             ) = 0;
+
+    // return the number of bytes needed by an instance of the class allocated on the heap
+    virtual unsigned getHeapClassSize(
+        CORINFO_CLASS_HANDLE        cls
+    ) = 0;
+
+    virtual BOOL canAllocateOnStack(
+        CORINFO_CLASS_HANDLE cls
+    ) = 0;
 
     virtual unsigned getClassAlignmentRequirement (
             CORINFO_CLASS_HANDLE        cls,

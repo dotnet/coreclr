@@ -485,13 +485,19 @@ namespace System.Runtime.CompilerServices
             // object's identity to track this specific builder/state machine.  As such, we proceed to
             // overwrite whatever's there anyway, even if it's non-null.
             var box = AsyncMethodBuilderCore.TrackAsyncMethodCompletion ?
-                new DebugFinalizableAsyncStateMachineBox<TStateMachine>() :
+                CreateDebugFinalizableAsyncStateMachineBox<TStateMachine>() :
                 new AsyncStateMachineBox<TStateMachine>();
             m_task = box; // important: this must be done before storing stateMachine into box.StateMachine!
             box.StateMachine = stateMachine;
             box.Context = currentContext;
             return box;
         }
+
+        // Avoid forcing the JIT to build DebugFinalizableAsyncStateMachineBox<TStateMachine> unless it's actually needed.
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static AsyncStateMachineBox<TStateMachine> CreateDebugFinalizableAsyncStateMachineBox<TStateMachine>()
+            where TStateMachine : IAsyncStateMachine =>
+            new DebugFinalizableAsyncStateMachineBox<TStateMachine>();
 
         /// <summary>
         /// Provides an async state machine box with a finalizer that will fire an EventSource
@@ -534,13 +540,13 @@ namespace System.Runtime.CompilerServices
             /// <summary>A delegate to the <see cref="MoveNext"/> method.</summary>
             public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
 
-            /// <summary>Invokes <see cref="MoveNext"/> when the box is queued to the thread pool and executed as a work item.</summary>
-            void IThreadPoolWorkItem.ExecuteWorkItem() => MoveNext();
-            void IThreadPoolWorkItem.MarkAborted(ThreadAbortException tae) { /* nop */ }
+            internal sealed override void ExecuteFromThreadPool() => MoveNext();
 
             /// <summary>Calls MoveNext on <see cref="StateMachine"/></summary>
             public void MoveNext()
             {
+                Debug.Assert(!IsCompleted);
+
                 bool loggingOn = AsyncCausalityTracer.LoggingOn;
                 if (loggingOn)
                 {
@@ -557,12 +563,21 @@ namespace System.Runtime.CompilerServices
                     ExecutionContext.RunInternal(context, s_callback, this);
                 }
 
-                // In case this is a state machine box with a finalizer, suppress its finalization
-                // if it's now complete.  We only need the finalizer to run if the box is collected
-                // without having been completed.
-                if (IsCompleted && AsyncMethodBuilderCore.TrackAsyncMethodCompletion)
+                if (IsCompleted)
                 {
-                    GC.SuppressFinalize(this);
+                    // Clear out state now that the async method has completed.
+                    // This avoids keeping arbitrary state referenced by lifted locals
+                    // if this Task / state machine box is held onto.
+                    StateMachine = default;
+                    Context = default;
+
+                    // In case this is a state machine box with a finalizer, suppress its finalization
+                    // as it's now complete.  We only need the finalizer to run if the box is collected
+                    // without having been completed.
+                    if (AsyncMethodBuilderCore.TrackAsyncMethodCompletion)
+                    {
+                        GC.SuppressFinalize(this);
+                    }
                 }
 
                 if (loggingOn)
@@ -606,7 +621,7 @@ namespace System.Runtime.CompilerServices
         {
             Debug.Assert(m_task == null);
             return (m_task = AsyncMethodBuilderCore.TrackAsyncMethodCompletion ?
-                new DebugFinalizableAsyncStateMachineBox<IAsyncStateMachine>() :
+                CreateDebugFinalizableAsyncStateMachineBox<IAsyncStateMachine>() :
                 new AsyncStateMachineBox<IAsyncStateMachine>());
         }
 
@@ -888,7 +903,7 @@ namespace System.Runtime.CompilerServices
     /// <summary>
     /// An interface implemented by all <see cref="AsyncStateMachineBox{TStateMachine, TResult}"/> instances, regardless of generics.
     /// </summary>
-    internal interface IAsyncStateMachineBox : IThreadPoolWorkItem
+    internal interface IAsyncStateMachineBox
     {
         /// <summary>Move the state machine forward.</summary>
         void MoveNext();

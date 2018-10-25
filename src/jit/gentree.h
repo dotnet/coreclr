@@ -2067,16 +2067,6 @@ public:
     // Returns "true" iff "*this" is a statement containing an assignment that defines an SSA name (lcl = phi(...));
     bool IsPhiDefnStmt();
 
-    // Can't use an assignment operator, because we need the extra "comp" argument
-    // (to provide the allocator necessary for the VarSet assignment).
-    // TODO-Cleanup: Not really needed now, w/o liveset on tree nodes
-    void CopyTo(class Compiler* comp, const GenTree& gt);
-
-    // Like the above, excepts assumes copying from small node to small node.
-    // (Following the code it replaces, it does *not* copy the GenTree fields,
-    // which CopyTo does.)
-    void CopyToSmall(const GenTree& gt);
-
     // Because of the fact that we hid the assignment operator of "BitSet" (in DEBUG),
     // we can't synthesize an assignment operator.
     // TODO-Cleanup: Could change this w/o liveset on tree nodes
@@ -3547,6 +3537,8 @@ struct GenTreeCall final : public GenTree
                                                     // stubs, because executable code cannot be generated at runtime.
 #define GTF_CALL_M_HELPER_SPECIAL_DCE    0x00020000 // GT_CALL -- this helper call can be removed if it is part of a comma and
                                                     // the comma result is unused.
+#define GTF_CALL_M_DEVIRTUALIZED         0x00040000 // GT_CALL -- this call was devirtualized
+#define GTF_CALL_M_UNBOXED               0x00080000 // GT_CALL -- this call was optimized to use the unboxed entry point
 
     // clang-format on
 
@@ -3751,6 +3743,16 @@ struct GenTreeCall final : public GenTree
     void SetFatPointerCandidate()
     {
         gtCallMoreFlags |= GTF_CALL_M_FAT_POINTER_CHECK;
+    }
+
+    bool IsDevirtualized() const
+    {
+        return (gtCallMoreFlags & GTF_CALL_M_DEVIRTUALIZED) != 0;
+    }
+
+    bool IsUnboxed() const
+    {
+        return (gtCallMoreFlags & GTF_CALL_M_UNBOXED) != 0;
     }
 
     unsigned gtCallMoreFlags; // in addition to gtFlags
@@ -5534,22 +5536,25 @@ struct GenTreeCopyOrReload : public GenTreeUnOp
 
     unsigned GetRegCount()
     {
-        if (gtRegNum == REG_NA)
-        {
-            return 0;
-        }
 #if FEATURE_MULTIREG_RET
-        for (unsigned i = 0; i < MAX_RET_REG_COUNT - 1; ++i)
+        // We need to return the highest index for which we have a valid register.
+        // Note that the gtOtherRegs array is off by one (the 0th register is gtRegNum).
+        // If there's no valid register in gtOtherRegs, gtRegNum must be valid.
+        // Note that for most nodes, the set of valid registers must be contiguous,
+        // but for COPY or RELOAD there is only a valid register for the register positions
+        // that must be copied or reloaded.
+        //
+        for (unsigned i = MAX_RET_REG_COUNT; i > 1; i--)
         {
-            if (gtOtherRegs[i] == REG_NA)
+            if (gtOtherRegs[i - 2] != REG_NA)
             {
-                return i + 1;
+                return i;
             }
         }
-        return MAX_RET_REG_COUNT;
-#else
-        return 1;
 #endif
+        // We should never have a COPY or RELOAD with no valid registers.
+        assert(gtRegNum != REG_NA);
+        return 1;
     }
 
     GenTreeCopyOrReload(genTreeOps oper, var_types type, GenTree* op1) : GenTreeUnOp(oper, type, op1)
@@ -6333,10 +6338,6 @@ const size_t TREE_NODE_SZ_SMALL = max(sizeof(GenTreeIntCon), sizeof(GenTreeLclFl
 
 const size_t TREE_NODE_SZ_LARGE = sizeof(GenTreeCall);
 
-/*****************************************************************************
- * Types returned by GenTree::lvaLclVarRefs()
- */
-
 enum varRefKinds
 {
     VR_INVARIANT = 0x00, // an invariant value
@@ -6345,8 +6346,6 @@ enum varRefKinds
     VR_IND_SCL   = 0x02, // a non-object reference
     VR_GLB_VAR   = 0x04, // a global (clsVar)
 };
-// Add a temp define to avoid merge conflict.
-#define VR_IND_PTR VR_IND_REF
 
 /*****************************************************************************/
 #endif // !GENTREE_H

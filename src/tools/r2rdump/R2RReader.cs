@@ -56,6 +56,18 @@ namespace R2RDump
         Unknown = -1
     }
 
+    public struct InstanceMethod
+    {
+        public byte Bucket;
+        public R2RMethod Method;
+
+        public InstanceMethod(byte bucket, R2RMethod method)
+        {
+            Bucket = bucket;
+            Method = method;
+        }
+    }
+
     public class R2RReader
     {
         /// <summary>
@@ -106,6 +118,11 @@ namespace R2RDump
         /// The runtime functions and method signatures of each method
         /// </summary>
         public IList<R2RMethod> R2RMethods { get; }
+
+        /// <summary>
+        /// Parsed instance entrypoint table entries.
+        /// </summary>
+        public IList<InstanceMethod> InstanceMethods { get; }
 
         /// <summary>
         /// The available types from READYTORUN_SECTION_AVAILABLE_TYPES
@@ -196,6 +213,8 @@ namespace R2RDump
                     }
 
                     R2RMethods = new List<R2RMethod>();
+                    InstanceMethods = new List<InstanceMethod>();
+
                     if (R2RHeader.Sections.ContainsKey(R2RSection.SectionType.READYTORUN_SECTION_RUNTIME_FUNCTIONS))
                     {
                         int runtimeFunctionSize = CalculateRuntimeFunctionSize();
@@ -268,10 +287,11 @@ namespace R2RDump
                 int offset = 0;
                 if (methodEntryPoints.TryGetAt(Image, rid - 1, ref offset))
                 {
+                    EntityHandle methodHandle = MetadataTokens.MethodDefinitionHandle((int)rid);
                     int runtimeFunctionId;
                     FixupCell[] fixups;
                     GetRuntimeFunctionIndexFromOffset(offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(R2RMethods.Count, MetadataReader, rid, runtimeFunctionId, null, null, fixups);
+                    R2RMethod method = new R2RMethod(R2RMethods.Count, this, methodHandle, runtimeFunctionId, owningType: null, constrainedType: null, instanceArgs: null, fixups: fixups);
 
                     if (method.EntryPointRuntimeFunctionId < 0 || method.EntryPointRuntimeFunctionId >= isEntryPoint.Length)
                     {
@@ -300,33 +320,56 @@ namespace R2RDump
             NativeParser curParser = allEntriesEnum.GetNext();
             while (!curParser.IsNull())
             {
-                uint methodFlags = curParser.GetCompressedData();
-                uint rid = curParser.GetCompressedData();
-                if ((methodFlags & (byte)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_MethodInstantiation) != 0)
-                {
-                    uint nArgs = curParser.GetCompressedData();
-                    CorElementType[] args = new CorElementType[nArgs];
-                    uint[] tokens = new uint[nArgs];
-                    for (int i = 0; i < nArgs; i++)
-                    {
-                        args[i] = (CorElementType)curParser.GetByte();
-                        if (args[i] == CorElementType.ELEMENT_TYPE_VALUETYPE)
-                        {
-                            tokens[i] = curParser.GetCompressedData();
-                            tokens[i] = (tokens[i] >> 2);
-                        }
-                    }
+                SignatureDecoder decoder = new SignatureDecoder(this, (int)curParser.Offset);
 
-                    int runtimeFunctionId;
-                    FixupCell[] fixups;
-                    GetRuntimeFunctionIndexFromOffset((int)curParser.Offset, out runtimeFunctionId, out fixups);
-                    R2RMethod method = new R2RMethod(R2RMethods.Count, MetadataReader, rid, runtimeFunctionId, args, tokens, fixups);
-                    if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
-                    {
-                        isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
-                    }
-                    R2RMethods.Add(method);
+                string owningType = null;
+
+                uint methodFlags = decoder.ReadUInt();
+                if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_OwnerType) != 0)
+                {
+                    owningType = decoder.ReadTypeSignature();
                 }
+                if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_SlotInsteadOfToken) != 0)
+                {
+                    throw new NotImplementedException();
+                }
+                EntityHandle methodHandle;
+                int rid = (int)decoder.ReadUInt();
+                if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_MemberRefToken) != 0)
+                {
+                    methodHandle = MetadataTokens.MemberReferenceHandle(rid);
+                }
+                else
+                {
+                    methodHandle = MetadataTokens.MethodDefinitionHandle(rid);
+                }
+                string[] methodTypeArgs = null;
+                if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_MethodInstantiation) != 0)
+                {
+                    uint typeArgCount = decoder.ReadUInt();
+                    methodTypeArgs = new string[typeArgCount];
+                    for (int typeArgIndex = 0; typeArgIndex < typeArgCount; typeArgIndex++)
+                    {
+                        methodTypeArgs[typeArgIndex] = decoder.ReadTypeSignature();
+                    }
+                }
+
+                string constrainedType = null;
+                if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_Constrained) != 0)
+                {
+                    constrainedType = decoder.ReadTypeSignature();
+                }
+
+                int runtimeFunctionId;
+                FixupCell[] fixups;
+                GetRuntimeFunctionIndexFromOffset((int)decoder.Offset, out runtimeFunctionId, out fixups);
+                R2RMethod method = new R2RMethod(R2RMethods.Count, this, methodHandle, runtimeFunctionId, owningType, constrainedType, methodTypeArgs, fixups);
+                if (method.EntryPointRuntimeFunctionId >= 0 && method.EntryPointRuntimeFunctionId < isEntryPoint.Length)
+                {
+                    isEntryPoint[method.EntryPointRuntimeFunctionId] = true;
+                }
+                R2RMethods.Add(method);
+                InstanceMethods.Add(new InstanceMethod(curParser.LowHashcode, method));
                 curParser = allEntriesEnum.GetNext();
             }
         }
@@ -429,8 +472,6 @@ namespace R2RDump
                 return;
             }
 
-            HashSet<uint> added = new HashSet<uint>();
-
             R2RSection availableTypesSection = R2RHeader.Sections[R2RSection.SectionType.READYTORUN_SECTION_AVAILABLE_TYPES];
             int availableTypesOffset = GetOffset(availableTypesSection.RelativeVirtualAddress);
             NativeParser parser = new NativeParser(Image, (uint)availableTypesOffset);
@@ -440,27 +481,21 @@ namespace R2RDump
             while (!curParser.IsNull())
             {
                 uint rid = curParser.GetUnsigned();
-                rid = rid >> 1;
-                if (added.Contains(rid))
-                    continue;
 
-                TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
-                string typeDefName = MetadataNameFormatter.FormatHandle(MetadataReader, typeDefHandle);
-                ExportedTypeHandle exportedTypeHandle = MetadataTokens.ExportedTypeHandle((int)rid);
-                string exportedTypeName = GetExportedTypeFullName(MetadataReader, exportedTypeHandle);
-                if (typeDefName == null && exportedTypeName == null)
+                bool isExportedType = (rid & 1) != 0;
+                rid = rid >> 1;
+
+                if (isExportedType)
                 {
-                    R2RDump.WriteWarning($"AvailableType with rid {rid} is not a TypeDef or ExportedType");
-                }
-                if (typeDefName != null)
-                {
-                    AvailableTypes.Add(typeDefName);
-                    added.Add(rid);
-                }
-                if (exportedTypeName != null)
-                {
+                    ExportedTypeHandle exportedTypeHandle = MetadataTokens.ExportedTypeHandle((int)rid);
+                    string exportedTypeName = GetExportedTypeFullName(MetadataReader, exportedTypeHandle);
                     AvailableTypes.Add("exported " + exportedTypeName);
-                    added.Add(rid);
+                }
+                else
+                {
+                    TypeDefinitionHandle typeDefHandle = MetadataTokens.TypeDefinitionHandle((int)rid);
+                    string typeDefName = MetadataNameFormatter.FormatHandle(MetadataReader, typeDefHandle);
+                    AvailableTypes.Add(typeDefName);
                 }
 
                 curParser = allEntriesEnum.GetNext();
@@ -543,7 +578,7 @@ namespace R2RDump
                     uint sigRva = NativeReader.ReadUInt32(Image, ref signatureOffset);
                     int sigOffset = GetOffset((int)sigRva);
                     string cellName = MetadataNameFormatter.FormatSignature(this, sigOffset);
-                    entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, section, sigRva, cellName));
+                    entries.Add(new R2RImportSection.ImportSectionEntry(entries.Count, entryOffset, entryOffset + rva, section, sigRva, cellName));
                     ImportCellNames.Add(rva + entrySize * i, cellName);
                 }
 
