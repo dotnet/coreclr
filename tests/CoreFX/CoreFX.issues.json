@@ -1,5 +1,19 @@
 ﻿[
     {
+        "name": "System.Globalization.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Globalization.Tests.CharUnicodeInfoGetUnicodeCategoryTests.GetUnicodeCategory",
+                    "reason": "We updated the Unicode data and didn't pick yet the updated tests from corefx. we should remove this entry after updating the tests in coreclr."
+                }
+            ]
+        }
+    },
+    {
         "name": "System.Data.SqlClient.ManualTesting.Tests",
         "enabled": false,
         "exclusions": {
@@ -564,6 +578,20 @@
                 }
             ],
             "methods": null
+        }
+    },
+    {
+        "name": "System.Runtime.Tests",
+        "enabled": true,
+        "exclusions": {
+            "namespaces": null,
+            "classes": null,
+            "methods": [
+                {
+                    "name": "System.Text.Tests.StringBuilderTests.Equals",
+                    "reason": "Because of a change in StringBuilder, this test is outdated."
+                }
+            ]
         }
     }
 ]
