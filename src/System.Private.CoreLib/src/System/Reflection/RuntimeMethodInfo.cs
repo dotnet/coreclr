@@ -529,6 +529,8 @@ namespace System.Reflection
             }
         }
 
+        public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle));
+
         public override MethodInfo GetBaseDefinition()
         {
             if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
