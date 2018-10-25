@@ -29,6 +29,9 @@ resources:
   containers:
   - container: alpine
     image: microsoft/dotnet-buildtools-prereqs:alpine-3.6-3148f11-20171119021156
+  containers:
+  - container: myubuntu
+    image: ubuntu
     
 jobs:
 - job: testcontainerjob
@@ -38,7 +41,13 @@ jobs:
   container: alpine
   steps:
     - script: printenv
-
+- job: testubuntucontainerjob
+  displayName: ubuntu container job
+  pool:
+    name: Hosted Ubuntu 1604
+  container: myubuntu
+  steps:
+    - script: printenv
 
 #- job: testvariablejob
 #  displayName: testvariableDisplayName
