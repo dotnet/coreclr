@@ -340,7 +340,7 @@ namespace System.Reflection.Emit
         /// <summary>
         /// Defines a named dynamic module. It is an error to define multiple 
         /// modules within an Assembly with the same name.This dynamic module is
-        /// transient module
+        /// transient module.
         /// </summary>
         /// <remarks>
         /// Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
@@ -654,9 +654,13 @@ namespace System.Reflection.Emit
                 return true;
             }
         }
+
+        public override bool IsCollectible => InternalAssembly.IsCollectible;
         #endregion
 
-        
+        /// <summary>
+        /// Return a dynamic module with the specified name.
+        /// </summary>
         /// <param name="name">The name of module for the look up.</param>
         /// <returns>Dynamic module with the specified name</returns>
         public ModuleBuilder GetDynamicModule(
@@ -689,7 +693,6 @@ namespace System.Reflection.Emit
             return null;
         }
 
-        
         /// <summary>
         /// Use this function if client decides to form the custom attribute blob themselves.
         /// </summary>

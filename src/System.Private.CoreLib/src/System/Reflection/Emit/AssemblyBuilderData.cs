@@ -151,7 +151,7 @@ namespace System.Reflection.Emit
         internal bool m_hasUnmanagedVersionInfo;
         internal bool m_OverrideUnmanagedVersionInfo;
     }
-    
+
     /// <summary>
     /// Internal structure to track the list of ResourceWriter for
     /// AssemblyBuilder & ModuleBuilder.

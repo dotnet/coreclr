@@ -12,7 +12,7 @@ namespace System.Globalization
         // PLEASE DON'T MODIFY BY HAND
 
 
-        // 12:4:4 index table of the Unicode cateogry data.
+        // 12:4:4 index table of the Unicode category data.
         private static ushort[] s_pCategoryLevel1Index = new ushort[]
         {
             0x1100, 0x1110, 0x1120, 0x1130, 0x1140, 0x1150, 0x1160, 0x1170, 0x1180, 0x1190, 0x11a0, 0x11b0, 0x11c0, 0x11d0, 0x11e0, 0x11f0,
