@@ -55,7 +55,8 @@ phases:
       displayName: Build
     - script: echo Sign!
       displayName: Sign Binaries (empty for now)
-    - script: build packages
+    - script: echo Publish!
+      displayName: Publish build to some location (empty for now)
 #    - script: build-test.cmd $(buildConfig) $(archType) buildagainstpackages runtimeid win-$(archType) -Priority=0
 #      displayName: Build tests
     - script: build-test.cmd $(buildConfig) $(archType) -Priority=0
@@ -110,6 +111,10 @@ phases:
       displayName: Sync
     - script: ./build.sh $(buildConfig) $(archType) -skipnuget -skiprestore
       displayName: Build
+    - script: echo Sign!
+      displayName: Sign Binaries (empty for now)
+    - script: echo Publish!
+      displayName: Publish build to some location (empty for now)
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
     - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Build.SourcesDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root
@@ -171,6 +176,10 @@ phases:
       displayName: Sync
     - script: ./build.sh $(buildConfig) $(archType)
       displayName: Build
+    - script: echo Sign!
+      displayName: Sign Binaries (empty for now)
+    - script: echo Publish!
+      displayName: Publish build to some location (empty for now)
     - script: ./build-test.sh $(buildConfig) $(archType)
       displayName: Build tests
     - script: ./Tools/dotnetcli/dotnet msbuild tests/helixprepnew.proj /p:CORE_ROOT=$(Agent.BuildDirectory)/bin/tests/OSX.$(archType).$(buildConfigUpper)/Tests/Core_Root
